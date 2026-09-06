@@ -29,7 +29,9 @@ jobs:
           test -r /dev/fuse && test -w /dev/fuse
           mountpoint -q /sys/fs/fuse/connections || sudo mount -t fusectl fusectl /sys/fs/fuse/connections
       - name: Filesystem, isolated local writes and mount lifecycle
-        run: timeout 90s cargo test -p cirrove-service --test read_only --locked real_ -- --ignored --nocapture
+        # Keep independent mounts from competing with latency/memory fixtures.
+        # Each fixture still exercises its own concurrent requests/accounts.
+        run: timeout 90s cargo test -p cirrove-service --test read_only --locked real_ -- --ignored --nocapture --test-threads=1
       - name: Automatic writable-session uploads and draining
         run: timeout 90s cargo test -p cirrove-service --test writable_session --locked real_ -- --ignored --nocapture
       - run: cargo build --workspace --locked

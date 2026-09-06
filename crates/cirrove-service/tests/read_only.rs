@@ -1231,7 +1231,7 @@ async fn real_memory_mapped_reads_are_supported() {
         .args([
             "-c",
             r#"
-import mmap,sys,resource
+import mmap,sys
 from pathlib import Path
 with open(sys.argv[1], 'rb') as f:
     for access in (mmap.ACCESS_READ,mmap.ACCESS_COPY):
@@ -1245,7 +1245,10 @@ with open(Path(sys.argv[1]).with_name('large.bin'),'rb') as f:
     with mmap.mmap(f.fileno(),0,access=mmap.ACCESS_READ) as view:
         offset=2*1024*1024*1024+197
         assert view[offset:offset+16384] == bytes(i % 251 for i in range(offset,offset+16384))
-assert resource.getrusage(resource.RUSAGE_SELF).ru_maxrss < 128*1024
+# Linux rusage can retain the parent's pre-exec high-water mark. VmHWM
+# belongs to this program's address space, which is the memory we are testing.
+peak_kib=int(next(line.split()[1] for line in Path('/proc/self/status').read_text().splitlines() if line.startswith('VmHWM:')))
+assert peak_kib < 128*1024, f'mapped application peak RSS: {peak_kib} KiB'
 "#,
         ])
         .arg(mount.join("small.txt"))
@@ -1297,11 +1300,13 @@ async fn real_thumbnail_burst_queues_reads_without_blocking_cached_navigation() 
     ready(&engine).await;
     let session = CloudFs::new(engine.clone()).unwrap().mount(&mount).unwrap();
     let path = mount.clone();
+    let (opened, opening) = tokio::sync::oneshot::channel();
     let mut readers = tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
         // Open first so this checks content admission independently of metadata.
         let files = (0..READERS)
             .map(|i| std::fs::File::open(path.join(format!("thumbnail-{i:03}.bin"))))
             .collect::<Result<Vec<_>, _>>()?;
+        let _ = opened.send(());
         let barrier = Arc::new(std::sync::Barrier::new(READERS));
         let threads = files
             .into_iter()
@@ -1332,46 +1337,57 @@ async fn real_thumbnail_burst_queues_reads_without_blocking_cached_navigation() 
         );
         Ok(())
     });
-    let result = tokio::time::timeout(Duration::from_secs(20), async {
-        while provider.reads.load(Ordering::SeqCst) < 4 {
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-        let mut listings_ms = vec![];
-        for _ in 0..20 {
-            let path = mount.join("folder");
-            let start = std::time::Instant::now();
-            let entries = tokio::time::timeout(
-                Duration::from_millis(500),
-                tokio::task::spawn_blocking(move || {
-                    std::fs::read_dir(path)?.collect::<Result<Vec<_>, std::io::Error>>()
-                }),
-            )
-            .await
-            .context("cached navigation stalled behind downloads")???;
-            ensure!(entries.len() == 1, "cached directory changed during burst");
-            listings_ms.push(start.elapsed().as_secs_f64() * 1000.0);
-            tokio::time::sleep(Duration::from_millis(10)).await;
-        }
-        (&mut readers).await??;
-        ensure!(
-            provider.reads.load(Ordering::SeqCst) == READERS as u64,
-            "burst retried provider reads"
-        );
-        listings_ms.sort_by(f64::total_cmp);
-        println!(
-            "CIRROVE_THUMBNAIL_BURST {}",
-            serde_json::json!({
-                "fixture": "synthetic kernel FUSE, 250 ms content delay; no cloud traffic",
-                "simultaneous_readers": READERS, "file_bytes": 3_100_000, "read_bytes": 64 * 1024,
-                "provider_range_calls": READERS, "directory_samples": listings_ms.len(),
-                "directory_p50_ms": listings_ms[9], "directory_p95_ms": listings_ms[18],
-            })
-        );
-        Ok::<_, anyhow::Error>(())
-    })
-    .await
-    .context("thumbnail burst timed out")
-    .and_then(|result| result);
+    let setup = tokio::time::timeout(Duration::from_secs(20), opening)
+        .await
+        .context("opening thumbnail files timed out")
+        .and_then(|r| r.context("opening thumbnail files failed"));
+    let result = if setup.is_ok() {
+        tokio::time::timeout(Duration::from_secs(20), async {
+            while provider.reads.load(Ordering::SeqCst) < 4 {
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+            let mut listings_ms = vec![];
+            for _ in 0..20 {
+                let path = mount.join("folder");
+                let start = std::time::Instant::now();
+                let entries = tokio::time::timeout(
+                    Duration::from_millis(500),
+                    tokio::task::spawn_blocking(move || {
+                        std::fs::read_dir(path)?.collect::<Result<Vec<_>, std::io::Error>>()
+                    }),
+                )
+                .await
+                .context("cached navigation stalled behind downloads")???;
+                ensure!(entries.len() == 1, "cached directory changed during burst");
+                listings_ms.push(start.elapsed().as_secs_f64() * 1000.0);
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+            (&mut readers).await??;
+            ensure!(
+                provider.reads.load(Ordering::SeqCst) == READERS as u64,
+                "burst retried provider reads"
+            );
+            listings_ms.sort_by(f64::total_cmp);
+            println!(
+                "CIRROVE_THUMBNAIL_BURST {}",
+                serde_json::json!({
+                    "fixture": "synthetic kernel FUSE, 250 ms content delay; no cloud traffic",
+                    "simultaneous_readers": READERS, "file_bytes": 3_100_000, "read_bytes": 64 * 1024,
+                    "provider_range_calls": READERS, "directory_samples": listings_ms.len(),
+                    "directory_p50_ms": listings_ms[9], "directory_p95_ms": listings_ms[18],
+                })
+            );
+            Ok::<_, anyhow::Error>(())
+        })
+        .await
+        .with_context(|| format!(
+            "thumbnail burst timed out (provider reads started: {}, reader task finished: {})",
+            provider.reads.load(Ordering::SeqCst), readers.is_finished()
+        ))
+        .and_then(|result| result)
+    } else {
+        setup
+    };
     engine.stop().await;
     // Shutdown cancels outstanding reads before joining the kernel session.
     if !readers.is_finished() {

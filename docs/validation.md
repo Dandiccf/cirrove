@@ -8,7 +8,7 @@ acceptance for roadmap stages 1–3.
 ## Local checks
 
 - Formatting and strict Clippy cover all crates and test targets.
-- Current default workspace suite: **104 tests passed**. Nine kernel-FUSE tests
+- Current default workspace suite: **121 tests passed**. Eighteen kernel-FUSE tests
   run separately; subprocess fixture entry points and the optional performance
   fixture remain excluded from the default suite.
 - Built both binaries and generated workspace Rustdoc.
@@ -55,7 +55,7 @@ The content tests check 32-reader coalescing, offsets beyond 2 GiB in a syntheti
 3 GiB file, offline cache reuse after restart, corruption recovery, interrupted
 publication cleanup, quota enforcement and shared-failure retry suppression.
 
-Nine tests ran against **real kernel FUSE mounts** in temporary directories:
+The read-only baseline ran against **real kernel FUSE mounts** in temporary directories:
 
 - Normal file reads, linked-library projection, duplicate-alias inodes, deep
   traversal, large seeks, EROFS on writes, stable inodes/cache after restart,
@@ -335,6 +335,28 @@ This is one small business-drive fixture, not a latency distribution, large-file
 benchmark, personal-account check or desktop-application save matrix.
 Atomic replacement, folder operations, physical disk failure and the ordinary
 application compatibility matrix remain open.
+
+### Kernel test isolation and memory measurement
+
+The first CI pair for the writable-session change had one passing run and one
+failure in existing read-only tests: an application-memory assertion and the
+thumbnail-burst deadline. A controlled child-process experiment reproduced a
+measurement defect: `ru_maxrss` could include inherited memory before exec even
+when the Python application's own address space remained small. The mmap test now
+uses that application's `/proc/self/status` `VmHWM`, retaining the 128 MiB limit
+and all byte/mapping assertions.
+
+The original CI log did not separate thumbnail file opening from active reads, so
+the exact phase responsible for its timeout is unknown. Setup and the subsequent
+96-reader burst now each have a bounded deadline; cached-directory requests still
+must finish within 500 ms and no content request may fail or be retried. Independent
+kernel fixtures run sequentially in CI to avoid competing with these latency
+checks. Internal request/account concurrency remains tested. The pre-change suite
+also passed a local two-CPU run; that pass does not explain the CI timeout or
+establish a runtime performance fix.
+The corrected fourteen-test read-only kernel suite passed with two CPUs and
+sequential fixtures. The 121 default workspace tests and strict Clippy passed again;
+these corrections change the validation harness, not the live-tested runtime.
 
 ## Required before calling stages 1–3 complete
 
