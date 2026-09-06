@@ -1,0 +1,19 @@
+[Unit]
+Description=Cirrove cloud filesystem service (metadata foundation)
+Documentation=https://github.com/Dandiccf/cirrove
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=exec
+ExecStart=%h/.local/bin/cirroved --state-dir %h/.local/state/cirrove --socket %t/cirrove/control.sock
+RuntimeDirectory=cirrove
+RuntimeDirectoryMode=0700
+UMask=0077
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=10
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,10 @@
+/target/
+/.cargo-home/
+/.local-state/
+.env
+.env.*
+*.db
+*.db-shm
+*.db-wal
+*.token
+*.pem

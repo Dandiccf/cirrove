@@ -1,0 +1,20 @@
+[package]
+name = "cirrove-onedrive"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+cirrove-core.workspace = true
+async-trait.workspace = true
+httpdate.workspace = true
+reqwest.workspace = true
+secrecy.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true
