@@ -70,7 +70,18 @@ fn receipt(request: &MutationRequest) -> MutationReceipt {
     }
 }
 fn journal(root: &std::path::Path) -> UploadJournal {
-    UploadJournal::open(root, "fixture", 1024 * 1024).unwrap()
+    // This helper opens fresh/released owners. A concurrent fork can briefly
+    // retain a CLOEXEC descriptor until exec; held-owner exclusion is tested
+    // separately with direct opens and must still fail immediately.
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        match UploadJournal::open(root, "fixture", 1024 * 1024) {
+            Err(JournalError::Busy) if Instant::now() < deadline => {
+                std::thread::sleep(Duration::from_millis(2))
+            }
+            result => return result.unwrap(),
+        }
+    }
 }
 #[test]
 fn uploads_and_namespace_changes_share_item_and_destination_ordering() {
@@ -237,6 +248,12 @@ impl MutationProvider for Provider {
         self.checks.fetch_add(1, Ordering::SeqCst);
         Ok(if self.mode == "indeterminate" {
             MutationReconciliation::Indeterminate
+        } else if self.mode == "changed_content" {
+            let MutationReceipt::Upsert(mut node) = receipt(r) else {
+                panic!("expected rename fixture")
+            };
+            node.content_version = Some("external-content".into());
+            MutationReconciliation::Applied(MutationReceipt::Upsert(node))
         } else {
             MutationReconciliation::Applied(receipt(r))
         })
@@ -250,6 +267,34 @@ fn provider(mode: &'static str, j: &Arc<Mutex<UploadJournal>>) -> Arc<Provider> 
         journal: Arc::downgrade(j),
         entered: tokio::sync::Notify::new(),
     })
+}
+#[tokio::test]
+async fn worker_exposes_content_conflict_after_a_lost_rename_instead_of_acknowledging_a_new_base() {
+    let tmp = tempfile::tempdir().unwrap();
+    let j = Arc::new(Mutex::new(journal(&tmp.path().join("journal"))));
+    let moved = j.lock().unwrap().enqueue_mutation(request()).unwrap();
+    let next = j
+        .lock()
+        .unwrap()
+        .enqueue_after(moved.id, b"my saved bytes".as_slice())
+        .unwrap();
+    let p = provider("changed_content", &j);
+    let worker = MutationWorker::new(j.clone(), p.clone(), CancellationToken::new());
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        MutationState::VerifyRequired
+    );
+    j.lock().unwrap().request_mutation_retry(moved.id).unwrap();
+    let result = worker.run_once().await.unwrap().unwrap();
+    assert_eq!(result.state, MutationState::Conflict);
+    assert!(result.issue.is_some());
+    assert!(j.lock().unwrap().claim_next().unwrap().is_none());
+    assert_eq!(
+        j.lock().unwrap().get(next.id).unwrap().state,
+        cirrove_service::journal::UploadState::Pending
+    );
+    assert_eq!(p.mutations.load(Ordering::SeqCst), 1);
+    assert_eq!(p.checks.load(Ordering::SeqCst), 1);
 }
 #[tokio::test]
 async fn lost_success_reconciles_after_restart_without_a_second_mutation() {

@@ -25,6 +25,12 @@ pub struct MutationRecord {
     pub receipt: Option<MutationReceipt>,
     pub retry_at: u64,
     pub failed_attempts: u32,
+    /// Source fields are bound to this preceding operation's confirmed receipt
+    /// before a worker can claim the request. Destination fields remain unchanged.
+    #[serde(default)]
+    pub base: Option<WriteBase>,
+    #[serde(default)]
+    pub working_file: Option<Uuid>,
 }
 pub(super) fn item_key(scope: &Scope, item: &str) -> Result<String> {
     Ok(serde_json::to_string(&(scope, "item", item))?)
@@ -42,7 +48,7 @@ pub(super) fn upload_resources(scope: &Scope, intent: &UploadIntent) -> Result<V
         UploadIntent::Replace { item, .. } => item_key(scope, item)?,
     }])
 }
-fn mutation_resources(request: &MutationRequest) -> Result<Vec<String>> {
+pub(super) fn mutation_resources(request: &MutationRequest) -> Result<Vec<String>> {
     let scope = &request.scope;
     let mut keys = vec![];
     if let Some(before) = request.intent.before() {
@@ -125,6 +131,33 @@ pub(super) fn migrate_queue(db: &mut Connection, version: u32) -> Result<()> {
 impl UploadJournal {
     pub fn enqueue_mutation(&mut self, request: MutationRequest) -> Result<MutationRecord> {
         request.validate().map_err(|_| JournalError::Intent)?;
+        self.enqueue_bound_mutation(request, None, None)
+    }
+    /// Follow the confirmed identity/version of an earlier save or namespace
+    /// operation. Only the requested destination is independent of that receipt.
+    /// The supplied source is a local preview and may lack a remote ETag.
+    pub fn enqueue_mutation_after(
+        &mut self,
+        predecessor: Uuid,
+        request: MutationRequest,
+    ) -> Result<MutationRecord> {
+        self.validate_mutation_base(predecessor, &request)?;
+        self.ensure_successor_free(predecessor)?;
+        self.enqueue_bound_mutation(
+            request,
+            Some(WriteBase {
+                predecessor,
+                resolved: false,
+            }),
+            None,
+        )
+    }
+    pub(super) fn enqueue_bound_mutation(
+        &mut self,
+        request: MutationRequest,
+        base: Option<WriteBase>,
+        working: Option<WorkingFile>,
+    ) -> Result<MutationRecord> {
         if request.scope.account != self.account {
             return Err(JournalError::Account);
         }
@@ -137,9 +170,17 @@ impl UploadJournal {
             receipt: None,
             retry_at: 0,
             failed_attempts: 0,
+            base,
+            working_file: working.as_ref().map(|file| file.id),
         };
         let tx = self.db.transaction()?;
         record.sequence = queue_insert(&tx, record.id, mutation_resources(&record.request)?)?;
+        super::generations::insert_dependency(
+            &tx,
+            record.id,
+            record.sequence,
+            record.base.as_ref(),
+        )?;
         tx.execute(
             "INSERT INTO mutations VALUES(?1,?2,'pending',?3)",
             params![
@@ -148,6 +189,9 @@ impl UploadJournal {
                 serde_json::to_string(&record)?
             ],
         )?;
+        if let Some(working) = working {
+            super::working::commit_relocation(&tx, working, &record)?;
+        }
         tx.commit()?;
         Ok(record)
     }
@@ -175,7 +219,7 @@ impl UploadJournal {
         })?;
         rows.map(|row| Ok(serde_json::from_str(&row?)?)).collect()
     }
-    fn save_mutation(&mut self, record: &MutationRecord) -> Result<()> {
+    pub(super) fn save_mutation(&mut self, record: &MutationRecord) -> Result<()> {
         let state = serde_json::to_value(record.state)?;
         let tx = self.db.transaction()?;
         if tx.execute(
@@ -197,7 +241,9 @@ impl UploadJournal {
         if !self.resolve_ready_generations()? {
             return Ok(None);
         }
-        let body: Option<String> = self.db.query_row("SELECT m.body FROM mutations m WHERE m.state IN ('pending','verify_required') AND json_extract(m.body,'$.retry_at')<=?1 AND NOT EXISTS (
+        let body: Option<String> = self.db.query_row("SELECT m.body FROM mutations m WHERE m.state IN ('pending','verify_required')
+            AND (json_extract(m.body,'$.base') IS NULL OR json_extract(m.body,'$.base.resolved')=1)
+            AND json_extract(m.body,'$.retry_at')<=?1 AND NOT EXISTS (
             SELECT 1 FROM write_queue previous JOIN write_resources a ON a.id=previous.id JOIN write_resources b ON b.resource=a.resource AND b.id=m.id WHERE previous.sequence<m.sequence AND previous.complete=0)
             ORDER BY m.sequence LIMIT 1",[now_seconds() as i64],|r|r.get(0)).optional()?;
         let Some(body) = body else {
@@ -229,15 +275,16 @@ impl UploadJournal {
         id: Uuid,
         attempt: Uuid,
         receipt: MutationReceipt,
-    ) -> Result<()> {
+    ) -> Result<MutationState> {
         let mut record = self.mutation_attempt(id, attempt)?;
         if !record.request.accepts(&receipt) {
             return Err(JournalError::Corrupt);
         }
+        record.state = reconciled_state(&record, &receipt);
         record.receipt = Some(receipt);
-        record.state = MutationState::Applied;
         record.attempt = None;
-        self.save_mutation(&record)
+        self.save_mutation(&record)?;
+        Ok(record.state)
     }
     pub fn defer_mutation(
         &mut self,
@@ -276,6 +323,9 @@ impl UploadJournal {
     }
     pub fn request_mutation_retry(&mut self, id: Uuid) -> Result<()> {
         let mut record = self.mutation(id)?;
+        if record.base.as_ref().is_some_and(|base| !base.resolved) {
+            return Err(JournalError::Stale);
+        }
         if !matches!(
             record.state,
             MutationState::Failed | MutationState::VerifyRequired | MutationState::NeedsReview
@@ -285,5 +335,33 @@ impl UploadJournal {
         record.state = MutationState::VerifyRequired;
         record.retry_at = 0;
         self.save_mutation(&record)
+    }
+}
+
+fn reconciled_state(record: &MutationRecord, receipt: &MutationReceipt) -> MutationState {
+    let (MutationIntent::Relocate { before, .. }, MutationReceipt::Upsert(after)) =
+        (&record.request.intent, receipt)
+    else {
+        return MutationState::Applied;
+    };
+    if record.state != MutationState::Verifying || before.kind != NodeKind::File {
+        // A conditional mutation response binds to the version we requested.
+        return MutationState::Applied;
+    }
+    // A later lookup at the requested name can also include somebody else's
+    // content edit. Never adopt that new ETag as the base for our next upload.
+    if before.size != after.size {
+        return MutationState::Conflict;
+    }
+    if before.etag == after.etag {
+        return MutationState::Applied;
+    }
+    match (
+        before.content_version.as_deref().filter(|s| !s.is_empty()),
+        after.content_version.as_deref().filter(|s| !s.is_empty()),
+    ) {
+        (Some(old), Some(new)) if old == new => MutationState::Applied,
+        (Some(_), Some(_)) => MutationState::Conflict,
+        _ => MutationState::NeedsReview,
     }
 }

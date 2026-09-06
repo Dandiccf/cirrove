@@ -1,6 +1,7 @@
 //! Mutable application bytes and their atomically linked immutable saves.
 //! All calls use the journal owner's blocking-worker lock. No network work here.
 use super::*;
+use cirrove_core::mutation::{MutationIntent, MutationRequest};
 use std::os::unix::fs::FileExt;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -12,6 +13,24 @@ pub struct WorkingFile {
     pub latest: Option<Uuid>,
     pub dirty: bool,
     pub generation: u64,
+    /// Preserve the provider's original content tag separately from the mutable
+    /// working-file revision, for the first metadata-only operation.
+    #[serde(default)]
+    pub initial_remote: Option<Node>,
+}
+impl WorkingFile {
+    fn mutation_source(&self) -> Node {
+        if self.latest.is_some() {
+            return self.node.clone();
+        }
+        self.initial_remote.clone().unwrap_or_else(|| {
+            // Legacy working copies replaced their original content tag. Do not
+            // present that local tag as evidence of the remote content version.
+            let mut node = self.node.clone();
+            node.content_version = None;
+            node
+        })
+    }
 }
 
 /// A quota-reserved source being hydrated outside the journal lock. It cannot
@@ -42,14 +61,14 @@ pub(super) struct WorkingCommit {
     previous: Option<Uuid>,
 }
 
-pub(super) fn migrate(db: &mut Connection) -> Result<()> {
+pub(super) fn migrate(db: &mut Connection, version: u32) -> Result<()> {
     let tx = db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
     tx.execute_batch(
         "CREATE TABLE IF NOT EXISTS working_files (
         id TEXT PRIMARY KEY, identity TEXT NOT NULL UNIQUE,
         slot TEXT NOT NULL UNIQUE, body TEXT NOT NULL);",
     )?;
-    tx.pragma_update(None, "user_version", 5)?;
+    tx.pragma_update(None, "user_version", version.max(5))?;
     tx.commit()?;
     Ok(())
 }
@@ -219,6 +238,7 @@ impl UploadJournal {
         .validate()
         .map_err(|_| JournalError::Intent)?;
         let id = Uuid::new_v4();
+        let initial_remote = (!new).then(|| node.clone());
         if new {
             node.id = format!("local-{id}");
         }
@@ -231,6 +251,7 @@ impl UploadJournal {
             latest: None,
             dirty: new,
             generation: 0,
+            initial_remote,
         };
         let identity = serde_json::to_string(&(&record.scope, &record.node.id))?;
         let slot = slot(&record)?;
@@ -323,7 +344,7 @@ impl UploadJournal {
         }
         let (intent, base) = match record.latest {
             Some(previous) => (
-                self.get(previous)?.intent,
+                self.upload_intent_after(previous)?.1,
                 Some(UploadBase {
                     predecessor: previous,
                     resolved: false,
@@ -345,6 +366,60 @@ impl UploadJournal {
         .map(Some)
     }
 
+    /// Persist a local working-file relocation together with its ordered remote
+    /// intent. No provider request is made here, including for a pending create.
+    /// Replacement of another local object is a separate namespace operation.
+    pub fn relocate_working(
+        &mut self,
+        id: Uuid,
+        parent: String,
+        name: String,
+    ) -> Result<MutationRecord> {
+        UploadIntent::Create {
+            parent: parent.clone(),
+            name: name.clone(),
+        }
+        .validate()
+        .map_err(|_| JournalError::Intent)?;
+        let current = self.working_file(id)?;
+        if current.node.id == parent {
+            return Err(JournalError::Intent);
+        }
+        if current.dirty {
+            self.seal_working(id)?;
+        }
+        let mut working = self.working_file(id)?;
+        let request = MutationRequest {
+            scope: working.scope.clone(),
+            intent: MutationIntent::Relocate {
+                before: working.mutation_source(),
+                parent: parent.clone(),
+                name: name.clone(),
+            },
+        };
+        let base = match working.latest {
+            Some(predecessor) => {
+                self.validate_mutation_base(predecessor, &request)?;
+                self.ensure_successor_free(predecessor)?;
+                Some(WriteBase {
+                    predecessor,
+                    resolved: false,
+                })
+            }
+            None => {
+                request.validate().map_err(|_| JournalError::Intent)?;
+                None
+            }
+        };
+        working.node.parent_id = Some(parent);
+        working.node.name = name;
+        working.generation = working
+            .generation
+            .checked_add(1)
+            .ok_or(JournalError::Quota)?;
+        self.enqueue_bound_mutation(request, base, Some(working))
+    }
+
     pub(super) fn recover_working(&mut self) -> Result<()> {
         for mut record in self.working_files()? {
             let size = self.working_descriptor(record.id, false)?.metadata()?.len();
@@ -358,6 +433,62 @@ impl UploadJournal {
         }
         Ok(())
     }
+}
+
+pub(super) fn commit_relocation(
+    tx: &rusqlite::Transaction<'_>,
+    mut working: WorkingFile,
+    mutation: &MutationRecord,
+) -> Result<()> {
+    let body: String = tx.query_row(
+        "SELECT body FROM working_files WHERE id=?1",
+        [working.id.to_string()],
+        |r| r.get(0),
+    )?;
+    let old: WorkingFile = serde_json::from_str(&body)?;
+    if old.dirty
+        || old.latest != working.latest
+        || old.scope != working.scope
+        || old.node.id != working.node.id
+        || old.generation.checked_add(1) != Some(working.generation)
+        || mutation.base.as_ref().map(|b| b.predecessor) != old.latest
+        || mutation.request.scope != old.scope
+        || mutation.working_file != Some(old.id)
+    {
+        return Err(JournalError::Stale);
+    }
+    let MutationIntent::Relocate {
+        before,
+        parent,
+        name,
+    } = &mutation.request.intent
+    else {
+        return Err(JournalError::Intent);
+    };
+    if before != &old.mutation_source()
+        || working.node.parent_id.as_ref() != Some(parent)
+        || &working.node.name != name
+    {
+        return Err(JournalError::Stale);
+    }
+    let occupied: bool = tx.query_row(
+        "SELECT EXISTS(SELECT 1 FROM working_files WHERE slot=?1 AND id!=?2)",
+        params![slot(&working)?, working.id.to_string()],
+        |r| r.get(0),
+    )?;
+    if occupied {
+        return Err(JournalError::Stale);
+    }
+    working.latest = Some(mutation.id);
+    tx.execute(
+        "UPDATE working_files SET slot=?2,body=?3 WHERE id=?1",
+        params![
+            working.id.to_string(),
+            slot(&working)?,
+            serde_json::to_string(&working)?
+        ],
+    )?;
+    Ok(())
 }
 
 pub(super) fn commit_generation(

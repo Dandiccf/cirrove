@@ -63,9 +63,15 @@ impl MutationWorker {
         };
         let (state, issue) = match result {
             Ok(MutationReconciliation::Applied(receipt)) => {
-                self.local(move |j| j.acknowledge_mutation(id, attempt, receipt))
+                let state = self
+                    .local(move |j| j.acknowledge_mutation(id, attempt, receipt))
                     .await?;
-                (MutationState::Applied, None)
+                let issue = match state {
+                    MutationState::Conflict => Some("remote content changed during an uncertain rename; local edits retained".into()),
+                    MutationState::NeedsReview => Some("cannot verify the content version after an uncertain rename; local edits retained".into()),
+                    _ => None,
+                };
+                (state, issue)
             }
             Ok(MutationReconciliation::Uncommitted) => {
                 self.local(move |j| j.retry_uncommitted_mutation(id, attempt))

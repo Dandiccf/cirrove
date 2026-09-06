@@ -7,7 +7,7 @@ mod generations;
 mod mutations;
 mod working;
 use cirrove_core::{Node, NodeKind, Scope};
-pub use generations::UploadBase;
+pub use generations::{UploadBase, WriteBase};
 pub use mutations::{MutationRecord, MutationState};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
@@ -96,7 +96,7 @@ pub struct UploadRecord {
     /// An attempt token fences delayed results after restart or retry.
     pub attempt: Option<Uuid>,
     pub remote: Option<Node>,
-    /// A preceding local save whose receipt determines this save's base version.
+    /// A preceding save or namespace operation supplies the confirmed base version.
     #[serde(default)]
     pub base: Option<UploadBase>,
     #[serde(default)]
@@ -175,7 +175,7 @@ impl UploadJournal {
         let mut db = Connection::open(database)?;
         db.busy_timeout(std::time::Duration::from_secs(3))?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if version > 5 {
+        if version > 6 {
             return Err(JournalError::Schema);
         }
         db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;
@@ -193,7 +193,8 @@ impl UploadJournal {
         }
         mutations::migrate_queue(&mut db, version)?;
         generations::migrate(&mut db, version)?;
-        working::migrate(&mut db)?;
+        working::migrate(&mut db, version)?;
+        generations::migrate_dependencies(&mut db, version)?;
         // Never infer that a transfer failed just because its process died.
         db.execute(
             "UPDATE uploads SET state='verify_required',
@@ -272,6 +273,9 @@ impl UploadJournal {
             return Err(JournalError::Intent);
         }
         intent.validate().map_err(|_| JournalError::Intent)?;
+        if let Some(base) = &base {
+            self.ensure_successor_free(base.predecessor)?;
+        }
         let (retained, files) = self.retained_usage()?;
         if files >= 10_000 {
             return Err(JournalError::Quota);
@@ -326,6 +330,7 @@ impl UploadJournal {
             record.id,
             mutations::upload_resources(&record.scope, &record.intent)?,
         )?;
+        generations::insert_dependency(&tx, record.id, record.sequence, record.base.as_ref())?;
         tx.execute(
             "INSERT INTO uploads(id,resource,state,body,sequence) VALUES(?1,?2,'pending',?3,?4)",
             params![

@@ -209,6 +209,13 @@ It never mounts over local files deposited after an ejection. Enabled accounts a
 remounted after accidental ejection; `disable` records an intentional unmount.
 Shutdown cancels and awaits workers, then unmounts and joins FUSE sessions.
 
+The mount root currently has fixed synthetic attributes. Metadata notifications
+invalidate projected child entries, but do not invalidate that root inode: an
+invalidation racing its first GETATTR can discard the initial ownership/permission
+reply. Directory handles do not request kernel readdir caching. If root attributes
+become mutable, their refresh needs an initialized-root lifecycle rather than
+reintroducing that startup race.
+
 Linux lazy unmount leaves the kernel connection alive while an application retains
 a file or directory descriptor. Cirrove therefore retains its own connection's
 FUSE control descriptor when mounting, detaches the mount, disconnects that kernel
@@ -279,8 +286,10 @@ Consecutive upload generations form a linear dependency chain. A later generatio
 uses the preceding validated receipt's item ID and ETag, including after a create
 assigns a new remote identity. An uncertain or conflicted predecessor blocks its
 successors while independent files remain eligible. Old sealed bytes never change
-when the working file is edited again. Interleaved namespace mutations still need
-unified causal ordering before the full save/rename workflow can be enabled.
+when the working file is edited again. Schema 6 extends this receipt chain across
+uploads and namespace mutations. A local working-file relocation now commits its
+new name and queued mutation together; mounted namespace projection and atomic
+replacement still need integration before the full application workflow is enabled.
 
 The developer constructor requires a disabled test account with explicit write
 access and a journal owned by that account. It supports regular-file create,
@@ -320,6 +329,37 @@ discarding an accepted local write. Dropping the session without awaiting its ex
 shutdown is treated as interruption, not successful draining. Restart recovery
 retains durable snapshots and dirty working copies. The ordinary account manager
 does not select this experimental owner yet.
+
+## Interleaved saves and namespace changes
+
+A single successor relation spans upload and mutation records. It prevents two
+different edits from adopting the same predecessor as if both followed it directly.
+Neither worker can claim an unresolved descendant. Before selecting more work,
+bounded preparation binds ready operations to their confirmed item IDs and ETags
+and reserves the resulting identity/name resources. Uncertain or conflicted
+operations keep their descendants pending while unrelated files remain eligible.
+
+Working-file relocation seals dirty source bytes, then commits the new local name,
+latest-operation pointer and remote mutation intent in one transaction. A failed
+transaction keeps the old name and does not consume the predecessor relation. A
+collision with another working copy is refused; replacement semantics are still
+separate work. Relocating an already clean working copy creates no content snapshot.
+Its original provider metadata is retained separately from the local content tag.
+Legacy working copies with a lost original content tag cannot invent that evidence.
+
+A successful conditional mutation response supplies a new base. Reconciliation
+after a lost rename response needs an additional check: the same item at the desired
+path might already contain somebody else's edit. Changed size or content revision
+becomes a conflict, and missing proof becomes `NeedsReview`; neither result completes
+the operation queue or authorizes a later upload against that newer ETag. Matching
+content revision/size or an unchanged metadata version allows the chain to continue.
+Observed receipts remain available for review without being treated as confirmed
+save bases. Providers must distinguish conditional responses from later observations.
+
+These APIs establish journal ordering and working-file transactions. A complete
+local object/path/remote-binding model, metadata-only operations on unhydrated files,
+directory dependencies, open-unlinked handles and atomic replacement through FUSE
+remain required. The ordinary manager stays read-only.
 
 ## Next boundaries
 

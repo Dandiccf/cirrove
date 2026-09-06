@@ -55,6 +55,10 @@ and Nautilus badges are not implemented.
   writes before unmounting. An isolated business-drive check passed two actual
   mounted saves, automatic uploads and independent content verification. Atomic
   replacement and writable namespace operations remain incomplete.
+- Receipt-based ordering across saves and namespace changes, including atomic local
+  working-file name/intent transactions. Reconciled renames with changed or unverified
+  content block later uploads and retain local edits. Complete mounted namespace
+  projection and application atomic replacement remain under development.
 
 These are implementation capabilities, not a production-readiness claim. See the
 [validation record](docs/validation.md) for what has actually been tested.

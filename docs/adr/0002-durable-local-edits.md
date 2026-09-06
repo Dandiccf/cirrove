@@ -130,8 +130,10 @@ The current journal refuses a newer schema and never temporarily downgrades its
 version during migration. A complete, quota-reserved hydration is required before
 an existing remote file becomes editable. Working-file metadata records dirty state
 before in-place changes; immutable snapshots and their generation links commit
-atomically. A later save follows the confirmed predecessor receipt, not the old
-pre-upload ETag. Conflicts retain both sealed and newer mutable local bytes.
+atomically. Schema 6 extends that receipt dependency to intervening namespace
+operations, with one successor across both operation kinds. A later save follows
+the confirmed predecessor receipt, not the old pre-upload ETag. Conflicts retain
+both sealed and newer mutable local bytes.
 
 Working-file tests inject failure between byte changes and metadata updates and
 between snapshot publication and queue commit. Actual process-kill tests preserve
@@ -141,3 +143,18 @@ The kernel suite also exercises writable-file recovery after killing its mount
 process and remounting offline. These are process-failure checks, not power-loss
 or live-provider application-save evidence. See [architecture](../architecture.md)
 for the experimental API boundary and remaining writable operations.
+
+## Namespace results are not automatically a content base
+
+When a rename reply is lost, a lookup can find the same item at the intended name
+but with another actor's newer contents. That observation can establish the name
+without authorizing an upload against its new ETag. The journal checks content
+revision/size, or an unchanged metadata version, before completing a reconciled
+file relocation. Changed content becomes a conflict; missing proof requires review.
+Both retain the observed receipt and block dependent edits. The worker reports the
+actual journal result, rather than always returning `Applied` for such observations.
+
+Local working-file relocation now seals dirty content before atomically committing
+its new name, latest-operation pointer and queued mutation. Subsequent local saves
+can follow that mutation while it is still pending. This does not yet implement
+complete local namespace projection or atomic replacement through mounted paths.

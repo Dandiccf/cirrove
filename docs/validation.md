@@ -8,7 +8,7 @@ acceptance for roadmap stages 1–3.
 ## Local checks
 
 - Formatting and strict Clippy cover all crates and test targets.
-- Current default workspace suite: **121 tests passed**. Eighteen kernel-FUSE tests
+- Current default workspace suite: **131 tests passed**. Eighteen kernel-FUSE tests
   run separately; subprocess fixture entry points and the optional performance
   fixture remain excluded from the default suite.
 - Built both binaries and generated workspace Rustdoc.
@@ -376,3 +376,37 @@ these corrections change the validation harness, not the live-tested runtime.
 Writes, pinning, conflict recovery, desktop badges/settings, Google Drive and iCloud
 remain later milestones. Unit tests and orderly reopen tests do not simulate actual
 power loss, hardware failure or every application behavior.
+
+
+## Save/rename/save lineage and shutdown follow-up
+
+Nine journal fixtures exercise operation chains across uploads and namespace
+changes, including restart after a lost rename response, conflicting edits,
+cross-kind successor exclusion, schema-5 migration, rollback of a local rename
+when its intent transaction fails, and rebinding more than one claim batch.
+A worker regression additionally verifies that a reconciled rename containing
+another actor's newer file content becomes a conflict and retains the next local
+save. A controlled run against the former unconditional acknowledgement failed
+that regression; the corrected journal and worker passed. Unknown content lineage
+requires review instead of allowing a later upload to adopt it as a safe base.
+These are synthetic journal/worker checks. Mounted rename, atomic replacement and
+real-provider save/rename/save validation remain outstanding.
+
+A repeated writable-session run exposed a test synchronization error: unrelated
+FLUSH callbacks were counted as admission of the intended blocked write. The test
+now keeps the application descriptor in a separate Python process and gates its
+write after the initial fsync callback drains. Its original shutdown deadline,
+retained-byte assertion and requirement to finish with the application's handle
+still open remain. Another assertion now permits the retained upload to be pending
+or require verification: an early FLUSH can legitimately let the worker claim it
+before cancellation. Both cases must retain the exact bytes and resume to the
+correct cloud content.
+
+The same investigation exposed intermittent EACCES on the first file creation.
+A controlled temporary fault injection invalidated the root inode while its initial
+GETATTR response was outstanding and reproduced the failure. Skipping invalidation
+of the mount's fixed, synthetic root attributes passed that same injected ordering.
+Child entry invalidations remain active; directory handles do not enable kernel
+readdir caching. Diagnostic delays and logging were removed afterward. Twenty
+consecutive runs of the final four-test writable suite passed (80 test executions).
+This is bounded local synthetic evidence, not sustained real-provider acceptance.

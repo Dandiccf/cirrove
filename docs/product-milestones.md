@@ -46,6 +46,10 @@ Atomic replacement is still missing from the mounted path. Conditional namespace
 changes now share durable ordering with uploads; restart, lost-response and
 file-collision fixtures cover their worker. Folder removal, hierarchy dependencies
 and atomic replacement are still required before writable filesystem acceptance.
+Receipt dependencies now span uploads and namespace mutations, including working-file
+name/intent transactions. A reconciled rename with newer or unverifiable content
+blocks later saves instead of adopting a potentially foreign edit as their base.
+These journal capabilities still need complete mounted namespace integration.
 
 - [x] Provider-neutral create, update, rename, move and delete contracts (regular-file deletion; folder removal remains an explicit gap).
 - [ ] Durable local file contents and journal before local-save acknowledgement.
