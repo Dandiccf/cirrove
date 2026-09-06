@@ -12,8 +12,31 @@ cargo doc --workspace --no-deps --locked
 ```
 
 The smoke test creates a temporary private directory, runs the compiled CLI/daemon,
-checks status and SIGTERM cleanup, then removes only its own temporary data.
+checks status, exclusive daemon ownership, recovery after SIGKILL and SIGTERM
+cleanup, then removes only its own temporary data.
 HTTP tests use loopback fixtures with fake tokens. They never authenticate to Microsoft.
+
+## Long-session observation
+
+After connecting a real account and starting its service, record local health with:
+
+```sh
+python3 scripts/observe-service.py \
+  --cli "$HOME/.local/bin/cirrove" \
+  --output .local-state/service-observation.jsonl
+```
+
+The default run lasts 24 hours and samples status once per minute. It creates a
+private mode-0600 log and refuses to overwrite an existing file. It records only
+aggregate mount/feed states; names, account identifiers, paths, provider messages
+and credentials are omitted. Keep even this reduced log private unless its owner
+explicitly approves publishing it. The script performs no cloud reads or mutations.
+
+A completed observation is evidence of sampled availability, not proof of all
+recovery behavior. Controlled outage/restart tests, real token refresh and file
+integrity checks are separate gates. An interrupted observer records an incomplete
+run. Its synthetic output/privacy checks run with
+`python3 scripts/test-observe-service.py`.
 
 ## Controlled Microsoft Graph metadata check
 

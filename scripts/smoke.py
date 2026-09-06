@@ -15,22 +15,38 @@ with tempfile.TemporaryDirectory(prefix="cirrove-smoke-") as directory:
     subprocess.run([str(CLI), "demo", "--state-dir", str(root / "demo")], check=True)
     socket = root / "run/control.sock"
     with (root / "daemon.log").open("w+") as log:
-        process = subprocess.Popen([str(DAEMON), "--state-dir", str(root / "state"), "--socket", str(socket)], stdout=log, stderr=log)
-        try:
+        command = [str(DAEMON), "--state-dir", str(root / "state"), "--socket", str(socket)]
+        process = None
+
+        def start():
+            global process
+            process = subprocess.Popen(command, stdout=log, stderr=log)
             deadline = time.monotonic() + 10
-            while not socket.exists():
-                if process.poll() is not None or time.monotonic() > deadline:
-                    log.seek(0)
-                    raise RuntimeError("Daemon did not start: " + log.read())
+            while process.poll() is None and time.monotonic() < deadline:
+                result = subprocess.run([str(CLI), "status", "--socket", str(socket)], capture_output=True, timeout=5)
+                if result.returncode == 0:
+                    return json.loads(result.stdout)
                 time.sleep(0.02)
-            reply = json.loads(subprocess.check_output([str(CLI), "status", "--socket", str(socket)], timeout=5))
+            log.seek(0)
+            raise RuntimeError("Daemon did not start: " + log.read())
+
+        try:
+            reply = start()
             assert reply["milestone"] == "readonly-preview", reply
+            assert reply["active_mounts"] == 0, reply
+            other = subprocess.run(command, stdout=log, stderr=log, timeout=5)
+            assert other.returncode != 0, "second daemon acquired the same account state"
+            assert process.poll() is None, "second daemon interrupted the active service"
+            process.kill()
+            process.wait(timeout=5)
+            assert socket.exists(), "abrupt termination did not leave a recovery fixture"
+            reply = start()
             assert reply["active_mounts"] == 0, reply
             process.terminate()
             assert process.wait(timeout=5) == 0
             assert not socket.exists(), "socket left behind after SIGTERM"
-            print("Smoke passed: demo, status, SIGTERM and socket cleanup; no cloud access.")
+            print("Smoke passed: demo, status, ownership, SIGKILL recovery and SIGTERM cleanup; no cloud access.")
         finally:
-            if process.poll() is None:
+            if process is not None and process.poll() is None:
                 process.kill()
                 process.wait(timeout=5)

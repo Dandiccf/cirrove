@@ -1,5 +1,9 @@
 # Roadmap
 
+The six remaining release milestones are tracked in
+[OneDrive 1.0 product milestones](product-milestones.md). The stages below retain
+the history and acceptance criteria for the existing engineering foundation.
+
 Milestones are acceptance gates, not release dates. Stages 1–3 form the first
 read-only OneDrive preview. Implementation and validation are tracked separately
 in [Validation](validation.md); none is complete merely because it compiles.

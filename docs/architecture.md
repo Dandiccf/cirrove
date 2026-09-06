@@ -67,9 +67,10 @@ be refreshed in the background while their cached version remains readable.
 Directory fetches have a total deadline and repeated-cursor/entry limits.
 
 SQLite uses WAL and FULL synchronous mode. Network awaits never occur inside its
-transactions. Database work runs on blocking workers. Recursive ancestry selection
-and batched inode assignment avoid loading entire drive trees or opening a database
-transaction for each entry in a directory listing.
+transactions. Database work runs on blocking workers. Shortcut discovery starts
+at a partial index of actual links and follows their ancestors, so an idle poll
+does not walk every file in a large library. Batched inode assignment avoids a
+separate database transaction for every directory entry.
 
 ## Authentication and ownership
 
@@ -160,6 +161,13 @@ Every mount attempt checks for an empty real directory outside other FUSE mounts
 It never mounts over local files deposited after an ejection. Enabled accounts are
 remounted after accidental ejection; `disable` records an intentional unmount.
 Shutdown cancels and awaits workers, then unmounts and joins FUSE sessions.
+
+After a process crash, startup checks a stale control socket under the daemon's
+ownership lock and removes it only when a connection is refused. A disconnected
+FUSE mount is detached only if its filesystem type and account UUID match and
+the kernel reports ENOTCONN. A live mount is never displaced. Kernel tests kill
+a synthetic mount process and verify that a new manager serves readable files.
+These checks do not imply that a full-machine power-loss test has passed.
 
 ## Next boundaries
 

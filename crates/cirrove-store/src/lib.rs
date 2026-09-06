@@ -30,6 +30,17 @@ fn timestamp() -> i64 {
 pub struct Store {
     db: Connection,
 }
+// Start at actual shortcuts and walk their ancestors. Walking every descendant
+// of a library root turns an idle discovery poll into a whole-library operation.
+const SHORTCUTS_UNDER: &str = "WITH RECURSIVE ancestors(shortcut,id,parent) AS (
+    SELECT id,id,json_extract(body,'$.parent_id') FROM nodes
+    WHERE scope=?1 AND json_type(body,'$.target')='object'
+    UNION
+    SELECT a.shortcut,n.id,json_extract(n.body,'$.parent_id') FROM ancestors a
+    JOIN nodes n ON n.scope=?1 AND n.id=a.parent WHERE a.id!=?2
+) SELECT body FROM nodes WHERE scope=?1 AND id IN (
+    SELECT shortcut FROM ancestors WHERE id=?2 OR parent=?2
+)";
 impl Store {
     /// Call from a blocking worker, never from a filesystem callback or while a
     /// network request is outstanding. One connection per worker.
@@ -37,7 +48,7 @@ impl Store {
         let db = Connection::open(path)?;
         db.busy_timeout(std::time::Duration::from_secs(3))?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if version > 2 {
+        if version > 3 {
             return Err(StoreError::SchemaVersion);
         }
         if version < 2 {
@@ -66,6 +77,14 @@ impl Store {
         )?;
         } else {
             db.execute_batch("PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;")?;
+        }
+        if version < 3 {
+            db.execute_batch(
+                "BEGIN IMMEDIATE;
+                CREATE INDEX IF NOT EXISTS node_shortcuts ON nodes(scope,id)
+                    WHERE json_type(body,'$.target')='object';
+                PRAGMA user_version=3; COMMIT;",
+            )?;
         }
         Ok(Self { db })
     }
@@ -177,10 +196,10 @@ impl Store {
         let rows = query.query_map([Self::key(scope)?], |r| r.get::<_, String>(0))?;
         rows.map(|row| Ok(serde_json::from_str(&row?)?)).collect()
     }
-    /// Follow ancestry inside SQLite, retaining only shortcut rows in memory.
-    /// UNION deduplicates corrupt/cyclic parent references.
+    /// Follow only actual shortcuts' ancestry using the partial shortcut index.
+    /// UNION deduplicates corrupt/cyclic parent references for each shortcut.
     pub fn shortcuts_under(&self, scope: &Scope, root: &str) -> Result<Vec<Node>> {
-        let mut query = self.db.prepare("WITH RECURSIVE reachable(id) AS (SELECT ?2 UNION SELECT n.id FROM nodes n JOIN reachable r ON json_extract(n.body,'$.parent_id')=r.id WHERE n.scope=?1) SELECT body FROM nodes WHERE scope=?1 AND id IN (SELECT id FROM reachable) AND json_type(body,'$.target')='object'")?;
+        let mut query = self.db.prepare(SHORTCUTS_UNDER)?;
         let rows = query.query_map(params![Self::key(scope)?, root], |r| r.get::<_, String>(0))?;
         rows.map(|row| Ok(serde_json::from_str(&row?)?)).collect()
     }
@@ -537,5 +556,83 @@ mod tests {
             vec!["inside"]
         );
         assert_eq!(db.shortcuts_under(&scope, "loop-a").unwrap().len(), 1);
+    }
+
+    #[test]
+    fn shortcut_discovery_work_does_not_scale_with_unrelated_regular_files() {
+        let mut db = Store::open(":memory:").unwrap();
+        let scope = scope("large-library");
+        let mut changes = Vec::new();
+        for i in 0..20_000 {
+            let Change::Upsert(mut item) = node(&format!("file-{i}")) else {
+                unreachable!()
+            };
+            item.parent_id = Some("root".into());
+            changes.push(Change::Upsert(item));
+        }
+        let Change::Upsert(mut shortcut) = node("link") else {
+            unreachable!()
+        };
+        shortcut.parent_id = Some("root".into());
+        shortcut.kind = NodeKind::Shortcut;
+        shortcut.target = Some(cirrove_core::RemoteRef {
+            collection: "library".into(),
+            item: "shared".into(),
+            kind: Some(NodeKind::Folder),
+        });
+        changes.push(Change::Upsert(shortcut));
+        db.begin(&scope, false).unwrap();
+        db.stage(&scope, None, &page(changes, true, "delta"))
+            .unwrap();
+        let mut statement = db.db.prepare(SHORTCUTS_UNDER).unwrap();
+        let results = statement
+            .query_map(params![Store::key(&scope).unwrap(), "root"], |row| {
+                row.get::<_, String>(0)
+            })
+            .unwrap()
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(results.len(), 1);
+        // Count SQLite VM work rather than assert a wall-clock benchmark.
+        assert!(statement.get_status(rusqlite::StatementStatus::VmStep) < 2_000);
+        assert_eq!(
+            statement.get_status(rusqlite::StatementStatus::FullscanStep),
+            0
+        );
+    }
+
+    #[test]
+    fn shortcut_index_migration_preserves_existing_metadata_and_cursor() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("metadata.db");
+        let scope = scope("migration");
+        {
+            let mut db = Store::open(&path).unwrap();
+            db.begin(&scope, false).unwrap();
+            db.stage(&scope, None, &page(vec![node("preserved")], true, "delta"))
+                .unwrap();
+            db.db
+                .execute_batch("DROP INDEX node_shortcuts; PRAGMA user_version=2;")
+                .unwrap();
+        }
+        let db = Store::open(path).unwrap();
+        assert_eq!(db.nodes(&scope).unwrap()[0].id, "preserved");
+        assert_eq!(db.cursor(&scope).unwrap(), Some(Cursor("delta".into())));
+        assert_eq!(
+            db.db
+                .pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0))
+                .unwrap(),
+            3
+        );
+        assert_eq!(
+            db.db
+                .query_row(
+                    "SELECT count(*) FROM sqlite_master WHERE name='node_shortcuts'",
+                    [],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+            1
+        );
     }
 }

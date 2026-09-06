@@ -67,9 +67,9 @@ From another terminal:
 Cirrove uses `$XDG_STATE_HOME/cirrove` (fallback `~/.local/state/cirrove`) and
 `$XDG_RUNTIME_DIR/cirrove/control.sock`. Explicit `--state-dir` and `--socket` paths
 support isolated development. State directories must be private (`0700`).
-The daemon does not replace an existing socket. The systemd unit template manages
-its runtime directory; a manual run killed with SIGKILL may require stale-socket
-cleanup after confirming its old process is gone.
+The daemon holds an ownership lock and recovers a disconnected control socket
+after a crash. Disconnected FUSE mounts are recovered only when their account
+identity matches; live mounts and unrelated paths are preserved.
 
 Existing cloud clients, mounts and credentials are not imported or modified.
 The systemd template is supplied separately and is not installed by a build.
@@ -85,6 +85,7 @@ The systemd template is supplied separately and is not installed by a build.
 | `cirrove-service` | Daemon, CLI, account workers, FUSE projection and content cache |
 
 Read [Architecture](docs/architecture.md), [Roadmap](docs/roadmap.md),
+[OneDrive 1.0 milestones](docs/product-milestones.md),
 [Development](docs/development.md) and [Contributing](CONTRIBUTING.md).
 
 Google Drive is the next planned provider. iCloud requires a separate compatibility

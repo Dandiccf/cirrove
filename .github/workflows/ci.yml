@@ -31,4 +31,5 @@ jobs:
         run: timeout 90s cargo test -p cirrove-service --test read_only --locked real_ -- --ignored --nocapture
       - run: cargo build --workspace --locked
       - run: python3 scripts/smoke.py
+      - run: python3 scripts/test-observe-service.py
       - run: cargo doc --workspace --no-deps --locked

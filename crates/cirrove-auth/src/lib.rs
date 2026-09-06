@@ -590,6 +590,7 @@ impl TokenBroker {
         save_credentials(self.vault.as_ref(), &self.key, &next).await?;
         let token = next.access_token();
         *state = Some(next);
+        tracing::info!("Microsoft authorization refreshed and saved");
         Ok(token)
     }
 }

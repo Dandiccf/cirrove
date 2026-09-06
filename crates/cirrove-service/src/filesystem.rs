@@ -5,7 +5,8 @@ use cirrove_core::{CancellationToken, Node, NodeKind, ProviderError, Scope};
 use cirrove_store::Store;
 use fuser::{
     Errno, FileAttr, FileHandle, FileType, Filesystem, FopenFlags, Generation, INodeNo, LockOwner,
-    OpenFlags, ReplyAttr, ReplyData, ReplyDirectory, ReplyEmpty, ReplyEntry, ReplyOpen, Request,
+    OpenFlags, ReplyAttr, ReplyData, ReplyDirectory, ReplyEmpty, ReplyEntry, ReplyOpen, ReplyXattr,
+    Request,
 };
 use std::{
     collections::HashMap,
@@ -55,6 +56,13 @@ struct Inner {
     cancel: CancellationToken,
 }
 impl CloudFs {
+    fn finish_read_only_handle(&self, handle: FileHandle, reply: ReplyEmpty) {
+        match self.inner.files.lock() {
+            Ok(files) if files.contains_key(&handle.0) => reply.ok(),
+            Ok(_) => reply.error(Errno::EBADF),
+            Err(_) => reply.error(Errno::EIO),
+        }
+    }
     pub fn new(engine: Arc<Engine>) -> std::io::Result<Self> {
         let owner = std::fs::metadata("/proc/self")?;
         let root = Node {
@@ -145,7 +153,7 @@ impl CloudFs {
             fuser::MountOption::NoDev,
             fuser::MountOption::NoSuid,
             fuser::MountOption::DefaultPermissions,
-            fuser::MountOption::FSName(format!("cirrove:{}", self.inner.engine.account.label)),
+            fuser::MountOption::FSName(format!("cirrove:{}", self.inner.engine.account.id)),
             fuser::MountOption::Subtype("cirrove".into()),
         ];
         let inner = self.inner.clone();
@@ -414,6 +422,48 @@ impl Filesystem for CloudFs {
                 Err(e) => reply.error(errno(&e)),
             }
         });
+    }
+    fn getxattr(
+        &self,
+        _req: &Request,
+        inode: INodeNo,
+        _name: &OsStr,
+        _size: u32,
+        reply: ReplyXattr,
+    ) {
+        // Ordinary desktop probes are not filesystem failures. Per-file Cirrove
+        // status attributes will be provided by the later desktop integration.
+        match self.inner.view(inode.0) {
+            Ok(_) => reply.error(Errno::ENODATA),
+            Err(error) => reply.error(errno(&error)),
+        }
+    }
+    fn listxattr(&self, _req: &Request, inode: INodeNo, size: u32, reply: ReplyXattr) {
+        match self.inner.view(inode.0) {
+            Ok(_) if size == 0 => reply.size(0),
+            Ok(_) => reply.data(&[]),
+            Err(error) => reply.error(errno(&error)),
+        }
+    }
+    fn flush(
+        &self,
+        _req: &Request,
+        _inode: INodeNo,
+        handle: FileHandle,
+        _owner: LockOwner,
+        reply: ReplyEmpty,
+    ) {
+        self.finish_read_only_handle(handle, reply);
+    }
+    fn fsync(
+        &self,
+        _req: &Request,
+        _inode: INodeNo,
+        handle: FileHandle,
+        _datasync: bool,
+        reply: ReplyEmpty,
+    ) {
+        self.finish_read_only_handle(handle, reply);
     }
     fn open(&self, _req: &Request, inode: INodeNo, flags: OpenFlags, reply: ReplyOpen) {
         if flags.0 & libc::O_ACCMODE != libc::O_RDONLY {

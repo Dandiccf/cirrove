@@ -34,6 +34,7 @@ async fn main() -> Result<()> {
         Some(p) => p,
         None => socket_path()?,
     };
+    cirrove_service::recover_control_socket(&socket).await?;
     let cancel = CancellationToken::new();
     let shutdown = cancel.clone();
     let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;

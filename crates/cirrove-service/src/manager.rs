@@ -152,8 +152,13 @@ impl Manager {
                         if let Some(active) = running.get_mut(&account.id) {
                             match &mounts {
                                 Ok(mounts) => {
-                                    status.mounted = mount_at(mounts, &account.mount_path)
-                                        == Some("fuse.cirrove");
+                                    let source = format!("cirrove:{}", account.id);
+                                    // A same-type mount can be stale or belong to
+                                    // another account. Only our owned session
+                                    // and matching identity count as mounted.
+                                    status.mounted = active.session.is_some()
+                                        && mount_record_at(mounts, &account.mount_path)
+                                            == Some(("fuse.cirrove", source.as_str()));
                                     if status.mounted
                                         && active.mount_error.as_deref()
                                             == Some("mount observation unavailable")
@@ -253,6 +258,7 @@ impl Manager {
 }
 async fn mount_checked(engine: Arc<Engine>) -> Result<fuser::BackgroundSession> {
     let path = engine.account.mount_path.clone();
+    recover_disconnected_mount(&engine.account).await?;
     // CloudFs captures this async runtime, while filesystem checks and the FUSE
     // handshake execute on a blocking worker.
     let fs = CloudFs::new(engine)?;
@@ -261,6 +267,45 @@ async fn mount_checked(engine: Arc<Engine>) -> Result<fuser::BackgroundSession> 
         Ok(fs.mount(&path)?)
     })
     .await?
+}
+
+/// An account's owner lock is held by Engine before this is called. A crashed
+/// FUSE session can remain mounted with ENOTCONN after its process has exited.
+/// Detach only that exact account's disconnected mount; never a live/foreign one.
+async fn recover_disconnected_mount(account: &Account) -> Result<()> {
+    let mounts = tokio::fs::read_to_string("/proc/self/mountinfo").await?;
+    let Some((kind, source)) = mount_record_at(&mounts, &account.mount_path) else {
+        return Ok(());
+    };
+    if kind != "fuse.cirrove" || source != format!("cirrove:{}", account.id) {
+        bail!("mount path belongs to another filesystem or account");
+    }
+    let path = account.mount_path.clone();
+    let disconnected = tokio::time::timeout(
+        Duration::from_secs(2),
+        tokio::task::spawn_blocking(move || {
+            std::fs::symlink_metadata(path)
+                .is_err_and(|error| error.raw_os_error() == Some(libc::ENOTCONN))
+        }),
+    )
+    .await??;
+    if !disconnected {
+        bail!("existing Cirrove mount is live or cannot be verified as disconnected");
+    }
+    let mut command = tokio::process::Command::new("fusermount3");
+    command
+        .args(["-u", "-z", "--"])
+        .arg(&account.mount_path)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .kill_on_drop(true);
+    let status = tokio::time::timeout(Duration::from_secs(5), command.status()).await??;
+    if !status.success() {
+        bail!("could not detach disconnected Cirrove mount");
+    }
+    tracing::info!("recovered disconnected Cirrove mount");
+    Ok(())
 }
 pub fn validate_mount_directory(path: &Path) -> Result<()> {
     if !path.is_absolute()
@@ -302,6 +347,9 @@ pub fn validate_mount_directory(path: &Path) -> Result<()> {
     Ok(())
 }
 fn mount_at<'a>(mounts: &'a str, path: &Path) -> Option<&'a str> {
+    mount_record_at(mounts, path).map(|(kind, _)| kind)
+}
+fn mount_record_at<'a>(mounts: &'a str, path: &Path) -> Option<(&'a str, &'a str)> {
     let encoded = path
         .to_string_lossy()
         .replace('\\', "\\134")
@@ -310,9 +358,11 @@ fn mount_at<'a>(mounts: &'a str, path: &Path) -> Option<&'a str> {
         .replace('\n', "\\012");
     mounts.lines().find_map(|line| {
         let (fields, filesystem) = line.split_once(" - ")?;
-        (fields.split_whitespace().nth(4) == Some(encoded.as_str()))
-            .then(|| filesystem.split_whitespace().next())
-            .flatten()
+        if fields.split_whitespace().nth(4) != Some(encoded.as_str()) {
+            return None;
+        }
+        let mut parts = filesystem.split_whitespace();
+        Some((parts.next()?, parts.next()?))
     })
 }
 #[cfg(test)]
