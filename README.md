@@ -69,6 +69,11 @@ and Nautilus badges are not implemented.
   the file's local identity. Cleanup is restartable and preserves pending or
   conflicted bytes. Acknowledged upload payloads are collected separately from
   their receipts; alias/history retention still needs large-library validation.
+- Experimental regular-file unlink releases the name locally and queues a
+  conditional cloud deletion. Open handles keep their old stream, including after
+  the name is reused. Reader preservation runs in the background, so a download
+  cannot hold the unlink call's kernel directory lock. Later writes to an unlinked
+  handle stay as local recovery data; their retention and recovery UI remain open.
 
 These are implementation capabilities, not a production-readiness claim. See the
 [validation record](docs/validation.md) for what has actually been tested.

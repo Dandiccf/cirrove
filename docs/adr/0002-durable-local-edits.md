@@ -174,3 +174,19 @@ A separate collector removes only acknowledged immutable payloads while preservi
 receipts. Unrecognized spool files and unacknowledged content are never collected.
 This is working-storage reclamation; alias and receipt retention, pins and full
 application atomic-save semantics remain unfinished. See [architecture](../architecture.md).
+
+## Unlink is separate from cloud deletion
+
+Schema 9 separates an unlinked working stream from a live directory entry. Unlink
+commits the released name and ordered conditional deletion together, retaining any
+open stream. Later descriptor writes are fsynced locally but never become uploads
+that recreate the removed file. These detached bytes currently remain recovery
+data; their cleanup and presentation policy is still unfinished.
+
+When remote reads still require preservation, a separate durable local-reader
+barrier gates the deletion worker. Hydration and waiting for in-flight reads happen
+after the local unlink returns. This matters because Linux holds the parent
+directory lock while executing unlink (see [kernel locking rules](https://docs.kernel.org/filesystems/locking.html#inode-operations)): awaiting a download there would also block
+sibling files. Failed preservation keeps the cloud file until readers are preserved
+or gone. Process restart releases obsolete reader barriers under exclusive journal
+ownership while keeping remote-operation dependencies and local bytes.

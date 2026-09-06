@@ -512,3 +512,30 @@ smoke, two observer checks and Rustdoc. These tests do not access live cloud acc
 or replace the installed service. Full application atomic-save behavior,
 open-unlinked files, writable directories, alias/history retention at scale and
 real-provider mounted acceptance remain open.
+
+## Regular-file unlink and retained open streams
+
+Six additional journal fixtures exercise deleting an online-only file without
+reserving its contents, name reuse with independent streams, create/delete ordering,
+later descriptor writes, transaction rollback, conflict/uncertainty retention,
+schema-8 migration and recovery of a previous process's local-reader barriers.
+The deletion still waits for its confirmed remote predecessor; releasing a local
+reader barrier cannot bypass that receipt dependency or remove retained bytes.
+
+Five additional actual synthetic FUSE tests cover open-handle reads and truncation
+after unlink, zero link counts, name reuse, absence of later orphan uploads, restart,
+zero-hydration deletion of a 500 GiB virtual file, a held range request, spool quota
+failure, and shutdown with a provider that ignores cancellation. The held-read fixture
+initially blocked another application's sibling-file create because preservation
+ran inside unlink. Moving preservation behind a persisted background barrier made
+the same scenario pass: local unlink and the independent save finish while the
+provider read stays held, but the cloud DELETE remains ineligible until readers are
+safe. Quota failure keeps the cloud content until the last reader closes; shutdown
+cancels an uncooperative range request and restart resumes the retained deletion.
+
+The full local run passed 182 default workspace tests and all 27 actual synthetic
+kernel-FUSE tests, formatting, strict Clippy, workspace build, executable smoke,
+two observer checks and Rustdoc. No live cloud documents or installed services were
+changed. Atomic replacement of open files, detached-data recovery and cleanup,
+restoration of the same remote identity and broader provider/application acceptance
+remain open.

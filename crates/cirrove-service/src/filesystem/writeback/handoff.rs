@@ -79,6 +79,9 @@ impl Writeback {
     /// also repairs an earlier failed local projection refresh without replaying
     /// the provider operation.
     pub async fn maintain(self: &Arc<Self>, engine: &Engine) -> Result<bool> {
+        if self.preserve_unlinked(engine).await? {
+            return Ok(true);
+        }
         let after = *self.maintenance_cursor.lock().map_err(|_| Errno::EIO)?;
         let batch = self
             .local(move |j| {

@@ -62,6 +62,7 @@ struct Remote {
     sessions: HashMap<String, Vec<u8>>,
     history: Vec<Vec<u8>>,
     moves: Vec<MutationRequest>,
+    deletes: Vec<MutationRequest>,
 }
 #[derive(Default)]
 struct Cloud {
@@ -73,6 +74,9 @@ struct Cloud {
     stall: AtomicBool,
     entered: Notify,
     release: Notify,
+    hold_read: AtomicBool,
+    read_entered: Notify,
+    read_release: Notify,
 }
 fn root() -> Node {
     Node {
@@ -161,6 +165,10 @@ impl ReadProvider for Cloud {
         _: &CancellationToken,
     ) -> Result<Vec<u8>, ProviderError> {
         self.reads.fetch_add(1, Ordering::SeqCst);
+        if self.hold_read.swap(false, Ordering::SeqCst) {
+            self.read_entered.notify_one();
+            self.read_release.notified().await;
+        }
         let remote = self.remote.lock().unwrap();
         let (current, bytes) = remote.files.get(&node.id).ok_or(ProviderError::NotFound)?;
         if node.content_revision() != current.content_revision() {
@@ -334,6 +342,21 @@ impl MutationProvider for Cloud {
             std::future::pending::<()>().await;
         }
         request.validate()?;
+        if let MutationIntent::RemoveFile { before } = &request.intent {
+            let mut remote = self.remote.lock().unwrap();
+            let (node, _) = remote
+                .files
+                .get(&before.id)
+                .ok_or(ProviderError::NotFound)?;
+            if node.etag != before.etag || node.kind != NodeKind::File {
+                return Err(MutationError::Conflict);
+            }
+            remote.files.remove(&before.id);
+            remote.deletes.push(request.clone());
+            return Ok(MutationReceipt::Removed {
+                item: before.id.clone(),
+            });
+        }
         let MutationIntent::Relocate {
             before,
             parent,
@@ -1359,5 +1382,388 @@ assert 'deleted-before-close.txt' not in os.listdir('.')
 "#,
     )
     .await;
+    session.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; unlink preserves open streams and releases names"]
+async fn real_unlinked_handles_keep_their_bytes_and_do_not_upload_later_writes() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let state = temp.path().join("state");
+    let spool = temp.path().join("journal");
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    let vault = Arc::new(Vault::default());
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&spool, &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account.clone(), cloud.clone(), state.clone())
+        .await
+        .unwrap();
+    let session = WritableSession::mount(
+        engine.clone(),
+        journal.clone(),
+        cloud.clone(),
+        vault.clone(),
+    )
+    .await
+    .unwrap();
+    application(
+        &mount,
+        r#"
+import os,sys
+os.chdir(sys.argv[1])
+f=os.open('same.txt',os.O_CREAT|os.O_EXCL|os.O_RDWR,0o600)
+os.write(f,b'original'); os.fsync(f)
+old_inode=os.fstat(f).st_ino
+os.unlink('same.txt')
+assert not os.path.exists('same.txt')
+assert os.fstat(f).st_nlink==0
+assert os.pread(f,100,0)==b'original'
+g=os.open('same.txt',os.O_CREAT|os.O_EXCL|os.O_RDWR,0o600)
+os.write(g,b'replacement'); os.fsync(g)
+assert os.fstat(g).st_ino!=old_inode
+os.ftruncate(f,0); os.write(f,b'local old stream'); os.fsync(f)
+assert os.pread(g,100,0)==b'replacement'
+os.close(f); os.close(g)
+assert open('same.txt','rb').read()==b'replacement'
+"#,
+    )
+    .await;
+    acknowledged(&session, 2).await;
+    mutations_applied(&session, 1).await;
+    {
+        let remote = cloud.remote.lock().unwrap();
+        assert_eq!(remote.files.len(), 1);
+        assert_eq!(remote.deletes.len(), 1);
+        assert_eq!(remote.files.values().next().unwrap().1, b"replacement");
+        assert_eq!(
+            remote.history,
+            vec![b"original".to_vec(), b"replacement".to_vec()]
+        );
+    }
+    let old = journal
+        .lock()
+        .unwrap()
+        .working_files()
+        .unwrap()
+        .into_iter()
+        .find(|w| w.unlinked)
+        .unwrap();
+    // os.write retains the old descriptor offset after truncate, as on a local FS.
+    assert_eq!(
+        journal
+            .lock()
+            .unwrap()
+            .read_working(old.id, 0, 100)
+            .unwrap(),
+        [&[0u8; 8][..], b"local old stream"].concat()
+    );
+    assert!(old.dirty);
+    session.shutdown().await.unwrap();
+    engine.cancel.cancel();
+    let released = Arc::downgrade(&engine);
+    drop(engine);
+    assert!(released.upgrade().is_none());
+    drop(journal);
+    let journal = Arc::new(Mutex::new(
+        reopened_journal(&spool, &account.id, 1024 * 1024).await,
+    ));
+    assert_eq!(
+        journal
+            .lock()
+            .unwrap()
+            .read_working(old.id, 0, 100)
+            .unwrap(),
+        [&[0u8; 8][..], b"local old stream"].concat()
+    );
+    let engine = reopened_engine(account, cloud.clone(), &state, released).await;
+    let session = WritableSession::mount(engine, journal, cloud, vault)
+        .await
+        .unwrap();
+    application(
+        &mount,
+        r#"
+import os,sys
+os.chdir(sys.argv[1]); assert os.listdir('.')==['same.txt']
+assert open('same.txt','rb').read()==b'replacement'
+"#,
+    )
+    .await;
+    session.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; unopened online deletion needs no download"]
+async fn real_unopened_online_file_is_deleted_without_hydration() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    namespace_fixture(&cloud);
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session = WritableSession::mount(
+        engine,
+        journal.clone(),
+        cloud.clone(),
+        Arc::new(Vault::default()),
+    )
+    .await
+    .unwrap();
+    application(
+        &mount,
+        r#"
+import os,sys
+os.chdir(sys.argv[1]); os.unlink('online.bin')
+assert not os.path.exists('online.bin')
+try: os.unlink('folder')
+except IsADirectoryError: pass
+else: raise AssertionError('directory must not be removed')
+assert os.path.isdir('folder')
+"#,
+    )
+    .await;
+    mutations_applied(&session, 1).await;
+    assert_eq!(cloud.reads.load(Ordering::SeqCst), 0);
+    assert_eq!(journal.lock().unwrap().retained_bytes().unwrap(), 0);
+    assert!(!cloud.remote.lock().unwrap().files.contains_key("online"));
+    assert!(cloud.remote.lock().unwrap().files.contains_key("folder"));
+    session.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; a read in flight is retained before cloud deletion"]
+async fn real_unlink_waits_for_an_inflight_read_without_blocking_other_files() {
+    use std::io::Read;
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    namespace_fixture(&cloud);
+    cloud.hold_read.store(true, Ordering::SeqCst);
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session =
+        WritableSession::mount(engine, journal, cloud.clone(), Arc::new(Vault::default()))
+            .await
+            .unwrap();
+    let path = mount.join("occupied.bin");
+    let reading = tokio::task::spawn_blocking(move || {
+        let mut file = std::fs::File::open(path).unwrap();
+        let mut bytes = vec![];
+        file.read_to_end(&mut bytes).unwrap();
+        assert_eq!(bytes, b"foreign");
+        file
+    });
+    tokio::time::timeout(Duration::from_secs(3), cloud.read_entered.notified())
+        .await
+        .unwrap();
+    let path = mount.join("occupied.bin");
+    let deletion = tokio::task::spawn_blocking(move || std::fs::remove_file(path));
+    application(
+        &mount,
+        r#"
+import os,sys
+os.chdir(sys.argv[1]); assert 'folder' in os.listdir('.')
+f=os.open('unrelated.txt',os.O_CREAT|os.O_EXCL|os.O_RDWR,0o600)
+os.write(f,b'independent'); os.fsync(f); os.close(f)
+"#,
+    )
+    .await;
+    assert!(cloud.remote.lock().unwrap().deletes.is_empty());
+    tokio::time::timeout(Duration::from_secs(2), deletion)
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+    cloud.read_release.notify_one();
+    let mut file = tokio::time::timeout(Duration::from_secs(5), reading)
+        .await
+        .unwrap()
+        .unwrap();
+    mutations_applied(&session, 1).await;
+    file = tokio::task::spawn_blocking(move || {
+        use std::os::unix::fs::MetadataExt;
+        file.seek(SeekFrom::Start(0)).unwrap();
+        let mut bytes = vec![];
+        file.read_to_end(&mut bytes).unwrap();
+        assert_eq!(bytes, b"foreign");
+        assert_eq!(file.metadata().unwrap().nlink(), 0);
+        file
+    })
+    .await
+    .unwrap();
+    drop(file);
+    assert!(!cloud.remote.lock().unwrap().files.contains_key("occupied"));
+    session.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; quota failure preserves an open remote stream"]
+async fn real_unlink_preservation_quota_failure_keeps_remote_bytes_until_last_close() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    namespace_fixture(&cloud);
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session = WritableSession::mount(
+        engine,
+        journal.clone(),
+        cloud.clone(),
+        Arc::new(Vault::default()),
+    )
+    .await
+    .unwrap();
+    let path = mount.join("online.bin");
+    let file = tokio::task::spawn_blocking(move || {
+        let file = std::fs::File::open(&path).unwrap();
+        std::fs::remove_file(path).unwrap();
+        file
+    })
+    .await
+    .unwrap();
+    tokio::time::timeout(Duration::from_secs(4), async {
+        while session.worker_issue().is_none() {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert!(cloud.remote.lock().unwrap().files.contains_key("online"));
+    assert_eq!(cloud.reads.load(Ordering::SeqCst), 0);
+    assert_eq!(
+        journal
+            .lock()
+            .unwrap()
+            .unlinked_readers(0, 16)
+            .unwrap()
+            .len(),
+        1
+    );
+    application(
+        &mount,
+        r#"
+import os,sys
+os.chdir(sys.argv[1]); assert 'online.bin' not in os.listdir('.')
+assert os.path.isdir('folder')
+"#,
+    )
+    .await;
+    drop(file);
+    mutations_applied(&session, 1).await;
+    assert!(!cloud.remote.lock().unwrap().files.contains_key("online"));
+    assert_eq!(cloud.reads.load(Ordering::SeqCst), 0);
+    session.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; shutdown cancels a reader-preservation barrier"]
+async fn real_unlink_shutdown_cancels_an_uncooperative_download_and_resumes_deletion() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let state = temp.path().join("state");
+    let spool = temp.path().join("journal");
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    namespace_fixture(&cloud);
+    cloud.hold_read.store(true, Ordering::SeqCst);
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&spool, &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account.clone(), cloud.clone(), state.clone())
+        .await
+        .unwrap();
+    let session = WritableSession::mount(
+        engine.clone(),
+        journal.clone(),
+        cloud.clone(),
+        Arc::new(Vault::default()),
+    )
+    .await
+    .unwrap();
+    let path = mount.join("occupied.bin");
+    let reading = tokio::task::spawn_blocking(move || std::fs::read(path));
+    tokio::time::timeout(Duration::from_secs(3), cloud.read_entered.notified())
+        .await
+        .unwrap();
+    application(
+        &mount,
+        r#"
+import os,sys
+os.chdir(sys.argv[1]); os.unlink('occupied.bin')
+assert not os.path.exists('occupied.bin')
+"#,
+    )
+    .await;
+    assert_eq!(
+        journal
+            .lock()
+            .unwrap()
+            .unlinked_readers(0, 16)
+            .unwrap()
+            .len(),
+        1
+    );
+    tokio::time::timeout(Duration::from_secs(2), session.shutdown())
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(
+        tokio::time::timeout(Duration::from_secs(2), reading)
+            .await
+            .unwrap()
+            .unwrap()
+            .is_err()
+    );
+    assert!(cloud.remote.lock().unwrap().files.contains_key("occupied"));
+    let released = Arc::downgrade(&engine);
+    drop(engine);
+    tokio::time::timeout(Duration::from_secs(1), async {
+        while released.upgrade().is_some() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    drop(journal);
+    let journal = Arc::new(Mutex::new(
+        reopened_journal(&spool, &account.id, 1024 * 1024).await,
+    ));
+    assert!(
+        journal
+            .lock()
+            .unwrap()
+            .unlinked_readers(0, 16)
+            .unwrap()
+            .is_empty()
+    );
+    let engine = reopened_engine(account, cloud.clone(), &state, released).await;
+    let session =
+        WritableSession::mount(engine, journal, cloud.clone(), Arc::new(Vault::default()))
+            .await
+            .unwrap();
+    mutations_applied(&session, 1).await;
+    assert!(!cloud.remote.lock().unwrap().files.contains_key("occupied"));
     session.shutdown().await.unwrap();
 }

@@ -1,6 +1,7 @@
 //! Experimental local edit projection. Network hydration never holds the journal
 //! or namespace mutex. Ordinary daemon mounts do not construct this layer yet.
 mod handoff;
+mod unlinked;
 use super::*;
 use crate::journal::{
     JournalError, NamespaceCollision, NamespaceObject, UploadJournal, WorkingFile,
@@ -8,6 +9,7 @@ use crate::journal::{
 };
 pub(super) use handoff::FileLease;
 use std::sync::Weak;
+pub(super) use unlinked::ReadSource;
 use uuid::Uuid;
 
 type Result<T> = std::result::Result<T, Errno>;
@@ -20,6 +22,7 @@ pub(super) struct Writeback {
     hydrating: Mutex<HashMap<EditKey, Weak<tokio::sync::Mutex<()>>>>,
     activity: Mutex<HashMap<EditKey, Weak<tokio::sync::RwLock<()>>>>,
     maintenance_cursor: Mutex<Option<Uuid>>,
+    preserving_cursor: Mutex<u64>,
     maintenance_retries: Mutex<HashMap<Uuid, (u32, tokio::time::Instant)>>,
 }
 #[derive(Default)]
@@ -28,6 +31,7 @@ struct Projection {
     identities: HashMap<EditKey, Uuid>,
     files: HashMap<Uuid, WorkingFile>,
     conflicts: HashMap<EditKey, Vec<NamespaceCollision>>,
+    streams: HashMap<EditKey, Vec<Weak<OpenFile>>>,
 }
 impl Projection {
     // A journal snapshot is published atomically, in revision order. A delayed
@@ -38,7 +42,10 @@ impl Projection {
         working: Option<&WorkingFile>,
     ) -> Result<bool> {
         if object.follows_remote
-            && (object.working_file.is_some() || object.latest.is_some() || object.remote.is_none())
+            && (object.unlinked
+                || object.working_file.is_some()
+                || object.latest.is_some()
+                || object.remote.is_none())
         {
             return Err(Errno::EIO);
         }
@@ -66,6 +73,7 @@ impl Projection {
                 if object.working_file == Some(file.id)
                     && file.scope == object.scope
                     && file.node.id == object.node.id
+                    && file.unlinked == object.unlinked
                     && file.node == object.node => {}
             None if object.working_file.is_none() => {}
             _ => return Err(Errno::EIO),
@@ -160,6 +168,7 @@ impl Writeback {
             hydrating: Mutex::new(HashMap::new()),
             activity: Mutex::new(HashMap::new()),
             maintenance_cursor: Mutex::new(None),
+            preserving_cursor: Mutex::new(0),
             maintenance_retries: Mutex::new(HashMap::new()),
         }))
     }

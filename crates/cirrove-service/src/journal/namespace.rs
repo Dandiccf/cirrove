@@ -28,10 +28,14 @@ pub struct NamespaceObject {
     /// Only an idle, fully acknowledged object can enter this state.
     #[serde(default)]
     pub follows_remote: bool,
+    /// No directory entry; identity and any open stream survive deletion.
+    #[serde(default)]
+    pub unlinked: bool,
 }
 impl NamespaceObject {
     pub(crate) fn followed(&self, remote: Node) -> Result<Self> {
-        if self.remote.as_ref().is_none_or(|r| r.id != remote.id)
+        if self.unlinked
+            || self.remote.as_ref().is_none_or(|r| r.id != remote.id)
             || remote.kind != NodeKind::File
             || remote.target.is_some()
         {
@@ -146,7 +150,10 @@ pub(super) fn entry_slot(
 }
 pub(super) fn save(tx: &Transaction<'_>, object: &NamespaceObject) -> Result<()> {
     if object.follows_remote
-        && (object.working_file.is_some() || object.latest.is_some() || object.remote.is_none())
+        && (object.unlinked
+            || object.working_file.is_some()
+            || object.latest.is_some()
+            || object.remote.is_none())
     {
         return Err(JournalError::Corrupt);
     }
@@ -164,7 +171,7 @@ pub(super) fn save(tx: &Transaction<'_>, object: &NamespaceObject) -> Result<()>
         params![slot, object.id.to_string()],
         |r| r.get(0),
     )?;
-    if occupied && !object.follows_remote {
+    if occupied && !object.follows_remote && !object.unlinked {
         return Err(JournalError::Stale);
     }
     tx.execute(
@@ -182,7 +189,7 @@ pub(super) fn save(tx: &Transaction<'_>, object: &NamespaceObject) -> Result<()>
         "DELETE FROM namespace_entries WHERE object=?1",
         [object.id.to_string()],
     )?;
-    if !object.follows_remote {
+    if !object.follows_remote && !object.unlinked {
         tx.execute(
             "INSERT INTO namespace_entries(slot,object,scope,parent) VALUES(?1,?2,?3,?4)",
             params![
@@ -299,7 +306,7 @@ pub(super) fn prepare_attachment(
     let existing = by_identity(db, &working.scope, &working.node.id)?;
     Ok(match existing {
         Some(mut object) => {
-            if object.working_file.is_some() {
+            if object.unlinked != working.unlinked || object.working_file.is_some() {
                 return Err(JournalError::Stale);
             }
             if object.follows_remote {
@@ -352,6 +359,7 @@ pub(super) fn prepare_attachment(
                 latest: working.latest,
                 revision: 0,
                 follows_remote: false,
+                unlinked: false,
             }
         }
     })
@@ -371,7 +379,10 @@ pub(super) fn update_working(tx: &Transaction<'_>, working: &WorkingFile) -> Res
         |r| r.get(0),
     )?;
     let mut object = by_id(tx, Uuid::parse_str(&id).map_err(|_| JournalError::Corrupt)?)?;
-    if object.scope != working.scope || object.node.id != working.node.id {
+    if object.scope != working.scope
+        || object.node.id != working.node.id
+        || object.unlinked != working.unlinked
+    {
         return Err(JournalError::Stale);
     }
     object.node = working.node.clone();
@@ -474,6 +485,9 @@ impl UploadJournal {
         .validate()
         .map_err(|_| JournalError::Intent)?;
         if let Some(mut object) = by_identity(&self.db, &scope, &node.id)? {
+            if object.unlinked {
+                return Err(JournalError::Stale);
+            }
             if object.follows_remote {
                 if object.working_file.is_some()
                     || object.latest.is_some()
@@ -512,6 +526,7 @@ impl UploadJournal {
             latest: None,
             revision: 0,
             follows_remote: false,
+            unlinked: false,
         };
         let tx = self
             .db
@@ -532,7 +547,7 @@ impl UploadJournal {
         name: String,
     ) -> Result<MutationRecord> {
         let mut object = self.namespace_object(id)?;
-        if object.revision != revision || object.follows_remote {
+        if object.revision != revision || object.follows_remote || object.unlinked {
             return Err(JournalError::Stale);
         }
         if object.node.kind != NodeKind::File {
@@ -673,7 +688,7 @@ pub fn project_namespace<'a>(
         if let Some(remote) = &object.remote {
             hidden.insert(remote.id.as_str());
         }
-        if object.node.parent_id.as_deref() == Some(parent) {
+        if !object.unlinked && object.node.parent_id.as_deref() == Some(parent) {
             local.insert(key(&object.node.name), *object);
         }
     }

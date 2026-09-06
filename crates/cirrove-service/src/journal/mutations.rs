@@ -31,6 +31,12 @@ pub struct MutationRecord {
     pub base: Option<WriteBase>,
     #[serde(default)]
     pub working_file: Option<Uuid>,
+    /// A local reader-preservation barrier; independent of cloud receipt lineage.
+    #[serde(default = "locally_ready")]
+    pub local_ready: bool,
+}
+fn locally_ready() -> bool {
+    true
 }
 pub(super) fn item_key(scope: &Scope, item: &str) -> Result<String> {
     Ok(serde_json::to_string(&(scope, "item", item))?)
@@ -189,6 +195,7 @@ impl UploadJournal {
             failed_attempts: 0,
             base,
             working_file: working.as_ref().map(|file| file.id),
+            local_ready: true,
         };
         let tx = self.db.transaction()?;
         record.sequence = queue_insert(&tx, record.id, mutation_resources(&record.request)?)?;
@@ -267,6 +274,7 @@ impl UploadJournal {
             return Ok(None);
         }
         let body: Option<String> = self.db.query_row("SELECT m.body FROM mutations m WHERE m.state IN ('pending','verify_required')
+            AND coalesce(json_extract(m.body,'$.local_ready'),1)=1
             AND (json_extract(m.body,'$.base') IS NULL OR json_extract(m.body,'$.base.resolved')=1)
             AND json_extract(m.body,'$.retry_at')<=?1 AND NOT EXISTS (
             SELECT 1 FROM write_queue previous JOIN write_resources a ON a.id=previous.id JOIN write_resources b ON b.resource=a.resource AND b.id=m.id WHERE previous.sequence<m.sequence AND previous.complete=0)

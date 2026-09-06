@@ -48,7 +48,10 @@ impl UploadJournal {
     /// Sealed is not uploaded. Every operation attached to this object must be
     /// confirmed, and a newer dirty generation must never be discarded.
     pub fn namespace_is_clean(&self, object: &NamespaceObject) -> Result<bool> {
-        if object.scope.account != self.account || object.follows_remote || object.remote.is_none()
+        if object.scope.account != self.account
+            || object.follows_remote
+            || object.unlinked
+            || object.remote.is_none()
         {
             return Ok(false);
         }

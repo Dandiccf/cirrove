@@ -17,6 +17,9 @@ pub struct WorkingFile {
     /// working-file revision, for the first metadata-only operation.
     #[serde(default)]
     pub initial_remote: Option<Node>,
+    /// The pathname is gone; descriptor writes remain local recovery data.
+    #[serde(default)]
+    pub unlinked: bool,
 }
 impl WorkingFile {
     fn mutation_source(&self) -> Node {
@@ -73,7 +76,10 @@ pub(super) fn migrate(db: &mut Connection, version: u32) -> Result<()> {
     Ok(())
 }
 
-fn slot(db: &Connection, record: &WorkingFile) -> Result<String> {
+fn slot(db: &Connection, record: &WorkingFile) -> Result<Option<String>> {
+    if record.unlinked {
+        return Ok(None);
+    }
     super::namespace::entry_slot(
         db,
         &record.scope,
@@ -84,6 +90,7 @@ fn slot(db: &Connection, record: &WorkingFile) -> Result<String> {
             .ok_or(JournalError::Intent)?,
         &record.node.name,
     )
+    .map(Some)
 }
 
 impl UploadJournal {
@@ -283,7 +290,13 @@ impl UploadJournal {
             dirty: new || truncate,
             generation: 0,
             initial_remote,
+            unlinked: false,
         };
+        if !new {
+            record.unlinked = self
+                .namespace_by_identity(&record.scope, &record.node.id)?
+                .is_some_and(|o| o.unlinked);
+        }
         super::namespace::prepare_attachment(&self.db, &mut record)?;
         let identity = serde_json::to_string(&(&record.scope, &record.node.id))?;
         let occupied_slot = slot(&self.db, &record)?;
@@ -378,7 +391,7 @@ impl UploadJournal {
         let record = self.working_file(id)?;
         let mut bytes = self.working_descriptor(id, true)?;
         bytes.sync_all()?;
-        if !record.dirty {
+        if !record.dirty || record.unlinked {
             return Ok(None);
         }
         let (intent, base) = match record.latest {
@@ -421,7 +434,7 @@ impl UploadJournal {
         .validate()
         .map_err(|_| JournalError::Intent)?;
         let current = self.working_file(id)?;
-        if current.node.id == parent {
+        if current.unlinked || current.node.id == parent {
             return Err(JournalError::Intent);
         }
         if current.dirty {

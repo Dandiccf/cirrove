@@ -59,6 +59,14 @@ restart and ordered NotFound responses. This does not complete atomic replacemen
 open-unlinked files, writable directories, long-term metadata retention or the
 real-provider application acceptance matrix.
 
+Regular-file unlink now removes the local name and retains open streams independently
+of a reused path. A reader-preservation barrier delays cloud deletion without
+holding the kernel directory lock. Synthetic FUSE checks cover later descriptor
+writes, a held read, quota failure, cancellation and restart. Atomic replacement
+still needs multi-object dependencies and remote-binding transfer. Detached-data
+retention/recovery, restored remote identities and live unlink acceptance remain
+open; this increment does not close the safe-file-changes milestone.
+
 - [x] Provider-neutral create, update, rename, move and delete contracts (regular-file deletion; folder removal remains an explicit gap).
 - [ ] Durable local file contents and journal before local-save acknowledgement.
 - [ ] Persisted upload progress, resumable transfers and idempotent recovery.

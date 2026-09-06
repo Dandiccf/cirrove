@@ -183,6 +183,9 @@ remote file's total size; namespace and outstanding application buffers add memo
 A small failure cooldown prevents coalesced failures from becoming a retry storm.
 
 Each uncached Graph range currently uses metadata checks before and after download.
+The shared content cache also bounds each provider range call to 30 seconds and
+observes cancellation even when an adapter ignores its token. The local cache
+publication afterward is awaited rather than abandoned by that provider deadline.
 The content revision and size must match the opened version. Cirrove prefers Graph's
 content-only cTag and falls back to eTag when absent; the two tag namespaces are
 distinct in cache keys. Response range and byte count are
@@ -385,7 +388,7 @@ save bases. Providers must distinguish conditional responses from later observat
 
 These APIs establish journal ordering and working-file transactions. The sparse
 namespace model below connects regular-file relocation to FUSE. Directory dependencies,
-open-unlinked handles and atomic replacement through FUSE remain required. The ordinary
+atomic replacement and complete detached-stream retention/recovery remain required. The ordinary
 manager stays read-only.
 
 ## Sparse local namespace and mounted relocation
@@ -475,6 +478,44 @@ This releases working storage, not all historical metadata. Aliases are still
 loaded into the in-memory projection, and operation history has no retention policy
 yet. Pins, writable mappings and complete application-save semantics remain separate
 acceptance gates. Ordinary daemon mounts still use the read-only constructor.
+
+## Unlinked names and retained file streams
+
+Journal schema 9 permits a working stream without an occupied pathname. A regular
+file unlink seals earlier dirty bytes, then removes the local entry and queues a
+conditional remote deletion in one transaction. Earlier uploads or moves still
+provide its required identity and ETag. A new file can use the released name with
+its own local identity. The old object remains a tombstone against stale remote
+listings. Directories and shortcuts are not accepted by this unlink path.
+
+Open-file registration happens before asynchronous OPEN preparation. Weak stream
+references remain alive through callbacks, including reads that outlive removal
+of the handle from the open-file map. Old handles keep their object and working
+stream; fstat reports zero links, and ftruncate uses the handle's stream. Writes
+after unlink remain local recovery data. Their fsync flushes the local bytes and
+does not queue another upload that could recreate the deleted cloud file.
+
+An unopened online-only file can be removed without fetching its contents. If an
+open stream still needs remote bytes, a persisted local-reader barrier makes its
+DELETE ineligible while the local unlink returns. Preservation runs on the tracked
+maintenance worker outside Linux's parent-directory lock. It hydrates the original
+version, switches new reads to the local stream, and waits for already registered
+remote reads before releasing the barrier. The counters registering reads hold no
+filesystem lock during network I/O. Other files remain usable during preservation.
+
+An exhausted spool quota or failed download leaves the remote deletion pending;
+existing handles can continue to request their original remote version. Once all
+readers are gone, deletion can proceed without hydration. Provider failures back
+off per object. Shutdown cancels provider I/O and retains the deletion intent.
+Reopening the exclusively owned journal releases only the former process's reader
+barriers: handles cannot survive a dead FUSE connection. Remote receipt dependencies
+and retained working bytes remain intact.
+
+This implements regular-file unlink and its open-handle lifetime, not atomic
+replacement of two local objects. Detached working data, tombstones and operation
+history currently remain retained. Their recovery UI, bounded cleanup and handling
+of a provider restoring the same deleted item identity are still required. Full
+application compatibility and real-provider mounted unlink acceptance remain open.
 
 ## Next boundaries
 
