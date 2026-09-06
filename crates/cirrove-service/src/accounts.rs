@@ -434,7 +434,32 @@ mod tests {
         let lock = daemon_lock(&state).unwrap();
         assert!(daemon_lock(&state).is_err());
         drop(lock);
-        assert!(daemon_lock(&state).is_ok());
+        // Parallel tests launch child processes. Between fork and exec a child
+        // can retain the open description underlying flock, even with CLOEXEC.
+        // Require prompt eventual release; do not mistake that short interval
+        // for a leaked owner or ignore errors other than lock contention.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+        loop {
+            match daemon_lock(&state) {
+                Ok(reacquired) => {
+                    drop(reacquired);
+                    break;
+                }
+                Err(error) => {
+                    assert!(
+                        error
+                            .downcast_ref::<std::io::Error>()
+                            .is_some_and(|e| e.kind() == std::io::ErrorKind::WouldBlock),
+                        "{error:#}"
+                    );
+                    assert!(
+                        std::time::Instant::now() < deadline,
+                        "owner was not released: {error:#}"
+                    );
+                    std::thread::sleep(std::time::Duration::from_millis(1));
+                }
+            }
+        }
         Settings::default().save(&state).unwrap();
         assert!(Settings::load(&state).unwrap().accounts.is_empty());
         use std::os::unix::fs::PermissionsExt;
