@@ -8,7 +8,7 @@ acceptance for roadmap stages 1–3.
 ## Local checks
 
 - Formatting and strict Clippy cover all crates and test targets.
-- Current default workspace suite: **131 tests passed**. Eighteen kernel-FUSE tests
+- Current default workspace suite: **160 tests passed**. Twenty-one kernel-FUSE tests
   run separately; subprocess fixture entry points and the optional performance
   fixture remain excluded from the default suite.
 - Built both binaries and generated workspace Rustdoc.
@@ -450,3 +450,27 @@ The completed local verification run passed 144 default workspace tests, all 20
 actual synthetic kernel-FUSE checks, formatting, strict Clippy, workspace build,
 executable service smoke, two observer tests and Rustdoc. These counts include the
 previous lineage and lifecycle cases; they do not establish real-provider readiness.
+
+## Ordered metadata observations
+
+Two controlled regressions failed before this fix: a held directory response
+returned an old name after a newer listing committed, and a held item response
+restored an older content revision and size. Both now use the newer committed
+metadata, even when the provider goes offline before releasing the old response.
+A third engine fixture verifies a bounded retry when the newer observation has
+not established a complete directory view.
+
+Thirteen store fixtures cover moves across parents, unrelated scopes, unknown-parent
+deletions, empty deltas, replacement baselines, request ordering across paginated
+feeds, transaction rollback, schema-3 migration, database-bound tickets, unchanged
+observations, coherent cached listings and negative observations. Foreground absence
+preserves the committed delta baseline and yields to a later-started feed.
+
+An additional actual kernel-FUSE fixture holds a cold directory response while a
+newer delta renames its child. A separate Python application's listing sees only
+the new name after the old response is released, with zero content reads. All 160
+default tests and 21 actual synthetic FUSE tests passed, including existing navigation
+under load and writable-session recovery. Formatting, strict Clippy, workspace build,
+executable smoke, two observer checks and Rustdoc also passed. These tests use synthetic providers;
+they do not establish real-provider latency or complete the outstanding clean-object
+retirement and remote-edit rebasing work in experimental writable mounts.

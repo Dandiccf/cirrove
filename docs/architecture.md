@@ -87,10 +87,29 @@ A replacement baseline is built alongside the last visible index. Interrupted wo
 resumes; an expired cursor does not immediately empty a usable directory tree.
 
 Cold foreground listings are atomically recorded separately from the delta index.
+Metadata schema 4 assigns a persistent logical revision before each network
+observation and feed round; completion wall time is used only for age reporting.
+Publication checks the observation's ticket against intervening commits for that
+item, its affected directories and its scope. A superseded response yields the
+current committed view. If a complete directory view is still unknown, the engine
+retries from the first page, at most three times within the total listing deadline.
+An item with no current view returns ESTALE rather than discarded metadata.
+
 An incremental round invalidates older observations for changed identities and
 their affected parents; an empty or unrelated delta keeps fresher directory
-listings. A replacement baseline removes observations older than its start.
-Observations newer than the round's start remain visible across its commit.
+listings. A replacement baseline removes observations whose requests started
+before that round. Observations started afterward remain visible across its commit.
+Single-item observations overlay cached directory snapshots, including both sides
+of a move. A complete listing's absent children are hidden by separate negative
+observations; this does not remove rows from the committed delta baseline or claim
+that an absent item was deleted remotely. Later observations or feed rounds can
+supersede that absence. Directory reads use one database snapshot so their base,
+positive observations and negative observations agree.
+
+The schema migration preserves existing metadata and seeds the logical clock from
+legacy ordering values. The observation database remains separate from the upload
+journal. This ordering prevents local publication races; it cannot establish a
+globally consistent snapshot across an eventually consistent provider's endpoints.
 
 Reading a directory registers a 60-second activity lease. Each account retains at
 most 32 recently used directories and has one revalidation worker, with at least

@@ -39,6 +39,9 @@ struct Fixture {
     directory_calls: AtomicU64,
     stall_root_directory: AtomicBool,
     throttle_directory: AtomicBool,
+    hold_observation: AtomicBool,
+    observation_entered: tokio::sync::Notify,
+    release_observation: tokio::sync::Notify,
 }
 fn file(id: &str, parent: Option<&str>, kind: NodeKind, size: u64) -> Node {
     Node {
@@ -133,6 +136,9 @@ impl Fixture {
             directory_calls: AtomicU64::new(0),
             stall_root_directory: AtomicBool::new(false),
             throttle_directory: AtomicBool::new(false),
+            hold_observation: AtomicBool::new(false),
+            observation_entered: tokio::sync::Notify::new(),
+            release_observation: tokio::sync::Notify::new(),
         })
     }
     fn online(&self) -> Result<(), ProviderError> {
@@ -206,15 +212,18 @@ impl ReadProvider for Fixture {
         &self,
         scope: &Scope,
         id: &str,
-        _: &CancellationToken,
+        cancel: &CancellationToken,
     ) -> Result<Node, ProviderError> {
         self.online()?;
-        self.nodes
+        let node = self
+            .nodes
             .read()
             .await
             .get(&(scope.collection.clone(), id.into()))
             .cloned()
-            .ok_or(ProviderError::NotFound)
+            .ok_or(ProviderError::NotFound)?;
+        self.hold_observation(cancel).await?;
+        Ok(node)
     }
     async fn children(
         &self,
@@ -232,7 +241,7 @@ impl ReadProvider for Fixture {
             return Err(ProviderError::Cancelled);
         }
         self.online()?;
-        Ok(DirectoryPage {
+        let page = DirectoryPage {
             nodes: self
                 .nodes
                 .read()
@@ -244,7 +253,9 @@ impl ReadProvider for Fixture {
                 .map(|(_, node)| node.clone())
                 .collect(),
             next: None,
-        })
+        };
+        self.hold_observation(cancel).await?;
+        Ok(page)
     }
     async fn read_range(
         &self,
@@ -2355,4 +2366,274 @@ async fn experimental_writes_require_isolated_opt_in_and_matching_journal_owner(
             accepted
         );
     }
+}
+
+impl Fixture {
+    async fn hold_observation(&self, cancel: &CancellationToken) -> Result<(), ProviderError> {
+        if self.hold_observation.swap(false, Ordering::SeqCst) {
+            self.observation_entered.notify_one();
+            tokio::select! {biased;
+                _=cancel.cancelled()=>return Err(ProviderError::Cancelled),
+                _=self.release_observation.notified()=>{},
+            }
+        }
+        Ok(())
+    }
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn late_directory_response_cannot_overwrite_a_newer_visible_listing() {
+    let temp = tempfile::tempdir().unwrap();
+    let provider = Fixture::new();
+    let engine = Engine::new(
+        account(temp.path().join("mount")),
+        provider.clone(),
+        temp.path().join("state"),
+    )
+    .await
+    .unwrap();
+    let scope = engine.scope("cold");
+    let original = file("entry", Some("root"), NodeKind::File, 5);
+    provider
+        .nodes
+        .write()
+        .await
+        .insert(("cold".into(), original.id.clone()), original.clone());
+    provider.hold_observation.store(true, Ordering::SeqCst);
+    let request_engine = engine.clone();
+    let request_scope = scope.clone();
+    let request =
+        tokio::spawn(async move { request_engine.children(&request_scope, "root").await });
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        provider.observation_entered.notified(),
+    )
+    .await
+    .unwrap();
+    let mut newer = original;
+    newer.name = "new name".into();
+    newer.etag = Some("newer".into());
+    Store::open(&engine.db)
+        .unwrap()
+        .observe_directory(&scope, "root", &[newer.clone()])
+        .unwrap();
+    provider.offline.store(true, Ordering::SeqCst);
+    provider.release_observation.notify_one();
+    let listing = tokio::time::timeout(Duration::from_secs(2), request)
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+    assert_eq!(listing, vec![newer.clone()]);
+    assert_eq!(
+        Store::open(&engine.db)
+            .unwrap()
+            .children(&scope, "root")
+            .unwrap()
+            .unwrap(),
+        vec![newer]
+    );
+    assert_eq!(provider.directory_calls.load(Ordering::SeqCst), 1);
+    engine.stop().await;
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn late_node_response_cannot_restore_an_older_content_version() {
+    let temp = tempfile::tempdir().unwrap();
+    let provider = Fixture::new();
+    let engine = Engine::new(
+        account(temp.path().join("mount")),
+        provider.clone(),
+        temp.path().join("state"),
+    )
+    .await
+    .unwrap();
+    let scope = engine.scope("cold");
+    let original = file("entry", Some("root"), NodeKind::File, 5);
+    provider
+        .nodes
+        .write()
+        .await
+        .insert(("cold".into(), original.id.clone()), original.clone());
+    provider.hold_observation.store(true, Ordering::SeqCst);
+    let request_engine = engine.clone();
+    let request_scope = scope.clone();
+    let request = tokio::spawn(async move { request_engine.node(&request_scope, "entry").await });
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        provider.observation_entered.notified(),
+    )
+    .await
+    .unwrap();
+    let mut newer = original;
+    newer.size = 8;
+    newer.etag = Some("newer".into());
+    Store::open(&engine.db)
+        .unwrap()
+        .observe_node(&scope, &newer)
+        .unwrap();
+    provider.offline.store(true, Ordering::SeqCst);
+    provider.release_observation.notify_one();
+    let node = tokio::time::timeout(Duration::from_secs(2), request)
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+    assert_eq!(node, newer);
+    assert_eq!(
+        Store::open(&engine.db)
+            .unwrap()
+            .node(&scope, "entry")
+            .unwrap()
+            .unwrap(),
+        newer
+    );
+    engine.stop().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn superseded_cold_listing_retries_when_no_complete_newer_listing_exists() {
+    let temp = tempfile::tempdir().unwrap();
+    let provider = Fixture::new();
+    let engine = Engine::new(
+        account(temp.path().join("mount")),
+        provider.clone(),
+        temp.path().join("state"),
+    )
+    .await
+    .unwrap();
+    let scope = engine.scope("cold");
+    let original = file("entry", Some("root"), NodeKind::File, 5);
+    provider
+        .nodes
+        .write()
+        .await
+        .insert(("cold".into(), original.id.clone()), original.clone());
+    provider.hold_observation.store(true, Ordering::SeqCst);
+    let e = engine.clone();
+    let s = scope.clone();
+    let request = tokio::spawn(async move { e.children(&s, "root").await });
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        provider.observation_entered.notified(),
+    )
+    .await
+    .unwrap();
+    let mut newer = original;
+    newer.name = "new name".into();
+    newer.etag = Some("newer".into());
+    provider
+        .nodes
+        .write()
+        .await
+        .insert(("cold".into(), newer.id.clone()), newer.clone());
+    Store::open(&engine.db)
+        .unwrap()
+        .observe_node(&scope, &newer)
+        .unwrap();
+    assert!(
+        Store::open(&engine.db)
+            .unwrap()
+            .children(&scope, "root")
+            .unwrap()
+            .is_none()
+    );
+    provider.release_observation.notify_one();
+    let listing = tokio::time::timeout(Duration::from_secs(2), request)
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+    assert_eq!(listing, vec![newer]);
+    assert_eq!(provider.directory_calls.load(Ordering::SeqCst), 2);
+    engine.stop().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; stale directory replies must not reach applications"]
+async fn real_delayed_directory_reply_cannot_restore_a_name_replaced_by_delta() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let provider = Fixture::new();
+    let mut original = file("stable", Some("root"), NodeKind::File, 5);
+    original.name = "old.txt".into();
+    provider.nodes.write().await.clear();
+    provider
+        .nodes
+        .write()
+        .await
+        .insert(("home".into(), original.id.clone()), original.clone());
+    provider.hold_observation.store(true, Ordering::SeqCst);
+    let engine = Engine::new(
+        account(mount.clone()),
+        provider.clone(),
+        temp.path().join("state"),
+    )
+    .await
+    .unwrap();
+    let fs = CloudFs::new(engine.clone()).unwrap();
+    let path = mount.clone();
+    let session = tokio::task::spawn_blocking(move || fs.mount(&path))
+        .await
+        .unwrap()
+        .unwrap();
+    let mut app = tokio::process::Command::new("python3")
+        .arg("-c")
+        .arg("import json,os,sys; print(json.dumps(sorted(os.listdir(sys.argv[1]))))")
+        .arg(&mount)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()
+        .unwrap();
+    tokio::time::timeout(
+        Duration::from_secs(3),
+        provider.observation_entered.notified(),
+    )
+    .await
+    .unwrap();
+    let mut newer = original;
+    newer.name = "new.txt".into();
+    newer.etag = Some("newer".into());
+    provider
+        .nodes
+        .write()
+        .await
+        .insert(("home".into(), newer.id.clone()), newer.clone());
+    let scope = engine.scope("home");
+    {
+        let mut store = Store::open(&engine.db).unwrap();
+        store.begin(&scope, false).unwrap();
+        store
+            .stage(
+                &scope,
+                None,
+                &ChangePage {
+                    changes: vec![Change::Upsert(newer)],
+                    checkpoint: Checkpoint::Complete(Cursor("published".into())),
+                },
+            )
+            .unwrap();
+    }
+    engine.changed.notify_waiters();
+    provider.release_observation.notify_one();
+    tokio::time::timeout(Duration::from_secs(3), app.wait())
+        .await
+        .unwrap()
+        .unwrap();
+    let output = app.wait_with_output().await.unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        serde_json::from_slice::<Vec<String>>(&output.stdout).unwrap(),
+        vec!["new.txt"]
+    );
+    assert_eq!(provider.reads.load(Ordering::SeqCst), 0);
+    engine.stop().await;
+    tokio::task::spawn_blocking(move || session.umount_and_join())
+        .await
+        .unwrap()
+        .unwrap();
 }

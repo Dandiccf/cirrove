@@ -395,22 +395,42 @@ impl Engine {
         let db = self.db.clone();
         let s = scope.clone();
         let item = id.to_string();
-        let cached = tokio::task::spawn_blocking(move || Store::open(db)?.node(&s, &item))
-            .await
-            .map_err(|_| ProviderError::Unavailable)?
-            .map_err(|_| ProviderError::Unavailable)?;
+        let (cached, ticket) = tokio::task::spawn_blocking(move || -> cirrove_store::Result<_> {
+            let mut store = Store::open(db)?;
+            let cached = store.node(&s, &item)?;
+            let ticket = if cached.is_none() {
+                Some(store.node_observation(&s, &item)?)
+            } else {
+                None
+            };
+            Ok((cached, ticket))
+        })
+        .await
+        .map_err(|_| ProviderError::Unavailable)?
+        .map_err(|_| ProviderError::Unavailable)?;
         if let Some(node) = cached {
             return Ok(node);
         }
+        let ticket = ticket.ok_or(ProviderError::Unavailable)?;
         let node = self.provider.node(scope, id, &self.cancel).await?;
         let db = self.db.clone();
-        let s = scope.clone();
-        let n = node.clone();
-        tokio::task::spawn_blocking(move || Store::open(db)?.observe_node(&s, &n))
-            .await
-            .map_err(|_| ProviderError::Unavailable)?
-            .map_err(|_| ProviderError::Unavailable)?;
-        Ok(node)
+        let result =
+            tokio::task::spawn_blocking(move || Store::open(db)?.publish_node(&ticket, &node))
+                .await
+                .map_err(|_| ProviderError::Unavailable)?
+                .map_err(|_| ProviderError::Unavailable)?;
+        match result {
+            cirrove_store::ObservationResult::Published { value, changed } => {
+                if changed {
+                    self.changed.notify_waiters();
+                }
+                Ok(value)
+            }
+            cirrove_store::ObservationResult::Superseded(Some(node)) => Ok(node),
+            cirrove_store::ObservationResult::Superseded(None) => {
+                Err(ProviderError::VersionChanged)
+            }
+        }
     }
     fn directory_gate(&self, key: &str) -> Result<Arc<Mutex<()>>, ProviderError> {
         let mut gates = self
@@ -487,45 +507,61 @@ impl Engine {
         scope: &Scope,
         parent: &str,
     ) -> Result<Vec<Node>, ProviderError> {
-        let mut nodes = vec![];
-        let mut cursor = None;
-        let mut seen = HashSet::new();
-        loop {
-            let page = self
-                .provider
-                .children(scope, parent, cursor.as_ref(), &self.cancel)
-                .await?;
-            nodes.extend(page.nodes);
-            if nodes.len() > 100_000 {
-                return Err(ProviderError::Protocol("directory exceeds entry limit"));
+        // A concurrent publication can invalidate a cold snapshot. Cached newer
+        // data wins immediately; otherwise retry within the outer total deadline.
+        for _ in 0..3 {
+            let db = self.db.clone();
+            let s = scope.clone();
+            let p = parent.to_owned();
+            let ticket =
+                tokio::task::spawn_blocking(move || Store::open(db)?.directory_observation(&s, &p))
+                    .await
+                    .map_err(|_| ProviderError::Unavailable)?
+                    .map_err(|_| ProviderError::Unavailable)?;
+            let mut nodes = vec![];
+            let mut cursor = None;
+            let mut seen = HashSet::new();
+            loop {
+                let page = self
+                    .provider
+                    .children(scope, parent, cursor.as_ref(), &self.cancel)
+                    .await?;
+                nodes.extend(page.nodes);
+                if nodes.len() > 100_000 {
+                    return Err(ProviderError::Protocol("directory exceeds entry limit"));
+                }
+                cursor = page.next;
+                let Some(next) = &cursor else { break };
+                if !seen.insert(next.0.clone()) {
+                    return Err(ProviderError::Protocol("repeated directory cursor"));
+                }
             }
-            cursor = page.next;
-            let Some(next) = &cursor else { break };
-            if !seen.insert(next.0.clone()) {
-                return Err(ProviderError::Protocol("repeated directory cursor"));
+            nodes.sort_by(|a, b| a.name.cmp(&b.name));
+            let db = self.db.clone();
+            let result = tokio::task::spawn_blocking(move || {
+                Store::open(db)?.publish_directory(&ticket, &nodes)
+            })
+            .await
+            .map_err(|_| ProviderError::Unavailable)?
+            .map_err(|_| ProviderError::Unavailable)?;
+            let (nodes, changed) = match result {
+                cirrove_store::ObservationResult::Published { value, changed } => (value, changed),
+                cirrove_store::ObservationResult::Superseded(Some(nodes)) => (nodes, false),
+                cirrove_store::ObservationResult::Superseded(None) => continue,
+            };
+            for node in &nodes {
+                if let Some(target) = &node.target {
+                    let _ = self
+                        .ensure_feed(target.collection.clone(), target.item.clone())
+                        .await;
+                }
             }
-        }
-        nodes.sort_by(|a, b| a.name.cmp(&b.name));
-        let db = self.db.clone();
-        let s = scope.clone();
-        let p = parent.to_owned();
-        let n = nodes.clone();
-        let changed =
-            tokio::task::spawn_blocking(move || Store::open(db)?.observe_directory(&s, &p, &n))
-                .await
-                .map_err(|_| ProviderError::Unavailable)?
-                .map_err(|_| ProviderError::Unavailable)?;
-        for node in &nodes {
-            if let Some(target) = &node.target {
-                let _ = self
-                    .ensure_feed(target.collection.clone(), target.item.clone())
-                    .await;
+            if changed {
+                self.changed.notify_waiters();
             }
+            return Ok(nodes);
         }
-        if changed {
-            self.changed.notify_waiters();
-        }
-        Ok(nodes)
+        Err(ProviderError::VersionChanged)
     }
 }
 
