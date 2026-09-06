@@ -26,6 +26,10 @@ implemented. A separate developer upload worker is undergoing validation.
   now wake the incremental metadata feed; periodic checks remain a fallback.
   Provider delivery latency is separate from Cirrove's reaction time; see
   [change notifications](docs/adr/0003-change-notifications.md).
+- Bounded revalidation of recently used directories while cached listings remain
+  readable. A single account worker checks up to 32 active directories, respects
+  provider cooldowns and avoids reloading unchanged listings. This complements
+  notifications; it does not guarantee a fixed remote-update latency.
 - Linked-drive discovery and shortcut projection with separate target identities.
   Folder-only SharePoint sharing and revoked targets still need live validation.
 - Read-only FUSE projection with persistent directory and content-version inodes,

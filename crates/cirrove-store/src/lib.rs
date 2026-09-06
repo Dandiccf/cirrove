@@ -128,7 +128,11 @@ impl Store {
         page: &ChangePage,
     ) -> Result<()> {
         let key = Self::key(scope)?;
-        let tx = self.db.transaction()?;
+        // The cursor check and its following writes share a reserved writer;
+        // concurrent foreground observations must not invalidate this snapshot.
+        let tx = self
+            .db
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let feed = tx
             .query_row(
                 "SELECT pending,next_cursor,reset FROM feeds WHERE scope=?1",
@@ -156,14 +160,27 @@ impl Store {
             tx.execute("INSERT INTO staged(scope,id,body) VALUES(?1,?2,?3) ON CONFLICT(scope,id) DO UPDATE SET body=excluded.body", params![key,id,body])?;
         }
         if page.checkpoint.complete() {
+            // A delta with no relevant changes must not discard a fresher
+            // foreground directory snapshot. Invalidate only touched identities
+            // and their old/new parents, before replacing the indexed rows.
+            if reset {
+                tx.execute("DELETE FROM observed WHERE scope=?1 AND seen<=(SELECT started FROM rounds WHERE scope=?1)",[&key])?;
+                tx.execute("DELETE FROM directories WHERE scope=?1 AND seen<=(SELECT started FROM rounds WHERE scope=?1)",[&key])?;
+            } else {
+                tx.execute("DELETE FROM directories WHERE scope=?1 AND seen<=(SELECT started FROM rounds WHERE scope=?1) AND parent IN (
+                    SELECT id FROM staged WHERE scope=?1
+                    UNION SELECT json_extract(body,'$.parent_id') FROM staged WHERE scope=?1
+                    UNION SELECT json_extract((SELECT body FROM nodes WHERE scope=?1 AND id=s.id),'$.parent_id') FROM staged s WHERE scope=?1
+                    UNION SELECT json_extract((SELECT body FROM observed WHERE scope=?1 AND id=s.id),'$.parent_id') FROM staged s WHERE scope=?1
+                )",[&key])?;
+                tx.execute("DELETE FROM observed WHERE scope=?1 AND seen<=(SELECT started FROM rounds WHERE scope=?1) AND id IN (SELECT id FROM staged WHERE scope=?1)",[&key])?;
+            }
             if reset {
                 tx.execute("DELETE FROM nodes WHERE scope=?1", [&key])?;
             }
             tx.execute("DELETE FROM nodes WHERE scope=?1 AND id IN (SELECT id FROM staged WHERE scope=?1 AND body IS NULL)", [&key])?;
             tx.execute("INSERT INTO nodes(scope,id,body) SELECT scope,id,body FROM staged WHERE scope=?1 AND body IS NOT NULL ON CONFLICT(scope,id) DO UPDATE SET body=excluded.body", [&key])?;
             tx.execute("DELETE FROM staged WHERE scope=?1", [&key])?;
-            tx.execute("DELETE FROM observed WHERE scope=?1 AND seen<=(SELECT started FROM rounds WHERE scope=?1)",[&key])?;
-            tx.execute("DELETE FROM directories WHERE scope=?1 AND seen<=(SELECT started FROM rounds WHERE scope=?1)",[&key])?;
             tx.execute(
                 "UPDATE feeds SET cursor=?2,next_cursor=NULL,pending=0,reset=0 WHERE scope=?1",
                 params![key, page.checkpoint.cursor().0],
@@ -224,9 +241,11 @@ impl Store {
         Ok(())
     }
     pub fn children(&self, scope: &Scope, parent: &str) -> Result<Option<Vec<Node>>> {
+        Self::children_on(&self.db, scope, parent)
+    }
+    fn children_on(db: &Connection, scope: &Scope, parent: &str) -> Result<Option<Vec<Node>>> {
         let key = Self::key(scope)?;
-        let body = self
-            .db
+        let body = db
             .query_row(
                 "SELECT body FROM directories WHERE scope=?1 AND parent=?2",
                 params![key, parent],
@@ -236,26 +255,44 @@ impl Store {
         if let Some(body) = body {
             return Ok(Some(serde_json::from_str(&body)?));
         }
-        if self.cursor(scope)?.is_none() {
+        if db
+            .query_row("SELECT cursor FROM feeds WHERE scope=?1", [&key], |r| {
+                r.get::<_, Option<String>>(0)
+            })
+            .optional()?
+            .flatten()
+            .is_none()
+        {
             return Ok(None);
         }
-        let mut query=self.db.prepare("SELECT body FROM nodes WHERE scope=?1 AND json_extract(body,'$.parent_id')=?2 ORDER BY json_extract(body,'$.name')")?;
+        let mut query=db.prepare("SELECT body FROM nodes WHERE scope=?1 AND json_extract(body,'$.parent_id')=?2 ORDER BY json_extract(body,'$.name')")?;
         let rows = query.query_map(params![key, parent], |r| r.get::<_, String>(0))?;
         Ok(Some(
             rows.map(|r| Ok(serde_json::from_str(&r?)?))
                 .collect::<Result<_>>()?,
         ))
     }
-    pub fn observe_directory(&mut self, scope: &Scope, parent: &str, nodes: &[Node]) -> Result<()> {
+    pub fn observe_directory(
+        &mut self,
+        scope: &Scope,
+        parent: &str,
+        nodes: &[Node],
+    ) -> Result<bool> {
         let key = Self::key(scope)?;
-        let tx = self.db.transaction()?;
+        // Reserve the writer before comparing metadata. A deferred read-to-write
+        // upgrade can fail with SQLITE_BUSY immediately, bypassing busy_timeout,
+        // if another metadata worker writes after our first read.
+        let tx = self
+            .db
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        let changed = Self::children_on(&tx, scope, parent)?.as_deref() != Some(nodes);
         let seen = timestamp();
         for node in nodes {
             tx.execute("INSERT INTO observed(scope,id,body,seen) VALUES(?1,?2,?3,?4) ON CONFLICT(scope,id) DO UPDATE SET body=excluded.body,seen=excluded.seen",params![key,node.id,serde_json::to_string(node)?,seen])?;
         }
         tx.execute("INSERT INTO directories(scope,parent,body,seen) VALUES(?1,?2,?3,?4) ON CONFLICT(scope,parent) DO UPDATE SET body=excluded.body,seen=excluded.seen",params![key,parent,serde_json::to_string(nodes)?,seen])?;
         tx.commit()?;
-        Ok(())
+        Ok(changed)
     }
     pub fn inode(&mut self, key: &str) -> Result<u64> {
         if let Some(inode) = self
@@ -498,6 +535,99 @@ mod tests {
         .unwrap();
         assert!(db.node(&scope, "item").unwrap().is_none());
         assert!(db.children(&scope, "root").unwrap().unwrap().is_empty());
+    }
+    #[test]
+    fn concurrent_observations_and_delta_commits_preserve_all_completed_listings() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("db");
+        Store::open(&path).unwrap();
+        let start = std::sync::Barrier::new(4);
+        std::thread::scope(|threads| {
+            let workers: Vec<_> = (0..4)
+                .map(|worker| {
+                    let path = &path;
+                    let start = &start;
+                    threads.spawn(move || -> Result<()> {
+                        let mut db = Store::open(path)?;
+                        start.wait();
+                        let s = scope(&format!("account-{worker}"));
+                        let parent = format!("parent-{worker}");
+                        for generation in 0..100 {
+                            let Change::Upsert(mut item) = node(&format!("item-{worker}")) else {
+                                unreachable!()
+                            };
+                            item.name = format!("revision-{generation}");
+                            item.parent_id = Some(parent.clone());
+                            if worker % 2 == 0 {
+                                assert!(db.observe_directory(&s, &parent, &[item])?);
+                            } else {
+                                let cursor = db.begin(&s, false)?;
+                                db.stage(
+                                    &s,
+                                    cursor.as_ref(),
+                                    &page(
+                                        vec![Change::Upsert(item)],
+                                        true,
+                                        &format!("delta-{generation}"),
+                                    ),
+                                )?;
+                            }
+                        }
+                        Ok(())
+                    })
+                })
+                .collect();
+            let results: Vec<_> = workers.into_iter().map(|w| w.join().unwrap()).collect();
+            assert!(results.iter().all(Result::is_ok), "{results:?}");
+        });
+        let db = Store::open(path).unwrap();
+        for worker in 0..4 {
+            let items = db
+                .children(
+                    &scope(&format!("account-{worker}")),
+                    &format!("parent-{worker}"),
+                )
+                .unwrap()
+                .unwrap();
+            assert_eq!(items.len(), 1);
+            assert_eq!(items[0].name, "revision-99");
+        }
+    }
+    #[test]
+    fn unrelated_delta_keeps_fresh_directory_until_an_actual_item_change() {
+        let mut db = Store::open(":memory:").unwrap();
+        let s = scope("a");
+        db.begin(&s, false).unwrap();
+        db.stage(&s, None, &page(vec![node("item")], true, "d1"))
+            .unwrap();
+        let Change::Upsert(mut fresh) = node("item") else {
+            unreachable!()
+        };
+        fresh.name = "fresh name".into();
+        fresh.parent_id = Some("root".into());
+        assert!(db.observe_directory(&s, "root", &[fresh.clone()]).unwrap());
+        // An unchanged background check must not trigger a filesystem reload
+        // which could indefinitely renew its own directory-activity lease.
+        assert!(!db.observe_directory(&s, "root", &[fresh.clone()]).unwrap());
+        for changes in [vec![], vec![node("unrelated")]] {
+            let cursor = db.begin(&s, false).unwrap();
+            db.stage(&s, cursor.as_ref(), &page(changes, true, "d2"))
+                .unwrap();
+            assert_eq!(db.node(&s, "item").unwrap(), Some(fresh.clone()));
+            assert_eq!(db.children(&s, "root").unwrap(), Some(vec![fresh.clone()]));
+        }
+        fresh.name = "moved".into();
+        fresh.parent_id = Some("other".into());
+        let cursor = db.begin(&s, false).unwrap();
+        db.stage(
+            &s,
+            cursor.as_ref(),
+            &page(vec![Change::Upsert(fresh.clone())], true, "d3"),
+        )
+        .unwrap();
+        assert!(db.children(&s, "root").unwrap().unwrap().is_empty());
+        assert_eq!(db.children(&s, "other").unwrap(), Some(vec![fresh.clone()]));
+        assert_eq!(db.node(&s, "item").unwrap(), Some(fresh));
     }
     #[test]
     fn persistent_inode_batch_is_stable_and_shortcut_projection_is_scope_isolated() {

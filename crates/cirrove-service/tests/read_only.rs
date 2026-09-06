@@ -36,6 +36,9 @@ struct Fixture {
     throttle_change: AtomicBool,
     disconnect: tokio::sync::Notify,
     subscriptions: AtomicU64,
+    directory_calls: AtomicU64,
+    stall_root_directory: AtomicBool,
+    throttle_directory: AtomicBool,
 }
 fn file(id: &str, parent: Option<&str>, kind: NodeKind, size: u64) -> Node {
     Node {
@@ -127,6 +130,9 @@ impl Fixture {
             throttle_change: AtomicBool::new(false),
             disconnect: tokio::sync::Notify::new(),
             subscriptions: AtomicU64::new(0),
+            directory_calls: AtomicU64::new(0),
+            stall_root_directory: AtomicBool::new(false),
+            throttle_directory: AtomicBool::new(false),
         })
     }
     fn online(&self) -> Result<(), ProviderError> {
@@ -215,8 +221,16 @@ impl ReadProvider for Fixture {
         scope: &Scope,
         parent: &str,
         _: Option<&Cursor>,
-        _: &CancellationToken,
+        cancel: &CancellationToken,
     ) -> Result<DirectoryPage, ProviderError> {
+        self.directory_calls.fetch_add(1, Ordering::SeqCst);
+        if self.throttle_directory.swap(false, Ordering::SeqCst) {
+            return Err(ProviderError::Throttled(Duration::from_secs(20)));
+        }
+        if parent == "root" && self.stall_root_directory.load(Ordering::SeqCst) {
+            cancel.cancelled().await;
+            return Err(ProviderError::Cancelled);
+        }
         self.online()?;
         Ok(DirectoryPage {
             nodes: self
@@ -788,15 +802,29 @@ async fn real_manager_remounts_enabled_drives_and_keeps_disabled_drives_unmounte
         .unwrap();
     }
     wait_state(&manager, "", true).await;
-    assert!(
-        tokio::process::Command::new("fusermount3")
-            .arg("-u")
-            .arg(&mount)
-            .status()
-            .await
-            .unwrap()
-            .success()
-    );
+    // A newly mounted filesystem can be transiently busy. Require an ordinary
+    // unmount within two seconds; never force/detach it or retry other errors.
+    let eject_deadline = tokio::time::Instant::now() + Duration::from_secs(2);
+    loop {
+        let output = tokio::time::timeout_at(
+            eject_deadline,
+            tokio::process::Command::new("fusermount3")
+                .env("LC_ALL", "C")
+                .arg("-u")
+                .arg(&mount)
+                .kill_on_drop(true)
+                .output(),
+        )
+        .await
+        .expect("test mount stayed busy past the ejection deadline")
+        .unwrap();
+        if output.status.success() {
+            break;
+        }
+        let error = String::from_utf8_lossy(&output.stderr);
+        assert!(error.contains("Device or resource busy"), "{error}");
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
     // Wait on the actual kernel state, not a stale status snapshot.
     tokio::time::timeout(Duration::from_secs(10), async {
         loop {
@@ -1495,6 +1523,9 @@ async fn real_push_updates_the_mounted_namespace_without_waiting_for_polling() {
     std::fs::create_dir(&mount).unwrap();
     let session = CloudFs::new(engine.clone()).unwrap().mount(&mount).unwrap();
     let hints = provider.hints.read().await["home"].clone();
+    // Keep activity revalidation stalled so only the push-driven delta can
+    // expose this fixture's changes through the mount.
+    provider.stall_root_directory.store(true, Ordering::SeqCst);
     // Prime a negative entry and directory listing in the kernel.
     let path = mount.join("remote.txt");
     let absent = path.clone();
@@ -1556,4 +1587,208 @@ async fn real_push_updates_the_mounted_namespace_without_waiting_for_polling() {
         .await
         .unwrap()
         .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn active_directory_observes_create_and_delete_without_push_or_delta_timer() {
+    let temp = tempfile::tempdir().unwrap();
+    let provider = Fixture::new();
+    let mut config = account(temp.path().join("mount"));
+    config.poll_seconds = 3600;
+    let engine = Engine::new(config, provider.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    let delta_calls = provider.change_calls.load(Ordering::SeqCst);
+    fixture_remote_change(&provider, "active").await;
+    let cached = engine
+        .children(&engine.scope("home"), "root")
+        .await
+        .unwrap();
+    assert!(!cached.iter().any(|n| n.id == "remote.txt"));
+    wait_revision(&engine, "active").await;
+    provider
+        .nodes
+        .write()
+        .await
+        .remove(&("home".into(), "remote.txt".into()));
+    tokio::time::timeout(Duration::from_secs(8), async {
+        loop {
+            if !Store::open(&engine.db)
+                .unwrap()
+                .children(&engine.scope("home"), "root")
+                .unwrap()
+                .unwrap()
+                .iter()
+                .any(|n| n.id == "remote.txt")
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(provider.change_calls.load(Ordering::SeqCst), delta_calls);
+    assert!(provider.directory_calls.load(Ordering::SeqCst) <= 3);
+    engine.stop().await;
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn stalled_active_refresh_keeps_cached_and_cold_foreground_requests_responsive() {
+    let temp = tempfile::tempdir().unwrap();
+    let provider = Fixture::new();
+    let engine = Engine::new(
+        account(temp.path().join("mount")),
+        provider.clone(),
+        temp.path().join("state"),
+    )
+    .await
+    .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    provider.stall_root_directory.store(true, Ordering::SeqCst);
+    engine
+        .children(&engine.scope("home"), "root")
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while provider.directory_calls.load(Ordering::SeqCst) == 0 {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    tokio::time::timeout(Duration::from_secs(1), async {
+        for _ in 0..20 {
+            engine
+                .children(&engine.scope("home"), "root")
+                .await
+                .unwrap();
+        }
+        engine
+            .children(&engine.scope("cold"), "different-directory")
+            .await
+            .unwrap();
+    })
+    .await
+    .unwrap();
+    assert_eq!(provider.directory_calls.load(Ordering::SeqCst), 2);
+    tokio::time::timeout(Duration::from_secs(1), engine.stop())
+        .await
+        .unwrap();
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn repeated_activity_cannot_override_background_directory_throttling() {
+    let temp = tempfile::tempdir().unwrap();
+    let provider = Fixture::new();
+    let engine = Engine::new(
+        account(temp.path().join("mount")),
+        provider.clone(),
+        temp.path().join("state"),
+    )
+    .await
+    .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    provider.throttle_directory.store(true, Ordering::SeqCst);
+    engine
+        .children(&engine.scope("home"), "root")
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while engine.directory_freshness().delayed == 0 {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    for _ in 0..50 {
+        engine
+            .children(&engine.scope("home"), "root")
+            .await
+            .unwrap();
+    }
+    assert_eq!(provider.directory_calls.load(Ordering::SeqCst), 1);
+    engine.stop().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires a working /dev/fuse and fusermount3; run explicitly"]
+async fn real_active_directory_refreshes_during_a_stalled_read_without_push_or_delta() {
+    let temp = tempfile::tempdir().unwrap();
+    let provider = Fixture::new();
+    let mut config = account(temp.path().join("mount"));
+    config.poll_seconds = 3600;
+    let engine = Engine::new(config, provider.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    let delta_calls = provider.change_calls.load(Ordering::SeqCst);
+    let mount = engine.account.mount_path.clone();
+    std::fs::create_dir(&mount).unwrap();
+    let session = CloudFs::new(engine.clone()).unwrap().mount(&mount).unwrap();
+    provider.stall.store(true, Ordering::SeqCst);
+    let path = mount.join("small.txt");
+    let reader = tokio::task::spawn_blocking(move || std::fs::read(path));
+    let result = tokio::time::timeout(Duration::from_secs(40), async {
+        // The blocked file lookup activates its parent. Wait for that initial
+        // listing to finish, so a later refresh must discover each mutation.
+        loop {
+            if provider.reads.load(Ordering::SeqCst) > 0
+                && provider.directory_calls.load(Ordering::SeqCst) > 0
+                && engine.directory_freshness().refreshing == 0
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        for (name, previous) in [
+            (Some("remote.txt"), None),
+            (Some("geändert.txt"), Some("remote.txt")),
+            (None, Some("geändert.txt")),
+        ] {
+            {
+                let mut nodes = provider.nodes.write().await;
+                let key = ("home".into(), "remote.txt".into());
+                if let Some(name) = name {
+                    let mut node = file("remote.txt", Some("root"), NodeKind::File, 17);
+                    node.name = name.into();
+                    nodes.insert(key, node);
+                } else {
+                    nodes.remove(&key);
+                }
+            }
+            loop {
+                let current = mount.clone();
+                let names = tokio::task::spawn_blocking(move || {
+                    std::fs::read_dir(current)?
+                        .map(|entry| entry.map(|e| e.file_name()))
+                        .collect::<std::io::Result<Vec<_>>>()
+                })
+                .await??;
+                if name.is_none_or(|name| names.iter().any(|n| n == name))
+                    && previous.is_none_or(|name| names.iter().all(|n| n != name))
+                {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(30)).await;
+            }
+        }
+        anyhow::ensure!(!reader.is_finished(), "the content request was not stalled");
+        anyhow::ensure!(provider.change_calls.load(Ordering::SeqCst) == delta_calls);
+        anyhow::ensure!(provider.directory_calls.load(Ordering::SeqCst) <= 5);
+        anyhow::ensure!(provider.reads.load(Ordering::SeqCst) == 1);
+        Ok::<_, anyhow::Error>(())
+    })
+    .await;
+    // Always release the blocked read and mount before reporting a failure.
+    engine.stop().await;
+    tokio::task::spawn_blocking(move || session.umount_and_join())
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(reader.await.unwrap().is_err());
+    result.unwrap().unwrap();
 }

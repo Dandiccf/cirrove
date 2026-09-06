@@ -85,10 +85,27 @@ A replacement baseline is built alongside the last visible index. Interrupted wo
 resumes; an expired cursor does not immediately empty a usable directory tree.
 
 Cold foreground listings are atomically recorded separately from the delta index.
-A completed round removes observations older than its start, preserving newer
-foreground results until a subsequent completed round. Old observed listings can
-be refreshed in the background while their cached version remains readable.
-Directory fetches have a total deadline and repeated-cursor/entry limits.
+An incremental round invalidates older observations for changed identities and
+their affected parents; an empty or unrelated delta keeps fresher directory
+listings. A replacement baseline removes observations older than its start.
+Observations newer than the round's start remain visible across its commit.
+
+Reading a directory registers a 60-second activity lease. Each account retains at
+most 32 recently used directories and has one revalidation worker, with at least
+two seconds between listing starts. A successful listing becomes due again after
+five seconds; multiple directories share that budget, so this is not a five-second
+freshness guarantee. Background checks do not renew their own lease. The service
+knows filesystem activity, not whether a file-manager window stays visible.
+
+Cached listings return immediately while that worker fetches updates. Per-directory
+gates coalesce cold foreground work with background checks. Unchanged results do
+not emit another filesystem invalidation. Backoff survives repeated directory use;
+throttling and authentication failures also postpone other background listings in
+the account. Status exposes active, refreshing and delayed directory counts.
+Directory fetches have a 60-second total deadline and repeated-cursor/entry limits.
+Each listing can require multiple provider pages. The single worker can use one
+of the existing foreground metadata slots, leaving capacity for other navigation;
+it never starts content downloads. This behavior is shared by provider adapters.
 
 SQLite uses WAL and FULL synchronous mode. Network awaits never occur inside its
 transactions. Database work runs on blocking workers. Shortcut discovery starts

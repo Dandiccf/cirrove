@@ -51,6 +51,7 @@ pub struct Engine {
     tasks: TaskTracker,
     discovery: Notify,
     discovery_started: AtomicBool,
+    activity: crate::activity::DirectoryActivity,
     _owner: std::fs::File,
 }
 impl Engine {
@@ -84,6 +85,7 @@ impl Engine {
             tasks: TaskTracker::new(),
             discovery: Notify::new(),
             discovery_started: AtomicBool::new(false),
+            activity: crate::activity::DirectoryActivity::default(),
             _owner: owner,
         }))
     }
@@ -96,6 +98,10 @@ impl Engine {
     }
     pub async fn start(self: &Arc<Self>) -> Result<()> {
         if !self.discovery_started.swap(true, Ordering::SeqCst) {
+            let engine = self.clone();
+            self.tasks.spawn(async move {
+                engine.refresh_active_directories().await;
+            });
             let engine = self.clone();
             self.tasks.spawn(async move {
                 loop {
@@ -135,6 +141,30 @@ impl Engine {
             }
         }
         health
+    }
+    pub fn directory_freshness(&self) -> crate::DirectoryFreshness {
+        self.activity.status()
+    }
+    async fn refresh_active_directories(self: Arc<Self>) {
+        while let Some(job) = self.activity.next(&self.cancel).await {
+            let key = match serde_json::to_string(&(&job.scope, &job.parent)) {
+                Ok(key) => key,
+                Err(_) => break,
+            };
+            let gate = match self.directory_gate(&key) {
+                Ok(gate) => gate,
+                Err(_) => break,
+            };
+            if let Ok(_guard) = gate.try_lock_owned() {
+                let result = self
+                    .fetch_directory(&job.scope, &job.parent)
+                    .await
+                    .map(|_| ());
+                self.activity.finish(&job, Some(&result));
+            } else {
+                self.activity.finish(&job, None);
+            }
+        }
     }
     pub fn ensure_feed(
         self: &Arc<Self>,
@@ -400,32 +430,21 @@ impl Engine {
         scope: &Scope,
         parent: &str,
     ) -> Result<Vec<Node>, ProviderError> {
+        if scope.account != self.account.id || scope.provider != self.provider.provider_id() {
+            return Err(ProviderError::Protocol("provider/account mismatch"));
+        }
         let db = self.db.clone();
         let s = scope.clone();
         let p = parent.to_owned();
-        let (cached, age) = tokio::task::spawn_blocking(move || -> cirrove_store::Result<_> {
+        let cached = tokio::task::spawn_blocking(move || -> cirrove_store::Result<_> {
             let store = Store::open(db)?;
-            Ok((store.children(&s, &p)?, store.directory_age(&s, &p)?))
+            store.children(&s, &p)
         })
         .await
         .map_err(|_| ProviderError::Unavailable)?
         .map_err(|_| ProviderError::Unavailable)?;
         if let Some(nodes) = cached {
-            if age.is_some_and(|age| age >= self.account.poll_seconds)
-                && !self.cancel.is_cancelled()
-            {
-                let key = serde_json::to_string(&(scope, parent))
-                    .map_err(|_| ProviderError::Unavailable)?;
-                if let Ok(guard) = self.directory_gate(&key)?.try_lock_owned() {
-                    let engine = self.clone();
-                    let scope = scope.clone();
-                    let parent = parent.to_owned();
-                    self.tasks.spawn(async move {
-                        let _guard = guard;
-                        let _ = engine.fetch_directory(&scope, &parent).await;
-                    });
-                }
-            }
+            self.activity.touch(scope, parent);
             return Ok(nodes);
         }
         let key =
@@ -440,9 +459,19 @@ impl Engine {
             .map_err(|_| ProviderError::Unavailable)?
             .map_err(|_| ProviderError::Unavailable)?
         {
+            self.activity.touch(scope, parent);
             return Ok(nodes);
         }
-        self.fetch_directory(scope, parent).await
+        let result = self.fetch_directory(scope, parent).await;
+        self.activity.touch(scope, parent);
+        self.activity.observed(
+            &crate::activity::DirectoryJob {
+                scope: scope.clone(),
+                parent: parent.into(),
+            },
+            &result.as_ref().map(|_| ()).map_err(Clone::clone),
+        );
+        result
     }
     async fn fetch_directory(
         self: &Arc<Self>,
@@ -481,10 +510,11 @@ impl Engine {
         let s = scope.clone();
         let p = parent.to_owned();
         let n = nodes.clone();
-        tokio::task::spawn_blocking(move || Store::open(db)?.observe_directory(&s, &p, &n))
-            .await
-            .map_err(|_| ProviderError::Unavailable)?
-            .map_err(|_| ProviderError::Unavailable)?;
+        let changed =
+            tokio::task::spawn_blocking(move || Store::open(db)?.observe_directory(&s, &p, &n))
+                .await
+                .map_err(|_| ProviderError::Unavailable)?
+                .map_err(|_| ProviderError::Unavailable)?;
         for node in &nodes {
             if let Some(target) = &node.target {
                 let _ = self
@@ -492,7 +522,9 @@ impl Engine {
                     .await;
             }
         }
-        self.changed.notify_waiters();
+        if changed {
+            self.changed.notify_waiters();
+        }
         Ok(nodes)
     }
 }
