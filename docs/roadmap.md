@@ -9,7 +9,7 @@ Milestones are acceptance gates, not release dates.
 - [x] Atomic staged indexes, restart continuation and account isolation tests.
 - [x] Private status service, CLI and systemd unit template.
 - [x] Local mock Graph tests and repeatable CI checks.
-- [ ] Publish and observe the first successful GitHub CI run.
+- [x] Publish and observe the first successful GitHub CI run.
 
 ## 1 — OneDrive account and metadata service
 

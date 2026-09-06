@@ -1,5 +1,7 @@
 # Cirrove
 
+[![CI](https://github.com/Dandiccf/cirrove/actions/workflows/ci.yml/badge.svg)](https://github.com/Dandiccf/cirrove/actions/workflows/ci.yml)
+
 **Your clouds. One filesystem.**
 
 Cirrove is an open-source Linux cloud-filesystem project, starting with OneDrive

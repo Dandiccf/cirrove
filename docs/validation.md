@@ -26,6 +26,13 @@ Service checks verify status with an idle connected client, refusal to overwrite
 an existing socket-path file, failed-refresh continuation and graceful cleanup.
 The separate executable smoke test uses temporary private directories only.
 
+## GitHub CI
+
+The [initial CI run](https://github.com/Dandiccf/cirrove/actions/runs/34014890227)
+passed on Ubuntu 24.04 for commit `fa22f2189e82ed979cfb340d4aa170b07adfd3c3`.
+Formatting, Clippy, all 16 tests, binary build, executable smoke test and Rustdoc
+completed successfully. Subsequent publication notes change documentation only.
+
 ## Not established by this milestone
 
 - Real Microsoft-account consent, token refresh or sustained Graph operation.
@@ -33,6 +40,6 @@ The separate executable smoke test uses temporary private directories only.
 - Filesystem latency, large-file memory behavior or file-content integrity.
 - Crash-safe uploads, offline writes, pinning, conflict recovery or file-manager UX.
 - Google Drive or iCloud operation.
-- Installation/autostart on a second machine or a completed remote CI run.
+- Installation/autostart on a second machine.
 
 The README and roadmap intentionally keep these capabilities unclaimed.
