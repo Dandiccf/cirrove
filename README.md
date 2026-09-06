@@ -52,8 +52,9 @@ and Nautilus badges are not implemented.
   waits for its predecessor's confirmed remote identity and ETag. This API requires
   an explicitly writable, disabled test account; ordinary mounts do not enable it.
   Its session starts bounded upload workers automatically and drains accepted local
-  writes before unmounting. Atomic replacement and writable namespace operations
-  remain incomplete.
+  writes before unmounting. An isolated business-drive check passed two actual
+  mounted saves, automatic uploads and independent content verification. Atomic
+  replacement and writable namespace operations remain incomplete.
 
 These are implementation capabilities, not a production-readiness claim. See the
 [validation record](docs/validation.md) for what has actually been tested.

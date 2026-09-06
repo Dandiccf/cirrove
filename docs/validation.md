@@ -324,10 +324,15 @@ Four additional mounted tests verify:
 - Insufficient snapshot quota returns a shutdown error while retaining the dirty
   working file and releasing the temporary mount.
 
-A new developer command exercises two application saves through a temporary writable
-mount backed by Graph. Its separate application process, fixture-only namespace and
-allowed upload identities are checked locally. Live execution is recorded separately;
-the existence of this command does not itself establish provider-backed success.
+A generated-folder business-drive run also passed two application saves through an
+actual writable mount. A separate application process wrote and fsynced two versions
+of a Unicode-named file; both generations uploaded automatically, their size/hash
+matched the application reports, and independent Graph content readback matched the
+final snapshot. The temporary mount shut down successfully. The test used only a
+new run-owned folder and retained its synthetic cloud file and private evidence.
+Its guarded adapter did not index the account or expose existing files for mutation.
+This is one small business-drive fixture, not a latency distribution, large-file
+benchmark, personal-account check or desktop-application save matrix.
 Atomic replacement, folder operations, physical disk failure and the ordinary
 application compatibility matrix remain open.
 
