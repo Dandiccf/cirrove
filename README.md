@@ -10,8 +10,9 @@ fetches file content on demand into a bounded disk cache.
 
 **Status: read-only development preview, under validation.** Browser authentication,
 metadata workers and a FUSE mount are implemented. Local synthetic tests exercise
-actual filesystem reads and recovery. Real Microsoft consent, sustained operation
-and provider latency still require validation. Do not replace a trusted cloud
+actual filesystem reads and recovery. Isolated business-account checks have
+exercised Graph operations; sustained operation and wider account/provider coverage
+remain under validation. Do not replace a trusted cloud
 client with this preview. Writable mounts, pins, tray UI and Nautilus badges are not
 implemented. A separate developer upload worker is undergoing validation.
 

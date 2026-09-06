@@ -93,6 +93,64 @@ receipts live in `namespace-checks/<UUID>/`. The command does not implement recu
 folder removal, automatic cleanup or writable FUSE. Lost results can need manual
 review; it never treats a failed lookup alone as proof of deletion.
 
+## Check a real notification-session renewal
+
+The notification validator can remain connected for the adapter's real renewal
+interval, without accelerating its clock:
+
+```sh
+./target/debug/cirrove validate-onedrive-notifications \
+  --label upload-validation \
+  --state-dir "$PWD/.local-state/write-validation" \
+  --check-renewal
+```
+
+It first performs the existing create/two-rename notification checks on its own
+unique fixture. It then waits for the healthy subscription's approximately
+50-minute renewal, requires a new subscription to connect, and performs one more
+conditional rename. A fresh notification-triggered delta must contain that change.
+The initial connection must have lasted at least 49 minutes; waiting for renewal
+is bounded at 55 minutes. Keep the process running and the machine awake for the
+check. A failed or interrupted session is incomplete evidence, not a passing renewal.
+
+The command holds the separate validation account's owner lock for its lifetime.
+Other mutation validators must wait for it to finish. Its private event log records
+the waiting, renewal and reconnection stages. It retains its generated cloud folder,
+never modifies the ordinary service, and does not validate suspend/resume or
+application-visible updates after renewal. Those remain separate gates.
+
+## Check directory freshness through an actual mount
+
+Use the same separate, disabled account and explicit write grant, in a desktop
+session with `/dev/fuse`, `fusermount3` and an unlocked Secret Service keyring:
+
+```sh
+./target/debug/cirrove validate-onedrive-freshness \
+  --label upload-validation \
+  --state-dir "$PWD/.local-state/write-validation"
+```
+
+The command creates `Cirrove-Freshness-Validation-<UUID>` and temporarily mounts
+only that new folder, read-only. A validation-only adapter supplies a baseline
+containing just this root and disables notifications; it never requests Graph
+delta or file content. Actual directory listings use the normal Graph adapter,
+service activity worker, metadata store and kernel FUSE projection.
+
+After completing the first real listing, it creates one child folder and renames
+only that child twice, using Unicode names. Each conditional rename first verifies
+that the fixture still has its expected name and parent. The check reads directory
+names through the mount until the change appears. It records acknowledgement-to-
+visibility timing and directory-page counts privately in `freshness-checks/<UUID>/`.
+An additional baseline cannot satisfy a passing check. Results apply to this
+selected drive and small fixture, not large directories or desktop window updates.
+
+The temporary engine and mount stop on success, error, timeout or handled Ctrl+C.
+Generated cloud folders and private evidence remain for review. Account settings,
+the ordinary daemon and its existing mount are not changed. This is directory-only
+validation: it neither establishes content download performance nor enables writes
+through mounted paths. Running it again creates a new fixture; it does not accept
+an existing cloud folder as a mutation target.
+
 ## Remaining release gates
 
 A passing check covers only its selected account and tested operations. Broader
