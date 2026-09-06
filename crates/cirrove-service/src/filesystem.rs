@@ -44,6 +44,7 @@ struct OpenFile {
     view: View,
     node: Node,
     flags: i32,
+    _lease: Option<writeback::FileLease>,
 }
 pub struct CloudFs {
     inner: Arc<Inner>,
@@ -404,6 +405,19 @@ impl Inner {
         {
             return Ok(node);
         }
+        if let Some(writer) = &self.writeback
+            && writer
+                .follows_remote(&view.scope, &view.node.id)
+                .map_err(|_| ProviderError::Unavailable)?
+        {
+            let item = writer
+                .remote_identity(&view.scope, &view.node.id)
+                .map_err(|_| ProviderError::Unavailable)?
+                .ok_or(ProviderError::Unavailable)?;
+            let mut node = self.engine.node(&view.scope, &item).await?;
+            node.id = view.node.id.clone();
+            return Ok(node);
+        }
         if view.inode == 1 || view.node.kind == NodeKind::File {
             return Ok(view.node.clone());
         }
@@ -586,6 +600,9 @@ impl Filesystem for CloudFs {
                     .create(parent.scope.clone(), node)
                     .await
                     .map_err(|e| if e == Errno::ESTALE { Errno::EEXIST } else { e })?;
+                let lease = writer
+                    .lease(&parent.scope, &record.node.id, &inner.cancel)
+                    .await?;
                 let view = inner
                     .insert(&parent, record.node.clone())
                     .await
@@ -598,6 +615,7 @@ impl Filesystem for CloudFs {
                         view,
                         node: record.node,
                         flags,
+                        _lease: Some(lease),
                     },
                 );
                 Ok::<_, Errno>((attr, handle))
@@ -669,6 +687,9 @@ impl Filesystem for CloudFs {
                 if source.kind != NodeKind::File || source.target.is_some() {
                     return Err(Errno::EOPNOTSUPP);
                 }
+                let _lease = writer
+                    .lease(&parent.scope, &source.id, &inner.cancel)
+                    .await?;
                 if parent.node.id == destination.node.id && name == newname {
                     return if flags.contains(RenameFlags::RENAME_NOREPLACE) {
                         Err(Errno::EEXIST)
@@ -845,6 +866,11 @@ impl Filesystem for CloudFs {
                     }
                 }
                 let view = inner.view(ino.0).map_err(|e| errno(&e))?;
+                let _lease = writer
+                    .lease(&view.scope, &view.node.id, &inner.cancel)
+                    .await?;
+                let mut view = view;
+                view.node = inner.node(&view).await.map_err(|e| errno(&e))?;
                 let working = writer
                     .prepare(&inner.engine, &view, size == 0, &inner.cancel)
                     .await?;
@@ -936,13 +962,22 @@ impl Filesystem for CloudFs {
             let _permit = permit;
             let _admission = admission;
             let result = async {
-                let view = inner.view(inode.0).map_err(|e| errno(&e))?;
+                let mut view = inner.view(inode.0).map_err(|e| errno(&e))?;
+                let lease = match &inner.writeback {
+                    Some(writer) => Some(
+                        writer
+                            .lease(&view.scope, &view.node.id, &inner.cancel)
+                            .await?,
+                    ),
+                    None => None,
+                };
                 let node = inner.node(&view).await.map_err(|e| errno(&e))?;
                 if node.kind != NodeKind::File {
                     return Err(Errno::EISDIR);
                 }
                 if flags.0 & libc::O_ACCMODE != libc::O_RDONLY {
                     let writer = inner.writeback.as_ref().ok_or(Errno::EROFS)?;
+                    view.node = node.clone();
                     writer
                         .prepare(
                             &inner.engine,
@@ -959,6 +994,7 @@ impl Filesystem for CloudFs {
                         view,
                         node,
                         flags: flags.0,
+                        _lease: lease,
                     },
                 );
                 Ok::<_, Errno>(handle)
@@ -1025,13 +1061,21 @@ impl Filesystem for CloudFs {
                         .await
                         .map_err(|_| ProviderError::Unavailable);
                 }
+                let mut source = file.node.clone();
+                if let Some(writer) = &inner.writeback
+                    && let Some(remote) = writer
+                        .remote_identity(&file.view.scope, &source.id)
+                        .map_err(|_| ProviderError::Unavailable)?
+                {
+                    source.id = remote;
+                }
                 inner
                     .engine
                     .cache
                     .read(
                         inner.engine.provider.as_ref(),
                         &file.view.scope,
-                        &file.node,
+                        &source,
                         offset,
                         size,
                         &inner.cancel,

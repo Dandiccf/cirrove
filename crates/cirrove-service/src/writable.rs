@@ -80,6 +80,7 @@ impl WritableSession {
             cancel.clone(),
             issue.clone(),
         ));
+        workers.spawn(maintain(control.clone(), cancel.clone(), issue.clone()));
         workers.close();
         Ok(Self {
             engine,
@@ -151,6 +152,44 @@ impl WritableSession {
         };
         self.engine.stop().await;
         local.and(detached)
+    }
+}
+async fn maintain(
+    control: WriteControl,
+    cancel: CancellationToken,
+    issue: Arc<Mutex<Option<String>>>,
+) {
+    let wake = control.wake();
+    let mut failed = 0u32;
+    loop {
+        if cancel.is_cancelled() {
+            return;
+        }
+        let changed = wake.notified();
+        tokio::pin!(changed);
+        changed.as_mut().enable();
+        let delay = match control.maintain().await {
+            Ok(worked) => {
+                failed = 0;
+                if worked {
+                    Duration::from_secs(2)
+                } else {
+                    Duration::from_millis(500)
+                }
+            }
+            Err(error) => {
+                failed = failed.saturating_add(1).min(6);
+                if let Ok(mut issue) = issue.lock() {
+                    *issue = Some(error.to_string());
+                }
+                Duration::from_secs((1u64 << failed).min(60))
+            }
+        };
+        if failed > 0 || delay >= Duration::from_secs(2) {
+            tokio::select! {biased; _=cancel.cancelled()=>return, _=tokio::time::sleep(delay)=>{},}
+        } else {
+            tokio::select! {biased; _=cancel.cancelled()=>return, _=changed=>{}, _=tokio::time::sleep(delay)=>{},}
+        }
     }
 }
 impl Drop for WritableSession {

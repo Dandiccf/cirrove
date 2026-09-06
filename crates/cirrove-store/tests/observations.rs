@@ -9,6 +9,77 @@ fn scope(collection: &str) -> Scope {
         collection: collection.into(),
     }
 }
+
+#[test]
+fn ordered_not_found_hides_cached_entries_without_deleting_the_feed_baseline() {
+    let mut db = Store::open(":memory:").unwrap();
+    let s = scope("drive");
+    let item = node("gone", "root", "old");
+    let other = node("keep", "root", "one");
+    delta(
+        &mut db,
+        &s,
+        vec![Change::Upsert(item.clone()), Change::Upsert(other.clone())],
+        false,
+    );
+    db.observe_directory(&s, "root", &[item.clone(), other.clone()])
+        .unwrap();
+    let old = db.node_observation(&s, &item.id).unwrap();
+    let missing = db.node_observation(&s, &item.id).unwrap();
+    assert!(matches!(
+        db.publish_absence(&missing).unwrap(),
+        cirrove_store::AbsenceResult::Published { changed: true }
+    ));
+    assert!(db.node(&s, &item.id).unwrap().is_none());
+    assert_eq!(db.nodes(&s).unwrap().len(), 2);
+    assert_eq!(db.children(&s, "root").unwrap().unwrap(), vec![other]);
+    assert!(matches!(
+        db.publish_node(&old, &item).unwrap(),
+        ObservationResult::Superseded(None)
+    ));
+    let missing = db.node_observation(&s, &item.id).unwrap();
+    let newer = node("gone", "root", "new");
+    delta(&mut db, &s, vec![Change::Upsert(newer.clone())], false);
+    assert!(
+        matches!(db.publish_absence(&missing).unwrap(),cirrove_store::AbsenceResult::Superseded(Some(n)) if n==newer)
+    );
+}
+#[test]
+fn even_an_unchanged_listing_supersedes_an_earlier_not_found_reply() {
+    let mut db = Store::open(":memory:").unwrap();
+    let s = scope("drive");
+    let item = node("present", "root", "one");
+    db.observe_directory(&s, "root", std::slice::from_ref(&item))
+        .unwrap();
+    let missing = db.node_observation(&s, &item.id).unwrap();
+    assert!(
+        !db.observe_directory(&s, "root", std::slice::from_ref(&item))
+            .unwrap()
+    );
+    assert!(
+        matches!(db.publish_absence(&missing).unwrap(),cirrove_store::AbsenceResult::Superseded(Some(n)) if n==item)
+    );
+}
+#[test]
+fn failed_not_found_publication_rolls_back_absence_and_supersession_together() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("metadata.db");
+    let mut db = Store::open(&path).unwrap();
+    let s = scope("drive");
+    let item = node("a", "root", "one");
+    db.observe_directory(&s, "root", std::slice::from_ref(&item))
+        .unwrap();
+    let previous = db.node_observation(&s, &item.id).unwrap();
+    let missing = db.node_observation(&s, &item.id).unwrap();
+    let injected = rusqlite::Connection::open(&path).unwrap();
+    injected.execute_batch("CREATE TRIGGER deny_absence BEFORE INSERT ON observed_absent BEGIN SELECT RAISE(ABORT,'fixture'); END;").unwrap();
+    assert!(db.publish_absence(&missing).is_err());
+    assert_eq!(db.node(&s, &item.id).unwrap(), Some(item.clone()));
+    assert!(matches!(
+        db.publish_node(&previous, &item).unwrap(),
+        ObservationResult::Published { .. }
+    ));
+}
 fn node(id: &str, parent: &str, version: &str) -> Node {
     Node {
         id: id.into(),

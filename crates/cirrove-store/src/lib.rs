@@ -2,7 +2,7 @@
 //! in one transaction, only after the last page. This is not an upload journal.
 mod observations;
 use cirrove_core::{Change, ChangePage, Cursor, Node, Scope};
-pub use observations::{ObservationResult, ObservationTicket};
+pub use observations::{AbsenceResult, ObservationResult, ObservationTicket};
 use rusqlite::{Connection, OptionalExtension, params};
 use std::path::Path;
 

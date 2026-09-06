@@ -1,10 +1,12 @@
 //! Experimental local edit projection. Network hydration never holds the journal
 //! or namespace mutex. Ordinary daemon mounts do not construct this layer yet.
+mod handoff;
 use super::*;
 use crate::journal::{
     JournalError, NamespaceCollision, NamespaceObject, UploadJournal, WorkingFile,
     project_namespace,
 };
+pub(super) use handoff::FileLease;
 use std::sync::Weak;
 use uuid::Uuid;
 
@@ -16,6 +18,9 @@ pub(super) struct Writeback {
     pub wake: Arc<tokio::sync::Notify>,
     projection: Mutex<Projection>,
     hydrating: Mutex<HashMap<EditKey, Weak<tokio::sync::Mutex<()>>>>,
+    activity: Mutex<HashMap<EditKey, Weak<tokio::sync::RwLock<()>>>>,
+    maintenance_cursor: Mutex<Option<Uuid>>,
+    maintenance_retries: Mutex<HashMap<Uuid, (u32, tokio::time::Instant)>>,
 }
 #[derive(Default)]
 struct Projection {
@@ -27,7 +32,16 @@ struct Projection {
 impl Projection {
     // A journal snapshot is published atomically, in revision order. A delayed
     // save callback cannot undo a newer rename or its confirmed remote alias.
-    fn merge(&mut self, object: NamespaceObject, working: Option<WorkingFile>) -> Result<()> {
+    fn validate_merge(
+        &self,
+        object: &NamespaceObject,
+        working: Option<&WorkingFile>,
+    ) -> Result<bool> {
+        if object.follows_remote
+            && (object.working_file.is_some() || object.latest.is_some() || object.remote.is_none())
+        {
+            return Err(Errno::EIO);
+        }
         let identity = key(&object.scope, &object.node.id);
         let remote = object.remote.as_ref().map(|r| key(&object.scope, &r.id));
         if let Some(old) = self.objects.get(&object.id) {
@@ -38,7 +52,7 @@ impl Projection {
                 return Err(Errno::EIO);
             }
             if old.revision >= object.revision {
-                return Ok(());
+                return Ok(false);
             }
         }
         if std::iter::once(&identity)
@@ -56,6 +70,17 @@ impl Projection {
             None if object.working_file.is_none() => {}
             _ => return Err(Errno::EIO),
         }
+        Ok(true)
+    }
+    fn apply(&mut self, object: NamespaceObject, working: Option<WorkingFile>) {
+        let identity = key(&object.scope, &object.node.id);
+        let remote = object.remote.as_ref().map(|r| key(&object.scope, &r.id));
+        if let Some(old) = self.objects.get(&object.id)
+            && let Some(old_file) = old.working_file
+            && object.working_file != Some(old_file)
+        {
+            self.files.remove(&old_file);
+        }
         self.identities.insert(identity, object.id);
         if let Some(remote) = remote {
             self.identities.insert(remote, object.id);
@@ -64,6 +89,11 @@ impl Projection {
             self.files.insert(file.id, file);
         }
         self.objects.insert(object.id, object);
+    }
+    fn merge(&mut self, object: NamespaceObject, working: Option<WorkingFile>) -> Result<()> {
+        if self.validate_merge(&object, working.as_ref())? {
+            self.apply(object, working);
+        }
         Ok(())
     }
     fn object(&self, scope: &Scope, item: &str) -> Option<&NamespaceObject> {
@@ -128,6 +158,9 @@ impl Writeback {
             wake: Arc::new(tokio::sync::Notify::new()),
             projection: Mutex::new(projection),
             hydrating: Mutex::new(HashMap::new()),
+            activity: Mutex::new(HashMap::new()),
+            maintenance_cursor: Mutex::new(None),
+            maintenance_retries: Mutex::new(HashMap::new()),
         }))
     }
     async fn local<T: Send + 'static>(
@@ -192,6 +225,7 @@ impl Writeback {
             .lock()
             .map_err(|_| Errno::EIO)?
             .object(scope, item)
+            .filter(|o| !o.follows_remote)
             .map(|o| o.node.clone()))
     }
     pub fn working(&self, scope: &Scope, item: &str) -> Result<Option<WorkingFile>> {
@@ -228,17 +262,20 @@ impl Writeback {
     pub async fn relocate(
         &self,
         scope: Scope,
-        node: Node,
+        mut node: Node,
         source_parent: String,
         source_name: String,
         parent: String,
         name: String,
     ) -> Result<Node> {
+        if let Some(remote) = self.remote_identity(&scope, &node.id)? {
+            node.id = remote;
+        }
         let (object, working) = self
             .local(move |j| {
                 let object = match j.namespace_by_identity(&scope, &node.id)? {
-                    Some(object) => object,
-                    None => j.observe_namespace_file(scope, node)?,
+                    Some(object) if !object.follows_remote => object,
+                    _ => j.observe_namespace_file(scope, node)?,
                 };
                 // Recheck the source at the journal's serialization point. Another
                 // rename may have completed after the cached directory was read.
@@ -304,7 +341,16 @@ impl Writeback {
                     .lock()
                     .map_err(|_| Errno::EIO)?
                     .object(&view.scope, &view.node.id)
-                    .and_then(|o| o.remote.clone())
+                    .and_then(|o| {
+                        if o.follows_remote {
+                            o.remote.as_ref().map(|r| Node {
+                                id: r.id.clone(),
+                                ..view.node.clone()
+                            })
+                        } else {
+                            o.remote.clone()
+                        }
+                    })
                     .unwrap_or_else(|| view.node.clone());
                 if truncate {
                     let scope = view.scope.clone();

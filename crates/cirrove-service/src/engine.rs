@@ -392,12 +392,31 @@ impl Engine {
         Ok(())
     }
     pub async fn node(&self, scope: &Scope, id: &str) -> Result<Node, ProviderError> {
+        self.obtain_node(scope, id, false).await
+    }
+    pub(crate) async fn refresh_node(
+        &self,
+        scope: &Scope,
+        id: &str,
+    ) -> Result<Node, ProviderError> {
+        self.obtain_node(scope, id, true).await
+    }
+    async fn obtain_node(
+        &self,
+        scope: &Scope,
+        id: &str,
+        refresh: bool,
+    ) -> Result<Node, ProviderError> {
         let db = self.db.clone();
         let s = scope.clone();
         let item = id.to_string();
         let (cached, ticket) = tokio::task::spawn_blocking(move || -> cirrove_store::Result<_> {
             let mut store = Store::open(db)?;
-            let cached = store.node(&s, &item)?;
+            let cached = if refresh {
+                None
+            } else {
+                store.node(&s, &item)?
+            };
             let ticket = if cached.is_none() {
                 Some(store.node_observation(&s, &item)?)
             } else {
@@ -412,7 +431,30 @@ impl Engine {
             return Ok(node);
         }
         let ticket = ticket.ok_or(ProviderError::Unavailable)?;
-        let node = self.provider.node(scope, id, &self.cancel).await?;
+        let node = match self.provider.node(scope, id, &self.cancel).await {
+            Ok(node) => node,
+            Err(ProviderError::NotFound) => {
+                let db = self.db.clone();
+                let result =
+                    tokio::task::spawn_blocking(move || Store::open(db)?.publish_absence(&ticket))
+                        .await
+                        .map_err(|_| ProviderError::Unavailable)?
+                        .map_err(|_| ProviderError::Unavailable)?;
+                return match result {
+                    cirrove_store::AbsenceResult::Published { changed } => {
+                        if changed {
+                            self.changed.notify_waiters();
+                        }
+                        Err(ProviderError::NotFound)
+                    }
+                    cirrove_store::AbsenceResult::Superseded(Some(node)) => Ok(node),
+                    cirrove_store::AbsenceResult::Superseded(None) => {
+                        Err(ProviderError::VersionChanged)
+                    }
+                };
+            }
+            Err(error) => return Err(error),
+        };
         let db = self.db.clone();
         let result =
             tokio::task::spawn_blocking(move || Store::open(db)?.publish_node(&ticket, &node))

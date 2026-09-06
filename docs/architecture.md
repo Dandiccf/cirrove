@@ -106,6 +106,11 @@ that an absent item was deleted remotely. Later observations or feed rounds can
 supersede that absence. Directory reads use one database snapshot so their base,
 positive observations and negative observations agree.
 
+A single-item NotFound response uses the same ticket ordering. It hides the cached
+entry without modifying the completed baseline. A newer positive observation or
+complete parent listing supersedes an older NotFound response, so a delayed failure
+cannot remove a file that a later request has already observed.
+
 The schema migration preserves existing metadata and seeds the logical clock from
 legacy ordering values. The observation database remains separate from the upload
 journal. This ordering prevents local publication races; it cannot establish a
@@ -321,16 +326,17 @@ save on the user's ordinary mount is routed through this experimental path.
 Experimental writable inodes retain identity while their local bytes change.
 Memory mapping is currently disabled for these sessions; read-only sessions keep
 their existing content-version inode and mapping behavior. Writable directory operations,
-atomic replacement, permission/time changes, clean-working-copy retirement,
-and conflict UI are not connected to writable mounts yet. Sealing may require space
+atomic replacement, permission/time changes and conflict UI are not connected to
+writable mounts yet. Sealing may require space
 for both the working file and its snapshot; failure
 keeps the dirty source and reports an error. Physical power loss, physical disk-full
 recovery and sustained real-provider application editing remain acceptance gates.
 
 ## Experimental writable-session ownership
 
-`WritableSession` owns a test engine, its FUSE session, two upload workers and one
-conditional namespace worker. Successful sealing, relocation and confirmed receipts
+`WritableSession` owns a test engine, its FUSE session, two upload workers, one
+conditional namespace worker and one local-copy maintenance worker. Successful
+sealing, relocation and confirmed receipts
 wake the workers; a one-second fallback revisits persisted
 retry deadlines without resetting backoff. Saves finish after durable local
 publication, independently of cloud acknowledgement. Paginated journal records
@@ -396,8 +402,10 @@ Schema migration retains earlier acknowledged remote bindings even when a newer
 save is still pending. A receipt updates the remote alias in the same transaction
 as operation acknowledgement. Remote IDs assigned to newly created files do not
 replace their local identity or inode. The sparse namespace currently permits at
-most 10,000 objects; clean-object retirement and rebasing their overlay on later
-remote changes remain required for long-term use.
+most 10,000 objects. Fully acknowledged objects can release their working bytes and
+follow later remote metadata, as described below. Their aliases and operation
+history remain retained; total-object limits and memory use still need work for
+long-term use with large libraries.
 
 The mount loads a memory projection of these objects and working-file records.
 Publication is atomic and revision-ordered, so a delayed save or rename callback
@@ -424,6 +432,49 @@ can strip O_TRUNC from OPEN and issue SETATTR afterward, causing the old file to
 hydrated unnecessarily. The supported path creates empty working bytes directly
 and preserves the source metadata. Read-only O_TRUNC combinations are rejected;
 writable memory mapping and other attribute changes remain outside this preview.
+
+## Acknowledged working-copy retirement
+
+Journal schema 8 distinguishes active local objects from aliases that follow remote
+metadata. An active object owns its local directory entry and any working bytes.
+After every attached operation is acknowledged, no newer dirty generation exists
+and no application is using the file, maintenance can detach the local entry and
+working copy. The alias retains the same local identity and revision but takes its
+visible name, parent and content metadata from the remote index. Later remote
+changes and deletions therefore become visible instead of being masked by an old
+local copy. The next edit reactivates the object using the newly observed provider
+version; it cannot inherit the obsolete pre-retirement save base.
+
+Open handles and in-flight file callbacks hold per-object access leases, including
+read-only previews of edited files. Maintenance checks idleness before requesting
+metadata but releases exclusive access during the request. Afterward it reacquires
+exclusive access and checks the durable object revision and acknowledged frontier.
+A new open or edit during that request prevents an obsolete candidate from being
+retired. Publication validates the memory projection before committing the detach,
+then applies it while both local locks remain held. Retaining the alias revision
+prevents delayed callbacks from reinstating retired working bytes.
+
+The detach and explicit cleanup intent commit together. Physical removal verifies
+the private working file, deletes and fsyncs its directory, then clears the cleanup
+intent. Restart can finish either side of an interrupted deletion. Unknown spool
+files remain retained and quota-accounted. A separate bounded collector removes
+only acknowledged immutable upload payloads, retaining their receipts and lineage.
+Pending, uncertain, failed and conflicted payloads remain protected.
+
+Each maintenance pass checks at most 16 active objects and requests metadata for at
+most one candidate. It reuses cached metadata only when it matches the confirmed
+receipt; otherwise it requests an ordered item observation with a 30-second deadline.
+An accepted NotFound observation releases an acknowledged overlay of a missing
+remote item without preserving a ghost entry. Provider failures keep the local copy
+and have per-object retry delays up to 60 seconds. Background work also has a quiet
+interval, and wake notifications cannot bypass failure delays. The worker repairs
+missed local projection updates from durable records without replaying provider
+operations. It participates in session cancellation and shutdown.
+
+This releases working storage, not all historical metadata. Aliases are still
+loaded into the in-memory projection, and operation history has no retention policy
+yet. Pins, writable mappings and complete application-save semantics remain separate
+acceptance gates. Ordinary daemon mounts still use the read-only constructor.
 
 ## Next boundaries
 

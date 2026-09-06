@@ -26,6 +26,11 @@ pub enum ObservationResult<T> {
     /// It must never serve the discarded network result directly.
     Superseded(Option<T>),
 }
+#[derive(Debug)]
+pub enum AbsenceResult {
+    Published { changed: bool },
+    Superseded(Option<Node>),
+}
 
 pub(super) fn migrate(db: &mut Connection, version: u32) -> Result<()> {
     if version < 4 {
@@ -296,6 +301,45 @@ fn write_directory(
     Ok(changed)
 }
 impl Store {
+    /// Record a provider's NotFound with the same ordering as positive replies.
+    /// This hides cached metadata without rewriting the completed delta baseline.
+    pub fn publish_absence(&mut self, ticket: &ObservationTicket) -> Result<AbsenceResult> {
+        let Target::Node(id) = &ticket.target else {
+            return Err(StoreError::OutOfOrder);
+        };
+        let tx = self
+            .db
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        let old = Self::node_on(&tx, &ticket.scope, id)?;
+        if !current(&tx, ticket, old.as_slice())? {
+            return Ok(AbsenceResult::Superseded(old));
+        }
+        let key = Self::key(&ticket.scope)?;
+        let absent: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM observed_absent WHERE scope=?1 AND id=?2)",
+            params![key, id],
+            |r| r.get(0),
+        )?;
+        let revision = advance(&tx)?;
+        mark(&tx, &key, 1, id, revision)?;
+        mark(&tx, &key, 2, id, revision)?;
+        if let Some(parent) = old.as_ref().and_then(|n| n.parent_id.as_deref()) {
+            mark(&tx, &key, 2, parent, revision)?;
+        }
+        tx.execute(
+            "DELETE FROM observed WHERE scope=?1 AND id=?2",
+            params![key, id],
+        )?;
+        tx.execute(
+            "INSERT INTO observed_absent VALUES(?1,?2,?3)
+            ON CONFLICT(scope,id) DO UPDATE SET source_revision=excluded.source_revision",
+            params![key, id, ticket.revision],
+        )?;
+        tx.commit()?;
+        Ok(AbsenceResult::Published {
+            changed: old.is_some() || !absent,
+        })
+    }
     pub fn node_observation(&mut self, scope: &Scope, item: &str) -> Result<ObservationTicket> {
         self.observation(scope, Target::Node(item.into()))
     }

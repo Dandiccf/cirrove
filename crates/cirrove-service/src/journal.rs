@@ -4,6 +4,7 @@
 //! the pending row. Network work happens after a claim returns, outside this module.
 //! An interrupted attempt requires remote verification, never unconditional replay.
 mod generations;
+mod handoff;
 mod mutations;
 mod namespace;
 mod working;
@@ -179,7 +180,7 @@ impl UploadJournal {
         let mut db = Connection::open(database)?;
         db.busy_timeout(std::time::Duration::from_secs(3))?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if version > 7 {
+        if version > 8 {
             return Err(JournalError::Schema);
         }
         db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;
@@ -200,6 +201,7 @@ impl UploadJournal {
         working::migrate(&mut db, version)?;
         generations::migrate_dependencies(&mut db, version)?;
         namespace::migrate(&mut db, version)?;
+        handoff::migrate(&mut db, version)?;
         // Never infer that a transfer failed just because its process died.
         db.execute(
             "UPDATE uploads SET state='verify_required',
@@ -224,6 +226,7 @@ impl UploadJournal {
             _owner: owner,
         };
         journal.recover_working()?;
+        journal.collect_retired_working(1000)?;
         Ok(journal)
     }
     /// Counts every spool file, including interrupted, unreferenced publications.

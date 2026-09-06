@@ -64,6 +64,11 @@ and Nautilus badges are not implemented.
   receipt-based ordering; a lost rename response containing another actor's edit
   blocks later saves and retains both versions. Replacing an occupied destination,
   writable directories and application atomic replacement remain incomplete.
+- Experimental sessions retire fully acknowledged working copies after the last
+  file user closes, then follow remote edits, moves and deletions while retaining
+  the file's local identity. Cleanup is restartable and preserves pending or
+  conflicted bytes. Acknowledged upload payloads are collected separately from
+  their receipts; alias/history retention still needs large-library validation.
 
 These are implementation capabilities, not a production-readiness claim. See the
 [validation record](docs/validation.md) for what has actually been tested.

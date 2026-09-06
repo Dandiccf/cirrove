@@ -47,6 +47,12 @@ impl CloudFs {
     }
 }
 impl WriteControl {
+    pub async fn maintain(&self) -> std::io::Result<bool> {
+        self.writer
+            .maintain(&self.inner.engine)
+            .await
+            .map_err(|_| std::io::Error::other("local namespace maintenance failed"))
+    }
     pub async fn refresh_operation(&self, id: uuid::Uuid) -> std::io::Result<()> {
         self.writer
             .refresh_operation(id)

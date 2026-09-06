@@ -221,9 +221,9 @@ impl ReadProvider for Fixture {
             .await
             .get(&(scope.collection.clone(), id.into()))
             .cloned()
-            .ok_or(ProviderError::NotFound)?;
+            .ok_or(ProviderError::NotFound);
         self.hold_observation(cancel).await?;
-        Ok(node)
+        node
     }
     async fn children(
         &self,
@@ -2636,4 +2636,49 @@ async fn real_delayed_directory_reply_cannot_restore_a_name_replaced_by_delta() 
         .await
         .unwrap()
         .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn late_not_found_reply_cannot_hide_a_newer_visible_item() {
+    let temp = tempfile::tempdir().unwrap();
+    let provider = Fixture::new();
+    let engine = Engine::new(
+        account(temp.path().join("mount")),
+        provider.clone(),
+        temp.path().join("state"),
+    )
+    .await
+    .unwrap();
+    let scope = engine.scope("cold");
+    provider.hold_observation.store(true, Ordering::SeqCst);
+    let fetch = engine.clone();
+    let target = scope.clone();
+    let request = tokio::spawn(async move { fetch.node(&target, "new-item").await });
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        provider.observation_entered.notified(),
+    )
+    .await
+    .unwrap();
+    let newer = file("new-item", Some("root"), NodeKind::File, 8);
+    Store::open(&engine.db)
+        .unwrap()
+        .observe_directory(&scope, "root", std::slice::from_ref(&newer))
+        .unwrap();
+    provider.release_observation.notify_one();
+    assert_eq!(
+        tokio::time::timeout(Duration::from_secs(2), request)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap(),
+        newer
+    );
+    assert_eq!(
+        Store::open(&engine.db)
+            .unwrap()
+            .node(&scope, "new-item")
+            .unwrap(),
+        Some(newer)
+    );
 }

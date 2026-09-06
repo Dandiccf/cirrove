@@ -51,6 +51,14 @@ name/intent transactions. A reconciled rename with newer or unverifiable content
 blocks later saves instead of adopting a potentially foreign edit as their base.
 These journal capabilities still need complete mounted namespace integration.
 
+Experimental mounts now support regular-file relocation without hydration and
+retirement of fully acknowledged, closed working copies. Stable aliases then follow
+remote edits and deletions; a later local edit uses the newly observed remote base.
+Synthetic tests cover concurrent opens/writes, delayed callbacks, cleanup rollback,
+restart and ordered NotFound responses. This does not complete atomic replacement,
+open-unlinked files, writable directories, long-term metadata retention or the
+real-provider application acceptance matrix.
+
 - [x] Provider-neutral create, update, rename, move and delete contracts (regular-file deletion; folder removal remains an explicit gap).
 - [ ] Durable local file contents and journal before local-save acknowledgement.
 - [ ] Persisted upload progress, resumable transfers and idempotent recovery.

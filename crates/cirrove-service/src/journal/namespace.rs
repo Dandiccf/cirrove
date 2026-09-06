@@ -24,6 +24,37 @@ pub struct NamespaceObject {
     pub working_file: Option<Uuid>,
     pub latest: Option<Uuid>,
     pub revision: u64,
+    /// The local identity remains an alias, but remote metadata owns the entry.
+    /// Only an idle, fully acknowledged object can enter this state.
+    #[serde(default)]
+    pub follows_remote: bool,
+}
+impl NamespaceObject {
+    pub(crate) fn followed(&self, remote: Node) -> Result<Self> {
+        if self.remote.as_ref().is_none_or(|r| r.id != remote.id)
+            || remote.kind != NodeKind::File
+            || remote.target.is_some()
+        {
+            return Err(JournalError::Stale);
+        }
+        MutationRequest {
+            scope: self.scope.clone(),
+            intent: MutationIntent::RemoveFile {
+                before: remote.clone(),
+            },
+        }
+        .validate()
+        .map_err(|_| JournalError::Intent)?;
+        let mut object = self.clone();
+        object.node = remote.clone();
+        object.node.id = self.node.id.clone();
+        object.remote = Some(remote);
+        object.working_file = None;
+        object.latest = None;
+        object.follows_remote = true;
+        object.revision = self.revision.checked_add(1).ok_or(JournalError::Quota)?;
+        Ok(object)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -46,7 +77,7 @@ fn scope_key(scope: &Scope) -> Result<String> {
 fn identity(scope: &Scope, item: &str) -> Result<String> {
     Ok(serde_json::to_string(&(scope, item))?)
 }
-fn by_id(db: &Connection, id: Uuid) -> Result<NamespaceObject> {
+pub(super) fn by_id(db: &Connection, id: Uuid) -> Result<NamespaceObject> {
     let body: Option<String> = db
         .query_row(
             "SELECT body FROM namespace_objects WHERE id=?1",
@@ -113,7 +144,12 @@ pub(super) fn entry_slot(
     };
     Ok(serde_json::to_string(&(scope, parent, name))?)
 }
-fn save(tx: &Transaction<'_>, object: &NamespaceObject) -> Result<()> {
+pub(super) fn save(tx: &Transaction<'_>, object: &NamespaceObject) -> Result<()> {
+    if object.follows_remote
+        && (object.working_file.is_some() || object.latest.is_some() || object.remote.is_none())
+    {
+        return Err(JournalError::Corrupt);
+    }
     if object.names != policy(tx, &object.scope)? {
         return Err(JournalError::Corrupt);
     }
@@ -128,7 +164,7 @@ fn save(tx: &Transaction<'_>, object: &NamespaceObject) -> Result<()> {
         params![slot, object.id.to_string()],
         |r| r.get(0),
     )?;
-    if occupied {
+    if occupied && !object.follows_remote {
         return Err(JournalError::Stale);
     }
     tx.execute(
@@ -146,15 +182,17 @@ fn save(tx: &Transaction<'_>, object: &NamespaceObject) -> Result<()> {
         "DELETE FROM namespace_entries WHERE object=?1",
         [object.id.to_string()],
     )?;
-    tx.execute(
-        "INSERT INTO namespace_entries(slot,object,scope,parent) VALUES(?1,?2,?3,?4)",
-        params![
-            slot,
-            object.id.to_string(),
-            scope_key(&object.scope)?,
-            parent
-        ],
-    )?;
+    if !object.follows_remote {
+        tx.execute(
+            "INSERT INTO namespace_entries(slot,object,scope,parent) VALUES(?1,?2,?3,?4)",
+            params![
+                slot,
+                object.id.to_string(),
+                scope_key(&object.scope)?,
+                parent
+            ],
+        )?;
+    }
     if let Some(remote) = &object.remote {
         let key = identity(&object.scope, &remote.id)?;
         let other: Option<String> = tx
@@ -260,9 +298,23 @@ pub(super) fn prepare_attachment(
 ) -> Result<NamespaceObject> {
     let existing = by_identity(db, &working.scope, &working.node.id)?;
     Ok(match existing {
-        Some(object) => {
+        Some(mut object) => {
             if object.working_file.is_some() {
                 return Err(JournalError::Stale);
+            }
+            if object.follows_remote {
+                let source = working.initial_remote.as_ref().ok_or(JournalError::Stale)?;
+                if object.latest.is_some()
+                    || object.remote.as_ref().is_none_or(|r| r.id != source.id)
+                    || source.kind != object.node.kind
+                    || source.target.is_some()
+                {
+                    return Err(JournalError::Stale);
+                }
+                object.remote = Some(source.clone());
+                object.node.name = source.name.clone();
+                object.node.parent_id = source.parent_id.clone();
+                object.follows_remote = false;
             }
             if object.node.kind != working.node.kind
                 || !object
@@ -299,6 +351,7 @@ pub(super) fn prepare_attachment(
                 working_file: None,
                 latest: working.latest,
                 revision: 0,
+                follows_remote: false,
             }
         }
     })
@@ -420,7 +473,26 @@ impl UploadJournal {
         }
         .validate()
         .map_err(|_| JournalError::Intent)?;
-        if let Some(object) = by_identity(&self.db, &scope, &node.id)? {
+        if let Some(mut object) = by_identity(&self.db, &scope, &node.id)? {
+            if object.follows_remote {
+                if object.working_file.is_some()
+                    || object.latest.is_some()
+                    || object.remote.as_ref().is_none_or(|r| r.id != node.id)
+                {
+                    return Err(JournalError::Stale);
+                }
+                let local = object.node.id.clone();
+                object.node = node.clone();
+                object.node.id = local;
+                object.remote = Some(node);
+                object.follows_remote = false;
+                object.revision = object.revision.checked_add(1).ok_or(JournalError::Quota)?;
+                let tx = self
+                    .db
+                    .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+                save(&tx, &object)?;
+                tx.commit()?;
+            }
             return Ok(object);
         }
         let count: i64 = self
@@ -439,6 +511,7 @@ impl UploadJournal {
             working_file: None,
             latest: None,
             revision: 0,
+            follows_remote: false,
         };
         let tx = self
             .db
@@ -459,7 +532,7 @@ impl UploadJournal {
         name: String,
     ) -> Result<MutationRecord> {
         let mut object = self.namespace_object(id)?;
-        if object.revision != revision {
+        if object.revision != revision || object.follows_remote {
             return Err(JournalError::Stale);
         }
         if object.node.kind != NodeKind::File {
@@ -589,7 +662,13 @@ pub fn project_namespace<'a>(
     };
     let mut hidden = HashSet::new();
     let mut local = HashMap::new();
+    let mut aliases = HashMap::new();
     for object in &objects {
+        if object.follows_remote {
+            let remote = object.remote.as_ref().ok_or(JournalError::Corrupt)?;
+            aliases.insert(remote.id.as_str(), object.node.id.as_str());
+            continue;
+        }
         hidden.insert(object.node.id.as_str());
         if let Some(remote) = &object.remote {
             hidden.insert(remote.id.as_str());
@@ -600,7 +679,7 @@ pub fn project_namespace<'a>(
     }
     let mut nodes = vec![];
     let mut conflicts = vec![];
-    for node in remote {
+    for mut node in remote {
         if hidden.contains(node.id.as_str()) {
             continue;
         }
@@ -610,6 +689,9 @@ pub fn project_namespace<'a>(
                 remote: node,
             });
         } else {
+            if let Some(identity) = aliases.get(node.id.as_str()) {
+                node.id = (*identity).to_owned();
+            }
             nodes.push(node);
         }
     }

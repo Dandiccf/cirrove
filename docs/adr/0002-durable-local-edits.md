@@ -158,3 +158,19 @@ Local working-file relocation now seals dirty content before atomically committi
 its new name, latest-operation pointer and queued mutation. Subsequent local saves
 can follow that mutation while it is still pending. This does not yet implement
 complete local namespace projection or atomic replacement through mounted paths.
+
+## Releasing acknowledged local bytes
+
+Journal schema 8 allows an idle object with a fully acknowledged operation frontier
+to release its working bytes and local directory overlay. Its stable identity and
+revision remain as an alias to remote metadata. Open-file leases and a revision
+check protect concurrent application access; pending successors, dirty generations
+and unresolved operations prevent retirement. A later edit uses newly observed
+metadata rather than the old acknowledged predecessor as its content base.
+
+The detach and explicit deletion intent share a transaction. Physical deletion and
+directory fsync happen before clearing that intent, so restart can finish cleanup.
+A separate collector removes only acknowledged immutable payloads while preserving
+receipts. Unrecognized spool files and unacknowledged content are never collected.
+This is working-storage reclamation; alias and receipt retention, pins and full
+application atomic-save semantics remain unfinished. See [architecture](../architecture.md).

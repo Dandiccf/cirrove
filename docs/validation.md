@@ -482,3 +482,33 @@ Engine has no remaining owner, then permit only WouldBlock for at most two secon
 while forked helpers release inherited lock descriptors at exec. Production locking
 is unchanged. The corrected six-test concurrent suite passed ten consecutive runs
 (60 executions), and the full 160-test default suite also passed again.
+
+## Releasing acknowledged working copies and following remote changes
+
+A synthetic kernel-mount regression against the preceding implementation reproduced
+permanent retention of a closed, acknowledged working copy. The current mount
+fixture verifies that acknowledged upload payloads are collected while an open
+application still retains its working bytes. After the last handle closes, working
+storage is released and a foreign remote edit/rename becomes visible with the same
+local inode. A subsequent mounted save uses that newer remote ETag and uploads
+successfully. Restart, a further metadata-only rename with no hydration, and remote
+deletion also pass. A second deletion case removes the remote file before its last
+local handle closes; an ordered NotFound observation removes the cached entry and
+permits cleanup without leaving a ghost file.
+
+Eight journal fixtures cover the acknowledged frontier, dirty/pending/in-flight
+retention, stable aliases, reactivation, failed detach transactions, interrupted
+cleanup and schema-7 migration to journal schema 8. Cleanup refuses symlink targets,
+retains unknown spool files and retries acknowledged-payload removal after a failed
+metadata checkpoint. Four service unit fixtures cover new access and edits during
+a held metadata request, cancellation of an uncooperative provider, failed local
+publication and delayed callbacks, and per-object backoff across idle passes.
+Three store fixtures and one engine fixture check ordered NotFound publication,
+rollback and supersession by newer positive metadata or complete parent listings.
+
+The final local run passed 176 default workspace tests and all 22 actual synthetic
+kernel-FUSE tests, plus formatting, strict Clippy, workspace build, executable service
+smoke, two observer checks and Rustdoc. These tests do not access live cloud accounts
+or replace the installed service. Full application atomic-save behavior,
+open-unlinked files, writable directories, alias/history retention at scale and
+real-provider mounted acceptance remain open.

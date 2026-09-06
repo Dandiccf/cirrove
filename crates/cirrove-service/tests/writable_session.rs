@@ -1082,3 +1082,282 @@ with open('renamed.bin','rb') as f: assert f.read()==b'my local save'
         b"my local save"
     );
 }
+
+async fn wait_for_cleanup(journal: &Arc<Mutex<UploadJournal>>, spool: &Path, working: usize) {
+    tokio::time::timeout(Duration::from_secs(12), async {
+        loop {
+            if journal.lock().unwrap().working_files().unwrap().len() == working
+                && std::fs::read_dir(spool.join("objects")).unwrap().count() == 0
+                && std::fs::read_dir(spool.join("working")).unwrap().count() == working
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+}
+async fn refresh_fixture(engine: &Engine, cloud: &Cloud) {
+    cirrove_service::refresh(
+        cloud,
+        &engine.scope("drive"),
+        &engine.db,
+        false,
+        &engine.cancel,
+    )
+    .await
+    .unwrap();
+    engine.changed.notify_waiters();
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; clean copies hand off to remote metadata without losing local identity"]
+async fn real_closed_uploaded_file_follows_remote_edits_and_reclaims_working_storage() {
+    use std::os::unix::fs::MetadataExt;
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let state = temp.path().join("state");
+    let spool = temp.path().join("journal");
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    let vault = Arc::new(Vault::default());
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&spool, &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account.clone(), cloud.clone(), state.clone())
+        .await
+        .unwrap();
+    let session = WritableSession::mount(
+        engine.clone(),
+        journal.clone(),
+        cloud.clone(),
+        vault.clone(),
+    )
+    .await
+    .unwrap();
+    let path = mount.join("local.txt");
+    let (mut file, inode) = tokio::task::spawn_blocking(move || {
+        let mut file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create_new(true)
+            .open(path)
+            .unwrap();
+        file.write_all(b"mine").unwrap();
+        file.sync_all().unwrap();
+        let inode = file.metadata().unwrap().ino();
+        (file, inode)
+    })
+    .await
+    .unwrap();
+    acknowledged(&session, 1).await;
+    let upload = session.uploads(0, 10).await.unwrap().pop().unwrap();
+    let remote_id = upload.remote.unwrap().id;
+    let local_id = journal.lock().unwrap().working_files().unwrap()[0]
+        .node
+        .id
+        .clone();
+    assert_ne!(remote_id, local_id);
+    // Cleanup actually ran (the acknowledged snapshot is gone), but the open
+    // application still owns its working copy and exact local bytes.
+    wait_for_cleanup(&journal, &spool, 1).await;
+    assert_eq!(journal.lock().unwrap().retained_bytes().unwrap(), 4);
+    {
+        let mut remote = cloud.remote.lock().unwrap();
+        let (node, bytes) = remote.files.get_mut(&remote_id).unwrap();
+        *bytes = b"foreign".to_vec();
+        node.size = 7;
+        node.name = "external.txt".into();
+        node.etag = Some("external".into());
+        node.content_version = Some("external".into());
+    }
+    refresh_fixture(&engine, &cloud).await;
+    file = tokio::task::spawn_blocking(move || {
+        let mut bytes = vec![];
+        file.seek(SeekFrom::Start(0)).unwrap();
+        std::io::Read::read_to_end(&mut file, &mut bytes).unwrap();
+        assert_eq!(bytes, b"mine");
+        file
+    })
+    .await
+    .unwrap();
+    assert_eq!(journal.lock().unwrap().working_files().unwrap().len(), 1);
+    drop(file);
+    wait_for_cleanup(&journal, &spool, 0).await;
+    assert_eq!(journal.lock().unwrap().retained_bytes().unwrap(), 0);
+    application(
+        &mount,
+        &format!(
+            r#"
+import os,sys
+os.chdir(sys.argv[1])
+assert not os.path.exists('local.txt')
+assert os.stat('external.txt').st_ino=={inode}
+assert open('external.txt','rb').read()==b'foreign'
+with open('external.txt','r+b') as f:
+    f.write(b'updated');f.flush();os.fsync(f.fileno())
+"#
+        ),
+    )
+    .await;
+    acknowledged(&session, 2).await;
+    let second = session.uploads(0, 10).await.unwrap().pop().unwrap();
+    assert_eq!(
+        second.intent,
+        UploadIntent::Replace {
+            item: remote_id.clone(),
+            expected_etag: "external".into()
+        }
+    );
+    assert!(second.base.is_none());
+    assert_eq!(cloud.remote.lock().unwrap().files[&remote_id].1, b"updated");
+    wait_for_cleanup(&journal, &spool, 0).await;
+    let stopped = Arc::downgrade(&engine);
+    session.shutdown().await.unwrap();
+    drop(engine);
+    drop(journal);
+    let journal = Arc::new(Mutex::new(
+        reopened_journal(&spool, &account.id, 1024 * 1024).await,
+    ));
+    let engine = reopened_engine(account, cloud.clone(), &state, stopped).await;
+    let session = WritableSession::mount(engine.clone(), journal.clone(), cloud.clone(), vault)
+        .await
+        .unwrap();
+    application(
+        &mount,
+        &format!(
+            r#"
+import os,sys
+os.chdir(sys.argv[1])
+assert os.stat('external.txt').st_ino=={inode}
+assert open('external.txt','rb').read()==b'updated'
+"#
+        ),
+    )
+    .await;
+    let alias = journal
+        .lock()
+        .unwrap()
+        .namespace_by_identity(&engine.scope("drive"), &remote_id)
+        .unwrap()
+        .unwrap();
+    assert_eq!(alias.node.id, local_id);
+    assert!(alias.follows_remote);
+    let reads = cloud.reads.load(Ordering::SeqCst);
+    application(
+        &mount,
+        &format!(
+            r#"
+import os,sys
+os.chdir(sys.argv[1])
+os.rename('external.txt','renamed.txt')
+assert not os.path.exists('external.txt')
+assert os.stat('renamed.txt').st_ino=={inode}
+assert open('renamed.txt','rb').read()==b'updated'
+"#
+        ),
+    )
+    .await;
+    mutations_applied(&session, 1).await;
+    tokio::time::timeout(Duration::from_secs(12), async {
+        loop {
+            if journal
+                .lock()
+                .unwrap()
+                .namespace_by_identity(&engine.scope("drive"), &remote_id)
+                .unwrap()
+                .unwrap()
+                .follows_remote
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(
+        cloud.reads.load(Ordering::SeqCst),
+        reads,
+        "metadata-only reactivation downloaded content"
+    );
+    cloud.remote.lock().unwrap().files.remove(&remote_id);
+    let mut db = cirrove_store::Store::open(&engine.db).unwrap();
+    let scope = engine.scope("drive");
+    let cursor = db.begin(&scope, false).unwrap();
+    db.stage(
+        &scope,
+        cursor.as_ref(),
+        &ChangePage {
+            changes: vec![Change::Delete { id: remote_id }],
+            checkpoint: Checkpoint::Complete(Cursor("deleted".into())),
+        },
+    )
+    .unwrap();
+    engine.changed.notify_waiters();
+    application(
+        &mount,
+        r#"
+import os,sys,time
+os.chdir(sys.argv[1])
+for _ in range(100):
+    if not os.path.exists('renamed.txt') and 'renamed.txt' not in os.listdir('.'):
+        break
+    time.sleep(.01)
+else:
+    raise AssertionError('retired local entry hid a remote deletion')
+"#,
+    )
+    .await;
+    // Another acknowledged file disappears before its open application closes.
+    // A newer cached external version forces handoff revalidation, whose 404
+    // must invalidate that cached directory entry instead of retaining a ghost.
+    let path = mount.join("deleted-before-close.txt");
+    let open = tokio::task::spawn_blocking(move || {
+        let mut f = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create_new(true)
+            .open(path)
+            .unwrap();
+        f.write_all(b"mine").unwrap();
+        f.sync_all().unwrap();
+        f
+    })
+    .await
+    .unwrap();
+    acknowledged(&session, 3).await;
+    let vanished = session
+        .uploads(0, 10)
+        .await
+        .unwrap()
+        .pop()
+        .unwrap()
+        .remote
+        .unwrap()
+        .id;
+    {
+        let mut remote = cloud.remote.lock().unwrap();
+        let (node, bytes) = remote.files.get_mut(&vanished).unwrap();
+        *bytes = b"external".to_vec();
+        node.size = 8;
+        node.etag = Some("vanishing".into());
+        node.content_version = Some("vanishing".into());
+    }
+    refresh_fixture(&engine, &cloud).await;
+    cloud.remote.lock().unwrap().files.remove(&vanished);
+    drop(open);
+    wait_for_cleanup(&journal, &spool, 0).await;
+    application(
+        &mount,
+        r#"
+import os,sys
+os.chdir(sys.argv[1])
+assert not os.path.exists('deleted-before-close.txt')
+assert 'deleted-before-close.txt' not in os.listdir('.')
+"#,
+    )
+    .await;
+    session.shutdown().await.unwrap();
+}
