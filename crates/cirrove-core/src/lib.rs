@@ -1,5 +1,6 @@
 //! Provider-neutral metadata contracts. Paths are presentation; IDs are identity.
 pub mod mutation;
+pub mod notifications;
 pub mod upload;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -128,6 +129,17 @@ pub enum ProviderError {
 #[async_trait]
 pub trait MetadataProvider: Send + Sync {
     fn provider_id(&self) -> &'static str;
+    /// Maintain one collection's notification session until cancellation, renewal
+    /// or failure. Implementations report connected only after subscribing, and
+    /// turn remote hints into `changed`; metadata is still fetched via `changes`.
+    async fn watch_changes(
+        &self,
+        _scope: &Scope,
+        _hints: notifications::ChangeHintSender,
+        _cancel: &CancellationToken,
+    ) -> Result<notifications::WatchEnd, ProviderError> {
+        Ok(notifications::WatchEnd::Unsupported)
+    }
     async fn changes(
         &self,
         scope: &Scope,

@@ -13,8 +13,11 @@ progress. See
 [durable local edits](adr/0002-durable-local-edits.md).
 
 A cloud API cannot provide instant uncached access or complete local POSIX semantics.
-The service reconciles metadata using delta polling (30 seconds by default); it does
-not describe that interval as instantaneous real-time change delivery.
+The service reconciles metadata using incremental delta feeds. OneDrive Socket.IO
+notifications now wake those feeds, while polling continues at 30 seconds by default
+as a safeguard. A notification is a hint to fetch changes, not file content or proof
+that the visible index is current. Provider delivery can itself be delayed; this is
+not an instantaneous real-time guarantee. See [change notifications](adr/0003-change-notifications.md).
 
 ```mermaid
 flowchart LR
@@ -58,6 +61,23 @@ drive may need foreground directory requests; this case is not claimed as verifi
 until tested with a real tenant. A cache is not proof of current remote authorization.
 
 ## Atomic metadata and foreground observations
+
+Each collection has an optional provider notification session, independently of its
+delta worker. A bounded generation signal retains hints received during a refresh.
+The worker consumes the generation before starting network work and coalesces bursts
+with at least 250 ms between refresh starts. Failed refreshes retain their backoff;
+push cannot bypass Retry-After. A single coalescing discovery task prevents push
+bursts from accumulating linked-library discovery tasks.
+
+OneDrive obtains the signed Socket.IO endpoint through authenticated Graph, then
+uses a separate Rustls WebSocket connection without Graph bearer headers. Engine.IO
+heartbeats detect silent disconnects; namespace acknowledgement is required before
+reporting connected. The service retries failed subscription attempts and each
+successful connection requests a catch-up delta. A healthy session renews after
+50 minutes. Message/frame limits and cancellation bound socket work. Connection
+state is visible per feed in the status response; it is separate from metadata
+freshness. Personal-account delivery and actual long-session renewal remain live
+validation gates.
 
 The store stages paginated changes and advances the continuation in one transaction.
 Visible nodes and the completed cursor change together only on the terminal page.
@@ -223,6 +243,7 @@ behind a compatibility adapter with visible authentication/API limitations.
 
 - [Microsoft authentication code flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow)
 - [Graph delta](https://learn.microsoft.com/en-us/graph/api/driveitem-delta?view=graph-rest-1.0)
+- [Graph Socket.IO notifications](https://learn.microsoft.com/en-us/graph/api/subscriptions-socketio?view=graph-rest-1.0)
 - [Graph throttling](https://learn.microsoft.com/en-us/graph/throttling)
 - [Graph conditional move](https://learn.microsoft.com/en-us/graph/api/driveitem-move?view=graph-rest-1.0)
 - [Graph conditional deletion](https://learn.microsoft.com/en-us/graph/api/driveitem-delete?view=graph-rest-1.0)

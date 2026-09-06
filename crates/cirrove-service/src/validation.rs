@@ -1,6 +1,7 @@
 //! Explicit developer-only cloud mutation checks. Never called by the daemon.
 //! Every target is created by this run; no existing document is accepted as input.
 mod namespace;
+mod notifications;
 use crate::{
     accounts,
     journal::{UploadJournal, UploadRecord, UploadState},
@@ -16,6 +17,7 @@ use cirrove_core::{
 };
 use cirrove_onedrive::OneDrive;
 pub use namespace::onedrive_mutations;
+pub use notifications::onedrive_notifications;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use std::{
@@ -463,6 +465,13 @@ mod tests {
         let loaded = accounts::Settings::load(temp.path()).unwrap();
         assert_eq!(loaded.accounts[0].access, AccessMode::ReadOnly);
         assert!(
+            onedrive_notifications(temp.path(), "fixture")
+                .await
+                .unwrap_err()
+                .to_string()
+                .contains("--write-access")
+        );
+        assert!(
             onedrive_uploads(temp.path(), "fixture")
                 .await
                 .unwrap_err()
@@ -479,6 +488,13 @@ mod tests {
         settings["accounts"][0]["access"] = "read_write".into();
         settings["accounts"][0]["enabled"] = true.into();
         save(&settings);
+        assert!(
+            onedrive_notifications(temp.path(), "fixture")
+                .await
+                .unwrap_err()
+                .to_string()
+                .contains("disable")
+        );
         assert!(
             onedrive_uploads(temp.path(), "fixture")
                 .await
@@ -498,7 +514,13 @@ mod tests {
         let _owner = accounts::account_lock(&temp.path().join("accounts").join(id)).unwrap();
         assert!(onedrive_uploads(temp.path(), "fixture").await.is_err());
         assert!(onedrive_mutations(temp.path(), "fixture").await.is_err());
+        assert!(
+            onedrive_notifications(temp.path(), "fixture")
+                .await
+                .is_err()
+        );
         assert!(!temp.path().join("write-checks").exists());
         assert!(!temp.path().join("namespace-checks").exists());
+        assert!(!temp.path().join("notification-checks").exists());
     }
 }

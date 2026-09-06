@@ -22,7 +22,10 @@ implemented. A separate developer upload worker is undergoing validation.
 - Secret Service credential storage, serialized refresh, stale-token protection
   and account-specific reauthentication.
 - Persistent delta workers, transactional SQLite staging, resumable pagination,
-  backoff and an account-wide provider cooldown.
+  backoff and an account-wide provider cooldown. Graph Socket.IO notifications
+  now wake the incremental metadata feed; periodic checks remain a fallback.
+  Provider delivery latency is separate from Cirrove's reaction time; see
+  [change notifications](docs/adr/0003-change-notifications.md).
 - Linked-drive discovery and shortcut projection with separate target identities.
   Folder-only SharePoint sharing and revoked targets still need live validation.
 - Read-only FUSE projection with persistent directory and content-version inodes,

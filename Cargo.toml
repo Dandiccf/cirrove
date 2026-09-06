@@ -18,6 +18,8 @@ anyhow = "1.0"
 async-trait = "0.1"
 clap = { version = "4.6", features = ["derive"] }
 httpdate = "1.0"
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+tokio-tungstenite = { version = "0.30", default-features = false, features = ["connect", "rustls-tls-webpki-roots"] }
 chrono = "0.4"
 openidconnect = { version = "4.0", default-features = false }
 secret-service = { version = "5.2", features = ["rt-tokio-crypto-rust"] }

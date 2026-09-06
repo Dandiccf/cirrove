@@ -788,3 +788,91 @@ async fn reconciliation_checks_actual_content_instead_of_acknowledging_equal_siz
         assert!(!requests[2].head.to_lowercase().contains("authorization:"));
     }
 }
+
+#[tokio::test]
+#[allow(clippy::result_large_err)] // tungstenite fixes this callback's error type.
+async fn graph_notification_endpoint_uses_scoped_auth_and_releases_background_capacity() {
+    use cirrove_core::notifications::{ChangeHintSender, NotificationState};
+    use futures_util::{SinkExt, StreamExt};
+    use tokio_tungstenite::{accept_hdr_async, tungstenite::Message};
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let notification_url = format!(
+        "http://{}/callback?signed=fixture-only",
+        listener.local_addr().unwrap()
+    );
+    let cancel = CancellationToken::new();
+    let stop = cancel.clone();
+    let server = tokio::spawn(async move {
+        let (stream, _) = listener.accept().await.unwrap();
+        let mut socket = accept_hdr_async(
+            stream,
+            |request: &tokio_tungstenite::tungstenite::handshake::server::Request, response| {
+                assert!(!request.headers().contains_key("authorization"));
+                assert_eq!(request.uri().path(), "/socket.io/");
+                assert_eq!(
+                    request.uri().query(),
+                    Some("signed=fixture-only&EIO=4&transport=websocket")
+                );
+                Ok(response)
+            },
+        )
+        .await
+        .unwrap();
+        socket
+            .send(Message::Text(
+                "0{\"sid\":\"fixture\",\"pingInterval\":25000,\"pingTimeout\":20000}".into(),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(
+            socket.next().await.unwrap().unwrap().into_text().unwrap(),
+            "40/callback,"
+        );
+        socket
+            .send(Message::Text("40/callback,{\"sid\":\"ready\"}".into()))
+            .await
+            .unwrap();
+        stop.cancelled().await;
+    });
+    let (provider, requests) = fixture(vec![
+        reply(200, json!({"notificationUrl":notification_url}).to_string()),
+        reply(
+            200,
+            r#"{"value":[],"@odata.deltaLink":"HOST/v1.0/drives/drive/root/delta?token=next"}"#,
+        ),
+    ])
+    .await;
+    let provider = Arc::new(provider);
+    let (hints, mut receiver) = ChangeHintSender::channel();
+    let graph = provider.clone();
+    let token = cancel.clone();
+    let scope = mutation_request(false).scope;
+    let watched = scope.clone();
+    let task = tokio::spawn(async move { graph.watch_changes(&watched, hints, &token).await });
+    tokio::time::timeout(Duration::from_secs(2), async {
+        loop {
+            if receiver.borrow_and_update().state == NotificationState::Connected {
+                break;
+            }
+            receiver.changed().await.unwrap();
+        }
+    })
+    .await
+    .unwrap();
+    provider.changes(&scope, None, &cancel).await.unwrap();
+    cancel.cancel();
+    assert!(matches!(task.await.unwrap(), Err(ProviderError::Cancelled)));
+    server.await.unwrap();
+    let requests = requests.await.unwrap();
+    assert!(
+        requests[0]
+            .head
+            .starts_with("GET /v1.0/drives/drive/root/subscriptions/socketIo ")
+    );
+    assert!(
+        requests[0]
+            .head
+            .to_lowercase()
+            .contains("authorization: bearer fake-graph-bearer")
+    );
+}

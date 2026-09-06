@@ -1,6 +1,7 @@
 //! Microsoft Graph reads and experimental upload adapter. Tokens, cursor
 //! URLs and remote error bodies must never appear in logs.
 mod mutation;
+mod notifications;
 mod upload;
 use async_trait::async_trait;
 use cirrove_core::{
@@ -397,6 +398,14 @@ impl OneDrive {
 impl MetadataProvider for OneDrive {
     fn provider_id(&self) -> &'static str {
         "onedrive"
+    }
+    async fn watch_changes(
+        &self,
+        scope: &Scope,
+        hints: cirrove_core::notifications::ChangeHintSender,
+        cancel: &CancellationToken,
+    ) -> Result<cirrove_core::notifications::WatchEnd, ProviderError> {
+        self.watch(scope, hints, cancel).await
     }
     async fn changes(
         &self,

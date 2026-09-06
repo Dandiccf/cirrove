@@ -8,7 +8,7 @@ acceptance for roadmap stages 1–3.
 ## Local checks
 
 - Formatting and strict Clippy cover all crates and test targets.
-- Current default workspace suite: **88 tests passed**. Seven kernel-FUSE tests
+- Current default workspace suite: **96 tests passed**. Eight kernel-FUSE tests
   run separately; subprocess fixture entry points and the optional performance
   fixture remain excluded from the default suite.
 - Built both binaries and generated workspace Rustdoc.
@@ -55,7 +55,7 @@ The content tests check 32-reader coalescing, offsets beyond 2 GiB in a syntheti
 3 GiB file, offline cache reuse after restart, corruption recovery, interrupted
 publication cleanup, quota enforcement and shared-failure retry suppression.
 
-Seven tests ran against **real kernel FUSE mounts** in temporary directories:
+Eight tests ran against **real kernel FUSE mounts** in temporary directories:
 
 - Normal file reads, linked-library projection, duplicate-alias inodes, deep
   traversal, large seeks, EROFS on writes, stable inodes/cache after restart,
@@ -75,6 +75,9 @@ Seven tests ran against **real kernel FUSE mounts** in temporary directories:
 - A burst of 96 simultaneous 64 KiB reads from distinct 3,100,000-byte files completes
   while cached folder listings retain independent capacity. The fixture adds 250 ms
   per content request and the cache makes 96 range calls, without retries.
+- Provider change hints expose a new file and subsequent rename through actual
+  mounted paths, including a previously cached negative lookup. The timer is set
+  to one hour so polling cannot satisfy the test.
 
 An early stalled-read run exposed an EINTR retry loop during shutdown. The stopped
 mount now returns ENODEV; the corrected test passed. Its old fixture process and
@@ -171,6 +174,26 @@ protection. A following run also passed folder rename and move while retaining
 and reading back an existing child. Account identities, real item IDs and logs
 remain private. These checks
 do not establish writable FUSE save semantics or the full provider matrix.
+
+## Change notification implementation
+
+Five transport fixtures cover signed endpoint parsing, Graph bearer isolation,
+background permit release, real loopback WebSocket handshakes, Socket.IO namespace
+acknowledgement, event ACKs, heartbeat expiry, oversized messages, renewal and
+cancellation. Three service fixtures cover push-triggered deltas, retained hints
+during active work, burst coalescing, Retry-After, reconnect catch-up and stable
+polling for adapters without notifications. The actual FUSE check above verifies
+that these changes reach mounted paths.
+
+An isolated business-drive test subscribed through the official Graph Socket.IO
+endpoint and observed its uniquely generated folder, then two conditional renames,
+in deltas requested because of notifications. The test uses no polling to satisfy
+that condition. Provider
+delivery can still be delayed; this result is not a low-latency guarantee. Further
+personal-account, linked-library and long-session checks remain open. Actual
+identifiers and timings remain in private local evidence. See
+[the notification decision](adr/0003-change-notifications.md) for the acceptance
+plan and repeat command.
 
 ## Required before calling stages 1–3 complete
 

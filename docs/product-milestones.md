@@ -12,11 +12,16 @@ Private account measurements belong in local records, not the public repository.
 - [ ] Recovery after process failure, suspend/resume and loss of network access.
 - [ ] Real token expiry/refresh and visible reauthentication when consent expires.
 - [ ] Responsive navigation during initial indexing and competing downloads.
+- [ ] Push-triggered metadata updates, reconnection/catch-up and periodic recovery checks, with provider delivery and local reaction latency measured separately.
 - [ ] Bounded memory and background work with large libraries and long sessions.
 - [ ] Real restart/outage checks and at least 24 hours of sustained operation.
 
 Evidence must include actual kernel mounts, provider-backed reads and ordinary
 desktop applications, in addition to deterministic transport/recovery fixtures.
+Graph Socket.IO and provider-neutral coalescing hints are now implemented. This
+does not close the live-response gate: notifications can be delayed upstream, and
+long-session renewal, the provider matrix and active-directory freshness need
+further validation. See [the notification decision](adr/0003-change-notifications.md).
 
 ## 2. Safe file changes
 

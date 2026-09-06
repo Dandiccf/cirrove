@@ -24,6 +24,13 @@ struct Args {
 }
 #[derive(Subcommand)]
 enum Command {
+    /// Verify Graph notifications using one new isolated synthetic cloud folder.
+    ValidateOnedriveNotifications {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        state_dir: PathBuf,
+    },
     /// Developer-only rename, move and file deletion inside a new synthetic folder.
     ValidateOnedriveMutations {
         #[arg(long)]
@@ -111,6 +118,9 @@ enum Command {
 #[tokio::main]
 async fn main() -> Result<()> {
     match Args::parse().command {
+        Command::ValidateOnedriveNotifications { label, state_dir } => {
+            cirrove_service::validation::onedrive_notifications(&state_dir, &label).await?;
+        }
         Command::ValidateOnedriveMutations { label, state_dir } => {
             cirrove_service::validation::onedrive_mutations(&state_dir, &label).await?;
         }
