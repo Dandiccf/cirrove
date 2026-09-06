@@ -83,9 +83,11 @@ Machine-readable evidence and the repeat command are in
 ## GitHub CI
 
 The [foundation CI run](https://github.com/Dandiccf/cirrove/actions/runs/34014890227)
-passed at `fa22f21`. The preview changes add FUSE helper installation and explicit
-kernel-filesystem lifecycle tests to CI. A preview run is pending publication;
-the earlier green foundation run is not evidence for the new code.
+passed at `fa22f21`. The [read-only preview CI run](https://github.com/Dandiccf/cirrove/actions/runs/34018513735)
+passed on Ubuntu 24.04 at `c4a877eb17e1539c42d4199ac78cebcf035b8e3b`.
+Formatting, strict Clippy, all 37 default tests, both explicit kernel-FUSE lifecycle
+tests, binary builds, executable smoke and Rustdoc completed successfully. The
+keyring check and benchmark remain separate local checks described above.
 
 ## Required before calling stages 1–3 complete
 
