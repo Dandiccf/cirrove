@@ -214,7 +214,7 @@ impl OneDrive {
         }
         Ok(session)
     }
-    async fn upload_call<T>(
+    pub(super) async fn upload_call<T>(
         &self,
         cancel: &CancellationToken,
         call: impl Future<Output = Result<T>>,
@@ -231,7 +231,7 @@ impl OneDrive {
             result=tokio::time::timeout(Duration::from_secs(125),call)=>result.unwrap_or(Err(UploadError::Uncertain)),
         }
     }
-    async fn authorized_upload(
+    pub(super) async fn authorized_upload(
         &self,
         method: Method,
         url: Url,
@@ -264,7 +264,7 @@ impl OneDrive {
         }
         Err(ProviderError::Authentication.into())
     }
-    async fn upload_body(
+    pub(super) async fn upload_body(
         &self,
         mut response: Response,
         session: bool,

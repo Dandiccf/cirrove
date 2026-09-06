@@ -24,6 +24,13 @@ struct Args {
 }
 #[derive(Subcommand)]
 enum Command {
+    /// Developer-only rename, move and file deletion inside a new synthetic folder.
+    ValidateOnedriveMutations {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        state_dir: PathBuf,
+    },
     /// Developer-only cloud writes in a newly created synthetic test folder.
     ValidateOnedriveUploads {
         #[arg(long)]
@@ -104,6 +111,9 @@ enum Command {
 #[tokio::main]
 async fn main() -> Result<()> {
     match Args::parse().command {
+        Command::ValidateOnedriveMutations { label, state_dir } => {
+            cirrove_service::validation::onedrive_mutations(&state_dir, &label).await?;
+        }
         Command::ValidateOnedriveUploads { label, state_dir } => {
             cirrove_service::validation::onedrive_uploads(&state_dir, &label).await?;
         }

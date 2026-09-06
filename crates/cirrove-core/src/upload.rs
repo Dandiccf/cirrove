@@ -50,7 +50,7 @@ impl UploadIntent {
             Self::Replace {
                 item,
                 expected_etag,
-            } => valid(item) && valid(expected_etag) && !expected_etag.contains(['\r', '\n']),
+            } => valid(item) && valid(expected_etag) && !expected_etag.contains(['\r', '\n', '*']),
         };
         if okay {
             Ok(())

@@ -81,10 +81,24 @@ one business-drive fixture passed. That does not complete the broader account an
 concurrency matrix.
 
 The remaining integration must implement new generations during an active upload,
-metadata operations and their
-dependencies, writable FUSE open/write/truncate/fsync/atomic-save behavior, user
+dependencies between metadata operations, writable FUSE open/write/truncate/fsync/atomic-save behavior, user
 conflict resolution and retention policy for old receipts. Live tests use a dedicated
 test folder after opt-in write consent. See [the developer workflow](../write-validation.md).
+
+## Namespace journal
+
+Schema 3 stores create-folder, relocate and remove-file intents alongside upload
+snapshots under the same ownership lock. A shared sequence/resource queue orders
+changes of the same identity and colliding source/destination names. Applied
+receipts and queue completion are one transaction. Interrupted applying/verifying
+states reopen as verify-required, and stale attempts cannot acknowledge newer work.
+
+A namespace worker performs network calls outside the journal lock and has bounded
+cancellation, deadlines and durable retry delays. Unprovable outcomes become
+`NeedsReview`; this includes a lost folder-create reply or a missing item after an
+uncertain delete. Matching paths alone cannot adopt an unrelated folder. Pending
+and conflicted records are retained. Hierarchical dependencies, local generation
+rebasing and atomic replacement still belong to the forthcoming writable namespace.
 
 ## Validation
 

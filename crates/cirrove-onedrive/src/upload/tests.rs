@@ -71,6 +71,9 @@ async fn fixture(replies: Vec<Reply>) -> (OneDrive, tokio::task::JoinHandle<Vec<
             }
             assert_eq!(body.len(), length);
             requests.push(Request { head, body });
+            if reply.status == 0 {
+                continue; // Intentionally lose the response after receiving the request.
+            }
             let body = reply.body.replace("HOST", &host);
             let response = format!(
                 "HTTP/1.1 {} Test\r\nContent-Length: {}\r\nConnection: close\r\n{}\r\n{}",
@@ -84,6 +87,228 @@ async fn fixture(replies: Vec<Reply>) -> (OneDrive, tokio::task::JoinHandle<Vec<
         requests
     });
     (provider, task)
+}
+
+fn mutation_node() -> Node {
+    Node {
+        id: "file".into(),
+        parent_id: Some("source".into()),
+        name: "old.txt".into(),
+        kind: NodeKind::File,
+        size: 5,
+        modified_unix: 0,
+        etag: Some("\"original\"".into()),
+        content_version: Some("content".into()),
+        target: None,
+    }
+}
+fn mutation_request(remove: bool) -> cirrove_core::mutation::MutationRequest {
+    use cirrove_core::mutation::*;
+    MutationRequest {
+        scope: Scope {
+            account: "fixture".into(),
+            provider: "onedrive".into(),
+            collection: "drive".into(),
+        },
+        intent: if remove {
+            MutationIntent::RemoveFile {
+                before: mutation_node(),
+            }
+        } else {
+            MutationIntent::Relocate {
+                before: mutation_node(),
+                parent: "destination".into(),
+                name: "Grüße & #1.txt".into(),
+            }
+        },
+    }
+}
+fn mutation_wire(parent: &str, name: &str, etag: &str) -> String {
+    json!({"id":"file","name":name,"size":5,"eTag":etag,"cTag":"content","file":{},"parentReference":{"driveId":"drive","id":parent}}).to_string()
+}
+#[tokio::test]
+async fn namespace_reconciliation_rejects_foreign_item_or_drive_evidence() {
+    use cirrove_core::mutation::*;
+    for foreign_drive in [false, true] {
+        let mut body: serde_json::Value =
+            serde_json::from_str(&mutation_wire("source", "old.txt", "\"original\"")).unwrap();
+        if foreign_drive {
+            body["parentReference"]["driveId"] = "different-drive".into();
+        } else {
+            body["id"] = "different-item".into();
+        }
+        let (graph, task) = fixture(vec![reply(200, body.to_string())]).await;
+        assert!(matches!(
+            graph
+                .reconcile_mutation(&mutation_request(false), &CancellationToken::new())
+                .await,
+            Err(MutationError::Provider(ProviderError::Protocol(_)))
+        ));
+        task.await.unwrap();
+    }
+}
+#[tokio::test]
+async fn namespace_patch_is_conditional_and_fails_on_collision() {
+    use cirrove_core::mutation::*;
+    let request = mutation_request(false);
+    let (graph, task) = fixture(vec![reply(
+        200,
+        mutation_wire("destination", "Grüße & #1.txt", "new"),
+    )])
+    .await;
+    let receipt = graph
+        .mutate(&request, &CancellationToken::new())
+        .await
+        .unwrap();
+    assert!(request.accepts(&receipt));
+    let requests = task.await.unwrap();
+    assert!(
+        requests[0]
+            .head
+            .starts_with("PATCH /v1.0/drives/drive/items/file ")
+    );
+    assert!(
+        requests[0]
+            .head
+            .to_lowercase()
+            .contains("if-match: \"original\"")
+    );
+    let body: serde_json::Value = serde_json::from_slice(&requests[0].body).unwrap();
+    assert_eq!(body["name"], "Grüße & #1.txt");
+    assert_eq!(body["parentReference"]["id"], "destination");
+    assert_eq!(body["@microsoft.graph.conflictBehavior"], "fail");
+    for status in [409, 412] {
+        let (graph, task) = fixture(vec![reply(status, "PRIVATE-PROVIDER-BODY")]).await;
+        assert!(matches!(
+            graph.mutate(&request, &CancellationToken::new()).await,
+            Err(MutationError::Conflict)
+        ));
+        assert_eq!(task.await.unwrap().len(), 1);
+    }
+}
+#[tokio::test]
+async fn namespace_lost_reply_is_reconciled_by_identity_and_location() {
+    use cirrove_core::mutation::*;
+    let request = mutation_request(false);
+    let (graph, task) = fixture(vec![
+        reply(0, ""),
+        reply(200, mutation_wire("destination", "Grüße & #1.txt", "new")),
+    ])
+    .await;
+    assert!(matches!(
+        graph.mutate(&request, &CancellationToken::new()).await,
+        Err(MutationError::Uncertain)
+    ));
+    assert!(matches!(
+        graph
+            .reconcile_mutation(&request, &CancellationToken::new())
+            .await
+            .unwrap(),
+        MutationReconciliation::Applied(_)
+    ));
+    let requests = task.await.unwrap();
+    assert_eq!(requests.len(), 2);
+    assert!(requests[1].head.starts_with("GET "));
+    for (etag, expected) in [("\"original\"", true), ("changed", false)] {
+        let (graph, task) =
+            fixture(vec![reply(200, mutation_wire("source", "old.txt", etag))]).await;
+        let state = graph
+            .reconcile_mutation(&request, &CancellationToken::new())
+            .await
+            .unwrap();
+        assert_eq!(
+            matches!(state, MutationReconciliation::Uncommitted),
+            expected
+        );
+        if !expected {
+            assert!(matches!(state, MutationReconciliation::Conflict));
+        }
+        task.await.unwrap();
+    }
+}
+#[tokio::test]
+async fn file_delete_checks_remote_type_and_requires_original_etag() {
+    use cirrove_core::mutation::*;
+    let request = mutation_request(true);
+    let (graph, task) = fixture(vec![
+        reply(200, mutation_wire("source", "old.txt", "\"original\"")),
+        reply(204, ""),
+    ])
+    .await;
+    assert!(
+        request.accepts(
+            &graph
+                .mutate(&request, &CancellationToken::new())
+                .await
+                .unwrap()
+        )
+    );
+    let requests = task.await.unwrap();
+    assert_eq!(requests.len(), 2);
+    assert!(
+        requests[1]
+            .head
+            .starts_with("DELETE /v1.0/drives/drive/items/file ")
+    );
+    assert!(
+        requests[1]
+            .head
+            .to_lowercase()
+            .contains("if-match: \"original\"")
+    );
+    assert!(!requests[1].head.to_lowercase().contains("bypass"));
+    let mut folder: serde_json::Value =
+        serde_json::from_str(&mutation_wire("source", "old.txt", "\"original\"")).unwrap();
+    folder.as_object_mut().unwrap().remove("file");
+    folder["folder"] = json!({});
+    let (graph, task) = fixture(vec![reply(200, folder.to_string())]).await;
+    assert!(matches!(
+        graph.mutate(&request, &CancellationToken::new()).await,
+        Err(MutationError::Conflict)
+    ));
+    assert_eq!(task.await.unwrap().len(), 1);
+    let (graph, task) = fixture(vec![
+        reply(200, mutation_wire("source", "old.txt", "\"original\"")),
+        reply(412, ""),
+    ])
+    .await;
+    assert!(matches!(
+        graph.mutate(&request, &CancellationToken::new()).await,
+        Err(MutationError::Conflict)
+    ));
+    task.await.unwrap();
+}
+#[tokio::test]
+async fn missing_item_and_unidentified_folder_creation_do_not_confirm_success() {
+    use cirrove_core::mutation::*;
+    let request = mutation_request(true);
+    let (graph, task) = fixture(vec![reply(404, "")]).await;
+    assert!(matches!(
+        graph
+            .reconcile_mutation(&request, &CancellationToken::new())
+            .await
+            .unwrap(),
+        MutationReconciliation::Indeterminate
+    ));
+    task.await.unwrap();
+    let mut create = request.clone();
+    create.intent = MutationIntent::CreateFolder {
+        parent: "source".into(),
+        name: "folder".into(),
+    };
+    assert!(matches!(
+        graph
+            .reconcile_mutation(&create, &CancellationToken::new())
+            .await
+            .unwrap(),
+        MutationReconciliation::Indeterminate
+    ));
+    let mut wrong = request;
+    wrong.scope.account = "other".into();
+    assert!(matches!(
+        graph.mutate(&wrong, &CancellationToken::new()).await,
+        Err(MutationError::Invalid)
+    ));
 }
 fn spec(data: &[u8], replace: bool) -> UploadRequest {
     UploadRequest {

@@ -177,6 +177,36 @@ the kernel reports ENOTCONN. A live mount is never displaced. Kernel tests kill
 a synthetic mount process and verify that a new manager serves readable files.
 These checks do not imply that a full-machine power-loss test has passed.
 
+## Conditional namespace changes
+
+The provider-neutral mutation contract supports folder creation, rename/move within
+one collection, and conditional regular-file removal. Rename/move sends the original
+ETag and refuses destination collisions. File removal checks the remote file facet
+and original ETag before issuing a conditional DELETE; a fabricated local file type
+cannot turn this path into recursive folder deletion. Shortcuts and root changes
+are rejected by the current mutation contract.
+
+Upload-journal schema 3 adds namespace records and a shared sequence/resource queue.
+Metadata changes cannot overtake pending uploads on the same remote identity;
+source/destination name reservations also order colliding creates and moves.
+Case folding is a conservative queue exclusion, not a definition of the provider's
+filename equivalence. Receipts and queue completion commit together. Migration
+preserves existing upload sequence numbers, snapshots and pending states. Older
+binaries refuse schema 3 instead of trying to downgrade it.
+
+After interruption, a namespace operation requires verification. A matching immutable
+item at the requested new name/parent can complete a lost rename/move response.
+An unchanged original revision permits a new conditional attempt. A missing item
+alone does not establish deletion: lost deletes and unidentified folder creations
+can enter `NeedsReview`, retaining their request without an automatic retry loop.
+HTTP success is required for a confirmed deletion receipt. File DELETE uses the
+provider's recycle-bin behavior; it is not permanent deletion or local POSIX rmdir.
+
+These operations remain outside the mounted filesystem. The writable namespace
+layer must add ancestor/dependency handling, application-save generations and safe
+replacement semantics before enabling folder mutations through FUSE. Personal
+accounts, permissions changes and broader live concurrency still require coverage.
+
 ## Next boundaries
 
 Before enabling writes, connect the local upload journal to application-save
@@ -194,6 +224,8 @@ behind a compatibility adapter with visible authentication/API limitations.
 - [Microsoft authentication code flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow)
 - [Graph delta](https://learn.microsoft.com/en-us/graph/api/driveitem-delta?view=graph-rest-1.0)
 - [Graph throttling](https://learn.microsoft.com/en-us/graph/throttling)
+- [Graph conditional move](https://learn.microsoft.com/en-us/graph/api/driveitem-move?view=graph-rest-1.0)
+- [Graph conditional deletion](https://learn.microsoft.com/en-us/graph/api/driveitem-delete?view=graph-rest-1.0)
 - [Graph downloads](https://learn.microsoft.com/en-us/graph/api/driveitem-get-content?view=graph-rest-1.0)
 - [Graph content and metadata tags](https://learn.microsoft.com/en-us/graph/api/resources/driveitem?view=graph-rest-1.0)
 - [Graph packages](https://learn.microsoft.com/en-us/graph/api/resources/package?view=graph-rest-1.0)

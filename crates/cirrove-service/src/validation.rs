@@ -1,5 +1,6 @@
 //! Explicit developer-only cloud mutation checks. Never called by the daemon.
 //! Every target is created by this run; no existing document is accepted as input.
+mod namespace;
 use crate::{
     accounts,
     journal::{UploadJournal, UploadRecord, UploadState},
@@ -14,6 +15,7 @@ use cirrove_core::{
     },
 };
 use cirrove_onedrive::OneDrive;
+pub use namespace::onedrive_mutations;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use std::{
@@ -190,9 +192,7 @@ async fn verify(
     Ok(())
 }
 
-/// Explicit write grant and an idle isolated account are both required. The test
-/// folder and local receipts remain for review, including after a failed check.
-pub async fn onedrive_uploads(state: &Path, label: &str) -> Result<()> {
+fn test_account(state: &Path, label: &str) -> Result<accounts::Account> {
     let account = accounts::Settings::load(state)?
         .accounts
         .into_iter()
@@ -206,6 +206,13 @@ pub async fn onedrive_uploads(state: &Path, label: &str) -> Result<()> {
             "disable this validation account before the check; use a separate account state to keep ordinary mounts running"
         );
     }
+    Ok(account)
+}
+
+/// Explicit write grant and an idle isolated account are both required. The test
+/// folder and local receipts remain for review, including after a failed check.
+pub async fn onedrive_uploads(state: &Path, label: &str) -> Result<()> {
+    let account = test_account(state, label)?;
     let _operation = accounts::account_operation(state, &account.id)?;
     let _owner = accounts::account_lock(&state.join("accounts").join(&account.id))?;
     let run = uuid::Uuid::new_v4();
@@ -462,6 +469,13 @@ mod tests {
                 .to_string()
                 .contains("--write-access")
         );
+        assert!(
+            onedrive_mutations(temp.path(), "fixture")
+                .await
+                .unwrap_err()
+                .to_string()
+                .contains("--write-access")
+        );
         settings["accounts"][0]["access"] = "read_write".into();
         settings["accounts"][0]["enabled"] = true.into();
         save(&settings);
@@ -472,10 +486,19 @@ mod tests {
                 .to_string()
                 .contains("disable")
         );
+        assert!(
+            onedrive_mutations(temp.path(), "fixture")
+                .await
+                .unwrap_err()
+                .to_string()
+                .contains("disable")
+        );
         settings["accounts"][0]["enabled"] = false.into();
         save(&settings);
         let _owner = accounts::account_lock(&temp.path().join("accounts").join(id)).unwrap();
         assert!(onedrive_uploads(temp.path(), "fixture").await.is_err());
+        assert!(onedrive_mutations(temp.path(), "fixture").await.is_err());
         assert!(!temp.path().join("write-checks").exists());
+        assert!(!temp.path().join("namespace-checks").exists());
     }
 }

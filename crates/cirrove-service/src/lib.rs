@@ -5,6 +5,7 @@ pub mod engine;
 pub mod filesystem;
 pub mod journal;
 pub mod manager;
+pub mod mutations;
 pub mod transfers;
 pub mod validation;
 use anyhow::{Context, Result, bail};

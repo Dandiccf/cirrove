@@ -1,5 +1,6 @@
 //! Microsoft Graph reads and experimental upload adapter. Tokens, cursor
 //! URLs and remote error bodies must never appear in logs.
+mod mutation;
 mod upload;
 use async_trait::async_trait;
 use cirrove_core::{
@@ -425,6 +426,17 @@ impl ReadProvider for OneDrive {
         let item: DriveItem = self
             .resource(&["drives", &scope.collection, "items", id], cancel)
             .await?;
+        if item.id != id
+            || item
+                .parent_reference
+                .as_ref()
+                .and_then(|p| p.drive_id.as_ref())
+                .is_some_and(|drive| drive != &scope.collection)
+        {
+            return Err(ProviderError::Protocol(
+                "item response identity does not match request",
+            ));
+        }
         match map_item(item)? {
             Change::Upsert(node) => Ok(node),
             _ => Err(ProviderError::NotFound),

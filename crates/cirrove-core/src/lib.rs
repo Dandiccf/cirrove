@@ -1,4 +1,5 @@
 //! Provider-neutral metadata contracts. Paths are presentation; IDs are identity.
+pub mod mutation;
 pub mod upload;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

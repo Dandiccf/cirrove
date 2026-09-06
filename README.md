@@ -35,7 +35,9 @@ implemented. A separate developer upload worker is undergoing validation.
 - Durable upload snapshots, keyring-backed session checkpoints and bounded Graph
   upload fragments, exercised with synthetic HTTP/fault fixtures. An explicit
   [isolated write check](docs/write-validation.md) is available for live validation;
-  this worker is not enabled in ordinary mounts.
+  these workers are not enabled in ordinary mounts. Conditional rename, move,
+  folder creation and file deletion now share durable ordering with uploads;
+  their isolated checks preserve collisions and uncertain results.
 
 These are implementation capabilities, not a production-readiness claim. See the
 [validation record](docs/validation.md) for what has actually been tested.

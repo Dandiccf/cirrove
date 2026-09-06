@@ -27,16 +27,19 @@ fragments, lost success responses, secret-store failures, bounded scheduling and
 conditional commit conflicts. The [isolated live write check](write-validation.md)
 passed its basic generated-file checks on a business drive, including a competing
 edit before commit. Broader provider recovery validation and writable FUSE still
-need to connect these components to actual application saves.
+need to connect these components to actual application saves. Conditional namespace
+changes now share durable ordering with uploads; restart, lost-response and
+file-collision fixtures cover their worker. Folder removal, hierarchy dependencies
+and atomic replacement are still required before writable filesystem acceptance.
 
-- [ ] Provider-neutral create, update, rename, move and delete contracts.
+- [x] Provider-neutral create, update, rename, move and delete contracts (regular-file deletion; folder removal remains an explicit gap).
 - [ ] Durable local file contents and journal before local-save acknowledgement.
 - [ ] Persisted upload progress, resumable transfers and idempotent recovery.
 - [ ] Version-conditional changes and preservation of both sides of conflicts.
 - [ ] Distinct local-save, pending-upload, uploading, uploaded and failure states.
 - [ ] Correct application save patterns, truncation and atomic replacement.
 - [ ] Crash/fault tests at every durable transition and concurrent remote edits.
-- [ ] Opt-in write consent and live tests in a dedicated Cirrove test folder.
+- [x] Opt-in write consent and live tests in a dedicated Cirrove test folder.
 
 Writing throughout a work drive is not enabled on the strength of synthetic tests.
 Live mutation fixtures must be isolated from the user's existing documents.

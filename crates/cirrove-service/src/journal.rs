@@ -3,7 +3,9 @@
 //! Call on a blocking worker. Seal bytes and fsync their directory before committing
 //! the pending row. Network work happens after a claim returns, outside this module.
 //! An interrupted attempt requires remote verification, never unconditional replay.
+mod mutations;
 use cirrove_core::{Node, NodeKind, Scope};
+pub use mutations::{MutationRecord, MutationState};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -155,10 +157,10 @@ impl UploadJournal {
         crate::private_dir(&objects).map_err(|_| JournalError::Storage)?;
         let database = root.join("uploads.db");
         private_file(&database)?;
-        let db = Connection::open(database)?;
+        let mut db = Connection::open(database)?;
         db.busy_timeout(std::time::Duration::from_secs(3))?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if version > 2 {
+        if version > 3 {
             return Err(JournalError::Schema);
         }
         db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;
@@ -168,12 +170,13 @@ impl UploadJournal {
                 resource TEXT NOT NULL, state TEXT NOT NULL, body TEXT NOT NULL);
             CREATE INDEX IF NOT EXISTS upload_order ON uploads(resource,sequence);
             CREATE INDEX IF NOT EXISTS upload_state ON uploads(state,sequence);
-            PRAGMA user_version=2;")?;
+            ")?;
         db.execute("INSERT OR IGNORE INTO identity VALUES(1,?1)", [account])?;
         let stored: String = db.query_row("SELECT account FROM identity", [], |r| r.get(0))?;
         if stored != account {
             return Err(JournalError::Account);
         }
+        mutations::migrate_queue(&mut db, version)?;
         // Never infer that a transfer failed just because its process died.
         db.execute(
             "UPDATE uploads SET state='verify_required',
@@ -282,15 +285,20 @@ impl UploadJournal {
         // Failures after publication retain an orphan; never delete possibly
         // acknowledged bytes in an error/recovery path.
         let tx = self.db.transaction()?;
+        record.sequence = mutations::queue_insert(
+            &tx,
+            record.id,
+            mutations::upload_resources(&record.scope, &record.intent)?,
+        )?;
         tx.execute(
-            "INSERT INTO uploads(id,resource,state,body) VALUES(?1,?2,'pending',?3)",
+            "INSERT INTO uploads(id,resource,state,body,sequence) VALUES(?1,?2,'pending',?3,?4)",
             params![
                 record.id.to_string(),
                 resource(&record.intent, &record.scope)?,
-                serde_json::to_string(&record)?
+                serde_json::to_string(&record)?,
+                record.sequence as i64
             ],
         )?;
-        record.sequence = tx.last_insert_rowid() as u64;
         tx.execute(
             "UPDATE uploads SET body=?2 WHERE id=?1",
             params![record.id.to_string(), serde_json::to_string(&record)?],
@@ -358,8 +366,10 @@ impl UploadJournal {
             .query_row(
                 "SELECT u.body FROM uploads u WHERE u.state='pending'
                 AND COALESCE(json_extract(u.body,'$.retry_at'),0)<=?1 AND NOT EXISTS (
-                SELECT 1 FROM uploads previous WHERE previous.resource=u.resource
-                AND previous.sequence<u.sequence AND previous.state!='uploaded')
+                SELECT 1 FROM write_queue previous
+                JOIN write_resources a ON a.id=previous.id
+                JOIN write_resources b ON b.resource=a.resource AND b.id=u.id
+                WHERE previous.sequence<u.sequence AND previous.complete=0)
              ORDER BY u.sequence LIMIT 1",
                 [now_seconds() as i64],
                 |r| r.get(0),
@@ -382,13 +392,16 @@ impl UploadJournal {
     fn save(&mut self, record: &UploadRecord) -> Result<()> {
         let state = serde_json::to_value(record.state)?;
         let state = state.as_str().ok_or(JournalError::Corrupt)?;
-        let changed = self.db.execute(
+        let tx = self.db.transaction()?;
+        let changed = tx.execute(
             "UPDATE uploads SET state=?2,body=?3 WHERE id=?1",
             params![record.id.to_string(), state, serde_json::to_string(record)?],
         )?;
         if changed != 1 {
             return Err(JournalError::Missing);
         }
+        mutations::queue_complete(&tx, record.id, record.state == UploadState::Uploaded)?;
+        tx.commit()?;
         Ok(())
     }
     fn active_attempt(&self, id: Uuid, attempt: Uuid) -> Result<UploadRecord> {

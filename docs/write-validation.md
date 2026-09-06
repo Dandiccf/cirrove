@@ -71,6 +71,28 @@ again starts a new isolated folder; it does not silently resume the preceding su
 The underlying transfer journal supports recovery, but an explicit interrupted-suite
 resume/cleanup workflow remains to be added.
 
+## Check namespace changes
+
+Use the same separate disabled account and write grant:
+
+```sh
+./target/debug/cirrove validate-onedrive-mutations \
+  --label upload-validation \
+  --state-dir "$PWD/.local-state/write-validation"
+```
+
+Each run creates `Cirrove-Namespace-Validation-<UUID>` and accepts no existing cloud
+target as an argument. It creates synthetic files, renames and moves them, reads
+back their bytes, rejects a colliding destination and stale rename, conditionally
+deletes a disposable fixture, and verifies that a stale delete preserves its newer
+revision. Folder rename/move checks retain an existing child and verify its bytes.
+
+The deliberate successful deletion applies only to a file created by that run.
+Other fixture files, conflicts and local snapshots remain for review. Private
+receipts live in `namespace-checks/<UUID>/`. The command does not implement recursive
+folder removal, automatic cleanup or writable FUSE. Lost results can need manual
+review; it never treats a failed lookup alone as proof of deletion.
+
 ## Remaining release gates
 
 A passing check covers only its selected account and tested operations. Broader

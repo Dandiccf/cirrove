@@ -8,7 +8,7 @@ acceptance for roadmap stages 1–3.
 ## Local checks
 
 - Formatting and strict Clippy cover all crates and test targets.
-- Current default workspace suite: **76 tests passed**. Seven kernel-FUSE tests
+- Current default workspace suite: **88 tests passed**. Seven kernel-FUSE tests
   run separately; subprocess fixture entry points and the optional performance
   fixture remain excluded from the default suite.
 - Built both binaries and generated workspace Rustdoc.
@@ -155,6 +155,22 @@ conflict. This is limited fixture evidence, not a general concurrency guarantee;
 personal-drive commits and broader real recovery checks remain unverified.
 Account identifiers and live logs are retained privately. Ordinary mounts remain
 read-only.
+
+## Namespace components under development
+
+Five additional HTTP fixtures cover conditional PATCH/DELETE, Unicode names,
+collision/stale ETag rejection, lost responses, remote type checks and conservative
+missing-item reconciliation. Seven journal/worker tests cover shared upload ordering,
+schema migration, stale attempts, retained indeterminate outcomes, cancellation and
+actual child-process SIGKILL before/after acknowledgement. The crash tests exposed
+and fixed a receipt serialization ambiguity before live validation.
+
+An isolated business-drive fixture passed folder creation, file rename/move with
+byte readback, name collision, stale rename, confirmed file removal and stale-delete
+protection. A following run also passed folder rename and move while retaining
+and reading back an existing child. Account identities, real item IDs and logs
+remain private. These checks
+do not establish writable FUSE save semantics or the full provider matrix.
 
 ## Required before calling stages 1–3 complete
 
