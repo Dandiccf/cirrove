@@ -3,6 +3,7 @@ pub mod accounts;
 pub mod content;
 pub mod engine;
 pub mod filesystem;
+pub mod journal;
 pub mod manager;
 use anyhow::{Context, Result, bail};
 use cirrove_core::{CancellationToken, MetadataProvider, ProviderError, Scope};
@@ -264,7 +265,18 @@ mod tests {
         private_dir(path.parent().unwrap()).unwrap();
         let listener = UnixListener::bind(&path).unwrap();
         assert!(recover_control_socket(&path).await.is_err());
-        assert!(UnixStream::connect(&path).await.is_ok());
+        // Drain the recovery probe before closing the listener. Unaccepted
+        // connections can leave a transient kernel state after listener close;
+        // recovery intentionally refuses to unlink an uncertain socket.
+        drop(
+            tokio::time::timeout(Duration::from_secs(1), listener.accept())
+                .await
+                .unwrap()
+                .unwrap(),
+        );
+        let client = UnixStream::connect(&path).await.unwrap();
+        drop(listener.accept().await.unwrap());
+        drop(client);
         drop(listener);
         recover_control_socket(&path).await.unwrap();
         assert!(!path.exists());

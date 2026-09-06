@@ -5,8 +5,10 @@
 Cirrove makes remote files usable through ordinary Linux applications. Cached
 metadata should stay available when a provider is slow; file bytes arrive on demand.
 The current implementation is a **read-only preview under validation**. It does not
-upload, pin files or implement offline writes. Those need a separate durable journal
-and explicit acknowledgement/conflict semantics before writes can be enabled.
+upload, pin files or implement offline writes. A separate local upload journal now
+protects sealed edit snapshots and uncertain attempts; its integration with Graph
+transfers and writable filesystem operations remains in progress. See
+[durable local edits](adr/0002-durable-local-edits.md).
 
 A cloud API cannot provide instant uncached access or complete local POSIX semantics.
 The service reconciles metadata using delta polling (30 seconds by default); it does
@@ -171,9 +173,10 @@ These checks do not imply that a full-machine power-loss test has passed.
 
 ## Next boundaries
 
-Before enabling writes, add a durable upload journal, fsync ordering, replay,
-conditional writes, resumable uploads and conflict preservation. Separate local-save
-success from remote acknowledgement. GTK settings, tray and Nautilus integrations
+Before enabling writes, connect the local upload journal to application-save
+ordering, conditional writes, resumable uploads and conflict preservation. The
+standalone journal tests do not prove writable filesystem semantics. Separate
+local-save success from remote acknowledgement. GTK settings, tray and Nautilus integrations
 must consume the service's state rather than maintain their own sync logic.
 
 Google Drive will implement provider contracts around its native changes and content

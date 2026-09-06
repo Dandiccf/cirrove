@@ -99,6 +99,12 @@ mutations during uninstall.
 
 ## Filesystem validation
 
+The default workspace suite also exercises the local upload journal, including
+actual child-process termination at durable save/attempt/acknowledgement boundaries.
+Run just that component with `cargo test -p cirrove-service --test upload_journal`.
+These fixtures use only synthetic local data and do not require a cloud account.
+The journal is not yet connected to the writable filesystem or a Graph upload worker.
+
 The default suite skips tests needing kernel FUSE access. Run these explicitly in
 a Linux session with `/dev/fuse` and `fusermount3`:
 

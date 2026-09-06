@@ -20,6 +20,11 @@ desktop applications, in addition to deterministic transport/recovery fixtures.
 
 ## 2. Safe file changes
 
+The [local edit journal](adr/0002-durable-local-edits.md) now protects sealed upload
+snapshots and distinguishes pending, uncertain, failed and acknowledged operations.
+Its synthetic crash tests pass; Graph transfers and writable FUSE integration still
+need to connect this component to actual application saves.
+
 - [ ] Provider-neutral create, update, rename, move and delete contracts.
 - [ ] Durable local file contents and journal before local-save acknowledgement.
 - [ ] Persisted upload progress, resumable transfers and idempotent recovery.
