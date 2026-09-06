@@ -3,8 +3,10 @@
 //! Call on a blocking worker. Seal bytes and fsync their directory before committing
 //! the pending row. Network work happens after a claim returns, outside this module.
 //! An interrupted attempt requires remote verification, never unconditional replay.
+mod generations;
 mod mutations;
 use cirrove_core::{Node, NodeKind, Scope};
+pub use generations::UploadBase;
 pub use mutations::{MutationRecord, MutationState};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
@@ -89,6 +91,9 @@ pub struct UploadRecord {
     /// An attempt token fences delayed results after restart or retry.
     pub attempt: Option<Uuid>,
     pub remote: Option<Node>,
+    /// A preceding local save whose receipt determines this save's base version.
+    #[serde(default)]
+    pub base: Option<UploadBase>,
     /// Reference to an opaque checkpoint stored in the credential vault.
     #[serde(default)]
     pub session_key: Option<Uuid>,
@@ -160,7 +165,7 @@ impl UploadJournal {
         let mut db = Connection::open(database)?;
         db.busy_timeout(std::time::Duration::from_secs(3))?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if version > 3 {
+        if version > 4 {
             return Err(JournalError::Schema);
         }
         db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;
@@ -177,6 +182,7 @@ impl UploadJournal {
             return Err(JournalError::Account);
         }
         mutations::migrate_queue(&mut db, version)?;
+        generations::migrate(&mut db)?;
         // Never infer that a transfer failed just because its process died.
         db.execute(
             "UPDATE uploads SET state='verify_required',
@@ -229,6 +235,15 @@ impl UploadJournal {
         &mut self,
         scope: Scope,
         intent: UploadIntent,
+        bytes: impl Read,
+    ) -> Result<UploadRecord> {
+        self.enqueue_generation(scope, intent, None, bytes)
+    }
+    fn enqueue_generation(
+        &mut self,
+        scope: Scope,
+        intent: UploadIntent,
+        base: Option<UploadBase>,
         mut bytes: impl Read,
     ) -> Result<UploadRecord> {
         if scope.account != self.account {
@@ -273,6 +288,7 @@ impl UploadJournal {
             sha256: format!("{:x}", hash.finalize()),
             attempt: None,
             remote: None,
+            base,
             session_key: None,
             transferred_bytes: 0,
             retry_at: 0,
@@ -361,10 +377,14 @@ impl UploadJournal {
     /// One unresolved edit blocks later edits of that identity, but independent
     /// files may progress. Network callers must drop their journal lock on return.
     pub fn claim_next(&mut self) -> Result<Option<UploadRecord>> {
+        if !self.resolve_ready_generations()? {
+            return Ok(None);
+        }
         let body: Option<String> = self
             .db
             .query_row(
                 "SELECT u.body FROM uploads u WHERE u.state='pending'
+                AND (json_extract(u.body,'$.base') IS NULL OR json_extract(u.body,'$.base.resolved')=1)
                 AND COALESCE(json_extract(u.body,'$.retry_at'),0)<=?1 AND NOT EXISTS (
                 SELECT 1 FROM write_queue previous
                 JOIN write_resources a ON a.id=previous.id
@@ -416,11 +436,20 @@ impl UploadJournal {
         Ok(record)
     }
     pub fn claim_next_verification(&mut self) -> Result<Option<UploadRecord>> {
+        if !self.resolve_ready_generations()? {
+            return Ok(None);
+        }
         let id: Option<String> = self
             .db
             .query_row(
-                "SELECT id FROM uploads WHERE state='verify_required'
-             AND COALESCE(json_extract(body,'$.retry_at'),0)<=?1 ORDER BY sequence LIMIT 1",
+                "SELECT u.id FROM uploads u WHERE u.state='verify_required'
+                AND (json_extract(u.body,'$.base') IS NULL OR json_extract(u.body,'$.base.resolved')=1)
+                AND COALESCE(json_extract(u.body,'$.retry_at'),0)<=?1 AND NOT EXISTS (
+                SELECT 1 FROM write_queue previous
+                JOIN write_resources a ON a.id=previous.id
+                JOIN write_resources b ON b.resource=a.resource AND b.id=u.id
+                WHERE previous.sequence<u.sequence AND previous.complete=0)
+                ORDER BY u.sequence LIMIT 1",
                 [now_seconds() as i64],
                 |r| r.get(0),
             )
@@ -497,6 +526,9 @@ impl UploadJournal {
     /// replay. Conflicts require an explicit resolution intent.
     pub fn request_retry(&mut self, id: Uuid) -> Result<()> {
         let mut record = self.get(id)?;
+        if record.base.as_ref().is_some_and(|base| !base.resolved) {
+            return Err(JournalError::Stale);
+        }
         if !matches!(
             record.state,
             UploadState::Failed | UploadState::VerifyRequired
@@ -512,7 +544,9 @@ impl UploadJournal {
     /// acknowledged with this new attempt token; interruption requires recheck.
     pub fn claim_verification(&mut self, id: Uuid) -> Result<UploadRecord> {
         let mut record = self.get(id)?;
-        if record.state != UploadState::VerifyRequired {
+        if record.state != UploadState::VerifyRequired
+            || record.base.as_ref().is_some_and(|base| !base.resolved)
+        {
             return Err(JournalError::Stale);
         }
         record.state = UploadState::Verifying;

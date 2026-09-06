@@ -72,6 +72,176 @@ fn payload(journal: &UploadJournal, id: uuid::Uuid) -> Vec<u8> {
 }
 
 #[test]
+fn later_saves_follow_receipts_across_creation_upload_and_restart() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let mut j = open(&root);
+    let first = j.enqueue(scope(), create("Grüße.txt"), BYTES).unwrap();
+    let first_attempt = j.claim_next().unwrap().unwrap();
+    let second = j
+        .enqueue_after(first.id, b"second save".as_slice())
+        .unwrap();
+    let third = j
+        .enqueue_after(second.id, b"third save".as_slice())
+        .unwrap();
+    assert!(j.claim_next().unwrap().is_none());
+    assert!(matches!(
+        j.enqueue_after(first.id, BYTES),
+        Err(JournalError::Stale)
+    ));
+    let mut receipt = remote(&first);
+    receipt.etag = Some("first-commit".into());
+    j.acknowledge(first.id, first_attempt.attempt.unwrap(), receipt)
+        .unwrap();
+    let second_attempt = j.claim_next().unwrap().unwrap();
+    assert_eq!(second_attempt.id, second.id);
+    assert_eq!(
+        second_attempt.intent,
+        UploadIntent::Replace {
+            item: "created-id".into(),
+            expected_etag: "first-commit".into(),
+        }
+    );
+    assert!(second_attempt.base.as_ref().unwrap().resolved);
+    drop(j);
+    let mut j = open(&root);
+    assert!(matches!(
+        j.acknowledge(
+            second.id,
+            second_attempt.attempt.unwrap(),
+            remote(&second_attempt)
+        ),
+        Err(JournalError::Stale)
+    ));
+    assert!(j.claim_next().unwrap().is_none());
+    let recovered = j.claim_next_verification().unwrap().unwrap();
+    assert_eq!(recovered.intent, second_attempt.intent);
+    let mut receipt = remote(&recovered);
+    receipt.etag = Some("second-commit".into());
+    j.acknowledge(second.id, recovered.attempt.unwrap(), receipt)
+        .unwrap();
+    let third_attempt = j.claim_next().unwrap().unwrap();
+    assert_eq!(third_attempt.id, third.id);
+    assert_eq!(
+        third_attempt.intent,
+        UploadIntent::Replace {
+            item: "created-id".into(),
+            expected_etag: "second-commit".into(),
+        }
+    );
+    assert_eq!(payload(&j, first.id), BYTES);
+    assert_eq!(payload(&j, second.id), b"second save");
+    assert_eq!(payload(&j, third.id), b"third save");
+    drop(j);
+    let db = rusqlite::Connection::open(root.join("uploads.db")).unwrap();
+    assert_eq!(
+        db.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
+            .unwrap(),
+        4
+    );
+}
+
+#[test]
+fn conflicted_predecessors_retain_newer_saves_and_allow_independent_work() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut j = open(&temp.path().join("journal"));
+    let first = j.enqueue(scope(), create("Saved.txt"), BYTES).unwrap();
+    let second = j
+        .enqueue_after(first.id, b"newest saved bytes".as_slice())
+        .unwrap();
+    let independent = j.enqueue(scope(), create("Other.txt"), BYTES).unwrap();
+    let first_attempt = j.claim_next().unwrap().unwrap();
+    j.stop_attempt(
+        first.id,
+        first_attempt.attempt.unwrap(),
+        UploadState::Conflict,
+    )
+    .unwrap();
+    assert_eq!(j.claim_next().unwrap().unwrap().id, independent.id);
+    assert!(j.claim_next().unwrap().is_none());
+    assert_eq!(j.get(second.id).unwrap().state, UploadState::Pending);
+    assert_eq!(payload(&j, second.id), b"newest saved bytes");
+    assert!(matches!(
+        j.request_retry(second.id),
+        Err(JournalError::Stale)
+    ));
+}
+
+#[test]
+fn missing_receipt_precondition_never_falls_back_to_a_second_create() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut j = open(&temp.path().join("journal"));
+    let first = j.enqueue(scope(), create("Saved.txt"), BYTES).unwrap();
+    let second = j.enqueue_after(first.id, BYTES).unwrap();
+    let attempt = j.claim_next().unwrap().unwrap();
+    let mut receipt = remote(&first);
+    receipt.etag = None; // content tag exists, but cannot guard the next overwrite
+    j.acknowledge(first.id, attempt.attempt.unwrap(), receipt)
+        .unwrap();
+    assert!(j.claim_next().unwrap().is_none());
+    assert_eq!(j.get(second.id).unwrap().state, UploadState::Failed);
+    assert_eq!(payload(&j, second.id), BYTES);
+    assert!(matches!(
+        j.request_retry(second.id),
+        Err(JournalError::Stale)
+    ));
+}
+
+#[test]
+fn resolving_created_identity_keeps_earlier_namespace_operations_in_order() {
+    use cirrove_core::mutation::{MutationIntent, MutationRequest};
+    let temp = tempfile::tempdir().unwrap();
+    let mut j = open(&temp.path().join("journal"));
+    let first = j.enqueue(scope(), create("Saved.txt"), BYTES).unwrap();
+    let attempt = j.claim_next().unwrap().unwrap();
+    let receipt = remote(&first);
+    j.acknowledge(first.id, attempt.attempt.unwrap(), receipt.clone())
+        .unwrap();
+    let rename = j
+        .enqueue_mutation(MutationRequest {
+            scope: scope(),
+            intent: MutationIntent::Relocate {
+                before: receipt,
+                parent: "root".into(),
+                name: "Renamed.txt".into(),
+            },
+        })
+        .unwrap();
+    let second = j.enqueue_after(first.id, BYTES).unwrap();
+    assert!(j.claim_next().unwrap().is_none());
+    assert!(j.get(second.id).unwrap().base.unwrap().resolved);
+    assert_eq!(j.claim_mutation().unwrap().unwrap().id, rename.id);
+}
+
+#[test]
+fn namespace_worker_resolves_new_remote_ids_before_selecting_later_work() {
+    use cirrove_core::mutation::{MutationIntent, MutationRequest};
+    let temp = tempfile::tempdir().unwrap();
+    let mut j = open(&temp.path().join("journal"));
+    let first = j.enqueue(scope(), create("Saved.txt"), BYTES).unwrap();
+    let attempt = j.claim_next().unwrap().unwrap();
+    let mut receipt = remote(&first);
+    j.acknowledge(first.id, attempt.attempt.unwrap(), receipt.clone())
+        .unwrap();
+    let second = j.enqueue_after(first.id, BYTES).unwrap();
+    // A changed remote name does not share the old create-name slot. Only the
+    // newly known immutable item identity can protect the older pending save.
+    receipt.name = "Elsewhere.txt".into();
+    receipt.etag = Some("external-rename".into());
+    j.enqueue_mutation(MutationRequest {
+        scope: scope(),
+        intent: MutationIntent::Relocate {
+            before: receipt,
+            parent: "root".into(),
+            name: "Later.txt".into(),
+        },
+    })
+    .unwrap();
+    assert!(j.claim_mutation().unwrap().is_none());
+    assert_eq!(j.claim_next().unwrap().unwrap().id, second.id);
+}
+
+#[test]
 fn version_one_queue_migrates_without_losing_local_payloads_or_ordering() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("journal");
