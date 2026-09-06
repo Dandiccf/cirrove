@@ -1,5 +1,6 @@
 //! Read-only FUSE projection. Callbacks dispatch asynchronous work; no callback
 //! holds the namespace map while awaiting a provider or a database operation.
+mod session;
 use crate::engine::Engine;
 use cirrove_core::{CancellationToken, Node, NodeKind, ProviderError, Scope};
 use cirrove_store::Store;
@@ -8,6 +9,7 @@ use fuser::{
     OpenFlags, ReplyAttr, ReplyData, ReplyDirectory, ReplyEmpty, ReplyEntry, ReplyOpen, ReplyXattr,
     Request,
 };
+pub use session::CloudSession;
 use std::{
     collections::HashMap,
     ffi::{OsStr, OsString},
@@ -146,7 +148,7 @@ impl CloudFs {
             }
         });
     }
-    pub fn mount(self, path: &std::path::Path) -> std::io::Result<fuser::BackgroundSession> {
+    pub fn mount(self, path: &std::path::Path) -> std::io::Result<CloudSession> {
         let mut config = fuser::Config::default();
         config.mount_options = vec![
             fuser::MountOption::RO,
@@ -157,8 +159,15 @@ impl CloudFs {
             fuser::MountOption::Subtype("cirrove".into()),
         ];
         let inner = self.inner.clone();
-        let session = fuser::spawn_mount(self, path, &config)?;
-        CloudFs { inner }.start_invalidations(session.notifier());
+        let session = fuser::Session::new(self, path, &config)?;
+        let notifier = session.notifier();
+        let session = CloudSession::start(
+            session,
+            path,
+            &format!("cirrove:{}", inner.engine.account.id),
+            inner.cancel.clone(),
+        )?;
+        CloudFs { inner }.start_invalidations(notifier);
         Ok(session)
     }
 }

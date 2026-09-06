@@ -56,6 +56,9 @@ Requires Linux, Rust 1.98.1 (pinned), a C/C++ build toolchain, CMake and pkg-con
 Rustup installs the toolchain if necessary. SQLite is bundled; HTTPS uses Rustls.
 Mounting additionally needs `/dev/fuse`, `fusermount3` (`fuse3` on Arch), and a kernel
 advertising `FUSE_DIRECT_IO_ALLOW_MMAP`. The mount rejects missing support explicitly.
+The FUSE control filesystem must be mounted at `/sys/fs/fuse/connections` and
+allow its mount owner to open the connection's `abort` control. Cirrove retains
+that descriptor so shutdown can finish even while applications hold files open.
 Browser sign-in needs `xdg-open` and a desktop Secret Service keyring.
 
 ```sh

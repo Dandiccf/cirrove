@@ -505,6 +505,76 @@ async fn corrupt_blocks_redownload_and_interrupted_publications_obey_quota() {
     assert_eq!(Store::open(db).unwrap().oldest_blocks().unwrap().len(), 1);
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires kernel FUSE; retains application handles during service shutdown"]
+async fn real_shutdown_with_open_handles_does_not_wait_for_applications() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount with spaces");
+    let other_mount = temp.path().join("other mount");
+    std::fs::create_dir(&mount).unwrap();
+    std::fs::create_dir(&other_mount).unwrap();
+    let provider = Fixture::new();
+    let engine = Engine::new(
+        account(mount.clone()),
+        provider.clone(),
+        temp.path().join("state"),
+    )
+    .await
+    .unwrap();
+    let other = Engine::new(
+        account(other_mount.clone()),
+        provider,
+        temp.path().join("other state"),
+    )
+    .await
+    .unwrap();
+    engine.start().await.unwrap();
+    other.start().await.unwrap();
+    ready(&engine).await;
+    ready(&other).await;
+    let session = CloudFs::new(engine.clone()).unwrap().mount(&mount).unwrap();
+    let other_session = CloudFs::new(other.clone())
+        .unwrap()
+        .mount(&other_mount)
+        .unwrap();
+    // File managers, previews and shells can retain both types of descriptor.
+    // The second mount deliberately has the same account identity: cancellation
+    // must belong to this particular kernel connection, not an account/path guess.
+    let held_file = std::fs::File::open(mount.join("folder/deep.txt")).unwrap();
+    let held_directory = std::fs::File::open(&mount).unwrap();
+    engine.stop().await;
+    let mut shutdown = tokio::task::spawn_blocking(move || session.umount_and_join());
+    let completed = tokio::time::timeout(Duration::from_secs(2), &mut shutdown).await;
+    let stopped_with_open_handles = completed.is_ok();
+    if let Ok(result) = completed {
+        result.unwrap().unwrap();
+    }
+    // Release only our own fixture handles even when the regression fails, so
+    // the old blocking join can finish and the test reports instead of hanging.
+    drop(held_file);
+    drop(held_directory);
+    if !stopped_with_open_handles {
+        tokio::time::timeout(Duration::from_secs(3), shutdown)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+    }
+    assert!(std::fs::read_dir(&mount).unwrap().next().is_none());
+    let bytes = std::fs::read(other_mount.join("folder/deep.txt")).unwrap();
+    assert_eq!(bytes.len(), 17);
+    assert_bytes(&bytes, 0);
+    other.stop().await;
+    tokio::task::spawn_blocking(move || other_session.umount_and_join())
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(
+        stopped_with_open_handles,
+        "shutdown waited for application-owned file/directory handles"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires a working /dev/fuse and fusermount3; run explicitly"]
 async fn real_fuse_reads_shortcuts_seek_readonly_restart_and_ejection() {
     use std::{
@@ -883,9 +953,12 @@ async fn abrupt_exit_mount_fixture() {
     };
     let root = std::path::PathBuf::from(root);
     let fixture = Fixture::new();
-    let (manager, _worker) = cirrove_service::manager::Manager::start_with_provider(
+    let cancel = CancellationToken::new();
+    let mut terminate =
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).unwrap();
+    let (manager, worker) = cirrove_service::manager::Manager::start_with_provider(
         root.join("state"),
-        CancellationToken::new(),
+        cancel.clone(),
         Arc::new(move |_| Ok(fixture.clone())),
     );
     tokio::time::timeout(Duration::from_secs(15), async {
@@ -905,7 +978,82 @@ async fn abrupt_exit_mount_fixture() {
     .await
     .unwrap();
     std::fs::write(root.join("ready"), b"mounted").unwrap();
-    std::future::pending::<()>().await;
+    terminate.recv().await;
+    cancel.cancel();
+    worker.await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires kernel FUSE; SIGTERM only its own synthetic child manager"]
+async fn real_manager_exits_with_client_handles_open() {
+    use cirrove_service::{accounts::Settings, private_dir};
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    let mount = temp.path().join("mount");
+    private_dir(&state).unwrap();
+    let config = account(mount.clone());
+    std::fs::write(
+        state.join("accounts.json"),
+        serde_json::to_vec(&Settings {
+            version: 1,
+            accounts: vec![config.clone()],
+        })
+        .unwrap(),
+    )
+    .unwrap();
+    let mut child = tokio::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "abrupt_exit_mount_fixture",
+            "--ignored",
+            "--nocapture",
+        ])
+        .env("CIRROVE_CRASH_FIXTURE_ROOT", temp.path())
+        .kill_on_drop(true)
+        .spawn()
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(15), async {
+        while !temp.path().join("ready").exists() {
+            assert!(child.try_wait().unwrap().is_none());
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let held_file = std::fs::File::open(mount.join("folder/deep.txt")).unwrap();
+    let held_directory = std::fs::File::open(&mount).unwrap();
+    assert!(
+        tokio::process::Command::new("kill")
+            .args(["-TERM", &child.id().unwrap().to_string()])
+            .status()
+            .await
+            .unwrap()
+            .success()
+    );
+    let stopped = tokio::time::timeout(Duration::from_secs(3), child.wait()).await;
+    drop(held_file);
+    drop(held_directory);
+    let exited_without_clients_closing = stopped.is_ok();
+    match stopped {
+        Ok(exit) => assert!(exit.unwrap().success()),
+        Err(_) => {
+            child.kill().await.unwrap();
+            child.wait().await.unwrap();
+            let _ = tokio::process::Command::new("fusermount3")
+                .args(["-u", "-z", "--"])
+                .arg(&mount)
+                .status()
+                .await;
+        }
+    }
+    assert!(
+        exited_without_clients_closing,
+        "manager process did not exit with open client handles"
+    );
+    assert!(std::fs::read_dir(&mount).unwrap().next().is_none());
+    // A new process/account owner can use the same state after graceful exit.
+    let recovered = Engine::new(config, Fixture::new(), state).await.unwrap();
+    recovered.stop().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

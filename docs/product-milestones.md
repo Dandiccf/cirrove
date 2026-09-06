@@ -19,8 +19,9 @@ Private account measurements belong in local records, not the public repository.
 Evidence must include actual kernel mounts, provider-backed reads and ordinary
 desktop applications, in addition to deterministic transport/recovery fixtures.
 Graph Socket.IO and provider-neutral coalescing hints are now implemented. This
-does not close the live-response gate: notifications can be delayed upstream, and
-long-session renewal and the provider matrix need further validation. Bounded
+does not close the live-response gate: notifications can be delayed upstream.
+An isolated business-drive run passed actual long-session renewal and subsequent
+notification delivery; the provider and outage-recovery matrix remains open. Bounded
 revalidation of recently used directories now has service and actual FUSE fixtures,
 plus a limited real business-drive create/rename check through an isolated mount.
 Larger provider scenarios and ordinary desktop freshness still need measurement. See
