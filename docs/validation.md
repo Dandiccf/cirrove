@@ -222,6 +222,13 @@ ordinary unmount within two seconds, retrying only EBUSY and never forcing a det
 The full nine-test run then passed. The source of the transient busy state was not
 established; this is not proof of a fixed production mount-lifecycle defect.
 
+A subsequent CI run passed the metadata tests but encountered Busy when an existing
+upload-journal fixture reopened after dropping its owner. Parallel crash tests can
+briefly retain inherited flock descriptions between fork and exec. The test-only
+reopen helper permits up to one second for Busy; other errors return immediately,
+and held-owner exclusion remains an immediate assertion. This does not change
+production ownership or prove a process trace of that CI failure.
+
 These are deterministic provider tests. Real Graph listing-to-desktop latency,
 multiple large active directories, request cost and indefinitely visible windows
 remain unverified for this policy. No installed-runtime upgrade is implied by

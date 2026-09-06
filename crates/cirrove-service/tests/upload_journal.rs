@@ -27,7 +27,22 @@ fn create(name: &str) -> UploadIntent {
     }
 }
 fn open(root: &Path) -> UploadJournal {
-    UploadJournal::open(root, &scope().account, 1024 * 1024).unwrap()
+    open_released(root, &scope().account, 1024 * 1024).unwrap()
+}
+fn open_released(root: &Path, account: &str, quota: u64) -> Result<UploadJournal, JournalError> {
+    // Parallel crash tests fork. An inherited flock description can briefly
+    // outlive the parent's owner until the child execs, despite CLOEXEC.
+    // This helper is only for first opens or after dropping the previous owner;
+    // the held-owner exclusion assertion below still calls open directly.
+    let deadline = Instant::now() + Duration::from_secs(1);
+    loop {
+        match UploadJournal::open(root, account, quota) {
+            Err(JournalError::Busy) if Instant::now() < deadline => {
+                std::thread::sleep(Duration::from_millis(2));
+            }
+            result => return result,
+        }
+    }
 }
 fn remote(record: &UploadRecord) -> Node {
     let (id, name) = match &record.intent {
@@ -349,7 +364,7 @@ fn ownership_account_and_preconditions_are_enforced() {
     }
     drop(journal);
     assert!(matches!(
-        UploadJournal::open(&root, "different", 100),
+        open_released(&root, "different", 100),
         Err(JournalError::Account)
     ));
     let alias = temp.path().join("alias");
