@@ -515,6 +515,7 @@ async fn real_automatic_uploads_preserve_generations_and_resume_a_shutdown_save(
     .unwrap();
     session.shutdown().await.unwrap();
     drop(file);
+    let stopped_engine = Arc::downgrade(&engine);
     drop(engine);
     {
         let j = journal.lock().unwrap();
@@ -530,7 +531,7 @@ async fn real_automatic_uploads_preserve_generations_and_resume_a_shutdown_save(
         std::io::Read::read_to_end(&mut j.payload(last.id).unwrap(), &mut bytes).unwrap();
         assert_eq!(bytes, b"third! save");
     }
-    let engine = Engine::new(account, cloud.clone(), state).await.unwrap();
+    let engine = reopened_engine(account, cloud.clone(), &state, stopped_engine).await;
     let session = WritableSession::mount(engine, journal, cloud.clone(), vault)
         .await
         .unwrap();
@@ -840,6 +841,35 @@ async fn reopened_journal(path: &Path, owner: &str, quota: u64) -> UploadJournal
         }
     }
 }
+async fn reopened_engine(
+    account: Account,
+    cloud: Arc<Cloud>,
+    state: &Path,
+    stopped: std::sync::Weak<Engine>,
+) -> Arc<Engine> {
+    assert!(
+        stopped.upgrade().is_none(),
+        "shutdown retained an in-process account owner"
+    );
+    // Parallel FUSE fixtures fork helpers, briefly retaining the same open
+    // description as the released account flock until exec. Require the actual
+    // engine to be gone above, then allow only bounded lock contention here.
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
+    loop {
+        match Engine::new(account.clone(), cloud.clone(), state.into()).await {
+            Ok(engine) => return engine,
+            Err(error)
+                if error
+                    .downcast_ref::<std::io::Error>()
+                    .is_some_and(|e| e.kind() == std::io::ErrorKind::WouldBlock)
+                    && tokio::time::Instant::now() < deadline =>
+            {
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+            Err(error) => panic!("account was not released: {error:#}"),
+        }
+    }
+}
 async fn mutations_applied(session: &WritableSession, count: usize) {
     use cirrove_service::journal::MutationState;
     tokio::time::timeout(Duration::from_secs(12), async {
@@ -883,6 +913,7 @@ async fn real_online_file_moves_without_hydration_and_resumes_its_receipt_chain(
     let engine = Engine::new(account.clone(), cloud.clone(), state.clone())
         .await
         .unwrap();
+    let stopped_engine = Arc::downgrade(&engine);
     let session = WritableSession::mount(engine, journal.clone(), cloud.clone(), vault.clone())
         .await
         .unwrap();
@@ -925,7 +956,7 @@ assert sorted(os.listdir('folder'))==['final.bin']
     let journal = Arc::new(Mutex::new(
         reopened_journal(&spool, &account.id, 1024 * 1024).await,
     ));
-    let engine = Engine::new(account, cloud.clone(), state).await.unwrap();
+    let engine = reopened_engine(account, cloud.clone(), &state, stopped_engine).await;
     let session = WritableSession::mount(engine, journal.clone(), cloud.clone(), vault)
         .await
         .unwrap();

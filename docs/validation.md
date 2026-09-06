@@ -474,3 +474,11 @@ under load and writable-session recovery. Formatting, strict Clippy, workspace b
 executable smoke, two observer checks and Rustdoc also passed. These tests use synthetic providers;
 they do not establish real-provider latency or complete the outstanding clean-object
 retirement and remote-edit rebasing work in experimental writable mounts.
+
+The PR CI passed this increment, while its parallel push CI found account-lock
+contention during immediate synthetic session restart. A local concurrent rerun
+reproduced it in a second restart fixture. Both fixtures now assert that the old
+Engine has no remaining owner, then permit only WouldBlock for at most two seconds
+while forked helpers release inherited lock descriptors at exec. Production locking
+is unchanged. The corrected six-test concurrent suite passed ten consecutive runs
+(60 executions), and the full 160-test default suite also passed again.
