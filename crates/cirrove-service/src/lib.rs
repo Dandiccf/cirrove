@@ -3,13 +3,17 @@ pub mod accounts;
 pub mod content;
 pub mod engine;
 pub mod filesystem;
+pub mod journal;
 pub mod manager;
+pub mod mutations;
+pub mod transfers;
+pub mod validation;
 use anyhow::{Context, Result, bail};
 use cirrove_core::{CancellationToken, MetadataProvider, ProviderError, Scope};
 use cirrove_store::Store;
 use serde::{Deserialize, Serialize};
 use std::{
-    os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt},
+    os::unix::fs::{DirBuilderExt, FileTypeExt, MetadataExt, PermissionsExt},
     path::{Path, PathBuf},
     time::Duration,
 };
@@ -140,6 +144,30 @@ impl Drop for SocketGuard {
         }
     }
 }
+/// Recover only a disconnected socket owned by this user. The caller must hold
+/// the daemon ownership lock before recovery and retain it while serving.
+pub async fn recover_control_socket(socket: &Path) -> Result<()> {
+    private_dir(socket.parent().context("socket needs a parent directory")?)?;
+    let before = match std::fs::symlink_metadata(socket) {
+        Ok(meta) => meta,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error.into()),
+    };
+    if !before.file_type().is_socket() || before.uid() != std::fs::metadata("/proc/self")?.uid() {
+        bail!("control socket path is not a socket owned by this user");
+    }
+    match tokio::time::timeout(Duration::from_secs(2), UnixStream::connect(socket)).await {
+        Ok(Err(error)) if error.kind() == std::io::ErrorKind::ConnectionRefused => (),
+        Ok(Err(error)) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        _ => bail!("control socket is active or its state cannot be verified"),
+    }
+    let after = std::fs::symlink_metadata(socket)?;
+    if after.ino() != before.ino() || after.dev() != before.dev() {
+        bail!("control socket changed during recovery");
+    }
+    std::fs::remove_file(socket)?;
+    Ok(())
+}
 pub async fn serve(db_path: PathBuf, socket: PathBuf, cancel: CancellationToken) -> Result<()> {
     serve_managed(db_path, socket, cancel, None).await
 }
@@ -150,8 +178,8 @@ pub async fn serve_managed(
     manager: Option<std::sync::Arc<manager::Manager>>,
 ) -> Result<()> {
     private_dir(socket.parent().context("socket needs a parent directory")?)?;
-    // Refuse existing paths, including stale sockets. systemd RuntimeDirectory
-    // handles cleanup for the packaged service; manual runs must resolve leftovers.
+    // The daemon recovers disconnected sockets while holding its ownership lock.
+    // Binding itself never overwrites a path or takes over another listener.
     let listener = UnixListener::bind(&socket)
         .context("cannot bind control socket; another daemon or a stale socket may exist")?;
     let _guard = SocketGuard {
@@ -232,6 +260,52 @@ mod tests {
             .is_err()
         );
         assert_eq!(std::fs::read(path).unwrap(), b"keep");
+    }
+    #[tokio::test]
+    async fn socket_recovery_preserves_live_sockets_files_and_symlinks() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("run/control.sock");
+        private_dir(path.parent().unwrap()).unwrap();
+        let listener = UnixListener::bind(&path).unwrap();
+        assert!(recover_control_socket(&path).await.is_err());
+        // Drain the recovery probe before closing the listener. Unaccepted
+        // connections can leave a transient kernel state after listener close;
+        // recovery intentionally refuses to unlink an uncertain socket.
+        drop(
+            tokio::time::timeout(Duration::from_secs(1), listener.accept())
+                .await
+                .unwrap()
+                .unwrap(),
+        );
+        let client = UnixStream::connect(&path).await.unwrap();
+        drop(listener.accept().await.unwrap());
+        drop(client);
+        drop(listener);
+        // Other tests spawn processes concurrently. Between fork and exec a
+        // child may briefly retain the listener's CLOEXEC descriptor after our
+        // drop. Recovery must keep refusing a connectable socket during that
+        // window, then succeed once the fixture is actually disconnected.
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                if recover_control_socket(&path).await.is_ok() {
+                    break;
+                }
+                assert!(path.exists());
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+        .await
+        .unwrap();
+        assert!(!path.exists());
+        std::fs::write(&path, "preserve").unwrap();
+        assert!(recover_control_socket(&path).await.is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), b"preserve");
+        std::fs::remove_file(&path).unwrap();
+        let target = dir.path().join("target");
+        std::fs::write(&target, "preserve").unwrap();
+        std::os::unix::fs::symlink(&target, &path).unwrap();
+        assert!(recover_control_socket(&path).await.is_err());
+        assert_eq!(std::fs::read(target).unwrap(), b"preserve");
     }
     struct InterruptedProvider;
     #[async_trait::async_trait]

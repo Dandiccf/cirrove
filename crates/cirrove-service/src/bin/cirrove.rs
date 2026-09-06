@@ -24,6 +24,28 @@ struct Args {
 }
 #[derive(Subcommand)]
 enum Command {
+    /// Verify Graph notifications using one new isolated synthetic cloud folder.
+    ValidateOnedriveNotifications {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        state_dir: PathBuf,
+    },
+    /// Developer-only rename, move and file deletion inside a new synthetic folder.
+    ValidateOnedriveMutations {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        state_dir: PathBuf,
+    },
+    /// Developer-only cloud writes in a newly created synthetic test folder.
+    ValidateOnedriveUploads {
+        #[arg(long)]
+        label: String,
+        /// Separate account state created with connect --write-access.
+        #[arg(long)]
+        state_dir: PathBuf,
+    },
     /// Sign in again to the same account, preserving its selected drive and cache.
     Reauth {
         label: String,
@@ -44,6 +66,9 @@ enum Command {
         drive_id: Option<String>,
         #[arg(long)]
         state_dir: Option<PathBuf>,
+        /// Opt in to write consent for isolated developer tests; mounts stay read-only.
+        #[arg(long, requires = "state_dir")]
+        write_access: bool,
     },
     /// List configured account identities and drive selections; no secrets.
     Accounts {
@@ -93,6 +118,15 @@ enum Command {
 #[tokio::main]
 async fn main() -> Result<()> {
     match Args::parse().command {
+        Command::ValidateOnedriveNotifications { label, state_dir } => {
+            cirrove_service::validation::onedrive_notifications(&state_dir, &label).await?;
+        }
+        Command::ValidateOnedriveMutations { label, state_dir } => {
+            cirrove_service::validation::onedrive_mutations(&state_dir, &label).await?;
+        }
+        Command::ValidateOnedriveUploads { label, state_dir } => {
+            cirrove_service::validation::onedrive_uploads(&state_dir, &label).await?;
+        }
         Command::Reauth {
             label,
             state_dir: state,
@@ -110,6 +144,7 @@ async fn main() -> Result<()> {
             mount_path,
             drive_id,
             state_dir: state,
+            write_access,
         } => {
             let state = match state {
                 Some(p) => p,
@@ -124,6 +159,11 @@ async fn main() -> Result<()> {
                 },
                 mount_path,
                 drive_id,
+                if write_access {
+                    cirrove_auth::AccessMode::ReadWrite
+                } else {
+                    cirrove_auth::AccessMode::ReadOnly
+                },
             )
             .await?;
         }

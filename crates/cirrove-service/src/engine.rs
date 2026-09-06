@@ -2,16 +2,20 @@
 //! share a provider client but never hold SQLite locks across network awaits.
 use crate::{accounts::Account, content::ContentCache, private_dir, refresh};
 use anyhow::Result;
+use cirrove_core::notifications::{ChangeHint, ChangeHintSender, NotificationState, WatchEnd};
 use cirrove_core::{CancellationToken, Node, ProviderError, ReadProvider, Scope};
 use cirrove_store::Store;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     path::PathBuf,
-    sync::{Arc, Mutex as StdMutex, Weak},
+    sync::{
+        Arc, Mutex as StdMutex, Weak,
+        atomic::{AtomicBool, Ordering},
+    },
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use tokio::sync::{Mutex, Notify, RwLock};
+use tokio::sync::{Mutex, Notify, RwLock, watch};
 use tokio_util::task::TaskTracker;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -21,6 +25,12 @@ pub struct FeedHealth {
     pub last_success: Option<u64>,
     pub retry_at: Option<u64>,
     pub message: Option<String>,
+    #[serde(default)]
+    pub notifications: NotificationState,
+}
+struct Feed {
+    cancel: CancellationToken,
+    hints: watch::Receiver<ChangeHint>,
 }
 fn now() -> u64 {
     SystemTime::now()
@@ -35,11 +45,12 @@ pub struct Engine {
     pub cache: ContentCache,
     pub cancel: CancellationToken,
     pub changed: Notify,
-    feeds: RwLock<HashMap<String, CancellationToken>>,
+    feeds: RwLock<HashMap<String, Feed>>,
     health: RwLock<HashMap<String, FeedHealth>>,
     directories: StdMutex<HashMap<String, Weak<Mutex<()>>>>,
     tasks: TaskTracker,
-    discovery: Mutex<()>,
+    discovery: Notify,
+    discovery_started: AtomicBool,
     _owner: std::fs::File,
 }
 impl Engine {
@@ -71,7 +82,8 @@ impl Engine {
             health: RwLock::new(HashMap::new()),
             directories: StdMutex::new(HashMap::new()),
             tasks: TaskTracker::new(),
-            discovery: Mutex::new(()),
+            discovery: Notify::new(),
+            discovery_started: AtomicBool::new(false),
             _owner: owner,
         }))
     }
@@ -83,6 +95,18 @@ impl Engine {
         }
     }
     pub async fn start(self: &Arc<Self>) -> Result<()> {
+        if !self.discovery_started.swap(true, Ordering::SeqCst) {
+            let engine = self.clone();
+            self.tasks.spawn(async move {
+                loop {
+                    tokio::select! {biased;
+                        _=engine.cancel.cancelled()=>return,
+                        _=engine.discovery.notified()=>(),
+                    }
+                    let _ = engine.discover().await;
+                }
+            });
+        }
         self.ensure_feed(self.account.drive.id.clone(), self.account.root_id.clone())
             .await?;
         let db = self.db.clone();
@@ -96,14 +120,21 @@ impl Engine {
     }
     pub async fn stop(&self) {
         self.cancel.cancel();
-        for cancel in self.feeds.read().await.values() {
-            cancel.cancel();
+        for feed in self.feeds.read().await.values() {
+            feed.cancel.cancel();
         }
         self.tasks.close();
         self.tasks.wait().await;
     }
     pub async fn health(&self) -> Vec<FeedHealth> {
-        self.health.read().await.values().cloned().collect()
+        let mut health: Vec<_> = self.health.read().await.values().cloned().collect();
+        let feeds = self.feeds.read().await;
+        for entry in &mut health {
+            if let Some(feed) = feeds.get(&entry.collection) {
+                entry.notifications = feed.hints.borrow().state;
+            }
+        }
+        health
     }
     pub fn ensure_feed(
         self: &Arc<Self>,
@@ -123,25 +154,46 @@ impl Engine {
                 return Ok(());
             }
             let cancel = self.cancel.child_token();
-            feeds.insert(collection.clone(), cancel.clone());
+            let (sender, hints) = ChangeHintSender::channel();
+            feeds.insert(
+                collection.clone(),
+                Feed {
+                    cancel: cancel.clone(),
+                    hints: hints.clone(),
+                },
+            );
+            let provider = self.provider.clone();
+            let scope = self.scope(&collection);
+            let watch_cancel = cancel.clone();
+            self.tasks
+                .spawn(watch_changes(provider, scope, sender, watch_cancel));
             let engine = self.clone();
             self.tasks.spawn(async move {
-                engine.poll(collection, cancel).await;
+                engine.poll(collection, hints, cancel).await;
             });
             Ok(())
         })
     }
-    async fn poll(self: Arc<Self>, collection: String, cancel: CancellationToken) {
+    async fn poll(
+        self: Arc<Self>,
+        collection: String,
+        mut hints: watch::Receiver<ChangeHint>,
+        cancel: CancellationToken,
+    ) {
         let scope = self.scope(&collection);
         let mut delay = Duration::ZERO;
         let mut failures = 0u32;
         let mut reset = false;
+        let mut generation = 0;
+        let mut channel_open = true;
+        let mut last_start = tokio::time::Instant::now() - Duration::from_secs(1);
         let mut health = FeedHealth {
             collection: collection.clone(),
             state: "indexing".into(),
             last_success: None,
             retry_at: None,
             message: None,
+            notifications: NotificationState::Polling,
         };
         let db = self.db.clone();
         let s = scope.clone();
@@ -152,7 +204,28 @@ impl Engine {
             health.last_success = old.last_success;
         }
         loop {
-            tokio::select! {biased;_=cancel.cancelled()=>break,_=tokio::time::sleep(delay)=>()}
+            // Failed refreshes retain their backoff even if more hints arrive.
+            // After success, a pending generation wakes the feed before polling.
+            let deadline = tokio::time::Instant::now() + delay;
+            loop {
+                if failures == 0 && hints.borrow().generation != generation {
+                    break;
+                }
+                tokio::select! {biased;
+                    _=cancel.cancelled()=>return,
+                    _=tokio::time::sleep_until(deadline)=>break,
+                    result=hints.changed(), if failures == 0 && channel_open => {
+                        if result.is_err() { channel_open = false; }
+                    }
+                }
+            }
+            // Coalesce bursts without perpetually postponing an active stream.
+            tokio::select! {biased;
+                _=cancel.cancelled()=>return,
+                _=tokio::time::sleep_until(last_start + Duration::from_millis(250))=>(),
+            }
+            last_start = tokio::time::Instant::now();
+            generation = hints.borrow_and_update().generation;
             health.state = "indexing".into();
             health.retry_at = None;
             self.set_health(&scope, &health).await;
@@ -166,11 +239,8 @@ impl Engine {
                     health.message = None;
                     delay = Duration::from_secs(self.account.poll_seconds);
                     self.changed.notify_waiters();
-                    // Discovery is independent of the feed task, avoiding recursive async types.
-                    let engine = self.clone();
-                    self.tasks.spawn(async move {
-                        let _ = engine.discover().await;
-                    });
+                    // One coalescing worker, not a task per notification burst.
+                    self.discovery.notify_one();
                 }
                 Err(error) => {
                     if cancel.is_cancelled() {
@@ -224,10 +294,6 @@ impl Engine {
         }
     }
     async fn discover(self: &Arc<Self>) -> Result<()> {
-        let _discovery = tokio::select! {
-            biased; _ = self.cancel.cancelled() => return Ok(()),
-            guard = self.discovery.lock() => guard,
-        };
         let mut queue =
             VecDeque::from([(self.account.drive.id.clone(), self.account.root_id.clone())]);
         let mut seen = HashSet::new();
@@ -280,11 +346,11 @@ impl Engine {
             })
             .await??;
             let mut feeds = self.feeds.write().await;
-            feeds.retain(|drive, cancel| {
+            feeds.retain(|drive, feed| {
                 if keep.contains(drive) {
                     true
                 } else {
-                    cancel.cancel();
+                    feed.cancel.cancel();
                     false
                 }
             });
@@ -428,5 +494,51 @@ impl Engine {
         }
         self.changed.notify_waiters();
         Ok(nodes)
+    }
+}
+
+/// Reconnection never owns a metadata request slot or a filesystem lock. Providers
+/// without notifications keep ordinary polling; transient failures never disable
+/// notifications permanently. Reconnection triggers catch-up through the sender.
+async fn watch_changes(
+    provider: Arc<dyn ReadProvider>,
+    scope: Scope,
+    hints: ChangeHintSender,
+    cancel: CancellationToken,
+) {
+    let mut failures = 0u32;
+    loop {
+        hints.state(NotificationState::Connecting);
+        let started = tokio::time::Instant::now();
+        let result = tokio::select! {biased;
+            _=cancel.cancelled()=>return,
+            result=provider.watch_changes(&scope, hints.clone(), &cancel)=>result,
+        };
+        if started.elapsed() >= Duration::from_secs(60) {
+            failures = 0;
+        }
+        let delay = match result {
+            Ok(WatchEnd::Unsupported) => {
+                hints.state(NotificationState::Polling);
+                return;
+            }
+            Ok(WatchEnd::Renew) => continue,
+            Err(ProviderError::Cancelled) => return,
+            Err(ProviderError::Authentication) => {
+                hints.state(NotificationState::SignInRequired);
+                Duration::from_secs(60)
+            }
+            Err(error) => {
+                hints.state(NotificationState::Retrying);
+                failures = failures.saturating_add(1);
+                let jitter = scope.collection.bytes().fold(0u64, |a, b| a + b as u64) % 4;
+                match error {
+                    ProviderError::Throttled(delay) => delay + Duration::from_secs(1),
+                    ProviderError::Permission | ProviderError::NotFound => Duration::from_secs(300),
+                    _ => Duration::from_secs(2u64.pow(failures.min(7)).min(120) + jitter),
+                }
+            }
+        };
+        tokio::select! {biased; _=cancel.cancelled()=>return, _=tokio::time::sleep(delay)=>()}
     }
 }

@@ -1,5 +1,8 @@
-//! Read-only Microsoft Graph adapter. Authentication is injected; tokens, cursor
+//! Microsoft Graph reads and experimental upload adapter. Tokens, cursor
 //! URLs and remote error bodies must never appear in logs.
+mod mutation;
+mod notifications;
+mod upload;
 use async_trait::async_trait;
 use cirrove_core::{
     CancellationToken, Change, ChangePage, Checkpoint, Cursor, DirectoryPage, MetadataProvider,
@@ -37,6 +40,7 @@ pub struct OneDrive {
     endpoint: Url,
     client: Client,
     downloads: Client,
+    uploads: Client,
     tokens: Arc<dyn TokenSource>,
     budget: RequestBudget,
     cooldown: Mutex<Option<Instant>>,
@@ -63,6 +67,14 @@ impl OneDrive {
         Ok(Self {
             account,
             endpoint: endpoint.clone(),
+            uploads: Client::builder()
+                .https_only(endpoint.scheme() == "https")
+                .redirect(Policy::none())
+                .retry(reqwest::retry::never())
+                .connect_timeout(Duration::from_secs(10))
+                .timeout(Duration::from_secs(120))
+                .build()
+                .map_err(|_| ProviderError::Unavailable)?,
             downloads: Client::builder()
                 .https_only(endpoint.scheme() == "https")
                 .redirect(Policy::limited(5))
@@ -387,6 +399,14 @@ impl MetadataProvider for OneDrive {
     fn provider_id(&self) -> &'static str {
         "onedrive"
     }
+    async fn watch_changes(
+        &self,
+        scope: &Scope,
+        hints: cirrove_core::notifications::ChangeHintSender,
+        cancel: &CancellationToken,
+    ) -> Result<cirrove_core::notifications::WatchEnd, ProviderError> {
+        self.watch(scope, hints, cancel).await
+    }
     async fn changes(
         &self,
         scope: &Scope,
@@ -415,6 +435,17 @@ impl ReadProvider for OneDrive {
         let item: DriveItem = self
             .resource(&["drives", &scope.collection, "items", id], cancel)
             .await?;
+        if item.id != id
+            || item
+                .parent_reference
+                .as_ref()
+                .and_then(|p| p.drive_id.as_ref())
+                .is_some_and(|drive| drive != &scope.collection)
+        {
+            return Err(ProviderError::Protocol(
+                "item response identity does not match request",
+            ));
+        }
         match map_item(item)? {
             Change::Upsert(node) => Ok(node),
             _ => Err(ProviderError::NotFound),

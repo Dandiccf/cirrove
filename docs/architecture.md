@@ -5,12 +5,19 @@
 Cirrove makes remote files usable through ordinary Linux applications. Cached
 metadata should stay available when a provider is slow; file bytes arrive on demand.
 The current implementation is a **read-only preview under validation**. It does not
-upload, pin files or implement offline writes. Those need a separate durable journal
-and explicit acknowledgement/conflict semantics before writes can be enabled.
+upload through mounted paths, pin files or implement offline writes. A separate
+upload journal and worker protect sealed edits, persist resumable Graph sessions
+through the keyring, and reconcile uncertain attempts. They have synthetic HTTP and
+crash coverage; live provider checks and writable filesystem integration remain in
+progress. See
+[durable local edits](adr/0002-durable-local-edits.md).
 
 A cloud API cannot provide instant uncached access or complete local POSIX semantics.
-The service reconciles metadata using delta polling (30 seconds by default); it does
-not describe that interval as instantaneous real-time change delivery.
+The service reconciles metadata using incremental delta feeds. OneDrive Socket.IO
+notifications now wake those feeds, while polling continues at 30 seconds by default
+as a safeguard. A notification is a hint to fetch changes, not file content or proof
+that the visible index is current. Provider delivery can itself be delayed; this is
+not an instantaneous real-time guarantee. See [change notifications](adr/0003-change-notifications.md).
 
 ```mermaid
 flowchart LR
@@ -55,6 +62,23 @@ until tested with a real tenant. A cache is not proof of current remote authoriz
 
 ## Atomic metadata and foreground observations
 
+Each collection has an optional provider notification session, independently of its
+delta worker. A bounded generation signal retains hints received during a refresh.
+The worker consumes the generation before starting network work and coalesces bursts
+with at least 250 ms between refresh starts. Failed refreshes retain their backoff;
+push cannot bypass Retry-After. A single coalescing discovery task prevents push
+bursts from accumulating linked-library discovery tasks.
+
+OneDrive obtains the signed Socket.IO endpoint through authenticated Graph, then
+uses a separate Rustls WebSocket connection without Graph bearer headers. Engine.IO
+heartbeats detect silent disconnects; namespace acknowledgement is required before
+reporting connected. The service retries failed subscription attempts and each
+successful connection requests a catch-up delta. A healthy session renews after
+50 minutes. Message/frame limits and cancellation bound socket work. Connection
+state is visible per feed in the status response; it is separate from metadata
+freshness. Personal-account delivery and actual long-session renewal remain live
+validation gates.
+
 The store stages paginated changes and advances the continuation in one transaction.
 Visible nodes and the completed cursor change together only on the terminal page.
 A replacement baseline is built alongside the last visible index. Interrupted work
@@ -67,9 +91,10 @@ be refreshed in the background while their cached version remains readable.
 Directory fetches have a total deadline and repeated-cursor/entry limits.
 
 SQLite uses WAL and FULL synchronous mode. Network awaits never occur inside its
-transactions. Database work runs on blocking workers. Recursive ancestry selection
-and batched inode assignment avoid loading entire drive trees or opening a database
-transaction for each entry in a directory listing.
+transactions. Database work runs on blocking workers. Shortcut discovery starts
+at a partial index of actual links and follows their ancestors, so an idle poll
+does not walk every file in a large library. Batched inode assignment avoids a
+separate database transaction for every directory entry.
 
 ## Authentication and ownership
 
@@ -80,8 +105,10 @@ The CLI displays the verified identity and selected drive before saving it.
 
 Non-secret configuration is atomically written and fsynced. Tokens are stored in a
 Cirrove-labelled Secret Service item over an encrypted session, never in the metadata
-database. The shared account broker serializes refresh, checks the refreshed Graph
-identity and persists rotation before returning a new access token. Delayed 401s
+database. Secret writes are explicitly set and read back through a fresh encrypted keyring
+session before reporting success. A mismatched readback gets at most three write
+attempts; lock and transport errors return to the caller. The shared account broker
+serializes refresh, checks the refreshed Graph identity and persists rotation before returning a new access token. Delayed 401s
 invalidate only the rejected token, not a newer grant.
 
 A daemon ownership lock prevents competing managers. Per-account leases cover its
@@ -97,9 +124,11 @@ follow redirects; continuation URLs must stay on the configured origin and drive
 Signed downloads use a separate client without Graph bearer headers. Provider bodies,
 tokens, signed URLs and opaque cursor material are excluded from application errors.
 
-Per account, there are four foreground metadata slots, four content slots and one
-background metadata slot. Content traffic cannot occupy directory-request slots.
-429/503 cooldown applies across Graph metadata and download operations. Requests and
+Per account, there are four foreground metadata slots, four content slots, two
+upload slots and one background metadata slot. Transfers cannot occupy directory
+request slots. Upload fragments are bounded to 5 MiB and use a separate client that
+neither follows redirects nor sends Graph bearer tokens to session URLs.
+429/503 cooldown applies across metadata, download and upload operations. Requests and
 credential operations have finite deadlines; account cancellation interrupts them.
 The scheduler distinguishes authentication, permissions, missing items, expired
 cursors, throttling and transient failures, and uses bounded backoff with jitter.
@@ -161,11 +190,49 @@ It never mounts over local files deposited after an ejection. Enabled accounts a
 remounted after accidental ejection; `disable` records an intentional unmount.
 Shutdown cancels and awaits workers, then unmounts and joins FUSE sessions.
 
+After a process crash, startup checks a stale control socket under the daemon's
+ownership lock and removes it only when a connection is refused. A disconnected
+FUSE mount is detached only if its filesystem type and account UUID match and
+the kernel reports ENOTCONN. A live mount is never displaced. Kernel tests kill
+a synthetic mount process and verify that a new manager serves readable files.
+These checks do not imply that a full-machine power-loss test has passed.
+
+## Conditional namespace changes
+
+The provider-neutral mutation contract supports folder creation, rename/move within
+one collection, and conditional regular-file removal. Rename/move sends the original
+ETag and refuses destination collisions. File removal checks the remote file facet
+and original ETag before issuing a conditional DELETE; a fabricated local file type
+cannot turn this path into recursive folder deletion. Shortcuts and root changes
+are rejected by the current mutation contract.
+
+Upload-journal schema 3 adds namespace records and a shared sequence/resource queue.
+Metadata changes cannot overtake pending uploads on the same remote identity;
+source/destination name reservations also order colliding creates and moves.
+Case folding is a conservative queue exclusion, not a definition of the provider's
+filename equivalence. Receipts and queue completion commit together. Migration
+preserves existing upload sequence numbers, snapshots and pending states. Older
+binaries refuse schema 3 instead of trying to downgrade it.
+
+After interruption, a namespace operation requires verification. A matching immutable
+item at the requested new name/parent can complete a lost rename/move response.
+An unchanged original revision permits a new conditional attempt. A missing item
+alone does not establish deletion: lost deletes and unidentified folder creations
+can enter `NeedsReview`, retaining their request without an automatic retry loop.
+HTTP success is required for a confirmed deletion receipt. File DELETE uses the
+provider's recycle-bin behavior; it is not permanent deletion or local POSIX rmdir.
+
+These operations remain outside the mounted filesystem. The writable namespace
+layer must add ancestor/dependency handling, application-save generations and safe
+replacement semantics before enabling folder mutations through FUSE. Personal
+accounts, permissions changes and broader live concurrency still require coverage.
+
 ## Next boundaries
 
-Before enabling writes, add a durable upload journal, fsync ordering, replay,
-conditional writes, resumable uploads and conflict preservation. Separate local-save
-success from remote acknowledgement. GTK settings, tray and Nautilus integrations
+Before enabling writes, connect the local upload journal to application-save
+ordering, conditional writes, resumable uploads and conflict preservation. The
+standalone journal tests do not prove writable filesystem semantics. Separate
+local-save success from remote acknowledgement. GTK settings, tray and Nautilus integrations
 must consume the service's state rather than maintain their own sync logic.
 
 Google Drive will implement provider contracts around its native changes and content
@@ -176,7 +243,10 @@ behind a compatibility adapter with visible authentication/API limitations.
 
 - [Microsoft authentication code flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow)
 - [Graph delta](https://learn.microsoft.com/en-us/graph/api/driveitem-delta?view=graph-rest-1.0)
+- [Graph Socket.IO notifications](https://learn.microsoft.com/en-us/graph/api/subscriptions-socketio?view=graph-rest-1.0)
 - [Graph throttling](https://learn.microsoft.com/en-us/graph/throttling)
+- [Graph conditional move](https://learn.microsoft.com/en-us/graph/api/driveitem-move?view=graph-rest-1.0)
+- [Graph conditional deletion](https://learn.microsoft.com/en-us/graph/api/driveitem-delete?view=graph-rest-1.0)
 - [Graph downloads](https://learn.microsoft.com/en-us/graph/api/driveitem-get-content?view=graph-rest-1.0)
 - [Graph content and metadata tags](https://learn.microsoft.com/en-us/graph/api/resources/driveitem?view=graph-rest-1.0)
 - [Graph packages](https://learn.microsoft.com/en-us/graph/api/resources/package?view=graph-rest-1.0)

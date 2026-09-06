@@ -27,6 +27,15 @@ struct Fixture {
     offline: AtomicBool,
     stall: AtomicBool,
     delay_ms: AtomicU64,
+    push: AtomicBool,
+    hints: RwLock<HashMap<String, notifications::ChangeHintSender>>,
+    change_calls: AtomicU64,
+    hold_change: AtomicBool,
+    change_entered: tokio::sync::Notify,
+    release_change: tokio::sync::Notify,
+    throttle_change: AtomicBool,
+    disconnect: tokio::sync::Notify,
+    subscriptions: AtomicU64,
 }
 fn file(id: &str, parent: Option<&str>, kind: NodeKind, size: u64) -> Node {
     Node {
@@ -57,6 +66,7 @@ fn account(path: std::path::PathBuf) -> Account {
             display_name: "Synthetic fixture".into(),
         },
         credential_id: "00000000-0000-4000-8000-000000000004".into(),
+        access: cirrove_auth::AccessMode::ReadOnly,
         drive: DriveInfo {
             id: "home".into(),
             name: "Fixture".into(),
@@ -108,6 +118,15 @@ impl Fixture {
             offline: AtomicBool::new(false),
             stall: AtomicBool::new(false),
             delay_ms: AtomicU64::new(0),
+            push: AtomicBool::new(false),
+            hints: RwLock::new(HashMap::new()),
+            change_calls: AtomicU64::new(0),
+            hold_change: AtomicBool::new(false),
+            change_entered: tokio::sync::Notify::new(),
+            release_change: tokio::sync::Notify::new(),
+            throttle_change: AtomicBool::new(false),
+            disconnect: tokio::sync::Notify::new(),
+            subscriptions: AtomicU64::new(0),
         })
     }
     fn online(&self) -> Result<(), ProviderError> {
@@ -123,14 +142,38 @@ impl MetadataProvider for Fixture {
     fn provider_id(&self) -> &'static str {
         "fixture"
     }
+    async fn watch_changes(
+        &self,
+        scope: &Scope,
+        hints: notifications::ChangeHintSender,
+        cancel: &CancellationToken,
+    ) -> Result<notifications::WatchEnd, ProviderError> {
+        if !self.push.load(Ordering::SeqCst) {
+            return Ok(notifications::WatchEnd::Unsupported);
+        }
+        self.subscriptions.fetch_add(1, Ordering::SeqCst);
+        self.hints
+            .write()
+            .await
+            .insert(scope.collection.clone(), hints.clone());
+        hints.connected();
+        tokio::select! {biased;
+            _=cancel.cancelled()=>Err(ProviderError::Cancelled),
+            _=self.disconnect.notified()=>Err(ProviderError::Unavailable),
+        }
+    }
     async fn changes(
         &self,
         scope: &Scope,
         _: Option<&Cursor>,
-        _: &CancellationToken,
+        cancel: &CancellationToken,
     ) -> Result<ChangePage, ProviderError> {
+        self.change_calls.fetch_add(1, Ordering::SeqCst);
+        if self.throttle_change.swap(false, Ordering::SeqCst) {
+            return Err(ProviderError::Throttled(Duration::from_secs(1)));
+        }
         self.online()?;
-        Ok(ChangePage {
+        let page = ChangePage {
             changes: self
                 .nodes
                 .read()
@@ -140,7 +183,15 @@ impl MetadataProvider for Fixture {
                 .map(|(_, node)| Change::Upsert(node.clone()))
                 .collect(),
             checkpoint: Checkpoint::Complete(Cursor("checkpoint".into())),
-        })
+        };
+        if self.hold_change.swap(false, Ordering::SeqCst) {
+            self.change_entered.notify_one();
+            tokio::select! {biased;
+                _=cancel.cancelled()=>return Err(ProviderError::Cancelled),
+                _=self.release_change.notified()=>(),
+            }
+        }
+        Ok(page)
     }
 }
 #[async_trait]
@@ -488,6 +539,7 @@ async fn real_fuse_reads_shortcuts_seek_readonly_restart_and_ejection() {
             let mut bytes = [0u8; 8192];
             file.read_exact(&mut bytes).unwrap();
             assert_bytes(&bytes, offset);
+            file.sync_all().unwrap();
             assert_eq!(
                 std::fs::write(path.join("new.txt"), "blocked")
                     .unwrap_err()
@@ -500,6 +552,10 @@ async fn real_fuse_reads_shortcuts_seek_readonly_restart_and_ejection() {
     .await
     .unwrap()
     .unwrap();
+    let attributes = tokio::process::Command::new("python3")
+        .args(["-c", "import errno, os, sys\np = sys.argv[1]\nassert os.listxattr(p) == []\ntry:\n os.getxattr(p, 'user.cirrove.unavailable')\nexcept OSError as e:\n assert e.errno == errno.ENODATA, e\nelse:\n raise AssertionError('missing attribute was reported as present')"])
+        .arg(mount.join("large.bin")).status().await.unwrap();
+    assert!(attributes.success());
     // Active and queued application reads block, but folders retain capacity and
     // shutdown must release all readers without libc retrying EINTR forever.
     provider.stall.store(true, Ordering::SeqCst);
@@ -609,6 +665,86 @@ async fn real_fuse_reads_shortcuts_seek_readonly_restart_and_ejection() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires a working /dev/fuse and fusermount3; run explicitly"]
+async fn real_manager_does_not_claim_another_accounts_mount() {
+    use cirrove_service::{accounts::Settings, manager::Manager, private_dir};
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let provider = Fixture::new();
+    let original = Engine::new(
+        account(mount.clone()),
+        provider.clone(),
+        temp.path().join("original"),
+    )
+    .await
+    .unwrap();
+    original.start().await.unwrap();
+    ready(&original).await;
+    let session = CloudFs::new(original.clone())
+        .unwrap()
+        .mount(&mount)
+        .unwrap();
+    let state = temp.path().join("second");
+    private_dir(&state).unwrap();
+    let mut config = account(mount.clone());
+    config.id = "00000000-0000-4000-8000-000000000005".into();
+    std::fs::write(
+        state.join("accounts.json"),
+        serde_json::to_vec(&Settings {
+            version: 1,
+            accounts: vec![config],
+        })
+        .unwrap(),
+    )
+    .unwrap();
+    let cancel = CancellationToken::new();
+    let factory: cirrove_service::manager::ProviderFactory =
+        Arc::new(move |_| Ok(provider.clone()));
+    let (manager, worker) = Manager::start_with_provider(state, cancel.clone(), factory);
+    tokio::time::timeout(Duration::from_secs(10), async {
+        while manager.status.read().await.is_empty() {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .unwrap();
+    {
+        let status = manager.status.read().await;
+        assert!(!status[0].mounted, "a foreign Cirrove session is not ours");
+        assert_ne!(status[0].state, "ready");
+    }
+    assert_bytes(&std::fs::read(mount.join("small.txt")).unwrap(), 0);
+    tokio::task::spawn_blocking(move || session.umount_and_join())
+        .await
+        .unwrap()
+        .unwrap();
+    original.stop().await;
+    tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            if manager
+                .status
+                .read()
+                .await
+                .first()
+                .is_some_and(|s| s.mounted && s.state == "ready")
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_bytes(&std::fs::read(mount.join("small.txt")).unwrap(), 0);
+    cancel.cancel();
+    tokio::time::timeout(Duration::from_secs(5), worker)
+        .await
+        .unwrap()
+        .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires a working /dev/fuse and fusermount3; run explicitly"]
 async fn real_manager_remounts_enabled_drives_and_keeps_disabled_drives_unmounted() {
     use cirrove_service::{
         accounts::{Settings, set_enabled},
@@ -709,6 +845,138 @@ async fn real_manager_remounts_enabled_drives_and_keeps_disabled_drives_unmounte
         .await
         .unwrap()
         .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "subprocess fixture for real_manager_recovers_disconnected_mount_after_process_death"]
+async fn abrupt_exit_mount_fixture() {
+    let Some(root) = std::env::var_os("CIRROVE_CRASH_FIXTURE_ROOT") else {
+        return;
+    };
+    let root = std::path::PathBuf::from(root);
+    let fixture = Fixture::new();
+    let (manager, _worker) = cirrove_service::manager::Manager::start_with_provider(
+        root.join("state"),
+        CancellationToken::new(),
+        Arc::new(move |_| Ok(fixture.clone())),
+    );
+    tokio::time::timeout(Duration::from_secs(15), async {
+        loop {
+            if manager
+                .status
+                .read()
+                .await
+                .first()
+                .is_some_and(|status| status.mounted)
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .unwrap();
+    std::fs::write(root.join("ready"), b"mounted").unwrap();
+    std::future::pending::<()>().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires kernel FUSE; kills only its own synthetic subprocess"]
+async fn real_manager_recovers_disconnected_mount_after_process_death() {
+    use cirrove_service::{accounts::Settings, manager::Manager, private_dir};
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    private_dir(&state).unwrap();
+    let mount = temp.path().join("mount");
+    // Also detach this test's mount on assertion failure before TempDir cleanup.
+    struct Cleanup(std::path::PathBuf);
+    impl Drop for Cleanup {
+        fn drop(&mut self) {
+            let _ = std::process::Command::new("fusermount3")
+                .args(["-u", "-z", "--"])
+                .arg(&self.0)
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status();
+        }
+    }
+    let _cleanup = Cleanup(mount.clone());
+    let settings = Settings {
+        version: 1,
+        accounts: vec![account(mount.clone())],
+    };
+    std::fs::write(
+        state.join("accounts.json"),
+        serde_json::to_vec(&settings).unwrap(),
+    )
+    .unwrap();
+    let mut child = tokio::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "abrupt_exit_mount_fixture",
+            "--ignored",
+            "--nocapture",
+        ])
+        .env("CIRROVE_CRASH_FIXTURE_ROOT", temp.path())
+        .kill_on_drop(true)
+        .spawn()
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(20), async {
+        while !temp.path().join("ready").exists() {
+            assert!(
+                child.try_wait().unwrap().is_none(),
+                "mount fixture exited before readiness"
+            );
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .unwrap();
+    child.kill().await.unwrap();
+    child.wait().await.unwrap();
+    let mounts = std::fs::read_to_string("/proc/self/mountinfo").unwrap();
+    assert!(
+        mounts
+            .lines()
+            .any(|line| line.split_whitespace().nth(4) == mount.to_str()),
+        "fixture must leave a disconnected FUSE mount"
+    );
+    let cancel = CancellationToken::new();
+    let fixture = Fixture::new();
+    let (manager, worker) = Manager::start_with_provider(
+        state,
+        cancel.clone(),
+        Arc::new(move |_| Ok(fixture.clone())),
+    );
+    tokio::time::timeout(Duration::from_secs(15), async {
+        loop {
+            if manager
+                .status
+                .read()
+                .await
+                .first()
+                .is_some_and(|status| status.mounted && status.state == "ready")
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let path = mount.join("folder/deep.txt");
+    let bytes = tokio::task::spawn_blocking(move || std::fs::read(path))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(bytes.len(), 17);
+    assert_bytes(&bytes, 0);
+    cancel.cancel();
+    tokio::time::timeout(Duration::from_secs(10), worker)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(std::fs::read_dir(mount).unwrap().next().is_none());
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -1081,4 +1349,211 @@ for f in (old,old_alias,new,new_alias):f.close()
         "{result:?}: {}",
         String::from_utf8_lossy(&output.stderr)
     );
+}
+
+async fn push_engine(temp: &tempfile::TempDir) -> (Arc<Fixture>, Arc<Engine>) {
+    let provider = Fixture::new();
+    provider
+        .nodes
+        .write()
+        .await
+        .retain(|(drive, _), node| drive == "home" && node.target.is_none());
+    provider.push.store(true, Ordering::SeqCst);
+    let mut config = account(temp.path().join("mount"));
+    config.poll_seconds = 3600; // A timer cannot accidentally satisfy these tests.
+    let engine = Engine::new(config, provider.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    engine.start().await.unwrap();
+    tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            if engine.health().await.iter().any(|h| {
+                h.state == "ready" && h.notifications == notifications::NotificationState::Connected
+            }) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    (provider, engine)
+}
+async fn fixture_remote_change(provider: &Fixture, revision: &str) {
+    let mut node = file("remote.txt", Some("root"), NodeKind::File, 17);
+    node.etag = Some(revision.into());
+    provider
+        .nodes
+        .write()
+        .await
+        .insert(("home".into(), node.id.clone()), node);
+}
+async fn wait_revision(engine: &Engine, revision: &str) {
+    tokio::time::timeout(Duration::from_secs(8), async {
+        loop {
+            let store = Store::open(&engine.db).unwrap();
+            if store
+                .node(&engine.scope("home"), "remote.txt")
+                .unwrap()
+                .is_some_and(|n| n.etag.as_deref() == Some(revision))
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn push_refreshes_immediately_and_retains_bursts_during_an_active_delta() {
+    let temp = tempfile::tempdir().unwrap();
+    let (provider, engine) = push_engine(&temp).await;
+    let hints = provider.hints.read().await["home"].clone();
+    fixture_remote_change(&provider, "first").await;
+    hints.changed();
+    wait_revision(&engine, "first").await;
+    let before = provider.change_calls.load(Ordering::SeqCst);
+    provider.hold_change.store(true, Ordering::SeqCst);
+    fixture_remote_change(&provider, "staged").await;
+    hints.changed();
+    tokio::time::timeout(Duration::from_secs(2), provider.change_entered.notified())
+        .await
+        .unwrap();
+    fixture_remote_change(&provider, "latest").await;
+    for _ in 0..1000 {
+        hints.changed();
+    }
+    provider.release_change.notify_one();
+    wait_revision(&engine, "latest").await;
+    assert!(provider.change_calls.load(Ordering::SeqCst) - before <= 3);
+    tokio::time::timeout(Duration::from_secs(1), engine.stop())
+        .await
+        .unwrap();
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn push_preserves_retry_after_and_reconnect_catches_unreported_changes() {
+    let temp = tempfile::tempdir().unwrap();
+    let (provider, engine) = push_engine(&temp).await;
+    let hints = provider.hints.read().await["home"].clone();
+    provider.throttle_change.store(true, Ordering::SeqCst);
+    fixture_remote_change(&provider, "throttled").await;
+    hints.changed();
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while !engine.health().await.iter().any(|h| h.state == "throttled") {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let calls = provider.change_calls.load(Ordering::SeqCst);
+    for _ in 0..1000 {
+        hints.changed();
+    }
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    assert_eq!(provider.change_calls.load(Ordering::SeqCst), calls);
+    wait_revision(&engine, "throttled").await;
+    fixture_remote_change(&provider, "during-disconnect").await;
+    let subscriptions = provider.subscriptions.load(Ordering::SeqCst);
+    provider.disconnect.notify_one();
+    wait_revision(&engine, "during-disconnect").await;
+    assert!(provider.subscriptions.load(Ordering::SeqCst) > subscriptions);
+    engine.stop().await;
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn unsupported_notifications_do_not_create_a_busy_poll_loop() {
+    let temp = tempfile::tempdir().unwrap();
+    let provider = Fixture::new();
+    let engine = Engine::new(
+        account(temp.path().join("mount")),
+        provider.clone(),
+        temp.path().join("state"),
+    )
+    .await
+    .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    let calls = provider.change_calls.load(Ordering::SeqCst);
+    tokio::time::sleep(Duration::from_millis(600)).await;
+    assert_eq!(provider.change_calls.load(Ordering::SeqCst), calls);
+    assert!(
+        engine
+            .health()
+            .await
+            .iter()
+            .all(|h| h.notifications == notifications::NotificationState::Polling)
+    );
+    engine.stop().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires a working /dev/fuse and fusermount3; run explicitly"]
+async fn real_push_updates_the_mounted_namespace_without_waiting_for_polling() {
+    let temp = tempfile::tempdir().unwrap();
+    let (provider, engine) = push_engine(&temp).await;
+    let mount = engine.account.mount_path.clone();
+    std::fs::create_dir(&mount).unwrap();
+    let session = CloudFs::new(engine.clone()).unwrap().mount(&mount).unwrap();
+    let hints = provider.hints.read().await["home"].clone();
+    // Prime a negative entry and directory listing in the kernel.
+    let path = mount.join("remote.txt");
+    let absent = path.clone();
+    assert!(
+        tokio::task::spawn_blocking(move || std::fs::metadata(absent))
+            .await
+            .unwrap()
+            .is_err()
+    );
+    fixture_remote_change(&provider, "new").await;
+    hints.changed();
+    wait_revision(&engine, "new").await;
+    let bytes = tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            let path = path.clone();
+            if let Ok(bytes) = tokio::task::spawn_blocking(move || std::fs::read(path))
+                .await
+                .unwrap()
+            {
+                break bytes;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(bytes.len(), 17);
+    assert_bytes(&bytes, 0);
+    {
+        let mut nodes = provider.nodes.write().await;
+        let node = nodes
+            .get_mut(&("home".into(), "remote.txt".into()))
+            .unwrap();
+        node.name = "renamed.txt".into();
+        node.etag = Some("renamed".into());
+    }
+    hints.changed();
+    wait_revision(&engine, "renamed").await;
+    let current = mount.clone();
+    tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            let current = current.clone();
+            let done = tokio::task::spawn_blocking(move || {
+                !current.join("remote.txt").exists()
+                    && std::fs::read(current.join("renamed.txt")).is_ok()
+            })
+            .await
+            .unwrap();
+            if done {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .unwrap();
+    engine.stop().await;
+    tokio::task::spawn_blocking(move || session.umount_and_join())
+        .await
+        .unwrap()
+        .unwrap();
 }

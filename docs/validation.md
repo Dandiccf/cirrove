@@ -8,14 +8,19 @@ acceptance for roadmap stages 1–3.
 ## Local checks
 
 - Formatting and strict Clippy cover all crates and test targets.
-- Default workspace suite: **39 tests passed**. Six kernel-FUSE/benchmark tests
-  are intentionally skipped in the default suite and run explicitly below.
+- Current default workspace suite: **96 tests passed**. Eight kernel-FUSE tests
+  run separately; subprocess fixture entry points and the optional performance
+  fixture remain excluded from the default suite.
 - Built both binaries and generated workspace Rustdoc.
-- Executable smoke test passed: synthetic staging, status, SIGTERM and socket cleanup.
-- Updated systemd user-unit template verified with the locally built daemon path;
-  the unit was not installed or enabled on the user's desktop.
-- Real desktop Secret Service test passed: write, read and remove one uniquely
-  named synthetic Cirrove credential. No existing credentials were read or changed.
+- Executable smoke test passed: synthetic staging, status, competing ownership,
+  recovery after SIGKILL, SIGTERM and socket cleanup. Two observer-script tests pass.
+- The systemd user-unit template was verified with the locally built daemon path.
+  Actual desktop installation and live account evidence are tracked privately.
+- Real desktop Secret Service test passed: 64 updates to one uniquely named
+  synthetic checkpoint, independent reads through fresh encrypted sessions, and
+  removal. Run it explicitly with
+  `cargo test -p cirrove-auth --test desktop_vault --locked -- --ignored`.
+  No existing credentials are read or changed by this fixture.
 
 ## Authentication and Graph transport
 
@@ -50,7 +55,7 @@ The content tests check 32-reader coalescing, offsets beyond 2 GiB in a syntheti
 3 GiB file, offline cache reuse after restart, corruption recovery, interrupted
 publication cleanup, quota enforcement and shared-failure retry suppression.
 
-Five tests ran against **real kernel FUSE mounts** in temporary directories:
+Eight tests ran against **real kernel FUSE mounts** in temporary directories:
 
 - Normal file reads, linked-library projection, duplicate-alias inodes, deep
   traversal, large seeks, EROFS on writes, stable inodes/cache after restart,
@@ -58,6 +63,9 @@ Five tests ran against **real kernel FUSE mounts** in temporary directories:
   released by shutdown with ENODEV.
 - The actual account manager's automatic remount, persisted disable/enable,
   refusal to obscure a new local file, shutdown cleanup and restart.
+- Refusal to claim another account's mount at the same path.
+- Recovery after killing a synthetic mount process, with matching account UUID
+  ownership and readable content through a newly started manager.
 - Shared read-only and private copy-on-write Python mappings; a private modification
   does not change shared bytes. A synthetic 3 GiB mapping can read beyond 2 GiB while
   the application process's peak RSS stays below 128 MiB.
@@ -67,6 +75,9 @@ Five tests ran against **real kernel FUSE mounts** in temporary directories:
 - A burst of 96 simultaneous 64 KiB reads from distinct 3,100,000-byte files completes
   while cached folder listings retain independent capacity. The fixture adds 250 ms
   per content request and the cache makes 96 range calls, without retries.
+- Provider change hints expose a new file and subsequent rename through actual
+  mounted paths, including a previously cached negative lookup. The timer is set
+  to one hour so polling cannot satisfy the test.
 
 An early stalled-read run exposed an EINTR retry loop during shutdown. The stopped
 mount now returns ENODEV; the corrected test passed. Its old fixture process and
@@ -123,6 +134,66 @@ All 39 default tests and five explicit kernel-FUSE tests passed, including the
 memory-mapping and 96-reader cases. Formatting, strict Clippy, builds, executable
 smoke and Rustdoc also passed. The kernel advertised direct-I/O mmap support on
 both the local Arch session and this Ubuntu runner.
+
+## Upload components under development
+
+The default suite now includes ten local HTTP upload fixtures, eleven journal
+tests and eight transfer-worker tests. They cover exact ranges, private session
+checkpoints, name collisions, conditional commit conflicts, zero-byte files,
+content-hash reconciliation, persisted backoff, cancellation and secret-store
+failures. Empty or malformed saved checkpoints trigger remote-content reconciliation
+instead of repeated parsing failures. An old journal schema migrates while retaining
+pending bytes and ordering.
+
+Opt-in write-consent tests verify that existing grants remain read-only and that
+refresh preserves the chosen permission mode. The developer write command rejects
+read-only grants, enabled accounts and competing account owners before cloud access.
+See [isolated write validation](write-validation.md) for the prepared live workflow.
+These synthetic results do not establish Microsoft final-commit semantics or
+writable FUSE correctness. An isolated business-drive run additionally passed
+the basic write command with generated files: upload/readback, name collision,
+empty file, conditional replacement, stale revision, and a competing edit before
+final commit. The competing edit remained intact and the staged upload became a
+conflict. This is limited fixture evidence, not a general concurrency guarantee;
+personal-drive commits and broader real recovery checks remain unverified.
+Account identifiers and live logs are retained privately. Ordinary mounts remain
+read-only.
+
+## Namespace components under development
+
+Five additional HTTP fixtures cover conditional PATCH/DELETE, Unicode names,
+collision/stale ETag rejection, lost responses, remote type checks and conservative
+missing-item reconciliation. Seven journal/worker tests cover shared upload ordering,
+schema migration, stale attempts, retained indeterminate outcomes, cancellation and
+actual child-process SIGKILL before/after acknowledgement. The crash tests exposed
+and fixed a receipt serialization ambiguity before live validation.
+
+An isolated business-drive fixture passed folder creation, file rename/move with
+byte readback, name collision, stale rename, confirmed file removal and stale-delete
+protection. A following run also passed folder rename and move while retaining
+and reading back an existing child. Account identities, real item IDs and logs
+remain private. These checks
+do not establish writable FUSE save semantics or the full provider matrix.
+
+## Change notification implementation
+
+Five transport fixtures cover signed endpoint parsing, Graph bearer isolation,
+background permit release, real loopback WebSocket handshakes, Socket.IO namespace
+acknowledgement, event ACKs, heartbeat expiry, oversized messages, renewal and
+cancellation. Three service fixtures cover push-triggered deltas, retained hints
+during active work, burst coalescing, Retry-After, reconnect catch-up and stable
+polling for adapters without notifications. The actual FUSE check above verifies
+that these changes reach mounted paths.
+
+An isolated business-drive test subscribed through the official Graph Socket.IO
+endpoint and observed its uniquely generated folder, then two conditional renames,
+in deltas requested because of notifications. The test uses no polling to satisfy
+that condition. Provider
+delivery can still be delayed; this result is not a low-latency guarantee. Further
+personal-account, linked-library and long-session checks remain open. Actual
+identifiers and timings remain in private local evidence. See
+[the notification decision](adr/0003-change-notifications.md) for the acceptance
+plan and repeat command.
 
 ## Required before calling stages 1–3 complete
 

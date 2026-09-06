@@ -1,6 +1,7 @@
 /target/
 /.cargo-home/
 /.local-state/
+__pycache__/
 .env
 .env.*
 *.db

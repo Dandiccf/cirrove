@@ -17,7 +17,11 @@ struct Args {
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "info".into())
+                // Transport trace logs can contain signed URLs and frames.
+                .add_directive("tungstenite=off".parse()?)
+                .add_directive("tokio_tungstenite=off".parse()?),
         )
         .init();
     let args = Args::parse();
@@ -34,6 +38,7 @@ async fn main() -> Result<()> {
         Some(p) => p,
         None => socket_path()?,
     };
+    cirrove_service::recover_control_socket(&socket).await?;
     let cancel = CancellationToken::new();
     let shutdown = cancel.clone();
     let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;

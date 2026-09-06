@@ -2,8 +2,8 @@
 use crate::private_dir;
 use anyhow::{Context, Result, bail};
 use cirrove_auth::{
-    AppRegistration, CredentialVault, DesktopVault, Identity, PendingLogin, TokenBroker,
-    save_credentials,
+    AccessMode, AppRegistration, CredentialVault, DesktopVault, Identity, PendingLogin,
+    TokenBroker, save_credentials,
 };
 use cirrove_core::CancellationToken;
 use cirrove_onedrive::{DriveInfo, OneDrive, StaticToken};
@@ -23,6 +23,8 @@ pub struct Account {
     pub registration: AppRegistration,
     pub identity: Identity,
     pub credential_id: String,
+    #[serde(default)]
+    pub access: AccessMode,
     pub drive: DriveInfo,
     pub root_id: String,
     pub mount_path: PathBuf,
@@ -164,7 +166,7 @@ pub fn account_lock(directory: &Path) -> Result<File> {
     fs2::FileExt::try_lock_exclusive(&file).context("Cirrove account is still stopping")?;
     Ok(file)
 }
-fn account_operation(state: &Path, id: &str) -> Result<File> {
+pub(crate) fn account_operation(state: &Path, id: &str) -> Result<File> {
     let file = OpenOptions::new()
         .read(true)
         .write(true)
@@ -176,8 +178,16 @@ fn account_operation(state: &Path, id: &str) -> Result<File> {
         .context("another operation is changing this account")?;
     Ok(file)
 }
-async fn browser_login(app: AppRegistration) -> Result<(Identity, cirrove_auth::Credentials)> {
-    let pending = PendingLogin::new(app).await?;
+async fn browser_login(
+    app: AppRegistration,
+    access: AccessMode,
+) -> Result<(Identity, cirrove_auth::Credentials)> {
+    let pending = PendingLogin::with_access(app, access).await?;
+    if access == AccessMode::ReadWrite {
+        println!(
+            "Requesting write consent for developer validation. Filesystem mounts remain read-only."
+        );
+    }
     println!("Opening Microsoft sign-in in your browser. Select the account you want to connect.");
     let mut child = tokio::process::Command::new("xdg-open")
         .arg(pending.authorization_url().as_str())
@@ -235,7 +245,8 @@ pub async fn reauthenticate(state: PathBuf, label: String) -> Result<()> {
         })
         .await
         .context("account did not stop; close files in this mount and try again")?;
-        let (identity, credentials) = browser_login(original.registration.clone()).await?;
+        let (identity, credentials) =
+            browser_login(original.registration.clone(), original.access).await?;
         if identity.tenant_id != original.identity.tenant_id
             || identity.graph_user_id != original.identity.graph_user_id
         {
@@ -285,6 +296,7 @@ pub async fn connect(
     app: AppRegistration,
     mount_path: PathBuf,
     drive_id: Option<String>,
+    access: AccessMode,
 ) -> Result<()> {
     if !valid_label(&label) {
         bail!("use a label of 1–48 letters, digits, hyphens or underscores");
@@ -305,7 +317,7 @@ pub async fn connect(
             bail!("this label or mount path is already configured");
         }
     }
-    let (identity, credentials) = browser_login(app.clone()).await?;
+    let (identity, credentials) = browser_login(app.clone(), access).await?;
     println!(
         "Signed in: {} ({})\nTenant: {}",
         identity.display_name, identity.username, identity.tenant_id
@@ -354,10 +366,11 @@ pub async fn connect(
         registration: app,
         identity,
         credential_id: uuid::Uuid::new_v4().to_string(),
+        access,
         drive,
         root_id: root.id,
         mount_path,
-        enabled: true,
+        enabled: access == AccessMode::ReadOnly,
         poll_seconds: 30,
         cache_bytes: 5 * 1024 * 1024 * 1024,
     };
@@ -421,7 +434,32 @@ mod tests {
         let lock = daemon_lock(&state).unwrap();
         assert!(daemon_lock(&state).is_err());
         drop(lock);
-        assert!(daemon_lock(&state).is_ok());
+        // Parallel tests launch child processes. Between fork and exec a child
+        // can retain the open description underlying flock, even with CLOEXEC.
+        // Require prompt eventual release; do not mistake that short interval
+        // for a leaked owner or ignore errors other than lock contention.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+        loop {
+            match daemon_lock(&state) {
+                Ok(reacquired) => {
+                    drop(reacquired);
+                    break;
+                }
+                Err(error) => {
+                    assert!(
+                        error
+                            .downcast_ref::<std::io::Error>()
+                            .is_some_and(|e| e.kind() == std::io::ErrorKind::WouldBlock),
+                        "{error:#}"
+                    );
+                    assert!(
+                        std::time::Instant::now() < deadline,
+                        "owner was not released: {error:#}"
+                    );
+                    std::thread::sleep(std::time::Duration::from_millis(1));
+                }
+            }
+        }
         Settings::default().save(&state).unwrap();
         assert!(Settings::load(&state).unwrap().accounts.is_empty());
         use std::os::unix::fs::PermissionsExt;

@@ -12,7 +12,8 @@ fetches file content on demand into a bounded disk cache.
 metadata workers and a FUSE mount are implemented. Local synthetic tests exercise
 actual filesystem reads and recovery. Real Microsoft consent, sustained operation
 and provider latency still require validation. Do not replace a trusted cloud
-client with this preview. Uploads, pins, tray UI and Nautilus badges are not implemented.
+client with this preview. Writable mounts, pins, tray UI and Nautilus badges are not
+implemented. A separate developer upload worker is undergoing validation.
 
 ## Current implementation
 
@@ -21,7 +22,10 @@ client with this preview. Uploads, pins, tray UI and Nautilus badges are not imp
 - Secret Service credential storage, serialized refresh, stale-token protection
   and account-specific reauthentication.
 - Persistent delta workers, transactional SQLite staging, resumable pagination,
-  backoff and an account-wide provider cooldown.
+  backoff and an account-wide provider cooldown. Graph Socket.IO notifications
+  now wake the incremental metadata feed; periodic checks remain a fallback.
+  Provider delivery latency is separate from Cirrove's reaction time; see
+  [change notifications](docs/adr/0003-change-notifications.md).
 - Linked-drive discovery and shortcut projection with separate target identities.
   Folder-only SharePoint sharing and revoked targets still need live validation.
 - Read-only FUSE projection with persistent directory and content-version inodes,
@@ -31,6 +35,12 @@ client with this preview. Uploads, pins, tray UI and Nautilus badges are not imp
   bounded eviction and interrupted-publication recovery.
 - Private status socket, desired mount state, accidental-ejection remount and
   graceful worker/session shutdown. Settings and metadata persist across runs.
+- Durable upload snapshots, keyring-backed session checkpoints and bounded Graph
+  upload fragments, exercised with synthetic HTTP/fault fixtures. An explicit
+  [isolated write check](docs/write-validation.md) is available for live validation;
+  these workers are not enabled in ordinary mounts. Conditional rename, move,
+  folder creation and file deletion now share durable ordering with uploads;
+  their isolated checks preserve collisions and uncertain results.
 
 These are implementation capabilities, not a production-readiness claim. See the
 [validation record](docs/validation.md) for what has actually been tested.
@@ -67,9 +77,9 @@ From another terminal:
 Cirrove uses `$XDG_STATE_HOME/cirrove` (fallback `~/.local/state/cirrove`) and
 `$XDG_RUNTIME_DIR/cirrove/control.sock`. Explicit `--state-dir` and `--socket` paths
 support isolated development. State directories must be private (`0700`).
-The daemon does not replace an existing socket. The systemd unit template manages
-its runtime directory; a manual run killed with SIGKILL may require stale-socket
-cleanup after confirming its old process is gone.
+The daemon holds an ownership lock and recovers a disconnected control socket
+after a crash. Disconnected FUSE mounts are recovered only when their account
+identity matches; live mounts and unrelated paths are preserved.
 
 Existing cloud clients, mounts and credentials are not imported or modified.
 The systemd template is supplied separately and is not installed by a build.
@@ -78,13 +88,14 @@ The systemd template is supplied separately and is not installed by a build.
 
 | Crate | Responsibility |
 | --- | --- |
-| `cirrove-core` | Provider-neutral identity, metadata/read contracts, cancellation and request budgets |
+| `cirrove-core` | Provider-neutral identity, metadata/read/upload contracts, cancellation and request budgets |
 | `cirrove-store` | Transactional metadata, observations, persistent inodes and cache index |
-| `cirrove-onedrive` | Microsoft Graph metadata and version-checked ranged reads |
+| `cirrove-onedrive` | Microsoft Graph metadata, version-checked ranged reads and experimental resumable uploads |
 | `cirrove-auth` | Microsoft browser authentication, keyring and refresh broker |
 | `cirrove-service` | Daemon, CLI, account workers, FUSE projection and content cache |
 
 Read [Architecture](docs/architecture.md), [Roadmap](docs/roadmap.md),
+[OneDrive 1.0 milestones](docs/product-milestones.md),
 [Development](docs/development.md) and [Contributing](CONTRIBUTING.md).
 
 Google Drive is the next planned provider. iCloud requires a separate compatibility
