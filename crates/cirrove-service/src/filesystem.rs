@@ -1,6 +1,8 @@
 //! Read-only FUSE projection. Callbacks dispatch asynchronous work; no callback
 //! holds the namespace map while awaiting a provider or a database operation.
+mod lifecycle;
 mod session;
+pub(crate) use lifecycle::WriteControl;
 mod writeback;
 use crate::engine::Engine;
 use cirrove_core::{CancellationToken, Node, NodeKind, ProviderError, Scope};
@@ -48,6 +50,7 @@ pub struct CloudFs {
 struct Inner {
     engine: Arc<Engine>,
     writeback: Option<Arc<writeback::Writeback>>,
+    edits: lifecycle::EditAdmission,
     runtime: Handle,
     views: Mutex<HashMap<u64, View>>,
     files: Mutex<HashMap<u64, OpenFile>>,
@@ -63,23 +66,28 @@ struct Inner {
 }
 impl CloudFs {
     fn finish_handle(&self, handle: FileHandle, reply: ReplyEmpty) {
+        let file = self
+            .inner
+            .files
+            .lock()
+            .ok()
+            .and_then(|f| f.get(&handle.0).cloned());
+        let Some(file) = file else {
+            reply.error(Errno::EBADF);
+            return;
+        };
+        // Read-only previews must not seal someone else's unfinished generation.
+        if file.flags & libc::O_ACCMODE == libc::O_RDONLY {
+            reply.ok();
+            return;
+        }
+        let Ok(admission) = self.inner.edits.admit() else {
+            reply.error(Errno::ENODEV);
+            return;
+        };
         let inner = self.inner.clone();
         self.inner.runtime.spawn(async move {
-            let file = inner
-                .files
-                .lock()
-                .ok()
-                .and_then(|f| f.get(&handle.0).cloned());
-            let Some(file) = file else {
-                reply.error(Errno::EBADF);
-                return;
-            };
-            // A thumbnailer/preview closing its read handle must never publish
-            // another application's unfinished mutable generation.
-            if file.flags & libc::O_ACCMODE == libc::O_RDONLY {
-                reply.ok();
-                return;
-            }
+            let _admission = admission;
             if let Some(writer) = &inner.writeback {
                 match writer.working(&file.view.scope, &file.view.node.id) {
                     Ok(Some(record)) => match writer.seal(record.id).await {
@@ -136,6 +144,7 @@ impl CloudFs {
                 cancel: engine.cancel.child_token(),
                 engine,
                 writeback: None,
+                edits: lifecycle::EditAdmission::new(),
                 runtime: Handle::current(),
                 views: Mutex::new(HashMap::from([(1, root)])),
                 files: Mutex::new(HashMap::new()),
@@ -529,9 +538,14 @@ impl Filesystem for CloudFs {
             reply.error(Errno::EAGAIN);
             return;
         };
+        let Ok(admission) = self.inner.edits.admit() else {
+            reply.error(Errno::ENODEV);
+            return;
+        };
         let inner = self.inner.clone();
         self.inner.runtime.spawn(async move {
             let _permit = permit;
+            let _admission = admission;
             let result = async {
                 let parent = inner.view(parent.0).map_err(|e| errno(&e))?;
                 let nodes = inner.children(&parent).await.map_err(|e| errno(&e))?;
@@ -609,10 +623,15 @@ impl Filesystem for CloudFs {
             reply.error(Errno::EAGAIN);
             return;
         };
+        let Ok(admission) = self.inner.edits.admit() else {
+            reply.error(Errno::ENODEV);
+            return;
+        };
         let inner = self.inner.clone();
         let bytes = data.to_vec();
         self.inner.runtime.spawn(async move {
             let _permit = permit;
+            let _admission = admission;
             let result = async {
                 let file = inner
                     .files
@@ -686,9 +705,14 @@ impl Filesystem for CloudFs {
             reply.error(Errno::EAGAIN);
             return;
         };
+        let Ok(admission) = self.inner.edits.admit() else {
+            reply.error(Errno::ENODEV);
+            return;
+        };
         let inner = self.inner.clone();
         self.inner.runtime.spawn(async move {
             let _permit = permit;
+            let _admission = admission;
             let result = async {
                 if let Some(fh) = fh {
                     let file = inner
@@ -769,9 +793,21 @@ impl Filesystem for CloudFs {
             reply.error(Errno::EAGAIN);
             return;
         };
+        let admission = if flags.0 & libc::O_ACCMODE != libc::O_RDONLY {
+            match self.inner.edits.admit() {
+                Ok(token) => Some(token),
+                Err(e) => {
+                    reply.error(e);
+                    return;
+                }
+            }
+        } else {
+            None
+        };
         let inner = self.inner.clone();
         self.inner.runtime.spawn(async move {
             let _permit = permit;
+            let _admission = admission;
             let result = async {
                 let view = inner.view(inode.0).map_err(|e| errno(&e))?;
                 let node = inner.node(&view).await.map_err(|e| errno(&e))?;

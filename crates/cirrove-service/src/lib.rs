@@ -10,6 +10,7 @@ pub mod manager;
 pub mod mutations;
 pub mod transfers;
 pub mod validation;
+pub mod writable;
 use anyhow::{Context, Result, bail};
 use cirrove_core::{CancellationToken, MetadataProvider, ProviderError, Scope};
 use cirrove_store::Store;

@@ -151,6 +151,35 @@ validation: it neither establishes content download performance nor enables writ
 through mounted paths. Running it again creates a new fixture; it does not accept
 an existing cloud folder as a mutation target.
 
+## Check application saves through a writable mount
+
+```sh
+./target/debug/cirrove validate-onedrive-writable \
+  --label upload-validation \
+  --state-dir "$PWD/.local-state/write-validation"
+```
+
+This developer-only command requires `python3` for a separate application process,
+plus the same disabled test grant and FUSE prerequisites. It creates a new
+`Cirrove-Mounted-Write-Validation-<UUID>` folder and mounts only that fixture.
+The provider wrapper accepts new files only under the new root and replacements
+only for file identities returned by this run's validated upload receipts. Existing
+account files and other drives cannot be selected as write targets.
+
+The application creates one Unicode-named file, writes and fsyncs two synthetic
+versions, then verifies the visible local bytes. The session uploads both immutable
+generations automatically. The command checks their sizes and hashes against the
+application reports, independently verifies the final cloud content, and shuts down
+the temporary mount, also on error, timeout or handled Ctrl+C. Local-save timing
+is separate from remote acknowledgement.
+
+The metadata baseline contains only the generated root; full-account delta/push
+and performance are outside this check. Events, working bytes and immutable saves
+remain in `mounted-write-checks/<UUID>/`. The cloud fixture is also retained, including
+when a check fails. The installed service and ordinary read-only mounts are not
+reconfigured. This does not validate atomic replacement, folder/name mutations,
+physical power loss or a complete application compatibility matrix.
+
 ## Remaining release gates
 
 A passing check covers only its selected account and tested operations. Broader

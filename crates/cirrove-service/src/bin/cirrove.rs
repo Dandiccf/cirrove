@@ -24,6 +24,13 @@ struct Args {
 }
 #[derive(Subcommand)]
 enum Command {
+    /// Developer-only application saves on an isolated, newly created cloud folder.
+    ValidateOnedriveWritable {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        state_dir: PathBuf,
+    },
     /// Measure real Graph directory updates through an isolated read-only mount.
     ValidateOnedriveFreshness {
         #[arg(long)]
@@ -128,6 +135,9 @@ enum Command {
 #[tokio::main]
 async fn main() -> Result<()> {
     match Args::parse().command {
+        Command::ValidateOnedriveWritable { label, state_dir } => {
+            cirrove_service::validation::onedrive_writable(&state_dir, &label).await?;
+        }
         Command::ValidateOnedriveFreshness { label, state_dir } => {
             cirrove_service::validation::onedrive_freshness(&state_dir, &label).await?;
         }

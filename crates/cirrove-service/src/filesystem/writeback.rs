@@ -10,6 +10,7 @@ type EditKey = (String, String, String, String);
 
 pub(super) struct Writeback {
     journal: Arc<Mutex<UploadJournal>>,
+    pub wake: Arc<tokio::sync::Notify>,
     visible: Mutex<HashMap<EditKey, WorkingFile>>,
     hydrating: Mutex<HashMap<EditKey, Weak<tokio::sync::Mutex<()>>>>,
 }
@@ -56,6 +57,7 @@ impl Writeback {
         .map_err(std::io::Error::other)?;
         Ok(Arc::new(Self {
             journal,
+            wake: Arc::new(tokio::sync::Notify::new()),
             visible: Mutex::new(
                 files
                     .into_iter()
@@ -221,6 +223,28 @@ impl Writeback {
             })
             .await?;
         self.publish(record)?;
+        self.wake.notify_waiters();
         Ok(())
+    }
+    pub async fn seal_all(&self) -> Result<()> {
+        // Continue across per-file failures so every dirty working descriptor
+        // receives fsync, even if one snapshot cannot fit in the remaining quota.
+        let (files, failed) = self
+            .local(|j| {
+                let files = j.working_files()?;
+                let mut failed = false;
+                for file in files.iter().filter(|f| f.dirty) {
+                    if j.seal_working(file.id).is_err() {
+                        failed = true;
+                    }
+                }
+                Ok((j.working_files()?, failed))
+            })
+            .await?;
+        for file in files {
+            self.publish(file)?;
+        }
+        self.wake.notify_waiters();
+        if failed { Err(Errno::EIO) } else { Ok(()) }
     }
 }

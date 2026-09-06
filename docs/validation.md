@@ -301,10 +301,35 @@ operations when remote creation assigns a new item ID.
 
 This is initial mounted-write integration, not completion of milestone 2. The
 normal daemon still mounts read-only. Atomic replacement, writable folder/name
-operations, automatic upload-worker lifecycle, conflicts in the desktop UI and
-live-provider application-save validation remain open. Writable mmap and metadata
+operations, conflicts in the desktop UI and broader live-provider application-save
+validation remain open. Writable mmap and metadata
 changes are explicitly unsupported. Process kills and injected storage failures do
 not establish physical power-loss or physical disk-full behavior.
+
+## Automatic uploads and writable-session shutdown
+
+The experimental session now owns its upload workers and stops mutating callback
+admission before draining local edits. The updated code passes 121 default workspace
+tests and eighteen actual synthetic kernel-FUSE checks. Formatting, strict Clippy,
+workspace build, service smoke, two observer tests and Rust documentation pass.
+
+Four additional mounted tests verify:
+
+- Consecutive application saves upload automatically in order; an unsealed edit
+  on an open handle is sealed by shutdown and uploaded after restart.
+- Stalled provider and keyring futures that ignore cancellation cannot indefinitely
+  block shutdown; local snapshots remain exact and require remote reconciliation.
+- Shutdown waits for a previously accepted write blocked on local journal storage,
+  then preserves its exact bytes before detaching the mount.
+- Insufficient snapshot quota returns a shutdown error while retaining the dirty
+  working file and releasing the temporary mount.
+
+A new developer command exercises two application saves through a temporary writable
+mount backed by Graph. Its separate application process, fixture-only namespace and
+allowed upload identities are checked locally. Live execution is recorded separately;
+the existence of this command does not itself establish provider-backed success.
+Atomic replacement, folder operations, physical disk failure and the ordinary
+application compatibility matrix remain open.
 
 ## Required before calling stages 1–3 complete
 

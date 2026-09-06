@@ -3,6 +3,7 @@
 mod freshness;
 mod namespace;
 mod notifications;
+mod writable;
 use crate::{
     accounts,
     journal::{UploadJournal, UploadRecord, UploadState},
@@ -33,6 +34,7 @@ use std::{
     },
     time::Duration,
 };
+pub use writable::onedrive_writable;
 
 /// This fixture changes only a file created by this run, after its competing
 /// replacement has staged every byte but before the final commit request.

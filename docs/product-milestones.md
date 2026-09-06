@@ -38,8 +38,9 @@ passed its basic generated-file checks on a business drive, including a competin
 edit before commit. Broader provider recovery validation and writable FUSE still
 need to complete their connection to actual application saves. An experimental
 FUSE path now exercises local create/write/truncate/fsync, consecutive generations
-and offline/crash recovery with synthetic data. Atomic replacement and automatic
-transfer lifecycle are still missing from the mounted path. Conditional namespace
+and offline/crash recovery with synthetic data. Its experimental session now owns
+automatic upload workers and drains accepted local writes before unmounting.
+Atomic replacement is still missing from the mounted path. Conditional namespace
 changes now share durable ordering with uploads; restart, lost-response and
 file-collision fixtures cover their worker. Folder removal, hierarchy dependencies
 and atomic replacement are still required before writable filesystem acceptance.

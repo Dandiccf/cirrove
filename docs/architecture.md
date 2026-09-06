@@ -216,9 +216,10 @@ connection and joins its request threads. The control identity comes from the
 session's device fdinfo, or the exact owned mount's device number on older kernels;
 it is never rediscovered by path at shutdown. Acquiring the control descriptor is
 a mount prerequisite, and missing control access is reported explicitly. This
-closes the read-only session even when a preview or shell retains a handle. Future
-writable sessions must first seal/drain their edits; disconnecting is not upload
-acknowledgement. See [Linux FUSE connections and control](https://docs.kernel.org/filesystems/fuse/fuse.html).
+closes the read-only session even when a preview or shell retains a handle. The
+experimental writable-session owner first drains accepted edits and seals dirty
+working files; disconnecting is not upload acknowledgement. See
+[Linux FUSE connections and control](https://docs.kernel.org/filesystems/fuse/fuse.html).
 
 After a process crash, startup checks a stale control socket under the daemon's
 ownership lock and removes it only when a connection is refused. A disconnected
@@ -292,10 +293,33 @@ Experimental writable inodes retain identity while their local bytes change.
 Memory mapping is currently disabled for these sessions; read-only sessions keep
 their existing content-version inode and mapping behavior. Namespace mutations,
 atomic replacement, permission/time changes, clean-working-copy retirement,
-conflict UI and automatic transfer lifecycle are not connected to writable mounts
-yet. Sealing may require space for both the working file and its snapshot; failure
+and conflict UI are not connected to writable mounts yet. Sealing may require space
+for both the working file and its snapshot; failure
 keeps the dirty source and reports an error. Physical power loss, physical disk-full
 recovery and sustained real-provider application editing remain acceptance gates.
+
+## Experimental writable-session ownership
+
+`WritableSession` owns a test engine, its FUSE session and two upload workers.
+Successful sealing wakes the workers; a one-second fallback revisits persisted
+retry deadlines without resetting backoff. Saves finish after durable local
+publication, independently of cloud acknowledgement. Paginated journal records
+expose each generation's state and fragment progress; desktop presentation and
+durable actionable error details remain work for the product integration.
+
+Shutdown atomically stops admission of mutating FUSE callbacks and cancels external
+work. It waits for every previously admitted callback, then fsyncs and seals dirty
+working files. Provider calls and keyring operations are cancellable at the service
+boundary, including adapters that fail to observe the supplied token. Workers stop
+before the owned kernel connection is detached and disconnected. If a snapshot
+cannot be sealed, shutdown still stops the session, returns an error and retains
+the dirty working bytes. No network await occurs under the journal lock.
+
+This drain can wait for local disk work: stopping cloud requests does not authorize
+discarding an accepted local write. Dropping the session without awaiting its explicit
+shutdown is treated as interruption, not successful draining. Restart recovery
+retains durable snapshots and dirty working copies. The ordinary account manager
+does not select this experimental owner yet.
 
 ## Next boundaries
 

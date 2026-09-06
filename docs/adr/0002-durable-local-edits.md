@@ -82,6 +82,10 @@ concurrency matrix.
 
 The experimental working-file layer now seals new generations during an active
 upload and exercises FUSE open/write/truncate/fsync, including offline restart.
+An explicit writable-session owner starts bounded upload workers, wakes them after
+sealing, and drains accepted local callbacks before disconnecting its FUSE session.
+Cancelled remote attempts remain subject to reconciliation; shutdown does not wait
+for cloud acknowledgement or discard unsealed dirty copies on snapshot failure.
 The remaining integration must implement dependencies between metadata operations,
 atomic-save behavior, user conflict resolution and retention policy for old receipts. Live tests use a dedicated
 test folder after opt-in write consent. See [the developer workflow](../write-validation.md).

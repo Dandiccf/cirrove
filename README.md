@@ -51,7 +51,9 @@ and Nautilus badges are not implemented.
   synthetic FUSE create/write/truncate/fsync and offline-restart checks. A new save
   waits for its predecessor's confirmed remote identity and ETag. This API requires
   an explicitly writable, disabled test account; ordinary mounts do not enable it.
-  Atomic replacement and writable namespace operations remain incomplete.
+  Its session starts bounded upload workers automatically and drains accepted local
+  writes before unmounting. Atomic replacement and writable namespace operations
+  remain incomplete.
 
 These are implementation capabilities, not a production-readiness claim. See the
 [validation record](docs/validation.md) for what has actually been tested.
