@@ -32,8 +32,9 @@ The socket has bounded frames/messages, connection/send deadlines, cancellation 
 a heartbeat deadline which unrelated messages cannot extend. A successful initial
 connection or reconnection requests catch-up. Failed endpoint acquisition does not
 permanently disable notifications: bounded backoff retries it. Authentication
-failures are visible. Healthy sessions renew after 50 minutes; an actual long
-renewal test remains required. Graph's account-wide cooldown still applies.
+failures are visible. Healthy sessions renew after 50 minutes; an isolated
+business-drive run has passed actual renewal and a subsequent notification.
+Graph's account-wide cooldown still applies.
 
 Refresh starts are spaced by at least 250 ms to coalesce bursts without indefinitely
 postponing continuous activity. A hint received during a failed request cannot
@@ -99,7 +100,11 @@ Neither adapter is implemented or promised to provide equivalent latency.
   personal OneDrive, linked libraries and restricted permissions.
   The notification validator's optional `--check-renewal` waits for the actual
   approximately 50-minute renewal and checks a new notification after reconnecting;
-  providing the command is not evidence that the long-session gate has passed.
+  one isolated business-drive run has now passed that real renewal, reconnection,
+  and a fourth generated-fixture change through notification-triggered delta.
+  The process finished successfully and retained its private event evidence.
+  This does not establish personal-account behavior, outage recovery or 24-hour
+  sustained operation.
 - Revalidation fixtures cover bounded activity, backoff, cached navigation while
   another directory stalls, and actual mounted create/rename/delete visibility
   during a blocked content read. Push is disabled and the delta timer is one hour

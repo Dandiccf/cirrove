@@ -244,6 +244,37 @@ cost, content reads and indefinitely visible windows remain separate validation
 gates. No installed-runtime upgrade is implied by building or merging these changes.
 See [the repeat command](write-validation.md#check-directory-freshness-through-an-actual-mount).
 
+## Open application handles during shutdown
+
+A mounted desktop upgrade detached its read-only filesystem but the daemon did
+not exit before the service stop timeout. A new kernel regression reproduced that
+behavior by retaining both an application file descriptor and a directory
+descriptor: the old session join finished only after those descriptors closed.
+The original process's exact retained descriptors were not traced.
+
+The session now retains its own FUSE connection-control descriptor when mounting,
+unmounts before disconnecting the connection and joins its request threads. Missing
+control access rejects the mount explicitly. The regression passes with handles
+still open and checks that a second mount with the same account identity remains
+readable. A separate subprocess test sends SIGTERM to a synthetic account manager
+while the parent retains both handles; the whole child process exits successfully,
+the mount disappears and the account state can be owned again.
+
+All eleven local kernel-FUSE tests pass, including read/mmap consistency, lazy
+ejection recovery, thumbnail contention and the two new lifecycle checks. These
+are synthetic fixtures with no cloud credentials. They do not prove every possible
+shutdown failure, writable-save draining, or a successful installed desktop upgrade.
+
+## Actual notification renewal
+
+An isolated business-drive run of the notification validator with `--check-renewal`
+completed its real approximately 50-minute renewal, established the replacement
+connection, and observed a subsequent generated-fixture rename through a fresh
+notification-triggered delta. All four generated changes passed and the test
+process exited successfully. Event details and provider timings remain private.
+This closes that particular business-drive renewal check, not the wider personal
+account, suspend/outage, delivery-latency or 24-hour acceptance matrix.
+
 ## Required before calling stages 1–3 complete
 
 - Cirrove's own Microsoft app registration, real consent and verified work-account,

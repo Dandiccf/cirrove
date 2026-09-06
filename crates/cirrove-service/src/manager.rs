@@ -3,7 +3,7 @@
 use crate::{
     accounts::{Account, Settings, provider},
     engine::{Engine, FeedHealth},
-    filesystem::CloudFs,
+    filesystem::{CloudFs, CloudSession},
 };
 use anyhow::{Result, bail};
 use cirrove_core::{CancellationToken, ReadProvider};
@@ -39,7 +39,7 @@ pub struct Manager {
 struct Running {
     config: Account,
     engine: Arc<Engine>,
-    session: Option<fuser::BackgroundSession>,
+    session: Option<CloudSession>,
     mount_error: Option<String>,
 }
 impl Running {
@@ -181,8 +181,8 @@ impl Manager {
                                                 active.mount_error = None;
                                                 status.mounted = true;
                                             }
-                                            Err(_) => {
-                                                active.mount_error=Some("mount unavailable; directory must be empty and unmounted".into());
+                                            Err(error) => {
+                                                active.mount_error = Some(mount_error(&error));
                                             }
                                         }
                                     }
@@ -247,10 +247,7 @@ impl Manager {
         }
         let (session, mount_error) = match mount_checked(engine.clone()).await {
             Ok(session) => (Some(session), None),
-            Err(_) => (
-                None,
-                Some("mount unavailable; directory must be empty and unmounted".into()),
-            ),
+            Err(error) => (None, Some(mount_error(&error))),
         };
         Ok(Running {
             config: account,
@@ -260,7 +257,15 @@ impl Manager {
         })
     }
 }
-async fn mount_checked(engine: Arc<Engine>) -> Result<fuser::BackgroundSession> {
+fn mount_error(error: &anyhow::Error) -> String {
+    if let Some(error) = error.downcast_ref::<std::io::Error>()
+        && error.kind() == std::io::ErrorKind::Unsupported
+    {
+        return error.to_string();
+    }
+    "mount unavailable; directory must be empty and unmounted".into()
+}
+async fn mount_checked(engine: Arc<Engine>) -> Result<CloudSession> {
     let path = engine.account.mount_path.clone();
     recover_disconnected_mount(&engine.account).await?;
     // CloudFs captures this async runtime, while filesystem checks and the FUSE

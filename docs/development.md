@@ -117,6 +117,11 @@ These fixtures use only synthetic local data and do not require a cloud account.
 The journal has a separate Graph upload worker but is not connected to writable
 filesystem operations; ordinary mounts remain read-only.
 
+Kernel mount tests also need `/sys/fs/fuse/connections` mounted as `fusectl`, with
+per-connection control access for the mount owner. Normal systemd desktops usually
+mount this when FUSE is loaded; restricted containers need to provide it explicitly.
+The service does not mount or reconfigure this system filesystem automatically.
+
 The default suite skips tests needing kernel FUSE access. Run these explicitly in
 a Linux session with `/dev/fuse` and `fusermount3`:
 

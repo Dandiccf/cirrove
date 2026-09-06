@@ -76,8 +76,9 @@ reporting connected. The service retries failed subscription attempts and each
 successful connection requests a catch-up delta. A healthy session renews after
 50 minutes. Message/frame limits and cancellation bound socket work. Connection
 state is visible per feed in the status response; it is separate from metadata
-freshness. Personal-account delivery and actual long-session renewal remain live
-validation gates.
+freshness. An isolated business-drive check passed the actual renewal and a new
+notification afterward; personal accounts and recovery after suspend/network loss
+remain live validation gates.
 
 The store stages paginated changes and advances the continuation in one transaction.
 Visible nodes and the completed cursor change together only on the terminal page.
@@ -206,6 +207,17 @@ Every mount attempt checks for an empty real directory outside other FUSE mounts
 It never mounts over local files deposited after an ejection. Enabled accounts are
 remounted after accidental ejection; `disable` records an intentional unmount.
 Shutdown cancels and awaits workers, then unmounts and joins FUSE sessions.
+
+Linux lazy unmount leaves the kernel connection alive while an application retains
+a file or directory descriptor. Cirrove therefore retains its own connection's
+FUSE control descriptor when mounting, detaches the mount, disconnects that kernel
+connection and joins its request threads. The control identity comes from the
+session's device fdinfo, or the exact owned mount's device number on older kernels;
+it is never rediscovered by path at shutdown. Acquiring the control descriptor is
+a mount prerequisite, and missing control access is reported explicitly. This
+closes the read-only session even when a preview or shell retains a handle. Future
+writable sessions must first seal/drain their edits; disconnecting is not upload
+acknowledgement. See [Linux FUSE connections and control](https://docs.kernel.org/filesystems/fuse/fuse.html).
 
 After a process crash, startup checks a stale control socket under the daemon's
 ownership lock and removes it only when a connection is refused. A disconnected
