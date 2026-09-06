@@ -174,10 +174,21 @@ during sign-in. These IDs are identifiers, not passwords or client secrets.
 
 ## 5. Configure the native desktop callback
 
-1. In the registration, open **Authentication → Add a platform**.
-2. Select **Mobile and desktop applications**.
-3. Add the custom redirect URI **`http://localhost`** and save/configure the platform.
-4. Verify that URI appears under the desktop platform.
+1. In the registration's left menu, open **Authentication (Preview)** (or
+   **Authentication**, depending on the portal version).
+2. On the **Redirect URI configuration** tab, select **Add Redirect URI**. This
+   opens the platform chooser. The registration's **Overview** also has an
+   **Add a Redirect URI** link beside **Redirect URIs**.
+3. In **Select a platform to add redirect URI**, select **Mobile and desktop
+   applications**. This is also the platform for Cirrove on Linux.
+4. Enter **`http://localhost`** under **Custom redirect URIs**, or select it if
+   offered, then select **Configure** and save any pending changes.
+5. Verify that `http://localhost` appears under **Mobile and desktop applications**.
+
+In the older portal layout, step 2 is **Platform configurations → Add a platform**.
+Both layouts configure the same desktop callback; the newer layout asks you to
+add the redirect URI before choosing its platform.
+[Microsoft's current redirect setup](https://learn.microsoft.com/en-us/entra/identity-platform/how-to-add-redirect-uri)
 
 Cirrove opens your browser and temporarily listens on a local port. It uses
 authorization code flow with PKCE. Microsoft ignores the port when matching a

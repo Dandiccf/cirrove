@@ -23,9 +23,14 @@ connections. The shorter steps below assume you already have a suitable director
 3. Record the **Application (client) ID**. These IDs identify the application and
    tenant; they are not client secrets. See Microsoft's
    [registration instructions](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app).
-4. Under **Authentication → Add a platform**, select **Mobile and desktop
-   applications** and register `http://localhost`. Cirrove listens on an ephemeral
-   loopback port. Microsoft ignores that port when matching a localhost redirect.
+4. Open **Authentication (Preview)** (or **Authentication**), then **Redirect URI
+   configuration → Add Redirect URI**. In the platform chooser, select **Mobile
+   and desktop applications**, enter `http://localhost` as a custom redirect URI
+   (or select it if offered), and select **Configure**. Save any pending changes.
+   In the older portal, the equivalent button is **Platform configurations → Add
+   a platform**. See Microsoft's [current redirect setup](https://learn.microsoft.com/en-us/entra/identity-platform/how-to-add-redirect-uri).
+   Cirrove listens on an ephemeral loopback port. Microsoft ignores that port when
+   matching a localhost redirect.
    See the [redirect rules](https://learn.microsoft.com/en-us/entra/identity-platform/reply-url).
 5. Under **API permissions**, add Microsoft Graph **delegated** permissions
    `User.Read` and `Files.Read.All`. The latter includes files accessible to the
