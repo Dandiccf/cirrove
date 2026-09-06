@@ -35,11 +35,14 @@ currently bundled; another project's client ID is never substituted.
 
 ## 3 — Read-only filesystem
 
-- [x] Linux FUSE adapter with stable inodes and independent metadata/content capacity.
+- [x] Linux FUSE adapter with stable directory/content-version inodes and independent
+      metadata/content capacity, including bounded content-read admission.
 - [x] Version-checked ranged reads, request coalescing and bounded disk block cache.
 - [x] Checksum verification, eviction and interrupted cache-publication recovery.
 - [x] Real local FUSE reads, large offsets, offline restart, read-only enforcement
-      and ejection/remount against synthetic data.
+      and ejection/remount against synthetic data; shared/private mappings and
+      isolation of old/new open file revisions.
+- [x] Synthetic cold/warm latency and 96-reader thumbnail burst measurements.
 - [ ] Record reproducible cold/warm p50/p95 latency, API requests, peak memory and
       thumbnail-storm behavior. Separate local fixtures from real-provider results.
 - [ ] Validate ordinary desktop applications and long-lived open files on real data.

@@ -24,8 +24,9 @@ client with this preview. Uploads, pins, tray UI and Nautilus badges are not imp
   backoff and an account-wide provider cooldown.
 - Linked-drive discovery and shortcut projection with separate target identities.
   Folder-only SharePoint sharing and revoked targets still need live validation.
-- Read-only FUSE projection with persistent inodes. Directory requests have capacity
-  reserved separately from content downloads.
+- Read-only FUSE projection with persistent directory and content-version inodes,
+  including shared read-only and private memory mappings. Directory requests have
+  capacity reserved separately from a bounded queue of content reads.
 - Version-checked 4 MiB range cache, concurrent-request coalescing, checksums,
   bounded eviction and interrupted-publication recovery.
 - Private status socket, desired mount state, accidental-ejection remount and
@@ -38,7 +39,8 @@ These are implementation capabilities, not a production-readiness claim. See the
 
 Requires Linux, Rust 1.98.1 (pinned), a C/C++ build toolchain, CMake and pkg-config.
 Rustup installs the toolchain if necessary. SQLite is bundled; HTTPS uses Rustls.
-Mounting additionally needs `/dev/fuse` and `fusermount3` (`fuse3` on Arch).
+Mounting additionally needs `/dev/fuse`, `fusermount3` (`fuse3` on Arch), and a kernel
+advertising `FUSE_DIRECT_IO_ALLOW_MMAP`. The mount rejects missing support explicitly.
 Browser sign-in needs `xdg-open` and a desktop Secret Service keyring.
 
 ```sh

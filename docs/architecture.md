@@ -31,7 +31,15 @@ flowchart LR
 A scope is `(account, provider, collection)`; Graph collections are drive IDs.
 Item IDs are identity, while names and parents are mutable presentation. A shortcut
 retains its target drive/item and target kind. Duplicate projections receive distinct
-stable inodes, while cached bytes share the same remote identity and version.
+inodes, while cached bytes share the same remote identity and version. Directories
+retain their inodes; regular-file inode keys additionally contain the content revision
+and size to separate kernel pages belonging to different versions. A metadata-only
+rename reuses the inode and bytes when a provider content tag is available.
+
+Graph packages, such as OneNote notebooks, are projected as read-only child containers.
+They have neither a file nor a folder facet; treating that as a malformed entry would
+abort a whole delta page or directory. This projection does not implement OneNote
+editing or claim compatibility with native notebook applications.
 
 Discovery follows indexed ancestry and starts one delta worker per linked drive.
 Reachable roots are persisted; obsolete subscriptions are removed only when the
@@ -103,7 +111,9 @@ remote file's total size; namespace and outstanding application buffers add memo
 A small failure cooldown prevents coalesced failures from becoming a retry storm.
 
 Each uncached Graph range currently uses metadata checks before and after download.
-Both ETag and size must match the opened version. Response range and byte count are
+The content revision and size must match the opened version. Cirrove prefers Graph's
+content-only cTag and falls back to eTag when absent; the two tag namespaces are
+distinct in cache keys. Response range and byte count are
 validated before publication. This favors version consistency but adds **two Graph
 metadata requests per uncached block**; real-provider latency measurements must guide
 future optimization. A changed file yields ESTALE instead of mixing versions.
@@ -119,8 +129,26 @@ an offline-availability guarantee.
 The pure-Rust `fuser` adapter uses the Linux FUSE protocol and `fusermount3`, without
 libfuse development headers. Callbacks dispatch work to Tokio and keep namespace
 locks short. Directory handles have stable listing snapshots. File handles bind a
-content version. Kernel direct I/O avoids a second uncontrolled content cache, and
-metadata commits notify the kernel to invalidate known entries/attributes.
+content version. Ordinary read calls use kernel direct I/O. Mount initialization
+requires `FUSE_DIRECT_IO_ALLOW_MMAP` to support shared read-only and private mappings;
+mapping pages occupy kernel/application memory in addition to Cirrove's block cache.
+The disk quota is not a limit on total kernel or application memory.
+
+Metadata commits invalidate known paths and attributes. Pages of an older file inode
+remain associated with that revision, so an existing mapping never silently reads
+bytes from its replacement. An uncached old block cannot be retrieved after the
+provider changes that file: reads return ESTALE, and a failing mapped page fault may
+deliver SIGBUS to the application. Historical-version downloads are not implemented.
+Already cached old bytes remain readable while retained; cache eviction is still
+possible. This does not guarantee indefinite snapshots of open files.
+
+The filesystem admits at most 1,024 content requests and runs 32 at a time. Additional
+admitted reads await capacity asynchronously for at most 30 seconds; queue expiry is
+ETIMEDOUT and admission overflow is EAGAIN. Account cancellation releases active and
+queued reads with ENODEV. Content loaders remain limited to four. Metadata requests
+have a separate 128-slot budget, so content contention does not consume those slots.
+Namespace views are currently retained until unmount; long-session namespace growth
+must be measured separately from the bounded content cache.
 
 This first projection has read-only permissions and rejects write opens. File-manager
 thumbnail generation still causes real content reads; reserved metadata capacity
@@ -150,6 +178,10 @@ behind a compatibility adapter with visible authentication/API limitations.
 - [Graph delta](https://learn.microsoft.com/en-us/graph/api/driveitem-delta?view=graph-rest-1.0)
 - [Graph throttling](https://learn.microsoft.com/en-us/graph/throttling)
 - [Graph downloads](https://learn.microsoft.com/en-us/graph/api/driveitem-get-content?view=graph-rest-1.0)
+- [Graph content and metadata tags](https://learn.microsoft.com/en-us/graph/api/resources/driveitem?view=graph-rest-1.0)
+- [Graph packages](https://learn.microsoft.com/en-us/graph/api/resources/package?view=graph-rest-1.0)
+- [Graph child containers](https://learn.microsoft.com/en-us/graph/api/driveitem-list-children?view=graph-rest-1.0)
+- [Linux FUSE I/O and memory mapping](https://docs.kernel.org/filesystems/fuse/fuse-io.html)
 - [Google change tracking](https://developers.google.com/workspace/drive/api/guides/manage-changes)
 - [Apple CloudKit](https://developer.apple.com/documentation/cloudkit)
 - [Rclone iCloud compatibility notes](https://rclone.org/iclouddrive/)

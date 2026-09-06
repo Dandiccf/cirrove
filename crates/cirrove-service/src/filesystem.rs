@@ -20,6 +20,7 @@ use std::{
 use tokio::{runtime::Handle, sync::Semaphore};
 
 const TTL: Duration = Duration::from_secs(1);
+const READ_QUEUE_TIMEOUT: Duration = Duration::from_secs(30);
 #[derive(Clone)]
 struct View {
     inode: u64,
@@ -28,6 +29,7 @@ struct View {
     node: Node,
     name: String,
     alias: Vec<(String, String)>,
+    reference: bool,
     ancestry: Vec<(String, String)>,
 }
 #[derive(Clone)]
@@ -46,6 +48,7 @@ struct Inner {
     directories: Mutex<HashMap<u64, Arc<Vec<View>>>>,
     next_handle: AtomicU64,
     pending: Arc<Semaphore>,
+    admitted_reads: Arc<Semaphore>,
     reads: Arc<Semaphore>,
     uid: u32,
     gid: u32,
@@ -62,6 +65,7 @@ impl CloudFs {
             size: 0,
             modified_unix: 0,
             etag: None,
+            content_version: None,
             target: None,
         };
         let scope = engine.scope(&engine.account.drive.id);
@@ -73,6 +77,7 @@ impl CloudFs {
             node: root,
             name: engine.account.label.clone(),
             alias: vec![],
+            reference: false,
         };
         Ok(Self {
             inner: Arc::new(Inner {
@@ -84,6 +89,7 @@ impl CloudFs {
                 directories: Mutex::new(HashMap::new()),
                 next_handle: AtomicU64::new(1),
                 pending: Arc::new(Semaphore::new(128)),
+                admitted_reads: Arc::new(Semaphore::new(1024)),
                 reads: Arc::new(Semaphore::new(32)),
                 uid: owner.uid(),
                 gid: owner.gid(),
@@ -93,9 +99,42 @@ impl CloudFs {
     pub fn start_invalidations(&self, notifier: fuser::Notifier) {
         let inner = self.inner.clone();
         self.inner.runtime.spawn(async move {
-            loop {tokio::select!{biased;_=inner.cancel.cancelled()=>break,_=inner.engine.changed.notified()=>{}}
-                let entries=inner.views.lock().map(|v|v.values().map(|n|(n.inode,n.parent,n.name.clone())).collect::<Vec<_>>()).unwrap_or_default();
-                let notifier=notifier.clone();let _=tokio::task::spawn_blocking(move||{for (inode,parent,name) in entries {let _=notifier.inval_inode(INodeNo(inode),0,0);if inode!=1{let _=notifier.inval_entry(INodeNo(parent),OsStr::new(&name));}}}).await;
+            loop {
+                tokio::select! {
+                    biased;
+                    _ = inner.cancel.cancelled() => break,
+                    _ = inner.engine.changed.notified() => {}
+                }
+                let entries = inner
+                    .views
+                    .lock()
+                    .map(|views| {
+                        views
+                            .values()
+                            .map(|view| {
+                                (
+                                    view.inode,
+                                    view.parent,
+                                    view.name.clone(),
+                                    view.node.kind == NodeKind::Folder,
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default();
+                let notifier = notifier.clone();
+                let _ = tokio::task::spawn_blocking(move || {
+                    for (inode, parent, name, directory) in entries {
+                        // File revisions have separate inodes. Preserve pages of
+                        // an old open mapping; refresh attributes and path lookup.
+                        let offset = if directory { 0 } else { -1 };
+                        let _ = notifier.inval_inode(INodeNo(inode), offset, 0);
+                        if inode != 1 {
+                            let _ = notifier.inval_entry(INodeNo(parent), OsStr::new(&name));
+                        }
+                    }
+                })
+                .await;
             }
         });
     }
@@ -124,7 +163,7 @@ impl Inner {
             .cloned()
             .ok_or(ProviderError::NotFound)
     }
-    fn project(parent: &View, child: Node) -> Result<(String, View), ProviderError> {
+    fn project(parent: &View, child: Node) -> Result<View, ProviderError> {
         if child.name.is_empty()
             || child.name == "."
             || child.name == ".."
@@ -151,13 +190,12 @@ impl Inner {
             node.id = target.item.clone();
             node.kind = target.kind.clone().unwrap_or(NodeKind::Folder);
             node.etag = None;
+            node.content_version = None;
             node.target = None;
         }
         if node.kind == NodeKind::Folder {
             ancestry.push((scope.collection.clone(), node.id.clone()));
         }
-        let key = serde_json::to_string(&(&scope.account, &alias, &scope.collection, &node.id))
-            .map_err(|_| ProviderError::Unavailable)?;
         let view = View {
             inode: 0,
             parent: parent.inode,
@@ -165,12 +203,38 @@ impl Inner {
             node,
             name,
             alias,
+            reference: child.target.is_some(),
             ancestry,
         };
-        Ok((key, view))
+        Ok(view)
+    }
+    fn inode_key(view: &View) -> Result<String, ProviderError> {
+        let identity = (
+            &view.scope.account,
+            &view.alias,
+            &view.scope.collection,
+            &view.node.id,
+        );
+        // Regular-file revisions have independent kernel page caches. Stable
+        // provider identity remains account/drive/item; names never enter the key.
+        if view.node.kind == NodeKind::File {
+            serde_json::to_string(&(
+                "content-inode-v1",
+                identity,
+                view.node.content_revision(),
+                view.node.size,
+            ))
+        } else {
+            serde_json::to_string(&identity)
+        }
+        .map_err(|_| ProviderError::Unavailable)
     }
     async fn insert(&self, parent: &View, child: Node) -> Result<View, ProviderError> {
-        let (key, mut view) = Self::project(parent, child)?;
+        let mut view = Self::project(parent, child)?;
+        if view.reference {
+            view.node = self.engine.node(&view.scope, &view.node.id).await?;
+        }
+        let key = Self::inode_key(&view)?;
         let db = self.engine.db.clone();
         view.inode = tokio::task::spawn_blocking(move || Store::open(db)?.inode(&key))
             .await
@@ -195,14 +259,10 @@ impl Inner {
                 ..self.view(parent.parent)?
             },
         ];
-        let mut keys = vec![];
         let mut projected = vec![];
         for node in nodes {
             match Self::project(&parent, node) {
-                Ok((key, view)) => {
-                    keys.push(key);
-                    projected.push(view);
-                }
+                Ok(view) => projected.push(view),
                 Err(ProviderError::Protocol(_)) => {
                     tracing::warn!("cloud entry could not be projected (cycle or invalid name)")
                 }
@@ -210,20 +270,43 @@ impl Inner {
             }
         }
         let db = self.engine.db.clone();
-        let inodes = tokio::task::spawn_blocking(move || Store::open(db)?.inodes(&keys))
-            .await
-            .map_err(|_| ProviderError::Unavailable)?
-            .map_err(|_| ProviderError::Unavailable)?;
+        let projected = tokio::task::spawn_blocking(move || -> Result<Vec<View>, ProviderError> {
+            let mut store = Store::open(db).map_err(|_| ProviderError::Unavailable)?;
+            for view in &mut projected {
+                // A cold link may have a provisional directory-entry inode until
+                // lookup resolves its target. Listing never waits for that network
+                // request; only cached target metadata participates here.
+                if view.reference
+                    && let Some(node) = store
+                        .node(&view.scope, &view.node.id)
+                        .map_err(|_| ProviderError::Unavailable)?
+                {
+                    view.node = node;
+                }
+            }
+            let keys = projected
+                .iter()
+                .map(Self::inode_key)
+                .collect::<Result<Vec<_>, _>>()?;
+            let inodes = store
+                .inodes(&keys)
+                .map_err(|_| ProviderError::Unavailable)?;
+            for (view, inode) in projected.iter_mut().zip(inodes) {
+                view.inode = inode;
+            }
+            Ok(projected)
+        })
+        .await
+        .map_err(|_| ProviderError::Unavailable)??;
         let mut views = self.views.lock().map_err(|_| ProviderError::Unavailable)?;
-        for (mut view, inode) in projected.into_iter().zip(inodes) {
-            view.inode = inode;
-            views.insert(inode, view.clone());
+        for view in projected {
+            views.insert(view.inode, view.clone());
             result.push(view);
         }
         Ok(result)
     }
     async fn node(&self, view: &View) -> Result<Node, ProviderError> {
-        if view.inode == 1 {
+        if view.inode == 1 || view.node.kind == NodeKind::File {
             return Ok(view.node.clone());
         }
         self.engine.node(&view.scope, &view.node.id).await
@@ -270,6 +353,18 @@ fn errno(error: &ProviderError) -> Errno {
     }
 }
 impl Filesystem for CloudFs {
+    fn init(&mut self, _req: &Request, config: &mut fuser::KernelConfig) -> std::io::Result<()> {
+        config
+            .add_capabilities(fuser::InitFlags::FUSE_DIRECT_IO_ALLOW_MMAP)
+            .map_err(|_| {
+                std::io::Error::new(
+                    std::io::ErrorKind::Unsupported,
+                    "kernel lacks FUSE direct-I/O mmap support",
+                )
+            })?;
+        Ok(())
+    }
+
     fn lookup(&self, _req: &Request, parent: INodeNo, name: &OsStr, reply: ReplyEntry) {
         let Ok(permit) = self.inner.pending.clone().try_acquire_owned() else {
             reply.error(Errno::EAGAIN);
@@ -364,13 +459,29 @@ impl Filesystem for CloudFs {
         _owner: Option<LockOwner>,
         reply: ReplyData,
     ) {
-        let Ok(permit) = self.inner.reads.clone().try_acquire_owned() else {
+        // Bound task admission separately from active read buffers. A routine
+        // thumbnail burst waits asynchronously instead of failing at 32 readers.
+        let Ok(admission) = self.inner.admitted_reads.clone().try_acquire_owned() else {
             reply.error(Errno::EAGAIN);
             return;
         };
         let inner = self.inner.clone();
         self.inner.runtime.spawn(async move {
-            let _permit = permit;
+            let _admission = admission;
+            let _permit = tokio::select! {
+                biased;
+                _ = inner.cancel.cancelled() => {
+                    reply.error(Errno::ENODEV);
+                    return;
+                },
+                permit = tokio::time::timeout(READ_QUEUE_TIMEOUT, inner.reads.acquire()) => {
+                    match permit {
+                        Ok(Ok(permit)) => permit,
+                        Ok(Err(_)) => { reply.error(Errno::EIO); return; },
+                        Err(_) => { reply.error(Errno::ETIMEDOUT); return; },
+                    }
+                }
+            };
             let result = async {
                 let file = inner
                     .files

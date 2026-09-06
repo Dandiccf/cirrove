@@ -32,8 +32,9 @@ create a client secret, enable implicit grants, or add application-wide permissi
 ## Build and sign in
 
 Requires Linux, a working desktop Secret Service keyring, `xdg-open`, `/dev/fuse`
-and `fusermount3`. On Arch the runtime helper is provided by `fuse3`. Build with the
-pinned Rust toolchain:
+and `fusermount3`. On Arch the runtime helper is provided by `fuse3`. The kernel must
+advertise `FUSE_DIRECT_IO_ALLOW_MMAP` for application memory-mapping support. Build
+with the pinned Rust toolchain:
 
 ```sh
 cargo build --workspace --locked

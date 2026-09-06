@@ -85,14 +85,13 @@ impl OneDrive {
         length: u32,
     ) -> Result<Vec<u8>, ProviderError> {
         let expected = node
-            .etag
-            .as_ref()
+            .content_revision()
             .ok_or(ProviderError::Protocol("file has no version tag"))?;
         let count = (node.size - offset).min(length as u64);
         let url = self.resource_url(&["drives", &scope.collection, "items", &node.id])?;
         let before: DriveItem = serde_json::from_slice(&self.request_bytes(url.clone()).await?)
             .map_err(|_| ProviderError::Protocol("invalid file metadata"))?;
-        if before.e_tag.as_ref() != Some(expected) || before.size != Some(node.size) {
+        if !before.matches_content(expected, node.size) {
             return Err(ProviderError::VersionChanged);
         }
         let download = Url::parse(
@@ -154,7 +153,7 @@ impl OneDrive {
         // Verify again before publishing a block; never combine changed versions.
         let after: DriveItem = serde_json::from_slice(&self.request_bytes(url).await?)
             .map_err(|_| ProviderError::Protocol("invalid file metadata"))?;
-        if after.e_tag.as_ref() != Some(expected) || after.size != Some(node.size) {
+        if !after.matches_content(expected, node.size) {
             return Err(ProviderError::VersionChanged);
         }
         Ok(bytes)
@@ -541,14 +540,26 @@ struct DriveItem {
     name: Option<String>,
     size: Option<u64>,
     e_tag: Option<String>,
+    c_tag: Option<String>,
     last_modified_date_time: Option<String>,
     parent_reference: Option<Parent>,
     file: Option<serde_json::Value>,
     folder: Option<serde_json::Value>,
+    package: Option<serde_json::Value>,
     deleted: Option<serde_json::Value>,
     remote_item: Option<RemoteItem>,
     #[serde(rename = "@microsoft.graph.downloadUrl")]
     download_url: Option<String>,
+}
+impl DriveItem {
+    fn matches_content(&self, expected: (&str, &str), size: u64) -> bool {
+        let revision = match expected.0 {
+            "content" => self.c_tag.as_deref(),
+            "etag" => self.e_tag.as_deref(),
+            _ => None,
+        };
+        revision == Some(expected.1) && self.size == Some(size)
+    }
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -562,6 +573,7 @@ struct RemoteItem {
     id: String,
     file: Option<serde_json::Value>,
     folder: Option<serde_json::Value>,
+    package: Option<serde_json::Value>,
     parent_reference: Parent,
 }
 fn map_item(item: DriveItem) -> Result<Change, ProviderError> {
@@ -585,7 +597,7 @@ fn map_item(item: DriveItem) -> Result<Change, ProviderError> {
             Ok(RemoteRef {
                 collection,
                 item: r.id,
-                kind: if r.folder.is_some() {
+                kind: if r.folder.is_some() || r.package.is_some() {
                     Some(NodeKind::Folder)
                 } else if r.file.is_some() {
                     Some(NodeKind::File)
@@ -597,7 +609,7 @@ fn map_item(item: DriveItem) -> Result<Change, ProviderError> {
         .transpose()?;
     let kind = if target.is_some() {
         NodeKind::Shortcut
-    } else if item.folder.is_some() {
+    } else if item.folder.is_some() || item.package.is_some() {
         NodeKind::Folder
     } else if item.file.is_some() {
         NodeKind::File
@@ -619,6 +631,7 @@ fn map_item(item: DriveItem) -> Result<Change, ProviderError> {
             .map(|t| t.timestamp().max(0) as u64)
             .unwrap_or(0),
         etag: item.e_tag,
+        content_version: item.c_tag,
         target,
     }))
 }
@@ -849,16 +862,22 @@ mod tests {
                     }
                 } else {
                     metadata += 1;
-                    let version = if mode == "changed" && metadata > 1 {
+                    let version = if matches!(mode, "changed" | "metadata_changed") && metadata > 1
+                    {
                         "v2"
                     } else {
                         "v1"
+                    };
+                    let content = if mode == "content_changed" && metadata > 1 {
+                        "content-v2"
+                    } else {
+                        "content-v1"
                     };
                     (
                         200,
                         String::new(),
                         format!(
-                            r#"{{"id":"file","name":"file","size":10,"eTag":"{version}","file":{{}},"@microsoft.graph.downloadUrl":"{origin}/download?synthetic-signed-url"}}"#
+                            r#"{{"id":"file","name":"file","size":10,"eTag":"{version}","cTag":"{content}","file":{{}},"@microsoft.graph.downloadUrl":"{origin}/download?synthetic-signed-url"}}"#
                         ),
                     )
                 };
@@ -880,6 +899,7 @@ mod tests {
             size: 10,
             modified_unix: 0,
             etag: Some("v1".into()),
+            content_version: None,
             target: None,
         }
     }
@@ -933,6 +953,62 @@ mod tests {
             assert!(!error.to_string().contains("provider-private-error"));
             server.abort();
             let _ = server.await;
+        }
+    }
+    #[tokio::test]
+    async fn packages_do_not_abort_delta_or_directory_enumeration() {
+        let body = r#"{"value":[{"id":"notebook","name":"Notes","package":{"type":"oneNote"}},{"id":"ordinary","name":"report.txt","file":{}},{"id":"linked-notebook","name":"Team notes","remoteItem":{"id":"target","parentReference":{"driveId":"team"},"package":{"type":"futurePackage"}}}],"@odata.deltaLink":"BASEdrives/drive/root/delta?token=next"}"#;
+        let (url, task) = server(200, body, "").await;
+        let graph = provider(url);
+        let result = graph
+            .changes(&scope(), None, &CancellationToken::new())
+            .await;
+        task.await.unwrap();
+        let page = result.unwrap();
+        assert_eq!(page.changes.len(), 3);
+        let Change::Upsert(notebook) = &page.changes[0] else {
+            panic!("missing notebook")
+        };
+        assert_eq!(notebook.kind, NodeKind::Folder);
+        let Change::Upsert(link) = &page.changes[2] else {
+            panic!("missing linked notebook")
+        };
+        assert_eq!(link.target.as_ref().unwrap().kind, Some(NodeKind::Folder));
+
+        let mut children: serde_json::Value = serde_json::from_str(body).unwrap();
+        children.as_object_mut().unwrap().remove("@odata.deltaLink");
+        let (url, task) = server(200, &children.to_string(), "").await;
+        let graph = provider(url);
+        let result = graph
+            .children(&scope(), "root", None, &CancellationToken::new())
+            .await;
+        task.await.unwrap();
+        let listing = result.unwrap();
+        assert_eq!(listing.nodes.len(), 3);
+        assert_eq!(listing.nodes[0].kind, NodeKind::Folder);
+        assert!(
+            listing
+                .nodes
+                .iter()
+                .all(|node| node.parent_id.as_deref() == Some("root"))
+        );
+    }
+    #[tokio::test]
+    async fn content_tags_allow_metadata_only_changes_but_reject_new_bytes() {
+        for mode in ["metadata_changed", "content_changed"] {
+            let (provider, _, server) = download_fixture(mode).await;
+            let mut node = download_node();
+            node.content_version = Some("content-v1".into());
+            let result = provider
+                .read_range(&scope(), &node, 2, 4, &CancellationToken::new())
+                .await;
+            server.abort();
+            let _ = server.await;
+            if mode == "metadata_changed" {
+                assert_eq!(result.unwrap(), b"cdef");
+            } else {
+                assert!(matches!(result, Err(ProviderError::VersionChanged)));
+            }
         }
     }
 }

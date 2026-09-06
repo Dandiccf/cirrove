@@ -372,6 +372,7 @@ mod tests {
             size: 3,
             modified_unix: 0,
             etag: None,
+            content_version: None,
             target: None,
         })
     }

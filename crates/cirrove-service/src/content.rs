@@ -121,8 +121,7 @@ impl ContentCache {
         cancel: &CancellationToken,
     ) -> Result<Arc<Vec<u8>>, ProviderError> {
         let version = node
-            .etag
-            .as_ref()
+            .content_revision()
             .ok_or(ProviderError::Protocol("file has no version tag"))?;
         let identity = serde_json::to_vec(&(scope, &node.id, version, node.size, start))
             .map_err(|_| ProviderError::Unavailable)?;

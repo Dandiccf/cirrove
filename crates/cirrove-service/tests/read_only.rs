@@ -37,6 +37,7 @@ fn file(id: &str, parent: Option<&str>, kind: NodeKind, size: u64) -> Node {
         size,
         modified_unix: 1_700_000_000,
         etag: Some("version-1".into()),
+        content_version: None,
         target: None,
     }
 }
@@ -196,12 +197,17 @@ impl ReadProvider for Fixture {
         tokio::select! {_=cancel.cancelled()=>return Err(ProviderError::Cancelled),_=tokio::time::sleep(Duration::from_millis(self.delay_ms.load(Ordering::SeqCst)))=>()}
         self.online()?;
         let current = self.node(scope, &node.id, cancel).await?;
-        if node.etag != current.etag {
+        if node.content_revision() != current.content_revision() || node.size != current.size {
             return Err(ProviderError::VersionChanged);
         }
         let count = node.size.saturating_sub(offset).min(length as u64);
+        let revision_offset = if node.content_version.as_deref() == Some("content-2") {
+            17
+        } else {
+            0
+        };
         Ok((offset..offset + count)
-            .map(|position| (position % 251) as u8)
+            .map(|position| ((position + revision_offset) % 251) as u8)
             .collect())
     }
 }
@@ -494,11 +500,32 @@ async fn real_fuse_reads_shortcuts_seek_readonly_restart_and_ejection() {
     .await
     .unwrap()
     .unwrap();
-    // A real application blocks in read(2), but folder operations retain capacity.
+    // Active and queued application reads block, but folders retain capacity and
+    // shutdown must release all readers without libc retrying EINTR forever.
     provider.stall.store(true, Ordering::SeqCst);
     let before = provider.reads.load(Ordering::SeqCst);
     let slow_path = mount.join("small.txt");
-    let stalled = tokio::task::spawn_blocking(move || std::fs::read(slow_path));
+    let stalled = tokio::task::spawn_blocking(move || {
+        let files = (0..96)
+            .map(|_| std::fs::File::open(&slow_path).unwrap())
+            .collect::<Vec<_>>();
+        let barrier = Arc::new(std::sync::Barrier::new(files.len()));
+        let readers = files
+            .into_iter()
+            .map(|mut file| {
+                let barrier = barrier.clone();
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    let mut bytes = [0; 8192];
+                    file.read_exact(&mut bytes)
+                })
+            })
+            .collect::<Vec<_>>();
+        readers
+            .into_iter()
+            .map(|reader| reader.join().unwrap())
+            .collect::<Vec<_>>()
+    });
     tokio::time::timeout(Duration::from_secs(2), async {
         while provider.reads.load(Ordering::SeqCst) == before {
             tokio::task::yield_now().await;
@@ -506,6 +533,7 @@ async fn real_fuse_reads_shortcuts_seek_readonly_restart_and_ejection() {
     })
     .await
     .unwrap();
+    tokio::time::sleep(Duration::from_millis(100)).await;
     let path = mount.join("folder");
     tokio::time::timeout(
         Duration::from_millis(500),
@@ -515,7 +543,13 @@ async fn real_fuse_reads_shortcuts_seek_readonly_restart_and_ejection() {
     .unwrap()
     .unwrap();
     engine.stop().await;
-    assert!(stalled.await.unwrap().is_err());
+    assert!(
+        stalled
+            .await
+            .unwrap()
+            .iter()
+            .all(|result| result.as_ref().unwrap_err().raw_os_error() == Some(libc::ENODEV))
+    );
     provider.stall.store(false, Ordering::SeqCst);
     tokio::task::spawn_blocking(move || session.umount_and_join())
         .await
@@ -734,4 +768,317 @@ async fn synthetic_latency_report() {
         .await
         .unwrap()
         .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires a working /dev/fuse and fusermount3; run explicitly"]
+async fn real_memory_mapped_reads_are_supported() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let provider = Fixture::new();
+    let engine = Engine::new(account(mount.clone()), provider, temp.path().join("state"))
+        .await
+        .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    let session = CloudFs::new(engine.clone()).unwrap().mount(&mount).unwrap();
+    let output = tokio::process::Command::new("python3")
+        .args([
+            "-c",
+            r#"
+import mmap,sys,resource
+from pathlib import Path
+with open(sys.argv[1], 'rb') as f:
+    for access in (mmap.ACCESS_READ,mmap.ACCESS_COPY):
+        with mmap.mmap(f.fileno(),0,access=access) as view:
+            assert view[1024:2048] == bytes(i % 251 for i in range(1024,2048))
+            if access == mmap.ACCESS_COPY:
+                view[0:4] = b'test'
+    with mmap.mmap(f.fileno(),0,access=mmap.ACCESS_READ) as view:
+        assert view[0:4] == bytes(range(4))
+with open(Path(sys.argv[1]).with_name('large.bin'),'rb') as f:
+    with mmap.mmap(f.fileno(),0,access=mmap.ACCESS_READ) as view:
+        offset=2*1024*1024*1024+197
+        assert view[offset:offset+16384] == bytes(i % 251 for i in range(offset,offset+16384))
+assert resource.getrusage(resource.RUSAGE_SELF).ru_maxrss < 128*1024
+"#,
+        ])
+        .arg(mount.join("small.txt"))
+        .kill_on_drop(true)
+        .output()
+        .await
+        .unwrap();
+    engine.stop().await;
+    tokio::task::spawn_blocking(move || session.umount_and_join())
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires a working /dev/fuse and fusermount3; run explicitly"]
+async fn real_thumbnail_burst_queues_reads_without_blocking_cached_navigation() {
+    use anyhow::{Context, ensure};
+    use std::io::Read;
+    const READERS: usize = 96;
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let provider = Fixture::new();
+    {
+        let mut nodes = provider.nodes.write().await;
+        for i in 0..READERS {
+            let name = format!("thumbnail-{i:03}.bin");
+            nodes.insert(
+                ("home".into(), name.clone()),
+                file(&name, Some("root"), NodeKind::File, 3_100_000),
+            );
+        }
+    }
+    provider.delay_ms.store(250, Ordering::SeqCst);
+    let engine = Engine::new(
+        account(mount.clone()),
+        provider.clone(),
+        temp.path().join("state"),
+    )
+    .await
+    .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    let session = CloudFs::new(engine.clone()).unwrap().mount(&mount).unwrap();
+    let path = mount.clone();
+    let mut readers = tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
+        // Open first so this checks content admission independently of metadata.
+        let files = (0..READERS)
+            .map(|i| std::fs::File::open(path.join(format!("thumbnail-{i:03}.bin"))))
+            .collect::<Result<Vec<_>, _>>()?;
+        let barrier = Arc::new(std::sync::Barrier::new(READERS));
+        let threads = files
+            .into_iter()
+            .map(|mut file| {
+                let barrier = barrier.clone();
+                std::thread::spawn(move || -> std::io::Result<Vec<u8>> {
+                    barrier.wait();
+                    let mut bytes = vec![0; 64 * 1024];
+                    file.read_exact(&mut bytes)?;
+                    Ok(bytes)
+                })
+            })
+            .collect::<Vec<_>>();
+        let mut errors = vec![];
+        for thread in threads {
+            match thread
+                .join()
+                .map_err(|_| anyhow::anyhow!("reader panicked"))?
+            {
+                Ok(bytes) => assert_bytes(&bytes, 0),
+                Err(error) => errors.push(error),
+            }
+        }
+        ensure!(
+            errors.is_empty(),
+            "{} of {READERS} simultaneous reads failed: {errors:?}",
+            errors.len()
+        );
+        Ok(())
+    });
+    let result = tokio::time::timeout(Duration::from_secs(20), async {
+        while provider.reads.load(Ordering::SeqCst) < 4 {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        let mut listings_ms = vec![];
+        for _ in 0..20 {
+            let path = mount.join("folder");
+            let start = std::time::Instant::now();
+            let entries = tokio::time::timeout(
+                Duration::from_millis(500),
+                tokio::task::spawn_blocking(move || {
+                    std::fs::read_dir(path)?.collect::<Result<Vec<_>, std::io::Error>>()
+                }),
+            )
+            .await
+            .context("cached navigation stalled behind downloads")???;
+            ensure!(entries.len() == 1, "cached directory changed during burst");
+            listings_ms.push(start.elapsed().as_secs_f64() * 1000.0);
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        (&mut readers).await??;
+        ensure!(
+            provider.reads.load(Ordering::SeqCst) == READERS as u64,
+            "burst retried provider reads"
+        );
+        listings_ms.sort_by(f64::total_cmp);
+        println!(
+            "CIRROVE_THUMBNAIL_BURST {}",
+            serde_json::json!({
+                "fixture": "synthetic kernel FUSE, 250 ms content delay; no cloud traffic",
+                "simultaneous_readers": READERS, "file_bytes": 3_100_000, "read_bytes": 64 * 1024,
+                "provider_range_calls": READERS, "directory_samples": listings_ms.len(),
+                "directory_p50_ms": listings_ms[9], "directory_p95_ms": listings_ms[18],
+            })
+        );
+        Ok::<_, anyhow::Error>(())
+    })
+    .await
+    .context("thumbnail burst timed out")
+    .and_then(|result| result);
+    engine.stop().await;
+    // Shutdown cancels outstanding reads before joining the kernel session.
+    if !readers.is_finished() {
+        let _ = readers.await;
+    }
+    tokio::task::spawn_blocking(move || session.umount_and_join())
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(result.is_ok(), "{result:?}");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires a working /dev/fuse and fusermount3; run explicitly"]
+async fn real_old_and_new_mappings_keep_separate_versions_and_rename_reuses_content() {
+    use anyhow::{Context, ensure};
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let provider = Fixture::new();
+    {
+        let mut nodes = provider.nodes.write().await;
+        nodes
+            .get_mut(&("home".into(), "small.txt".into()))
+            .unwrap()
+            .content_version = Some("content-1".into());
+        let mut link = file("Linked.txt", Some("root"), NodeKind::Shortcut, 0);
+        link.target = Some(RemoteRef {
+            collection: "home".into(),
+            item: "small.txt".into(),
+            kind: Some(NodeKind::File),
+        });
+        nodes.insert(("home".into(), link.id.clone()), link);
+    }
+    let engine = Engine::new(
+        account(mount.clone()),
+        provider.clone(),
+        temp.path().join("state"),
+    )
+    .await
+    .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    let session = CloudFs::new(engine.clone()).unwrap().mount(&mount).unwrap();
+    let mut child=tokio::process::Command::new("python3").args(["-u","-c",r#"
+import mmap, os, pathlib, sys, time
+root=pathlib.Path(sys.argv[1])
+old=open(root/'small.txt','rb'); oldmap=mmap.mmap(old.fileno(),0,access=mmap.ACCESS_READ)
+old_alias=open(root/'Linked.txt','rb'); aliasmap=mmap.mmap(old_alias.fileno(),0,access=mmap.ACCESS_READ)
+old_inode=os.fstat(old.fileno()).st_ino; old_alias_inode=os.fstat(old_alias.fileno()).st_ino
+assert old_inode != old_alias_inode
+assert oldmap[:4096] == aliasmap[:4096] == bytes(i % 251 for i in range(4096))
+print('mapped',flush=True)
+assert sys.stdin.readline().strip()=='content'
+def wait_new(path,previous):
+    deadline=time.monotonic()+4
+    while time.monotonic()<deadline:
+        try:
+            inode=os.stat(path).st_ino
+            if inode!=previous:return inode
+        except FileNotFoundError:pass
+        time.sleep(.02)
+    raise AssertionError('new namespace version did not become visible')
+new_inode=wait_new(root/'small.txt',old_inode); new_alias_inode=wait_new(root/'Linked.txt',old_alias_inode)
+new=open(root/'small.txt','rb'); newmap=mmap.mmap(new.fileno(),0,access=mmap.ACCESS_READ)
+new_alias=open(root/'Linked.txt','rb'); newaliasmap=mmap.mmap(new_alias.fileno(),0,access=mmap.ACCESS_READ)
+assert newmap[:4096] == newaliasmap[:4096] == bytes((i+17) % 251 for i in range(4096))
+assert oldmap[:4096] == aliasmap[:4096] == bytes(i % 251 for i in range(4096))
+assert os.fstat(new.fileno()).st_ino==new_inode
+print('updated',flush=True)
+assert sys.stdin.readline().strip()=='rename'
+assert wait_new(root/'renamed.txt',old_inode)==new_inode
+with open(root/'renamed.txt','rb') as renamed:
+    assert renamed.read(4096)==bytes((i+17) % 251 for i in range(4096))
+assert oldmap[:4096]==bytes(i % 251 for i in range(4096))
+assert newmap[:4096]==bytes((i+17) % 251 for i in range(4096))
+for view in (oldmap,aliasmap,newmap,newaliasmap):view.close()
+for f in (old,old_alias,new,new_alias):f.close()
+"#]).arg(&mount).stdin(std::process::Stdio::piped()).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).kill_on_drop(true).spawn().unwrap();
+    let mut stdout = BufReader::new(child.stdout.take().unwrap());
+    let mut stdin = child.stdin.take().unwrap();
+    let result = tokio::time::timeout(Duration::from_secs(12), async {
+        let mut line = String::new();
+        stdout.read_line(&mut line).await?;
+        ensure!(line.trim() == "mapped", "initial mmap failed");
+        {
+            let mut nodes = provider.nodes.write().await;
+            let node = nodes.get_mut(&("home".into(), "small.txt".into())).unwrap();
+            node.content_version = Some("content-2".into());
+            node.etag = Some("metadata-2".into());
+        }
+        cirrove_service::refresh(
+            provider.as_ref(),
+            &engine.scope("home"),
+            &engine.db,
+            false,
+            &engine.cancel,
+        )
+        .await?;
+        engine.changed.notify_waiters();
+        stdin.write_all(b"content\n").await?;
+        line.clear();
+        stdout.read_line(&mut line).await?;
+        ensure!(
+            line.trim() == "updated",
+            "new/old mmap versions did not stay isolated"
+        );
+        let reads = provider.reads.load(Ordering::SeqCst);
+        {
+            let mut nodes = provider.nodes.write().await;
+            let node = nodes.get_mut(&("home".into(), "small.txt".into())).unwrap();
+            node.name = "renamed.txt".into();
+            node.etag = Some("metadata-3".into());
+        }
+        cirrove_service::refresh(
+            provider.as_ref(),
+            &engine.scope("home"),
+            &engine.db,
+            false,
+            &engine.cancel,
+        )
+        .await?;
+        engine.changed.notify_waiters();
+        stdin.write_all(b"rename\n").await?;
+        let status = child.wait().await?;
+        ensure!(
+            status.success(),
+            "mapping process failed after content replacement/rename"
+        );
+        ensure!(
+            provider.reads.load(Ordering::SeqCst) == reads,
+            "metadata-only rename downloaded content again"
+        );
+        Ok::<_, anyhow::Error>(())
+    })
+    .await
+    .context("mapping regression timed out")
+    .and_then(|result| result);
+    if child.try_wait().unwrap().is_none() {
+        let _ = child.kill().await;
+    }
+    let output = child.wait_with_output().await.unwrap();
+    engine.stop().await;
+    tokio::task::spawn_blocking(move || session.umount_and_join())
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(
+        result.is_ok(),
+        "{result:?}: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }

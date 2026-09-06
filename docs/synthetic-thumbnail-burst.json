@@ -1,0 +1,22 @@
+{
+  "date": "2026-09-06",
+  "environment": "Arch Linux 7.1.9-arch1-2, Rust 1.98.1, debug test process",
+  "provider": "deterministic synthetic provider, 250 ms content delay; no Graph/OAuth/internet",
+  "simultaneous_readers": 96,
+  "file_bytes": 3100000,
+  "application_read_bytes": 65536,
+  "failed_reads": 0,
+  "provider_range_calls": 96,
+  "directory_samples": 20,
+  "directory_listing_ms": {
+    "p50": 1.096504,
+    "p95": 2.999651
+  },
+  "command": "cargo test -p cirrove-service --test read_only --locked real_thumbnail_burst -- --ignored --nocapture",
+  "limitations": [
+    "This simulates thumbnail-style reads; it does not run Nautilus thumbnailers.",
+    "Metadata is already indexed; no real-provider delay or credential refresh is included.",
+    "Local filesystem tests ran concurrently in this process; repeat timings can differ.",
+    "The metadata sample directory contains one file; the separate latency benchmark covers 525 entries."
+  ]
+}

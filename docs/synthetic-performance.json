@@ -1,23 +1,23 @@
 {
   "date": "2026-09-06",
-  "environment": "Arch Linux, Rust 1.98.1, isolated debug test process",
+  "environment": "Arch Linux 7.1.9-arch1-2, Rust 1.98.1, isolated debug test process",
   "provider": "deterministic synthetic provider, 50 ms delay; no Graph/OAuth/internet",
   "samples": 20,
   "file_bytes": 3100000,
   "directory_entries": 525,
   "cold_read_ms": {
-    "p50": 123.694706,
-    "p95": 142.931362
+    "p50": 123.07098,
+    "p95": 142.970273
   },
   "warm_read_ms": {
-    "p50": 2.217447,
-    "p95": 2.690543
+    "p50": 1.453958,
+    "p95": 1.955699
   },
   "directory_listing_ms": {
-    "p50": 9.016793,
-    "p95": 10.713894
+    "p50": 10.163169,
+    "p95": 11.11538
   },
-  "process_peak_rss_kib": 79272,
+  "process_peak_rss_kib": 76616,
   "provider_range_calls": 20,
   "warm_provider_range_calls": 0,
   "command": "cargo test -p cirrove-service --test read_only --locked synthetic_latency_report -- --ignored --nocapture",

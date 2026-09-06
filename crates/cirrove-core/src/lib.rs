@@ -39,8 +39,26 @@ pub struct Node {
     #[serde(default)]
     pub modified_unix: u64,
     pub etag: Option<String>,
+    /// Provider content revision, unaffected by metadata-only changes when available.
+    #[serde(default)]
+    pub content_version: Option<String>,
     /// A link across drives must retain the target identity, never just a path.
     pub target: Option<RemoteRef>,
+}
+impl Node {
+    /// Retain the tag namespace: a content tag must not collide with an ETag.
+    pub fn content_revision(&self) -> Option<(&'static str, &str)> {
+        self.content_version
+            .as_deref()
+            .filter(|tag| !tag.is_empty())
+            .map(|tag| ("content", tag))
+            .or_else(|| {
+                self.etag
+                    .as_deref()
+                    .filter(|tag| !tag.is_empty())
+                    .map(|tag| ("etag", tag))
+            })
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

@@ -193,6 +193,7 @@ async fn main() -> Result<()> {
                 size: 42,
                 modified_unix: 0,
                 etag: Some("v1".into()),
+                content_version: None,
                 target: None,
             };
             store.stage(
