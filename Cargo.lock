@@ -337,6 +337,7 @@ name = "cirrove-core"
 version = "0.1.0-dev"
 dependencies = [
  "async-trait",
+ "secrecy",
  "serde",
  "thiserror 2.0.20",
  "tokio",
@@ -355,6 +356,7 @@ dependencies = [
  "secrecy",
  "serde",
  "serde_json",
+ "sha2 0.10.9",
  "tokio",
 ]
 

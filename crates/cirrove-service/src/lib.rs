@@ -5,6 +5,8 @@ pub mod engine;
 pub mod filesystem;
 pub mod journal;
 pub mod manager;
+pub mod transfers;
+pub mod validation;
 use anyhow::{Context, Result, bail};
 use cirrove_core::{CancellationToken, MetadataProvider, ProviderError, Scope};
 use cirrove_store::Store;
@@ -278,7 +280,21 @@ mod tests {
         drop(listener.accept().await.unwrap());
         drop(client);
         drop(listener);
-        recover_control_socket(&path).await.unwrap();
+        // Other tests spawn processes concurrently. Between fork and exec a
+        // child may briefly retain the listener's CLOEXEC descriptor after our
+        // drop. Recovery must keep refusing a connectable socket during that
+        // window, then succeed once the fixture is actually disconnected.
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                if recover_control_socket(&path).await.is_ok() {
+                    break;
+                }
+                assert!(path.exists());
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+        .await
+        .unwrap();
         assert!(!path.exists());
         std::fs::write(&path, "preserve").unwrap();
         assert!(recover_control_socket(&path).await.is_err());

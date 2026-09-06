@@ -1,5 +1,6 @@
-//! Read-only Microsoft Graph adapter. Authentication is injected; tokens, cursor
+//! Microsoft Graph reads and experimental upload adapter. Tokens, cursor
 //! URLs and remote error bodies must never appear in logs.
+mod upload;
 use async_trait::async_trait;
 use cirrove_core::{
     CancellationToken, Change, ChangePage, Checkpoint, Cursor, DirectoryPage, MetadataProvider,
@@ -37,6 +38,7 @@ pub struct OneDrive {
     endpoint: Url,
     client: Client,
     downloads: Client,
+    uploads: Client,
     tokens: Arc<dyn TokenSource>,
     budget: RequestBudget,
     cooldown: Mutex<Option<Instant>>,
@@ -63,6 +65,14 @@ impl OneDrive {
         Ok(Self {
             account,
             endpoint: endpoint.clone(),
+            uploads: Client::builder()
+                .https_only(endpoint.scheme() == "https")
+                .redirect(Policy::none())
+                .retry(reqwest::retry::never())
+                .connect_timeout(Duration::from_secs(10))
+                .timeout(Duration::from_secs(120))
+                .build()
+                .map_err(|_| ProviderError::Unavailable)?,
             downloads: Client::builder()
                 .https_only(endpoint.scheme() == "https")
                 .redirect(Policy::limited(5))

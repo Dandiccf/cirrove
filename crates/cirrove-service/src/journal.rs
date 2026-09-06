@@ -53,45 +53,14 @@ impl From<serde_json::Error> for JournalError {
 }
 pub type Result<T> = std::result::Result<T, JournalError>;
 
-/// Creates must fail on a name collision; replacing requires the originally seen
-/// metadata ETag. Content-only tags cannot protect a concurrent rename or move.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum UploadIntent {
-    Create { parent: String, name: String },
-    Replace { item: String, expected_etag: String },
-}
-impl UploadIntent {
-    fn validate(&self) -> Result<()> {
-        let valid = |s: &str| !s.is_empty() && s.len() <= 4096 && !s.contains('\0');
-        let okay = match self {
-            Self::Create { parent, name } => {
-                valid(parent)
-                    && valid(name)
-                    && !matches!(name.as_str(), "." | "..")
-                    && !name.contains('/')
-            }
-            Self::Replace {
-                item,
-                expected_etag,
-            } => valid(item) && valid(expected_etag) && !expected_etag.contains(['\r', '\n']),
-        };
-        if okay {
-            Ok(())
-        } else {
-            Err(JournalError::Intent)
+pub use cirrove_core::upload::UploadIntent;
+fn resource(intent: &UploadIntent, scope: &Scope) -> Result<String> {
+    Ok(match intent {
+        UploadIntent::Create { parent, name } => {
+            serde_json::to_string(&(scope, "create", parent, name))?
         }
-    }
-    fn resource(&self, scope: &Scope) -> Result<String> {
-        // Used only to order edits of the same identity. The provider enforces
-        // its own case/normalization and name-collision rules for new objects.
-        Ok(match self {
-            Self::Create { parent, name } => {
-                serde_json::to_string(&(scope, "create", parent, name))?
-            }
-            Self::Replace { item, .. } => serde_json::to_string(&(scope, "replace", item))?,
-        })
-    }
+        UploadIntent::Replace { item, .. } => serde_json::to_string(&(scope, "replace", item))?,
+    })
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -118,6 +87,16 @@ pub struct UploadRecord {
     /// An attempt token fences delayed results after restart or retry.
     pub attempt: Option<Uuid>,
     pub remote: Option<Node>,
+    /// Reference to an opaque checkpoint stored in the credential vault.
+    #[serde(default)]
+    pub session_key: Option<Uuid>,
+    /// Contiguous prefix acknowledged by the remote session, not a committed file.
+    #[serde(default)]
+    pub transferred_bytes: u64,
+    #[serde(default)]
+    pub retry_at: u64,
+    #[serde(default)]
+    pub failed_attempts: u32,
 }
 impl std::fmt::Debug for UploadRecord {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -179,7 +158,7 @@ impl UploadJournal {
         let db = Connection::open(database)?;
         db.busy_timeout(std::time::Duration::from_secs(3))?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if version > 1 {
+        if version > 2 {
             return Err(JournalError::Schema);
         }
         db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;
@@ -189,7 +168,7 @@ impl UploadJournal {
                 resource TEXT NOT NULL, state TEXT NOT NULL, body TEXT NOT NULL);
             CREATE INDEX IF NOT EXISTS upload_order ON uploads(resource,sequence);
             CREATE INDEX IF NOT EXISTS upload_state ON uploads(state,sequence);
-            PRAGMA user_version=1;")?;
+            PRAGMA user_version=2;")?;
         db.execute("INSERT OR IGNORE INTO identity VALUES(1,?1)", [account])?;
         let stored: String = db.query_row("SELECT account FROM identity", [], |r| r.get(0))?;
         if stored != account {
@@ -255,7 +234,7 @@ impl UploadJournal {
         if scope.provider.is_empty() || scope.collection.is_empty() {
             return Err(JournalError::Intent);
         }
-        intent.validate()?;
+        intent.validate().map_err(|_| JournalError::Intent)?;
         let (retained, files) = self.retained_usage()?;
         if files >= 10_000 {
             return Err(JournalError::Quota);
@@ -291,6 +270,10 @@ impl UploadJournal {
             sha256: format!("{:x}", hash.finalize()),
             attempt: None,
             remote: None,
+            session_key: None,
+            transferred_bytes: 0,
+            retry_at: 0,
+            failed_attempts: 0,
         };
         temporary
             .persist_noclobber(self.objects.join(record.id.to_string()))
@@ -303,7 +286,7 @@ impl UploadJournal {
             "INSERT INTO uploads(id,resource,state,body) VALUES(?1,?2,'pending',?3)",
             params![
                 record.id.to_string(),
-                record.intent.resource(&record.scope)?,
+                resource(&record.intent, &record.scope)?,
                 serde_json::to_string(&record)?
             ],
         )?;
@@ -373,11 +356,12 @@ impl UploadJournal {
         let body: Option<String> = self
             .db
             .query_row(
-                "SELECT u.body FROM uploads u WHERE u.state='pending' AND NOT EXISTS (
+                "SELECT u.body FROM uploads u WHERE u.state='pending'
+                AND COALESCE(json_extract(u.body,'$.retry_at'),0)<=?1 AND NOT EXISTS (
                 SELECT 1 FROM uploads previous WHERE previous.resource=u.resource
                 AND previous.sequence<u.sequence AND previous.state!='uploaded')
              ORDER BY u.sequence LIMIT 1",
-                [],
+                [now_seconds() as i64],
                 |r| r.get(0),
             )
             .optional()?;
@@ -418,9 +402,51 @@ impl UploadJournal {
         }
         Ok(record)
     }
+    pub fn claim_next_verification(&mut self) -> Result<Option<UploadRecord>> {
+        let id: Option<String> = self
+            .db
+            .query_row(
+                "SELECT id FROM uploads WHERE state='verify_required'
+             AND COALESCE(json_extract(body,'$.retry_at'),0)<=?1 ORDER BY sequence LIMIT 1",
+                [now_seconds() as i64],
+                |r| r.get(0),
+            )
+            .optional()?;
+        id.map(|id| {
+            self.claim_verification(Uuid::parse_str(&id).map_err(|_| JournalError::Corrupt)?)
+        })
+        .transpose()
+    }
+    /// Persist only a credential reference and verified range progress. The
+    /// checkpoint itself must already be saved to the credential vault.
+    pub fn record_session(
+        &mut self,
+        id: Uuid,
+        attempt: Uuid,
+        key: Uuid,
+        transferred: u64,
+    ) -> Result<()> {
+        let mut record = self.active_attempt(id, attempt)?;
+        if transferred > record.size {
+            return Err(JournalError::Stale);
+        }
+        record.session_key = Some(key);
+        record.transferred_bytes = transferred;
+        record.state = UploadState::Uploading;
+        self.save(&record)
+    }
     /// Use VerifyRequired for an ambiguous network result. Conflict and Failed
     /// retain bytes and never silently retry or turn into upload success.
     pub fn stop_attempt(&mut self, id: Uuid, attempt: Uuid, state: UploadState) -> Result<()> {
+        self.defer_attempt(id, attempt, state, std::time::Duration::ZERO)
+    }
+    pub fn defer_attempt(
+        &mut self,
+        id: Uuid,
+        attempt: Uuid,
+        state: UploadState,
+        delay: std::time::Duration,
+    ) -> Result<()> {
         if !matches!(
             state,
             UploadState::VerifyRequired | UploadState::Conflict | UploadState::Failed
@@ -430,6 +456,10 @@ impl UploadJournal {
         let mut record = self.active_attempt(id, attempt)?;
         record.state = state;
         record.attempt = None;
+        record.retry_at = now_seconds()
+            .saturating_add(delay.as_secs())
+            .min(i64::MAX as u64);
+        record.failed_attempts = record.failed_attempts.saturating_add(1);
         self.save(&record)
     }
     /// The provider worker must prove the old attempt did not commit before
@@ -445,6 +475,23 @@ impl UploadJournal {
         self.payload(id)?;
         record.state = UploadState::Pending;
         record.attempt = None;
+        record.retry_at = 0;
+        record.session_key = None;
+        record.transferred_bytes = 0;
+        self.save(&record)
+    }
+    /// A user retry or reauthentication requests verification, never a blind
+    /// replay. Conflicts require an explicit resolution intent.
+    pub fn request_retry(&mut self, id: Uuid) -> Result<()> {
+        let mut record = self.get(id)?;
+        if !matches!(
+            record.state,
+            UploadState::Failed | UploadState::VerifyRequired
+        ) {
+            return Err(JournalError::Stale);
+        }
+        record.state = UploadState::VerifyRequired;
+        record.retry_at = 0;
         self.save(&record)
     }
     /// Reserve an uncertain operation for read-only remote reconciliation. This
@@ -481,6 +528,7 @@ impl UploadJournal {
         }
         record.remote = Some(remote);
         record.state = UploadState::Uploaded;
+        record.transferred_bytes = record.size;
         record.attempt = None;
         self.save(&record)
     }
@@ -497,4 +545,11 @@ impl UploadJournal {
         }
         Ok(())
     }
+}
+fn now_seconds() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+        .min(i64::MAX as u64)
 }

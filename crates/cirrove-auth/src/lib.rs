@@ -29,6 +29,42 @@ use tokio::{
 };
 
 pub const SCOPES: &str = "openid profile offline_access https://graph.microsoft.com/User.Read https://graph.microsoft.com/Files.Read.All";
+const WRITE_SCOPES: &str = "openid profile offline_access https://graph.microsoft.com/User.Read https://graph.microsoft.com/Files.ReadWrite.All";
+
+/// Requested consent, independent of whether a filesystem permits writes.
+/// Old account/credential records remain read-only when this field is absent.
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum AccessMode {
+    #[default]
+    ReadOnly,
+    ReadWrite,
+}
+impl AccessMode {
+    pub fn scopes(self) -> &'static str {
+        match self {
+            Self::ReadOnly => SCOPES,
+            Self::ReadWrite => WRITE_SCOPES,
+        }
+    }
+    fn validate_grant(self, granted: Option<&str>) -> Result<()> {
+        // OAuth may omit scope when it equals the requested scope. Never inspect
+        // opaque access tokens to infer permissions; use the token response.
+        let Some(granted) = granted else {
+            return Ok(());
+        };
+        let scopes: Vec<_> = granted
+            .split_ascii_whitespace()
+            .map(|s| s.strip_prefix("https://graph.microsoft.com/").unwrap_or(s))
+            .collect();
+        let files = scopes.contains(&"Files.ReadWrite.All")
+            || (self == Self::ReadOnly && scopes.contains(&"Files.Read.All"));
+        if !files || !scopes.contains(&"User.Read") {
+            return Err(ProviderError::Authentication.into());
+        }
+        Ok(())
+    }
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AppRegistration {
@@ -70,6 +106,8 @@ pub struct Credentials {
     access_token: String,
     refresh_token: String,
     expires_at: u64,
+    #[serde(default)]
+    access: AccessMode,
 }
 impl Credentials {
     pub fn access_token(&self) -> SecretString {
@@ -160,30 +198,22 @@ impl CredentialVault for DesktopVault {
         Ok(None)
     }
     async fn save(&self, key: &str, value: SecretString) -> Result<()> {
-        let ss = SecretService::connect(EncryptionType::Dh)
-            .await
-            .context("desktop Secret Service unavailable")?;
-        let collection = ss
-            .get_default_collection()
-            .await
-            .context("no default desktop keyring")?;
-        if collection.is_locked().await? {
-            collection
-                .unlock()
-                .await
-                .context("unlock the desktop keyring to save Cirrove credentials")?;
+        // A keyring can acknowledge a write without retaining its value. Retry
+        // only a failed readback, with a fresh encrypted session and the original
+        // bytes still in memory. Transport/lock failures go back to the caller.
+        for _ in 0..3 {
+            write_desktop_secret(key, &value).await?;
+            let restored = self.load(key).await?;
+            if restored.is_some_and(|restored| {
+                constant_time_eq(
+                    restored.expose_secret().as_bytes(),
+                    value.expose_secret().as_bytes(),
+                )
+            }) {
+                return Ok(());
+            }
         }
-        collection
-            .create_item(
-                "Cirrove Microsoft account",
-                attributes(key),
-                value.expose_secret().as_bytes(),
-                true,
-                "application/json",
-            )
-            .await
-            .context("cannot save Cirrove credential")?;
-        Ok(())
+        bail!("desktop keyring did not retain the Cirrove credential correctly");
     }
     async fn remove(&self, key: &str) -> Result<()> {
         let ss = SecretService::connect(EncryptionType::Dh)
@@ -200,6 +230,53 @@ impl CredentialVault for DesktopVault {
     }
 }
 
+async fn write_desktop_secret(key: &str, value: &SecretString) -> Result<()> {
+    let ss = SecretService::connect(EncryptionType::Dh)
+        .await
+        .context("desktop Secret Service unavailable")?;
+    let collection = ss
+        .get_default_collection()
+        .await
+        .context("no default desktop keyring")?;
+    if collection.is_locked().await? {
+        collection
+            .unlock()
+            .await
+            .context("unlock the desktop keyring to save Cirrove credentials")?;
+    }
+    let found = ss
+        .search_items(attributes(key))
+        .await
+        .context("cannot find the Cirrove credential to update")?;
+    let item = if let Some(item) = found.unlocked.into_iter().next() {
+        item
+    } else {
+        if !found.locked.is_empty() {
+            bail!("desktop keyring is locked; unlock it to update Cirrove credentials");
+        }
+        collection
+            .create_item(
+                if key.starts_with("upload/") {
+                    "Cirrove upload session"
+                } else {
+                    "Cirrove Microsoft account"
+                },
+                attributes(key),
+                value.expose_secret().as_bytes(),
+                false,
+                "application/json",
+            )
+            .await
+            .context("cannot create Cirrove credential")?
+    };
+    // Explicitly set the value even for a newly created item. A successful
+    // CreateItem response alone has not always retained its supplied secret.
+    item.set_secret(value.expose_secret().as_bytes(), "application/json")
+        .await
+        .context("cannot save Cirrove credential")?;
+    Ok(())
+}
+
 #[derive(Deserialize)]
 struct TokenReply {
     access_token: String,
@@ -207,6 +284,7 @@ struct TokenReply {
     expires_in: u64,
     id_token: Option<String>,
     token_type: String,
+    scope: Option<String>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct MicrosoftClaims {
@@ -224,6 +302,7 @@ type MicrosoftIdToken = IdToken<
 
 pub struct PendingLogin {
     app: AppRegistration,
+    access: AccessMode,
     listener: TcpListener,
     url: Url,
     redirect: Url,
@@ -234,6 +313,9 @@ pub struct PendingLogin {
 }
 impl PendingLogin {
     pub async fn new(app: AppRegistration) -> Result<Self> {
+        Self::with_access(app, AccessMode::ReadOnly).await
+    }
+    pub async fn with_access(app: AppRegistration, access: AccessMode) -> Result<Self> {
         app.validate()?;
         let listener = TcpListener::bind("127.0.0.1:0").await?;
         // Microsoft ignores localhost redirect ports; register http://localhost.
@@ -250,7 +332,7 @@ impl PendingLogin {
             ("response_type", "code"),
             ("redirect_uri", redirect.as_str()),
             ("response_mode", "query"),
-            ("scope", SCOPES),
+            ("scope", access.scopes()),
             ("state", state.secret()),
             ("nonce", nonce.secret()),
             ("code_challenge", challenge.as_str()),
@@ -259,6 +341,7 @@ impl PendingLogin {
         ]);
         Ok(Self {
             app,
+            access,
             listener,
             url,
             redirect,
@@ -322,7 +405,7 @@ impl PendingLogin {
                     ("code", code.as_str()),
                     ("redirect_uri", self.redirect.as_str()),
                     ("code_verifier", self.verifier.secret()),
-                    ("scope", SCOPES),
+                    ("scope", self.access.scopes()),
                 ])
                 .send()
                 .await
@@ -372,7 +455,7 @@ impl PendingLogin {
             graph_user_id: user.id,
             display_name: user.display_name,
         };
-        let credentials = credentials(reply, None)?;
+        let credentials = credentials(reply, None, self.access)?;
         Ok((identity, credentials))
     }
 }
@@ -479,9 +562,17 @@ async fn graph_identity_at(client: &Client, token: &str, endpoint: &str) -> Resu
     )
     .await
 }
-fn credentials(reply: TokenReply, previous: Option<&Credentials>) -> Result<Credentials> {
+fn credentials(
+    reply: TokenReply,
+    previous: Option<&Credentials>,
+    access: AccessMode,
+) -> Result<Credentials> {
     if !reply.token_type.eq_ignore_ascii_case("bearer") || reply.access_token.is_empty() {
         bail!("invalid Microsoft token type");
+    }
+    access.validate_grant(reply.scope.as_deref())?;
+    if previous.is_some_and(|previous| previous.access != access) {
+        bail!("permission changes require a new browser sign-in");
     }
     Ok(Credentials {
         access_token: reply.access_token,
@@ -491,6 +582,7 @@ fn credentials(reply: TokenReply, previous: Option<&Credentials>) -> Result<Cred
             .filter(|t| !t.is_empty())
             .context("Microsoft did not grant offline access")?,
         expires_at: now().saturating_add(reply.expires_in),
+        access,
     })
 }
 pub async fn save_credentials(
@@ -575,7 +667,7 @@ impl TokenBroker {
                 ("client_id", self.app.client_id.as_str()),
                 ("grant_type", "refresh_token"),
                 ("refresh_token", previous.refresh_token.as_str()),
-                ("scope", SCOPES),
+                ("scope", previous.access.scopes()),
             ])
             .send()
             .await
@@ -585,7 +677,7 @@ impl TokenBroker {
         if user.id != self.identity.graph_user_id {
             bail!("refreshed token belongs to a different Microsoft account");
         }
-        let next = credentials(reply, Some(previous))?;
+        let next = credentials(reply, Some(previous), previous.access)?;
         // Persist rotation before using the new token; a keyring failure is visible.
         save_credentials(self.vault.as_ref(), &self.key, &next).await?;
         let token = next.access_token();
@@ -644,6 +736,67 @@ mod tests {
         assert_eq!(pairs["prompt"], "select_account");
         assert!(!pairs["scope"].contains("Write"));
         assert!(!pairs["nonce"].is_empty());
+    }
+    #[tokio::test]
+    async fn write_consent_is_explicit_and_validates_granted_permissions() {
+        let pending = PendingLogin::with_access(
+            AppRegistration {
+                client_id: uuid::Uuid::new_v4().to_string(),
+                authority: "common".into(),
+            },
+            AccessMode::ReadWrite,
+        )
+        .await
+        .unwrap();
+        let pairs: HashMap<_, _> = pending.authorization_url().query_pairs().collect();
+        assert_eq!(pairs["scope"], WRITE_SCOPES);
+        assert_eq!(pairs["prompt"], "select_account");
+        assert!(
+            AccessMode::ReadWrite
+                .validate_grant(Some("User.Read Files.Read.All"))
+                .is_err()
+        );
+        assert!(
+            AccessMode::ReadWrite
+                .validate_grant(Some("User.Read Files.ReadWrite.All"))
+                .is_ok()
+        );
+        assert!(
+            AccessMode::ReadWrite
+                .validate_grant(Some(WRITE_SCOPES))
+                .is_ok()
+        );
+        assert!(
+            AccessMode::ReadOnly
+                .validate_grant(Some("User.Read Files.ReadWrite.All"))
+                .is_ok()
+        );
+        assert!(
+            AccessMode::ReadWrite
+                .validate_grant(Some("User.Read Files.ReadWrite"))
+                .is_err()
+        );
+        assert!(
+            AccessMode::ReadWrite
+                .validate_grant(Some("User.Read https://evil.invalid/Files.ReadWrite.All"))
+                .is_err()
+        );
+    }
+    #[test]
+    fn old_credentials_default_to_read_only_and_refresh_cannot_upgrade_them() {
+        let old: Credentials = serde_json::from_str(
+            r#"{"access_token":"synthetic","refresh_token":"synthetic","expires_at":0}"#,
+        )
+        .unwrap();
+        assert_eq!(old.access, AccessMode::ReadOnly);
+        let reply = || {
+            serde_json::from_str::<TokenReply>(r#"{"access_token":"synthetic-next","expires_in":3600,"token_type":"Bearer","scope":"User.Read Files.ReadWrite.All"}"#).unwrap()
+        };
+        assert!(credentials(reply(), Some(&old), AccessMode::ReadWrite).is_err());
+        // A server may return a previously granted superset. Local opt-in remains unchanged.
+        let next = credentials(reply(), Some(&old), AccessMode::ReadOnly).unwrap();
+        assert_eq!(next.access, AccessMode::ReadOnly);
+        assert!(!next.access.scopes().contains("Write"));
     }
     #[test]
     fn app_registration_does_not_accept_arbitrary_authority_urls() {
@@ -741,7 +894,9 @@ mod tests {
             Ok(())
         }
     }
-    async fn broker_fixture() -> (
+    async fn broker_fixture(
+        access: AccessMode,
+    ) -> (
         Arc<TokenBroker>,
         Arc<MemoryVault>,
         Arc<std::sync::atomic::AtomicUsize>,
@@ -765,13 +920,29 @@ mod tests {
                             return;
                         }
                         bytes.extend_from_slice(&chunk[..read]);
-                        if bytes.windows(4).any(|w| w == b"\r\n\r\n") {
-                            break;
+                        if let Some(end) = bytes.windows(4).position(|w| w == b"\r\n\r\n") {
+                            let headers = String::from_utf8_lossy(&bytes[..end]);
+                            let length = headers
+                                .lines()
+                                .find_map(|line| {
+                                    let (name, value) = line.split_once(':')?;
+                                    name.eq_ignore_ascii_case("content-length")
+                                        .then(|| value.trim().parse::<usize>().unwrap())
+                                })
+                                .unwrap_or(0);
+                            if bytes.len() >= end + 4 + length {
+                                break;
+                            }
                         }
                         assert!(bytes.len() < 16384);
                     }
                     let request = String::from_utf8_lossy(&bytes);
                     let body = if request.starts_with("POST /token ") {
+                        let form: HashMap<_, _> = url::form_urlencoded::parse(
+                            request.split_once("\r\n\r\n").unwrap().1.as_bytes(),
+                        )
+                        .collect();
+                        assert_eq!(form["scope"], access.scopes());
                         count.fetch_add(1, Ordering::SeqCst);
                         tokio::time::sleep(Duration::from_millis(30)).await;
                         r#"{"token_type":"Bearer","access_token":"synthetic-fresh","refresh_token":"synthetic-rotated","expires_in":3600}"#
@@ -795,6 +966,7 @@ mod tests {
                         access_token: "synthetic-expired".into(),
                         refresh_token: "synthetic-old-refresh".into(),
                         expires_at: 0,
+                        access,
                     })
                     .unwrap(),
                 ),
@@ -824,7 +996,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn simultaneous_expiry_rotates_once_and_stale_401_cannot_expire_new_token() {
         use std::sync::atomic::Ordering;
-        let (broker, vault, requests, server) = broker_fixture().await;
+        let (broker, vault, requests, server) = broker_fixture(AccessMode::ReadOnly).await;
         let mut jobs = tokio::task::JoinSet::new();
         for _ in 0..32 {
             let broker = broker.clone();
@@ -847,7 +1019,7 @@ mod tests {
     }
     #[tokio::test]
     async fn credentials_are_not_used_when_rotation_cannot_be_persisted() {
-        let (broker, vault, _, server) = broker_fixture().await;
+        let (broker, vault, _, server) = broker_fixture(AccessMode::ReadOnly).await;
         vault
             .fail_save
             .store(true, std::sync::atomic::Ordering::SeqCst);
@@ -855,6 +1027,20 @@ mod tests {
         let stored = vault.load("key").await.unwrap().unwrap();
         let decoded: Credentials = serde_json::from_str(stored.expose_secret()).unwrap();
         assert_eq!(decoded.refresh_token, "synthetic-old-refresh");
+        server.abort();
+        let _ = server.await;
+    }
+    #[tokio::test]
+    async fn explicitly_granted_write_scope_survives_refresh_and_keyring_roundtrip() {
+        let (broker, vault, requests, server) = broker_fixture(AccessMode::ReadWrite).await;
+        assert_eq!(
+            broker.access_token().await.unwrap().expose_secret(),
+            "synthetic-fresh"
+        );
+        assert_eq!(requests.load(std::sync::atomic::Ordering::SeqCst), 1);
+        let stored = vault.load("key").await.unwrap().unwrap();
+        let decoded: Credentials = serde_json::from_str(stored.expose_secret()).unwrap();
+        assert_eq!(decoded.access, AccessMode::ReadWrite);
         server.abort();
         let _ = server.await;
     }

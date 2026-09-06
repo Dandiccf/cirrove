@@ -57,6 +57,29 @@ fn payload(journal: &UploadJournal, id: uuid::Uuid) -> Vec<u8> {
 }
 
 #[test]
+fn version_one_queue_migrates_without_losing_local_payloads_or_ordering() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let mut journal = open(&root);
+    let first = journal.enqueue(scope(), create("one.txt"), BYTES).unwrap();
+    let second = journal.enqueue(scope(), create("two.txt"), BYTES).unwrap();
+    let attempt = journal.claim_next().unwrap().unwrap();
+    assert_eq!(attempt.id, first.id);
+    drop(journal);
+    let db = rusqlite::Connection::open(root.join("uploads.db")).unwrap();
+    db.execute_batch("UPDATE uploads SET body=json_remove(body,'$.session_key','$.transferred_bytes','$.retry_at','$.failed_attempts'); PRAGMA user_version=1;").unwrap();
+    drop(db);
+    let mut journal = open(&root);
+    let recovered = journal.claim_next_verification().unwrap().unwrap();
+    assert_eq!(recovered.id, first.id);
+    assert_eq!(recovered.transferred_bytes, 0);
+    assert_eq!(recovered.session_key, None);
+    assert_eq!(payload(&journal, first.id), BYTES);
+    assert_eq!(journal.claim_next().unwrap().unwrap().id, second.id);
+    assert_eq!(payload(&journal, second.id), BYTES);
+}
+
+#[test]
 fn snapshots_are_private_immutable_and_survive_restart_with_unicode_names() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("journal");

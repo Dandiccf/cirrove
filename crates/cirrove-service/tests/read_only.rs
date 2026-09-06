@@ -57,6 +57,7 @@ fn account(path: std::path::PathBuf) -> Account {
             display_name: "Synthetic fixture".into(),
         },
         credential_id: "00000000-0000-4000-8000-000000000004".into(),
+        access: cirrove_auth::AccessMode::ReadOnly,
         drive: DriveInfo {
             id: "home".into(),
             name: "Fixture".into(),

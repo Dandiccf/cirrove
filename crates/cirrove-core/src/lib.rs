@@ -1,4 +1,5 @@
 //! Provider-neutral metadata contracts. Paths are presentation; IDs are identity.
+pub mod upload;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{sync::Arc, time::Duration};
@@ -173,6 +174,7 @@ pub enum Priority {
     Interactive,
     Background,
     Content,
+    Upload,
 }
 
 /// Separate bounded pools reserve capacity for interactive work. These are per
@@ -181,6 +183,7 @@ pub struct RequestBudget {
     interactive: Arc<Semaphore>,
     background: Arc<Semaphore>,
     content: Arc<Semaphore>,
+    uploads: Arc<Semaphore>,
 }
 impl Default for RequestBudget {
     fn default() -> Self {
@@ -188,6 +191,7 @@ impl Default for RequestBudget {
             interactive: Arc::new(Semaphore::new(4)),
             background: Arc::new(Semaphore::new(1)),
             content: Arc::new(Semaphore::new(4)),
+            uploads: Arc::new(Semaphore::new(2)),
         }
     }
 }
@@ -201,6 +205,7 @@ impl RequestBudget {
             Priority::Interactive => &self.interactive,
             Priority::Background => &self.background,
             Priority::Content => &self.content,
+            Priority::Upload => &self.uploads,
         };
         tokio::select! { biased;
             _ = cancel.cancelled() => Err(ProviderError::Cancelled),
@@ -253,6 +258,39 @@ mod tests {
         cancel.cancel();
         assert!(matches!(
             budget.acquire(Priority::Content, &cancel).await,
+            Err(ProviderError::Cancelled)
+        ));
+    }
+    #[tokio::test]
+    async fn uploads_leave_directory_and_download_capacity_available() {
+        let budget = RequestBudget::default();
+        let cancel = CancellationToken::new();
+        let _first = budget.acquire(Priority::Upload, &cancel).await.unwrap();
+        let _second = budget.acquire(Priority::Upload, &cancel).await.unwrap();
+        for priority in [
+            Priority::Interactive,
+            Priority::Content,
+            Priority::Background,
+        ] {
+            let _permit = tokio::time::timeout(
+                Duration::from_millis(100),
+                budget.acquire(priority, &cancel),
+            )
+            .await
+            .unwrap()
+            .unwrap();
+        }
+        assert!(
+            tokio::time::timeout(
+                Duration::from_millis(10),
+                budget.acquire(Priority::Upload, &cancel)
+            )
+            .await
+            .is_err()
+        );
+        cancel.cancel();
+        assert!(matches!(
+            budget.acquire(Priority::Upload, &cancel).await,
             Err(ProviderError::Cancelled)
         ));
     }

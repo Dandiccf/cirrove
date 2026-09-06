@@ -1,7 +1,9 @@
 # ADR 0002: Durable local edits and explicit remote acknowledgement
 
-Status: local upload-journal component implemented; provider and writable-filesystem
-integration remain in progress. This does not enable cloud writes.
+Status: journal, transfer worker and experimental Graph upload adapter implemented
+with synthetic validation. Live provider and writable-filesystem validation remain
+in progress. Ordinary mounts stay read-only; only an explicit developer command
+performs isolated cloud write checks.
 
 ## Save contract
 
@@ -48,12 +50,12 @@ next independent file eligible. Creates carry parent/name and require failure on
 name collision. Replacements carry an item ID and the originally observed metadata
 ETag; provider rules must enforce those preconditions.
 
-## Provider integration still required
+## Provider integration and remaining validation
 
 Microsoft documents resumable upload sessions, server-reported missing ranges,
 name-conflict behavior and conditional headers. These contracts belong in the
-Graph adapter. Session URLs are preauthenticated credentials: persist them privately
-through credential storage, pass references through the journal, and never log them.
+Graph adapter. Session URLs are preauthenticated credentials: the worker persists
+them privately through credential storage and passes only references through the journal.
 The Graph bearer token must not accompany uploads to a preauthenticated session URL.
 See [Microsoft upload sessions](https://learn.microsoft.com/en-us/graph/api/driveitem-createuploadsession?view=graph-rest-1.0).
 
@@ -63,11 +65,26 @@ accepted when the session was created. A lost response must be reconciled agains
 the session and remote content; matching only a filename and size is insufficient
 proof that our upload committed.
 
-The remaining integration must also implement durable session/progress references,
-new generations created during an active upload, metadata operations and their
+The worker saves each checkpoint before transmitting the next fragment. Desktop
+credential saves include an independent readback before reporting success, with
+a bounded retry for a mismatched stored value. A deterministic per-operation key recovers a secret-store success whose reply was lost before the
+journal reference was saved. Accepted byte counts do not imply a completed file.
+Retry deadlines survive restart and apply per file. A missing session triggers
+content reconciliation, including SHA-256 readback, before another attempt is allowed.
+An empty or malformed stored checkpoint takes the same content-reconciliation path
+as a missing session; invalid credentials cannot become an endless parse/retry loop.
+The replacement path requests deferred commit and sends the original ETag at final
+commit. Business and document-library drives use a zero-length POST to the session;
+personal drives use Graph's source-URL PUT. Selecting the correct endpoint does not
+prove that the provider enforces a precondition. The explicit developer validation command includes a live competing-edit check;
+one business-drive fixture passed. That does not complete the broader account and
+concurrency matrix.
+
+The remaining integration must implement new generations during an active upload,
+metadata operations and their
 dependencies, writable FUSE open/write/truncate/fsync/atomic-save behavior, user
 conflict resolution and retention policy for old receipts. Live tests use a dedicated
-test folder after opt-in write consent. The currently installed mount stays read-only.
+test folder after opt-in write consent. See [the developer workflow](../write-validation.md).
 
 ## Validation
 
@@ -77,5 +94,10 @@ ordering, conflict retention, stale attempt tokens and malformed remote receipts
 A separate child process is killed at pending, uploading and acknowledged phases;
 each recovered journal retains the expected state and exact local bytes.
 
-These checks validate the local component. They do not demonstrate working Graph
-uploads, application-save semantics or completion of the safe-file-changes milestone.
+Synthetic HTTP fixtures additionally verify exact upload ranges, bearer-header
+separation, redirects, expiry, shared throttling, conditional headers and content
+reconciliation. Worker tests interrupt partial transfers and lose completion replies;
+keyring failures, cancellation and conflict responses preserve local bytes.
+
+These checks do not demonstrate working live Graph uploads, application-save
+semantics or completion of the safe-file-changes milestone.

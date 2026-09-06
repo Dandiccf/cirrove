@@ -12,7 +12,8 @@ fetches file content on demand into a bounded disk cache.
 metadata workers and a FUSE mount are implemented. Local synthetic tests exercise
 actual filesystem reads and recovery. Real Microsoft consent, sustained operation
 and provider latency still require validation. Do not replace a trusted cloud
-client with this preview. Uploads, pins, tray UI and Nautilus badges are not implemented.
+client with this preview. Writable mounts, pins, tray UI and Nautilus badges are not
+implemented. A separate developer upload worker is undergoing validation.
 
 ## Current implementation
 
@@ -31,6 +32,10 @@ client with this preview. Uploads, pins, tray UI and Nautilus badges are not imp
   bounded eviction and interrupted-publication recovery.
 - Private status socket, desired mount state, accidental-ejection remount and
   graceful worker/session shutdown. Settings and metadata persist across runs.
+- Durable upload snapshots, keyring-backed session checkpoints and bounded Graph
+  upload fragments, exercised with synthetic HTTP/fault fixtures. An explicit
+  [isolated write check](docs/write-validation.md) is available for live validation;
+  this worker is not enabled in ordinary mounts.
 
 These are implementation capabilities, not a production-readiness claim. See the
 [validation record](docs/validation.md) for what has actually been tested.
@@ -78,9 +83,9 @@ The systemd template is supplied separately and is not installed by a build.
 
 | Crate | Responsibility |
 | --- | --- |
-| `cirrove-core` | Provider-neutral identity, metadata/read contracts, cancellation and request budgets |
+| `cirrove-core` | Provider-neutral identity, metadata/read/upload contracts, cancellation and request budgets |
 | `cirrove-store` | Transactional metadata, observations, persistent inodes and cache index |
-| `cirrove-onedrive` | Microsoft Graph metadata and version-checked ranged reads |
+| `cirrove-onedrive` | Microsoft Graph metadata, version-checked ranged reads and experimental resumable uploads |
 | `cirrove-auth` | Microsoft browser authentication, keyring and refresh broker |
 | `cirrove-service` | Daemon, CLI, account workers, FUSE projection and content cache |
 

@@ -5,9 +5,11 @@
 Cirrove makes remote files usable through ordinary Linux applications. Cached
 metadata should stay available when a provider is slow; file bytes arrive on demand.
 The current implementation is a **read-only preview under validation**. It does not
-upload, pin files or implement offline writes. A separate local upload journal now
-protects sealed edit snapshots and uncertain attempts; its integration with Graph
-transfers and writable filesystem operations remains in progress. See
+upload through mounted paths, pin files or implement offline writes. A separate
+upload journal and worker protect sealed edits, persist resumable Graph sessions
+through the keyring, and reconcile uncertain attempts. They have synthetic HTTP and
+crash coverage; live provider checks and writable filesystem integration remain in
+progress. See
 [durable local edits](adr/0002-durable-local-edits.md).
 
 A cloud API cannot provide instant uncached access or complete local POSIX semantics.
@@ -83,8 +85,10 @@ The CLI displays the verified identity and selected drive before saving it.
 
 Non-secret configuration is atomically written and fsynced. Tokens are stored in a
 Cirrove-labelled Secret Service item over an encrypted session, never in the metadata
-database. The shared account broker serializes refresh, checks the refreshed Graph
-identity and persists rotation before returning a new access token. Delayed 401s
+database. Secret writes are explicitly set and read back through a fresh encrypted keyring
+session before reporting success. A mismatched readback gets at most three write
+attempts; lock and transport errors return to the caller. The shared account broker
+serializes refresh, checks the refreshed Graph identity and persists rotation before returning a new access token. Delayed 401s
 invalidate only the rejected token, not a newer grant.
 
 A daemon ownership lock prevents competing managers. Per-account leases cover its
@@ -100,9 +104,11 @@ follow redirects; continuation URLs must stay on the configured origin and drive
 Signed downloads use a separate client without Graph bearer headers. Provider bodies,
 tokens, signed URLs and opaque cursor material are excluded from application errors.
 
-Per account, there are four foreground metadata slots, four content slots and one
-background metadata slot. Content traffic cannot occupy directory-request slots.
-429/503 cooldown applies across Graph metadata and download operations. Requests and
+Per account, there are four foreground metadata slots, four content slots, two
+upload slots and one background metadata slot. Transfers cannot occupy directory
+request slots. Upload fragments are bounded to 5 MiB and use a separate client that
+neither follows redirects nor sends Graph bearer tokens to session URLs.
+429/503 cooldown applies across metadata, download and upload operations. Requests and
 credential operations have finite deadlines; account cancellation interrupts them.
 The scheduler distinguishes authentication, permissions, missing items, expired
 cursors, throttling and transient failures, and uses bounded backoff with jitter.
