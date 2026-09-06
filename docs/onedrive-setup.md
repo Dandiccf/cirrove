@@ -4,14 +4,22 @@ Cirrove currently requires your own Microsoft app registration. No project-wide
 registration is bundled, and Cirrove does not reuse another cloud client's identity
 or credentials. The preview requests **read-only** access.
 
+Starting with a personal Microsoft account and no development directory? Follow
+[Personal Microsoft development setup](microsoft-developer-setup.md) first. It covers
+Azure signup, the initial Entra directory, costs, registration and both private/work
+connections. The shorter steps below assume you already have a suitable directory.
+
 ## Register the desktop application
 
 1. Open the [Microsoft Entra admin center](https://entra.microsoft.com/), choose
    your tenant, then **Entra ID → App registrations → New registration**. Name it
    `Cirrove development`.
-2. For your work account, use **Single tenant** and record the Directory (tenant)
-   ID. For an application intended for both business and personal accounts, choose
-   **Any Entra ID Tenant + Personal Microsoft accounts** and use `common` below.
+2. If the app and all intended work accounts belong to the **same tenant**, you can
+   use **Single tenant** and that Directory (tenant) ID. For an app in your own
+   development directory that should access personal OneDrive and work accounts in
+   other tenants, choose **Any Entra ID Tenant + Personal Microsoft accounts**.
+   In that case, pass `--tenant common` below; the development directory's ID is
+   retained for administration, not used as the sign-in authority for those accounts.
 3. Record the **Application (client) ID**. These IDs identify the application and
    tenant; they are not client secrets. See Microsoft's
    [registration instructions](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app).

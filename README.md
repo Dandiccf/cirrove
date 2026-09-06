@@ -48,8 +48,10 @@ cargo build --workspace --locked
 cargo run --locked --bin cirrove -- demo --state-dir "$(mktemp -d)"
 ```
 
-The demo uses synthetic metadata and no cloud account. For an actual read-only
-mount, follow [OneDrive setup](docs/onedrive-setup.md), then run:
+The demo uses synthetic metadata and no cloud account. To create a personally owned
+Microsoft development environment, follow [Personal Microsoft/Azure/Entra setup](docs/microsoft-developer-setup.md).
+If you already have an Entra directory, use the shorter [OneDrive setup](docs/onedrive-setup.md).
+Once an account is connected, start its read-only mount with:
 
 ```sh
 ./target/debug/cirroved
