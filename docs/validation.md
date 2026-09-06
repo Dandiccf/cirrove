@@ -117,6 +117,13 @@ Formatting, strict Clippy, all 37 default tests, both explicit kernel-FUSE lifec
 tests, binary builds, executable smoke and Rustdoc completed successfully. The
 keyring check and benchmark remain separate local checks described above.
 
+The [mapping and concurrent-read CI run](https://github.com/Dandiccf/cirrove/actions/runs/34020162248)
+passed on Ubuntu 24.04 at `1e301dc541ecad23622409ab4d9aed524628a7d1`.
+All 39 default tests and five explicit kernel-FUSE tests passed, including the
+memory-mapping and 96-reader cases. Formatting, strict Clippy, builds, executable
+smoke and Rustdoc also passed. The kernel advertised direct-I/O mmap support on
+both the local Arch session and this Ubuntu runner.
+
 ## Required before calling stages 1–3 complete
 
 - Cirrove's own Microsoft app registration, real consent and verified work-account,
