@@ -244,7 +244,7 @@ fn version_five_migration_keeps_existing_save_lineage_and_refuses_newer_schema()
     let second = j.enqueue_after(first.id, b"saved".as_slice()).unwrap();
     drop(j);
     let db = rusqlite::Connection::open(root.join("uploads.db")).unwrap();
-    db.execute_batch("DROP TABLE write_successors; PRAGMA user_version=5;")
+    db.execute_batch("DROP TABLE write_successors; DROP TABLE namespace_operations; DROP TABLE namespace_remote; DROP TABLE namespace_entries; DROP TABLE namespace_objects; DROP TABLE namespace_scopes; PRAGMA user_version=5;")
         .unwrap();
     drop(db);
     let mut j = open(&root);
@@ -263,9 +263,9 @@ fn version_five_migration_keeps_existing_save_lineage_and_refuses_newer_schema()
     assert_eq!(
         db.pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
             .unwrap(),
-        6
+        7
     );
-    db.execute_batch("PRAGMA user_version=7;").unwrap();
+    db.execute_batch("PRAGMA user_version=8;").unwrap();
     drop(db);
     assert!(matches!(
         UploadJournal::open(&root, &scope().account, 1024),
@@ -275,7 +275,7 @@ fn version_five_migration_keeps_existing_save_lineage_and_refuses_newer_schema()
     assert_eq!(
         db.pragma_query_value(None, "user_version", |r| r.get::<_, i64>(0))
             .unwrap(),
-        7
+        8
     );
 }
 

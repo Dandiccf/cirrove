@@ -158,6 +158,23 @@ impl UploadJournal {
         base: Option<WriteBase>,
         working: Option<WorkingFile>,
     ) -> Result<MutationRecord> {
+        self.enqueue_mutation_transaction(request, base, working, None)
+    }
+    pub(super) fn enqueue_namespace_mutation(
+        &mut self,
+        request: MutationRequest,
+        base: Option<WriteBase>,
+        object: NamespaceObject,
+    ) -> Result<MutationRecord> {
+        self.enqueue_mutation_transaction(request, base, None, Some(object))
+    }
+    fn enqueue_mutation_transaction(
+        &mut self,
+        request: MutationRequest,
+        base: Option<WriteBase>,
+        working: Option<WorkingFile>,
+        object: Option<NamespaceObject>,
+    ) -> Result<MutationRecord> {
         if request.scope.account != self.account {
             return Err(JournalError::Account);
         }
@@ -191,6 +208,9 @@ impl UploadJournal {
         )?;
         if let Some(working) = working {
             super::working::commit_relocation(&tx, working, &record)?;
+        }
+        if let Some(object) = object {
+            super::namespace::commit_relocation(&tx, object, &record)?;
         }
         tx.commit()?;
         Ok(record)
@@ -234,6 +254,11 @@ impl UploadJournal {
             return Err(JournalError::Missing);
         }
         queue_complete(&tx, record.id, record.state == MutationState::Applied)?;
+        if record.state == MutationState::Applied
+            && let Some(MutationReceipt::Upsert(remote)) = &record.receipt
+        {
+            super::namespace::confirm(&tx, record.id, record.sequence, remote)?;
+        }
         tx.commit()?;
         Ok(())
     }

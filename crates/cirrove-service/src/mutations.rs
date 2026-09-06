@@ -1,4 +1,4 @@
-//! Durable namespace execution, not yet enabled in mounted filesystems.
+//! Durable namespace execution; ordinary account mounts remain read-only.
 use crate::journal::{JournalError, MutationState, UploadJournal};
 use cirrove_core::mutation::{MutationError, MutationProvider, MutationReconciliation};
 use cirrove_core::{CancellationToken, ProviderError};

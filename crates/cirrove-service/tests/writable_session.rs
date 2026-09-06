@@ -2,6 +2,10 @@
 #![allow(clippy::unwrap_used)]
 use async_trait::async_trait;
 use cirrove_auth::{AccessMode, AppRegistration, CredentialVault, Identity};
+use cirrove_core::mutation::{
+    MutationError, MutationIntent, MutationProvider, MutationReceipt, MutationReconciliation,
+    MutationRequest,
+};
 use cirrove_core::upload::{
     Reconciliation, UploadError, UploadIntent, UploadProgress, UploadProvider, UploadRequest,
     UploadStep,
@@ -22,7 +26,7 @@ use std::{
     path::Path,
     sync::{
         Arc, Mutex,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
     },
     time::Duration,
 };
@@ -57,11 +61,15 @@ struct Remote {
     files: HashMap<String, (Node, Vec<u8>)>,
     sessions: HashMap<String, Vec<u8>>,
     history: Vec<Vec<u8>>,
+    moves: Vec<MutationRequest>,
 }
 #[derive(Default)]
 struct Cloud {
     remote: Mutex<Remote>,
     pause_once: AtomicBool,
+    reads: AtomicUsize,
+    lose_move_once: AtomicBool,
+    foreign_after_lost_move: AtomicBool,
     stall: AtomicBool,
     entered: Notify,
     release: Notify,
@@ -152,6 +160,7 @@ impl ReadProvider for Cloud {
         length: u32,
         _: &CancellationToken,
     ) -> Result<Vec<u8>, ProviderError> {
+        self.reads.fetch_add(1, Ordering::SeqCst);
         let remote = self.remote.lock().unwrap();
         let (current, bytes) = remote.files.get(&node.id).ok_or(ProviderError::NotFound)?;
         if node.content_revision() != current.content_revision() {
@@ -310,6 +319,82 @@ impl UploadProvider for Cloud {
                 Reconciliation::Uncommitted
             }
             _ => Reconciliation::Conflict,
+        })
+    }
+}
+#[async_trait]
+impl MutationProvider for Cloud {
+    async fn mutate(
+        &self,
+        request: &MutationRequest,
+        _: &CancellationToken,
+    ) -> mutation::Result<MutationReceipt> {
+        if self.stall.load(Ordering::SeqCst) {
+            self.entered.notify_one();
+            std::future::pending::<()>().await;
+        }
+        request.validate()?;
+        let MutationIntent::Relocate {
+            before,
+            parent,
+            name,
+        } = &request.intent
+        else {
+            return Err(MutationError::Unsupported("fixture only relocates files"));
+        };
+        let mut remote = self.remote.lock().unwrap();
+        if remote.files.values().any(|(n, _)| {
+            n.id != before.id
+                && n.parent_id.as_ref() == Some(parent)
+                && n.name.to_lowercase() == name.to_lowercase()
+        }) {
+            return Err(MutationError::Conflict);
+        }
+        let (node, _) = remote
+            .files
+            .get_mut(&before.id)
+            .ok_or(ProviderError::NotFound)?;
+        if node.etag != before.etag {
+            return Err(MutationError::Conflict);
+        }
+        node.name = name.clone();
+        node.parent_id = Some(parent.clone());
+        node.etag = Some(uuid::Uuid::new_v4().to_string());
+        let result = node.clone();
+        remote.moves.push(request.clone());
+        if self.lose_move_once.swap(false, Ordering::SeqCst) {
+            if self.foreign_after_lost_move.load(Ordering::SeqCst) {
+                let (node, bytes) = remote.files.get_mut(&before.id).unwrap();
+                *bytes = b"someone else's save".to_vec();
+                node.size = bytes.len() as u64;
+                node.etag = Some("foreign-etag".into());
+                node.content_version = Some("foreign-content".into());
+            }
+            return Err(MutationError::Uncertain);
+        }
+        Ok(MutationReceipt::Upsert(result))
+    }
+    async fn reconcile_mutation(
+        &self,
+        request: &MutationRequest,
+        _: &CancellationToken,
+    ) -> mutation::Result<MutationReconciliation> {
+        let MutationIntent::Relocate {
+            before,
+            parent,
+            name,
+        } = &request.intent
+        else {
+            return Ok(MutationReconciliation::Indeterminate);
+        };
+        let remote = self.remote.lock().unwrap();
+        Ok(match remote.files.get(&before.id) {
+            Some((node, _)) if node.name == *name && node.parent_id.as_ref() == Some(parent) => {
+                MutationReconciliation::Applied(MutationReceipt::Upsert(node.clone()))
+            }
+            Some((node, _)) if node == before => MutationReconciliation::Uncommitted,
+            Some(_) => MutationReconciliation::Conflict,
+            None => MutationReconciliation::Indeterminate,
         })
     }
 }
@@ -684,5 +769,285 @@ async fn real_shutdown_reports_insufficient_snapshot_space_and_retains_the_dirty
             .unwrap()
             .lines()
             .any(|line| line.split_whitespace().nth(4) == mount.to_str())
+    );
+}
+
+fn namespace_fixture(cloud: &Cloud) {
+    let huge = Node {
+        id: "online".into(),
+        parent_id: Some("root".into()),
+        name: "online.bin".into(),
+        kind: NodeKind::File,
+        size: 500 * 1024 * 1024 * 1024,
+        modified_unix: 1,
+        etag: Some("original-etag".into()),
+        content_version: Some("original-content".into()),
+        target: None,
+    };
+    let folder = Node {
+        id: "folder".into(),
+        parent_id: Some("root".into()),
+        name: "folder".into(),
+        etag: Some("folder-etag".into()),
+        ..root()
+    };
+    let occupied = Node {
+        id: "occupied".into(),
+        name: "occupied.bin".into(),
+        size: 7,
+        ..huge.clone()
+    };
+    let mut remote = cloud.remote.lock().unwrap();
+    for (node, bytes) in [
+        (huge, vec![]),
+        (folder, vec![]),
+        (occupied, b"foreign".to_vec()),
+    ] {
+        remote.files.insert(node.id.clone(), (node, bytes));
+    }
+}
+async fn application(mount: &Path, source: &str) {
+    let output = tokio::time::timeout(
+        Duration::from_secs(10),
+        tokio::process::Command::new("python3")
+            .arg("-c")
+            .arg(source)
+            .arg(mount)
+            .kill_on_drop(true)
+            .output(),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert!(
+        output.status.success(),
+        "application failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+async fn reopened_journal(path: &Path, owner: &str, quota: u64) -> UploadJournal {
+    // Other parallel kernel fixtures fork application helpers. A just-forked
+    // child can briefly retain the old lease fd until exec closes CLOEXEC fds.
+    let until = tokio::time::Instant::now() + Duration::from_secs(2);
+    loop {
+        match UploadJournal::open(path, owner, quota) {
+            Err(cirrove_service::journal::JournalError::Busy)
+                if tokio::time::Instant::now() < until =>
+            {
+                tokio::time::sleep(Duration::from_millis(2)).await
+            }
+            result => return result.unwrap(),
+        }
+    }
+}
+async fn mutations_applied(session: &WritableSession, count: usize) {
+    use cirrove_service::journal::MutationState;
+    tokio::time::timeout(Duration::from_secs(12), async {
+        loop {
+            let records = session.mutations(0, 100).await.unwrap();
+            assert!(
+                !records.iter().any(|r| matches!(
+                    r.state,
+                    MutationState::Failed | MutationState::Conflict | MutationState::NeedsReview
+                )),
+                "namespace worker failed: {:?}",
+                session.worker_issue()
+            );
+            if records.len() == count && records.iter().all(|r| r.state == MutationState::Applied) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; metadata-only moves, crash reconciliation and subsequent saves"]
+async fn real_online_file_moves_without_hydration_and_resumes_its_receipt_chain() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let state = temp.path().join("state");
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    namespace_fixture(&cloud);
+    cloud.stall.store(true, Ordering::SeqCst);
+    let vault = Arc::new(Vault::default());
+    let spool = temp.path().join("journal");
+    // The virtual file is 500 GiB, whereas the spool can only hold 1 MiB.
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&spool, &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account.clone(), cloud.clone(), state.clone())
+        .await
+        .unwrap();
+    let session = WritableSession::mount(engine, journal.clone(), cloud.clone(), vault.clone())
+        .await
+        .unwrap();
+    application(
+        &mount,
+        r#"
+import errno,os,sys
+os.chdir(sys.argv[1])
+before=os.stat('online.bin').st_ino
+try:
+    os.rename('online.bin','occupied.bin')
+except OSError as e:
+    assert e.errno in (errno.EOPNOTSUPP,errno.EEXIST), e
+else:
+    raise AssertionError('replacement must preserve the occupant')
+os.rename('online.bin','renamed.bin')
+assert not os.path.exists('online.bin')
+assert os.stat('renamed.bin').st_ino==before
+os.rename('renamed.bin','folder/final.bin')
+assert not os.path.exists('renamed.bin')
+assert os.stat('folder/final.bin').st_ino==before
+assert os.stat('folder/final.bin').st_size==500*1024**3
+assert sorted(os.listdir('folder'))==['final.bin']
+"#,
+    )
+    .await;
+    assert_eq!(cloud.reads.load(Ordering::SeqCst), 0);
+    assert!(journal.lock().unwrap().working_files().unwrap().is_empty());
+    assert!(session.uploads(0, 100).await.unwrap().is_empty());
+    assert_eq!(session.mutations(0, 100).await.unwrap().len(), 2);
+    tokio::time::timeout(Duration::from_secs(5), session.shutdown())
+        .await
+        .unwrap()
+        .unwrap();
+    drop(journal);
+    // Reopen the database, not just its in-memory projection. The first retry's
+    // response is deliberately lost; reconciliation must not replay that move.
+    cloud.stall.store(false, Ordering::SeqCst);
+    cloud.lose_move_once.store(true, Ordering::SeqCst);
+    let journal = Arc::new(Mutex::new(
+        reopened_journal(&spool, &account.id, 1024 * 1024).await,
+    ));
+    let engine = Engine::new(account, cloud.clone(), state).await.unwrap();
+    let session = WritableSession::mount(engine, journal.clone(), cloud.clone(), vault)
+        .await
+        .unwrap();
+    mutations_applied(&session, 2).await;
+    assert_eq!(cloud.reads.load(Ordering::SeqCst), 0);
+    assert_eq!(cloud.remote.lock().unwrap().moves.len(), 2);
+    application(
+        &mount,
+        r#"
+import os,sys
+os.chdir(sys.argv[1])
+assert not os.path.exists('online.bin')
+assert not os.path.exists('renamed.bin')
+assert sorted(os.listdir('folder'))==['final.bin']
+with open('folder/final.bin','wb',buffering=0) as f:
+    f.write(b'edited after move')
+    os.fsync(f.fileno())
+with open('folder/final.bin','rb') as f: assert f.read()==b'edited after move'
+"#,
+    )
+    .await;
+    acknowledged(&session, 1).await;
+    assert_eq!(cloud.reads.load(Ordering::SeqCst), 0);
+    assert!(session.namespace_conflicts().unwrap().is_empty());
+    {
+        let remote = cloud.remote.lock().unwrap();
+        let (node, bytes) = remote.files.get("online").unwrap();
+        assert_eq!(node.name, "final.bin");
+        assert_eq!(node.parent_id.as_deref(), Some("folder"));
+        assert_eq!(bytes, b"edited after move");
+        assert_eq!(&remote.files.get("occupied").unwrap().1, b"foreign");
+    }
+    session.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; an uncertain move must not authorize overwriting a foreign save"]
+async fn real_save_after_lost_move_preserves_both_local_and_foreign_content() {
+    use cirrove_service::journal::MutationState;
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    namespace_fixture(&cloud);
+    cloud.lose_move_once.store(true, Ordering::SeqCst);
+    cloud.foreign_after_lost_move.store(true, Ordering::SeqCst);
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session = WritableSession::mount(
+        engine,
+        journal.clone(),
+        cloud.clone(),
+        Arc::new(Vault::default()),
+    )
+    .await
+    .unwrap();
+    application(
+        &mount,
+        r#"
+import os,sys
+os.chdir(sys.argv[1])
+os.rename('online.bin','renamed.bin')
+with open('renamed.bin','wb',buffering=0) as f:
+    f.write(b'my local save')
+    os.fsync(f.fileno())
+"#,
+    )
+    .await;
+    tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            let records = session.mutations(0, 100).await.unwrap();
+            if records.len() == 1 && records[0].state == MutationState::Conflict {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let records = session.uploads(0, 100).await.unwrap();
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].state, UploadState::Pending);
+    assert!(!records[0].base.as_ref().unwrap().resolved);
+    assert_eq!(cloud.reads.load(Ordering::SeqCst), 0);
+    application(
+        &mount,
+        r#"
+import os,sys
+os.chdir(sys.argv[1])
+assert not os.path.exists('online.bin')
+with open('renamed.bin','rb') as f: assert f.read()==b'my local save'
+"#,
+    )
+    .await;
+    {
+        let remote = cloud.remote.lock().unwrap();
+        assert!(remote.history.is_empty());
+        assert_eq!(remote.moves.len(), 1);
+        assert_eq!(
+            &remote.files.get("online").unwrap().1,
+            b"someone else's save"
+        );
+    }
+    session.shutdown().await.unwrap();
+    let record = journal
+        .lock()
+        .unwrap()
+        .working_files()
+        .unwrap()
+        .pop()
+        .unwrap();
+    assert_eq!(
+        journal
+            .lock()
+            .unwrap()
+            .read_working(record.id, 0, 100)
+            .unwrap(),
+        b"my local save"
     );
 }

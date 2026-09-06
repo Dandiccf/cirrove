@@ -260,8 +260,8 @@ can enter `NeedsReview`, retaining their request without an automatic retry loop
 HTTP success is required for a confirmed deletion receipt. File DELETE uses the
 provider's recycle-bin behavior; it is not permanent deletion or local POSIX rmdir.
 
-These operations remain outside the mounted filesystem. The writable namespace
-layer must add ancestor/dependency handling, application-save generations and safe
+Experimental writable mounts now connect regular-file rename/move to this worker.
+The writable namespace layer must add ancestor/dependency handling and safe
 replacement semantics before enabling folder mutations through FUSE. Personal
 accounts, permissions changes and broader live concurrency still require coverage.
 
@@ -288,8 +288,9 @@ assigns a new remote identity. An uncertain or conflicted predecessor blocks its
 successors while independent files remain eligible. Old sealed bytes never change
 when the working file is edited again. Schema 6 extends this receipt chain across
 uploads and namespace mutations. A local working-file relocation now commits its
-new name and queued mutation together; mounted namespace projection and atomic
-replacement still need integration before the full application workflow is enabled.
+new name and queued mutation together. Schema 7 adds separate local object identity,
+directory entries, confirmed remote bindings and optional working bytes. Atomic
+replacement still needs integration before the full application workflow is enabled.
 
 The developer constructor requires a disabled test account with explicit write
 access and a journal owned by that account. It supports regular-file create,
@@ -300,7 +301,7 @@ save on the user's ordinary mount is routed through this experimental path.
 
 Experimental writable inodes retain identity while their local bytes change.
 Memory mapping is currently disabled for these sessions; read-only sessions keep
-their existing content-version inode and mapping behavior. Namespace mutations,
+their existing content-version inode and mapping behavior. Writable directory operations,
 atomic replacement, permission/time changes, clean-working-copy retirement,
 and conflict UI are not connected to writable mounts yet. Sealing may require space
 for both the working file and its snapshot; failure
@@ -309,8 +310,9 @@ recovery and sustained real-provider application editing remain acceptance gates
 
 ## Experimental writable-session ownership
 
-`WritableSession` owns a test engine, its FUSE session and two upload workers.
-Successful sealing wakes the workers; a one-second fallback revisits persisted
+`WritableSession` owns a test engine, its FUSE session, two upload workers and one
+conditional namespace worker. Successful sealing, relocation and confirmed receipts
+wake the workers; a one-second fallback revisits persisted
 retry deadlines without resetting backoff. Saves finish after durable local
 publication, independently of cloud acknowledgement. Paginated journal records
 expose each generation's state and fragment progress; desktop presentation and
@@ -356,10 +358,53 @@ content revision/size or an unchanged metadata version allows the chain to conti
 Observed receipts remain available for review without being treated as confirmed
 save bases. Providers must distinguish conditional responses from later observations.
 
-These APIs establish journal ordering and working-file transactions. A complete
-local object/path/remote-binding model, metadata-only operations on unhydrated files,
-directory dependencies, open-unlinked handles and atomic replacement through FUSE
-remain required. The ordinary manager stays read-only.
+These APIs establish journal ordering and working-file transactions. The sparse
+namespace model below connects regular-file relocation to FUSE. Directory dependencies,
+open-unlinked handles and atomic replacement through FUSE remain required. The ordinary
+manager stays read-only.
+
+## Sparse local namespace and mounted relocation
+
+Journal schema 7 separates stable local objects, directory entries, confirmed remote
+identities, operation bindings and optional working-file bytes. A metadata-only
+rename or move needs no content reservation or download. Its desired path and
+queued intent commit together with an optimistic object revision check. Hydrating
+that object later attaches bytes to its current local path and identity, including
+when another file has since reused its original name. Truncation to zero retains
+the original remote version as a write precondition without copying its old bytes.
+
+Schema migration retains earlier acknowledged remote bindings even when a newer
+save is still pending. A receipt updates the remote alias in the same transaction
+as operation acknowledgement. Remote IDs assigned to newly created files do not
+replace their local identity or inode. The sparse namespace currently permits at
+most 10,000 objects; clean-object retirement and rebasing their overlay on later
+remote changes remain required for long-term use.
+
+The mount loads a memory projection of these objects and working-file records.
+Publication is atomic and revision-ordered, so a delayed save or rename callback
+cannot restore an older name or discard a newer remote binding. Cached namespace
+reads do not take the spool/journal mutex. The database and memory projection use
+the same listing logic, suppressing old remote aliases and retaining foreign name
+occupants as explicit conflicts. The developer session exposes those conflicts and
+paginated mutation state; desktop conflict presentation is not implemented.
+
+The journal supports an immutable case-sensitive or case-insensitive name policy
+per collection. Existing experimental working-file calls default to case-insensitive
+comparison. The current mounted preflight conservatively compares names without
+case; future provider adapters must supply their own verified name semantics.
+
+Regular-file rename/move is admitted and drained with other local mutations. It
+rechecks the source name and parent at the journal serialization point. The current
+path rejects cross-collection or cross-shortcut-projection moves, directory and
+shortcut mutations, exchange/whiteout flags and replacement of an occupied path.
+`RENAME_NOREPLACE` is supported. A remote collision after local acceptance becomes
+an operation conflict; it does not authorize overwriting that occupant.
+
+Experimental mounts require `FUSE_ATOMIC_O_TRUNC`. Without that capability Linux
+can strip O_TRUNC from OPEN and issue SETATTR afterward, causing the old file to be
+hydrated unnecessarily. The supported path creates empty working bytes directly
+and preserves the source metadata. Read-only O_TRUNC combinations are rejected;
+writable memory mapping and other attribute changes remain outside this preview.
 
 ## Next boundaries
 

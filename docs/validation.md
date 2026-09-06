@@ -410,3 +410,43 @@ Child entry invalidations remain active; directory handles do not enable kernel
 readdir caching. Diagnostic delays and logging were removed afterward. Twenty
 consecutive runs of the final four-test writable suite passed (80 test executions).
 This is bounded local synthetic evidence, not sustained real-provider acceptance.
+
+
+## Sparse namespace and actual mounted file relocation
+
+Thirteen additional default fixtures cover metadata-only identity, name/intent
+rollback, local collisions, explicit foreign-name conflicts, collection isolation,
+case policies, attachment after an old name is reused, stale hydration, zero-byte
+truncation, receipt/remote-alias atomicity, schema-6 migration and delayed memory
+publication. A renamed 500 GiB metadata object reserves no working bytes under a
+1 KiB quota. The projection regression publishes newer snapshots before older
+callbacks and checks that both the final name and assigned remote alias survive.
+
+Two additional actual synthetic FUSE tests exercise separate Python applications:
+
+- A 500 GiB online-only file is renamed and moved under a 1 MiB spool quota, with
+  stable inode and zero content reads. An occupied destination is preserved. The
+  session is shut down with a stalled mutation and its journal is reopened. A lost
+  retry response is reconciled without replaying the move, after which a mounted
+  truncate/write/fsync follows the confirmed move's ETag and uploads correctly.
+- A lost move response is followed by another actor's content change. The next
+  mounted save stays pending behind the resulting conflict; local bytes remain
+  readable and retained after shutdown, and the foreign cloud content is preserved.
+
+The first mounted truncation attempt failed with ENOSPC because Linux stripped
+O_TRUNC from OPEN before a later SETATTR. Requiring FUSE_ATOMIC_O_TRUNC made the same
+large-file test pass without hydration. A parallel fixture's immediate journal
+reopen also saw Busy while another test fork briefly retained its lease descriptor;
+the test now retries only Busy for at most two seconds, without displacing any owner.
+
+These checks cover regular-file relocation in isolated synthetic mounts. The
+ordinary manager remains read-only. Writable directories, open-unlinked handles,
+atomic replacement, clean-object retirement, later remote-edit rebasing, full
+application compatibility and real-provider mounted rename/save acceptance remain
+outstanding. No installed daemon or existing cloud document was changed by these
+checks.
+
+The completed local verification run passed 144 default workspace tests, all 20
+actual synthetic kernel-FUSE checks, formatting, strict Clippy, workspace build,
+executable service smoke, two observer tests and Rustdoc. These counts include the
+previous lineage and lifecycle cases; they do not establish real-provider readiness.

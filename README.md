@@ -54,11 +54,13 @@ and Nautilus badges are not implemented.
   Its session starts bounded upload workers automatically and drains accepted local
   writes before unmounting. An isolated business-drive check passed two actual
   mounted saves, automatic uploads and independent content verification. Atomic
-  replacement and writable namespace operations remain incomplete.
-- Receipt-based ordering across saves and namespace changes, including atomic local
-  working-file name/intent transactions. Reconciled renames with changed or unverified
-  content block later uploads and retain local edits. Complete mounted namespace
-  projection and application atomic replacement remain under development.
+  replacement and writable directory operations remain incomplete.
+- Durable local object identities and directory entries separate from optional
+  working bytes. Experimental mounts can rename and move regular files within one
+  collection without downloading content. Uploads and namespace changes share
+  receipt-based ordering; a lost rename response containing another actor's edit
+  blocks later saves and retains both versions. Replacing an occupied destination,
+  writable directories and application atomic replacement remain incomplete.
 
 These are implementation capabilities, not a production-readiness claim. See the
 [validation record](docs/validation.md) for what has actually been tested.

@@ -150,7 +150,7 @@ fn legacy_queue_migrates_and_stale_mutation_attempts_cannot_acknowledge() {
         .unwrap();
     drop(j);
     let db = rusqlite::Connection::open(root.join("uploads.db")).unwrap();
-    db.execute_batch("DROP TABLE write_resources; DROP TABLE write_queue; DROP TABLE mutations; PRAGMA user_version=2;").unwrap();
+    db.execute_batch("DROP TABLE write_resources; DROP TABLE write_queue; DROP TABLE mutations; DROP TABLE namespace_operations; DROP TABLE namespace_remote; DROP TABLE namespace_entries; DROP TABLE namespace_objects; DROP TABLE namespace_scopes; PRAGMA user_version=2;").unwrap();
     drop(db);
     let mut j = journal(&root);
     assert_eq!(j.get(upload.id).unwrap().size, 5);

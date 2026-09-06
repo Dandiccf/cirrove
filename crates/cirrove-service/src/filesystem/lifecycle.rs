@@ -47,6 +47,19 @@ impl CloudFs {
     }
 }
 impl WriteControl {
+    pub async fn refresh_operation(&self, id: uuid::Uuid) -> std::io::Result<()> {
+        self.writer
+            .refresh_operation(id)
+            .await
+            .map_err(|_| std::io::Error::other("local namespace refresh failed"))?;
+        self.inner.engine.changed.notify_waiters();
+        Ok(())
+    }
+    pub fn conflicts(&self) -> std::io::Result<Vec<crate::journal::NamespaceCollision>> {
+        self.writer
+            .conflicts()
+            .map_err(|_| std::io::Error::other("local namespace is unavailable"))
+    }
     pub fn pending(&self) -> usize {
         self.inner.edits.tasks.len()
     }

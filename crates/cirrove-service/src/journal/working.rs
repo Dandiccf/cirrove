@@ -73,12 +73,17 @@ pub(super) fn migrate(db: &mut Connection, version: u32) -> Result<()> {
     Ok(())
 }
 
-fn slot(record: &WorkingFile) -> Result<String> {
-    Ok(serde_json::to_string(&(
+fn slot(db: &Connection, record: &WorkingFile) -> Result<String> {
+    super::namespace::entry_slot(
+        db,
         &record.scope,
-        &record.node.parent_id,
-        record.node.name.to_lowercase(),
-    ))?)
+        record
+            .node
+            .parent_id
+            .as_deref()
+            .ok_or(JournalError::Intent)?,
+        &record.node.name,
+    )
 }
 
 impl UploadJournal {
@@ -158,17 +163,22 @@ impl UploadJournal {
     }
 
     fn save_working(&mut self, record: &WorkingFile) -> Result<()> {
-        if self.db.execute(
+        let tx = self
+            .db
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        if tx.execute(
             "UPDATE working_files SET slot=?2,body=?3 WHERE id=?1",
             params![
                 record.id.to_string(),
-                slot(record)?,
+                slot(&tx, record)?,
                 serde_json::to_string(record)?
             ],
         )? != 1
         {
             return Err(JournalError::Missing);
         }
+        super::namespace::update_working(&tx, record)?;
+        tx.commit()?;
         Ok(())
     }
 
@@ -196,13 +206,30 @@ impl UploadJournal {
     pub fn publish_working(
         &mut self,
         scope: Scope,
-        mut node: Node,
+        node: Node,
         new: bool,
         source: WorkingSource,
     ) -> Result<WorkingFile> {
+        self.publish_working_content(scope, node, new, source, false)
+    }
+
+    /// O_TRUNC needs the original remote version, but none of its old bytes.
+    pub fn create_truncated_working(&mut self, scope: Scope, node: Node) -> Result<WorkingFile> {
+        let source = self.reserve_working(0)?;
+        self.publish_working_content(scope, node, false, source, true)
+    }
+
+    fn publish_working_content(
+        &mut self,
+        scope: Scope,
+        mut node: Node,
+        new: bool,
+        source: WorkingSource,
+        truncate: bool,
+    ) -> Result<WorkingFile> {
         if source.temporary.path().parent() != Some(self.working.as_path())
             || source.written != source.size
-            || node.size != source.size
+            || (if truncate { 0 } else { node.size }) != source.size
         {
             return Err(JournalError::Corrupt);
         }
@@ -239,25 +266,30 @@ impl UploadJournal {
         .map_err(|_| JournalError::Intent)?;
         let id = Uuid::new_v4();
         let initial_remote = (!new).then(|| node.clone());
+        node.size = source.size;
+        if new || truncate {
+            node.modified_unix = now_seconds();
+        }
         if new {
             node.id = format!("local-{id}");
         }
         node.content_version = Some(format!("working-{id}"));
-        let record = WorkingFile {
+        let mut record = WorkingFile {
             id,
             scope,
             node,
             intent,
             latest: None,
-            dirty: new,
+            dirty: new || truncate,
             generation: 0,
             initial_remote,
         };
+        super::namespace::prepare_attachment(&self.db, &mut record)?;
         let identity = serde_json::to_string(&(&record.scope, &record.node.id))?;
-        let slot = slot(&record)?;
+        let occupied_slot = slot(&self.db, &record)?;
         let exists: bool = self.db.query_row(
             "SELECT EXISTS(SELECT 1 FROM working_files WHERE identity=?1 OR slot=?2)",
-            params![identity, slot],
+            params![identity, occupied_slot],
             |r| r.get(0),
         )?;
         if exists {
@@ -270,7 +302,13 @@ impl UploadJournal {
             .map_err(|_| JournalError::Storage)?;
         File::open(&self.working)?.sync_all()?;
         // Publication failures retain the orphan and count it against quota.
-        self.db.execute(
+        let tx = self
+            .db
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        super::namespace::attach_working(&tx, &mut record)?;
+        let identity = serde_json::to_string(&(&record.scope, &record.node.id))?;
+        let slot = slot(&tx, &record)?;
+        tx.execute(
             "INSERT INTO working_files(id,identity,slot,body) VALUES(?1,?2,?3,?4)",
             params![
                 id.to_string(),
@@ -279,6 +317,7 @@ impl UploadJournal {
                 serde_json::to_string(&record)?
             ],
         )?;
+        tx.commit()?;
         Ok(record)
     }
 
@@ -473,7 +512,7 @@ pub(super) fn commit_relocation(
     }
     let occupied: bool = tx.query_row(
         "SELECT EXISTS(SELECT 1 FROM working_files WHERE slot=?1 AND id!=?2)",
-        params![slot(&working)?, working.id.to_string()],
+        params![slot(tx, &working)?, working.id.to_string()],
         |r| r.get(0),
     )?;
     if occupied {
@@ -484,10 +523,11 @@ pub(super) fn commit_relocation(
         "UPDATE working_files SET slot=?2,body=?3 WHERE id=?1",
         params![
             working.id.to_string(),
-            slot(&working)?,
+            slot(tx, &working)?,
             serde_json::to_string(&working)?
         ],
     )?;
+    super::namespace::update_working(tx, &working)?;
     Ok(())
 }
 
@@ -516,5 +556,6 @@ pub(super) fn commit_generation(
         "UPDATE working_files SET body=?2 WHERE id=?1",
         params![commit.id.to_string(), serde_json::to_string(&record)?],
     )?;
+    super::namespace::update_working(tx, &record)?;
     Ok(())
 }

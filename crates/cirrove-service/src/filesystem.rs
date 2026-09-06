@@ -1,4 +1,5 @@
-//! Read-only FUSE projection. Callbacks dispatch asynchronous work; no callback
+//! FUSE projection: ordinary mounts are read-only; isolated test mounts allow edits.
+//! Callbacks dispatch asynchronous work; no callback
 //! holds the namespace map while awaiting a provider or a database operation.
 mod lifecycle;
 mod session;
@@ -9,8 +10,8 @@ use cirrove_core::{CancellationToken, Node, NodeKind, ProviderError, Scope};
 use cirrove_store::Store;
 use fuser::{
     Errno, FileAttr, FileHandle, FileType, Filesystem, FopenFlags, Generation, INodeNo, LockOwner,
-    OpenFlags, ReplyAttr, ReplyData, ReplyDirectory, ReplyEmpty, ReplyEntry, ReplyOpen, ReplyXattr,
-    Request,
+    OpenFlags, RenameFlags, ReplyAttr, ReplyData, ReplyDirectory, ReplyEmpty, ReplyEntry,
+    ReplyOpen, ReplyXattr, Request,
 };
 pub use session::CloudSession;
 use std::{
@@ -397,11 +398,11 @@ impl Inner {
     }
     async fn node(&self, view: &View) -> Result<Node, ProviderError> {
         if let Some(writer) = &self.writeback
-            && let Some(record) = writer
-                .working(&view.scope, &view.node.id)
+            && let Some(node) = writer
+                .node(&view.scope, &view.node.id)
                 .map_err(|_| ProviderError::Unavailable)?
         {
-            return Ok(record.node);
+            return Ok(node);
         }
         if view.inode == 1 || view.node.kind == NodeKind::File {
             return Ok(view.node.clone());
@@ -458,7 +459,16 @@ fn errno(error: &ProviderError) -> Errno {
 impl Filesystem for CloudFs {
     fn init(&mut self, _req: &Request, config: &mut fuser::KernelConfig) -> std::io::Result<()> {
         if self.inner.writeback.is_some() {
-            return Ok(());
+            // Otherwise Linux strips O_TRUNC from OPEN and sends SETATTR only
+            // afterward: opening would hydrate the old file before discarding it.
+            return config
+                .add_capabilities(fuser::InitFlags::FUSE_ATOMIC_O_TRUNC)
+                .map_err(|_| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::Unsupported,
+                        "kernel lacks atomic FUSE open/truncate support",
+                    )
+                });
         }
         config
             .add_capabilities(fuser::InitFlags::FUSE_DIRECT_IO_ALLOW_MMAP)
@@ -602,6 +612,108 @@ impl Filesystem for CloudFs {
                     FopenFlags::FOPEN_DIRECT_IO,
                 ),
                 Err(e) => reply.error(e),
+            }
+        });
+    }
+    fn rename(
+        &self,
+        _req: &Request,
+        parent: INodeNo,
+        name: &OsStr,
+        newparent: INodeNo,
+        newname: &OsStr,
+        flags: RenameFlags,
+        reply: ReplyEmpty,
+    ) {
+        let Some(writer) = self.inner.writeback.clone() else {
+            reply.error(Errno::EROFS);
+            return;
+        };
+        if !(flags & !RenameFlags::RENAME_NOREPLACE).is_empty() {
+            reply.error(Errno::EOPNOTSUPP);
+            return;
+        }
+        let (Some(name), Some(newname)) = (name.to_str(), newname.to_str()) else {
+            reply.error(Errno::EINVAL);
+            return;
+        };
+        let (name, newname) = (name.to_owned(), newname.to_owned());
+        let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
+            reply.error(Errno::EAGAIN);
+            return;
+        };
+        let Ok(admission) = self.inner.edits.admit() else {
+            reply.error(Errno::ENODEV);
+            return;
+        };
+        let inner = self.inner.clone();
+        self.inner.runtime.spawn(async move {
+            let _permit = permit;
+            let _admission = admission;
+            let result = async {
+                let parent = inner.view(parent.0).map_err(|e| errno(&e))?;
+                let destination = inner.view(newparent.0).map_err(|e| errno(&e))?;
+                if parent.scope != destination.scope || parent.alias != destination.alias {
+                    return Err(Errno::EXDEV);
+                }
+                if parent.node.kind != NodeKind::Folder || destination.node.kind != NodeKind::Folder
+                {
+                    return Err(Errno::ENOTDIR);
+                }
+                let nodes = inner.children(&parent).await.map_err(|e| errno(&e))?;
+                let source = nodes
+                    .iter()
+                    .find(|n| n.name == name)
+                    .cloned()
+                    .ok_or(Errno::ENOENT)?;
+                if source.kind != NodeKind::File || source.target.is_some() {
+                    return Err(Errno::EOPNOTSUPP);
+                }
+                if parent.node.id == destination.node.id && name == newname {
+                    return if flags.contains(RenameFlags::RENAME_NOREPLACE) {
+                        Err(Errno::EEXIST)
+                    } else {
+                        Ok(())
+                    };
+                }
+                let occupants = if parent.inode == destination.inode {
+                    nodes
+                } else {
+                    inner.children(&destination).await.map_err(|e| errno(&e))?
+                };
+                // Replacement requires a separate durable operation. Never turn
+                // POSIX replacement into a delete followed by an unrelated move.
+                if occupants
+                    .iter()
+                    .any(|n| n.id != source.id && n.name.to_lowercase() == newname.to_lowercase())
+                {
+                    return Err(if flags.contains(RenameFlags::RENAME_NOREPLACE) {
+                        Errno::EEXIST
+                    } else {
+                        Errno::EOPNOTSUPP
+                    });
+                }
+                let moved = writer
+                    .relocate(
+                        parent.scope.clone(),
+                        source,
+                        parent.node.id.clone(),
+                        name,
+                        destination.node.id.clone(),
+                        newname,
+                    )
+                    .await?;
+                inner
+                    .insert(&destination, moved)
+                    .await
+                    .map_err(|e| errno(&e))?;
+                inner.engine.changed.notify_waiters();
+                Ok::<_, Errno>(())
+            }
+            .await;
+            match result {
+                Ok(()) => reply.ok(),
+                Err(error) => reply.error(error),
             }
         });
     }
@@ -789,6 +901,15 @@ impl Filesystem for CloudFs {
         self.finish_handle(handle, reply);
     }
     fn open(&self, _req: &Request, inode: INodeNo, flags: OpenFlags, reply: ReplyOpen) {
+        if self.inner.writeback.is_some()
+            && flags.0 & libc::O_TRUNC != 0
+            && flags.0 & libc::O_ACCMODE == libc::O_RDONLY
+        {
+            // POSIX leaves this flag combination undefined; do not accept a
+            // destructive open that cannot participate in writable-handle sealing.
+            reply.error(Errno::EINVAL);
+            return;
+        }
         if self.inner.writeback.is_none()
             && (flags.0 & libc::O_ACCMODE != libc::O_RDONLY || flags.0 & libc::O_TRUNC != 0)
         {

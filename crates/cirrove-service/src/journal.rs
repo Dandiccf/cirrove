@@ -5,10 +5,14 @@
 //! An interrupted attempt requires remote verification, never unconditional replay.
 mod generations;
 mod mutations;
+mod namespace;
 mod working;
 use cirrove_core::{Node, NodeKind, Scope};
 pub use generations::{UploadBase, WriteBase};
 pub use mutations::{MutationRecord, MutationState};
+pub use namespace::{
+    NamespaceCollision, NamespaceListing, NamespaceNames, NamespaceObject, project_namespace,
+};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -175,7 +179,7 @@ impl UploadJournal {
         let mut db = Connection::open(database)?;
         db.busy_timeout(std::time::Duration::from_secs(3))?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if version > 6 {
+        if version > 7 {
             return Err(JournalError::Schema);
         }
         db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;
@@ -195,6 +199,7 @@ impl UploadJournal {
         generations::migrate(&mut db, version)?;
         working::migrate(&mut db, version)?;
         generations::migrate_dependencies(&mut db, version)?;
+        namespace::migrate(&mut db, version)?;
         // Never infer that a transfer failed just because its process died.
         db.execute(
             "UPDATE uploads SET state='verify_required',
@@ -449,6 +454,11 @@ impl UploadJournal {
             return Err(JournalError::Missing);
         }
         mutations::queue_complete(&tx, record.id, record.state == UploadState::Uploaded)?;
+        if record.state == UploadState::Uploaded
+            && let Some(remote) = &record.remote
+        {
+            namespace::confirm(&tx, record.id, record.sequence, remote)?;
+        }
         tx.commit()?;
         Ok(())
     }

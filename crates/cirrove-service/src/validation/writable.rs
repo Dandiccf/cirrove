@@ -1,6 +1,7 @@
 //! Actual application writes through FUSE, restricted to a new run-owned folder.
 use super::*;
 use crate::{engine::Engine, writable::WritableSession};
+use cirrove_core::mutation::{MutationIntent, MutationReceipt, MutationRequest};
 use cirrove_core::{
     Change, ChangePage, Checkpoint, Cursor, DirectoryPage, MetadataProvider, NodeKind,
     ProviderError, ReadProvider,
@@ -182,6 +183,60 @@ impl UploadProvider for FixtureGraph {
             self.receipt(r, node)?;
         }
         Ok(result)
+    }
+}
+#[async_trait::async_trait]
+impl cirrove_core::mutation::MutationProvider for FixtureGraph {
+    async fn mutate(
+        &self,
+        request: &MutationRequest,
+        cancel: &CancellationToken,
+    ) -> cirrove_core::mutation::Result<MutationReceipt> {
+        self.guard_relocation(request)?;
+        let receipt = self.graph.mutate(request, cancel).await?;
+        self.guard_mutation_receipt(request, &receipt)?;
+        Ok(receipt)
+    }
+    async fn reconcile_mutation(
+        &self,
+        request: &MutationRequest,
+        cancel: &CancellationToken,
+    ) -> cirrove_core::mutation::Result<cirrove_core::mutation::MutationReconciliation> {
+        self.guard_relocation(request)?;
+        let result = self.graph.reconcile_mutation(request, cancel).await?;
+        if let cirrove_core::mutation::MutationReconciliation::Applied(receipt) = &result {
+            self.guard_mutation_receipt(request, receipt)?;
+        }
+        Ok(result)
+    }
+}
+impl FixtureGraph {
+    fn guard_relocation(&self, request: &MutationRequest) -> cirrove_core::mutation::Result<()> {
+        let MutationIntent::Relocate { before, parent, .. } = &request.intent else {
+            return Err(ProviderError::Permission.into());
+        };
+        if request.scope != self.scope
+            || parent != &self.root.id
+            || before.parent_id.as_ref() != Some(&self.root.id)
+            || before.kind != NodeKind::File
+            || before.target.is_some()
+            || before.id == self.root.id
+            || !self.item_allowed(&request.scope, &before.id)
+        {
+            return Err(ProviderError::Permission.into());
+        }
+        request.validate()
+    }
+    fn guard_mutation_receipt(
+        &self,
+        request: &MutationRequest,
+        receipt: &MutationReceipt,
+    ) -> cirrove_core::mutation::Result<()> {
+        self.guard_relocation(request)?;
+        if !request.accepts(receipt) {
+            return Err(cirrove_core::mutation::MutationError::Uncertain);
+        }
+        Ok(())
     }
 }
 const APP_WRITES: &str = r#"
