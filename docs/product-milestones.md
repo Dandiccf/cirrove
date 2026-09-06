@@ -21,8 +21,9 @@ desktop applications, in addition to deterministic transport/recovery fixtures.
 Graph Socket.IO and provider-neutral coalescing hints are now implemented. This
 does not close the live-response gate: notifications can be delayed upstream, and
 long-session renewal and the provider matrix need further validation. Bounded
-revalidation of recently used directories now has service and actual FUSE fixtures;
-real-provider and ordinary desktop freshness still need measurement. See
+revalidation of recently used directories now has service and actual FUSE fixtures,
+plus a limited real business-drive create/rename check through an isolated mount.
+Larger provider scenarios and ordinary desktop freshness still need measurement. See
 [the notification decision](adr/0003-change-notifications.md).
 
 ## 2. Safe file changes

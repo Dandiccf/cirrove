@@ -97,13 +97,22 @@ Neither adapter is implemented or promised to provide equivalent latency.
   it; this is a target, not a measured end-to-end provider guarantee.
 - Validate actual reconnect/renewal after long sessions, suspend/network loss,
   personal OneDrive, linked libraries and restricted permissions.
+  The notification validator's optional `--check-renewal` waits for the actual
+  approximately 50-minute renewal and checks a new notification after reconnecting;
+  providing the command is not evidence that the long-session gate has passed.
 - Revalidation fixtures cover bounded activity, backoff, cached navigation while
   another directory stalls, and actual mounted create/rename/delete visibility
   during a blocked content read. Push is disabled and the delta timer is one hour
   in the activity tests. Unchanged observations do not request another reload.
-- Measure the activity policy with real providers, multiple large directories and
-  ordinary file-manager windows. Kernel fixtures establish the local path, not
-  Microsoft latency, desktop event handling or production request cost.
+- `validate-onedrive-freshness` complements the deterministic checks with real
+  Graph directory listings through an isolated kernel mount. Its fixture-only
+  baseline and disabled push exclude other refresh mechanisms. A limited
+  business-drive run passed new-folder and conditional Unicode rename visibility;
+  timings and identifiers stay in private evidence. See
+  [the repeat command and limits](../write-validation.md#check-directory-freshness-through-an-actual-mount).
+- Measure multiple large directories and ordinary file-manager windows. A small
+  mounted fixture does not establish desktop event handling, production request
+  cost, personal-account behavior or a general Microsoft latency guarantee.
 
 ## Sources
 

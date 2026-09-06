@@ -229,10 +229,20 @@ reopen helper permits up to one second for Busy; other errors return immediately
 and held-owner exclusion remains an immediate assertion. This does not change
 production ownership or prove a process trace of that CI failure.
 
-These are deterministic provider tests. Real Graph listing-to-desktop latency,
-multiple large active directories, request cost and indefinitely visible windows
-remain unverified for this policy. No installed-runtime upgrade is implied by
-building or merging these changes.
+An isolated business-drive check additionally passed actual Graph listings through
+a kernel mount: creation of one generated child folder and two conditional Unicode
+renames appeared in the mounted directory. A validation-only root baseline and
+disabled push excluded Graph delta/notifications from satisfying the check. Each
+sample followed an already completed directory listing; acknowledgement-to-mount
+visibility and page counts are recorded privately. The temporary mount stopped
+cleanly after success and the generated fixture was retained. The installed daemon
+and its ordinary read-only mount were not changed.
+
+This establishes only the small generated-folder case on the selected business
+drive. Graph listing-to-desktop latency, multiple large active directories, request
+cost, content reads and indefinitely visible windows remain separate validation
+gates. No installed-runtime upgrade is implied by building or merging these changes.
+See [the repeat command](write-validation.md#check-directory-freshness-through-an-actual-mount).
 
 ## Required before calling stages 1–3 complete
 

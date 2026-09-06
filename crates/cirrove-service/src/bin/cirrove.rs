@@ -24,12 +24,22 @@ struct Args {
 }
 #[derive(Subcommand)]
 enum Command {
+    /// Measure real Graph directory updates through an isolated read-only mount.
+    ValidateOnedriveFreshness {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        state_dir: PathBuf,
+    },
     /// Verify Graph notifications using one new isolated synthetic cloud folder.
     ValidateOnedriveNotifications {
         #[arg(long)]
         label: String,
         #[arg(long)]
         state_dir: PathBuf,
+        /// Also wait for the real 50-minute renewal and verify a fresh notification.
+        #[arg(long)]
+        check_renewal: bool,
     },
     /// Developer-only rename, move and file deletion inside a new synthetic folder.
     ValidateOnedriveMutations {
@@ -118,8 +128,16 @@ enum Command {
 #[tokio::main]
 async fn main() -> Result<()> {
     match Args::parse().command {
-        Command::ValidateOnedriveNotifications { label, state_dir } => {
-            cirrove_service::validation::onedrive_notifications(&state_dir, &label).await?;
+        Command::ValidateOnedriveFreshness { label, state_dir } => {
+            cirrove_service::validation::onedrive_freshness(&state_dir, &label).await?;
+        }
+        Command::ValidateOnedriveNotifications {
+            label,
+            state_dir,
+            check_renewal,
+        } => {
+            cirrove_service::validation::onedrive_notifications(&state_dir, &label, check_renewal)
+                .await?;
         }
         Command::ValidateOnedriveMutations { label, state_dir } => {
             cirrove_service::validation::onedrive_mutations(&state_dir, &label).await?;
