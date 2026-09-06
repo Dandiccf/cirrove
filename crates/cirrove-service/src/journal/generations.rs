@@ -7,14 +7,14 @@ pub struct UploadBase {
     pub resolved: bool,
 }
 
-pub(super) fn migrate(db: &mut Connection) -> Result<()> {
+pub(super) fn migrate(db: &mut Connection, version: u32) -> Result<()> {
     let tx = db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
     tx.execute_batch(
         "CREATE UNIQUE INDEX IF NOT EXISTS upload_successor
         ON uploads(json_extract(body,'$.base.predecessor'))
         WHERE json_type(body,'$.base.predecessor')='text';",
     )?;
-    tx.pragma_update(None, "user_version", 4)?;
+    tx.pragma_update(None, "user_version", version.max(4))?;
     tx.commit()?;
     Ok(())
 }
@@ -40,6 +40,7 @@ impl UploadJournal {
                 predecessor,
                 resolved: false,
             }),
+            None,
             bytes,
         )
     }

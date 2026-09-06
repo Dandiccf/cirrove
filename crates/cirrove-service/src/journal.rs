@@ -5,6 +5,7 @@
 //! An interrupted attempt requires remote verification, never unconditional replay.
 mod generations;
 mod mutations;
+mod working;
 use cirrove_core::{Node, NodeKind, Scope};
 pub use generations::UploadBase;
 pub use mutations::{MutationRecord, MutationState};
@@ -18,6 +19,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use uuid::Uuid;
+pub use working::{WorkingFile, WorkingSource};
 
 #[derive(Debug, thiserror::Error)]
 pub enum JournalError {
@@ -41,8 +43,11 @@ pub enum JournalError {
     Schema,
 }
 impl From<std::io::Error> for JournalError {
-    fn from(_: std::io::Error) -> Self {
-        Self::Storage
+    fn from(error: std::io::Error) -> Self {
+        match error.raw_os_error() {
+            Some(libc::ENOSPC | libc::EDQUOT) => Self::Quota,
+            _ => Self::Storage,
+        }
     }
 }
 impl From<rusqlite::Error> for JournalError {
@@ -94,6 +99,8 @@ pub struct UploadRecord {
     /// A preceding local save whose receipt determines this save's base version.
     #[serde(default)]
     pub base: Option<UploadBase>,
+    #[serde(default)]
+    pub working_file: Option<Uuid>,
     /// Reference to an opaque checkpoint stored in the credential vault.
     #[serde(default)]
     pub session_key: Option<Uuid>,
@@ -116,6 +123,7 @@ impl std::fmt::Debug for UploadRecord {
 pub struct UploadJournal {
     db: Connection,
     objects: PathBuf,
+    working: PathBuf,
     account: String,
     quota: u64,
     _owner: File,
@@ -160,12 +168,14 @@ impl UploadJournal {
         })?;
         let objects = root.join("objects");
         crate::private_dir(&objects).map_err(|_| JournalError::Storage)?;
+        let working = root.join("working");
+        crate::private_dir(&working).map_err(|_| JournalError::Storage)?;
         let database = root.join("uploads.db");
         private_file(&database)?;
         let mut db = Connection::open(database)?;
         db.busy_timeout(std::time::Duration::from_secs(3))?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if version > 4 {
+        if version > 5 {
             return Err(JournalError::Schema);
         }
         db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;
@@ -182,7 +192,8 @@ impl UploadJournal {
             return Err(JournalError::Account);
         }
         mutations::migrate_queue(&mut db, version)?;
-        generations::migrate(&mut db)?;
+        generations::migrate(&mut db, version)?;
+        working::migrate(&mut db)?;
         // Never infer that a transfer failed just because its process died.
         db.execute(
             "UPDATE uploads SET state='verify_required',
@@ -191,19 +202,23 @@ impl UploadJournal {
             [],
         )?;
         File::open(&objects)?.sync_all()?;
+        File::open(&working)?.sync_all()?;
         File::open(root)?.sync_all()?;
         // Persist newly created ancestor entries too; syncing only the immediate
         // parent is insufficient when a whole account directory was just made.
         for parent in root.ancestors().skip(1) {
             File::open(parent)?.sync_all()?;
         }
-        Ok(Self {
+        let mut journal = Self {
             db,
             objects,
+            working,
             account: account.into(),
             quota,
             _owner: owner,
-        })
+        };
+        journal.recover_working()?;
+        Ok(journal)
     }
     /// Counts every spool file, including interrupted, unreferenced publications.
     /// Such bytes are retained for inspection and cannot silently bypass quota.
@@ -213,7 +228,10 @@ impl UploadJournal {
     fn retained_usage(&self) -> Result<(u64, usize)> {
         let mut total = 0u64;
         let mut count = 0;
-        for (index, entry) in std::fs::read_dir(&self.objects)?.enumerate() {
+        for (index, entry) in std::fs::read_dir(&self.objects)?
+            .chain(std::fs::read_dir(&self.working)?)
+            .enumerate()
+        {
             // Empty files must not bypass the local queue's resource bounds.
             if index >= 10_000 {
                 return Err(JournalError::Quota);
@@ -237,13 +255,14 @@ impl UploadJournal {
         intent: UploadIntent,
         bytes: impl Read,
     ) -> Result<UploadRecord> {
-        self.enqueue_generation(scope, intent, None, bytes)
+        self.enqueue_generation(scope, intent, None, None, bytes)
     }
     fn enqueue_generation(
         &mut self,
         scope: Scope,
         intent: UploadIntent,
         base: Option<UploadBase>,
+        working: Option<working::WorkingCommit>,
         mut bytes: impl Read,
     ) -> Result<UploadRecord> {
         if scope.account != self.account {
@@ -289,6 +308,7 @@ impl UploadJournal {
             attempt: None,
             remote: None,
             base,
+            working_file: working.as_ref().map(|commit| commit.id),
             session_key: None,
             transferred_bytes: 0,
             retry_at: 0,
@@ -319,6 +339,9 @@ impl UploadJournal {
             "UPDATE uploads SET body=?2 WHERE id=?1",
             params![record.id.to_string(), serde_json::to_string(&record)?],
         )?;
+        if let Some(commit) = &working {
+            working::commit_generation(&tx, commit, &record)?;
+        }
         tx.commit()?;
         Ok(record)
     }

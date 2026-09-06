@@ -275,6 +275,37 @@ process exited successfully. Event details and provider timings remain private.
 This closes that particular business-drive renewal check, not the wider personal
 account, suspend/outage, delivery-latency or 24-hour acceptance matrix.
 
+## Experimental local application saves
+
+The generation journal and initial writable FUSE API now pass 118 default workspace
+tests and fourteen actual kernel-FUSE checks on the local development system.
+Formatting, strict workspace clippy, build, service smoke checks, two observer tests
+and Rust documentation also pass. The three new kernel checks use only generated
+local fixtures, without cloud credentials or changes to installed mounts.
+
+The writable checks cover create, partial overwrite of an existing version,
+truncate, repeated fsync, immutable generations during an outstanding upload,
+and offline remount. A blocked hydration leaves cached directory browsing and an
+independent local save operational. Closing a read-only preview cannot seal an
+unfinished write; a regression first reproduced that behavior, then passed after
+restricting save sealing to write handles. A subprocess test kills the synthetic
+filesystem daemon while a separate application holds a write handle, then checks
+both the sealed generation and newer dirty bytes through an offline remount.
+
+Additional journal tests inject metadata and queue-commit failures, exceed storage
+quota, reject incomplete hydrated sources, and kill a process after a saved version
+and subsequent unsealed edits. A synthetic upload worker resumes an interrupted
+first generation and then uploads its successor with the predecessor's confirmed
+identity and ETag. Generation eligibility also retains ordering against namespace
+operations when remote creation assigns a new item ID.
+
+This is initial mounted-write integration, not completion of milestone 2. The
+normal daemon still mounts read-only. Atomic replacement, writable folder/name
+operations, automatic upload-worker lifecycle, conflicts in the desktop UI and
+live-provider application-save validation remain open. Writable mmap and metadata
+changes are explicitly unsupported. Process kills and injected storage failures do
+not establish physical power-loss or physical disk-full behavior.
+
 ## Required before calling stages 1–3 complete
 
 - Cirrove's own Microsoft app registration, real consent and verified work-account,

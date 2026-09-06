@@ -1,7 +1,7 @@
 # ADR 0002: Durable local edits and explicit remote acknowledgement
 
-Status: journal, transfer worker and experimental Graph upload adapter implemented
-with synthetic validation. Live provider and writable-filesystem validation remain
+Status: journal, transfer worker, experimental Graph upload adapter and initial
+local FUSE write path implemented with synthetic validation. Live provider and writable-filesystem validation remain
 in progress. Ordinary mounts stay read-only; only an explicit developer command
 performs isolated cloud write checks.
 
@@ -80,9 +80,10 @@ prove that the provider enforces a precondition. The explicit developer validati
 one business-drive fixture passed. That does not complete the broader account and
 concurrency matrix.
 
-The remaining integration must implement new generations during an active upload,
-dependencies between metadata operations, writable FUSE open/write/truncate/fsync/atomic-save behavior, user
-conflict resolution and retention policy for old receipts. Live tests use a dedicated
+The experimental working-file layer now seals new generations during an active
+upload and exercises FUSE open/write/truncate/fsync, including offline restart.
+The remaining integration must implement dependencies between metadata operations,
+atomic-save behavior, user conflict resolution and retention policy for old receipts. Live tests use a dedicated
 test folder after opt-in write consent. See [the developer workflow](../write-validation.md).
 
 ## Namespace journal
@@ -115,3 +116,23 @@ keyring failures, cancellation and conflict responses preserve local bytes.
 
 These checks do not demonstrate working live Graph uploads, application-save
 semantics or completion of the safe-file-changes milestone.
+
+
+## Mutable working files and consecutive generations
+
+Schema 4 adds linear upload-generation dependencies; schema 5 adds working files.
+The current journal refuses a newer schema and never temporarily downgrades its
+version during migration. A complete, quota-reserved hydration is required before
+an existing remote file becomes editable. Working-file metadata records dirty state
+before in-place changes; immutable snapshots and their generation links commit
+atomically. A later save follows the confirmed predecessor receipt, not the old
+pre-upload ETag. Conflicts retain both sealed and newer mutable local bytes.
+
+Working-file tests inject failure between byte changes and metadata updates and
+between snapshot publication and queue commit. Actual process-kill tests preserve
+saved generations separately from subsequent unsealed changes. A synthetic transfer
+worker resumes an interrupted first generation before uploading its successor.
+The kernel suite also exercises writable-file recovery after killing its mount
+process and remounting offline. These are process-failure checks, not power-loss
+or live-provider application-save evidence. See [architecture](../architecture.md)
+for the experimental API boundary and remaining writable operations.

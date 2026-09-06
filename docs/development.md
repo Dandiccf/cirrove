@@ -114,8 +114,10 @@ The default workspace suite also exercises the local upload journal, including
 actual child-process termination at durable save/attempt/acknowledgement boundaries.
 Run just that component with `cargo test -p cirrove-service --test upload_journal`.
 These fixtures use only synthetic local data and do not require a cloud account.
-The journal has a separate Graph upload worker but is not connected to writable
-filesystem operations; ordinary mounts remain read-only.
+The journal has a separate Graph upload worker and an experimental local writable
+FUSE API; ordinary mounts remain read-only. Working-copy and generation tests run
+with `cargo test -p cirrove-service --test working_files --test transfers`.
+The kernel suite includes synthetic writable save and process-crash checks.
 
 Kernel mount tests also need `/sys/fs/fuse/connections` mounted as `fusectl`, with
 per-connection control access for the mount owner. Normal systemd desktops usually

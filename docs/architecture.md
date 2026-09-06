@@ -4,11 +4,12 @@
 
 Cirrove makes remote files usable through ordinary Linux applications. Cached
 metadata should stay available when a provider is slow; file bytes arrive on demand.
-The current implementation is a **read-only preview under validation**. It does not
-upload through mounted paths, pin files or implement offline writes. A separate
+The current implementation is a **read-only preview under validation**. Ordinary mounts do not
+upload through mounted paths or pin files. A separate experimental constructor
+now exercises local writes and offline recovery on isolated synthetic FUSE mounts. A separate
 upload journal and worker protect sealed edits, persist resumable Graph sessions
 through the keyring, and reconcile uncertain attempts. They have synthetic HTTP and
-crash coverage; live provider checks and writable filesystem integration remain in
+crash coverage; broader live-provider checks and writable application-save integration remain in
 progress. See
 [durable local edits](adr/0002-durable-local-edits.md).
 
@@ -235,13 +236,13 @@ and original ETag before issuing a conditional DELETE; a fabricated local file t
 cannot turn this path into recursive folder deletion. Shortcuts and root changes
 are rejected by the current mutation contract.
 
-Upload-journal schema 3 adds namespace records and a shared sequence/resource queue.
+Upload-journal schema 3 introduced namespace records and a shared sequence/resource queue.
 Metadata changes cannot overtake pending uploads on the same remote identity;
 source/destination name reservations also order colliding creates and moves.
 Case folding is a conservative queue exclusion, not a definition of the provider's
 filename equivalence. Receipts and queue completion commit together. Migration
 preserves existing upload sequence numbers, snapshots and pending states. Older
-binaries refuse schema 3 instead of trying to downgrade it.
+binaries refuse newer schemas instead of trying to downgrade them.
 
 After interruption, a namespace operation requires verification. A matching immutable
 item at the requested new name/parent can complete a lost rename/move response.
@@ -255,6 +256,46 @@ These operations remain outside the mounted filesystem. The writable namespace
 layer must add ancestor/dependency handling, application-save generations and safe
 replacement semantics before enabling folder mutations through FUSE. Personal
 accounts, permissions changes and broader live concurrency still require coverage.
+
+## Experimental local working files
+
+Schema 5 adds mutable working files alongside immutable upload snapshots. Hydration
+reserves its declared logical size against the same spool quota before downloading.
+The reserved file is filled with bounded, version-checked chunks outside the journal
+and namespace locks. Partial sources never become visible working files. Publication
+fsyncs the bytes and directory before inserting their identity and local name.
+Orphans after a crash remain counted and require later recovery/cleanup handling.
+This logical quota does not guarantee available physical disk space.
+
+Before changing a working file, its journal record becomes dirty durably. A failed
+write or metadata update cannot leave edited bytes marked as an unchanged cache.
+`fsync`, synchronous writes and closing a write handle seal a complete immutable
+snapshot. Its queue insertion and the working file's latest-generation link commit
+in the same transaction. Closing a read-only preview does not seal another
+application's unfinished edit. Local-save success is not cloud acknowledgement.
+
+Consecutive upload generations form a linear dependency chain. A later generation
+uses the preceding validated receipt's item ID and ETag, including after a create
+assigns a new remote identity. An uncertain or conflicted predecessor blocks its
+successors while independent files remain eligible. Old sealed bytes never change
+when the working file is edited again. Interleaved namespace mutations still need
+unified causal ordering before the full save/rename workflow can be enabled.
+
+The developer constructor requires a disabled test account with explicit write
+access and a journal owned by that account. It supports regular-file create,
+write, append, truncate, flush and fsync. Working metadata overlays the cached
+remote namespace, so dirty local content stays visible across offline restart.
+The normal manager continues to construct read-only filesystems. No application
+save on the user's ordinary mount is routed through this experimental path.
+
+Experimental writable inodes retain identity while their local bytes change.
+Memory mapping is currently disabled for these sessions; read-only sessions keep
+their existing content-version inode and mapping behavior. Namespace mutations,
+atomic replacement, permission/time changes, clean-working-copy retirement,
+conflict UI and automatic transfer lifecycle are not connected to writable mounts
+yet. Sealing may require space for both the working file and its snapshot; failure
+keeps the dirty source and reports an error. Physical power loss, physical disk-full
+recovery and sustained real-provider application editing remain acceptance gates.
 
 ## Next boundaries
 
