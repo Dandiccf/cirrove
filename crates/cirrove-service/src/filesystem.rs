@@ -188,13 +188,19 @@ impl CloudFs {
                 let notifier = notifier.clone();
                 let _ = tokio::task::spawn_blocking(move || {
                     for (inode, parent, name, directory) in entries {
+                        // Root attributes are synthetic and fixed for the mount.
+                        // Invalidating them while its first GETATTR is in flight
+                        // can discard that reply and leave initial kernel owner/
+                        // permissions in place. Child dentries are invalidated
+                        // individually below; directory handles do not cache data.
+                        if inode == 1 {
+                            continue;
+                        }
                         // File revisions have separate inodes. Preserve pages of
                         // an old open mapping; refresh attributes and path lookup.
                         let offset = if directory { 0 } else { -1 };
                         let _ = notifier.inval_inode(INodeNo(inode), offset, 0);
-                        if inode != 1 {
-                            let _ = notifier.inval_entry(INodeNo(parent), OsStr::new(&name));
-                        }
+                        let _ = notifier.inval_entry(INodeNo(parent), OsStr::new(&name));
                     }
                 })
                 .await;

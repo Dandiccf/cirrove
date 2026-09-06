@@ -431,17 +431,20 @@ async fn real_automatic_uploads_preserve_generations_and_resume_a_shutdown_save(
     session.shutdown().await.unwrap();
     drop(file);
     drop(engine);
-    assert_eq!(
-        journal
-            .lock()
-            .unwrap()
-            .list(0, 100)
-            .unwrap()
-            .last()
-            .unwrap()
-            .state,
-        UploadState::Pending
-    );
+    {
+        let j = journal.lock().unwrap();
+        let last = j.list(0, 100).unwrap().pop().unwrap();
+        // A forked helper may close its inherited application descriptor and
+        // submit FLUSH before shutdown, allowing the stalled worker to claim it.
+        // Either state must retain the exact unsent bytes and resume safely.
+        assert!(matches!(
+            last.state,
+            UploadState::Pending | UploadState::VerifyRequired
+        ));
+        let mut bytes = vec![];
+        std::io::Read::read_to_end(&mut j.payload(last.id).unwrap(), &mut bytes).unwrap();
+        assert_eq!(bytes, b"third! save");
+    }
     let engine = Engine::new(account, cloud.clone(), state).await.unwrap();
     let session = WritableSession::mount(engine, journal, cloud.clone(), vault)
         .await
@@ -538,29 +541,57 @@ async fn real_shutdown_drains_a_write_waiting_for_local_storage() {
     let session = WritableSession::mount(engine, journal.clone(), cloud.clone(), vault)
         .await
         .unwrap();
-    let p = mount.join("saved.txt");
-    let mut file = tokio::task::spawn_blocking(move || {
-        let mut f = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(p)
-            .unwrap();
-        f.write_all(b"before").unwrap();
-        f.sync_all().unwrap();
-        f
-    })
-    .await
-    .unwrap();
+    // The application owns its descriptor in a separate process. Concurrent
+    // fusermount children of this test process must not inherit it and generate
+    // unrelated FLUSH requests that look like admission of the intended write.
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+    let mut app = tokio::process::Command::new("python3")
+        .args([
+            "-c",
+            r#"
+import os,sys
+fd=os.open(sys.argv[1], os.O_CREAT|os.O_EXCL|os.O_WRONLY, 0o600)
+assert os.write(fd,b'before')==6
+os.fsync(fd)
+print('ready',flush=True)
+assert sys.stdin.readline()=='write\n'
+os.lseek(fd,0,os.SEEK_SET)
+assert os.write(fd,b'accepted edit')==13
+print('written',flush=True)
+assert sys.stdin.readline()=='exit\n'
+os._exit(0)
+"#,
+        ])
+        .arg(mount.join("saved.txt"))
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()
+        .unwrap();
+    let mut input = app.stdin.take().unwrap();
+    let mut output = BufReader::new(app.stdout.take().unwrap()).lines();
+    assert_eq!(
+        tokio::time::timeout(Duration::from_secs(2), output.next_line())
+            .await
+            .unwrap()
+            .unwrap()
+            .as_deref(),
+        Some("ready")
+    );
     tokio::time::timeout(Duration::from_secs(2), cloud.entered.notified())
         .await
         .unwrap();
-    // Deliberately block local storage, then observe admission before shutdown.
+    // The initial fsync can reply just before its admission token is released.
+    // Wait for it to finish; the child cannot send another edit before our command.
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while session.pending_local_requests() != 0 {
+            tokio::time::sleep(Duration::from_millis(2)).await;
+        }
+    })
+    .await
+    .unwrap();
     let guard = journal.lock().unwrap();
-    let write = tokio::task::spawn_blocking(move || {
-        file.seek(SeekFrom::Start(0)).unwrap();
-        file.write_all(b"accepted edit").unwrap();
-        file
-    });
+    input.write_all(b"write\n").await.unwrap();
     tokio::time::timeout(Duration::from_secs(2), async {
         while session.pending_local_requests() == 0 {
             tokio::time::sleep(Duration::from_millis(2)).await;
@@ -578,13 +609,29 @@ async fn real_shutdown_drains_a_write_waiting_for_local_storage() {
             .any(|line| line.split_whitespace().nth(4) == mount.to_str())
     );
     drop(guard);
-    let file = write.await.unwrap();
+    assert_eq!(
+        tokio::time::timeout(Duration::from_secs(2), output.next_line())
+            .await
+            .unwrap()
+            .unwrap()
+            .as_deref(),
+        Some("written")
+    );
     tokio::time::timeout(Duration::from_secs(2), stopping)
         .await
         .unwrap()
         .unwrap()
         .unwrap();
-    drop(file);
+    // Exit with the descriptor still open, after proving shutdown did not wait
+    // for the application. Process teardown need not submit another explicit flush.
+    input.write_all(b"exit\n").await.unwrap();
+    assert!(
+        tokio::time::timeout(Duration::from_secs(2), app.wait())
+            .await
+            .unwrap()
+            .unwrap()
+            .success()
+    );
     let j = journal.lock().unwrap();
     let working = j.working_files().unwrap().remove(0);
     assert!(!working.dirty);
