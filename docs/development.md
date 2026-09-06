@@ -17,7 +17,8 @@ HTTP tests use loopback fixtures with fake tokens. They never authenticate to Mi
 
 ## Controlled Microsoft Graph metadata check
 
-This milestone does not implement login. Obtain a short-lived Graph access token
+Prefer the [browser sign-in flow](onedrive-setup.md). The older metadata-only
+bootstrap below remains available for adapter development. Obtain a short-lived Graph access token
 through your own approved developer application. Use the least delegated permission
 needed for the selected drive (Graph documents Files.Read for the user's own drive;
 additional libraries may require wider permissions and tenant consent). Store it in
@@ -58,10 +59,32 @@ systemctl --user enable --now cirroved.service
 cirrove status
 ```
 
-This starts only the metadata status service. It does not mount drives or initiate
-cloud requests. See the unit for runtime/state paths and restart policy.
+This starts the account service, mounts enabled configured drives and initiates
+read-only metadata requests. An unlocked desktop keyring is needed for credentials.
+See the unit for runtime/state paths and restart policy.
+
+The systemd unit deliberately permits the installed `fusermount3` helper to
+perform its privilege transition. Enabling `NoNewPrivileges` would break mounts
+on typical desktops. The filesystem remains restricted to the owning user.
 
 To uninstall, stop and disable `cirroved.service`, remove the two installed binaries
 and the installed unit, then run `systemctl --user daemon-reload`. Local metadata
-under `~/.local/state/cirrove` can be archived or removed separately. There is no
-cloud data to delete during uninstallation in this milestone.
+under `~/.local/state/cirrove` can be archived or removed separately. Delete only Cirrove-labelled credentials from your desktop keyring to remove saved
+sign-in grants, or revoke the application consent in Microsoft account settings.
+Do not delete data through a mounted cloud path. This preview makes no cloud
+mutations during uninstall.
+
+## Filesystem validation
+
+The default suite skips tests needing kernel FUSE access. Run these explicitly in
+a Linux session with `/dev/fuse` and `fusermount3`:
+
+```sh
+cargo test -p cirrove-service --test read_only --locked real_ -- --ignored --nocapture
+cargo test -p cirrove-service --test read_only --locked synthetic_latency_report -- --ignored --nocapture
+```
+
+All mounts and files in these checks are synthetic and live in temporary
+directories. No cloud credentials are loaded. The benchmark prints one JSON line
+with cold/warm/listing percentiles and process peak RSS; its simulated provider
+delay is not a measurement of Microsoft or internet performance.

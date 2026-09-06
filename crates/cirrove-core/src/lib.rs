@@ -17,6 +17,8 @@ pub struct Scope {
 pub struct RemoteRef {
     pub collection: String,
     pub item: String,
+    #[serde(default)]
+    pub kind: Option<NodeKind>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -34,6 +36,8 @@ pub struct Node {
     pub name: String,
     pub kind: NodeKind,
     pub size: u64,
+    #[serde(default)]
+    pub modified_unix: u64,
     pub etag: Option<String>,
     /// A link across drives must retain the target identity, never just a path.
     pub target: Option<RemoteRef>,
@@ -76,8 +80,10 @@ pub struct ChangePage {
     pub checkpoint: Checkpoint,
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Clone, Debug, thiserror::Error)]
 pub enum ProviderError {
+    #[error("remote file changed; reopen it to read the new version")]
+    VersionChanged,
     #[error("operation cancelled")]
     Cancelled,
     #[error("sign-in required")]
@@ -97,8 +103,8 @@ pub enum ProviderError {
 }
 
 /// Every provider owns its authentication and translates its API into this contract.
-/// The first milestone supports metadata only. Content and mutation contracts follow
-/// after version/ETag and crash-recovery semantics are agreed (see architecture.md).
+/// Read operations extend this contract separately. Mutation contracts require
+/// journal and conflict semantics before introduction (see architecture.md).
 #[async_trait]
 pub trait MetadataProvider: Send + Sync {
     fn provider_id(&self) -> &'static str;
@@ -110,10 +116,45 @@ pub trait MetadataProvider: Send + Sync {
     ) -> Result<ChangePage, ProviderError>;
 }
 
+#[derive(Clone, Debug)]
+pub struct DirectoryPage {
+    pub nodes: Vec<Node>,
+    pub next: Option<Cursor>,
+}
+
+/// Read-only filesystem operations, deliberately separate from change feeds.
+#[async_trait]
+pub trait ReadProvider: MetadataProvider {
+    async fn node(
+        &self,
+        scope: &Scope,
+        id: &str,
+        cancel: &CancellationToken,
+    ) -> Result<Node, ProviderError>;
+    async fn children(
+        &self,
+        scope: &Scope,
+        parent: &str,
+        cursor: Option<&Cursor>,
+        cancel: &CancellationToken,
+    ) -> Result<DirectoryPage, ProviderError>;
+    /// Return exactly the requested range, bounded by EOF. Never return bytes of
+    /// another version of `node`; a changed object must yield VersionChanged.
+    async fn read_range(
+        &self,
+        scope: &Scope,
+        node: &Node,
+        offset: u64,
+        length: u32,
+        cancel: &CancellationToken,
+    ) -> Result<Vec<u8>, ProviderError>;
+}
+
 #[derive(Clone, Copy)]
 pub enum Priority {
     Interactive,
     Background,
+    Content,
 }
 
 /// Separate bounded pools reserve capacity for interactive work. These are per
@@ -121,12 +162,14 @@ pub enum Priority {
 pub struct RequestBudget {
     interactive: Arc<Semaphore>,
     background: Arc<Semaphore>,
+    content: Arc<Semaphore>,
 }
 impl Default for RequestBudget {
     fn default() -> Self {
         Self {
             interactive: Arc::new(Semaphore::new(4)),
             background: Arc::new(Semaphore::new(1)),
+            content: Arc::new(Semaphore::new(4)),
         }
     }
 }
@@ -139,6 +182,7 @@ impl RequestBudget {
         let pool = match priority {
             Priority::Interactive => &self.interactive,
             Priority::Background => &self.background,
+            Priority::Content => &self.content,
         };
         tokio::select! { biased;
             _ = cancel.cancelled() => Err(ProviderError::Cancelled),
@@ -172,5 +216,26 @@ mod tests {
     #[test]
     fn cursor_debug_does_not_leak_material() {
         assert!(!format!("{:?}", Cursor("secret-query".into())).contains("secret-query"));
+    }
+    #[tokio::test]
+    async fn downloads_cannot_consume_folder_request_capacity() {
+        let budget = RequestBudget::default();
+        let cancel = CancellationToken::new();
+        let mut downloads = vec![];
+        for _ in 0..4 {
+            downloads.push(budget.acquire(Priority::Content, &cancel).await.unwrap());
+        }
+        let _directory = tokio::time::timeout(
+            Duration::from_millis(100),
+            budget.acquire(Priority::Interactive, &cancel),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        cancel.cancel();
+        assert!(matches!(
+            budget.acquire(Priority::Content, &cancel).await,
+            Err(ProviderError::Cancelled)
+        ));
     }
 }

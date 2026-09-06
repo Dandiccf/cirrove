@@ -1,5 +1,5 @@
 [Unit]
-Description=Cirrove cloud filesystem service (metadata foundation)
+Description=Cirrove cloud filesystem service (read-only preview)
 Documentation=https://github.com/Dandiccf/cirrove
 StartLimitIntervalSec=60
 StartLimitBurst=5
@@ -12,8 +12,9 @@ RuntimeDirectoryMode=0700
 UMask=0077
 Restart=on-failure
 RestartSec=5
-TimeoutStopSec=10
-NoNewPrivileges=yes
+TimeoutStopSec=30
+# fusermount3 needs its installed privilege transition for unprivileged mounts.
+# NoNewPrivileges=yes would prevent mounting on typical Linux desktops.
 
 [Install]
 WantedBy=default.target

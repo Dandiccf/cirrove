@@ -16,7 +16,7 @@ use std::{
 #[derive(Parser)]
 #[command(
     version,
-    about = "Cirrove — your clouds, one filesystem (development foundation)"
+    about = "Cirrove — your clouds, one filesystem (read-only preview)"
 )]
 struct Args {
     #[command(subcommand)]
@@ -24,6 +24,46 @@ struct Args {
 }
 #[derive(Subcommand)]
 enum Command {
+    /// Sign in again to the same account, preserving its selected drive and cache.
+    Reauth {
+        label: String,
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
+    },
+    /// Sign in through the browser and select an account/drive (read-only).
+    Connect {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        client_id: String,
+        #[arg(long, default_value = "common")]
+        tenant: String,
+        #[arg(long)]
+        mount_path: PathBuf,
+        #[arg(long)]
+        drive_id: Option<String>,
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
+    },
+    /// List configured account identities and drive selections; no secrets.
+    Accounts {
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
+    },
+    /// Reversibly enable or disable the desired mount state.
+    Enable {
+        label: String,
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
+    },
+    Disable {
+        label: String,
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
+    },
+    /// Verify desktop credential storage using an isolated synthetic entry.
+    KeyringCheck,
+
     /// Query the local daemon; no cloud requests.
     Status {
         #[arg(long)]
@@ -53,6 +93,81 @@ enum Command {
 #[tokio::main]
 async fn main() -> Result<()> {
     match Args::parse().command {
+        Command::Reauth {
+            label,
+            state_dir: state,
+        } => {
+            let state = match state {
+                Some(path) => path,
+                None => state_dir()?,
+            };
+            cirrove_service::accounts::reauthenticate(state, label).await?;
+        }
+        Command::Connect {
+            label,
+            client_id,
+            tenant,
+            mount_path,
+            drive_id,
+            state_dir: state,
+        } => {
+            let state = match state {
+                Some(p) => p,
+                None => state_dir()?,
+            };
+            cirrove_service::accounts::connect(
+                state,
+                label,
+                cirrove_auth::AppRegistration {
+                    client_id,
+                    authority: tenant,
+                },
+                mount_path,
+                drive_id,
+            )
+            .await?;
+        }
+        Command::Accounts { state_dir: state } => {
+            let state = match state {
+                Some(p) => p,
+                None => state_dir()?,
+            };
+            for a in cirrove_service::accounts::Settings::load(&state)?.accounts {
+                println!(
+                    "{} · {} · {}\n  tenant {} · drive {} ({})\n  {} · {}",
+                    a.label,
+                    a.identity.display_name,
+                    a.identity.username,
+                    a.identity.tenant_id,
+                    a.drive.name,
+                    a.drive.drive_type,
+                    a.mount_path.display(),
+                    if a.enabled { "enabled" } else { "disabled" }
+                );
+            }
+        }
+        Command::Enable {
+            label,
+            state_dir: state,
+        } => {
+            let state = match state {
+                Some(p) => p,
+                None => state_dir()?,
+            };
+            cirrove_service::accounts::set_enabled(&state, &label, true)?;
+        }
+        Command::Disable {
+            label,
+            state_dir: state,
+        } => {
+            let state = match state {
+                Some(p) => p,
+                None => state_dir()?,
+            };
+            cirrove_service::accounts::set_enabled(&state, &label, false)?;
+        }
+        Command::KeyringCheck => cirrove_service::accounts::keyring_check().await?,
+
         Command::Status { socket } => {
             let socket = match socket {
                 Some(p) => p,
@@ -76,6 +191,7 @@ async fn main() -> Result<()> {
                 name: "Welcome.txt".into(),
                 kind: NodeKind::File,
                 size: 42,
+                modified_unix: 0,
                 etag: Some("v1".into()),
                 target: None,
             };

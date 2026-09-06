@@ -1,5 +1,5 @@
 [package]
-name = "cirrove-service"
+name = "cirrove-auth"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -8,26 +8,23 @@ publish = false
 
 [dependencies]
 cirrove-core.workspace = true
-cirrove-store.workspace = true
 cirrove-onedrive.workspace = true
-cirrove-auth.workspace = true
-uuid.workspace = true
-fs2.workspace = true
-fuser.workspace = true
-libc.workspace = true
-sha2.workspace = true
+async-trait.workspace = true
 anyhow.workspace = true
-clap.workspace = true
+reqwest.workspace = true
+openidconnect.workspace = true
+secret-service.workspace = true
 secrecy.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
-tokio-util.workspace = true
-tracing.workspace = true
-tracing-subscriber.workspace = true
+uuid.workspace = true
+base64.workspace = true
+subtle.workspace = true
+url.workspace = true
 
 [dev-dependencies]
-async-trait.workspace = true
+chrono.workspace = true
 tempfile.workspace = true
 
 [lints]

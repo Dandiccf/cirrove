@@ -4,88 +4,88 @@
 
 **Your clouds. One filesystem.**
 
-Cirrove is an open-source Linux cloud-filesystem project, starting with OneDrive
-and SharePoint through Microsoft Graph. The goal is responsive, on-demand file
-access across providers, with local metadata, disk caching and recoverable saves.
-Google Drive is the next planned provider. iCloud Drive requires a separate
-compatibility strategy because it lacks an equivalent public general-drive API.
+Cirrove is an Apache-2.0 Linux cloud-filesystem project, starting with OneDrive and
+linked SharePoint libraries through Microsoft Graph. It keeps metadata locally and
+fetches file content on demand into a bounded disk cache.
 
-**Status: development foundation, not a usable cloud mount yet.** There is no
-FUSE mount, browser sign-in, token refresh, content download, upload, tray or
-Nautilus extension in this milestone. The daemon serves local status; it does not
-run automatic cloud indexing. Do not replace an existing cloud client with it.
+**Status: read-only development preview, under validation.** Browser authentication,
+metadata workers and a FUSE mount are implemented. Local synthetic tests exercise
+actual filesystem reads and recovery. Real Microsoft consent, sustained operation
+and provider latency still require validation. Do not replace a trusted cloud
+client with this preview. Uploads, pins, tray UI and Nautilus badges are not implemented.
 
-## What works today
+## Current implementation
 
-- A Rust workspace with provider-neutral identity and paginated change contracts.
-- A read-only Microsoft Graph delta adapter, using a persistent HTTP client,
-  cancellation, finite request deadlines and an account-wide throttling cooldown.
-- SharePoint shortcut target identities are preserved in metadata. Automatic
-  discovery/tracking of the linked drives is **not implemented yet**.
-- SQLite staging with durable continuation checkpoints. A complete refresh and
-  its delta cursor become visible in one transaction. Interrupted refreshes resume;
-  replacing an expired baseline keeps the old index visible until completion.
-- A Linux user daemon (`cirroved`) and CLI (`cirrove`) communicating over a private
-  Unix socket. The API currently exposes status only.
-- Tests for interrupted metadata refreshes, account isolation, request budgets,
-  Graph response handling, throttling, cancellation and service shutdown.
+- Browser Microsoft OAuth with PKCE, signed identity verification, account/tenant
+  display and explicit drive selection. Use your own app registration.
+- Secret Service credential storage, serialized refresh, stale-token protection
+  and account-specific reauthentication.
+- Persistent delta workers, transactional SQLite staging, resumable pagination,
+  backoff and an account-wide provider cooldown.
+- Linked-drive discovery and shortcut projection with separate target identities.
+  Folder-only SharePoint sharing and revoked targets still need live validation.
+- Read-only FUSE projection with persistent inodes. Directory requests have capacity
+  reserved separately from content downloads.
+- Version-checked 4 MiB range cache, concurrent-request coalescing, checksums,
+  bounded eviction and interrupted-publication recovery.
+- Private status socket, desired mount state, accidental-ejection remount and
+  graceful worker/session shutdown. Settings and metadata persist across runs.
 
-## Build and try without a cloud account
+These are implementation capabilities, not a production-readiness claim. See the
+[validation record](docs/validation.md) for what has actually been tested.
 
-Requires Linux, Rust 1.98.1 (pinned in `rust-toolchain.toml`), a C/C++ build toolchain,
-CMake and pkg-config. Rustup installs the pinned toolchain if needed. SQLite is
-bundled; TLS uses Rustls. No FUSE development headers are required for this milestone.
+## Build and try
+
+Requires Linux, Rust 1.98.1 (pinned), a C/C++ build toolchain, CMake and pkg-config.
+Rustup installs the toolchain if necessary. SQLite is bundled; HTTPS uses Rustls.
+Mounting additionally needs `/dev/fuse` and `fusermount3` (`fuse3` on Arch).
+Browser sign-in needs `xdg-open` and a desktop Secret Service keyring.
 
 ```sh
 cargo build --workspace --locked
 cargo run --locked --bin cirrove -- demo --state-dir "$(mktemp -d)"
 ```
 
-The demo uses synthetic metadata only and exercises reopening a partially staged
-refresh. No cloud account, file upload or download is involved.
-
-Start the local daemon in one terminal:
+The demo uses synthetic metadata and no cloud account. For an actual read-only
+mount, follow [OneDrive setup](docs/onedrive-setup.md), then run:
 
 ```sh
-cargo run --locked --bin cirroved
+./target/debug/cirroved
 ```
 
-Then query it in another:
+From another terminal:
 
 ```sh
-cargo run --locked --bin cirrove -- status
+./target/debug/cirrove status
+./target/debug/cirrove accounts
 ```
 
-Defaults follow XDG conventions: `$XDG_STATE_HOME/cirrove` (fallback
-`~/.local/state/cirrove`) and `$XDG_RUNTIME_DIR/cirrove/control.sock`. Explicit
-`--state-dir` and `--socket` paths support isolated development. Private directories
-must have mode `0700`. The daemon never overwrites an existing socket path. For a
-manual run left behind by SIGKILL, confirm the old process is gone before removing
-its stale socket. The supplied systemd unit manages its runtime directory.
+Cirrove uses `$XDG_STATE_HOME/cirrove` (fallback `~/.local/state/cirrove`) and
+`$XDG_RUNTIME_DIR/cirrove/control.sock`. Explicit `--state-dir` and `--socket` paths
+support isolated development. State directories must be private (`0700`).
+The daemon does not replace an existing socket. The systemd unit template manages
+its runtime directory; a manual run killed with SIGKILL may require stale-socket
+cleanup after confirming its old process is gone.
 
-## Developer OneDrive indexing
-
-The Graph adapter can index a **specified drive ID** with a short-lived access
-token supplied in an owned, private regular file. This is a developer bootstrap,
-not end-user authentication. See [the developer guide](docs/development.md) for
-limitations and the least-privilege setup. Credentials from other clients are never
-automatically read or migrated.
+Existing cloud clients, mounts and credentials are not imported or modified.
+The systemd template is supplied separately and is not installed by a build.
 
 ## Architecture and contributing
 
 | Crate | Responsibility |
 | --- | --- |
-| `cirrove-core` | Stable identities, metadata provider contract, cancellation and request budgets |
-| `cirrove-store` | Transactional metadata staging and completed indexes |
-| `cirrove-onedrive` | Microsoft Graph adapter and token-source boundary |
-| `cirrove-service` | Daemon, CLI and metadata refresh coordinator |
+| `cirrove-core` | Provider-neutral identity, metadata/read contracts, cancellation and request budgets |
+| `cirrove-store` | Transactional metadata, observations, persistent inodes and cache index |
+| `cirrove-onedrive` | Microsoft Graph metadata and version-checked ranged reads |
+| `cirrove-auth` | Microsoft browser authentication, keyring and refresh broker |
+| `cirrove-service` | Daemon, CLI, account workers, FUSE projection and content cache |
 
 Read [Architecture](docs/architecture.md), [Roadmap](docs/roadmap.md),
-[Validation](docs/validation.md) and [Contributing](CONTRIBUTING.md).
+[Development](docs/development.md) and [Contributing](CONTRIBUTING.md).
 
-Cirrove is a new codebase. It does not copy or depend on Stratosync or rclone.
-The project is informed by practical issues encountered while testing cloud
-filesystem integrations; modern components alone are not a reliability claim.
+Google Drive is the next planned provider. iCloud requires a separate compatibility
+assessment because its API situation differs. Cirrove does not copy or depend on
+Stratosync or rclone; lessons from those integrations inform the recovery tests.
 
 ## License
 

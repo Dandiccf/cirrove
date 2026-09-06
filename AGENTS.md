@@ -3,8 +3,9 @@
 - Read README.md and docs/architecture.md before changing behavior.
 - This is an independent new project; do not modify or migrate another cloud client's
   configuration, credentials, mounted files or service state as part of development.
-- Keep implemented capabilities separate from roadmap promises. This foundation has
-  no mount, production OAuth, content engine or write support.
+- Keep implemented capabilities separate from roadmap promises. This is a read-only
+  preview under validation. Do not claim real-provider reliability or enable writes
+  based solely on synthetic tests.
 - Never log tokens, cursor URLs, signed URLs or raw provider bodies.
 - Provider identity is account + collection + item, not a path string.
 - Keep network awaits outside SQLite transactions and shared filesystem locks.

@@ -24,7 +24,7 @@ with tempfile.TemporaryDirectory(prefix="cirrove-smoke-") as directory:
                     raise RuntimeError("Daemon did not start: " + log.read())
                 time.sleep(0.02)
             reply = json.loads(subprocess.check_output([str(CLI), "status", "--socket", str(socket)], timeout=5))
-            assert reply["milestone"] == "metadata-foundation", reply
+            assert reply["milestone"] == "readonly-preview", reply
             assert reply["active_mounts"] == 0, reply
             process.terminate()
             assert process.wait(timeout=5) == 0

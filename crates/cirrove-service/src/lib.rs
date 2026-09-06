@@ -1,4 +1,9 @@
-//! Linux service plumbing; the daemon does not mount or modify cloud files yet.
+//! Linux user service and account coordination.
+pub mod accounts;
+pub mod content;
+pub mod engine;
+pub mod filesystem;
+pub mod manager;
 use anyhow::{Context, Result, bail};
 use cirrove_core::{CancellationToken, MetadataProvider, ProviderError, Scope};
 use cirrove_store::Store;
@@ -20,6 +25,8 @@ pub struct Status {
     pub indexed_feeds: u64,
     pub indexed_items: u64,
     pub active_mounts: u64,
+    #[serde(default)]
+    pub accounts: Vec<manager::AccountStatus>,
 }
 
 pub fn state_dir() -> Result<PathBuf> {
@@ -110,8 +117,8 @@ pub async fn status(socket: &Path) -> Result<Status> {
             .context("Cirrove service is not reachable")?;
         stream.write_all(b"status\n").await?;
         let mut body = Vec::new();
-        stream.take(8193).read_to_end(&mut body).await?;
-        if body.len() > 8192 {
+        stream.take(1024 * 1024 + 1).read_to_end(&mut body).await?;
+        if body.len() > 1024 * 1024 {
             bail!("oversized control response");
         }
         Ok(serde_json::from_slice(&body)?)
@@ -134,6 +141,14 @@ impl Drop for SocketGuard {
     }
 }
 pub async fn serve(db_path: PathBuf, socket: PathBuf, cancel: CancellationToken) -> Result<()> {
+    serve_managed(db_path, socket, cancel, None).await
+}
+pub async fn serve_managed(
+    db_path: PathBuf,
+    socket: PathBuf,
+    cancel: CancellationToken,
+    manager: Option<std::sync::Arc<manager::Manager>>,
+) -> Result<()> {
     private_dir(socket.parent().context("socket needs a parent directory")?)?;
     // Refuse existing paths, including stale sockets. systemd RuntimeDirectory
     // handles cleanup for the packaged service; manual runs must resolve leftovers.
@@ -152,13 +167,16 @@ pub async fn serve(db_path: PathBuf, socket: PathBuf, cancel: CancellationToken)
             accepted=listener.accept()=>{
                 let (mut stream,_)=accepted?;
                 if requests.len()>=16 {drop(stream);continue;}
-                let path=db_path.clone();
+                let path=db_path.clone();let manager=manager.clone();
                 requests.spawn(async move {
                     let result=tokio::time::timeout(Duration::from_secs(3),async {
                         let mut command=[0u8;7]; stream.read_exact(&mut command).await?;
                         if &command!=b"status\n" {bail!("unknown control request");}
-                        let (feeds,items)=tokio::task::spawn_blocking(move || Store::open(path)?.counts()).await??;
-                        let reply=Status{version:env!("CARGO_PKG_VERSION").into(),milestone:"metadata-foundation".into(),indexed_feeds:feeds,indexed_items:items,active_mounts:0};
+                        let (mut feeds,mut items)=tokio::task::spawn_blocking(move || Store::open(path)?.counts()).await??;
+                        let accounts=match &manager {Some(m)=>m.status.read().await.clone(),None=>vec![]};
+                        if manager.is_some() {feeds=accounts.iter().map(|a|a.indexed_feeds).sum();items=accounts.iter().map(|a|a.indexed_items).sum();}
+                        let active_mounts=accounts.iter().filter(|a|a.mounted).count() as u64;
+                        let reply=Status{version:env!("CARGO_PKG_VERSION").into(),milestone:"readonly-preview".into(),indexed_feeds:feeds,indexed_items:items,active_mounts,accounts};
                         stream.write_all(&serde_json::to_vec(&reply)?).await?;
                         Ok::<_,anyhow::Error>(())
                     }).await;

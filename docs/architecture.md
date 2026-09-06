@@ -1,125 +1,155 @@
 # Architecture
 
-## Product contract
+## Product contract and current boundary
 
-Cirrove should make remote files usable through ordinary Linux applications.
-Previously indexed directories should be fast even while a provider is slow.
-Content should arrive on demand, occupy a bounded disk cache and remain available
-offline when pinned. Local saves must be durable before success is reported, and
-cloud acknowledgement must have a separate visible state.
+Cirrove makes remote files usable through ordinary Linux applications. Cached
+metadata should stay available when a provider is slow; file bytes arrive on demand.
+The current implementation is a **read-only preview under validation**. It does not
+upload, pin files or implement offline writes. Those need a separate durable journal
+and explicit acknowledgement/conflict semantics before writes can be enabled.
 
-This avoids a full local mirror, but still requires metadata reconciliation,
-content freshness checks, upload recovery and conflict handling. No HTTP cloud API
-can provide instant uncached access or full local POSIX semantics.
-
-## Implemented foundation
+A cloud API cannot provide instant uncached access or complete local POSIX semantics.
+The service reconciles metadata using delta polling (30 seconds by default); it does
+not describe that interval as instantaneous real-time change delivery.
 
 ```mermaid
 flowchart LR
-    CLI[CLI] -->|private Unix socket: status| Daemon[User daemon]
-    CLI -->|developer index command| Refresh[Metadata coordinator]
-    Refresh --> Contract[MetadataProvider trait]
-    Contract --> Graph[OneDrive / Graph adapter]
-    Refresh --> Store[SQLite staged and visible metadata]
-    Daemon --> Store
+    CLI[CLI: connect / status / desired state] --> Settings[Private account settings]
+    CLI --> Auth[Browser OAuth + keyring broker]
+    Apps[Linux applications] --> FUSE[Read-only FUSE projection]
+    FUSE --> Engine[Per-account service]
+    Engine --> Store[SQLite metadata and stable inodes]
+    Engine --> Cache[Version-keyed disk blocks]
+    Engine --> Graph[OneDrive / Microsoft Graph]
+    Graph --> Auth
+    Settings --> Manager[Mount and worker manager]
+    Manager --> Engine
 ```
 
-The daemon's status path does not contact providers. The development indexing
-command uses the same store but is currently an explicit, one-shot operation.
-There is no automatic job scheduler, D-Bus API or filesystem mount yet.
+## Identity and linked libraries
 
-### Identity and linked libraries
+A scope is `(account, provider, collection)`; Graph collections are drive IDs.
+Item IDs are identity, while names and parents are mutable presentation. A shortcut
+retains its target drive/item and target kind. Duplicate projections receive distinct
+stable inodes, while cached bytes share the same remote identity and version.
 
-A scope is `(account, provider, collection)`. For Graph a collection is a drive ID.
-Within it, item IDs are identity; names and parent IDs are mutable presentation.
-A shortcut carries a separate target drive/item pair. A path is never a cloud key.
+Discovery follows indexed ancestry and starts one delta worker per linked drive.
+Reachable roots are persisted; obsolete subscriptions are removed only when the
+remaining reachable scopes have complete indexes. Discovery stops at duplicate roots
+and limits traversal to 256 roots. Projected ancestry detects cycles and excessive
+depth. Invalid/cyclic entries currently produce generic projection warnings; polished
+per-entry UI feedback is future work.
 
-The next OneDrive milestone must discover authorized linked drives, keep separate
-delta cursors per target drive, project the selected shortcut subtree into the
-namespace, handle duplicates/cycles and isolate revoked targets. Merely seeing a
-shortcut in a root delta feed is not evidence that its target is tracked. This
-milestone records links and does not traverse them.
+A failed linked-drive feed does not stop the primary drive. Cached metadata remains
+last-known data. A folder shared without permission to enumerate its entire backing
+drive may need foreground directory requests; this case is not claimed as verified
+until tested with a real tenant. A cache is not proof of current remote authorization.
 
-### Atomic metadata refresh
+## Atomic metadata and foreground observations
 
-`begin` resumes staged work or starts at a completed delta cursor. `stage` checks
-the expected continuation, writes the page and advances its continuation in one
-transaction. Visible rows remain unchanged until the terminal page commits the
-staged changes and completed cursor together. A reset builds a new baseline next
-to the visible one. Interrupted resets do not empty a previously usable index.
+The store stages paginated changes and advances the continuation in one transaction.
+Visible nodes and the completed cursor change together only on the terminal page.
+A replacement baseline is built alongside the last visible index. Interrupted work
+resumes; an expired cursor does not immediately empty a usable directory tree.
 
-Last occurrence of an item wins within a feed round. Tombstones are metadata only;
-there are no local dirty-file or upload states to delete. The future filesystem
-projection must implement directory deletion ordering and protect dirty content.
-SQLite uses WAL, FULL synchronous mode and a versioned schema. Staging consumes
-disk proportional to the refresh, not an unbounded in-memory tree.
+Cold foreground listings are atomically recorded separately from the delta index.
+A completed round removes observations older than its start, preserving newer
+foreground results until a subsequent completed round. Old observed listings can
+be refreshed in the background while their cached version remains readable.
+Directory fetches have a total deadline and repeated-cursor/entry limits.
 
-Do not hold database transactions across network awaits. The async coordinator
-executes SQLite work on blocking workers. Status requests are bounded in time and
-concurrency. Pagination pages have a byte limit. The initial full enumeration is
-still required; the goal is to replace subsequent rescans with delta feeds.
+SQLite uses WAL and FULL synchronous mode. Network awaits never occur inside its
+transactions. Database work runs on blocking workers. Recursive ancestry selection
+and batched inode assignment avoid loading entire drive trees or opening a database
+transaction for each entry in a directory listing.
 
-### Provider transport
+## Authentication and ownership
 
-One persistent reqwest client per adapter instance reuses connections. Redirects
-are disabled for authenticated metadata calls. Continuation URLs must remain on
-the configured origin and drive. HTTP response bodies, tokens and opaque cursor
-URLs are excluded from error messages. Graph 401/403/404/410 are distinct states.
-429 and 503 set a shared cooldown using Retry-After (seconds or HTTP date).
+Microsoft authorization code flow uses PKCE S256, random state and nonce, a bound
+loopback callback, explicit account selection and validated RS256 OIDC claims.
+Issuer, audience, tenant, expiry and nonce are checked before an identity is accepted.
+The CLI displays the verified identity and selected drive before saving it.
 
-There is no hidden retry loop. The future account scheduler must add bounded,
-jittered retry policy for transient failures, honor cooldowns across all operation
-classes, and avoid waking every mount at once. A cancellation token can interrupt
-permit waits, authentication and HTTP body reads. RequestBudget reserves distinct
-interactive/background concurrency; only background metadata operations exist today.
-It is not yet a bandwidth scheduler or a guarantee about provider response latency.
+Non-secret configuration is atomically written and fsynced. Tokens are stored in a
+Cirrove-labelled Secret Service item over an encrypted session, never in the metadata
+database. The shared account broker serializes refresh, checks the refreshed Graph
+identity and persists rotation before returning a new access token. Delayed 401s
+invalidate only the rejected token, not a newer grant.
 
-### Authentication boundary
+A daemon ownership lock prevents competing managers. Per-account leases cover its
+worker and filesystem lifetime. Reauthentication first disables that account and
+waits for its lease. It verifies the same identity before replacing credentials.
+Other accounts keep running. A killed login command can leave that account disabled;
+`enable` is the explicit recovery action.
 
-Adapters accept a TokenSource. StaticToken is for controlled developer testing only.
-Production requires browser OAuth with PKCE, state validation, refresh serialization,
-Secret Service storage, consent and selected-account identity verification. Own app
-registrations and a project registration should be supported explicitly. Never reuse
-another project's OAuth client identity as if it belonged to Cirrove.
+## Transport, responsiveness and content consistency
 
-## Planned filesystem and content engine
+Persistent reqwest clients reuse connections. Authenticated Graph requests do not
+follow redirects; continuation URLs must stay on the configured origin and drive.
+Signed downloads use a separate client without Graph bearer headers. Provider bodies,
+tokens, signed URLs and opaque cursor material are excluded from application errors.
 
-Use a Linux FUSE 3-compatible userspace adapter. Evaluate the Rust binding against
-async cancellation, notification/invalidation and request scheduling needs before
-selecting it. FUSE callbacks must not perform long network operations on a global
-filesystem lock. Assign stable inodes independently of remote paths.
+Per account, there are four foreground metadata slots, four content slots and one
+background metadata slot. Content traffic cannot occupy directory-request slots.
+429/503 cooldown applies across Graph metadata and download operations. Requests and
+credential operations have finite deadlines; account cancellation interrupts them.
+The scheduler distinguishes authentication, permissions, missing items, expired
+cursors, throttling and transient failures, and uses bounded backoff with jitter.
 
-The next content contract should support version-bound ranged reads with a bounded
-buffer, streaming to disk, coalesced concurrent requests and cancellation. Cached
-ranges must be keyed by account, drive, item and content version; never combine
-ranges from different versions. Provider download redirects need a separate client
-that does not forward Graph bearer tokens to signed download hosts.
+Content cache keys include account, drive, item, version, size and block offset.
+Blocks are at most 4 MiB, while an individual read result is capped at 8 MiB. Four
+loaders and eight in-memory cache blocks bound content buffering independently of the
+remote file's total size; namespace and outstanding application buffers add memory.
+A small failure cooldown prevents coalesced failures from becoming a retry storm.
 
-Before enabling writes, introduce a durable operation journal, local content fsync,
-atomic commit records, provider conditional writes, resumable upload sessions,
-crash replay and conflict copies. Define close/fsync behavior explicitly: a local
-save can be durable while its upload is pending. Failure must remain visible.
-Do not infer upload acknowledgement from a progress counter reaching 100%.
+Each uncached Graph range currently uses metadata checks before and after download.
+Both ETag and size must match the opened version. Response range and byte count are
+validated before publication. This favors version consistency but adds **two Graph
+metadata requests per uncached block**; real-provider latency measurements must guide
+future optimization. A changed file yields ESTALE instead of mixing versions.
 
-Nautilus badges, pin/unpin, thumbnails, tray and GTK4/libadwaita settings should use
-one service-owned state model. File-manager presentation must not become a second
-sync engine. Thumbnail reads are real reads: content prioritization and a thumbnail
-policy are necessary to prevent background download storms.
+Blocks have SHA-256 checksums. Temporary bytes and the containing directory are
+fsynced before publication is indexed. Startup removes interrupted temporary blocks,
+accounts for orphaned publications and enforces quota. Corrupt blocks are fetched
+again. Cached data survives restart, but unpinned blocks may be evicted: this is not
+an offline-availability guarantee.
 
-## Provider expansion
+## FUSE and lifecycle
 
-- OneDrive first: documented Graph API, target-drive delta feeds and permissions.
-- Google next: native Drive API, change tokens, shared-drive capabilities and
-  explicit export semantics for Docs/Sheets. Push requires additional infrastructure;
-  adaptive delta polling remains a valid desktop baseline.
-- iCloud later: isolate the compatibility adapter and document authentication and
-  API limitations. Do not promise parity with officially documented APIs.
+The pure-Rust `fuser` adapter uses the Linux FUSE protocol and `fusermount3`, without
+libfuse development headers. Callbacks dispatch work to Tokio and keep namespace
+locks short. Directory handles have stable listing snapshots. File handles bind a
+content version. Kernel direct I/O avoids a second uncontrolled content cache, and
+metadata commits notify the kernel to invalidate known entries/attributes.
+
+This first projection has read-only permissions and rejects write opens. File-manager
+thumbnail generation still causes real content reads; reserved metadata capacity
+prevents those requests from consuming folder-request slots. Thumbnail policy,
+pinning and per-file status presentation remain later desktop work.
+
+The manager retains running accounts if settings or mount-state observation fails.
+Every mount attempt checks for an empty real directory outside other FUSE mounts.
+It never mounts over local files deposited after an ejection. Enabled accounts are
+remounted after accidental ejection; `disable` records an intentional unmount.
+Shutdown cancels and awaits workers, then unmounts and joins FUSE sessions.
+
+## Next boundaries
+
+Before enabling writes, add a durable upload journal, fsync ordering, replay,
+conditional writes, resumable uploads and conflict preservation. Separate local-save
+success from remote acknowledgement. GTK settings, tray and Nautilus integrations
+must consume the service's state rather than maintain their own sync logic.
+
+Google Drive will implement provider contracts around its native changes and content
+APIs, including shared drives and explicit document export. iCloud must stay isolated
+behind a compatibility adapter with visible authentication/API limitations.
 
 ## References
 
+- [Microsoft authentication code flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow)
 - [Graph delta](https://learn.microsoft.com/en-us/graph/api/driveitem-delta?view=graph-rest-1.0)
 - [Graph throttling](https://learn.microsoft.com/en-us/graph/throttling)
 - [Graph downloads](https://learn.microsoft.com/en-us/graph/api/driveitem-get-content?view=graph-rest-1.0)
-- [Google push notifications](https://developers.google.com/workspace/drive/api/guides/push)
+- [Google change tracking](https://developers.google.com/workspace/drive/api/guides/manage-changes)
 - [Apple CloudKit](https://developer.apple.com/documentation/cloudkit)
 - [Rclone iCloud compatibility notes](https://rclone.org/iclouddrive/)

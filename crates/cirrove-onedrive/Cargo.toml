@@ -10,6 +10,7 @@ publish = false
 cirrove-core.workspace = true
 async-trait.workspace = true
 httpdate.workspace = true
+chrono.workspace = true
 reqwest.workspace = true
 secrecy.workspace = true
 serde.workspace = true

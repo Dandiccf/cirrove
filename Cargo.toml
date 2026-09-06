@@ -13,19 +13,31 @@ repository = "https://github.com/Dandiccf/cirrove"
 cirrove-core = { path = "crates/cirrove-core" }
 cirrove-store = { path = "crates/cirrove-store" }
 cirrove-onedrive = { path = "crates/cirrove-onedrive" }
+cirrove-auth = { path = "crates/cirrove-auth" }
 anyhow = "1.0"
 async-trait = "0.1"
 clap = { version = "4.6", features = ["derive"] }
 httpdate = "1.0"
-reqwest = { version = "0.13", default-features = false, features = ["rustls", "http2", "json"] }
+chrono = "0.4"
+openidconnect = { version = "4.0", default-features = false }
+secret-service = { version = "5.2", features = ["rt-tokio-crypto-rust"] }
+base64 = "0.22"
+sha2 = "0.10"
+subtle = "2.6"
+uuid = { version = "1.18", features = ["v4", "serde"] }
+url = "2.5"
+fs2 = "0.4"
+fuser = { version = "0.18", default-features = false }
+libc = "0.2"
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "http2", "json", "form", "query"] }
 rusqlite = { version = "0.40", features = ["bundled"] }
 secrecy = "0.10"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tempfile = "3.27"
 thiserror = "2.0"
-tokio = { version = "1.53", features = ["rt-multi-thread", "macros", "signal", "net", "io-util", "time", "sync"] }
-tokio-util = "0.7"
+tokio = { version = "1.53", features = ["rt-multi-thread", "macros", "signal", "net", "io-util", "time", "sync", "fs", "process"] }
+tokio-util = { version = "0.7", features = ["rt"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 

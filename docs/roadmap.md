@@ -1,49 +1,68 @@
 # Roadmap
 
-Milestones are acceptance gates, not release dates.
+Milestones are acceptance gates, not release dates. Stages 1–3 form the first
+read-only OneDrive preview. Implementation and validation are tracked separately
+in [Validation](validation.md); none is complete merely because it compiles.
 
-## 0 — Foundation (current)
+## 0 — Foundation
 
-- [x] Independent Apache-2.0 Rust workspace and architecture boundaries.
-- [x] Metadata provider contract, Graph adapter and injected token source.
-- [x] Atomic staged indexes, restart continuation and account isolation tests.
-- [x] Private status service, CLI and systemd unit template.
-- [x] Local mock Graph tests and repeatable CI checks.
-- [x] Publish and observe the first successful GitHub CI run.
+- [x] Independent Apache-2.0 Rust workspace and provider boundaries.
+- [x] Graph adapter, atomic staged indexes and resumable checkpoints.
+- [x] Private status service, CLI, tests and systemd template.
+- [x] Publish the repository and observe successful initial GitHub CI.
 
-## 1 — OneDrive account and metadata service
+## 1 — Accounts and authentication
 
-- [ ] Browser OAuth/PKCE, refresh serialization and Secret Service credential storage.
-- [ ] Show and verify account, tenant and selected drive; own/project app registration.
-- [ ] Account configuration, job ownership and structured health/events API.
-- [ ] Persistent per-drive delta workers and bounded retry/cooldown scheduling.
-- [ ] SharePoint shortcut discovery/projection, duplicate/cycle and revoked-target handling.
-- [ ] Expired cursor recovery and invalidation of affected directories.
-- [ ] Real-account read-only validation over at least 24 hours, including network loss.
+- [x] Browser OAuth with PKCE, state/nonce and signed OIDC identity validation.
+- [x] Serialized token refresh, rotation storage and stale-401 protection.
+- [x] Desktop Secret Service credentials and atomic non-secret settings.
+- [x] Own app registration, visible account/tenant/drive selection and reauthentication.
+- [ ] Real Microsoft consent and refresh through a configured Cirrove registration.
 
-## 2 — Read-only filesystem
+A shared Cirrove registration is optional future deployment work. It is not
+currently bundled; another project's client ID is never substituted.
 
-- [ ] Select FUSE 3-compatible Rust adapter; define inode and callback lifetime rules.
-- [ ] Cached directory lookup with background refresh and bounded wait for cold paths.
-- [ ] Version-aware ranged reads, durable disk cache and coalesced concurrent requests.
-- [ ] Pins, cache eviction and file-manager invalidation.
-- [ ] Test large files with bounded memory, thumbnail storms and slow providers.
-- [ ] Record cold/warm p50/p95 latency and API requests per operation; publish results.
+## 2 — Persistent metadata service
 
-## 3 — Recoverable writes
+- [x] Per-account worker ownership, per-drive delta cursors and structured status.
+- [x] Bounded retry/cooldown, cancellation and persisted last-success state.
+- [x] Linked-drive discovery, projected shortcut identities and bounded traversal.
+- [x] Cached browsing, foreground cold-directory fetches and kernel invalidation.
+- [ ] Verify linked-library deletion, duplicates, cycles and revoked permissions
+      across real OneDrive/SharePoint tenants, including folder-only sharing.
+- [ ] Real-account read-only operation over at least 24 hours, network loss,
+      credential expiry and service restart. Record recovery evidence.
 
-- [ ] Explicit local durability and cloud acknowledgement semantics.
+## 3 — Read-only filesystem
+
+- [x] Linux FUSE adapter with stable inodes and independent metadata/content capacity.
+- [x] Version-checked ranged reads, request coalescing and bounded disk block cache.
+- [x] Checksum verification, eviction and interrupted cache-publication recovery.
+- [x] Real local FUSE reads, large offsets, offline restart, read-only enforcement
+      and ejection/remount against synthetic data.
+- [ ] Record reproducible cold/warm p50/p95 latency, API requests, peak memory and
+      thumbnail-storm behavior. Separate local fixtures from real-provider results.
+- [ ] Validate ordinary desktop applications and long-lived open files on real data.
+
+## 4 — Safe writes and offline controls
+
+- [ ] Explicit local durability and cloud-acknowledgement states.
 - [ ] Persistent upload journal, fsync ordering and atomic cache publication.
-- [ ] Conditional writes, resumable uploads, conflict preservation and retry idempotency.
-- [ ] Correct rename/delete behavior, partial permissions and provider content rewrites.
+- [ ] Conditional writes, resumable uploads, conflicts and idempotent retries.
+- [ ] Correct rename/delete behavior, partial permissions and content rewrites.
+- [ ] Pin/unpin policy, cache reservations and offline availability semantics.
 - [ ] Fault injection at every journal transition; verify original and edited bytes.
 
-## 4 — Desktop and additional providers
+## 5 — Desktop experience and distribution
 
-- [ ] GTK4/libadwaita account settings, tray, Nautilus badges and context actions.
-- [ ] Google Drive adapter with shared drives and explicit document export behavior.
-- [ ] iCloud compatibility feasibility, with limitations visible before connection.
-- [ ] Arch/AUR packaging, reproducible release process and supported-version policy.
+- [ ] GTK4/libadwaita settings, tray, Nautilus badges and context actions.
+- [ ] Clear connection removal, cache cleanup and recovery guidance.
+- [ ] Arch/AUR packaging, reproducible releases and supported-version policy.
 
-No milestone is complete solely because unit tests pass. Production readiness
-requires real-provider tests, sustained use and independently reviewable recovery evidence.
+## 6 — Additional providers
+
+- [ ] Google Drive adapter, shared drives and explicit Docs/Sheets export behavior.
+- [ ] iCloud feasibility, isolated compatibility adapter and visible limitations.
+
+Modern components do not establish production readiness. Sustained real-provider
+use and independently reviewable recovery results remain release requirements.
