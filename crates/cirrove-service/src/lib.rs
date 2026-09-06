@@ -1,5 +1,7 @@
 //! Linux user service and account coordination.
 pub mod accounts;
+mod activity;
+pub use activity::DirectoryFreshness;
 pub mod content;
 pub mod engine;
 pub mod filesystem;

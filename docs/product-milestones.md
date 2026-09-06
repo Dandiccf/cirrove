@@ -20,8 +20,10 @@ Evidence must include actual kernel mounts, provider-backed reads and ordinary
 desktop applications, in addition to deterministic transport/recovery fixtures.
 Graph Socket.IO and provider-neutral coalescing hints are now implemented. This
 does not close the live-response gate: notifications can be delayed upstream, and
-long-session renewal, the provider matrix and active-directory freshness need
-further validation. See [the notification decision](adr/0003-change-notifications.md).
+long-session renewal and the provider matrix need further validation. Bounded
+revalidation of recently used directories now has service and actual FUSE fixtures;
+real-provider and ordinary desktop freshness still need measurement. See
+[the notification decision](adr/0003-change-notifications.md).
 
 ## 2. Safe file changes
 

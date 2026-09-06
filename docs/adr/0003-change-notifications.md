@@ -46,6 +46,26 @@ even when notifications work. Removing this safeguard or lengthening it before
 measuring provider delivery would risk making freshness worse. Reconnect catch-up
 does not depend on receiving another remote notification.
 
+## Recently used directory revalidation
+
+Late provider hints need a bounded complement. Filesystem directory reads now
+register a 60-second lease, with at most 32 entries per account and one worker.
+Successful listings are eligible again after five seconds; starts are spaced by
+at least two seconds across the account. Large or multiple directories therefore
+take longer. Pagination, provider cooldown and the existing listing deadline all
+still apply. This is targeted metadata polling, not a push-delivery guarantee.
+
+Cached listings stay readable during refresh. The worker shares each directory's
+foreground gate and skips a currently running cold request. Failures back off;
+repeated use cannot bypass that backoff. It emits filesystem invalidations only
+when listing metadata changes, and does not renew its own activity lease. An empty
+or unrelated delta cannot overwrite a newer observed directory with older indexed
+metadata. A relevant delta or replacement baseline still reconciles observations.
+
+Activity is inferred from actual filesystem requests. Detecting a window that
+remains visible without issuing further reads would need an explicit desktop
+integration. No such integration or always-visible-folder guarantee is claimed.
+
 ## Provider independence
 
 The core knows only scope, change hints, connection state and incremental changes.
@@ -77,9 +97,13 @@ Neither adapter is implemented or promised to provide equivalent latency.
   it; this is a target, not a measured end-to-end provider guarantee.
 - Validate actual reconnect/renewal after long sessions, suspend/network loss,
   personal OneDrive, linked libraries and restricted permissions.
-- Determine a bounded policy for refreshing actively viewed folders when upstream
-  notifications arrive late. Do not replace a slow timer with a global aggressive
-  polling loop or describe push alone as a latency solution.
+- Revalidation fixtures cover bounded activity, backoff, cached navigation while
+  another directory stalls, and actual mounted create/rename/delete visibility
+  during a blocked content read. Push is disabled and the delta timer is one hour
+  in the activity tests. Unchanged observations do not request another reload.
+- Measure the activity policy with real providers, multiple large directories and
+  ordinary file-manager windows. Kernel fixtures establish the local path, not
+  Microsoft latency, desktop event handling or production request cost.
 
 ## Sources
 

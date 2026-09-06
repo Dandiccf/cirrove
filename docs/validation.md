@@ -8,7 +8,7 @@ acceptance for roadmap stages 1–3.
 ## Local checks
 
 - Formatting and strict Clippy cover all crates and test targets.
-- Current default workspace suite: **96 tests passed**. Eight kernel-FUSE tests
+- Current default workspace suite: **103 tests passed**. Nine kernel-FUSE tests
   run separately; subprocess fixture entry points and the optional performance
   fixture remain excluded from the default suite.
 - Built both binaries and generated workspace Rustdoc.
@@ -55,7 +55,7 @@ The content tests check 32-reader coalescing, offsets beyond 2 GiB in a syntheti
 3 GiB file, offline cache reuse after restart, corruption recovery, interrupted
 publication cleanup, quota enforcement and shared-failure retry suppression.
 
-Eight tests ran against **real kernel FUSE mounts** in temporary directories:
+Nine tests ran against **real kernel FUSE mounts** in temporary directories:
 
 - Normal file reads, linked-library projection, duplicate-alias inodes, deep
   traversal, large seeks, EROFS on writes, stable inodes/cache after restart,
@@ -194,6 +194,30 @@ personal-account, linked-library and long-session checks remain open. Actual
 identifiers and timings remain in private local evidence. See
 [the notification decision](adr/0003-change-notifications.md) for the acceptance
 plan and repeat command.
+
+## Recently used directory freshness
+
+Seven additional default tests cover bounded activity leases, scheduling fairness,
+error backoff, cached and cold navigation while another listing stalls, activity
+that cannot bypass throttling, and fresh observations surviving empty/unrelated
+deltas. Repeated identical observations do not emit another filesystem reload.
+
+A ninth kernel-FUSE test verifies new, renamed (including Unicode) and deleted
+entries while a content read remains blocked. It disables push and sets the delta
+timer to one hour; the bounded directory worker must make each change visible.
+The existing push test stalls the activity listing so push remains its only route
+to fresh metadata. Both mechanisms therefore have independent mounted-path checks.
+
+One full local FUSE run encountered a transient busy mount in the existing
+ejection fixture; its isolated repetition passed. The fixture now requires an
+ordinary unmount within two seconds, retrying only EBUSY and never forcing a detach.
+The full nine-test run then passed. The source of the transient busy state was not
+established; this is not proof of a fixed production mount-lifecycle defect.
+
+These are deterministic provider tests. Real Graph listing-to-desktop latency,
+multiple large active directories, request cost and indefinitely visible windows
+remain unverified for this policy. No installed-runtime upgrade is implied by
+building or merging these changes.
 
 ## Required before calling stages 1–3 complete
 
