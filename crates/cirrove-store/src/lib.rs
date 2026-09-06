@@ -128,7 +128,11 @@ impl Store {
         page: &ChangePage,
     ) -> Result<()> {
         let key = Self::key(scope)?;
-        let tx = self.db.transaction()?;
+        // The cursor check and its following writes share a reserved writer;
+        // concurrent foreground observations must not invalidate this snapshot.
+        let tx = self
+            .db
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let feed = tx
             .query_row(
                 "SELECT pending,next_cursor,reset FROM feeds WHERE scope=?1",
@@ -275,7 +279,12 @@ impl Store {
         nodes: &[Node],
     ) -> Result<bool> {
         let key = Self::key(scope)?;
-        let tx = self.db.transaction()?;
+        // Reserve the writer before comparing metadata. A deferred read-to-write
+        // upgrade can fail with SQLITE_BUSY immediately, bypassing busy_timeout,
+        // if another metadata worker writes after our first read.
+        let tx = self
+            .db
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let changed = Self::children_on(&tx, scope, parent)?.as_deref() != Some(nodes);
         let seen = timestamp();
         for node in nodes {
@@ -526,6 +535,63 @@ mod tests {
         .unwrap();
         assert!(db.node(&scope, "item").unwrap().is_none());
         assert!(db.children(&scope, "root").unwrap().unwrap().is_empty());
+    }
+    #[test]
+    fn concurrent_observations_and_delta_commits_preserve_all_completed_listings() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("db");
+        Store::open(&path).unwrap();
+        let start = std::sync::Barrier::new(4);
+        std::thread::scope(|threads| {
+            let workers: Vec<_> = (0..4)
+                .map(|worker| {
+                    let path = &path;
+                    let start = &start;
+                    threads.spawn(move || -> Result<()> {
+                        let mut db = Store::open(path)?;
+                        start.wait();
+                        let s = scope(&format!("account-{worker}"));
+                        let parent = format!("parent-{worker}");
+                        for generation in 0..100 {
+                            let Change::Upsert(mut item) = node(&format!("item-{worker}")) else {
+                                unreachable!()
+                            };
+                            item.name = format!("revision-{generation}");
+                            item.parent_id = Some(parent.clone());
+                            if worker % 2 == 0 {
+                                assert!(db.observe_directory(&s, &parent, &[item])?);
+                            } else {
+                                let cursor = db.begin(&s, false)?;
+                                db.stage(
+                                    &s,
+                                    cursor.as_ref(),
+                                    &page(
+                                        vec![Change::Upsert(item)],
+                                        true,
+                                        &format!("delta-{generation}"),
+                                    ),
+                                )?;
+                            }
+                        }
+                        Ok(())
+                    })
+                })
+                .collect();
+            let results: Vec<_> = workers.into_iter().map(|w| w.join().unwrap()).collect();
+            assert!(results.iter().all(Result::is_ok), "{results:?}");
+        });
+        let db = Store::open(path).unwrap();
+        for worker in 0..4 {
+            let items = db
+                .children(
+                    &scope(&format!("account-{worker}")),
+                    &format!("parent-{worker}"),
+                )
+                .unwrap()
+                .unwrap();
+            assert_eq!(items.len(), 1);
+            assert_eq!(items[0].name, "revision-99");
+        }
     }
     #[test]
     fn unrelated_delta_keeps_fresh_directory_until_an_actual_item_change() {

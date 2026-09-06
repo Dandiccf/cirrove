@@ -8,7 +8,7 @@ acceptance for roadmap stages 1–3.
 ## Local checks
 
 - Formatting and strict Clippy cover all crates and test targets.
-- Current default workspace suite: **103 tests passed**. Nine kernel-FUSE tests
+- Current default workspace suite: **104 tests passed**. Nine kernel-FUSE tests
   run separately; subprocess fixture entry points and the optional performance
   fixture remain excluded from the default suite.
 - Built both binaries and generated workspace Rustdoc.
@@ -197,10 +197,18 @@ plan and repeat command.
 
 ## Recently used directory freshness
 
-Seven additional default tests cover bounded activity leases, scheduling fairness,
+Eight additional default tests cover bounded activity leases, scheduling fairness,
 error backoff, cached and cold navigation while another listing stalls, activity
 that cannot bypass throttling, and fresh observations surviving empty/unrelated
 deltas. Repeated identical observations do not emit another filesystem reload.
+
+The initial activity commit passed one CI run but failed the concurrent cold-listing
+fixture in another. A four-writer store regression reproduced SQLITE_BUSY during
+the new metadata comparison's deferred read-to-write transaction upgrade. Directory
+observation and delta staging now start immediate transactions before their
+read/modify/write work, so writer admission uses the bounded busy timeout. The
+regression passes, including mixed observation/delta writers, and verifies every
+worker's final listing. Network work remains outside the transaction.
 
 A ninth kernel-FUSE test verifies new, renamed (including Unicode) and deleted
 entries while a content read remains blocked. It disables push and sets the delta
