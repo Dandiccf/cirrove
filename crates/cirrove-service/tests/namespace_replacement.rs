@@ -458,7 +458,7 @@ fn stale_or_dirty_pair_is_refused_and_schema_ten_migration_retains_bytes() {
     assert_eq!(
         db.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
             .unwrap(),
-        12
+        13
     );
 }
 

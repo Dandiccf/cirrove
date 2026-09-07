@@ -124,93 +124,81 @@ impl Writeback {
         inner.engine.changed.notify_waiters();
         Ok(())
     }
-    /// Runs after local unlink has returned, outside the VFS parent-directory
-    /// lock. The remote mutation stays ineligible until old readers are safe.
+    /// Runs after the local namespace call, outside VFS directory locks. Both
+    /// replacement streams and unlinked victims keep their original bytes.
     pub async fn preserve_unlinked(self: &Arc<Self>, engine: &Engine) -> Result<bool> {
         let after = *self.preserving_cursor.lock().map_err(|_| Errno::EIO)?;
-        let records = self.local(move |j| j.unlinked_readers(after, 16)).await?;
+        let records = self
+            .local(move |j| {
+                let mut records = Vec::new();
+                for r in j.unlinked_readers(after, 16)? {
+                    let object = j
+                        .namespace_for_operation(r.id)?
+                        .ok_or(JournalError::Corrupt)?;
+                    records.push((r.sequence, r.id, vec![object.id], false));
+                }
+                for (sequence, r) in j.replacement_readers(after, 16)? {
+                    records.push((sequence, r.id, vec![r.source, r.victim], true));
+                }
+                records.sort_by_key(|r| r.0);
+                records.truncate(16);
+                Ok(records)
+            })
+            .await?;
         if records.is_empty() {
             *self.preserving_cursor.lock().map_err(|_| Errno::EIO)? = 0;
             return Ok(false);
         }
-        for record in records {
-            *self.preserving_cursor.lock().map_err(|_| Errno::EIO)? = record.sequence;
-            let id = record.id;
-            let object_id = self
-                .local(move |j| {
-                    let object = j
-                        .namespace_for_operation(id)?
-                        .ok_or(JournalError::Corrupt)?;
-                    Ok(object.id)
-                })
-                .await?;
-            self.refresh_projection().await?;
-            let (object, working) = {
-                let p = self.projection.lock().map_err(|_| Errno::EIO)?;
-                let object = p.objects.get(&object_id).ok_or(Errno::EIO)?.clone();
-                let working = object.working_file.and_then(|id| p.files.get(&id)).cloned();
-                (object, working)
-            };
+        self.refresh_projection().await?;
+        for (sequence, id, objects, replacement) in records {
+            *self.preserving_cursor.lock().map_err(|_| Errno::EIO)? = sequence;
             if self
                 .maintenance_retries
                 .lock()
                 .map_err(|_| Errno::EIO)?
-                .get(&object.id)
+                .get(&id)
                 .is_some_and(|(_, at)| *at > tokio::time::Instant::now())
             {
                 continue;
             }
-            let result=async {
-                let users={
-                    let p=self.projection.lock().map_err(|_|Errno::EIO)?;
-                    p.streams.get(&key(&object.scope,&object.node.id)).into_iter().flatten()
-                        .filter_map(Weak::upgrade).collect::<Vec<_>>()
-                };
-                if !users.is_empty()&&working.is_none() {
-                    let remote=object.remote.as_ref().ok_or(Errno::EIO)?;
-                    if users.iter().any(|u|u.node.size!=remote.size||u.node.content_revision()!=remote.content_revision()) {
-                        return Err(Errno::ESTALE);
+            let result = async {
+                for (index, object) in objects.into_iter().enumerate() {
+                    if !self
+                        .preserve_stream(engine, object, replacement && index == 0)
+                        .await?
+                    {
+                        return Ok(false);
                     }
-                    let mut view=users[0].view.clone(); view.node=object.node.clone();
-                    drop(users);
-                    // Only range I/O inside prepare is cancellable/time-bounded;
-                    // local stream publication must finish once it starts.
-                    self.prepare(engine,&view,false,&engine.cancel).await?;
-
                 }
-                let users={
-                    let p=self.projection.lock().map_err(|_|Errno::EIO)?;
-                    let users=p.streams.get(&key(&object.scope,&object.node.id)).into_iter().flatten()
-                        .filter_map(Weak::upgrade).collect::<Vec<_>>();
-                    if !users.is_empty()&&p.local_object(&object.scope,&object.node.id).and_then(|o|o.working_file).is_none() {
-                        return Err(Errno::EAGAIN);
+                self.local(move |j| {
+                    if replacement {
+                        j.release_replacement_readers(id)
+                    } else {
+                        j.release_unlinked_readers(id)
                     }
-                    for file in &users { file.remote_reads.close(); }
-                    users
-                };
-                tokio::select! {biased;
-                    _=engine.cancel.cancelled()=>return Err(Errno::ENODEV),
-                    result=tokio::time::timeout(Duration::from_secs(30),async {for file in users {file.remote_reads.wait().await;}})=>{result.map_err(|_|Errno::ETIMEDOUT)?;},
-                }
-                self.local(move|j|j.release_unlinked_readers(id)).await?;
-                self.wake.notify_waiters(); engine.changed.notify_waiters();
-                Ok(())
-            }.await;
+                })
+                .await?;
+                self.wake.notify_waiters();
+                engine.changed.notify_waiters();
+                Ok(true)
+            }
+            .await;
             match result {
-                Ok(()) => {
+                Ok(true) => {
                     self.maintenance_retries
                         .lock()
                         .map_err(|_| Errno::EIO)?
-                        .remove(&object.id);
+                        .remove(&id);
                     return Ok(true);
                 }
+                Ok(false) => continue,
                 Err(error) => {
                     let mut retries = self.maintenance_retries.lock().map_err(|_| Errno::EIO)?;
                     let n = retries
-                        .get(&object.id)
+                        .get(&id)
                         .map_or(1, |(n, _)| n.saturating_add(1).min(6));
                     retries.insert(
-                        object.id,
+                        id,
                         (
                             n,
                             tokio::time::Instant::now() + Duration::from_secs((1u64 << n).min(60)),
@@ -221,5 +209,71 @@ impl Writeback {
             }
         }
         Ok(false)
+    }
+
+    async fn preserve_stream(
+        &self,
+        engine: &Engine,
+        object_id: Uuid,
+        require_working: bool,
+    ) -> Result<bool> {
+        let (object, working, users) = {
+            let p = self.projection.lock().map_err(|_| Errno::EIO)?;
+            let object = p.objects.get(&object_id).ok_or(Errno::EIO)?.clone();
+            let working = object.working_file;
+            let users = p
+                .streams
+                .get(&key(&object.scope, &object.node.id))
+                .into_iter()
+                .flatten()
+                .filter_map(Weak::upgrade)
+                .collect::<Vec<_>>();
+            (object, working, users)
+        };
+        // A replacement source remains openable at its new path. Preparation
+        // must switch ALL future reads to local bytes before this gate opens.
+        if require_working && working.is_none() {
+            return Ok(false);
+        }
+        if !users.is_empty() && working.is_none() {
+            let remote = object.remote.as_ref().ok_or(Errno::EIO)?;
+            if users.iter().any(|u| {
+                u.node.size != remote.size || u.node.content_revision() != remote.content_revision()
+            }) {
+                return Err(Errno::ESTALE);
+            }
+            let mut view = users[0].view.clone();
+            view.node = object.node.clone();
+            drop(users);
+            self.prepare(engine, &view, false, &engine.cancel).await?;
+        }
+        let users = {
+            let p = self.projection.lock().map_err(|_| Errno::EIO)?;
+            let users = p
+                .streams
+                .get(&key(&object.scope, &object.node.id))
+                .into_iter()
+                .flatten()
+                .filter_map(Weak::upgrade)
+                .collect::<Vec<_>>();
+            if !users.is_empty()
+                && p.local_object(&object.scope, &object.node.id)
+                    .and_then(|o| o.working_file)
+                    .is_none()
+            {
+                return Err(Errno::EAGAIN);
+            }
+            for file in &users {
+                file.remote_reads.close();
+            }
+            users
+        };
+        tokio::select! {biased;
+            _=engine.cancel.cancelled()=>return Err(Errno::ENODEV),
+            result=tokio::time::timeout(Duration::from_secs(30),async{for file in users{file.remote_reads.wait().await;}})=>{
+                result.map_err(|_|Errno::ETIMEDOUT)?;
+            }
+        }
+        Ok(true)
     }
 }

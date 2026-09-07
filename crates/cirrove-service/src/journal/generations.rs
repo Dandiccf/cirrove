@@ -72,7 +72,7 @@ pub(super) fn insert_dependency(
     Ok(())
 }
 
-enum Operation {
+pub(super) enum Operation {
     Upload(UploadRecord),
     Mutation(MutationRecord),
 }
@@ -99,7 +99,7 @@ impl Operation {
             },
         }
     }
-    fn confirmed_node(&self) -> Option<Node> {
+    pub(super) fn confirmed_node(&self) -> Option<Node> {
         match self {
             Self::Upload(r) if r.state == UploadState::Uploaded => r.remote.clone(),
             Self::Mutation(r) if r.state == MutationState::Applied => match &r.receipt {
@@ -114,7 +114,7 @@ impl Operation {
 }
 
 impl UploadJournal {
-    fn operation(&self, id: Uuid) -> Result<Operation> {
+    pub(super) fn operation(&self, id: Uuid) -> Result<Operation> {
         match self.get(id) {
             Ok(r) => Ok(Operation::Upload(r)),
             Err(JournalError::Missing) => self.mutation(id).map(Operation::Mutation),
@@ -216,7 +216,7 @@ impl UploadJournal {
         // before any younger independent-looking operation can overtake it.
         let ready = "SELECT 'upload' AS kind,u.id,u.sequence AS sequence FROM uploads u JOIN write_queue p
             ON p.id=json_extract(u.body,'$.base.predecessor')
-            WHERE u.state='pending' AND p.complete=1 AND json_extract(u.body,'$.base.resolved')=0
+            WHERE u.state IN ('pending','preparing') AND p.complete=1 AND json_extract(u.body,'$.base.resolved')=0
             UNION ALL
             SELECT 'mutation' AS kind,m.id,m.sequence AS sequence FROM mutations m JOIN write_queue p
             ON p.id=json_extract(m.body,'$.base.predecessor')

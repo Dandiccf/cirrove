@@ -2,6 +2,7 @@
 //! or namespace mutex. Ordinary daemon mounts do not construct this layer yet.
 mod handoff;
 mod publication;
+mod replacement;
 mod unlinked;
 use super::*;
 use crate::journal::{
@@ -354,62 +355,57 @@ impl Writeback {
                 if view.reference || view.node.kind != NodeKind::File {
                     return Err(Errno::EOPNOTSUPP);
                 }
-                let source_node = self
-                    .projection
-                    .lock()
-                    .map_err(|_| Errno::EIO)?
-                    .local_object(&view.scope, &view.node.id)
-                    .and_then(|o| {
-                        if o.follows_remote {
-                            o.remote.as_ref().map(|r| Node {
-                                id: r.id.clone(),
-                                ..view.node.clone()
-                            })
-                        } else {
-                            o.remote.clone()
-                        }
-                    })
-                    .unwrap_or_else(|| view.node.clone());
+                let scope = view.scope.clone();
+                let node = view.node.clone();
+                let object = self
+                    .local(move |j| Self::materialize(j, scope, node))
+                    .await?;
+                let expected = object.id;
+                if let Some(id) = object.working_file {
+                    let record = self.local(move |j| j.working_file(id)).await?;
+                    let record = self.publish(record).await?;
+                    return if truncate {
+                        self.truncate(record.id, 0).await
+                    } else {
+                        Ok(record)
+                    };
+                }
+                let node = object.remote.ok_or(Errno::ESTALE)?;
                 if truncate {
                     let scope = view.scope.clone();
-                    let node = source_node;
                     let record = self
-                        .local(move |j| j.create_truncated_working(scope, node))
+                        .local(move |j| {
+                            let current = j.namespace_object(expected)?;
+                            if let Some(id) = current.working_file {
+                                return j.truncate_working(id, 0);
+                            }
+                            if !current.remote_owned
+                                || j.namespace_by_remote(&scope, &node.id)?
+                                    .is_none_or(|o| o.id != expected)
+                            {
+                                return Err(JournalError::Stale);
+                            }
+                            j.create_truncated_working(scope, node)
+                        })
                         .await?;
                     return self.publish(record).await;
                 }
-                let node = source_node;
                 let size = node.size;
-                let mut source = self.local(move |j| j.reserve_working(size)).await?;
-                let mut offset = 0;
-                while offset < size {
-                    let bytes = engine
-                        .cache
-                        .read(
-                            engine.provider.as_ref(),
-                            &view.scope,
-                            &node,
-                            offset,
-                            (size - offset).min(u64::from(crate::content::BLOCK_SIZE)) as u32,
-                            cancel,
-                        )
-                        .await
-                        .map_err(|e| errno(&e))?;
-                    if bytes.is_empty() {
-                        return Err(Errno::EIO);
-                    }
-                    offset += bytes.len() as u64;
-                    source = tokio::task::spawn_blocking(move || {
-                        source.write_chunk(&bytes)?;
-                        Ok::<_, JournalError>(source)
-                    })
-                    .await
-                    .map_err(|_| Errno::EIO)?
-                    .map_err(error)?;
-                }
+                let source = self.local(move |j| j.reserve_working(size)).await?;
+                let source = self
+                    .download_source(engine, &view.scope, &node, cancel, source)
+                    .await?;
                 let scope = view.scope.clone();
                 let record = self
-                    .local(move |j| j.publish_working(scope, node, false, source))
+                    .local(move |j| {
+                        // A background replacement preparation may have materialized
+                        // this same stream while its read was in flight.
+                        let current = j.namespace_object(expected)?;
+                        if let Some(id) = current.working_file {
+                            return j.working_file(id);
+                        }
+                        j.publish_working_for(expected, scope, node, source)
+                    })
                     .await?;
                 self.publish(record).await?
             }

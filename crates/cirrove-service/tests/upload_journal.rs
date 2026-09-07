@@ -137,7 +137,7 @@ fn later_saves_follow_receipts_across_creation_upload_and_restart() {
     assert_eq!(
         db.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
             .unwrap(),
-        12
+        13
     );
 }
 

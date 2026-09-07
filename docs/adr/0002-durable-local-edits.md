@@ -229,7 +229,13 @@ before earlier callbacks, without replaying every intermediate save or reloading
 unchanged objects. The existing 10,000-object limit bounds the complete changed set;
 larger namespaces need bounded transaction groups rather than arbitrary pagination.
 
-FUSE replacement integration remains incomplete.
-Reader preservation must happen after the local rename releases the kernel directory
-lock, and an uncached source requires deferred preparation. Journal fixtures establish
-transaction and ordering behavior, not complete mounted application compatibility.
+Experimental FUSE replacement now commits local names before network preparation,
+then preserves source and victim readers outside the kernel directory lock. Schema
+13 records an online-only source as a fenced `Preparing` operation, with its captured
+version separate from the target ETag. Preparation seals the original source snapshot
+without overwriting newer local bytes. Its checksum is durable before final file
+publication; restart adopts only a complete verified file and reclaims identified
+capture temporaries. An unmaterialized source retains its new-process reader gate.
+Four actual kernel fixtures exercise chained saves, held reads, online-only capture
+and remount after interruption. Broader editor/office, live Graph and physical-fault
+acceptance remain open; ordinary mounts are still read-only.

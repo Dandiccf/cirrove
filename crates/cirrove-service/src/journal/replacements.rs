@@ -14,17 +14,17 @@ pub struct ReplacementRecord {
     pub remote_applied: bool,
 }
 pub(super) struct ReplacementCommit {
-    source: NamespaceObject,
+    pub(super) source: NamespaceObject,
     victim: NamespaceObject,
-    source_working: WorkingFile,
+    source_working: Option<WorkingFile>,
     victim_working: Option<WorkingFile>,
     cleanup_request: MutationRequest,
     cleanup_base: Option<WriteBase>,
     preserve_readers: bool,
 }
 impl ReplacementCommit {
-    pub fn working_id(&self) -> Uuid {
-        self.source_working.id
+    pub fn working_id(&self) -> Option<Uuid> {
+        self.source_working.as_ref().map(|w| w.id)
     }
 }
 pub(super) fn migrate(db: &mut Connection, version: u32) -> Result<()> {
@@ -129,13 +129,16 @@ impl UploadJournal {
         if count >= 10_000 {
             return Err(JournalError::Quota);
         }
-        let source_working = self.working_file(source.working_file.ok_or(JournalError::Intent)?)?;
+        let source_working = source
+            .working_file
+            .map(|id| self.working_file(id))
+            .transpose()?;
         let victim_working = victim
             .working_file
             .map(|id| self.working_file(id))
             .transpose()?;
         for (object, working) in [
-            (&source, Some(&source_working)),
+            (&source, source_working.as_ref()),
             (&victim, victim_working.as_ref()),
         ] {
             if working.is_some_and(|w| {
@@ -186,30 +189,35 @@ impl UploadJournal {
                 .map_err(|_| JournalError::Intent)?;
             None
         };
-        let bytes = self.working_descriptor(source_working.id, false)?;
-        if bytes.metadata()?.len() != source_working.node.size {
-            return Err(JournalError::Corrupt);
-        }
         let order = WriteOrder {
             base,
             prerequisites: source.latest.into_iter().collect(),
         };
         let scope = source.scope.clone();
-        let upload = self.enqueue_generation(
-            scope,
-            intent,
-            order,
-            Some(GenerationCommit::Replacement(Box::new(ReplacementCommit {
-                source,
-                victim,
-                source_working,
-                victim_working,
-                cleanup_request,
-                cleanup_base,
-                preserve_readers,
-            }))),
-            bytes,
-        )?;
+        let plan = ReplacementCommit {
+            source,
+            victim,
+            source_working,
+            victim_working,
+            cleanup_request,
+            cleanup_base,
+            preserve_readers,
+        };
+        let upload = if let Some(file) = &plan.source_working {
+            let bytes = self.working_descriptor(file.id, false)?;
+            if bytes.metadata()?.len() != file.node.size {
+                return Err(JournalError::Corrupt);
+            }
+            self.enqueue_generation(
+                scope,
+                intent,
+                order,
+                Some(GenerationCommit::Replacement(Box::new(plan))),
+                bytes,
+            )?
+        } else {
+            self.enqueue_preparing_replacement(scope, intent, order, plan)?
+        };
         self.replacement(upload.id)
     }
     pub fn replacement(&self, id: Uuid) -> Result<ReplacementRecord> {
@@ -237,10 +245,20 @@ impl UploadJournal {
         if r.local_ready {
             return Ok(());
         }
+        let state = self.get(id)?.state;
+        if state == UploadState::Preparing
+            && self.namespace_object(r.source)?.working_file.is_none()
+        {
+            return Err(JournalError::Stale);
+        }
         if !self.namespace_object(r.victim)?.unlinked
             || !matches!(
-                self.get(id)?.state,
-                UploadState::Pending | UploadState::VerifyRequired
+                state,
+                UploadState::Preparing
+                    | UploadState::Pending
+                    | UploadState::VerifyRequired
+                    | UploadState::Conflict
+                    | UploadState::Failed
             )
         {
             return Err(JournalError::Corrupt);
@@ -249,12 +267,19 @@ impl UploadJournal {
         save(&self.db, &r)
     }
     pub(super) fn recover_replacement_readers(&mut self) -> Result<()> {
+        let mut after = 0;
         loop {
-            let pending = self.replacement_readers(0, 32)?;
+            let pending = self.replacement_readers(after, 32)?;
             if pending.is_empty() {
                 return Ok(());
             }
-            for (_, r) in pending {
+            for (sequence, r) in pending {
+                after = sequence;
+                if self.get(r.id)?.sha256.len() != 64
+                    && self.namespace_object(r.source)?.working_file.is_none()
+                {
+                    continue;
+                }
                 self.release_replacement_readers(r.id)?;
             }
         }
@@ -277,8 +302,8 @@ pub(super) fn commit(
         || victim.revision != plan.victim.revision
         || source.latest != plan.source.latest
         || victim.latest != plan.victim.latest
-        || source.working_file != Some(plan.source_working.id)
-        || upload.size != plan.source_working.node.size
+        || source.working_file != plan.working_id()
+        || upload.size != plan.source.node.size
         || upload.base.as_ref().map(|b| b.predecessor) != victim.latest
     {
         return Err(JournalError::Stale);
@@ -337,15 +362,14 @@ pub(super) fn commit(
     }
     // Free both pathname indexes before occupying the destination's slot.
     namespace::save(tx, &victim)?;
-    source_working.node.name = victim.node.name.clone();
-    source_working.node.parent_id = victim.node.parent_id.clone();
-    source_working.latest = Some(upload.id);
-    source_working.generation = source_working
-        .generation
-        .checked_add(1)
-        .ok_or(JournalError::Quota)?;
-    save_working(tx, &source_working)?;
-    source.node = source_working.node;
+    source.node.name = victim.node.name.clone();
+    source.node.parent_id = victim.node.parent_id.clone();
+    if let Some(file) = &mut source_working {
+        file.node = source.node.clone();
+        file.latest = Some(upload.id);
+        file.generation = file.generation.checked_add(1).ok_or(JournalError::Quota)?;
+        save_working(tx, file)?;
+    }
     source.latest = Some(upload.id);
     next_revision(&mut source)?;
     namespace::save(tx, &source)?;

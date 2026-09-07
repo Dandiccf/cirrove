@@ -8,6 +8,7 @@ mod generations;
 mod handoff;
 mod mutations;
 mod namespace;
+mod preparation;
 mod publication;
 mod replacements;
 mod unlinked;
@@ -19,6 +20,7 @@ pub use mutations::{MutationRecord, MutationState};
 pub use namespace::{
     NamespaceCollision, NamespaceListing, NamespaceNames, NamespaceObject, project_namespace,
 };
+pub use preparation::UploadPreparation;
 pub use publication::{NamespacePublication, NamespaceSnapshot};
 pub use replacements::ReplacementRecord;
 use rusqlite::{Connection, OptionalExtension, params};
@@ -88,6 +90,9 @@ fn resource(intent: &UploadIntent, scope: &Scope) -> Result<String> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum UploadState {
+    /// A durable namespace operation whose unchanged cloud source is being
+    /// captured. This state has no uploadable payload or remote attempt.
+    Preparing,
     Pending,
     Uploading,
     VerifyRequired,
@@ -138,9 +143,9 @@ enum GenerationCommit {
     Replacement(Box<replacements::ReplacementCommit>),
 }
 impl GenerationCommit {
-    fn working_id(&self) -> Uuid {
+    fn working_id(&self) -> Option<Uuid> {
         match self {
-            Self::Working(w) => w.id,
+            Self::Working(w) => Some(w.id),
             Self::Replacement(r) => r.working_id(),
         }
     }
@@ -201,7 +206,7 @@ impl UploadJournal {
         let mut db = Connection::open(database)?;
         db.busy_timeout(std::time::Duration::from_secs(3))?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if version > 12 {
+        if version > 13 {
             return Err(JournalError::Schema);
         }
         db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;
@@ -227,6 +232,7 @@ impl UploadJournal {
         barriers::migrate(&mut db, version)?;
         replacements::migrate(&mut db, version)?;
         publication::migrate(&mut db, version)?;
+        preparation::migrate(&mut db, version)?;
         // Never infer that a transfer failed just because its process died.
         db.execute(
             "UPDATE uploads SET state='verify_required',
@@ -250,6 +256,7 @@ impl UploadJournal {
             quota,
             _owner: owner,
         };
+        journal.recover_preparation_files()?;
         journal.recover_working()?;
         journal.recover_unlinked_readers()?;
         journal.recover_replacement_readers()?;
@@ -348,7 +355,7 @@ impl UploadJournal {
             attempt: None,
             remote: None,
             base: order.base,
-            working_file: working.as_ref().map(GenerationCommit::working_id),
+            working_file: working.as_ref().and_then(GenerationCommit::working_id),
             session_key: None,
             transferred_bytes: 0,
             retry_at: 0,
@@ -428,6 +435,9 @@ impl UploadJournal {
     /// read-only file descriptor positioned at byte zero for the transfer worker.
     pub fn payload(&self, id: Uuid) -> Result<File> {
         let record = self.get(id)?;
+        if record.state == UploadState::Preparing || record.sha256.len() != 64 {
+            return Err(JournalError::Stale);
+        }
         let mut file = OpenOptions::new()
             .read(true)
             .custom_flags(libc::O_NOFOLLOW)

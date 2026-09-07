@@ -42,8 +42,20 @@ pub struct WorkingSource {
     temporary: tempfile::NamedTempFile,
     size: u64,
     written: u64,
+    // Reserved bytes keep journal ownership alive across asynchronous I/O.
+    _owner: File,
 }
 impl WorkingSource {
+    pub(super) fn complete_descriptor(&self, directory: &Path) -> Result<File> {
+        if self.written != self.size || self.temporary.path().parent() != Some(directory) {
+            return Err(JournalError::Corrupt);
+        }
+        let mut file = self.temporary.as_file().try_clone()?;
+        owned_private(&file)?;
+        file.sync_all()?;
+        file.seek(SeekFrom::Start(0))?;
+        Ok(file)
+    }
     pub fn write_chunk(&mut self, bytes: &[u8]) -> Result<()> {
         let end = self
             .written
@@ -99,11 +111,21 @@ impl UploadJournal {
     }
 
     pub fn reserve_working(&mut self, size: u64) -> Result<WorkingSource> {
+        self.reserve_working_named(size, ".tmp")
+    }
+
+    pub(super) fn reserve_working_named(
+        &mut self,
+        size: u64,
+        prefix: &str,
+    ) -> Result<WorkingSource> {
         let (retained, files) = self.retained_usage()?;
         if size > i64::MAX as u64 || files >= 10_000 || size > self.quota.saturating_sub(retained) {
             return Err(JournalError::Quota);
         }
-        let temporary = tempfile::NamedTempFile::new_in(&self.working)?;
+        let temporary = tempfile::Builder::new()
+            .prefix(prefix)
+            .tempfile_in(&self.working)?;
         // Logical reservation is included by retained_usage during hydration.
         // Physical ENOSPC is still possible and must fail the local operation.
         temporary.as_file().set_len(size)?;
@@ -111,6 +133,7 @@ impl UploadJournal {
             temporary,
             size,
             written: 0,
+            _owner: self._owner.try_clone()?,
         })
     }
     pub fn working_files(&self) -> Result<Vec<WorkingFile>> {
@@ -218,6 +241,27 @@ impl UploadJournal {
         source: WorkingSource,
     ) -> Result<WorkingFile> {
         self.publish_working_content(scope, node, new, source, false)
+    }
+
+    /// Bind a downloaded version to the same local stream that requested it.
+    /// A transferred provider alias must not redirect a delayed hydration.
+    pub fn publish_working_for(
+        &mut self,
+        object: Uuid,
+        scope: Scope,
+        node: Node,
+        source: WorkingSource,
+    ) -> Result<WorkingFile> {
+        let current = self.namespace_object(object)?;
+        if current.scope != scope
+            || !current.remote_owned
+            || self
+                .namespace_by_remote(&scope, &node.id)?
+                .is_none_or(|o| o.id != object)
+        {
+            return Err(JournalError::Stale);
+        }
+        self.publish_working(scope, node, false, source)
     }
 
     /// O_TRUNC needs the original remote version, but none of its old bytes.

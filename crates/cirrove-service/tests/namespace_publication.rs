@@ -140,7 +140,7 @@ fn schema_eleven_migration_seeds_complete_namespace_and_preserves_pending_bytes(
     assert_eq!(
         db.pragma_query_value(None, "user_version", |r| r.get::<_, i32>(0))
             .unwrap(),
-        12
+        13
     );
 }
 

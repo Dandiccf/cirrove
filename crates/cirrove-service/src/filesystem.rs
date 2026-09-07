@@ -715,17 +715,27 @@ impl Filesystem for CloudFs {
                 } else {
                     inner.children(&destination).await.map_err(|e| errno(&e))?
                 };
-                // Replacement requires a separate durable operation. Never turn
-                // POSIX replacement into a delete followed by an unrelated move.
-                if occupants
+                if let Some(victim) = occupants
                     .iter()
-                    .any(|n| n.id != source.id && n.name.to_lowercase() == newname.to_lowercase())
+                    .find(|n| n.id != source.id && n.name.to_lowercase() == newname.to_lowercase())
                 {
-                    return Err(if flags.contains(RenameFlags::RENAME_NOREPLACE) {
-                        Errno::EEXIST
-                    } else {
-                        Errno::EOPNOTSUPP
-                    });
+                    if flags.contains(RenameFlags::RENAME_NOREPLACE) || victim.name != newname {
+                        return Err(Errno::EEXIST);
+                    }
+                    if victim.kind == NodeKind::Folder {
+                        return Err(Errno::EISDIR);
+                    }
+                    if victim.kind != NodeKind::File || victim.target.is_some() {
+                        return Err(Errno::EOPNOTSUPP);
+                    }
+                    let moved = writer
+                        .replace(&inner, parent.scope.clone(), source, victim.clone())
+                        .await?;
+                    inner
+                        .insert(&destination, moved)
+                        .await
+                        .map_err(|e| errno(&e))?;
+                    return Ok(());
                 }
                 let moved = writer
                     .relocate(

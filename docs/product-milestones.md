@@ -29,52 +29,33 @@ Larger provider scenarios and ordinary desktop freshness still need measurement.
 
 ## 2. Safe file changes
 
-The [local edit journal](adr/0002-durable-local-edits.md) now protects sealed upload
-snapshots and distinguishes pending, uncertain, failed and acknowledged operations.
-It now has a transfer worker and Graph adapter with synthetic tests for resumed
-fragments, lost success responses, secret-store failures, bounded scheduling and
-conditional commit conflicts. The [isolated live write check](write-validation.md)
-passed its basic generated-file checks on a business drive, including a competing
-edit before commit. Broader provider recovery validation and writable FUSE still
-need to complete their connection to actual application saves. An experimental
-FUSE path now exercises local create/write/truncate/fsync, consecutive generations
-and offline/crash recovery with synthetic data. Its experimental session now owns
-automatic upload workers and drains accepted local writes before unmounting.
-A generated-folder business-drive check passed two actual mounted application saves,
-automatic ordered uploads and independent cloud-content verification.
-Atomic replacement is still missing from the mounted path. Conditional namespace
-changes now share durable ordering with uploads; restart, lost-response and
-file-collision fixtures cover their worker. Folder removal, hierarchy dependencies
-and atomic replacement are still required before writable filesystem acceptance.
-Receipt dependencies now span uploads and namespace mutations, including working-file
-name/intent transactions. A reconciled rename with newer or unverifiable content
-blocks later saves instead of adopting a potentially foreign edit as their base.
-These journal capabilities still need complete mounted namespace integration.
+The [local edit journal](adr/0002-durable-local-edits.md) protects mutable local files
+and immutable save generations. Uploads, moves, deletion and replacement use a
+shared resource queue with confirmed receipt ordering. Uncertain and conflicted
+operations retain data and block dependent changes. Synthetic transport and journal
+checks cover bounded upload fragments, resume, lost replies, conditional conflicts,
+transaction rollback and namespace publication. The isolated business-drive check
+has exercised basic generated-file operations, a competing remote edit, and two
+actual mounted saves with automatic uploads and independent verification.
 
-Experimental mounts now support regular-file relocation without hydration and
-retirement of fully acknowledged, closed working copies. Stable aliases then follow
-remote edits and deletions; a later local edit uses the newly observed remote base.
-Synthetic tests cover concurrent opens/writes, delayed callbacks, cleanup rollback,
-restart and ordered NotFound responses. Atomic replacement, writable directories,
-long-term metadata retention and the real-provider application acceptance matrix
-remain open.
+Experimental FUSE supports regular-file create/write/truncate/fsync, metadata-only
+move, unlink with retained descriptors, and replacement of both local and online-only
+sources. An online-only replacement first commits its namespace and preparation
+intent, then captures the original source version outside the kernel directory lock.
+Target publication and source cleanup use separate identities and prerequisites.
+Old readers are preserved, and later local edits cannot overwrite the earlier
+snapshot. Joint namespace publication handles delayed callbacks and chained transfers.
+Actual synthetic mount fixtures cover two consecutive atomic saves, paused downloads,
+independent saves during old reads, and remount after interrupted preparation.
 
-Regular-file unlink now removes the local name and retains open streams independently
-of a reused path. A reader-preservation barrier delays cloud deletion without
-holding the kernel directory lock. Synthetic FUSE checks cover later descriptor
-writes, a held read, quota failure, cancellation and restart. Atomic replacement
-still needs multi-object dependencies and remote-binding transfer. Detached-data
-retention/recovery, restored remote identities and live unlink acceptance remain
-open; this increment does not close the safe-file-changes milestone.
-
-Local stream lookups and provider-binding lookups are now separate in the journal
-and mount. This is a prerequisite for transferring a cloud binding during atomic
-replacement. The journal now implements the two-object transaction and separate
-completion prerequisites, with conditional source cleanup after destination
-publication. All changed objects now publish together into memory at a committed
-frontier, including delayed callbacks and chained ownership transfers. Mounted
-replacement, background reader preservation for replacement and uncached-source
-preparation remain open.
+Fully acknowledged working copies can retire after the last user closes, retaining
+local identities that follow remote changes. Restartable cleanup, generation fencing,
+checksums, quota failures and interrupted final publication have synthetic checks.
+The normal daemon remains read-only. Writable directories, broader ordinary editor
+and office behavior, live provider replacement/unlink scenarios, physical-fault
+coverage, restored remote identities, detached-data recovery and bounded long-session
+history remain acceptance gaps. This implementation progress does not close the
+safe-file-changes milestone.
 
 - [x] Provider-neutral create, update, rename, move and delete contracts (regular-file deletion; folder removal remains an explicit gap).
 - [ ] Durable local file contents and journal before local-save acknowledgement.

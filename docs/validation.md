@@ -610,3 +610,37 @@ preparation of uncached sources and actual mounted application-save acceptance
 remain open. The 10,000-object namespace limit bounds a publication batch; removing
 that limit requires bounded transaction groups and retained-history cleanup.
 No installed service, credentials or cloud files were changed.
+
+## Mounted regular-file replacement and deferred source capture
+
+Experimental FUSE rename now replaces an occupied regular-file path, including
+when its source exists only online. Local namespace acceptance does not wait for
+source downloads. Journal schema 13 retains a `Preparing` operation until the
+original source version has a complete immutable snapshot. Target publication
+and guarded source cleanup remain behind separate receipt and reader barriers.
+
+Nine journal fixtures exercise source/target identity separation, newer edits
+during preparation, source-move receipts, quota failure, blocked conflicts with
+independent-file progress, schema-12 migration and refusal of missing/future
+schemas. They also check attempt fencing, ownership across asynchronous downloads,
+restart reader gates, reclamation of identified capture temporaries, adoption after
+failed final SQL publication, same-length corruption detection using the durable
+checksum, and refusal of delayed hydration after provider-binding transfer.
+
+Four additional actual synthetic kernel-FUSE tests use separate application
+processes. They cover two consecutive atomic saves with retained old descriptors,
+replacement of an online-only source while its download is held, a held old-target
+range read while independent saves continue, and shutdown/remount during source
+capture. Old descriptors retain their own bytes and zero link counts. Conditional
+source cleanup waits until readers are safe and target publication is acknowledged;
+writes through detached descriptors remain local recovery data.
+
+The final local run passed 216 default workspace tests and all 31 actual synthetic
+kernel-FUSE checks (15 read-only-suite checks and 16 writable-session checks), plus
+formatting, strict Clippy, workspace build, executable smoke, two observer checks
+and Rustdoc. The nested helper result in the read-only suite is not counted twice.
+These checks use synthetic providers and do not change installed services or live
+cloud documents. Writable directories, ordinary editor/office acceptance, live
+Graph replacement and cleanup, physical fault testing, detached-data recovery and
+bounded retained history remain release gates. Ordinary mounts stay read-only;
+all six product milestones remain open.

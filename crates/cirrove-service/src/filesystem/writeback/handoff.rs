@@ -69,7 +69,11 @@ impl Writeback {
         if self.refresh_projection().await? {
             engine.changed.notify_waiters();
         }
+        let prepared = self.prepare_replacement_source(engine).await?;
         if self.preserve_unlinked(engine).await? {
+            return Ok(true);
+        }
+        if prepared {
             return Ok(true);
         }
         let after = *self.maintenance_cursor.lock().map_err(|_| Errno::EIO)?;

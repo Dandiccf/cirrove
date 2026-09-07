@@ -288,8 +288,8 @@ HTTP success is required for a confirmed deletion receipt. File DELETE uses the
 provider's recycle-bin behavior; it is not permanent deletion or local POSIX rmdir.
 
 Experimental writable mounts now connect regular-file rename/move to this worker.
-The writable namespace layer must add ancestor/dependency handling and safe
-replacement semantics before enabling folder mutations through FUSE. Personal
+The writable namespace layer must add ancestor/dependency handling and directory
+lifetime rules before enabling folder mutations through FUSE. Personal
 accounts, permissions changes and broader live concurrency still require coverage.
 
 ## Experimental local working files
@@ -316,8 +316,8 @@ successors while independent files remain eligible. Old sealed bytes never chang
 when the working file is edited again. Schema 6 extends this receipt chain across
 uploads and namespace mutations. A local working-file relocation now commits its
 new name and queued mutation together. Schema 7 adds separate local object identity,
-directory entries, confirmed remote bindings and optional working bytes. Atomic
-replacement still needs integration before the full application workflow is enabled.
+directory entries, confirmed remote bindings and optional working bytes. Regular-file replacement now uses the same namespace; directory
+operations and broader application workflows remain under development.
 
 The developer constructor requires a disabled test account with explicit write
 access and a journal owned by that account. It supports regular-file create,
@@ -329,7 +329,7 @@ save on the user's ordinary mount is routed through this experimental path.
 Experimental writable inodes retain identity while their local bytes change.
 Memory mapping is currently disabled for these sessions; read-only sessions keep
 their existing content-version inode and mapping behavior. Writable directory operations,
-atomic replacement, permission/time changes and conflict UI are not connected to
+permission/time changes and conflict UI are not connected to
 writable mounts yet. Sealing may require space
 for both the working file and its snapshot; failure
 keeps the dirty source and reports an error. Physical power loss, physical disk-full
@@ -372,8 +372,9 @@ operations keep their descendants pending while unrelated files remain eligible.
 Working-file relocation seals dirty source bytes, then commits the new local name,
 latest-operation pointer and remote mutation intent in one transaction. A failed
 transaction keeps the old name and does not consume the predecessor relation. A
-collision with another working copy is refused; replacement semantics are still
-separate work. Relocating an already clean working copy creates no content snapshot.
+collision with another working copy is refused by this relocation API; mounted
+replacement uses the separate pair transaction below. Relocating an already clean
+working copy creates no content snapshot.
 Its original provider metadata is retained separately from the local content tag.
 Legacy working copies with a lost original content tag cannot invent that evidence.
 
@@ -387,9 +388,9 @@ Observed receipts remain available for review without being treated as confirmed
 save bases. Providers must distinguish conditional responses from later observations.
 
 These APIs establish journal ordering and working-file transactions. The sparse
-namespace model below connects regular-file relocation to FUSE. Directory dependencies,
-atomic replacement and complete detached-stream retention/recovery remain required. The ordinary
-manager stays read-only.
+namespace model below connects regular-file relocation and replacement to FUSE.
+Directory dependencies and complete detached-stream retention/recovery remain
+required. The ordinary manager stays read-only.
 
 ## Sparse local namespace and mounted relocation
 
@@ -436,9 +437,10 @@ case; future provider adapters must supply their own verified name semantics.
 Regular-file rename/move is admitted and drained with other local mutations. It
 rechecks the source name and parent at the journal serialization point. The current
 path rejects cross-collection or cross-shortcut-projection moves, directory and
-shortcut mutations, exchange/whiteout flags and replacement of an occupied path.
-`RENAME_NOREPLACE` is supported. A remote collision after local acceptance becomes
-an operation conflict; it does not authorize overwriting that occupant.
+shortcut mutations and exchange/whiteout flags. Replacing an occupied regular-file
+path uses the pair transaction below; `RENAME_NOREPLACE` keeps the occupant.
+A remote collision after local acceptance becomes an operation conflict; it does
+not authorize overwriting that occupant.
 
 Experimental mounts require `FUSE_ATOMIC_O_TRUNC`. Without that capability Linux
 can strip O_TRUNC from OPEN and issue SETATTR afterward, causing the old file to be
@@ -522,8 +524,7 @@ Reopening the exclusively owned journal releases only the former process's reade
 barriers: handles cannot survive a dead FUSE connection. Remote receipt dependencies
 and retained working bytes remain intact.
 
-This implements regular-file unlink and its open-handle lifetime, not atomic
-replacement of two local objects. Detached working data, tombstones and operation
+Regular-file replacement extends these open-handle lifetime rules below. Detached working data, tombstones and operation
 history currently remain retained. Their recovery UI, bounded cleanup and handling
 of a provider restoring the same deleted item identity are still required. Full
 application compatibility and real-provider mounted unlink acceptance remain open.
@@ -538,9 +539,9 @@ Failed, conflicted and uncertain predecessors keep descendants pending while
 unrelated files remain eligible. The original linear content-successor constraint
 still determines which confirmed receipt may supply the destination identity.
 
-Schema 11 adds an experimental journal transaction for replacing one local file
-with another. The source must already have a working copy, and dirty source/victim
-streams must be sealed first. An immutable source snapshot, destination-path
+Schema 11 introduced a journal transaction for replacing one local file with
+another using an existing source working copy. Dirty source/victim streams must
+be sealed first; schema 13 extends the transaction to online-only sources below. An immutable source snapshot, destination-path
 takeover, detached victim stream, conditional destination upload and guarded source
 cleanup commit together. The upload follows the victim's last confirmed operation
 or original ETag and separately waits for prior source work. Source cleanup follows
@@ -579,19 +580,56 @@ hydration. SQLite reads and decoding keep the journal stable while allowing cach
 projection lookups; the final index update holds the projection lock. Streams remain keyed to their original local
 identities.
 
-This is not yet the mounted rename implementation. FUSE still refuses replacement
-of an occupied destination. Wiring requires old-reader preservation outside the VFS
-directory lock and actual application-save tests. A source with no local working bytes also needs
-a deferred hydration path. Retained history, restored IDs, recovery UI and broader
-real-provider replacement/cleanup acceptance remain open. Ordinary mounts stay
-read-only.
+Experimental FUSE rename now invokes the pair transaction for occupied regular-file
+paths in one collection. It preserves both source and victim streams outside VFS
+directory locks. `RENAME_NOREPLACE` keeps the occupant; exchanges, directories,
+shortcuts and collisions differing only by case remain explicitly unsupported by
+this replacement path. Retained history, restored IDs, recovery UI, ordinary editor
+and office save patterns, and broader real-provider replacement/cleanup acceptance
+remain open. Ordinary mounts stay read-only.
+
+## Deferred source capture for replacement
+
+Journal schema 13 gives an online-only replacement a `Preparing` upload and a
+separate source-capture record. Local path takeover and guarded cleanup commit
+without downloading content. The source's original version comes from its captured
+remote metadata or its own earlier confirmed receipt; the target's predecessor
+supplies the destination ETag separately. Later local saves depend on the same
+original operation ID, even while capture is incomplete.
+
+The maintenance worker reserves spool space and fetches the captured version using
+bounded cache ranges outside journal, projection and kernel directory locks. A
+source-version conflict blocks publication and cleanup; transient failures retain
+intent and back off. Preparation materializes the source only if it still lacks
+working bytes, preserving any newer local edit. The immutable original snapshot
+receives a durable checksum before its final filename. Only afterward may the
+operation become `Pending`. An interrupted final SQL update can adopt that complete,
+checksum-verified snapshot without redownloading it. Partial downloads retain
+operation-labelled temporary names; exclusive startup reclaims those known remote
+capture temporaries and preserves unknown files and mutable edits. Download
+reservations keep the journal ownership lease alive across asynchronous work.
+
+Before target publication, the reader gate switches future source reads to working
+bytes, preserves any open victim and drains tracked remote reads on both objects.
+After restart, an unmaterialized source keeps a gate for new-process readers;
+recovery does not accidentally release it with the old process's handles. A delayed
+hydration carries its expected local object through I/O and cannot attach to a
+provider identity's newer owner.
+
+Preparation and immutable snapshots share the edit spool quota. A source that cannot
+fit keeps its replacement pending and leaves both cloud actions uncommitted. Changing
+that quota and explaining recovery in the desktop UI remain unfinished. The source
+can change externally before capture completes; no historical-version retrieval or
+complete offline availability is claimed. These APIs remain experimental until the
+application, provider, fault and capacity acceptance matrix is complete.
 
 ## Next boundaries
 
-Before enabling writes, connect the local upload journal to application-save
-ordering, conditional writes, resumable uploads and conflict preservation. The
-standalone journal tests do not prove writable filesystem semantics. Separate
-local-save success from remote acknowledgement. GTK settings, tray and Nautilus integrations
+Before enabling ordinary writable mounts, complete the application, provider,
+recovery and capacity acceptance matrix. The experimental mounted save path now
+uses the journal's ordering, conditional uploads and conflict preservation;
+synthetic kernel tests cannot establish real-provider reliability. Local-save
+success remains separate from remote acknowledgement. GTK settings, tray and Nautilus integrations
 must consume the service's state rather than maintain their own sync logic.
 
 Google Drive will implement provider contracts around its native changes and content
