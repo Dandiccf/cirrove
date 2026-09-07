@@ -534,3 +534,92 @@ async fn live_probe_exercises_the_session_and_reports_only_comparisons_and_count
         assert!(!text.contains(private));
     }
 }
+
+struct WindowSink {
+    bytes: u64,
+    fail: bool,
+}
+#[async_trait]
+impl ReadWindowSink for WindowSink {
+    async fn write_chunk(&mut self, bytes: &[u8]) -> Result<(), ProviderError> {
+        assert!(bytes.len() <= 64 * 1024);
+        assert!(bytes.iter().all(|b| *b == b'A'));
+        if self.fail {
+            return Err(ProviderError::Unavailable);
+        }
+        self.bytes += bytes.len() as u64;
+        Ok(())
+    }
+}
+#[tokio::test]
+async fn streamed_window_has_one_metadata_pair_and_bounded_chunks() {
+    let f = fixture(128 * 1024 * 1024).await;
+    f.mode("weak");
+    let s = f.session();
+    read(&s, 0, 32).await.unwrap();
+    assert_eq!(s.window_limit(), 64 * 1024 * 1024);
+    let mut sink = WindowSink {
+        bytes: 0,
+        fail: false,
+    };
+    s.read_window(
+        4 * 1024 * 1024,
+        64 * 1024 * 1024,
+        &mut sink,
+        &CancellationToken::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(sink.bytes, 64 * 1024 * 1024);
+    let c = f.graph.read_counters();
+    assert_eq!((c.graph_get_attempts, c.content_get_attempts), (4, 2));
+    assert_eq!(c.content_body_bytes, 64 * 1024 * 1024 + 32);
+}
+#[tokio::test]
+async fn streamed_window_rejects_response_faults_and_failed_final_version_check() {
+    for mode in [
+        "wrong_range",
+        "encoded",
+        "ignore_range",
+        "short",
+        "oversize",
+        "changed_during_setup",
+        "normal",
+    ] {
+        let f = fixture(16 * 1024 * 1024).await;
+        f.mode("weak");
+        let s = f.session();
+        read(&s, 0, 32).await.unwrap();
+        f.remote.lock().unwrap().metadata = 0;
+        f.mode(mode);
+        let mut sink = WindowSink {
+            bytes: 0,
+            fail: mode == "normal",
+        };
+        assert!(
+            s.read_window(0, 8 * 1024 * 1024, &mut sink, &CancellationToken::new())
+                .await
+                .is_err(),
+            "{mode}"
+        );
+        if mode == "changed_during_setup" {
+            assert_eq!(sink.bytes, 8 * 1024 * 1024);
+        }
+        if ["wrong_range", "encoded", "ignore_range"].contains(&mode) {
+            assert_eq!(sink.bytes, 0);
+        }
+    }
+}
+
+#[cfg(feature = "test-support")]
+#[test]
+fn synthetic_adapter_cannot_connect_to_remote_or_credentialed_endpoints() {
+    for endpoint in [
+        "https://127.0.0.1/v1.0/",
+        "http://example.invalid/v1.0/",
+        "http://user:secret@127.0.0.1/v1.0/",
+        "https://graph.microsoft.com/v1.0/",
+    ] {
+        assert!(OneDrive::synthetic_loopback("account".into(), endpoint).is_err());
+    }
+}

@@ -34,9 +34,11 @@ do not close the 500k-file/long-session gate.
 A shared conditional read-session prototype now removes per-block Graph checks in
 an explicit developer path. A synthetic 1 GiB adapter read uses two Graph requests
 instead of 512; an isolated business-file comparison also verifies subsequent
-conditional ranges without additional Graph calls. Ordinary accounts remain on
-the conservative path. Sequential-window fallback, the full provider matrix and
-kernel/application latency/resource measurements remain required by ADR 0004.
+conditional ranges without additional Graph calls. Bounded disk-staged windows now
+also reduce the conservative fallback to 40 Graph calls in the actual-adapter/shared
+cache 1 GiB fixture. The narrow eightfold-reduction gate passes; the full provider
+matrix and optimized kernel/application latency/resource measurements remain open.
+Ordinary accounts still use the original conservative path pending that acceptance.
 Graph Socket.IO and provider-neutral coalescing hints are now implemented. This
 does not close the live-response gate: notifications can be delayed upstream.
 An isolated business-drive run passed actual long-session renewal and subsequent

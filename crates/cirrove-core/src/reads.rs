@@ -34,10 +34,34 @@ impl ReadIdentity {
 #[async_trait]
 pub trait ReadSession: Send + Sync {
     fn identity(&self) -> &ReadIdentity;
+    /// Maximum useful streamed window for the current validation strategy.
+    /// Zero keeps exact-range reads. This is a capability, not a prefetch request.
+    fn window_limit(&self) -> u32 {
+        0
+    }
+    /// Stream untrusted bytes into private staging. Only successful completion
+    /// validates the entire range against this session's identity. On any error
+    /// or cancellation the caller must discard every staged byte.
+    async fn read_window(
+        &self,
+        _offset: u64,
+        _length: u32,
+        _sink: &mut dyn ReadWindowSink,
+        _cancel: &CancellationToken,
+    ) -> Result<(), ProviderError> {
+        Err(ProviderError::Protocol("streamed read windows unsupported"))
+    }
     async fn read_range(
         &self,
         offset: u64,
         length: u32,
         cancel: &CancellationToken,
     ) -> Result<Vec<u8>, ProviderError>;
+}
+
+/// Caller-owned staging sink. Adapters send chunks of at most 64 KiB, never expose storage
+/// paths, and cannot publish incomplete windows. Sink errors abort the transfer.
+#[async_trait]
+pub trait ReadWindowSink: Send {
+    async fn write_chunk(&mut self, bytes: &[u8]) -> Result<(), ProviderError>;
 }

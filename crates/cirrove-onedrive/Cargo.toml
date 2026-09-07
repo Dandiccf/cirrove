@@ -6,6 +6,10 @@ rust-version.workspace = true
 license.workspace = true
 publish = false
 
+[features]
+# Synthetic transport fixtures in dependent crates; never uses real credentials.
+test-support = []
+
 [dependencies]
 cirrove-core.workspace = true
 async-trait.workspace = true

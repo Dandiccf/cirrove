@@ -1,6 +1,7 @@
 //! Version-keyed, bounded on-demand block cache. A cache block is published only
 //! after the provider proves the requested version and the file is durable.
 mod sessions;
+mod windows;
 use crate::private_dir;
 use cirrove_core::{CancellationToken, Node, ProviderError, ReadProvider, Scope};
 use cirrove_store::Store;
@@ -15,6 +16,7 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     sync::{Mutex, Semaphore},
 };
+pub use windows::WindowStats;
 
 pub const BLOCK_SIZE: u32 = 4 * 1024 * 1024;
 const MEMORY_BLOCKS: usize = 8;
@@ -30,6 +32,7 @@ pub struct ContentCache {
     loaders: Semaphore,
     publish: Mutex<()>,
     sessions: sessions::Sessions,
+    staging: Arc<windows::Staging>,
 }
 impl ContentCache {
     pub fn new(path: PathBuf, db: PathBuf, quota: u64) -> anyhow::Result<Self> {
@@ -37,6 +40,8 @@ impl ContentCache {
         if quota < BLOCK_SIZE as u64 + 32 {
             anyhow::bail!("cache quota must fit one block");
         }
+        let staging = Arc::new(windows::Staging::new(path.clone(), quota));
+        let quota = quota - staging.capacity() as u64;
         reconcile(&path, &db, quota)?;
         Ok(Self {
             path,
@@ -47,8 +52,12 @@ impl ContentCache {
             failures: StdMutex::new(HashMap::new()),
             loaders: Semaphore::new(4),
             publish: Mutex::new(()),
-            sessions: sessions::Sessions::default(),
+            sessions: sessions::Sessions::with_staging(staging.clone()),
+            staging,
         })
+    }
+    pub fn window_stats(&self) -> WindowStats {
+        self.staging.stats()
     }
     fn gate(&self, key: &str) -> Result<Arc<Mutex<()>>, ProviderError> {
         let mut gates = self.gates.lock().map_err(|_| ProviderError::Unavailable)?;

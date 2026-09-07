@@ -52,6 +52,30 @@ pub struct OneDrive {
     counters: Arc<read_sessions::ReadCounters>,
 }
 impl OneDrive {
+    /// Synthetic loopback-only adapter for cross-crate integration tests.
+    #[cfg(feature = "test-support")]
+    #[doc(hidden)]
+    pub fn synthetic_loopback(account: String, endpoint: &str) -> Result<Self, ProviderError> {
+        let endpoint = Url::parse(endpoint)
+            .map_err(|_| ProviderError::Protocol("invalid synthetic endpoint"))?;
+        if endpoint.scheme() != "http"
+            || !endpoint
+                .host_str()
+                .and_then(|host| host.parse::<std::net::Ipv4Addr>().ok())
+                .is_some_and(|ip| ip.is_loopback())
+            || !endpoint.username().is_empty()
+            || endpoint.password().is_some()
+        {
+            return Err(ProviderError::Protocol(
+                "synthetic endpoint must be HTTP IPv4 loopback",
+            ));
+        }
+        Self::build(
+            account,
+            Arc::new(StaticToken(SecretString::from("synthetic-test-token"))),
+            endpoint,
+        )
+    }
     pub fn new(account: String, tokens: Arc<dyn TokenSource>) -> Result<Self, ProviderError> {
         let endpoint = Url::parse("https://graph.microsoft.com/v1.0/")
             .map_err(|_| ProviderError::Protocol("Graph endpoint"))?;

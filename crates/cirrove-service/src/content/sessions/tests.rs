@@ -1,8 +1,9 @@
 #![allow(clippy::unwrap_used)]
 use super::*;
 use async_trait::async_trait;
+use cirrove_core::reads::ReadWindowSink;
 use cirrove_core::{ChangePage, Cursor, DirectoryPage, MetadataProvider, NodeKind};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use tokio::sync::Notify;
 
 #[derive(Default)]
@@ -10,6 +11,13 @@ struct Counts {
     opens: AtomicUsize,
     reads: AtomicUsize,
     legacy: AtomicUsize,
+    windows: AtomicUsize,
+    transferred: AtomicUsize,
+    window_limit: AtomicUsize,
+    fail_window: AtomicBool,
+    hold_window: AtomicBool,
+    window_entered: Notify,
+    window_release: Notify,
 }
 #[derive(Default)]
 struct Provider {
@@ -29,6 +37,41 @@ impl ReadSession for Session {
     fn identity(&self) -> &ReadIdentity {
         &self.identity
     }
+    fn window_limit(&self) -> u32 {
+        self.counts.window_limit.load(Ordering::SeqCst) as u32
+    }
+    async fn read_window(
+        &self,
+        offset: u64,
+        length: u32,
+        sink: &mut dyn ReadWindowSink,
+        cancel: &CancellationToken,
+    ) -> Result<(), ProviderError> {
+        self.counts.windows.fetch_add(1, Ordering::SeqCst);
+        let chunk = [if self.identity.revision == "v2" {
+            b'B'
+        } else {
+            b'A'
+        }; 64 * 1024];
+        let mut left = self.identity.size.saturating_sub(offset).min(length as u64);
+        while left > 0 {
+            let n = left.min(chunk.len() as u64) as usize;
+            sink.write_chunk(&chunk[..n]).await?;
+            self.counts.transferred.fetch_add(n, Ordering::SeqCst);
+            left -= n as u64;
+            if self.counts.hold_window.load(Ordering::SeqCst) {
+                self.counts.window_entered.notify_one();
+                tokio::select! { biased;
+                    _=cancel.cancelled()=>return Err(ProviderError::Cancelled),
+                    _=self.counts.window_release.notified()=>(),
+                }
+            }
+        }
+        if self.counts.fail_window.load(Ordering::SeqCst) {
+            return Err(ProviderError::VersionChanged);
+        }
+        Ok(())
+    }
     async fn read_range(
         &self,
         offset: u64,
@@ -36,8 +79,16 @@ impl ReadSession for Session {
         _: &CancellationToken,
     ) -> Result<Vec<u8>, ProviderError> {
         self.counts.reads.fetch_add(1, Ordering::SeqCst);
+        self.counts.transferred.fetch_add(
+            self.identity.size.saturating_sub(offset).min(length as u64) as usize,
+            Ordering::SeqCst,
+        );
         Ok(vec![
-            b'A';
+            if self.identity.revision == "v2" {
+                b'B'
+            } else {
+                b'A'
+            };
             self.identity.size.saturating_sub(offset).min(length as u64)
                 as usize
         ])
@@ -318,4 +369,282 @@ async fn disk_blocks_survive_restart_without_transport_and_later_blocks_reuse_se
     }
     assert_eq!(p.counts.reads.load(Ordering::SeqCst), 3);
     assert_eq!(p.counts.opens.load(Ordering::SeqCst), 1);
+}
+
+fn window_provider() -> Provider {
+    let p = Provider::default();
+    p.counts
+        .window_limit
+        .store(64 * 1024 * 1024, Ordering::SeqCst);
+    p
+}
+fn window_cache(temp: &tempfile::TempDir, quota: u64) -> super::super::ContentCache {
+    super::super::ContentCache::new(temp.path().join("cache"), temp.path().join("db"), quota)
+        .unwrap()
+}
+#[tokio::test]
+async fn first_small_sparse_and_low_quota_reads_do_not_prefetch() {
+    for quota in [16 * 1024 * 1024, 512 * 1024 * 1024] {
+        let temp = tempfile::tempdir().unwrap();
+        let p = window_provider();
+        let cache = window_cache(&temp, quota);
+        let (s, mut n, cancel) = (scope(), node(), CancellationToken::new());
+        n.size = 256 * 1024 * 1024;
+        for offset in [0, 128 * 1024 * 1024, 32 * 1024 * 1024, 64 * 1024 * 1024] {
+            cache.read(&p, &s, &n, offset, 32, &cancel).await.unwrap();
+        }
+        assert_eq!(p.counts.windows.load(Ordering::SeqCst), 0);
+        assert_eq!(
+            p.counts.transferred.load(Ordering::SeqCst),
+            4 * BLOCK_SIZE as usize
+        );
+        n.id = "small".into();
+        n.size = 3_100_000;
+        cache.read(&p, &s, &n, 0, 32, &cancel).await.unwrap();
+        assert_eq!(p.counts.windows.load(Ordering::SeqCst), 0);
+        if quota == 16 * 1024 * 1024 {
+            assert_eq!(cache.window_stats().staging_budget_bytes, 0);
+        }
+    }
+}
+
+#[tokio::test]
+async fn failed_window_validation_publishes_no_blocks_and_releases_staging() {
+    let temp = tempfile::tempdir().unwrap();
+    let p = window_provider();
+    let cache = window_cache(&temp, 512 * 1024 * 1024);
+    let (s, n, cancel) = (scope(), node(), CancellationToken::new());
+    cache.read(&p, &s, &n, 0, 32, &cancel).await.unwrap();
+    p.counts.fail_window.store(true, Ordering::SeqCst);
+    assert!(matches!(
+        cache.read(&p, &s, &n, BLOCK_SIZE as u64, 32, &cancel).await,
+        Err(ProviderError::VersionChanged)
+    ));
+    assert_eq!(cache.window_stats().staging_reserved_bytes, 0);
+    assert_eq!(cache.window_stats().validated_windows, 0);
+    assert_eq!(
+        std::fs::read_dir(temp.path().join("cache"))
+            .unwrap()
+            .count(),
+        1
+    );
+    // A different content revision never sees the rejected window.
+    p.counts.fail_window.store(false, Ordering::SeqCst);
+    let mut n = n;
+    n.content_version = Some("v2".into());
+    assert_eq!(
+        cache
+            .read(&p, &s, &n, BLOCK_SIZE as u64, 32, &cancel)
+            .await
+            .unwrap(),
+        vec![b'B'; 32]
+    );
+}
+
+#[tokio::test]
+async fn overlapping_reads_share_one_window_and_unrelated_files_keep_working() {
+    let temp = tempfile::tempdir().unwrap();
+    let p = Arc::new(window_provider());
+    let cache = Arc::new(window_cache(&temp, 512 * 1024 * 1024));
+    let (s, n, cancel) = (scope(), node(), CancellationToken::new());
+    cache
+        .read(p.as_ref(), &s, &n, 0, 32, &cancel)
+        .await
+        .unwrap();
+    p.counts.hold_window.store(true, Ordering::SeqCst);
+    let first = {
+        let (p, c, s, n) = (p.clone(), cache.clone(), s.clone(), n.clone());
+        tokio::spawn(async move {
+            c.read(
+                p.as_ref(),
+                &s,
+                &n,
+                BLOCK_SIZE as u64,
+                32,
+                &CancellationToken::new(),
+            )
+            .await
+        })
+    };
+    tokio::time::timeout(Duration::from_secs(3), p.counts.window_entered.notified())
+        .await
+        .unwrap();
+    let second = {
+        let (p, c, s, n) = (p.clone(), cache.clone(), s.clone(), n.clone());
+        tokio::spawn(async move {
+            c.read(
+                p.as_ref(),
+                &s,
+                &n,
+                2 * BLOCK_SIZE as u64,
+                32,
+                &CancellationToken::new(),
+            )
+            .await
+        })
+    };
+    tokio::task::yield_now().await;
+    assert!(!first.is_finished() && !second.is_finished());
+    let mut other = n.clone();
+    other.id = "other".into();
+    tokio::time::timeout(
+        Duration::from_secs(1),
+        cache.read(p.as_ref(), &s, &other, 0, 32, &cancel),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    p.counts.hold_window.store(false, Ordering::SeqCst);
+    p.counts.window_release.notify_one();
+    assert_eq!(first.await.unwrap().unwrap(), vec![b'A'; 32]);
+    assert_eq!(second.await.unwrap().unwrap(), vec![b'A'; 32]);
+    assert_eq!(p.counts.windows.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn cancellation_discards_partial_window_then_retries_small() {
+    let temp = tempfile::tempdir().unwrap();
+    let p = Arc::new(window_provider());
+    let cache = Arc::new(window_cache(&temp, 512 * 1024 * 1024));
+    let (s, n, cancel) = (scope(), node(), CancellationToken::new());
+    cache
+        .read(p.as_ref(), &s, &n, 0, 32, &cancel)
+        .await
+        .unwrap();
+    p.counts.hold_window.store(true, Ordering::SeqCst);
+    let task = {
+        let (p, c, s, n, k) = (
+            p.clone(),
+            cache.clone(),
+            s.clone(),
+            n.clone(),
+            cancel.clone(),
+        );
+        tokio::spawn(async move { c.read(p.as_ref(), &s, &n, BLOCK_SIZE as u64, 32, &k).await })
+    };
+    tokio::time::timeout(Duration::from_secs(3), p.counts.window_entered.notified())
+        .await
+        .unwrap();
+    cancel.cancel();
+    assert!(matches!(task.await.unwrap(), Err(ProviderError::Cancelled)));
+    assert_eq!(cache.window_stats().staging_reserved_bytes, 0);
+    assert_eq!(
+        std::fs::read_dir(temp.path().join("cache"))
+            .unwrap()
+            .count(),
+        1
+    );
+    p.counts.hold_window.store(false, Ordering::SeqCst);
+    cache
+        .read(
+            p.as_ref(),
+            &s,
+            &n,
+            BLOCK_SIZE as u64,
+            32,
+            &CancellationToken::new(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(p.counts.windows.load(Ordering::SeqCst), 1);
+    assert_eq!(p.counts.reads.load(Ordering::SeqCst), 2);
+}
+
+#[test]
+fn slow_transfers_limit_growth_and_abandoned_windows_reset_sequential_prediction() {
+    let entry = Entry::new();
+    entry.progressed(0, BLOCK_SIZE).unwrap();
+    entry
+        .transferred(BLOCK_SIZE, Duration::from_secs(10))
+        .unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let staging = Staging::new(temp.path().to_path_buf(), 512 * 1024 * 1024);
+    assert!(
+        entry
+            .window(
+                BLOCK_SIZE as u64,
+                BLOCK_SIZE,
+                64 * 1024 * 1024,
+                64 * 1024 * 1024,
+                &staging
+            )
+            .unwrap()
+            .is_none()
+    );
+    entry
+        .transferred(BLOCK_SIZE, Duration::from_millis(10))
+        .unwrap();
+    let slot = entry
+        .window(
+            BLOCK_SIZE as u64,
+            BLOCK_SIZE,
+            64 * 1024 * 1024,
+            64 * 1024 * 1024,
+            &staging,
+        )
+        .unwrap()
+        .unwrap();
+    assert_eq!(slot.length, 2 * BLOCK_SIZE);
+    drop(slot);
+    assert!(
+        entry
+            .window(
+                BLOCK_SIZE as u64,
+                BLOCK_SIZE,
+                64 * 1024 * 1024,
+                64 * 1024 * 1024,
+                &staging
+            )
+            .unwrap()
+            .is_none()
+    );
+    assert_eq!(staging.stats().staging_reserved_bytes, 0);
+}
+
+#[tokio::test]
+async fn saturated_staging_falls_back_without_waiting_for_another_files_window() {
+    let temp = tempfile::tempdir().unwrap();
+    let p = Arc::new(window_provider());
+    let cache = Arc::new(window_cache(&temp, 32 * 1024 * 1024));
+    let (s, n, cancel) = (scope(), node(), CancellationToken::new());
+    let mut other = n.clone();
+    other.id = "other".into();
+    cache
+        .read(p.as_ref(), &s, &n, 0, 32, &cancel)
+        .await
+        .unwrap();
+    cache
+        .read(p.as_ref(), &s, &other, 0, 32, &cancel)
+        .await
+        .unwrap();
+    p.counts.hold_window.store(true, Ordering::SeqCst);
+    let task = {
+        let (p, c, s, n) = (p.clone(), cache.clone(), s.clone(), n.clone());
+        tokio::spawn(async move {
+            c.read(
+                p.as_ref(),
+                &s,
+                &n,
+                BLOCK_SIZE as u64,
+                32,
+                &CancellationToken::new(),
+            )
+            .await
+        })
+    };
+    tokio::time::timeout(Duration::from_secs(3), p.counts.window_entered.notified())
+        .await
+        .unwrap();
+    assert_eq!(cache.window_stats().staging_reserved_bytes, 2 * BLOCK_SIZE);
+    tokio::time::timeout(
+        Duration::from_secs(1),
+        cache.read(p.as_ref(), &s, &other, BLOCK_SIZE as u64, 32, &cancel),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert_eq!(p.counts.windows.load(Ordering::SeqCst), 1);
+    p.counts.hold_window.store(false, Ordering::SeqCst);
+    p.counts.window_release.notify_one();
+    task.await.unwrap().unwrap();
 }
