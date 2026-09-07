@@ -372,3 +372,49 @@ CIRROVE_PROJECTION_FILES=500000 cargo test -p cirrove-service --lib --release --
 [Raw results](benchmarks/shared-projection-payloads.json) identify the baseline source
 and fixture hash. This is separate from the actual-kernel namespace/invalidation
 fixtures above and cannot establish their large-library or long-session gates.
+
+### Combined namespace traversal and churn
+
+`real_combined_namespace_churn` mounts generated metadata with 12-level paths and
+two distinct aliases of a shared tree. The indexed file count is split between
+primary and shared collections; both aliases are traversed, so the projected count
+is 1.5 times the indexed count. Each of three full passes stats every projected
+file through a bounded application queue (128 entries, eight workers by default).
+It keeps 24 old file descriptors and three directory snapshots across version changes
+and a rename beyond the initial directory buffer, checks their old state, then
+verifies inode-preserving offline revisit and remount. No provider calls are allowed.
+
+```sh
+# Small correctness fixture, also included in the kernel CI suite.
+cargo test -p cirrove-service --lib --release --locked real_combined_namespace_churn -- --ignored --nocapture --test-threads=1
+# Full many-directory workload; this stats 750,000 projected files per pass.
+CIRROVE_CHURN_FILES=500000 cargo test -p cirrove-service --lib --release --locked real_combined_namespace_churn -- --ignored --nocapture --test-threads=1
+# The same library with one large directory per collection.
+CIRROVE_CHURN_FILES=500000 CIRROVE_CHURN_PER_DIRECTORY=250000 cargo test -p cirrove-service --lib --release --locked real_combined_namespace_churn -- --ignored --nocapture --test-threads=1
+# Sustained active-set churn after the initial three full passes.
+CIRROVE_CHURN_FILES=500000 CIRROVE_CHURN_SECONDS=86400 cargo test -p cirrove-service --lib --release --locked real_combined_namespace_churn -- --ignored --nocapture --test-threads=1
+```
+
+The default is 4,000 indexed files in 2,000-file groups. `CIRROVE_CHURN_STAT_WORKERS`
+accepts 1–16 workers. Each invocation owns a temporary state directory and mount;
+its data is removed after successful shutdown. Run long measurements separately
+from other mount/latency fixtures and retain the exact source, command, process
+handle and complete output. The large traversal can take many minutes.
+
+Sustained mode lasts the requested duration (up to 86,400 seconds) after the initial
+traversals. It changes nine items per collection and stats the first group of each
+route repeatedly, with up to 30 seconds between rounds. Normal targeted invalidation
+participates; this phase does not force full sweeps after each round. The three full
+passes and final cleanup explicitly request kernel invalidation to exercise FORGET.
+New content versions retain persistent inode history, measured separately from live
+views; this runner does not implement history collection.
+
+Output distinguishes reference/index/candidate counts, map capacity, open handles,
+snapshot logical bytes, process RSS/PSS and metadata database/WAL sizes and inode rows.
+Counts are not shared-payload byte accounting, and map capacity is not an allocation
+size. Samples are observations of concurrent state, not one atomic system snapshot.
+`navigation_ms` includes the metadata commits, three warm stats and waiting for the
+new version's inode; its unchanged limit is 500 ms. The fixture uses zero-length
+files and does not exercise content reads or mappings. Small and short-duration
+results in [the fixture record](benchmarks/namespace-churn-fixture.json) validate
+the runner, not the full 500k/24-hour memory or real-provider acceptance gates.

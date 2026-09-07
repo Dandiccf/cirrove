@@ -75,6 +75,10 @@ fn keys(view: &View) -> impl Iterator<Item = Key> {
     std::iter::once(primary).chain(source)
 }
 impl ProjectionIndex {
+    #[cfg(test)]
+    pub(super) fn counts(&self) -> (usize, usize) {
+        (self.identities.len(), self.all.len())
+    }
     pub(super) fn insert(&mut self, view: &View) {
         self.all.insert(view.inode);
         self.identities.extend(keys(view));

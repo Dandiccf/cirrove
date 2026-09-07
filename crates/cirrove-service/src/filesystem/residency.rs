@@ -64,6 +64,26 @@ impl NamespaceViews {
         self.entries.capacity()
     }
 
+    /// Test diagnostics count references, not allocator or shared payload bytes.
+    #[cfg(test)]
+    pub(super) fn diagnostics(&self) -> serde_json::Value {
+        let mut kernel_referenced = 0;
+        let mut lease_protected = 0;
+        let mut quarantined = 0;
+        for entry in self.entries.values() {
+            kernel_referenced +=
+                usize::from(entry.view.residency.kernel.load(Ordering::SeqCst) > 0);
+            lease_protected += usize::from(Arc::strong_count(&entry.view.residency) > 1);
+            quarantined += usize::from(entry.view.residency.quarantine.load(Ordering::SeqCst));
+        }
+        let (identity_keys, inode_keys) = self.invalidation.counts();
+        serde_json::json!({"views":self.entries.len(),"map_capacity":self.entries.capacity(),
+            "kernel_referenced_views":kernel_referenced,"lease_protected_views":lease_protected,
+            "quarantined_views":quarantined,"candidate_entries":self.candidates.len(),
+            "candidate_capacity":self.candidates.capacity(),"identity_index_entries":identity_keys,
+            "inode_index_entries":inode_keys})
+    }
+
     pub(super) fn insert(&mut self, mut view: View) -> Result<View, ProviderError> {
         let inode = view.inode;
         view._parent_residency = Some(self.parent_lease(inode, view.parent)?);

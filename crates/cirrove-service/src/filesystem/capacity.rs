@@ -826,3 +826,11 @@ async fn real_targeted_alias_invalidations_preserve_open_versions() {
 }
 
 mod projections;
+
+mod churn;
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "actual synthetic kernel FUSE; deep aliases, every-file stat, held versions and churn"]
+async fn real_combined_namespace_churn() {
+    churn::mounted().await;
+}
