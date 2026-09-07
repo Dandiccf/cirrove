@@ -28,7 +28,14 @@ cleanup, then removes only its own temporary data.
 HTTP tests use loopback fixtures with fake tokens. They never authenticate to Microsoft.
 The workspace includes the GTK desktop; see [Desktop preview](desktop.md) for its
 system dependencies, isolated fixtures and native-window test. CI also validates
-the desktop entry and runs the window test under Xvfb.
+the desktop entry and runs the window test under Xvfb. This is X11 display coverage,
+not native Wayland or a full GNOME/Plasma session; those release gates are in the
+[product milestone plan](product-milestones.md#5-polished-desktop-experience).
+
+A plain root `cargo build --locked` selects the non-GTK default members, including
+the CLI and daemon. Use `cargo build -p cirrove-desktop --locked` for the desktop.
+Keep `--workspace` in the full contributor checks above so the desktop is tested
+too. Default selection changes the no-flag commands, not explicit `--workspace`.
 
 ## Long-session observation
 
