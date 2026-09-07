@@ -665,11 +665,22 @@ impl Filesystem for CloudFs {
         self.inner.runtime.spawn(async move {
             let _permit = permit;
             let result = async {
-                let nodes = inner.children(&parent).await?;
-                let node = nodes
-                    .into_iter()
-                    .find(|n| OsStr::new(&n.name) == name)
-                    .ok_or(ProviderError::NotFound)?;
+                let node = if inner.writeback.is_none() {
+                    let name = name.to_str().ok_or(ProviderError::NotFound)?;
+                    inner
+                        .engine
+                        .child(&parent.scope, &parent.node.id, name)
+                        .await?
+                } else {
+                    // Pending local edits, aliases and retained recovery routes
+                    // must participate in the writable namespace lookup.
+                    inner
+                        .children(&parent)
+                        .await?
+                        .into_iter()
+                        .find(|n| OsStr::new(&n.name) == name)
+                        .ok_or(ProviderError::NotFound)?
+                };
                 let view = inner.insert(&parent, node).await?;
                 let node = inner.node(&view).await?;
                 Ok::<_, ProviderError>((view, node))

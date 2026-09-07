@@ -1,0 +1,45 @@
+{
+  "source_base": "4745a7b2ceb40d907a2bd2e49bf1959f1a302a11",
+  "source_sha256": {
+    "crates/cirrove-store/src/directories.rs": "2b06c2ba48d1017c5e79a10237654245b537d0656fbe7de80a57ce5cb418fb12",
+    "crates/cirrove-store/src/lib.rs": "11d66ff2841971db5dd24bf46b26bd153b8e079e20554d4f75d59c9ba41cb1b7",
+    "crates/cirrove-store/src/directories/tests.rs": "cf2da65f25f56d034588a6ea93b6016abd779d5d42d7b8d6224aaf9960dfa6e1",
+    "crates/cirrove-service/src/engine.rs": "00177a628fa462c5daf9b92e765caa5758d600a34b691439c181efe1e0280a38",
+    "crates/cirrove-service/src/filesystem.rs": "abe386ebdc8f518a924a6e18a701623fbdb3cfe90d12beff9068afcdc6fbb12d",
+    "crates/cirrove-service/src/filesystem/capacity.rs": "f41879f5bf4ba7890bbe26dbd16b7df63dbf8bafa3f9354c8c3564b8163f0224",
+    "crates/cirrove-service/tests/read_only.rs": "eba462b8fc1ecf88bb2245fd4f76f839b9e53148e164f41341df24c15481c236"
+  },
+  "sample": {
+    "build": "release",
+    "content_reads": 0,
+    "elapsed_ms": 11.057253,
+    "files_in_directory": 500000,
+    "fixture": "actual kernel FUSE; indexed synthetic metadata; no cloud account",
+    "memory_after": {
+      "anonymous_pss_kib": 2576,
+      "peak_rss_kib": 14004,
+      "pss_kib": 10428,
+      "rss_kib": 13076
+    },
+    "memory_before": {
+      "anonymous_pss_kib": 1912,
+      "peak_rss_kib": 14004,
+      "pss_kib": 9252,
+      "rss_kib": 11384
+    },
+    "operations": 17,
+    "provider_foreground_requests": 0,
+    "retained_views": 18,
+    "snapshot_reservations": 0
+  },
+  "result": "passed",
+  "scope_and_limits": [
+    "Actual temporary Linux FUSE mount with 500000 generated indexed files in one directory, no cloud credentials or content reads.",
+    "The measured phase runs 16 different metadata lookups spanning the first through last filename, then one absent name. Index construction and final shutdown are outside that phase.",
+    "Name indexes restrict both arms of the normal metadata visibility query. Stale matching observations and duplicate names can add SQL work; this is not a guarantee for arbitrary invalid provider metadata.",
+    "Logical mount views are at most18 after the lookups and return to the root after normal invalidation/reclamation. No directory snapshot reservation is created.",
+    "RSS/PSS samples are process measurements, not total system/kernel page-cache usage. The high-water mark already includes initial metadata indexing.",
+    "This does not measure full directory enumeration, cold provider listing publication, writable local overlays, file contents, desktop thumbnails, many accounts, real Graph latency or long-session churn.",
+    "A separate Cargo target directory was used for this checkout to avoid reusing another worktree's incremental executable. Expected nonzero test execution was verified."
+  ]
+}

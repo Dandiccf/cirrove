@@ -487,6 +487,44 @@ impl Engine {
         gates.insert(key.into(), Arc::downgrade(&gate));
         Ok(gate)
     }
+    /// A warm name lookup decodes only its indexed match. Unknown directories
+    /// still use the coalesced foreground listing path before selecting a name.
+    pub async fn child(
+        self: &Arc<Self>,
+        scope: &Scope,
+        parent: &str,
+        name: &str,
+    ) -> Result<Node, ProviderError> {
+        if scope.account != self.account.id || scope.provider != self.provider.provider_id() {
+            return Err(ProviderError::Protocol("provider/account mismatch"));
+        }
+        if self.cancel.is_cancelled() {
+            return Err(ProviderError::Cancelled);
+        }
+        let db = self.db.clone();
+        let s = scope.clone();
+        let p = parent.to_owned();
+        let n = name.to_owned();
+        let cached = tokio::task::spawn_blocking(move || Store::open(db)?.child(&s, &p, &n))
+            .await
+            .map_err(|_| ProviderError::Unavailable)?
+            .map_err(|_| ProviderError::Unavailable)?;
+        if let Some(node) = cached {
+            self.activity.touch(scope, parent);
+            return node.ok_or(ProviderError::NotFound);
+        }
+        let name = name.to_owned();
+        self.with_children(scope, parent, move |nodes| {
+            for node in nodes {
+                let node = node.map_err(|_| ProviderError::Unavailable)?;
+                if node.name == name {
+                    return Ok(node);
+                }
+            }
+            Err(ProviderError::NotFound)
+        })
+        .await?
+    }
     pub async fn children(
         self: &Arc<Self>,
         scope: &Scope,

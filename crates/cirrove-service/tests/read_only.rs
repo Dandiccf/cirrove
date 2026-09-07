@@ -468,6 +468,62 @@ async fn failed_read_is_coalesced_without_a_retry_storm() {
     assert_eq!(provider.reads.load(Ordering::SeqCst), 1);
     engine.stop().await;
 }
+
+#[tokio::test]
+async fn named_lookup_distinguishes_cold_unknown_from_cached_absence_and_survives_restart() {
+    let temp = tempfile::tempdir().unwrap();
+    let provider = Fixture::new();
+    let config = account(temp.path().join("mount"));
+    let state = temp.path().join("state");
+    let engine = Engine::new(config.clone(), provider.clone(), state.clone())
+        .await
+        .unwrap();
+    let scope = engine.scope("home");
+    assert_eq!(
+        engine.child(&scope, "root", "small.txt").await.unwrap().id,
+        "small.txt"
+    );
+    let fetched = provider.directory_calls.load(Ordering::SeqCst);
+    assert!(
+        fetched > 0,
+        "cold lookup did not fetch the unknown directory"
+    );
+    provider.offline.store(true, Ordering::SeqCst);
+    for name in ["absent", "Small.txt"] {
+        assert!(matches!(
+            engine.child(&scope, "root", name).await,
+            Err(ProviderError::NotFound)
+        ));
+    }
+    assert_eq!(
+        engine.child(&scope, "root", "small.txt").await.unwrap().id,
+        "small.txt"
+    );
+    let mut other = scope.clone();
+    other.account = "other-account".into();
+    assert!(matches!(
+        engine.child(&other, "root", "small.txt").await,
+        Err(ProviderError::Protocol(_))
+    ));
+    assert_eq!(provider.directory_calls.load(Ordering::SeqCst), fetched);
+    engine.stop().await;
+    assert!(matches!(
+        engine.child(&scope, "root", "small.txt").await,
+        Err(ProviderError::Cancelled)
+    ));
+    drop(engine);
+    let restarted = Engine::new(config, provider.clone(), state).await.unwrap();
+    assert_eq!(
+        restarted
+            .child(&scope, "root", "small.txt")
+            .await
+            .unwrap()
+            .id,
+        "small.txt"
+    );
+    assert_eq!(provider.directory_calls.load(Ordering::SeqCst), fetched);
+    restarted.stop().await;
+}
 #[tokio::test]
 async fn corrupt_blocks_redownload_and_interrupted_publications_obey_quota() {
     let temp = tempfile::tempdir().unwrap();

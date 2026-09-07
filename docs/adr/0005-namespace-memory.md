@@ -52,9 +52,20 @@ array and merging a whole directory in a HashMap. Both cached snapshot and delta
 index paths have tests for index-ordered output, concurrent publication, early
 callback failure and transaction cleanup. Schema upgrades preserve the old data
 on failure and serialize concurrent migration attempts. The compatibility API
-still collects a Vec, as do foreground publication, writable local-overlay
-projection and point/name lookups. Cached read-only OPENDIR now streams, but the
+still collects a Vec, as do foreground publication and writable local-overlay
+lookup/projection. Cached read-only LOOKUP now restricts the same visibility query
+by name, uses the ordered name indexes and decodes only its first matching identity.
+Cached read-only OPENDIR now streams, but the
 remaining consumers keep the end-to-end paging gate open.
+
+The direct name path has separate actual-kernel coverage: 16 distinct stat
+requests plus an absent name in one indexed 500,000-file directory complete in
+11.06 ms in a release fixture, without snapshot reservations or provider calls.
+Sampled RSS rises from 11,384 to 13,076 KiB, and all 18 lookup views return to the
+root after normal invalidation. This avoids full-directory materialization for
+these direct requests; it does not accelerate enumerating every filename or
+establish long-session capacity. See
+[the raw lookup measurement](../benchmarks/indexed-name-lookups.json).
 
 An isolated release-build Store fixture visits 500,000 entries in one directory
 in 575–603 ms, retaining zero nodes and showing no additional sampled RSS over

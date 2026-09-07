@@ -545,6 +545,84 @@ async fn namespace_capacity_baseline() {
         .unwrap();
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; cached name lookup in one 50k-file directory"]
+async fn real_indexed_name_lookup_avoids_materializing_the_directory() {
+    let files = std::env::var("CIRROVE_NAME_LOOKUP_FILES")
+        .map_or(50_000, |value| value.parse::<usize>().unwrap());
+    assert!((16..=500_000).contains(&files));
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let provider = Arc::new(GeneratedLibrary {
+        files,
+        per_directory: files,
+        revision: AtomicU32::new(1),
+        content_reads: AtomicU64::new(0),
+        foreground_requests: AtomicU64::new(0),
+    });
+    let engine = Engine::new(
+        account(mount.clone()),
+        provider.clone(),
+        temp.path().join("state"),
+    )
+    .await
+    .unwrap();
+    let scope = engine.scope("capacity-drive");
+    crate::refresh(provider.as_ref(), &scope, &engine.db, false, &engine.cancel)
+        .await
+        .unwrap();
+    let fs = CloudFs::new(engine.clone()).unwrap();
+    let inner = fs.inner.clone();
+    let session = fs.mount(&mount).unwrap();
+    let before = process_memory();
+    let started = Instant::now();
+    tokio::task::spawn_blocking(move || {
+        let directory = mount.join("directory-000000");
+        for file in (0..16).map(|i| i * (files - 1) / 15) {
+            let path = directory.join(format!("Projektunterlagen – Übersicht {file:08}.txt"));
+            assert_eq!(std::fs::metadata(path).unwrap().len(), 0);
+        }
+        assert_eq!(
+            std::fs::metadata(directory.join("absent.txt"))
+                .unwrap_err()
+                .kind(),
+            std::io::ErrorKind::NotFound
+        );
+    })
+    .await
+    .unwrap();
+    let elapsed = started.elapsed();
+    println!(
+        "CIRROVE_NAMED_LOOKUP {}",
+        serde_json::json!({
+            "fixture": "actual kernel FUSE; indexed synthetic metadata; no cloud account",
+            "build": if cfg!(debug_assertions) { "debug" } else { "release" },
+            "files_in_directory": files, "operations": 17,
+            "elapsed_ms": elapsed.as_secs_f64() * 1000.0,
+            "memory_before": before, "memory_after": process_memory(),
+            "retained_views": inner.views.lock().unwrap().len(),
+            "snapshot_reservations": inner.directory_budget.usage().1,
+            "provider_foreground_requests": provider.foreground_requests.load(Ordering::SeqCst),
+            "content_reads": provider.content_reads.load(Ordering::SeqCst),
+        })
+    );
+    assert!(
+        elapsed < Duration::from_millis(500),
+        "indexed lookup exceeded the cached navigation bound"
+    );
+    assert_eq!(inner.directory_budget.usage(), (0, 0));
+    assert!(inner.views.lock().unwrap().len() <= 18);
+    assert_eq!(provider.foreground_requests.load(Ordering::SeqCst), 0);
+    assert_eq!(provider.content_reads.load(Ordering::SeqCst), 0);
+    parents::settle(&inner, 1).await;
+    engine.stop().await;
+    tokio::task::spawn_blocking(move || session.umount_and_join())
+        .await
+        .unwrap()
+        .unwrap();
+}
+
 mod parents;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
