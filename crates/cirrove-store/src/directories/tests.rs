@@ -399,3 +399,55 @@ fn invalid_legacy_snapshots_roll_back_without_losing_old_data() {
         }
     }
 }
+
+#[test]
+fn initial_wal_handles_short_contention_but_preserves_a_busy_deadline() {
+    use std::time::{Duration, Instant};
+    for persistent in [false, true] {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("metadata.db");
+        let holder = Connection::open(&path).unwrap();
+        holder.execute_batch("CREATE TABLE existing(value INTEGER); INSERT INTO existing VALUES(42); BEGIN; SELECT * FROM existing;").unwrap();
+        let candidate = Connection::open(&path).unwrap();
+        let release = if persistent {
+            None
+        } else {
+            Some(std::thread::spawn(move || {
+                std::thread::sleep(Duration::from_millis(150));
+                holder.execute_batch("ROLLBACK").unwrap();
+            }))
+        };
+        let started = Instant::now();
+        let result = initial_wal(&candidate);
+        if persistent {
+            assert_eq!(
+                result.unwrap_err().sqlite_error_code(),
+                Some(rusqlite::ErrorCode::DatabaseBusy)
+            );
+            assert!(started.elapsed() >= Duration::from_secs(2));
+            assert!(
+                started.elapsed() < Duration::from_secs(5),
+                "WAL admission exceeded its total deadline"
+            );
+        } else {
+            result.unwrap();
+            release.unwrap().join().unwrap();
+        }
+        assert!(
+            candidate.is_autocommit(),
+            "journal admission retained a transaction"
+        );
+        assert_eq!(
+            candidate
+                .pragma_query_value(None, "busy_timeout", |row| row.get::<_, i64>(0))
+                .unwrap(),
+            3000
+        );
+        assert_eq!(
+            candidate
+                .query_row("SELECT value FROM existing", [], |row| row.get::<_, i64>(0))
+                .unwrap(),
+            42
+        );
+    }
+}
