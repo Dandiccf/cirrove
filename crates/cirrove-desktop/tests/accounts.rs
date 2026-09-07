@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used)]
 use cirrove_desktop::{
     demo,
-    model::{ConnectionState, Overview},
+    model::{ConnectionState, Overview, ServiceFailure, SettingsFailure},
 };
 use cirrove_service::accounts::{Settings, set_enabled_by_id};
 
@@ -13,7 +13,7 @@ fn desired_state_is_not_mount_acknowledgement_and_lost_service_is_not_ready() {
     assert_eq!(overview.accounts[0].state, ConnectionState::Unmounting);
     assert!(overview.accounts[0].mounted);
     let mut snapshot = demo::snapshot().unwrap();
-    snapshot.status = Err(());
+    snapshot.status = Err(ServiceFailure::Io(std::io::ErrorKind::NotFound));
     let overview = Overview::from_snapshot(snapshot);
     assert_eq!(overview.accounts.len(), 2);
     assert!(overview.accounts.iter().all(|a| !a.mounted
@@ -35,6 +35,13 @@ fn old_services_and_reused_names_cannot_confirm_another_account() {
         account.account_id.clear();
     }
     let overview = Overview::from_snapshot(snapshot);
+    assert_eq!(
+        overview.service_error,
+        Some(ServiceFailure::Incompatible {
+            expected: cirrove_service::STATUS_PROTOCOL_VERSION,
+            actual: 0
+        })
+    );
     assert!(
         overview
             .accounts
@@ -58,6 +65,103 @@ fn old_services_and_reused_names_cannot_confirm_another_account() {
     assert!(!Overview::from_snapshot(snapshot).accounts[0].mounted);
 }
 
+#[tokio::test]
+async fn unreadable_invalid_and_recovered_settings_keep_distinct_causes() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("accounts.json");
+    let socket = temp.path().join("missing.sock");
+    std::fs::create_dir(&path).unwrap();
+    let read = || cirrove_desktop::model::snapshot(temp.path().into(), socket.clone());
+    let view = Overview::from_snapshot(read().await);
+    assert_eq!(
+        view.settings_error,
+        Some(SettingsFailure::Read(std::io::ErrorKind::IsADirectory))
+    );
+    assert_eq!(
+        view.service_error,
+        Some(ServiceFailure::Io(std::io::ErrorKind::NotFound))
+    );
+    std::fs::remove_dir(&path).unwrap();
+    std::fs::write(
+        &path,
+        br#"{"version":"PRIVATE INVALID CONTENT","accounts":[]}"#,
+    )
+    .unwrap();
+    let view = Overview::from_snapshot(read().await);
+    assert!(matches!(
+        view.settings_error,
+        Some(SettingsFailure::InvalidFormat { line: 1, .. })
+    ));
+    assert!(!format!("{view:?}").contains("PRIVATE"));
+    std::fs::write(&path, br#"{"version":999,"accounts":[]}"#).unwrap();
+    assert_eq!(
+        Overview::from_snapshot(read().await).settings_error,
+        Some(SettingsFailure::InvalidConfiguration)
+    );
+    std::fs::write(
+        &path,
+        serde_json::to_vec(&demo::snapshot().unwrap().settings.unwrap()).unwrap(),
+    )
+    .unwrap();
+    let view = Overview::from_snapshot(read().await);
+    assert!(view.settings_error.is_none() && view.settings_available);
+    assert_eq!(view.accounts.len(), 2);
+    assert!(
+        view.accounts
+            .iter()
+            .all(|a| !a.controls_available && !a.mounted)
+    );
+}
+
+#[tokio::test]
+async fn malformed_and_stalled_status_responses_are_distinct_and_do_not_echo_bodies() {
+    use tokio::{
+        io::{AsyncReadExt, AsyncWriteExt},
+        net::UnixListener,
+    };
+    let temp = tempfile::tempdir().unwrap();
+    for (name, stalled, expected) in [
+        ("malformed", false, ServiceFailure::InvalidResponse),
+        ("stalled", true, ServiceFailure::TimedOut),
+    ] {
+        let socket = temp.path().join(name);
+        let server = UnixListener::bind(&socket).unwrap();
+        let task = tokio::spawn(async move {
+            let (mut client, _) = server.accept().await.unwrap();
+            let mut command = [0; 7];
+            client.read_exact(&mut command).await.unwrap();
+            if stalled {
+                std::future::pending::<()>().await;
+            } else {
+                client
+                    .write_all(br#"{"protocol_version":"PRIVATE SIGNED URL"}"#)
+                    .await
+                    .unwrap();
+            }
+        });
+        let view = Overview::from_snapshot(
+            cirrove_desktop::model::snapshot(temp.path().into(), socket).await,
+        );
+        assert_eq!(view.service_error, Some(expected));
+        assert!(!format!("{view:?}").contains("PRIVATE"));
+        task.abort();
+        let _ = task.await;
+    }
+    // Version mismatch remains visible even when no accounts have been saved.
+    let mut sample = demo::snapshot().unwrap();
+    sample.settings.as_mut().unwrap().accounts.clear();
+    sample.status.as_mut().unwrap().protocol_version = 999;
+    let view = Overview::from_snapshot(sample);
+    assert!(view.accounts.is_empty());
+    assert_eq!(
+        view.service_error,
+        Some(ServiceFailure::Incompatible {
+            expected: cirrove_service::STATUS_PROTOCOL_VERSION,
+            actual: 999
+        })
+    );
+}
+
 #[test]
 fn library_errors_are_visible_without_rendering_raw_provider_messages() {
     let mut snapshot = demo::snapshot().unwrap();
@@ -74,7 +178,7 @@ fn library_errors_are_visible_without_rendering_raw_provider_messages() {
         ConnectionState::SignInRequired
     );
     let mut snapshot = demo::snapshot().unwrap();
-    snapshot.settings = Err(());
+    snapshot.settings = Err(SettingsFailure::InvalidConfiguration);
     let overview = Overview::from_snapshot(snapshot);
     assert!(!overview.settings_available);
     assert!(overview.accounts.is_empty());

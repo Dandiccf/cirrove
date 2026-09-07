@@ -1,7 +1,7 @@
 use adw::prelude::*;
 use anyhow::{Context, Result, ensure};
 use cirrove_desktop::{
-    model::ConnectionState,
+    model::{ConnectionState, ServiceFailure, SettingsFailure},
     ui::{Backend, Window},
 };
 use clap::{Parser, ValueEnum};
@@ -17,6 +17,9 @@ use std::{
 enum DemoState {
     Connected,
     ServiceOffline,
+    ServiceTimeout,
+    IncompatibleService,
+    InvalidSettings,
     SignInRequired,
     Empty,
     LongNames,
@@ -113,11 +116,29 @@ fn main() -> Result<()> {
                 DemoState::Empty => view.accounts.clear(),
                 DemoState::ServiceOffline => {
                     view.service_reachable = false;
+                    view.service_error = Some(ServiceFailure::Io(std::io::ErrorKind::NotFound));
                     for account in &mut view.accounts {
                         account.mounted = false;
                         account.controls_available = false;
                         account.state = ConnectionState::ServiceUnavailable;
                     }
+                },
+                DemoState::ServiceTimeout | DemoState::IncompatibleService => {
+                    let incompatible = matches!(args.demo_state, Some(DemoState::IncompatibleService));
+                    view.service_reachable = incompatible;
+                    view.service_error = Some(if incompatible {
+                        ServiceFailure::Incompatible { expected: cirrove_service::STATUS_PROTOCOL_VERSION, actual: 0 }
+                    } else { ServiceFailure::TimedOut });
+                    for account in &mut view.accounts {
+                        account.mounted = false;
+                        account.controls_available = false;
+                        account.state = if incompatible { ConnectionState::IncompatibleService } else { ConnectionState::ServiceUnavailable };
+                    }
+                },
+                DemoState::InvalidSettings => {
+                    view.accounts.clear();
+                    view.settings_available = false;
+                    view.settings_error = Some(SettingsFailure::InvalidFormat { line: 12, column: 8 });
                 },
                 DemoState::SignInRequired => {
                     if let Some(account) = view.accounts.first_mut() {

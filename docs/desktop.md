@@ -6,6 +6,14 @@ mount locations and cache limits. Mount/Unmount changes the saved preference; th
 window waits for service acknowledgement before showing the operation as complete.
 Closing the window leaves the daemon running.
 
+The window preserves safe failure causes when loading settings and service status.
+It distinguishes unreadable settings (including denied access), invalid settings
+data with its line/column, unsupported configuration, a missing/refusing service,
+denied service access, response timeout, malformed response and a protocol-version
+mismatch. Settings and service failures can appear together. Retry refreshes both;
+a recovered snapshot clears the warnings and restores confirmed controls. Raw
+settings values, error messages and service response bodies are not displayed.
+
 ## Run
 
 Build with the [desktop dependencies](../README.md#build-and-try) installed:
@@ -34,6 +42,9 @@ disabled. No real settings, keyring, service or cloud provider is used.
 
 ```sh
 ./target/debug/cirrove-desktop --demo --demo-state service-offline
+./target/debug/cirrove-desktop --demo --demo-state service-timeout
+./target/debug/cirrove-desktop --demo --demo-state incompatible-service
+./target/debug/cirrove-desktop --demo --demo-state invalid-settings
 ./target/debug/cirrove-desktop --demo --demo-state long-names
 ./target/debug/cirrove-desktop --demo --demo-details --light
 ./target/debug/cirrove-desktop --demo --dark --snapshot /tmp/cirrove-preview.png
@@ -44,7 +55,9 @@ cargo test -p cirrove-desktop --test window --locked -- --ignored --test-threads
 The ignored window test needs a graphical display and a local Unix socket. It uses
 temporary account settings and a synthetic delayed status service, with no cloud
 connection. It checks responsiveness, focus preservation and separate desired and
-confirmed mount states. CI runs it under Xvfb and a private D-Bus session.
+confirmed mount states, visible failure causes and recovery through Retry. CI runs
+it under Xvfb and a private D-Bus session. Local socket fixtures distinguish invalid
+responses from timeouts; neither requires a cloud account.
 PNG snapshots capture the actual rendered demo window and also require a display.
 
 ## Remaining product work
@@ -52,6 +65,9 @@ PNG snapshots capture the actual rendered demo window and also require a display
 Native browser sign-in, account/library selection, reauthentication, connection
 removal and cleanup are not implemented in this window. Tray actions, Nautilus
 badges, pinning, transfer/conflict views and localization remain separate work.
+Mount-preference save failures and folder-opening failures still use generic
+messages; account repair, service installation and reauthentication actions are
+not yet provided by these diagnostics.
 The [desktop milestone](product-milestones.md#5-polished-desktop-experience) remains open.
 
 The desktop entry at `packaging/desktop/io.github.Dandiccf.Cirrove.desktop` is a

@@ -1,5 +1,7 @@
 use cirrove_service::{Status, accounts::Settings, manager::AccountStatus};
 use std::path::PathBuf;
+mod failures;
+pub use failures::{ServiceFailure, SettingsFailure};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ConnectionState {
@@ -107,14 +109,16 @@ impl AccountCard {
 }
 
 pub struct Snapshot {
-    pub settings: Result<Settings, ()>,
-    pub status: Result<Status, ()>,
+    pub settings: Result<Settings, SettingsFailure>,
+    pub status: Result<Status, ServiceFailure>,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Overview {
     pub accounts: Vec<AccountCard>,
     pub service_reachable: bool,
     pub settings_available: bool,
+    pub settings_error: Option<SettingsFailure>,
+    pub service_error: Option<ServiceFailure>,
 }
 impl Overview {
     pub fn from_snapshot(snapshot: Snapshot) -> Self {
@@ -123,12 +127,25 @@ impl Overview {
             .status
             .as_ref()
             .is_ok_and(|s| s.protocol_version == cirrove_service::STATUS_PROTOCOL_VERSION);
-        let Ok(settings) = snapshot.settings else {
-            return Self {
-                accounts: vec![],
-                service_reachable: reachable,
-                settings_available: false,
-            };
+        let service_error = match &snapshot.status {
+            Err(error) => Some(error.clone()),
+            Ok(status) if !compatible => Some(ServiceFailure::Incompatible {
+                expected: cirrove_service::STATUS_PROTOCOL_VERSION,
+                actual: status.protocol_version,
+            }),
+            Ok(_) => None,
+        };
+        let settings = match snapshot.settings {
+            Ok(settings) => settings,
+            Err(error) => {
+                return Self {
+                    accounts: vec![],
+                    service_reachable: reachable,
+                    settings_available: false,
+                    settings_error: Some(error),
+                    service_error,
+                };
+            }
         };
         let accounts = settings
             .accounts
@@ -190,6 +207,8 @@ impl Overview {
             accounts,
             service_reachable: reachable,
             settings_available: true,
+            settings_error: None,
+            service_error,
         }
     }
 }
@@ -220,7 +239,10 @@ pub async fn snapshot(state: PathBuf, socket: PathBuf) -> Snapshot {
     let status = cirrove_service::status(&socket);
     let (settings, status) = tokio::join!(settings, status);
     Snapshot {
-        settings: settings.ok().and_then(Result::ok).ok_or(()),
-        status: status.map_err(|_| ()),
+        settings: match settings {
+            Ok(result) => result.map_err(SettingsFailure::from_error),
+            Err(_) => Err(SettingsFailure::WorkerUnavailable),
+        },
+        status: status.map_err(ServiceFailure::from_error),
     }
 }

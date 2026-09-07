@@ -2,7 +2,7 @@
 use adw::prelude::*;
 use cirrove_desktop::{
     demo,
-    model::ConnectionState,
+    model::{ConnectionState, ServiceFailure, SettingsFailure},
     ui::{Backend, Window},
 };
 use gtk::{gio, glib};
@@ -31,6 +31,7 @@ fn pump_until(phase: &str, mut predicate: impl FnMut() -> bool) {
 }
 fn button(widget: &gtk::Widget, label: &str) -> Option<gtk::Button> {
     if let Some(button) = widget.downcast_ref::<gtk::Button>()
+        && button.is_mapped()
         && (button.label().as_deref() == Some(label)
             || button.tooltip_text().as_deref() == Some(label))
     {
@@ -44,6 +45,23 @@ fn button(widget: &gtk::Widget, label: &str) -> Option<gtk::Button> {
         child = current.next_sibling();
     }
     None
+}
+
+fn displays_text(widget: &gtk::Widget, text: &str) -> bool {
+    if let Some(label) = widget.downcast_ref::<gtk::Label>()
+        && label.is_mapped()
+        && label.text().as_str() == text
+    {
+        return true;
+    }
+    let mut child = widget.first_child();
+    while let Some(current) = child {
+        if displays_text(&current, text) {
+            return true;
+        }
+        child = current.next_sibling();
+    }
+    false
 }
 
 #[test]
@@ -211,6 +229,62 @@ fn native_window_keeps_focus_and_waits_for_service_mount_acknowledgement() {
             .is_some_and(|v| v.accounts[0].state == ConnectionState::Mounting)
     });
     assert_eq!(gtk::prelude::RootExt::focus(&window), Some(help.upcast()));
+    // Actual rendered failures must preserve their causes, and a recovered
+    // snapshot must clear both warnings without restarting the window.
+    let saved = std::fs::read(state.join("accounts.json")).unwrap();
+    response.lock().unwrap().protocol_version = 0;
+    ui.refresh();
+    let incompatible = ServiceFailure::Incompatible {
+        expected: cirrove_service::STATUS_PROTOCOL_VERSION,
+        actual: 0,
+    };
+    pump_until("incompatible service banner", || {
+        displays_text(window.upcast_ref(), incompatible.description())
+    });
+    assert!(
+        !button(window.upcast_ref(), "Cancel mount")
+            .unwrap()
+            .is_sensitive()
+    );
+    std::fs::write(
+        state.join("accounts.json"),
+        br#"{"version":"PRIVATE CONTENT"}"#,
+    )
+    .unwrap();
+    ui.refresh();
+    pump_until("invalid settings description", || {
+        ui.current()
+            .and_then(|view| view.settings_error)
+            .is_some_and(|error| {
+                matches!(error, SettingsFailure::InvalidFormat { .. })
+                    && displays_text(window.upcast_ref(), &error.description())
+            })
+    });
+    assert!(displays_text(
+        window.upcast_ref(),
+        incompatible.description()
+    ));
+    response.lock().unwrap().protocol_version = cirrove_service::STATUS_PROTOCOL_VERSION;
+    ui.refresh();
+    pump_until("service recovered while settings remain invalid", || {
+        ui.current()
+            .is_some_and(|view| view.service_error.is_none() && view.settings_error.is_some())
+            && !displays_text(window.upcast_ref(), incompatible.description())
+    });
+    std::fs::write(state.join("accounts.json"), saved).unwrap();
+    // The settings page has its own Retry even without a service-error banner.
+    button(window.upcast_ref(), "Retry").unwrap().emit_clicked();
+    pump_until("recovered settings and service", || {
+        ui.current().is_some_and(|view| {
+            view.settings_error.is_none()
+                && view.service_error.is_none()
+                && view.accounts.len() == 2
+        }) && !displays_text(window.upcast_ref(), incompatible.description())
+    });
+    assert!(!displays_text(
+        window.upcast_ref(),
+        incompatible.description()
+    ));
     window.close();
     // The window owns no daemon lifetime: the same fake service still answers.
     assert!(runtime.block_on(cirrove_service::status(&socket)).is_ok());

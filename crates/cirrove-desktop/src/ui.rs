@@ -34,6 +34,7 @@ pub struct Window {
     backend: Backend,
     group: adw::PreferencesGroup,
     empty: adw::StatusPage,
+    settings_retry: gtk::Button,
     banner: adw::Banner,
     refresh_button: gtk::Button,
     toast: adw::ToastOverlay,
@@ -97,6 +98,11 @@ impl Window {
             .title("Loading connections…")
             .description("Reading your saved accounts and service status.")
             .build();
+        let settings_retry = gtk::Button::with_label("Retry");
+        settings_retry.set_halign(gtk::Align::Center);
+        settings_retry.add_css_class("pill");
+        settings_retry.set_visible(false);
+        empty.set_child(Some(&settings_retry));
         body.append(&empty);
         let help = gtk::LinkButton::with_label(
             "https://github.com/Dandiccf/cirrove/blob/main/docs/onedrive-setup.md",
@@ -138,6 +144,7 @@ impl Window {
             backend,
             group,
             empty,
+            settings_retry,
             banner,
             refresh_button,
             toast,
@@ -158,6 +165,12 @@ impl Window {
         });
         let weak = Rc::downgrade(&ui);
         ui.banner.connect_button_clicked(move |_| {
+            if let Some(ui) = weak.upgrade() {
+                ui.refresh();
+            }
+        });
+        let weak = Rc::downgrade(&ui);
+        ui.settings_retry.connect_clicked(move |_| {
             if let Some(ui) = weak.upgrade() {
                 ui.refresh();
             }
@@ -231,7 +244,10 @@ impl Window {
         }
     }
     pub fn render(self: &Rc<Self>, overview: Overview) {
-        self.banner.set_revealed(!overview.service_reachable);
+        self.banner.set_revealed(overview.service_error.is_some());
+        if let Some(error) = &overview.service_error {
+            self.banner.set_title(error.description());
+        }
         self.empty
             .set_visible(!overview.settings_available || overview.accounts.is_empty());
         self.group
@@ -241,9 +257,13 @@ impl Window {
         } else {
             "Account settings unavailable"
         });
-        self.empty.set_description(Some(if overview.settings_available {
-            "Use the OneDrive setup guide to connect your first account."
-        } else { "Cirrove could not read your saved connections. Check the settings directory and retry." }));
+        let description = overview.settings_error.as_ref().map_or_else(
+            || "Use the OneDrive setup guide to connect your first account.".into(),
+            |error| error.description(),
+        );
+        self.empty.set_description(Some(&description));
+        self.settings_retry
+            .set_visible(overview.settings_error.is_some());
         let mut rows = self.rows.borrow_mut();
         rows.retain(|id, row| {
             let keep = overview.accounts.iter().any(|a| &a.id == id);

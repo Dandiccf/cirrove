@@ -154,6 +154,12 @@ state, changes the desired mount preference by account UUID, and opens confirmed
 mounts in Files. Slow status I/O stays off GTK's main loop. Synthetic native-window
 tests cover mount acknowledgement and keyboard focus. This is an initial settings
 slice, not the complete setup experience; see [Desktop preview](desktop.md).
+Settings/status snapshots now retain sanitized failure categories instead of
+discarding their causes. The window distinguishes unreadable or invalid settings,
+service connection/timeout/response errors and incompatible protocol versions,
+including simultaneous settings and service failures and recovery through Retry.
+Native synthetic checks cover the rendered messages. Save/open operation errors,
+account repair and the wider recovery flow still need implementation and acceptance.
 
 - [ ] GTK4/libadwaita setup and settings without a terminal in ordinary flows.
 - [ ] Account picker, mount controls, reconnect, connection removal and cleanup.
@@ -272,11 +278,10 @@ Supporting code observations from this review:
   uses `Icon=folder-remote`. Its basename already matches the application ID in
   [main.rs](../crates/cirrove-desktop/src/main.rs), but a branded installed icon,
   AppStream metainfo and actual shell/window identity checks are still missing.
-- [model.rs](../crates/cirrove-desktop/src/model.rs) stores settings and status as
-  `Result<_, ()>`, discarding their original failure causes. The current window
-  already distinguishes unavailable settings, service unavailability and protocol
-  incompatibility at a high level; preserving causes and useful recovery remains
-  incomplete. These should not be described as one identical existing UI state.
+- [model.rs](../crates/cirrove-desktop/src/model.rs) now preserves typed, sanitized
+  settings/status causes and protocol mismatch details. The initial `Result<_, ()>`
+  loss is corrected for snapshots; save/open operation errors and complete recovery
+  actions remain incomplete. See [Desktop preview](desktop.md).
 - [Cargo.toml](../Cargo.toml) now selects the non-GTK crates by default. The
   explicit `--workspace` flag overrides that selection, so full CI still needs
   the desktop development libraries. See
