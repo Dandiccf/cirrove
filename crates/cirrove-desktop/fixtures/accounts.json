@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "accounts": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "label": "work",
+      "registration": {
+        "client_id": "00000000-0000-4000-8000-000000000010",
+        "authority": "common"
+      },
+      "identity": {
+        "tenant_id": "00000000-0000-4000-8000-000000000020",
+        "subject": "synthetic-1",
+        "username": "alex@example.invalid",
+        "graph_user_id": "user-1",
+        "display_name": "Alex Example"
+      },
+      "credential_id": "00000000-0000-4000-8000-000000000031",
+      "access": "read_only",
+      "drive": {
+        "id": "drive-1",
+        "name": "Work documents",
+        "driveType": "business",
+        "webUrl": "https://example.invalid"
+      },
+      "root_id": "root",
+      "mount_path": "/home/alex/Cloud/work",
+      "enabled": true,
+      "poll_seconds": 30,
+      "cache_bytes": 5368709120
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "label": "personal",
+      "registration": {
+        "client_id": "00000000-0000-4000-8000-000000000010",
+        "authority": "common"
+      },
+      "identity": {
+        "tenant_id": "00000000-0000-4000-8000-000000000020",
+        "subject": "synthetic-2",
+        "username": "alex.personal@example.invalid",
+        "graph_user_id": "user-2",
+        "display_name": "Alex Example"
+      },
+      "credential_id": "00000000-0000-4000-8000-000000000032",
+      "access": "read_only",
+      "drive": {
+        "id": "drive-2",
+        "name": "Personal files",
+        "driveType": "personal",
+        "webUrl": "https://example.invalid"
+      },
+      "root_id": "root",
+      "mount_path": "/home/alex/Cloud/personal",
+      "enabled": false,
+      "poll_seconds": 30,
+      "cache_bytes": 5368709120
+    }
+  ]
+}

@@ -32,8 +32,9 @@ The socket has bounded frames/messages, connection/send deadlines, cancellation 
 a heartbeat deadline which unrelated messages cannot extend. A successful initial
 connection or reconnection requests catch-up. Failed endpoint acquisition does not
 permanently disable notifications: bounded backoff retries it. Authentication
-failures are visible. Healthy sessions renew after 50 minutes; an actual long
-renewal test remains required. Graph's account-wide cooldown still applies.
+failures are visible. Healthy sessions renew after 50 minutes; an isolated
+business-drive run has passed actual renewal and a subsequent notification.
+Graph's account-wide cooldown still applies.
 
 Refresh starts are spaced by at least 250 ms to coalesce bursts without indefinitely
 postponing continuous activity. A hint received during a failed request cannot
@@ -45,6 +46,26 @@ Periodic checks remain at the configured interval, currently 30 seconds by defau
 even when notifications work. Removing this safeguard or lengthening it before
 measuring provider delivery would risk making freshness worse. Reconnect catch-up
 does not depend on receiving another remote notification.
+
+## Recently used directory revalidation
+
+Late provider hints need a bounded complement. Filesystem directory reads now
+register a 60-second lease, with at most 32 entries per account and one worker.
+Successful listings are eligible again after five seconds; starts are spaced by
+at least two seconds across the account. Large or multiple directories therefore
+take longer. Pagination, provider cooldown and the existing listing deadline all
+still apply. This is targeted metadata polling, not a push-delivery guarantee.
+
+Cached listings stay readable during refresh. The worker shares each directory's
+foreground gate and skips a currently running cold request. Failures back off;
+repeated use cannot bypass that backoff. It emits filesystem invalidations only
+when listing metadata changes, and does not renew its own activity lease. An empty
+or unrelated delta cannot overwrite a newer observed directory with older indexed
+metadata. A relevant delta or replacement baseline still reconciles observations.
+
+Activity is inferred from actual filesystem requests. Detecting a window that
+remains visible without issuing further reads would need an explicit desktop
+integration. No such integration or always-visible-folder guarantee is claimed.
 
 ## Provider independence
 
@@ -77,9 +98,26 @@ Neither adapter is implemented or promised to provide equivalent latency.
   it; this is a target, not a measured end-to-end provider guarantee.
 - Validate actual reconnect/renewal after long sessions, suspend/network loss,
   personal OneDrive, linked libraries and restricted permissions.
-- Determine a bounded policy for refreshing actively viewed folders when upstream
-  notifications arrive late. Do not replace a slow timer with a global aggressive
-  polling loop or describe push alone as a latency solution.
+  The notification validator's optional `--check-renewal` waits for the actual
+  approximately 50-minute renewal and checks a new notification after reconnecting;
+  one isolated business-drive run has now passed that real renewal, reconnection,
+  and a fourth generated-fixture change through notification-triggered delta.
+  The process finished successfully and retained its private event evidence.
+  This does not establish personal-account behavior, outage recovery or 24-hour
+  sustained operation.
+- Revalidation fixtures cover bounded activity, backoff, cached navigation while
+  another directory stalls, and actual mounted create/rename/delete visibility
+  during a blocked content read. Push is disabled and the delta timer is one hour
+  in the activity tests. Unchanged observations do not request another reload.
+- `validate-onedrive-freshness` complements the deterministic checks with real
+  Graph directory listings through an isolated kernel mount. Its fixture-only
+  baseline and disabled push exclude other refresh mechanisms. A limited
+  business-drive run passed new-folder and conditional Unicode rename visibility;
+  timings and identifiers stay in private evidence. See
+  [the repeat command and limits](../write-validation.md#check-directory-freshness-through-an-actual-mount).
+- Measure multiple large directories and ordinary file-manager windows. A small
+  mounted fixture does not establish desktop event handling, production request
+  cost, personal-account behavior or a general Microsoft latency guarantee.
 
 ## Sources
 

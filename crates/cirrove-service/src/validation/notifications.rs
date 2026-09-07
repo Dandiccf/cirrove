@@ -3,10 +3,37 @@
 use super::*;
 use cirrove_core::{
     Change, Checkpoint, MetadataProvider,
-    notifications::{ChangeHintSender, NotificationState},
+    notifications::{ChangeHint, ChangeHintSender, NotificationState, WatchEnd},
 };
 
-pub async fn onedrive_notifications(state: &Path, label: &str) -> Result<()> {
+type Listener = tokio::task::JoinHandle<std::result::Result<WatchEnd, cirrove_core::ProviderError>>;
+fn listen(
+    graph: Arc<OneDrive>,
+    scope: Scope,
+    hints: ChangeHintSender,
+    cancel: CancellationToken,
+) -> Listener {
+    hints.state(NotificationState::Connecting);
+    tokio::spawn(async move { graph.watch_changes(&scope, hints, &cancel).await })
+}
+async fn connected(
+    listener: &mut Listener,
+    receiver: &mut tokio::sync::watch::Receiver<ChangeHint>,
+) -> Result<()> {
+    tokio::select! {
+        result=listener => { result?.map_err(anyhow::Error::from)?; bail!("notification session ended before subscribing"); }
+        result=tokio::time::timeout(Duration::from_secs(60), async {
+            loop {
+                if receiver.borrow_and_update().state == NotificationState::Connected { break; }
+                receiver.changed().await.context("notification channel closed")?;
+            }
+            Ok::<(),anyhow::Error>(())
+        }) => result.context("notification subscription timed out")??,
+    }
+    Ok(())
+}
+
+pub async fn onedrive_notifications(state: &Path, label: &str, check_renewal: bool) -> Result<()> {
     let account = test_account(state, label)?;
     let _operation = accounts::account_operation(state, &account.id)?;
     let _owner = accounts::account_lock(&state.join("accounts").join(&account.id))?;
@@ -26,7 +53,7 @@ pub async fn onedrive_notifications(state: &Path, label: &str) -> Result<()> {
     let name = format!("Cirrove-Notification-Validation-{run}");
     event(
         &mut log,
-        serde_json::json!({"stage":"planned","folder":name,"scope":scope}),
+        serde_json::json!({"stage":"planned","folder":name,"scope":scope,"check_renewal":check_renewal}),
     )?;
     for ancestor in directory.ancestors() {
         File::open(ancestor)?.sync_all()?;
@@ -39,26 +66,43 @@ pub async fn onedrive_notifications(state: &Path, label: &str) -> Result<()> {
     let cancel = CancellationToken::new();
     let _cancel_on_return = cancel.clone().drop_guard();
     let (hints, mut receiver) = ChangeHintSender::channel();
-    let provider = graph.clone();
-    let watched_scope = scope.clone();
-    let token = cancel.clone();
-    let mut listener =
-        tokio::spawn(async move { provider.watch_changes(&watched_scope, hints, &token).await });
-    tokio::select! {
-        result=&mut listener => { result?.map_err(anyhow::Error::from)?; bail!("notification session ended before subscribing"); }
-        result=tokio::time::timeout(Duration::from_secs(60), async {
-            loop {
-                if receiver.borrow_and_update().state == NotificationState::Connected { break; }
-                receiver.changed().await.context("notification channel closed")?;
-            }
-            Ok::<(),anyhow::Error>(())
-        }) => result.context("notification subscription timed out")??,
-    }
+    let mut listener = listen(graph.clone(), scope.clone(), hints.clone(), cancel.clone());
+    connected(&mut listener, &mut receiver).await?;
+    let first_connection = tokio::time::Instant::now();
     event(&mut log, serde_json::json!({"stage":"connected"}))?;
     println!("Socket.IO subscription connected. Establishing a change marker.");
     let mut cursor = graph.notification_checkpoint(&scope, &cancel).await?;
     let mut previous: Option<Node> = None;
-    for sample in 0..3 {
+    for sample in 0..if check_renewal { 4 } else { 3 } {
+        if sample == 3 {
+            println!("Initial checks passed. Waiting for the real connection's 50-minute renewal.");
+            event(&mut log, serde_json::json!({"stage":"waiting_for_renewal"}))?;
+            let end = tokio::time::timeout_at(
+                first_connection + Duration::from_secs(55 * 60),
+                &mut listener,
+            )
+            .await
+            .context("real subscription did not renew before deadline")???;
+            anyhow::ensure!(
+                matches!(end, WatchEnd::Renew),
+                "subscription ended without healthy renewal"
+            );
+            anyhow::ensure!(
+                first_connection.elapsed() >= Duration::from_secs(49 * 60),
+                "subscription renewed too early to establish a long-session check"
+            );
+            event(
+                &mut log,
+                serde_json::json!({"stage":"renewal_due","connection_ms":first_connection.elapsed().as_millis()}),
+            )?;
+            listener = listen(graph.clone(), scope.clone(), hints.clone(), cancel.clone());
+            connected(&mut listener, &mut receiver).await?;
+            event(&mut log, serde_json::json!({"stage":"reconnected"}))?;
+            // Begin the final mutation after the new session and a current marker
+            // are established. Only a fresh hint can satisfy this final sample.
+            cursor = graph.notification_checkpoint(&scope, &cancel).await?;
+            println!("Renewed subscription connected; checking a new change through it.");
+        }
         let mut generation = receiver.borrow_and_update().generation;
         let started = tokio::time::Instant::now();
         let current_name = if sample == 0 {
@@ -161,5 +205,9 @@ pub async fn onedrive_notifications(state: &Path, label: &str) -> Result<()> {
     }
     cancel.cancel();
     let _ = listener.await?;
+    event(
+        &mut log,
+        serde_json::json!({"stage":"finished","passed":true,"renewal_checked":check_renewal}),
+    )?;
     Ok(())
 }

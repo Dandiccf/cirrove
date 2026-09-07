@@ -12,30 +12,79 @@ Private account measurements belong in local records, not the public repository.
 - [ ] Recovery after process failure, suspend/resume and loss of network access.
 - [ ] Real token expiry/refresh and visible reauthentication when consent expires.
 - [ ] Responsive navigation during initial indexing and competing downloads.
+- [ ] Remove Graph metadata checks per cache block from the validated read-session
+      fast path; implement and measure shared session setup, bounded sequential
+      windows and safe renewal as specified in [read-session efficiency](adr/0004-read-session-efficiency.md).
 - [ ] Push-triggered metadata updates, reconnection/catch-up and periodic recovery checks, with provider delivery and local reaction latency measured separately.
 - [ ] Bounded memory and background work with large libraries and long sessions.
+- [ ] Reclaim inactive namespace views with correct FUSE lifetimes; pass the
+      500,000-file traversal, invalidation and 24-hour churn memory gates in
+      [namespace memory](adr/0005-namespace-memory.md). Content-cache limits do not
+      satisfy this requirement.
 - [ ] Real restart/outage checks and at least 24 hours of sustained operation.
 
 Evidence must include actual kernel mounts, provider-backed reads and ordinary
 desktop applications, in addition to deterministic transport/recovery fixtures.
+The first namespace-memory correction removes mount-lifetime retention of entries
+only returned by plain READDIR. Regular-file views now also retire after kernel
+lookup references and open/in-flight leases end, with actual-kernel regression
+coverage. Directory ancestry remains pinned; byte budgets, large single-directory
+paging and interrupted-reply accounting remain open. These partial corrections
+do not close the 500k-file/long-session gate.
 Graph Socket.IO and provider-neutral coalescing hints are now implemented. This
-does not close the live-response gate: notifications can be delayed upstream, and
-long-session renewal, the provider matrix and active-directory freshness need
-further validation. See [the notification decision](adr/0003-change-notifications.md).
+does not close the live-response gate: notifications can be delayed upstream.
+An isolated business-drive run passed actual long-session renewal and subsequent
+notification delivery; the provider and outage-recovery matrix remains open. Bounded
+revalidation of recently used directories now has service and actual FUSE fixtures,
+plus a limited real business-drive create/rename check through an isolated mount.
+Larger provider scenarios and ordinary desktop freshness still need measurement. See
+[the notification decision](adr/0003-change-notifications.md).
 
 ## 2. Safe file changes
 
-The [local edit journal](adr/0002-durable-local-edits.md) now protects sealed upload
-snapshots and distinguishes pending, uncertain, failed and acknowledged operations.
-It now has a transfer worker and Graph adapter with synthetic tests for resumed
-fragments, lost success responses, secret-store failures, bounded scheduling and
-conditional commit conflicts. The [isolated live write check](write-validation.md)
-passed its basic generated-file checks on a business drive, including a competing
-edit before commit. Broader provider recovery validation and writable FUSE still
-need to connect these components to actual application saves. Conditional namespace
-changes now share durable ordering with uploads; restart, lost-response and
-file-collision fixtures cover their worker. Folder removal, hierarchy dependencies
-and atomic replacement are still required before writable filesystem acceptance.
+The [local edit journal](adr/0002-durable-local-edits.md) protects mutable local files
+and immutable save generations. Uploads, moves, deletion and replacement use a
+shared resource queue with confirmed receipt ordering. Uncertain and conflicted
+operations retain data and block dependent changes. Synthetic transport and journal
+checks cover bounded upload fragments, resume, lost replies, conditional conflicts,
+transaction rollback and namespace publication. The isolated business-drive check
+has exercised basic generated-file operations, a competing remote edit, and two
+actual mounted saves with automatic uploads and independent verification.
+
+Experimental FUSE supports regular-file create/write/truncate/fsync, metadata-only
+move, unlink with retained descriptors, and replacement of both local and online-only
+sources. An online-only replacement first commits its namespace and preparation
+intent, then captures the original source version outside the kernel directory lock.
+Target publication and source cleanup use separate identities and prerequisites.
+Old readers are preserved, and later local edits cannot overwrite the earlier
+snapshot. Joint namespace publication handles delayed callbacks and chained transfers.
+Actual synthetic mount fixtures cover two consecutive atomic saves, paused downloads,
+independent saves during old reads, and remount after interrupted preparation.
+The extended developer validator is ready to exercise atomic replacement and
+conditional source cleanup in a fresh OneDrive test folder, including an online-only
+source after remount. That expanded live sequence has not yet been executed.
+
+Fully acknowledged working copies can retire after the last user closes, retaining
+local identities that follow remote changes. Restartable cleanup, generation fencing,
+checksums, quota failures and interrupted final publication have synthetic checks.
+Experimental folder creation now supports pending nested folders, sibling file
+saves and file moves whose destinations are still awaiting cloud confirmation.
+Synthetic journal and actual mount tests cover independent progress, retained bytes
+after uncertain creation, stable identities across remount and editing remote
+children after local cleanup. This has not been exercised against a live provider.
+
+Experimental edits now retain their traversed ancestor routes, including source-side
+SharePoint links, when local work depends on them. Synthetic mounts verify access
+after remote metadata removal and restart, without recreating cloud folders. Resolved
+file-link targets also have a local-edit/recovery fixture. Live acceptance and a
+complete recovery/conflict flow, including older journals without captured paths,
+remain outstanding.
+
+The normal daemon remains read-only. Folder rename/removal, broader ordinary editor
+and office behavior, live provider replacement/unlink scenarios, physical-fault
+coverage, restored remote identities, detached-data recovery and bounded long-session
+history remain acceptance gaps. This implementation progress does not close the
+safe-file-changes milestone.
 
 - [x] Provider-neutral create, update, rename, move and delete contracts (regular-file deletion; folder removal remains an explicit gap).
 - [ ] Durable local file contents and journal before local-save acknowledgement.
@@ -72,6 +121,12 @@ unsupported Microsoft features are documented rather than silently emulated.
 
 ## 5. Polished desktop experience
 
+The first GTK4/libadwaita window now displays saved accounts and confirmed service
+state, changes the desired mount preference by account UUID, and opens confirmed
+mounts in Files. Slow status I/O stays off GTK's main loop. Synthetic native-window
+tests cover mount acknowledgement and keyboard focus. This is an initial settings
+slice, not the complete setup experience; see [Desktop preview](desktop.md).
+
 - [ ] GTK4/libadwaita setup and settings without a terminal in ordinary flows.
 - [ ] Account picker, mount controls, reconnect, connection removal and cleanup.
 - [ ] Tray status and actions using the daemon as the source of truth.
@@ -84,8 +139,13 @@ conflicted and failed states without reporting unsent content as uploaded.
 
 ## 6. Installable OneDrive 1.0
 
-- [ ] Arch package/AUR recipe, release artifacts and reproducible build procedure.
+- [ ] Native Arch/AUR, Debian/Ubuntu `.deb` and Fedora `.rpm` packages from the same
+      release, with the clean-system checks in [Distribution](distribution.md).
+- [ ] Signed APT and COPR update channels, release artifacts, source/provenance,
+      supported-version matrix and measured reproducible build procedure.
 - [ ] Fresh installation through sign-in and reboot verified outside development.
+      Validate this on each declared distribution family, including Fedora with
+      SELinux enabled; an Ubuntu CI build is not an installation check.
 - [ ] Upgrade/migration rollback protects settings, credentials and pending work.
 - [ ] Clean uninstall and explicit retention/removal choices for local data.
 - [ ] User documentation, redacted diagnostics and supported-version policy.

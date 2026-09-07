@@ -8,7 +8,7 @@ acceptance for roadmap stages 1–3.
 ## Local checks
 
 - Formatting and strict Clippy cover all crates and test targets.
-- Current default workspace suite: **96 tests passed**. Eight kernel-FUSE tests
+- Current default workspace suite: **160 tests passed**. Twenty-one kernel-FUSE tests
   run separately; subprocess fixture entry points and the optional performance
   fixture remain excluded from the default suite.
 - Built both binaries and generated workspace Rustdoc.
@@ -55,7 +55,7 @@ The content tests check 32-reader coalescing, offsets beyond 2 GiB in a syntheti
 3 GiB file, offline cache reuse after restart, corruption recovery, interrupted
 publication cleanup, quota enforcement and shared-failure retry suppression.
 
-Eight tests ran against **real kernel FUSE mounts** in temporary directories:
+The read-only baseline ran against **real kernel FUSE mounts** in temporary directories:
 
 - Normal file reads, linked-library projection, duplicate-alias inodes, deep
   traversal, large seeks, EROFS on writes, stable inodes/cache after restart,
@@ -195,6 +195,186 @@ identifiers and timings remain in private local evidence. See
 [the notification decision](adr/0003-change-notifications.md) for the acceptance
 plan and repeat command.
 
+## Recently used directory freshness
+
+Eight additional default tests cover bounded activity leases, scheduling fairness,
+error backoff, cached and cold navigation while another listing stalls, activity
+that cannot bypass throttling, and fresh observations surviving empty/unrelated
+deltas. Repeated identical observations do not emit another filesystem reload.
+
+The initial activity commit passed one CI run but failed the concurrent cold-listing
+fixture in another. A four-writer store regression reproduced SQLITE_BUSY during
+the new metadata comparison's deferred read-to-write transaction upgrade. Directory
+observation and delta staging now start immediate transactions before their
+read/modify/write work, so writer admission uses the bounded busy timeout. The
+regression passes, including mixed observation/delta writers, and verifies every
+worker's final listing. Network work remains outside the transaction.
+
+A ninth kernel-FUSE test verifies new, renamed (including Unicode) and deleted
+entries while a content read remains blocked. It disables push and sets the delta
+timer to one hour; the bounded directory worker must make each change visible.
+The existing push test stalls the activity listing so push remains its only route
+to fresh metadata. Both mechanisms therefore have independent mounted-path checks.
+
+One full local FUSE run encountered a transient busy mount in the existing
+ejection fixture; its isolated repetition passed. The fixture now requires an
+ordinary unmount within two seconds, retrying only EBUSY and never forcing a detach.
+The full nine-test run then passed. The source of the transient busy state was not
+established; this is not proof of a fixed production mount-lifecycle defect.
+
+A subsequent CI run passed the metadata tests but encountered Busy when an existing
+upload-journal fixture reopened after dropping its owner. Parallel crash tests can
+briefly retain inherited flock descriptions between fork and exec. The test-only
+reopen helper permits up to one second for Busy; other errors return immediately,
+and held-owner exclusion remains an immediate assertion. This does not change
+production ownership or prove a process trace of that CI failure.
+
+An isolated business-drive check additionally passed actual Graph listings through
+a kernel mount: creation of one generated child folder and two conditional Unicode
+renames appeared in the mounted directory. A validation-only root baseline and
+disabled push excluded Graph delta/notifications from satisfying the check. Each
+sample followed an already completed directory listing; acknowledgement-to-mount
+visibility and page counts are recorded privately. The temporary mount stopped
+cleanly after success and the generated fixture was retained. The installed daemon
+and its ordinary read-only mount were not changed.
+
+This establishes only the small generated-folder case on the selected business
+drive. Graph listing-to-desktop latency, multiple large active directories, request
+cost, content reads and indefinitely visible windows remain separate validation
+gates. No installed-runtime upgrade is implied by building or merging these changes.
+See [the repeat command](write-validation.md#check-directory-freshness-through-an-actual-mount).
+
+## Open application handles during shutdown
+
+A mounted desktop upgrade detached its read-only filesystem but the daemon did
+not exit before the service stop timeout. A new kernel regression reproduced that
+behavior by retaining both an application file descriptor and a directory
+descriptor: the old session join finished only after those descriptors closed.
+The original process's exact retained descriptors were not traced.
+
+The session now retains its own FUSE connection-control descriptor when mounting,
+unmounts before disconnecting the connection and joins its request threads. Missing
+control access rejects the mount explicitly. The regression passes with handles
+still open and checks that a second mount with the same account identity remains
+readable. A separate subprocess test sends SIGTERM to a synthetic account manager
+while the parent retains both handles; the whole child process exits successfully,
+the mount disappears and the account state can be owned again.
+
+All eleven local kernel-FUSE tests pass, including read/mmap consistency, lazy
+ejection recovery, thumbnail contention and the two new lifecycle checks. These
+are synthetic fixtures with no cloud credentials. They do not prove every possible
+shutdown failure, writable-save draining, or a successful installed desktop upgrade.
+
+## Actual notification renewal
+
+An isolated business-drive run of the notification validator with `--check-renewal`
+completed its real approximately 50-minute renewal, established the replacement
+connection, and observed a subsequent generated-fixture rename through a fresh
+notification-triggered delta. All four generated changes passed and the test
+process exited successfully. Event details and provider timings remain private.
+This closes that particular business-drive renewal check, not the wider personal
+account, suspend/outage, delivery-latency or 24-hour acceptance matrix.
+
+## Experimental local application saves
+
+The generation journal and initial writable FUSE API now pass 118 default workspace
+tests and fourteen actual kernel-FUSE checks on the local development system.
+Formatting, strict workspace clippy, build, service smoke checks, two observer tests
+and Rust documentation also pass. The three new kernel checks use only generated
+local fixtures, without cloud credentials or changes to installed mounts.
+
+The writable checks cover create, partial overwrite of an existing version,
+truncate, repeated fsync, immutable generations during an outstanding upload,
+and offline remount. A blocked hydration leaves cached directory browsing and an
+independent local save operational. Closing a read-only preview cannot seal an
+unfinished write; a regression first reproduced that behavior, then passed after
+restricting save sealing to write handles. A subprocess test kills the synthetic
+filesystem daemon while a separate application holds a write handle, then checks
+both the sealed generation and newer dirty bytes through an offline remount.
+
+Additional journal tests inject metadata and queue-commit failures, exceed storage
+quota, reject incomplete hydrated sources, and kill a process after a saved version
+and subsequent unsealed edits. A synthetic upload worker resumes an interrupted
+first generation and then uploads its successor with the predecessor's confirmed
+identity and ETag. Generation eligibility also retains ordering against namespace
+operations when remote creation assigns a new item ID.
+
+This is initial mounted-write integration, not completion of milestone 2. The
+normal daemon still mounts read-only. Atomic replacement, writable folder/name
+operations, conflicts in the desktop UI and broader live-provider application-save
+validation remain open. Writable mmap and metadata
+changes are explicitly unsupported. Process kills and injected storage failures do
+not establish physical power-loss or physical disk-full behavior.
+
+## Automatic uploads and writable-session shutdown
+
+The experimental session now owns its upload workers and stops mutating callback
+admission before draining local edits. The updated code passes 121 default workspace
+tests and eighteen actual synthetic kernel-FUSE checks. Formatting, strict Clippy,
+workspace build, service smoke, two observer tests and Rust documentation pass.
+
+Four additional mounted tests verify:
+
+- Consecutive application saves upload automatically in order; an unsealed edit
+  on an open handle is sealed by shutdown and uploaded after restart.
+- Stalled provider and keyring futures that ignore cancellation cannot indefinitely
+  block shutdown; local snapshots remain exact and require remote reconciliation.
+- Shutdown waits for a previously accepted write blocked on local journal storage,
+  then preserves its exact bytes before detaching the mount.
+- Insufficient snapshot quota returns a shutdown error while retaining the dirty
+  working file and releasing the temporary mount.
+
+A generated-folder business-drive run also passed two application saves through an
+actual writable mount. A separate application process wrote and fsynced two versions
+of a Unicode-named file; both generations uploaded automatically, their size/hash
+matched the application reports, and independent Graph content readback matched the
+final snapshot. The temporary mount shut down successfully. The test used only a
+new run-owned folder and retained its synthetic cloud file and private evidence.
+Its guarded adapter did not index the account or expose existing files for mutation.
+This is one small business-drive fixture, not a latency distribution, large-file
+benchmark, personal-account check or desktop-application save matrix.
+Atomic replacement, folder operations, physical disk failure and the ordinary
+application compatibility matrix remain open.
+
+### Kernel test isolation and memory measurement
+
+The first CI pair for the writable-session change had one passing run and one
+failure in existing read-only tests: an application-memory assertion and the
+thumbnail-burst deadline. A controlled child-process experiment reproduced a
+measurement defect: `ru_maxrss` could include inherited memory before exec even
+when the Python application's own address space remained small. The mmap test now
+uses that application's `/proc/self/status` `VmHWM`, retaining the 128 MiB limit
+and all byte/mapping assertions.
+
+The original CI log did not separate thumbnail file opening from active reads, so
+the exact phase responsible for its timeout is unknown. Setup and the subsequent
+96-reader burst now each have a bounded deadline; cached-directory requests still
+must finish within 500 ms and no content request may fail or be retried. Independent
+kernel fixtures run sequentially in CI to avoid competing with these latency
+checks. Internal request/account concurrency remains tested. The pre-change suite
+also passed a local two-CPU run; that pass does not explain the CI timeout or
+establish a runtime performance fix.
+The corrected fourteen-test read-only kernel suite passed with two CPUs and
+sequential fixtures. The 121 default workspace tests and strict Clippy passed again;
+these corrections change the validation harness, not the live-tested runtime.
+
+A later push run at `db9bfe3` timed out during the active burst with 93 of 96
+provider reads started; its parallel PR run passed. A local two-CPU reproduction
+passed in 7.97 seconds, with 6.34 seconds of user CPU time. This does not establish
+the cause of the CI host's delay. Each 64 KiB application read loads a distinct
+3,100,000-byte cache block, so this fixture generates and durably caches nearly
+300 MB, including eviction under its 16 MiB quota.
+
+The burst now has a 60-second completion bound, allowing the separate bounded
+queue and provider phases, without treating 20 seconds of aggregate disk throughput
+as a product requirement. Every cached directory request must still finish within
+500 ms. Navigation is sampled throughout the entire burst, including later queued
+waves and eviction, rather than only at its start. Every read must return correct
+bytes without failures or provider retries. Output includes elapsed time, sample
+count and maximum navigation latency; the containing sequential CI suite has a
+150-second bound. This is a validation correction, not a runtime performance fix
+or real-provider latency claim.
+
 ## Required before calling stages 1–3 complete
 
 - Cirrove's own Microsoft app registration, real consent and verified work-account,
@@ -213,3 +393,452 @@ plan and repeat command.
 Writes, pinning, conflict recovery, desktop badges/settings, Google Drive and iCloud
 remain later milestones. Unit tests and orderly reopen tests do not simulate actual
 power loss, hardware failure or every application behavior.
+
+
+## Save/rename/save lineage and shutdown follow-up
+
+Nine journal fixtures exercise operation chains across uploads and namespace
+changes, including restart after a lost rename response, conflicting edits,
+cross-kind successor exclusion, schema-5 migration, rollback of a local rename
+when its intent transaction fails, and rebinding more than one claim batch.
+A worker regression additionally verifies that a reconciled rename containing
+another actor's newer file content becomes a conflict and retains the next local
+save. A controlled run against the former unconditional acknowledgement failed
+that regression; the corrected journal and worker passed. Unknown content lineage
+requires review instead of allowing a later upload to adopt it as a safe base.
+These are synthetic journal/worker checks. Mounted rename, atomic replacement and
+real-provider save/rename/save validation remain outstanding.
+
+A repeated writable-session run exposed a test synchronization error: unrelated
+FLUSH callbacks were counted as admission of the intended blocked write. The test
+now keeps the application descriptor in a separate Python process and gates its
+write after the initial fsync callback drains. Its original shutdown deadline,
+retained-byte assertion and requirement to finish with the application's handle
+still open remain. Another assertion now permits the retained upload to be pending
+or require verification: an early FLUSH can legitimately let the worker claim it
+before cancellation. Both cases must retain the exact bytes and resume to the
+correct cloud content.
+
+The same investigation exposed intermittent EACCES on the first file creation.
+A controlled temporary fault injection invalidated the root inode while its initial
+GETATTR response was outstanding and reproduced the failure. Skipping invalidation
+of the mount's fixed, synthetic root attributes passed that same injected ordering.
+Child entry invalidations remain active; directory handles do not enable kernel
+readdir caching. Diagnostic delays and logging were removed afterward. Twenty
+consecutive runs of the final four-test writable suite passed (80 test executions).
+This is bounded local synthetic evidence, not sustained real-provider acceptance.
+
+
+## Sparse namespace and actual mounted file relocation
+
+Thirteen additional default fixtures cover metadata-only identity, name/intent
+rollback, local collisions, explicit foreign-name conflicts, collection isolation,
+case policies, attachment after an old name is reused, stale hydration, zero-byte
+truncation, receipt/remote-alias atomicity, schema-6 migration and delayed memory
+publication. A renamed 500 GiB metadata object reserves no working bytes under a
+1 KiB quota. The projection regression publishes newer snapshots before older
+callbacks and checks that both the final name and assigned remote alias survive.
+
+Two additional actual synthetic FUSE tests exercise separate Python applications:
+
+- A 500 GiB online-only file is renamed and moved under a 1 MiB spool quota, with
+  stable inode and zero content reads. An occupied destination is preserved. The
+  session is shut down with a stalled mutation and its journal is reopened. A lost
+  retry response is reconciled without replaying the move, after which a mounted
+  truncate/write/fsync follows the confirmed move's ETag and uploads correctly.
+- A lost move response is followed by another actor's content change. The next
+  mounted save stays pending behind the resulting conflict; local bytes remain
+  readable and retained after shutdown, and the foreign cloud content is preserved.
+
+The first mounted truncation attempt failed with ENOSPC because Linux stripped
+O_TRUNC from OPEN before a later SETATTR. Requiring FUSE_ATOMIC_O_TRUNC made the same
+large-file test pass without hydration. A parallel fixture's immediate journal
+reopen also saw Busy while another test fork briefly retained its lease descriptor;
+the test now retries only Busy for at most two seconds, without displacing any owner.
+
+These checks cover regular-file relocation in isolated synthetic mounts. The
+ordinary manager remains read-only. Writable directories, open-unlinked handles,
+atomic replacement, clean-object retirement, later remote-edit rebasing, full
+application compatibility and real-provider mounted rename/save acceptance remain
+outstanding. No installed daemon or existing cloud document was changed by these
+checks.
+
+The completed local verification run passed 144 default workspace tests, all 20
+actual synthetic kernel-FUSE checks, formatting, strict Clippy, workspace build,
+executable service smoke, two observer tests and Rustdoc. These counts include the
+previous lineage and lifecycle cases; they do not establish real-provider readiness.
+
+## Ordered metadata observations
+
+Two controlled regressions failed before this fix: a held directory response
+returned an old name after a newer listing committed, and a held item response
+restored an older content revision and size. Both now use the newer committed
+metadata, even when the provider goes offline before releasing the old response.
+A third engine fixture verifies a bounded retry when the newer observation has
+not established a complete directory view.
+
+Thirteen store fixtures cover moves across parents, unrelated scopes, unknown-parent
+deletions, empty deltas, replacement baselines, request ordering across paginated
+feeds, transaction rollback, schema-3 migration, database-bound tickets, unchanged
+observations, coherent cached listings and negative observations. Foreground absence
+preserves the committed delta baseline and yields to a later-started feed.
+
+An additional actual kernel-FUSE fixture holds a cold directory response while a
+newer delta renames its child. A separate Python application's listing sees only
+the new name after the old response is released, with zero content reads. All 160
+default tests and 21 actual synthetic FUSE tests passed, including existing navigation
+under load and writable-session recovery. Formatting, strict Clippy, workspace build,
+executable smoke, two observer checks and Rustdoc also passed. These tests use synthetic providers;
+they do not establish real-provider latency or complete the outstanding clean-object
+retirement and remote-edit rebasing work in experimental writable mounts.
+
+The PR CI passed this increment, while its parallel push CI found account-lock
+contention during immediate synthetic session restart. A local concurrent rerun
+reproduced it in a second restart fixture. Both fixtures now assert that the old
+Engine has no remaining owner, then permit only WouldBlock for at most two seconds
+while forked helpers release inherited lock descriptors at exec. Production locking
+is unchanged. The corrected six-test concurrent suite passed ten consecutive runs
+(60 executions), and the full 160-test default suite also passed again.
+
+## Releasing acknowledged working copies and following remote changes
+
+A synthetic kernel-mount regression against the preceding implementation reproduced
+permanent retention of a closed, acknowledged working copy. The current mount
+fixture verifies that acknowledged upload payloads are collected while an open
+application still retains its working bytes. After the last handle closes, working
+storage is released and a foreign remote edit/rename becomes visible with the same
+local inode. A subsequent mounted save uses that newer remote ETag and uploads
+successfully. Restart, a further metadata-only rename with no hydration, and remote
+deletion also pass. A second deletion case removes the remote file before its last
+local handle closes; an ordered NotFound observation removes the cached entry and
+permits cleanup without leaving a ghost file.
+
+Eight journal fixtures cover the acknowledged frontier, dirty/pending/in-flight
+retention, stable aliases, reactivation, failed detach transactions, interrupted
+cleanup and schema-7 migration to journal schema 8. Cleanup refuses symlink targets,
+retains unknown spool files and retries acknowledged-payload removal after a failed
+metadata checkpoint. Four service unit fixtures cover new access and edits during
+a held metadata request, cancellation of an uncooperative provider, failed local
+publication and delayed callbacks, and per-object backoff across idle passes.
+Three store fixtures and one engine fixture check ordered NotFound publication,
+rollback and supersession by newer positive metadata or complete parent listings.
+
+The final local run passed 176 default workspace tests and all 22 actual synthetic
+kernel-FUSE tests, plus formatting, strict Clippy, workspace build, executable service
+smoke, two observer checks and Rustdoc. These tests do not access live cloud accounts
+or replace the installed service. Full application atomic-save behavior,
+open-unlinked files, writable directories, alias/history retention at scale and
+real-provider mounted acceptance remain open.
+
+## Regular-file unlink and retained open streams
+
+Six additional journal fixtures exercise deleting an online-only file without
+reserving its contents, name reuse with independent streams, create/delete ordering,
+later descriptor writes, transaction rollback, conflict/uncertainty retention,
+schema-8 migration and recovery of a previous process's local-reader barriers.
+The deletion still waits for its confirmed remote predecessor; releasing a local
+reader barrier cannot bypass that receipt dependency or remove retained bytes.
+
+Five additional actual synthetic FUSE tests cover open-handle reads and truncation
+after unlink, zero link counts, name reuse, absence of later orphan uploads, restart,
+zero-hydration deletion of a 500 GiB virtual file, a held range request, spool quota
+failure, and shutdown with a provider that ignores cancellation. The held-read fixture
+initially blocked another application's sibling-file create because preservation
+ran inside unlink. Moving preservation behind a persisted background barrier made
+the same scenario pass: local unlink and the independent save finish while the
+provider read stays held, but the cloud DELETE remains ineligible until readers are
+safe. Quota failure keeps the cloud content until the last reader closes; shutdown
+cancels an uncooperative range request and restart resumes the retained deletion.
+
+The full local run passed 182 default workspace tests and all 27 actual synthetic
+kernel-FUSE tests, formatting, strict Clippy, workspace build, executable smoke,
+two observer checks and Rustdoc. No live cloud documents or installed services were
+changed. Atomic replacement of open files, detached-data recovery and cleanup,
+restoration of the same remote identity and broader provider/application acceptance
+remain open.
+
+## Separate local identities and provider lookups
+
+A journal regression now refuses provider metadata whose opaque ID equals an
+unrelated, unacknowledged local ID, retaining the local name, bytes and revision
+across restart. Created-file receipt checks assert that a provider ID does not
+resolve through the local-identity query, and vice versa, before and after restart.
+A projection fixture models two identity domains with equal strings, checks that
+their working streams remain distinct after a binding update and a delayed callback,
+and still rejects two owners of one provider identity. That fixture isolates the
+lookup boundary; it does not perform a durable binding transfer or FUSE replacement.
+
+The full local run passed 184 default workspace tests and all 27 actual synthetic
+kernel-FUSE tests, plus formatting, strict Clippy, workspace build, executable smoke,
+two observer checks and Rustdoc. Existing mounted rename, handoff, unlink and restart
+fixtures pass with the separated lookup paths. The journal schema remains 9, and
+no live cloud documents or installed service state were changed. Joint binding
+transfer, multi-object operation prerequisites and atomic application replacement
+remain open.
+
+## Two-object replacement in the journal
+
+Six completion-prerequisite fixtures distinguish the target's content/ETag base
+from prior source operations and guarded cleanup. They cover an uncertain target
+publication across restart, failed/conflicted prerequisites, independent-file
+progress, namespace prerequisites, explicit verification, validation before source
+reads, transaction rollback and schema-9 migration. Ordering dependencies never
+supply another file's identity or consume its linear content successor.
+
+Nine additional journal fixtures exercise atomic local path takeover with retained
+victim streams, later writes to detached bytes, active-binding transfer with upload
+acknowledgement, later saves/renames, two pending creates, source cleanup and conflicts.
+They also cover rollback after local path changes and after all binding changes,
+reconciliation after restart, consecutive pending replacements, snapshot-quota failure,
+a 500 GiB victim without local hydration, process-local reader barriers, already
+cached source/target files and schema-10 migration. The owner-index check confirms
+indexed lookup and refusal of a second active provider binding for one object.
+
+The full local run passed 199 default workspace tests and all 27 existing actual
+synthetic kernel-FUSE tests, plus formatting, strict Clippy, workspace build,
+executable smoke, two observer checks and Rustdoc. The FUSE checks are regression
+coverage for existing mounted behavior; **they do not exercise mounted replacement**.
+FUSE still refuses replacement of an occupied path. Atomic in-memory publication,
+background preservation of old readers, uncached-source preparation and actual
+application/provider replacement acceptance remain open. No live cloud documents
+or installed service state were changed.
+
+## Atomic publication of local namespace changes
+
+Journal schema 12 records one coalesced change marker per local object. The mount
+publishes the complete changed set at a committed database frontier, including all
+sides of ownership transfers. Four journal fixtures exercise repeated writes with
+128 unchanged objects, indexed incremental reads, actual schema-11 migration,
+restart, missing publication structures, transaction rollback and clock exhaustion.
+Four projection fixtures exercise target-binding transfer in adversarial object
+order, chained replacements with delayed callbacks, rejected incomplete/corrupt
+batches and acknowledgement rollback followed by successful retry. Old, intermediate
+and current local streams retain their separate bytes.
+
+The final local run passed 207 default workspace tests and all 27 existing actual
+synthetic kernel-FUSE checks, plus formatting, strict Clippy, build, executable
+smoke, two observer checks and Rustdoc. SQLite snapshot reads and decoding leave
+cached projection lookups available; final index publication holds the projection
+lock. These checks do not establish a new latency bound or large-library capacity.
+
+The ordinary service remains read-only, and experimental FUSE rename still refuses
+an occupied destination. Replacement-specific reader preservation, deferred
+preparation of uncached sources and actual mounted application-save acceptance
+remain open. The 10,000-object namespace limit bounds a publication batch; removing
+that limit requires bounded transaction groups and retained-history cleanup.
+No installed service, credentials or cloud files were changed.
+
+## Mounted regular-file replacement and deferred source capture
+
+Experimental FUSE rename now replaces an occupied regular-file path, including
+when its source exists only online. Local namespace acceptance does not wait for
+source downloads. Journal schema 13 retains a `Preparing` operation until the
+original source version has a complete immutable snapshot. Target publication
+and guarded source cleanup remain behind separate receipt and reader barriers.
+
+Nine journal fixtures exercise source/target identity separation, newer edits
+during preparation, source-move receipts, quota failure, blocked conflicts with
+independent-file progress, schema-12 migration and refusal of missing/future
+schemas. They also check attempt fencing, ownership across asynchronous downloads,
+restart reader gates, reclamation of identified capture temporaries, adoption after
+failed final SQL publication, same-length corruption detection using the durable
+checksum, and refusal of delayed hydration after provider-binding transfer.
+
+Four additional actual synthetic kernel-FUSE tests use separate application
+processes. They cover two consecutive atomic saves with retained old descriptors,
+replacement of an online-only source while its download is held, a held old-target
+range read while independent saves continue, and shutdown/remount during source
+capture. Old descriptors retain their own bytes and zero link counts. Conditional
+source cleanup waits until readers are safe and target publication is acknowledged;
+writes through detached descriptors remain local recovery data.
+
+The final local run passed 216 default workspace tests and all 31 actual synthetic
+kernel-FUSE checks (15 read-only-suite checks and 16 writable-session checks), plus
+formatting, strict Clippy, workspace build, executable smoke, two observer checks
+and Rustdoc. The nested helper result in the read-only suite is not counted twice.
+These checks use synthetic providers and do not change installed services or live
+cloud documents. Writable directories, ordinary editor/office acceptance, live
+Graph replacement and cleanup, physical fault testing, detached-data recovery and
+bounded retained history remain release gates. Ordinary mounts stay read-only;
+all six product milestones remain open.
+
+## Expanded mounted OneDrive acceptance command
+
+The developer-only `validate-onedrive-writable` sequence now includes two
+temporary-file atomic replacements and another replacement using a retired,
+online-only source after reopening the engine and journal. It demands eight
+upload receipts and three conditional source-cleanup receipts, independent
+destination-content and source-absence checks, and a complete final listing of
+the fresh test folder. Local rename time is separate from cloud completion.
+
+Two new local fixtures check the separate application's old-descriptor/inode/byte
+assertions and its reuse of the temporary name, and refusal of foreign scope,
+foreign identity, folders, linked targets, root targets, missing/wildcard ETags,
+outside-root relocation and mismatched cleanup receipts. The application fixture
+uses ordinary local files; it does not establish Graph behavior. All 218 default
+workspace tests and the existing 31 actual synthetic kernel-FUSE checks passed,
+with formatting, strict Clippy, build, smoke, two observer checks and Rustdoc.
+
+The expanded live sequence has **not yet been executed**. Its launch remains
+pending explicit authorization for the new folder, generated uploads and three
+conditional deletions of run-created sources. Earlier live evidence remains
+limited to the already recorded operations and two basic mounted saves. This
+increment does not close the application/provider acceptance matrix or any of
+the six release milestones.
+
+
+## Pending local directories (2026-09-07)
+
+Seven synthetic journal tests cover nested folders and sibling creates, preservation
+after an uncertain parent across restart, destination-name ordering after binding,
+transaction rollback, migration from schema 13 and refusal of missing/future schema,
+rejection of unrelated folder receipts, and both arrival orders of a file's source
+upload and destination-folder confirmation.
+
+Two additional actual kernel FUSE fixtures use an in-memory provider that refuses
+unknown or nonfolder parent IDs. A held folder creation does not block nested mkdir,
+file writes, fsync, reads or an independent root upload. After confirmation, children
+have the correct provider parents. Folder inode identity survives cleanup and remount;
+a remotely added child can then be read, appended and moved through local folder
+aliases. An interrupted folder request enters review after restart, retaining nested
+local bytes while an independent file uploads. File/directory name collisions are
+refused. The cleanup assertion allows the existing two-second per-object maintenance
+interval and its later physical-removal pass; production timing was not changed.
+
+These are synthetic service/filesystem checks, not live OneDrive directory evidence.
+Folder rename, safe folder removal, broader application saves, provider concurrency,
+physical faults and bounded history/recovery remain acceptance gaps. All six product
+milestones remain open, and ordinary mounted drives remain read-only.
+
+The final local run passed 225 default workspace tests, 15 read-only/lifecycle
+kernel fixtures and 18 writable-session kernel fixtures, plus formatting, strict
+Clippy, build, smoke, two observer-script checks and Rustdoc.
+
+
+## Retained routes to local changes (2026-09-07)
+
+A journal reproduction first demonstrated that a remotely absent, already handed-off
+folder could hide a later local child. Four synthetic journal checks now exercise
+that case; source-link/target-collection routes, restart and release after confirmed
+child handoff; name reuse, bounded capture and transaction rollback; and preservation
+of foreign name occupants as explicit collisions. Captures create no provider intents.
+
+Two added actual kernel fixtures cover existing native folders, a SharePoint-style
+link to another collection, and a file link whose target has a different local and
+provider ID. They remove the synthetic provider's items, commit a complete replacement
+metadata baseline, and verify local bytes and directory traversal before and after
+reopening both engine and journal. File-link edits address the target's current local
+owner. It also rejects new opens through a dangling link after local target removal,
+while an existing descriptor retains its bytes. No automatic cloud recreation is
+queued. The provider fixture uses only generated local
+data, so these checks do not establish real OneDrive/SharePoint compatibility.
+
+Ancestor routes remain until the associated local objects hand off to remote metadata.
+They do not redirect failed uploads, implement a recovery UI, supply content that was
+never downloaded, or recover vanished paths absent from older journal records. Folder
+rename/removal, large-library retention, live provider/application acceptance and the
+other product milestones remain open.
+
+Final local validation passed 229 default workspace tests and 35 actual synthetic
+FUSE fixtures (15 read-only/lifecycle and 20 writable-session), plus formatting,
+strict Clippy, build, smoke, two observer checks and Rustdoc.
+
+
+## Namespace capacity baseline
+
+A generated provider and actual temporary FUSE mount measured 500,000 zero-byte
+file metadata entries across 500 directories. Metadata arrived in 1,000-entry
+pages through the normal refresh/index path; no provider kept a 500k-node in-memory
+fixture map. The service was indexed before the first memory baseline. Three
+traversals changed every file's content revision between passes. No file contents,
+real accounts or keyring credentials were used. Each sample was taken after all
+application directory handles had closed.
+
+| Sample | Retained views | Process RSS (MiB) | Open files/directories |
+| --- | ---: | ---: | ---: |
+| Indexed, before traversal | 1 | 20.6 | 0 / 0 |
+| After revision 1 | 500,501 | 896.5 | 0 / 0 |
+| After revision 2 | 1,000,501 | 1,763.6 | 0 / 0 |
+| After revision 3 | 1,500,501 | 2,071.4 | 0 / 0 |
+
+Peak process RSS reached 2,287.2 MiB. Indexed traversal made no foreground provider
+metadata requests and no content reads. The complete debug-build fixture took
+111.15 seconds locally. Runtime source was `5b1128e`; the added fixture is compiled
+only into service tests. [Raw synthetic measurements](benchmarks/namespace-baseline.json)
+include PSS, map capacity and per-phase timings.
+
+This confirms the namespace-retention weakness and **does not pass** the proposed
+memory gate. Closed application handles are not a measurement of kernel lookup
+references; the later reference-lifetime correction is tested separately below. These numbers depend
+on this fixture's names, directory shape, allocator and build. The run does not
+measure real Graph latency, one huge directory, deep/duplicate aliases, held
+mappings or a 24-hour session. The 10,000-file pilot also showed accumulation
+(10,011, 20,011 and 30,011 views across revisions), before the full-size run.
+
+See [reproduction](development.md#namespace-capacity-baseline) and the
+[namespace lifetime decision](adr/0005-namespace-memory.md) for the next correctness,
+reclamation and capacity checks. No installed service was replaced by this test.
+
+
+## Directory-listing lifetime correction
+
+Plain READDIR projections now stay in their directory handle's snapshot and are
+not duplicated into the mount-wide resolved-view map. Kernel lookup references
+are established by LOOKUP/create, not by returning names from plain READDIR.
+This initial correction kept resolved views and old open-file versions retained. The dedicated
+3,000-file kernel regression checks the retained-view bound after enumeration,
+then keeps an old file open across a remote revision and verifies a distinct new
+inode without overwriting the old view. This check also runs in CI.
+
+Repeating the exact 500,000-file, three-revision workload above produced:
+
+| Sample | Retained views | Process RSS (MiB) | Open files/directories |
+| --- | ---: | ---: | ---: |
+| Indexed, before traversal | 1 | 20.9 | 0 / 0 |
+| After revision 1 | 501 | 30.8 | 0 / 0 |
+| After revision 2 | 501 | 40.8 | 0 / 0 |
+| After revision 3 | 501 | 49.9 | 0 / 0 |
+
+The complete debug fixture took 110.66 seconds. No content or foreground provider
+requests occurred. [Raw correction measurements](benchmarks/namespace-listing-lifetime.json)
+record the same fields as the baseline. This is a reduction from 2,071.4 to 49.9 MiB
+at the final sample for this workload, not a general memory bound or an API-speed
+claim. Retained views plateau here, while RSS still increases across revisions;
+allocator/SQLite/persistent-index effects need longer-session investigation.
+
+A byte budget, directory reclamation, large-directory paging, scoped invalidation
+and 24-hour churn remain open. A file manager that stats or opens every file
+exercises a different lifetime from this name-enumeration workload. The subsequent
+regular-file reference correction is tested separately below. These RSS results
+belong to the listing-only correction, not a new measurement of later changes.
+The OneDrive-1.0 namespace memory gate remains open.
+
+## Regular-file reference lifetime
+
+Five focused unit tests cover partial and final FORGET, shared operation/open-file
+leases, replacement of an existing inode's path, stale collector generations,
+checked underflow/overflow and bounded collection without discarding directory
+ancestry. The actual-kernel fixture stats 300 generated files, retains one open
+file and publishes another remote revision. All other regular-file views retire
+after invalidation. A newly opened revision receives a different inode, while the
+old descriptor still sees its original identity. Closing both descriptors and
+invalidating their dentries allows the remaining file views to retire.
+
+The fixture uses only generated metadata and a temporary mount, with zero content
+reads or foreground provider requests. CI runs it alongside the 3,000-file
+listing regression. This does not establish byte-budget compliance, complete
+directory lifetimes, interrupted reply delivery or long-session capacity.
+
+The unchanged 500,000-file name-enumeration benchmark was also repeated at
+`e779209` after this correction. Resident views were 1 after indexing and 501
+after each traversal; RSS was 21.0, 31.3, 41.3 and 50.4 MiB. The full debug fixture
+took 113.22 seconds and made no foreground provider/content requests.
+[Raw reference-lifetime measurements](benchmarks/namespace-reference-lifetime.json)
+record the exact commit and PSS/peak fields. This checks that adding reference
+accounting preserves the earlier listing improvement; the benchmark itself does
+not exercise mass file lookups or close the memory gate.
+
+At this revision, formatting, strict workspace Clippy, 239 default tests, 37
+synthetic actual-kernel mount tests, workspace build, daemon smoke and Rustdoc
+passed locally. The actual mount coverage includes old/new memory mappings,
+in-flight reads, local saves, unlink, replacement, ancestor recovery and shutdown.

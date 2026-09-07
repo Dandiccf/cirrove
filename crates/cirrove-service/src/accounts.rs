@@ -397,13 +397,20 @@ pub async fn connect(
     Ok(())
 }
 pub fn set_enabled(state: &Path, label: &str, enabled: bool) -> Result<()> {
+    update_enabled(state, |account| account.label == label, enabled)
+}
+/// Desktop actions address the persisted account identity, never a reusable label.
+pub fn set_enabled_by_id(state: &Path, id: &str, enabled: bool) -> Result<()> {
+    update_enabled(state, |account| account.id == id, enabled)
+}
+fn update_enabled(state: &Path, select: impl Fn(&Account) -> bool, enabled: bool) -> Result<()> {
     let _lock = config_lock(state)?;
     let mut settings = Settings::load(state)?;
     let account = settings
         .accounts
         .iter_mut()
-        .find(|a| a.label == label)
-        .context("unknown account label")?;
+        .find(|a| select(a))
+        .context("account is no longer configured")?;
     let _operation = account_operation(state, &account.id)?;
     account.enabled = enabled;
     settings.save(state)

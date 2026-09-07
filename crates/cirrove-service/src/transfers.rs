@@ -8,6 +8,7 @@ use cirrove_core::upload::{
 use cirrove_core::{CancellationToken, ProviderError};
 use secrecy::SecretString;
 use std::{
+    future::Future,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -66,17 +67,29 @@ impl TransferWorker {
         .map_err(|_| TransferError::Worker)?
         .map_err(Into::into)
     }
+    async fn remote<T>(
+        &self,
+        deadline: Duration,
+        call: impl Future<Output = cirrove_core::upload::Result<T>>,
+    ) -> Result<T> {
+        tokio::select! {
+            biased;
+            _ = self.cancel.cancelled()=>Err(UploadError::Uncertain.into()),
+            result=tokio::time::timeout(deadline,call)=>result.map_err(|_|TransferError::Provider(UploadError::Uncertain))?.map_err(Into::into),
+        }
+    }
+    async fn credential<T>(&self, call: impl Future<Output = anyhow::Result<T>>) -> Result<T> {
+        tokio::select! {
+            biased;
+            _ = self.cancel.cancelled()=>Err(UploadError::Uncertain.into()),
+            result=tokio::time::timeout(Duration::from_secs(30),call)=>result.map_err(|_|TransferError::Vault)?.map_err(|_|TransferError::Vault),
+        }
+    }
     fn vault_key(id: Uuid) -> String {
         format!("upload/{id}")
     }
     async fn load_checkpoint(&self, id: Uuid) -> Result<Option<SecretString>> {
-        tokio::time::timeout(
-            Duration::from_secs(30),
-            self.vault.load(&Self::vault_key(id)),
-        )
-        .await
-        .map_err(|_| TransferError::Vault)?
-        .map_err(|_| TransferError::Vault)
+        self.credential(self.vault.load(&Self::vault_key(id))).await
     }
     async fn checkpoint(
         &self,
@@ -88,25 +101,21 @@ impl TransferWorker {
         let attempt = record.attempt.ok_or(TransferError::Worker)?;
         // A deterministic per-operation key also recovers the narrow window
         // between saving a session credential and committing its journal reference.
-        tokio::time::timeout(
-            Duration::from_secs(30),
-            self.vault.save(&Self::vault_key(id), value),
-        )
-        .await
-        .map_err(|_| TransferError::Vault)?
-        .map_err(|_| TransferError::Vault)?;
+        self.credential(self.vault.save(&Self::vault_key(id), value))
+            .await?;
         self.local(move |j| j.record_session(id, attempt, id, offset))
             .await
     }
     async fn clean_checkpoint(&self, id: Uuid) {
-        if !matches!(
-            tokio::time::timeout(
-                Duration::from_secs(30),
-                self.vault.remove(&Self::vault_key(id))
-            )
-            .await,
-            Ok(Ok(()))
-        ) {
+        if self.cancel.is_cancelled() {
+            return;
+        }
+        if self
+            .credential(self.vault.remove(&Self::vault_key(id)))
+            .await
+            .is_err()
+            && !self.cancel.is_cancelled()
+        {
             tracing::warn!("upload session credential is awaiting cleanup");
         }
     }
@@ -181,23 +190,36 @@ impl TransferWorker {
                 .await?;
             match checkpoint {
                 Some(checkpoint) => match self
-                    .provider
-                    .inspect_upload(&request, &checkpoint, &self.cancel)
+                    .remote(
+                        Duration::from_secs(125),
+                        self.provider
+                            .inspect_upload(&request, &checkpoint, &self.cancel),
+                    )
                     .await
                 {
                     Ok(step) => Some(step),
-                    Err(UploadError::SessionGone | UploadError::CheckpointInvalid) => None,
-                    Err(error) => return Err(error.into()),
+                    Err(TransferError::Provider(
+                        UploadError::SessionGone | UploadError::CheckpointInvalid,
+                    )) => None,
+                    Err(error) => return Err(error),
                 },
                 None => None,
             }
         } else {
-            Some(self.provider.begin_upload(&request, &self.cancel).await?)
+            Some(
+                self.remote(
+                    Duration::from_secs(125),
+                    self.provider.begin_upload(&request, &self.cancel),
+                )
+                .await?,
+            )
         };
         if step.is_none() {
             match self
-                .provider
-                .reconcile_upload(&request, &self.cancel)
+                .remote(
+                    Duration::from_secs(15 * 60),
+                    self.provider.reconcile_upload(&request, &self.cancel),
+                )
                 .await?
             {
                 Reconciliation::Committed(node) => step = Some(UploadStep::Complete(node)),
@@ -236,8 +258,11 @@ impl TransferWorker {
                     self.checkpoint(record, checkpoint.clone(), request.size)
                         .await?;
                     let next = self
-                        .provider
-                        .commit_upload(&request, &checkpoint, &self.cancel)
+                        .remote(
+                            Duration::from_secs(125),
+                            self.provider
+                                .commit_upload(&request, &checkpoint, &self.cancel),
+                        )
                         .await?;
                     if !matches!(next, UploadStep::Complete(_)) {
                         return Err(UploadError::Uncertain.into());
@@ -268,13 +293,15 @@ impl TransferWorker {
                         .await
                         .map_err(|_| TransferError::Worker)?;
                     let next = self
-                        .provider
-                        .upload_part(
-                            &request,
-                            &progress.checkpoint,
-                            progress.offset,
-                            bytes,
-                            &self.cancel,
+                        .remote(
+                            Duration::from_secs(125),
+                            self.provider.upload_part(
+                                &request,
+                                &progress.checkpoint,
+                                progress.offset,
+                                bytes,
+                                &self.cancel,
+                            ),
                         )
                         .await?;
                     if let UploadStep::Continue(next) = &next

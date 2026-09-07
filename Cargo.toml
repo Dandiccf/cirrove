@@ -14,6 +14,7 @@ cirrove-core = { path = "crates/cirrove-core" }
 cirrove-store = { path = "crates/cirrove-store" }
 cirrove-onedrive = { path = "crates/cirrove-onedrive" }
 cirrove-auth = { path = "crates/cirrove-auth" }
+cirrove-service = { path = "crates/cirrove-service" }
 anyhow = "1.0"
 async-trait = "0.1"
 clap = { version = "4.6", features = ["derive"] }
