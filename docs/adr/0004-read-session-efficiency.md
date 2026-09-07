@@ -1,6 +1,7 @@
 # Read-session efficiency and Graph request amplification
 
-Status: proposed; implementation and provider acceptance are outstanding.
+Status: proposed read-session design; bounded transport observation is implemented.
+The optimized read path and provider acceptance remain outstanding.
 
 ## Problem and present evidence
 
@@ -77,6 +78,46 @@ way to pin every newly opened current file. See
 
 No fast path is accepted merely because a signed URL stays usable or a synthetic
 server honors an unsupported conditional header.
+
+## Transport observations and the next implementation boundary
+
+The developer command `cirrove inspect-onedrive-read` now observes one explicitly
+selected file using a normal range GET, deliberately mismatched If-Match/If-Range,
+and matching conditions when the content origin supplies a syntactically strong
+HTTP ETag. It retains at most 4 KiB per successful sample and does not consume
+full-file 200 responses or error bodies. This is a separate diagnostic, never
+called by the normal filesystem. Metadata and content operations are read-only;
+the configured credential broker may refresh authentication as usual.
+
+```sh
+cirrove inspect-onedrive-read --label ACCOUNT --item ITEM_ID \
+  --state-dir /absolute/path/to/account-state
+# Add --drive DRIVE_ID for an explicitly selected linked collection.
+```
+
+The JSON contains statuses, timings and comparison booleans, without file paths,
+item IDs, tokens, URLs, raw ETags, byte fingerprints or file contents. It records
+logical operations, not wire-request counts: redirects and authentication retries
+are excluded. The CLI obtains the selected node before invoking the probe, so its
+initial metadata lookup is additional to the two reported validation operations.
+A null byte comparison means no complete pair of samples was available.
+
+On 2026-09-07, isolated credentials for one business account observed an existing
+synthetic OneDrive file and one existing file in a linked SharePoint library.
+Both content origins supplied strong ETags, rejected the deliberately wrong
+If-Match with 412, and returned exact 206 ranges with matching ETags and sample
+bytes for matching If-Match and If-Range. Wrong If-Range produced 200, whose body
+was not consumed. Metadata before and after agreed. Private evidence is retained
+locally; these are two file observations, not tenant-wide or provider-wide proof.
+
+These results support implementing a version-bound session prototype using the
+**content origin's own strong ETag**, established alongside the current Graph
+before/after checks. Later ranges must validate their returned representation,
+range and size before cache publication; conditional request success by itself is
+insufficient. Setup/renewal must coalesce, bound URL/authorization lifetime and
+revalidate the original content revision. Personal accounts, remote replacement,
+revocation, expired URLs, redirects and lost notifications still need acceptance.
+No optimized path is enabled by these observations, and no checkbox below is closed.
 
 ## Acceptance gates
 
