@@ -644,3 +644,27 @@ cloud documents. Writable directories, ordinary editor/office acceptance, live
 Graph replacement and cleanup, physical fault testing, detached-data recovery and
 bounded retained history remain release gates. Ordinary mounts stay read-only;
 all six product milestones remain open.
+
+## Expanded mounted OneDrive acceptance command
+
+The developer-only `validate-onedrive-writable` sequence now includes two
+temporary-file atomic replacements and another replacement using a retired,
+online-only source after reopening the engine and journal. It demands eight
+upload receipts and three conditional source-cleanup receipts, independent
+destination-content and source-absence checks, and a complete final listing of
+the fresh test folder. Local rename time is separate from cloud completion.
+
+Two new local fixtures check the separate application's old-descriptor/inode/byte
+assertions and its reuse of the temporary name, and refusal of foreign scope,
+foreign identity, folders, linked targets, root targets, missing/wildcard ETags,
+outside-root relocation and mismatched cleanup receipts. The application fixture
+uses ordinary local files; it does not establish Graph behavior. All 218 default
+workspace tests and the existing 31 actual synthetic kernel-FUSE checks passed,
+with formatting, strict Clippy, build, smoke, two observer checks and Rustdoc.
+
+The expanded live sequence has **not yet been executed**. Its launch remains
+pending explicit authorization for the new folder, generated uploads and three
+conditional deletions of run-created sources. Earlier live evidence remains
+limited to the already recorded operations and two basic mounted saves. This
+increment does not close the application/provider acceptance matrix or any of
+the six release milestones.

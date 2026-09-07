@@ -47,6 +47,9 @@ Old readers are preserved, and later local edits cannot overwrite the earlier
 snapshot. Joint namespace publication handles delayed callbacks and chained transfers.
 Actual synthetic mount fixtures cover two consecutive atomic saves, paused downloads,
 independent saves during old reads, and remount after interrupted preparation.
+The extended developer validator is ready to exercise atomic replacement and
+conditional source cleanup in a fresh OneDrive test folder, including an online-only
+source after remount. That expanded live sequence has not yet been executed.
 
 Fully acknowledged working copies can retire after the last user closes, retaining
 local identities that follow remote changes. Restartable cleanup, generation fencing,

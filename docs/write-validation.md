@@ -163,29 +163,43 @@ This developer-only command requires `python3` for a separate application proces
 plus the same disabled test grant and FUSE prerequisites. It creates a new
 `Cirrove-Mounted-Write-Validation-<UUID>` folder and mounts only that fixture.
 The provider wrapper accepts new files only under the new root and replacements
-only for file identities returned by this run's validated upload receipts. Existing
-account files and other drives cannot be selected as write targets.
+and conditional file cleanup only for identities returned by this run's validated
+upload receipts. Scope, original parent, regular-file type, non-shortcut identity
+and non-root target are checked before namespace calls. Existing account files,
+folders and other drives cannot be selected as cleanup targets.
 
-The application creates one Unicode-named file, writes and fsyncs two synthetic
-versions, then verifies the visible local bytes. The session uploads both immutable
-generations automatically. The command checks their sizes and hashes against the
-application reports, independently verifies the final cloud content, and shuts down
-the temporary mount, also on error, timeout or handled Ctrl+C. Local-save timing
-is separate from remote acknowledgement.
+The separate application first creates one Unicode-named file and fsyncs two
+synthetic versions. It then performs two temporary-file atomic replacements,
+reusing the temporary name. Each replacement must preserve the previous open
+descriptor's bytes and zero link count while the new pathname exposes the source
+inode and bytes. The command waits for automatic uploads and conditional source
+cleanup, then independently verifies the cloud destination and source absence.
+
+A third source is uploaded, closed and retired from working storage. The check
+stops the session, reopens its metadata and journal, and remounts the same fixture.
+It verifies that source and target still have no working copies, then performs a
+third atomic replacement. Eight upload receipts and three conditional source
+cleanups must complete; the final cloud listing contains only the test document.
+Local rename/application time is recorded separately from cloud verification time.
+Each session stops on success, error, timeout or handled Ctrl+C. The first mounted
+phase has a five-minute deadline; the remounted phase has a three-minute deadline.
 
 The metadata baseline contains only the generated root; full-account delta/push
 and performance are outside this check. Events, working bytes and immutable saves
-remain in `mounted-write-checks/<UUID>/`. The cloud fixture is also retained, including
-when a check fails. The installed service and ordinary read-only mounts are not
-reconfigured. This does not validate atomic replacement, folder/name mutations,
-physical power loss or a complete application compatibility matrix.
+remain in `mounted-write-checks/<UUID>/`. The cloud fixture and final document are
+retained, including on failure; only disposable source files created by this run
+are conditionally deleted as part of the tested replacement. The installed service
+and ordinary read-only mounts are not reconfigured. This does not establish
+ordinary editor/office compatibility, writable folder hierarchies, physical power
+loss recovery or broad personal/business provider coverage. A remount in this
+validator is not a complete-machine restart or an OAuth reauthentication test.
 
 ## Remaining release gates
 
 A passing check covers only its selected account and tested operations. Broader
 concurrent changes (rename, move, delete), actual process interruption, personal and
-business differences, quota/lock failures, and application saves through writable
-FUSE still require validation. If a provider rejects conditional final commit,
+business differences, quota/lock failures, and ordinary application compatibility
+through writable FUSE still require validation. If a provider rejects conditional final commit,
 the adapter stops and retains the local edit; it does not fall back to unconditional
 replacement. See [the save contract](adr/0002-durable-local-edits.md).
 

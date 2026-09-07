@@ -1,4 +1,5 @@
 //! Actual application writes through FUSE, restricted to a new run-owned folder.
+mod replacement;
 use super::*;
 use crate::{engine::Engine, writable::WritableSession};
 use cirrove_core::mutation::{MutationIntent, MutationReceipt, MutationRequest};
@@ -192,7 +193,7 @@ impl cirrove_core::mutation::MutationProvider for FixtureGraph {
         request: &MutationRequest,
         cancel: &CancellationToken,
     ) -> cirrove_core::mutation::Result<MutationReceipt> {
-        self.guard_relocation(request)?;
+        self.guard_mutation(request)?;
         let receipt = self.graph.mutate(request, cancel).await?;
         self.guard_mutation_receipt(request, &receipt)?;
         Ok(receipt)
@@ -202,7 +203,7 @@ impl cirrove_core::mutation::MutationProvider for FixtureGraph {
         request: &MutationRequest,
         cancel: &CancellationToken,
     ) -> cirrove_core::mutation::Result<cirrove_core::mutation::MutationReconciliation> {
-        self.guard_relocation(request)?;
+        self.guard_mutation(request)?;
         let result = self.graph.reconcile_mutation(request, cancel).await?;
         if let cirrove_core::mutation::MutationReconciliation::Applied(receipt) = &result {
             self.guard_mutation_receipt(request, receipt)?;
@@ -211,12 +212,13 @@ impl cirrove_core::mutation::MutationProvider for FixtureGraph {
     }
 }
 impl FixtureGraph {
-    fn guard_relocation(&self, request: &MutationRequest) -> cirrove_core::mutation::Result<()> {
-        let MutationIntent::Relocate { before, parent, .. } = &request.intent else {
-            return Err(ProviderError::Permission.into());
+    fn guard_mutation(&self, request: &MutationRequest) -> cirrove_core::mutation::Result<()> {
+        let before = match &request.intent {
+            MutationIntent::Relocate { before, parent, .. } if parent == &self.root.id => before,
+            MutationIntent::RemoveFile { before } => before,
+            _ => return Err(ProviderError::Permission.into()),
         };
         if request.scope != self.scope
-            || parent != &self.root.id
             || before.parent_id.as_ref() != Some(&self.root.id)
             || before.kind != NodeKind::File
             || before.target.is_some()
@@ -232,7 +234,7 @@ impl FixtureGraph {
         request: &MutationRequest,
         receipt: &MutationReceipt,
     ) -> cirrove_core::mutation::Result<()> {
-        self.guard_relocation(request)?;
+        self.guard_mutation(request)?;
         if !request.accepts(receipt) {
             return Err(cirrove_core::mutation::MutationError::Uncertain);
         }
@@ -311,7 +313,7 @@ pub async fn onedrive_writable(state: &Path, label: &str) -> Result<()> {
     config.mount_path = directory.join("mount");
     config.poll_seconds = 3600;
     crate::private_dir(&config.mount_path)?;
-    let engine = Engine::new(config, provider.clone(), directory.join("engine")).await?;
+    let engine = Engine::new(config.clone(), provider.clone(), directory.join("engine")).await?;
     let journal = Arc::new(Mutex::new(UploadJournal::open(
         &directory.join("journal"),
         &account.id,
@@ -319,7 +321,7 @@ pub async fn onedrive_writable(state: &Path, label: &str) -> Result<()> {
     )?));
     let session = WritableSession::mount(
         engine.clone(),
-        journal,
+        journal.clone(),
         provider.clone(),
         Arc::new(DesktopVault),
     )
@@ -370,10 +372,20 @@ pub async fn onedrive_writable(state: &Path, label: &str) -> Result<()> {
             &mut log,
             serde_json::json!({"stage":"readback_verified","generations":uploads,"saves":saves}),
         )?;
-        Ok::<_, anyhow::Error>(())
+        println!("Checking two atomic replacements, then retiring an online-only source.");
+        replacement::local_saves(
+            &session,
+            &journal,
+            &engine,
+            &provider,
+            &mut log,
+            latest.clone(),
+            &cancel,
+        )
+        .await
     };
     let result = tokio::select! {
-        result = tokio::time::timeout(Duration::from_secs(180), check) => result
+        result = tokio::time::timeout(Duration::from_secs(300), check) => result
             .map_err(|_| anyhow::anyhow!("mounted write check timed out; fixture and local journal retained"))
             .and_then(|r| r),
         _ = tokio::signal::ctrl_c() => Err(anyhow::anyhow!(
@@ -383,12 +395,52 @@ pub async fn onedrive_writable(state: &Path, label: &str) -> Result<()> {
     let shutdown = session.shutdown().await;
     event(
         &mut log,
-        serde_json::json!({"stage":"finished","passed":result.is_ok()&&shutdown.is_ok(),"shutdown_ok":shutdown.is_ok()}),
+        serde_json::json!({"stage":"first_session_stopped","passed":result.is_ok()&&shutdown.is_ok(),"shutdown_ok":shutdown.is_ok()}),
+    )?;
+    let pair = result?;
+    shutdown?;
+    let stopped = Arc::downgrade(&engine);
+    drop(engine);
+    drop(journal);
+    anyhow::ensure!(
+        stopped.upgrade().is_none(),
+        "stopped engine still owns the fixture"
+    );
+    println!("Remounting the same fixture with reopened metadata and journal.");
+    let engine = Engine::new(config, provider.clone(), directory.join("engine")).await?;
+    let journal = Arc::new(Mutex::new(UploadJournal::open(
+        &directory.join("journal"),
+        &account.id,
+        64 * 1024 * 1024,
+    )?));
+    let session = WritableSession::mount(
+        engine.clone(),
+        journal.clone(),
+        provider.clone(),
+        Arc::new(DesktopVault),
+    )
+    .await?;
+    let check = replacement::after_remount(
+        &session, &journal, &engine, &provider, &mut log, pair, &cancel,
+    );
+    let result = tokio::select! {
+        result = tokio::time::timeout(Duration::from_secs(180), check) => result
+            .map_err(|_| anyhow::anyhow!("remounted replacement timed out; fixture and local journal retained"))
+            .and_then(|r| r),
+        _ = tokio::signal::ctrl_c() => Err(anyhow::anyhow!(
+            "remounted replacement interrupted; fixture and local journal retained"
+        )),
+    };
+    let shutdown = session.shutdown().await;
+    event(
+        &mut log,
+        serde_json::json!({"stage":"finished",
+        "passed":result.is_ok()&&shutdown.is_ok(),"shutdown_ok":shutdown.is_ok()}),
     )?;
     result?;
     shutdown?;
     println!(
-        "Mounted write check passed: two application generations uploaded, independent cloud readback matched, and the temporary mount stopped. The fixture is retained."
+        "Mounted write check passed: two direct saves, three atomic replacements including an online-only source after remount, old-descriptor preservation, eight upload receipts and three conditional source cleanups. Independent cloud checks matched. The final document and local evidence are retained."
     );
     Ok(())
 }
@@ -507,5 +559,158 @@ mod tests {
                 .all(|(i, b)| *b == ((i * 13 + 34) % 251) as u8)
         );
         assert_eq!(rows[1]["sha256"], format!("{:x}", Sha256::digest(&bytes)));
+    }
+
+    #[tokio::test]
+    async fn cleanup_guard_accepts_only_run_owned_regular_files_and_exact_receipts() {
+        use cirrove_core::mutation::MutationProvider;
+        let fixture = fixture();
+        let node = Node {
+            id: "created-source".into(),
+            parent_id: Some(fixture.root.id.clone()),
+            name: "temporary.txt".into(),
+            kind: NodeKind::File,
+            size: 0,
+            etag: Some("original-tag".into()),
+            content_version: Some("original-content".into()),
+            modified_unix: 0,
+            target: None,
+        };
+        let upload = UploadRequest {
+            scope: fixture.scope.clone(),
+            intent: UploadIntent::Create {
+                parent: fixture.root.id.clone(),
+                name: node.name.clone(),
+            },
+            size: 0,
+            sha256: format!("{:x}", Sha256::digest([])),
+        };
+        let request = MutationRequest {
+            scope: fixture.scope.clone(),
+            intent: MutationIntent::RemoveFile {
+                before: node.clone(),
+            },
+        };
+        assert!(fixture.guard_mutation(&request).is_err());
+        fixture.receipt(&upload, &node).expect("owned receipt");
+        assert!(fixture.guard_mutation(&request).is_ok());
+        assert!(
+            fixture
+                .guard_mutation_receipt(
+                    &request,
+                    &MutationReceipt::Removed {
+                        item: node.id.clone()
+                    }
+                )
+                .is_ok()
+        );
+        assert!(
+            fixture
+                .guard_mutation_receipt(
+                    &request,
+                    &MutationReceipt::Removed {
+                        item: "foreign-file".into()
+                    }
+                )
+                .is_err()
+        );
+        assert!(
+            fixture
+                .guard_mutation_receipt(&request, &MutationReceipt::Upsert(node.clone()))
+                .is_err()
+        );
+
+        let mut invalid = Vec::new();
+        invalid.push(MutationRequest {
+            scope: fixture.scope.clone(),
+            intent: MutationIntent::RemoveFile {
+                before: Node {
+                    target: Some(cirrove_core::RemoteRef {
+                        collection: "linked-drive".into(),
+                        item: "linked-file".into(),
+                        kind: Some(NodeKind::File),
+                    }),
+                    ..node.clone()
+                },
+            },
+        });
+        for kind in [NodeKind::Folder, NodeKind::Shortcut] {
+            invalid.push(MutationRequest {
+                scope: fixture.scope.clone(),
+                intent: MutationIntent::RemoveFile {
+                    before: Node {
+                        kind,
+                        ..node.clone()
+                    },
+                },
+            });
+        }
+        for (id, parent) in [
+            ("foreign-file", fixture.root.id.as_str()),
+            (fixture.root.id.as_str(), fixture.root.id.as_str()),
+            (node.id.as_str(), "outside-root"),
+        ] {
+            invalid.push(MutationRequest {
+                scope: fixture.scope.clone(),
+                intent: MutationIntent::RemoveFile {
+                    before: Node {
+                        id: id.into(),
+                        parent_id: Some(parent.into()),
+                        ..node.clone()
+                    },
+                },
+            });
+        }
+        for field in 0..3 {
+            let mut other = request.clone();
+            match field {
+                0 => other.scope.account = "other-account".into(),
+                1 => other.scope.collection = "other-drive".into(),
+                _ => other.scope.provider = "other-provider".into(),
+            }
+            invalid.push(other);
+        }
+        invalid.push(MutationRequest {
+            scope: fixture.scope.clone(),
+            intent: MutationIntent::CreateFolder {
+                parent: fixture.root.id.clone(),
+                name: "no-rmdir".into(),
+            },
+        });
+        invalid.push(MutationRequest {
+            scope: fixture.scope.clone(),
+            intent: MutationIntent::Relocate {
+                before: node.clone(),
+                parent: "outside-root".into(),
+                name: "move".into(),
+            },
+        });
+        for request in invalid {
+            assert!(fixture.guard_mutation(&request).is_err());
+            assert!(
+                fixture
+                    .mutate(&request, &CancellationToken::new())
+                    .await
+                    .is_err()
+            );
+            assert!(
+                fixture
+                    .reconcile_mutation(&request, &CancellationToken::new())
+                    .await
+                    .is_err()
+            );
+        }
+        for tag in [None, Some("*".into()), Some("".into())] {
+            let invalid = MutationRequest {
+                scope: fixture.scope.clone(),
+                intent: MutationIntent::RemoveFile {
+                    before: Node {
+                        etag: tag,
+                        ..node.clone()
+                    },
+                },
+            };
+            assert!(fixture.guard_mutation(&invalid).is_err());
+        }
     }
 }
