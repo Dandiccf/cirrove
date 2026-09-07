@@ -42,6 +42,12 @@ fixtures now cover overlapping window readers, cached navigation during stalled
 transfer/final validation, version rejection and shutdown with open descriptors;
 they do not yet cover live indexing or desktop thumbnail load on the optimized path.
 Ordinary accounts still use the original conservative path pending that acceptance.
+A separate mounted application workload now verifies cold 3.1 MB reads, reopens,
+sparse seeks, concurrent readers and sequential 1 GiB reads with actual adapter/HTTP
+counts. It closes the narrow request-count and stable-session implementation gates,
+but retains the live-provider, indexing and thumbnail-decoder gates. Measurements
+also show the strong path still uses one content request per block, while bounded
+windows trade extra local staging for fewer network round trips; see ADR 0004.
 Graph Socket.IO and provider-neutral coalescing hints are now implemented. This
 does not close the live-response gate: notifications can be delayed upstream.
 An isolated business-drive run passed actual long-session renewal and subsequent

@@ -1,0 +1,1044 @@
+{
+  "recorded": "2026-09-07",
+  "scope": "Synthetic loopback OneDrive HTTP adapter and kernel FUSE. Separate service test process per variant and separate Python application. Seeded metadata; no desktop decoder, initial indexing or real cloud account. 20 ms is an imposed per-response delay, not an internet/provider measurement.",
+  "fixture_sha256": {
+    "crates/cirrove-service/src/content/windows/tests/graph.rs": "4e717c36488167cb294ebc4d29b3f8d704a25669baa5b1c5e26e39814aceb64d",
+    "crates/cirrove-service/src/content/windows/tests/graph/kernel.rs": "ef4498bed6426fae3aa13a5a715d8c54ab930559873ca3cb6574c22faaf77015",
+    "crates/cirrove-service/src/content/windows/tests/graph/kernel/workloads.rs": "d82c8334ef2173fd60d08bd6bc67879a583ad068ab62890da0fd6e6ed32ace57",
+    "crates/cirrove-service/src/content/windows/tests/graph/kernel/read-workload.py": "d0c2b6b2df626abad7db8929c304bd9032df6fe1f33dd3ca3658ac7d22ccc001"
+  },
+  "measurements": [
+    {
+      "build_profile": "release",
+      "elapsed_ms": 2667.277823,
+      "fixture": "separate Python application, actual FUSE, loopback OneDrive adapter, seeded metadata; no real provider/indexing/desktop decoder",
+      "mode": "Conservative",
+      "phases": [
+        {
+          "application": {
+            "bytes": 3100000,
+            "elapsed_ms": 7.378152018645778,
+            "first_open_read_ms": 6.262711016461253,
+            "process_peak_rss_kib": 18892,
+            "read_calls": {
+              "max_ms": 5.329501000232995,
+              "p50_ms": 0.018517981516197324,
+              "p95_ms": 0.02012599725276232,
+              "samples": 48
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 0.632534,
+            "p50_ms": 0.632534,
+            "p95_ms": 0.632534,
+            "samples": 1
+          },
+          "content_gets": 1,
+          "downloaded_bytes": 3100000,
+          "graph_gets": 2,
+          "phase": "preview",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "first_open_reads": {
+              "max_ms": 0.052827002946287394,
+              "p50_ms": 0.052786985179409385,
+              "p95_ms": 0.052786985179409385,
+              "samples": 3
+            },
+            "process_peak_rss_kib": 18900,
+            "reads": [
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 1.3255939993541688,
+                "first_open_read_ms": 0.052827002946287394,
+                "read_calls": {
+                  "max_ms": 0.11625399929471314,
+                  "p50_ms": 0.017870013834908605,
+                  "p95_ms": 0.03170399577356875,
+                  "samples": 48
+                }
+              },
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 1.071368984412402,
+                "first_open_read_ms": 0.052786985179409385,
+                "read_calls": {
+                  "max_ms": 0.021145009668543935,
+                  "p50_ms": 0.016973994206637144,
+                  "p95_ms": 0.019589992007240653,
+                  "samples": 48
+                }
+              },
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 1.0438219760544598,
+                "first_open_read_ms": 0.03917797585017979,
+                "read_calls": {
+                  "max_ms": 0.01873099245131016,
+                  "p50_ms": 0.01680900459177792,
+                  "p95_ms": 0.018651015125215057,
+                  "samples": 48
+                }
+              }
+            ]
+          },
+          "cached_navigation": {
+            "max_ms": 0.548011,
+            "p50_ms": 0.548011,
+            "p95_ms": 0.548011,
+            "samples": 1
+          },
+          "content_gets": 0,
+          "downloaded_bytes": 0,
+          "graph_gets": 0,
+          "phase": "reopen",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 16384,
+            "process_peak_rss_kib": 18972,
+            "read_calls": {
+              "max_ms": 5.370436992961913,
+              "p50_ms": 5.101008020574227,
+              "p95_ms": 5.349065002519637,
+              "samples": 4
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 0.495993,
+            "p50_ms": 0.495993,
+            "p95_ms": 0.495993,
+            "samples": 1
+          },
+          "content_gets": 4,
+          "downloaded_bytes": 16777216,
+          "graph_gets": 8,
+          "phase": "sparse",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 131072,
+            "first_open_reads": {
+              "max_ms": 6.621161010116339,
+              "p50_ms": 5.978225992294028,
+              "p95_ms": 6.488069018814713,
+              "samples": 32
+            },
+            "process_peak_rss_kib": 19864,
+            "readers": 32
+          },
+          "cached_navigation": {
+            "max_ms": 0.63888,
+            "p50_ms": 0.63888,
+            "p95_ms": 0.63888,
+            "samples": 1
+          },
+          "content_gets": 1,
+          "downloaded_bytes": 3100000,
+          "graph_gets": 2,
+          "phase": "concurrent",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 1073741824,
+            "elapsed_ms": 2582.205441984115,
+            "first_open_read_ms": 6.509389990242198,
+            "process_peak_rss_kib": 20436,
+            "read_calls": {
+              "max_ms": 7.78574901050888,
+              "p50_ms": 0.027386995498090982,
+              "p95_ms": 0.09626298560760917,
+              "samples": 16384
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 1.788407,
+            "p50_ms": 0.72313,
+            "p95_ms": 0.940006,
+            "samples": 52
+          },
+          "content_gets": 256,
+          "downloaded_bytes": 1073741824,
+          "graph_gets": 512,
+          "phase": "sequential",
+          "renewals": 0
+        }
+      ],
+      "service_and_loopback_sampled_rss_baseline_bytes": 14548992,
+      "service_and_loopback_sampled_rss_peak_bytes": 130060288,
+      "staging": {
+        "staged_bytes": 0,
+        "staging_budget_bytes": 134217728,
+        "staging_peak_bytes": 0,
+        "staging_reserved_bytes": 0,
+        "validated_windows": 0
+      },
+      "synthetic_request_delay_ms": 0
+    },
+    {
+      "build_profile": "release",
+      "elapsed_ms": 2328.9296130000002,
+      "fixture": "separate Python application, actual FUSE, loopback OneDrive adapter, seeded metadata; no real provider/indexing/desktop decoder",
+      "mode": "Strong",
+      "phases": [
+        {
+          "application": {
+            "bytes": 3100000,
+            "elapsed_ms": 8.215601003030315,
+            "first_open_read_ms": 6.688802008284256,
+            "process_peak_rss_kib": 18920,
+            "read_calls": {
+              "max_ms": 5.841318023158237,
+              "p50_ms": 0.024933979148045186,
+              "p95_ms": 0.03272100002504885,
+              "samples": 48
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 0.5051640000000001,
+            "p50_ms": 0.5051640000000001,
+            "p95_ms": 0.5051640000000001,
+            "samples": 1
+          },
+          "content_gets": 1,
+          "downloaded_bytes": 3100000,
+          "graph_gets": 2,
+          "phase": "preview",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "first_open_reads": {
+              "max_ms": 0.1301890006288886,
+              "p50_ms": 0.05387500277720392,
+              "p95_ms": 0.05387500277720392,
+              "samples": 3
+            },
+            "process_peak_rss_kib": 18928,
+            "reads": [
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 1.546781975775957,
+                "first_open_read_ms": 0.1301890006288886,
+                "read_calls": {
+                  "max_ms": 0.037995981983840466,
+                  "p50_ms": 0.024708977434784177,
+                  "p95_ms": 0.029054004698991776,
+                  "samples": 48
+                }
+              },
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 1.4014129992574451,
+                "first_open_read_ms": 0.05387500277720392,
+                "read_calls": {
+                  "max_ms": 0.02842102549038827,
+                  "p50_ms": 0.023425003746524453,
+                  "p95_ms": 0.024558015866205096,
+                  "samples": 48
+                }
+              },
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 1.1218500148970634,
+                "first_open_read_ms": 0.04689898923970759,
+                "read_calls": {
+                  "max_ms": 0.04232799983583391,
+                  "p50_ms": 0.018082006135955453,
+                  "p95_ms": 0.023225991753861308,
+                  "samples": 48
+                }
+              }
+            ]
+          },
+          "cached_navigation": {
+            "max_ms": 0.547013,
+            "p50_ms": 0.547013,
+            "p95_ms": 0.547013,
+            "samples": 1
+          },
+          "content_gets": 0,
+          "downloaded_bytes": 0,
+          "graph_gets": 0,
+          "phase": "reopen",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 16384,
+            "process_peak_rss_kib": 19000,
+            "read_calls": {
+              "max_ms": 5.88238998898305,
+              "p50_ms": 5.4204409825615585,
+              "p95_ms": 5.590027023572475,
+              "samples": 4
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 0.545777,
+            "p50_ms": 0.545777,
+            "p95_ms": 0.545777,
+            "samples": 1
+          },
+          "content_gets": 4,
+          "downloaded_bytes": 16777216,
+          "graph_gets": 2,
+          "phase": "sparse",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 131072,
+            "first_open_reads": {
+              "max_ms": 13.784979993943123,
+              "p50_ms": 13.349135988391936,
+              "p95_ms": 13.548466988140715,
+              "samples": 32
+            },
+            "process_peak_rss_kib": 19888,
+            "readers": 32
+          },
+          "cached_navigation": {
+            "max_ms": 0.533661,
+            "p50_ms": 0.533661,
+            "p95_ms": 0.533661,
+            "samples": 1
+          },
+          "content_gets": 1,
+          "downloaded_bytes": 3100000,
+          "graph_gets": 2,
+          "phase": "concurrent",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 1073741824,
+            "elapsed_ms": 2238.022459001513,
+            "first_open_read_ms": 6.769942003302276,
+            "process_peak_rss_kib": 20464,
+            "read_calls": {
+              "max_ms": 7.1736209793016315,
+              "p50_ms": 0.024075998226180673,
+              "p95_ms": 0.08569200872443616,
+              "samples": 16384
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 2.139616,
+            "p50_ms": 0.749919,
+            "p95_ms": 1.146336,
+            "samples": 45
+          },
+          "content_gets": 256,
+          "downloaded_bytes": 1073741824,
+          "graph_gets": 2,
+          "phase": "sequential",
+          "renewals": 0
+        }
+      ],
+      "service_and_loopback_sampled_rss_baseline_bytes": 14561280,
+      "service_and_loopback_sampled_rss_peak_bytes": 148070400,
+      "staging": {
+        "staged_bytes": 0,
+        "staging_budget_bytes": 134217728,
+        "staging_peak_bytes": 0,
+        "staging_reserved_bytes": 0,
+        "validated_windows": 0
+      },
+      "synthetic_request_delay_ms": 0
+    },
+    {
+      "build_profile": "release",
+      "elapsed_ms": 3535.186782,
+      "fixture": "separate Python application, actual FUSE, loopback OneDrive adapter, seeded metadata; no real provider/indexing/desktop decoder",
+      "mode": "Windows",
+      "phases": [
+        {
+          "application": {
+            "bytes": 3100000,
+            "elapsed_ms": 8.22347600478679,
+            "first_open_read_ms": 6.798982998589054,
+            "process_peak_rss_kib": 18924,
+            "read_calls": {
+              "max_ms": 5.875616974662989,
+              "p50_ms": 0.02365501131862402,
+              "p95_ms": 0.02535901148803532,
+              "samples": 48
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 0.6635340000000001,
+            "p50_ms": 0.6635340000000001,
+            "p95_ms": 0.6635340000000001,
+            "samples": 1
+          },
+          "content_gets": 1,
+          "downloaded_bytes": 3100000,
+          "graph_gets": 2,
+          "phase": "preview",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "first_open_reads": {
+              "max_ms": 0.06850299541838467,
+              "p50_ms": 0.06812901119701564,
+              "p95_ms": 0.06812901119701564,
+              "samples": 3
+            },
+            "process_peak_rss_kib": 18932,
+            "reads": [
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 1.3873580028302968,
+                "first_open_read_ms": 0.06850299541838467,
+                "read_calls": {
+                  "max_ms": 0.0345110020134598,
+                  "p50_ms": 0.023850996512919664,
+                  "p95_ms": 0.02552298246882856,
+                  "samples": 48
+                }
+              },
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 0.96940400544554,
+                "first_open_read_ms": 0.06812901119701564,
+                "read_calls": {
+                  "max_ms": 0.03649099380709231,
+                  "p50_ms": 0.01591799082234502,
+                  "p95_ms": 0.01927200355567038,
+                  "samples": 48
+                }
+              },
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 1.3586669811047614,
+                "first_open_read_ms": 0.049744994612410665,
+                "read_calls": {
+                  "max_ms": 0.025622022803872824,
+                  "p50_ms": 0.02251501427963376,
+                  "p95_ms": 0.024080014554783705,
+                  "samples": 48
+                }
+              }
+            ]
+          },
+          "cached_navigation": {
+            "max_ms": 0.616926,
+            "p50_ms": 0.616926,
+            "p95_ms": 0.616926,
+            "samples": 1
+          },
+          "content_gets": 0,
+          "downloaded_bytes": 0,
+          "graph_gets": 0,
+          "phase": "reopen",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 16384,
+            "process_peak_rss_kib": 19008,
+            "read_calls": {
+              "max_ms": 6.419169978471473,
+              "p50_ms": 6.054919998859987,
+              "p95_ms": 6.201502023031935,
+              "samples": 4
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 0.606353,
+            "p50_ms": 0.606353,
+            "p95_ms": 0.606353,
+            "samples": 1
+          },
+          "content_gets": 4,
+          "downloaded_bytes": 16777216,
+          "graph_gets": 8,
+          "phase": "sparse",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 131072,
+            "first_open_reads": {
+              "max_ms": 6.470577995060012,
+              "p50_ms": 6.042809021892026,
+              "p95_ms": 6.410169997252524,
+              "samples": 32
+            },
+            "process_peak_rss_kib": 19900,
+            "readers": 32
+          },
+          "cached_navigation": {
+            "max_ms": 0.818499,
+            "p50_ms": 0.818499,
+            "p95_ms": 0.818499,
+            "samples": 1
+          },
+          "content_gets": 1,
+          "downloaded_bytes": 3100000,
+          "graph_gets": 2,
+          "phase": "concurrent",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 1073741824,
+            "elapsed_ms": 3444.734161021188,
+            "first_open_read_ms": 6.6923990088980645,
+            "process_peak_rss_kib": 20468,
+            "read_calls": {
+              "max_ms": 102.93898402596824,
+              "p50_ms": 0.024370005121454597,
+              "p95_ms": 0.05244600470177829,
+              "samples": 16384
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 2.491133,
+            "p50_ms": 0.721229,
+            "p95_ms": 1.125029,
+            "samples": 69
+          },
+          "content_gets": 20,
+          "downloaded_bytes": 1073741824,
+          "graph_gets": 40,
+          "phase": "sequential",
+          "renewals": 0
+        }
+      ],
+      "service_and_loopback_sampled_rss_baseline_bytes": 14659584,
+      "service_and_loopback_sampled_rss_peak_bytes": 256786432,
+      "staging": {
+        "staged_bytes": 1065353216,
+        "staging_budget_bytes": 134217728,
+        "staging_peak_bytes": 67108864,
+        "staging_reserved_bytes": 0,
+        "validated_windows": 18
+      },
+      "synthetic_request_delay_ms": 0
+    },
+    {
+      "build_profile": "release",
+      "elapsed_ms": 19122.445271,
+      "fixture": "separate Python application, actual FUSE, loopback OneDrive adapter, seeded metadata; no real provider/indexing/desktop decoder",
+      "mode": "Conservative",
+      "phases": [
+        {
+          "application": {
+            "bytes": 3100000,
+            "elapsed_ms": 75.8906879927963,
+            "first_open_read_ms": 72.42701799259521,
+            "process_peak_rss_kib": 18892,
+            "read_calls": {
+              "max_ms": 71.38169300742447,
+              "p50_ms": 0.025599001673981547,
+              "p95_ms": 0.05382898962125182,
+              "samples": 48
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 0.987251,
+            "p50_ms": 0.982022,
+            "p95_ms": 0.982022,
+            "samples": 3
+          },
+          "content_gets": 1,
+          "downloaded_bytes": 3100000,
+          "graph_gets": 2,
+          "phase": "preview",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "first_open_reads": {
+              "max_ms": 0.0785140146035701,
+              "p50_ms": 0.04632500349543989,
+              "p95_ms": 0.04632500349543989,
+              "samples": 3
+            },
+            "process_peak_rss_kib": 18900,
+            "reads": [
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 2.5415520067326725,
+                "first_open_read_ms": 0.0785140146035701,
+                "read_calls": {
+                  "max_ms": 0.11731000267900528,
+                  "p50_ms": 0.01879798946902156,
+                  "p95_ms": 0.028799986466765404,
+                  "samples": 48
+                }
+              },
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 0.9561280021443964,
+                "first_open_read_ms": 0.04632500349543989,
+                "read_calls": {
+                  "max_ms": 0.023609987692907453,
+                  "p50_ms": 0.015824014553800225,
+                  "p95_ms": 0.018870981875807047,
+                  "samples": 48
+                }
+              },
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 3.821660007815808,
+                "first_open_read_ms": 0.0436650007031858,
+                "read_calls": {
+                  "max_ms": 0.02256300649605691,
+                  "p50_ms": 0.021495012333616614,
+                  "p95_ms": 0.0221259833779186,
+                  "samples": 48
+                }
+              }
+            ]
+          },
+          "cached_navigation": {
+            "max_ms": 0.57355,
+            "p50_ms": 0.57355,
+            "p95_ms": 0.57355,
+            "samples": 1
+          },
+          "content_gets": 0,
+          "downloaded_bytes": 0,
+          "graph_gets": 0,
+          "phase": "reopen",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 16384,
+            "process_peak_rss_kib": 18976,
+            "read_calls": {
+              "max_ms": 70.91641300939955,
+              "p50_ms": 69.58092298009433,
+              "p95_ms": 70.28191699646413,
+              "samples": 4
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 1.215135,
+            "p50_ms": 0.712828,
+            "p95_ms": 0.8705269999999999,
+            "samples": 6
+          },
+          "content_gets": 4,
+          "downloaded_bytes": 16777216,
+          "graph_gets": 8,
+          "phase": "sparse",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 131072,
+            "first_open_reads": {
+              "max_ms": 70.80925401533023,
+              "p50_ms": 70.2788659837097,
+              "p95_ms": 70.62848898931406,
+              "samples": 32
+            },
+            "process_peak_rss_kib": 19860,
+            "readers": 32
+          },
+          "cached_navigation": {
+            "max_ms": 1.066822,
+            "p50_ms": 0.730166,
+            "p95_ms": 0.730166,
+            "samples": 2
+          },
+          "content_gets": 1,
+          "downloaded_bytes": 3100000,
+          "graph_gets": 2,
+          "phase": "concurrent",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 1073741824,
+            "elapsed_ms": 18644.838231994072,
+            "first_open_read_ms": 69.22164300340228,
+            "process_peak_rss_kib": 20436,
+            "read_calls": {
+              "max_ms": 106.35407699737698,
+              "p50_ms": 0.025568995624780655,
+              "p95_ms": 0.08767397957853973,
+              "samples": 16384
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 3.700119,
+            "p50_ms": 1.086142,
+            "p95_ms": 1.980678,
+            "samples": 373
+          },
+          "content_gets": 256,
+          "downloaded_bytes": 1073741824,
+          "graph_gets": 512,
+          "phase": "sequential",
+          "renewals": 0
+        }
+      ],
+      "service_and_loopback_sampled_rss_baseline_bytes": 14581760,
+      "service_and_loopback_sampled_rss_peak_bytes": 155848704,
+      "staging": {
+        "staged_bytes": 0,
+        "staging_budget_bytes": 134217728,
+        "staging_peak_bytes": 0,
+        "staging_reserved_bytes": 0,
+        "validated_windows": 0
+      },
+      "synthetic_request_delay_ms": 20
+    },
+    {
+      "build_profile": "release",
+      "elapsed_ms": 8084.696812000001,
+      "fixture": "separate Python application, actual FUSE, loopback OneDrive adapter, seeded metadata; no real provider/indexing/desktop decoder",
+      "mode": "Strong",
+      "phases": [
+        {
+          "application": {
+            "bytes": 3100000,
+            "elapsed_ms": 71.27044501248747,
+            "first_open_read_ms": 70.08860501809977,
+            "process_peak_rss_kib": 18884,
+            "read_calls": {
+              "max_ms": 69.11023598513566,
+              "p50_ms": 0.01955500920303166,
+              "p95_ms": 0.021209008991718292,
+              "samples": 48
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 0.807661,
+            "p50_ms": 0.682032,
+            "p95_ms": 0.682032,
+            "samples": 2
+          },
+          "content_gets": 1,
+          "downloaded_bytes": 3100000,
+          "graph_gets": 2,
+          "phase": "preview",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "first_open_reads": {
+              "max_ms": 0.1164519926533103,
+              "p50_ms": 0.09836300159804524,
+              "p95_ms": 0.09836300159804524,
+              "samples": 3
+            },
+            "process_peak_rss_kib": 18892,
+            "reads": [
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 1.5412300126627088,
+                "first_open_read_ms": 0.1164519926533103,
+                "read_calls": {
+                  "max_ms": 0.03196499892510474,
+                  "p50_ms": 0.0230120203923434,
+                  "p95_ms": 0.025267014279961583,
+                  "samples": 48
+                }
+              },
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 1.0039570042863488,
+                "first_open_read_ms": 0.09836300159804524,
+                "read_calls": {
+                  "max_ms": 0.05782698281109333,
+                  "p50_ms": 0.015666999388486147,
+                  "p95_ms": 0.016893987776711583,
+                  "samples": 48
+                }
+              },
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 1.4822660014033318,
+                "first_open_read_ms": 0.0725619902368635,
+                "read_calls": {
+                  "max_ms": 0.02609699731692672,
+                  "p50_ms": 0.022885011276230216,
+                  "p95_ms": 0.02434200723655522,
+                  "samples": 48
+                }
+              }
+            ]
+          },
+          "cached_navigation": {
+            "max_ms": 0.550802,
+            "p50_ms": 0.550802,
+            "p95_ms": 0.550802,
+            "samples": 1
+          },
+          "content_gets": 0,
+          "downloaded_bytes": 0,
+          "graph_gets": 0,
+          "phase": "reopen",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 16384,
+            "process_peak_rss_kib": 18964,
+            "read_calls": {
+              "max_ms": 70.22702900576405,
+              "p50_ms": 27.39578901673667,
+              "p95_ms": 27.446028019767255,
+              "samples": 4
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 0.7041540000000001,
+            "p50_ms": 0.526654,
+            "p95_ms": 0.696782,
+            "samples": 4
+          },
+          "content_gets": 4,
+          "downloaded_bytes": 16777216,
+          "graph_gets": 2,
+          "phase": "sparse",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 131072,
+            "first_open_reads": {
+              "max_ms": 70.02073200419545,
+              "p50_ms": 69.5434540102724,
+              "p95_ms": 69.87924201530404,
+              "samples": 32
+            },
+            "process_peak_rss_kib": 19848,
+            "readers": 32
+          },
+          "cached_navigation": {
+            "max_ms": 0.916432,
+            "p50_ms": 0.6886610000000001,
+            "p95_ms": 0.6886610000000001,
+            "samples": 2
+          },
+          "content_gets": 1,
+          "downloaded_bytes": 3100000,
+          "graph_gets": 2,
+          "phase": "concurrent",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 1073741824,
+            "elapsed_ms": 7744.773659011116,
+            "first_open_read_ms": 71.75609399564564,
+            "process_peak_rss_kib": 20432,
+            "read_calls": {
+              "max_ms": 71.6837799991481,
+              "p50_ms": 0.02573200617916882,
+              "p95_ms": 0.08600600995123386,
+              "samples": 16384
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 3.36224,
+            "p50_ms": 0.8065519999999999,
+            "p95_ms": 1.611346,
+            "samples": 155
+          },
+          "content_gets": 256,
+          "downloaded_bytes": 1073741824,
+          "graph_gets": 2,
+          "phase": "sequential",
+          "renewals": 0
+        }
+      ],
+      "service_and_loopback_sampled_rss_baseline_bytes": 14561280,
+      "service_and_loopback_sampled_rss_peak_bytes": 131215360,
+      "staging": {
+        "staged_bytes": 0,
+        "staging_budget_bytes": 134217728,
+        "staging_peak_bytes": 0,
+        "staging_reserved_bytes": 0,
+        "validated_windows": 0
+      },
+      "synthetic_request_delay_ms": 20
+    },
+    {
+      "build_profile": "release",
+      "elapsed_ms": 5311.925521,
+      "fixture": "separate Python application, actual FUSE, loopback OneDrive adapter, seeded metadata; no real provider/indexing/desktop decoder",
+      "mode": "Windows",
+      "phases": [
+        {
+          "application": {
+            "bytes": 3100000,
+            "elapsed_ms": 70.73888700688258,
+            "first_open_read_ms": 69.52965600066818,
+            "process_peak_rss_kib": 18928,
+            "read_calls": {
+              "max_ms": 68.68534200475551,
+              "p50_ms": 0.01838098978623748,
+              "p95_ms": 0.023005995899438855,
+              "samples": 48
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 0.668022,
+            "p50_ms": 0.637289,
+            "p95_ms": 0.637289,
+            "samples": 2
+          },
+          "content_gets": 1,
+          "downloaded_bytes": 3100000,
+          "graph_gets": 2,
+          "phase": "preview",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "first_open_reads": {
+              "max_ms": 0.0719230156391859,
+              "p50_ms": 0.05034799687564373,
+              "p95_ms": 0.05034799687564373,
+              "samples": 3
+            },
+            "process_peak_rss_kib": 18936,
+            "reads": [
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 0.8692990231793374,
+                "first_open_read_ms": 0.0719230156391859,
+                "read_calls": {
+                  "max_ms": 0.020464009139686823,
+                  "p50_ms": 0.01340097514912486,
+                  "p95_ms": 0.017749989638105035,
+                  "samples": 48
+                }
+              },
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 1.0284050076734277,
+                "first_open_read_ms": 0.05034799687564373,
+                "read_calls": {
+                  "max_ms": 0.028520007617771626,
+                  "p50_ms": 0.0175320019479841,
+                  "p95_ms": 0.023089000023901463,
+                  "samples": 48
+                }
+              },
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 1.014465990010649,
+                "first_open_read_ms": 0.04142598481848836,
+                "read_calls": {
+                  "max_ms": 0.01826201332733035,
+                  "p50_ms": 0.016595004126429558,
+                  "p95_ms": 0.017220998415723443,
+                  "samples": 48
+                }
+              }
+            ]
+          },
+          "cached_navigation": {
+            "max_ms": 0.66953,
+            "p50_ms": 0.66953,
+            "p95_ms": 0.66953,
+            "samples": 1
+          },
+          "content_gets": 0,
+          "downloaded_bytes": 0,
+          "graph_gets": 0,
+          "phase": "reopen",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 16384,
+            "process_peak_rss_kib": 19008,
+            "read_calls": {
+              "max_ms": 69.90239900187589,
+              "p50_ms": 69.68073302414268,
+              "p95_ms": 69.78546001482755,
+              "samples": 4
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 0.925979,
+            "p50_ms": 0.8712709999999999,
+            "p95_ms": 0.917941,
+            "samples": 6
+          },
+          "content_gets": 4,
+          "downloaded_bytes": 16777216,
+          "graph_gets": 8,
+          "phase": "sparse",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 131072,
+            "first_open_reads": {
+              "max_ms": 69.15891700191423,
+              "p50_ms": 68.51802798337303,
+              "p95_ms": 68.92153900116682,
+              "samples": 32
+            },
+            "process_peak_rss_kib": 19892,
+            "readers": 32
+          },
+          "cached_navigation": {
+            "max_ms": 0.83219,
+            "p50_ms": 0.543184,
+            "p95_ms": 0.543184,
+            "samples": 2
+          },
+          "content_gets": 1,
+          "downloaded_bytes": 3100000,
+          "graph_gets": 2,
+          "phase": "concurrent",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 1073741824,
+            "elapsed_ms": 4846.651323983679,
+            "first_open_read_ms": 70.33317699097097,
+            "process_peak_rss_kib": 20472,
+            "read_calls": {
+              "max_ms": 167.94030900928192,
+              "p50_ms": 0.024617009330540895,
+              "p95_ms": 0.08820102084428072,
+              "samples": 16384
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 2.260122,
+            "p50_ms": 0.8090579999999999,
+            "p95_ms": 1.350202,
+            "samples": 97
+          },
+          "content_gets": 20,
+          "downloaded_bytes": 1073741824,
+          "graph_gets": 40,
+          "phase": "sequential",
+          "renewals": 0
+        }
+      ],
+      "service_and_loopback_sampled_rss_baseline_bytes": 14946304,
+      "service_and_loopback_sampled_rss_peak_bytes": 177229824,
+      "staging": {
+        "staged_bytes": 1065353216,
+        "staging_budget_bytes": 134217728,
+        "staging_peak_bytes": 67108864,
+        "staging_reserved_bytes": 0,
+        "validated_windows": 18
+      },
+      "synthetic_request_delay_ms": 20
+    }
+  ]
+}

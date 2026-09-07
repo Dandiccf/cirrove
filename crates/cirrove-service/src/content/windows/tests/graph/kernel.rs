@@ -61,30 +61,43 @@ impl Drop for Mounted {
 }
 impl Mounted {
     async fn new() -> anyhow::Result<Self> {
+        let control = Arc::new(Control {
+            pause_body: AtomicBool::new(true),
+            pause_final: AtomicBool::new(true),
+            ..Default::default()
+        });
+        Self::configured(SIZE, 64 * 1024 * 1024, control).await
+    }
+    async fn configured(size: u64, quota: u64, control: Arc<Control>) -> anyhow::Result<Self> {
         let temp = tempfile::tempdir()?;
         let mount = temp.path().join("mount");
         std::fs::create_dir(&mount)?;
-        let control = Arc::new(Control::default());
-        control.pause_body.store(true, Ordering::SeqCst);
-        control.pause_final.store(true, Ordering::SeqCst);
-        let server = controlled_server(SIZE, control.clone()).await;
+        let server = controlled_server(size, control.clone()).await;
+        let mut account = account(mount.clone());
+        account.cache_bytes = quota;
         let engine = Engine::new(
-            account(mount.clone()),
+            account,
             Arc::new(server.provider.clone()),
             temp.path().join("state"),
         )
         .await?;
+        let files = control.files.clone();
         let (db, scope) = (engine.db.clone(), engine.scope("drive"));
         tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
             let mut store = Store::open(db)?;
             let cursor = store.begin(&scope, true)?;
             let changes = [
                 ("root", None, NodeKind::Folder, 0),
-                ("file", Some("root"), NodeKind::File, SIZE),
+                ("file", Some("root"), NodeKind::File, size),
                 ("folder", Some("root"), NodeKind::Folder, 0),
                 ("other", Some("folder"), NodeKind::File, 16 * 1024),
             ]
             .into_iter()
+            .chain(
+                files
+                    .iter()
+                    .map(|(id, (size, _))| (id.as_str(), Some("root"), NodeKind::File, *size)),
+            )
             .map(|(id, parent, kind, size)| {
                 Change::Upsert(Node {
                     id: id.into(),
@@ -301,3 +314,5 @@ async fn real_window_rejects_changed_content_without_publishing() -> anyhow::Res
 async fn real_window_cancels_and_unmounts_with_open_readers() -> anyhow::Result<()> {
     scenario(Outcome::Cancelled).await
 }
+
+mod workloads;

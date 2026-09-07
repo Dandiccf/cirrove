@@ -225,3 +225,9 @@ fallback now has an actual-adapter/shared-cache 1 GiB fixture with JSON request,
 staging, timing and sampled-RSS evidence. The CLI above exercises exact ranges,
 not windows; use the fixture command documented in the ADR for window checks.
 The wider correctness/provider/desktop performance gates remain open.
+
+The [mounted application workload](adr/0004-read-session-efficiency.md#mounted-application-workload-and-measured-tradeoffs)
+runs in a separate release CI job. It compares the original, strong-session and
+streamed-window paths through actual FUSE and a separate Python reader process,
+with zero and 20 ms imposed response latency. Use the ADR's explicit commands for
+this fixture; it is ignored in the normal suite and does not contact a cloud account.

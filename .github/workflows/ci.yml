@@ -51,3 +51,30 @@ jobs:
       - run: python3 scripts/smoke.py
       - run: python3 scripts/test-observe-service.py
       - run: cargo doc --workspace --no-deps --locked
+  mounted-read-workloads:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install service build dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config fuse3
+      - name: Install pinned toolchain
+        run: rustup toolchain install 1.98.1 --profile minimal
+      - name: Build optimized workload fixtures
+        run: cargo test -p cirrove-service --lib --locked --release --no-run
+      - name: Verify kernel FUSE access
+        run: |
+          test -c /dev/fuse || sudo modprobe fuse
+          test -r /dev/fuse && test -w /dev/fuse
+          mountpoint -q /sys/fs/fuse/connections || sudo mount -t fusectl fusectl /sys/fs/fuse/connections
+      - name: Mounted file workloads with and without simulated response latency
+        # A separate process for each variant avoids allocator high-water marks
+        # from an earlier variant contaminating the next memory measurement.
+        run: |
+          for delay in 0 20; do
+            for mode in conservative strong windows; do
+              CIRROVE_FIXTURE_REQUEST_DELAY_MS="$delay" timeout 210s cargo test -p cirrove-service --lib --locked --release "real_mounted_${mode}_read_workload" -- --ignored --nocapture --test-threads=1
+            done
+          done
