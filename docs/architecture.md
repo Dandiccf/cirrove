@@ -135,7 +135,14 @@ Other connections can publish while this reader retains its consistent snapshot.
 For a cached read-only OPENDIR, Engine now passes this iterator directly to a
 blocking snapshot builder. Projection and persistent inode assignment use batches
 of 128 nodes and a separate WAL writer connection; the complete listing is not
-retained in a vector. Cached read-only LOOKUP also uses the name indexes directly,
+retained in a vector. After the first meaningful batch is flushed, the read-only
+handle can consume its immutable prefix while the builder continues. Later batches
+publish at roughly 1,024 entries. READDIR waits asynchronously at an unfinished
+frontier, then performs bounded positioned reads on blocking workers. EOF requires
+a successful complete metadata read and final flush; a later failure or abandoned
+producer reports an error instead of silently shortening the listing. Closing the
+last handle and in-flight reader cancels further construction. Writer and readers
+jointly retain the existing snapshot reservation until their files close. Cached read-only LOOKUP also uses the name indexes directly,
 decoding only the first matching identity. It shares directory visibility and
 observation ordering with READDIR, including renamed, moved and absent entries.
 An unknown directory is fetched through the existing coalescing gate; a known
@@ -172,8 +179,8 @@ reads committed rows and retains at most 257 distinct targets, processing up to
 256 with a warning on truncation, matching the existing discovery bound.
 
 The compatibility `children()`/`publish_directory()` APIs and writable local-overlay
-lookup/projection still collect lists. Those consumers, snapshot construction before
-the first entry, view payload budgets and long-session memory remain open gates.
+lookup/projection still collect lists. Those consumers, large-directory first-entry
+latency acceptance, view payload budgets and long-session memory remain open gates.
 Long-lived read transactions also retain WAL history until released; the visitor
 is for bounded local work, never network waits or idle open directory handles.
 

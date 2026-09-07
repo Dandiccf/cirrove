@@ -52,13 +52,15 @@ Cold foreground publication now stages provider pages in bounded temporary SQLit
 storage and atomically commits the complete listing, with stale-response checks,
 absence/move semantics and cancellation. A synthetic 500k-file cold mount, offline
 revisit and remount pass; writable overlays and compatibility APIs still materialize
-lists. Snapshot construction also scans all entries before returning the first one.
+lists. Read-only snapshot construction now publishes an immutable flushed prefix
+before completing the scan; waiting readers distinguish completion from late errors.
+Large-directory latency and sustained acceptance for this path remain open.
 This remains partial progress toward the paging and memory gate; see
 [foreground publication measurements](benchmarks/directory-publication.json).
 Separate three-pass kernel runs now cover 500k files in one directory and in
-500 directories, with snapshot storage fully released after close. Opening the
-giant directory still takes 5.49–7.31 seconds, and process RSS still rises across
-passes; see [the measurements](benchmarks/directory-snapshot-pages.json).
+500 directories, with snapshot storage fully released after close. Those earlier
+completed-snapshot measurements took 5.49–7.31 seconds to open the giant directory,
+and process RSS rose across passes; see [the measurements](benchmarks/directory-snapshot-pages.json).
 Metadata changes now select affected live projections through revision and identity
 indexes, including shortcut sources, targets and old content versions. Kernel
 notifications are batched outside the view lock; local namespace and recovery events
@@ -80,8 +82,12 @@ byte-budget and sustained acceptance remain open; see
 A combined kernel workload runner now stats all projected files across deep paths
 and duplicate aliases, preserves held old files/snapshots during updates, and checks
 offline remount. Its sustained mode measures a fixed active set without forced full
-sweeps each round. Small/short runs validate the runner; 500k and 24-hour acceptance,
-byte accounting and reconstruction still require evidence and implementation.
+sweeps each round. Separate 500k indexed/750k projected comparisons now pass three stat traversals
+and offline remount for both many-directory and giant-directory layouts. The
+compact representation reduces final released RSS by about 15 and 18.7 percent,
+respectively, while references retire to the root. These zero-byte fixtures do not
+close the combined content, 24-hour, byte-budget or reconstruction gates; see
+[the measurements and their limits](benchmarks/compact-namespace-churn.json).
 A shared conditional read-session prototype now removes per-block Graph checks in
 an explicit developer path. A synthetic 1 GiB adapter read uses two Graph requests
 instead of 512; an isolated business-file comparison also verifies subsequent
