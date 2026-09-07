@@ -31,6 +31,12 @@ lookup references and open/in-flight leases end, with actual-kernel regression
 coverage. Directory ancestry remains pinned; byte budgets, large single-directory
 paging and interrupted-reply accounting remain open. These partial corrections
 do not close the 500k-file/long-session gate.
+A shared conditional read-session prototype now removes per-block Graph checks in
+an explicit developer path. A synthetic 1 GiB adapter read uses two Graph requests
+instead of 512; an isolated business-file comparison also verifies subsequent
+conditional ranges without additional Graph calls. Ordinary accounts remain on
+the conservative path. Sequential-window fallback, the full provider matrix and
+kernel/application latency/resource measurements remain required by ADR 0004.
 Graph Socket.IO and provider-neutral coalescing hints are now implemented. This
 does not close the live-response gate: notifications can be delayed upstream.
 An isolated business-drive run passed actual long-session renewal and subsequent

@@ -3,6 +3,8 @@
 mod mutation;
 mod notifications;
 pub mod read_probe;
+mod read_sessions;
+pub use read_sessions::{ReadCountersSnapshot, ReadSessionValidationReport};
 mod upload;
 use async_trait::async_trait;
 use cirrove_core::{
@@ -36,6 +38,7 @@ impl TokenSource for StaticToken {
     }
 }
 
+#[derive(Clone)]
 pub struct OneDrive {
     account: String,
     endpoint: Url,
@@ -44,7 +47,9 @@ pub struct OneDrive {
     uploads: Client,
     tokens: Arc<dyn TokenSource>,
     budget: RequestBudget,
-    cooldown: Mutex<Option<Instant>>,
+    cooldown: Arc<Mutex<Option<Instant>>>,
+    conditional_reads: bool,
+    counters: Arc<read_sessions::ReadCounters>,
 }
 impl OneDrive {
     pub fn new(account: String, tokens: Arc<dyn TokenSource>) -> Result<Self, ProviderError> {
@@ -87,7 +92,9 @@ impl OneDrive {
             client,
             tokens,
             budget: RequestBudget::default(),
-            cooldown: Mutex::new(None),
+            cooldown: Arc::new(Mutex::new(None)),
+            conditional_reads: false,
+            counters: Arc::new(read_sessions::ReadCounters::default()),
         })
     }
     async fn fetch_range(
@@ -97,67 +104,9 @@ impl OneDrive {
         offset: u64,
         length: u32,
     ) -> Result<Vec<u8>, ProviderError> {
-        let expected = node
-            .content_revision()
-            .ok_or(ProviderError::Protocol("file has no version tag"))?;
-        let count = (node.size - offset).min(length as u64);
-        let url = self.resource_url(&["drives", &scope.collection, "items", &node.id])?;
-        let before: DriveItem = serde_json::from_slice(&self.request_bytes(url.clone()).await?)
-            .map_err(|_| ProviderError::Protocol("invalid file metadata"))?;
-        if !before.matches_content(expected, node.size) {
-            return Err(ProviderError::VersionChanged);
-        }
-        let download = self.download_url(&before)?;
-        // This client has no Graph bearer token or default authorization headers.
-        let mut response = self
-            .downloads
-            .get(download)
-            .header("Range", format!("bytes={offset}-{}", offset + count - 1))
-            .header("Accept-Encoding", "identity")
-            .send()
+        self.checked_read(scope, node, offset, length)
             .await
-            .map_err(|_| ProviderError::Unavailable)?;
-        if matches!(
-            response.status(),
-            StatusCode::TOO_MANY_REQUESTS | StatusCode::SERVICE_UNAVAILABLE
-        ) {
-            return Err(self.throttle(&response).await?);
-        }
-        if response.status() == StatusCode::PARTIAL_CONTENT {
-            let expected_range = format!("bytes {offset}-{}/{}", offset + count - 1, node.size);
-            if response
-                .headers()
-                .get("content-range")
-                .and_then(|v| v.to_str().ok())
-                != Some(expected_range.as_str())
-            {
-                return Err(ProviderError::Protocol("download range mismatch"));
-            }
-        } else if response.status() != StatusCode::OK || offset != 0 || count != node.size {
-            return Err(ProviderError::Unavailable);
-        }
-        let mut bytes = Vec::with_capacity(count as usize);
-        while let Some(chunk) = response
-            .chunk()
-            .await
-            .map_err(|_| ProviderError::Unavailable)?
-        {
-            if chunk.len() > count as usize - bytes.len() {
-                return Err(ProviderError::Protocol("download exceeded requested range"));
-            }
-            bytes.extend_from_slice(&chunk);
-        }
-        if bytes.len() != count as usize {
-            return Err(ProviderError::Unavailable);
-        }
-        // A signed URL may identify the current content, not an immutable version.
-        // Verify again before publishing a block; never combine changed versions.
-        let after: DriveItem = serde_json::from_slice(&self.request_bytes(url).await?)
-            .map_err(|_| ProviderError::Protocol("invalid file metadata"))?;
-        if !after.matches_content(expected, node.size) {
-            return Err(ProviderError::VersionChanged);
-        }
-        Ok(bytes)
+            .map(|range| range.bytes)
     }
     fn download_url(&self, item: &DriveItem) -> Result<Url, ProviderError> {
         let download = Url::parse(
@@ -212,6 +161,9 @@ impl OneDrive {
         url: Url,
     ) -> Result<(reqwest::Response, SecretString), ProviderError> {
         let token = self.tokens.access_token().await?;
+        self.counters
+            .graph_get_attempts
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let response = self
             .client
             .get(url)
@@ -223,12 +175,7 @@ impl OneDrive {
         Ok((response, token))
     }
     async fn request_bytes(&self, url: Url) -> Result<Vec<u8>, ProviderError> {
-        if let Some(deadline) = *self.cooldown.lock().await {
-            let remaining = deadline.saturating_duration_since(Instant::now());
-            if !remaining.is_zero() {
-                return Err(ProviderError::Throttled(remaining));
-            }
-        }
+        self.check_cooldown().await?;
         let (mut response, rejected) = self.authorized_request(url.clone()).await?;
         if response.status() == StatusCode::UNAUTHORIZED {
             self.tokens.invalidate(&rejected).await;
@@ -259,6 +206,15 @@ impl OneDrive {
             body.extend_from_slice(&chunk);
         }
         Ok(body)
+    }
+    async fn check_cooldown(&self) -> Result<(), ProviderError> {
+        if let Some(deadline) = *self.cooldown.lock().await {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if !remaining.is_zero() {
+                return Err(ProviderError::Throttled(remaining));
+            }
+        }
+        Ok(())
     }
     async fn throttle(&self, response: &reqwest::Response) -> Result<ProviderError, ProviderError> {
         let delay = retry_after(
@@ -427,6 +383,28 @@ impl MetadataProvider for OneDrive {
 
 #[async_trait]
 impl ReadProvider for OneDrive {
+    async fn open_read_session(
+        &self,
+        scope: &Scope,
+        node: &Node,
+        cancel: &CancellationToken,
+    ) -> Result<Option<Arc<dyn cirrove_core::reads::ReadSession>>, ProviderError> {
+        if !self.conditional_reads {
+            return Ok(None);
+        }
+        if cancel.is_cancelled() {
+            return Err(ProviderError::Cancelled);
+        }
+        if scope.account != self.account || scope.provider != "onedrive" {
+            return Err(ProviderError::Protocol("provider/account mismatch"));
+        }
+        Ok(Some(Arc::new(read_sessions::GraphReadSession::new(
+            self.clone(),
+            scope,
+            node,
+        )?)))
+    }
+
     async fn node(
         &self,
         scope: &Scope,
@@ -587,6 +565,22 @@ struct DriveItem {
     download_url: Option<String>,
 }
 impl DriveItem {
+    fn matches_read(&self, scope: &Scope, node: &Node) -> bool {
+        self.id == node.id
+            && self.file.is_some()
+            && self.folder.is_none()
+            && self.deleted.is_none()
+            && self.remote_item.is_none()
+            && self
+                .parent_reference
+                .as_ref()
+                .and_then(|p| p.drive_id.as_deref())
+                .is_none_or(|drive| drive == scope.collection)
+            && node
+                .content_revision()
+                .is_some_and(|revision| self.matches_content(revision, node.size))
+    }
+
     fn matches_content(&self, expected: (&str, &str), size: u64) -> bool {
         let revision = match expected.0 {
             "content" => self.c_tag.as_deref(),

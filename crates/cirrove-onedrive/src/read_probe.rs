@@ -1,5 +1,6 @@
 //! Explicit, bounded observation of content-origin validators. This does not
 //! enable a read fast path or prove behavior across later edits and URL renewal.
+use super::read_sessions::strong_etag;
 use super::*;
 use reqwest::header::{ETAG, HeaderValue, IF_MATCH, IF_RANGE};
 use sha2::{Digest, Sha256};
@@ -38,32 +39,6 @@ struct Sample {
     digest: Option<[u8; 32]>,
 }
 
-fn strong_etag(value: &HeaderValue) -> bool {
-    let bytes = value.as_bytes();
-    bytes.len() >= 2
-        && bytes.first() == Some(&b'"')
-        && bytes.last() == Some(&b'"')
-        && bytes[1..bytes.len() - 1]
-            .iter()
-            .all(|b| *b == 0x21 || (0x23..=0x7e).contains(b) || *b >= 0x80)
-}
-
-fn matches_node(item: &DriveItem, scope: &Scope, node: &Node) -> bool {
-    item.id == node.id
-        && item.file.is_some()
-        && item.folder.is_none()
-        && item.deleted.is_none()
-        && item.remote_item.is_none()
-        && item
-            .parent_reference
-            .as_ref()
-            .and_then(|p| p.drive_id.as_deref())
-            .is_none_or(|drive| drive == scope.collection)
-        && node
-            .content_revision()
-            .is_some_and(|revision| item.matches_content(revision, node.size))
-}
-
 impl OneDrive {
     /// Observe GET/If-Match/If-Range on at most 4 KiB of one explicitly selected
     /// file. All requests are reads; bytes, tags and URLs stay private in memory.
@@ -99,7 +74,7 @@ impl OneDrive {
         let before: DriveItem =
             serde_json::from_slice(&self.request_bytes(metadata_url.clone()).await?)
                 .map_err(|_| ProviderError::Protocol("invalid file metadata"))?;
-        if !matches_node(&before, scope, node) {
+        if !before.matches_read(scope, node) {
             return Err(ProviderError::VersionChanged);
         }
         let url = self.download_url(&before)?;
@@ -154,7 +129,7 @@ impl OneDrive {
             sample_bytes: count,
             metadata_operations: 2,
             content_operations: observations.len(),
-            metadata_unchanged: matches_node(&after, scope, node),
+            metadata_unchanged: after.matches_read(scope, node),
             observations,
         })
     }
@@ -176,6 +151,9 @@ impl OneDrive {
         if let Some((name, value)) = header {
             request = request.header(name, value);
         }
+        self.counters
+            .content_get_attempts
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let mut response = request
             .send()
             .await
@@ -222,6 +200,9 @@ impl OneDrive {
                 .await
                 .map_err(|_| ProviderError::Unavailable)?
             {
+                self.counters
+                    .content_body_bytes
+                    .fetch_add(chunk.len() as u64, std::sync::atomic::Ordering::Relaxed);
                 if chunk.len() > count as usize - bytes.len() {
                     oversized = true;
                     break;

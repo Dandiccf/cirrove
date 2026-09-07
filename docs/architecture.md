@@ -195,9 +195,36 @@ distinct in cache keys. Response range and byte count are
 validated before publication. This favors version consistency but adds **two Graph
 metadata requests per uncached block**. Removing this request amplification is an
 explicit OneDrive 1.0 gate: [read-session efficiency](adr/0004-read-session-efficiency.md)
-proposes shared version-bound sessions, bounded transfer windows and validated
-renewal. That replacement is not implemented yet. A changed file yields ESTALE
-instead of mixing versions.
+specifies shared version-bound sessions, bounded transfer windows and validated
+renewal. A developer-only conditional-session prototype is now implemented;
+ordinary accounts still use the conservative path. A changed file yields ESTALE
+instead of mixing observed versions.
+
+The cache coordinates optional provider-neutral read sessions keyed by scope, item,
+content revision namespace/value and size. It retains at most 64 entries, evicts
+idle entries after 60 seconds on subsequent use, and never evicts in-flight entries.
+If every slot is active, another identity uses the bounded original read contract.
+Session creation coalesces without keeping the residency map locked during I/O.
+Existing versioned disk blocks and publication/recovery rules are unchanged.
+
+The experimental OneDrive session establishes its first range with the existing
+Graph before/after checks, then retains the content origin's own strong HTTP ETag.
+Later ranges send If-Match and check the effective resource, returned strong tag,
+exact range, identity encoding and body length. A rejected/expired URL, changed
+resource or changed validator triggers coalesced revalidation of the original
+Graph identity. This also permits metadata-only origin-tag changes without leaving
+an unchanged content revision permanently stuck. Setup failures share a short
+cooldown. Each transport binding has a 60-second lease; the account's existing
+content budget, cancellation and provider cooldown remain shared. Initial weak or
+missing validators use the original before/after path. Transport URLs and tags are
+not persisted or exposed in diagnostics.
+
+Renewal depends on the same Graph revision evidence as initial setup; it is not an
+immutable-version API or a transaction across Graph and its content origin. Neither
+a signed URL nor a matching ETag across different resource URLs alone proves that
+association. Real mutation, URL-expiry, revocation and Personal-account acceptance
+are still required before enabling this path in normal accounts. The bounded
+sequential-window fallback is also still unimplemented.
 
 Blocks have SHA-256 checksums. Temporary bytes and the containing directory are
 fsynced before publication is indexed. Startup removes interrupted temporary blocks,

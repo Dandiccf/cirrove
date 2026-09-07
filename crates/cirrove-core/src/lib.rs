@@ -1,6 +1,7 @@
 //! Provider-neutral metadata contracts. Paths are presentation; IDs are identity.
 pub mod mutation;
 pub mod notifications;
+pub mod reads;
 pub mod upload;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -8,7 +9,7 @@ use std::{sync::Arc, time::Duration};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 pub use tokio_util::sync::CancellationToken;
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Scope {
     pub account: String,
     pub provider: String,
@@ -157,6 +158,17 @@ pub struct DirectoryPage {
 /// Read-only filesystem operations, deliberately separate from change feeds.
 #[async_trait]
 pub trait ReadProvider: MetadataProvider {
+    /// Optional version-bound transport. The shared service coalesces creation
+    /// and bounds residency; adapters keep credentials and validators private.
+    /// None uses the existing exact-range contract without a transport session.
+    async fn open_read_session(
+        &self,
+        _scope: &Scope,
+        _node: &Node,
+        _cancel: &CancellationToken,
+    ) -> Result<Option<Arc<dyn reads::ReadSession>>, ProviderError> {
+        Ok(None)
+    }
     async fn node(
         &self,
         scope: &Scope,
@@ -192,6 +204,7 @@ pub enum Priority {
 
 /// Separate bounded pools reserve capacity for interactive work. These are per
 /// provider account; provider cooldowns still apply to both pools.
+#[derive(Clone)]
 pub struct RequestBudget {
     interactive: Arc<Semaphore>,
     background: Arc<Semaphore>,

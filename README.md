@@ -45,7 +45,9 @@ and Nautilus badges are not implemented.
   leases end. Directory ancestry, byte budgets and large-directory paging retain an open
   [namespace memory gate](docs/adr/0005-namespace-memory.md).
 - Version-checked 4 MiB range cache, concurrent-request coalescing, checksums,
-  bounded eviction and interrupted-publication recovery.
+  bounded eviction and interrupted-publication recovery. An explicit developer
+  read-session prototype reduces repeated Graph checks; ordinary accounts retain
+  conservative reads until the [acceptance gates](docs/adr/0004-read-session-efficiency.md) pass.
 - Private status socket, desired mount state, accidental-ejection remount and
   graceful worker/session shutdown. Settings and metadata persist across runs.
 - Native GTK4/libadwaita account overview with mount controls and opening confirmed
