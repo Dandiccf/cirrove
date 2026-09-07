@@ -6,6 +6,7 @@ struct ColdLibrary {
     offline: AtomicBool,
     pause: AtomicBool,
     entered: tokio::sync::Notify,
+    released: tokio::sync::Notify,
     pages: AtomicUsize,
 }
 #[async_trait]
@@ -50,8 +51,11 @@ impl ReadProvider for ColdLibrary {
         assert_eq!(parent, "directory-000000");
         if cursor.is_some() && self.pause.load(Ordering::SeqCst) {
             self.entered.notify_one();
-            cancel.cancelled().await;
-            return Err(ProviderError::Cancelled);
+            tokio::select! {
+                biased;
+                _ = cancel.cancelled() => return Err(ProviderError::Cancelled),
+                _ = self.released.notified() => (),
+            }
         }
         let start = cursor.map_or(0, |c| c.0.parse::<usize>().unwrap());
         let end = (start + PAGE).min(self.generated.files);
@@ -86,6 +90,7 @@ fn provider(files: usize, pause: bool) -> Arc<ColdLibrary> {
         offline: AtomicBool::new(false),
         pause: AtomicBool::new(pause),
         entered: tokio::sync::Notify::new(),
+        released: tokio::sync::Notify::new(),
         pages: AtomicUsize::new(0),
     })
 }
@@ -162,6 +167,100 @@ async fn abandoned_cold_fetch_discards_pages_and_restarts_from_first_page() {
         0
     );
     engine.stop().await;
+}
+
+pub(super) async fn interrupted_clients() {
+    use std::{os::unix::process::ExitStatusExt, process::Stdio};
+
+    // A fresh cold directory makes the provider barrier identify an actual
+    // pending LOOKUP or OPENDIR, rather than an arbitrary delay in the client.
+    for operation in ["lookup", "opendir"] {
+        let temp = tempfile::tempdir().unwrap();
+        let provider = provider(3000, true);
+        let (engine, mount) = setup(&temp, provider.clone()).await;
+        let fs = CloudFs::new(engine.clone()).unwrap();
+        let inner = fs.inner.clone();
+        let session = fs.mount(&mount).unwrap();
+        let path = mount.join("directory-000000");
+        let available_requests = inner.pending.available_permits();
+        let mut client = tokio::process::Command::new("python3")
+            .args([
+                "-c",
+                r#"import os, sys
+if sys.argv[1] == 'lookup':
+    os.stat(os.path.join(sys.argv[2], 'Projektunterlagen – Übersicht 00002999.txt'))
+else:
+    with os.scandir(sys.argv[2]) as entries:
+        next(entries)
+"#,
+                operation,
+            ])
+            .arg(&path)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::inherit())
+            .kill_on_drop(true)
+            .spawn()
+            .unwrap();
+        tokio::time::timeout(Duration::from_secs(5), provider.entered.notified())
+            .await
+            .unwrap();
+        assert!(client.try_wait().unwrap().is_none());
+        assert!(inner.pending.available_permits() < available_requests);
+        // Only the synthetic client is killed. Let the server complete its
+        // original request; FUSE_INTERRUPT is not a delivered-reference receipt.
+        client.start_kill().unwrap();
+        provider.pause.store(false, Ordering::SeqCst);
+        provider.released.notify_one();
+        let status = tokio::time::timeout(Duration::from_secs(10), client.wait())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(status.signal(), Some(9));
+
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !inner.directories.lock().unwrap().is_empty()
+            || inner.directory_budget.usage() != (0, 0)
+            || inner.pending.available_permits() != available_requests
+        {
+            assert!(
+                Instant::now() < deadline,
+                "interrupted {operation} retained a request or snapshot"
+            );
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        parents::settle(&inner, 1).await;
+        let diagnostics = inner.views.lock().unwrap().diagnostics();
+        assert_eq!(diagnostics["kernel_referenced_views"], 0);
+        assert_eq!(diagnostics["quarantined_views"], 0);
+        assert!(inner.files.lock().unwrap().is_empty());
+
+        // The completed metadata remains usable after the original caller died.
+        provider.offline.store(true, Ordering::SeqCst);
+        let pages = provider.pages.load(Ordering::SeqCst);
+        let count = tokio::task::spawn_blocking(move || {
+            let file = path.join("Projektunterlagen – Übersicht 00002999.txt");
+            assert_eq!(std::fs::metadata(file).unwrap().len(), 0);
+            std::fs::read_dir(path).unwrap().fold(0, |count, entry| {
+                entry.unwrap();
+                count + 1
+            })
+        })
+        .await
+        .unwrap();
+        assert_eq!(count, 3000);
+        assert_eq!(provider.pages.load(Ordering::SeqCst), pages);
+        assert_eq!(provider.generated.content_reads.load(Ordering::SeqCst), 0);
+        parents::settle(&inner, 1).await;
+        engine.stop().await;
+        tokio::task::spawn_blocking(move || session.umount_and_join())
+            .await
+            .unwrap()
+            .unwrap();
+        println!(
+            "CIRROVE_INTERRUPTED_CLIENT {operation}: references and snapshots released; offline revisit passed"
+        );
+    }
 }
 pub(super) async fn mounted() {
     let files = std::env::var("CIRROVE_COLD_DIRECTORY_FILES")
