@@ -742,3 +742,103 @@ other product milestones remain open.
 Final local validation passed 229 default workspace tests and 35 actual synthetic
 FUSE fixtures (15 read-only/lifecycle and 20 writable-session), plus formatting,
 strict Clippy, build, smoke, two observer checks and Rustdoc.
+
+
+## Namespace capacity baseline
+
+A generated provider and actual temporary FUSE mount measured 500,000 zero-byte
+file metadata entries across 500 directories. Metadata arrived in 1,000-entry
+pages through the normal refresh/index path; no provider kept a 500k-node in-memory
+fixture map. The service was indexed before the first memory baseline. Three
+traversals changed every file's content revision between passes. No file contents,
+real accounts or keyring credentials were used. Each sample was taken after all
+application directory handles had closed.
+
+| Sample | Retained views | Process RSS (MiB) | Open files/directories |
+| --- | ---: | ---: | ---: |
+| Indexed, before traversal | 1 | 20.6 | 0 / 0 |
+| After revision 1 | 500,501 | 896.5 | 0 / 0 |
+| After revision 2 | 1,000,501 | 1,763.6 | 0 / 0 |
+| After revision 3 | 1,500,501 | 2,071.4 | 0 / 0 |
+
+Peak process RSS reached 2,287.2 MiB. Indexed traversal made no foreground provider
+metadata requests and no content reads. The complete debug-build fixture took
+111.15 seconds locally. Runtime source was `5b1128e`; the added fixture is compiled
+only into service tests. [Raw synthetic measurements](benchmarks/namespace-baseline.json)
+include PSS, map capacity and per-phase timings.
+
+This confirms the namespace-retention weakness and **does not pass** the proposed
+memory gate. Closed application handles are not a measurement of kernel lookup
+references; the later reference-lifetime correction is tested separately below. These numbers depend
+on this fixture's names, directory shape, allocator and build. The run does not
+measure real Graph latency, one huge directory, deep/duplicate aliases, held
+mappings or a 24-hour session. The 10,000-file pilot also showed accumulation
+(10,011, 20,011 and 30,011 views across revisions), before the full-size run.
+
+See [reproduction](development.md#namespace-capacity-baseline) and the
+[namespace lifetime decision](adr/0005-namespace-memory.md) for the next correctness,
+reclamation and capacity checks. No installed service was replaced by this test.
+
+
+## Directory-listing lifetime correction
+
+Plain READDIR projections now stay in their directory handle's snapshot and are
+not duplicated into the mount-wide resolved-view map. Kernel lookup references
+are established by LOOKUP/create, not by returning names from plain READDIR.
+This initial correction kept resolved views and old open-file versions retained. The dedicated
+3,000-file kernel regression checks the retained-view bound after enumeration,
+then keeps an old file open across a remote revision and verifies a distinct new
+inode without overwriting the old view. This check also runs in CI.
+
+Repeating the exact 500,000-file, three-revision workload above produced:
+
+| Sample | Retained views | Process RSS (MiB) | Open files/directories |
+| --- | ---: | ---: | ---: |
+| Indexed, before traversal | 1 | 20.9 | 0 / 0 |
+| After revision 1 | 501 | 30.8 | 0 / 0 |
+| After revision 2 | 501 | 40.8 | 0 / 0 |
+| After revision 3 | 501 | 49.9 | 0 / 0 |
+
+The complete debug fixture took 110.66 seconds. No content or foreground provider
+requests occurred. [Raw correction measurements](benchmarks/namespace-listing-lifetime.json)
+record the same fields as the baseline. This is a reduction from 2,071.4 to 49.9 MiB
+at the final sample for this workload, not a general memory bound or an API-speed
+claim. Retained views plateau here, while RSS still increases across revisions;
+allocator/SQLite/persistent-index effects need longer-session investigation.
+
+A byte budget, directory reclamation, large-directory paging, scoped invalidation
+and 24-hour churn remain open. A file manager that stats or opens every file
+exercises a different lifetime from this name-enumeration workload. The subsequent
+regular-file reference correction is tested separately below. These RSS results
+belong to the listing-only correction, not a new measurement of later changes.
+The OneDrive-1.0 namespace memory gate remains open.
+
+## Regular-file reference lifetime
+
+Five focused unit tests cover partial and final FORGET, shared operation/open-file
+leases, replacement of an existing inode's path, stale collector generations,
+checked underflow/overflow and bounded collection without discarding directory
+ancestry. The actual-kernel fixture stats 300 generated files, retains one open
+file and publishes another remote revision. All other regular-file views retire
+after invalidation. A newly opened revision receives a different inode, while the
+old descriptor still sees its original identity. Closing both descriptors and
+invalidating their dentries allows the remaining file views to retire.
+
+The fixture uses only generated metadata and a temporary mount, with zero content
+reads or foreground provider requests. CI runs it alongside the 3,000-file
+listing regression. This does not establish byte-budget compliance, complete
+directory lifetimes, interrupted reply delivery or long-session capacity.
+
+The unchanged 500,000-file name-enumeration benchmark was also repeated at
+`e779209` after this correction. Resident views were 1 after indexing and 501
+after each traversal; RSS was 21.0, 31.3, 41.3 and 50.4 MiB. The full debug fixture
+took 113.22 seconds and made no foreground provider/content requests.
+[Raw reference-lifetime measurements](benchmarks/namespace-reference-lifetime.json)
+record the exact commit and PSS/peak fields. This checks that adding reference
+accounting preserves the earlier listing improvement; the benchmark itself does
+not exercise mass file lookups or close the memory gate.
+
+At this revision, formatting, strict workspace Clippy, 239 default tests, 37
+synthetic actual-kernel mount tests, workspace build, daemon smoke and Rustdoc
+passed locally. The actual mount coverage includes old/new memory mappings,
+in-flight reads, local saves, unlink, replacement, ancestor recovery and shutdown.

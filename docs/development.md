@@ -146,3 +146,36 @@ includes bounded latency and application-memory assertions. Concurrency within a
 fixture remains enabled, including 96 simultaneous thumbnail reads and independent
 account/mount checks. File opening has a separate bounded setup phase before the
 thumbnail read-burst deadline; cached-directory latency retains its own assertion.
+
+## Namespace capacity baseline
+
+Run the explicit synthetic 500,000-file benchmark on a machine with several GiB of
+free memory and disk space, with the same FUSE prerequisites as the kernel suite:
+
+```sh
+timeout 600s cargo test -p cirrove-service --lib --locked namespace_capacity_baseline -- --ignored --nocapture --test-threads=1
+```
+
+For a smaller pilot, prefix the command with `CIRROVE_NAMESPACE_FILES=10000`.
+The fixture creates 500 directories of 1,000 files at its default size, generates
+metadata in pages, and indexes it through the normal SQLite refresh path. It
+traverses the actual temporary mount three times, changing every file's revision
+between passes. Each post-pass sample waits for directory handles to close and
+prints retained views, map capacity, RSS/PSS and peak RSS. It refuses unexpected
+content or foreground metadata requests; it reads no real account or keyring.
+
+The test's successful exit means its measurement completed correctly, **not** that
+the memory release gate passed. It provides a comparison for namespace lifetime changes.
+It does not cover the single huge-directory, alias/depth, held-mapping or 24-hour
+cases in [the namespace gate](adr/0005-namespace-memory.md). Run it explicitly rather
+than adding a multi-GiB benchmark to every default CI test run.
+
+CI runs the smaller actual-kernel regression with:
+
+```sh
+cargo test -p cirrove-service --lib --locked real_directory_listing_releases_unlooked_up_projections -- --ignored --nocapture --test-threads=1
+```
+
+It enumerates 3,000 files, checks that plain listings did not retain thousands of
+views, and verifies that an open old file and a newly opened revision keep separate
+inodes while further directory listings occur.
