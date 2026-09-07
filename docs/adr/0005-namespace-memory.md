@@ -32,6 +32,24 @@ Open directories currently retain complete snapshot vectors. The SQLite inode
 table has its own persistent lifetime. Neither problem is solved by putting a
 simple LRU around the shared map.
 
+The Store read path now uses individual indexed directory-snapshot rows and an
+ordered visitor, with one decoded node per callback. It avoids loading a JSON
+array and merging a whole directory in a HashMap. Both cached snapshot and delta
+index paths have tests for index-ordered output, concurrent publication, early
+callback failure and transaction cleanup. Schema upgrades preserve the old data
+on failure and serialize concurrent migration attempts. The compatibility API
+still collects a Vec, and foreground publication and Engine/FUSE projection are
+not yet bounded. Streaming SQL alone does not close the end-to-end paging gate.
+
+An isolated release-build Store fixture visits 500,000 entries in one directory
+in 575–603 ms, retaining zero nodes and showing no additional sampled RSS over
+its roughly 8.2 MiB ready baseline. Collecting the same ordered nodes through the
+compatibility API retains 500,000 nodes and adds roughly 156.6 MiB RSS. Both paths
+use the new schema; this is a comparison of consumers, not old and new binaries.
+The fixture excludes FUSE and foreground publication. See
+[the raw measurements](../benchmarks/directory-store-streaming.json) and
+[reproduction commands](../development.md#namespace-capacity-baseline).
+
 A synthetic actual-kernel baseline confirmed the original growth: after three traversals
 of 500,000 files with new content revisions, 1,500,501 views remained with no open
 file or directory handles. Process RSS was about 2,071 MiB, compared with 21 MiB

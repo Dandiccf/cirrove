@@ -1,5 +1,6 @@
 //! Crash-resumable metadata staging. Visible rows and the completed cursor advance
 //! in one transaction, only after the last page. This is not an upload journal.
+mod directories;
 mod observations;
 use cirrove_core::{Change, ChangePage, Cursor, Node, Scope};
 pub use observations::{AbsenceResult, ObservationResult, ObservationTicket};
@@ -18,6 +19,8 @@ pub enum StoreError {
     OutOfOrder,
     #[error("unsupported database schema version")]
     SchemaVersion,
+    #[error("invalid stored directory snapshot")]
+    InvalidDirectorySnapshot,
 }
 pub type Result<T> = std::result::Result<T, StoreError>;
 
@@ -49,15 +52,25 @@ impl Store {
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         let mut db = Connection::open(path)?;
         db.busy_timeout(std::time::Duration::from_secs(3))?;
+        db.execute_batch("PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;")?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if version > 4 {
+        if version > 5 {
             return Err(StoreError::SchemaVersion);
         }
-        if version < 2 {
-            db.execute_batch(
-            "PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;
-            BEGIN IMMEDIATE;
-            CREATE TABLE IF NOT EXISTS feeds (
+        if version < 5 {
+            if version < 2 {
+                db.execute_batch("PRAGMA journal_mode=WAL;")?;
+            }
+            let tx = db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+            // Another connection may have migrated while this one waited for
+            // the writer. All schema steps and their version publish together.
+            let version: u32 = tx.pragma_query_value(None, "user_version", |r| r.get(0))?;
+            if version > 5 {
+                return Err(StoreError::SchemaVersion);
+            }
+            if version < 2 {
+                tx.execute_batch(
+                "CREATE TABLE IF NOT EXISTS feeds (
                 scope TEXT PRIMARY KEY, cursor TEXT, pending INTEGER NOT NULL DEFAULT 0,
                 next_cursor TEXT, reset INTEGER NOT NULL DEFAULT 0);
             CREATE TABLE IF NOT EXISTS nodes (
@@ -75,20 +88,28 @@ impl Store {
             CREATE TABLE IF NOT EXISTS health (scope TEXT PRIMARY KEY,body TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS subscriptions (account TEXT NOT NULL,collection TEXT NOT NULL,root TEXT NOT NULL,PRIMARY KEY(account,collection,root));
             CREATE TABLE IF NOT EXISTS cache_blocks (key TEXT PRIMARY KEY,size INTEGER NOT NULL,touched INTEGER NOT NULL);
-            PRAGMA user_version=2; COMMIT;",
-        )?;
-        } else {
-            db.execute_batch("PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;")?;
+",
+                )?;
+            }
+            if version < 3 {
+                tx.execute_batch(
+                    "CREATE INDEX IF NOT EXISTS node_shortcuts ON nodes(scope,id)
+                    WHERE json_type(body,'$.target')='object';",
+                )?;
+            }
+            observations::migrate(&tx, version)?;
+            directories::migrate(&tx, version)?;
+            // An unusable clock or malformed schema must roll back migration,
+            // just like a failure while copying directory entries.
+            observations::validate(&tx)?;
+            directories::validate(&tx)?;
+            if version < 5 {
+                tx.pragma_update(None, "user_version", 5)?;
+            }
+            tx.commit()?;
         }
-        if version < 3 {
-            db.execute_batch(
-                "BEGIN IMMEDIATE;
-                CREATE INDEX IF NOT EXISTS node_shortcuts ON nodes(scope,id)
-                    WHERE json_type(body,'$.target')='object';
-                PRAGMA user_version=3; COMMIT;",
-            )?;
-        }
-        observations::migrate(&mut db, version)?;
+        observations::validate(&db)?;
+        directories::validate(&db)?;
         Ok(Self { db })
     }
     fn key(scope: &Scope) -> Result<String> {
@@ -259,71 +280,29 @@ impl Store {
         tx.commit()?;
         Ok(nodes)
     }
+    /// Visit a known directory in stable name/identity order within one read
+    /// transaction. Returns false if the directory has not been indexed. The
+    /// callback must perform only local blocking work, never network I/O. It can
+    /// return an error to stop immediately; no metadata writer is reserved.
+    /// The visitor retains only one decoded entry; callers control their storage.
+    pub fn visit_children(
+        &self,
+        scope: &Scope,
+        parent: &str,
+        visit: impl FnMut(Node) -> Result<()>,
+    ) -> Result<bool> {
+        let tx = self.db.unchecked_transaction()?;
+        let known = directories::visit_on(&tx, scope, parent, visit)?;
+        tx.commit()?;
+        Ok(known)
+    }
     fn children_on(db: &Connection, scope: &Scope, parent: &str) -> Result<Option<Vec<Node>>> {
-        let key = Self::key(scope)?;
-        let snapshot = db
-            .query_row(
-                "SELECT body,source_revision FROM directories WHERE scope=?1 AND parent=?2",
-                params![key, parent],
-                |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)),
-            )
-            .optional()?;
-        let mut nodes = if let Some((body, source_revision)) = snapshot {
-            let mut nodes = serde_json::from_str::<Vec<Node>>(&body)?;
-            let ids = serde_json::to_string(&nodes.iter().map(|n| &n.id).collect::<Vec<_>>())?;
-            let mut query=db.prepare("SELECT body FROM observed WHERE scope=?1 AND source_revision>?3 AND json_extract(body,'$.parent_id')=?2
-                UNION ALL SELECT body FROM observed WHERE scope=?1 AND source_revision>?3
-                AND id IN (SELECT value FROM json_each(?4)) AND json_extract(body,'$.parent_id') IS NOT ?2")?;
-            let updates = query.query_map(params![key, parent, source_revision, ids], |r| {
-                r.get::<_, String>(0)
-            })?;
-            let mut merged = nodes
-                .drain(..)
-                .map(|n| (n.id.clone(), n))
-                .collect::<std::collections::HashMap<_, _>>();
-            for body in updates {
-                let node: Node = serde_json::from_str(&body?)?;
-                merged.remove(&node.id);
-                if node.parent_id.as_deref() == Some(parent) {
-                    merged.insert(node.id.clone(), node);
-                }
-            }
-            let mut absent = db.prepare(
-                "SELECT id FROM observed_absent WHERE scope=?1 AND source_revision>?3
-                AND id IN (SELECT value FROM json_each(?2))",
-            )?;
-            let ids = serde_json::to_string(&merged.keys().collect::<Vec<_>>())?;
-            let rows = absent.query_map(params![key, ids, source_revision], |r| {
-                r.get::<_, String>(0)
-            })?;
-            for row in rows {
-                merged.remove(&row?);
-            }
-            merged.into_values().collect::<Vec<_>>()
-        } else {
-            if db
-                .query_row("SELECT cursor FROM feeds WHERE scope=?1", [&key], |r| {
-                    r.get::<_, Option<String>>(0)
-                })
-                .optional()?
-                .flatten()
-                .is_none()
-            {
-                return Ok(None);
-            }
-            // A foreground item observation may be newer than a completed feed.
-            // Suppress its old indexed location as well as replacing its metadata.
-            let mut query=db.prepare("SELECT body FROM nodes n WHERE scope=?1 AND json_extract(body,'$.parent_id')=?2
-                AND NOT EXISTS(SELECT 1 FROM observed o WHERE o.scope=n.scope AND o.id=n.id)
-                AND NOT EXISTS(SELECT 1 FROM observed_absent a WHERE a.scope=n.scope AND a.id=n.id)
-                UNION ALL SELECT body FROM observed WHERE scope=?1 AND json_extract(body,'$.parent_id')=?2")?;
-            query
-                .query_map(params![key, parent], |r| r.get::<_, String>(0))?
-                .map(|r| Ok(serde_json::from_str(&r?)?))
-                .collect::<Result<Vec<Node>>>()?
-        };
-        nodes.sort_by(|a, b| a.name.cmp(&b.name).then_with(|| a.id.cmp(&b.id)));
-        Ok(Some(nodes))
+        let mut nodes = Vec::new();
+        let known = directories::visit_on(db, scope, parent, |node| {
+            nodes.push(node);
+            Ok(())
+        })?;
+        Ok(known.then_some(nodes))
     }
     pub fn inode(&mut self, key: &str) -> Result<u64> {
         if let Some(inode) = self
@@ -850,7 +829,10 @@ mod tests {
             db.stage(&scope, None, &page(vec![node("preserved")], true, "delta"))
                 .unwrap();
             db.db
-                .execute_batch("DROP INDEX node_shortcuts; PRAGMA user_version=2;")
+                .execute_batch("DROP INDEX node_shortcuts;
+                    ALTER TABLE directories ADD COLUMN body TEXT NOT NULL DEFAULT '[]';
+                    DROP TABLE directory_entries; DROP INDEX node_parent_name; DROP INDEX observed_parent_name;
+                    PRAGMA user_version=2;")
                 .unwrap();
         }
         let db = Store::open(path).unwrap();
@@ -860,7 +842,7 @@ mod tests {
             db.db
                 .pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0))
                 .unwrap(),
-            4
+            5
         );
         assert_eq!(
             db.db

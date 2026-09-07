@@ -287,7 +287,10 @@ fn migration_preserves_legacy_ordering_and_tickets_survive_connection_reopen() {
     {
         let db = rusqlite::Connection::open(&path).unwrap();
         db.execute_batch(
-            "DROP TABLE metadata_versions; DROP TABLE metadata_clock; DROP TABLE observed_absent; DROP INDEX observed_parent;
+            "ALTER TABLE directories ADD COLUMN body TEXT NOT NULL DEFAULT '[]';
+            UPDATE directories SET body=(SELECT json_group_array(json(e.body)) FROM directory_entries e WHERE e.scope=directories.scope AND e.parent=directories.parent);
+            DROP TABLE directory_entries; DROP INDEX node_parent_name; DROP INDEX observed_parent_name;
+            DROP TABLE metadata_versions; DROP TABLE metadata_clock; DROP TABLE observed_absent; DROP INDEX observed_parent;
             ALTER TABLE observed DROP COLUMN source_revision;
             ALTER TABLE directories DROP COLUMN source_revision;
             UPDATE observed SET seen=20000; UPDATE directories SET seen=20000;
@@ -317,7 +320,7 @@ fn migration_preserves_legacy_ordering_and_tickets_survive_connection_reopen() {
     ));
     rusqlite::Connection::open(&path)
         .unwrap()
-        .pragma_update(None, "user_version", 5)
+        .pragma_update(None, "user_version", 6)
         .unwrap();
     assert!(matches!(Store::open(&path), Err(StoreError::SchemaVersion)));
 }

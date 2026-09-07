@@ -35,6 +35,11 @@ across those passes. Byte budgets, compact referenced payloads, large single-dir
 paging, memory-slope attribution and interrupted-reply accounting remain open.
 These partial corrections do not close the 500k-file/long-session gate; see
 [the measurements and their limits](benchmarks/namespace-parent-lifetime.json).
+Store directory snapshots now use indexed rows and a streaming visitor, avoiding
+the earlier JSON-array decode and whole-directory map merge. Tests cover ordered
+reads without a SQL sort, concurrent publication and atomic migration rollback.
+Engine/FUSE callers and foreground publication still materialize lists; this is
+only an intermediate reduction toward the complete paging and memory gate.
 A shared conditional read-session prototype now removes per-block Graph checks in
 an explicit developer path. A synthetic 1 GiB adapter read uses two Graph requests
 instead of 512; an isolated business-file comparison also verifies subsequent

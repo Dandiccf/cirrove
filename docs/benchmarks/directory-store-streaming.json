@@ -1,0 +1,82 @@
+{
+  "source_base": "35f16bf893e2a29c682d50c315e2091945917400",
+  "build": "release",
+  "date": "2026-09-07",
+  "source_sha256": {
+    "crates/cirrove-store/src/lib.rs": "63c25e655a05256764f7121ffe7924b509ab5122ec3364f619a46647e96d79e1",
+    "crates/cirrove-store/src/observations.rs": "62bde241d68689843c6d5c3d9efd53ee46f837c3c814a90d2bc4394e8bea5844",
+    "crates/cirrove-store/src/directories.rs": "dc1256a0b89d579fb63fdc0de91da9f12efef85ac97eccbe30a162fbdcda0106",
+    "crates/cirrove-store/src/directories/tests.rs": "0d801c2f2028935481e10849a479f3df387fc174c2458d2ac9c332aa47005f1a",
+    "crates/cirrove-store/src/directories/tests/capacity.rs": "127681e2e02e669ddf8e0fde4e3bf45fc87299f91a41525ef5a39ab375c8d7d5"
+  },
+  "samples": [
+    {
+      "database_bytes": 437481472,
+      "elapsed_ms": 575,
+      "entries": 500000,
+      "fixture": "SQLite Store single directory; no FUSE, network or foreground publication",
+      "mode": "stream",
+      "peak_after_kib": 8776,
+      "peak_before_kib": 8776,
+      "pss_after_kib": 5966,
+      "pss_before_kib": 5966,
+      "retained_nodes": 0,
+      "rss_after_kib": 8372,
+      "rss_before_kib": 8372,
+      "snapshot": false
+    },
+    {
+      "database_bytes": 437481472,
+      "elapsed_ms": 611,
+      "entries": 500000,
+      "fixture": "SQLite Store single directory; no FUSE, network or foreground publication",
+      "mode": "collect",
+      "peak_after_kib": 168752,
+      "peak_before_kib": 8772,
+      "pss_after_kib": 166352,
+      "pss_before_kib": 5984,
+      "retained_nodes": 500000,
+      "rss_after_kib": 168752,
+      "rss_before_kib": 8384,
+      "snapshot": false
+    },
+    {
+      "database_bytes": 501096448,
+      "elapsed_ms": 603,
+      "entries": 500000,
+      "fixture": "SQLite Store single directory; no FUSE, network or foreground publication",
+      "mode": "stream",
+      "peak_after_kib": 8864,
+      "peak_before_kib": 8864,
+      "pss_after_kib": 5979,
+      "pss_before_kib": 5979,
+      "retained_nodes": 0,
+      "rss_after_kib": 8404,
+      "rss_before_kib": 8404,
+      "snapshot": true
+    },
+    {
+      "database_bytes": 501096448,
+      "elapsed_ms": 646,
+      "entries": 500000,
+      "fixture": "SQLite Store single directory; no FUSE, network or foreground publication",
+      "mode": "collect",
+      "peak_after_kib": 168772,
+      "peak_before_kib": 8912,
+      "pss_after_kib": 166359,
+      "pss_before_kib": 5987,
+      "retained_nodes": 500000,
+      "rss_after_kib": 168772,
+      "rss_before_kib": 8400,
+      "snapshot": true
+    }
+  ],
+  "notes": [
+    "Four separate Linux processes; default allocator; 500,000 entries in one directory; synthetic metadata without FUSE, network or credentials.",
+    "Fixture construction uses bounded 1,000-entry pages. Snapshot representation is populated with SQL so a large foreground input vector does not contaminate the baseline.",
+    "Both variants use the new schema and ordered SQL. This compares visitor retention with the compatibility collector, not old and new implementations.",
+    "Foreground network publication, Engine/FUSE projection, open directory snapshots, namespace byte budgets and long-session memory remain outside this fixture.",
+    "Database bytes include reusable pages left by staging; they are not live entry payload bytes or an end-to-end disk quota measurement.",
+    "Stream checks bound additional read RSS/high-water growth to 64 MiB. Constant sampled RSS here is not a universal whole-process memory guarantee."
+  ]
+}
