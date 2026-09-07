@@ -190,8 +190,11 @@ The content revision and size must match the opened version. Cirrove prefers Gra
 content-only cTag and falls back to eTag when absent; the two tag namespaces are
 distinct in cache keys. Response range and byte count are
 validated before publication. This favors version consistency but adds **two Graph
-metadata requests per uncached block**; real-provider latency measurements must guide
-future optimization. A changed file yields ESTALE instead of mixing versions.
+metadata requests per uncached block**. Removing this request amplification is an
+explicit OneDrive 1.0 gate: [read-session efficiency](adr/0004-read-session-efficiency.md)
+proposes shared version-bound sessions, bounded transfer windows and validated
+renewal. That replacement is not implemented yet. A changed file yields ESTALE
+instead of mixing versions.
 
 Blocks have SHA-256 checksums. Temporary bytes and the containing directory are
 fsynced before publication is indexed. Startup removes interrupted temporary blocks,
