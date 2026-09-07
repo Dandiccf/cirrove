@@ -35,6 +35,33 @@ fn timestamp() -> i64 {
 pub struct Store {
     db: Connection,
 }
+
+fn initial_wal(db: &Connection) -> rusqlite::Result<()> {
+    use std::time::{Duration, Instant};
+    let timeout = Duration::from_secs(3);
+    let deadline = Instant::now() + timeout;
+    let result = loop {
+        // Concurrent journal-mode transitions can return BUSY immediately to
+        // avoid a lock-upgrade deadlock, bypassing SQLite's busy handler. Retry
+        // only this autocommit initialization step within one total deadline.
+        db.busy_timeout(deadline.saturating_duration_since(Instant::now()))?;
+        match db.execute_batch("PRAGMA journal_mode=WAL;") {
+            Err(error)
+                if error.sqlite_error_code() == Some(rusqlite::ErrorCode::DatabaseBusy)
+                    && db.is_autocommit()
+                    && Instant::now() < deadline =>
+            {
+                std::thread::sleep(
+                    Duration::from_millis(10)
+                        .min(deadline.saturating_duration_since(Instant::now())),
+                );
+            }
+            result => break result,
+        }
+    };
+    db.busy_timeout(timeout)?;
+    result
+}
 // Start at actual shortcuts and walk their ancestors. Walking every descendant
 // of a library root turns an idle discovery poll into a whole-library operation.
 const SHORTCUTS_UNDER: &str = "WITH RECURSIVE ancestors(shortcut,id,parent) AS (
@@ -59,7 +86,7 @@ impl Store {
         }
         if version < 5 {
             if version < 2 {
-                db.execute_batch("PRAGMA journal_mode=WAL;")?;
+                initial_wal(&db)?;
             }
             let tx = db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
             // Another connection may have migrated while this one waited for

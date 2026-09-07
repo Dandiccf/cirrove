@@ -145,6 +145,14 @@ and data. Concurrent opens and rollback across schemas 3 and 4 have regression
 coverage. Older binaries reject schema 5; deployment rollback must preserve a
 compatible metadata backup rather than attempting an in-place downgrade.
 
+The initial WAL transition retries SQLITE_BUSY within a three-second total
+deadline before beginning migration. Concurrent journal-mode lock upgrades can
+return BUSY without invoking the configured busy handler, as described by
+[SQLite](https://www.sqlite.org/c3ref/busy_handler.html). Only that autocommit
+initialization step is retried; existing current-schema databases do not reserve
+a writer or repeat journal-mode changes when opened. Persistent contention still
+returns an error, and the normal per-operation busy timeout is restored afterward.
+
 Reading a directory registers a 60-second activity lease. Each account retains at
 most 32 recently used directories and has one revalidation worker, with at least
 two seconds between listing starts. A successful listing becomes due again after
