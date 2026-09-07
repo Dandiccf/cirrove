@@ -20,6 +20,10 @@ pub struct NamespaceObject {
     /// a newly assigned cloud ID merely because an upload completed.
     pub node: Node,
     pub remote: Option<Node>,
+    /// Historical metadata survives after another local object takes this cloud
+    /// identity. Only the active owner can hide/project incoming provider items.
+    #[serde(default = "owns_remote")]
+    pub remote_owned: bool,
     pub remote_sequence: u64,
     pub working_file: Option<Uuid>,
     pub latest: Option<Uuid>,
@@ -32,9 +36,13 @@ pub struct NamespaceObject {
     #[serde(default)]
     pub unlinked: bool,
 }
+fn owns_remote() -> bool {
+    true
+}
 impl NamespaceObject {
     pub(crate) fn followed(&self, remote: Node) -> Result<Self> {
         if self.unlinked
+            || !self.remote_owned
             || self.remote.as_ref().is_none_or(|r| r.id != remote.id)
             || remote.kind != NodeKind::File
             || remote.target.is_some()
@@ -159,6 +167,10 @@ pub(super) fn entry_slot(
     Ok(serde_json::to_string(&(scope, parent, name))?)
 }
 pub(super) fn save(tx: &Transaction<'_>, object: &NamespaceObject) -> Result<()> {
+    if !object.remote_owned && !object.unlinked {
+        return Err(JournalError::Corrupt);
+    }
+
     if object.follows_remote
         && (object.unlinked
             || object.working_file.is_some()
@@ -210,12 +222,17 @@ pub(super) fn save(tx: &Transaction<'_>, object: &NamespaceObject) -> Result<()>
             ],
         )?;
     }
-    if let Some(remote) = &object.remote {
+    tx.execute(
+        "DELETE FROM namespace_remote WHERE object=?1",
+        [object.id.to_string()],
+    )?;
+    if object.remote_owned
+        && let Some(remote) = &object.remote
+    {
         let key = identity(&object.scope, &remote.id)?;
         let other: Option<String> = tx
             .query_row(
-                "SELECT object FROM namespace_remote WHERE identity=?1 AND object!=?2
-                UNION SELECT id FROM namespace_objects WHERE identity=?1 AND id!=?2 LIMIT 1",
+                "SELECT object FROM namespace_remote WHERE identity=?1 AND object!=?2 LIMIT 1",
                 params![&key, object.id.to_string()],
                 |r| r.get(0),
             )
@@ -369,6 +386,7 @@ pub(super) fn prepare_attachment(
                 names: policy(db, &working.scope)?,
                 node: working.node.clone(),
                 remote: working.initial_remote.clone(),
+                remote_owned: true,
                 remote_sequence: 0,
                 working_file: None,
                 latest: working.latest,
@@ -543,6 +561,7 @@ impl UploadJournal {
             scope,
             node: node.clone(),
             remote: Some(node),
+            remote_owned: true,
             remote_sequence: 0,
             working_file: None,
             latest: None,
@@ -702,12 +721,16 @@ pub fn project_namespace<'a>(
     let mut aliases = HashMap::new();
     for object in &objects {
         if object.follows_remote {
+            if !object.remote_owned {
+                return Err(JournalError::Corrupt);
+            }
             let remote = object.remote.as_ref().ok_or(JournalError::Corrupt)?;
             aliases.insert(remote.id.as_str(), object.node.id.as_str());
             continue;
         }
-        hidden.insert(object.node.id.as_str());
-        if let Some(remote) = &object.remote {
+        if object.remote_owned
+            && let Some(remote) = &object.remote
+        {
             hidden.insert(remote.id.as_str());
         }
         if !object.unlinked && object.node.parent_id.as_deref() == Some(parent) {

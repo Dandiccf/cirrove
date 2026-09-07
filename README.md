@@ -76,6 +76,11 @@ and Nautilus badges are not implemented.
   the name is reused. Reader preservation runs in the background, so a download
   cannot hold the unlink call's kernel directory lock. Later writes to an unlinked
   handle stay as local recovery data; their retention and recovery UI remain open.
+- Experimental journal transactions now support local path replacement, retained
+  victim streams and conditional publication to the destination's cloud identity.
+  Additional completion prerequisites keep source cleanup behind confirmed target
+  publication. This is not connected to mounted rename yet; FUSE replacement,
+  uncached-source preparation and application acceptance remain open.
 
 These are implementation capabilities, not a production-readiness claim. See the
 [validation record](docs/validation.md) for what has actually been tested.

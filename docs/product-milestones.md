@@ -69,7 +69,10 @@ open; this increment does not close the safe-file-changes milestone.
 
 Local stream lookups and provider-binding lookups are now separate in the journal
 and mount. This is a prerequisite for transferring a cloud binding during atomic
-replacement; the two-object transaction and multi-predecessor ordering remain open.
+replacement. The journal now implements the two-object transaction and separate
+completion prerequisites, with conditional source cleanup after destination
+publication. Mounted replacement, atomic in-memory publication, background reader
+preservation and uncached-source preparation remain open.
 
 - [x] Provider-neutral create, update, rename, move and delete contracts (regular-file deletion; folder removal remains an explicit gap).
 - [ ] Durable local file contents and journal before local-save acknowledgement.

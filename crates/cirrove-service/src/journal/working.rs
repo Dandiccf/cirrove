@@ -148,7 +148,7 @@ impl UploadJournal {
         body.map(|b| Ok(serde_json::from_str(&b)?)).transpose()
     }
 
-    fn working_descriptor(&self, id: Uuid, writable: bool) -> Result<File> {
+    pub(super) fn working_descriptor(&self, id: Uuid, writable: bool) -> Result<File> {
         self.working_file(id)?;
         let file = OpenOptions::new()
             .read(true)
@@ -407,12 +407,12 @@ impl UploadJournal {
         self.enqueue_generation(
             record.scope,
             intent,
-            base,
-            Some(WorkingCommit {
+            base.into(),
+            Some(GenerationCommit::Working(WorkingCommit {
                 id,
                 generation: record.generation,
                 previous: record.latest,
-            }),
+            })),
             &mut bytes,
         )
         .map(Some)

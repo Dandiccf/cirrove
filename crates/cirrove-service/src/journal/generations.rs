@@ -156,15 +156,29 @@ impl UploadJournal {
     /// Seal a newer save after a save or file relocation. A conflict retains and
     /// blocks the linear chain; only a confirmed receipt supplies its remote base.
     pub fn enqueue_after(&mut self, predecessor: Uuid, bytes: impl Read) -> Result<UploadRecord> {
+        self.enqueue_after_all(predecessor, &[], bytes)
+    }
+    /// Use one confirmed content base, while also waiting for operations on other
+    /// objects. Atomic replacement needs both sides' earlier changes to finish;
+    /// an ordering prerequisite must never substitute its identity or ETag.
+    pub fn enqueue_after_all(
+        &mut self,
+        predecessor: Uuid,
+        prerequisites: &[Uuid],
+        bytes: impl Read,
+    ) -> Result<UploadRecord> {
         let (scope, intent) = self.upload_intent_after(predecessor)?;
         self.ensure_successor_free(predecessor)?;
         self.enqueue_generation(
             scope,
             intent,
-            Some(WriteBase {
-                predecessor,
-                resolved: false,
-            }),
+            WriteOrder {
+                base: Some(WriteBase {
+                    predecessor,
+                    resolved: false,
+                }),
+                prerequisites: prerequisites.to_vec(),
+            },
             None,
             bytes,
         )

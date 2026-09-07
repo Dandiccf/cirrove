@@ -558,3 +558,30 @@ fixtures pass with the separated lookup paths. The journal schema remains 9, and
 no live cloud documents or installed service state were changed. Joint binding
 transfer, multi-object operation prerequisites and atomic application replacement
 remain open.
+
+## Two-object replacement in the journal
+
+Six completion-prerequisite fixtures distinguish the target's content/ETag base
+from prior source operations and guarded cleanup. They cover an uncertain target
+publication across restart, failed/conflicted prerequisites, independent-file
+progress, namespace prerequisites, explicit verification, validation before source
+reads, transaction rollback and schema-9 migration. Ordering dependencies never
+supply another file's identity or consume its linear content successor.
+
+Nine additional journal fixtures exercise atomic local path takeover with retained
+victim streams, later writes to detached bytes, active-binding transfer with upload
+acknowledgement, later saves/renames, two pending creates, source cleanup and conflicts.
+They also cover rollback after local path changes and after all binding changes,
+reconciliation after restart, consecutive pending replacements, snapshot-quota failure,
+a 500 GiB victim without local hydration, process-local reader barriers, already
+cached source/target files and schema-10 migration. The owner-index check confirms
+indexed lookup and refusal of a second active provider binding for one object.
+
+The full local run passed 199 default workspace tests and all 27 existing actual
+synthetic kernel-FUSE tests, plus formatting, strict Clippy, workspace build,
+executable smoke, two observer checks and Rustdoc. The FUSE checks are regression
+coverage for existing mounted behavior; **they do not exercise mounted replacement**.
+FUSE still refuses replacement of an occupied path. Atomic in-memory publication,
+background preservation of old readers, uncached-source preparation and actual
+application/provider replacement acceptance remain open. No live cloud documents
+or installed service state were changed.

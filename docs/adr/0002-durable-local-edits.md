@@ -202,6 +202,27 @@ that follows remote metadata converts the ID at that observation boundary.
 
 This removes an ambiguity before atomic replacement: a provider ID could otherwise
 be mistaken for another object's local key. The journal still refuses conflicting
-aliases, and binding transfer is not implemented. Moving a cloud binding between
-objects will require a joint durable transaction and ordered provider publication;
-separating the indexes alone does not establish safe application atomic saves.
+aliases. The joint transaction below adds active binding transfer and ordered
+provider publication; separating the indexes alone does not establish safe
+application atomic saves.
+
+## Two-object replacement ordering
+
+The journal now distinguishes the receipt supplying a new operation's file ID/ETag
+from other operations that merely must finish first. Replacement publication follows
+the victim's content base and waits for prior source work. Conditional source cleanup
+follows the source's base and waits for confirmed destination publication. Neither
+prerequisite can lend the wrong file's ETag to the other operation.
+
+The schema-11 journal transaction performs local path takeover, detaches the victim
+stream, queues the immutable source snapshot and reserves the cleanup object together.
+Upload acknowledgement changes all three active provider bindings together with its
+queue completion. Historical remote metadata stays on the detached victim; only
+active ownership affects provider-listing projection. This also permits the same
+string to be a retained local ID and another object's current provider ID.
+
+FUSE integration remains incomplete. In particular, callbacks must publish related
+ownership changes atomically; a standalone refresh of one object is insufficient.
+Reader preservation must happen after the local rename releases the kernel directory
+lock, and an uncached source requires deferred preparation. Journal fixtures establish
+transaction and ordering behavior, not complete mounted application compatibility.

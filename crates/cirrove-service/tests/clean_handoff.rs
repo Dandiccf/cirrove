@@ -322,7 +322,7 @@ fn schema_seven_migration_preserves_pending_work_and_refuses_future_schema() {
     assert!(!object.follows_remote);
     assert!(!j.namespace_is_clean(&object).unwrap());
     drop(j);
-    db.execute_batch("PRAGMA user_version=10;").unwrap();
+    db.execute_batch("PRAGMA user_version=12;").unwrap();
     assert!(matches!(
         UploadJournal::open(temp.path(), &scope().account, 4096),
         Err(JournalError::Schema)

@@ -147,14 +147,29 @@ impl UploadJournal {
         predecessor: Uuid,
         request: MutationRequest,
     ) -> Result<MutationRecord> {
+        self.enqueue_mutation_after_all(predecessor, &[], request)
+    }
+    /// A separate completion barrier can, for example, delay cleanup of a source
+    /// temporary file until replacement of the destination was acknowledged.
+    /// The source's own predecessor still supplies the conditional deletion base.
+    pub fn enqueue_mutation_after_all(
+        &mut self,
+        predecessor: Uuid,
+        prerequisites: &[Uuid],
+        request: MutationRequest,
+    ) -> Result<MutationRecord> {
         self.validate_mutation_base(predecessor, &request)?;
         self.ensure_successor_free(predecessor)?;
-        self.enqueue_bound_mutation(
+        self.enqueue_mutation_transaction(
             request,
-            Some(WriteBase {
-                predecessor,
-                resolved: false,
-            }),
+            WriteOrder {
+                base: Some(WriteBase {
+                    predecessor,
+                    resolved: false,
+                }),
+                prerequisites: prerequisites.to_vec(),
+            },
+            None,
             None,
         )
     }
@@ -164,7 +179,7 @@ impl UploadJournal {
         base: Option<WriteBase>,
         working: Option<WorkingFile>,
     ) -> Result<MutationRecord> {
-        self.enqueue_mutation_transaction(request, base, working, None)
+        self.enqueue_mutation_transaction(request, base.into(), working, None)
     }
     pub(super) fn enqueue_namespace_mutation(
         &mut self,
@@ -172,18 +187,19 @@ impl UploadJournal {
         base: Option<WriteBase>,
         object: NamespaceObject,
     ) -> Result<MutationRecord> {
-        self.enqueue_mutation_transaction(request, base, None, Some(object))
+        self.enqueue_mutation_transaction(request, base.into(), None, Some(object))
     }
     fn enqueue_mutation_transaction(
         &mut self,
         request: MutationRequest,
-        base: Option<WriteBase>,
+        order: WriteOrder,
         working: Option<WorkingFile>,
         object: Option<NamespaceObject>,
     ) -> Result<MutationRecord> {
         if request.scope.account != self.account {
             return Err(JournalError::Account);
         }
+        barriers::validate(&self.db, &request.scope, &order.prerequisites)?;
         let mut record = MutationRecord {
             id: Uuid::new_v4(),
             sequence: 0,
@@ -193,7 +209,7 @@ impl UploadJournal {
             receipt: None,
             retry_at: 0,
             failed_attempts: 0,
-            base,
+            base: order.base,
             working_file: working.as_ref().map(|file| file.id),
             local_ready: true,
         };
@@ -204,6 +220,13 @@ impl UploadJournal {
             record.id,
             record.sequence,
             record.base.as_ref(),
+        )?;
+        barriers::insert(
+            &tx,
+            record.id,
+            record.sequence,
+            &record.request.scope,
+            &order.prerequisites,
         )?;
         tx.execute(
             "INSERT INTO mutations VALUES(?1,?2,'pending',?3)",
@@ -276,6 +299,8 @@ impl UploadJournal {
         let body: Option<String> = self.db.query_row("SELECT m.body FROM mutations m WHERE m.state IN ('pending','verify_required')
             AND coalesce(json_extract(m.body,'$.local_ready'),1)=1
             AND (json_extract(m.body,'$.base') IS NULL OR json_extract(m.body,'$.base.resolved')=1)
+            AND NOT EXISTS (SELECT 1 FROM write_prerequisites b LEFT JOIN write_queue p ON p.id=b.predecessor
+                WHERE b.operation=m.id AND coalesce(p.complete,0)!=1)
             AND json_extract(m.body,'$.retry_at')<=?1 AND NOT EXISTS (
             SELECT 1 FROM write_queue previous JOIN write_resources a ON a.id=previous.id JOIN write_resources b ON b.resource=a.resource AND b.id=m.id WHERE previous.sequence<m.sequence AND previous.complete=0)
             ORDER BY m.sequence LIMIT 1",[now_seconds() as i64],|r|r.get(0)).optional()?;

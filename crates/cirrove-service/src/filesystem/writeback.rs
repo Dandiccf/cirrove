@@ -42,11 +42,15 @@ impl Projection {
         object: &NamespaceObject,
         working: Option<&WorkingFile>,
     ) -> Result<bool> {
+        if !object.remote_owned && !object.unlinked {
+            return Err(Errno::EIO);
+        }
         if object.follows_remote
             && (object.unlinked
                 || object.working_file.is_some()
                 || object.latest.is_some()
-                || object.remote.is_none())
+                || object.remote.is_none()
+                || !object.remote_owned)
         {
             return Err(Errno::EIO);
         }
@@ -69,11 +73,13 @@ impl Projection {
         {
             return Err(Errno::EIO);
         }
-        if object.remote.as_ref().is_some_and(|remote| {
-            self.remote_bindings
-                .get(&key(&object.scope, &remote.id))
-                .is_some_and(|id| *id != object.id)
-        }) {
+        if object.remote_owned
+            && object.remote.as_ref().is_some_and(|remote| {
+                self.remote_bindings
+                    .get(&key(&object.scope, &remote.id))
+                    .is_some_and(|id| *id != object.id)
+            })
+        {
             return Err(Errno::EIO);
         }
         match &working {
@@ -99,11 +105,18 @@ impl Projection {
         // Only local identities address filesystem views and open streams.
         // Provider aliases are projected at the remote-listing boundary.
         self.local_identities.insert(identity, object.id);
-        if let Some(old_remote) = self.objects.get(&object.id).and_then(|o| o.remote.as_ref()) {
+        if let Some(old_remote) = self
+            .objects
+            .get(&object.id)
+            .filter(|o| o.remote_owned)
+            .and_then(|o| o.remote.as_ref())
+        {
             self.remote_bindings
                 .remove(&key(&object.scope, &old_remote.id));
         }
-        if let Some(remote) = &object.remote {
+        if object.remote_owned
+            && let Some(remote) = &object.remote
+        {
             self.remote_bindings
                 .insert(key(&object.scope, &remote.id), object.id);
         }

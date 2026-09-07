@@ -416,12 +416,9 @@ provider observations and initial hydration resolve the current remote binding.
 The in-memory projection keeps separate indexes and checks uniqueness within each
 domain. A newly confirmed provider ID cannot become an alternate key for an
 existing local stream. Listing projection is the boundary that presents a remote
-item under its stable local identity. These changes require no journal migration.
-
-This separates lookup roles; it does not yet permit transferring a remote binding
-between two durable objects. That transition still needs one revision-checked
-namespace transaction, predecessor barriers for both files, old-reader preservation
-and conditional provider publication. Existing journal alias constraints remain.
+item under its stable local identity. Lookup separation itself requires no journal
+migration. The replacement transaction below additionally transfers active ownership
+between durable objects while retaining their separate local streams.
 
 The mount loads a memory projection of these objects and working-file records.
 Publication is atomic and revision-ordered, so a delayed save or rename callback
@@ -529,6 +526,46 @@ replacement of two local objects. Detached working data, tombstones and operatio
 history currently remain retained. Their recovery UI, bounded cleanup and handling
 of a provider restoring the same deleted item identity are still required. Full
 application compatibility and real-provider mounted unlink acceptance remain open.
+
+## Journal replacement of two local files
+
+Journal schema 10 adds completion prerequisites independently of the single
+content/ETag predecessor. Both upload and mutation selection, including explicit
+upload verification, wait for every prerequisite. Edges must reference older
+operations in the same scope; each operation permits at most 16 additional edges.
+Failed, conflicted and uncertain predecessors keep descendants pending while
+unrelated files remain eligible. The original linear content-successor constraint
+still determines which confirmed receipt may supply the destination identity.
+
+Schema 11 adds an experimental journal transaction for replacing one local file
+with another. The source must already have a working copy, and dirty source/victim
+streams must be sealed first. An immutable source snapshot, destination-path
+takeover, detached victim stream, conditional destination upload and guarded source
+cleanup commit together. The upload follows the victim's last confirmed operation
+or original ETag and separately waits for prior source work. Source cleanup follows
+its own original identity/ETag and cannot run until destination publication is
+acknowledged. A local-reader barrier additionally delays publication; exclusive
+journal recovery releases former-process reader barriers without completing cloud
+operations or discarding retained bytes.
+
+Active provider ownership is separate from historical remote metadata. On upload
+acknowledgement, the victim loses active ownership, the source takes the destination
+binding, and a reserved cleanup object takes the source's previous binding, in the
+same transaction as upload completion. Existing local IDs and working streams do
+not change. Only actively owned provider IDs hide or alias raw provider listings;
+an old victim's local ID cannot hide the new destination owner. A unique owner index
+bounds binding replacement lookup and prevents two active provider IDs on one object.
+Old descriptor
+writes remain detached recovery data. Metadata capacity for cleanup is reserved at
+local acceptance, before cloud publication, rather than allocated after success.
+
+This is a journal API, not yet the mounted rename implementation. FUSE still refuses
+replacement of an occupied destination. Wiring requires atomic in-memory publication
+of the affected objects, old-reader preservation outside the VFS directory lock,
+and actual application-save tests. A source with no local working bytes also needs
+a deferred hydration path. Retained history, restored IDs, recovery UI and broader
+real-provider replacement/cleanup acceptance remain open. Ordinary mounts stay
+read-only.
 
 ## Next boundaries
 

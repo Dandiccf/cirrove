@@ -295,9 +295,9 @@ fn schema_eight_migration_keeps_pending_streams_and_newer_schema_is_refused() {
     assert_eq!(
         db.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
             .unwrap(),
-        9
+        11
     );
-    db.execute_batch("PRAGMA user_version=10;").unwrap();
+    db.execute_batch("PRAGMA user_version=12;").unwrap();
     drop(db);
     assert!(matches!(
         UploadJournal::open(&path, &scope().account, 1024 * 1024),
