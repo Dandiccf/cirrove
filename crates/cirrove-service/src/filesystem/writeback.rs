@@ -408,8 +408,8 @@ impl Writeback {
                 if view.node.kind != NodeKind::File || view.node.target.is_some() {
                     return Err(Errno::EOPNOTSUPP);
                 }
-                let scope = view.scope.clone();
-                let node = view.node.clone();
+                let scope = view.scope.as_ref().clone();
+                let node = view.node.as_ref().clone();
                 let object = self
                     .local(move |j| Self::materialize(j, scope, node))
                     .await?;
@@ -425,7 +425,7 @@ impl Writeback {
                 }
                 let node = object.remote.ok_or(Errno::ESTALE)?;
                 if truncate {
-                    let scope = view.scope.clone();
+                    let scope = view.scope.as_ref().clone();
                     let record = self
                         .local(move |j| {
                             let current = j.namespace_object(expected)?;
@@ -448,7 +448,7 @@ impl Writeback {
                 let source = self
                     .download_source(engine, &view.scope, &node, cancel, source)
                     .await?;
-                let scope = view.scope.clone();
+                let scope = view.scope.as_ref().clone();
                 let record = self
                     .local(move |j| {
                         // A background replacement preparation may have materialized

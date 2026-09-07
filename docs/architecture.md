@@ -405,6 +405,18 @@ dispatch, so a queued operation still has its ancestor route after kernel FORGET
 The root remains resident. This preserves directory '..' and local-edit ancestor
 capture while unused directory chains retire through the bounded collector.
 
+Resolved views share immutable scope, alias/ancestry vectors, presentation names and
+node payloads through reference-counted ownership. Ordinary file siblings reuse their
+parent's scope and route vectors; folder/shortcut projection copies a route only when
+extending it. Open or in-flight view clones share those immutable values while keeping
+their own parent residency leases. Changing a local binding or refreshing a view
+replaces or detaches its payload, preserving older clones. The reverse invalidation
+index shares target scopes, and notification batches retain shared names. No global
+intern table extends their lifetime. Provider/journal boundaries still receive owned
+records, and persistent inode-key serialization is unchanged; this requires no schema
+migration. Sharing reduces duplication but does not evict live payloads, implement a
+resident byte budget or bound process RSS after allocator retention.
+
 Actual-kernel tests cover deep paths, duplicate linked-drive projections, open
 files, continued directory snapshots across rename, and offline inode-preserving
 revisit after reclamation. They do not prove arbitrary large-library capacity.
@@ -434,7 +446,7 @@ bindings belong to the writeback projection. Initial mount startup captures a re
 position before its initial full sweep so later changes remain pending. The index adds memory per
 live projection; it does not establish a view-payload byte budget. Failed reply
 delivery can still retain conservative references because the FUSE wrapper does
-not expose delivery results. Remaining collection paths, compact referenced payloads,
+not expose delivery results. Remaining collection paths, further payload compaction/reconstruction,
 cancellation accounting and sustained invalidation-load acceptance remain part of
 the explicit [500,000-file and long-session gate](adr/0005-namespace-memory.md).
 

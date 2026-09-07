@@ -906,3 +906,29 @@ The final source passed formatting, strict workspace Clippy, 328 regular tests,
 checks. The separate release 500k fixture and focused writable identity-handoff
 regression also passed. Every build used the worktree-specific target directory,
 and filtered commands were checked for the expected nonzero test counts.
+
+## Shared projection metadata (2026-09-07)
+
+Resolved views now share immutable metadata and route vectors; file siblings reuse
+unchanged parent scopes, aliases and ancestry. The reverse index shares target
+scopes and bounded notification batches share names. Replacing or detaching a
+payload preserves older views; residency and parent leases retain their existing
+independent ownership. Tests check unchanged serialized inode keys for ordinary
+files, writable identity and shortcuts, distinct aliases, and old content revisions
+after a detached edit. Existing retirement and invalidation tests exercise index
+ordering by identity value rather than allocation address.
+
+A release representation fixture measures 50,000 live views on three 12-level
+routes, plus 32 held clones, with the production projection/index/residency code.
+The owned baseline and shared version run in separate processes using the same
+fixture. A larger 500k run measures the shared version separately. Both check
+retirement to the root; process RSS remains higher afterward and is not a logical
+allocation or eviction budget. The fixture does not mount FUSE or use SQLite.
+[Raw measurements](benchmarks/shared-projection-payloads.json) include exact source
+and fixture hashes, process memory and scope limits.
+
+The final source passed formatting, strict workspace Clippy, 329 regular tests,
+48 actual-kernel regressions, workspace build, Rustdoc and smoke/observer checks.
+Separate release processes passed the 50k/500k representation fixtures and the
+500k-index targeted-invalidation fixture. Builds used the dedicated worktree target,
+and filtered commands were verified against their expected nonzero counts.

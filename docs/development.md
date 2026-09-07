@@ -355,3 +355,20 @@ Schema 6 adds only the metadata revision covering index; migration and index
 validation commit atomically with the version. Earlier binaries cannot reopen
 schema 6. Keep a compatible metadata backup for deployment rollback. These fixtures
 use isolated state and do not upgrade an installed account.
+
+### Shared projection payloads
+
+The representation benchmark uses the real projection, reverse index and residency
+code in one process, without a kernel mount, SQLite or provider calls. It retains
+three 12-level routes (ordinary plus two shortcut aliases), takes 32 extra view
+clones, then releases references and checks retirement to the root. Run each size
+in a fresh release process; process RSS after retirement includes allocator retention.
+
+```sh
+cargo test -p cirrove-service --lib --release --locked shared_projection_payload_baseline -- --ignored --nocapture --test-threads=1
+CIRROVE_PROJECTION_FILES=500000 cargo test -p cirrove-service --lib --release --locked shared_projection_payload_baseline -- --ignored --nocapture --test-threads=1
+```
+
+[Raw results](benchmarks/shared-projection-payloads.json) identify the baseline source
+and fixture hash. This is separate from the actual-kernel namespace/invalidation
+fixtures above and cannot establish their large-library or long-session gates.

@@ -3,7 +3,35 @@ use super::*;
 use cirrove_core::Scope;
 use cirrove_store::{MetadataChange, MetadataChangeKind};
 use std::{collections::BTreeSet, ops::Bound};
-type Key = (String, String, String, String, u64);
+// Ordering is by provider identity and inode, never allocation address. The
+// index shares each view's scope instead of duplicating its three strings.
+#[derive(Clone, PartialEq, Eq)]
+struct Key {
+    scope: Arc<Scope>,
+    item: Arc<str>,
+    inode: u64,
+}
+impl Key {
+    fn parts(&self) -> (&str, &str, &str, &str, u64) {
+        (
+            &self.scope.account,
+            &self.scope.provider,
+            &self.scope.collection,
+            &self.item,
+            self.inode,
+        )
+    }
+}
+impl Ord for Key {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.parts().cmp(&other.parts())
+    }
+}
+impl PartialOrd for Key {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
 const ENTRIES: usize = 128;
 const BYTES: usize = 64 * 1024;
 #[derive(Default)]
@@ -19,7 +47,7 @@ pub(in crate::filesystem) struct InvalidationCursor {
 pub(in crate::filesystem) struct Invalidation {
     pub inode: u64,
     pub parent: u64,
-    pub name: String,
+    pub name: Arc<str>,
     pub directory: bool,
     pub entry: bool,
 }
@@ -28,26 +56,20 @@ pub(in crate::filesystem) struct InvalidationBatch {
     pub next: InvalidationCursor,
     pub complete: bool,
 }
-fn key(scope: &Scope, item: &str, inode: u64) -> Key {
-    (
-        scope.account.clone(),
-        scope.provider.clone(),
-        scope.collection.clone(),
-        item.into(),
+fn key(scope: Arc<Scope>, item: &str, inode: u64) -> Key {
+    Key {
+        scope,
+        item: item.into(),
         inode,
-    )
+    }
 }
 fn keys(view: &View) -> impl Iterator<Item = Key> {
-    let primary = key(&view.scope, &view.node.id, view.inode);
+    let primary = key(view.scope.clone(), &view.node.id, view.inode);
     let source = view.entry.as_ref().and_then(|entry| {
         view.alias.last().map(|(collection, _)| {
-            (
-                view.scope.account.clone(),
-                view.scope.provider.clone(),
-                collection.clone(),
-                entry.id.clone(),
-                view.inode,
-            )
+            let mut scope = view.scope.as_ref().clone();
+            scope.collection = collection.clone();
+            key(scope.into(), &entry.id, view.inode)
         })
     });
     std::iter::once(primary).chain(source)
@@ -104,7 +126,7 @@ impl NamespaceViews {
         };
         if let Some(change) = change {
             let lower = key(
-                &change.scope,
+                Arc::new(change.scope.clone()),
                 if change.kind == MetadataChangeKind::Scope {
                     ""
                 } else {
@@ -121,14 +143,13 @@ impl NamespaceViews {
                 .identities
                 .range((start, Bound::Unbounded))
             {
-                if key.0 != change.scope.account
-                    || key.1 != change.scope.provider
-                    || key.2 != change.scope.collection
-                    || (change.kind != MetadataChangeKind::Scope && key.3 != change.identity)
+                if key.scope.as_ref() != &change.scope
+                    || (change.kind != MetadataChangeKind::Scope
+                        && key.item.as_ref() != change.identity)
                 {
                     break;
                 }
-                if visited == ENTRIES || !push(key.4) {
+                if visited == ENTRIES || !push(key.inode) {
                     complete = false;
                     break;
                 }
@@ -161,7 +182,7 @@ mod tests {
     use super::*;
     fn change(view: &View, kind: MetadataChangeKind) -> MetadataChange {
         MetadataChange {
-            scope: view.scope.clone(),
+            scope: view.scope.as_ref().clone(),
             kind,
             identity: view.node.id.clone(),
         }
@@ -184,26 +205,26 @@ mod tests {
     fn identity_selection_preserves_aliases_versions_and_account_boundaries() {
         let mut cache = cache();
         let mut first = view(2, NodeKind::File);
-        first.node.id = "target".into();
+        Arc::make_mut(&mut first.node).id = "target".into();
         let target = change(&first, MetadataChangeKind::Item);
         let held = cache.insert(first.clone()).unwrap();
         let mut version = first.clone();
         version.inode = 3;
         version.residency = Arc::default();
-        version.node.etag = Some("new".into());
+        Arc::make_mut(&mut version.node).etag = Some("new".into());
         let held_version = cache.insert(version).unwrap();
         let mut link = first.clone();
         link.inode = 4;
         link.residency = Arc::default();
-        link.alias = vec![("source-drive".into(), "shortcut".into())];
+        link.alias = vec![("source-drive".into(), "shortcut".into())].into();
         let mut entry = link.node.clone();
-        entry.id = "shortcut".into();
+        Arc::make_mut(&mut entry).id = "shortcut".into();
         link.entry = Some(entry);
         let held_link = cache.insert(link).unwrap();
         let mut other = first.clone();
         other.inode = 5;
         other.residency = Arc::default();
-        other.scope.account = "another-account".into();
+        Arc::make_mut(&mut other.scope).account = "another-account".into();
         let held_other = cache.insert(other).unwrap();
         assert_eq!(selected(&cache, Some(&target)), vec![2, 3, 4]);
         let mut source = target.clone();
@@ -211,13 +232,13 @@ mod tests {
         source.identity = "shortcut".into();
         assert_eq!(selected(&cache, Some(&source)), vec![4]);
         let mut moved = held_link.clone();
-        moved.alias = vec![("another-source".into(), "shortcut".into())];
+        moved.alias = vec![("another-source".into(), "shortcut".into())].into();
         drop(cache.insert(moved).unwrap());
         assert!(selected(&cache, Some(&source)).is_empty());
         drop((first, held, held_version, held_link, held_other));
         cache.collect(128);
         assert_eq!(cache.len(), 1);
-        assert!(cache.invalidation.identities.iter().all(|k| k.4 == 1));
+        assert!(cache.invalidation.identities.iter().all(|k| k.inode == 1));
     }
     #[test]
     fn full_and_scope_sweeps_page_live_entries_and_tolerate_retirement_between_pages() {

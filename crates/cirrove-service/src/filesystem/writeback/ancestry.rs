@@ -51,11 +51,14 @@ impl Inner {
                 }
                 let parent = views.get(&current.parent).ok_or(Errno::ESTALE)?;
                 if let Some(entry) = &current.entry {
-                    let mut node = entry.clone();
+                    let mut node = entry.as_ref().clone();
                     node.parent_id = Some(parent.node.id.clone());
-                    entries.push((parent.scope.clone(), node));
+                    entries.push((parent.scope.as_ref().clone(), node));
                 } else if current.node.kind == NodeKind::Folder {
-                    entries.push((current.scope.clone(), current.node.clone()));
+                    entries.push((
+                        current.scope.as_ref().clone(),
+                        current.node.as_ref().clone(),
+                    ));
                 }
                 current = parent.clone();
             }

@@ -71,8 +71,8 @@ impl Writeback {
         let parent = view.node.parent_id.clone().ok_or(Errno::EINVAL)?;
         let name = view.node.name.clone();
         let writer = self.clone();
-        let scope = view.scope.clone();
-        let source = view.node;
+        let scope = view.scope.as_ref().clone();
+        let source = view.node.as_ref().clone();
         tokio::task::spawn_blocking(move || -> Result<()> {
             let mut j = writer.journal.lock().map_err(|_| Errno::EIO)?;
             let mut object = Self::materialize(&mut j, scope, source).map_err(error)?;
@@ -243,7 +243,7 @@ impl Writeback {
                 return Err(Errno::ESTALE);
             }
             let mut view = users[0].view.clone();
-            view.node = object.node.clone();
+            view.node = object.node.clone().into();
             drop(users);
             self.prepare(engine, &view, false, &engine.cancel).await?;
         }
