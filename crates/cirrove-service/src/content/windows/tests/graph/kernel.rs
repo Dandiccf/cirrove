@@ -331,3 +331,40 @@ async fn real_strong_window_coalesces_and_keeps_navigation_available() -> anyhow
 async fn real_strong_window_cancellation_discards_partial_staging() -> anyhow::Result<()> {
     scenario(Outcome::Cancelled, true).await
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires FUSE and Python SQLite; only an isolated metadata database"]
+async fn real_cached_navigation_does_not_wait_for_metadata_writer() -> anyhow::Result<()> {
+    use tokio::io::{AsyncBufReadExt, BufReader};
+    let mut mounted = Mounted::configured(SIZE, 64 * 1024 * 1024, Arc::default()).await?;
+    // Opening `other` during setup already allocated its inode. Hold a writer
+    // in a separate process while ordinary read_dir/stat requests use that map.
+    let mut writer = tokio::process::Command::new("python3")
+        .args(["-u", "-c", "import sqlite3,sys; db=sqlite3.connect(sys.argv[1],isolation_level=None); db.execute('BEGIN IMMEDIATE'); print('held',flush=True); sys.stdin.read(1); db.execute('ROLLBACK')"])
+        .arg(&mounted.engine.db)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()?;
+    let mut input = writer.stdin.take().context("writer stdin")?;
+    let mut output = BufReader::new(writer.stdout.take().context("writer stdout")?).lines();
+    let result = async {
+        ensure!(tokio::time::timeout(DEADLINE, output.next_line()).await??.as_deref() == Some("held"));
+        let mut samples = Vec::new();
+        for _ in 0..5 {
+            navigate(&mounted, &mut samples).await?;
+        }
+        ensure!(mounted.server.graph.load(Ordering::SeqCst) == 0);
+        ensure!(mounted.server.content.load(Ordering::SeqCst) == 0);
+        println!("CIRROVE_CACHED_WRITER_NAV {}", serde_json::json!({"fixture":"actual kernel directory reads while a separate process holds the SQLite writer; synthetic only", "directory_samples_ms":samples}));
+        Ok::<_, anyhow::Error>(())
+    }.await;
+    // Release the lock and detach our mount before returning an assertion error.
+    let release = input.write_all(b"x").await;
+    let exited = tokio::time::timeout(DEADLINE, writer.wait()).await;
+    let cleanup = mounted.close().await;
+    result?;
+    release?;
+    ensure!(exited??.success(), "synthetic metadata writer failed");
+    cleanup
+}

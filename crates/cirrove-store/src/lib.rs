@@ -344,10 +344,28 @@ impl Store {
             })? as u64)
     }
     pub fn inodes(&mut self, keys: &[String]) -> Result<Vec<u64>> {
+        // Inode mappings are immutable. A fully cached directory needs no writer
+        // reservation and must stay readable during cache/index publication.
+        let mut result = Vec::with_capacity(keys.len());
+        {
+            let mut query = self.db.prepare("SELECT inode FROM inodes WHERE key=?1")?;
+            for key in keys {
+                match query.query_row([key], |r| r.get::<_, i64>(0)).optional()? {
+                    Some(inode) => result.push(inode as u64),
+                    None => break,
+                }
+            }
+        }
+        if result.len() == keys.len() {
+            return Ok(result);
+        }
+        // End the read before reserving the writer; never upgrade a stale read
+        // transaction. Recheck all mappings after admission because another
+        // allocator may already have inserted a formerly missing key.
+        result.clear();
         let tx = self
             .db
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
-        let mut result = Vec::with_capacity(keys.len());
         for key in keys {
             if let Some(inode) = tx
                 .query_row("SELECT inode FROM inodes WHERE key=?1", [key], |r| {
@@ -660,6 +678,65 @@ mod tests {
         assert_eq!(db.children(&s, "other").unwrap(), Some(vec![fresh.clone()]));
         assert_eq!(db.node(&s, "item").unwrap(), Some(fresh));
     }
+    #[test]
+    fn cached_inode_batch_stays_readable_while_another_connection_holds_the_writer() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("metadata.db");
+        let keys = vec!["directory".into(), "file".into(), "directory".into()];
+        let mut reader = Store::open(&path).unwrap();
+        let expected = reader.inodes(&keys).unwrap();
+        let writer = Store::open(&path).unwrap();
+        writer.db.execute_batch("BEGIN IMMEDIATE").unwrap();
+        // The writer stays reserved through the assertion. This is independent
+        // of scheduling speed: a cached listing must not request that lock.
+        assert_eq!(reader.inodes(&keys).unwrap(), expected);
+        assert!(reader.inodes(&[]).unwrap().is_empty());
+        writer.db.execute_batch("ROLLBACK").unwrap();
+    }
+
+    #[test]
+    fn concurrent_inode_batches_keep_cached_and_new_keys_stable() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("metadata.db");
+        let cached = Store::open(&path).unwrap().inode("cached").unwrap();
+        let start = std::sync::Arc::new(std::sync::Barrier::new(4));
+        let workers: Vec<_> = (0..4)
+            .map(|worker| {
+                let path = path.clone();
+                let start = start.clone();
+                std::thread::spawn(move || {
+                    let mut store = Store::open(path).unwrap();
+                    let keys = vec![
+                        "cached".into(),
+                        "shared".into(),
+                        format!("worker-{worker}"),
+                        "shared".into(),
+                    ];
+                    start.wait();
+                    let inodes = store.inodes(&keys).unwrap();
+                    assert_eq!(store.inodes(&keys).unwrap(), inodes);
+                    inodes
+                })
+            })
+            .collect();
+        let results: Vec<_> = workers.into_iter().map(|w| w.join().unwrap()).collect();
+        for ids in &results {
+            assert_eq!(ids[0], cached);
+            assert_eq!(ids[1], results[0][1]);
+            assert_eq!(ids[1], ids[3]);
+            assert_ne!(ids[1], cached);
+            assert_ne!(ids[2], ids[1]);
+        }
+        assert_eq!(
+            results
+                .iter()
+                .map(|ids| ids[2])
+                .collect::<std::collections::HashSet<_>>()
+                .len(),
+            4
+        );
+    }
+
     #[test]
     fn persistent_inode_batch_is_stable_and_shortcut_projection_is_scope_isolated() {
         let temp = tempfile::tempdir().unwrap();

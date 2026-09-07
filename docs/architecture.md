@@ -47,6 +47,13 @@ retain their inodes; regular-file inode keys additionally contain the content re
 and size to separate kernel pages belonging to different versions. A metadata-only
 rename reuses the inode and bytes when a provider content tag is available.
 
+Resolving an already allocated batch of inode mappings uses read-only queries.
+Cached directory listing therefore does not reserve SQLite's writer merely to
+return existing identities. Missing mappings still acquire an immediate writer
+transaction and recheck every key after admission, preserving concurrent allocation
+and duplicate-key identity. An actual-kernel fixture keeps a separate writer
+transaction open while directory listing/stat completes within the navigation bound.
+
 Graph packages, such as OneNote notebooks, are projected as read-only child containers.
 They have neither a file nor a folder facet; treating that as a malformed entry would
 abort a whole delta page or directory. This projection does not implement OneNote

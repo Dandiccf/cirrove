@@ -113,7 +113,7 @@ async fn workload(mode: Mode) -> anyhow::Result<serde_json::Value> {
                         break serde_json::from_str(&line?.context("application exited before reporting phase")?)?;
                     }
                     _ = tick.tick() => {
-                        navigate(&mounted, &mut navigation).await?;
+                        navigate(&mounted, &mut navigation).await.with_context(|| format!("{mode:?}/{expected}: cached navigation"))?;
                         peak = peak.max(rss_bytes());
                     }
                 }

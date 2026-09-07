@@ -372,13 +372,25 @@ and 20 ms imposed response delay. In each, the sequential 1 GiB phase uses **two
 Graph and twenty content requests**, with no renewal required during the run.
 The earlier strong-range baseline needed 256 content requests. Small previews,
 reopens, sparse reads and concurrent readers retain their request counts. The
-final local samples took 3.84 s without imposed delay and 3.55 s with 20 ms per
-response. Their ordering illustrates run-to-run local variation; these single
-samples do not isolate a statistically reliable latency gain. Cached navigation
-stayed below 3.36 ms, peak reserved staging was 64 MiB, and all staging reservations
-were released. The raw artifact retains phase timings and memory observations.
+final local samples took 3.95 s without imposed delay and 4.18 s with 20 ms per
+response. These single samples do not isolate a statistically reliable latency
+gain. Cached navigation stayed below 3.82 ms, peak reserved staging was 64 MiB, and
+all staging reservations were released. The raw artifact retains phase timings
+and memory observations for all six repeated strategy/delay combinations.
 
 These runs demonstrate request reduction, not a universal speedup. Staging remains
 extra local I/O; the original low-latency strong-range run was faster. Real-provider
 window validation, wider desktop load and recovery gates still apply, and normal
 accounts continue to use the original conservative construction.
+
+
+The initial conditional-window CI run also exposed a cached-navigation deadline
+failure. Investigation reproduced an independent blocking dependency: batch inode
+resolution requested an immediate SQLite writer even when all mappings already
+existed. Cached batches now stay on the read path; missing mappings recheck under
+the writer before allocation. A regression test failed with DatabaseBusy before
+this correction and succeeds while another connection still holds that writer.
+An actual FUSE fixture repeats directory listing/stat under a separate process's
+held writer, preserving the 500 ms bound. This removes that demonstrated dependency;
+it does not attribute every possible slow CI sample to SQLite or establish a
+universal latency guarantee. Workload errors now identify their application phase.

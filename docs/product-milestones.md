@@ -41,6 +41,10 @@ matrix and wider application latency/resource measurements remain open. Actual-k
 fixtures now cover overlapping window readers, cached navigation during stalled
 transfer/final validation, version rejection and shutdown with open descriptors;
 they do not yet cover live indexing or desktop thumbnail load on the optimized path.
+Cached inode batches now avoid waiting for the SQLite writer when their mappings
+already exist. Both store and actual-kernel tests hold a competing writer while
+reading those mappings; this protects cached navigation during publication. The
+full indexing and load gate remains open.
 Ordinary accounts still use the original conservative path pending that acceptance.
 A separate mounted application workload now verifies cold 3.1 MB reads, reopens,
 sparse seeks, concurrent readers and sequential 1 GiB reads with actual adapter/HTTP
