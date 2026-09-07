@@ -320,6 +320,6 @@ mod tests {
         assert_eq!(report["old_descriptor_preserved"], true);
         assert!(!temp.path().join(ONLINE).exists());
         let bytes = std::fs::read(temp.path().join(DOCUMENT)).expect("final bytes");
-        assert_eq!(report["sha256"], format!("{:x}", Sha256::digest(bytes)));
+        assert_eq!(report["sha256"], hex::encode(Sha256::digest(bytes)));
     }
 }

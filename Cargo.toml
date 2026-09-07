@@ -34,6 +34,7 @@ openidconnect = { version = "4.0", default-features = false }
 secret-service = { version = "5.2", features = ["rt-tokio-crypto-rust"] }
 base64 = "0.22"
 sha2 = "0.11"
+hex = "0.4"
 subtle = "2.6"
 uuid = { version = "1.18", features = ["v4", "serde"] }
 url = "2.5"

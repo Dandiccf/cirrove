@@ -488,7 +488,7 @@ mod tests {
                 name: "saved.txt".into(),
             },
             size: 0,
-            sha256: format!("{:x}", Sha256::digest([])),
+            sha256: hex::encode(Sha256::digest([])),
         };
         assert!(fixture.request_allowed(&request).is_ok());
         let mut outside = request.clone();
@@ -558,7 +558,7 @@ mod tests {
                 .enumerate()
                 .all(|(i, b)| *b == ((i * 13 + 34) % 251) as u8)
         );
-        assert_eq!(rows[1]["sha256"], format!("{:x}", Sha256::digest(&bytes)));
+        assert_eq!(rows[1]["sha256"], hex::encode(Sha256::digest(&bytes)));
     }
 
     #[tokio::test]
@@ -583,7 +583,7 @@ mod tests {
                 name: node.name.clone(),
             },
             size: 0,
-            sha256: format!("{:x}", Sha256::digest([])),
+            sha256: hex::encode(Sha256::digest([])),
         };
         let request = MutationRequest {
             scope: fixture.scope.clone(),

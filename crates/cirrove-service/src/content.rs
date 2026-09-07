@@ -126,7 +126,7 @@ impl ContentCache {
             .ok_or(ProviderError::Protocol("file has no version tag"))?;
         let identity = serde_json::to_vec(&(scope, &node.id, version, node.size, start))
             .map_err(|_| ProviderError::Unavailable)?;
-        let key = format!("{:x}", Sha256::digest(&identity));
+        let key = hex::encode(Sha256::digest(&identity));
         if let Some(bytes) = self.recalled(&key)? {
             return Ok(bytes);
         }

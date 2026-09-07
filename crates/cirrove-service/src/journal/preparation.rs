@@ -302,7 +302,7 @@ impl UploadJournal {
             hash.update(&buffer[..n]);
         }
         file.seek(SeekFrom::Start(0))?;
-        let digest = format!("{:x}", hash.finalize());
+        let digest = hex::encode(hash.finalize());
         if self.upload_preparation(record.id)?.sha256.as_deref() != Some(digest.as_str()) {
             return Err(JournalError::Corrupt);
         }
@@ -350,7 +350,7 @@ impl UploadJournal {
             }
             hash.update(&buffer[..n]);
         }
-        let digest = format!("{:x}", hash.finalize());
+        let digest = hex::encode(hash.finalize());
         if preparation
             .sha256
             .as_ref()

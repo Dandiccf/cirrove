@@ -493,6 +493,15 @@ async fn corrupt_blocks_redownload_and_interrupted_publications_obey_quota() {
         .unwrap()
         .unwrap()
         .path();
+    // Fixed vectors guard the existing disk key and binary checksum header.
+    assert_eq!(
+        block.file_name().unwrap(),
+        "6213745a8b09a73cc9c94467e9e2eae2165add597056b63d69bacb125274ae46"
+    );
+    assert_eq!(
+        hex::encode(&std::fs::read(&block).unwrap()[..32]),
+        "cefde0f05239043b331c09c52247915eee1a4da545d16e5815d2e79b9e8e5572"
+    );
     std::fs::write(&block, b"corruption").unwrap();
     let cache = ContentCache::new(path.clone(), db.clone(), BLOCK_SIZE as u64 + 32).unwrap();
     let bytes = cache

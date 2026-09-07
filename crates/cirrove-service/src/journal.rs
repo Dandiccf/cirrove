@@ -356,7 +356,7 @@ impl UploadJournal {
             intent,
             state: UploadState::Pending,
             size,
-            sha256: format!("{:x}", hash.finalize()),
+            sha256: hex::encode(hash.finalize()),
             attempt: None,
             remote: None,
             base: order.base,
@@ -466,7 +466,7 @@ impl UploadJournal {
             }
             hash.update(&buffer[..count]);
         }
-        if format!("{:x}", hash.finalize()) != record.sha256 {
+        if hex::encode(hash.finalize()) != record.sha256 {
             return Err(JournalError::Corrupt);
         }
         file.seek(SeekFrom::Start(0))?;

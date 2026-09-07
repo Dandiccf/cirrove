@@ -241,7 +241,7 @@ impl UploadProvider for Provider {
         let mut state = self.state.lock().unwrap();
         state.reconciliations += 1;
         Ok(match &state.committed {
-            Some(node) if format!("{:x}", Sha256::digest(&state.data)) == request.sha256 => {
+            Some(node) if hex::encode(Sha256::digest(&state.data)) == request.sha256 => {
                 Reconciliation::Committed(node.clone())
             }
             Some(_) => Reconciliation::Conflict,
