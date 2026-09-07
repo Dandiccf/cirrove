@@ -180,9 +180,9 @@ pub(super) async fn interrupted_clients() {
         let (engine, mount) = setup(&temp, provider.clone()).await;
         let fs = CloudFs::new(engine.clone()).unwrap();
         let inner = fs.inner.clone();
+        let available_requests = inner.pending.available_permits();
         let session = fs.mount(&mount).unwrap();
         let path = mount.join("directory-000000");
-        let available_requests = inner.pending.available_permits();
         let mut client = tokio::process::Command::new("python3")
             .args([
                 "-c",
