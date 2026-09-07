@@ -1,6 +1,8 @@
 //! FUSE projection: ordinary mounts are read-only; isolated test mounts allow edits.
 //! Callbacks dispatch asynchronous work; no callback
 //! holds the namespace map while awaiting a provider or a database operation.
+#[cfg(test)]
+mod capacity;
 mod lifecycle;
 mod session;
 pub(crate) use lifecycle::WriteControl;

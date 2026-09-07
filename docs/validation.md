@@ -742,3 +742,39 @@ other product milestones remain open.
 Final local validation passed 229 default workspace tests and 35 actual synthetic
 FUSE fixtures (15 read-only/lifecycle and 20 writable-session), plus formatting,
 strict Clippy, build, smoke, two observer checks and Rustdoc.
+
+
+## Namespace capacity baseline
+
+A generated provider and actual temporary FUSE mount measured 500,000 zero-byte
+file metadata entries across 500 directories. Metadata arrived in 1,000-entry
+pages through the normal refresh/index path; no provider kept a 500k-node in-memory
+fixture map. The service was indexed before the first memory baseline. Three
+traversals changed every file's content revision between passes. No file contents,
+real accounts or keyring credentials were used. Each sample was taken after all
+application directory handles had closed.
+
+| Sample | Retained views | Process RSS (MiB) | Open files/directories |
+| --- | ---: | ---: | ---: |
+| Indexed, before traversal | 1 | 20.6 | 0 / 0 |
+| After revision 1 | 500,501 | 896.5 | 0 / 0 |
+| After revision 2 | 1,000,501 | 1,763.6 | 0 / 0 |
+| After revision 3 | 1,500,501 | 2,071.4 | 0 / 0 |
+
+Peak process RSS reached 2,287.2 MiB. Indexed traversal made no foreground provider
+metadata requests and no content reads. The complete debug-build fixture took
+111.15 seconds locally. Runtime source was `5b1128e`; the added fixture is compiled
+only into service tests. [Raw synthetic measurements](benchmarks/namespace-baseline.json)
+include PSS, map capacity and per-phase timings.
+
+This confirms the namespace-retention weakness and **does not pass** the proposed
+memory gate. Closed application handles are not a measurement of kernel lookup
+references; reference accounting remains implementation work. These numbers depend
+on this fixture's names, directory shape, allocator and build. The run does not
+measure real Graph latency, one huge directory, deep/duplicate aliases, held
+mappings or a 24-hour session. The 10,000-file pilot also showed accumulation
+(10,011, 20,011 and 30,011 views across revisions), before the full-size run.
+
+See [reproduction](development.md#namespace-capacity-baseline) and the
+[namespace lifetime decision](adr/0005-namespace-memory.md) for the next correctness,
+reclamation and capacity checks. No installed service was replaced by this test.

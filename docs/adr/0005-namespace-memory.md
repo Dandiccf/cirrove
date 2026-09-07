@@ -22,6 +22,12 @@ Open directories currently retain complete snapshot vectors. The SQLite inode
 table has its own persistent lifetime. Neither problem is solved by putting a
 simple LRU around the shared map.
 
+A synthetic actual-kernel baseline now confirms this growth: after three traversals
+of 500,000 files with new content revisions, 1,500,501 views remained with no open
+file or directory handles. Process RSS was about 2,071 MiB, compared with 21 MiB
+after indexing. See [the measurement and its limits](../validation.md#namespace-capacity-baseline)
+and [machine-readable results](../benchmarks/namespace-baseline.json).
+
 ## Planned lifetime model
 
 1. Track kernel lookup references, open file/directory leases, in-flight requests
@@ -40,6 +46,11 @@ simple LRU around the shared map.
    rather than a complete in-memory `Vec<View>` per open directory. Account for
    snapshot disk space separately and collect abandoned snapshots after restart.
    Keep old directory snapshots stable across concurrent rename/delete operations.
+   Bound materialization through the entire store/engine/projection pipeline;
+   paging the final snapshot alone leaves the earlier `Vec<Node>` allocation.
+   The current cold foreground listing also has a 100,000-entry limit, while a
+   complete delta index can contain larger directories. Large-directory acceptance
+   must cover both paths rather than simply raising this safety limit.
 4. Replace mount-wide invalidation scans with an index of affected, live projections
    and bounded coalesced work. Measure allocation and navigation latency during a
    remote-change burst; avoiding retained views must not lose live invalidations.
