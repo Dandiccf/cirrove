@@ -358,6 +358,23 @@ The corrected fourteen-test read-only kernel suite passed with two CPUs and
 sequential fixtures. The 121 default workspace tests and strict Clippy passed again;
 these corrections change the validation harness, not the live-tested runtime.
 
+A later push run at `db9bfe3` timed out during the active burst with 93 of 96
+provider reads started; its parallel PR run passed. A local two-CPU reproduction
+passed in 7.97 seconds, with 6.34 seconds of user CPU time. This does not establish
+the cause of the CI host's delay. Each 64 KiB application read loads a distinct
+3,100,000-byte cache block, so this fixture generates and durably caches nearly
+300 MB, including eviction under its 16 MiB quota.
+
+The burst now has a 60-second completion bound, allowing the separate bounded
+queue and provider phases, without treating 20 seconds of aggregate disk throughput
+as a product requirement. Every cached directory request must still finish within
+500 ms. Navigation is sampled throughout the entire burst, including later queued
+waves and eviction, rather than only at its start. Every read must return correct
+bytes without failures or provider retries. Output includes elapsed time, sample
+count and maximum navigation latency; the containing sequential CI suite has a
+150-second bound. This is a validation correction, not a runtime performance fix
+or real-provider latency claim.
+
 ## Required before calling stages 1–3 complete
 
 - Cirrove's own Microsoft app registration, real consent and verified work-account,

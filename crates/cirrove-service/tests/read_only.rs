@@ -1285,6 +1285,11 @@ async fn real_thumbnail_burst_queues_reads_without_blocking_cached_navigation() 
     use anyhow::{Context, ensure};
     use std::io::Read;
     const READERS: usize = 96;
+    // This exercises admission and responsive navigation, not a disk-throughput
+    // SLA for CI hosts: 96 tiny reads populate almost 300 MB of durable blocks.
+    // Allow the service's bounded queue and provider phases to finish while
+    // retaining the independent 500 ms deadline on every directory request.
+    const BURST_TIMEOUT: Duration = Duration::from_secs(60);
     let temp = tempfile::tempdir().unwrap();
     let mount = temp.path().join("mount");
     std::fs::create_dir(&mount).unwrap();
@@ -1352,13 +1357,17 @@ async fn real_thumbnail_burst_queues_reads_without_blocking_cached_navigation() 
         .await
         .context("opening thumbnail files timed out")
         .and_then(|r| r.context("opening thumbnail files failed"));
+    let burst_start = std::time::Instant::now();
+    let mut listings_ms = vec![];
     let result = if setup.is_ok() {
-        tokio::time::timeout(Duration::from_secs(20), async {
+        tokio::time::timeout(BURST_TIMEOUT, async {
             while provider.reads.load(Ordering::SeqCst) < 4 {
                 tokio::time::sleep(Duration::from_millis(10)).await;
             }
-            let mut listings_ms = vec![];
-            for _ in 0..20 {
+            // Keep probing beyond the first downloads, including later queued
+            // waves and cache eviction. An early fast sample cannot hide a
+            // stall during the remainder of the burst.
+            while !readers.is_finished() || listings_ms.len() < 20 {
                 let path = mount.join("folder");
                 let start = std::time::Instant::now();
                 let entries = tokio::time::timeout(
@@ -1371,7 +1380,7 @@ async fn real_thumbnail_burst_queues_reads_without_blocking_cached_navigation() 
                 .context("cached navigation stalled behind downloads")???;
                 ensure!(entries.len() == 1, "cached directory changed during burst");
                 listings_ms.push(start.elapsed().as_secs_f64() * 1000.0);
-                tokio::time::sleep(Duration::from_millis(10)).await;
+                tokio::time::sleep(Duration::from_millis(50)).await;
             }
             (&mut readers).await??;
             ensure!(
@@ -1385,15 +1394,19 @@ async fn real_thumbnail_burst_queues_reads_without_blocking_cached_navigation() 
                     "fixture": "synthetic kernel FUSE, 250 ms content delay; no cloud traffic",
                     "simultaneous_readers": READERS, "file_bytes": 3_100_000, "read_bytes": 64 * 1024,
                     "provider_range_calls": READERS, "directory_samples": listings_ms.len(),
-                    "directory_p50_ms": listings_ms[9], "directory_p95_ms": listings_ms[18],
+                    "directory_p50_ms": listings_ms[(listings_ms.len() - 1) / 2],
+                    "directory_p95_ms": listings_ms[(listings_ms.len() - 1) * 95 / 100],
+                    "directory_max_ms": listings_ms.last(),
+                    "burst_elapsed_ms": burst_start.elapsed().as_secs_f64() * 1000.0,
+                    "burst_deadline_seconds": BURST_TIMEOUT.as_secs(),
                 })
             );
             Ok::<_, anyhow::Error>(())
         })
         .await
         .with_context(|| format!(
-            "thumbnail burst timed out (provider reads started: {}, reader task finished: {})",
-            provider.reads.load(Ordering::SeqCst), readers.is_finished()
+            "thumbnail burst timed out (provider reads started: {}, reader task finished: {}, directory samples: {}, elapsed: {:?})",
+            provider.reads.load(Ordering::SeqCst), readers.is_finished(), listings_ms.len(), burst_start.elapsed()
         ))
         .and_then(|result| result)
     } else {
