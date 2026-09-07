@@ -191,25 +191,8 @@ async fn signal(notify: &Notify) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn navigate(mounted: &Mounted, samples: &mut Vec<f64>) -> anyhow::Result<()> {
-    let path = mounted.temp.path().join("mount/folder");
-    let start = std::time::Instant::now();
-    let size = tokio::time::timeout(
-        Duration::from_millis(500),
-        tokio::task::spawn_blocking(move || -> std::io::Result<u64> {
-            let entries = std::fs::read_dir(path)?.collect::<Result<Vec<_>, _>>()?;
-            if entries.len() != 1 {
-                return Err(std::io::Error::other("cached listing changed"));
-            }
-            Ok(std::fs::metadata(entries[0].path())?.len())
-        }),
-    )
-    .await
-    .context("cached navigation stalled behind a streamed window")???;
-    ensure!(size == 16 * 1024, "incorrect cached file metadata");
-    samples.push(start.elapsed().as_secs_f64() * 1000.0);
-    Ok(())
-}
+mod navigation;
+use navigation::navigate;
 
 #[derive(Debug, Clone, Copy)]
 enum Outcome {
