@@ -296,6 +296,107 @@ async fn real_directory_listing_releases_unlooked_up_projections() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; validates FORGET and open-file view lifetimes"]
+async fn real_resolved_file_views_retire_after_kernel_and_open_references() {
+    use std::os::unix::fs::MetadataExt;
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let provider = Arc::new(GeneratedLibrary {
+        files: 300,
+        revision: AtomicU32::new(1),
+        content_reads: AtomicU64::new(0),
+        foreground_requests: AtomicU64::new(0),
+    });
+    let engine = Engine::new(
+        account(mount.clone()),
+        provider.clone(),
+        temp.path().join("state"),
+    )
+    .await
+    .unwrap();
+    let scope = engine.scope("capacity-drive");
+    crate::refresh(provider.as_ref(), &scope, &engine.db, false, &engine.cancel)
+        .await
+        .unwrap();
+    let fs = CloudFs::new(engine.clone()).unwrap();
+    let inner = fs.inner.clone();
+    let session = fs.mount(&mount).unwrap();
+    let path = mount.join("directory-000000");
+    let held = tokio::task::spawn_blocking(move || {
+        for entry in std::fs::read_dir(&path).unwrap() {
+            // Explicit metadata lookup (plain READDIR alone owns no kernel reference).
+            assert_eq!(std::fs::metadata(entry.unwrap().path()).unwrap().len(), 0);
+        }
+        std::fs::File::open(path.join("Projektunterlagen – Übersicht 00000000.txt")).unwrap()
+    })
+    .await
+    .unwrap();
+    let old_inode = held.metadata().unwrap().ino();
+    assert!(inner.views.lock().unwrap().len() > 250);
+    provider.revision.store(2, Ordering::SeqCst);
+    crate::refresh(provider.as_ref(), &scope, &engine.db, false, &engine.cancel)
+        .await
+        .unwrap();
+    engine.changed.notify_one();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        let remaining = inner
+            .views
+            .lock()
+            .unwrap()
+            .values()
+            .filter(|view| view.node.kind == NodeKind::File)
+            .count();
+        if remaining == 1 {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "{remaining} file views survived invalidation"
+        );
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    assert_eq!(
+        inner.view(old_inode).unwrap().node.etag.as_deref(),
+        Some("revision-1")
+    );
+    assert_eq!(held.metadata().unwrap().ino(), old_inode);
+    let path = mount.join("directory-000000/Projektunterlagen – Übersicht 00000000.txt");
+    let newest = tokio::task::spawn_blocking(move || std::fs::File::open(path).unwrap())
+        .await
+        .unwrap();
+    assert_ne!(newest.metadata().unwrap().ino(), old_inode);
+    drop((held, newest));
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        engine.changed.notify_one();
+        if inner.files.lock().unwrap().is_empty()
+            && inner
+                .views
+                .lock()
+                .unwrap()
+                .values()
+                .all(|v| v.node.kind != NodeKind::File)
+        {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "closed and forgotten files were not reclaimed"
+        );
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    assert_eq!(provider.foreground_requests.load(Ordering::SeqCst), 0);
+    assert_eq!(provider.content_reads.load(Ordering::SeqCst), 0);
+    engine.stop().await;
+    tokio::task::spawn_blocking(move || session.umount_and_join())
+        .await
+        .unwrap()
+        .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "explicit 500k-file synthetic FUSE/RSS benchmark; no cloud; not a release acceptance pass"]
 async fn namespace_capacity_baseline() {
     let files = std::env::var("CIRROVE_NAMESPACE_FILES")

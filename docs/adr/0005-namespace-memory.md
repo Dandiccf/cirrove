@@ -1,22 +1,24 @@
 # Namespace lifetime and large-library memory
 
-Status: directory-listing lifetime corrected; full reclamation and capacity acceptance remain open.
+Status: listing lifetime and regular-file reference reclamation implemented; full capacity acceptance remains open.
 
 ## Current evidence
 
-`filesystem::Inner.views` is a mount-lifetime `HashMap<u64, View>`. Originally both
+`filesystem::Inner.views` originally held a mount-lifetime `HashMap<u64, View>`. Both
 lookup and directory listing inserted projected views. A view owns metadata strings,
 scope, alias and ancestry vectors and sometimes a second entry node. `releasedir`
 dropped the handle's `Arc<Vec<View>>`, but left those entries in the shared view map.
 Plain listing projections now live only in the directory snapshot; resolved lookup
-and operation views still enter the shared map.
-The filesystem does not override FUSE `forget`/batch-forget to reclaim them.
-Repeated remote content revisions can also create additional inode/view identities.
+and operation views still enter the shared map. The map now tracks kernel lookup
+references and shared residency tokens for regular files. Single and batched
+FORGET release counted references; open files and in-flight operations protect
+their versions until their tokens also retire. Count errors preserve the affected
+entry conservatively. A queued collector checks at most 4,096 candidates per second.
 
 This is growth with projected entries and revisions visited during the mount, not
 automatic materialization of every item merely because the index contains 500,000
-files. Resolved lookup views still accumulate after applications close their
-handles, so full namespace lifetime remains a scalability gap. The content-cache quota does
+files. Directory ancestry remains pinned, and kernel-referenced file views cannot
+yet shed their full metadata payloads. Full namespace lifetime remains a scalability gap. The content-cache quota does
 not limit these allocations. The invalidation worker also copies and walks the
 retained view map on each coalesced change wake, adding CPU and temporary memory.
 
@@ -36,6 +38,14 @@ root and 500 directories resolved during traversal. The fixture creates no file
 lookup references merely by reading names, so this improvement does not establish
 bounded memory for mass `stat`/open workloads. See
 [the correction measurements](../benchmarks/namespace-listing-lifetime.json).
+
+A separate actual-kernel fixture now stats 300 files, holds an old file open across
+a revision change, and observes all other regular-file views retire after kernel
+invalidation. Old and new open versions remain distinct; after close and FORGET,
+both retire. This proves the tested reference lifetime, not the full memory gate.
+The FUSE wrapper's entry/create replies return no delivery outcome. Cancelled or
+failed delivery can therefore leave conservative references; accounting must not
+guess them away. Interruption and delivery-failure acceptance remain open.
 
 ## Planned lifetime model
 
@@ -103,5 +113,6 @@ This is an explicit **milestone-1 / OneDrive-1.0 blocker**, independent of the
       check. Report workload, reference counts and memory slope; a mount that sits
       idle for 24 hours does not close this gate.
 
-The implementation still retains resolved lookup/operation views until unmount. These planned
-limits must not be advertised as supported capacity until the tests pass.
+Directory reclamation, compact/budgeted payloads, bounded directory pages and
+targeted invalidation remain unimplemented. These planned limits must not be
+advertised as supported capacity until the tests pass.

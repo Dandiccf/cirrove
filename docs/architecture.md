@@ -231,12 +231,21 @@ have a separate 128-slot budget, so content contention does not consume those sl
 Plain directory-listing projections now belong only to their open directory
 snapshot. READDIR does not create kernel lookup references, so those projections
 are not copied into the mount-wide map. LOOKUP and namespace operations still
-publish their resolved views there; those views remain retained until unmount.
-Long-session growth is not bounded by the content cache. Directory snapshots also
-retain full vectors, and invalidation walks the retained resolved-view map. Reference-aware reclamation,
-bounded snapshots and targeted invalidation are planned as an explicit 500,000-file
-and long-session release gate; see [namespace memory](adr/0005-namespace-memory.md).
-That lifetime redesign is not implemented yet.
+publish their resolved views there. Regular-file views now retire after the kernel
+has released its lookup references and no open file or in-flight operation retains
+a shared residency token. Successful entry/create replies acquire references;
+single and batched FORGET release them. Checked accounting preserves an affected
+view on underflow/overflow. A deferred collector examines at most 4,096 queued
+candidates each second; it never awaits network or storage under the namespace lock.
+Replacing an existing inode's visible path preserves its earlier clones' token.
+
+Directory views remain pinned to preserve ancestor routes needed by local changes.
+Directory snapshots still retain full vectors, and invalidation walks the resident
+map. There is no namespace byte budget, and failed reply delivery can conservatively
+retain references because the FUSE wrapper does not expose delivery results.
+Directory lifetime, bounded snapshots, cancellation accounting and targeted
+invalidation remain part of the explicit 500,000-file and long-session release
+gate; see [namespace memory](adr/0005-namespace-memory.md).
 
 This first projection has read-only permissions and rejects write opens. File-manager
 thumbnail generation still causes real content reads; reserved metadata capacity

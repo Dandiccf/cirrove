@@ -26,9 +26,11 @@ Private account measurements belong in local records, not the public repository.
 Evidence must include actual kernel mounts, provider-backed reads and ordinary
 desktop applications, in addition to deterministic transport/recovery fixtures.
 The first namespace-memory correction removes mount-lifetime retention of entries
-only returned by plain READDIR. Resolved lookup/operation views still need lifetime
-accounting, and large single-directory snapshots still need paging; this partial
-correction does not close the 500k-file/long-session gate.
+only returned by plain READDIR. Regular-file views now also retire after kernel
+lookup references and open/in-flight leases end, with actual-kernel regression
+coverage. Directory ancestry remains pinned; byte budgets, large single-directory
+paging and interrupted-reply accounting remain open. These partial corrections
+do not close the 500k-file/long-session gate.
 Graph Socket.IO and provider-neutral coalescing hints are now implemented. This
 does not close the live-response gate: notifications can be delayed upstream.
 An isolated business-drive run passed actual long-session renewal and subsequent

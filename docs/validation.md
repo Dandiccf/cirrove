@@ -769,7 +769,7 @@ include PSS, map capacity and per-phase timings.
 
 This confirms the namespace-retention weakness and **does not pass** the proposed
 memory gate. Closed application handles are not a measurement of kernel lookup
-references; reference accounting remains implementation work. These numbers depend
+references; the later reference-lifetime correction is tested separately below. These numbers depend
 on this fixture's names, directory shape, allocator and build. The run does not
 measure real Graph latency, one huge directory, deep/duplicate aliases, held
 mappings or a 24-hour session. The 10,000-file pilot also showed accumulation
@@ -785,7 +785,7 @@ reclamation and capacity checks. No installed service was replaced by this test.
 Plain READDIR projections now stay in their directory handle's snapshot and are
 not duplicated into the mount-wide resolved-view map. Kernel lookup references
 are established by LOOKUP/create, not by returning names from plain READDIR.
-Existing resolved views and old open-file versions remain retained. The dedicated
+This initial correction kept resolved views and old open-file versions retained. The dedicated
 3,000-file kernel regression checks the retained-view bound after enumeration,
 then keeps an old file open across a remote revision and verifies a distinct new
 inode without overwriting the old view. This check also runs in CI.
@@ -806,7 +806,25 @@ at the final sample for this workload, not a general memory bound or an API-spee
 claim. Retained views plateau here, while RSS still increases across revisions;
 allocator/SQLite/persistent-index effects need longer-session investigation.
 
-LOOKUP/operation view reclamation, reference counts, a byte budget, large-directory
-paging, scoped invalidation and 24-hour churn remain open. In particular, a file
-manager that stats or opens every file exercises a different lifetime from this
-name-enumeration workload. The OneDrive-1.0 namespace memory gate remains open.
+A byte budget, directory reclamation, large-directory paging, scoped invalidation
+and 24-hour churn remain open. A file manager that stats or opens every file
+exercises a different lifetime from this name-enumeration workload. The subsequent
+regular-file reference correction is tested separately below. These RSS results
+belong to the listing-only correction, not a new measurement of later changes.
+The OneDrive-1.0 namespace memory gate remains open.
+
+## Regular-file reference lifetime
+
+Five focused unit tests cover partial and final FORGET, shared operation/open-file
+leases, replacement of an existing inode's path, stale collector generations,
+checked underflow/overflow and bounded collection without discarding directory
+ancestry. The actual-kernel fixture stats 300 generated files, retains one open
+file and publishes another remote revision. All other regular-file views retire
+after invalidation. A newly opened revision receives a different inode, while the
+old descriptor still sees its original identity. Closing both descriptors and
+invalidating their dentries allows the remaining file views to retire.
+
+The fixture uses only generated metadata and a temporary mount, with zero content
+reads or foreground provider requests. CI runs it alongside the 3,000-file
+listing regression. This does not establish byte-budget compliance, complete
+directory lifetimes, interrupted reply delivery or long-session capacity.
