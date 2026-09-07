@@ -828,3 +828,17 @@ The fixture uses only generated metadata and a temporary mount, with zero conten
 reads or foreground provider requests. CI runs it alongside the 3,000-file
 listing regression. This does not establish byte-budget compliance, complete
 directory lifetimes, interrupted reply delivery or long-session capacity.
+
+The unchanged 500,000-file name-enumeration benchmark was also repeated at
+`e779209` after this correction. Resident views were 1 after indexing and 501
+after each traversal; RSS was 21.0, 31.3, 41.3 and 50.4 MiB. The full debug fixture
+took 113.22 seconds and made no foreground provider/content requests.
+[Raw reference-lifetime measurements](benchmarks/namespace-reference-lifetime.json)
+record the exact commit and PSS/peak fields. This checks that adding reference
+accounting preserves the earlier listing improvement; the benchmark itself does
+not exercise mass file lookups or close the memory gate.
+
+At this revision, formatting, strict workspace Clippy, 239 default tests, 37
+synthetic actual-kernel mount tests, workspace build, daemon smoke and Rustdoc
+passed locally. The actual mount coverage includes old/new memory mappings,
+in-flight reads, local saves, unlink, replacement, ancestor recovery and shutdown.

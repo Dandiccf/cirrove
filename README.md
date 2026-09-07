@@ -41,8 +41,8 @@ and Nautilus badges are not implemented.
   including shared read-only and private memory mappings. Directory requests have
   capacity reserved separately from a bounded queue of content reads.
 - Plain directory-listing projections live only until their directory snapshot
-  closes. Resolved
-  lookup views and large-directory paging still have an open
+  closes. Regular-file views retire after kernel references and open/operation
+  leases end. Directory ancestry, byte budgets and large-directory paging retain an open
   [namespace memory gate](docs/adr/0005-namespace-memory.md).
 - Version-checked 4 MiB range cache, concurrent-request coalescing, checksums,
   bounded eviction and interrupted-publication recovery.

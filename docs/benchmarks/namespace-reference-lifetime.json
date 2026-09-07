@@ -1,0 +1,84 @@
+{
+  "runtime_commit": "e77920987ca38a68c57cd68377f1ca20def0d1fc",
+  "runtime_change": "Regular-file kernel-reference accounting and shared operation/open-file leases; bounded deferred reclamation. Directory ancestry remains pinned.",
+  "baseline": "namespace-baseline.json",
+  "listing_only_comparison": "namespace-listing-lifetime.json",
+  "total_test_seconds": 113.22,
+  "notes": [
+    "Same 500,000-file, three-revision name-enumeration workload as the baseline. This workload does not create file lookup references.",
+    "The separate 300-file actual-kernel regression validates regular-file FORGET/open lifetime; this benchmark is not a mass-stat measurement.",
+    "No content reads, foreground provider requests, real cloud data or keyring access.",
+    "No single 500k-entry directory, deep/duplicate aliases, held-mapping stress or 24-hour churn in this measurement.",
+    "Stable retained view counts do not establish bounded process RSS; RSS still increases across these three revisions."
+  ],
+  "samples": [
+    {
+      "build": "debug",
+      "directories": 500,
+      "files": 500000,
+      "files_per_directory": 1000,
+      "fixture": "synthetic kernel FUSE; generated metadata, no credentials or content reads",
+      "interpretation": "baseline measurement only; no memory capacity gate is asserted"
+    },
+    {
+      "directory_snapshot_entries": 0,
+      "memory": {
+        "anonymous_pss_kib": 2812,
+        "peak_rss_kib": 21500,
+        "pss_kib": 18853,
+        "rss_kib": 21500
+      },
+      "open_directory_handles": 0,
+      "open_files": 0,
+      "phase": "indexed_baseline",
+      "retained_views": 1,
+      "seconds": 12.089434243,
+      "view_map_capacity": 3
+    },
+    {
+      "directory_snapshot_entries": 0,
+      "memory": {
+        "anonymous_pss_kib": 12152,
+        "peak_rss_kib": 32100,
+        "pss_kib": 29409,
+        "rss_kib": 32100
+      },
+      "open_directory_handles": 0,
+      "open_files": 0,
+      "phase": "closed_after_revision_1",
+      "retained_views": 501,
+      "seconds": 16.459176117,
+      "view_map_capacity": 896
+    },
+    {
+      "directory_snapshot_entries": 0,
+      "memory": {
+        "anonymous_pss_kib": 22176,
+        "peak_rss_kib": 42252,
+        "pss_kib": 39435,
+        "rss_kib": 42252
+      },
+      "open_directory_handles": 0,
+      "open_files": 0,
+      "phase": "closed_after_revision_2",
+      "retained_views": 501,
+      "seconds": 16.071904161,
+      "view_map_capacity": 896
+    },
+    {
+      "directory_snapshot_entries": 0,
+      "memory": {
+        "anonymous_pss_kib": 31496,
+        "peak_rss_kib": 51572,
+        "pss_kib": 48755,
+        "rss_kib": 51572
+      },
+      "open_directory_handles": 0,
+      "open_files": 0,
+      "phase": "closed_after_revision_3",
+      "retained_views": 501,
+      "seconds": 16.768029059,
+      "view_map_capacity": 896
+    }
+  ]
+}
