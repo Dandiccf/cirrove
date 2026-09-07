@@ -223,8 +223,40 @@ Renewal depends on the same Graph revision evidence as initial setup; it is not 
 immutable-version API or a transaction across Graph and its content origin. Neither
 a signed URL nor a matching ETag across different resource URLs alone proves that
 association. Real mutation, URL-expiry, revocation and Personal-account acceptance
-are still required before enabling this path in normal accounts. The bounded
-sequential-window fallback is also still unimplemented.
+are still required before enabling this path in normal accounts.
+
+Experimental sessions now optionally stream conservative windows into a caller-owned
+staging sink. OneDrive advertises this only after initial reads find no strong
+content-origin validator. The first cache miss still fetches one 4 MiB block (or the
+remaining shorter file). Sequential misses can then grow windows through 8, 16,
+32 and at most 64 MiB. Sparse access resets growth. Observed transfer speed caps
+growth to a five-second target; this is a sizing hint, not a latency guarantee.
+The existing 30-second cache-provider deadline remains. Abandoned or failed windows
+reset prediction to small reads; overlapping requests share staging while unrelated
+ranges/files can proceed independently.
+
+Staging reserves up to one quarter of the configured cache allowance, rounded to
+4 MiB units and capped at 128 MiB. If that would provide less than 8 MiB, windows
+stay disabled. The remainder is the persisted-block quota. Reservation exhaustion
+uses exact-range reads rather than waiting for another file's window. Existing
+single-block publication overhead remains separate from this staging bound.
+Temporary files are anonymous/unlinked and are not restart state. Blocking writes
+retain both the file and its reservation after their async caller is cancelled.
+Adapters deliver at most 64 KiB per sink call. The service computes per-block hashes
+while streaming, validates each staged block when reading it, then uses the normal
+durable checksum/publication path. No staged byte is readable until the adapter
+has validated the complete window against the original content identity. Failure
+never promotes partial content into the cache. Uploaded/local working data is not
+part of staging and cannot be removed by its cleanup.
+
+A synthetic 1 GiB test now runs the actual OneDrive HTTP adapter through the shared
+disk cache: 40 Graph requests and 20 content requests, compared with the previous
+512/256 conservative cost, with exactly 1 GiB downloaded. This closes the narrow
+sequential-window amplification fixture. Actual-kernel fixtures also verify
+overlapping reads, cached navigation during paused windows, failed final validation
+and cancellation with open descriptors. Real provider windows, wider application
+load/latency and the recovery matrix remain open. See
+[the measured record](adr/0004-read-session-efficiency.md#bounded-sequential-window-fallback).
 
 Blocks have SHA-256 checksums. Temporary bytes and the containing directory are
 fsynced before publication is indexed. Startup removes interrupted temporary blocks,

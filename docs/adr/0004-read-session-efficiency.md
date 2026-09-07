@@ -1,8 +1,9 @@
 # Read-session efficiency and Graph request amplification
 
-Status: experimental shared conditional sessions and bounded transport observations
-are implemented. Ordinary accounts still use conservative reads; sequential-window
-fallback and full provider acceptance remain outstanding.
+Status: shared conditional sessions, bounded streamed windows and transport
+diagnostics are implemented experimentally. Ordinary accounts still
+use the original conservative reads; full provider/application acceptance remains
+outstanding.
 
 ## Problem and present evidence
 
@@ -22,7 +23,7 @@ missed change notification would not establish equivalent version evidence.
 This is a release blocker in product milestone 1, not an accepted permanent cost
 of using Graph or a generic request to measure performance later.
 
-## Planned implementation
+## Design and acceptance work
 
 1. **Measure separately.** Count foreground Graph metadata, content-origin requests,
    authentication/renewal, retries and background reconciliation. Record first-byte
@@ -134,8 +135,9 @@ binds the content origin's own strong ETag. Later ranges validate both the condi
 response and the exact representation before returning bytes. A transport binding
 has a 60-second lease. Renewal/rebinding is coalesced and checks the original Graph
 content revision/size/identity again; changed content is rejected. Initial missing
-or weak validators retain conservative reads. No whole-file allocation or prefetch
-has been added. The fallback still costs two Graph checks per cold block.
+or weak validators select conservative validation. The streamed-window increment
+below now amortizes that validation for sequential cache misses without a whole-file
+allocation. Direct exact-range calls still perform their own before/after pair.
 
 The synthetic adapter fixture streams a 1 GiB file in 64 KiB server chunks and reads
 it as 256 individual 4 MiB ranges. It observes **2 Graph metadata requests, 256 content
@@ -168,6 +170,92 @@ again without additional Graph calls after setup. A separate smaller SharePoint
 file also passed, but its samples covered the whole file. Real checks of
 replacement, revocation, URL renewal and Personal accounts remain open.
 
+## Bounded sequential-window fallback
+
+The shared cache now consumes an optional streamed-window contract on `ReadSession`.
+The adapter writes bounded untrusted chunks to a caller-owned sink and reports
+success only after validating the whole requested window. OneDrive checks the
+original Graph identity/revision/size before and after the streamed HTTP range;
+status, range, encoding and exact byte count retain the existing validation rules.
+It advertises windows only for the conservative session fallback. Strong-validator
+sessions keep their conditional per-range path without adding Graph calls.
+
+The service starts with a normal 4 MiB cache block. Sequential misses then grow
+8/16/32/64 MiB windows, bounded by remaining file size, adapter capability, observed
+transfer speed and staging capacity. The sizing target is five seconds at the
+observed end-to-end transfer rate; the actual request deadline remains 30 seconds.
+Random access and abandoned/failed transfers reset growth. Saturation falls back
+to an exact-range read; an unrelated file does not wait for another window's quota.
+Overlapping requests share window creation/validation. Already validated blocks
+use the same checksum, durable publication and restart behavior as other cache data.
+
+Up to a quarter of the configured cache allowance (4 MiB units, maximum 128 MiB)
+is reserved for staging and subtracted from the persisted-block quota. Less than
+8 MiB disables windows. Anonymous temporary files disappear when their last handle
+closes, including after process exit. Each queued/blocking write keeps the file and
+reservation alive even if its async caller is dropped. Source chunks are at most
+64 KiB; each staged block has a hash captured during streaming and verified before
+publication. Incomplete, invalidated or corrupt windows never become cache blocks.
+Kernel ENOSPC, interrupted writes, quota saturation and cancellation have fixtures.
+This is not a completion claim for pinned/edit storage or all physical-fault gates.
+
+A test using the **actual OneDrive HTTP adapter, shared session pool and disk cache**
+reads a synthetic 1 GiB file with a weak origin ETag. It directly counts 40 Graph
+requests and 20 content requests: two single blocks and eighteen streamed windows.
+That is a **12.8-fold reduction** from 512 Graph checks. Exactly 1 GiB of content is
+transferred; the peak staging reservation is 64 MiB and returns to zero. The last
+persisted block remains readable after cache restart without another HTTP request.
+The service's development dependency enables a loopback-only synthetic adapter
+constructor with fixed fake credentials; ordinary builds do not enable that feature.
+
+One isolated debug-build run on 2026-09-07 recorded 39,690 ms total, 51.25 ms for
+the first 4 MiB block, and per-block p50/p95 of 96.78/894.45 ms. RSS sampled after
+blocks rose from 21,561,344 to 77,561,856 bytes. The test rejects growth of 256 MiB
+or more. These samples do not include all kernel page-cache memory or prove a
+production RSS ceiling. They are loopback/cache measurements, not a release-build
+throughput result, FUSE desktop measurement or cloud/provider comparison.
+
+```sh
+cargo test -p cirrove-service --lib --locked \
+  graph_gibibyte_through_shared_disk_cache_uses_forty_metadata_requests -- --nocapture
+```
+
+The timing and memory report is JSON and contains no account data. Additional
+fixtures cover small/sparse reads, identity separation, shared overlapping reads,
+other-file progress, low quota, failed final version checks, invalid bodies,
+corruption, cancellation and retaining reservations for in-flight blocking I/O.
+The wider kernel/application, real-provider and failure acceptance below remains
+open; this increment does not enable optimized ordinary mounts.
+
+## Streamed windows through kernel FUSE
+
+Three actual-kernel fixtures now run ordinary positional file reads through the
+OneDrive loopback adapter and shared cache. They pause an 8 MiB window after its
+first 4 MiB, then pause the final Graph comparison after the entire body has reached
+the staging sink. Two overlapping readers receive no bytes until both transfer and
+validation succeed. An independent file and a distant range of the same file remain
+readable; repeated cached directory listing plus stat calls retain a 500 ms deadline.
+
+The success case uses one shared window, four total content requests and eight Graph
+requests, including the initial block and both independent reads. A same-size version
+change at final validation returns ESTALE to both window readers without publishing
+their blocks. Cancellation during the partial body returns ENODEV; unmount completes
+with the test descriptors still open. Staging reservations return to zero in all
+three cases. CI runs these fixtures explicitly and compiles their executables before
+starting runtime deadlines.
+
+One local debug run on 2026-09-07 recorded 80 directory samples across these cases,
+with per-case p95 values of 1.79–2.01 ms and an overall maximum of 4.32 ms. These are
+controlled loopback stalls with transactionally seeded metadata, not live indexing,
+desktop thumbnail bursts, first-byte performance or provider latency measurements.
+The wider application/load and real-provider gates remain open.
+
+```sh
+cargo test -p cirrove-service --lib --locked --no-run
+timeout 90s cargo test -p cirrove-service --lib --locked \
+  content::windows::tests::graph::kernel::real_ -- --ignored --nocapture --test-threads=1
+```
+
 ## Acceptance gates
 
 - [ ] Deterministic request-count tests for 3.1 MB previews, a 1 GiB sequential
@@ -175,7 +263,7 @@ replacement, revocation, URL renewal and Personal accounts remain open.
 - [ ] With a verified stable representation, additional cache blocks do not each
       trigger a Graph before/after pair; setup is shared per read session and
       renewal is separately counted. Declare measured session limits explicitly.
-- [ ] Conservative sequential-window fallback reduces Graph metadata calls by at
+- [x] Conservative sequential-window fallback reduces Graph metadata calls by at
       least eightfold on the 1 GiB fixture without a whole-file RAM allocation.
 - [ ] No mixture of versions after same-size replacement, rename, URL expiry,
       concurrent modification, revoked access, missed push or reconnect.

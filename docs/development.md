@@ -139,6 +139,7 @@ a Linux session with `/dev/fuse` and `fusermount3`:
 
 ```sh
 cargo test -p cirrove-service --test read_only --locked real_ -- --ignored --nocapture --test-threads=1
+cargo test -p cirrove-service --lib --locked content::windows::tests::graph::kernel::real_ -- --ignored --nocapture --test-threads=1
 cargo test -p cirrove-service --test writable_session --locked real_ -- --ignored --nocapture
 cargo test -p cirrove-service --test read_only --locked synthetic_latency_report -- --ignored --nocapture
 ```
@@ -219,5 +220,8 @@ No mount, cloud write or installed-service change is performed.
 
 This does not enable the fast path in ordinary accounts. Synthetic 1 GiB request
 counts and the initial live samples are recorded in
-[ADR 0004](adr/0004-read-session-efficiency.md); sequential-window fallback and the
-wider correctness/provider/desktop performance gates remain open.
+[ADR 0004](adr/0004-read-session-efficiency.md). The bounded sequential-window
+fallback now has an actual-adapter/shared-cache 1 GiB fixture with JSON request,
+staging, timing and sampled-RSS evidence. The CLI above exercises exact ranges,
+not windows; use the fixture command documented in the ADR for window checks.
+The wider correctness/provider/desktop performance gates remain open.

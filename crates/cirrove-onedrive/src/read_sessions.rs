@@ -2,7 +2,7 @@
 //! conservative until the complete provider acceptance matrix has passed.
 mod probe;
 use super::*;
-use cirrove_core::reads::{ReadIdentity, ReadSession};
+use cirrove_core::reads::{ReadIdentity, ReadSession, ReadWindowSink};
 pub use probe::ReadSessionValidationReport;
 use reqwest::header::{ETAG, HeaderValue};
 use std::sync::{
@@ -195,6 +195,29 @@ impl ReadSession for GraphReadSession {
     fn identity(&self) -> &ReadIdentity {
         &self.identity
     }
+    fn window_limit(&self) -> u32 {
+        if matches!(self.state(), Ok(State::Fallback)) {
+            64 * 1024 * 1024
+        } else {
+            0
+        }
+    }
+    async fn read_window(
+        &self,
+        offset: u64,
+        length: u32,
+        sink: &mut dyn ReadWindowSink,
+        cancel: &CancellationToken,
+    ) -> Result<(), ProviderError> {
+        if length == 0 || length > self.window_limit() || offset >= self.node.size {
+            return Err(ProviderError::Protocol("invalid read window"));
+        }
+        let _permit = self.graph.budget.acquire(Priority::Content, cancel).await?;
+        tokio::select! { biased;
+            _ = cancel.cancelled() => Err(ProviderError::Cancelled),
+            result = tokio::time::timeout(Duration::from_secs(60),self.graph.checked_window(&self.identity.scope,&self.node,offset,length,sink)) => result.map_err(|_|ProviderError::Unavailable)?,
+        }
+    }
     async fn read_range(
         &self,
         offset: u64,
@@ -280,14 +303,63 @@ impl OneDrive {
         }
         Ok(range)
     }
-    async fn download_range(
+    async fn checked_window(
+        &self,
+        scope: &Scope,
+        node: &Node,
+        offset: u64,
+        length: u32,
+        sink: &mut dyn ReadWindowSink,
+    ) -> Result<(), ProviderError> {
+        let url = self.resource_url(&["drives", &scope.collection, "items", &node.id])?;
+        let before: DriveItem = serde_json::from_slice(&self.request_bytes(url.clone()).await?)
+            .map_err(|_| ProviderError::Protocol("invalid file metadata"))?;
+        if !before.matches_read(scope, node) {
+            return Err(ProviderError::VersionChanged);
+        }
+        let mut response = self
+            .download_response(&self.download_url(&before)?, node, offset, length, None)
+            .await
+            .map_err(|error| match error {
+                DownloadError::Provider(error) => error,
+                DownloadError::Renew => ProviderError::Unavailable,
+            })?;
+        let expected = (node.size - offset).min(length as u64);
+        let mut received = 0u64;
+        while let Some(chunk) = response
+            .chunk()
+            .await
+            .map_err(|_| ProviderError::Unavailable)?
+        {
+            self.counters
+                .content_body_bytes
+                .fetch_add(chunk.len() as u64, Ordering::Relaxed);
+            if chunk.len() as u64 > expected - received {
+                return Err(ProviderError::Protocol("download exceeded requested range"));
+            }
+            for part in chunk.chunks(64 * 1024) {
+                sink.write_chunk(part).await?;
+            }
+            received += chunk.len() as u64;
+        }
+        if received != expected {
+            return Err(ProviderError::Unavailable);
+        }
+        let after: DriveItem = serde_json::from_slice(&self.request_bytes(url).await?)
+            .map_err(|_| ProviderError::Protocol("invalid file metadata"))?;
+        if !after.matches_read(scope, node) {
+            return Err(ProviderError::VersionChanged);
+        }
+        Ok(())
+    }
+    async fn download_response(
         &self,
         url: &Url,
         node: &Node,
         offset: u64,
         length: u32,
         bound: Option<&Bound>,
-    ) -> Result<DownloadedRange, DownloadError> {
+    ) -> Result<reqwest::Response, DownloadError> {
         self.check_cooldown().await?;
         let count = (node.size - offset).min(length as u64);
         let mut request = self
@@ -301,7 +373,7 @@ impl OneDrive {
         self.counters
             .content_get_attempts
             .fetch_add(1, Ordering::Relaxed);
-        let mut response = request
+        let response = request
             .send()
             .await
             .map_err(|_| ProviderError::Unavailable)?;
@@ -364,6 +436,21 @@ impl OneDrive {
         } else if response.status() != StatusCode::OK || offset != 0 || count != node.size {
             return Err(ProviderError::Unavailable.into());
         }
+        Ok(response)
+    }
+    async fn download_range(
+        &self,
+        url: &Url,
+        node: &Node,
+        offset: u64,
+        length: u32,
+        bound: Option<&Bound>,
+    ) -> Result<DownloadedRange, DownloadError> {
+        let count = (node.size - offset).min(length as u64);
+        let mut response = self
+            .download_response(url, node, offset, length, bound)
+            .await?;
+        let tag = response.headers().get(ETAG).cloned();
         let effective_url = response.url().clone();
         let mut bytes = Vec::with_capacity(count as usize);
         while let Some(chunk) = response
