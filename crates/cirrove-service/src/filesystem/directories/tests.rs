@@ -184,16 +184,18 @@ async fn published_prefix_is_readable_but_never_reports_premature_eof() {
         snapshot.page(128).err().unwrap().kind(),
         io::ErrorKind::WouldBlock
     );
+    let mut waiting = Box::pin(snapshot.ready(128));
     assert!(
-        timeout(Duration::from_millis(10), snapshot.ready(128))
+        timeout(Duration::from_millis(10), &mut waiting)
             .await
             .is_err()
     );
     assert!(builder.publish().unwrap().is_none());
-    timeout(Duration::from_secs(1), snapshot.ready(128))
+    timeout(Duration::from_secs(1), &mut waiting)
         .await
         .unwrap()
         .unwrap();
+    drop(waiting);
     for start in [0, 97, 128, 1023, 2399] {
         let mut cursor = start;
         while cursor < 2400 {
@@ -204,16 +206,18 @@ async fn published_prefix_is_readable_but_never_reports_premature_eof() {
             }
         }
     }
+    let mut waiting = Box::pin(snapshot.ready(2400));
     assert!(
-        timeout(Duration::from_millis(10), snapshot.ready(2400))
+        timeout(Duration::from_millis(10), &mut waiting)
             .await
             .is_err()
     );
     assert!(builder.complete().unwrap().is_none());
-    timeout(Duration::from_secs(1), snapshot.ready(2400))
+    timeout(Duration::from_secs(1), &mut waiting)
         .await
         .unwrap()
         .unwrap();
+    drop(waiting);
     assert!(snapshot.page(2400).unwrap().is_empty());
     assert_eq!(budget.usage().1, 1);
     drop(snapshot);
@@ -266,20 +270,22 @@ async fn abandoned_producer_wakes_readers_and_last_reader_cancels_production() {
     let mut builder = budget.start(temp.path()).unwrap();
     builder.push(1, false, "preserved").unwrap();
     let snapshot = builder.publish().unwrap().unwrap();
+    let mut waiting = Box::pin(snapshot.ready(1));
     assert!(
-        timeout(Duration::from_millis(10), snapshot.ready(1))
+        timeout(Duration::from_millis(10), &mut waiting)
             .await
             .is_err()
     );
     drop(builder);
     assert_eq!(
-        timeout(Duration::from_secs(1), snapshot.ready(1))
+        timeout(Duration::from_secs(1), &mut waiting)
             .await
             .unwrap()
             .unwrap_err()
             .raw_os_error(),
         Some(libc::EIO)
     );
+    drop(waiting);
     assert_eq!(snapshot.page(0).unwrap()[0].name, "preserved");
     drop(snapshot);
     assert_eq!(budget.usage(), (0, 0));
