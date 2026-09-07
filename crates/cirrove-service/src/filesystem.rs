@@ -407,11 +407,11 @@ impl Inner {
         })
         .await
         .map_err(|_| ProviderError::Unavailable)??;
-        let mut views = self.views.lock().map_err(|_| ProviderError::Unavailable)?;
-        for view in projected {
-            views.insert(view.inode, view.clone());
-            result.push(view);
-        }
+        // Plain READDIR does not acquire kernel lookup references. Its snapshot
+        // owns these projections until RELEASEDIR; retaining another copy in the
+        // mount-wide map leaks every listed revision. LOOKUP/create/operations
+        // publish their resolved views through insert() when actually needed.
+        result.extend(projected);
         Ok(result)
     }
     async fn children(&self, parent: &View) -> Result<Vec<Node>, ProviderError> {

@@ -35,6 +35,8 @@ jobs:
         # Keep independent mounts from competing with latency/memory fixtures.
         # Each fixture still exercises its own concurrent requests/accounts.
         run: timeout 150s cargo test -p cirrove-service --test read_only --locked real_ -- --ignored --nocapture --test-threads=1
+      - name: Directory projection lifetime and held file versions
+        run: timeout 45s cargo test -p cirrove-service --lib --locked real_directory_listing_releases_unlooked_up_projections -- --ignored --nocapture --test-threads=1
       - name: Automatic writable-session uploads and draining
         run: timeout 90s cargo test -p cirrove-service --test writable_session --locked real_ -- --ignored --nocapture
       - run: cargo build --workspace --locked

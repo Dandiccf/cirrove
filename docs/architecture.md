@@ -228,9 +228,12 @@ admitted reads await capacity asynchronously for at most 30 seconds; queue expir
 ETIMEDOUT and admission overflow is EAGAIN. Account cancellation releases active and
 queued reads with ENODEV. Content loaders remain limited to four. Metadata requests
 have a separate 128-slot budget, so content contention does not consume those slots.
-Namespace views are currently retained until unmount; long-session namespace growth
-is not bounded by the content cache. Directory snapshots also retain full vectors,
-and invalidation currently walks the retained view map. Reference-aware reclamation,
+Plain directory-listing projections now belong only to their open directory
+snapshot. READDIR does not create kernel lookup references, so those projections
+are not copied into the mount-wide map. LOOKUP and namespace operations still
+publish their resolved views there; those views remain retained until unmount.
+Long-session growth is not bounded by the content cache. Directory snapshots also
+retain full vectors, and invalidation walks the retained resolved-view map. Reference-aware reclamation,
 bounded snapshots and targeted invalidation are planned as an explicit 500,000-file
 and long-session release gate; see [namespace memory](adr/0005-namespace-memory.md).
 That lifetime redesign is not implemented yet.

@@ -40,6 +40,10 @@ and Nautilus badges are not implemented.
 - Read-only FUSE projection with persistent directory and content-version inodes,
   including shared read-only and private memory mappings. Directory requests have
   capacity reserved separately from a bounded queue of content reads.
+- Plain directory-listing projections live only until their directory snapshot
+  closes. Resolved
+  lookup views and large-directory paging still have an open
+  [namespace memory gate](docs/adr/0005-namespace-memory.md).
 - Version-checked 4 MiB range cache, concurrent-request coalescing, checksums,
   bounded eviction and interrupted-publication recovery.
 - Private status socket, desired mount state, accidental-ejection remount and

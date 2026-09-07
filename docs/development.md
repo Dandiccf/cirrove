@@ -165,7 +165,17 @@ prints retained views, map capacity, RSS/PSS and peak RSS. It refuses unexpected
 content or foreground metadata requests; it reads no real account or keyring.
 
 The test's successful exit means its measurement completed correctly, **not** that
-the memory release gate passed. It currently demonstrates retained namespace growth.
+the memory release gate passed. It provides a comparison for namespace lifetime changes.
 It does not cover the single huge-directory, alias/depth, held-mapping or 24-hour
 cases in [the namespace gate](adr/0005-namespace-memory.md). Run it explicitly rather
 than adding a multi-GiB benchmark to every default CI test run.
+
+CI runs the smaller actual-kernel regression with:
+
+```sh
+cargo test -p cirrove-service --lib --locked real_directory_listing_releases_unlooked_up_projections -- --ignored --nocapture --test-threads=1
+```
+
+It enumerates 3,000 files, checks that plain listings did not retain thousands of
+views, and verifies that an open old file and a newly opened revision keep separate
+inodes while further directory listings occur.

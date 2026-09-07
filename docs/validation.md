@@ -778,3 +778,35 @@ mappings or a 24-hour session. The 10,000-file pilot also showed accumulation
 See [reproduction](development.md#namespace-capacity-baseline) and the
 [namespace lifetime decision](adr/0005-namespace-memory.md) for the next correctness,
 reclamation and capacity checks. No installed service was replaced by this test.
+
+
+## Directory-listing lifetime correction
+
+Plain READDIR projections now stay in their directory handle's snapshot and are
+not duplicated into the mount-wide resolved-view map. Kernel lookup references
+are established by LOOKUP/create, not by returning names from plain READDIR.
+Existing resolved views and old open-file versions remain retained. The dedicated
+3,000-file kernel regression checks the retained-view bound after enumeration,
+then keeps an old file open across a remote revision and verifies a distinct new
+inode without overwriting the old view. This check also runs in CI.
+
+Repeating the exact 500,000-file, three-revision workload above produced:
+
+| Sample | Retained views | Process RSS (MiB) | Open files/directories |
+| --- | ---: | ---: | ---: |
+| Indexed, before traversal | 1 | 20.9 | 0 / 0 |
+| After revision 1 | 501 | 30.8 | 0 / 0 |
+| After revision 2 | 501 | 40.8 | 0 / 0 |
+| After revision 3 | 501 | 49.9 | 0 / 0 |
+
+The complete debug fixture took 110.66 seconds. No content or foreground provider
+requests occurred. [Raw correction measurements](benchmarks/namespace-listing-lifetime.json)
+record the same fields as the baseline. This is a reduction from 2,071.4 to 49.9 MiB
+at the final sample for this workload, not a general memory bound or an API-speed
+claim. Retained views plateau here, while RSS still increases across revisions;
+allocator/SQLite/persistent-index effects need longer-session investigation.
+
+LOOKUP/operation view reclamation, reference counts, a byte budget, large-directory
+paging, scoped invalidation and 24-hour churn remain open. In particular, a file
+manager that stats or opens every file exercises a different lifetime from this
+name-enumeration workload. The OneDrive-1.0 namespace memory gate remains open.

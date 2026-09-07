@@ -187,6 +187,115 @@ fn report(value: serde_json::Value) {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; listed entries must not become mount-lifetime views"]
+async fn real_directory_listing_releases_unlooked_up_projections() {
+    use std::os::unix::fs::MetadataExt;
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let provider = Arc::new(GeneratedLibrary {
+        files: 3_000,
+        revision: AtomicU32::new(1),
+        content_reads: AtomicU64::new(0),
+        foreground_requests: AtomicU64::new(0),
+    });
+    let engine = Engine::new(
+        account(mount.clone()),
+        provider.clone(),
+        temp.path().join("state"),
+    )
+    .await
+    .unwrap();
+    let scope = engine.scope("capacity-drive");
+    crate::refresh(provider.as_ref(), &scope, &engine.db, false, &engine.cancel)
+        .await
+        .unwrap();
+    let fs = CloudFs::new(engine.clone()).unwrap();
+    let inner = fs.inner.clone();
+    let session = fs.mount(&mount).unwrap();
+    let path = mount.clone();
+    let held = tokio::task::spawn_blocking(move || {
+        for directory in 0..3 {
+            let entries =
+                std::fs::read_dir(path.join(format!("directory-{directory:06}"))).unwrap();
+            assert_eq!(
+                entries.fold(0, |count, entry| {
+                    entry.unwrap();
+                    count + 1
+                }),
+                1_000
+            );
+        }
+        std::fs::File::open(
+            path.join("directory-000000/Projektunterlagen – Übersicht 00000000.txt"),
+        )
+        .unwrap()
+    })
+    .await
+    .unwrap();
+    let old_inode = held.metadata().unwrap().ino();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while !inner.directories.lock().unwrap().is_empty() {
+        assert!(Instant::now() < deadline);
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert!(
+        inner.views.lock().unwrap().len() <= 5,
+        "plain listings retained thousands of views"
+    );
+    let original = inner.view(old_inode).unwrap();
+    provider.revision.store(2, Ordering::SeqCst);
+    crate::refresh(provider.as_ref(), &scope, &engine.db, false, &engine.cancel)
+        .await
+        .unwrap();
+    engine.changed.notify_one();
+    let path = mount.clone();
+    let newest = tokio::task::spawn_blocking(move || {
+        let entries = std::fs::read_dir(path.join("directory-000000")).unwrap();
+        assert_eq!(
+            entries.fold(0, |count, entry| {
+                entry.unwrap();
+                count + 1
+            }),
+            1_000
+        );
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            let file = std::fs::File::open(
+                path.join("directory-000000/Projektunterlagen – Übersicht 00000000.txt"),
+            )
+            .unwrap();
+            if file.metadata().unwrap().ino() != old_inode {
+                break file;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "remote revision invalidation did not arrive"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(held.metadata().unwrap().ino(), old_inode);
+    assert_ne!(newest.metadata().unwrap().ino(), old_inode);
+    assert_eq!(
+        inner.view(old_inode).unwrap().node.etag,
+        original.node.etag,
+        "a listing replaced the view belonging to an old open file"
+    );
+    assert!(inner.views.lock().unwrap().len() <= 6);
+    assert_eq!(provider.foreground_requests.load(Ordering::SeqCst), 0);
+    assert_eq!(provider.content_reads.load(Ordering::SeqCst), 0);
+    drop((held, newest));
+    engine.stop().await;
+    tokio::task::spawn_blocking(move || session.umount_and_join())
+        .await
+        .unwrap()
+        .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "explicit 500k-file synthetic FUSE/RSS benchmark; no cloud; not a release acceptance pass"]
 async fn namespace_capacity_baseline() {
     let files = std::env::var("CIRROVE_NAMESPACE_FILES")
