@@ -186,3 +186,15 @@ cargo test -p cirrove-service --lib --locked real_directory_listing_releases_unl
 It enumerates 3,000 files, checks that plain listings did not retain thousands of
 views, and verifies that an open old file and a newly opened revision keep separate
 inodes while further directory listings occur.
+
+## Read-transport observations
+
+`cirrove inspect-onedrive-read --label ACCOUNT --item ITEM_ID` checks the HTTP
+validators of one selected file without mounting or changing cloud content. Use
+`--drive DRIVE_ID` for a linked collection and `--state-dir PATH` for a separately
+configured development account. The small samples remain in memory; stdout is
+sanitized JSON. The account credential broker may refresh its token as usual.
+The 60-second probe deadline and content request budget bound the operation.
+An initial CLI node lookup precedes that deadline and has the normal metadata
+request deadline. See [read-session efficiency](adr/0004-read-session-efficiency.md)
+for report semantics, observed behavior and the remaining acceptance boundary.

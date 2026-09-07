@@ -2,6 +2,7 @@
 //! URLs and remote error bodies must never appear in logs.
 mod mutation;
 mod notifications;
+pub mod read_probe;
 mod upload;
 use async_trait::async_trait;
 use cirrove_core::{
@@ -106,19 +107,7 @@ impl OneDrive {
         if !before.matches_content(expected, node.size) {
             return Err(ProviderError::VersionChanged);
         }
-        let download = Url::parse(
-            before
-                .download_url
-                .as_deref()
-                .ok_or(ProviderError::Protocol("file is not downloadable"))?,
-        )
-        .map_err(|_| ProviderError::Protocol("invalid download URL"))?;
-        if (download.scheme() != "https" && self.endpoint.scheme() == "https")
-            || !download.username().is_empty()
-            || download.password().is_some()
-        {
-            return Err(ProviderError::Protocol("unsafe download URL"));
-        }
+        let download = self.download_url(&before)?;
         // This client has no Graph bearer token or default authorization headers.
         let mut response = self
             .downloads
@@ -169,6 +158,21 @@ impl OneDrive {
             return Err(ProviderError::VersionChanged);
         }
         Ok(bytes)
+    }
+    fn download_url(&self, item: &DriveItem) -> Result<Url, ProviderError> {
+        let download = Url::parse(
+            item.download_url
+                .as_deref()
+                .ok_or(ProviderError::Protocol("file is not downloadable"))?,
+        )
+        .map_err(|_| ProviderError::Protocol("invalid download URL"))?;
+        if (download.scheme() != "https" && self.endpoint.scheme() == "https")
+            || !download.username().is_empty()
+            || download.password().is_some()
+        {
+            return Err(ProviderError::Protocol("unsafe download URL"));
+        }
+        Ok(download)
     }
     fn initial_url(&self, drive: &str) -> Result<Url, ProviderError> {
         if drive.is_empty() || drive == "." || drive == ".." {

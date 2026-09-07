@@ -24,6 +24,18 @@ struct Args {
 }
 #[derive(Subcommand)]
 enum Command {
+    /// Observe download validators for one file; GET-only, no mount or cloud writes.
+    InspectOnedriveRead {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        item: String,
+        /// The selected account drive is used unless a linked collection is specified.
+        #[arg(long)]
+        drive: Option<String>,
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
+    },
     /// Developer-only application saves on an isolated, newly created cloud folder.
     ValidateOnedriveWritable {
         #[arg(long)]
@@ -135,6 +147,33 @@ enum Command {
 #[tokio::main]
 async fn main() -> Result<()> {
     match Args::parse().command {
+        Command::InspectOnedriveRead {
+            label,
+            item,
+            drive,
+            state_dir: state,
+        } => {
+            use cirrove_core::ReadProvider;
+            let state = state.map(Ok).unwrap_or_else(state_dir)?;
+            let settings = cirrove_service::accounts::Settings::load(&state)?;
+            let account = settings
+                .accounts
+                .iter()
+                .find(|a| a.label == label)
+                .context("configured account not found")?;
+            let provider = cirrove_service::accounts::provider(account)?;
+            let scope = cirrove_core::Scope {
+                account: account.id.clone(),
+                provider: "onedrive".into(),
+                collection: drive.unwrap_or_else(|| account.drive.id.clone()),
+            };
+            let cancel = CancellationToken::new();
+            let node = provider.node(&scope, &item, &cancel).await?;
+            let report = provider
+                .inspect_read_validation(&scope, &node, &cancel)
+                .await?;
+            println!("{}", serde_json::to_string_pretty(&report)?);
+        }
         Command::ValidateOnedriveWritable { label, state_dir } => {
             cirrove_service::validation::onedrive_writable(&state_dir, &label).await?;
         }
