@@ -46,11 +46,11 @@ fn shared_projection_payload_baseline() {
             link.name = format!("Alias {route}");
             link.parent_id = Some("root".into());
             link.kind = NodeKind::Shortcut;
-            link.target = Some(cirrove_core::RemoteRef {
+            link.target = Some(Box::new(cirrove_core::RemoteRef {
                 collection: "shared-synthetic-collection".into(),
                 item: "shared-root".into(),
                 kind: Some(NodeKind::Folder),
-            });
+            }));
             let mut view = Inner::project(&parent, link).unwrap();
             view.inode = inode;
             inode += 1;
@@ -109,7 +109,7 @@ fn shared_projection_payload_baseline() {
         "CIRROVE_PROJECTION_PAYLOAD {}",
         serde_json::json!({
             "files":files,"routes":3,"directory_depth":12,"held_clones":32,
-            "view_inline_bytes":std::mem::size_of::<View>(),"before":before,
+            "view_inline_bytes":std::mem::size_of::<View>(),"node_inline_bytes":std::mem::size_of::<Node>(),"before":before,
             "populated":populated,"after_retirement":process_memory(),
             "retained_views":views.len(),"populate_ms":elapsed_ms,
             "build":if cfg!(debug_assertions){"debug"}else{"release"},

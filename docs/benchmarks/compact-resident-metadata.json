@@ -1,0 +1,334 @@
+{
+  "base_commit": "dba5ac8fd218813e3890510a0de2bdaf0eb109cb",
+  "source_sha256": {
+    "crates/cirrove-core/src/lib.rs": "6644200449b2793d09352f620dc625aaa64724309b4d6e533e9965885b728b5a",
+    "crates/cirrove-onedrive/src/lib.rs": "c37796de1268ff74f99e2a57b87c8976a4add1270604d327d93f3f61f1e7547e",
+    "crates/cirrove-service/src/engine.rs": "942d1ca44073124679f4fb36264f7a5d55b171e40de57dfc5d3cdb4a92e9aaf1",
+    "crates/cirrove-service/src/filesystem/capacity/churn.rs": "3e41b8a53a93b823d364a7f3529af91cbb0ec84ab58d81ed091998f6159049f3",
+    "crates/cirrove-service/src/filesystem/capacity/parents.rs": "53f53321f2927f9e818d433a434afadb66cfc95ed7e34d58ac1130d48d968e86",
+    "crates/cirrove-service/src/filesystem/capacity/projections.rs": "fc82d363adfbfad808dffc069437e983fe121b0ef7525504ff1cac78f4bcd526",
+    "crates/cirrove-service/src/filesystem/residency.rs": "13dcbf34755f5b55207d7a2558cb34c573009d3da6ab89086b30d8327ab478bb",
+    "crates/cirrove-service/src/filesystem/residency/invalidation.rs": "850ff97867e76a2269bf2904db41a4a7a3c6e2d9733c2191579e8ac398d8841f",
+    "crates/cirrove-service/src/validation/writable.rs": "f7a6a1ca0099bd1e95a3f503db83c3d96bf0352de1081d7d0725b930b1e29793",
+    "crates/cirrove-service/tests/namespace_ancestry.rs": "aeb4e1319bdf5ac72edfc7bf3bdc69fd1ec06a9436e16c93751e43b82362a6fc",
+    "crates/cirrove-service/tests/read_only.rs": "ac110f6f1db3d0a8e6f4b9b43c4a78e79af84a9d8eeb051ec64ac2d0712c635d",
+    "crates/cirrove-service/tests/writable_session.rs": "c6704c9af17ca8ad9ea7deeb31fd6f39f7ac0615d3cf33dbe8533f947f455666",
+    "crates/cirrove-store/src/lib.rs": "07606d9762757fbc679503f8c824922805143a34356825beb7604bcb8e626799"
+  },
+  "executable_sha256": {
+    "baseline": "aeb90d3d539bfec9ec03b8050bf5d3ac28ba840d1faccffdf58ceb017d39196d",
+    "compact": "62b50d91babccbd39e7de1a7c68ffdaad5d6532253015962557d1cd50308300b"
+  },
+  "scope": "Same in-process live-projection workload in fresh release processes: three routes, 12 levels, 32 held clones. No kernel, SQLite or provider work. Not full capacity or latency acceptance.",
+  "runs": [
+    {
+      "variant": "baseline",
+      "files": 50000,
+      "repetition": 1,
+      "exit_code": 0,
+      "wall_seconds": 0.095870459015714,
+      "log": "representation-baseline-50000-1.log",
+      "sample": {
+        "after_retirement": {
+          "anonymous_pss_kib": 45192,
+          "peak_rss_kib": 51364,
+          "pss_kib": 49015,
+          "rss_kib": 51364
+        },
+        "before": {
+          "anonymous_pss_kib": 676,
+          "peak_rss_kib": 5440,
+          "pss_kib": 3091,
+          "rss_kib": 5440
+        },
+        "build": "release",
+        "directory_depth": 12,
+        "files": 50000,
+        "held_clones": 32,
+        "populate_ms": 70.783961,
+        "populated": {
+          "anonymous_pss_kib": 45184,
+          "peak_rss_kib": 51164,
+          "pss_kib": 48815,
+          "rss_kib": 51164
+        },
+        "retained_views": 1,
+        "routes": 3,
+        "scope": "in-process production projection/index/lifetime code; no kernel, SQLite or provider calls",
+        "view_inline_bytes": 96
+      }
+    },
+    {
+      "variant": "compact",
+      "files": 50000,
+      "repetition": 1,
+      "exit_code": 0,
+      "wall_seconds": 0.09450629400089383,
+      "log": "representation-compact-50000-1.log",
+      "sample": {
+        "after_retirement": {
+          "anonymous_pss_kib": 36680,
+          "peak_rss_kib": 42992,
+          "pss_kib": 40635,
+          "rss_kib": 42992
+        },
+        "before": {
+          "anonymous_pss_kib": 684,
+          "peak_rss_kib": 5392,
+          "pss_kib": 3039,
+          "rss_kib": 5392
+        },
+        "build": "release",
+        "directory_depth": 12,
+        "files": 50000,
+        "held_clones": 32,
+        "node_inline_bytes": 152,
+        "populate_ms": 73.089089,
+        "populated": {
+          "anonymous_pss_kib": 36676,
+          "peak_rss_kib": 42792,
+          "pss_kib": 40439,
+          "rss_kib": 42792
+        },
+        "retained_views": 1,
+        "routes": 3,
+        "scope": "in-process production projection/index/lifetime code; no kernel, SQLite or provider calls",
+        "view_inline_bytes": 96
+      }
+    },
+    {
+      "variant": "compact",
+      "files": 50000,
+      "repetition": 2,
+      "exit_code": 0,
+      "wall_seconds": 0.0916248660068959,
+      "log": "representation-compact-50000-2.log",
+      "sample": {
+        "after_retirement": {
+          "anonymous_pss_kib": 36680,
+          "peak_rss_kib": 42832,
+          "pss_kib": 40507,
+          "rss_kib": 42832
+        },
+        "before": {
+          "anonymous_pss_kib": 684,
+          "peak_rss_kib": 5360,
+          "pss_kib": 3039,
+          "rss_kib": 5360
+        },
+        "build": "release",
+        "directory_depth": 12,
+        "files": 50000,
+        "held_clones": 32,
+        "node_inline_bytes": 152,
+        "populate_ms": 70.35502100000001,
+        "populated": {
+          "anonymous_pss_kib": 36676,
+          "peak_rss_kib": 42632,
+          "pss_kib": 40311,
+          "rss_kib": 42632
+        },
+        "retained_views": 1,
+        "routes": 3,
+        "scope": "in-process production projection/index/lifetime code; no kernel, SQLite or provider calls",
+        "view_inline_bytes": 96
+      }
+    },
+    {
+      "variant": "baseline",
+      "files": 50000,
+      "repetition": 2,
+      "exit_code": 0,
+      "wall_seconds": 0.09472360400832258,
+      "log": "representation-baseline-50000-2.log",
+      "sample": {
+        "after_retirement": {
+          "anonymous_pss_kib": 45196,
+          "peak_rss_kib": 51392,
+          "pss_kib": 49020,
+          "rss_kib": 51392
+        },
+        "before": {
+          "anonymous_pss_kib": 680,
+          "peak_rss_kib": 5468,
+          "pss_kib": 3096,
+          "rss_kib": 5468
+        },
+        "build": "release",
+        "directory_depth": 12,
+        "files": 50000,
+        "held_clones": 32,
+        "populate_ms": 69.503652,
+        "populated": {
+          "anonymous_pss_kib": 45188,
+          "peak_rss_kib": 51128,
+          "pss_kib": 48756,
+          "rss_kib": 51128
+        },
+        "retained_views": 1,
+        "routes": 3,
+        "scope": "in-process production projection/index/lifetime code; no kernel, SQLite or provider calls",
+        "view_inline_bytes": 96
+      }
+    },
+    {
+      "variant": "baseline",
+      "files": 50000,
+      "repetition": 3,
+      "exit_code": 0,
+      "wall_seconds": 0.09298766200663522,
+      "log": "representation-baseline-50000-3.log",
+      "sample": {
+        "after_retirement": {
+          "anonymous_pss_kib": 45196,
+          "peak_rss_kib": 51368,
+          "pss_kib": 49019,
+          "rss_kib": 51368
+        },
+        "before": {
+          "anonymous_pss_kib": 680,
+          "peak_rss_kib": 5444,
+          "pss_kib": 3095,
+          "rss_kib": 5444
+        },
+        "build": "release",
+        "directory_depth": 12,
+        "files": 50000,
+        "held_clones": 32,
+        "populate_ms": 68.039132,
+        "populated": {
+          "anonymous_pss_kib": 45188,
+          "peak_rss_kib": 51104,
+          "pss_kib": 48755,
+          "rss_kib": 51104
+        },
+        "retained_views": 1,
+        "routes": 3,
+        "scope": "in-process production projection/index/lifetime code; no kernel, SQLite or provider calls",
+        "view_inline_bytes": 96
+      }
+    },
+    {
+      "variant": "compact",
+      "files": 50000,
+      "repetition": 3,
+      "exit_code": 0,
+      "wall_seconds": 0.09215787300490774,
+      "log": "representation-compact-50000-3.log",
+      "sample": {
+        "after_retirement": {
+          "anonymous_pss_kib": 36680,
+          "peak_rss_kib": 42960,
+          "pss_kib": 40698,
+          "rss_kib": 42960
+        },
+        "before": {
+          "anonymous_pss_kib": 684,
+          "peak_rss_kib": 5360,
+          "pss_kib": 3102,
+          "rss_kib": 5360
+        },
+        "build": "release",
+        "directory_depth": 12,
+        "files": 50000,
+        "held_clones": 32,
+        "node_inline_bytes": 152,
+        "populate_ms": 70.61527,
+        "populated": {
+          "anonymous_pss_kib": 36676,
+          "peak_rss_kib": 42632,
+          "pss_kib": 40374,
+          "rss_kib": 42632
+        },
+        "retained_views": 1,
+        "routes": 3,
+        "scope": "in-process production projection/index/lifetime code; no kernel, SQLite or provider calls",
+        "view_inline_bytes": 96
+      }
+    },
+    {
+      "variant": "baseline",
+      "files": 500000,
+      "repetition": 1,
+      "exit_code": 0,
+      "wall_seconds": 0.8823449320043437,
+      "log": "representation-baseline-500000-1.log",
+      "sample": {
+        "after_retirement": {
+          "anonymous_pss_kib": 451412,
+          "peak_rss_kib": 457504,
+          "pss_kib": 455170,
+          "rss_kib": 457504
+        },
+        "before": {
+          "anonymous_pss_kib": 676,
+          "peak_rss_kib": 5360,
+          "pss_kib": 3026,
+          "rss_kib": 5360
+        },
+        "build": "release",
+        "directory_depth": 12,
+        "files": 500000,
+        "held_clones": 32,
+        "populate_ms": 622.866366,
+        "populated": {
+          "anonymous_pss_kib": 451404,
+          "peak_rss_kib": 457304,
+          "pss_kib": 454970,
+          "rss_kib": 457304
+        },
+        "retained_views": 1,
+        "routes": 3,
+        "scope": "in-process production projection/index/lifetime code; no kernel, SQLite or provider calls",
+        "view_inline_bytes": 96
+      }
+    },
+    {
+      "variant": "compact",
+      "files": 500000,
+      "repetition": 1,
+      "exit_code": 0,
+      "wall_seconds": 0.8907969709835015,
+      "log": "representation-compact-500000-1.log",
+      "sample": {
+        "after_retirement": {
+          "anonymous_pss_kib": 360160,
+          "peak_rss_kib": 366448,
+          "pss_kib": 364178,
+          "rss_kib": 366448
+        },
+        "before": {
+          "anonymous_pss_kib": 684,
+          "peak_rss_kib": 5368,
+          "pss_kib": 3102,
+          "rss_kib": 5368
+        },
+        "build": "release",
+        "directory_depth": 12,
+        "files": 500000,
+        "held_clones": 32,
+        "node_inline_bytes": 152,
+        "populate_ms": 692.471235,
+        "populated": {
+          "anonymous_pss_kib": 360156,
+          "peak_rss_kib": 366124,
+          "pss_kib": 363854,
+          "rss_kib": 366124
+        },
+        "retained_views": 1,
+        "routes": 3,
+        "scope": "in-process production projection/index/lifetime code; no kernel, SQLite or provider calls",
+        "view_inline_bytes": 96
+      }
+    }
+  ],
+  "interpretation": {
+    "result": "Compact in-memory representation lowers RSS in this projection-only fixture. It adds no disk/DB state or cache layer.",
+    "limitations": [
+      "Fresh-process release comparisons; 3 repetitions at50k and1 at500k, not a statistical performance guarantee.",
+      "No kernel, SQLite, content requests or provider workload. Actual mount and sustained acceptance remain separate.",
+      "500k population time rose from622.87ms to692.47ms in the recorded pair. Memory reduction does not imply faster operations.",
+      "RSS after logical retirement remains high; no resident byte cap, allocator-release guarantee or24-hour plateau is established."
+    ]
+  }
+}

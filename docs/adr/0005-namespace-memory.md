@@ -270,3 +270,27 @@ reconstruction and streaming of remaining compatibility/writable consumers remai
 unimplemented. Targeted invalidation has narrow synthetic coverage;
 combined and sustained acceptance remains open. Planned limits must not be advertised
 as supported capacity until their tests pass.
+
+## Compact resident representation
+
+The simpler resident path uses one ordered inode map for lookup and full invalidation
+traversal, avoiding a separate all-inode index and a box per map entry. Reverse-index
+item strings have no unused Arc header. Node boxes its uncommon remote target; JSON
+and persisted inode keys are unchanged. Publication examines at most eight already
+indexed projections for an exactly equal scope/node, reusing their immutable payload
+and equal name. Aliases, old versions and parent/reference lifetimes remain separate.
+No additional cache, payload file, database or intern registry is introduced.
+
+Fresh release processes compare the same three-route, twelve-level fixture with
+32 held clones. At 500k projections, populated RSS is 457304 KiB before these changes
+and 366124 KiB afterward; population takes 622.87 ms and 692.47 ms respectively. Three 50k
+pairs record similar memory reduction. This is a representation measurement, not
+kernel throughput or real-provider capacity. Logical retirement still leaves high
+RSS; the change does not establish a memory plateau or a byte budget. Raw results,
+source hashes and executable hashes are in
+[the comparison](../benchmarks/compact-resident-metadata.json).
+
+The 256 MiB additional-RSS budget above remains a proposed benchmark target. Selecting
+further storage machinery requires measured benefit across realistic and extreme
+workloads, with the same correctness and latency checks. Simplicity does not close
+those gates, and passing narrow tests does not justify extra state on its own.

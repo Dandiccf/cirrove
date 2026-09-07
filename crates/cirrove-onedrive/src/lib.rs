@@ -647,7 +647,7 @@ fn map_item(item: DriveItem) -> Result<Change, ProviderError> {
                 .drive_id
                 .filter(|v| !v.is_empty())
                 .ok_or(ProviderError::Protocol("shortcut missing target drive"))?;
-            Ok(RemoteRef {
+            Ok(Box::new(RemoteRef {
                 collection,
                 item: r.id,
                 kind: if r.folder.is_some() || r.package.is_some() {
@@ -657,7 +657,7 @@ fn map_item(item: DriveItem) -> Result<Change, ProviderError> {
                 } else {
                     None
                 },
-            })
+            }))
         })
         .transpose()?;
     let kind = if target.is_some() {

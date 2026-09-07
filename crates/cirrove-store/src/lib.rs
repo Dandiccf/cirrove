@@ -818,11 +818,11 @@ mod tests {
             item.parent_id = parent.map(str::to_owned);
             if target {
                 item.kind = NodeKind::Shortcut;
-                item.target = Some(cirrove_core::RemoteRef {
+                item.target = Some(Box::new(cirrove_core::RemoteRef {
                     collection: "library".into(),
                     item: "shared".into(),
                     kind: Some(NodeKind::Folder),
-                });
+                }));
             }
             changes.push(Change::Upsert(item));
         }
@@ -856,11 +856,11 @@ mod tests {
         };
         shortcut.parent_id = Some("root".into());
         shortcut.kind = NodeKind::Shortcut;
-        shortcut.target = Some(cirrove_core::RemoteRef {
+        shortcut.target = Some(Box::new(cirrove_core::RemoteRef {
             collection: "library".into(),
             item: "shared".into(),
             kind: Some(NodeKind::Folder),
-        });
+        }));
         changes.push(Change::Upsert(shortcut));
         db.begin(&scope, false).unwrap();
         db.stage(&scope, None, &page(changes, true, "delta"))

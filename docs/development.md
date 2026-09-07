@@ -373,6 +373,14 @@ CIRROVE_PROJECTION_FILES=500000 cargo test -p cirrove-service --lib --release --
 and fixture hash. This is separate from the actual-kernel namespace/invalidation
 fixtures above and cannot establish their large-library or long-session gates.
 
+The current resident representation also uses an ordered map, uniquely owned
+identity-index strings and a boxed optional link descriptor. Exactly equal live
+alias payloads can share the existing node allocation. The representation fixture
+and its meaning remain the same; current output additionally reports Node's inline
+size, while map-capacity diagnostics elsewhere report null for the ordered map.
+[The compact-representation comparison](benchmarks/compact-resident-metadata.json)
+records separate release processes and both memory and population-time results.
+
 ### Combined namespace traversal and churn
 
 `real_combined_namespace_churn` mounts generated metadata with 12-level paths and

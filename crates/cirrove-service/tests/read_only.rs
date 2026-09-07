@@ -105,11 +105,11 @@ impl Fixture {
         }
         for id in ["Documents", "Documents-again"] {
             let mut link = file(id, Some("root"), NodeKind::Shortcut, 0);
-            link.target = Some(RemoteRef {
+            link.target = Some(Box::new(RemoteRef {
                 collection: "library".into(),
                 item: "shared".into(),
                 kind: Some(NodeKind::Folder),
-            });
+            }));
             nodes.insert(("home".into(), link.id.clone()), link);
         }
         for node in [
@@ -1505,11 +1505,11 @@ async fn real_old_and_new_mappings_keep_separate_versions_and_rename_reuses_cont
             .unwrap()
             .content_version = Some("content-1".into());
         let mut link = file("Linked.txt", Some("root"), NodeKind::Shortcut, 0);
-        link.target = Some(RemoteRef {
+        link.target = Some(Box::new(RemoteRef {
             collection: "home".into(),
             item: "small.txt".into(),
             kind: Some(NodeKind::File),
-        });
+        }));
         nodes.insert(("home".into(), link.id.clone()), link);
     }
     let engine = Engine::new(

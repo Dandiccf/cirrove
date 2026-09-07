@@ -625,11 +625,11 @@ mod tests {
             scope: fixture.scope.clone(),
             intent: MutationIntent::RemoveFile {
                 before: Node {
-                    target: Some(cirrove_core::RemoteRef {
+                    target: Some(Box::new(cirrove_core::RemoteRef {
                         collection: "linked-drive".into(),
                         item: "linked-file".into(),
                         kind: Some(NodeKind::File),
-                    }),
+                    })),
                     ..node.clone()
                 },
             },
