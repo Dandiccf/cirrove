@@ -492,6 +492,12 @@ async fn namespace_capacity_baseline() {
             &format!("closed_after_revision_{pass}"),
             started.elapsed().as_secs_f64(),
         ));
+        parents::settle(&inner, 1).await;
+        report(namespace_sample(
+            &inner,
+            &format!("after_invalidation_revision_{pass}"),
+            started.elapsed().as_secs_f64(),
+        ));
     }
     assert_eq!(provider.content_reads.load(Ordering::SeqCst), 0);
     assert_eq!(
@@ -505,4 +511,12 @@ async fn namespace_capacity_baseline() {
         .await
         .unwrap()
         .unwrap();
+}
+
+mod parents;
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic FUSE; deep directories, held snapshots and duplicate aliases"]
+async fn real_directory_ancestry_retires_after_last_kernel_snapshot_and_file_user() {
+    parents::directories_and_aliases().await;
 }

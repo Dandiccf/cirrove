@@ -26,11 +26,15 @@ Private account measurements belong in local records, not the public repository.
 Evidence must include actual kernel mounts, provider-backed reads and ordinary
 desktop applications, in addition to deterministic transport/recovery fixtures.
 The first namespace-memory correction removes mount-lifetime retention of entries
-only returned by plain READDIR. Regular-file views now also retire after kernel
-lookup references and open/in-flight leases end, with actual-kernel regression
-coverage. Directory ancestry remains pinned; byte budgets, large single-directory
-paging and interrupted-reply accounting remain open. These partial corrections
-do not close the 500k-file/long-session gate.
+only returned by plain READDIR. Resolved file and directory views now retire after
+kernel lookup references and open/in-flight/child leases end. Parent leases retain
+required ancestor routes; actual-kernel tests cover deep paths, distinct shared
+links, held snapshots and offline revisit. The 500k-file fixture returns to one
+root view after invalidation in each of three passes, but process RSS still rises
+across those passes. Byte budgets, compact referenced payloads, large single-directory
+paging, memory-slope attribution and interrupted-reply accounting remain open.
+These partial corrections do not close the 500k-file/long-session gate; see
+[the measurements and their limits](benchmarks/namespace-parent-lifetime.json).
 A shared conditional read-session prototype now removes per-block Graph checks in
 an explicit developer path. A synthetic 1 GiB adapter read uses two Graph requests
 instead of 512; an isolated business-file comparison also verifies subsequent

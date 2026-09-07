@@ -1,6 +1,6 @@
 # Namespace lifetime and large-library memory
 
-Status: listing lifetime and regular-file reference reclamation implemented; full capacity acceptance remains open.
+Status: listing lifetime and reference-aware file/directory reclamation implemented; full capacity acceptance remains open.
 
 ## Current evidence
 
@@ -10,15 +10,21 @@ scope, alias and ancestry vectors and sometimes a second entry node. `releasedir
 dropped the handle's `Arc<Vec<View>>`, but left those entries in the shared view map.
 Plain listing projections now live only in the directory snapshot; resolved lookup
 and operation views still enter the shared map. The map now tracks kernel lookup
-references and shared residency tokens for regular files. Single and batched
-FORGET release counted references; open files and in-flight operations protect
-their versions until their tokens also retire. Count errors preserve the affected
+references and shared residency tokens for resolved files and directories. Single
+and batched FORGET release counted references; open files, directory snapshots,
+in-flight operations and child views protect their dependencies until their tokens
+also retire. Each child holds a parent token, retaining the rest of its ancestor
+chain through the parent entry. Old and new view clones retain their respective
+parent leases after moves. Callbacks capture parent views before async dispatch;
+parent-chain validation rejects cycles and missing parents before map changes.
+Count errors preserve the affected
 entry conservatively. A queued collector checks at most 4,096 candidates per second.
 
 This is growth with projected entries and revisions visited during the mount, not
 automatic materialization of every item merely because the index contains 500,000
-files. Directory ancestry remains pinned, and kernel-referenced file views cannot
-yet shed their full metadata payloads. Full namespace lifetime remains a scalability gap. The content-cache quota does
+files. Required ancestor chains remain protected, and kernel-referenced views
+cannot yet shed their full metadata payloads. Full namespace lifetime remains a
+scalability gap. The content-cache quota does
 not limit these allocations. The invalidation worker also copies and walks the
 retained view map on each coalesced change wake, adding CPU and temporary memory.
 
@@ -38,6 +44,22 @@ root and 500 directories resolved during traversal. The fixture creates no file
 lookup references merely by reading names, so this improvement does not establish
 bounded memory for mass `stat`/open workloads. See
 [the correction measurements](../benchmarks/namespace-listing-lifetime.json).
+
+With parent leases, the same three-pass 500k-file fixture now returns from 501
+views immediately after traversal to the root alone after normal kernel
+invalidation and collector progress. No kernel references are discarded to meet
+that count. This release-build run recorded post-invalidation RSS of 21,504,
+31,696 and 40,824 KiB: view retirement does not explain or solve the remaining
+memory slope. The earlier artifact used a debug build, so timings and absolute
+RSS are not a controlled before/after comparison. See
+[parent-lifetime measurements](../benchmarks/namespace-parent-lifetime.json).
+
+A separate smaller kernel fixture exercises eight-level paths and two shortcuts
+to the same shared tree, each with 2,000 leaves. Held files and a continued
+directory snapshot preserve their ancestor chains across invalidation and remote
+rename. Closing those users leaves only the root; offline revisit preserves
+distinct alias inodes without provider requests. This is not combined 500k-file
+deep/alias or long-session coverage.
 
 A separate actual-kernel fixture now stats 300 files, holds an old file open across
 a revision change, and observes all other regular-file views retire after kernel
@@ -113,6 +135,6 @@ This is an explicit **milestone-1 / OneDrive-1.0 blocker**, independent of the
       check. Report workload, reference counts and memory slope; a mount that sits
       idle for 24 hours does not close this gate.
 
-Directory reclamation, compact/budgeted payloads, bounded directory pages and
+Compact/budgeted payloads, bounded directory pages and
 targeted invalidation remain unimplemented. These planned limits must not be
 advertised as supported capacity until the tests pass.

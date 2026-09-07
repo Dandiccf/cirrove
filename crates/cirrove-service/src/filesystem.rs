@@ -35,6 +35,9 @@ const READ_QUEUE_TIMEOUT: Duration = Duration::from_secs(30);
 #[derive(Clone)]
 struct View {
     residency: Arc<LookupRefs>,
+    // A view (including a directory snapshot or old open file) protects its
+    // parent entry. The retained parent view protects the rest of the chain.
+    _parent_residency: Option<Arc<LookupRefs>>,
     inode: u64,
     parent: u64,
     scope: Scope,
@@ -140,6 +143,7 @@ impl CloudFs {
         let scope = engine.scope(&engine.account.drive.id);
         let root = View {
             residency: Arc::default(),
+            _parent_residency: None,
             inode: 1,
             parent: 1,
             ancestry: vec![(scope.collection.clone(), root.id.clone())],
@@ -311,6 +315,7 @@ impl Inner {
         }
         let view = View {
             residency: Arc::default(),
+            _parent_residency: Some(parent.residency.clone()),
             inode: 0,
             parent: parent.inode,
             scope,
@@ -380,13 +385,12 @@ impl Inner {
             .map_err(|_| ProviderError::Unavailable)?
             .insert(view)
     }
-    async fn listing(&self, inode: u64) -> Result<Vec<View>, ProviderError> {
-        let parent = self.view(inode)?;
-        let nodes = self.children(&parent).await?;
+    async fn listing(&self, parent: &View) -> Result<Vec<View>, ProviderError> {
+        let nodes = self.children(parent).await?;
         let mut result = vec![
             View {
                 name: ".".into(),
-                ..parent.clone()
+                ..(*parent).clone()
             },
             View {
                 name: "..".into(),
@@ -395,7 +399,7 @@ impl Inner {
         ];
         let mut projected = vec![];
         for node in nodes {
-            match Self::project(&parent, node) {
+            match Self::project(parent, node) {
                 Ok(view) => projected.push(view),
                 Err(ProviderError::Protocol(_)) => {
                     tracing::warn!("cloud entry could not be projected (cycle or invalid name)")
@@ -607,11 +611,18 @@ impl Filesystem for CloudFs {
             return;
         };
         let inner = self.inner.clone();
+        // Capture residency before dispatch, including its ancestor leases.
+        let parent = match inner.view(parent.0) {
+            Ok(view) => view,
+            Err(error) => {
+                reply.error(errno(&error));
+                return;
+            }
+        };
         let name = name.to_os_string();
         self.inner.runtime.spawn(async move {
             let _permit = permit;
             let result = async {
-                let parent = inner.view(parent.0)?;
                 let nodes = inner.children(&parent).await?;
                 let node = nodes
                     .into_iter()
@@ -683,11 +694,18 @@ impl Filesystem for CloudFs {
             return;
         };
         let inner = self.inner.clone();
+        // Capture residency before dispatch, including its ancestor leases.
+        let parent = match inner.view(parent.0) {
+            Ok(view) => view,
+            Err(error) => {
+                reply.error(errno(&error));
+                return;
+            }
+        };
         self.inner.runtime.spawn(async move {
             let _permit = permit;
             let _admission = admission;
             let result = async {
-                let parent = inner.view(parent.0).map_err(|e| errno(&e))?;
                 if parent.node.kind != NodeKind::Folder {
                     return Err(Errno::ENOTDIR);
                 }
@@ -754,11 +772,18 @@ impl Filesystem for CloudFs {
             return;
         };
         let inner = self.inner.clone();
+        // Capture residency before dispatch, including its ancestor leases.
+        let parent = match inner.view(parent.0) {
+            Ok(view) => view,
+            Err(error) => {
+                reply.error(errno(&error));
+                return;
+            }
+        };
         self.inner.runtime.spawn(async move {
             let _permit = permit;
             let _admission = admission;
             let result = async {
-                let parent = inner.view(parent.0).map_err(|e| errno(&e))?;
                 let nodes = inner.children(&parent).await.map_err(|e| errno(&e))?;
                 if nodes
                     .iter()
@@ -857,12 +882,25 @@ impl Filesystem for CloudFs {
             return;
         };
         let inner = self.inner.clone();
+        // Capture residency before dispatch, including its ancestor leases.
+        let parent = match inner.view(parent.0) {
+            Ok(view) => view,
+            Err(error) => {
+                reply.error(errno(&error));
+                return;
+            }
+        };
+        let destination = match inner.view(newparent.0) {
+            Ok(view) => view,
+            Err(error) => {
+                reply.error(errno(&error));
+                return;
+            }
+        };
         self.inner.runtime.spawn(async move {
             let _permit = permit;
             let _admission = admission;
             let result = async {
-                let parent = inner.view(parent.0).map_err(|e| errno(&e))?;
-                let destination = inner.view(newparent.0).map_err(|e| errno(&e))?;
                 if parent.scope != destination.scope || parent.alias != destination.alias {
                     return Err(Errno::EXDEV);
                 }
@@ -960,11 +998,18 @@ impl Filesystem for CloudFs {
             return;
         };
         let inner = self.inner.clone();
+        // Capture residency before dispatch, including its ancestor leases.
+        let parent = match inner.view(parent.0) {
+            Ok(view) => view,
+            Err(error) => {
+                reply.error(errno(&error));
+                return;
+            }
+        };
         self.inner.runtime.spawn(async move {
             let _permit = permit;
             let _admission = admission;
             let result = async {
-                let parent = inner.view(parent.0).map_err(|e| errno(&e))?;
                 if parent.node.kind != NodeKind::Folder {
                     return Err(Errno::ENOTDIR);
                 }
@@ -1404,9 +1449,16 @@ impl Filesystem for CloudFs {
             return;
         };
         let inner = self.inner.clone();
+        let parent = match inner.view(inode.0) {
+            Ok(view) => view,
+            Err(error) => {
+                reply.error(errno(&error));
+                return;
+            }
+        };
         self.inner.runtime.spawn(async move {
             let _permit = permit;
-            match inner.listing(inode.0).await {
+            match inner.listing(&parent).await {
                 Ok(entries) => {
                     let handle = inner.handle();
                     match inner.directories.lock() {
