@@ -9,7 +9,10 @@ use gtk::{gio, glib};
 use std::{
     cell::Cell,
     rc::Rc,
-    sync::{Arc, Mutex},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
     time::{Duration, Instant},
 };
 
@@ -74,6 +77,10 @@ fn native_window_keeps_focus_and_waits_for_service_mount_acknowledgement() {
         UnixListener::bind(&socket).unwrap()
     };
     let replies = response.clone();
+    let hold_next = Arc::new(AtomicBool::new(false));
+    let hold = hold_next.clone();
+    let reply_gate = Arc::new(tokio::sync::Semaphore::new(0));
+    let gate = reply_gate.clone();
     let server = runtime.spawn(async move {
         let mut clients = tokio::task::JoinSet::new();
         loop {
@@ -81,10 +88,15 @@ fn native_window_keeps_focus_and_waits_for_service_mount_acknowledgement() {
                 accepted = server.accept() => {
                     let (mut stream, _) = accepted.unwrap();
                     let replies = replies.clone();
+                    let held = hold.swap(false, Ordering::SeqCst);
+                    let gate = gate.clone();
                     clients.spawn(async move {
                         let mut command = [0; 7];
                         stream.read_exact(&mut command).await.unwrap();
                         assert_eq!(&command, b"status\n");
+                        if held {
+                            gate.acquire().await.unwrap().forget();
+                        }
                         // A slow service must not block native GTK events.
                         tokio::time::sleep(Duration::from_millis(200)).await;
                         let data = serde_json::to_vec(&*replies.lock().unwrap()).unwrap();
@@ -114,8 +126,27 @@ fn native_window_keeps_focus_and_waits_for_service_mount_acknowledgement() {
             socket: socket.clone(),
         },
     );
-    pump_until("initial snapshot", || ui.current().is_some());
-    assert!(pulse.get() >= 5, "service I/O blocked GTK events");
+    pump_until("initial snapshot", || {
+        ui.current()
+            .is_some_and(|view| view.accounts[0].state == ConnectionState::Connected)
+    });
+    // Window creation/rendering may outlast a fixed server delay on software
+    // rendering. Hold a later response explicitly so GTK must make progress
+    // while service I/O is still outstanding, independent of startup speed.
+    hold_next.store(true, Ordering::SeqCst);
+    ui.refresh();
+    pump_until("service accepted held refresh", || {
+        !hold_next.load(Ordering::SeqCst)
+    });
+    let before = pulse.get();
+    pump_until("GTK events while service reply is held", || {
+        pulse.get() >= before + 5
+    });
+    assert!(
+        ui.current().unwrap().service_reachable,
+        "held status request timed out before GTK could run"
+    );
+    reply_gate.add_permits(1);
     let window = ui.window.upgrade().unwrap();
     let refresh = button(window.upcast_ref(), "Refresh connection status").unwrap();
     assert!(refresh.grab_focus());
