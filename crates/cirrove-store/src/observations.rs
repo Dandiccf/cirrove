@@ -1,6 +1,8 @@
 //! Publication tickets order network observations against completed metadata
 //! changes. They neither hold a transaction during I/O nor rely on wall clocks.
 use super::*;
+mod directory_publication;
+pub use directory_publication::{DirectoryPublication, DirectoryPublicationResult};
 use rusqlite::Transaction;
 use std::collections::{HashMap, HashSet};
 

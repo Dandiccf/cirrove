@@ -630,3 +630,11 @@ mod parents;
 async fn real_directory_ancestry_retires_after_last_kernel_snapshot_and_file_user() {
     parents::directories_and_aliases().await;
 }
+
+mod cold;
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "actual synthetic FUSE; cold publication, offline revisit and remount"]
+async fn real_cold_directory_pages_publish_with_bounded_memory() {
+    cold::mounted().await;
+}

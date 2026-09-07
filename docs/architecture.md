@@ -141,9 +141,39 @@ observation ordering with READDIR, including renamed, moved and absent entries.
 An unknown directory is fetched through the existing coalescing gate; a known
 absent name returns ENOENT without a provider call. Duplicate names retain the
 listing's identity tiebreak and can require work over matching stale observations.
-The compatibility `children()` API, writable local-overlay lookup/projection and
-cold foreground publication still collect
-lists. These remaining consumers keep the full-pipeline memory gate open.
+First-time directory fetches and active-directory refreshes now stage each provider
+page in a connection-owned [SQLite TEMP database](https://www.sqlite.org/tempfiles.html#temp_databases). No main-database transaction or
+read snapshot spans a network await. After the terminal page, one immediate
+transaction validates the observation ticket and returned identities, compares
+canonicalized nodes against the visible directory, and publishes positive/negative
+observations, directory rows and revision marks together. It preserves moved items
+elsewhere and the completed delta baseline/cursor. Superseded responses return a
+status and trigger a committed reread, never a cloned provider list.
+
+Each account admits two builders. Each has a 512 MiB TEMP database page limit and
+2 MiB suggested page caches for the main and TEMP databases. Input is limited to
+256 MiB of serialized nodes/cursors, 16 MiB of serialized nodes per provider page,
+1 MiB per node, 16 KiB per cursor and 65,536 pages. Duplicate identities, repeated
+cursors, invalid parents and incomplete listings fail closed. TEMP comparison rows
+and indexes share its page limit; rollback journals, SQL transient files, the main
+metadata database/WAL, filesystem blocks and kernel page cache are additional.
+These limits do not promise a fixed whole-process or physical-memory ceiling.
+The provider adapter must also bound each received page before constructing nodes.
+
+The Linux bundled SQLite TEMP database uses private, unlinked files. Connection
+close or process termination releases those descriptors; no persistent staging
+schema or recovery cleanup is needed. Startup refuses SQLite builds that force
+TEMP storage into memory. A cancellation/deadline progress hook interrupts bulk
+SQL; blocking tasks retain admission permits and are tracked through shutdown even
+if their asynchronous waiter is dropped. The total fetch deadline remains 60
+seconds, including up to three retries of superseded unknown listings. Publication
+notifies invalidation from the blocking worker after commit. Linked-feed discovery
+reads committed rows and retains at most 257 distinct targets, processing up to
+256 with a warning on truncation, matching the existing discovery bound.
+
+The compatibility `children()`/`publish_directory()` APIs and writable local-overlay
+lookup/projection still collect lists. Those consumers, snapshot construction before
+the first entry, view payload budgets and long-session memory remain open gates.
 Long-lived read transactions also retain WAL history until released; the visitor
 is for bounded local work, never network waits or idle open directory handles.
 
