@@ -52,8 +52,9 @@ array and merging a whole directory in a HashMap. Both cached snapshot and delta
 index paths have tests for index-ordered output, concurrent publication, early
 callback failure and transaction cleanup. Schema upgrades preserve the old data
 on failure and serialize concurrent migration attempts. The compatibility API
-still collects a Vec, as do foreground publication and writable local-overlay
-lookup/projection. Cached read-only LOOKUP now restricts the same visibility query
+still collects a Vec, as does writable local-overlay lookup/projection. Foreground
+publication now uses bounded page staging and atomic SQL publication. Cached
+read-only LOOKUP now restricts the same visibility query
 by name, uses the ordered name indexes and decodes only its first matching identity.
 Cached read-only OPENDIR now streams, but the
 remaining consumers keep the end-to-end paging gate open.
@@ -129,6 +130,27 @@ The FUSE wrapper's entry/create replies return no delivery outcome. Cancelled or
 failed delivery can therefore leave conservative references; accounting must not
 guess them away. Interruption and delivery-failure acceptance remain open.
 
+Foreground directory publication now stages one provider page at a time in a
+connection-owned, disk-backed TEMP database, with atomic publication after the
+terminal page. Input/page/node/cursor limits, a 512 MiB TEMP page limit and two
+builders per account replace the old full-list/100k-entry boundary. Negative
+observations, current moves elsewhere and logical ticket ordering retain their
+previous semantics. Canonicalizing visible nodes individually preserves semantic
+unchanged detection when legacy JSON omits default fields. Bulk SQL observes
+cancellation and the shared fetch deadline; cached readers can retain the old view
+while the final writer is paused. Compatibility publication/collection APIs and
+writable overlays still retain complete lists.
+
+A separate 500k-row Store run covers cold, unchanged and changed publication. Its
+TEMP database grows to approximately 141, 226 and 239 MiB respectively, including
+comparison rows and indexes. Process peak RSS stays below 23 MiB in that fixture.
+These are different resources: TEMP rollback journals, transient SQL files, the
+main database/WAL, filesystem allocation and kernel page cache are additional.
+Temporary files on tmpfs consume host memory outside process RSS. This three-pass
+fixture does not establish a 24-hour memory plateau. A separate actual-kernel cold
+listing fixture verifies 500k entries, offline revisit and remount without a
+completed delta index. See [the measured scope and raw results](../benchmarks/directory-publication.json).
+
 ## Planned lifetime model
 
 1. Track kernel lookup references, open file/directory leases, in-flight requests
@@ -150,9 +172,10 @@ guess them away. Interruption and delivery-failure acceptance remain open.
    Keep old directory snapshots stable across concurrent rename/delete operations.
    Bound materialization through the entire store/engine/projection pipeline;
    paging the final snapshot alone leaves the earlier `Vec<Node>` allocation.
-   The current cold foreground listing also has a 100,000-entry limit, while a
-   complete delta index can contain larger directories. Large-directory acceptance
-   must cover both paths rather than simply raising this safety limit.
+   Cold foreground publication now stages pages under byte/storage/page limits
+   instead of a 100,000-entry vector limit. The 500k cold fixture covers publication,
+   listing and offline remount. Compatibility collectors and writable overlays
+   remain outside the streaming path.
 4. Replace mount-wide invalidation scans with an index of affected, live projections
    and bounded coalesced work. Measure allocation and navigation latency during a
    remote-change burst; avoiding retained views must not lose live invalidations.
@@ -196,6 +219,6 @@ This is an explicit **milestone-1 / OneDrive-1.0 blocker**, independent of the
       check. Report workload, reference counts and memory slope; a mount that sits
       idle for 24 hours does not close this gate.
 
-Compact/budgeted view payloads, full-pipeline paging and
-targeted invalidation remain unimplemented. These planned limits must not be
+Compact/budgeted view payloads, streaming of remaining compatibility/writable
+consumers and targeted invalidation remain unimplemented. These planned limits must not be
 advertised as supported capacity until the tests pass.

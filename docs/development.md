@@ -257,6 +257,37 @@ It enumerates 3,000 files, checks that plain listings did not retain thousands o
 views, and verifies that an open old file and a newly opened revision keep separate
 inodes while further directory listings occur.
 
+### Cold foreground directory publication
+
+Use a dedicated worktree target directory for these synthetic fixtures:
+
+```sh
+cargo test -p cirrove-store --test directory_publication --locked
+cargo test -p cirrove-store --lib --locked observations::directory_publication::tests::
+cargo test -p cirrove-service --lib --locked abandoned_cold_fetch
+cargo test -p cirrove-service --lib --locked real_cold_directory_pages_publish -- --ignored --nocapture --test-threads=1
+CIRROVE_COLD_DIRECTORY_FILES=500000 cargo test -p cirrove-service --lib --release --locked real_cold_directory_pages_publish -- --ignored --nocapture --test-threads=1
+cargo test -p cirrove-store --release --locked directory_publication_capacity -- --ignored --nocapture --test-threads=1
+```
+
+The kernel fixture starts with the root route cached and no completed delta index
+or cached listing for its large child directory. Its provider generates 1,000 nodes
+per page. It verifies cold enumeration, snapshot release, offline revisit and
+remount without additional provider requests or content reads. Default size is
+10,000 files for CI; the explicit release run uses 500,000. Run memory benchmarks
+in separate processes so previous tests do not contaminate the process high-water
+mark. The Store-only benchmark separately publishes 500,000 nodes, confirms the
+same listing unchanged, then publishes changed metadata. It reports TEMP database
+pages separately from process RSS; neither includes a total physical-memory claim.
+
+The production limits include two builders per account and 512 MiB per TEMP
+database, covering staged rows, comparison tables and indexes. Journal/transient
+files, the persistent metadata database/WAL and kernel page cache are additional.
+These are temporary-filesystem allocations; a host that places temporary files
+on tmpfs consumes host memory outside the process RSS measurement. No real-provider
+reliability, instant first-entry latency or 24-hour memory plateau is established.
+See [recorded measurements](benchmarks/directory-publication.json).
+
 ## Read-transport observations
 
 `cirrove inspect-onedrive-read --label ACCOUNT --item ITEM_ID` checks the HTTP

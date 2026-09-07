@@ -3,7 +3,10 @@
 mod directories;
 mod observations;
 use cirrove_core::{Change, ChangePage, Cursor, Node, Scope};
-pub use observations::{AbsenceResult, ObservationResult, ObservationTicket};
+pub use observations::{
+    AbsenceResult, DirectoryPublication, DirectoryPublicationResult, ObservationResult,
+    ObservationTicket,
+};
 use rusqlite::{Connection, OptionalExtension, params};
 use std::path::Path;
 
@@ -21,6 +24,10 @@ pub enum StoreError {
     SchemaVersion,
     #[error("invalid stored directory snapshot")]
     InvalidDirectorySnapshot,
+    #[error("directory staging limit exceeded")]
+    DirectoryLimit,
+    #[error("directory publication cancelled or expired")]
+    Cancelled,
 }
 pub type Result<T> = std::result::Result<T, StoreError>;
 

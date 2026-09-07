@@ -1,0 +1,108 @@
+{
+  "date": "2026-09-07",
+  "source_base": "5201dafd2558582ed8e922c40ebb9247f4ba7150",
+  "source_sha256": {
+    "Cargo.toml": "344c956cc4184a4c15b2240608f83eaa2a1136cd1e31002b2271065307174370",
+    "crates/cirrove-store/src/observations/directory_publication.rs": "a012b17e35413bbb360deaa43bbf10ae5180fc4eb07016a3276a1ce5e22755eb",
+    "crates/cirrove-store/src/directories.rs": "2b06c2ba48d1017c5e79a10237654245b537d0656fbe7de80a57ce5cb418fb12",
+    "crates/cirrove-service/src/engine.rs": "67288dce64d46cd903b74bb1ab533f71d8c3f61652cf08ad38e2969cacc2a7e5",
+    "crates/cirrove-service/src/filesystem/capacity.rs": "cfc9718e6d752e357f989d795bb64d00d309e15a49f61c324f617c99c22ef9be",
+    "crates/cirrove-service/src/filesystem/capacity/cold.rs": "ecb651fc7c40fdd78e602787ca19f4f4c9616cbbb860fda8facca8d3dc132f18"
+  },
+  "fixture": "Synthetic release builds in separate processes; no cloud account or content downloads.",
+  "mounted_cold": {
+    "build": "release",
+    "cold_enumeration_seconds": 10.591598015,
+    "files": 500000,
+    "fixture": "actual kernel FUSE; generated foreground pages, no completed delta index or cloud account",
+    "memory_after": {
+      "anonymous_pss_kib": 11684,
+      "peak_rss_kib": 22720,
+      "pss_kib": 20014,
+      "rss_kib": 22720
+    },
+    "memory_before": {
+      "anonymous_pss_kib": 1328,
+      "peak_rss_kib": 10500,
+      "pss_kib": 8378,
+      "rss_kib": 10500
+    },
+    "page_entries": 1000,
+    "provider_pages": 500
+  },
+  "mounted_first_entry": {
+    "directory_snapshot_entries": 500002,
+    "memory": {
+      "anonymous_pss_kib": 11684,
+      "peak_rss_kib": 22656,
+      "pss_kib": 19950,
+      "rss_kib": 22656
+    },
+    "open_directory_handles": 1,
+    "open_files": 0,
+    "phase": "cold_first_entry",
+    "retained_views": 2,
+    "seconds": 10.44791933,
+    "snapshot_logical_bytes": 33000045,
+    "snapshot_reservations": 1,
+    "view_map_capacity": 3
+  },
+  "store_publication": [
+    {
+      "files": 500000,
+      "memory_after": {
+        "peak_rss_kib": 12092,
+        "rss_kib": 10748
+      },
+      "memory_before": {
+        "peak_rss_kib": 3980,
+        "rss_kib": 3980
+      },
+      "pass": 0,
+      "publication_database_bytes": 147738624,
+      "seconds": 2.439641746,
+      "staged_database_bytes": 134512640
+    },
+    {
+      "files": 500000,
+      "memory_after": {
+        "peak_rss_kib": 23088,
+        "rss_kib": 22444
+      },
+      "memory_before": {
+        "peak_rss_kib": 12092,
+        "rss_kib": 10748
+      },
+      "pass": 1,
+      "publication_database_bytes": 236916736,
+      "seconds": 5.711391152,
+      "staged_database_bytes": 134512640
+    },
+    {
+      "files": 500000,
+      "memory_after": {
+        "peak_rss_kib": 23216,
+        "rss_kib": 22448
+      },
+      "memory_before": {
+        "peak_rss_kib": 23088,
+        "rss_kib": 22444
+      },
+      "pass": 2,
+      "publication_database_bytes": 250142720,
+      "seconds": 6.8223795,
+      "staged_database_bytes": 134512640
+    }
+  ],
+  "checks": [
+    "Mounted enumeration and offline revisit/remount preserve all 500000 entries without a completed delta index or extra provider requests.",
+    "Store publications report changed=true,false,true for cold, unchanged, changed input."
+  ],
+  "limits": [
+    "Process RSS excludes temporary filesystem storage and kernel page cache.",
+    "TEMP database pages exclude rollback journals, transient SQL files and the persistent metadata database/WAL.",
+    "The Store fixture has shorter synthetic names than the mounted fixture; absolute resource figures are not a controlled comparison.",
+    "Three passes do not establish a long-session plateau; no real provider, desktop application or physical power-loss acceptance.",
+    "The first entry still waits for complete publication and snapshot construction."
+  ]
+}

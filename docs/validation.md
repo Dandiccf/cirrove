@@ -842,3 +842,34 @@ At this revision, formatting, strict workspace Clippy, 239 default tests, 37
 synthetic actual-kernel mount tests, workspace build, daemon smoke and Rustdoc
 passed locally. The actual mount coverage includes old/new memory mappings,
 in-flight reads, local saves, unlink, replacement, ancestor recovery and shutdown.
+
+## Streamed foreground directory publication (2026-09-07)
+
+First-time listings and active-directory refreshes now use bounded SQLite TEMP
+staging per provider page, followed by one atomic main-database transaction. Store
+fixtures compare staged publication with the legacy path through repeated moves
+and absence, and exercise duplicate identities/names, invalid parents, repeated
+cursors, scope isolation, stale responses, pending baselines and legacy default
+fields. Failure during final insertion rolls back visible entries, absence and
+supersession markers. An injected cancellation during bulk SQL exercises the
+production progress hook and leaves the writer usable. A paused final transaction
+allows another connection to read the previous listing within 500 ms.
+
+Tests force TEMP storage beyond its page cache, check private/unlinked descriptors,
+verify close cleanup, exhaust its page limit and verify autocommit between pages.
+An abandoned Engine fetch discards its pages; a new request starts from the first
+page and completes, followed by offline lookup. Actual kernel FUSE tests enumerate
+a cold directory, release its anonymous snapshot, revisit offline and remount
+without a completed delta baseline or additional provider/content requests.
+
+Separate release processes measure a 500,000-file mounted cold listing and three
+500,000-row Store publications (cold, unchanged, changed). Raw measurements and
+resource exclusions are in [directory-publication.json](benchmarks/directory-publication.json).
+These synthetic checks do not validate provider completeness, real Graph latency,
+physical power loss, long-session memory, or writable local-overlay scalability.
+The first-entry latency and overall namespace acceptance gates remain open.
+
+The checked source passed formatting, strict workspace Clippy, 321 regular tests,
+46 actual-kernel regressions, the workspace build, Rustdoc and service smoke/observer
+checks. Builds used the worktree-specific target directory; expected nonzero
+filtered test counts were verified.

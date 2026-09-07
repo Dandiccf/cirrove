@@ -49,6 +49,7 @@ pub struct Engine {
     health: RwLock<HashMap<String, FeedHealth>>,
     directories: StdMutex<HashMap<String, Weak<Mutex<()>>>>,
     tasks: TaskTracker,
+    directory_publications: Arc<tokio::sync::Semaphore>,
     discovery: Notify,
     discovery_started: AtomicBool,
     activity: crate::activity::DirectoryActivity,
@@ -83,6 +84,7 @@ impl Engine {
             health: RwLock::new(HashMap::new()),
             directories: StdMutex::new(HashMap::new()),
             tasks: TaskTracker::new(),
+            directory_publications: Arc::new(tokio::sync::Semaphore::new(2)),
             discovery: Notify::new(),
             discovery_started: AtomicBool::new(false),
             activity: crate::activity::DirectoryActivity::default(),
@@ -566,8 +568,6 @@ impl Engine {
             self.activity.touch(scope, parent);
             return Ok(value);
         }
-        // Foreground provider publication still materializes its bounded input
-        // set. Do not keep that collection during subsequent snapshot projection.
         let result = self.fetch_directory(scope, parent).await.map(|_| ());
         self.activity.touch(scope, parent);
         self.activity.observed(
@@ -611,69 +611,127 @@ impl Engine {
         self: &Arc<Self>,
         scope: &Scope,
         parent: &str,
-    ) -> Result<Vec<Node>, ProviderError> {
-        tokio::select! {biased; _=self.cancel.cancelled()=>Err(ProviderError::Cancelled),
-            result=tokio::time::timeout(Duration::from_secs(60),self.fetch_directory_inner(scope,parent))=>result.map_err(|_|ProviderError::Unavailable)?,
+    ) -> Result<(), ProviderError> {
+        let cancel = self.cancel.child_token();
+        // Dropping a timeout or an abandoned caller also cancels blocking SQL.
+        let _cancel_on_drop = cancel.clone().drop_guard();
+        let deadline = std::time::Instant::now() + Duration::from_secs(60);
+        tokio::select! {biased; _=cancel.cancelled()=>Err(ProviderError::Cancelled),
+            result=tokio::time::timeout_at(deadline.into(),self.fetch_directory_inner(scope,parent,cancel.clone(),deadline))=>result.map_err(|_|ProviderError::Unavailable)?,
         }
     }
     async fn fetch_directory_inner(
         self: &Arc<Self>,
         scope: &Scope,
         parent: &str,
-    ) -> Result<Vec<Node>, ProviderError> {
-        // A concurrent publication can invalidate a cold snapshot. Cached newer
-        // data wins immediately; otherwise retry within the outer total deadline.
+        cancel: CancellationToken,
+        deadline: std::time::Instant,
+    ) -> Result<(), ProviderError> {
+        use cirrove_store::DirectoryPublicationResult;
         for _ in 0..3 {
+            let permit = tokio::select! {biased;
+                _=cancel.cancelled()=>return Err(ProviderError::Cancelled),
+                p=self.directory_publications.clone().acquire_owned()=>p.map_err(|_|ProviderError::Unavailable)?,
+            };
             let db = self.db.clone();
             let s = scope.clone();
             let p = parent.to_owned();
-            let ticket =
-                tokio::task::spawn_blocking(move || Store::open(db)?.directory_observation(&s, &p))
-                    .await
-                    .map_err(|_| ProviderError::Unavailable)?
-                    .map_err(|_| ProviderError::Unavailable)?;
-            let mut nodes = vec![];
+            let token = cancel.clone();
+            // The permit travels with blocking work: timing out its async waiter
+            // cannot admit another builder before the old one has actually ended.
+            let mut staged = self
+                .tasks
+                .spawn_blocking(move || {
+                    Store::open(db)?
+                        .directory_publication(&s, &p, token, deadline)
+                        .map(|stage| (stage, permit))
+                })
+                .await
+                .map_err(|_| ProviderError::Unavailable)?
+                .map_err(|_| ProviderError::Unavailable)?;
             let mut cursor = None;
-            let mut seen = HashSet::new();
             loop {
                 let page = self
                     .provider
-                    .children(scope, parent, cursor.as_ref(), &self.cancel)
+                    .children(scope, parent, cursor.as_ref(), &cancel)
                     .await?;
-                nodes.extend(page.nodes);
-                if nodes.len() > 100_000 {
-                    return Err(ProviderError::Protocol("directory exceeds entry limit"));
-                }
-                cursor = page.next;
-                let Some(next) = &cursor else { break };
-                if !seen.insert(next.0.clone()) {
-                    return Err(ProviderError::Protocol("repeated directory cursor"));
+                let next = page.next.clone();
+                staged = self
+                    .tasks
+                    .spawn_blocking(move || {
+                        let (stage, permit) = staged;
+                        stage.page(page).map(|stage| (stage, permit))
+                    })
+                    .await
+                    .map_err(|_| ProviderError::Unavailable)?
+                    .map_err(|_| ProviderError::Unavailable)?;
+                cursor = next;
+                if cursor.is_none() {
+                    break;
                 }
             }
-            nodes.sort_by(|a, b| a.name.cmp(&b.name));
             let db = self.db.clone();
-            let result = tokio::task::spawn_blocking(move || {
-                Store::open(db)?.publish_directory(&ticket, &nodes)
-            })
-            .await
-            .map_err(|_| ProviderError::Unavailable)?
-            .map_err(|_| ProviderError::Unavailable)?;
-            let (nodes, changed) = match result {
-                cirrove_store::ObservationResult::Published { value, changed } => (value, changed),
-                cirrove_store::ObservationResult::Superseded(Some(nodes)) => (nodes, false),
-                cirrove_store::ObservationResult::Superseded(None) => continue,
-            };
-            for node in &nodes {
-                if let Some(target) = &node.target {
-                    let _ = self
-                        .ensure_feed(target.collection.clone(), target.item.clone())
-                        .await;
-                }
+            let s = scope.clone();
+            let p = parent.to_owned();
+            let engine = self.clone();
+            let token = cancel.clone();
+            let (result, targets) = self
+                .tasks
+                .spawn_blocking(move || -> cirrove_store::Result<_> {
+                    let (stage, _permit) = staged;
+                    let result = stage.publish()?;
+                    if matches!(
+                        result,
+                        DirectoryPublicationResult::Published { changed: true }
+                    ) {
+                        engine.changed.notify_waiters();
+                    }
+                    let mut targets = Vec::new();
+                    if result != (DirectoryPublicationResult::Superseded { known: false }) {
+                        Store::open(db)?
+                            .with_children(&s, &p, |rows| {
+                                for node in rows {
+                                    if token.is_cancelled() || std::time::Instant::now() >= deadline
+                                    {
+                                        return Err(cirrove_store::StoreError::Cancelled);
+                                    }
+                                    if let Some(target) = node?.target {
+                                        if targets.iter().any(
+                                            |previous: &cirrove_core::RemoteRef| {
+                                                previous.collection == target.collection
+                                                    && previous.item == target.item
+                                            },
+                                        ) {
+                                            continue;
+                                        }
+                                        targets.push(target);
+                                        if targets.len() == 257 {
+                                            break;
+                                        }
+                                    }
+                                }
+                                Ok::<_, cirrove_store::StoreError>(())
+                            })?
+                            .transpose()?;
+                    }
+                    Ok((result, targets))
+                })
+                .await
+                .map_err(|_| ProviderError::Unavailable)?
+                .map_err(|_| ProviderError::Unavailable)?;
+            if matches!(
+                result,
+                DirectoryPublicationResult::Superseded { known: false }
+            ) {
+                continue;
             }
-            if changed {
-                self.changed.notify_waiters();
+            if targets.len() > 256 {
+                tracing::warn!("directory linked-drive discovery exceeded 256 targets");
             }
-            return Ok(nodes);
+            for target in targets.into_iter().take(256) {
+                let _ = self.ensure_feed(target.collection, target.item).await;
+            }
+            return Ok(());
         }
         Err(ProviderError::VersionChanged)
     }

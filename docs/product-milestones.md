@@ -45,9 +45,13 @@ visibility, and known absent names avoid provider calls. An actual-kernel releas
 fixture performs 17 direct metadata requests in a 500k-file directory in 11.06 ms,
 without a directory snapshot or provider calls; see
 [the measured scope](benchmarks/indexed-name-lookups.json).
-Cold foreground publication and writable local overlays still
-materialize lists. Snapshot construction also scans all entries before returning
-the first one. This remains partial progress toward the paging and memory gate.
+Cold foreground publication now stages provider pages in bounded temporary SQLite
+storage and atomically commits the complete listing, with stale-response checks,
+absence/move semantics and cancellation. A synthetic 500k-file cold mount, offline
+revisit and remount pass; writable overlays and compatibility APIs still materialize
+lists. Snapshot construction also scans all entries before returning the first one.
+This remains partial progress toward the paging and memory gate; see
+[foreground publication measurements](benchmarks/directory-publication.json).
 Separate three-pass kernel runs now cover 500k files in one directory and in
 500 directories, with snapshot storage fully released after close. Opening the
 giant directory still takes 5.49–7.31 seconds, and process RSS still rises across

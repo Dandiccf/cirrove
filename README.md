@@ -32,6 +32,9 @@ and Nautilus badges are not implemented.
   readable. A single account worker checks up to 32 active directories, respects
   provider cooldowns and avoids reloading unchanged listings. This complements
   notifications; it does not guarantee a fixed remote-update latency.
+- First-time directory listings stage provider pages in bounded temporary SQLite
+  storage before atomic publication. Cached readers retain the previous view during
+  the fetch; cancellation and failed pages discard unpublished work.
 - Ordered publication of foreground metadata: a delayed response cannot overwrite
   a newer committed view. Item observations update cached directory entries too;
   observed absence is kept separately from the completed delta baseline.
