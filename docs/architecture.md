@@ -400,22 +400,46 @@ Replacing an existing inode's visible path preserves its earlier clones' token.
 Every projected child also owns a parent residency lease: the retained parent's
 entry protects the rest of the ancestor chain. Old and new clones retain their
 respective parent leases after a move. Parent validation rejects missing parents
-and cycles before updating the map. Callbacks capture parent views before async
+and cycles before updating the map. Callbacks capture parent records before async
 dispatch, so a queued operation still has its ancestor route after kernel FORGET.
 The root remains resident. This preserves directory '..' and local-edit ancestor
 capture while unused directory chains retire through the bounded collector.
 
-Resolved views share immutable scope, alias/ancestry vectors, presentation names and
-node payloads through reference-counted ownership. Ordinary file siblings reuse their
-parent's scope and route vectors; folder/shortcut projection copies a route only when
-extending it. Open or in-flight view clones share those immutable values while keeping
-their own parent residency leases. Changing a local binding or refreshing a view
-replaces or detaches its payload, preserving older clones. The reverse invalidation
-index shares target scopes, and notification batches retain shared names. No global
-intern table extends their lifetime. Provider/journal boundaries still receive owned
-records, and persistent inode-key serialization is unchanged; this requires no schema
-migration. Sharing reduces duplication but does not evict live payloads, implement a
-resident byte budget or bound process RSS after allocator retention.
+Resolved operations and open handles share immutable scope, alias/ancestry vectors,
+presentation names and node payloads. The namespace itself retains compact immutable
+headers: inode/parent, kind/name length, identity keys, lookup/parent leases and an
+immutable temporary file record. Capturing a header protects queued operations before
+metadata loading. Replacing an inode preserves its residency token while old captures
+retain their old record and parent lease. The ordered inode map also provides full
+invalidation traversal; it needs no second all-inode index. Identity keys are shared
+between headers and the reverse index, with value-based ordering.
+
+A per-mount anonymous file in the account state directory backs those immutable
+payloads. It uses that directory's filesystem rather than SQLite's global TEMP
+location, which can be a RAM-backed /tmp. After construction,
+saving, loading and batched retirement run on blocking workers outside the namespace
+lock. A 16 MiB cache holds payloads only, without residency leases. Its accounting
+charges requested payload allocations, including shared values conservatively once
+per cached record. Compact headers/indexes, open/in-flight payloads, allocator overhead,
+file-cache and kernel memory are additional; this is not a total RSS cap.
+A cache miss reads the original record locally, validates its SHA-256 and identity,
+and reconstructs its route and content version without a provider request. Corruption
+fails locally instead of substituting current metadata for an old version.
+
+The payload file has a 1 GiB extent budget, at most 1,000,000 live/pending records
+and 4 MiB encoded data per record. Extents are rounded to powers of two, with a
+512-byte minimum, and split/coalesced for reuse. A record contains its encoded length
+and SHA-256; failed writes release only their unpublished extent. No write modifies
+a live record. Admission exhaustion returns ENOSPC; other storage failures return
+EIO. Headers, allocation indexes, filesystem allocation and kernel page cache are
+additional. The private unlinked file is mount-lifetime metadata, not restart state
+or local file contents. Closing the final owner, including process death, reclaims
+it without an orphan sweep. A state directory on tmpfs still consumes host memory.
+Dropping a header queues retirement; cleanup or admission reclaims at most 4,096
+retired extents at a time. Free extents remain reusable within the file budget.
+Persistent inode serialization and the durable edit journal are unchanged. Loading
+metadata cannot discard pending edits. Large-library/long-session memory and latency
+acceptance remain open while this path is validated.
 
 Actual-kernel tests cover deep paths, duplicate linked-drive projections, open
 files, continued directory snapshots across rename, and offline inode-preserving

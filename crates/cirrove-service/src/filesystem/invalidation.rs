@@ -31,17 +31,19 @@ async fn invalidate(
         if !batch.entries.is_empty() {
             tokio::task::spawn_blocking(move || {
                 for entry in batch.entries {
+                    let view = entry.header.load().map_err(|_| ())?;
                     // Keep old file mappings intact; versions have separate inodes.
-                    let offset = if entry.directory { 0 } else { -1 };
+                    let offset = if entry.header.directory { 0 } else { -1 };
                     let _ = notifier.inval_inode(INodeNo(entry.inode), offset, 0);
                     if entry.entry {
                         let _ = notifier
-                            .inval_entry(INodeNo(entry.parent), OsStr::new(entry.name.as_ref()));
+                            .inval_entry(INodeNo(view.parent), OsStr::new(view.name.as_ref()));
                     }
                 }
+                Ok::<_, ()>(())
             })
             .await
-            .map_err(|_| ())?;
+            .map_err(|_| ())??;
         }
         inner
             .invalidation_metrics

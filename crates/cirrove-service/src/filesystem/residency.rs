@@ -1,12 +1,12 @@
 //! Reference-aware residency for resolved views. Child views retain parent
 //! residency; the root and inconsistent kernel counts remain conservative.
-use super::View;
+use super::{View, payloads};
 mod invalidation;
 use cirrove_core::{NodeKind, ProviderError};
 pub(super) use invalidation::InvalidationCursor;
-use invalidation::ProjectionIndex;
+use invalidation::{Key, ProjectionIndex};
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{BTreeMap, VecDeque},
     sync::{
         Arc,
         atomic::{AtomicBool, AtomicU64, Ordering},
@@ -19,40 +19,88 @@ pub(super) struct LookupRefs {
     quarantine: AtomicBool,
 }
 
+/// Compact immutable identity and lifetime record. Captured headers protect a
+/// queued callback even before its metadata is loaded on a blocking worker.
+pub(super) struct Header {
+    pub inode: u64,
+    pub parent: u64,
+    pub directory: bool,
+    pub name_bytes: usize,
+    residency: Arc<LookupRefs>,
+    parent_residency: Option<Arc<LookupRefs>>,
+    primary: Arc<Key>,
+    source: Option<Arc<Key>>,
+    record: payloads::Record,
+}
+impl Header {
+    fn new(view: &View, record: payloads::Record) -> Self {
+        let (primary, source) = invalidation::keys(view);
+        Self {
+            inode: view.inode,
+            parent: view.parent,
+            directory: view.node.kind == NodeKind::Folder,
+            name_bytes: view.name.len(),
+            residency: view.residency.clone(),
+            parent_residency: view._parent_residency.clone(),
+            primary,
+            source,
+            record,
+        }
+    }
+    /// Never call while holding the namespace lock.
+    pub fn load(&self) -> std::io::Result<View> {
+        let data = self.record.load()?;
+        if data.scope != self.primary.scope
+            || data.node.id.as_str() != self.primary.item.as_ref()
+            || (data.node.kind == NodeKind::Folder) != self.directory
+            || data.name.len() != self.name_bytes
+        {
+            return Err(std::io::Error::other("projection identity mismatch"));
+        }
+        Ok(View {
+            inode: self.inode,
+            parent: self.parent,
+            residency: self.residency.clone(),
+            _parent_residency: self.parent_residency.clone(),
+            data,
+        })
+    }
+}
 struct Entry {
-    view: View,
+    view: Arc<Header>,
     generation: u64,
     queued: bool,
 }
 pub(super) struct NamespaceViews {
-    entries: HashMap<u64, Box<Entry>>,
+    entries: BTreeMap<u64, Entry>,
     candidates: VecDeque<(u64, u64)>,
     generation: u64,
     invalidation: ProjectionIndex,
 }
 impl NamespaceViews {
-    pub(super) fn new(root: View) -> Self {
+    pub(super) fn new(root: View, record: payloads::Record) -> Self {
+        let root = Arc::new(Header::new(&root, record));
         let mut invalidation = ProjectionIndex::default();
         invalidation.insert(&root);
         Self {
-            entries: HashMap::from([(
+            entries: BTreeMap::from([(
                 1,
-                Box::new(Entry {
+                Entry {
                     view: root,
                     generation: 0,
                     queued: false,
-                }),
+                },
             )]),
             candidates: VecDeque::new(),
             generation: 0,
             invalidation,
         }
     }
-    pub(super) fn get(&self, inode: &u64) -> Option<&View> {
+    pub(super) fn get(&self, inode: &u64) -> Option<&Arc<Header>> {
         self.entries.get(inode).map(|entry| &entry.view)
     }
     #[cfg(test)]
-    pub(super) fn values(&self) -> impl Iterator<Item = &View> {
+    pub(super) fn values(&self) -> impl Iterator<Item = &Arc<Header>> {
         self.entries.values().map(|entry| &entry.view)
     }
     #[cfg(test)]
@@ -60,8 +108,8 @@ impl NamespaceViews {
         self.entries.len()
     }
     #[cfg(test)]
-    pub(super) fn capacity(&self) -> usize {
-        self.entries.capacity()
+    pub(super) fn capacity(&self) -> Option<usize> {
+        None
     }
 
     /// Test diagnostics count references, not allocator or shared payload bytes.
@@ -73,18 +121,37 @@ impl NamespaceViews {
         for entry in self.entries.values() {
             kernel_referenced +=
                 usize::from(entry.view.residency.kernel.load(Ordering::SeqCst) > 0);
-            lease_protected += usize::from(Arc::strong_count(&entry.view.residency) > 1);
+            lease_protected += usize::from(
+                Arc::strong_count(&entry.view.residency) > 1 || Arc::strong_count(&entry.view) > 1,
+            );
             quarantined += usize::from(entry.view.residency.quarantine.load(Ordering::SeqCst));
         }
-        let (identity_keys, inode_keys) = self.invalidation.counts();
-        serde_json::json!({"views":self.entries.len(),"map_capacity":self.entries.capacity(),
+        let (identity_keys, inode_keys) = (self.invalidation.count(), self.entries.len());
+        serde_json::json!({"views":self.entries.len(),"map_capacity":null,"map_storage":"btree",
             "kernel_referenced_views":kernel_referenced,"lease_protected_views":lease_protected,
             "quarantined_views":quarantined,"candidate_entries":self.candidates.len(),
             "candidate_capacity":self.candidates.capacity(),"identity_index_entries":identity_keys,
             "inode_index_entries":inode_keys})
     }
 
-    pub(super) fn insert(&mut self, mut view: View) -> Result<View, ProviderError> {
+    #[cfg(test)]
+    pub(super) fn insert(&mut self, view: View) -> Result<View, ProviderError> {
+        let record = self
+            .entries
+            .get(&1)
+            .ok_or(ProviderError::NotFound)?
+            .view
+            .record
+            .store
+            .save(view.data.clone())
+            .map_err(|_| ProviderError::Unavailable)?;
+        self.publish(view, record)
+    }
+    pub(super) fn publish(
+        &mut self,
+        mut view: View,
+        record: payloads::Record,
+    ) -> Result<View, ProviderError> {
         let inode = view.inode;
         view._parent_residency = Some(self.parent_lease(inode, view.parent)?);
         if let Some(entry) = self.entries.get_mut(&inode) {
@@ -92,7 +159,7 @@ impl NamespaceViews {
             // must pin the same residency even when the visible path changes.
             view.residency = entry.view.residency.clone();
             self.invalidation.remove(&entry.view);
-            entry.view = view.clone();
+            entry.view = Arc::new(Header::new(&view, record));
         } else {
             self.generation = self
                 .generation
@@ -100,14 +167,14 @@ impl NamespaceViews {
                 .ok_or(ProviderError::Protocol("namespace generation exhausted"))?;
             self.entries.insert(
                 inode,
-                Box::new(Entry {
-                    view: view.clone(),
+                Entry {
+                    view: Arc::new(Header::new(&view, record)),
                     generation: self.generation,
                     queued: false,
-                }),
+                },
             );
         }
-        self.invalidation.insert(&view);
+        self.invalidation.insert(&self.entries[&inode].view);
         self.queue(inode);
         Ok(view)
     }
@@ -116,7 +183,7 @@ impl NamespaceViews {
             return Err(ProviderError::Protocol("reserved namespace inode"));
         }
         let entry = self.entries.get(&parent).ok_or(ProviderError::NotFound)?;
-        if entry.view.node.kind != NodeKind::Folder {
+        if !entry.view.directory {
             return Err(ProviderError::Protocol(
                 "namespace parent is not a directory",
             ));
@@ -197,10 +264,16 @@ impl NamespaceViews {
             // NamespaceViews is locked by the caller. At count one, no external
             // View exists from which another thread could clone this token.
             && Arc::strong_count(&entry.view.residency) == 1
+            && Arc::strong_count(&entry.view) == 1
     }
     pub(super) fn collect(&mut self, limit: usize) -> usize {
         let mut removed = 0;
-        for _ in 0..limit.min(self.candidates.len()) {
+        let mut unchanged = self.candidates.len();
+        for _ in 0..limit {
+            if unchanged == 0 {
+                break;
+            }
+            unchanged -= 1;
             let Some((inode, generation)) = self.candidates.pop_front() else {
                 break;
             };
@@ -217,6 +290,9 @@ impl NamespaceViews {
                     self.invalidation.remove(&entry.view);
                 }
                 removed += 1;
+                // A retired child can release an ancestor examined earlier in
+                // this pass. Revisit it within the same total work budget.
+                unchanged = self.candidates.len();
             } else if entry.view.residency.kernel.load(Ordering::SeqCst) == 0 {
                 self.queue(inode);
             }
@@ -237,33 +313,97 @@ mod tests {
             _parent_residency: None,
             inode,
             parent: 1,
-            scope: Scope {
-                account: "account".into(),
-                provider: "fixture".into(),
-                collection: "drive".into(),
-            }
-            .into(),
-            node: Node {
-                id: format!("item-{inode}"),
-                parent_id: Some("root".into()),
-                name: format!("item-{inode}"),
-                kind,
-                size: 0,
-                modified_unix: 0,
-                etag: Some("version".into()),
-                content_version: None,
-                target: None,
-            }
-            .into(),
-            name: format!("item-{inode}").into(),
-            alias: vec![].into(),
-            reference: false,
-            entry: None,
-            ancestry: vec![].into(),
+            data: Arc::new(super::super::Projection {
+                scope: Scope {
+                    account: "account".into(),
+                    provider: "fixture".into(),
+                    collection: "drive".into(),
+                }
+                .into(),
+                node: Node {
+                    id: format!("item-{inode}"),
+                    parent_id: Some("root".into()),
+                    name: format!("item-{inode}"),
+                    kind,
+                    size: 0,
+                    modified_unix: 0,
+                    etag: Some("version".into()),
+                    content_version: None,
+                    target: None,
+                }
+                .into(),
+                name: format!("item-{inode}").into(),
+                alias: vec![].into(),
+                reference: false,
+                entry: None,
+                ancestry: vec![].into(),
+            }),
         }
     }
     pub(super) fn cache() -> NamespaceViews {
-        NamespaceViews::new(view(1, NodeKind::Folder))
+        {
+            let root = view(1, NodeKind::Folder);
+            let store = payloads::Store::limited(16 * 1024 * 1024, 1_000_000, 262144).unwrap();
+            let record = store.save(root.data.clone()).unwrap();
+            NamespaceViews::new(root, record)
+        }
+    }
+
+    #[test]
+    fn retired_children_release_earlier_candidates_within_the_same_work_budget() {
+        let mut cache = cache();
+        let mut captures = Vec::new();
+        for inode in 2..=20 {
+            drop(child(&mut cache, inode, inode - 1, NodeKind::Folder));
+            captures.push(cache.get(&inode).unwrap().clone());
+        }
+        assert_eq!(cache.collect(4096), 0);
+        drop(captures);
+        assert_eq!(cache.collect(4096), 19);
+        assert_eq!(cache.len(), 1);
+    }
+
+    #[test]
+    fn captured_evicted_records_survive_moves_forget_and_replacement() {
+        let root = view(1, NodeKind::Folder);
+        let store = payloads::Store::limited(0, 32, 512).unwrap();
+        let record = store.save(root.data.clone()).unwrap();
+        let mut cache = NamespaceViews::new(root, record);
+        drop(child(&mut cache, 2, 1, NodeKind::Folder));
+        drop(child(&mut cache, 3, 1, NodeKind::Folder));
+        let original = child(&mut cache, 4, 2, NodeKind::File);
+        let old = cache.get(&4).unwrap().clone();
+        cache.acquire_lookup(4).unwrap();
+        let mut moved = original.clone();
+        moved.parent = 3;
+        moved.name = "renamed".into();
+        Arc::make_mut(&mut moved.node).etag = Some("replacement".into());
+        drop(cache.insert(moved).unwrap());
+        drop(original);
+        assert!(cache.forget(4, 1));
+        for _ in 0..3 {
+            cache.collect(32);
+        }
+        assert_eq!(
+            cache.len(),
+            4,
+            "old capture protects both the inode and its old ancestor"
+        );
+        store.collect().unwrap();
+        let restored = old.load().unwrap();
+        assert_eq!(restored.parent, 2);
+        assert_eq!(restored.name.as_ref(), "item-4");
+        assert_eq!(restored.node.etag.as_deref(), Some("version"));
+        let current = cache.get(&4).unwrap().clone();
+        assert_eq!(current.load().unwrap().name.as_ref(), "renamed");
+        assert_eq!(store.usage().0, 0, "all payloads were reloaded from disk");
+        drop((old, restored, current));
+        for _ in 0..4 {
+            cache.collect(32);
+        }
+        store.collect().unwrap();
+        assert_eq!(cache.len(), 1);
+        assert_eq!(store.usage().2, 1);
     }
 
     #[test]
@@ -299,7 +439,10 @@ mod tests {
         assert!(Arc::ptr_eq(&old.residency, &latest.residency));
         drop(latest);
         assert_eq!(cache.collect(128), 0);
-        assert_eq!(cache.get(&2).unwrap().name.as_ref(), "new-name");
+        assert_eq!(
+            cache.get(&2).unwrap().load().unwrap().name.as_ref(),
+            "new-name"
+        );
         drop(old);
         assert_eq!(cache.collect(128), 1);
     }

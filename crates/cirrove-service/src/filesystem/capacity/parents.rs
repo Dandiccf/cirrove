@@ -74,7 +74,7 @@ async fn seed(engine: &Engine, collection: &str, nodes: Vec<Node>) {
     .unwrap();
 }
 
-pub(super) async fn directories_and_aliases() {
+pub(super) async fn directories_and_aliases(evict: bool) {
     let temp = tempfile::tempdir().unwrap();
     let mount = temp.path().join("mount");
     std::fs::create_dir(&mount).unwrap();
@@ -111,6 +111,9 @@ pub(super) async fn directories_and_aliases() {
     seed(&engine, "shared", tree("shared-root")).await;
     let fs = CloudFs::new(engine.clone()).unwrap();
     let inner = fs.inner.clone();
+    if evict {
+        inner.payloads.disable_cache();
+    }
     let session = fs.mount(&mount).unwrap();
     let paths = [
         deep_path(&mount),
@@ -140,14 +143,16 @@ pub(super) async fn directories_and_aliases() {
     .unwrap();
     // Root, primary chain + file, and one alias's root + deep chain + snapshot.
     settle(&inner, 1 + DEPTH + 1 + 1 + DEPTH).await;
-    assert!(
-        inner
-            .views
-            .lock()
+    let headers: Vec<_> = inner.views.lock().unwrap().values().cloned().collect();
+    assert!(headers.iter().all(|header| {
+        !header
+            .load()
             .unwrap()
-            .values()
-            .all(|v| !v.alias.iter().any(|(_, id)| id == "link-b"))
-    );
+            .alias
+            .iter()
+            .any(|(_, id)| id == "link-b")
+    }));
+    drop(headers);
     assert_eq!(held_file.metadata().unwrap().len(), 0);
 
     let mut changed = tree("shared-root");
@@ -208,7 +213,7 @@ pub(super) async fn directories_and_aliases() {
         .unwrap();
 }
 
-pub(super) async fn targeted_aliases() {
+pub(super) async fn targeted_aliases(evict: bool) {
     let temp = tempfile::tempdir().unwrap();
     let mount = temp.path().join("mount");
     std::fs::create_dir(&mount).unwrap();
@@ -250,6 +255,9 @@ pub(super) async fn targeted_aliases() {
     seed(&engine, "shared", vec![root.clone(), leaf.clone()]).await;
     let fs = CloudFs::new(engine.clone()).unwrap();
     let inner = fs.inner.clone();
+    if evict {
+        inner.payloads.disable_cache();
+    }
     let session = fs.mount(&mount).unwrap();
     let deadline = Instant::now() + Duration::from_secs(5);
     while inner.invalidation_metrics.batches.load(Ordering::Relaxed) == 0 {

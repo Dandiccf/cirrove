@@ -190,6 +190,18 @@ async fn sample(inner: &Arc<Inner>, round: usize, phase: &'static str, started: 
     let diagnostics = inner.views.lock().unwrap().diagnostics();
     assert_eq!(diagnostics["quarantined_views"], 0);
     value["references"] = diagnostics;
+    let payloads = inner.payloads.clone();
+    value["projection_payloads"] = tokio::task::spawn_blocking(move || payloads.diagnostics())
+        .await
+        .unwrap();
+    assert!(
+        value["projection_payloads"]["cache_accounted_bytes"]
+            .as_u64()
+            .unwrap()
+            <= value["projection_payloads"]["cache_limit_bytes"]
+                .as_u64()
+                .unwrap()
+    );
     assert!(value["open_files"].as_u64().unwrap() <= 32);
     assert!(value["open_directory_handles"].as_u64().unwrap() <= 8);
     value["round"] = round.into();

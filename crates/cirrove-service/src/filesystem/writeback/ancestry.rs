@@ -40,16 +40,29 @@ impl Inner {
         let Some(writer) = &self.writeback else {
             return Ok(());
         };
-        let entries = {
+        let headers = {
             let views = self.views.lock().map_err(|_| Errno::EIO)?;
-            let mut current = view.clone();
+            let mut current = view.inode;
+            let mut parent = view.parent;
             let mut visited = std::collections::HashSet::new();
-            let mut entries = Vec::new();
-            while current.inode != 1 {
-                if !visited.insert(current.inode) || visited.len() > 128 {
+            let mut headers = Vec::new();
+            while current != 1 {
+                if !visited.insert(current) || visited.len() > 128 {
                     return Err(Errno::ELOOP);
                 }
-                let parent = views.get(&current.parent).ok_or(Errno::ESTALE)?;
+                let header = views.get(&parent).ok_or(Errno::ESTALE)?.clone();
+                current = header.inode;
+                parent = header.parent;
+                headers.push(header);
+            }
+            headers
+        };
+        let initial = view.clone();
+        let entries = tokio::task::spawn_blocking(move || {
+            let mut current = initial;
+            let mut entries = Vec::new();
+            for header in headers {
+                let parent = header.load().map_err(|_| Errno::EIO)?;
                 if let Some(entry) = &current.entry {
                     let mut node = entry.as_ref().clone();
                     node.parent_id = Some(parent.node.id.clone());
@@ -60,11 +73,13 @@ impl Inner {
                         current.node.as_ref().clone(),
                     ));
                 }
-                current = parent.clone();
+                current = parent;
             }
             entries.reverse();
-            entries
-        };
+            Ok::<_, Errno>(entries)
+        })
+        .await
+        .map_err(|_| Errno::EIO)??;
         writer.capture_ancestors(entries).await
     }
 }

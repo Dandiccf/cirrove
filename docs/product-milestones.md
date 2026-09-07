@@ -65,8 +65,9 @@ load acceptance remain open; see [measurements](benchmarks/targeted-invalidation
 Resolved view clones now share immutable metadata and sibling routes, including
 scopes used by the live invalidation index. A representation benchmark measures the
 reduction; persistent inode keys, old content versions and parent leases retain their
-semantics. Resident byte budgets, reconstructible evicted views and the combined
-large-library/24-hour gate remain open; see
+semantics. A bounded payload cache with local reconstruction is now implemented and undergoing
+validation; total resident memory and the combined large-library/24-hour gate remain
+open. Earlier sharing-only evidence is in
 [shared-payload measurements](benchmarks/shared-projection-payloads.json).
 A combined kernel workload runner now stats all projected files across deep paths
 and duplicate aliases, preserves held old files/snapshots during updates, and checks

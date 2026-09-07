@@ -6,9 +6,9 @@ use std::{collections::BTreeSet, ops::Bound};
 // Ordering is by provider identity and inode, never allocation address. The
 // index shares each view's scope instead of duplicating its three strings.
 #[derive(Clone, PartialEq, Eq)]
-struct Key {
-    scope: Arc<Scope>,
-    item: Arc<str>,
+pub(super) struct Key {
+    pub(super) scope: Arc<Scope>,
+    pub(super) item: Box<str>,
     inode: u64,
 }
 impl Key {
@@ -36,19 +36,16 @@ const ENTRIES: usize = 128;
 const BYTES: usize = 64 * 1024;
 #[derive(Default)]
 pub(super) struct ProjectionIndex {
-    identities: BTreeSet<Key>,
-    all: BTreeSet<u64>,
+    identities: BTreeSet<Arc<Key>>,
 }
 #[derive(Default)]
 pub(in crate::filesystem) struct InvalidationCursor {
-    key: Option<Key>,
+    key: Option<Arc<Key>>,
     inode: Option<u64>,
 }
 pub(in crate::filesystem) struct Invalidation {
     pub inode: u64,
-    pub parent: u64,
-    pub name: Arc<str>,
-    pub directory: bool,
+    pub header: Arc<Header>,
     pub entry: bool,
 }
 pub(in crate::filesystem) struct InvalidationBatch {
@@ -56,14 +53,14 @@ pub(in crate::filesystem) struct InvalidationBatch {
     pub next: InvalidationCursor,
     pub complete: bool,
 }
-fn key(scope: Arc<Scope>, item: &str, inode: u64) -> Key {
-    Key {
+fn key(scope: Arc<Scope>, item: &str, inode: u64) -> Arc<Key> {
+    Arc::new(Key {
         scope,
         item: item.into(),
         inode,
-    }
+    })
 }
-fn keys(view: &View) -> impl Iterator<Item = Key> {
+pub(super) fn keys(view: &View) -> (Arc<Key>, Option<Arc<Key>>) {
     let primary = key(view.scope.clone(), &view.node.id, view.inode);
     let source = view.entry.as_ref().and_then(|entry| {
         view.alias.last().map(|(collection, _)| {
@@ -72,21 +69,23 @@ fn keys(view: &View) -> impl Iterator<Item = Key> {
             key(scope.into(), &entry.id, view.inode)
         })
     });
-    std::iter::once(primary).chain(source)
+    (primary, source)
 }
 impl ProjectionIndex {
     #[cfg(test)]
-    pub(super) fn counts(&self) -> (usize, usize) {
-        (self.identities.len(), self.all.len())
+    pub(super) fn count(&self) -> usize {
+        self.identities.len()
     }
-    pub(super) fn insert(&mut self, view: &View) {
-        self.all.insert(view.inode);
-        self.identities.extend(keys(view));
+    pub(super) fn insert(&mut self, view: &Header) {
+        self.identities.insert(view.primary.clone());
+        if let Some(key) = &view.source {
+            self.identities.insert(key.clone());
+        }
     }
-    pub(super) fn remove(&mut self, view: &View) {
-        self.all.remove(&view.inode);
-        for key in keys(view) {
-            self.identities.remove(&key);
+    pub(super) fn remove(&mut self, view: &Header) {
+        self.identities.remove(&view.primary);
+        if let Some(key) = &view.source {
+            self.identities.remove(key);
         }
     }
 }
@@ -110,20 +109,16 @@ impl NamespaceViews {
             let Some(view) = self.get(&inode) else {
                 return true;
             };
-            if change.is_some_and(|c| c.kind == MetadataChangeKind::Directory)
-                && view.node.kind != NodeKind::Folder
-            {
+            if change.is_some_and(|c| c.kind == MetadataChangeKind::Directory) && !view.directory {
                 return true;
             }
-            if !entries.is_empty() && bytes + view.name.len() > BYTES {
+            if !entries.is_empty() && bytes + view.name_bytes > BYTES {
                 return false;
             }
-            bytes += view.name.len();
+            bytes += view.name_bytes;
             entries.push(Invalidation {
                 inode,
-                parent: view.parent,
-                name: view.name.clone(),
-                directory: view.node.kind == NodeKind::Folder,
+                header: view.clone(),
                 entry: !change.is_some_and(|c| c.kind == MetadataChangeKind::Directory),
             });
             true
@@ -162,7 +157,7 @@ impl NamespaceViews {
             }
         } else {
             let start = cursor.inode.map_or(Bound::Unbounded, Bound::Excluded);
-            for inode in self.invalidation.all.range((start, Bound::Unbounded)) {
+            for (inode, _) in self.entries.range((start, Bound::Unbounded)) {
                 if visited == ENTRIES || !push(*inode) {
                     complete = false;
                     break;
@@ -258,10 +253,12 @@ mod tests {
         let first = cache.invalidation_batch(None, InvalidationCursor::default());
         assert!(!first.complete);
         drop(held);
+        // A pending notification batch now pins its captured records until sent.
+        drop(first.entries);
         cache.collect(4096);
         let next = cache.invalidation_batch(None, first.next);
         assert!(next.complete);
         assert!(next.entries.is_empty());
-        assert_eq!(cache.invalidation.all.len(), 1);
+        assert_eq!(cache.entries.len(), 1);
     }
 }

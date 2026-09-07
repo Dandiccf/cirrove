@@ -22,9 +22,8 @@ entry conservatively. A queued collector checks at most 4,096 candidates per sec
 
 This is growth with projected entries and revisions visited during the mount, not
 automatic materialization of every item merely because the index contains 500,000
-files. Required ancestor chains remain protected, and kernel-referenced views
-cannot yet shed their full metadata payloads. Full namespace lifetime remains a
-scalability gap. The content-cache quota does
+files. Required ancestor chains remain protected, and compact kernel-referenced records still scale with live projections. Full
+namespace capacity remains an acceptance gap. The content-cache quota does
 not limit these allocations. Metadata invalidation now uses revision and live-projection
 indexes. Local or recovery sweeps still visit all live entries, but copy only bounded
 batches.
@@ -270,3 +269,38 @@ reconstruction and streaming of remaining compatibility/writable consumers remai
 unimplemented. Targeted invalidation has narrow synthetic coverage;
 combined and sustained acceptance remains open. Planned limits must not be advertised
 as supported capacity until their tests pass.
+
+## Paged live payloads — under validation
+
+Resolved entries now retain compact headers and immutable anonymous-file records
+instead of complete View payloads. A 16 MiB accounted LRU cache can evict metadata
+while kernel references, queued callbacks and parent chains remain valid. Old captures
+retain their original record across replacement; hydrated handles own their original
+payload. Neither cache entries nor retirement queues hold residency leases.
+The inode map is ordered and supplies full invalidation traversal directly; shared
+identity keys allow index removal without loading records under the namespace lock.
+Notification batches capture at most 128 headers under the existing name-byte bound,
+then load names and notify outside that lock. Ancestor capture also releases the lock
+before hydration. No new dependency or persistent schema migration is required.
+
+The anonymous file is created on the account-state filesystem. SQLite TEMP was
+rejected for this payload path because its global temporary location can be tmpfs;
+reducing process RSS by moving payloads to RAM-backed temporary files would not
+establish host-memory acceptance. A state directory on tmpfs has that same limitation.
+The file has a 1 GiB extent budget, 1,000,000 live/pending records and 4 MiB per encoded
+payload. Power-of-two extents split/coalesce for reuse, with a 512-byte minimum.
+Immutable length/checksum records cannot overwrite other live users; failed writes
+release only unpublished allocations. The final descriptor releases the unlinked
+file, including on process exit. Retirement processes up to 4,096 extents per pass.
+
+The cache charges requested payload allocations conservatively per entry, including
+shared values. Compact headers/indexes, active users, allocator overhead and kernel
+page cache are additional. These limits do not mean a 16 MiB namespace or total
+process limit. Reclamation revisits ancestors released by children within its existing
+4,096-examination budget, stopping after a pass without removals; a deep chain need
+not wait one second per ancestor after a notification batch drops.
+
+The implementation still needs combined large-library and sustained acceptance.
+The representation fixture now includes anonymous-file I/O and reports cache/storage
+diagnostics; older measurements retain their original scope. Population timings
+must not be compared as if the workload were unchanged.

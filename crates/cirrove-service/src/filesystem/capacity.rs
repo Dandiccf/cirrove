@@ -352,7 +352,7 @@ async fn real_resolved_file_views_retire_after_kernel_and_open_references() {
             .lock()
             .unwrap()
             .values()
-            .filter(|view| view.node.kind == NodeKind::File)
+            .filter(|view| !view.directory)
             .count();
         if remaining == 1 {
             break;
@@ -378,12 +378,7 @@ async fn real_resolved_file_views_retire_after_kernel_and_open_references() {
     loop {
         engine.changed.notify_one();
         if inner.files.lock().unwrap().is_empty()
-            && inner
-                .views
-                .lock()
-                .unwrap()
-                .values()
-                .all(|v| v.node.kind != NodeKind::File)
+            && inner.views.lock().unwrap().values().all(|v| v.directory)
         {
             break;
         }
@@ -628,7 +623,7 @@ mod parents;
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires synthetic FUSE; deep directories, held snapshots and duplicate aliases"]
 async fn real_directory_ancestry_retires_after_last_kernel_snapshot_and_file_user() {
-    parents::directories_and_aliases().await;
+    parents::directories_and_aliases(false).await;
 }
 
 mod cold;
@@ -822,7 +817,7 @@ async fn real_targeted_invalidations_preserve_unrelated_cached_views() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "actual synthetic FUSE; target/source alias changes and scope reset"]
 async fn real_targeted_alias_invalidations_preserve_open_versions() {
-    parents::targeted_aliases().await;
+    parents::targeted_aliases(false).await;
 }
 
 mod projections;
@@ -833,4 +828,11 @@ mod churn;
 #[ignore = "actual synthetic kernel FUSE; deep aliases, every-file stat, held versions and churn"]
 async fn real_combined_namespace_churn() {
     churn::mounted().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "actual synthetic FUSE; force payload disk reads for deep/alias/old-version lifetimes"]
+async fn real_evicted_projection_payloads_preserve_held_routes_and_versions() {
+    parents::directories_and_aliases(true).await;
+    parents::targeted_aliases(true).await;
 }

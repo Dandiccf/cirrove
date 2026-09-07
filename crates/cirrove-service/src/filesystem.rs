@@ -6,6 +6,7 @@ mod capacity;
 mod directories;
 mod invalidation;
 mod lifecycle;
+mod payloads;
 mod residency;
 use residency::{LookupRefs, NamespaceViews};
 mod session;
@@ -42,6 +43,10 @@ struct View {
     _parent_residency: Option<Arc<LookupRefs>>,
     inode: u64,
     parent: u64,
+    data: Arc<Projection>,
+}
+#[derive(Clone)]
+struct Projection {
     // Immutable metadata is shared by operations/open handles. Sibling files
     // also share their unchanged scope, alias route and ancestry.
     scope: Arc<Scope>,
@@ -52,6 +57,18 @@ struct View {
     entry: Option<Arc<Node>>,
     ancestry: Arc<Vec<(String, String)>>,
 }
+impl std::ops::Deref for View {
+    type Target = Projection;
+    fn deref(&self) -> &Projection {
+        &self.data
+    }
+}
+impl std::ops::DerefMut for View {
+    fn deref_mut(&mut self) -> &mut Projection {
+        Arc::make_mut(&mut self.data)
+    }
+}
+
 #[derive(Clone)]
 struct OpenFile {
     view: View,
@@ -73,6 +90,7 @@ struct Inner {
     edits: lifecycle::EditAdmission,
     runtime: Handle,
     views: Mutex<NamespaceViews>,
+    payloads: Arc<payloads::Store>,
     invalidation_metrics: invalidation::InvalidationMetrics,
     files: Mutex<HashMap<u64, Arc<OpenFile>>>,
     directories: Mutex<HashMap<u64, Arc<OpenDirectory>>>,
@@ -156,14 +174,23 @@ impl CloudFs {
             _parent_residency: None,
             inode: 1,
             parent: 1,
-            ancestry: vec![(scope.collection.clone(), root.id.clone())].into(),
-            scope: scope.into(),
-            node: root.into(),
-            name: engine.account.label.as_str().into(),
-            alias: vec![].into(),
-            reference: false,
-            entry: None,
+            data: Arc::new(Projection {
+                ancestry: vec![(scope.collection.clone(), root.id.clone())].into(),
+                scope: scope.into(),
+                node: root.into(),
+                name: engine.account.label.as_str().into(),
+                alias: vec![].into(),
+                reference: false,
+                entry: None,
+            }),
         };
+        let payloads = payloads::Store::new(
+            engine
+                .db
+                .parent()
+                .ok_or_else(|| std::io::Error::other("missing account state directory"))?,
+        )?;
+        let root_record = payloads.save(root.data.clone())?;
         Ok(Self {
             inner: Arc::new(Inner {
                 cancel: engine.cancel.child_token(),
@@ -171,7 +198,8 @@ impl CloudFs {
                 writeback: None,
                 edits: lifecycle::EditAdmission::new(),
                 runtime: Handle::current(),
-                views: Mutex::new(NamespaceViews::new(root)),
+                views: Mutex::new(NamespaceViews::new(root, root_record)),
+                payloads,
                 invalidation_metrics: invalidation::InvalidationMetrics::default(),
                 files: Mutex::new(HashMap::new()),
                 directories: Mutex::new(HashMap::new()),
@@ -201,6 +229,10 @@ impl CloudFs {
                     _ = inner.cancel.cancelled() => break,
                     _ = tick.tick() => {
                         if let Ok(mut views) = inner.views.lock() { views.collect(4096); }
+                        let payloads = inner.payloads.clone();
+                        if !matches!(tokio::task::spawn_blocking(move || payloads.collect()).await, Ok(Ok(()))) {
+                            tracing::warn!("projection storage cleanup failed");
+                        }
                     }
                 }
             }
@@ -242,13 +274,30 @@ impl Inner {
             .map_err(|_| ProviderError::Unavailable)?
             .acquire_lookup(inode)
     }
-    fn view(&self, inode: u64) -> Result<View, ProviderError> {
+    fn capture(&self, inode: u64) -> Result<Arc<residency::Header>, Errno> {
         self.views
             .lock()
-            .map_err(|_| ProviderError::Unavailable)?
+            .map_err(|_| Errno::EIO)?
             .get(&inode)
             .cloned()
-            .ok_or(ProviderError::NotFound)
+            .ok_or(Errno::ENOENT)
+    }
+    async fn resolve(captured: Arc<residency::Header>) -> Result<View, Errno> {
+        tokio::task::spawn_blocking(move || captured.load())
+            .await
+            .map_err(|_| Errno::EIO)?
+            .map_err(|e| {
+                if e.raw_os_error() == Some(libc::ENOSPC) {
+                    Errno::ENOSPC
+                } else {
+                    Errno::EIO
+                }
+            })
+    }
+    #[cfg(test)]
+    fn view(&self, inode: u64) -> Result<View, Errno> {
+        let captured = self.capture(inode)?;
+        captured.load().map_err(|_| Errno::EIO)
     }
     fn project(parent: &View, child: Node) -> Result<View, ProviderError> {
         if child.name.is_empty()
@@ -289,13 +338,15 @@ impl Inner {
             _parent_residency: Some(parent.residency.clone()),
             inode: 0,
             parent: parent.inode,
-            scope,
-            node: node.into(),
-            name,
-            alias,
-            reference: entry.is_some(),
-            entry,
-            ancestry,
+            data: Arc::new(Projection {
+                scope,
+                node: node.into(),
+                name,
+                alias,
+                reference: entry.is_some(),
+                entry,
+                ancestry,
+            }),
         };
         Ok(view)
     }
@@ -320,46 +371,56 @@ impl Inner {
         }
         .map_err(|_| ProviderError::Unavailable)
     }
-    async fn insert(&self, parent: &View, child: Node) -> Result<View, ProviderError> {
-        let mut view = Self::project(parent, child)?;
+    async fn insert(&self, parent: &View, child: Node) -> Result<View, Errno> {
+        let mut view = Self::project(parent, child).map_err(|e| errno(&e))?;
         if view.reference {
             let (local, retained) = match &self.writeback {
-                Some(writer) => writer
-                    .reference_view(&view.scope, &view.node.id)
-                    .map_err(|e| {
-                        if e == Errno::ENOENT {
-                            ProviderError::NotFound
-                        } else {
-                            ProviderError::Unavailable
-                        }
-                    })?,
+                Some(writer) => writer.reference_view(&view.scope, &view.node.id)?,
                 None => (None, false),
             };
             if let Some(local) = local {
                 Arc::make_mut(&mut view.node).id = local;
-                view.node = self.node(&view).await?.into();
+                view.node = self.node(&view).await.map_err(|e| errno(&e))?.into();
             } else if view.node.kind == NodeKind::Folder && retained {
                 // A retained shortcut is the local route to an absent target
                 // root. Its directory view remains traversable without metadata.
             } else {
-                view.node = self.engine.node(&view.scope, &view.node.id).await?.into();
+                view.node = self
+                    .engine
+                    .node(&view.scope, &view.node.id)
+                    .await
+                    .map_err(|e| errno(&e))?
+                    .into();
             }
         }
-        let key = Self::inode_key(&view, self.writeback.is_some())?;
+        let key = Self::inode_key(&view, self.writeback.is_some()).map_err(|e| errno(&e))?;
         let db = self.engine.db.clone();
         view.inode = tokio::task::spawn_blocking(move || Store::open(db)?.inode(&key))
             .await
-            .map_err(|_| ProviderError::Unavailable)?
-            .map_err(|_| ProviderError::Unavailable)?;
+            .map_err(|_| Errno::EIO)?
+            .map_err(|_| Errno::EIO)?;
+        let payloads = self.payloads.clone();
+        let data = view.data.clone();
+        let record = tokio::task::spawn_blocking(move || payloads.save(data))
+            .await
+            .map_err(|_| Errno::EIO)?
+            .map_err(|e| {
+                if e.raw_os_error() == Some(libc::ENOSPC) {
+                    Errno::ENOSPC
+                } else {
+                    Errno::EIO
+                }
+            })?;
         self.views
             .lock()
-            .map_err(|_| ProviderError::Unavailable)?
-            .insert(view)
+            .map_err(|_| Errno::EIO)?
+            .publish(view, record)
+            .map_err(|e| errno(&e))
     }
     async fn listing(&self, parent: &View) -> Result<OpenDirectory, Errno> {
         let route = [
             parent.clone(),
-            self.view(parent.parent).map_err(|e| errno(&e))?,
+            Self::resolve(self.capture(parent.parent)?).await?,
         ];
         let db = self.engine.db.clone();
         let budget = self.directory_budget.clone();
@@ -618,10 +679,10 @@ impl Filesystem for CloudFs {
         };
         let inner = self.inner.clone();
         // Capture residency before dispatch, including its ancestor leases.
-        let parent = match inner.view(parent.0) {
+        let parent = match inner.capture(parent.0) {
             Ok(view) => view,
             Err(error) => {
-                reply.error(errno(&error));
+                reply.error(error);
                 return;
             }
         };
@@ -629,25 +690,28 @@ impl Filesystem for CloudFs {
         self.inner.runtime.spawn(async move {
             let _permit = permit;
             let result = async {
+                let parent = Inner::resolve(parent).await?;
                 let node = if inner.writeback.is_none() {
-                    let name = name.to_str().ok_or(ProviderError::NotFound)?;
+                    let name = name.to_str().ok_or(Errno::ENOENT)?;
                     inner
                         .engine
                         .child(&parent.scope, &parent.node.id, name)
-                        .await?
+                        .await
+                        .map_err(|e| errno(&e))?
                 } else {
                     // Pending local edits, aliases and retained recovery routes
                     // must participate in the writable namespace lookup.
                     inner
                         .children(&parent)
-                        .await?
+                        .await
+                        .map_err(|e| errno(&e))?
                         .into_iter()
                         .find(|n| OsStr::new(&n.name) == name)
-                        .ok_or(ProviderError::NotFound)?
+                        .ok_or(Errno::ENOENT)?
                 };
                 let view = inner.insert(&parent, node).await?;
-                let node = inner.node(&view).await?;
-                Ok::<_, ProviderError>((view, node))
+                let node = inner.node(&view).await.map_err(|e| errno(&e))?;
+                Ok::<_, Errno>((view, node))
             }
             .await;
             match result {
@@ -655,7 +719,7 @@ impl Filesystem for CloudFs {
                     Ok(()) => reply.entry(&TTL, &inner.attr(&view, &node), Generation(0)),
                     Err(error) => reply.error(errno(&error)),
                 },
-                Err(e) => reply.error(errno(&e)),
+                Err(e) => reply.error(e),
             }
         });
     }
@@ -665,23 +729,24 @@ impl Filesystem for CloudFs {
             return;
         };
         let inner = self.inner.clone();
-        let view = match inner.view(inode.0) {
+        let view = match inner.capture(inode.0) {
             Ok(view) => view,
             Err(error) => {
-                reply.error(errno(&error));
+                reply.error(error);
                 return;
             }
         };
         self.inner.runtime.spawn(async move {
             let _permit = permit;
             let result = async {
-                let node = inner.node(&view).await?;
-                Ok::<_, ProviderError>((view, node))
+                let view = Inner::resolve(view).await?;
+                let node = inner.node(&view).await.map_err(|e| errno(&e))?;
+                Ok::<_, Errno>((view, node))
             }
             .await;
             match result {
                 Ok((view, node)) => reply.attr(&TTL, &inner.attr(&view, &node)),
-                Err(e) => reply.error(errno(&e)),
+                Err(e) => reply.error(e),
             }
         });
     }
@@ -712,10 +777,10 @@ impl Filesystem for CloudFs {
         };
         let inner = self.inner.clone();
         // Capture residency before dispatch, including its ancestor leases.
-        let parent = match inner.view(parent.0) {
+        let parent = match inner.capture(parent.0) {
             Ok(view) => view,
             Err(error) => {
-                reply.error(errno(&error));
+                reply.error(error);
                 return;
             }
         };
@@ -723,6 +788,7 @@ impl Filesystem for CloudFs {
             let _permit = permit;
             let _admission = admission;
             let result = async {
+                let parent = Inner::resolve(parent).await?;
                 if parent.node.kind != NodeKind::Folder {
                     return Err(Errno::ENOTDIR);
                 }
@@ -740,10 +806,7 @@ impl Filesystem for CloudFs {
                     .create_directory(parent.scope.as_ref().clone(), parent.node.id.clone(), name)
                     .await
                     .map_err(|e| if e == Errno::ESTALE { Errno::EEXIST } else { e })?;
-                let view = inner
-                    .insert(&parent, node.clone())
-                    .await
-                    .map_err(|e| errno(&e))?;
+                let view = inner.insert(&parent, node.clone()).await?;
                 inner.engine.changed.notify_waiters();
                 let attr = inner.attr(&view, &node);
                 Ok::<_, Errno>((view, attr))
@@ -790,10 +853,10 @@ impl Filesystem for CloudFs {
         };
         let inner = self.inner.clone();
         // Capture residency before dispatch, including its ancestor leases.
-        let parent = match inner.view(parent.0) {
+        let parent = match inner.capture(parent.0) {
             Ok(view) => view,
             Err(error) => {
-                reply.error(errno(&error));
+                reply.error(error);
                 return;
             }
         };
@@ -801,6 +864,7 @@ impl Filesystem for CloudFs {
             let _permit = permit;
             let _admission = admission;
             let result = async {
+                let parent = Inner::resolve(parent).await?;
                 let nodes = inner.children(&parent).await.map_err(|e| errno(&e))?;
                 if nodes
                     .iter()
@@ -827,10 +891,7 @@ impl Filesystem for CloudFs {
                 let lease = writer
                     .lease(&parent.scope, &record.node.id, &inner.cancel)
                     .await?;
-                let view = inner
-                    .insert(&parent, record.node.clone())
-                    .await
-                    .map_err(|e| errno(&e))?;
+                let view = inner.insert(&parent, record.node.clone()).await?;
                 let attr = inner.attr(&view, &record.node);
                 let handle = inner.handle();
                 writer.publish_open(
@@ -900,17 +961,17 @@ impl Filesystem for CloudFs {
         };
         let inner = self.inner.clone();
         // Capture residency before dispatch, including its ancestor leases.
-        let parent = match inner.view(parent.0) {
+        let parent = match inner.capture(parent.0) {
             Ok(view) => view,
             Err(error) => {
-                reply.error(errno(&error));
+                reply.error(error);
                 return;
             }
         };
-        let destination = match inner.view(newparent.0) {
+        let destination = match inner.capture(newparent.0) {
             Ok(view) => view,
             Err(error) => {
-                reply.error(errno(&error));
+                reply.error(error);
                 return;
             }
         };
@@ -918,6 +979,8 @@ impl Filesystem for CloudFs {
             let _permit = permit;
             let _admission = admission;
             let result = async {
+                let parent = Inner::resolve(parent).await?;
+                let destination = Inner::resolve(destination).await?;
                 if parent.scope != destination.scope || parent.alias != destination.alias {
                     return Err(Errno::EXDEV);
                 }
@@ -972,10 +1035,7 @@ impl Filesystem for CloudFs {
                             victim.clone(),
                         )
                         .await?;
-                    inner
-                        .insert(&destination, moved)
-                        .await
-                        .map_err(|e| errno(&e))?;
+                    inner.insert(&destination, moved).await?;
                     return Ok(());
                 }
                 let moved = writer
@@ -988,10 +1048,7 @@ impl Filesystem for CloudFs {
                         newname,
                     )
                     .await?;
-                inner
-                    .insert(&destination, moved)
-                    .await
-                    .map_err(|e| errno(&e))?;
+                inner.insert(&destination, moved).await?;
                 inner.engine.changed.notify_waiters();
                 Ok::<_, Errno>(())
             }
@@ -1021,10 +1078,10 @@ impl Filesystem for CloudFs {
         };
         let inner = self.inner.clone();
         // Capture residency before dispatch, including its ancestor leases.
-        let parent = match inner.view(parent.0) {
+        let parent = match inner.capture(parent.0) {
             Ok(view) => view,
             Err(error) => {
-                reply.error(errno(&error));
+                reply.error(error);
                 return;
             }
         };
@@ -1032,6 +1089,7 @@ impl Filesystem for CloudFs {
             let _permit = permit;
             let _admission = admission;
             let result = async {
+                let parent = Inner::resolve(parent).await?;
                 if parent.node.kind != NodeKind::Folder {
                     return Err(Errno::ENOTDIR);
                 }
@@ -1048,7 +1106,7 @@ impl Filesystem for CloudFs {
                 if source.target.is_some() {
                     return Err(Errno::EOPNOTSUPP);
                 }
-                let view = inner.insert(&parent, source).await.map_err(|e| errno(&e))?;
+                let view = inner.insert(&parent, source).await?;
                 writer.unlink(&inner, view).await
             }
             .await;
@@ -1181,10 +1239,10 @@ impl Filesystem for CloudFs {
             };
             (Some(file), None)
         } else {
-            let view = match inner.view(ino.0) {
+            let view = match inner.capture(ino.0) {
                 Ok(view) => view,
                 Err(error) => {
-                    reply.error(errno(&error));
+                    reply.error(error);
                     return;
                 }
             };
@@ -1204,7 +1262,7 @@ impl Filesystem for CloudFs {
                     let record = writer.truncate(working.id, size).await?;
                     return Ok(inner.attr(&file.view, &record.node));
                 }
-                let view = path_view.ok_or(Errno::EIO)?;
+                let view = Inner::resolve(path_view.ok_or(Errno::EIO)?).await?;
                 if writer.is_unlinked(&view.scope, &view.node.id)? {
                     return Err(Errno::ENOENT);
                 }
@@ -1237,16 +1295,16 @@ impl Filesystem for CloudFs {
     ) {
         // Ordinary desktop probes are not filesystem failures. Per-file Cirrove
         // status attributes will be provided by the later desktop integration.
-        match self.inner.view(inode.0) {
+        match self.inner.capture(inode.0) {
             Ok(_) => reply.error(Errno::ENODATA),
-            Err(error) => reply.error(errno(&error)),
+            Err(error) => reply.error(error),
         }
     }
     fn listxattr(&self, _req: &Request, inode: INodeNo, size: u32, reply: ReplyXattr) {
-        match self.inner.view(inode.0) {
+        match self.inner.capture(inode.0) {
             Ok(_) if size == 0 => reply.size(0),
             Ok(_) => reply.data(&[]),
-            Err(error) => reply.error(errno(&error)),
+            Err(error) => reply.error(error),
         }
     }
     fn flush(
@@ -1301,10 +1359,10 @@ impl Filesystem for CloudFs {
             None
         };
         let inner = self.inner.clone();
-        let mut view = match inner.view(inode.0) {
+        let view = match inner.capture(inode.0) {
             Ok(view) => view,
             Err(error) => {
-                reply.error(errno(&error));
+                reply.error(error);
                 return;
             }
         };
@@ -1312,6 +1370,7 @@ impl Filesystem for CloudFs {
             let _permit = permit;
             let _admission = admission;
             let result = async {
+                let mut view = Inner::resolve(view).await?;
                 let lease = match &inner.writeback {
                     Some(writer) => Some(
                         writer
@@ -1471,16 +1530,21 @@ impl Filesystem for CloudFs {
             return;
         };
         let inner = self.inner.clone();
-        let parent = match inner.view(inode.0) {
+        let parent = match inner.capture(inode.0) {
             Ok(view) => view,
             Err(error) => {
-                reply.error(errno(&error));
+                reply.error(error);
                 return;
             }
         };
         self.inner.runtime.spawn(async move {
             let _permit = permit;
-            match inner.listing(&parent).await {
+            let result = async {
+                let parent = Inner::resolve(parent).await?;
+                inner.listing(&parent).await
+            }
+            .await;
+            match result {
                 Ok(entries) => {
                     let handle = inner.handle();
                     match inner.directories.lock() {

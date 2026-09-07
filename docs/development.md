@@ -359,7 +359,9 @@ use isolated state and do not upgrade an installed account.
 ### Shared projection payloads
 
 The representation benchmark uses the real projection, reverse index and residency
-code in one process, without a kernel mount, SQLite or provider calls. It retains
+code in one process, including anonymous-file payload storage, without a kernel
+mount or provider calls. Older benchmark artifacts predate payload paging and retain
+their original workload scope. It retains
 three 12-level routes (ordinary plus two shortcut aliases), takes 32 extra view
 clones, then releases references and checks retirement to the root. Run each size
 in a fresh release process; process RSS after retirement includes allocator retention.

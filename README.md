@@ -53,7 +53,9 @@ and Nautilus badges are not implemented.
   open/operation/child leases end; retained children protect their ancestor routes.
   Immutable scope, alias/ancestry routes and node payloads are shared across resolved
   view clones; sibling files reuse their unchanged routes.
-  View byte budgets, remaining full-list consumers and long-session capacity retain an open
+  Live projection metadata now has a 16 MiB accounted cache backed by private
+  anonymous records on the account-state filesystem; compact identities and active users consume additional
+  memory. Total-memory acceptance, remaining full-list consumers and long-session capacity retain an open
   [namespace memory gate](docs/adr/0005-namespace-memory.md).
 - Version-checked 4 MiB range cache, concurrent-request coalescing, checksums,
   bounded eviction and interrupted-publication recovery. An explicit developer

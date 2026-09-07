@@ -20,22 +20,27 @@ fn shared_projection_payload_baseline() {
         _parent_residency: None,
         inode: 1,
         parent: 1,
-        scope: Scope {
-            account: "synthetic-account-with-a-stable-identity".into(),
-            provider: "synthetic-projection-fixture".into(),
-            collection: "primary-synthetic-collection".into(),
-        }
-        .into(),
-        ancestry: vec![("primary-synthetic-collection".into(), "root".into())].into(),
-        node: node.into(),
-        name: "root".into(),
-        alias: vec![].into(),
-        reference: false,
-        entry: None,
+        data: Arc::new(super::super::Projection {
+            scope: Scope {
+                account: "synthetic-account-with-a-stable-identity".into(),
+                provider: "synthetic-projection-fixture".into(),
+                collection: "primary-synthetic-collection".into(),
+            }
+            .into(),
+            ancestry: vec![("primary-synthetic-collection".into(), "root".into())].into(),
+            node: node.into(),
+            name: "root".into(),
+            alias: vec![].into(),
+            reference: false,
+            entry: None,
+        }),
     };
     let before = process_memory();
     let start = Instant::now();
-    let mut views = NamespaceViews::new(root.clone());
+    let directory = tempfile::tempdir_in(std::env::current_dir().unwrap()).unwrap();
+    let payloads = super::super::payloads::Store::new(directory.path()).unwrap();
+    let record = payloads.save(root.data.clone()).unwrap();
+    let mut views = NamespaceViews::new(root.clone(), record);
     let mut inode = 2;
     let mut parents = Vec::new();
     for route in 0..3 {
@@ -105,6 +110,10 @@ fn shared_projection_payload_baseline() {
         views.collect(4096);
     }
     assert_eq!(views.len(), 1);
+    for _ in 0..files.div_ceil(4096) + 64 {
+        payloads.collect().unwrap();
+    }
+    assert_eq!(payloads.usage().2, 1);
     println!(
         "CIRROVE_PROJECTION_PAYLOAD {}",
         serde_json::json!({
@@ -113,7 +122,8 @@ fn shared_projection_payload_baseline() {
             "populated":populated,"after_retirement":process_memory(),
             "retained_views":views.len(),"populate_ms":elapsed_ms,
             "build":if cfg!(debug_assertions){"debug"}else{"release"},
-            "scope":"in-process production projection/index/lifetime code; no kernel, SQLite or provider calls"
+            "scope":"in-process production projection/index/lifetime and anonymous account-local payload storage; no kernel or provider calls",
+            "payload_cache":payloads.diagnostics()
         })
     );
 }
