@@ -17,6 +17,7 @@ use tokio::{
 
 pub const BLOCK_SIZE: u32 = 4 * 1024 * 1024;
 const MEMORY_BLOCKS: usize = 8;
+const RANGE_TIMEOUT: Duration = Duration::from_secs(30);
 type MemoryBlocks = HashMap<String, (Arc<Vec<u8>>, Instant)>;
 pub struct ContentCache {
     path: PathBuf,
@@ -153,10 +154,15 @@ impl ContentCache {
             self.touch(key, expected as u64 + 32).await?;
             return Ok(bytes);
         }
-        let bytes = match provider
-            .read_range(scope, node, start, BLOCK_SIZE, cancel)
-            .await
-        {
+        // Enforce cancellation/deadlines at the shared service boundary even if
+        // an adapter ignores the supplied token. Only provider I/O is abandoned;
+        // the subsequent local cache publication is awaited to completion.
+        let received = tokio::select! { biased;
+            _=cancel.cancelled()=>Err(ProviderError::Cancelled),
+            result=tokio::time::timeout(RANGE_TIMEOUT,provider.read_range(scope,node,start,BLOCK_SIZE,cancel))=>
+                result.unwrap_or(Err(ProviderError::Unavailable)),
+        };
+        let bytes = match received {
             Ok(bytes) => bytes,
             Err(error) => {
                 if !matches!(error, ProviderError::Cancelled) {

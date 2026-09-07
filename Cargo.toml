@@ -1,5 +1,13 @@
 [workspace]
 members = ["crates/*"]
+# A plain root build needs no desktop toolchain. Contributor/CI checks use --workspace.
+default-members = [
+    "crates/cirrove-auth",
+    "crates/cirrove-core",
+    "crates/cirrove-onedrive",
+    "crates/cirrove-service",
+    "crates/cirrove-store",
+]
 resolver = "3"
 
 [workspace.package]
@@ -14,6 +22,7 @@ cirrove-core = { path = "crates/cirrove-core" }
 cirrove-store = { path = "crates/cirrove-store" }
 cirrove-onedrive = { path = "crates/cirrove-onedrive" }
 cirrove-auth = { path = "crates/cirrove-auth" }
+cirrove-service = { path = "crates/cirrove-service" }
 anyhow = "1.0"
 async-trait = "0.1"
 clap = { version = "4.6", features = ["derive"] }

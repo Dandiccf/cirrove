@@ -3,7 +3,7 @@
 use crate::{
     accounts::{Account, Settings, provider},
     engine::{Engine, FeedHealth},
-    filesystem::CloudFs,
+    filesystem::{CloudFs, CloudSession},
 };
 use anyhow::{Result, bail};
 use cirrove_core::{CancellationToken, ReadProvider};
@@ -18,6 +18,16 @@ use tokio::sync::RwLock;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AccountStatus {
+    /// Stable settings identity for desktop actions. Older daemon responses omit it.
+    #[serde(default)]
+    pub account_id: String,
+    #[serde(default)]
+    pub drive_id: String,
+    #[serde(default)]
+    pub root_id: String,
+    /// Desired state observed by this manager, not an acknowledgement of a UI click.
+    #[serde(default)]
+    pub enabled: bool,
     pub label: String,
     pub account: String,
     pub tenant: String,
@@ -26,6 +36,8 @@ pub struct AccountStatus {
     pub mounted: bool,
     pub state: String,
     pub feeds: Vec<FeedHealth>,
+    #[serde(default)]
+    pub directory_freshness: crate::DirectoryFreshness,
     pub indexed_feeds: u64,
     pub indexed_items: u64,
 }
@@ -37,7 +49,7 @@ pub struct Manager {
 struct Running {
     config: Account,
     engine: Arc<Engine>,
-    session: Option<fuser::BackgroundSession>,
+    session: Option<CloudSession>,
     mount_error: Option<String>,
 }
 impl Running {
@@ -131,6 +143,10 @@ impl Manager {
                     let mut statuses = vec![];
                     for account in &settings.accounts {
                         let mut status = AccountStatus {
+                            account_id: account.id.clone(),
+                            drive_id: account.drive.id.clone(),
+                            root_id: account.root_id.clone(),
+                            enabled: account.enabled,
                             label: account.label.clone(),
                             account: account.identity.username.clone(),
                             tenant: account.identity.tenant_id.clone(),
@@ -146,6 +162,7 @@ impl Manager {
                                 .into()
                             }),
                             feeds: vec![],
+                            directory_freshness: crate::DirectoryFreshness::default(),
                             indexed_feeds: 0,
                             indexed_items: 0,
                         };
@@ -178,8 +195,8 @@ impl Manager {
                                                 active.mount_error = None;
                                                 status.mounted = true;
                                             }
-                                            Err(_) => {
-                                                active.mount_error=Some("mount unavailable; directory must be empty and unmounted".into());
+                                            Err(error) => {
+                                                active.mount_error = Some(mount_error(&error));
                                             }
                                         }
                                     }
@@ -191,6 +208,7 @@ impl Manager {
                                 }
                             }
                             status.feeds = active.engine.health().await;
+                            status.directory_freshness = active.engine.directory_freshness();
                             let db = active.engine.db.clone();
                             if let Ok(Ok((feeds, items))) = tokio::task::spawn_blocking(move || {
                                 cirrove_store::Store::open(db)?.counts()
@@ -243,10 +261,7 @@ impl Manager {
         }
         let (session, mount_error) = match mount_checked(engine.clone()).await {
             Ok(session) => (Some(session), None),
-            Err(_) => (
-                None,
-                Some("mount unavailable; directory must be empty and unmounted".into()),
-            ),
+            Err(error) => (None, Some(mount_error(&error))),
         };
         Ok(Running {
             config: account,
@@ -256,7 +271,15 @@ impl Manager {
         })
     }
 }
-async fn mount_checked(engine: Arc<Engine>) -> Result<fuser::BackgroundSession> {
+fn mount_error(error: &anyhow::Error) -> String {
+    if let Some(error) = error.downcast_ref::<std::io::Error>()
+        && error.kind() == std::io::ErrorKind::Unsupported
+    {
+        return error.to_string();
+    }
+    "mount unavailable; directory must be empty and unmounted".into()
+}
+async fn mount_checked(engine: Arc<Engine>) -> Result<CloudSession> {
     let path = engine.account.mount_path.clone();
     recover_disconnected_mount(&engine.account).await?;
     // CloudFs captures this async runtime, while filesystem checks and the FUSE

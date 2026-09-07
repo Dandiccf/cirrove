@@ -10,10 +10,12 @@ fetches file content on demand into a bounded disk cache.
 
 **Status: read-only development preview, under validation.** Browser authentication,
 metadata workers and a FUSE mount are implemented. Local synthetic tests exercise
-actual filesystem reads and recovery. Real Microsoft consent, sustained operation
-and provider latency still require validation. Do not replace a trusted cloud
-client with this preview. Writable mounts, pins, tray UI and Nautilus badges are not
-implemented. A separate developer upload worker is undergoing validation.
+actual filesystem reads and recovery. Isolated business-account checks have
+exercised Graph operations; sustained operation and wider account/provider coverage
+remain under validation. Do not replace a trusted cloud
+client with this preview. Ordinary mounts remain read-only. An isolated experimental
+writable filesystem API and upload worker are undergoing validation; pins, tray UI
+and Nautilus badges are not implemented.
 
 ## Current implementation
 
@@ -26,21 +28,83 @@ implemented. A separate developer upload worker is undergoing validation.
   now wake the incremental metadata feed; periodic checks remain a fallback.
   Provider delivery latency is separate from Cirrove's reaction time; see
   [change notifications](docs/adr/0003-change-notifications.md).
+- Bounded revalidation of recently used directories while cached listings remain
+  readable. A single account worker checks up to 32 active directories, respects
+  provider cooldowns and avoids reloading unchanged listings. This complements
+  notifications; it does not guarantee a fixed remote-update latency.
+- Ordered publication of foreground metadata: a delayed response cannot overwrite
+  a newer committed view. Item observations update cached directory entries too;
+  observed absence is kept separately from the completed delta baseline.
 - Linked-drive discovery and shortcut projection with separate target identities.
   Folder-only SharePoint sharing and revoked targets still need live validation.
 - Read-only FUSE projection with persistent directory and content-version inodes,
   including shared read-only and private memory mappings. Directory requests have
   capacity reserved separately from a bounded queue of content reads.
+- Plain directory-listing projections live only until their directory snapshot
+  closes. Regular-file views retire after kernel references and open/operation
+  leases end. Directory ancestry, byte budgets and large-directory paging retain an open
+  [namespace memory gate](docs/adr/0005-namespace-memory.md).
 - Version-checked 4 MiB range cache, concurrent-request coalescing, checksums,
   bounded eviction and interrupted-publication recovery.
 - Private status socket, desired mount state, accidental-ejection remount and
   graceful worker/session shutdown. Settings and metadata persist across runs.
+- Native GTK4/libadwaita account overview with mount controls and opening confirmed
+  mounts in Files. It reads local service status asynchronously and distinguishes
+  saved preferences from completed mount operations. Native sign-in, connection
+  removal and tray integration are still unfinished; see [Desktop preview](docs/desktop.md).
 - Durable upload snapshots, keyring-backed session checkpoints and bounded Graph
   upload fragments, exercised with synthetic HTTP/fault fixtures. An explicit
   [isolated write check](docs/write-validation.md) is available for live validation;
   these workers are not enabled in ordinary mounts. Conditional rename, move,
   folder creation and file deletion now share durable ordering with uploads;
   their isolated checks preserve collisions and uncertain results.
+- Experimental local working files and immutable save generations, with actual
+  synthetic FUSE create/write/truncate/fsync and offline-restart checks. A new save
+  waits for its predecessor's confirmed remote identity and ETag. This API requires
+  an explicitly writable, disabled test account; ordinary mounts do not enable it.
+  Its session starts bounded upload workers automatically and drains accepted local
+  writes before unmounting. An isolated business-drive check passed two actual
+  mounted saves, automatic uploads and independent content verification. Regular-file
+  atomic replacement now has synthetic application checks. Folder creation and
+  nested local saves are also implemented experimentally; folder rename/removal
+  and broader real-application acceptance remain incomplete.
+- Durable local object identities and directory entries separate from optional
+  working bytes. Local stream lookups are separate from provider-binding lookups,
+  so provider aliases cannot redirect existing local views. Experimental mounts
+  can rename and move regular files within one collection without downloading
+  content. Uploads and namespace changes share
+  receipt-based ordering; a lost rename response containing another actor's edit
+  blocks later saves and retains both versions. Folder rename/removal and broader
+  application/provider acceptance remain incomplete.
+- Experimental sessions retire fully acknowledged working copies after the last
+  file user closes, then follow remote edits, moves and deletions while retaining
+  the file's local identity. Cleanup is restartable and preserves pending or
+  conflicted bytes. Acknowledged upload payloads are collected separately from
+  their receipts; alias/history retention still needs large-library validation.
+- Experimental regular-file unlink releases the name locally and queues a
+  conditional cloud deletion. Open handles keep their old stream, including after
+  the name is reused. Reader preservation runs in the background, so a download
+  cannot hold the unlink call's kernel directory lock. Later writes to an unlinked
+  handle stay as local recovery data; their retention and recovery UI remain open.
+- Experimental regular-file replacement supports local and online-only sources.
+  Local names change durably before any source download, while background capture
+  fetches the original cloud version and protects old descriptors. Target upload
+  and source cleanup use their own conditional identities and receipt barriers.
+  Joint publication preserves local streams across chained replacements. Tests
+  exercise actual mounted atomic saves, held reads and interrupted preparation;
+  ordinary desktop editors and broader provider scenarios still need acceptance.
+
+- Experimental folder creation commits its local entry before cloud confirmation.
+  Nested folders, file creation and file-move destinations wait for the parent's
+  confirmed provider identity independently of each file's save sequence. Actual
+  synthetic mounts exercise pending-parent navigation and recovery after restart;
+  live directory workflows remain unvalidated.
+
+- Experimental edits capture their traversed folder/link paths. Those local routes
+  remain visible when a provider removes an ancestor, and survive remount without
+  recreating cloud folders. Resolved file-link targets can use the same local write
+  path; shortcut rename/removal remains unsupported. These cases have synthetic
+  mount coverage and still require live provider/application acceptance.
 
 These are implementation capabilities, not a production-readiness claim. See the
 [validation record](docs/validation.md) for what has actually been tested.
@@ -51,10 +115,18 @@ Requires Linux, Rust 1.98.1 (pinned), a C/C++ build toolchain, CMake and pkg-con
 Rustup installs the toolchain if necessary. SQLite is bundled; HTTPS uses Rustls.
 Mounting additionally needs `/dev/fuse`, `fusermount3` (`fuse3` on Arch), and a kernel
 advertising `FUSE_DIRECT_IO_ALLOW_MMAP`. The mount rejects missing support explicitly.
+The FUSE control filesystem must be mounted at `/sys/fs/fuse/connections` and
+allow its mount owner to open the connection's `abort` control. Cirrove retains
+that descriptor so shutdown can finish even while applications hold files open.
 Browser sign-in needs `xdg-open` and a desktop Secret Service keyring.
+Building the desktop also requires GTK 4.14+ and libadwaita 1.5+ development files
+(`gtk4 libadwaita` on Arch; `libgtk-4-dev libadwaita-1-dev` on Ubuntu 24.04).
+The default `cargo build --locked` builds the service/CLI and core libraries without
+GTK dependencies. Add the desktop explicitly with `cargo build -p cirrove-desktop --locked`,
+or use `cargo build --workspace --locked` to build everything.
 
 ```sh
-cargo build --workspace --locked
+cargo build --locked
 cargo run --locked --bin cirrove -- demo --state-dir "$(mktemp -d)"
 ```
 
@@ -72,6 +144,7 @@ From another terminal:
 ```sh
 ./target/debug/cirrove status
 ./target/debug/cirrove accounts
+./target/debug/cirrove-desktop
 ```
 
 Cirrove uses `$XDG_STATE_HOME/cirrove` (fallback `~/.local/state/cirrove`) and
@@ -93,10 +166,13 @@ The systemd template is supplied separately and is not installed by a build.
 | `cirrove-onedrive` | Microsoft Graph metadata, version-checked ranged reads and experimental resumable uploads |
 | `cirrove-auth` | Microsoft browser authentication, keyring and refresh broker |
 | `cirrove-service` | Daemon, CLI, account workers, FUSE projection and content cache |
+| `cirrove-desktop` | Native account overview and asynchronous service controls |
 
 Read [Architecture](docs/architecture.md), [Roadmap](docs/roadmap.md),
 [OneDrive 1.0 milestones](docs/product-milestones.md),
 [Development](docs/development.md) and [Contributing](CONTRIBUTING.md).
+The [distribution plan](docs/distribution.md) targets native Arch, Debian/Ubuntu
+and Fedora packages; these release/installability gates are not completed yet.
 
 Google Drive is the next planned provider. iCloud requires a separate compatibility
 assessment because its API situation differs. Cirrove does not copy or depend on

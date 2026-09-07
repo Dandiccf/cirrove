@@ -1,5 +1,7 @@
 //! Linux user service and account coordination.
 pub mod accounts;
+mod activity;
+pub use activity::DirectoryFreshness;
 pub mod content;
 pub mod engine;
 pub mod filesystem;
@@ -8,6 +10,7 @@ pub mod manager;
 pub mod mutations;
 pub mod transfers;
 pub mod validation;
+pub mod writable;
 use anyhow::{Context, Result, bail};
 use cirrove_core::{CancellationToken, MetadataProvider, ProviderError, Scope};
 use cirrove_store::Store;
@@ -22,8 +25,13 @@ use tokio::{
     net::{UnixListener, UnixStream},
 };
 
+pub const STATUS_PROTOCOL_VERSION: u32 = 1;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Status {
+    /// Additive desktop control contract; legacy daemons deserialize as zero.
+    #[serde(default)]
+    pub protocol_version: u32,
     pub version: String,
     pub milestone: String,
     pub indexed_feeds: u64,
@@ -204,7 +212,7 @@ pub async fn serve_managed(
                         let accounts=match &manager {Some(m)=>m.status.read().await.clone(),None=>vec![]};
                         if manager.is_some() {feeds=accounts.iter().map(|a|a.indexed_feeds).sum();items=accounts.iter().map(|a|a.indexed_items).sum();}
                         let active_mounts=accounts.iter().filter(|a|a.mounted).count() as u64;
-                        let reply=Status{version:env!("CARGO_PKG_VERSION").into(),milestone:"readonly-preview".into(),indexed_feeds:feeds,indexed_items:items,active_mounts,accounts};
+                        let reply=Status{protocol_version:STATUS_PROTOCOL_VERSION,version:env!("CARGO_PKG_VERSION").into(),milestone:"readonly-preview".into(),indexed_feeds:feeds,indexed_items:items,active_mounts,accounts};
                         stream.write_all(&serde_json::to_vec(&reply)?).await?;
                         Ok::<_,anyhow::Error>(())
                     }).await;

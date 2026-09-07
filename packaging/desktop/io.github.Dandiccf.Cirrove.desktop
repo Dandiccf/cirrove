@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Cirrove
+Comment=Manage cloud drive connections
+Exec=cirrove-desktop
+Icon=folder-remote
+Terminal=false
+Categories=Network;
+StartupNotify=true

@@ -93,12 +93,113 @@ receipts live in `namespace-checks/<UUID>/`. The command does not implement recu
 folder removal, automatic cleanup or writable FUSE. Lost results can need manual
 review; it never treats a failed lookup alone as proof of deletion.
 
+## Check a real notification-session renewal
+
+The notification validator can remain connected for the adapter's real renewal
+interval, without accelerating its clock:
+
+```sh
+./target/debug/cirrove validate-onedrive-notifications \
+  --label upload-validation \
+  --state-dir "$PWD/.local-state/write-validation" \
+  --check-renewal
+```
+
+It first performs the existing create/two-rename notification checks on its own
+unique fixture. It then waits for the healthy subscription's approximately
+50-minute renewal, requires a new subscription to connect, and performs one more
+conditional rename. A fresh notification-triggered delta must contain that change.
+The initial connection must have lasted at least 49 minutes; waiting for renewal
+is bounded at 55 minutes. Keep the process running and the machine awake for the
+check. A failed or interrupted session is incomplete evidence, not a passing renewal.
+
+The command holds the separate validation account's owner lock for its lifetime.
+Other mutation validators must wait for it to finish. Its private event log records
+the waiting, renewal and reconnection stages. It retains its generated cloud folder,
+never modifies the ordinary service, and does not validate suspend/resume or
+application-visible updates after renewal. Those remain separate gates.
+
+## Check directory freshness through an actual mount
+
+Use the same separate, disabled account and explicit write grant, in a desktop
+session with `/dev/fuse`, `fusermount3` and an unlocked Secret Service keyring:
+
+```sh
+./target/debug/cirrove validate-onedrive-freshness \
+  --label upload-validation \
+  --state-dir "$PWD/.local-state/write-validation"
+```
+
+The command creates `Cirrove-Freshness-Validation-<UUID>` and temporarily mounts
+only that new folder, read-only. A validation-only adapter supplies a baseline
+containing just this root and disables notifications; it never requests Graph
+delta or file content. Actual directory listings use the normal Graph adapter,
+service activity worker, metadata store and kernel FUSE projection.
+
+After completing the first real listing, it creates one child folder and renames
+only that child twice, using Unicode names. Each conditional rename first verifies
+that the fixture still has its expected name and parent. The check reads directory
+names through the mount until the change appears. It records acknowledgement-to-
+visibility timing and directory-page counts privately in `freshness-checks/<UUID>/`.
+An additional baseline cannot satisfy a passing check. Results apply to this
+selected drive and small fixture, not large directories or desktop window updates.
+
+The temporary engine and mount stop on success, error, timeout or handled Ctrl+C.
+Generated cloud folders and private evidence remain for review. Account settings,
+the ordinary daemon and its existing mount are not changed. This is directory-only
+validation: it neither establishes content download performance nor enables writes
+through mounted paths. Running it again creates a new fixture; it does not accept
+an existing cloud folder as a mutation target.
+
+## Check application saves through a writable mount
+
+```sh
+./target/debug/cirrove validate-onedrive-writable \
+  --label upload-validation \
+  --state-dir "$PWD/.local-state/write-validation"
+```
+
+This developer-only command requires `python3` for a separate application process,
+plus the same disabled test grant and FUSE prerequisites. It creates a new
+`Cirrove-Mounted-Write-Validation-<UUID>` folder and mounts only that fixture.
+The provider wrapper accepts new files only under the new root and replacements
+and conditional file cleanup only for identities returned by this run's validated
+upload receipts. Scope, original parent, regular-file type, non-shortcut identity
+and non-root target are checked before namespace calls. Existing account files,
+folders and other drives cannot be selected as cleanup targets.
+
+The separate application first creates one Unicode-named file and fsyncs two
+synthetic versions. It then performs two temporary-file atomic replacements,
+reusing the temporary name. Each replacement must preserve the previous open
+descriptor's bytes and zero link count while the new pathname exposes the source
+inode and bytes. The command waits for automatic uploads and conditional source
+cleanup, then independently verifies the cloud destination and source absence.
+
+A third source is uploaded, closed and retired from working storage. The check
+stops the session, reopens its metadata and journal, and remounts the same fixture.
+It verifies that source and target still have no working copies, then performs a
+third atomic replacement. Eight upload receipts and three conditional source
+cleanups must complete; the final cloud listing contains only the test document.
+Local rename/application time is recorded separately from cloud verification time.
+Each session stops on success, error, timeout or handled Ctrl+C. The first mounted
+phase has a five-minute deadline; the remounted phase has a three-minute deadline.
+
+The metadata baseline contains only the generated root; full-account delta/push
+and performance are outside this check. Events, working bytes and immutable saves
+remain in `mounted-write-checks/<UUID>/`. The cloud fixture and final document are
+retained, including on failure; only disposable source files created by this run
+are conditionally deleted as part of the tested replacement. The installed service
+and ordinary read-only mounts are not reconfigured. This does not establish
+ordinary editor/office compatibility, writable folder hierarchies, physical power
+loss recovery or broad personal/business provider coverage. A remount in this
+validator is not a complete-machine restart or an OAuth reauthentication test.
+
 ## Remaining release gates
 
 A passing check covers only its selected account and tested operations. Broader
 concurrent changes (rename, move, delete), actual process interruption, personal and
-business differences, quota/lock failures, and application saves through writable
-FUSE still require validation. If a provider rejects conditional final commit,
+business differences, quota/lock failures, and ordinary application compatibility
+through writable FUSE still require validation. If a provider rejects conditional final commit,
 the adapter stops and retains the local edit; it does not fall back to unconditional
 replacement. See [the save contract](adr/0002-durable-local-edits.md).
 

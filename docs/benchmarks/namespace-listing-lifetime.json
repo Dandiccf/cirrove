@@ -1,0 +1,80 @@
+{
+  "runtime_change": "Directory listing no longer copies plain READDIR projections into Inner.views; benchmark in this source tree.",
+  "baseline": "namespace-baseline.json",
+  "notes": [
+    "Same synthetic generated metadata and actual FUSE traversal workload as baseline.",
+    "Views resolved by LOOKUP/operations are still retained; this is not full FORGET/reclamation support.",
+    "No content reads, foreground provider requests, real cloud data or keyring access.",
+    "No single 500k-entry directory, held-mapping stress or 24-hour churn in this measurement."
+  ],
+  "samples": [
+    {
+      "build": "debug",
+      "directories": 500,
+      "files": 500000,
+      "files_per_directory": 1000,
+      "fixture": "synthetic kernel FUSE; generated metadata, no credentials or content reads",
+      "interpretation": "baseline measurement only; no memory capacity gate is asserted"
+    },
+    {
+      "directory_snapshot_entries": 0,
+      "memory": {
+        "anonymous_pss_kib": 2792,
+        "peak_rss_kib": 21448,
+        "pss_kib": 18906,
+        "rss_kib": 21448
+      },
+      "open_directory_handles": 0,
+      "open_files": 0,
+      "phase": "indexed_baseline",
+      "retained_views": 1,
+      "seconds": 12.098184633,
+      "view_map_capacity": 3
+    },
+    {
+      "directory_snapshot_entries": 0,
+      "memory": {
+        "anonymous_pss_kib": 11748,
+        "peak_rss_kib": 31520,
+        "pss_kib": 28822,
+        "rss_kib": 31520
+      },
+      "open_directory_handles": 0,
+      "open_files": 0,
+      "phase": "closed_after_revision_1",
+      "retained_views": 501,
+      "seconds": 16.005790528,
+      "view_map_capacity": 896
+    },
+    {
+      "directory_snapshot_entries": 0,
+      "memory": {
+        "anonymous_pss_kib": 21880,
+        "peak_rss_kib": 41780,
+        "pss_kib": 38956,
+        "rss_kib": 41780
+      },
+      "open_directory_handles": 0,
+      "open_files": 0,
+      "phase": "closed_after_revision_2",
+      "retained_views": 501,
+      "seconds": 15.881126349,
+      "view_map_capacity": 896
+    },
+    {
+      "directory_snapshot_entries": 0,
+      "memory": {
+        "anonymous_pss_kib": 31192,
+        "peak_rss_kib": 51104,
+        "pss_kib": 48268,
+        "rss_kib": 51092
+      },
+      "open_directory_handles": 0,
+      "open_files": 0,
+      "phase": "closed_after_revision_3",
+      "retained_views": 501,
+      "seconds": 17.372748957,
+      "view_map_capacity": 896
+    }
+  ]
+}

@@ -12,30 +12,79 @@ Private account measurements belong in local records, not the public repository.
 - [ ] Recovery after process failure, suspend/resume and loss of network access.
 - [ ] Real token expiry/refresh and visible reauthentication when consent expires.
 - [ ] Responsive navigation during initial indexing and competing downloads.
+- [ ] Remove Graph metadata checks per cache block from the validated read-session
+      fast path; implement and measure shared session setup, bounded sequential
+      windows and safe renewal as specified in [read-session efficiency](adr/0004-read-session-efficiency.md).
 - [ ] Push-triggered metadata updates, reconnection/catch-up and periodic recovery checks, with provider delivery and local reaction latency measured separately.
 - [ ] Bounded memory and background work with large libraries and long sessions.
+- [ ] Reclaim inactive namespace views with correct FUSE lifetimes; pass the
+      500,000-file traversal, invalidation and 24-hour churn memory gates in
+      [namespace memory](adr/0005-namespace-memory.md). Content-cache limits do not
+      satisfy this requirement.
 - [ ] Real restart/outage checks and at least 24 hours of sustained operation.
 
 Evidence must include actual kernel mounts, provider-backed reads and ordinary
 desktop applications, in addition to deterministic transport/recovery fixtures.
+The first namespace-memory correction removes mount-lifetime retention of entries
+only returned by plain READDIR. Regular-file views now also retire after kernel
+lookup references and open/in-flight leases end, with actual-kernel regression
+coverage. Directory ancestry remains pinned; byte budgets, large single-directory
+paging and interrupted-reply accounting remain open. These partial corrections
+do not close the 500k-file/long-session gate.
 Graph Socket.IO and provider-neutral coalescing hints are now implemented. This
-does not close the live-response gate: notifications can be delayed upstream, and
-long-session renewal, the provider matrix and active-directory freshness need
-further validation. See [the notification decision](adr/0003-change-notifications.md).
+does not close the live-response gate: notifications can be delayed upstream.
+An isolated business-drive run passed actual long-session renewal and subsequent
+notification delivery; the provider and outage-recovery matrix remains open. Bounded
+revalidation of recently used directories now has service and actual FUSE fixtures,
+plus a limited real business-drive create/rename check through an isolated mount.
+Larger provider scenarios and ordinary desktop freshness still need measurement. See
+[the notification decision](adr/0003-change-notifications.md).
 
 ## 2. Safe file changes
 
-The [local edit journal](adr/0002-durable-local-edits.md) now protects sealed upload
-snapshots and distinguishes pending, uncertain, failed and acknowledged operations.
-It now has a transfer worker and Graph adapter with synthetic tests for resumed
-fragments, lost success responses, secret-store failures, bounded scheduling and
-conditional commit conflicts. The [isolated live write check](write-validation.md)
-passed its basic generated-file checks on a business drive, including a competing
-edit before commit. Broader provider recovery validation and writable FUSE still
-need to connect these components to actual application saves. Conditional namespace
-changes now share durable ordering with uploads; restart, lost-response and
-file-collision fixtures cover their worker. Folder removal, hierarchy dependencies
-and atomic replacement are still required before writable filesystem acceptance.
+The [local edit journal](adr/0002-durable-local-edits.md) protects mutable local files
+and immutable save generations. Uploads, moves, deletion and replacement use a
+shared resource queue with confirmed receipt ordering. Uncertain and conflicted
+operations retain data and block dependent changes. Synthetic transport and journal
+checks cover bounded upload fragments, resume, lost replies, conditional conflicts,
+transaction rollback and namespace publication. The isolated business-drive check
+has exercised basic generated-file operations, a competing remote edit, and two
+actual mounted saves with automatic uploads and independent verification.
+
+Experimental FUSE supports regular-file create/write/truncate/fsync, metadata-only
+move, unlink with retained descriptors, and replacement of both local and online-only
+sources. An online-only replacement first commits its namespace and preparation
+intent, then captures the original source version outside the kernel directory lock.
+Target publication and source cleanup use separate identities and prerequisites.
+Old readers are preserved, and later local edits cannot overwrite the earlier
+snapshot. Joint namespace publication handles delayed callbacks and chained transfers.
+Actual synthetic mount fixtures cover two consecutive atomic saves, paused downloads,
+independent saves during old reads, and remount after interrupted preparation.
+The extended developer validator is ready to exercise atomic replacement and
+conditional source cleanup in a fresh OneDrive test folder, including an online-only
+source after remount. That expanded live sequence has not yet been executed.
+
+Fully acknowledged working copies can retire after the last user closes, retaining
+local identities that follow remote changes. Restartable cleanup, generation fencing,
+checksums, quota failures and interrupted final publication have synthetic checks.
+Experimental folder creation now supports pending nested folders, sibling file
+saves and file moves whose destinations are still awaiting cloud confirmation.
+Synthetic journal and actual mount tests cover independent progress, retained bytes
+after uncertain creation, stable identities across remount and editing remote
+children after local cleanup. This has not been exercised against a live provider.
+
+Experimental edits now retain their traversed ancestor routes, including source-side
+SharePoint links, when local work depends on them. Synthetic mounts verify access
+after remote metadata removal and restart, without recreating cloud folders. Resolved
+file-link targets also have a local-edit/recovery fixture. Live acceptance and a
+complete recovery/conflict flow, including older journals without captured paths,
+remain outstanding.
+
+The normal daemon remains read-only. Folder rename/removal, broader ordinary editor
+and office behavior, live provider replacement/unlink scenarios, physical-fault
+coverage, restored remote identities, detached-data recovery and bounded long-session
+history remain acceptance gaps. This implementation progress does not close the
+safe-file-changes milestone.
 
 - [x] Provider-neutral create, update, rename, move and delete contracts (regular-file deletion; folder removal remains an explicit gap).
 - [ ] Durable local file contents and journal before local-save acknowledgement.
@@ -72,25 +121,141 @@ unsupported Microsoft features are documented rather than silently emulated.
 
 ## 5. Polished desktop experience
 
+The first GTK4/libadwaita window now displays saved accounts and confirmed service
+state, changes the desired mount preference by account UUID, and opens confirmed
+mounts in Files. Slow status I/O stays off GTK's main loop. Synthetic native-window
+tests cover mount acknowledgement and keyboard focus. This is an initial settings
+slice, not the complete setup experience; see [Desktop preview](desktop.md).
+
 - [ ] GTK4/libadwaita setup and settings without a terminal in ordinary flows.
 - [ ] Account picker, mount controls, reconnect, connection removal and cleanup.
 - [ ] Tray status and actions using the daemon as the source of truth.
 - [ ] Nautilus badges, pin/unpin actions and consistent status refresh.
 - [ ] Actionable errors, progress, cancellation and conflict resolution.
 - [ ] Keyboard navigation, accessibility, localization and visual verification.
+- [ ] Verify a declared session matrix covering native Wayland and X11, and GNOME
+      and KDE Plasma: windows, dialogs, system dark-style preference and
+      portal-backed folder opening, including cancellation and missing-portal
+      behavior. Record the actual backend and supported session combinations;
+      Xwayland is not native Wayland coverage. Current CI uses Xvfb (X11) only
+      and does not exercise a complete GNOME or Plasma session.
+- [ ] One application identity across the desktop entry, installed application
+      icon, AppStream metainfo, desktop application's D-Bus name and Wayland
+      `app_id`. Verify launcher/window association, including X11, on every
+      declared shell; naming consistency alone is not a runtime check.
+- [ ] Install application-specific scalable and symbolic icons in standard theme
+      locations, replacing the generic application icon. Check dock, launcher
+      and software-centre presentation, including symbolic recoloring.
+- [ ] Implement the tray as StatusNotifierItem over D-Bus. Document the GNOME
+      extension requirement, detect missing tray support and keep all actions
+      available from the window when no tray host is present.
+- [ ] Publish a supported file-manager list beyond the initial Nautilus target,
+      with an explicit Dolphin decision and a shared daemon status contract
+      behind each integration. Unsupported managers must still access mounted
+      files; badge/control availability must be explained.
+- [ ] Preserve actionable, sanitized error causes in the window. Unreadable or
+      invalid settings, an unreachable service and an incompatible service remain
+      distinguishable, with recovery actions and diagnostic detail appropriate
+      to the failure. Never expose credentials or raw provider responses.
 
 The UI must distinguish online-only, cached, pinned, pending, transferring,
 conflicted and failed states without reporting unsent content as uploaded.
 
+Cross-desktop reach depends on freedesktop interfaces, available desktop services
+and the daemon's status contract; the toolkit alone cannot establish it.
+StatusNotifierItem is a de facto D-Bus tray interface, independent of the display
+protocol, not a Wayland tray protocol. Stock GNOME Shell needs an extension for
+this interface; distributions may already supply one. See the
+[KDE interface](https://api.kde.org/kstatusnotifieritem.html) and
+[GNOME Shell extension](https://github.com/ubuntu/gnome-shell-extension-appindicator).
+File-manager integration uses manager-specific APIs, such as
+[Nautilus InfoProvider](https://gnome.pages.gitlab.gnome.org/nautilus/iface.InfoProvider.html)
+and [KIO overlay plugins](https://api.kde.org/koverlayiconplugin.html).
+In-process extensions must stay small and responsive, delegating status/work to
+the daemon; each manager needs an adapter, not necessarily a different language.
+Tray and file-manager extensions are optional surfaces: no control or state may
+be reachable only through a tray or only through one file manager.
+
 ## 6. Installable OneDrive 1.0
 
-- [ ] Arch package/AUR recipe, release artifacts and reproducible build procedure.
+- [ ] Native Arch/AUR, Debian/Ubuntu `.deb` and Fedora `.rpm` packages from the same
+      release, with the clean-system checks in [Distribution](distribution.md).
+- [ ] Signed APT and COPR update channels, release artifacts, source/provenance,
+      supported-version matrix and measured reproducible build procedure.
 - [ ] Fresh installation through sign-in and reboot verified outside development.
+      Validate this on each declared distribution family, including Fedora with
+      SELinux enabled; an Ubuntu CI build is not an installation check.
 - [ ] Upgrade/migration rollback protects settings, credentials and pending work.
 - [ ] Clean uninstall and explicit retention/removal choices for local data.
 - [ ] User documentation, redacted diagnostics and supported-version policy.
 - [ ] Dependency/security review, extended testing and tracked release blockers.
+- [ ] Validate the desktop entry, installed icons and AppStream metainfo in CI,
+      then compare their identity with the running window and application bus
+      name in the supported desktop sessions. Current desktop-file validation
+      alone does not satisfy this gate.
+- [ ] Build and install the daemon and CLI without GTK4/libadwaita present, with
+      separate desktop packaging. The root's default members now exclude the
+      desktop; explicit `--workspace` builds and full contributor checks still
+      include it. A package installation on a clean headless host remains required;
+      headless buildability does not imply unattended browser/keyring setup.
 - [ ] Tagged release and verified installation from the published artifacts.
+
+## Platform integration constraints
+
+These findings constrain milestones 5 and 6; they are not completion claims for
+the gates above. They describe Cirrove's intended host service and ordinary
+Flatpak application sandboxes, not every possible container or privileged helper.
+
+- Bubblewrap creates a separate mount namespace. A filesystem mounted there does
+  not by itself become a host-visible Cirrove mount; directory access permissions
+  are not a mount-export interface. Cirrove therefore needs a host-side mount
+  service for ordinary host applications. The document portal is an example of a
+  separate FUSE service exporting selected documents to applications, not a
+  general API for exporting an application's arbitrary mount to the host. See
+  [Bubblewrap's model](https://github.com/containers/bubblewrap#usage), its
+  [mount propagation setup](https://github.com/containers/bubblewrap/blob/main/bubblewrap.c), and
+  [Documents and FUSE](https://flatpak.github.io/xdg-desktop-portal/docs/documents-and-fuse.html).
+- `NO_NEW_PRIVS` prevents gaining privilege from setuid execution. Where mounting
+  relies on a setuid `fusermount3`, running that helper in such a sandbox does not
+  supply its host privilege. Cirrove additionally requires access to its own
+  `/sys/fs/fuse/connections/.../abort` control descriptor for shutdown with open
+  files. Ordinary Flatpak permissions do not provide that access by default.
+  Do not assume all sandboxes hide all sysfs, or all distributions install the
+  helper identically. See the [kernel contract](https://docs.kernel.org/userspace-api/no_new_privs.html)
+  and [Flatpak permissions](https://docs.flatpak.org/en/latest/sandbox-permissions.html).
+- The daemon's user service, host-mounted filesystem and host file-manager
+  extensions need host installation and lifecycle management. The current
+  credential adapter talks to the desktop Secret Service. A sandboxed frontend
+  can consume permitted host APIs; it does not remove these host dependencies.
+  Native packages are the release model. An optional separately packaged frontend
+  could be evaluated later with an explicit host-service contract; this is not a
+  claim that every bundled application is inherently unable to use host services.
+- GTK4 provides no `GtkStatusIcon`; the tray implementation needs a separate
+  StatusNotifierItem client. Its D-Bus interface must work under both display
+  protocols and must not become the only route to configuration or recovery.
+- Toolkit version features establish an API minimum, not a runtime version pin.
+  The current GTK 4.14/libadwaita 1.5 floor constrains supported native packages;
+  compatible libraries loaded at runtime come from the distribution. Validate
+  portal backends and theme preferences separately from GTK compilation.
+
+Supporting code observations from this review:
+
+- The [desktop entry](../packaging/desktop/io.github.Dandiccf.Cirrove.desktop)
+  uses `Icon=folder-remote`. Its basename already matches the application ID in
+  [main.rs](../crates/cirrove-desktop/src/main.rs), but a branded installed icon,
+  AppStream metainfo and actual shell/window identity checks are still missing.
+- [model.rs](../crates/cirrove-desktop/src/model.rs) stores settings and status as
+  `Result<_, ()>`, discarding their original failure causes. The current window
+  already distinguishes unavailable settings, service unavailability and protocol
+  incompatibility at a high level; preserving causes and useful recovery remains
+  incomplete. These should not be described as one identical existing UI state.
+- [Cargo.toml](../Cargo.toml) now selects the non-GTK crates by default. The
+  explicit `--workspace` flag overrides that selection, so full CI still needs
+  the desktop development libraries. See
+  [Cargo package selection](https://doc.rust-lang.org/cargo/reference/workspaces.html#package-selection).
+- [docs/roadmap.md](roadmap.md) is the canonical engineering roadmap. Any local
+  root-level convenience copy should link to it and this milestone plan instead
+  of maintaining another stage list.
 
 ## Provider extensibility throughout
 
