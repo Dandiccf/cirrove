@@ -3,6 +3,7 @@
 //! holds the namespace map while awaiting a provider or a database operation.
 #[cfg(test)]
 mod capacity;
+mod directories;
 mod lifecycle;
 mod residency;
 use residency::{LookupRefs, NamespaceViews};
@@ -59,6 +60,10 @@ struct OpenFile {
 pub struct CloudFs {
     inner: Arc<Inner>,
 }
+struct OpenDirectory {
+    snapshot: directories::Snapshot,
+    _route: [View; 2],
+}
 struct Inner {
     engine: Arc<Engine>,
     writeback: Option<Arc<writeback::Writeback>>,
@@ -66,7 +71,8 @@ struct Inner {
     runtime: Handle,
     views: Mutex<NamespaceViews>,
     files: Mutex<HashMap<u64, Arc<OpenFile>>>,
-    directories: Mutex<HashMap<u64, Arc<Vec<View>>>>,
+    directories: Mutex<HashMap<u64, Arc<OpenDirectory>>>,
+    directory_budget: directories::Budget,
     next_handle: AtomicU64,
     pending: Arc<Semaphore>,
     admitted_reads: Arc<Semaphore>,
@@ -164,6 +170,7 @@ impl CloudFs {
                 views: Mutex::new(NamespaceViews::new(root)),
                 files: Mutex::new(HashMap::new()),
                 directories: Mutex::new(HashMap::new()),
+                directory_budget: directories::Budget::default(),
                 next_handle: AtomicU64::new(1),
                 pending: Arc::new(Semaphore::new(128)),
                 admitted_reads: Arc::new(Semaphore::new(1024)),
@@ -385,64 +392,99 @@ impl Inner {
             .map_err(|_| ProviderError::Unavailable)?
             .insert(view)
     }
-    async fn listing(&self, parent: &View) -> Result<Vec<View>, ProviderError> {
-        let nodes = self.children(parent).await?;
-        let mut result = vec![
-            View {
-                name: ".".into(),
-                ..(*parent).clone()
-            },
-            View {
-                name: "..".into(),
-                ..self.view(parent.parent)?
-            },
+    async fn listing(&self, parent: &View) -> Result<OpenDirectory, Errno> {
+        let route = [
+            parent.clone(),
+            self.view(parent.parent).map_err(|e| errno(&e))?,
         ];
-        let mut projected = vec![];
+        let db = self.engine.db.clone();
+        let budget = self.directory_budget.clone();
+        let writable = self.writeback.is_some();
+        let cancel = self.cancel.clone();
+        let build = move |nodes: &mut dyn Iterator<Item = cirrove_store::Result<Node>>| {
+            Self::build_listing(nodes, &route, &db, &budget, writable, &cancel)
+        };
+        if self.writeback.is_none() {
+            // The metadata reader and inode writer are independent WAL
+            // connections. No read-to-write upgrade or full remote Vec is needed.
+            self.engine
+                .with_children(&parent.scope, &parent.node.id, build)
+                .await
+                .map_err(|e| errno(&e))?
+        } else {
+            // Preserve the existing atomic local overlay until that projection
+            // also has a streaming contract; never omit pending local entries.
+            let nodes = self.children(parent).await.map_err(|e| errno(&e))?;
+            tokio::task::spawn_blocking(move || build(&mut nodes.into_iter().map(Ok)))
+                .await
+                .map_err(|_| Errno::EIO)?
+        }
+    }
+    fn build_listing(
+        nodes: &mut dyn Iterator<Item = cirrove_store::Result<Node>>,
+        route: &[View; 2],
+        db: &std::path::Path,
+        budget: &directories::Budget,
+        writable: bool,
+        cancel: &CancellationToken,
+    ) -> Result<OpenDirectory, Errno> {
+        let mut store = Store::open(db).map_err(|_| Errno::EIO)?;
+        let mut snapshot = budget.start(db.parent().ok_or(Errno::EIO)?)?;
+        snapshot.push(route[0].inode, true, ".")?;
+        snapshot.push(route[1].inode, true, "..")?;
+        let mut projected = Vec::with_capacity(128);
         for node in nodes {
-            match Self::project(parent, node) {
+            if cancel.is_cancelled() {
+                return Err(Errno::ENODEV);
+            }
+            match Self::project(&route[0], node.map_err(|_| Errno::EIO)?) {
                 Ok(view) => projected.push(view),
                 Err(ProviderError::Protocol(_)) => {
-                    tracing::warn!("cloud entry could not be projected (cycle or invalid name)")
+                    tracing::warn!("cloud entry could not be projected (cycle or invalid name)");
                 }
-                Err(error) => return Err(error),
+                Err(error) => return Err(errno(&error)),
+            }
+            if projected.len() == 128 {
+                Self::snapshot_batch(&mut store, &mut projected, writable, &mut snapshot)?;
             }
         }
-        let db = self.engine.db.clone();
-        let writable = self.writeback.is_some();
-        let projected = tokio::task::spawn_blocking(move || -> Result<Vec<View>, ProviderError> {
-            let mut store = Store::open(db).map_err(|_| ProviderError::Unavailable)?;
-            for view in &mut projected {
-                // A cold link may have a provisional directory-entry inode until
-                // lookup resolves its target. Listing never waits for that network
-                // request; only cached target metadata participates here.
-                if view.reference
-                    && let Some(node) = store
-                        .node(&view.scope, &view.node.id)
-                        .map_err(|_| ProviderError::Unavailable)?
-                {
-                    view.node = node;
-                }
-            }
-            let keys = projected
-                .iter()
-                .map(|view| Self::inode_key(view, writable))
-                .collect::<Result<Vec<_>, _>>()?;
-            let inodes = store
-                .inodes(&keys)
-                .map_err(|_| ProviderError::Unavailable)?;
-            for (view, inode) in projected.iter_mut().zip(inodes) {
-                view.inode = inode;
-            }
-            Ok(projected)
+        Self::snapshot_batch(&mut store, &mut projected, writable, &mut snapshot)?;
+        if cancel.is_cancelled() {
+            return Err(Errno::ENODEV);
+        }
+        Ok(OpenDirectory {
+            snapshot: snapshot.finish()?,
+            _route: route.clone(),
         })
-        .await
-        .map_err(|_| ProviderError::Unavailable)??;
-        // Plain READDIR does not acquire kernel lookup references. Its snapshot
-        // owns these projections until RELEASEDIR; retaining another copy in the
-        // mount-wide map leaks every listed revision. LOOKUP/create/operations
-        // publish their resolved views through insert() when actually needed.
-        result.extend(projected);
-        Ok(result)
+    }
+    fn snapshot_batch(
+        store: &mut Store,
+        projected: &mut Vec<View>,
+        writable: bool,
+        snapshot: &mut directories::Builder,
+    ) -> Result<(), Errno> {
+        for view in projected.iter_mut() {
+            // A cold link stays provisional until LOOKUP resolves its target;
+            // listing only uses cached target metadata, never provider I/O.
+            if view.reference
+                && let Some(node) = store
+                    .node(&view.scope, &view.node.id)
+                    .map_err(|_| Errno::EIO)?
+            {
+                view.node = node;
+            }
+        }
+        let keys = projected
+            .iter()
+            .map(|view| Self::inode_key(view, writable).map_err(|e| errno(&e)))
+            .collect::<Result<Vec<_>, _>>()?;
+        let inodes = store.inodes(&keys).map_err(|_| Errno::EIO)?;
+        for (view, inode) in projected.drain(..).zip(inodes) {
+            // READDIR does not create kernel lookup references. Only the parent
+            // route is retained by the snapshot, not every projected child.
+            snapshot.push(inode, view.node.kind == NodeKind::Folder, &view.name)?;
+        }
+        Ok(())
     }
     async fn children(&self, parent: &View) -> Result<Vec<Node>, ProviderError> {
         let identity = match &self.writeback {
@@ -1469,7 +1511,7 @@ impl Filesystem for CloudFs {
                         Err(_) => reply.error(Errno::EIO),
                     }
                 }
-                Err(e) => reply.error(errno(&e)),
+                Err(e) => reply.error(e),
             }
         });
     }
@@ -1491,21 +1533,44 @@ impl Filesystem for CloudFs {
             reply.error(Errno::EBADF);
             return;
         };
-        for (index, entry) in entries.iter().enumerate().skip(offset as usize) {
-            if reply.add(
-                INodeNo(entry.inode),
-                (index + 1) as u64,
-                if entry.node.kind == NodeKind::Folder {
-                    FileType::Directory
-                } else {
-                    FileType::RegularFile
-                },
-                OsString::from(&entry.name),
-            ) {
-                break;
+        let Ok(permit) = self.inner.pending.clone().try_acquire_owned() else {
+            reply.error(Errno::EAGAIN);
+            return;
+        };
+        let cancel = self.inner.cancel.clone();
+        self.inner.runtime.spawn_blocking(move || {
+            let _permit = permit;
+            if cancel.is_cancelled() {
+                reply.error(Errno::ENODEV);
+                return;
             }
-        }
-        reply.ok();
+            let page = match entries.snapshot.page(offset) {
+                Ok(page) => page,
+                Err(error) => {
+                    reply.error(error.into());
+                    return;
+                }
+            };
+            if cancel.is_cancelled() {
+                reply.error(Errno::ENODEV);
+                return;
+            }
+            for (index, entry) in page.into_iter().enumerate() {
+                if reply.add(
+                    INodeNo(entry.inode),
+                    offset + index as u64 + 1,
+                    if entry.directory {
+                        FileType::Directory
+                    } else {
+                        FileType::RegularFile
+                    },
+                    OsString::from(entry.name),
+                ) {
+                    break;
+                }
+            }
+            reply.ok();
+        });
     }
     fn releasedir(
         &self,
@@ -1515,9 +1580,15 @@ impl Filesystem for CloudFs {
         _flags: OpenFlags,
         reply: ReplyEmpty,
     ) {
-        if let Ok(mut dirs) = self.inner.directories.lock() {
-            dirs.remove(&handle.0);
-        }
+        let directory = self
+            .inner
+            .directories
+            .lock()
+            .ok()
+            .and_then(|mut dirs| dirs.remove(&handle.0));
+        // Closing anonymous snapshot files may reclaim disk blocks. Do it away
+        // from the map lock and FUSE callback; outstanding reads keep their Arc.
+        self.inner.runtime.spawn_blocking(move || drop(directory));
         reply.ok();
     }
     fn destroy(&mut self) {

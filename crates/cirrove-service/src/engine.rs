@@ -492,48 +492,82 @@ impl Engine {
         scope: &Scope,
         parent: &str,
     ) -> Result<Vec<Node>, ProviderError> {
+        self.with_children(scope, parent, |rows| {
+            rows.collect::<cirrove_store::Result<Vec<_>>>()
+        })
+        .await?
+        .map_err(|_| ProviderError::Unavailable)
+    }
+    /// The consumer executes once on a blocking worker within a consistent
+    /// metadata read, never during a provider request. Unknown directories are
+    /// fetched first under the existing coalescing gate and total fetch deadline.
+    pub async fn with_children<T, F>(
+        self: &Arc<Self>,
+        scope: &Scope,
+        parent: &str,
+        consume: F,
+    ) -> Result<T, ProviderError>
+    where
+        F: FnMut(&mut dyn Iterator<Item = cirrove_store::Result<Node>>) -> T + Send + 'static,
+        T: Send + 'static,
+    {
         if scope.account != self.account.id || scope.provider != self.provider.provider_id() {
             return Err(ProviderError::Protocol("provider/account mismatch"));
         }
-        let db = self.db.clone();
-        let s = scope.clone();
-        let p = parent.to_owned();
-        let cached = tokio::task::spawn_blocking(move || -> cirrove_store::Result<_> {
-            let store = Store::open(db)?;
-            store.children(&s, &p)
-        })
-        .await
-        .map_err(|_| ProviderError::Unavailable)?
-        .map_err(|_| ProviderError::Unavailable)?;
-        if let Some(nodes) = cached {
+        let (cached, consume) = self.consume_cached(scope, parent, consume).await?;
+        if let Some(value) = cached {
             self.activity.touch(scope, parent);
-            return Ok(nodes);
+            return Ok(value);
         }
         let key =
             serde_json::to_string(&(scope, parent)).map_err(|_| ProviderError::Unavailable)?;
         let gate = self.directory_gate(&key)?;
         let _guard = tokio::select! {biased;_=self.cancel.cancelled()=>return Err(ProviderError::Cancelled),g=gate.lock()=>g};
-        let db = self.db.clone();
-        let s = scope.clone();
-        let p = parent.to_owned();
-        if let Some(nodes) = tokio::task::spawn_blocking(move || Store::open(db)?.children(&s, &p))
-            .await
-            .map_err(|_| ProviderError::Unavailable)?
-            .map_err(|_| ProviderError::Unavailable)?
-        {
+        let (cached, consume) = self.consume_cached(scope, parent, consume).await?;
+        if let Some(value) = cached {
             self.activity.touch(scope, parent);
-            return Ok(nodes);
+            return Ok(value);
         }
-        let result = self.fetch_directory(scope, parent).await;
+        // Foreground provider publication still materializes its bounded input
+        // set. Do not keep that collection during subsequent snapshot projection.
+        let result = self.fetch_directory(scope, parent).await.map(|_| ());
         self.activity.touch(scope, parent);
         self.activity.observed(
             &crate::activity::DirectoryJob {
                 scope: scope.clone(),
                 parent: parent.into(),
             },
-            &result.as_ref().map(|_| ()).map_err(Clone::clone),
+            &result,
         );
-        result
+        result?;
+        let (cached, _) = self.consume_cached(scope, parent, consume).await?;
+        cached.ok_or(ProviderError::VersionChanged)
+    }
+    async fn consume_cached<T, F>(
+        &self,
+        scope: &Scope,
+        parent: &str,
+        mut consume: F,
+    ) -> Result<(Option<T>, F), ProviderError>
+    where
+        F: FnMut(&mut dyn Iterator<Item = cirrove_store::Result<Node>>) -> T + Send + 'static,
+        T: Send + 'static,
+    {
+        if self.cancel.is_cancelled() {
+            return Err(ProviderError::Cancelled);
+        }
+        let db = self.db.clone();
+        let scope = scope.clone();
+        let parent = parent.to_owned();
+        tokio::task::spawn_blocking(move || {
+            let store = Store::open(db).map_err(|_| ProviderError::Unavailable)?;
+            let result = store
+                .with_children(&scope, &parent, &mut consume)
+                .map_err(|_| ProviderError::Unavailable)?;
+            Ok((result, consume))
+        })
+        .await
+        .map_err(|_| ProviderError::Unavailable)?
     }
     async fn fetch_directory(
         self: &Arc<Self>,

@@ -185,15 +185,25 @@ Run the explicit synthetic 500,000-file benchmark on a machine with several GiB 
 free memory and disk space, with the same FUSE prerequisites as the kernel suite:
 
 ```sh
-timeout 600s cargo test -p cirrove-service --lib --locked namespace_capacity_baseline -- --ignored --nocapture --test-threads=1
+cargo test -p cirrove-service --lib --locked --release --no-run
+for per_directory in 1000 500000; do
+  CIRROVE_NAMESPACE_PER_DIRECTORY="$per_directory" timeout 600s \
+    cargo test -p cirrove-service --lib --locked --release \
+    namespace_capacity_baseline -- --ignored --nocapture --test-threads=1
+done
 ```
 
 For a smaller pilot, prefix the command with `CIRROVE_NAMESPACE_FILES=10000`.
-The fixture creates 500 directories of 1,000 files at its default size, generates
+The fixture creates 500 directories of 1,000 files by default; the second variant
+puts all 500,000 files in one directory. For a smaller pilot, the requested
+per-directory count must not exceed `CIRROVE_NAMESPACE_FILES`. It generates
 metadata in pages, and indexes it through the normal SQLite refresh path. It
 traverses the actual temporary mount three times, changing every file's revision
 between passes. Each post-pass sample waits for directory handles to close and
-prints retained views, map capacity, RSS/PSS and peak RSS. It refuses unexpected
+prints retained views, map capacity, RSS/PSS, peak RSS and logical snapshot bytes.
+The first-entry sample measures snapshot construction with a directory held open;
+closed samples assert that its temporary storage reservations returned to zero.
+It refuses unexpected
 content or foreground metadata requests; it reads no real account or keyring.
 Each immediate `closed_after_revision_*` sample is followed by an
 `after_invalidation_revision_*` sample after normal kernel invalidation and
@@ -202,10 +212,13 @@ fabricated or discarded to reach that count. Record both phases: logical view
 retirement alone does not establish a process-memory plateau. The checked-in
 [parent-lifetime record](benchmarks/namespace-parent-lifetime.json) uses `--release`;
 select the same build profile when comparing timings and memory.
+The [snapshot-page record](benchmarks/directory-snapshot-pages.json) uses separate
+release processes for both directory layouts and records first-entry latency,
+logical temporary storage and the remaining process-memory slope.
 
 The test's successful exit means its measurement completed correctly, **not** that
 the memory release gate passed. It provides a comparison for namespace lifetime changes.
-It does not cover the single huge-directory, alias/depth, held-mapping or 24-hour
+It does not combine the large-library run with alias/depth, held-mapping or 24-hour
 cases in [the namespace gate](adr/0005-namespace-memory.md). Run it explicitly rather
 than adding a multi-GiB benchmark to every default CI test run.
 
