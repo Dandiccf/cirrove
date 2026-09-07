@@ -22,6 +22,10 @@ impl Drop for Server {
 }
 #[derive(Default)]
 struct Control {
+    conservative: bool,
+    strong: bool,
+    request_delay: std::time::Duration,
+    files: std::collections::BTreeMap<String, (u64, u8)>,
     pause_body: AtomicBool,
     body_entered: Notify,
     release_body: Notify,
@@ -37,9 +41,13 @@ async fn server(size: u64) -> Server {
 async fn controlled_server(size: u64, control: Arc<Control>) -> Server {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let origin = format!("http://{}", listener.local_addr().unwrap());
-    let provider = OneDrive::synthetic_loopback("account".into(), &format!("{origin}/v1.0/"))
-        .unwrap()
-        .with_experimental_read_sessions();
+    let provider =
+        OneDrive::synthetic_loopback("account".into(), &format!("{origin}/v1.0/")).unwrap();
+    let provider = if control.conservative {
+        provider
+    } else {
+        provider.with_experimental_read_sessions()
+    };
     let graph = Arc::new(AtomicUsize::new(0));
     let content = Arc::new(AtomicUsize::new(0));
     let (g, c) = (graph.clone(), content.clone());
@@ -84,11 +92,15 @@ async fn serve(
     }
     let lower = request.to_ascii_lowercase();
     let path = lower.split_whitespace().nth(1).unwrap();
-    let (item, size, byte) = if path.ends_with("/other") {
-        ("other", 16 * 1024, b'B')
-    } else {
-        ("file", size, b'A')
+    let item = path.rsplit('/').next().unwrap();
+    let (size, byte) = match item {
+        "file" => (size, b'A'),
+        "other" => (16 * 1024, b'B'),
+        id => *control.files.get(id).expect("unknown synthetic item"),
     };
+    if !control.request_delay.is_zero() {
+        tokio::time::sleep(control.request_delay).await;
+    }
     if path.starts_with("/download/") {
         content.fetch_add(1, Ordering::SeqCst);
         assert!(!lower.contains("authorization:"));
@@ -102,8 +114,22 @@ async fn serve(
         let count = end - start + 1;
         assert!(count <= 64 * 1024 * 1024);
         let is_window = count > BLOCK_SIZE as u64;
+        let tag = if control.strong {
+            format!("\"origin-{item}-v1\"")
+        } else {
+            "W/\"weak-origin\"".into()
+        };
+        if let Some(condition) = request
+            .lines()
+            .filter_map(|line| line.split_once(':'))
+            .find_map(|(key, value)| key.eq_ignore_ascii_case("if-match").then_some(value.trim()))
+            && (!control.strong || condition != tag)
+        {
+            let _ = socket.write_all(b"HTTP/1.1 412 Precondition Failed\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").await;
+            return;
+        }
         let head = format!(
-            "HTTP/1.1 206 Partial Content\r\nETag: W/\"weak-origin\"\r\nContent-Length: {count}\r\nContent-Range: bytes {start}-{end}/{size}\r\nConnection: close\r\n\r\n"
+            "HTTP/1.1 206 Partial Content\r\nETag: {tag}\r\nContent-Length: {count}\r\nContent-Range: bytes {start}-{end}/{size}\r\nConnection: close\r\n\r\n"
         );
         if socket.write_all(head.as_bytes()).await.is_err() {
             return;
@@ -148,6 +174,50 @@ async fn serve(
             body.len()
         );
         let _ = socket.write_all(reply.as_bytes()).await;
+    }
+}
+
+#[tokio::test]
+async fn synthetic_content_origin_enforces_exact_strong_conditions() {
+    for (strong, condition, status) in [
+        (true, "\"origin-file-v1\"", 206),
+        (true, "\"ORIGIN-file-v1\"", 412),
+        (true, "\"another-version\"", 412),
+        (false, "W/\"weak-origin\"", 412),
+    ] {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let task = tokio::spawn(async move {
+            let (socket, _) = listener.accept().await.unwrap();
+            serve(
+                socket,
+                format!("http://{address}"),
+                32,
+                Arc::new(AtomicUsize::new(0)),
+                Arc::new(AtomicUsize::new(0)),
+                Arc::new(Control {
+                    strong,
+                    ..Default::default()
+                }),
+            )
+            .await;
+        });
+        let mut socket = tokio::net::TcpStream::connect(address).await.unwrap();
+        socket.write_all(format!("GET /download/file HTTP/1.1\r\nHost: {address}\r\nRange: bytes=0-0\r\nIf-Match: {condition}\r\nConnection: close\r\n\r\n").as_bytes()).await.unwrap();
+        let mut response = String::new();
+        tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            socket.read_to_string(&mut response),
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        task.await.unwrap();
+        assert!(response.starts_with(&format!("HTTP/1.1 {status} ")));
+        assert_eq!(
+            response.split_once("\r\n\r\n").unwrap().1,
+            if status == 206 { "A" } else { "" }
+        );
     }
 }
 

@@ -119,7 +119,7 @@ range and size before cache publication; conditional request success by itself i
 insufficient. Setup/renewal must coalesce, bound URL/authorization lifetime and
 revalidate the original content revision. Personal accounts, remote replacement,
 revocation, expired URLs, redirects and lost notifications still need acceptance.
-No optimized path is enabled by these observations, and no checkbox below is closed.
+These observations alone did not enable an optimized path or close an acceptance gate.
 
 ## Conditional-session prototype and measured increment
 
@@ -258,9 +258,9 @@ timeout 90s cargo test -p cirrove-service --lib --locked \
 
 ## Acceptance gates
 
-- [ ] Deterministic request-count tests for 3.1 MB previews, a 1 GiB sequential
+- [x] Deterministic request-count tests for 3.1 MB previews, a 1 GiB sequential
       read, random seeks, repeated opens and concurrent readers of one version.
-- [ ] With a verified stable representation, additional cache blocks do not each
+- [x] With a verified stable representation, additional cache blocks do not each
       trigger a Graph before/after pair; setup is shared per read session and
       renewal is separately counted. Declare measured session limits explicitly.
 - [x] Conservative sequential-window fallback reduces Graph metadata calls by at
@@ -278,3 +278,62 @@ timeout 90s cargo test -p cirrove-service --lib --locked \
 The currently implemented two-check-per-block behavior remains in force until a
 replacement passes its correctness and provider gates. The desktop interface work
 does not resolve or downgrade this requirement.
+
+## Mounted application workload and measured tradeoffs
+
+The [mounted read workload](../benchmarks/mounted-read-workloads.json) now combines
+the actual OneDrive HTTP adapter, shared cache, kernel FUSE and a separate Python
+process doing ordinary unbuffered reads. It covers a cold 3,100,000-byte file, three
+reopens, four sparse seeks, 32 simultaneous cold opens/reads of one version and a
+sequential 1 GiB read using 64 KiB application requests. The fixture origin checks
+strong If-Match conditions exactly, including case, and rejects mismatches with 412.
+The service counters must agree with the server's HTTP request counters after every
+application phase. Each variant runs in a fresh process so allocator retention from
+an earlier variant does not contaminate the next measurement.
+
+On 2026-09-07 the release build produced these **synthetic** sequential results:
+
+| Read strategy | Graph GETs | Content GETs | No imposed delay | 20 ms per response |
+| --- | ---: | ---: | ---: | ---: |
+| Original conservative blocks | 512 | 256 | 2.58 s | 18.64 s |
+| Strong conditional session | 2 | 256 | 2.24 s | 7.74 s |
+| Conservative streamed windows | 40 | 20 | 3.44 s | 4.85 s |
+
+Every sequential variant downloads exactly 1 GiB. Small-file reopens add zero
+requests; 32 concurrent readers share one 3.1 MB download. Sparse reads fetch four
+4 MiB blocks for 16 KiB requested: the current block granularity still overfetches
+small cold requests. Strong sessions use two Graph requests across those four
+blocks, whereas the original and weak-validator paths use eight. Windows do not
+speculatively expand this sparse workload. The strong session's existing 60-second
+lease remains in force; tests count any renewal separately instead of treating a
+slow runner as an indefinitely valid representation.
+
+Cached directory listing/stat remained below 3.71 ms in this run, under the existing
+500 ms per-operation bound. The artifact records per-phase navigation and application
+read-call p50/p95/max, first open/read timing, transferred bytes, sampled service/test
+server RSS and the separate application's peak RSS. These are single local runs,
+not a statistically controlled provider benchmark or a total kernel/page-cache
+memory ceiling. Metadata is preseeded: live indexing, real thumbnail decoders,
+provider throttling and internet conditions are **not** exercised here.
+
+The measurements expose two costs rather than declaring one strategy universally
+faster: staging adds local I/O at low latency, and the strong path still issues one
+content request per cache block. Applying validated transfer windows to strong
+sessions is the next request-efficiency improvement; it must retain exact conditions,
+bounded staging and safe renewal without appending a restarted transfer to a partial
+sink. The cold sparse-read amplification remains visible in subsequent latency work.
+Only the request-count and stable-session implementation gates above are closed by
+this combined evidence; the real-provider, failure and desktop-load gates remain open.
+
+CI runs the release workload separately from the normal workspace/desktop checks:
+
+```sh
+cargo test -p cirrove-service --lib --locked --release --no-run
+for delay in 0 20; do
+  for mode in conservative strong windows; do
+    CIRROVE_FIXTURE_REQUEST_DELAY_MS="$delay" timeout 210s cargo test \
+      -p cirrove-service --lib --locked --release "real_mounted_${mode}_read_workload" \
+      -- --ignored --nocapture --test-threads=1
+  done
+done
+```
