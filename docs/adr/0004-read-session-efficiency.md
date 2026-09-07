@@ -1,7 +1,8 @@
 # Read-session efficiency and Graph request amplification
 
-Status: proposed read-session design; bounded transport observation is implemented.
-The optimized read path and provider acceptance remain outstanding.
+Status: experimental shared conditional sessions and bounded transport observations
+are implemented. Ordinary accounts still use conservative reads; sequential-window
+fallback and full provider acceptance remain outstanding.
 
 ## Problem and present evidence
 
@@ -118,6 +119,54 @@ insufficient. Setup/renewal must coalesce, bound URL/authorization lifetime and
 revalidate the original content revision. Personal accounts, remote replacement,
 revocation, expired URLs, redirects and lost notifications still need acceptance.
 No optimized path is enabled by these observations, and no checkbox below is closed.
+
+## Conditional-session prototype and measured increment
+
+`ReadProvider::open_read_session` now has an optional provider-neutral contract.
+The service coalesces creation and limits residency to 64 identities; active entries
+cannot be evicted. Entries idle for 60 seconds are pruned on later use. Saturation
+uses the existing exact-range contract rather than adding unbounded sessions.
+OneDrive exposes an explicit `with_experimental_read_sessions` builder; ordinary
+account construction does not select it.
+
+The first requested range performs the existing Graph before/after checks and
+binds the content origin's own strong ETag. Later ranges validate both the condition
+response and the exact representation before returning bytes. A transport binding
+has a 60-second lease. Renewal/rebinding is coalesced and checks the original Graph
+content revision/size/identity again; changed content is rejected. Initial missing
+or weak validators retain conservative reads. No whole-file allocation or prefetch
+has been added. The fallback still costs two Graph checks per cold block.
+
+The synthetic adapter fixture streams a 1 GiB file in 64 KiB server chunks and reads
+it as 256 individual 4 MiB ranges. It observes **2 Graph metadata requests, 256 content
+requests and exactly 1 GiB of content bytes**, with 255 conditional ranges after one
+setup. This covers the adapter, not a full 1 GiB kernel/application benchmark.
+3.1 MB preview/random-range and 32-reader fixtures cover shared setup; concurrent
+expiry/rejected-URL recovery observes one renewal and four Graph requests total.
+Other fixtures cover changed versions even when If-Match is ignored, metadata-only
+origin-tag changes, wrong identities, invalid/short/oversized/encoded responses,
+weak/missing validators, cancellation and shared throttling. Separate cache tests
+exercise session reuse, identity separation, bounded residency, cancelled setup,
+unrelated-file progress, and persisted blocks after cache restart.
+
+The GET-only `validate-onedrive-read-session` command exercises five ranges of at most
+256 KiB through one session, including four concurrent ranges, then compares all
+five to independent conservative reads. Its output includes cumulative adapter
+counters before/after each phase and elapsed times. Initial CLI node lookup is in
+the `before` snapshot; authentication and automatic redirects remain excluded from
+these counters. It retains at most five sample buffers plus one comparison, not a
+whole arbitrary file. It does not change mount settings or enable ordinary sessions.
+
+An isolated business-file run on 2026-09-07 observed one setup (two Graph calls),
+then four conditional content reads with **zero additional Graph calls**. All five
+samples matched the conservative comparison. First-range time was 1,199 ms and the
+four concurrent ranges took 237 ms together; these are one-run sample timings,
+not p50/p95, cold desktop-open measurements or cross-client benchmarks. A linked
+SharePoint file larger than 1 MiB passed the same five 256 KiB sample comparisons:
+708 ms for setup/first range and 172 ms for the four concurrent ranges together,
+again without additional Graph calls after setup. A separate smaller SharePoint
+file also passed, but its samples covered the whole file. Real checks of
+replacement, revocation, URL renewal and Personal accounts remain open.
 
 ## Acceptance gates
 

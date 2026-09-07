@@ -36,6 +36,17 @@ enum Command {
         #[arg(long)]
         state_dir: Option<PathBuf>,
     },
+    /// Compare five bounded experimental-session samples with conservative reads (GET-only).
+    ValidateOnedriveReadSession {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        item: String,
+        #[arg(long)]
+        drive: Option<String>,
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
+    },
     /// Developer-only application saves on an isolated, newly created cloud folder.
     ValidateOnedriveWritable {
         #[arg(long)]
@@ -146,8 +157,16 @@ enum Command {
 }
 #[tokio::main]
 async fn main() -> Result<()> {
-    match Args::parse().command {
+    let command = Args::parse().command;
+    let validate_session = matches!(&command, Command::ValidateOnedriveReadSession { .. });
+    match command {
         Command::InspectOnedriveRead {
+            label,
+            item,
+            drive,
+            state_dir: state,
+        }
+        | Command::ValidateOnedriveReadSession {
             label,
             item,
             drive,
@@ -169,10 +188,20 @@ async fn main() -> Result<()> {
             };
             let cancel = CancellationToken::new();
             let node = provider.node(&scope, &item, &cancel).await?;
-            let report = provider
-                .inspect_read_validation(&scope, &node, &cancel)
-                .await?;
-            println!("{}", serde_json::to_string_pretty(&report)?);
+            if validate_session {
+                let report = provider
+                    .inspect_read_session(&scope, &node, &cancel)
+                    .await?;
+                println!("{}", serde_json::to_string_pretty(&report)?);
+                if !report.all_samples_match {
+                    bail!("read-session samples differ from conservative comparison reads");
+                }
+            } else {
+                let report = provider
+                    .inspect_read_validation(&scope, &node, &cancel)
+                    .await?;
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            }
         }
         Command::ValidateOnedriveWritable { label, state_dir } => {
             cirrove_service::validation::onedrive_writable(&state_dir, &label).await?;

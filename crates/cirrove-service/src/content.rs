@@ -1,5 +1,6 @@
 //! Version-keyed, bounded on-demand block cache. A cache block is published only
 //! after the provider proves the requested version and the file is durable.
+mod sessions;
 use crate::private_dir;
 use cirrove_core::{CancellationToken, Node, ProviderError, ReadProvider, Scope};
 use cirrove_store::Store;
@@ -28,6 +29,7 @@ pub struct ContentCache {
     failures: StdMutex<HashMap<String, (ProviderError, Instant)>>,
     loaders: Semaphore,
     publish: Mutex<()>,
+    sessions: sessions::Sessions,
 }
 impl ContentCache {
     pub fn new(path: PathBuf, db: PathBuf, quota: u64) -> anyhow::Result<Self> {
@@ -45,6 +47,7 @@ impl ContentCache {
             failures: StdMutex::new(HashMap::new()),
             loaders: Semaphore::new(4),
             publish: Mutex::new(()),
+            sessions: sessions::Sessions::default(),
         })
     }
     fn gate(&self, key: &str) -> Result<Arc<Mutex<()>>, ProviderError> {
@@ -159,7 +162,7 @@ impl ContentCache {
         // the subsequent local cache publication is awaited to completion.
         let received = tokio::select! { biased;
             _=cancel.cancelled()=>Err(ProviderError::Cancelled),
-            result=tokio::time::timeout(RANGE_TIMEOUT,provider.read_range(scope,node,start,BLOCK_SIZE,cancel))=>
+            result=tokio::time::timeout(RANGE_TIMEOUT,self.sessions.read(provider,scope,node,start,BLOCK_SIZE,cancel))=>
                 result.unwrap_or(Err(ProviderError::Unavailable)),
         };
         let bytes = match received {

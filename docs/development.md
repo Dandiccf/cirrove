@@ -198,3 +198,26 @@ The 60-second probe deadline and content request budget bound the operation.
 An initial CLI node lookup precedes that deadline and has the normal metadata
 request deadline. See [read-session efficiency](adr/0004-read-session-efficiency.md)
 for report semantics, observed behavior and the remaining acceptance boundary.
+
+## Experimental shared read-session validation
+
+```sh
+cirrove validate-onedrive-read-session --label ACCOUNT --item ITEM_ID \
+  --state-dir /absolute/path/to/separate-development-state
+# Add --drive DRIVE_ID for a specifically selected linked collection.
+```
+
+This explicit GET-only command reads five samples of at most 256 KiB via a shared
+experimental session, then compares each with an independent conservative read.
+It prints comparison results, phase times and cumulative adapter request/byte
+counters. Subtract adjacent snapshots to obtain phase cost; the initial node lookup
+precedes `before`. Authentication and automatic redirects are not counted. No file
+contents, URLs, tokens or raw validators are printed. It uses the selected account's
+credential broker, which may refresh credentials normally. Use the separate
+development identity during live-daemon testing to avoid competing token brokers.
+No mount, cloud write or installed-service change is performed.
+
+This does not enable the fast path in ordinary accounts. Synthetic 1 GiB request
+counts and the initial live samples are recorded in
+[ADR 0004](adr/0004-read-session-efficiency.md); sequential-window fallback and the
+wider correctness/provider/desktop performance gates remain open.
