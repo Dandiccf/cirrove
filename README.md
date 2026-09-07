@@ -165,6 +165,8 @@ The systemd template is supplied separately and is not installed by a build.
 Read [Architecture](docs/architecture.md), [Roadmap](docs/roadmap.md),
 [OneDrive 1.0 milestones](docs/product-milestones.md),
 [Development](docs/development.md) and [Contributing](CONTRIBUTING.md).
+The [distribution plan](docs/distribution.md) targets native Arch, Debian/Ubuntu
+and Fedora packages; these release/installability gates are not completed yet.
 
 Google Drive is the next planned provider. iCloud requires a separate compatibility
 assessment because its API situation differs. Cirrove does not copy or depend on
