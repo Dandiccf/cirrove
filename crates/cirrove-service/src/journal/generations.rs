@@ -77,13 +77,13 @@ pub(super) enum Operation {
     Mutation(MutationRecord),
 }
 impl Operation {
-    fn scope(&self) -> &Scope {
+    pub(super) fn scope(&self) -> &Scope {
         match self {
             Self::Upload(r) => &r.scope,
             Self::Mutation(r) => &r.request.scope,
         }
     }
-    fn sequence(&self) -> u64 {
+    pub(super) fn sequence(&self) -> u64 {
         match self {
             Self::Upload(r) => r.sequence,
             Self::Mutation(r) => r.sequence,
@@ -211,6 +211,7 @@ impl UploadJournal {
     }
 
     pub(super) fn resolve_ready_generations(&mut self) -> Result<bool> {
+        let destinations = self.resolve_ready_destinations()?;
         // Resolve a bounded batch across both operation kinds before allowing
         // either worker to claim. A newly assigned ID must reserve its resources
         // before any younger independent-looking operation can overtake it.
@@ -240,7 +241,7 @@ impl UploadJournal {
         let waiting: bool = self
             .db
             .query_row(&format!("SELECT EXISTS({ready})"), [], |r| r.get(0))?;
-        Ok(!waiting)
+        Ok(destinations && !waiting)
     }
     fn base_node(&self, base: &WriteBase, scope: &Scope, sequence: u64) -> Result<Option<Node>> {
         let previous = self.operation(base.predecessor)?;

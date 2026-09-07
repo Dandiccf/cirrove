@@ -77,6 +77,9 @@ struct Cloud {
     hold_read: AtomicBool,
     read_entered: Notify,
     read_release: Notify,
+    hold_folder: AtomicBool,
+    folder_entered: Notify,
+    folder_release: Notify,
 }
 fn root() -> Node {
     Node {
@@ -143,11 +146,12 @@ impl ReadProvider for Cloud {
         _: Option<&Cursor>,
         _: &CancellationToken,
     ) -> Result<DirectoryPage, ProviderError> {
+        let remote = self.remote.lock().unwrap();
+        if !Self::has_parent(&remote, parent) {
+            return Err(ProviderError::NotFound);
+        }
         Ok(DirectoryPage {
-            nodes: self
-                .remote
-                .lock()
-                .unwrap()
+            nodes: remote
                 .files
                 .values()
                 .filter(|(n, _)| n.parent_id.as_deref() == Some(parent))
@@ -180,6 +184,13 @@ impl ReadProvider for Cloud {
     }
 }
 impl Cloud {
+    fn has_parent(remote: &Remote, parent: &str) -> bool {
+        parent == "root"
+            || remote
+                .files
+                .get(parent)
+                .is_some_and(|(n, _)| n.kind == NodeKind::Folder)
+    }
     fn step(
         &self,
         request: &UploadRequest,
@@ -286,6 +297,9 @@ impl UploadProvider for Cloud {
             }
             _ => return Err(UploadError::Conflict),
         };
+        if !Self::has_parent(&remote, &parent) {
+            return Err(ProviderError::NotFound.into());
+        }
         let bytes = remote
             .sessions
             .remove(checkpoint.expose_secret())
@@ -342,6 +356,30 @@ impl MutationProvider for Cloud {
             std::future::pending::<()>().await;
         }
         request.validate()?;
+        if let MutationIntent::CreateFolder { parent, name } = &request.intent {
+            if self.hold_folder.swap(false, Ordering::SeqCst) {
+                self.folder_entered.notify_one();
+                self.folder_release.notified().await;
+            }
+            let mut remote = self.remote.lock().unwrap();
+            if !Self::has_parent(&remote, parent) {
+                return Err(ProviderError::NotFound.into());
+            }
+            if remote.files.values().any(|(n, _)| {
+                n.parent_id.as_ref() == Some(parent) && n.name.to_lowercase() == name.to_lowercase()
+            }) {
+                return Err(MutationError::Conflict);
+            }
+            let node = Node {
+                id: uuid::Uuid::new_v4().to_string(),
+                parent_id: Some(parent.clone()),
+                name: name.clone(),
+                etag: Some(uuid::Uuid::new_v4().to_string()),
+                ..root()
+            };
+            remote.files.insert(node.id.clone(), (node.clone(), vec![]));
+            return Ok(MutationReceipt::Upsert(node));
+        }
         if let MutationIntent::RemoveFile { before } = &request.intent {
             let mut remote = self.remote.lock().unwrap();
             let (node, _) = remote
@@ -366,6 +404,9 @@ impl MutationProvider for Cloud {
             return Err(MutationError::Unsupported("fixture only relocates files"));
         };
         let mut remote = self.remote.lock().unwrap();
+        if !Self::has_parent(&remote, parent) {
+            return Err(ProviderError::NotFound.into());
+        }
         if remote.files.values().any(|(n, _)| {
             n.id != before.id
                 && n.parent_id.as_ref() == Some(parent)
@@ -1453,7 +1494,9 @@ with open('renamed.bin','rb') as f: assert f.read()==b'my local save'
 }
 
 async fn wait_for_cleanup(journal: &Arc<Mutex<UploadJournal>>, spool: &Path, working: usize) {
-    tokio::time::timeout(Duration::from_secs(12), async {
+    // Maintenance handles one object per quiet interval, then removes its bytes
+    // in the next pass. The nested-folder fixture deliberately has six objects.
+    let result = tokio::time::timeout(Duration::from_secs(24), async {
         loop {
             if journal.lock().unwrap().working_files().unwrap().len() == working
                 && std::fs::read_dir(spool.join("objects")).unwrap().count() == 0
@@ -1464,8 +1507,25 @@ async fn wait_for_cleanup(journal: &Arc<Mutex<UploadJournal>>, spool: &Path, wor
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
     })
-    .await
-    .unwrap();
+    .await;
+    if result.is_err() {
+        let j = journal.lock().unwrap();
+        let objects = j
+            .namespace_objects()
+            .unwrap()
+            .into_iter()
+            .map(|o| {
+                (
+                    o.node.name.clone(),
+                    o.node.kind.clone(),
+                    j.namespace_is_clean(&o).unwrap(),
+                    o.follows_remote,
+                    o.working_file.is_some(),
+                )
+            })
+            .collect::<Vec<_>>();
+        panic!("cleanup did not finish: {objects:?}");
+    }
 }
 async fn refresh_fixture(engine: &Engine, cloud: &Cloud) {
     cirrove_service::refresh(
@@ -2111,5 +2171,287 @@ assert not os.path.exists('occupied.bin')
             .unwrap();
     mutations_applied(&session, 1).await;
     assert!(!cloud.remote.lock().unwrap().files.contains_key("occupied"));
+    session.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; pending folders, sibling saves, cleanup and remount"]
+async fn real_new_directories_accept_children_before_confirmation_and_keep_identity() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let state = temp.path().join("state");
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    cloud.hold_folder.store(true, Ordering::SeqCst);
+    let vault = Arc::new(Vault::default());
+    let spool = temp.path().join("journal");
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&spool, &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account.clone(), cloud.clone(), state.clone())
+        .await
+        .unwrap();
+    let stopped = Arc::downgrade(&engine);
+    let session = WritableSession::mount(
+        engine.clone(),
+        journal.clone(),
+        cloud.clone(),
+        vault.clone(),
+    )
+    .await
+    .unwrap();
+    application(
+        &mount,
+        r#"
+import os,sys
+os.chdir(sys.argv[1])
+os.mkdir('Grüße')
+os.mkdir('Grüße/nested')
+for path in ['Grüße/first.txt','Grüße/second.txt','Grüße/nested/deep.txt','independent.txt']:
+    with open(path,'wb',buffering=0) as f:
+        f.write(path.encode())
+        os.fsync(f.fileno())
+    assert open(path,'rb').read()==path.encode()
+assert sorted(os.listdir('Grüße'))==['first.txt','nested','second.txt']
+try: os.mkdir('Grüße/FIRST.txt')
+except FileExistsError: pass
+else: raise AssertionError('file/directory collision was accepted')
+"#,
+    )
+    .await;
+    tokio::time::timeout(Duration::from_secs(5), cloud.folder_entered.notified())
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            if cloud.remote.lock().unwrap().history.len() == 1 {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(
+        cloud.remote.lock().unwrap().files.len(),
+        1,
+        "children reached the provider before the parent existed"
+    );
+    let inode = tokio::fs::metadata(mount.join("Grüße")).await.unwrap();
+    use std::os::unix::fs::MetadataExt;
+    cloud.folder_release.notify_one();
+    mutations_applied(&session, 2).await;
+    acknowledged(&session, 4).await;
+    wait_for_cleanup(&journal, &spool, 0).await;
+    let (top, nested) = {
+        let remote = cloud.remote.lock().unwrap();
+        let top = remote
+            .files
+            .values()
+            .find(|(n, _)| n.name == "Grüße")
+            .unwrap()
+            .0
+            .clone();
+        let nested = remote
+            .files
+            .values()
+            .find(|(n, _)| n.name == "nested")
+            .unwrap()
+            .0
+            .clone();
+        assert_eq!(nested.parent_id.as_ref(), Some(&top.id));
+        for (n, b) in remote
+            .files
+            .values()
+            .filter(|(n, _)| n.kind == NodeKind::File)
+        {
+            let expected = if n.name == "deep.txt" {
+                &nested.id
+            } else if n.name == "independent.txt" {
+                "root"
+            } else {
+                &top.id
+            };
+            assert_eq!(n.parent_id.as_deref(), Some(expected));
+            assert!(!b.is_empty());
+        }
+        (top, nested)
+    };
+    refresh_fixture(&engine, &cloud).await;
+    assert_eq!(
+        tokio::fs::metadata(mount.join("Grüße"))
+            .await
+            .unwrap()
+            .ino(),
+        inode.ino()
+    );
+    drop(engine);
+    session.shutdown().await.unwrap();
+    drop(journal);
+    let journal = Arc::new(Mutex::new(
+        reopened_journal(&spool, &account.id, 1024 * 1024).await,
+    ));
+    let engine = reopened_engine(account, cloud.clone(), &state, stopped).await;
+    let session = WritableSession::mount(engine.clone(), journal, cloud.clone(), vault)
+        .await
+        .unwrap();
+    assert_eq!(
+        tokio::fs::metadata(mount.join("Grüße"))
+            .await
+            .unwrap()
+            .ino(),
+        inode.ino()
+    );
+    // A foreign child arrives after the local folder's own overlay has retired.
+    let node = Node {
+        id: "foreign-child".into(),
+        parent_id: Some(nested.id),
+        name: "foreign.txt".into(),
+        kind: NodeKind::File,
+        size: 7,
+        etag: Some("foreign-etag".into()),
+        content_version: Some("foreign-content".into()),
+        ..root()
+    };
+    cloud
+        .remote
+        .lock()
+        .unwrap()
+        .files
+        .insert(node.id.clone(), (node, b"foreign".to_vec()));
+    refresh_fixture(&engine, &cloud).await;
+    application(
+        &mount,
+        r#"
+import os,sys
+os.chdir(sys.argv[1])
+assert open('Grüße/first.txt','rb').read()==b'Gr\xc3\xbc\xc3\x9fe/first.txt'
+assert open('Grüße/nested/foreign.txt','rb').read()==b'foreign'
+with open('Grüße/nested/foreign.txt','ab',buffering=0) as f:
+    f.write(b' plus local')
+    os.fsync(f.fileno())
+os.rename('Grüße/nested/foreign.txt','Grüße/moved.txt')
+assert open('Grüße/moved.txt','rb').read()==b'foreign plus local'
+"#,
+    )
+    .await;
+    acknowledged(&session, 5).await;
+    mutations_applied(&session, 3).await;
+    assert!(session.namespace_conflicts().unwrap().is_empty());
+    {
+        let remote = cloud.remote.lock().unwrap();
+        let (node, bytes) = remote.files.get("foreign-child").unwrap();
+        assert_eq!(node.parent_id.as_ref(), Some(&top.id));
+        assert_eq!(node.name, "moved.txt");
+        assert_eq!(bytes, b"foreign plus local");
+    }
+    drop(engine);
+    session.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; uncertain parent retains nested local data after restart"]
+async fn real_new_directories_keep_children_when_parent_confirmation_is_lost() {
+    use cirrove_service::journal::MutationState;
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let state = temp.path().join("state");
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    cloud.hold_folder.store(true, Ordering::SeqCst);
+    let vault = Arc::new(Vault::default());
+    let spool = temp.path().join("journal");
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&spool, &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account.clone(), cloud.clone(), state.clone())
+        .await
+        .unwrap();
+    let stopped = Arc::downgrade(&engine);
+    let session = WritableSession::mount(engine, journal.clone(), cloud.clone(), vault.clone())
+        .await
+        .unwrap();
+    application(
+        &mount,
+        r#"
+import os,sys
+os.chdir(sys.argv[1])
+os.makedirs('pending/nested')
+with open('pending/nested/keep.txt','wb',buffering=0) as f:
+    f.write(b'recover these bytes')
+    os.fsync(f.fileno())
+"#,
+    )
+    .await;
+    tokio::time::timeout(Duration::from_secs(5), cloud.folder_entered.notified())
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(5), session.shutdown())
+        .await
+        .unwrap()
+        .unwrap();
+    drop(journal);
+    let journal = Arc::new(Mutex::new(
+        reopened_journal(&spool, &account.id, 1024 * 1024).await,
+    ));
+    let engine = reopened_engine(account, cloud.clone(), &state, stopped).await;
+    let session = WritableSession::mount(engine, journal.clone(), cloud.clone(), vault)
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            if session
+                .mutations(0, 100)
+                .await
+                .unwrap()
+                .iter()
+                .any(|r| r.state == MutationState::NeedsReview)
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    application(
+        &mount,
+        r#"
+import os,sys
+os.chdir(sys.argv[1])
+assert open('pending/nested/keep.txt','rb').read()==b'recover these bytes'
+with open('other.txt','wb',buffering=0) as f:
+    f.write(b'independent')
+    os.fsync(f.fileno())
+"#,
+    )
+    .await;
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            if session
+                .uploads(0, 100)
+                .await
+                .unwrap()
+                .iter()
+                .any(|r| r.state == UploadState::Uploaded)
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(cloud.remote.lock().unwrap().files.len(), 1);
+    let pending = session
+        .uploads(0, 100)
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|r| r.state == UploadState::Pending)
+        .unwrap();
+    assert!(journal.lock().unwrap().payload(pending.id).is_ok());
     session.shutdown().await.unwrap();
 }

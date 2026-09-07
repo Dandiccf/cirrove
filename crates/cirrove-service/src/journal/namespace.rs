@@ -44,14 +44,17 @@ impl NamespaceObject {
         if self.unlinked
             || !self.remote_owned
             || self.remote.as_ref().is_none_or(|r| r.id != remote.id)
-            || remote.kind != NodeKind::File
+            || remote.kind != self.node.kind
+            || !matches!(remote.kind, NodeKind::File | NodeKind::Folder)
             || remote.target.is_some()
         {
             return Err(JournalError::Stale);
         }
         MutationRequest {
             scope: self.scope.clone(),
-            intent: MutationIntent::RemoveFile {
+            intent: MutationIntent::Relocate {
+                parent: remote.parent_id.clone().ok_or(JournalError::Intent)?,
+                name: remote.name.clone(),
                 before: remote.clone(),
             },
         }
@@ -99,7 +102,11 @@ pub(super) fn by_id(db: &Connection, id: Uuid) -> Result<NamespaceObject> {
         .optional()?;
     Ok(serde_json::from_str(&body.ok_or(JournalError::Missing)?)?)
 }
-fn by_local(db: &Connection, scope: &Scope, item: &str) -> Result<Option<NamespaceObject>> {
+pub(super) fn by_local(
+    db: &Connection,
+    scope: &Scope,
+    item: &str,
+) -> Result<Option<NamespaceObject>> {
     let key = identity(scope, item)?;
     let body: Option<String> = db
         .query_row(
@@ -110,7 +117,11 @@ fn by_local(db: &Connection, scope: &Scope, item: &str) -> Result<Option<Namespa
         .optional()?;
     body.map(|b| Ok(serde_json::from_str(&b)?)).transpose()
 }
-fn by_remote(db: &Connection, scope: &Scope, item: &str) -> Result<Option<NamespaceObject>> {
+pub(super) fn by_remote(
+    db: &Connection,
+    scope: &Scope,
+    item: &str,
+) -> Result<Option<NamespaceObject>> {
     let body: Option<String> = db
         .query_row(
             "SELECT o.body FROM namespace_remote r
@@ -121,7 +132,7 @@ fn by_remote(db: &Connection, scope: &Scope, item: &str) -> Result<Option<Namesp
         .optional()?;
     body.map(|b| Ok(serde_json::from_str(&b)?)).transpose()
 }
-fn policy(db: &Connection, scope: &Scope) -> Result<NamespaceNames> {
+pub(super) fn policy(db: &Connection, scope: &Scope) -> Result<NamespaceNames> {
     let value: Option<String> = db
         .query_row(
             "SELECT names FROM namespace_scopes WHERE scope=?1",
@@ -142,7 +153,7 @@ fn policy(db: &Connection, scope: &Scope) -> Result<NamespaceNames> {
     }
     Ok(NamespaceNames::Insensitive)
 }
-fn ensure_legacy_policy(tx: &Transaction<'_>, scope: &Scope) -> Result<()> {
+pub(super) fn ensure_legacy_policy(tx: &Transaction<'_>, scope: &Scope) -> Result<()> {
     // Preserve the original experimental working-file API's name semantics.
     // New adapters can select their policy before creating any local objects.
     tx.execute(
@@ -353,6 +364,7 @@ pub(super) fn prepare_attachment(
                 object.remote = Some(source.clone());
                 object.node.name = source.name.clone();
                 object.node.parent_id = source.parent_id.clone();
+                directories::localize_parent(db, &object.scope, &mut object.node)?;
                 object.follows_remote = false;
             }
             if object.node.kind != working.node.kind
@@ -375,6 +387,9 @@ pub(super) fn prepare_attachment(
             object
         }
         None => {
+            if working.initial_remote.is_some() {
+                directories::localize_parent(db, &working.scope, &mut working.node)?;
+            }
             let count: i64 =
                 db.query_row("SELECT count(*) FROM namespace_objects", [], |r| r.get(0))?;
             if count >= 10_000 {
@@ -538,6 +553,7 @@ impl UploadJournal {
                 let local = object.node.id.clone();
                 object.node = node.clone();
                 object.node.id = local;
+                directories::localize_parent(&self.db, &scope, &mut object.node)?;
                 object.remote = Some(node);
                 object.follows_remote = false;
                 object.revision = object.revision.checked_add(1).ok_or(JournalError::Quota)?;
@@ -555,7 +571,7 @@ impl UploadJournal {
         if count >= 10_000 {
             return Err(JournalError::Quota);
         }
-        let object = NamespaceObject {
+        let mut object = NamespaceObject {
             id: Uuid::new_v4(),
             names: policy(&self.db, &scope)?,
             scope,
@@ -569,6 +585,7 @@ impl UploadJournal {
             follows_remote: false,
             unlinked: false,
         };
+        directories::localize_parent(&self.db, &object.scope, &mut object.node)?;
         let tx = self
             .db
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
@@ -752,6 +769,7 @@ pub fn project_namespace<'a>(
             if let Some(identity) = aliases.get(node.id.as_str()) {
                 node.id = (*identity).to_owned();
             }
+            node.parent_id = Some(parent.to_owned());
             nodes.push(node);
         }
     }

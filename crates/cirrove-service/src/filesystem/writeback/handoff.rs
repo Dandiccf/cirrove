@@ -172,7 +172,9 @@ impl Writeback {
             let result = tokio::task::spawn_blocking(move || {
                 let _idle = idle;
                 let mut journal = writer.journal.lock().map_err(|_| Errno::EIO)?;
-                let following = object.followed(remote.clone()).map_err(error)?;
+                let following = journal
+                    .following_namespace(&object, remote.clone())
+                    .map_err(error)?;
                 // Reserve and validate the in-memory publication before the
                 // durable detach. Once committed, applying it is infallible.
                 Self::publish_locked(&journal, &writer.projection)?;

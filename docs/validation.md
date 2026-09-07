@@ -668,3 +668,31 @@ conditional deletions of run-created sources. Earlier live evidence remains
 limited to the already recorded operations and two basic mounted saves. This
 increment does not close the application/provider acceptance matrix or any of
 the six release milestones.
+
+
+## Pending local directories (2026-09-07)
+
+Seven synthetic journal tests cover nested folders and sibling creates, preservation
+after an uncertain parent across restart, destination-name ordering after binding,
+transaction rollback, migration from schema 13 and refusal of missing/future schema,
+rejection of unrelated folder receipts, and both arrival orders of a file's source
+upload and destination-folder confirmation.
+
+Two additional actual kernel FUSE fixtures use an in-memory provider that refuses
+unknown or nonfolder parent IDs. A held folder creation does not block nested mkdir,
+file writes, fsync, reads or an independent root upload. After confirmation, children
+have the correct provider parents. Folder inode identity survives cleanup and remount;
+a remotely added child can then be read, appended and moved through local folder
+aliases. An interrupted folder request enters review after restart, retaining nested
+local bytes while an independent file uploads. File/directory name collisions are
+refused. The cleanup assertion allows the existing two-second per-object maintenance
+interval and its later physical-removal pass; production timing was not changed.
+
+These are synthetic service/filesystem checks, not live OneDrive directory evidence.
+Folder rename, safe folder removal, broader application saves, provider concurrency,
+physical faults and bounded history/recovery remain acceptance gaps. All six product
+milestones remain open, and ordinary mounted drives remain read-only.
+
+The final local run passed 225 default workspace tests, 15 read-only/lifecycle
+kernel fixtures and 18 writable-session kernel fixtures, plus formatting, strict
+Clippy, build, smoke, two observer-script checks and Rustdoc.

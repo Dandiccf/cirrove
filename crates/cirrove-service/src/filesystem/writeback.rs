@@ -245,6 +245,42 @@ impl Writeback {
             .filter(|o| !o.follows_remote)
             .map(|o| o.node.clone()))
     }
+    pub fn directory_identity(&self, scope: &Scope, item: &str) -> Result<Option<String>> {
+        let projection = self.projection.lock().map_err(|_| Errno::EIO)?;
+        match projection.local_object(scope, item) {
+            Some(folder) if folder.node.kind == NodeKind::Folder && !folder.unlinked => {
+                Ok(folder.remote.as_ref().map(|n| n.id.clone()))
+            }
+            Some(_) => Err(Errno::ENOTDIR),
+            None => Ok(Some(item.to_owned())),
+        }
+    }
+    pub fn localize_parent(&self, scope: &Scope, node: &mut Node) -> Result<()> {
+        let projection = self.projection.lock().map_err(|_| Errno::EIO)?;
+        if let Some(parent) = &node.parent_id
+            && let Some(folder) = projection
+                .remote_bindings
+                .get(&key(scope, parent))
+                .and_then(|id| projection.objects.get(id))
+                .filter(|o| o.node.kind == NodeKind::Folder && !o.unlinked)
+        {
+            node.parent_id = Some(folder.node.id.clone());
+        }
+        Ok(())
+    }
+    pub async fn create_directory(
+        &self,
+        scope: Scope,
+        parent: String,
+        name: String,
+    ) -> Result<Node> {
+        let object = self
+            .local(move |j| j.create_namespace_directory(scope, parent, name))
+            .await?;
+        self.refresh_projection().await?;
+        self.wake.notify_waiters();
+        Ok(object.node)
+    }
     pub fn working(&self, scope: &Scope, item: &str) -> Result<Option<WorkingFile>> {
         let projection = self.projection.lock().map_err(|_| Errno::EIO)?;
         Ok(projection
@@ -286,6 +322,9 @@ impl Writeback {
                 return Ok(object);
             }
             node.id = object.remote.ok_or(JournalError::Corrupt)?.id;
+        }
+        if let Some(parent) = &node.parent_id {
+            node.parent_id = Some(j.provider_parent(&scope, parent)?);
         }
         j.observe_namespace_file(scope, node)
     }

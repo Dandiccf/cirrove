@@ -215,6 +215,17 @@ impl UploadJournal {
         };
         let tx = self.db.transaction()?;
         record.sequence = queue_insert(&tx, record.id, mutation_resources(&record.request)?)?;
+        if let MutationIntent::CreateFolder { parent, .. }
+        | MutationIntent::Relocate { parent, .. } = &record.request.intent
+        {
+            directories::bind(
+                &tx,
+                record.id,
+                record.sequence,
+                &record.request.scope,
+                parent,
+            )?;
+        }
         super::generations::insert_dependency(
             &tx,
             record.id,
@@ -240,7 +251,11 @@ impl UploadJournal {
             super::working::commit_relocation(&tx, working, &record)?;
         }
         if let Some(object) = object {
-            super::namespace::commit_relocation(&tx, object, &record)?;
+            if matches!(record.request.intent, MutationIntent::CreateFolder { .. }) {
+                directories::commit_creation(&tx, object, &record)?;
+            } else {
+                super::namespace::commit_relocation(&tx, object, &record)?;
+            }
         }
         tx.commit()?;
         Ok(record)
@@ -297,6 +312,7 @@ impl UploadJournal {
             return Ok(None);
         }
         let body: Option<String> = self.db.query_row("SELECT m.body FROM mutations m WHERE m.state IN ('pending','verify_required')
+            AND NOT EXISTS(SELECT 1 FROM write_destinations d WHERE d.operation=m.id AND d.resolved=0)
             AND coalesce(json_extract(m.body,'$.local_ready'),1)=1
             AND (json_extract(m.body,'$.base') IS NULL OR json_extract(m.body,'$.base.resolved')=1)
             AND NOT EXISTS (SELECT 1 FROM write_prerequisites b LEFT JOIN write_queue p ON p.id=b.predecessor

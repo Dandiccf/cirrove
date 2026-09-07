@@ -4,6 +4,7 @@
 //! the pending row. Network work happens after a claim returns, outside this module.
 //! An interrupted attempt requires remote verification, never unconditional replay.
 mod barriers;
+mod directories;
 mod generations;
 mod handoff;
 mod mutations;
@@ -206,7 +207,7 @@ impl UploadJournal {
         let mut db = Connection::open(database)?;
         db.busy_timeout(std::time::Duration::from_secs(3))?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if version > 13 {
+        if version > 14 {
             return Err(JournalError::Schema);
         }
         db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;
@@ -233,6 +234,7 @@ impl UploadJournal {
         replacements::migrate(&mut db, version)?;
         publication::migrate(&mut db, version)?;
         preparation::migrate(&mut db, version)?;
+        directories::migrate(&mut db, version)?;
         // Never infer that a transfer failed just because its process died.
         db.execute(
             "UPDATE uploads SET state='verify_required',
@@ -373,6 +375,11 @@ impl UploadJournal {
             record.id,
             mutations::upload_resources(&record.scope, &record.intent)?,
         )?;
+        if record.base.is_none()
+            && let UploadIntent::Create { parent, .. } = &record.intent
+        {
+            directories::bind(&tx, record.id, record.sequence, &record.scope, parent)?;
+        }
         generations::insert_dependency(&tx, record.id, record.sequence, record.base.as_ref())?;
         barriers::insert(
             &tx,
@@ -472,6 +479,7 @@ impl UploadJournal {
             .db
             .query_row(
                 "SELECT u.body FROM uploads u WHERE u.state='pending'
+                AND NOT EXISTS(SELECT 1 FROM write_destinations d WHERE d.operation=u.id AND d.resolved=0)
                 AND (json_extract(u.body,'$.base') IS NULL OR json_extract(u.body,'$.base.resolved')=1)
                 AND NOT EXISTS (SELECT 1 FROM file_replacements r WHERE r.id=u.id AND json_extract(r.body,'$.local_ready')=0)
                 AND NOT EXISTS (SELECT 1 FROM write_prerequisites b LEFT JOIN write_queue p ON p.id=b.predecessor
@@ -540,6 +548,7 @@ impl UploadJournal {
             .db
             .query_row(
                 "SELECT u.id FROM uploads u WHERE u.state='verify_required'
+                AND NOT EXISTS(SELECT 1 FROM write_destinations d WHERE d.operation=u.id AND d.resolved=0)
                 AND (json_extract(u.body,'$.base') IS NULL OR json_extract(u.body,'$.base.resolved')=1)
                 AND NOT EXISTS (SELECT 1 FROM file_replacements r WHERE r.id=u.id AND json_extract(r.body,'$.local_ready')=0)
                 AND NOT EXISTS (SELECT 1 FROM write_prerequisites b LEFT JOIN write_queue p ON p.id=b.predecessor
@@ -648,6 +657,7 @@ impl UploadJournal {
             || record.base.as_ref().is_some_and(|base| !base.resolved)
             || !barriers::satisfied(&self.db, id)?
             || !replacements::locally_ready(&self.db, id)?
+            || !directories::ready(&self.db, id)?
         {
             return Err(JournalError::Stale);
         }

@@ -390,7 +390,16 @@ impl Inner {
         Ok(result)
     }
     async fn children(&self, parent: &View) -> Result<Vec<Node>, ProviderError> {
-        let nodes = self.engine.children(&parent.scope, &parent.node.id).await?;
+        let identity = match &self.writeback {
+            Some(writer) => writer
+                .directory_identity(&parent.scope, &parent.node.id)
+                .map_err(|_| ProviderError::Unavailable)?,
+            None => Some(parent.node.id.clone()),
+        };
+        let nodes = match identity {
+            Some(item) => self.engine.children(&parent.scope, &item).await?,
+            None => Vec::new(),
+        };
         match &self.writeback {
             Some(writer) => writer
                 .overlay(&parent.scope, &parent.node.id, nodes)
@@ -417,6 +426,9 @@ impl Inner {
                 .ok_or(ProviderError::Unavailable)?;
             let mut node = self.engine.node(&view.scope, &item).await?;
             node.id = view.node.id.clone();
+            writer
+                .localize_parent(&view.scope, &mut node)
+                .map_err(|_| ProviderError::Unavailable)?;
             return Ok(node);
         }
         if view.inode == 1 || view.node.kind == NodeKind::File {
@@ -550,6 +562,67 @@ impl Filesystem for CloudFs {
             match result {
                 Ok((view, node)) => reply.attr(&TTL, &inner.attr(&view, &node)),
                 Err(e) => reply.error(errno(&e)),
+            }
+        });
+    }
+    fn mkdir(
+        &self,
+        _req: &Request,
+        parent: INodeNo,
+        name: &OsStr,
+        _mode: u32,
+        _umask: u32,
+        reply: ReplyEntry,
+    ) {
+        let Some(writer) = self.inner.writeback.clone() else {
+            reply.error(Errno::EROFS);
+            return;
+        };
+        let Some(name) = name.to_str().map(str::to_owned) else {
+            reply.error(Errno::EINVAL);
+            return;
+        };
+        let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
+            reply.error(Errno::EAGAIN);
+            return;
+        };
+        let Ok(admission) = self.inner.edits.admit() else {
+            reply.error(Errno::ENODEV);
+            return;
+        };
+        let inner = self.inner.clone();
+        self.inner.runtime.spawn(async move {
+            let _permit = permit;
+            let _admission = admission;
+            let result = async {
+                let parent = inner.view(parent.0).map_err(|e| errno(&e))?;
+                if parent.node.kind != NodeKind::Folder {
+                    return Err(Errno::ENOTDIR);
+                }
+                if inner
+                    .children(&parent)
+                    .await
+                    .map_err(|e| errno(&e))?
+                    .iter()
+                    .any(|node| node.name.to_lowercase() == name.to_lowercase())
+                {
+                    return Err(Errno::EEXIST);
+                }
+                let node = writer
+                    .create_directory(parent.scope.clone(), parent.node.id.clone(), name)
+                    .await
+                    .map_err(|e| if e == Errno::ESTALE { Errno::EEXIST } else { e })?;
+                let view = inner
+                    .insert(&parent, node.clone())
+                    .await
+                    .map_err(|e| errno(&e))?;
+                inner.engine.changed.notify_waiters();
+                Ok::<_, Errno>(inner.attr(&view, &node))
+            }
+            .await;
+            match result {
+                Ok(attr) => reply.entry(&TTL, &attr, Generation(0)),
+                Err(error) => reply.error(error),
             }
         });
     }

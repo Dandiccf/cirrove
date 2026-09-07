@@ -57,7 +57,8 @@ and Nautilus badges are not implemented.
   Its session starts bounded upload workers automatically and drains accepted local
   writes before unmounting. An isolated business-drive check passed two actual
   mounted saves, automatic uploads and independent content verification. Regular-file
-  atomic replacement now has synthetic application checks; writable directories
+  atomic replacement now has synthetic application checks. Folder creation and
+  nested local saves are also implemented experimentally; folder rename/removal
   and broader real-application acceptance remain incomplete.
 - Durable local object identities and directory entries separate from optional
   working bytes. Local stream lookups are separate from provider-binding lookups,
@@ -65,7 +66,7 @@ and Nautilus badges are not implemented.
   can rename and move regular files within one collection without downloading
   content. Uploads and namespace changes share
   receipt-based ordering; a lost rename response containing another actor's edit
-  blocks later saves and retains both versions. Writable directories and broader
+  blocks later saves and retains both versions. Folder rename/removal and broader
   application/provider acceptance remain incomplete.
 - Experimental sessions retire fully acknowledged working copies after the last
   file user closes, then follow remote edits, moves and deletions while retaining
@@ -84,6 +85,12 @@ and Nautilus badges are not implemented.
   Joint publication preserves local streams across chained replacements. Tests
   exercise actual mounted atomic saves, held reads and interrupted preparation;
   ordinary desktop editors and broader provider scenarios still need acceptance.
+
+- Experimental folder creation commits its local entry before cloud confirmation.
+  Nested folders, file creation and file-move destinations wait for the parent's
+  confirmed provider identity independently of each file's save sequence. Actual
+  synthetic mounts exercise pending-parent navigation and recovery after restart;
+  live directory workflows remain unvalidated.
 
 These are implementation capabilities, not a production-readiness claim. See the
 [validation record](docs/validation.md) for what has actually been tested.

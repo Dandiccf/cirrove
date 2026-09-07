@@ -109,7 +109,7 @@ impl UploadJournal {
             return Err(JournalError::Stale);
         }
         let working = object.working_file;
-        let object = object.followed(remote)?;
+        let object = self.following_namespace(&object, remote)?;
         let tx = self
             .db
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;

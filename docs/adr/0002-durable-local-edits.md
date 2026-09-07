@@ -239,3 +239,12 @@ capture temporaries. An unmaterialized source retains its new-process reader gat
 Four actual kernel fixtures exercise chained saves, held reads, online-only capture
 and remount after interruption. Broader editor/office, live Graph and physical-fault
 acceptance remain open; ordinary mounts are still read-only.
+
+
+Schema 14 separates a destination folder's confirmation from a file's linear save
+predecessor. Multiple child operations may share the same parent receipt, while a
+file move still follows its own source receipt for identity and ETag. Local folder
+creation and its mutation commit together. Resolved parent IDs acquire provider
+name reservations before either worker claims work. Uncertain ancestors preserve
+the local tree; normal mounts remain read-only. Folder rename/removal and wider
+provider/application validation are still required.

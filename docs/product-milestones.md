@@ -54,7 +54,13 @@ source after remount. That expanded live sequence has not yet been executed.
 Fully acknowledged working copies can retire after the last user closes, retaining
 local identities that follow remote changes. Restartable cleanup, generation fencing,
 checksums, quota failures and interrupted final publication have synthetic checks.
-The normal daemon remains read-only. Writable directories, broader ordinary editor
+Experimental folder creation now supports pending nested folders, sibling file
+saves and file moves whose destinations are still awaiting cloud confirmation.
+Synthetic journal and actual mount tests cover independent progress, retained bytes
+after uncertain creation, stable identities across remount and editing remote
+children after local cleanup. This has not been exercised against a live provider.
+
+The normal daemon remains read-only. Folder rename/removal, broader ordinary editor
 and office behavior, live provider replacement/unlink scenarios, physical-fault
 coverage, restored remote identities, detached-data recovery and bounded long-session
 history remain acceptance gaps. This implementation progress does not close the

@@ -288,8 +288,8 @@ HTTP success is required for a confirmed deletion receipt. File DELETE uses the
 provider's recycle-bin behavior; it is not permanent deletion or local POSIX rmdir.
 
 Experimental writable mounts now connect regular-file rename/move to this worker.
-The writable namespace layer must add ancestor/dependency handling and directory
-lifetime rules before enabling folder mutations through FUSE. Personal
+Experimental FUSE also supports folder creation and dependent child destinations
+as described below. Folder rename and safe removal remain unimplemented. Personal
 accounts, permissions changes and broader live concurrency still require coverage.
 
 ## Experimental local working files
@@ -328,9 +328,9 @@ save on the user's ordinary mount is routed through this experimental path.
 
 Experimental writable inodes retain identity while their local bytes change.
 Memory mapping is currently disabled for these sessions; read-only sessions keep
-their existing content-version inode and mapping behavior. Writable directory operations,
-permission/time changes and conflict UI are not connected to
-writable mounts yet. Sealing may require space
+their existing content-version inode and mapping behavior. Folder rename/removal,
+permission/time changes and conflict UI are not connected to writable mounts yet.
+Sealing may require space
 for both the working file and its snapshot; failure
 keeps the dirty source and reports an error. Physical power loss, physical disk-full
 recovery and sustained real-provider application editing remain acceptance gates.
@@ -389,7 +389,7 @@ save bases. Providers must distinguish conditional responses from later observat
 
 These APIs establish journal ordering and working-file transactions. The sparse
 namespace model below connects regular-file relocation and replacement to FUSE.
-Directory dependencies and complete detached-stream retention/recovery remain
+Folder rename/removal and complete detached-stream retention/recovery remain
 required. The ordinary manager stays read-only.
 
 ## Sparse local namespace and mounted relocation
@@ -622,6 +622,38 @@ that quota and explaining recovery in the desktop UI remain unfinished. The sour
 can change externally before capture completes; no historical-version retrieval or
 complete offline availability is claimed. These APIs remain experimental until the
 application, provider, fault and capacity acceptance matrix is complete.
+
+## Local directories and pending destinations
+
+Journal schema 14 adds a destination-parent relation separate from the linear
+content predecessor. `mkdir` commits a stable local folder and its queued provider
+creation together. Its children are immediately visible through the local namespace;
+a folder without a confirmed remote identity needs no provider listing. New child
+folders, file creates and move destinations capture that parent's current operation.
+Several children can depend on the same folder without consuming one another's
+save lineage or adopting a folder as a file identity.
+
+Before claiming work, bounded resolution checks the parent's confirmed receipt,
+operation ownership, scope and sequence, then binds the actual provider destination
+and adds its resource reservations atomically. Both workers wait for unresolved
+parents. File moves can independently wait for a source save and destination folder.
+Uncertain or conflicted parent creation retains the local tree and its bytes while
+unrelated destinations remain eligible. Restart does not infer successful folder
+creation or retry an unidentified creation blindly.
+
+The projection keeps local folder IDs across acknowledgement, cleanup and remount.
+Provider listings use confirmed remote IDs and translate returned parent references
+back to local IDs. Initial edits of remotely created children reverse that translation
+before capturing provider metadata. Fully acknowledged folders can follow remote
+metadata through the existing handoff path without owning working bytes.
+
+Folder rename, cross-collection movement and `rmdir` are still outside this mounted
+implementation. In particular, listing a business folder as empty and conditionally
+calling Graph DELETE is not a proven empty-folder-only operation: its folder ETag
+does not cover descendant changes, and business folders do not expose a cTag.
+Do not implement folder removal by extending the regular-file deletion path.
+The existing namespace/history capacity limits, physical-fault checks and broader
+application/provider acceptance gates still apply. Ordinary mounts remain read-only.
 
 ## Next boundaries
 
