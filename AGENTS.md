@@ -12,4 +12,7 @@
 - Preserve visible metadata and completed cursors together across interrupted refreshes.
 - Use synthetic fixtures by default. Cloud mutations require explicit task authorization.
 - Run formatting, clippy, workspace tests and the smoke test for relevant changes.
+- Use a separate Cargo target directory for each worktree. Sharing incremental
+  artifacts across checkouts can reuse a test executable from another source tree;
+  verify that filtered test commands actually execute the expected tests.
 - Do not add dependencies or abstractions for unimplemented features without a concrete use case.

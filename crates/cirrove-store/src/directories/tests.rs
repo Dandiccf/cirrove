@@ -399,3 +399,110 @@ fn invalid_legacy_snapshots_roll_back_without_losing_old_data() {
         }
     }
 }
+
+#[test]
+fn named_child_agrees_with_ordered_listing_after_moves_renames_and_absence() {
+    for snapshot in [false, true] {
+        let mut db = Store::open(":memory:").unwrap();
+        assert_eq!(db.child(&scope(), "root", "unknown").unwrap(), None);
+        db.observe_directory(&scope(), "empty", &[]).unwrap();
+        assert_eq!(db.child(&scope(), "empty", "unknown").unwrap(), Some(None));
+        let nodes = (0..2048).map(node).collect::<Vec<_>>();
+        seed(&mut db, &nodes);
+        if snapshot {
+            db.observe_directory(&scope(), "root", &nodes).unwrap();
+        }
+        let mut renamed = nodes[10].clone();
+        renamed.name = "Änderung ' ; ?4".into();
+        db.observe_node(&scope(), &renamed).unwrap();
+        let mut moved = nodes[20].clone();
+        moved.parent_id = Some("elsewhere".into());
+        db.observe_node(&scope(), &moved).unwrap();
+        let missing = db.node_observation(&scope(), &nodes[30].id).unwrap();
+        db.publish_absence(&missing).unwrap();
+        let mut added = node(4096);
+        added.name = "新しい名前".into();
+        db.observe_node(&scope(), &added).unwrap();
+        let expected = db.children(&scope(), "root").unwrap().unwrap();
+        let mut names = nodes
+            .iter()
+            .map(|n| n.name.clone())
+            .collect::<std::collections::BTreeSet<_>>();
+        names.extend([renamed.name, added.name, "absent".into(), "äNDERUNG".into()]);
+        for name in names {
+            assert_eq!(
+                db.child(&scope(), "root", &name).unwrap(),
+                Some(expected.iter().find(|n| n.name == name).cloned()),
+                "snapshot={snapshot}, name={name}"
+            );
+        }
+        assert_eq!(
+            db.child(&scope(), "elsewhere", &moved.name).unwrap(),
+            Some(Some(moved))
+        );
+        let mut other_scope = scope();
+        other_scope.account = "other-account".into();
+        assert_eq!(
+            db.child(&other_scope, "root", &nodes[0].name).unwrap(),
+            None
+        );
+    }
+}
+
+#[test]
+fn named_child_uses_bounded_index_work_for_present_and_absent_names() {
+    let mut db = Store::open(":memory:").unwrap();
+    let mut nodes = (0..20_000).map(node).collect::<Vec<_>>();
+    nodes.last_mut().unwrap().name = "zzzz-last-name".into();
+    seed(&mut db, &nodes);
+    let key = Store::key(&scope()).unwrap();
+    for snapshot in [false, true] {
+        if snapshot {
+            db.observe_directory(&scope(), "root", &nodes).unwrap();
+        }
+        let (sql, revision) = read_source(&db.db, &key, "root").unwrap().unwrap();
+        // Duplicate names are covered by the result-equivalence test. Their
+        // stale observation candidates can legitimately add index work; this
+        // bound checks unique/present and absent names against directory size.
+        for name in ["zzzz-last-name", "zzzz-missing-name"] {
+            let query = name_query(sql);
+            let mut statement = db.db.prepare(&query).unwrap();
+            let body: Option<String> = statement
+                .query_row(params![key, "root", revision, name], |row| row.get(0))
+                .optional()
+                .unwrap();
+            assert_eq!(body.is_some(), name != "zzzz-missing-name");
+            eprintln!(
+                "snapshot={snapshot} name={name} sort={} scan={} steps={}",
+                statement.get_status(StatementStatus::Sort),
+                statement.get_status(StatementStatus::FullscanStep),
+                statement.get_status(StatementStatus::VmStep)
+            );
+            let mut plan = db
+                .db
+                .prepare(&format!("EXPLAIN QUERY PLAN {query}"))
+                .unwrap();
+            let details = plan
+                .query_map(params![key, "root", revision, name], |row| {
+                    row.get::<_, String>(3)
+                })
+                .unwrap()
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .unwrap();
+            eprintln!("{details:?}");
+            assert_eq!(statement.get_status(StatementStatus::Sort), 0);
+            assert_eq!(statement.get_status(StatementStatus::FullscanStep), 0);
+            assert!(
+                statement.get_status(StatementStatus::VmStep) < 500,
+                "lookup traversed the directory instead of using its name index"
+            );
+            assert_eq!(
+                db.child(&scope(), "root", name)
+                    .unwrap()
+                    .flatten()
+                    .is_some(),
+                body.is_some()
+            );
+        }
+    }
+}

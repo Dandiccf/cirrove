@@ -135,8 +135,14 @@ Other connections can publish while this reader retains its consistent snapshot.
 For a cached read-only OPENDIR, Engine now passes this iterator directly to a
 blocking snapshot builder. Projection and persistent inode assignment use batches
 of 128 nodes and a separate WAL writer connection; the complete listing is not
-retained in a vector. The compatibility `children()` API, point/name lookups,
-writable local-overlay projection and cold foreground publication still collect
+retained in a vector. Cached read-only LOOKUP also uses the name indexes directly,
+decoding only the first matching identity. It shares directory visibility and
+observation ordering with READDIR, including renamed, moved and absent entries.
+An unknown directory is fetched through the existing coalescing gate; a known
+absent name returns ENOENT without a provider call. Duplicate names retain the
+listing's identity tiebreak and can require work over matching stale observations.
+The compatibility `children()` API, writable local-overlay lookup/projection and
+cold foreground publication still collect
 lists. These remaining consumers keep the full-pipeline memory gate open.
 Long-lived read transactions also retain WAL history until released; the visitor
 is for bounded local work, never network waits or idle open directory handles.

@@ -157,6 +157,31 @@ thumbnail read-burst deadline; cached-directory latency retains its own assertio
 
 ## Namespace capacity baseline
 
+When working in multiple Git worktrees, keep a separate Cargo target directory
+for each checkout (the default local `target/` is suitable). A shared
+`CARGO_TARGET_DIR` can reuse an incremental test executable from another checkout;
+a successful command reporting zero selected tests does not validate new work.
+Check the test names and nonzero expected counts before accepting a result.
+
+To measure direct cached name lookups through the actual kernel mount, without
+first listing the directory:
+
+```sh
+cargo test -p cirrove-service --lib --locked --release --no-run
+CIRROVE_NAME_LOOKUP_FILES=500000 timeout 90s \
+  cargo test -p cirrove-service --lib --locked --release \
+  real_indexed_name_lookup -- --ignored --nocapture --test-threads=1
+```
+
+The default CI fixture uses 50,000 files; the explicit command uses 500,000.
+It checks 16 different filenames spanning the directory and one missing name,
+without directory snapshots, content reads or provider metadata calls. The
+combined stat operations must finish within 500 ms; reported RSS/PSS samples
+surround that phase and exclude initial indexing. This does not measure a full
+directory listing, file content, desktop thumbnail activity or long-session churn.
+The [recorded 500k-file lookup run](benchmarks/indexed-name-lookups.json) includes
+source hashes, process memory samples and the exact measured scope.
+
 To isolate the metadata Store's read allocations, run the 500,000-entry
 single-directory fixture in release mode. Each variant needs its own process:
 

@@ -280,6 +280,15 @@ impl Store {
         tx.commit()?;
         Ok(nodes)
     }
+    /// Find a name in one consistent cached directory view without decoding its
+    /// other children. Outer None means unknown; Some(None) means known absent.
+    /// The first name/identity-ordered match agrees with the listing API.
+    pub fn child(&self, scope: &Scope, parent: &str, name: &str) -> Result<Option<Option<Node>>> {
+        let tx = self.db.unchecked_transaction()?;
+        let node = directories::child_on(&tx, scope, parent, name)?;
+        tx.commit()?;
+        Ok(node)
+    }
     /// Consume a known directory through a fallible iterator in one consistent
     /// read transaction. Unknown directories return None without calling consume.
     /// The callback must finish local blocking work promptly; never retain this

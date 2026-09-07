@@ -64,13 +64,11 @@ const INDEXED_CHILDREN: &str =
     WHERE o.scope=?1 AND json_extract(o.body,'$.parent_id')=?2
     ORDER BY name,id";
 
-pub(super) fn read_on<T>(
+fn read_source(
     db: &Connection,
-    scope: &Scope,
+    key: &str,
     parent: &str,
-    consume: impl FnOnce(&mut dyn Iterator<Item = Result<Node>>) -> T,
-) -> Result<Option<T>> {
-    let key = Store::key(scope)?;
+) -> Result<Option<(&'static str, Option<i64>)>> {
     let revision = db
         .query_row(
             "SELECT source_revision FROM directories WHERE scope=?1 AND parent=?2",
@@ -84,7 +82,7 @@ pub(super) fn read_on<T>(
         let complete = db
             .query_row(
                 "SELECT cursor IS NOT NULL FROM feeds WHERE scope=?1",
-                [&key],
+                [key],
                 |r| r.get::<_, bool>(0),
             )
             .optional()?
@@ -93,6 +91,60 @@ pub(super) fn read_on<T>(
             return Ok(None);
         }
         INDEXED_CHILDREN
+    };
+    Ok(Some((sql, revision)))
+}
+
+pub(super) fn child_on(
+    db: &Connection,
+    scope: &Scope,
+    parent: &str,
+    name: &str,
+) -> Result<Option<Option<Node>>> {
+    let key = Store::key(scope)?;
+    let Some((sql, revision)) = read_source(db, &key, parent)? else {
+        return Ok(None);
+    };
+    // Keep exactly the same overlay/absence ordering as READDIR. SQLite pushes
+    // the name restriction into both indexed UNION arms; regression tests bound
+    // VM work as well as checking the result, including absent names.
+    let query = name_query(sql);
+    let body: Option<String> = db
+        .query_row(&query, params![key, parent, revision, name], |row| {
+            row.get(0)
+        })
+        .optional()?;
+    Ok(Some(
+        body.map(|body| serde_json::from_str(&body)).transpose()?,
+    ))
+}
+
+fn name_query(sql: &str) -> String {
+    // Restrict each arm of the same visibility query. An outer WHERE wrapper
+    // uses the name indexes but sorts matching identities in a temporary table;
+    // this form instead merges the two already identity-ordered index ranges.
+    // These are internal constant queries, never caller-supplied SQL.
+    sql.replace("e.parent=?2", "e.parent=?2 AND e.name=?4")
+        .replace(
+            "json_extract(n.body,'$.parent_id')=?2",
+            "json_extract(n.body,'$.parent_id')=?2 AND json_extract(n.body,'$.name')=?4",
+        )
+        .replace(
+            "json_extract(o.body,'$.parent_id')=?2",
+            "json_extract(o.body,'$.parent_id')=?2 AND json_extract(o.body,'$.name')=?4",
+        )
+        .replace("ORDER BY name,id", "ORDER BY id LIMIT 1")
+}
+
+pub(super) fn read_on<T>(
+    db: &Connection,
+    scope: &Scope,
+    parent: &str,
+    consume: impl FnOnce(&mut dyn Iterator<Item = Result<Node>>) -> T,
+) -> Result<Option<T>> {
+    let key = Store::key(scope)?;
+    let Some((sql, revision)) = read_source(db, &key, parent)? else {
+        return Ok(None);
     };
     let mut statement = db.prepare(sql)?;
     let mut rows = if let Some(revision) = revision {

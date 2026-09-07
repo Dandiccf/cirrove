@@ -40,7 +40,12 @@ the earlier JSON-array decode and whole-directory map merge. Tests cover ordered
 reads without a SQL sort, concurrent publication and atomic migration rollback.
 Cached read-only OPENDIR now streams into anonymous disk snapshots; READDIR uses
 bounded positioned pages, with a separate per-mount logical storage/handle budget.
-Cold foreground publication, point/name lookup and writable local overlays still
+Cached read-only name lookups now use indexed matches while preserving listing
+visibility, and known absent names avoid provider calls. An actual-kernel release
+fixture performs 17 direct metadata requests in a 500k-file directory in 11.06 ms,
+without a directory snapshot or provider calls; see
+[the measured scope](benchmarks/indexed-name-lookups.json).
+Cold foreground publication and writable local overlays still
 materialize lists. Snapshot construction also scans all entries before returning
 the first one. This remains partial progress toward the paging and memory gate.
 Separate three-pass kernel runs now cover 500k files in one directory and in
