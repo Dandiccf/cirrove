@@ -209,8 +209,8 @@ Existing versioned disk blocks and publication/recovery rules are unchanged.
 
 The experimental OneDrive session establishes its first range with the existing
 Graph before/after checks, then retains the content origin's own strong HTTP ETag.
-Later ranges send If-Match and check the effective resource, returned strong tag,
-exact range, identity encoding and body length. A rejected/expired URL, changed
+Later ranges and streamed windows send If-Match and check the effective resource,
+returned strong tag, exact range, identity encoding and body length. A rejected/expired URL, changed
 resource or changed validator triggers coalesced revalidation of the original
 Graph identity. This also permits metadata-only origin-tag changes without leaving
 an unchanged content revision permanently stuck. Setup failures share a short
@@ -225,10 +225,15 @@ a signed URL nor a matching ETag across different resource URLs alone proves tha
 association. Real mutation, URL-expiry, revocation and Personal-account acceptance
 are still required before enabling this path in normal accounts.
 
-Experimental sessions now optionally stream conservative windows into a caller-owned
-staging sink. OneDrive advertises this only after initial reads find no strong
-content-origin validator. The first cache miss still fetches one 4 MiB block (or the
-remaining shorter file). Sequential misses can then grow windows through 8, 16,
+Experimental sessions optionally stream windows into a caller-owned staging sink
+after the first validated read. Strong bindings use the same conditional validation
+as ranges, without per-window Graph calls. A rejected or expired binding renews
+through the requested window itself: Graph before, one body, Graph after. Ranges
+and windows share the renewal gate and failure cooldown. A body or sink error,
+cancellation or lease expiry after streaming starts discards the entire window;
+a replacement download is never appended to a partially written sink. Weak or
+missing validators retain the conservative before/after Graph checks per window.
+The first cache miss still fetches one 4 MiB block (or the remaining shorter file). Sequential misses can then grow windows through 8, 16,
 32 and at most 64 MiB. Sparse access resets growth. Observed transfer speed caps
 growth to a five-second target; this is a sizing hint, not a latency guarantee.
 The existing 30-second cache-provider deadline remains. Abandoned or failed windows
@@ -255,7 +260,10 @@ disk cache: 40 Graph requests and 20 content requests, compared with the previou
 sequential-window amplification fixture. Actual-kernel fixtures also verify
 overlapping reads, cached navigation during paused windows, failed final validation
 and cancellation with open descriptors. Real provider windows, wider application
-load/latency and the recovery matrix remain open. See
+load/latency and the recovery matrix remain open. Strong conditional windows now
+combine two Graph setup requests with twenty content requests for the same mounted
+1 GiB workload; they retain staging overhead rather than claiming universal latency
+improvement. See
 [the measured record](adr/0004-read-session-efficiency.md#bounded-sequential-window-fallback).
 
 Blocks have SHA-256 checksums. Temporary bytes and the containing directory are

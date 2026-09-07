@@ -30,6 +30,7 @@ pub(super) struct ReadCounters {
     setups: AtomicU64,
     renewals: AtomicU64,
     conditional_ranges: AtomicU64,
+    conditional_windows: AtomicU64,
     fallback_ranges: AtomicU64,
 }
 #[derive(Debug, Serialize)]
@@ -40,6 +41,7 @@ pub struct ReadCountersSnapshot {
     pub setups: u64,
     pub renewals: u64,
     pub conditional_ranges: u64,
+    pub conditional_windows: u64,
     pub fallback_ranges: u64,
 }
 
@@ -94,6 +96,104 @@ impl GraphReadSession {
             *failure = None;
         }
         Ok(())
+    }
+    fn record_failure(&self, error: &ProviderError) -> Result<(), ProviderError> {
+        let delay = match error {
+            ProviderError::Throttled(delay) => *delay,
+            _ => Duration::from_secs(2),
+        };
+        *self
+            .failure
+            .lock()
+            .map_err(|_| ProviderError::Unavailable)? =
+            Some((error.clone(), Instant::now() + delay));
+        Ok(())
+    }
+    async fn window(
+        &self,
+        offset: u64,
+        length: u32,
+        sink: &mut dyn ReadWindowSink,
+    ) -> Result<(), ProviderError> {
+        self.graph.check_cooldown().await?;
+        self.check_failure()?;
+        let mut rejected: Option<Arc<Bound>> = None;
+        for _ in 0..2 {
+            let state = self.state()?;
+            match &state {
+                State::Bound(bound)
+                    if bound.expires > Instant::now()
+                        && !rejected.as_ref().is_some_and(|old| Arc::ptr_eq(old, bound)) =>
+                {
+                    self.graph
+                        .counters
+                        .conditional_windows
+                        .fetch_add(1, Ordering::Relaxed);
+                    match self
+                        .graph
+                        .download_response(&bound.url, &self.node, offset, length, Some(bound))
+                        .await
+                    {
+                        Ok(response) => {
+                            // Once any bytes enter the sink, never retry by appending
+                            // a second representation. Failure discards all staging.
+                            self.graph
+                                .stream_window(response, &self.node, offset, length, sink)
+                                .await?;
+                            if bound.expires <= Instant::now() {
+                                return Err(ProviderError::Unavailable);
+                            }
+                            return Ok(());
+                        }
+                        Err(DownloadError::Renew) => rejected = Some(bound.clone()),
+                        Err(DownloadError::Provider(error)) => return Err(error),
+                    }
+                }
+                State::Fallback => {
+                    return self
+                        .graph
+                        .checked_window(&self.identity.scope, &self.node, offset, length, sink)
+                        .await
+                        .map(|_| ());
+                }
+                _ => (),
+            }
+            // Rebinding uses this window itself, not an extra probe or a second
+            // copy. Only headers were inspected before reaching this gate.
+            let _setup = self.setup.lock().await;
+            self.check_failure()?;
+            let current = self.state()?;
+            if let State::Bound(bound) = &current
+                && bound.expires > Instant::now()
+                && !rejected.as_ref().is_some_and(|old| Arc::ptr_eq(old, bound))
+            {
+                continue;
+            }
+            if matches!(current, State::Fallback) {
+                continue;
+            }
+            let binding = match self
+                .graph
+                .checked_window(&self.identity.scope, &self.node, offset, length, sink)
+                .await
+            {
+                Ok(binding) => binding,
+                Err(error) => {
+                    self.record_failure(&error)?;
+                    return Err(error);
+                }
+            };
+            if matches!(current, State::Cold) {
+                self.graph.counters.setups.fetch_add(1, Ordering::Relaxed);
+            } else {
+                self.graph.counters.renewals.fetch_add(1, Ordering::Relaxed);
+            }
+            *self.state.lock().map_err(|_| ProviderError::Unavailable)? = binding
+                .map(|bound| State::Bound(Arc::new(bound)))
+                .unwrap_or(State::Fallback);
+            return Ok(());
+        }
+        Err(ProviderError::Unavailable)
     }
     async fn range(&self, offset: u64, length: u32) -> Result<Vec<u8>, ProviderError> {
         self.graph.check_cooldown().await?;
@@ -157,15 +257,7 @@ impl GraphReadSession {
             {
                 Ok(range) => range,
                 Err(error) => {
-                    let delay = match &error {
-                        ProviderError::Throttled(delay) => *delay,
-                        _ => Duration::from_secs(2),
-                    };
-                    *self
-                        .failure
-                        .lock()
-                        .map_err(|_| ProviderError::Unavailable)? =
-                        Some((error.clone(), Instant::now() + delay));
+                    self.record_failure(&error)?;
                     return Err(error);
                 }
             };
@@ -196,7 +288,7 @@ impl ReadSession for GraphReadSession {
         &self.identity
     }
     fn window_limit(&self) -> u32 {
-        if matches!(self.state(), Ok(State::Fallback)) {
+        if matches!(self.state(), Ok(State::Fallback | State::Bound(_))) {
             64 * 1024 * 1024
         } else {
             0
@@ -215,7 +307,7 @@ impl ReadSession for GraphReadSession {
         let _permit = self.graph.budget.acquire(Priority::Content, cancel).await?;
         tokio::select! { biased;
             _ = cancel.cancelled() => Err(ProviderError::Cancelled),
-            result = tokio::time::timeout(Duration::from_secs(60),self.graph.checked_window(&self.identity.scope,&self.node,offset,length,sink)) => result.map_err(|_|ProviderError::Unavailable)?,
+            result = tokio::time::timeout(Duration::from_secs(60),self.window(offset,length,sink)) => result.map_err(|_|ProviderError::Unavailable)?,
         }
     }
     async fn read_range(
@@ -272,6 +364,7 @@ impl OneDrive {
             setups: c.setups.load(Ordering::Relaxed),
             renewals: c.renewals.load(Ordering::Relaxed),
             conditional_ranges: c.conditional_ranges.load(Ordering::Relaxed),
+            conditional_windows: c.conditional_windows.load(Ordering::Relaxed),
             fallback_ranges: c.fallback_ranges.load(Ordering::Relaxed),
         }
     }
@@ -310,20 +403,50 @@ impl OneDrive {
         offset: u64,
         length: u32,
         sink: &mut dyn ReadWindowSink,
-    ) -> Result<(), ProviderError> {
+    ) -> Result<Option<Bound>, ProviderError> {
+        let start = Instant::now();
         let url = self.resource_url(&["drives", &scope.collection, "items", &node.id])?;
         let before: DriveItem = serde_json::from_slice(&self.request_bytes(url.clone()).await?)
             .map_err(|_| ProviderError::Protocol("invalid file metadata"))?;
         if !before.matches_read(scope, node) {
             return Err(ProviderError::VersionChanged);
         }
-        let mut response = self
-            .download_response(&self.download_url(&before)?, node, offset, length, None)
+        let download = self.download_url(&before)?;
+        let response = self
+            .download_response(&download, node, offset, length, None)
             .await
             .map_err(|error| match error {
                 DownloadError::Provider(error) => error,
                 DownloadError::Renew => ProviderError::Unavailable,
             })?;
+        let binding = response
+            .headers()
+            .get(ETAG)
+            .cloned()
+            .filter(strong_etag)
+            .map(|tag| Bound {
+                url: download,
+                effective_url: response.url().clone(),
+                tag,
+                expires: start + SESSION_LEASE,
+            });
+        self.stream_window(response, node, offset, length, sink)
+            .await?;
+        let after: DriveItem = serde_json::from_slice(&self.request_bytes(url).await?)
+            .map_err(|_| ProviderError::Protocol("invalid file metadata"))?;
+        if !after.matches_read(scope, node) {
+            return Err(ProviderError::VersionChanged);
+        }
+        Ok(binding)
+    }
+    async fn stream_window(
+        &self,
+        mut response: reqwest::Response,
+        node: &Node,
+        offset: u64,
+        length: u32,
+        sink: &mut dyn ReadWindowSink,
+    ) -> Result<(), ProviderError> {
         let expected = (node.size - offset).min(length as u64);
         let mut received = 0u64;
         while let Some(chunk) = response
@@ -344,11 +467,6 @@ impl OneDrive {
         }
         if received != expected {
             return Err(ProviderError::Unavailable);
-        }
-        let after: DriveItem = serde_json::from_slice(&self.request_bytes(url).await?)
-            .map_err(|_| ProviderError::Protocol("invalid file metadata"))?;
-        if !after.matches_read(scope, node) {
-            return Err(ProviderError::VersionChanged);
         }
         Ok(())
     }

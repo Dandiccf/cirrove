@@ -33,7 +33,7 @@ fn check_counts(
         bytes == expected_bytes,
         "{mode:?}/{phase}: incorrect/excess transfer: {bytes}"
     );
-    if matches!(mode, Mode::Windows) && phase == "sequential" {
+    if !matches!(mode, Mode::Conservative) && phase == "sequential" {
         // Adaptation may select smaller windows on a slow disk/runner. Require
         // the acceptance ratio rather than pretending every host picks 64 MiB.
         ensure!(
@@ -53,7 +53,9 @@ fn check_counts(
             "per-block Graph checks on strong session"
         );
         ensure!(
-            after.conditional_ranges - before.conditional_ranges == content - setups - renewals
+            after.conditional_ranges - before.conditional_ranges + after.conditional_windows
+                - before.conditional_windows
+                == content - setups - renewals
         );
     } else {
         ensure!(
@@ -140,7 +142,7 @@ async fn workload(mode: Mode) -> anyhow::Result<serde_json::Value> {
         ensure!(stats.staging_reserved_bytes == 0);
         ensure!(stats.staging_peak_bytes <= 64 * 1024 * 1024);
         ensure!(peak.saturating_sub(baseline) < 256 * 1024 * 1024, "whole-file-sized service RSS growth");
-        ensure!(matches!(mode, Mode::Windows) == (stats.validated_windows > 0));
+        ensure!(!matches!(mode, Mode::Conservative) == (stats.validated_windows > 0));
         Ok::<_, anyhow::Error>(serde_json::json!({
             "mode":format!("{mode:?}"),"build_profile":build_profile(),"phases":phases,
             "synthetic_request_delay_ms":delay_ms,

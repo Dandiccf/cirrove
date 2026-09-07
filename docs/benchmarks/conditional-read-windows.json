@@ -1,0 +1,362 @@
+{
+  "recorded": "2026-09-07",
+  "scope": "Synthetic loopback OneDrive HTTP adapter and kernel FUSE. Separate release test process for each delay and a separate Python application. Seeded metadata; no desktop decoder, initial indexing or real cloud account. 20 ms is imposed per-response delay, not a provider measurement.",
+  "baseline_source_revision": "9a5a78965eb076c0fc37c5a7094407fa2aad7e60",
+  "baseline_artifact": "mounted-read-workloads.json",
+  "source_sha256": {
+    "Cargo.lock": "d19502cb0d6192a3e3e05a82f3349ce5543ee7784fa636128504ac8e7a33cd10",
+    "crates/cirrove-core/src/reads.rs": "613be7141b011679a625b81221c5bf27cde8c3c9bce38eb2072412298c2a053d",
+    "crates/cirrove-onedrive/src/read_sessions.rs": "b0471a6f44da2fd66ebce8cfe275a191d36b02dd5683f7c9feb8fa5c3afc3f7d",
+    "crates/cirrove-onedrive/src/read_sessions/tests/strong_windows.rs": "d440d1475bc4f5c849e3924d91a9a39cae230e72263485ea8b6c220ec89cb812",
+    "crates/cirrove-service/src/content/windows/tests/graph.rs": "4e717c36488167cb294ebc4d29b3f8d704a25669baa5b1c5e26e39814aceb64d",
+    "crates/cirrove-service/src/content/windows/tests/graph/kernel.rs": "652dd84af359e01fc25e3f36d784a69f3bbb52bd47d3d7a9fad5ec7592c85e7c",
+    "crates/cirrove-service/src/content/windows/tests/graph/kernel/workloads.rs": "1cea7819c4918c839693e5aa336aea1ca248ad08878a028e3b21d8f946275715",
+    "crates/cirrove-service/src/content/windows/tests/graph/kernel/read-workload.py": "d0c2b6b2df626abad7db8929c304bd9032df6fe1f33dd3ca3658ac7d22ccc001"
+  },
+  "measurements": [
+    {
+      "build_profile": "release",
+      "elapsed_ms": 3933.94162,
+      "fixture": "separate Python application, actual FUSE, loopback OneDrive adapter, seeded metadata; no real provider/indexing/desktop decoder",
+      "mode": "Strong",
+      "phases": [
+        {
+          "application": {
+            "bytes": 3100000,
+            "elapsed_ms": 8.316147985169664,
+            "first_open_read_ms": 6.958748999750242,
+            "process_peak_rss_kib": 18888,
+            "read_calls": {
+              "max_ms": 5.77352600521408,
+              "p50_ms": 0.020413979655131698,
+              "p95_ms": 0.033190997783094645,
+              "samples": 48
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 0.9183760000000001,
+            "p50_ms": 0.9183760000000001,
+            "p95_ms": 0.9183760000000001,
+            "samples": 1
+          },
+          "content_gets": 1,
+          "downloaded_bytes": 3100000,
+          "graph_gets": 2,
+          "phase": "preview",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "first_open_reads": {
+              "max_ms": 0.10709298658184709,
+              "p50_ms": 0.09384198347106576,
+              "p95_ms": 0.09384198347106576,
+              "samples": 3
+            },
+            "process_peak_rss_kib": 18900,
+            "reads": [
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 2.9913820035289973,
+                "first_open_read_ms": 0.09384198347106576,
+                "read_calls": {
+                  "max_ms": 0.08233601693063974,
+                  "p50_ms": 0.07512301090173423,
+                  "p95_ms": 0.08020899258553982,
+                  "samples": 48
+                }
+              },
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 3.814394003711641,
+                "first_open_read_ms": 0.07974900654517114,
+                "read_calls": {
+                  "max_ms": 0.1303750032093376,
+                  "p50_ms": 0.07581998943351209,
+                  "p95_ms": 0.08402700768783689,
+                  "samples": 48
+                }
+              },
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 3.774290991714224,
+                "first_open_read_ms": 0.10709298658184709,
+                "read_calls": {
+                  "max_ms": 0.09219898493029176,
+                  "p50_ms": 0.07585500134155154,
+                  "p95_ms": 0.07909297710284591,
+                  "samples": 48
+                }
+              }
+            ]
+          },
+          "cached_navigation": {
+            "max_ms": 0.71015,
+            "p50_ms": 0.71015,
+            "p95_ms": 0.71015,
+            "samples": 1
+          },
+          "content_gets": 0,
+          "downloaded_bytes": 0,
+          "graph_gets": 0,
+          "phase": "reopen",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 16384,
+            "process_peak_rss_kib": 18972,
+            "read_calls": {
+              "max_ms": 6.432875001337379,
+              "p50_ms": 5.865089013241231,
+              "p95_ms": 6.401524995453656,
+              "samples": 4
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 0.6090279999999999,
+            "p50_ms": 0.6090279999999999,
+            "p95_ms": 0.6090279999999999,
+            "samples": 1
+          },
+          "content_gets": 4,
+          "downloaded_bytes": 16777216,
+          "graph_gets": 2,
+          "phase": "sparse",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 131072,
+            "first_open_reads": {
+              "max_ms": 8.195584989152849,
+              "p50_ms": 7.672613020986319,
+              "p95_ms": 7.966813020175323,
+              "samples": 32
+            },
+            "process_peak_rss_kib": 19848,
+            "readers": 32
+          },
+          "cached_navigation": {
+            "max_ms": 0.8275669999999999,
+            "p50_ms": 0.8275669999999999,
+            "p95_ms": 0.8275669999999999,
+            "samples": 1
+          },
+          "content_gets": 1,
+          "downloaded_bytes": 3100000,
+          "graph_gets": 2,
+          "phase": "concurrent",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 1073741824,
+            "elapsed_ms": 3836.122698005056,
+            "first_open_read_ms": 7.0826460141688585,
+            "process_peak_rss_kib": 20432,
+            "read_calls": {
+              "max_ms": 96.93388000596316,
+              "p50_ms": 0.02732401480898261,
+              "p95_ms": 0.06032499368302524,
+              "samples": 16384
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 3.35615,
+            "p50_ms": 0.855833,
+            "p95_ms": 1.242496,
+            "samples": 77
+          },
+          "content_gets": 20,
+          "downloaded_bytes": 1073741824,
+          "graph_gets": 2,
+          "phase": "sequential",
+          "renewals": 0
+        }
+      ],
+      "service_and_loopback_sampled_rss_baseline_bytes": 14929920,
+      "service_and_loopback_sampled_rss_peak_bytes": 180441088,
+      "staging": {
+        "staged_bytes": 1065353216,
+        "staging_budget_bytes": 134217728,
+        "staging_peak_bytes": 67108864,
+        "staging_reserved_bytes": 0,
+        "validated_windows": 18
+      },
+      "synthetic_request_delay_ms": 0
+    },
+    {
+      "build_profile": "release",
+      "elapsed_ms": 3890.4965369999995,
+      "fixture": "separate Python application, actual FUSE, loopback OneDrive adapter, seeded metadata; no real provider/indexing/desktop decoder",
+      "mode": "Strong",
+      "phases": [
+        {
+          "application": {
+            "bytes": 3100000,
+            "elapsed_ms": 71.65341201471165,
+            "first_open_read_ms": 70.68597900797613,
+            "process_peak_rss_kib": 18960,
+            "read_calls": {
+              "max_ms": 69.79876599507406,
+              "p50_ms": 0.015483004972338676,
+              "p95_ms": 0.028091977583244443,
+              "samples": 48
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 0.63213,
+            "p50_ms": 0.543852,
+            "p95_ms": 0.543852,
+            "samples": 3
+          },
+          "content_gets": 1,
+          "downloaded_bytes": 3100000,
+          "graph_gets": 2,
+          "phase": "preview",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "first_open_reads": {
+              "max_ms": 0.0759730173740536,
+              "p50_ms": 0.05242999759502709,
+              "p95_ms": 0.05242999759502709,
+              "samples": 3
+            },
+            "process_peak_rss_kib": 18972,
+            "reads": [
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 1.1712840059772134,
+                "first_open_read_ms": 0.0759730173740536,
+                "read_calls": {
+                  "max_ms": 0.06105701322667301,
+                  "p50_ms": 0.01809999230317771,
+                  "p95_ms": 0.01960998633876443,
+                  "samples": 48
+                }
+              },
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 0.9795009973458946,
+                "first_open_read_ms": 0.05242999759502709,
+                "read_calls": {
+                  "max_ms": 0.029166025342419744,
+                  "p50_ms": 0.014766992535442114,
+                  "p95_ms": 0.02032599877566099,
+                  "samples": 48
+                }
+              },
+              {
+                "bytes": 3100000,
+                "elapsed_ms": 0.7981070084497333,
+                "first_open_read_ms": 0.04526000702753663,
+                "read_calls": {
+                  "max_ms": 0.015954981790855527,
+                  "p50_ms": 0.01304599572904408,
+                  "p95_ms": 0.013741024304181336,
+                  "samples": 48
+                }
+              }
+            ]
+          },
+          "cached_navigation": {
+            "max_ms": 0.594479,
+            "p50_ms": 0.594479,
+            "p95_ms": 0.594479,
+            "samples": 1
+          },
+          "content_gets": 0,
+          "downloaded_bytes": 0,
+          "graph_gets": 0,
+          "phase": "reopen",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 16384,
+            "process_peak_rss_kib": 19040,
+            "read_calls": {
+              "max_ms": 68.77565500326455,
+              "p50_ms": 26.935763977235183,
+              "p95_ms": 27.468689979286864,
+              "samples": 4
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 0.762128,
+            "p50_ms": 0.7178300000000001,
+            "p95_ms": 0.7178300000000001,
+            "samples": 3
+          },
+          "content_gets": 4,
+          "downloaded_bytes": 16777216,
+          "graph_gets": 2,
+          "phase": "sparse",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 131072,
+            "first_open_reads": {
+              "max_ms": 71.31577600375749,
+              "p50_ms": 70.69783500628546,
+              "p95_ms": 71.09606100129895,
+              "samples": 32
+            },
+            "process_peak_rss_kib": 19920,
+            "readers": 32
+          },
+          "cached_navigation": {
+            "max_ms": 0.864814,
+            "p50_ms": 0.619598,
+            "p95_ms": 0.619598,
+            "samples": 2
+          },
+          "content_gets": 1,
+          "downloaded_bytes": 3100000,
+          "graph_gets": 2,
+          "phase": "concurrent",
+          "renewals": 0
+        },
+        {
+          "application": {
+            "bytes": 1073741824,
+            "elapsed_ms": 3551.102282013744,
+            "first_open_read_ms": 69.45351700414903,
+            "process_peak_rss_kib": 20500,
+            "read_calls": {
+              "max_ms": 106.6267289861571,
+              "p50_ms": 0.021546002244576812,
+              "p95_ms": 0.03157899482175708,
+              "samples": 16384
+            }
+          },
+          "cached_navigation": {
+            "max_ms": 2.1551880000000003,
+            "p50_ms": 0.705224,
+            "p95_ms": 1.399952,
+            "samples": 72
+          },
+          "content_gets": 20,
+          "downloaded_bytes": 1073741824,
+          "graph_gets": 2,
+          "phase": "sequential",
+          "renewals": 0
+        }
+      ],
+      "service_and_loopback_sampled_rss_baseline_bytes": 14700544,
+      "service_and_loopback_sampled_rss_peak_bytes": 170397696,
+      "staging": {
+        "staged_bytes": 1065353216,
+        "staging_budget_bytes": 134217728,
+        "staging_peak_bytes": 67108864,
+        "staging_reserved_bytes": 0,
+        "validated_windows": 18
+      },
+      "synthetic_request_delay_ms": 20
+    }
+  ]
+}

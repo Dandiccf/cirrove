@@ -46,8 +46,11 @@ A separate mounted application workload now verifies cold 3.1 MB reads, reopens,
 sparse seeks, concurrent readers and sequential 1 GiB reads with actual adapter/HTTP
 counts. It closes the narrow request-count and stable-session implementation gates,
 but retains the live-provider, indexing and thumbnail-decoder gates. Measurements
-also show the strong path still uses one content request per block, while bounded
-windows trade extra local staging for fewer network round trips; see ADR 0004.
+identified one content request per block on the strong range path. Conditional
+windows now combine two Graph setup requests with twenty content requests in the
+mounted 1 GiB fixture. Shared renewal and partial-transfer discard have adapter and
+kernel coverage; windows still trade extra local staging for fewer network round
+trips, and the real-provider acceptance gates remain open. See ADR 0004.
 Graph Socket.IO and provider-neutral coalescing hints are now implemented. This
 does not close the live-response gate: notifications can be delayed upstream.
 An isolated business-drive run passed actual long-session renewal and subsequent
