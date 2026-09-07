@@ -121,10 +121,12 @@ that descriptor so shutdown can finish even while applications hold files open.
 Browser sign-in needs `xdg-open` and a desktop Secret Service keyring.
 Building the desktop also requires GTK 4.14+ and libadwaita 1.5+ development files
 (`gtk4 libadwaita` on Arch; `libgtk-4-dev libadwaita-1-dev` on Ubuntu 24.04).
-For a service/CLI-only build, use `cargo build --workspace --exclude cirrove-desktop --locked`.
+The default `cargo build --locked` builds the service/CLI and core libraries without
+GTK dependencies. Add the desktop explicitly with `cargo build -p cirrove-desktop --locked`,
+or use `cargo build --workspace --locked` to build everything.
 
 ```sh
-cargo build --workspace --locked
+cargo build --locked
 cargo run --locked --bin cirrove -- demo --state-dir "$(mktemp -d)"
 ```
 

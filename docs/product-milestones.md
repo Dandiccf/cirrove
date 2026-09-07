@@ -133,9 +133,48 @@ slice, not the complete setup experience; see [Desktop preview](desktop.md).
 - [ ] Nautilus badges, pin/unpin actions and consistent status refresh.
 - [ ] Actionable errors, progress, cancellation and conflict resolution.
 - [ ] Keyboard navigation, accessibility, localization and visual verification.
+- [ ] Verify a declared session matrix covering native Wayland and X11, and GNOME
+      and KDE Plasma: windows, dialogs, system dark-style preference and
+      portal-backed folder opening, including cancellation and missing-portal
+      behavior. Record the actual backend and supported session combinations;
+      Xwayland is not native Wayland coverage. Current CI uses Xvfb (X11) only
+      and does not exercise a complete GNOME or Plasma session.
+- [ ] One application identity across the desktop entry, installed application
+      icon, AppStream metainfo, desktop application's D-Bus name and Wayland
+      `app_id`. Verify launcher/window association, including X11, on every
+      declared shell; naming consistency alone is not a runtime check.
+- [ ] Install application-specific scalable and symbolic icons in standard theme
+      locations, replacing the generic application icon. Check dock, launcher
+      and software-centre presentation, including symbolic recoloring.
+- [ ] Implement the tray as StatusNotifierItem over D-Bus. Document the GNOME
+      extension requirement, detect missing tray support and keep all actions
+      available from the window when no tray host is present.
+- [ ] Publish a supported file-manager list beyond the initial Nautilus target,
+      with an explicit Dolphin decision and a shared daemon status contract
+      behind each integration. Unsupported managers must still access mounted
+      files; badge/control availability must be explained.
+- [ ] Preserve actionable, sanitized error causes in the window. Unreadable or
+      invalid settings, an unreachable service and an incompatible service remain
+      distinguishable, with recovery actions and diagnostic detail appropriate
+      to the failure. Never expose credentials or raw provider responses.
 
 The UI must distinguish online-only, cached, pinned, pending, transferring,
 conflicted and failed states without reporting unsent content as uploaded.
+
+Cross-desktop reach depends on freedesktop interfaces, available desktop services
+and the daemon's status contract; the toolkit alone cannot establish it.
+StatusNotifierItem is a de facto D-Bus tray interface, independent of the display
+protocol, not a Wayland tray protocol. Stock GNOME Shell needs an extension for
+this interface; distributions may already supply one. See the
+[KDE interface](https://api.kde.org/kstatusnotifieritem.html) and
+[GNOME Shell extension](https://github.com/ubuntu/gnome-shell-extension-appindicator).
+File-manager integration uses manager-specific APIs, such as
+[Nautilus InfoProvider](https://gnome.pages.gitlab.gnome.org/nautilus/iface.InfoProvider.html)
+and [KIO overlay plugins](https://api.kde.org/koverlayiconplugin.html).
+In-process extensions must stay small and responsive, delegating status/work to
+the daemon; each manager needs an adapter, not necessarily a different language.
+Tray and file-manager extensions are optional surfaces: no control or state may
+be reachable only through a tray or only through one file manager.
 
 ## 6. Installable OneDrive 1.0
 
@@ -150,7 +189,73 @@ conflicted and failed states without reporting unsent content as uploaded.
 - [ ] Clean uninstall and explicit retention/removal choices for local data.
 - [ ] User documentation, redacted diagnostics and supported-version policy.
 - [ ] Dependency/security review, extended testing and tracked release blockers.
+- [ ] Validate the desktop entry, installed icons and AppStream metainfo in CI,
+      then compare their identity with the running window and application bus
+      name in the supported desktop sessions. Current desktop-file validation
+      alone does not satisfy this gate.
+- [ ] Build and install the daemon and CLI without GTK4/libadwaita present, with
+      separate desktop packaging. The root's default members now exclude the
+      desktop; explicit `--workspace` builds and full contributor checks still
+      include it. A package installation on a clean headless host remains required;
+      headless buildability does not imply unattended browser/keyring setup.
 - [ ] Tagged release and verified installation from the published artifacts.
+
+## Platform integration constraints
+
+These findings constrain milestones 5 and 6; they are not completion claims for
+the gates above. They describe Cirrove's intended host service and ordinary
+Flatpak application sandboxes, not every possible container or privileged helper.
+
+- Bubblewrap creates a separate mount namespace. A filesystem mounted there does
+  not by itself become a host-visible Cirrove mount; directory access permissions
+  are not a mount-export interface. Cirrove therefore needs a host-side mount
+  service for ordinary host applications. The document portal is an example of a
+  separate FUSE service exporting selected documents to applications, not a
+  general API for exporting an application's arbitrary mount to the host. See
+  [Bubblewrap's model](https://github.com/containers/bubblewrap#usage), its
+  [mount propagation setup](https://github.com/containers/bubblewrap/blob/main/bubblewrap.c), and
+  [Documents and FUSE](https://flatpak.github.io/xdg-desktop-portal/docs/documents-and-fuse.html).
+- `NO_NEW_PRIVS` prevents gaining privilege from setuid execution. Where mounting
+  relies on a setuid `fusermount3`, running that helper in such a sandbox does not
+  supply its host privilege. Cirrove additionally requires access to its own
+  `/sys/fs/fuse/connections/.../abort` control descriptor for shutdown with open
+  files. Ordinary Flatpak permissions do not provide that access by default.
+  Do not assume all sandboxes hide all sysfs, or all distributions install the
+  helper identically. See the [kernel contract](https://docs.kernel.org/userspace-api/no_new_privs.html)
+  and [Flatpak permissions](https://docs.flatpak.org/en/latest/sandbox-permissions.html).
+- The daemon's user service, host-mounted filesystem and host file-manager
+  extensions need host installation and lifecycle management. The current
+  credential adapter talks to the desktop Secret Service. A sandboxed frontend
+  can consume permitted host APIs; it does not remove these host dependencies.
+  Native packages are the release model. An optional separately packaged frontend
+  could be evaluated later with an explicit host-service contract; this is not a
+  claim that every bundled application is inherently unable to use host services.
+- GTK4 provides no `GtkStatusIcon`; the tray implementation needs a separate
+  StatusNotifierItem client. Its D-Bus interface must work under both display
+  protocols and must not become the only route to configuration or recovery.
+- Toolkit version features establish an API minimum, not a runtime version pin.
+  The current GTK 4.14/libadwaita 1.5 floor constrains supported native packages;
+  compatible libraries loaded at runtime come from the distribution. Validate
+  portal backends and theme preferences separately from GTK compilation.
+
+Supporting code observations from this review:
+
+- The [desktop entry](../packaging/desktop/io.github.Dandiccf.Cirrove.desktop)
+  uses `Icon=folder-remote`. Its basename already matches the application ID in
+  [main.rs](../crates/cirrove-desktop/src/main.rs), but a branded installed icon,
+  AppStream metainfo and actual shell/window identity checks are still missing.
+- [model.rs](../crates/cirrove-desktop/src/model.rs) stores settings and status as
+  `Result<_, ()>`, discarding their original failure causes. The current window
+  already distinguishes unavailable settings, service unavailability and protocol
+  incompatibility at a high level; preserving causes and useful recovery remains
+  incomplete. These should not be described as one identical existing UI state.
+- [Cargo.toml](../Cargo.toml) now selects the non-GTK crates by default. The
+  explicit `--workspace` flag overrides that selection, so full CI still needs
+  the desktop development libraries. See
+  [Cargo package selection](https://doc.rust-lang.org/cargo/reference/workspaces.html#package-selection).
+- [docs/roadmap.md](roadmap.md) is the canonical engineering roadmap. Any local
+  root-level convenience copy should link to it and this milestone plan instead
+  of maintaining another stage list.
 
 ## Provider extensibility throughout
 

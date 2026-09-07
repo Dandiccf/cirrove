@@ -8,6 +8,12 @@ evidence that installation, login startup, keyring access or upgrades work there
 The earlier distribution roadmap listed only Arch/AUR; that was too narrow for
 the intended Linux audience.
 
+Distribution coverage and desktop coverage are separate release gates. Follow the
+[cross-desktop checks](product-milestones.md#5-polished-desktop-experience) for
+GNOME/Plasma, Wayland/X11, portals, tray and file-manager integration, and the
+[platform constraints](product-milestones.md#platform-integration-constraints)
+for the native host-service delivery model.
+
 ## Initial release targets
 
 | Target | Native package and update route | Acceptance still required |
@@ -23,8 +29,12 @@ release. Respect the GTK 4.14/libadwaita 1.5 minimum and required FUSE kernel ca
 unsupported older distributions need an explicit explanation, not a silently broken
 package or an ad-hoc replacement of system libraries.
 
-Keep daemon/CLI packaging separable from the GTK desktop. Native package managers
-must resolve FUSE helpers, GTK/libadwaita and desktop/keyring dependencies. Use
+Keep daemon/CLI packaging separable from the GTK desktop. Core package builds and
+installations must not require desktop libraries: plain root
+`cargo build --locked` now selects the non-GTK crates; explicit `--workspace`
+still builds the desktop too. Clean package installation remains a release gate.
+Native packages must resolve FUSE helpers, keyring and optional GTK/libadwaita
+dependencies for the component being installed. Use
 standard binary, desktop-entry and systemd user-unit locations. Package scripts
 must not assume Omarchy, a particular shell, a logged-in user's home directory or
 access to their session D-Bus. Avoid root-running account services.
