@@ -32,7 +32,7 @@ tokio-tungstenite = { version = "0.30", default-features = false, features = ["c
 chrono = "0.4"
 openidconnect = { version = "4.0", default-features = false }
 secret-service = { version = "5.2", features = ["rt-tokio-crypto-rust"] }
-base64 = "0.22"
+base64 = "0.23"
 sha2 = "0.11"
 hex = "0.4"
 subtle = "2.6"
