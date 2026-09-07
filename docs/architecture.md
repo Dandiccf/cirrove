@@ -655,6 +655,43 @@ Do not implement folder removal by extending the regular-file deletion path.
 The existing namespace/history capacity limits, physical-fault checks and broader
 application/provider acceptance gates still apply. Ordinary mounts remain read-only.
 
+## Retained routes to local changes
+
+Before accepting new local creates, directory creates, moves/replacements, writable
+opens or pathname truncation, the experimental mount captures the already traversed
+ancestors in the journal. The source-side entry is retained separately from a
+shortcut's resolved target. A single local transaction records folder and link
+snapshots; it never queues provider mutations. Captures are limited to 128 path
+entries and share the existing 10,000-object journal limit. No view lock remains
+held while the database work runs.
+
+A bounded graph walk identifies ancestors needed by active local objects. Ordinary
+parents resolve in the local identity domain; links address scoped provider identities
+and can cross collections. A visited set prevents recursive processing of cycles.
+Unrelated accounts/providers/collections do not share routes. The resulting directory
+and name-reservation indexes are cached until namespace publication changes them.
+Capturing a path reuses one index, and ongoing writes at an unchanged occupied name
+do not rebuild it. New names cannot take over a retained ancestor's path. A provider
+occupant at that name remains an explicit collision.
+
+Protected folders and links overlay remote listings even after their removal from
+the provider index. They supply local directory attributes; a NotFound directory
+request falls back to the local listing. A link target resolves through current
+provider ownership before addressing a local stream. Resolved ordinary file targets
+can be edited without changing the source shortcut. A locally removed target cannot be reopened through a dangling
+shortcut or cached entry; descriptors already open retain their old stream.
+Renaming or removing the shortcut entry itself remains unsupported. Parent snapshots cease to override remote
+metadata once their dependent objects have been acknowledged and handed off.
+
+This preserves access to locally recorded changes; it is not remote permission or
+an offline-content guarantee. Missing ancestors are not recreated, and failed
+operations are not redirected or marked complete. Conflict resolution, cold-directory
+behavior during other provider failures and recovery presentation remain unfinished.
+Older journals lacking a captured ancestor cannot reconstruct its vanished name from
+an opaque parent ID alone; their retained bytes still need the recovery/export flow.
+Ordinary daemon mounts remain read-only, and these new route/file-link cases have not
+been validated against real OneDrive or SharePoint accounts.
+
 ## Next boundaries
 
 Before enabling ordinary writable mounts, complete the application, provider,

@@ -178,6 +178,7 @@ pub(super) fn entry_slot(
     Ok(serde_json::to_string(&(scope, parent, name))?)
 }
 pub(super) fn save(tx: &Transaction<'_>, object: &NamespaceObject) -> Result<()> {
+    ancestry::check_new_slot(tx, object)?;
     if !object.remote_owned && !object.unlinked {
         return Err(JournalError::Corrupt);
     }
@@ -665,13 +666,7 @@ impl UploadJournal {
         parent: &str,
         remote: Vec<Node>,
     ) -> Result<NamespaceListing> {
-        let mut query = self
-            .db
-            .prepare("SELECT body FROM namespace_objects WHERE scope=?1 ORDER BY id")?;
-        let objects = query
-            .query_map([scope_key(scope)?], |r| r.get::<_, String>(0))?
-            .map(|row| Ok(serde_json::from_str::<NamespaceObject>(&row?)?))
-            .collect::<Result<Vec<_>>>()?;
+        let objects = self.namespace_objects()?;
         project_namespace(objects.iter(), scope, parent, remote)
     }
 }
@@ -718,6 +713,18 @@ pub fn project_namespace<'a>(
     parent: &str,
     remote: Vec<Node>,
 ) -> Result<NamespaceListing> {
+    let objects = objects.into_iter().collect::<Vec<_>>();
+    let retained = RetainedAncestors::new(objects.iter().copied());
+    project_retained_namespace(objects, &retained, scope, parent, remote)
+}
+
+pub(crate) fn project_retained_namespace<'a>(
+    objects: impl IntoIterator<Item = &'a NamespaceObject>,
+    retained: &RetainedAncestors,
+    scope: &Scope,
+    parent: &str,
+    remote: Vec<Node>,
+) -> Result<NamespaceListing> {
     use std::collections::{HashMap, HashSet};
     let objects = objects
         .into_iter()
@@ -737,7 +744,7 @@ pub fn project_namespace<'a>(
     let mut local = HashMap::new();
     let mut aliases = HashMap::new();
     for object in &objects {
-        if object.follows_remote {
+        if object.follows_remote && !retained.contains(object.id) {
             if !object.remote_owned {
                 return Err(JournalError::Corrupt);
             }

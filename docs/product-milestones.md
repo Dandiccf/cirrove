@@ -60,6 +60,13 @@ Synthetic journal and actual mount tests cover independent progress, retained by
 after uncertain creation, stable identities across remount and editing remote
 children after local cleanup. This has not been exercised against a live provider.
 
+Experimental edits now retain their traversed ancestor routes, including source-side
+SharePoint links, when local work depends on them. Synthetic mounts verify access
+after remote metadata removal and restart, without recreating cloud folders. Resolved
+file-link targets also have a local-edit/recovery fixture. Live acceptance and a
+complete recovery/conflict flow, including older journals without captured paths,
+remain outstanding.
+
 The normal daemon remains read-only. Folder rename/removal, broader ordinary editor
 and office behavior, live provider replacement/unlink scenarios, physical-fault
 coverage, restored remote identities, detached-data recovery and bounded long-session

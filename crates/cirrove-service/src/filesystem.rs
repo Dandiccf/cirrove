@@ -37,6 +37,7 @@ struct View {
     name: String,
     alias: Vec<(String, String)>,
     reference: bool,
+    entry: Option<Node>,
     ancestry: Vec<(String, String)>,
 }
 #[derive(Clone)]
@@ -141,6 +142,7 @@ impl CloudFs {
             name: engine.account.label.clone(),
             alias: vec![],
             reference: false,
+            entry: None,
         };
         Ok(Self {
             inner: Arc::new(Inner {
@@ -287,6 +289,7 @@ impl Inner {
             name,
             alias,
             reference: child.target.is_some(),
+            entry: child.target.as_ref().map(|_| child.clone()),
             ancestry,
         };
         Ok(view)
@@ -315,7 +318,27 @@ impl Inner {
     async fn insert(&self, parent: &View, child: Node) -> Result<View, ProviderError> {
         let mut view = Self::project(parent, child)?;
         if view.reference {
-            view.node = self.engine.node(&view.scope, &view.node.id).await?;
+            let (local, retained) = match &self.writeback {
+                Some(writer) => writer
+                    .reference_view(&view.scope, &view.node.id)
+                    .map_err(|e| {
+                        if e == Errno::ENOENT {
+                            ProviderError::NotFound
+                        } else {
+                            ProviderError::Unavailable
+                        }
+                    })?,
+                None => (None, false),
+            };
+            if let Some(local) = local {
+                view.node.id = local;
+                view.node = self.node(&view).await?;
+            } else if view.node.kind == NodeKind::Folder && retained {
+                // A retained shortcut is the local route to an absent target
+                // root. Its directory view remains traversable without metadata.
+            } else {
+                view.node = self.engine.node(&view.scope, &view.node.id).await?;
+            }
         }
         let key = Self::inode_key(&view, self.writeback.is_some())?;
         let db = self.engine.db.clone();
@@ -397,7 +420,22 @@ impl Inner {
             None => Some(parent.node.id.clone()),
         };
         let nodes = match identity {
-            Some(item) => self.engine.children(&parent.scope, &item).await?,
+            Some(item) => match self.engine.children(&parent.scope, &item).await {
+                Ok(nodes) => nodes,
+                Err(ProviderError::NotFound) => {
+                    let retained = match &self.writeback {
+                        Some(w) => w
+                            .retains_directory(&parent.scope, &parent.node.id)
+                            .map_err(|_| ProviderError::Unavailable)?,
+                        None => false,
+                    };
+                    if !retained {
+                        return Err(ProviderError::NotFound);
+                    }
+                    Vec::new()
+                }
+                Err(error) => return Err(error),
+            },
             None => Vec::new(),
         };
         match &self.writeback {
@@ -414,6 +452,14 @@ impl Inner {
                 .map_err(|_| ProviderError::Unavailable)?
         {
             return Ok(node);
+        }
+        if let Some(writer) = &self.writeback
+            && view.node.kind == NodeKind::Folder
+            && writer
+                .retains_directory(&view.scope, &view.node.id)
+                .map_err(|_| ProviderError::Unavailable)?
+        {
+            return Ok(view.node.clone());
         }
         if let Some(writer) = &self.writeback
             && writer
@@ -608,6 +654,7 @@ impl Filesystem for CloudFs {
                 {
                     return Err(Errno::EEXIST);
                 }
+                inner.capture_ancestors(&parent).await?;
                 let node = writer
                     .create_directory(parent.scope.clone(), parent.node.id.clone(), name)
                     .await
@@ -680,6 +727,7 @@ impl Filesystem for CloudFs {
                     content_version: None,
                     target: None,
                 };
+                inner.capture_ancestors(&parent).await?;
                 let record = writer
                     .create(parent.scope.clone(), node)
                     .await
@@ -783,6 +831,8 @@ impl Filesystem for CloudFs {
                         Ok(())
                     };
                 }
+                inner.capture_ancestors(&parent).await?;
+                inner.capture_ancestors(&destination).await?;
                 let occupants = if parent.inode == destination.inode {
                     nodes
                 } else {
@@ -1024,6 +1074,7 @@ impl Filesystem for CloudFs {
                     .await?;
                 let mut view = view;
                 view.node = inner.node(&view).await.map_err(|e| errno(&e))?;
+                inner.capture_ancestors(&view).await?;
                 let working = writer
                     .prepare(&inner.engine, &view, size == 0, &inner.cancel)
                     .await?;
@@ -1128,6 +1179,11 @@ impl Filesystem for CloudFs {
                 if node.kind != NodeKind::File {
                     return Err(Errno::EISDIR);
                 }
+                if let Some(writer) = &inner.writeback
+                    && writer.is_unlinked(&view.scope, &view.node.id)?
+                {
+                    return Err(Errno::ENOENT);
+                }
                 let file = OpenFile {
                     view: view.clone(),
                     node: node.clone(),
@@ -1143,6 +1199,7 @@ impl Filesystem for CloudFs {
                 if flags.0 & libc::O_ACCMODE != libc::O_RDONLY {
                     let writer = inner.writeback.as_ref().ok_or(Errno::EROFS)?;
                     view.node = node.clone();
+                    inner.capture_ancestors(&view).await?;
                     writer
                         .prepare(
                             &inner.engine,

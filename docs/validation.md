@@ -696,3 +696,32 @@ milestones remain open, and ordinary mounted drives remain read-only.
 The final local run passed 225 default workspace tests, 15 read-only/lifecycle
 kernel fixtures and 18 writable-session kernel fixtures, plus formatting, strict
 Clippy, build, smoke, two observer-script checks and Rustdoc.
+
+
+## Retained routes to local changes (2026-09-07)
+
+A journal reproduction first demonstrated that a remotely absent, already handed-off
+folder could hide a later local child. Four synthetic journal checks now exercise
+that case; source-link/target-collection routes, restart and release after confirmed
+child handoff; name reuse, bounded capture and transaction rollback; and preservation
+of foreign name occupants as explicit collisions. Captures create no provider intents.
+
+Two added actual kernel fixtures cover existing native folders, a SharePoint-style
+link to another collection, and a file link whose target has a different local and
+provider ID. They remove the synthetic provider's items, commit a complete replacement
+metadata baseline, and verify local bytes and directory traversal before and after
+reopening both engine and journal. File-link edits address the target's current local
+owner. It also rejects new opens through a dangling link after local target removal,
+while an existing descriptor retains its bytes. No automatic cloud recreation is
+queued. The provider fixture uses only generated local
+data, so these checks do not establish real OneDrive/SharePoint compatibility.
+
+Ancestor routes remain until the associated local objects hand off to remote metadata.
+They do not redirect failed uploads, implement a recovery UI, supply content that was
+never downloaded, or recover vanished paths absent from older journal records. Folder
+rename/removal, large-library retention, live provider/application acceptance and the
+other product milestones remain open.
+
+Final local validation passed 229 default workspace tests and 35 actual synthetic
+FUSE fixtures (15 read-only/lifecycle and 20 writable-session), plus formatting,
+strict Clippy, build, smoke, two observer checks and Rustdoc.

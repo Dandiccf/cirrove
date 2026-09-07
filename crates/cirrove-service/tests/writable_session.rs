@@ -2455,3 +2455,297 @@ with open('other.txt','wb',buffering=0) as f:
     assert!(journal.lock().unwrap().payload(pending.id).is_ok());
     session.shutdown().await.unwrap();
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; remote deletion retains local routes across restart"]
+async fn real_pending_local_files_keep_deleted_ancestors_and_sharepoint_routes() {
+    use cirrove_store::Store;
+    for linked in [false, true] {
+        let temp = tempfile::tempdir().unwrap();
+        let mount = temp.path().join("mount");
+        std::fs::create_dir(&mount).unwrap();
+        let state = temp.path().join("state");
+        let account = account(&mount);
+        let cloud = Arc::new(Cloud::default());
+        cloud.stall.store(true, Ordering::SeqCst);
+        let outer = Node {
+            id: "outer".into(),
+            parent_id: Some("root".into()),
+            name: "Documents".into(),
+            etag: Some("outer-etag".into()),
+            ..root()
+        };
+        let mut inner = Node {
+            id: "inner".into(),
+            parent_id: Some("outer".into()),
+            name: "Projects".into(),
+            etag: Some("inner-etag".into()),
+            ..root()
+        };
+        let link = Node {
+            id: "link".into(),
+            parent_id: Some("root".into()),
+            name: "SharePoint".into(),
+            kind: NodeKind::Shortcut,
+            target: Some(RemoteRef {
+                collection: "shared".into(),
+                item: "shared-root".into(),
+                kind: Some(NodeKind::Folder),
+            }),
+            etag: Some("link-etag".into()),
+            ..root()
+        };
+        let shared = Node {
+            id: "shared-root".into(),
+            name: "shared-root".into(),
+            ..root()
+        };
+        if linked {
+            inner.parent_id = Some(shared.id.clone());
+        }
+        {
+            let mut remote = cloud.remote.lock().unwrap();
+            for n in [outer, inner, link, shared] {
+                remote.files.insert(n.id.clone(), (n, vec![]));
+            }
+        }
+        let vault = Arc::new(Vault::default());
+        let spool = temp.path().join("journal");
+        let journal = Arc::new(Mutex::new(
+            UploadJournal::open(&spool, &account.id, 1024 * 1024).unwrap(),
+        ));
+        let engine = Engine::new(account.clone(), cloud.clone(), state.clone())
+            .await
+            .unwrap();
+        let stopped = Arc::downgrade(&engine);
+        let session = WritableSession::mount(
+            engine.clone(),
+            journal.clone(),
+            cloud.clone(),
+            vault.clone(),
+        )
+        .await
+        .unwrap();
+        let route = if linked {
+            "SharePoint/Projects"
+        } else {
+            "Documents/Projects"
+        };
+        let create = format!(
+            r#"
+import os,sys
+os.chdir(sys.argv[1])
+with open('{route}/keep.txt','wb',buffering=0) as f:
+    f.write(b'local work survives')
+    os.fsync(f.fileno())
+"#
+        );
+        application(&mount, &create).await;
+        assert_eq!(session.uploads(0, 100).await.unwrap().len(), 1);
+        assert!(
+            session.mutations(0, 100).await.unwrap().is_empty(),
+            "ancestor snapshots must never create cloud mutations"
+        );
+        cloud.remote.lock().unwrap().files.clear();
+        // Publish an actual complete replacement baseline with the folders and
+        // the originating link absent. This does not merely clear fixture data.
+        for collection in ["drive", "shared"] {
+            let scope = engine.scope(collection);
+            let mut store = Store::open(&engine.db).unwrap();
+            store.begin(&scope, true).unwrap();
+            store
+                .stage(
+                    &scope,
+                    None,
+                    &ChangePage {
+                        changes: vec![Change::Upsert(root())],
+                        checkpoint: Checkpoint::Complete(Cursor("after-deletion".into())),
+                    },
+                )
+                .unwrap();
+        }
+        engine.changed.notify_waiters();
+        let read = format!(
+            r#"
+import os,sys
+os.chdir(sys.argv[1])
+assert open('{route}/keep.txt','rb').read()==b'local work survives'
+assert 'keep.txt' in os.listdir('{route}')
+"#
+        );
+        application(&mount, &read).await;
+        drop(engine);
+        session.shutdown().await.unwrap();
+        drop(journal);
+        let journal = Arc::new(Mutex::new(
+            reopened_journal(&spool, &account.id, 1024 * 1024).await,
+        ));
+        let engine = reopened_engine(account, cloud.clone(), &state, stopped).await;
+        let session = WritableSession::mount(engine, journal.clone(), cloud.clone(), vault)
+            .await
+            .unwrap();
+        application(&mount, &read).await;
+        assert!(session.mutations(0, 100).await.unwrap().is_empty());
+        assert!(cloud.remote.lock().unwrap().files.is_empty());
+        session.shutdown().await.unwrap();
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; file links resolve provider IDs to retained local streams"]
+async fn real_file_link_retains_current_local_owner_after_remote_deletion() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let state = temp.path().join("state");
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    let vault = Arc::new(Vault::default());
+    let spool = temp.path().join("journal");
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&spool, &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account.clone(), cloud.clone(), state.clone())
+        .await
+        .unwrap();
+    let stopped = Arc::downgrade(&engine);
+    let session = WritableSession::mount(
+        engine.clone(),
+        journal.clone(),
+        cloud.clone(),
+        vault.clone(),
+    )
+    .await
+    .unwrap();
+    application(
+        &mount,
+        r#"
+import os,sys
+os.chdir(sys.argv[1])
+with open('original.txt','wb',buffering=0) as f:
+    f.write(b'original')
+    os.fsync(f.fileno())
+"#,
+    )
+    .await;
+    acknowledged(&session, 1).await;
+    wait_for_cleanup(&journal, &spool, 0).await;
+    let remote = cloud
+        .remote
+        .lock()
+        .unwrap()
+        .files
+        .values()
+        .next()
+        .unwrap()
+        .0
+        .clone();
+    let object = journal
+        .lock()
+        .unwrap()
+        .namespace_objects()
+        .unwrap()
+        .into_iter()
+        .find(|o| o.remote.is_some())
+        .unwrap();
+    assert_ne!(
+        object.node.id, remote.id,
+        "fixture must distinguish local and provider identities"
+    );
+    let link = Node {
+        id: "file-link".into(),
+        parent_id: Some("root".into()),
+        name: "Shortcut".into(),
+        kind: NodeKind::Shortcut,
+        target: Some(RemoteRef {
+            collection: "drive".into(),
+            item: remote.id.clone(),
+            kind: Some(NodeKind::File),
+        }),
+        ..remote
+    };
+    cloud
+        .remote
+        .lock()
+        .unwrap()
+        .files
+        .insert(link.id.clone(), (link.clone(), vec![]));
+    refresh_fixture(&engine, &cloud).await;
+    cloud.stall.store(true, Ordering::SeqCst);
+    application(
+        &mount,
+        r#"
+import os,sys
+os.chdir(sys.argv[1])
+with open('Shortcut','ab',buffering=0) as f:
+    f.write(b' plus local')
+    os.fsync(f.fileno())
+"#,
+    )
+    .await;
+    cloud.remote.lock().unwrap().files.clear();
+    {
+        let mut store = cirrove_store::Store::open(&engine.db).unwrap();
+        let s = engine.scope("drive");
+        let cursor = store.begin(&s, true).unwrap();
+        store
+            .stage(
+                &s,
+                cursor.as_ref(),
+                &ChangePage {
+                    changes: vec![Change::Upsert(root())],
+                    checkpoint: Checkpoint::Complete(Cursor("deleted".into())),
+                },
+            )
+            .unwrap();
+    }
+    engine.changed.notify_waiters();
+    let read = r#"
+import os,sys
+os.chdir(sys.argv[1])
+assert open('Shortcut','rb').read()==b'original plus local'
+assert open('original.txt','rb').read()==b'original plus local'
+"#;
+    application(&mount, read).await;
+    drop(engine);
+    session.shutdown().await.unwrap();
+    drop(journal);
+    let journal = Arc::new(Mutex::new(
+        reopened_journal(&spool, &account.id, 1024 * 1024).await,
+    ));
+    let engine = reopened_engine(account, cloud.clone(), &state, stopped).await;
+    let session = WritableSession::mount(engine.clone(), journal, cloud.clone(), vault)
+        .await
+        .unwrap();
+    application(&mount, read).await;
+    assert!(session.mutations(0, 100).await.unwrap().is_empty());
+    assert!(cloud.remote.lock().unwrap().files.is_empty());
+    // A dangling cloud shortcut cannot reopen a locally removed target, even
+    // through a still-cached dentry. Already open descriptors keep their bytes.
+    cloud
+        .remote
+        .lock()
+        .unwrap()
+        .files
+        .insert(link.id.clone(), (link, vec![]));
+    refresh_fixture(&engine, &cloud).await;
+    application(
+        &mount,
+        r#"
+import os,sys
+os.chdir(sys.argv[1])
+old=open('Shortcut','rb')
+os.unlink('original.txt')
+try: open('Shortcut','rb')
+except FileNotFoundError: pass
+else: raise AssertionError('dangling link reopened an unlinked target')
+assert old.read()==b'original plus local'
+old.close()
+"#,
+    )
+    .await;
+    assert_eq!(session.mutations(0, 100).await.unwrap().len(), 1);
+    assert!(cloud.remote.lock().unwrap().deletes.is_empty());
+    drop(engine);
+    session.shutdown().await.unwrap();
+}

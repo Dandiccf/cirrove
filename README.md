@@ -92,6 +92,12 @@ and Nautilus badges are not implemented.
   synthetic mounts exercise pending-parent navigation and recovery after restart;
   live directory workflows remain unvalidated.
 
+- Experimental edits capture their traversed folder/link paths. Those local routes
+  remain visible when a provider removes an ancestor, and survive remount without
+  recreating cloud folders. Resolved file-link targets can use the same local write
+  path; shortcut rename/removal remains unsupported. These cases have synthetic
+  mount coverage and still require live provider/application acceptance.
+
 These are implementation capabilities, not a production-readiness claim. See the
 [validation record](docs/validation.md) for what has actually been tested.
 

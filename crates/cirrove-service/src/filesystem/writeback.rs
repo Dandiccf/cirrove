@@ -1,13 +1,14 @@
 //! Experimental local edit projection. Network hydration never holds the journal
 //! or namespace mutex. Ordinary daemon mounts do not construct this layer yet.
+mod ancestry;
 mod handoff;
 mod publication;
 mod replacement;
 mod unlinked;
 use super::*;
 use crate::journal::{
-    JournalError, NamespaceCollision, NamespaceObject, UploadJournal, WorkingFile,
-    project_namespace,
+    JournalError, NamespaceCollision, NamespaceObject, RetainedAncestors, UploadJournal,
+    WorkingFile, project_retained_namespace,
 };
 pub(super) use handoff::FileLease;
 use std::sync::Weak;
@@ -30,6 +31,7 @@ pub(super) struct Writeback {
 #[derive(Default)]
 struct Projection {
     frontier: u64,
+    ancestry: std::cell::OnceCell<RetainedAncestors>,
     objects: HashMap<Uuid, NamespaceObject>,
     local_identities: HashMap<EditKey, Uuid>,
     remote_bindings: HashMap<EditKey, Uuid>,
@@ -107,7 +109,12 @@ impl Projection {
         }
         Ok(true)
     }
+    fn retained(&self) -> &RetainedAncestors {
+        self.ancestry
+            .get_or_init(|| RetainedAncestors::new(self.objects.values()))
+    }
     fn apply(&mut self, object: NamespaceObject, working: Option<WorkingFile>) {
+        self.ancestry.take();
         let identity = key(&object.scope, &object.node.id);
         if let Some(old) = self.objects.get(&object.id)
             && let Some(old_file) = old.working_file
@@ -237,12 +244,10 @@ impl Writeback {
         Ok(())
     }
     pub fn node(&self, scope: &Scope, item: &str) -> Result<Option<Node>> {
-        Ok(self
-            .projection
-            .lock()
-            .map_err(|_| Errno::EIO)?
+        let projection = self.projection.lock().map_err(|_| Errno::EIO)?;
+        Ok(projection
             .local_object(scope, item)
-            .filter(|o| !o.follows_remote)
+            .filter(|o| !o.follows_remote || projection.retained().contains(o.id))
             .map(|o| o.node.clone()))
     }
     pub fn directory_identity(&self, scope: &Scope, item: &str) -> Result<Option<String>> {
@@ -302,8 +307,14 @@ impl Writeback {
     }
     pub fn overlay(&self, scope: &Scope, parent: &str, nodes: Vec<Node>) -> Result<Vec<Node>> {
         let mut projection = self.projection.lock().map_err(|_| Errno::EIO)?;
-        let listing =
-            project_namespace(projection.objects.values(), scope, parent, nodes).map_err(error)?;
+        let listing = project_retained_namespace(
+            projection.objects.values(),
+            projection.retained(),
+            scope,
+            parent,
+            nodes,
+        )
+        .map_err(error)?;
         let identity = key(scope, parent);
         if listing.conflicts.is_empty() {
             projection.conflicts.remove(&identity);
@@ -391,7 +402,10 @@ impl Writeback {
         let working = match self.working(&view.scope, &view.node.id)? {
             Some(working) => working,
             None => {
-                if view.reference || view.node.kind != NodeKind::File {
+                // A link is resolved at lookup to its target scope and local
+                // owner. Only target file metadata may become a working copy;
+                // the source-side shortcut itself is never mutated here.
+                if view.node.kind != NodeKind::File || view.node.target.is_some() {
                     return Err(Errno::EOPNOTSUPP);
                 }
                 let scope = view.scope.clone();
@@ -519,6 +533,7 @@ impl Writeback {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::journal::project_namespace;
     #[test]
     fn delayed_save_publication_cannot_restore_an_old_name_or_drop_a_remote_alias() {
         let temp = tempfile::tempdir().expect("temporary state");

@@ -107,7 +107,7 @@ impl Writeback {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use crate::journal::ReplacementRecord;
+    use crate::journal::{ReplacementRecord, project_namespace};
 
     fn scope() -> Scope {
         Scope {

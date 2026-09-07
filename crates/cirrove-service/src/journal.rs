@@ -3,6 +3,7 @@
 //! Call on a blocking worker. Seal bytes and fsync their directory before committing
 //! the pending row. Network work happens after a claim returns, outside this module.
 //! An interrupted attempt requires remote verification, never unconditional replay.
+mod ancestry;
 mod barriers;
 mod directories;
 mod generations;
@@ -14,10 +15,12 @@ mod publication;
 mod replacements;
 mod unlinked;
 mod working;
+pub(crate) use ancestry::RetainedAncestors;
 use barriers::WriteOrder;
 use cirrove_core::{Node, NodeKind, Scope};
 pub use generations::{UploadBase, WriteBase};
 pub use mutations::{MutationRecord, MutationState};
+pub(crate) use namespace::project_retained_namespace;
 pub use namespace::{
     NamespaceCollision, NamespaceListing, NamespaceNames, NamespaceObject, project_namespace,
 };
