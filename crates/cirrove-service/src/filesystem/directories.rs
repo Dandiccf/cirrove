@@ -1,4 +1,4 @@
-//! Immutable, process-local directory listings with bounded read buffers. Files
+//! Process-local directory listings with immutable published prefixes. Files
 //! are anonymous, so closing the final handle or killing the process reclaims
 //! them without an orphan scan. These are never local edits or restart state.
 use std::{
@@ -6,8 +6,12 @@ use std::{
     io::{self, BufWriter, Write},
     os::unix::fs::FileExt,
     path::Path,
-    sync::{Arc, Mutex},
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicU64, Ordering},
+    },
 };
+use tokio::sync::watch;
 
 const PAGE_BYTES: usize = 64 * 1024;
 const PAGE_ENTRIES: usize = 1024;
@@ -25,7 +29,7 @@ struct Usage {
 pub(super) struct Budget(Arc<Mutex<Usage>>);
 struct Reservation {
     budget: Budget,
-    bytes: u64,
+    bytes: AtomicU64,
 }
 impl Budget {
     pub fn start(&self, directory: &Path) -> io::Result<Builder> {
@@ -39,13 +43,23 @@ impl Budget {
             }
             usage.snapshots += 1;
         }
-        let reservation = Reservation {
+        let reservation = Arc::new(Reservation {
             budget: self.clone(),
-            bytes: 0,
-        };
+            bytes: AtomicU64::new(0),
+        });
+        let data = tempfile::tempfile_in(directory)?;
+        let index = tempfile::tempfile_in(directory)?;
+        let (progress, receiver) = watch::channel(Progress::default());
         Ok(Builder {
-            data: BufWriter::with_capacity(PAGE_BYTES, tempfile::tempfile_in(directory)?),
-            index: BufWriter::with_capacity(PAGE_ENTRIES * 8, tempfile::tempfile_in(directory)?),
+            data: BufWriter::with_capacity(PAGE_BYTES, data.try_clone()?),
+            index: BufWriter::with_capacity(PAGE_ENTRIES * 8, index.try_clone()?),
+            snapshot: Some(Snapshot {
+                data,
+                index,
+                progress: receiver,
+                _reservation: reservation.clone(),
+            }),
+            progress,
             reservation,
             entries: 0,
             data_bytes: 0,
@@ -59,7 +73,7 @@ impl Budget {
     }
 }
 impl Reservation {
-    fn grow(&mut self, bytes: u64) -> io::Result<()> {
+    fn grow(&self, bytes: u64) -> io::Result<()> {
         let mut usage = self
             .budget
             .0
@@ -71,14 +85,15 @@ impl Reservation {
             .filter(|n| *n <= MAX_BYTES)
             .ok_or_else(|| io::Error::from_raw_os_error(libc::ENOSPC))?;
         usage.bytes = next;
-        self.bytes += bytes;
+        // Only the builder grows this reservation; readers merely retain it.
+        self.bytes.fetch_add(bytes, Ordering::Relaxed);
         Ok(())
     }
 }
 impl Drop for Reservation {
     fn drop(&mut self) {
         if let Ok(mut usage) = self.budget.0.lock() {
-            usage.bytes -= self.bytes;
+            usage.bytes -= self.bytes.load(Ordering::Relaxed);
             usage.snapshots -= 1;
         }
     }
@@ -95,7 +110,10 @@ pub(super) struct Entry {
 pub(super) struct Builder {
     data: BufWriter<File>,
     index: BufWriter<File>,
-    reservation: Reservation,
+    snapshot: Option<Snapshot>,
+    progress: watch::Sender<Progress>,
+    // Last field owning the reservation, after both writer descriptors.
+    reservation: Arc<Reservation>,
     entries: u64,
     data_bytes: u64,
     failed: bool,
@@ -106,7 +124,9 @@ impl Builder {
             return Err(invalid());
         }
         let result = self.append(inode, directory, name);
-        self.failed = result.is_err();
+        if let Err(error) = &result {
+            self.fail(error.raw_os_error().unwrap_or(libc::EIO));
+        }
         result
     }
     fn append(&mut self, inode: u64, directory: bool, name: &str) -> io::Result<()> {
@@ -127,41 +147,110 @@ impl Builder {
         self.data_bytes += bytes;
         Ok(())
     }
-    pub fn finish(mut self) -> io::Result<Snapshot> {
+    pub fn cancelled(&self) -> bool {
+        self.progress.is_closed()
+    }
+    pub fn fail(&mut self, error: i32) {
+        self.failed = true;
+        self.progress.send_modify(|state| state.error = Some(error));
+    }
+    fn flush(&mut self, complete: bool) -> io::Result<()> {
         if self.failed {
             return Err(invalid());
         }
-        self.data.flush()?;
-        self.index.flush()?;
-        Ok(Snapshot {
-            data: self.data.into_inner().map_err(|e| e.into_error())?,
-            index: self.index.into_inner().map_err(|e| e.into_error())?,
-            _reservation: self.reservation,
+        if self.cancelled() {
+            return Err(io::Error::from_raw_os_error(libc::ECANCELED));
+        }
+        // Publish the frontier only after BOTH files contain the complete batch.
+        if let Err(error) = self.data.flush().and_then(|_| self.index.flush()) {
+            self.fail(error.raw_os_error().unwrap_or(libc::EIO));
+            return Err(error);
+        }
+        self.progress.send_replace(Progress {
             entries: self.entries,
             data_bytes: self.data_bytes,
-        })
+            complete,
+            error: None,
+        });
+        Ok(())
     }
+    /// Transfer the sole snapshot after its first flushed batch; later calls
+    /// advance its immutable prefix without creating another handle or cache.
+    pub fn publish(&mut self) -> io::Result<Option<Snapshot>> {
+        self.flush(false)?;
+        Ok(self.snapshot.take())
+    }
+    pub fn complete(mut self) -> io::Result<Option<Snapshot>> {
+        self.flush(true)?;
+        Ok(self.snapshot.take())
+    }
+    pub fn finish(self) -> io::Result<Snapshot> {
+        self.complete()?.ok_or_else(invalid)
+    }
+}
+#[derive(Clone, Copy, Default)]
+struct Progress {
+    entries: u64,
+    data_bytes: u64,
+    complete: bool,
+    error: Option<i32>,
 }
 pub(super) struct Snapshot {
     data: File,
     index: File,
-    _reservation: Reservation,
-    entries: u64,
-    data_bytes: u64,
+    progress: watch::Receiver<Progress>,
+    _reservation: Arc<Reservation>,
 }
 impl Snapshot {
     #[cfg(test)]
     pub fn len(&self) -> u64 {
-        self.entries
+        self.progress.borrow().entries
+    }
+    pub async fn ready(&self, offset: u64) -> io::Result<()> {
+        let mut progress = self.progress.clone();
+        loop {
+            let state = *progress.borrow_and_update();
+            if offset < state.entries {
+                return Ok(());
+            }
+            if let Some(error) = state.error {
+                return Err(io::Error::from_raw_os_error(error));
+            }
+            if state.complete {
+                return Ok(());
+            }
+            if progress.changed().await.is_err() {
+                // Recheck the final value: a successful producer may close its
+                // sender immediately after publishing Complete.
+                let state = *progress.borrow();
+                if offset < state.entries || state.complete && state.error.is_none() {
+                    return Ok(());
+                }
+                return Err(io::Error::from_raw_os_error(
+                    state.error.unwrap_or(libc::EIO),
+                ));
+            }
+        }
     }
     /// Cookies are ordinal positions. Positioned reads let independent kernel
     /// requests use one immutable snapshot without a shared seek cursor/lock.
     pub fn page(&self, offset: u64) -> io::Result<Vec<Entry>> {
-        if offset >= self.entries {
-            return Ok(Vec::new());
+        // Copy the frontier and release the watch borrow before any disk I/O.
+        let state = *self.progress.borrow();
+        if offset >= state.entries {
+            if let Some(error) = state.error {
+                return Err(io::Error::from_raw_os_error(error));
+            }
+            return if state.complete {
+                Ok(Vec::new())
+            } else if self.progress.has_changed().is_err() {
+                Err(io::Error::from_raw_os_error(libc::EIO))
+            } else {
+                Err(io::ErrorKind::WouldBlock.into())
+            };
         }
-        let count = (self.entries - offset).min(PAGE_ENTRIES as u64) as usize;
-        let extra = usize::from(offset + (count as u64) < self.entries);
+        let count = (state.entries - offset).min(PAGE_ENTRIES as u64) as usize;
+        let extra = usize::from(offset + (count as u64) < state.entries);
         let mut index = vec![0u8; (count + extra) * 8];
         self.index.read_exact_at(&mut index, offset * INDEX_BYTES)?;
         let mut positions = index
@@ -172,7 +261,7 @@ impl Snapshot {
             .map(u64::from_le_bytes)
             .collect::<Vec<_>>();
         if extra == 0 {
-            positions.push(self.data_bytes);
+            positions.push(state.data_bytes);
         }
         let start = positions[0];
         let mut take = 0;
@@ -180,7 +269,7 @@ impl Snapshot {
             let length = pair[1].checked_sub(pair[0]).ok_or_else(invalid)?;
             if length < HEADER_BYTES as u64
                 || length > PAGE_BYTES as u64
-                || pair[1] > self.data_bytes
+                || pair[1] > state.data_bytes
             {
                 return Err(invalid());
             }
