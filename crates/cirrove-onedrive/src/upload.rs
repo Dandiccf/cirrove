@@ -655,7 +655,7 @@ impl UploadProvider for OneDrive {
         if after.content_revision() != node.content_revision() || after.size != node.size {
             return Err(UploadError::Uncertain);
         }
-        if format!("{:x}", hash.finalize()) == request.sha256 {
+        if hex::encode(hash.finalize()) == request.sha256 {
             Ok(Reconciliation::Committed(after))
         } else {
             Ok(Reconciliation::Conflict)

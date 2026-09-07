@@ -305,7 +305,7 @@ impl UploadProvider for Cloud {
             .remove(checkpoint.expose_secret())
             .ok_or(UploadError::SessionGone)?;
         assert_eq!(bytes.len() as u64, request.size);
-        assert_eq!(format!("{:x}", Sha256::digest(&bytes)), request.sha256);
+        assert_eq!(hex::encode(Sha256::digest(&bytes)), request.sha256);
         let tag = format!("version-{}", remote.history.len());
         let node = Node {
             id: id.clone(),
@@ -332,7 +332,7 @@ impl UploadProvider for Cloud {
         Ok(match target {
             Some((node, bytes))
                 if bytes.len() as u64 == request.size
-                    && format!("{:x}", Sha256::digest(bytes)) == request.sha256 =>
+                    && hex::encode(Sha256::digest(bytes)) == request.sha256 =>
             {
                 Reconciliation::Committed(node.clone())
             }

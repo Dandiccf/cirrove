@@ -93,7 +93,7 @@ impl UploadProvider for CompetingEdit {
                 scope: r.scope.clone(),
                 intent: r.intent.clone(),
                 size: 0,
-                sha256: format!("{:x}", Sha256::digest([])),
+                sha256: hex::encode(Sha256::digest([])),
             };
             // Empty synthetic content cannot be lost locally. Its request and
             // receipt are used only to verify this run's isolated conflict test.

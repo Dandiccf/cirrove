@@ -272,6 +272,11 @@ fn snapshots_are_private_immutable_and_survive_restart_with_unicode_names() {
     let record = journal
         .enqueue(scope(), create("Kärnten & Grüße.txt"), BYTES)
         .unwrap();
+    // Persisted SHA-256 representation must remain compatible across upgrades.
+    assert_eq!(
+        record.sha256,
+        "4a9e96816db8287bd6d351e9a44071702d14cc1f0293b67589ac37ec820e7e05"
+    );
     assert_eq!(record.state, UploadState::Pending);
     assert_eq!(payload(&journal, record.id), BYTES);
     for path in [

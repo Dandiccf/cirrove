@@ -329,7 +329,7 @@ fn spec(data: &[u8], replace: bool) -> UploadRequest {
             }
         },
         size: data.len() as u64,
-        sha256: format!("{:x}", Sha256::digest(data)),
+        sha256: hex::encode(Sha256::digest(data)),
     }
 }
 
@@ -767,6 +767,10 @@ fn missing_ranges_are_bounded_sorted_nonoverlapping_and_aligned() {
 async fn reconciliation_checks_actual_content_instead_of_acknowledging_equal_size() {
     for matches in [false, true] {
         let request = spec(b"abc", false);
+        assert_eq!(
+            request.sha256,
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
         let metadata = node(&request, "new-tag").to_string();
         let mut download = reply(206, if matches { "abc" } else { "xyz" });
         download.headers = "Content-Range: bytes 0-2/3\r\n".into();
