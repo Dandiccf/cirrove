@@ -32,7 +32,10 @@ required ancestor routes; actual-kernel tests cover deep paths, distinct shared
 links, held snapshots and offline revisit. The 500k-file fixture returns to one
 root view after invalidation in each of three passes, but process RSS still rises
 across those passes. View byte budgets, compact referenced payloads, complete
-directory-pipeline paging, memory-slope attribution and interrupted-reply accounting remain open.
+directory-pipeline paging, memory-slope attribution and broader interrupted/failed-reply
+accounting remain open. A synthetic kernel fixture now verifies cleanup after a
+client is killed during delayed cold LOOKUP and OPENDIR, including offline metadata
+revisit. It does not inject failed reply writes or cover experimental CREATE.
 These partial corrections do not close the 500k-file/long-session gate; see
 [the measurements and their limits](benchmarks/namespace-parent-lifetime.json).
 Store directory snapshots now use indexed rows and a streaming visitor, avoiding

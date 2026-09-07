@@ -992,3 +992,24 @@ retire to one root view but retain high RSS. The fixture excludes kernel, SQLite
 and provider work. [Raw samples and source/executable hashes](benchmarks/compact-resident-metadata.json)
 record the measured scope. Large combined kernel runs, resident byte accounting
 and sustained/provider acceptance remain separate open gates.
+
+## Interrupted namespace clients (2026-09-07)
+
+An actual-kernel fixture pauses a synthetic provider at a known page during cold
+LOOKUP or OPENDIR, sends SIGKILL only to the requesting Python client, then permits
+the server to complete its original request. Both scenarios return all request
+permits, release directory snapshots and retire lookup references to the root alone
+through normal kernel cleanup. Completed metadata remains readable offline without
+further page or content requests. The existing abandoned-fetch cancellation test
+still passes. No production reference rollback or additional state was introduced.
+
+The [CI log](https://github.com/Dandiccf/cirrove/actions/runs/34156972146/job/101850760978)
+for Rust source `6307fbce9f6537c12699064e133ca8509b5b5b49` records both scenario
+outputs, 331 regular tests and 50 actual-kernel regressions (15 read-only, nine
+namespace, six streamed-window and 20 experimental-write tests). Formatting, strict
+workspace Clippy, the native-window test, workspace build, smoke/observer checks and
+Rustdoc also pass. The nested crash subprocess is not counted twice.
+
+This is narrow signal-interruption coverage on the Ubuntu CI runner. It does not
+inject a failed FUSE reply write, interrupt experimental CREATE, or establish
+content/mapping integrity under combined large-library load. Those gates remain open.

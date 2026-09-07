@@ -155,6 +155,17 @@ fixture remains enabled, including 96 simultaneous thumbnail reads and independe
 account/mount checks. File opening has a separate bounded setup phase before the
 thumbnail read-burst deadline; cached-directory latency retains its own assertion.
 
+The interrupted-client fixture needs Python 3 and actual kernel FUSE access:
+
+```sh
+cargo test -p cirrove-service --lib --locked filesystem::capacity::real_interrupted_clients_release_namespace_references_and_snapshots -- --exact --ignored --nocapture --test-threads=1
+```
+
+Its one test exercises both cold LOOKUP and OPENDIR. A provider-page barrier proves
+the request is in flight before SIGKILL is sent only to the synthetic client. Normal
+server completion, reference/snapshot cleanup and an offline metadata revisit must
+then succeed. This does not inject failure of the reply write itself.
+
 ## Namespace capacity baseline
 
 When working in multiple Git worktrees, keep a separate Cargo target directory
