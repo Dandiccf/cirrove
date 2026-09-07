@@ -47,6 +47,10 @@ currently bundled; another project's client ID is never substituted.
       and ejection/remount against synthetic data; shared/private mappings and
       isolation of old/new open file revisions.
 - [x] Synthetic cold/warm latency and 96-reader thumbnail burst measurements.
+- [ ] Replace independent per-block Graph validation with shared version-bound
+      read sessions and bounded transfer windows. Prove representation identity,
+      renewal safety and measured request reduction; this is a OneDrive 1.0 blocker.
+      See [read-session efficiency](adr/0004-read-session-efficiency.md).
 - [ ] Record reproducible cold/warm p50/p95 latency, API requests, peak memory and
       thumbnail-storm behavior. Separate local fixtures from real-provider results.
 - [ ] Validate ordinary desktop applications and long-lived open files on real data.

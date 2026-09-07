@@ -142,6 +142,8 @@ pub enum MutationReceipt {
     },
 }
 pub enum MutationReconciliation {
+    /// The namespace result is observed. A later content edit may be included;
+    /// consumers must verify content lineage before rebasing a subsequent save.
     Applied(MutationReceipt),
     Uncommitted,
     Conflict,
@@ -150,6 +152,8 @@ pub enum MutationReconciliation {
 }
 #[async_trait]
 pub trait MutationProvider: Send + Sync {
+    /// Return the actual conditional mutation receipt. A later independent GET
+    /// can include another actor's edit and is not an equivalent upload base.
     async fn mutate(
         &self,
         request: &MutationRequest,

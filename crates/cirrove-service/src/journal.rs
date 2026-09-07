@@ -3,12 +3,30 @@
 //! Call on a blocking worker. Seal bytes and fsync their directory before committing
 //! the pending row. Network work happens after a claim returns, outside this module.
 //! An interrupted attempt requires remote verification, never unconditional replay.
+mod ancestry;
+mod barriers;
+mod directories;
 mod generations;
+mod handoff;
 mod mutations;
+mod namespace;
+mod preparation;
+mod publication;
+mod replacements;
+mod unlinked;
 mod working;
+pub(crate) use ancestry::RetainedAncestors;
+use barriers::WriteOrder;
 use cirrove_core::{Node, NodeKind, Scope};
-pub use generations::UploadBase;
+pub use generations::{UploadBase, WriteBase};
 pub use mutations::{MutationRecord, MutationState};
+pub(crate) use namespace::project_retained_namespace;
+pub use namespace::{
+    NamespaceCollision, NamespaceListing, NamespaceNames, NamespaceObject, project_namespace,
+};
+pub use preparation::UploadPreparation;
+pub use publication::{NamespacePublication, NamespaceSnapshot};
+pub use replacements::ReplacementRecord;
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -18,6 +36,7 @@ use std::{
     os::unix::fs::{MetadataExt, OpenOptionsExt, PermissionsExt},
     path::{Path, PathBuf},
 };
+pub use unlinked::UnlinkedFile;
 use uuid::Uuid;
 pub use working::{WorkingFile, WorkingSource};
 
@@ -75,6 +94,9 @@ fn resource(intent: &UploadIntent, scope: &Scope) -> Result<String> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum UploadState {
+    /// A durable namespace operation whose unchanged cloud source is being
+    /// captured. This state has no uploadable payload or remote attempt.
+    Preparing,
     Pending,
     Uploading,
     VerifyRequired,
@@ -96,7 +118,7 @@ pub struct UploadRecord {
     /// An attempt token fences delayed results after restart or retry.
     pub attempt: Option<Uuid>,
     pub remote: Option<Node>,
-    /// A preceding local save whose receipt determines this save's base version.
+    /// A preceding save or namespace operation supplies the confirmed base version.
     #[serde(default)]
     pub base: Option<UploadBase>,
     #[serde(default)]
@@ -117,6 +139,19 @@ impl std::fmt::Debug for UploadRecord {
         f.debug_struct("UploadRecord")
             .field("state", &self.state)
             .finish_non_exhaustive()
+    }
+}
+
+enum GenerationCommit {
+    Working(working::WorkingCommit),
+    Replacement(Box<replacements::ReplacementCommit>),
+}
+impl GenerationCommit {
+    fn working_id(&self) -> Option<Uuid> {
+        match self {
+            Self::Working(w) => Some(w.id),
+            Self::Replacement(r) => r.working_id(),
+        }
     }
 }
 
@@ -175,7 +210,7 @@ impl UploadJournal {
         let mut db = Connection::open(database)?;
         db.busy_timeout(std::time::Duration::from_secs(3))?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if version > 5 {
+        if version > 14 {
             return Err(JournalError::Schema);
         }
         db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;
@@ -193,7 +228,16 @@ impl UploadJournal {
         }
         mutations::migrate_queue(&mut db, version)?;
         generations::migrate(&mut db, version)?;
-        working::migrate(&mut db)?;
+        working::migrate(&mut db, version)?;
+        generations::migrate_dependencies(&mut db, version)?;
+        namespace::migrate(&mut db, version)?;
+        handoff::migrate(&mut db, version)?;
+        unlinked::migrate(&mut db, version)?;
+        barriers::migrate(&mut db, version)?;
+        replacements::migrate(&mut db, version)?;
+        publication::migrate(&mut db, version)?;
+        preparation::migrate(&mut db, version)?;
+        directories::migrate(&mut db, version)?;
         // Never infer that a transfer failed just because its process died.
         db.execute(
             "UPDATE uploads SET state='verify_required',
@@ -217,7 +261,11 @@ impl UploadJournal {
             quota,
             _owner: owner,
         };
+        journal.recover_preparation_files()?;
         journal.recover_working()?;
+        journal.recover_unlinked_readers()?;
+        journal.recover_replacement_readers()?;
+        journal.collect_retired_working(1000)?;
         Ok(journal)
     }
     /// Counts every spool file, including interrupted, unreferenced publications.
@@ -255,14 +303,14 @@ impl UploadJournal {
         intent: UploadIntent,
         bytes: impl Read,
     ) -> Result<UploadRecord> {
-        self.enqueue_generation(scope, intent, None, None, bytes)
+        self.enqueue_generation(scope, intent, WriteOrder::default(), None, bytes)
     }
     fn enqueue_generation(
         &mut self,
         scope: Scope,
         intent: UploadIntent,
-        base: Option<UploadBase>,
-        working: Option<working::WorkingCommit>,
+        order: WriteOrder,
+        working: Option<GenerationCommit>,
         mut bytes: impl Read,
     ) -> Result<UploadRecord> {
         if scope.account != self.account {
@@ -272,6 +320,10 @@ impl UploadJournal {
             return Err(JournalError::Intent);
         }
         intent.validate().map_err(|_| JournalError::Intent)?;
+        if let Some(base) = &order.base {
+            self.ensure_successor_free(base.predecessor)?;
+        }
+        barriers::validate(&self.db, &scope, &order.prerequisites)?;
         let (retained, files) = self.retained_usage()?;
         if files >= 10_000 {
             return Err(JournalError::Quota);
@@ -307,8 +359,8 @@ impl UploadJournal {
             sha256: format!("{:x}", hash.finalize()),
             attempt: None,
             remote: None,
-            base,
-            working_file: working.as_ref().map(|commit| commit.id),
+            base: order.base,
+            working_file: working.as_ref().and_then(GenerationCommit::working_id),
             session_key: None,
             transferred_bytes: 0,
             retry_at: 0,
@@ -326,6 +378,19 @@ impl UploadJournal {
             record.id,
             mutations::upload_resources(&record.scope, &record.intent)?,
         )?;
+        if record.base.is_none()
+            && let UploadIntent::Create { parent, .. } = &record.intent
+        {
+            directories::bind(&tx, record.id, record.sequence, &record.scope, parent)?;
+        }
+        generations::insert_dependency(&tx, record.id, record.sequence, record.base.as_ref())?;
+        barriers::insert(
+            &tx,
+            record.id,
+            record.sequence,
+            &record.scope,
+            &order.prerequisites,
+        )?;
         tx.execute(
             "INSERT INTO uploads(id,resource,state,body,sequence) VALUES(?1,?2,'pending',?3,?4)",
             params![
@@ -340,7 +405,14 @@ impl UploadJournal {
             params![record.id.to_string(), serde_json::to_string(&record)?],
         )?;
         if let Some(commit) = &working {
-            working::commit_generation(&tx, commit, &record)?;
+            match commit {
+                GenerationCommit::Working(commit) => {
+                    working::commit_generation(&tx, commit, &record)?
+                }
+                GenerationCommit::Replacement(commit) => {
+                    replacements::commit(&tx, commit, &record)?
+                }
+            }
         }
         tx.commit()?;
         Ok(record)
@@ -373,6 +445,9 @@ impl UploadJournal {
     /// read-only file descriptor positioned at byte zero for the transfer worker.
     pub fn payload(&self, id: Uuid) -> Result<File> {
         let record = self.get(id)?;
+        if record.state == UploadState::Preparing || record.sha256.len() != 64 {
+            return Err(JournalError::Stale);
+        }
         let mut file = OpenOptions::new()
             .read(true)
             .custom_flags(libc::O_NOFOLLOW)
@@ -407,7 +482,11 @@ impl UploadJournal {
             .db
             .query_row(
                 "SELECT u.body FROM uploads u WHERE u.state='pending'
+                AND NOT EXISTS(SELECT 1 FROM write_destinations d WHERE d.operation=u.id AND d.resolved=0)
                 AND (json_extract(u.body,'$.base') IS NULL OR json_extract(u.body,'$.base.resolved')=1)
+                AND NOT EXISTS (SELECT 1 FROM file_replacements r WHERE r.id=u.id AND json_extract(r.body,'$.local_ready')=0)
+                AND NOT EXISTS (SELECT 1 FROM write_prerequisites b LEFT JOIN write_queue p ON p.id=b.predecessor
+                    WHERE b.operation=u.id AND coalesce(p.complete,0)!=1)
                 AND COALESCE(json_extract(u.body,'$.retry_at'),0)<=?1 AND NOT EXISTS (
                 SELECT 1 FROM write_queue previous
                 JOIN write_resources a ON a.id=previous.id
@@ -444,6 +523,12 @@ impl UploadJournal {
             return Err(JournalError::Missing);
         }
         mutations::queue_complete(&tx, record.id, record.state == UploadState::Uploaded)?;
+        if record.state == UploadState::Uploaded
+            && let Some(remote) = &record.remote
+            && !replacements::confirm(&tx, record.id, record.sequence, remote)?
+        {
+            namespace::confirm(&tx, record.id, record.sequence, remote)?;
+        }
         tx.commit()?;
         Ok(())
     }
@@ -466,7 +551,11 @@ impl UploadJournal {
             .db
             .query_row(
                 "SELECT u.id FROM uploads u WHERE u.state='verify_required'
+                AND NOT EXISTS(SELECT 1 FROM write_destinations d WHERE d.operation=u.id AND d.resolved=0)
                 AND (json_extract(u.body,'$.base') IS NULL OR json_extract(u.body,'$.base.resolved')=1)
+                AND NOT EXISTS (SELECT 1 FROM file_replacements r WHERE r.id=u.id AND json_extract(r.body,'$.local_ready')=0)
+                AND NOT EXISTS (SELECT 1 FROM write_prerequisites b LEFT JOIN write_queue p ON p.id=b.predecessor
+                    WHERE b.operation=u.id AND coalesce(p.complete,0)!=1)
                 AND COALESCE(json_extract(u.body,'$.retry_at'),0)<=?1 AND NOT EXISTS (
                 SELECT 1 FROM write_queue previous
                 JOIN write_resources a ON a.id=previous.id
@@ -569,6 +658,9 @@ impl UploadJournal {
         let mut record = self.get(id)?;
         if record.state != UploadState::VerifyRequired
             || record.base.as_ref().is_some_and(|base| !base.resolved)
+            || !barriers::satisfied(&self.db, id)?
+            || !replacements::locally_ready(&self.db, id)?
+            || !directories::ready(&self.db, id)?
         {
             return Err(JournalError::Stale);
         }

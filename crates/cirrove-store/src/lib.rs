@@ -1,6 +1,8 @@
 //! Crash-resumable metadata staging. Visible rows and the completed cursor advance
 //! in one transaction, only after the last page. This is not an upload journal.
+mod observations;
 use cirrove_core::{Change, ChangePage, Cursor, Node, Scope};
+pub use observations::{AbsenceResult, ObservationResult, ObservationTicket};
 use rusqlite::{Connection, OptionalExtension, params};
 use std::path::Path;
 
@@ -45,10 +47,10 @@ impl Store {
     /// Call from a blocking worker, never from a filesystem callback or while a
     /// network request is outstanding. One connection per worker.
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
-        let db = Connection::open(path)?;
+        let mut db = Connection::open(path)?;
         db.busy_timeout(std::time::Duration::from_secs(3))?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if version > 3 {
+        if version > 4 {
             return Err(StoreError::SchemaVersion);
         }
         if version < 2 {
@@ -86,6 +88,7 @@ impl Store {
                 PRAGMA user_version=3; COMMIT;",
             )?;
         }
+        observations::migrate(&mut db, version)?;
         Ok(Self { db })
     }
     fn key(scope: &Scope) -> Result<String> {
@@ -102,7 +105,7 @@ impl Store {
                 r.get(0)
             })?;
         if reset || !pending {
-            tx.execute("INSERT INTO rounds(scope,started) VALUES(?1,?2) ON CONFLICT(scope) DO UPDATE SET started=excluded.started",params![key,timestamp()])?;
+            tx.execute("INSERT INTO rounds(scope,started) VALUES(?1,?2) ON CONFLICT(scope) DO UPDATE SET started=excluded.started",params![key,observations::advance(&tx)?])?;
         }
         if reset {
             tx.execute("DELETE FROM staged WHERE scope=?1", [&key])?;
@@ -160,20 +163,23 @@ impl Store {
             tx.execute("INSERT INTO staged(scope,id,body) VALUES(?1,?2,?3) ON CONFLICT(scope,id) DO UPDATE SET body=excluded.body", params![key,id,body])?;
         }
         if page.checkpoint.complete() {
+            observations::publish_delta(&tx, &key, reset)?;
             // A delta with no relevant changes must not discard a fresher
             // foreground directory snapshot. Invalidate only touched identities
             // and their old/new parents, before replacing the indexed rows.
             if reset {
-                tx.execute("DELETE FROM observed WHERE scope=?1 AND seen<=(SELECT started FROM rounds WHERE scope=?1)",[&key])?;
-                tx.execute("DELETE FROM directories WHERE scope=?1 AND seen<=(SELECT started FROM rounds WHERE scope=?1)",[&key])?;
+                tx.execute("DELETE FROM observed_absent WHERE scope=?1 AND source_revision<=(SELECT started FROM rounds WHERE scope=?1)",[&key])?;
+                tx.execute("DELETE FROM observed WHERE scope=?1 AND source_revision<=(SELECT started FROM rounds WHERE scope=?1)",[&key])?;
+                tx.execute("DELETE FROM directories WHERE scope=?1 AND source_revision<=(SELECT started FROM rounds WHERE scope=?1)",[&key])?;
             } else {
-                tx.execute("DELETE FROM directories WHERE scope=?1 AND seen<=(SELECT started FROM rounds WHERE scope=?1) AND parent IN (
+                tx.execute("DELETE FROM directories WHERE scope=?1 AND source_revision<=(SELECT started FROM rounds WHERE scope=?1) AND parent IN (
                     SELECT id FROM staged WHERE scope=?1
                     UNION SELECT json_extract(body,'$.parent_id') FROM staged WHERE scope=?1
                     UNION SELECT json_extract((SELECT body FROM nodes WHERE scope=?1 AND id=s.id),'$.parent_id') FROM staged s WHERE scope=?1
                     UNION SELECT json_extract((SELECT body FROM observed WHERE scope=?1 AND id=s.id),'$.parent_id') FROM staged s WHERE scope=?1
                 )",[&key])?;
-                tx.execute("DELETE FROM observed WHERE scope=?1 AND seen<=(SELECT started FROM rounds WHERE scope=?1) AND id IN (SELECT id FROM staged WHERE scope=?1)",[&key])?;
+                tx.execute("DELETE FROM observed_absent WHERE scope=?1 AND source_revision<=(SELECT started FROM rounds WHERE scope=?1) AND id IN (SELECT id FROM staged WHERE scope=?1)",[&key])?;
+                tx.execute("DELETE FROM observed WHERE scope=?1 AND source_revision<=(SELECT started FROM rounds WHERE scope=?1) AND id IN (SELECT id FROM staged WHERE scope=?1)",[&key])?;
             }
             if reset {
                 tx.execute("DELETE FROM nodes WHERE scope=?1", [&key])?;
@@ -232,67 +238,92 @@ impl Store {
         Ok(seen.map(|seen| timestamp().saturating_sub(seen).max(0) as u64 / 1_000_000))
     }
     pub fn node(&self, scope: &Scope, id: &str) -> Result<Option<Node>> {
-        let key = Self::key(scope)?;
-        let body=self.db.query_row("SELECT body FROM observed WHERE scope=?1 AND id=?2 UNION ALL SELECT body FROM nodes WHERE scope=?1 AND id=?2 LIMIT 1",params![key,id],|r|r.get::<_,String>(0)).optional()?;
-        body.map(|v| Ok(serde_json::from_str(&v)?)).transpose()
+        Self::node_on(&self.db, scope, id)
     }
-    pub fn observe_node(&mut self, scope: &Scope, node: &Node) -> Result<()> {
-        self.db.execute("INSERT INTO observed(scope,id,body,seen) VALUES(?1,?2,?3,?4) ON CONFLICT(scope,id) DO UPDATE SET body=excluded.body,seen=excluded.seen",params![Self::key(scope)?,node.id,serde_json::to_string(node)?,timestamp()])?;
-        Ok(())
-    }
-    pub fn children(&self, scope: &Scope, parent: &str) -> Result<Option<Vec<Node>>> {
-        Self::children_on(&self.db, scope, parent)
-    }
-    fn children_on(db: &Connection, scope: &Scope, parent: &str) -> Result<Option<Vec<Node>>> {
+    fn node_on(db: &Connection, scope: &Scope, id: &str) -> Result<Option<Node>> {
         let key = Self::key(scope)?;
         let body = db
             .query_row(
-                "SELECT body FROM directories WHERE scope=?1 AND parent=?2",
-                params![key, parent],
+                "SELECT body FROM (SELECT body FROM observed WHERE scope=?1 AND id=?2
+            UNION ALL SELECT body FROM nodes WHERE scope=?1 AND id=?2)
+            WHERE NOT EXISTS(SELECT 1 FROM observed_absent WHERE scope=?1 AND id=?2) LIMIT 1",
+                params![key, id],
                 |r| r.get::<_, String>(0),
             )
             .optional()?;
-        if let Some(body) = body {
-            return Ok(Some(serde_json::from_str(&body)?));
-        }
-        if db
-            .query_row("SELECT cursor FROM feeds WHERE scope=?1", [&key], |r| {
-                r.get::<_, Option<String>>(0)
-            })
-            .optional()?
-            .flatten()
-            .is_none()
-        {
-            return Ok(None);
-        }
-        let mut query=db.prepare("SELECT body FROM nodes WHERE scope=?1 AND json_extract(body,'$.parent_id')=?2 ORDER BY json_extract(body,'$.name')")?;
-        let rows = query.query_map(params![key, parent], |r| r.get::<_, String>(0))?;
-        Ok(Some(
-            rows.map(|r| Ok(serde_json::from_str(&r?)?))
-                .collect::<Result<_>>()?,
-        ))
+        body.map(|v| Ok(serde_json::from_str(&v)?)).transpose()
     }
-    pub fn observe_directory(
-        &mut self,
-        scope: &Scope,
-        parent: &str,
-        nodes: &[Node],
-    ) -> Result<bool> {
-        let key = Self::key(scope)?;
-        // Reserve the writer before comparing metadata. A deferred read-to-write
-        // upgrade can fail with SQLITE_BUSY immediately, bypassing busy_timeout,
-        // if another metadata worker writes after our first read.
-        let tx = self
-            .db
-            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
-        let changed = Self::children_on(&tx, scope, parent)?.as_deref() != Some(nodes);
-        let seen = timestamp();
-        for node in nodes {
-            tx.execute("INSERT INTO observed(scope,id,body,seen) VALUES(?1,?2,?3,?4) ON CONFLICT(scope,id) DO UPDATE SET body=excluded.body,seen=excluded.seen",params![key,node.id,serde_json::to_string(node)?,seen])?;
-        }
-        tx.execute("INSERT INTO directories(scope,parent,body,seen) VALUES(?1,?2,?3,?4) ON CONFLICT(scope,parent) DO UPDATE SET body=excluded.body,seen=excluded.seen",params![key,parent,serde_json::to_string(nodes)?,seen])?;
+    pub fn children(&self, scope: &Scope, parent: &str) -> Result<Option<Vec<Node>>> {
+        let tx = self.db.unchecked_transaction()?;
+        let nodes = Self::children_on(&tx, scope, parent)?;
         tx.commit()?;
-        Ok(changed)
+        Ok(nodes)
+    }
+    fn children_on(db: &Connection, scope: &Scope, parent: &str) -> Result<Option<Vec<Node>>> {
+        let key = Self::key(scope)?;
+        let snapshot = db
+            .query_row(
+                "SELECT body,source_revision FROM directories WHERE scope=?1 AND parent=?2",
+                params![key, parent],
+                |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)),
+            )
+            .optional()?;
+        let mut nodes = if let Some((body, source_revision)) = snapshot {
+            let mut nodes = serde_json::from_str::<Vec<Node>>(&body)?;
+            let ids = serde_json::to_string(&nodes.iter().map(|n| &n.id).collect::<Vec<_>>())?;
+            let mut query=db.prepare("SELECT body FROM observed WHERE scope=?1 AND source_revision>?3 AND json_extract(body,'$.parent_id')=?2
+                UNION ALL SELECT body FROM observed WHERE scope=?1 AND source_revision>?3
+                AND id IN (SELECT value FROM json_each(?4)) AND json_extract(body,'$.parent_id') IS NOT ?2")?;
+            let updates = query.query_map(params![key, parent, source_revision, ids], |r| {
+                r.get::<_, String>(0)
+            })?;
+            let mut merged = nodes
+                .drain(..)
+                .map(|n| (n.id.clone(), n))
+                .collect::<std::collections::HashMap<_, _>>();
+            for body in updates {
+                let node: Node = serde_json::from_str(&body?)?;
+                merged.remove(&node.id);
+                if node.parent_id.as_deref() == Some(parent) {
+                    merged.insert(node.id.clone(), node);
+                }
+            }
+            let mut absent = db.prepare(
+                "SELECT id FROM observed_absent WHERE scope=?1 AND source_revision>?3
+                AND id IN (SELECT value FROM json_each(?2))",
+            )?;
+            let ids = serde_json::to_string(&merged.keys().collect::<Vec<_>>())?;
+            let rows = absent.query_map(params![key, ids, source_revision], |r| {
+                r.get::<_, String>(0)
+            })?;
+            for row in rows {
+                merged.remove(&row?);
+            }
+            merged.into_values().collect::<Vec<_>>()
+        } else {
+            if db
+                .query_row("SELECT cursor FROM feeds WHERE scope=?1", [&key], |r| {
+                    r.get::<_, Option<String>>(0)
+                })
+                .optional()?
+                .flatten()
+                .is_none()
+            {
+                return Ok(None);
+            }
+            // A foreground item observation may be newer than a completed feed.
+            // Suppress its old indexed location as well as replacing its metadata.
+            let mut query=db.prepare("SELECT body FROM nodes n WHERE scope=?1 AND json_extract(body,'$.parent_id')=?2
+                AND NOT EXISTS(SELECT 1 FROM observed o WHERE o.scope=n.scope AND o.id=n.id)
+                AND NOT EXISTS(SELECT 1 FROM observed_absent a WHERE a.scope=n.scope AND a.id=n.id)
+                UNION ALL SELECT body FROM observed WHERE scope=?1 AND json_extract(body,'$.parent_id')=?2")?;
+            query
+                .query_map(params![key, parent], |r| r.get::<_, String>(0))?
+                .map(|r| Ok(serde_json::from_str(&r?)?))
+                .collect::<Result<Vec<Node>>>()?
+        };
+        nodes.sort_by(|a, b| a.name.cmp(&b.name).then_with(|| a.id.cmp(&b.id)));
+        Ok(Some(nodes))
     }
     pub fn inode(&mut self, key: &str) -> Result<u64> {
         if let Some(inode) = self
@@ -752,7 +783,7 @@ mod tests {
             db.db
                 .pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0))
                 .unwrap(),
-            3
+            4
         );
         assert_eq!(
             db.db

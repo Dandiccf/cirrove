@@ -32,6 +32,9 @@ and Nautilus badges are not implemented.
   readable. A single account worker checks up to 32 active directories, respects
   provider cooldowns and avoids reloading unchanged listings. This complements
   notifications; it does not guarantee a fixed remote-update latency.
+- Ordered publication of foreground metadata: a delayed response cannot overwrite
+  a newer committed view. Item observations update cached directory entries too;
+  observed absence is kept separately from the completed delta baseline.
 - Linked-drive discovery and shortcut projection with separate target identities.
   Folder-only SharePoint sharing and revoked targets still need live validation.
 - Read-only FUSE projection with persistent directory and content-version inodes,
@@ -53,8 +56,47 @@ and Nautilus badges are not implemented.
   an explicitly writable, disabled test account; ordinary mounts do not enable it.
   Its session starts bounded upload workers automatically and drains accepted local
   writes before unmounting. An isolated business-drive check passed two actual
-  mounted saves, automatic uploads and independent content verification. Atomic
-  replacement and writable namespace operations remain incomplete.
+  mounted saves, automatic uploads and independent content verification. Regular-file
+  atomic replacement now has synthetic application checks. Folder creation and
+  nested local saves are also implemented experimentally; folder rename/removal
+  and broader real-application acceptance remain incomplete.
+- Durable local object identities and directory entries separate from optional
+  working bytes. Local stream lookups are separate from provider-binding lookups,
+  so provider aliases cannot redirect existing local views. Experimental mounts
+  can rename and move regular files within one collection without downloading
+  content. Uploads and namespace changes share
+  receipt-based ordering; a lost rename response containing another actor's edit
+  blocks later saves and retains both versions. Folder rename/removal and broader
+  application/provider acceptance remain incomplete.
+- Experimental sessions retire fully acknowledged working copies after the last
+  file user closes, then follow remote edits, moves and deletions while retaining
+  the file's local identity. Cleanup is restartable and preserves pending or
+  conflicted bytes. Acknowledged upload payloads are collected separately from
+  their receipts; alias/history retention still needs large-library validation.
+- Experimental regular-file unlink releases the name locally and queues a
+  conditional cloud deletion. Open handles keep their old stream, including after
+  the name is reused. Reader preservation runs in the background, so a download
+  cannot hold the unlink call's kernel directory lock. Later writes to an unlinked
+  handle stay as local recovery data; their retention and recovery UI remain open.
+- Experimental regular-file replacement supports local and online-only sources.
+  Local names change durably before any source download, while background capture
+  fetches the original cloud version and protects old descriptors. Target upload
+  and source cleanup use their own conditional identities and receipt barriers.
+  Joint publication preserves local streams across chained replacements. Tests
+  exercise actual mounted atomic saves, held reads and interrupted preparation;
+  ordinary desktop editors and broader provider scenarios still need acceptance.
+
+- Experimental folder creation commits its local entry before cloud confirmation.
+  Nested folders, file creation and file-move destinations wait for the parent's
+  confirmed provider identity independently of each file's save sequence. Actual
+  synthetic mounts exercise pending-parent navigation and recovery after restart;
+  live directory workflows remain unvalidated.
+
+- Experimental edits capture their traversed folder/link paths. Those local routes
+  remain visible when a provider removes an ancestor, and survive remount without
+  recreating cloud folders. Resolved file-link targets can use the same local write
+  path; shortcut rename/removal remains unsupported. These cases have synthetic
+  mount coverage and still require live provider/application acceptance.
 
 These are implementation capabilities, not a production-readiness claim. See the
 [validation record](docs/validation.md) for what has actually been tested.

@@ -137,7 +137,7 @@ fn later_saves_follow_receipts_across_creation_upload_and_restart() {
     assert_eq!(
         db.pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
             .unwrap(),
-        5
+        14
     );
 }
 
@@ -252,7 +252,7 @@ fn version_one_queue_migrates_without_losing_local_payloads_or_ordering() {
     assert_eq!(attempt.id, first.id);
     drop(journal);
     let db = rusqlite::Connection::open(root.join("uploads.db")).unwrap();
-    db.execute_batch("UPDATE uploads SET body=json_remove(body,'$.session_key','$.transferred_bytes','$.retry_at','$.failed_attempts'); PRAGMA user_version=1;").unwrap();
+    db.execute_batch("UPDATE uploads SET body=json_remove(body,'$.session_key','$.transferred_bytes','$.retry_at','$.failed_attempts'); DROP TABLE namespace_operations; DROP TABLE namespace_remote; DROP TABLE namespace_entries; DROP TABLE namespace_objects; DROP TABLE namespace_scopes; PRAGMA user_version=1;").unwrap();
     drop(db);
     let mut journal = open(&root);
     let recovered = journal.claim_next_verification().unwrap().unwrap();

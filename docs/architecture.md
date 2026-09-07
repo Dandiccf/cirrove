@@ -87,10 +87,34 @@ A replacement baseline is built alongside the last visible index. Interrupted wo
 resumes; an expired cursor does not immediately empty a usable directory tree.
 
 Cold foreground listings are atomically recorded separately from the delta index.
+Metadata schema 4 assigns a persistent logical revision before each network
+observation and feed round; completion wall time is used only for age reporting.
+Publication checks the observation's ticket against intervening commits for that
+item, its affected directories and its scope. A superseded response yields the
+current committed view. If a complete directory view is still unknown, the engine
+retries from the first page, at most three times within the total listing deadline.
+An item with no current view returns ESTALE rather than discarded metadata.
+
 An incremental round invalidates older observations for changed identities and
 their affected parents; an empty or unrelated delta keeps fresher directory
-listings. A replacement baseline removes observations older than its start.
-Observations newer than the round's start remain visible across its commit.
+listings. A replacement baseline removes observations whose requests started
+before that round. Observations started afterward remain visible across its commit.
+Single-item observations overlay cached directory snapshots, including both sides
+of a move. A complete listing's absent children are hidden by separate negative
+observations; this does not remove rows from the committed delta baseline or claim
+that an absent item was deleted remotely. Later observations or feed rounds can
+supersede that absence. Directory reads use one database snapshot so their base,
+positive observations and negative observations agree.
+
+A single-item NotFound response uses the same ticket ordering. It hides the cached
+entry without modifying the completed baseline. A newer positive observation or
+complete parent listing supersedes an older NotFound response, so a delayed failure
+cannot remove a file that a later request has already observed.
+
+The schema migration preserves existing metadata and seeds the logical clock from
+legacy ordering values. The observation database remains separate from the upload
+journal. This ordering prevents local publication races; it cannot establish a
+globally consistent snapshot across an eventually consistent provider's endpoints.
 
 Reading a directory registers a 60-second activity lease. Each account retains at
 most 32 recently used directories and has one revalidation worker, with at least
@@ -159,12 +183,18 @@ remote file's total size; namespace and outstanding application buffers add memo
 A small failure cooldown prevents coalesced failures from becoming a retry storm.
 
 Each uncached Graph range currently uses metadata checks before and after download.
+The shared content cache also bounds each provider range call to 30 seconds and
+observes cancellation even when an adapter ignores its token. The local cache
+publication afterward is awaited rather than abandoned by that provider deadline.
 The content revision and size must match the opened version. Cirrove prefers Graph's
 content-only cTag and falls back to eTag when absent; the two tag namespaces are
 distinct in cache keys. Response range and byte count are
 validated before publication. This favors version consistency but adds **two Graph
-metadata requests per uncached block**; real-provider latency measurements must guide
-future optimization. A changed file yields ESTALE instead of mixing versions.
+metadata requests per uncached block**. Removing this request amplification is an
+explicit OneDrive 1.0 gate: [read-session efficiency](adr/0004-read-session-efficiency.md)
+proposes shared version-bound sessions, bounded transfer windows and validated
+renewal. That replacement is not implemented yet. A changed file yields ESTALE
+instead of mixing versions.
 
 Blocks have SHA-256 checksums. Temporary bytes and the containing directory are
 fsynced before publication is indexed. Startup removes interrupted temporary blocks,
@@ -208,6 +238,13 @@ Every mount attempt checks for an empty real directory outside other FUSE mounts
 It never mounts over local files deposited after an ejection. Enabled accounts are
 remounted after accidental ejection; `disable` records an intentional unmount.
 Shutdown cancels and awaits workers, then unmounts and joins FUSE sessions.
+
+The mount root currently has fixed synthetic attributes. Metadata notifications
+invalidate projected child entries, but do not invalidate that root inode: an
+invalidation racing its first GETATTR can discard the initial ownership/permission
+reply. Directory handles do not request kernel readdir caching. If root attributes
+become mutable, their refresh needs an initialized-root lifecycle rather than
+reintroducing that startup race.
 
 Linux lazy unmount leaves the kernel connection alive while an application retains
 a file or directory descriptor. Cirrove therefore retains its own connection's
@@ -253,9 +290,9 @@ can enter `NeedsReview`, retaining their request without an automatic retry loop
 HTTP success is required for a confirmed deletion receipt. File DELETE uses the
 provider's recycle-bin behavior; it is not permanent deletion or local POSIX rmdir.
 
-These operations remain outside the mounted filesystem. The writable namespace
-layer must add ancestor/dependency handling, application-save generations and safe
-replacement semantics before enabling folder mutations through FUSE. Personal
+Experimental writable mounts now connect regular-file rename/move to this worker.
+Experimental FUSE also supports folder creation and dependent child destinations
+as described below. Folder rename and safe removal remain unimplemented. Personal
 accounts, permissions changes and broader live concurrency still require coverage.
 
 ## Experimental local working files
@@ -279,8 +316,11 @@ Consecutive upload generations form a linear dependency chain. A later generatio
 uses the preceding validated receipt's item ID and ETag, including after a create
 assigns a new remote identity. An uncertain or conflicted predecessor blocks its
 successors while independent files remain eligible. Old sealed bytes never change
-when the working file is edited again. Interleaved namespace mutations still need
-unified causal ordering before the full save/rename workflow can be enabled.
+when the working file is edited again. Schema 6 extends this receipt chain across
+uploads and namespace mutations. A local working-file relocation now commits its
+new name and queued mutation together. Schema 7 adds separate local object identity,
+directory entries, confirmed remote bindings and optional working bytes. Regular-file replacement now uses the same namespace; directory
+operations and broader application workflows remain under development.
 
 The developer constructor requires a disabled test account with explicit write
 access and a journal owned by that account. It supports regular-file create,
@@ -291,17 +331,19 @@ save on the user's ordinary mount is routed through this experimental path.
 
 Experimental writable inodes retain identity while their local bytes change.
 Memory mapping is currently disabled for these sessions; read-only sessions keep
-their existing content-version inode and mapping behavior. Namespace mutations,
-atomic replacement, permission/time changes, clean-working-copy retirement,
-and conflict UI are not connected to writable mounts yet. Sealing may require space
+their existing content-version inode and mapping behavior. Folder rename/removal,
+permission/time changes and conflict UI are not connected to writable mounts yet.
+Sealing may require space
 for both the working file and its snapshot; failure
 keeps the dirty source and reports an error. Physical power loss, physical disk-full
 recovery and sustained real-provider application editing remain acceptance gates.
 
 ## Experimental writable-session ownership
 
-`WritableSession` owns a test engine, its FUSE session and two upload workers.
-Successful sealing wakes the workers; a one-second fallback revisits persisted
+`WritableSession` owns a test engine, its FUSE session, two upload workers, one
+conditional namespace worker and one local-copy maintenance worker. Successful
+sealing, relocation and confirmed receipts
+wake the workers; a one-second fallback revisits persisted
 retry deadlines without resetting backoff. Saves finish after durable local
 publication, independently of cloud acknowledgement. Paginated journal records
 expose each generation's state and fragment progress; desktop presentation and
@@ -321,12 +363,345 @@ shutdown is treated as interruption, not successful draining. Restart recovery
 retains durable snapshots and dirty working copies. The ordinary account manager
 does not select this experimental owner yet.
 
+## Interleaved saves and namespace changes
+
+A single successor relation spans upload and mutation records. It prevents two
+different edits from adopting the same predecessor as if both followed it directly.
+Neither worker can claim an unresolved descendant. Before selecting more work,
+bounded preparation binds ready operations to their confirmed item IDs and ETags
+and reserves the resulting identity/name resources. Uncertain or conflicted
+operations keep their descendants pending while unrelated files remain eligible.
+
+Working-file relocation seals dirty source bytes, then commits the new local name,
+latest-operation pointer and remote mutation intent in one transaction. A failed
+transaction keeps the old name and does not consume the predecessor relation. A
+collision with another working copy is refused by this relocation API; mounted
+replacement uses the separate pair transaction below. Relocating an already clean
+working copy creates no content snapshot.
+Its original provider metadata is retained separately from the local content tag.
+Legacy working copies with a lost original content tag cannot invent that evidence.
+
+A successful conditional mutation response supplies a new base. Reconciliation
+after a lost rename response needs an additional check: the same item at the desired
+path might already contain somebody else's edit. Changed size or content revision
+becomes a conflict, and missing proof becomes `NeedsReview`; neither result completes
+the operation queue or authorizes a later upload against that newer ETag. Matching
+content revision/size or an unchanged metadata version allows the chain to continue.
+Observed receipts remain available for review without being treated as confirmed
+save bases. Providers must distinguish conditional responses from later observations.
+
+These APIs establish journal ordering and working-file transactions. The sparse
+namespace model below connects regular-file relocation and replacement to FUSE.
+Folder rename/removal and complete detached-stream retention/recovery remain
+required. The ordinary manager stays read-only.
+
+## Sparse local namespace and mounted relocation
+
+Journal schema 7 separates stable local objects, directory entries, confirmed remote
+identities, operation bindings and optional working-file bytes. A metadata-only
+rename or move needs no content reservation or download. Its desired path and
+queued intent commit together with an optimistic object revision check. Hydrating
+that object later attaches bytes to its current local path and identity, including
+when another file has since reused its original name. Truncation to zero retains
+the original remote version as a write precondition without copying its old bytes.
+
+Schema migration retains earlier acknowledged remote bindings even when a newer
+save is still pending. A receipt updates the remote alias in the same transaction
+as operation acknowledgement. Remote IDs assigned to newly created files do not
+replace their local identity or inode. The sparse namespace currently permits at
+most 10,000 objects. Fully acknowledged objects can release their working bytes and
+follow later remote metadata, as described below. Their aliases and operation
+history remain retained; total-object limits and memory use still need work for
+long-term use with large libraries.
+
+Local presentation IDs and provider IDs now have separate lookup paths. Mounted
+views, access leases and open-stream callbacks resolve only local identities;
+provider observations and initial hydration resolve the current remote binding.
+The in-memory projection keeps separate indexes and checks uniqueness within each
+domain. A newly confirmed provider ID cannot become an alternate key for an
+existing local stream. Listing projection is the boundary that presents a remote
+item under its stable local identity. Lookup separation itself requires no journal
+migration. The replacement transaction below additionally transfers active ownership
+between durable objects while retaining their separate local streams.
+
+The mount loads a memory projection of these objects and working-file records.
+Publication is atomic and revision-ordered, so a delayed save or rename callback
+cannot restore an older name or discard a newer remote binding. Cached namespace
+reads do not take the spool/journal mutex. The database and memory projection use
+the same listing logic, suppressing old remote aliases and retaining foreign name
+occupants as explicit conflicts. The developer session exposes those conflicts and
+paginated mutation state; desktop conflict presentation is not implemented.
+
+The journal supports an immutable case-sensitive or case-insensitive name policy
+per collection. Existing experimental working-file calls default to case-insensitive
+comparison. The current mounted preflight conservatively compares names without
+case; future provider adapters must supply their own verified name semantics.
+
+Regular-file rename/move is admitted and drained with other local mutations. It
+rechecks the source name and parent at the journal serialization point. The current
+path rejects cross-collection or cross-shortcut-projection moves, directory and
+shortcut mutations and exchange/whiteout flags. Replacing an occupied regular-file
+path uses the pair transaction below; `RENAME_NOREPLACE` keeps the occupant.
+A remote collision after local acceptance becomes an operation conflict; it does
+not authorize overwriting that occupant.
+
+Experimental mounts require `FUSE_ATOMIC_O_TRUNC`. Without that capability Linux
+can strip O_TRUNC from OPEN and issue SETATTR afterward, causing the old file to be
+hydrated unnecessarily. The supported path creates empty working bytes directly
+and preserves the source metadata. Read-only O_TRUNC combinations are rejected;
+writable memory mapping and other attribute changes remain outside this preview.
+
+## Acknowledged working-copy retirement
+
+Journal schema 8 distinguishes active local objects from aliases that follow remote
+metadata. An active object owns its local directory entry and any working bytes.
+After every attached operation is acknowledged, no newer dirty generation exists
+and no application is using the file, maintenance can detach the local entry and
+working copy. The alias retains the same local identity and revision but takes its
+visible name, parent and content metadata from the remote index. Later remote
+changes and deletions therefore become visible instead of being masked by an old
+local copy. The next edit reactivates the object using the newly observed provider
+version; it cannot inherit the obsolete pre-retirement save base.
+
+Open handles and in-flight file callbacks hold per-object access leases, including
+read-only previews of edited files. Maintenance checks idleness before requesting
+metadata but releases exclusive access during the request. Afterward it reacquires
+exclusive access and checks the durable object revision and acknowledged frontier.
+A new open or edit during that request prevents an obsolete candidate from being
+retired. Publication validates the memory projection before committing the detach,
+then applies it while both local locks remain held. Retaining the alias revision
+prevents delayed callbacks from reinstating retired working bytes.
+
+The detach and explicit cleanup intent commit together. Physical removal verifies
+the private working file, deletes and fsyncs its directory, then clears the cleanup
+intent. Restart can finish either side of an interrupted deletion. Unknown spool
+files remain retained and quota-accounted. A separate bounded collector removes
+only acknowledged immutable upload payloads, retaining their receipts and lineage.
+Pending, uncertain, failed and conflicted payloads remain protected.
+
+After publishing pending namespace changes, each maintenance pass checks at most
+16 active cleanup candidates and requests metadata for at
+most one candidate. It reuses cached metadata only when it matches the confirmed
+receipt; otherwise it requests an ordered item observation with a 30-second deadline.
+An accepted NotFound observation releases an acknowledged overlay of a missing
+remote item without preserving a ghost entry. Provider failures keep the local copy
+and have per-object retry delays up to 60 seconds. Background work also has a quiet
+interval, and wake notifications cannot bypass failure delays. The worker repairs
+missed local projection updates from durable records without replaying provider
+operations. It participates in session cancellation and shutdown.
+
+This releases working storage, not all historical metadata. Aliases are still
+loaded into the in-memory projection, and operation history has no retention policy
+yet. Pins, writable mappings and complete application-save semantics remain separate
+acceptance gates. Ordinary daemon mounts still use the read-only constructor.
+
+## Unlinked names and retained file streams
+
+Journal schema 9 permits a working stream without an occupied pathname. A regular
+file unlink seals earlier dirty bytes, then removes the local entry and queues a
+conditional remote deletion in one transaction. Earlier uploads or moves still
+provide its required identity and ETag. A new file can use the released name with
+its own local identity. The old object remains a tombstone against stale remote
+listings. Directories and shortcuts are not accepted by this unlink path.
+
+Open-file registration happens before asynchronous OPEN preparation. Weak stream
+references remain alive through callbacks, including reads that outlive removal
+of the handle from the open-file map. Old handles keep their object and working
+stream; fstat reports zero links, and ftruncate uses the handle's stream. Writes
+after unlink remain local recovery data. Their fsync flushes the local bytes and
+does not queue another upload that could recreate the deleted cloud file.
+
+An unopened online-only file can be removed without fetching its contents. If an
+open stream still needs remote bytes, a persisted local-reader barrier makes its
+DELETE ineligible while the local unlink returns. Preservation runs on the tracked
+maintenance worker outside Linux's parent-directory lock. It hydrates the original
+version, switches new reads to the local stream, and waits for already registered
+remote reads before releasing the barrier. The counters registering reads hold no
+filesystem lock during network I/O. Other files remain usable during preservation.
+
+An exhausted spool quota or failed download leaves the remote deletion pending;
+existing handles can continue to request their original remote version. Once all
+readers are gone, deletion can proceed without hydration. Provider failures back
+off per object. Shutdown cancels provider I/O and retains the deletion intent.
+Reopening the exclusively owned journal releases only the former process's reader
+barriers: handles cannot survive a dead FUSE connection. Remote receipt dependencies
+and retained working bytes remain intact.
+
+Regular-file replacement extends these open-handle lifetime rules below. Detached working data, tombstones and operation
+history currently remain retained. Their recovery UI, bounded cleanup and handling
+of a provider restoring the same deleted item identity are still required. Full
+application compatibility and real-provider mounted unlink acceptance remain open.
+
+## Journal replacement of two local files
+
+Journal schema 10 adds completion prerequisites independently of the single
+content/ETag predecessor. Both upload and mutation selection, including explicit
+upload verification, wait for every prerequisite. Edges must reference older
+operations in the same scope; each operation permits at most 16 additional edges.
+Failed, conflicted and uncertain predecessors keep descendants pending while
+unrelated files remain eligible. The original linear content-successor constraint
+still determines which confirmed receipt may supply the destination identity.
+
+Schema 11 introduced a journal transaction for replacing one local file with
+another using an existing source working copy. Dirty source/victim streams must
+be sealed first; schema 13 extends the transaction to online-only sources below. An immutable source snapshot, destination-path
+takeover, detached victim stream, conditional destination upload and guarded source
+cleanup commit together. The upload follows the victim's last confirmed operation
+or original ETag and separately waits for prior source work. Source cleanup follows
+its own original identity/ETag and cannot run until destination publication is
+acknowledged. A local-reader barrier additionally delays publication; exclusive
+journal recovery releases former-process reader barriers without completing cloud
+operations or discarding retained bytes.
+
+Active provider ownership is separate from historical remote metadata. On upload
+acknowledgement, the victim loses active ownership, the source takes the destination
+binding, and a reserved cleanup object takes the source's previous binding, in the
+same transaction as upload completion. Existing local IDs and working streams do
+not change. Only actively owned provider IDs hide or alias raw provider listings;
+an old victim's local ID cannot hide the new destination owner. A unique owner index
+bounds binding replacement lookup and prevents two active provider IDs on one object.
+Old descriptor
+writes remain detached recovery data. Metadata capacity for cleanup is reserved at
+local acceptance, before cloud publication, rather than allocated after success.
+
+Schema 12 records a monotonically ordered, coalesced change marker for each local
+object. Triggers update the marker in the namespace transaction, so rolled-back
+changes cannot be published. A reader takes the complete changed set and matching
+working metadata at one committed database frontier. It does not paginate this set:
+a page could split a transfer, or omit the new owner from a later replacement.
+The sequence index reads only changed objects during ordinary saves; repeated writes
+retain one marker per object. The current 10,000-object journal limit also bounds a
+batch. Removing that limit will require bounded group publication and history cleanup.
+
+The mount validates the complete batch before changing any in-memory index, removes
+old bindings together, then assigns the new owners and advances its cursor. Delayed
+callbacks cannot reverse that frontier. Upload callbacks, working-file publication
+and maintenance consume this same stream; a callback's operation ID is only a wake
+hint. Maintenance can also recover publication missed by an earlier callback. These
+updates follow journal-then-projection lock order, with no provider request or file
+hydration. SQLite reads and decoding keep the journal stable while allowing cached
+projection lookups; the final index update holds the projection lock. Streams remain keyed to their original local
+identities.
+
+Experimental FUSE rename now invokes the pair transaction for occupied regular-file
+paths in one collection. It preserves both source and victim streams outside VFS
+directory locks. `RENAME_NOREPLACE` keeps the occupant; exchanges, directories,
+shortcuts and collisions differing only by case remain explicitly unsupported by
+this replacement path. Retained history, restored IDs, recovery UI, ordinary editor
+and office save patterns, and broader real-provider replacement/cleanup acceptance
+remain open. Ordinary mounts stay read-only.
+
+## Deferred source capture for replacement
+
+Journal schema 13 gives an online-only replacement a `Preparing` upload and a
+separate source-capture record. Local path takeover and guarded cleanup commit
+without downloading content. The source's original version comes from its captured
+remote metadata or its own earlier confirmed receipt; the target's predecessor
+supplies the destination ETag separately. Later local saves depend on the same
+original operation ID, even while capture is incomplete.
+
+The maintenance worker reserves spool space and fetches the captured version using
+bounded cache ranges outside journal, projection and kernel directory locks. A
+source-version conflict blocks publication and cleanup; transient failures retain
+intent and back off. Preparation materializes the source only if it still lacks
+working bytes, preserving any newer local edit. The immutable original snapshot
+receives a durable checksum before its final filename. Only afterward may the
+operation become `Pending`. An interrupted final SQL update can adopt that complete,
+checksum-verified snapshot without redownloading it. Partial downloads retain
+operation-labelled temporary names; exclusive startup reclaims those known remote
+capture temporaries and preserves unknown files and mutable edits. Download
+reservations keep the journal ownership lease alive across asynchronous work.
+
+Before target publication, the reader gate switches future source reads to working
+bytes, preserves any open victim and drains tracked remote reads on both objects.
+After restart, an unmaterialized source keeps a gate for new-process readers;
+recovery does not accidentally release it with the old process's handles. A delayed
+hydration carries its expected local object through I/O and cannot attach to a
+provider identity's newer owner.
+
+Preparation and immutable snapshots share the edit spool quota. A source that cannot
+fit keeps its replacement pending and leaves both cloud actions uncommitted. Changing
+that quota and explaining recovery in the desktop UI remain unfinished. The source
+can change externally before capture completes; no historical-version retrieval or
+complete offline availability is claimed. These APIs remain experimental until the
+application, provider, fault and capacity acceptance matrix is complete.
+
+## Local directories and pending destinations
+
+Journal schema 14 adds a destination-parent relation separate from the linear
+content predecessor. `mkdir` commits a stable local folder and its queued provider
+creation together. Its children are immediately visible through the local namespace;
+a folder without a confirmed remote identity needs no provider listing. New child
+folders, file creates and move destinations capture that parent's current operation.
+Several children can depend on the same folder without consuming one another's
+save lineage or adopting a folder as a file identity.
+
+Before claiming work, bounded resolution checks the parent's confirmed receipt,
+operation ownership, scope and sequence, then binds the actual provider destination
+and adds its resource reservations atomically. Both workers wait for unresolved
+parents. File moves can independently wait for a source save and destination folder.
+Uncertain or conflicted parent creation retains the local tree and its bytes while
+unrelated destinations remain eligible. Restart does not infer successful folder
+creation or retry an unidentified creation blindly.
+
+The projection keeps local folder IDs across acknowledgement, cleanup and remount.
+Provider listings use confirmed remote IDs and translate returned parent references
+back to local IDs. Initial edits of remotely created children reverse that translation
+before capturing provider metadata. Fully acknowledged folders can follow remote
+metadata through the existing handoff path without owning working bytes.
+
+Folder rename, cross-collection movement and `rmdir` are still outside this mounted
+implementation. In particular, listing a business folder as empty and conditionally
+calling Graph DELETE is not a proven empty-folder-only operation: its folder ETag
+does not cover descendant changes, and business folders do not expose a cTag.
+Do not implement folder removal by extending the regular-file deletion path.
+The existing namespace/history capacity limits, physical-fault checks and broader
+application/provider acceptance gates still apply. Ordinary mounts remain read-only.
+
+## Retained routes to local changes
+
+Before accepting new local creates, directory creates, moves/replacements, writable
+opens or pathname truncation, the experimental mount captures the already traversed
+ancestors in the journal. The source-side entry is retained separately from a
+shortcut's resolved target. A single local transaction records folder and link
+snapshots; it never queues provider mutations. Captures are limited to 128 path
+entries and share the existing 10,000-object journal limit. No view lock remains
+held while the database work runs.
+
+A bounded graph walk identifies ancestors needed by active local objects. Ordinary
+parents resolve in the local identity domain; links address scoped provider identities
+and can cross collections. A visited set prevents recursive processing of cycles.
+Unrelated accounts/providers/collections do not share routes. The resulting directory
+and name-reservation indexes are cached until namespace publication changes them.
+Capturing a path reuses one index, and ongoing writes at an unchanged occupied name
+do not rebuild it. New names cannot take over a retained ancestor's path. A provider
+occupant at that name remains an explicit collision.
+
+Protected folders and links overlay remote listings even after their removal from
+the provider index. They supply local directory attributes; a NotFound directory
+request falls back to the local listing. A link target resolves through current
+provider ownership before addressing a local stream. Resolved ordinary file targets
+can be edited without changing the source shortcut. A locally removed target cannot be reopened through a dangling
+shortcut or cached entry; descriptors already open retain their old stream.
+Renaming or removing the shortcut entry itself remains unsupported. Parent snapshots cease to override remote
+metadata once their dependent objects have been acknowledged and handed off.
+
+This preserves access to locally recorded changes; it is not remote permission or
+an offline-content guarantee. Missing ancestors are not recreated, and failed
+operations are not redirected or marked complete. Conflict resolution, cold-directory
+behavior during other provider failures and recovery presentation remain unfinished.
+Older journals lacking a captured ancestor cannot reconstruct its vanished name from
+an opaque parent ID alone; their retained bytes still need the recovery/export flow.
+Ordinary daemon mounts remain read-only, and these new route/file-link cases have not
+been validated against real OneDrive or SharePoint accounts.
+
 ## Next boundaries
 
-Before enabling writes, connect the local upload journal to application-save
-ordering, conditional writes, resumable uploads and conflict preservation. The
-standalone journal tests do not prove writable filesystem semantics. Separate
-local-save success from remote acknowledgement. GTK settings, tray and Nautilus integrations
+Before enabling ordinary writable mounts, complete the application, provider,
+recovery and capacity acceptance matrix. The experimental mounted save path now
+uses the journal's ordering, conditional uploads and conflict preservation;
+synthetic kernel tests cannot establish real-provider reliability. Local-save
+success remains separate from remote acknowledgement. GTK settings, tray and Nautilus integrations
 must consume the service's state rather than maintain their own sync logic.
 
 Google Drive will implement provider contracts around its native changes and content

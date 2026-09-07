@@ -130,8 +130,10 @@ The current journal refuses a newer schema and never temporarily downgrades its
 version during migration. A complete, quota-reserved hydration is required before
 an existing remote file becomes editable. Working-file metadata records dirty state
 before in-place changes; immutable snapshots and their generation links commit
-atomically. A later save follows the confirmed predecessor receipt, not the old
-pre-upload ETag. Conflicts retain both sealed and newer mutable local bytes.
+atomically. Schema 6 extends that receipt dependency to intervening namespace
+operations, with one successor across both operation kinds. A later save follows
+the confirmed predecessor receipt, not the old pre-upload ETag. Conflicts retain
+both sealed and newer mutable local bytes.
 
 Working-file tests inject failure between byte changes and metadata updates and
 between snapshot publication and queue commit. Actual process-kill tests preserve
@@ -141,3 +143,108 @@ The kernel suite also exercises writable-file recovery after killing its mount
 process and remounting offline. These are process-failure checks, not power-loss
 or live-provider application-save evidence. See [architecture](../architecture.md)
 for the experimental API boundary and remaining writable operations.
+
+## Namespace results are not automatically a content base
+
+When a rename reply is lost, a lookup can find the same item at the intended name
+but with another actor's newer contents. That observation can establish the name
+without authorizing an upload against its new ETag. The journal checks content
+revision/size, or an unchanged metadata version, before completing a reconciled
+file relocation. Changed content becomes a conflict; missing proof requires review.
+Both retain the observed receipt and block dependent edits. The worker reports the
+actual journal result, rather than always returning `Applied` for such observations.
+
+Local working-file relocation now seals dirty content before atomically committing
+its new name, latest-operation pointer and queued mutation. Subsequent local saves
+can follow that mutation while it is still pending. This does not yet implement
+complete local namespace projection or atomic replacement through mounted paths.
+
+## Releasing acknowledged local bytes
+
+Journal schema 8 allows an idle object with a fully acknowledged operation frontier
+to release its working bytes and local directory overlay. Its stable identity and
+revision remain as an alias to remote metadata. Open-file leases and a revision
+check protect concurrent application access; pending successors, dirty generations
+and unresolved operations prevent retirement. A later edit uses newly observed
+metadata rather than the old acknowledged predecessor as its content base.
+
+The detach and explicit deletion intent share a transaction. Physical deletion and
+directory fsync happen before clearing that intent, so restart can finish cleanup.
+A separate collector removes only acknowledged immutable payloads while preserving
+receipts. Unrecognized spool files and unacknowledged content are never collected.
+This is working-storage reclamation; alias and receipt retention, pins and full
+application atomic-save semantics remain unfinished. See [architecture](../architecture.md).
+
+## Unlink is separate from cloud deletion
+
+Schema 9 separates an unlinked working stream from a live directory entry. Unlink
+commits the released name and ordered conditional deletion together, retaining any
+open stream. Later descriptor writes are fsynced locally but never become uploads
+that recreate the removed file. These detached bytes currently remain recovery
+data; their cleanup and presentation policy is still unfinished.
+
+When remote reads still require preservation, a separate durable local-reader
+barrier gates the deletion worker. Hydration and waiting for in-flight reads happen
+after the local unlink returns. This matters because Linux holds the parent
+directory lock while executing unlink (see [kernel locking rules](https://docs.kernel.org/filesystems/locking.html#inode-operations)): awaiting a download there would also block
+sibling files. Failed preservation keeps the cloud file until readers are preserved
+or gone. Process restart releases obsolete reader barriers under exclusive journal
+ownership while keeping remote-operation dependencies and local bytes.
+
+## Local stream keys and provider binding keys
+
+Do not resolve a mounted view or working stream through a provider alias. The
+journal exposes separate `namespace_by_local` and `namespace_by_remote` queries;
+the mount likewise indexes local identities separately from remote bindings.
+Incoming metadata and hydration use the provider query, while rename, unlink and
+stream callbacks start from their projected local object. Reactivating an alias
+that follows remote metadata converts the ID at that observation boundary.
+
+This removes an ambiguity before atomic replacement: a provider ID could otherwise
+be mistaken for another object's local key. The journal still refuses conflicting
+aliases. The joint transaction below adds active binding transfer and ordered
+provider publication; separating the indexes alone does not establish safe
+application atomic saves.
+
+## Two-object replacement ordering
+
+The journal now distinguishes the receipt supplying a new operation's file ID/ETag
+from other operations that merely must finish first. Replacement publication follows
+the victim's content base and waits for prior source work. Conditional source cleanup
+follows the source's base and waits for confirmed destination publication. Neither
+prerequisite can lend the wrong file's ETag to the other operation.
+
+The schema-11 journal transaction performs local path takeover, detaches the victim
+stream, queues the immutable source snapshot and reserves the cleanup object together.
+Upload acknowledgement changes all three active provider bindings together with its
+queue completion. Historical remote metadata stays on the detached victim; only
+active ownership affects provider-listing projection. This also permits the same
+string to be a retained local ID and another object's current provider ID.
+
+Schema 12 coalesces each object's latest namespace change in the same transaction.
+Callbacks publish all changed objects at one committed frontier, validating the
+complete batch before transferring in-memory bindings. The cursor moves only with
+the whole batch. This preserves chained replacements when acknowledgements arrive
+before earlier callbacks, without replaying every intermediate save or reloading
+unchanged objects. The existing 10,000-object limit bounds the complete changed set;
+larger namespaces need bounded transaction groups rather than arbitrary pagination.
+
+Experimental FUSE replacement now commits local names before network preparation,
+then preserves source and victim readers outside the kernel directory lock. Schema
+13 records an online-only source as a fenced `Preparing` operation, with its captured
+version separate from the target ETag. Preparation seals the original source snapshot
+without overwriting newer local bytes. Its checksum is durable before final file
+publication; restart adopts only a complete verified file and reclaims identified
+capture temporaries. An unmaterialized source retains its new-process reader gate.
+Four actual kernel fixtures exercise chained saves, held reads, online-only capture
+and remount after interruption. Broader editor/office, live Graph and physical-fault
+acceptance remain open; ordinary mounts are still read-only.
+
+
+Schema 14 separates a destination folder's confirmation from a file's linear save
+predecessor. Multiple child operations may share the same parent receipt, while a
+file move still follows its own source receipt for identity and ETag. Local folder
+creation and its mutation commit together. Resolved parent IDs acquire provider
+name reservations before either worker claims work. Uncertain ancestors preserve
+the local tree; normal mounts remain read-only. Folder rename/removal and wider
+provider/application validation are still required.
