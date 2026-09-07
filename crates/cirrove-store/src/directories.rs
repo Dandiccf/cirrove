@@ -64,12 +64,12 @@ const INDEXED_CHILDREN: &str =
     WHERE o.scope=?1 AND json_extract(o.body,'$.parent_id')=?2
     ORDER BY name,id";
 
-pub(super) fn visit_on(
+pub(super) fn read_on<T>(
     db: &Connection,
     scope: &Scope,
     parent: &str,
-    mut visit: impl FnMut(Node) -> Result<()>,
-) -> Result<bool> {
+    consume: impl FnOnce(&mut dyn Iterator<Item = Result<Node>>) -> T,
+) -> Result<Option<T>> {
     let key = Store::key(scope)?;
     let revision = db
         .query_row(
@@ -90,7 +90,7 @@ pub(super) fn visit_on(
             .optional()?
             .unwrap_or(false);
         if !complete {
-            return Ok(false);
+            return Ok(None);
         }
         INDEXED_CHILDREN
     };
@@ -100,11 +100,43 @@ pub(super) fn visit_on(
     } else {
         statement.query(params![key, parent])?
     };
-    while let Some(row) = rows.next()? {
-        let body: String = row.get(0)?;
-        visit(serde_json::from_str(&body)?)?;
-    }
-    Ok(true)
+    let mut done = false;
+    let mut iter = std::iter::from_fn(|| {
+        if done {
+            return None;
+        }
+        match rows.next() {
+            Ok(Some(row)) => Some((|| {
+                let body: String = row.get(0)?;
+                Ok(serde_json::from_str(&body)?)
+            })()),
+            Ok(None) => {
+                done = true;
+                None
+            }
+            Err(error) => {
+                done = true;
+                Some(Err(error.into()))
+            }
+        }
+    });
+    Ok(Some(consume(&mut iter)))
+}
+
+pub(super) fn visit_on(
+    db: &Connection,
+    scope: &Scope,
+    parent: &str,
+    mut visit: impl FnMut(Node) -> Result<()>,
+) -> Result<bool> {
+    Ok(read_on(db, scope, parent, |rows| {
+        for node in rows {
+            visit(node?)?;
+        }
+        Ok::<_, StoreError>(())
+    })?
+    .transpose()?
+    .is_some())
 }
 
 pub(super) fn write_snapshot(

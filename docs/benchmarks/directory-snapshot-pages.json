@@ -1,0 +1,400 @@
+{
+  "runtime_change": "Cached read-only OPENDIR streams metadata into immutable anonymous disk snapshots; READDIR uses bounded positioned pages.",
+  "source_base": "7056cd9d3e675b7c93eb6f5a510ce1197e5fd10f",
+  "build": "release",
+  "source_sha256": {
+    "crates/cirrove-service/src/engine.rs": "2cafd41c98a59dbaf9b21375f6b32b1cbb325f1b2eaeecb83dac2367bd4ddb3b",
+    "crates/cirrove-service/src/filesystem.rs": "c80b74cb9b1a390f32ff99b13ca5c96cd909bc0627fa3b5e8614b65daad5c911",
+    "crates/cirrove-service/src/filesystem/directories.rs": "4117e0bdd3e7bed1575c8fcad85c1f2386e7b5e0fae15e8f2f99493934f5195c",
+    "crates/cirrove-service/src/filesystem/directories/tests.rs": "8b1121a63bd2b2046f1d43107840671258cca3e01210563eb638e85173dd6149",
+    "crates/cirrove-service/src/filesystem/capacity.rs": "c0bf6b97e2de91b48135b94284ca0e15a4d4b2573ee74ae64717aaba61a0e284",
+    "crates/cirrove-service/src/filesystem/capacity/parents.rs": "8b1d5f44b51feace3a40c57c92463bdc28b3bd246bff227c8d7d966418fa2416",
+    "crates/cirrove-store/src/directories.rs": "53edbddb6797379ed76b6e314982709cac530d6f5da55ff2fe7d8d4dbbc96304",
+    "crates/cirrove-store/src/lib.rs": "1148d34e3e500cf66c41bb864b5c58b897804dde5fe3540f070f630e7803b355"
+  },
+  "variants": {
+    "single": {
+      "samples": [
+        {
+          "build": "release",
+          "directories": 1,
+          "files": 500000,
+          "files_per_directory": 500000,
+          "fixture": "synthetic kernel FUSE; generated metadata, no credentials or content reads",
+          "interpretation": "baseline measurement only; no memory capacity gate is asserted"
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "memory": {
+            "anonymous_pss_kib": 1920,
+            "peak_rss_kib": 13764,
+            "pss_kib": 9371,
+            "rss_kib": 11944
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "indexed_baseline",
+          "retained_views": 1,
+          "seconds": 3.550922796,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "view_map_capacity": 3
+        },
+        {
+          "directory_snapshot_entries": 500002,
+          "memory": {
+            "anonymous_pss_kib": 7456,
+            "peak_rss_kib": 18316,
+            "pss_kib": 15611,
+            "rss_kib": 18316
+          },
+          "open_directory_handles": 1,
+          "open_files": 0,
+          "phase": "first_entry_revision_1",
+          "retained_views": 2,
+          "seconds": 5.486995447,
+          "snapshot_logical_bytes": 33000045,
+          "snapshot_reservations": 1,
+          "view_map_capacity": 3
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "memory": {
+            "anonymous_pss_kib": 7480,
+            "peak_rss_kib": 18340,
+            "pss_kib": 15635,
+            "rss_kib": 18340
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "closed_after_revision_1",
+          "retained_views": 2,
+          "seconds": 5.6841186409999995,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "view_map_capacity": 3
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "memory": {
+            "anonymous_pss_kib": 7480,
+            "peak_rss_kib": 18340,
+            "pss_kib": 15635,
+            "rss_kib": 18340
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "after_invalidation_revision_1",
+          "retained_views": 1,
+          "seconds": 5.734687352,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "view_map_capacity": 3
+        },
+        {
+          "directory_snapshot_entries": 500002,
+          "memory": {
+            "anonymous_pss_kib": 18016,
+            "peak_rss_kib": 29820,
+            "pss_kib": 26171,
+            "rss_kib": 28876
+          },
+          "open_directory_handles": 1,
+          "open_files": 0,
+          "phase": "first_entry_revision_2",
+          "retained_views": 2,
+          "seconds": 7.313834456,
+          "snapshot_logical_bytes": 33000045,
+          "snapshot_reservations": 1,
+          "view_map_capacity": 3
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "memory": {
+            "anonymous_pss_kib": 18016,
+            "peak_rss_kib": 29820,
+            "pss_kib": 26171,
+            "rss_kib": 28876
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "closed_after_revision_2",
+          "retained_views": 2,
+          "seconds": 7.470463025,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "view_map_capacity": 3
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "memory": {
+            "anonymous_pss_kib": 18016,
+            "peak_rss_kib": 29820,
+            "pss_kib": 26171,
+            "rss_kib": 28876
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "after_invalidation_revision_2",
+          "retained_views": 1,
+          "seconds": 7.522106222,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "view_map_capacity": 3
+        },
+        {
+          "directory_snapshot_entries": 500002,
+          "memory": {
+            "anonymous_pss_kib": 27544,
+            "peak_rss_kib": 38908,
+            "pss_kib": 35699,
+            "rss_kib": 38404
+          },
+          "open_directory_handles": 1,
+          "open_files": 0,
+          "phase": "first_entry_revision_3",
+          "retained_views": 2,
+          "seconds": 6.84420265,
+          "snapshot_logical_bytes": 33000045,
+          "snapshot_reservations": 1,
+          "view_map_capacity": 3
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "memory": {
+            "anonymous_pss_kib": 27544,
+            "peak_rss_kib": 38908,
+            "pss_kib": 35699,
+            "rss_kib": 38404
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "closed_after_revision_3",
+          "retained_views": 2,
+          "seconds": 7.017687696,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "view_map_capacity": 3
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "memory": {
+            "anonymous_pss_kib": 27544,
+            "peak_rss_kib": 38908,
+            "pss_kib": 35699,
+            "rss_kib": 38404
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "after_invalidation_revision_3",
+          "retained_views": 1,
+          "seconds": 7.069264836,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "view_map_capacity": 3
+        }
+      ],
+      "peak_extra_rss_kib": 26964,
+      "provider_content_reads": 0,
+      "provider_foreground_metadata_requests": 0,
+      "result": "passed"
+    },
+    "many": {
+      "samples": [
+        {
+          "build": "release",
+          "directories": 500,
+          "files": 500000,
+          "files_per_directory": 1000,
+          "fixture": "synthetic kernel FUSE; generated metadata, no credentials or content reads",
+          "interpretation": "baseline measurement only; no memory capacity gate is asserted"
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "memory": {
+            "anonymous_pss_kib": 2568,
+            "peak_rss_kib": 14240,
+            "pss_kib": 9890,
+            "rss_kib": 12220
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "indexed_baseline",
+          "retained_views": 1,
+          "seconds": 3.777990273,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "view_map_capacity": 3
+        },
+        {
+          "directory_snapshot_entries": 1002,
+          "memory": {
+            "anonymous_pss_kib": 5184,
+            "peak_rss_kib": 15932,
+            "pss_kib": 13273,
+            "rss_kib": 15932
+          },
+          "open_directory_handles": 1,
+          "open_files": 0,
+          "phase": "first_entry_revision_1",
+          "retained_views": 2,
+          "seconds": 0.009425446,
+          "snapshot_logical_bytes": 66045,
+          "snapshot_reservations": 1,
+          "view_map_capacity": 3
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "memory": {
+            "anonymous_pss_kib": 7036,
+            "peak_rss_kib": 17784,
+            "pss_kib": 15125,
+            "rss_kib": 17784
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "closed_after_revision_1",
+          "retained_views": 501,
+          "seconds": 3.64390387,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "view_map_capacity": 896
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "memory": {
+            "anonymous_pss_kib": 7072,
+            "peak_rss_kib": 17820,
+            "pss_kib": 15161,
+            "rss_kib": 17820
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "after_invalidation_revision_1",
+          "retained_views": 1,
+          "seconds": 3.695024151,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "view_map_capacity": 896
+        },
+        {
+          "directory_snapshot_entries": 1002,
+          "memory": {
+            "anonymous_pss_kib": 16212,
+            "peak_rss_kib": 27624,
+            "pss_kib": 24302,
+            "rss_kib": 26960
+          },
+          "open_directory_handles": 1,
+          "open_files": 0,
+          "phase": "first_entry_revision_2",
+          "retained_views": 2,
+          "seconds": 0.007124321,
+          "snapshot_logical_bytes": 66045,
+          "snapshot_reservations": 1,
+          "view_map_capacity": 896
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "memory": {
+            "anonymous_pss_kib": 16572,
+            "peak_rss_kib": 27624,
+            "pss_kib": 24662,
+            "rss_kib": 27320
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "closed_after_revision_2",
+          "retained_views": 501,
+          "seconds": 4.704329381,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "view_map_capacity": 896
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "memory": {
+            "anonymous_pss_kib": 16608,
+            "peak_rss_kib": 27624,
+            "pss_kib": 24698,
+            "rss_kib": 27356
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "after_invalidation_revision_2",
+          "retained_views": 1,
+          "seconds": 4.755559637,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "view_map_capacity": 896
+        },
+        {
+          "directory_snapshot_entries": 1002,
+          "memory": {
+            "anonymous_pss_kib": 25268,
+            "peak_rss_kib": 36200,
+            "pss_kib": 33358,
+            "rss_kib": 36016
+          },
+          "open_directory_handles": 1,
+          "open_files": 0,
+          "phase": "first_entry_revision_3",
+          "retained_views": 2,
+          "seconds": 0.007518806,
+          "snapshot_logical_bytes": 66045,
+          "snapshot_reservations": 1,
+          "view_map_capacity": 896
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "memory": {
+            "anonymous_pss_kib": 25440,
+            "peak_rss_kib": 36200,
+            "pss_kib": 33530,
+            "rss_kib": 36188
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "closed_after_revision_3",
+          "retained_views": 501,
+          "seconds": 4.461790826,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "view_map_capacity": 896
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "memory": {
+            "anonymous_pss_kib": 25476,
+            "peak_rss_kib": 36224,
+            "pss_kib": 33566,
+            "rss_kib": 36224
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "after_invalidation_revision_3",
+          "retained_views": 1,
+          "seconds": 4.513999615,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "view_map_capacity": 896
+        }
+      ],
+      "peak_extra_rss_kib": 24004,
+      "provider_content_reads": 0,
+      "provider_foreground_metadata_requests": 0,
+      "result": "passed"
+    }
+  },
+  "scope_and_limits": [
+    "Two separate processes, each with 500000 generated files, three full mounted traversals and a new file revision before each subsequent pass.",
+    "single: one 500000-file directory; many: 500 directories of 1000 files. Metadata was indexed in pages through the normal refresh path. No cloud credentials or cloud data.",
+    "Each first_entry sample holds the first directory open; seconds measure opening and fetching its first entry. Closed and invalidated samples measure the full traversal from its start. Revision refresh time is not included in traversal seconds.",
+    "The fixture asserts snapshot reservations return to zero after final deferred close and only the root view remains after normal kernel invalidation/reclamation. No lookup references are fabricated or discarded.",
+    "Logical snapshot bytes exclude physical block allocation, filesystem metadata, kernel page cache, SQLite and persistent inode history. Process RSS/PSS and high-water marks are separate measurements.",
+    "Full directory construction still precedes its first entry. The giant-directory first-entry latency is 5.49 to 7.31 seconds and does not meet a 500ms navigation target.",
+    "Post-invalidation RSS still increases across revision rounds in both variants. This run does not establish a memory plateau or close the namespace capacity gate.",
+    "No combined large-library deep paths, aliases, held mappings, cold foreground publication, writable local overlays, desktop thumbnails, failure of kernel reply delivery, real-provider or 24-hour churn acceptance.",
+    "This is an implementation measurement, not an old-versus-new binary performance comparison."
+  ]
+}

@@ -13,13 +13,14 @@ const PER_DIRECTORY: usize = 1_000;
 const PAGE: usize = 1_000;
 struct GeneratedLibrary {
     files: usize,
+    per_directory: usize,
     revision: AtomicU32,
     content_reads: AtomicU64,
     foreground_requests: AtomicU64,
 }
 impl GeneratedLibrary {
     fn directories(&self) -> usize {
-        self.files.div_ceil(PER_DIRECTORY)
+        self.files.div_ceil(self.per_directory)
     }
     fn node_at(&self, index: usize) -> Node {
         let (id, parent, name, kind) = if index == 0 {
@@ -36,7 +37,7 @@ impl GeneratedLibrary {
             let file = index - self.directories() - 1;
             (
                 format!("synthetic-file-identity-{file:08}"),
-                Some(format!("directory-{:06}", file / PER_DIRECTORY)),
+                Some(format!("directory-{:06}", file / self.per_directory)),
                 format!("Projektunterlagen – Übersicht {file:08}.txt"),
                 NodeKind::File,
             )
@@ -173,12 +174,15 @@ fn namespace_sample(inner: &Inner, phase: &str, seconds: f64) -> serde_json::Val
     drop(views);
     let directories = inner.directories.lock().unwrap();
     let handles = directories.len();
-    let entries: usize = directories.values().map(|v| v.len()).sum();
+    let entries: u64 = directories.values().map(|v| v.snapshot.len()).sum();
     drop(directories);
+    let (snapshot_bytes, snapshot_reservations) = inner.directory_budget.usage();
     serde_json::json!({
         "phase": phase, "seconds": seconds, "retained_views": retained,
         "view_map_capacity": capacity, "open_directory_handles": handles,
-        "directory_snapshot_entries": entries, "open_files": inner.files.lock().unwrap().len(),
+        "directory_snapshot_entries": entries,
+        "snapshot_logical_bytes": snapshot_bytes, "snapshot_reservations": snapshot_reservations,
+        "open_files": inner.files.lock().unwrap().len(),
         "memory": process_memory(),
     })
 }
@@ -195,6 +199,7 @@ async fn real_directory_listing_releases_unlooked_up_projections() {
     std::fs::create_dir(&mount).unwrap();
     let provider = Arc::new(GeneratedLibrary {
         files: 3_000,
+        per_directory: PER_DIRECTORY,
         revision: AtomicU32::new(1),
         content_reads: AtomicU64::new(0),
         foreground_requests: AtomicU64::new(0),
@@ -304,6 +309,7 @@ async fn real_resolved_file_views_retire_after_kernel_and_open_references() {
     std::fs::create_dir(&mount).unwrap();
     let provider = Arc::new(GeneratedLibrary {
         files: 300,
+        per_directory: PER_DIRECTORY,
         revision: AtomicU32::new(1),
         content_reads: AtomicU64::new(0),
         foreground_requests: AtomicU64::new(0),
@@ -405,8 +411,12 @@ async fn namespace_capacity_baseline() {
         (1_000..=500_000).contains(&files),
         "fixture size must be 1,000..=500,000"
     );
+    let per_directory = std::env::var("CIRROVE_NAMESPACE_PER_DIRECTORY")
+        .map_or(PER_DIRECTORY, |value| value.parse::<usize>().unwrap());
+    assert!((1..=files).contains(&per_directory));
     let provider = Arc::new(GeneratedLibrary {
         files,
+        per_directory,
         revision: AtomicU32::new(1),
         content_reads: AtomicU64::new(0),
         foreground_requests: AtomicU64::new(0),
@@ -431,7 +441,7 @@ async fn namespace_capacity_baseline() {
     let session = fs.mount(&mount).unwrap();
     report(serde_json::json!({
         "fixture": "synthetic kernel FUSE; generated metadata, no credentials or content reads",
-        "files": files, "directories": provider.directories(), "files_per_directory": PER_DIRECTORY,
+        "files": files, "directories": provider.directories(), "files_per_directory": per_directory,
         "build": if cfg!(debug_assertions) { "debug" } else { "release" },
         "interpretation": "baseline measurement only; no memory capacity gate is asserted",
     }));
@@ -451,6 +461,7 @@ async fn namespace_capacity_baseline() {
         }
         let path = mount.clone();
         let directories = provider.directories();
+        let sample_inner = inner.clone();
         let started = Instant::now();
         tokio::task::spawn_blocking(move || {
             assert_eq!(
@@ -462,8 +473,24 @@ async fn namespace_capacity_baseline() {
             );
             let mut total = 0;
             for directory in 0..directories {
-                let entries =
+                let opened = Instant::now();
+                let mut entries =
                     std::fs::read_dir(path.join(format!("directory-{directory:06}"))).unwrap();
+                let first = entries.next().unwrap().unwrap();
+                assert!(
+                    first
+                        .file_name()
+                        .to_string_lossy()
+                        .starts_with("Projektunterlagen")
+                );
+                total += 1;
+                if directory == 0 {
+                    report(namespace_sample(
+                        &sample_inner,
+                        &format!("first_entry_revision_{pass}"),
+                        opened.elapsed().as_secs_f64(),
+                    ));
+                }
                 for entry in entries {
                     let entry = entry.unwrap();
                     assert!(
@@ -480,13 +507,18 @@ async fn namespace_capacity_baseline() {
         .await
         .unwrap();
         let deadline = Instant::now() + Duration::from_secs(5);
-        while !inner.directories.lock().unwrap().is_empty() {
+        // RELEASEDIR removes the map entry before its blocking close finishes;
+        // the final in-flight page can also still own the immutable snapshot.
+        while !inner.directories.lock().unwrap().is_empty()
+            || inner.directory_budget.usage() != (0, 0)
+        {
             assert!(
                 Instant::now() < deadline,
                 "directory releases did not finish"
             );
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
+        assert_eq!(inner.directory_budget.usage(), (0, 0));
         report(namespace_sample(
             &inner,
             &format!("closed_after_revision_{pass}"),

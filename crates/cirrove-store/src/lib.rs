@@ -280,6 +280,22 @@ impl Store {
         tx.commit()?;
         Ok(nodes)
     }
+    /// Consume a known directory through a fallible iterator in one consistent
+    /// read transaction. Unknown directories return None without calling consume.
+    /// The callback must finish local blocking work promptly; never retain this
+    /// transaction across network requests or idle open filesystem handles.
+    /// Its result is returned unchanged so callers can preserve their own errors.
+    pub fn with_children<T>(
+        &self,
+        scope: &Scope,
+        parent: &str,
+        consume: impl FnOnce(&mut dyn Iterator<Item = Result<Node>>) -> T,
+    ) -> Result<Option<T>> {
+        let tx = self.db.unchecked_transaction()?;
+        let result = directories::read_on(&tx, scope, parent, consume)?;
+        tx.commit()?;
+        Ok(result)
+    }
     /// Visit a known directory in stable name/identity order within one read
     /// transaction. Returns false if the directory has not been indexed. The
     /// callback must perform only local blocking work, never network I/O. It can

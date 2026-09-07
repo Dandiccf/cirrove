@@ -132,9 +132,12 @@ newer item observations in name/identity order within one read transaction. The
 Store visitor decodes one node at a time; tests check that both query paths use
 their ordering indexes without a full-directory sort or unrelated-row scan.
 Other connections can publish while this reader retains its consistent snapshot.
-The compatibility `children()` API still collects a vector, and Engine/FUSE and
-foreground observation publication still materialize whole listings. This removes
-an intermediate array/map allocation, not the complete directory memory limit.
+For a cached read-only OPENDIR, Engine now passes this iterator directly to a
+blocking snapshot builder. Projection and persistent inode assignment use batches
+of 128 nodes and a separate WAL writer connection; the complete listing is not
+retained in a vector. The compatibility `children()` API, point/name lookups,
+writable local-overlay projection and cold foreground publication still collect
+lists. These remaining consumers keep the full-pipeline memory gate open.
 Long-lived read transactions also retain WAL history until released; the visitor
 is for bounded local work, never network waits or idle open directory handles.
 
@@ -321,9 +324,26 @@ admitted reads await capacity asynchronously for at most 30 seconds; queue expir
 ETIMEDOUT and admission overflow is EAGAIN. Account cancellation releases active and
 queued reads with ENODEV. Content loaders remain limited to four. Metadata requests
 have a separate 128-slot budget, so content contention does not consume those slots.
-Plain directory-listing projections now belong only to their open directory
-snapshot. READDIR does not create kernel lookup references, so those projections
-are not copied into the mount-wide map. LOOKUP and namespace operations still
+Open directories store their immutable listing in two anonymous temporary files
+under the account state directory: compact inode/kind/UTF-8-name records and an
+offset index. READDIR cookies are ordinal positions. Positioned reads use at most
+1,024 entries and 64 KiB of encoded data per page, with additional bounded index
+and decoded-name buffers. They do not share a mutable seek position. Only the
+parent and grandparent routes retain full views; plain listing children are not
+copied into the mount-wide map or assigned kernel lookup references.
+
+Each mount reserves at most 256 snapshots and 256 MiB of logical data/index bytes,
+separately from content and pending-edit storage. Admission returns EMFILE or
+ENOSPC instead of exceeding those limits. Physical blocks, filesystem metadata,
+SQLite buffers and kernel page cache are additional. Failed or cancelled builders
+are never published. RELEASEDIR removes the handle under a short map lock and
+closes files on a blocking worker; in-flight readers retain their own references.
+The final reference closes anonymous files, also on process exit, without a
+restart orphan sweep. An idle handle holds no SQLite transaction. Snapshot
+construction still takes work proportional to directory size before the first
+entry is returned; bounded resident buffers are not a latency guarantee.
+
+LOOKUP and namespace operations still
 publish their resolved views there. File and directory views now retire after the
 kernel has released its lookup references and no open file, directory snapshot,
 in-flight operation or child view retains a shared residency token. Entry/create
@@ -343,10 +363,10 @@ capture while unused directory chains retire through the bounded collector.
 Actual-kernel tests cover deep paths, duplicate linked-drive projections, open
 files, continued directory snapshots across rename, and offline inode-preserving
 revisit after reclamation. They do not prove arbitrary large-library capacity.
-Directory snapshots still retain full vectors, and invalidation walks the resident
-map. There is no namespace byte budget, and failed reply delivery can conservatively
+Invalidation still walks the resident map. There is no view-payload byte budget,
+and failed reply delivery can conservatively
 retain references because the FUSE wrapper does not expose delivery results.
-Bounded snapshots, compact referenced payloads, cancellation accounting and
+Full-pipeline paging, compact referenced payloads, cancellation accounting and
 targeted invalidation remain part of the explicit 500,000-file and long-session release
 gate; see [namespace memory](adr/0005-namespace-memory.md).
 

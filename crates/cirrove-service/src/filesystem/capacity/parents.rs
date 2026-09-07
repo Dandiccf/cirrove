@@ -80,6 +80,7 @@ pub(super) async fn directories_and_aliases() {
     std::fs::create_dir(&mount).unwrap();
     let provider = Arc::new(GeneratedLibrary {
         files: 0,
+        per_directory: PER_DIRECTORY,
         revision: AtomicU32::new(1),
         content_reads: AtomicU64::new(0),
         foreground_requests: AtomicU64::new(0),

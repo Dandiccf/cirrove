@@ -31,15 +31,22 @@ kernel lookup references and open/in-flight/child leases end. Parent leases reta
 required ancestor routes; actual-kernel tests cover deep paths, distinct shared
 links, held snapshots and offline revisit. The 500k-file fixture returns to one
 root view after invalidation in each of three passes, but process RSS still rises
-across those passes. Byte budgets, compact referenced payloads, large single-directory
-paging, memory-slope attribution and interrupted-reply accounting remain open.
+across those passes. View byte budgets, compact referenced payloads, complete
+directory-pipeline paging, memory-slope attribution and interrupted-reply accounting remain open.
 These partial corrections do not close the 500k-file/long-session gate; see
 [the measurements and their limits](benchmarks/namespace-parent-lifetime.json).
 Store directory snapshots now use indexed rows and a streaming visitor, avoiding
 the earlier JSON-array decode and whole-directory map merge. Tests cover ordered
 reads without a SQL sort, concurrent publication and atomic migration rollback.
-Engine/FUSE callers and foreground publication still materialize lists; this is
-only an intermediate reduction toward the complete paging and memory gate.
+Cached read-only OPENDIR now streams into anonymous disk snapshots; READDIR uses
+bounded positioned pages, with a separate per-mount logical storage/handle budget.
+Cold foreground publication, point/name lookup and writable local overlays still
+materialize lists. Snapshot construction also scans all entries before returning
+the first one. This remains partial progress toward the paging and memory gate.
+Separate three-pass kernel runs now cover 500k files in one directory and in
+500 directories, with snapshot storage fully released after close. Opening the
+giant directory still takes 5.49–7.31 seconds, and process RSS still rises across
+passes; see [the measurements](benchmarks/directory-snapshot-pages.json).
 A shared conditional read-session prototype now removes per-block Graph checks in
 an explicit developer path. A synthetic 1 GiB adapter read uses two Graph requests
 instead of 512; an isolated business-file comparison also verifies subsequent

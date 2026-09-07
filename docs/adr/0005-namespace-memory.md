@@ -28,9 +28,23 @@ scalability gap. The content-cache quota does
 not limit these allocations. The invalidation worker also copies and walks the
 retained view map on each coalesced change wake, adding CPU and temporary memory.
 
-Open directories currently retain complete snapshot vectors. The SQLite inode
-table has its own persistent lifetime. Neither problem is solved by putting a
-simple LRU around the shared map.
+Open directories now retain immutable anonymous disk snapshots of compact
+inode/kind/name records, with a separate offset index. The read-only cached path
+streams from Store through Engine and 128-entry projection batches, without a
+complete node or view vector. READDIR uses positioned pages of at most 1,024
+entries and 64 KiB of encoded data, plus bounded index/decoded buffers. The
+snapshot retains parent/grandparent routes for lifetime safety, not every child
+view. It survives concurrent metadata changes and independent cookie readers.
+
+Per mount, at most 256 snapshots and 256 MiB of logical data/index bytes are
+reserved before writes. Exhaustion returns EMFILE/ENOSPC. Physical disk blocks,
+filesystem metadata and kernel page cache are additional. Anonymous files close
+after the last in-flight reader or handle releases them, including process death;
+they are not durable state and need no orphan sweep. Builders fail closed on I/O,
+quota or cancellation errors. Idle handles keep no SQLite read transaction.
+Construction still scans the directory before returning its first entry. The
+SQLite inode table has its own persistent lifetime; neither its growth nor the
+remaining view payloads are solved by snapshot paging.
 
 The Store read path now uses individual indexed directory-snapshot rows and an
 ordered visitor, with one decoded node per callback. It avoids loading a JSON
@@ -38,8 +52,9 @@ array and merging a whole directory in a HashMap. Both cached snapshot and delta
 index paths have tests for index-ordered output, concurrent publication, early
 callback failure and transaction cleanup. Schema upgrades preserve the old data
 on failure and serialize concurrent migration attempts. The compatibility API
-still collects a Vec, and foreground publication and Engine/FUSE projection are
-not yet bounded. Streaming SQL alone does not close the end-to-end paging gate.
+still collects a Vec, as do foreground publication, writable local-overlay
+projection and point/name lookups. Cached read-only OPENDIR now streams, but the
+remaining consumers keep the end-to-end paging gate open.
 
 An isolated release-build Store fixture visits 500,000 entries in one directory
 in 575–603 ms, retaining zero nodes and showing no additional sampled RSS over
@@ -49,6 +64,22 @@ use the new schema; this is a comparison of consumers, not old and new binaries.
 The fixture excludes FUSE and foreground publication. See
 [the raw measurements](../benchmarks/directory-store-streaming.json) and
 [reproduction commands](../development.md#namespace-capacity-baseline).
+
+With the cached OPENDIR path streaming all the way to disk snapshots, separate
+actual-kernel release runs now traverse 500,000 files both in one directory and
+in 500 directories. Both runs complete three changed-revision passes, release
+all logical snapshot bytes after close and return to the root alone after
+invalidation, without content or foreground metadata requests. The single large
+directory holds 33,000,045 logical snapshot bytes; peak process RSS rises by
+26,964 KiB over its 11,944 KiB ready baseline. Its first entry takes 5.49–7.31
+seconds, so the memory reduction does not solve opening latency. The first
+1,000-file directory takes 7.1–9.4 ms in the other variant.
+
+Post-invalidation RSS still rises across passes: 18,340 / 28,876 / 38,404 KiB for
+the single directory and 17,820 / 27,356 / 36,224 KiB for many directories. These
+measurements do not demonstrate a plateau or close the namespace gate. They are
+not a controlled comparison with older binaries. See
+[the raw snapshot-page measurements](../benchmarks/directory-snapshot-pages.json).
 
 A synthetic actual-kernel baseline confirmed the original growth: after three traversals
 of 500,000 files with new content revisions, 1,500,501 views remained with no open
@@ -102,8 +133,9 @@ guess them away. Interruption and delivery-failure acceptance remain open.
    store enough information for this. Eviction must not force a cloud request for
    a directory already indexed locally or confuse two links to the same target.
 3. Preserve stable directory offsets through bounded pages or disk-backed snapshots
-   rather than a complete in-memory `Vec<View>` per open directory. Account for
-   snapshot disk space separately and collect abandoned snapshots after restart.
+   rather than a complete in-memory `Vec<View>` per open directory. Anonymous
+   snapshots and logical admission budgets now implement this for open handles;
+   their last descriptor releases storage without restart recovery.
    Keep old directory snapshots stable across concurrent rename/delete operations.
    Bound materialization through the entire store/engine/projection pipeline;
    paging the final snapshot alone leaves the earlier `Vec<Node>` allocation.
@@ -153,6 +185,6 @@ This is an explicit **milestone-1 / OneDrive-1.0 blocker**, independent of the
       check. Report workload, reference counts and memory slope; a mount that sits
       idle for 24 hours does not close this gate.
 
-Compact/budgeted payloads, bounded directory pages and
+Compact/budgeted view payloads, full-pipeline paging and
 targeted invalidation remain unimplemented. These planned limits must not be
 advertised as supported capacity until the tests pass.
