@@ -1,8 +1,9 @@
 # ADR 0002: Durable local edits and explicit remote acknowledgement
 
-Status: journal, transfer worker, experimental Graph upload adapter and initial
-local FUSE write path implemented with synthetic validation. Live provider and writable-filesystem validation remain
-in progress. Ordinary mounts stay read-only; only an explicit developer command
+Status: journal, automatic transfer workers, experimental Graph upload adapter and
+initial local FUSE write path implemented. Synthetic tests and one isolated business
+drive application-save check pass; broader provider and writable-filesystem validation
+remain in progress. Ordinary mounts stay read-only; only an explicit developer command
 performs isolated cloud write checks.
 
 ## Save contract
@@ -82,6 +83,10 @@ concurrency matrix.
 
 The experimental working-file layer now seals new generations during an active
 upload and exercises FUSE open/write/truncate/fsync, including offline restart.
+An explicit writable-session owner starts bounded upload workers, wakes them after
+sealing, and drains accepted local callbacks before disconnecting its FUSE session.
+Cancelled remote attempts remain subject to reconciliation; shutdown does not wait
+for cloud acknowledgement or discard unsealed dirty copies on snapshot failure.
 The remaining integration must implement dependencies between metadata operations,
 atomic-save behavior, user conflict resolution and retention policy for old receipts. Live tests use a dedicated
 test folder after opt-in write consent. See [the developer workflow](../write-validation.md).

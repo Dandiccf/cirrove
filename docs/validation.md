@@ -8,7 +8,7 @@ acceptance for roadmap stages 1–3.
 ## Local checks
 
 - Formatting and strict Clippy cover all crates and test targets.
-- Current default workspace suite: **104 tests passed**. Nine kernel-FUSE tests
+- Current default workspace suite: **121 tests passed**. Eighteen kernel-FUSE tests
   run separately; subprocess fixture entry points and the optional performance
   fixture remain excluded from the default suite.
 - Built both binaries and generated workspace Rustdoc.
@@ -55,7 +55,7 @@ The content tests check 32-reader coalescing, offsets beyond 2 GiB in a syntheti
 3 GiB file, offline cache reuse after restart, corruption recovery, interrupted
 publication cleanup, quota enforcement and shared-failure retry suppression.
 
-Nine tests ran against **real kernel FUSE mounts** in temporary directories:
+The read-only baseline ran against **real kernel FUSE mounts** in temporary directories:
 
 - Normal file reads, linked-library projection, duplicate-alias inodes, deep
   traversal, large seeks, EROFS on writes, stable inodes/cache after restart,
@@ -301,10 +301,62 @@ operations when remote creation assigns a new item ID.
 
 This is initial mounted-write integration, not completion of milestone 2. The
 normal daemon still mounts read-only. Atomic replacement, writable folder/name
-operations, automatic upload-worker lifecycle, conflicts in the desktop UI and
-live-provider application-save validation remain open. Writable mmap and metadata
+operations, conflicts in the desktop UI and broader live-provider application-save
+validation remain open. Writable mmap and metadata
 changes are explicitly unsupported. Process kills and injected storage failures do
 not establish physical power-loss or physical disk-full behavior.
+
+## Automatic uploads and writable-session shutdown
+
+The experimental session now owns its upload workers and stops mutating callback
+admission before draining local edits. The updated code passes 121 default workspace
+tests and eighteen actual synthetic kernel-FUSE checks. Formatting, strict Clippy,
+workspace build, service smoke, two observer tests and Rust documentation pass.
+
+Four additional mounted tests verify:
+
+- Consecutive application saves upload automatically in order; an unsealed edit
+  on an open handle is sealed by shutdown and uploaded after restart.
+- Stalled provider and keyring futures that ignore cancellation cannot indefinitely
+  block shutdown; local snapshots remain exact and require remote reconciliation.
+- Shutdown waits for a previously accepted write blocked on local journal storage,
+  then preserves its exact bytes before detaching the mount.
+- Insufficient snapshot quota returns a shutdown error while retaining the dirty
+  working file and releasing the temporary mount.
+
+A generated-folder business-drive run also passed two application saves through an
+actual writable mount. A separate application process wrote and fsynced two versions
+of a Unicode-named file; both generations uploaded automatically, their size/hash
+matched the application reports, and independent Graph content readback matched the
+final snapshot. The temporary mount shut down successfully. The test used only a
+new run-owned folder and retained its synthetic cloud file and private evidence.
+Its guarded adapter did not index the account or expose existing files for mutation.
+This is one small business-drive fixture, not a latency distribution, large-file
+benchmark, personal-account check or desktop-application save matrix.
+Atomic replacement, folder operations, physical disk failure and the ordinary
+application compatibility matrix remain open.
+
+### Kernel test isolation and memory measurement
+
+The first CI pair for the writable-session change had one passing run and one
+failure in existing read-only tests: an application-memory assertion and the
+thumbnail-burst deadline. A controlled child-process experiment reproduced a
+measurement defect: `ru_maxrss` could include inherited memory before exec even
+when the Python application's own address space remained small. The mmap test now
+uses that application's `/proc/self/status` `VmHWM`, retaining the 128 MiB limit
+and all byte/mapping assertions.
+
+The original CI log did not separate thumbnail file opening from active reads, so
+the exact phase responsible for its timeout is unknown. Setup and the subsequent
+96-reader burst now each have a bounded deadline; cached-directory requests still
+must finish within 500 ms and no content request may fail or be retried. Independent
+kernel fixtures run sequentially in CI to avoid competing with these latency
+checks. Internal request/account concurrency remains tested. The pre-change suite
+also passed a local two-CPU run; that pass does not explain the CI timeout or
+establish a runtime performance fix.
+The corrected fourteen-test read-only kernel suite passed with two CPUs and
+sequential fixtures. The 121 default workspace tests and strict Clippy passed again;
+these corrections change the validation harness, not the live-tested runtime.
 
 ## Required before calling stages 1–3 complete
 

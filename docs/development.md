@@ -128,7 +128,8 @@ The default suite skips tests needing kernel FUSE access. Run these explicitly i
 a Linux session with `/dev/fuse` and `fusermount3`:
 
 ```sh
-cargo test -p cirrove-service --test read_only --locked real_ -- --ignored --nocapture
+cargo test -p cirrove-service --test read_only --locked real_ -- --ignored --nocapture --test-threads=1
+cargo test -p cirrove-service --test writable_session --locked real_ -- --ignored --nocapture
 cargo test -p cirrove-service --test read_only --locked synthetic_latency_report -- --ignored --nocapture
 ```
 
@@ -136,3 +137,9 @@ All mounts and files in these checks are synthetic and live in temporary
 directories. No cloud credentials are loaded. The benchmark prints one JSON line
 with cold/warm/listing percentiles and process peak RSS; its simulated provider
 delay is not a measurement of Microsoft or internet performance.
+
+The read-only kernel suite runs independent fixtures sequentially in CI because it
+includes bounded latency and application-memory assertions. Concurrency within a
+fixture remains enabled, including 96 simultaneous thumbnail reads and independent
+account/mount checks. File opening has a separate bounded setup phase before the
+thumbnail read-burst deadline; cached-directory latency retains its own assertion.
