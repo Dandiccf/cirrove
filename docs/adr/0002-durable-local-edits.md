@@ -190,3 +190,18 @@ directory lock while executing unlink (see [kernel locking rules](https://docs.k
 sibling files. Failed preservation keeps the cloud file until readers are preserved
 or gone. Process restart releases obsolete reader barriers under exclusive journal
 ownership while keeping remote-operation dependencies and local bytes.
+
+## Local stream keys and provider binding keys
+
+Do not resolve a mounted view or working stream through a provider alias. The
+journal exposes separate `namespace_by_local` and `namespace_by_remote` queries;
+the mount likewise indexes local identities separately from remote bindings.
+Incoming metadata and hydration use the provider query, while rename, unlink and
+stream callbacks start from their projected local object. Reactivating an alias
+that follows remote metadata converts the ID at that observation boundary.
+
+This removes an ambiguity before atomic replacement: a provider ID could otherwise
+be mistaken for another object's local key. The journal still refuses conflicting
+aliases, and binding transfer is not implemented. Moving a cloud binding between
+objects will require a joint durable transaction and ordered provider publication;
+separating the indexes alone does not establish safe application atomic saves.

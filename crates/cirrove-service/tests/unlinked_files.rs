@@ -82,7 +82,7 @@ fn unlinked_descriptor_writes_stay_local_and_a_reused_name_has_an_independent_st
         .unwrap();
     j.write_working(old.id, 0, b"before").unwrap();
     let object = j
-        .namespace_by_identity(&scope(), &old.node.id)
+        .namespace_by_local(&scope(), &old.node.id)
         .unwrap()
         .unwrap();
     assert!(matches!(
@@ -91,7 +91,7 @@ fn unlinked_descriptor_writes_stay_local_and_a_reused_name_has_an_independent_st
     ));
     let saved = j.seal_working(old.id).unwrap().unwrap();
     let object = j
-        .namespace_by_identity(&scope(), &old.node.id)
+        .namespace_by_local(&scope(), &old.node.id)
         .unwrap()
         .unwrap();
     let removed = j
@@ -170,7 +170,7 @@ fn unlink_rollback_keeps_the_entry_stream_and_operation_frontier_together() {
         )
         .unwrap();
     let object = j
-        .namespace_by_identity(&scope(), &file.node.id)
+        .namespace_by_local(&scope(), &file.node.id)
         .unwrap()
         .unwrap();
     let db = rusqlite::Connection::open(path.join("uploads.db")).unwrap();
@@ -224,7 +224,7 @@ fn failed_or_uncertain_deletion_never_discards_the_detached_stream() {
             )
             .unwrap();
         let object = j
-            .namespace_by_identity(&scope(), &file.node.id)
+            .namespace_by_local(&scope(), &file.node.id)
             .unwrap()
             .unwrap();
         let removed = j
@@ -283,7 +283,7 @@ fn schema_eight_migration_keeps_pending_streams_and_newer_schema_is_refused() {
     assert!(!j.working_file(file.id).unwrap().unlinked);
     assert_eq!(j.read_working(file.id, 0, 100).unwrap(), b"new");
     let object = j
-        .namespace_by_identity(&scope(), &file.node.id)
+        .namespace_by_local(&scope(), &file.node.id)
         .unwrap()
         .unwrap();
     let removed = j

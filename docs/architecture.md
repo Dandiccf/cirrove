@@ -410,6 +410,19 @@ follow later remote metadata, as described below. Their aliases and operation
 history remain retained; total-object limits and memory use still need work for
 long-term use with large libraries.
 
+Local presentation IDs and provider IDs now have separate lookup paths. Mounted
+views, access leases and open-stream callbacks resolve only local identities;
+provider observations and initial hydration resolve the current remote binding.
+The in-memory projection keeps separate indexes and checks uniqueness within each
+domain. A newly confirmed provider ID cannot become an alternate key for an
+existing local stream. Listing projection is the boundary that presents a remote
+item under its stable local identity. These changes require no journal migration.
+
+This separates lookup roles; it does not yet permit transferring a remote binding
+between two durable objects. That transition still needs one revision-checked
+namespace transaction, predecessor barriers for both files, old-reader preservation
+and conditional provider publication. Existing journal alias constraints remain.
+
 The mount loads a memory projection of these objects and working-file records.
 Publication is atomic and revision-ordered, so a delayed save or rename callback
 cannot restore an older name or discard a newer remote binding. Cached namespace

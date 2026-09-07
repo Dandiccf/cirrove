@@ -55,9 +55,9 @@ Experimental mounts now support regular-file relocation without hydration and
 retirement of fully acknowledged, closed working copies. Stable aliases then follow
 remote edits and deletions; a later local edit uses the newly observed remote base.
 Synthetic tests cover concurrent opens/writes, delayed callbacks, cleanup rollback,
-restart and ordered NotFound responses. This does not complete atomic replacement,
-open-unlinked files, writable directories, long-term metadata retention or the
-real-provider application acceptance matrix.
+restart and ordered NotFound responses. Atomic replacement, writable directories,
+long-term metadata retention and the real-provider application acceptance matrix
+remain open.
 
 Regular-file unlink now removes the local name and retains open streams independently
 of a reused path. A reader-preservation barrier delays cloud deletion without
@@ -66,6 +66,10 @@ writes, a held read, quota failure, cancellation and restart. Atomic replacement
 still needs multi-object dependencies and remote-binding transfer. Detached-data
 retention/recovery, restored remote identities and live unlink acceptance remain
 open; this increment does not close the safe-file-changes milestone.
+
+Local stream lookups and provider-binding lookups are now separate in the journal
+and mount. This is a prerequisite for transferring a cloud binding during atomic
+replacement; the two-object transaction and multi-predecessor ordering remain open.
 
 - [x] Provider-neutral create, update, rename, move and delete contracts (regular-file deletion; folder removal remains an explicit gap).
 - [ ] Durable local file contents and journal before local-save acknowledgement.

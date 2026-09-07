@@ -47,7 +47,7 @@ fn clean_bytes_detach_and_remote_metadata_owns_the_entry() {
     let file = j
         .create_working(scope(), old.clone(), false, b"old".as_slice())
         .unwrap();
-    let object = j.namespace_by_identity(&scope(), &old.id).unwrap().unwrap();
+    let object = j.namespace_by_remote(&scope(), &old.id).unwrap().unwrap();
     let mut new = node("remote", "after.txt", "two", 5);
     new.parent_id = Some("other".into());
     let followed = j
@@ -97,7 +97,7 @@ fn created_identity_survives_handoff_and_reactivation_uses_the_current_cloud_ver
         .unwrap();
     j.prune_uploaded_payload(claim.id).unwrap();
     let object = j
-        .namespace_by_identity(&scope(), &file.node.id)
+        .namespace_by_local(&scope(), &file.node.id)
         .unwrap()
         .unwrap();
     j.handoff_namespace(object.id, object.revision, remote.clone())
@@ -163,7 +163,7 @@ fn dirty_pending_inflight_and_successor_bytes_cannot_be_retired() {
             }
         }
         let object = j
-            .namespace_by_identity(&scope(), &remote.id)
+            .namespace_by_remote(&scope(), &remote.id)
             .unwrap()
             .unwrap();
         assert!(!j.namespace_is_clean(&object).unwrap());
@@ -191,7 +191,7 @@ fn a_failed_detach_transaction_keeps_working_rows_bytes_and_cleanup_intents_toge
         .create_working(scope(), remote.clone(), false, b"old".as_slice())
         .unwrap();
     let object = j
-        .namespace_by_identity(&scope(), &remote.id)
+        .namespace_by_remote(&scope(), &remote.id)
         .unwrap()
         .unwrap();
     let db = rusqlite::Connection::open(temp.path().join("uploads.db")).unwrap();
@@ -218,7 +218,7 @@ fn restart_finishes_only_explicit_cleanup_and_retains_unknown_spool_bytes() {
             .create_working(scope(), remote.clone(), false, b"old".as_slice())
             .unwrap();
         let object = j
-            .namespace_by_identity(&scope(), &remote.id)
+            .namespace_by_remote(&scope(), &remote.id)
             .unwrap()
             .unwrap();
         let unknown = temp
@@ -259,7 +259,7 @@ fn stale_revision_foreign_identity_and_a_corrupt_cleanup_target_are_refused() {
         .create_working(scope(), remote.clone(), false, b"old".as_slice())
         .unwrap();
     let object = j
-        .namespace_by_identity(&scope(), &remote.id)
+        .namespace_by_remote(&scope(), &remote.id)
         .unwrap()
         .unwrap();
     assert!(matches!(
@@ -316,7 +316,7 @@ fn schema_seven_migration_preserves_pending_work_and_refuses_future_schema() {
     let j = open(temp.path());
     assert_eq!(j.read_working(id, 0, 20).unwrap(), b"pending");
     let object = j
-        .namespace_by_identity(&scope(), &j.working_file(id).unwrap().node.id)
+        .namespace_by_local(&scope(), &j.working_file(id).unwrap().node.id)
         .unwrap()
         .unwrap();
     assert!(!object.follows_remote);

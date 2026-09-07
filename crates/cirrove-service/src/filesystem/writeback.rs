@@ -28,7 +28,8 @@ pub(super) struct Writeback {
 #[derive(Default)]
 struct Projection {
     objects: HashMap<Uuid, NamespaceObject>,
-    identities: HashMap<EditKey, Uuid>,
+    local_identities: HashMap<EditKey, Uuid>,
+    remote_bindings: HashMap<EditKey, Uuid>,
     files: HashMap<Uuid, WorkingFile>,
     conflicts: HashMap<EditKey, Vec<NamespaceCollision>>,
     streams: HashMap<EditKey, Vec<Weak<OpenFile>>>,
@@ -50,7 +51,6 @@ impl Projection {
             return Err(Errno::EIO);
         }
         let identity = key(&object.scope, &object.node.id);
-        let remote = object.remote.as_ref().map(|r| key(&object.scope, &r.id));
         if let Some(old) = self.objects.get(&object.id) {
             if old.scope != object.scope
                 || old.node.id != object.node.id
@@ -62,10 +62,18 @@ impl Projection {
                 return Ok(false);
             }
         }
-        if std::iter::once(&identity)
-            .chain(remote.iter())
-            .any(|k| self.identities.get(k).is_some_and(|id| *id != object.id))
+        if self
+            .local_identities
+            .get(&identity)
+            .is_some_and(|id| *id != object.id)
         {
+            return Err(Errno::EIO);
+        }
+        if object.remote.as_ref().is_some_and(|remote| {
+            self.remote_bindings
+                .get(&key(&object.scope, &remote.id))
+                .is_some_and(|id| *id != object.id)
+        }) {
             return Err(Errno::EIO);
         }
         match &working {
@@ -82,16 +90,22 @@ impl Projection {
     }
     fn apply(&mut self, object: NamespaceObject, working: Option<WorkingFile>) {
         let identity = key(&object.scope, &object.node.id);
-        let remote = object.remote.as_ref().map(|r| key(&object.scope, &r.id));
         if let Some(old) = self.objects.get(&object.id)
             && let Some(old_file) = old.working_file
             && object.working_file != Some(old_file)
         {
             self.files.remove(&old_file);
         }
-        self.identities.insert(identity, object.id);
-        if let Some(remote) = remote {
-            self.identities.insert(remote, object.id);
+        // Only local identities address filesystem views and open streams.
+        // Provider aliases are projected at the remote-listing boundary.
+        self.local_identities.insert(identity, object.id);
+        if let Some(old_remote) = self.objects.get(&object.id).and_then(|o| o.remote.as_ref()) {
+            self.remote_bindings
+                .remove(&key(&object.scope, &old_remote.id));
+        }
+        if let Some(remote) = &object.remote {
+            self.remote_bindings
+                .insert(key(&object.scope, &remote.id), object.id);
         }
         if let Some(file) = working {
             self.files.insert(file.id, file);
@@ -104,8 +118,8 @@ impl Projection {
         }
         Ok(())
     }
-    fn object(&self, scope: &Scope, item: &str) -> Option<&NamespaceObject> {
-        self.identities
+    fn local_object(&self, scope: &Scope, item: &str) -> Option<&NamespaceObject> {
+        self.local_identities
             .get(&key(scope, item))
             .and_then(|id| self.objects.get(id))
     }
@@ -191,7 +205,7 @@ impl Writeback {
         let (object, working) = self
             .local(move |j| {
                 let object = j
-                    .namespace_by_identity(&scope, &item)?
+                    .namespace_by_local(&scope, &item)?
                     .ok_or(JournalError::Corrupt)?;
                 let working = j.working_file(object.working_file.ok_or(JournalError::Corrupt)?)?;
                 Ok((object, working))
@@ -200,7 +214,7 @@ impl Writeback {
         let mut projection = self.projection.lock().map_err(|_| Errno::EIO)?;
         projection.merge(object, Some(working))?;
         projection
-            .object(&record.scope, &record.node.id)
+            .local_object(&record.scope, &record.node.id)
             .and_then(|o| o.working_file)
             .and_then(|id| projection.files.get(&id))
             .cloned()
@@ -233,14 +247,14 @@ impl Writeback {
             .projection
             .lock()
             .map_err(|_| Errno::EIO)?
-            .object(scope, item)
+            .local_object(scope, item)
             .filter(|o| !o.follows_remote)
             .map(|o| o.node.clone()))
     }
     pub fn working(&self, scope: &Scope, item: &str) -> Result<Option<WorkingFile>> {
         let projection = self.projection.lock().map_err(|_| Errno::EIO)?;
         Ok(projection
-            .object(scope, item)
+            .local_object(scope, item)
             .and_then(|o| o.working_file)
             .and_then(|id| projection.files.get(&id))
             .cloned())
@@ -268,24 +282,31 @@ impl Writeback {
         }
         Ok(listing.nodes)
     }
+    fn materialize(
+        j: &mut UploadJournal,
+        scope: Scope,
+        mut node: Node,
+    ) -> crate::journal::Result<NamespaceObject> {
+        if let Some(object) = j.namespace_by_local(&scope, &node.id)? {
+            if !object.follows_remote {
+                return Ok(object);
+            }
+            node.id = object.remote.ok_or(JournalError::Corrupt)?.id;
+        }
+        j.observe_namespace_file(scope, node)
+    }
     pub async fn relocate(
         &self,
         scope: Scope,
-        mut node: Node,
+        node: Node,
         source_parent: String,
         source_name: String,
         parent: String,
         name: String,
     ) -> Result<Node> {
-        if let Some(remote) = self.remote_identity(&scope, &node.id)? {
-            node.id = remote;
-        }
         let (object, working) = self
             .local(move |j| {
-                let object = match j.namespace_by_identity(&scope, &node.id)? {
-                    Some(object) if !object.follows_remote => object,
-                    _ => j.observe_namespace_file(scope, node)?,
-                };
+                let object = Self::materialize(j, scope, node)?;
                 // Recheck the source at the journal's serialization point. Another
                 // rename may have completed after the cached directory was read.
                 if object.node.parent_id.as_ref() != Some(&source_parent)
@@ -307,7 +328,7 @@ impl Writeback {
         let mut projection = self.projection.lock().map_err(|_| Errno::EIO)?;
         projection.merge(object, working)?;
         let node = projection
-            .object(&scope, &item)
+            .local_object(&scope, &item)
             .ok_or(Errno::EIO)?
             .node
             .clone();
@@ -349,7 +370,7 @@ impl Writeback {
                     .projection
                     .lock()
                     .map_err(|_| Errno::EIO)?
-                    .object(&view.scope, &view.node.id)
+                    .local_object(&view.scope, &view.node.id)
                     .and_then(|o| {
                         if o.follows_remote {
                             o.remote.as_ref().map(|r| Node {
@@ -503,7 +524,7 @@ mod tests {
             .write_working(working.id, 0, b"local")
             .expect("write");
         let old = journal
-            .namespace_by_identity(&scope, &working.node.id)
+            .namespace_by_local(&scope, &working.node.id)
             .expect("lookup")
             .expect("object");
         journal
@@ -532,12 +553,13 @@ mod tests {
         projection
             .merge(old, Some(working.clone()))
             .expect("late create publication");
-        let by_remote = projection
-            .object(&scope, &remote.id)
-            .expect("remote alias retained");
-        assert_eq!(by_remote.node.id, working.node.id);
-        assert_eq!(by_remote.node.name, "renamed");
-        assert_eq!(by_remote.node.parent_id.as_deref(), Some("folder"));
+        assert!(projection.local_object(&scope, &remote.id).is_none());
+        let local = projection
+            .local_object(&scope, &working.node.id)
+            .expect("local identity retained");
+        assert_eq!(local.remote.as_ref().expect("remote binding").id, remote.id);
+        assert_eq!(local.node.name, "renamed");
+        assert_eq!(local.node.parent_id.as_deref(), Some("folder"));
         assert!(
             project_namespace(projection.objects.values(), &scope, "root", vec![remote])
                 .expect("old directory")
@@ -548,5 +570,108 @@ mod tests {
             .expect("new directory");
         assert_eq!(listed.nodes.len(), 1);
         assert_eq!(listed.nodes[0].name, "renamed");
+    }
+    #[test]
+    fn provider_binding_cannot_redirect_an_existing_local_stream() {
+        let temp = tempfile::tempdir().expect("temporary state");
+        let scope = Scope {
+            account: "fixture".into(),
+            provider: "fixture".into(),
+            collection: "drive".into(),
+        };
+        let mut journal = UploadJournal::open(&temp.path().join("journal"), &scope.account, 4096)
+            .expect("journal");
+        let node = Node {
+            id: String::new(),
+            name: "old".into(),
+            parent_id: Some("root".into()),
+            kind: NodeKind::File,
+            size: 0,
+            modified_unix: 1,
+            etag: None,
+            content_version: None,
+            target: None,
+        };
+        let first = journal
+            .create_working(scope.clone(), node.clone(), true, b"".as_slice())
+            .expect("first");
+        let second = journal
+            .create_working(
+                scope.clone(),
+                Node {
+                    name: "new".into(),
+                    ..node
+                },
+                true,
+                b"".as_slice(),
+            )
+            .expect("second");
+        let first_object = journal
+            .namespace_by_local(&scope, &first.node.id)
+            .expect("lookup")
+            .expect("object");
+        let mut second_object = journal
+            .namespace_by_local(&scope, &second.node.id)
+            .expect("lookup")
+            .expect("object");
+        let mut p = Projection::default();
+        p.merge(first_object.clone(), Some(first.clone()))
+            .expect("publish first");
+        p.merge(second_object.clone(), Some(second.clone()))
+            .expect("publish second");
+        let old_snapshot = second_object.clone();
+        // Model the identity boundary needed by replacement. This does not
+        // claim the journal already permits or commits a binding transfer.
+        second_object.remote = Some(Node {
+            id: first.node.id.clone(),
+            etag: Some("ack".into()),
+            ..second.node.clone()
+        });
+        second_object.revision += 1;
+        p.merge(second_object.clone(), Some(second.clone()))
+            .expect("provider binding has a separate domain");
+        assert_eq!(
+            p.local_object(&scope, &first.node.id)
+                .expect("first stream")
+                .working_file,
+            Some(first.id)
+        );
+        assert_eq!(
+            p.local_object(&scope, &second.node.id)
+                .expect("second stream")
+                .working_file,
+            Some(second.id)
+        );
+        assert_eq!(
+            p.remote_bindings.get(&key(&scope, &first.node.id)),
+            Some(&second_object.id)
+        );
+        p.merge(old_snapshot, Some(second.clone()))
+            .expect("delayed callback");
+        assert_eq!(
+            p.remote_bindings.get(&key(&scope, &first.node.id)),
+            Some(&second_object.id)
+        );
+        // A provider identity may still have only one current owner.
+        let mut duplicate = first_object;
+        duplicate.revision += 1;
+        duplicate.remote = second_object.remote.clone();
+        assert_eq!(p.merge(duplicate, Some(first.clone())), Err(Errno::EIO));
+        assert_eq!(
+            p.local_object(&scope, &first.node.id)
+                .expect("retained stream")
+                .working_file,
+            Some(first.id)
+        );
+        // The same opaque provider string in another collection is independent.
+        let mut other = second_object;
+        other.id = Uuid::new_v4();
+        other.scope.collection = "other-drive".into();
+        other.remote = Some(Node {
+            id: first.node.id.clone(),
+            ..second.node.clone()
+        });
+        other.working_file = None;
+        p.merge(other, None).expect("separate scope");
     }
 }

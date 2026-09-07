@@ -294,7 +294,7 @@ impl UploadJournal {
         };
         if !new {
             record.unlinked = self
-                .namespace_by_identity(&record.scope, &record.node.id)?
+                .namespace_by_remote(&record.scope, &record.node.id)?
                 .is_some_and(|o| o.unlinked);
         }
         super::namespace::prepare_attachment(&self.db, &mut record)?;

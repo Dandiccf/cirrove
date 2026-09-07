@@ -539,3 +539,22 @@ two observer checks and Rustdoc. No live cloud documents or installed services w
 changed. Atomic replacement of open files, detached-data recovery and cleanup,
 restoration of the same remote identity and broader provider/application acceptance
 remain open.
+
+## Separate local identities and provider lookups
+
+A journal regression now refuses provider metadata whose opaque ID equals an
+unrelated, unacknowledged local ID, retaining the local name, bytes and revision
+across restart. Created-file receipt checks assert that a provider ID does not
+resolve through the local-identity query, and vice versa, before and after restart.
+A projection fixture models two identity domains with equal strings, checks that
+their working streams remain distinct after a binding update and a delayed callback,
+and still rejects two owners of one provider identity. That fixture isolates the
+lookup boundary; it does not perform a durable binding transfer or FUSE replacement.
+
+The full local run passed 184 default workspace tests and all 27 actual synthetic
+kernel-FUSE tests, plus formatting, strict Clippy, workspace build, executable smoke,
+two observer checks and Rustdoc. Existing mounted rename, handoff, unlink and restart
+fixtures pass with the separated lookup paths. The journal schema remains 9, and
+no live cloud documents or installed service state were changed. Joint binding
+transfer, multi-object operation prerequisites and atomic application replacement
+remain open.

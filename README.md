@@ -59,8 +59,10 @@ and Nautilus badges are not implemented.
   mounted saves, automatic uploads and independent content verification. Atomic
   replacement and writable directory operations remain incomplete.
 - Durable local object identities and directory entries separate from optional
-  working bytes. Experimental mounts can rename and move regular files within one
-  collection without downloading content. Uploads and namespace changes share
+  working bytes. Local stream lookups are separate from provider-binding lookups,
+  so provider aliases cannot redirect existing local views. Experimental mounts
+  can rename and move regular files within one collection without downloading
+  content. Uploads and namespace changes share
   receipt-based ordering; a lost rename response containing another actor's edit
   blocks later saves and retains both versions. Replacing an occupied destination,
   writable directories and application atomic replacement remain incomplete.

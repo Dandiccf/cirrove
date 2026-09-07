@@ -91,13 +91,23 @@ pub(super) fn by_id(db: &Connection, id: Uuid) -> Result<NamespaceObject> {
         .optional()?;
     Ok(serde_json::from_str(&body.ok_or(JournalError::Missing)?)?)
 }
-fn by_identity(db: &Connection, scope: &Scope, item: &str) -> Result<Option<NamespaceObject>> {
+fn by_local(db: &Connection, scope: &Scope, item: &str) -> Result<Option<NamespaceObject>> {
     let key = identity(scope, item)?;
     let body: Option<String> = db
         .query_row(
-            "SELECT body FROM namespace_objects WHERE identity=?1 OR id IN
-        (SELECT object FROM namespace_remote WHERE identity=?1)",
+            "SELECT body FROM namespace_objects WHERE identity=?1",
             [key],
+            |r| r.get(0),
+        )
+        .optional()?;
+    body.map(|b| Ok(serde_json::from_str(&b)?)).transpose()
+}
+fn by_remote(db: &Connection, scope: &Scope, item: &str) -> Result<Option<NamespaceObject>> {
+    let body: Option<String> = db
+        .query_row(
+            "SELECT o.body FROM namespace_remote r
+            JOIN namespace_objects o ON o.id=r.object WHERE r.identity=?1",
+            [identity(scope, item)?],
             |r| r.get(0),
         )
         .optional()?;
@@ -303,7 +313,12 @@ pub(super) fn prepare_attachment(
     db: &Connection,
     working: &mut WorkingFile,
 ) -> Result<NamespaceObject> {
-    let existing = by_identity(db, &working.scope, &working.node.id)?;
+    // Hydration identifies its provider source explicitly. A mutable cloud
+    // binding must never be used to resolve an already local working stream.
+    let existing = match &working.initial_remote {
+        Some(remote) => by_remote(db, &working.scope, &remote.id)?,
+        None => by_local(db, &working.scope, &working.node.id)?,
+    };
     Ok(match existing {
         Some(mut object) => {
             if object.unlinked != working.unlinked || object.working_file.is_some() {
@@ -460,12 +475,19 @@ impl UploadJournal {
     pub fn namespace_object(&self, id: Uuid) -> Result<NamespaceObject> {
         by_id(&self.db, id)
     }
-    pub fn namespace_by_identity(
+    /// Resolve a stable local presentation identity. Provider aliases are never
+    /// followed here: existing views and streams keep their own local object.
+    pub fn namespace_by_local(&self, scope: &Scope, item: &str) -> Result<Option<NamespaceObject>> {
+        by_local(&self.db, scope, item)
+    }
+    /// Resolve the current owner of a provider identity, for incoming metadata
+    /// and hydration. Callers with a local view must use namespace_by_local.
+    pub fn namespace_by_remote(
         &self,
         scope: &Scope,
         item: &str,
     ) -> Result<Option<NamespaceObject>> {
-        by_identity(&self.db, scope, item)
+        by_remote(&self.db, scope, item)
     }
     /// Establish local identity for a file without reading or reserving its bytes.
     /// The caller obtains version-checked metadata, outside the journal lock.
@@ -484,7 +506,7 @@ impl UploadJournal {
         }
         .validate()
         .map_err(|_| JournalError::Intent)?;
-        if let Some(mut object) = by_identity(&self.db, &scope, &node.id)? {
+        if let Some(mut object) = by_remote(&self.db, &scope, &node.id)? {
             if object.unlinked {
                 return Err(JournalError::Stale);
             }

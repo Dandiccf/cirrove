@@ -18,13 +18,6 @@ impl Drop for Lease {
     }
 }
 impl Writeback {
-    fn canonical(&self, scope: &Scope, item: &str) -> Result<EditKey> {
-        let projection = self.projection.lock().map_err(|_| Errno::EIO)?;
-        Ok(key(
-            scope,
-            projection.object(scope, item).map_or(item, |o| &o.node.id),
-        ))
-    }
     fn activity_gate(&self, identity: EditKey) -> Result<Arc<RwLock<()>>> {
         let mut gates = self.activity.lock().map_err(|_| Errno::EIO)?;
         gates.retain(|_, gate| gate.strong_count() > 0);
@@ -41,37 +34,31 @@ impl Writeback {
         item: &str,
         cancel: &CancellationToken,
     ) -> Result<FileLease> {
-        for _ in 0..3 {
-            let identity = self.canonical(scope, item)?;
-            let gate = self.activity_gate(identity.clone())?;
-            let guard = tokio::select! { biased;
-                _=cancel.cancelled()=>return Err(Errno::ENODEV),
-                guard=gate.read_owned()=>guard,
-            };
-            // A newly confirmed cloud alias can change the canonical key while
-            // this task waits. Never admit access under its obsolete key.
-            if self.canonical(scope, item)? == identity {
-                return Ok(FileLease {
-                    _inner: Arc::new(Lease {
-                        guard: Some(guard),
-                        wake: self.wake.clone(),
-                    }),
-                });
-            }
-        }
-        Err(Errno::EAGAIN)
+        // Callers hold a projected local identity. A provider acknowledgement
+        // cannot change this gate or move an existing handle to another object.
+        let gate = self.activity_gate(key(scope, item))?;
+        let guard = tokio::select! { biased;
+            _=cancel.cancelled()=>return Err(Errno::ENODEV),
+            guard=gate.read_owned()=>guard,
+        };
+        Ok(FileLease {
+            _inner: Arc::new(Lease {
+                guard: Some(guard),
+                wake: self.wake.clone(),
+            }),
+        })
     }
     pub fn remote_identity(&self, scope: &Scope, item: &str) -> Result<Option<String>> {
         let projection = self.projection.lock().map_err(|_| Errno::EIO)?;
         Ok(projection
-            .object(scope, item)
+            .local_object(scope, item)
             .and_then(|o| o.remote.as_ref())
             .map(|r| r.id.clone()))
     }
     pub fn follows_remote(&self, scope: &Scope, item: &str) -> Result<bool> {
         let projection = self.projection.lock().map_err(|_| Errno::EIO)?;
         Ok(projection
-            .object(scope, item)
+            .local_object(scope, item)
             .is_some_and(|o| o.follows_remote))
     }
     /// At most 16 durable objects and one provider request per call. The cursor
@@ -404,7 +391,7 @@ mod tests {
             assert_eq!(j.read_working(f.working.id, 0, 20).unwrap(), b"newer");
             assert!(j.working_file(f.working.id).unwrap().dirty);
             assert!(
-                !j.namespace_by_identity(&f.working.scope, &f.working.node.id)
+                !j.namespace_by_local(&f.working.scope, &f.working.node.id)
                     .unwrap()
                     .unwrap()
                     .follows_remote
@@ -459,7 +446,7 @@ mod tests {
             .journal
             .lock()
             .unwrap()
-            .namespace_by_identity(&f.working.scope, &f.working.node.id)
+            .namespace_by_local(&f.working.scope, &f.working.node.id)
             .unwrap()
             .unwrap();
         let db = rusqlite::Connection::open(f._temp.path().join("journal/uploads.db")).unwrap();

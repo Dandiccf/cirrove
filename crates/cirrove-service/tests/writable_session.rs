@@ -1262,7 +1262,7 @@ assert open('external.txt','rb').read()==b'updated'
     let alias = journal
         .lock()
         .unwrap()
-        .namespace_by_identity(&engine.scope("drive"), &remote_id)
+        .namespace_by_remote(&engine.scope("drive"), &remote_id)
         .unwrap()
         .unwrap();
     assert_eq!(alias.node.id, local_id);
@@ -1288,7 +1288,7 @@ assert open('renamed.txt','rb').read()==b'updated'
             if journal
                 .lock()
                 .unwrap()
-                .namespace_by_identity(&engine.scope("drive"), &remote_id)
+                .namespace_by_remote(&engine.scope("drive"), &remote_id)
                 .unwrap()
                 .unwrap()
                 .follows_remote

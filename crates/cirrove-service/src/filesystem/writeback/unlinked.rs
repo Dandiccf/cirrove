@@ -12,14 +12,14 @@ impl Writeback {
             .projection
             .lock()
             .map_err(|_| Errno::EIO)?
-            .object(scope, item)
+            .local_object(scope, item)
             .is_some_and(|o| o.unlinked))
     }
     /// Register before asynchronous OPEN preparation. Unlink can then preserve
     /// this stream even if OPEN has not returned its file handle yet.
     pub fn register_open(&self, file: OpenFile) -> Result<Arc<OpenFile>> {
         let mut p = self.projection.lock().map_err(|_| Errno::EIO)?;
-        let object = p.object(&file.view.scope, &file.view.node.id);
+        let object = p.local_object(&file.view.scope, &file.view.node.id);
         if object.is_some_and(|o| o.unlinked) {
             return Err(Errno::ENOENT);
         }
@@ -49,7 +49,7 @@ impl Writeback {
     }
     pub fn read_source(&self, file: &OpenFile) -> Result<ReadSource> {
         let p = self.projection.lock().map_err(|_| Errno::EIO)?;
-        let object = p.object(&file.view.scope, &file.view.node.id);
+        let object = p.local_object(&file.view.scope, &file.view.node.id);
         if let Some(working) = object.and_then(|o| o.working_file) {
             return Ok(ReadSource::Working(working));
         }
@@ -72,17 +72,13 @@ impl Writeback {
         let name = view.node.name.clone();
         let writer = self.clone();
         let scope = view.scope.clone();
-        let mut source = view.node;
-        if let Some(remote) = self.remote_identity(&scope, &source.id)? {
-            source.id = remote;
-        }
+        let source = view.node;
         tokio::task::spawn_blocking(move || -> Result<()> {
             let mut j = writer.journal.lock().map_err(|_| Errno::EIO)?;
-            let mut object = match j.namespace_by_identity(&scope, &source.id).map_err(error)? {
-                Some(o) if o.unlinked => return Err(Errno::ENOENT),
-                Some(o) if !o.follows_remote => o,
-                _ => j.observe_namespace_file(scope, source).map_err(error)?,
-            };
+            let mut object = Self::materialize(&mut j, scope, source).map_err(error)?;
+            if object.unlinked {
+                return Err(Errno::ENOENT);
+            }
             if object.node.parent_id.as_ref() != Some(&parent) || object.node.name != name {
                 return Err(Errno::ESTALE);
             }
@@ -184,7 +180,7 @@ impl Writeback {
                     let p=self.projection.lock().map_err(|_|Errno::EIO)?;
                     let users=p.streams.get(&key(&object.scope,&object.node.id)).into_iter().flatten()
                         .filter_map(Weak::upgrade).collect::<Vec<_>>();
-                    if !users.is_empty()&&p.object(&object.scope,&object.node.id).and_then(|o|o.working_file).is_none() {
+                    if !users.is_empty()&&p.local_object(&object.scope,&object.node.id).and_then(|o|o.working_file).is_none() {
                         return Err(Errno::EAGAIN);
                     }
                     for file in &users { file.remote_reads.close(); }

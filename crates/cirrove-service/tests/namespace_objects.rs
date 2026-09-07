@@ -117,7 +117,7 @@ fn hydration_after_pending_rename_keeps_identity_name_and_receipt_dependency() {
     assert_eq!(working.latest, Some(rename.id));
     assert_eq!(working.node.name, "After.txt");
     let after = j
-        .namespace_by_identity(&scope(), &remote.id)
+        .namespace_by_remote(&scope(), &remote.id)
         .unwrap()
         .unwrap();
     assert_eq!(after.id, object.id);
@@ -205,10 +205,7 @@ fn stale_content_cannot_attach_to_a_newer_remote_namespace_binding() {
         Err(JournalError::Stale)
     ));
     assert!(j.working_files().unwrap().is_empty());
-    let object = j
-        .namespace_by_identity(&scope(), &fresh.id)
-        .unwrap()
-        .unwrap();
+    let object = j.namespace_by_remote(&scope(), &fresh.id).unwrap().unwrap();
     assert_eq!(object.remote, Some(fresh));
     assert!(object.working_file.is_none());
 }
@@ -365,7 +362,7 @@ fn receipts_preserve_local_identity_and_do_not_duplicate_uploaded_creates() {
         )
         .unwrap();
     let local = j
-        .namespace_by_identity(&scope(), &working.node.id)
+        .namespace_by_local(&scope(), &working.node.id)
         .unwrap()
         .unwrap();
     j.write_working(working.id, 0, b"new").unwrap();
@@ -375,12 +372,29 @@ fn receipts_preserve_local_identity_and_do_not_duplicate_uploaded_creates() {
     j.acknowledge(upload.id, active.attempt.unwrap(), remote.clone())
         .unwrap();
     let assigned = j
-        .namespace_by_identity(&scope(), &remote.id)
+        .namespace_by_remote(&scope(), &remote.id)
         .unwrap()
         .unwrap();
     assert_eq!(assigned.id, local.id);
     assert_eq!(assigned.node.id, working.node.id);
     assert_eq!(assigned.remote, Some(remote.clone()));
+    assert!(
+        j.namespace_by_local(&scope(), &remote.id)
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        j.namespace_by_remote(&scope(), &working.node.id)
+            .unwrap()
+            .is_none()
+    );
+    assert_eq!(
+        j.namespace_by_local(&scope(), &working.node.id)
+            .unwrap()
+            .unwrap()
+            .id,
+        local.id
+    );
     let listing = j
         .namespace_overlay(&scope(), "root", vec![remote.clone()])
         .unwrap();
@@ -388,8 +402,18 @@ fn receipts_preserve_local_identity_and_do_not_duplicate_uploaded_creates() {
     assert_eq!(listing.nodes[0].id, working.node.id);
     drop(j);
     let j = open(&path, 1024);
+    assert!(
+        j.namespace_by_local(&scope(), &remote.id)
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        j.namespace_by_remote(&scope(), &working.node.id)
+            .unwrap()
+            .is_none()
+    );
     assert_eq!(
-        j.namespace_by_identity(&scope(), &remote.id)
+        j.namespace_by_remote(&scope(), &remote.id)
             .unwrap()
             .unwrap()
             .id,
@@ -424,7 +448,7 @@ fn namespace_and_upload_receipt_acknowledge_in_one_transaction() {
     );
     assert_eq!(j.get(upload.id).unwrap().state, UploadState::Uploading);
     assert!(
-        j.namespace_by_identity(&scope(), "assigned")
+        j.namespace_by_remote(&scope(), "assigned")
             .unwrap()
             .is_none()
     );
@@ -437,7 +461,7 @@ fn namespace_and_upload_receipt_acknowledge_in_one_transaction() {
     .unwrap();
     assert_eq!(j.get(upload.id).unwrap().state, UploadState::Uploaded);
     assert!(
-        j.namespace_by_identity(&scope(), "assigned")
+        j.namespace_by_remote(&scope(), "assigned")
             .unwrap()
             .is_some()
     );
@@ -457,7 +481,7 @@ fn namespace_scopes_and_conflicting_remote_aliases_cannot_merge_local_objects() 
         .unwrap();
     assert_ne!(first.id, second.id);
     assert_eq!(
-        j.namespace_by_identity(&other_scope, "same")
+        j.namespace_by_remote(&other_scope, "same")
             .unwrap()
             .unwrap()
             .id,
@@ -486,10 +510,7 @@ fn namespace_scopes_and_conflicting_remote_aliases_cannot_merge_local_objects() 
     );
     assert_eq!(j.get(upload.id).unwrap().state, UploadState::Uploading);
     assert_eq!(
-        j.namespace_by_identity(&scope(), "same")
-            .unwrap()
-            .unwrap()
-            .id,
+        j.namespace_by_remote(&scope(), "same").unwrap().unwrap().id,
         first.id
     );
     assert_eq!(j.namespace_object(first.id).unwrap().node.name, "First.txt");
@@ -523,7 +544,7 @@ fn schema_six_working_files_keep_confirmed_remote_bindings_and_pending_bytes() {
     drop(db);
     let j = open(&path, 1024);
     let migrated = j
-        .namespace_by_identity(&scope(), &remote.id)
+        .namespace_by_remote(&scope(), &remote.id)
         .unwrap()
         .unwrap();
     assert_eq!(migrated.id, working.id);
@@ -537,4 +558,50 @@ fn schema_six_working_files_keep_confirmed_remote_bindings_and_pending_bytes() {
             .len(),
         1
     );
+}
+
+#[test]
+fn provider_observations_cannot_adopt_an_unrelated_local_identity() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("journal");
+    let mut j = open(&path, 1024);
+    let working = j
+        .create_working(scope(), node("", "Local.txt", 0), true, b"".as_slice())
+        .unwrap();
+    j.write_working(working.id, 0, b"local unsent").unwrap();
+    let before = j
+        .namespace_by_local(&scope(), &working.node.id)
+        .unwrap()
+        .unwrap();
+    // IDs are opaque. A provider ID must not be treated as the local object
+    // merely because its string equals a locally allocated ID.
+    let remote = node(&working.node.id, "Foreign.txt", 12);
+    assert!(j.observe_namespace_file(scope(), remote.clone()).is_err());
+    assert!(
+        j.namespace_by_remote(&scope(), &remote.id)
+            .unwrap()
+            .is_none()
+    );
+    assert_eq!(j.namespace_objects().unwrap().len(), 1);
+    assert_eq!(
+        j.namespace_object(before.id).unwrap().revision,
+        before.revision
+    );
+    assert_eq!(j.namespace_object(before.id).unwrap().node, before.node);
+    assert_eq!(j.read_working(working.id, 0, 100).unwrap(), b"local unsent");
+    drop(j);
+    let j = open(&path, 1024);
+    assert!(
+        j.namespace_by_remote(&scope(), &remote.id)
+            .unwrap()
+            .is_none()
+    );
+    assert_eq!(
+        j.namespace_by_local(&scope(), &working.node.id)
+            .unwrap()
+            .unwrap()
+            .id,
+        before.id
+    );
+    assert_eq!(j.read_working(working.id, 0, 100).unwrap(), b"local unsent");
 }
