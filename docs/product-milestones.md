@@ -111,6 +111,12 @@ unsupported Microsoft features are documented rather than silently emulated.
 
 ## 5. Polished desktop experience
 
+The first GTK4/libadwaita window now displays saved accounts and confirmed service
+state, changes the desired mount preference by account UUID, and opens confirmed
+mounts in Files. Slow status I/O stays off GTK's main loop. Synthetic native-window
+tests cover mount acknowledgement and keyboard focus. This is an initial settings
+slice, not the complete setup experience; see [Desktop preview](desktop.md).
+
 - [ ] GTK4/libadwaita setup and settings without a terminal in ordinary flows.
 - [ ] Account picker, mount controls, reconnect, connection removal and cleanup.
 - [ ] Tray status and actions using the daemon as the source of truth.

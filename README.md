@@ -44,6 +44,10 @@ and Nautilus badges are not implemented.
   bounded eviction and interrupted-publication recovery.
 - Private status socket, desired mount state, accidental-ejection remount and
   graceful worker/session shutdown. Settings and metadata persist across runs.
+- Native GTK4/libadwaita account overview with mount controls and opening confirmed
+  mounts in Files. It reads local service status asynchronously and distinguishes
+  saved preferences from completed mount operations. Native sign-in, connection
+  removal and tray integration are still unfinished; see [Desktop preview](docs/desktop.md).
 - Durable upload snapshots, keyring-backed session checkpoints and bounded Graph
   upload fragments, exercised with synthetic HTTP/fault fixtures. An explicit
   [isolated write check](docs/write-validation.md) is available for live validation;
@@ -111,6 +115,9 @@ The FUSE control filesystem must be mounted at `/sys/fs/fuse/connections` and
 allow its mount owner to open the connection's `abort` control. Cirrove retains
 that descriptor so shutdown can finish even while applications hold files open.
 Browser sign-in needs `xdg-open` and a desktop Secret Service keyring.
+Building the desktop also requires GTK 4.14+ and libadwaita 1.5+ development files
+(`gtk4 libadwaita` on Arch; `libgtk-4-dev libadwaita-1-dev` on Ubuntu 24.04).
+For a service/CLI-only build, use `cargo build --workspace --exclude cirrove-desktop --locked`.
 
 ```sh
 cargo build --workspace --locked
@@ -131,6 +138,7 @@ From another terminal:
 ```sh
 ./target/debug/cirrove status
 ./target/debug/cirrove accounts
+./target/debug/cirrove-desktop
 ```
 
 Cirrove uses `$XDG_STATE_HOME/cirrove` (fallback `~/.local/state/cirrove`) and
@@ -152,6 +160,7 @@ The systemd template is supplied separately and is not installed by a build.
 | `cirrove-onedrive` | Microsoft Graph metadata, version-checked ranged reads and experimental resumable uploads |
 | `cirrove-auth` | Microsoft browser authentication, keyring and refresh broker |
 | `cirrove-service` | Daemon, CLI, account workers, FUSE projection and content cache |
+| `cirrove-desktop` | Native account overview and asynchronous service controls |
 
 Read [Architecture](docs/architecture.md), [Roadmap](docs/roadmap.md),
 [OneDrive 1.0 milestones](docs/product-milestones.md),

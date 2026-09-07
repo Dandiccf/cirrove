@@ -24,6 +24,9 @@ not an instantaneous real-time guarantee. See [change notifications](adr/0003-ch
 flowchart LR
     CLI[CLI: connect / status / desired state] --> Settings[Private account settings]
     CLI --> Auth[Browser OAuth + keyring broker]
+    Desktop[GTK account overview] --> Settings
+    Desktop --> Status[Private status socket]
+    Manager --> Status
     Apps[Linux applications] --> FUSE[Read-only FUSE projection]
     FUSE --> Engine[Per-account service]
     Engine --> Store[SQLite metadata and stable inodes]
@@ -694,6 +697,26 @@ Older journals lacking a captured ancestor cannot reconstruct its vanished name 
 an opaque parent ID alone; their retained bytes still need the recovery/export flow.
 Ordinary daemon mounts remain read-only, and these new route/file-link cases have not
 been validated against real OneDrive or SharePoint accounts.
+
+## Desktop account overview
+
+`cirrove-desktop` uses GTK4/libadwaita and consumes local settings plus the private
+status socket. Tokio workers handle disk/socket work; GTK receives completed
+snapshots on its main loop. Polls do not overlap and an operation generation rejects
+results started before a mount preference change. The window does not instantiate
+a cloud provider or own the daemon lifetime.
+
+Status protocol 1 adds the stable account UUID, drive/root identity and desired
+state observed by the manager. The UI matches these with the saved account's path
+and signed-in identity. Older services deserialize as protocol 0 and cannot enable
+mount controls; a reachable but unmatched account remains unconfirmed. An unavailable
+service never leaves a saved connection labelled as currently connected.
+
+Mount actions reuse the CLI's private settings transaction and account-operation
+lock, selecting by UUID rather than a mutable label. Saving a preference is distinct
+from the service acknowledging the mount. Rows retain widget identity, expansion
+and keyboard focus across updates. Raw provider messages are not displayed.
+Native authentication, removal, tray integration, pins and conflict UI remain open.
 
 ## Next boundaries
 

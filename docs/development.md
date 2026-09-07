@@ -26,6 +26,9 @@ The smoke test creates a temporary private directory, runs the compiled CLI/daem
 checks status, exclusive daemon ownership, recovery after SIGKILL and SIGTERM
 cleanup, then removes only its own temporary data.
 HTTP tests use loopback fixtures with fake tokens. They never authenticate to Microsoft.
+The workspace includes the GTK desktop; see [Desktop preview](desktop.md) for its
+system dependencies, isolated fixtures and native-window test. CI also validates
+the desktop entry and runs the window test under Xvfb.
 
 ## Long-session observation
 

@@ -66,7 +66,8 @@ currently bundled; another project's client ID is never substituted.
 
 ## 5 — Desktop experience and distribution
 
-- [ ] GTK4/libadwaita settings, tray, Nautilus badges and context actions.
+- [x] Initial GTK4/libadwaita saved-account overview, service status and mount controls.
+- [ ] Complete native setup/settings, tray, Nautilus badges and context actions.
 - [ ] Clear connection removal, cache cleanup and recovery guidance.
 - [ ] Arch/AUR packaging, reproducible releases and supported-version policy.
 
