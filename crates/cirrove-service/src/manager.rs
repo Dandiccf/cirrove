@@ -18,6 +18,16 @@ use tokio::sync::RwLock;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AccountStatus {
+    /// Stable settings identity for desktop actions. Older daemon responses omit it.
+    #[serde(default)]
+    pub account_id: String,
+    #[serde(default)]
+    pub drive_id: String,
+    #[serde(default)]
+    pub root_id: String,
+    /// Desired state observed by this manager, not an acknowledgement of a UI click.
+    #[serde(default)]
+    pub enabled: bool,
     pub label: String,
     pub account: String,
     pub tenant: String,
@@ -133,6 +143,10 @@ impl Manager {
                     let mut statuses = vec![];
                     for account in &settings.accounts {
                         let mut status = AccountStatus {
+                            account_id: account.id.clone(),
+                            drive_id: account.drive.id.clone(),
+                            root_id: account.root_id.clone(),
+                            enabled: account.enabled,
                             label: account.label.clone(),
                             account: account.identity.username.clone(),
                             tenant: account.identity.tenant_id.clone(),

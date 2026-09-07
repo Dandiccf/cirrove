@@ -17,6 +17,10 @@ Private account measurements belong in local records, not the public repository.
       windows and safe renewal as specified in [read-session efficiency](adr/0004-read-session-efficiency.md).
 - [ ] Push-triggered metadata updates, reconnection/catch-up and periodic recovery checks, with provider delivery and local reaction latency measured separately.
 - [ ] Bounded memory and background work with large libraries and long sessions.
+- [ ] Reclaim inactive namespace views with correct FUSE lifetimes; pass the
+      500,000-file traversal, invalidation and 24-hour churn memory gates in
+      [namespace memory](adr/0005-namespace-memory.md). Content-cache limits do not
+      satisfy this requirement.
 - [ ] Real restart/outage checks and at least 24 hours of sustained operation.
 
 Evidence must include actual kernel mounts, provider-backed reads and ordinary
@@ -111,6 +115,12 @@ unsupported Microsoft features are documented rather than silently emulated.
 
 ## 5. Polished desktop experience
 
+The first GTK4/libadwaita window now displays saved accounts and confirmed service
+state, changes the desired mount preference by account UUID, and opens confirmed
+mounts in Files. Slow status I/O stays off GTK's main loop. Synthetic native-window
+tests cover mount acknowledgement and keyboard focus. This is an initial settings
+slice, not the complete setup experience; see [Desktop preview](desktop.md).
+
 - [ ] GTK4/libadwaita setup and settings without a terminal in ordinary flows.
 - [ ] Account picker, mount controls, reconnect, connection removal and cleanup.
 - [ ] Tray status and actions using the daemon as the source of truth.
@@ -123,8 +133,13 @@ conflicted and failed states without reporting unsent content as uploaded.
 
 ## 6. Installable OneDrive 1.0
 
-- [ ] Arch package/AUR recipe, release artifacts and reproducible build procedure.
+- [ ] Native Arch/AUR, Debian/Ubuntu `.deb` and Fedora `.rpm` packages from the same
+      release, with the clean-system checks in [Distribution](distribution.md).
+- [ ] Signed APT and COPR update channels, release artifacts, source/provenance,
+      supported-version matrix and measured reproducible build procedure.
 - [ ] Fresh installation through sign-in and reboot verified outside development.
+      Validate this on each declared distribution family, including Fedora with
+      SELinux enabled; an Ubuntu CI build is not an installation check.
 - [ ] Upgrade/migration rollback protects settings, credentials and pending work.
 - [ ] Clean uninstall and explicit retention/removal choices for local data.
 - [ ] User documentation, redacted diagnostics and supported-version policy.

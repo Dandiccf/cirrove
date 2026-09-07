@@ -54,6 +54,9 @@ currently bundled; another project's client ID is never substituted.
 - [ ] Record reproducible cold/warm p50/p95 latency, API requests, peak memory and
       thumbnail-storm behavior. Separate local fixtures from real-provider results.
 - [ ] Validate ordinary desktop applications and long-lived open files on real data.
+- [ ] Bound namespace residency independently of the content cache: implement
+      reference-aware reclamation, paged directory snapshots and targeted
+      invalidation; pass the [500k-file / long-session memory gate](adr/0005-namespace-memory.md).
 
 ## 4 — Safe writes and offline controls
 
@@ -66,9 +69,13 @@ currently bundled; another project's client ID is never substituted.
 
 ## 5 — Desktop experience and distribution
 
-- [ ] GTK4/libadwaita settings, tray, Nautilus badges and context actions.
+- [x] Initial GTK4/libadwaita saved-account overview, service status and mount controls.
+- [ ] Complete native setup/settings, tray, Nautilus badges and context actions.
 - [ ] Clear connection removal, cache cleanup and recovery guidance.
-- [ ] Arch/AUR packaging, reproducible releases and supported-version policy.
+- [ ] Native Arch/AUR, Debian/Ubuntu `.deb` and Fedora `.rpm` packaging, APT/COPR
+      updates, reproducible releases and supported-version policy. Pass clean
+      installation, login/reboot, upgrade and removal on each declared family;
+      see [Distribution](distribution.md).
 
 ## 6 — Additional providers
 
