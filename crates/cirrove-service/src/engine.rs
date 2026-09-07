@@ -1,7 +1,9 @@
 //! Per-account metadata service. Change feeds and foreground directory requests
 //! share a provider client but never hold SQLite locks across network awaits.
+mod changes;
 use crate::{accounts::Account, content::ContentCache, private_dir, refresh};
 use anyhow::Result;
+pub use changes::ChangeNotifications;
 use cirrove_core::notifications::{ChangeHint, ChangeHintSender, NotificationState, WatchEnd};
 use cirrove_core::{CancellationToken, Node, ProviderError, ReadProvider, Scope};
 use cirrove_store::Store;
@@ -44,7 +46,7 @@ pub struct Engine {
     pub provider: Arc<dyn ReadProvider>,
     pub cache: ContentCache,
     pub cancel: CancellationToken,
-    pub changed: Notify,
+    pub changed: ChangeNotifications,
     feeds: RwLock<HashMap<String, Feed>>,
     health: RwLock<HashMap<String, FeedHealth>>,
     directories: StdMutex<HashMap<String, Weak<Mutex<()>>>>,
@@ -79,7 +81,7 @@ impl Engine {
             provider,
             cache,
             cancel: CancellationToken::new(),
-            changed: Notify::new(),
+            changed: ChangeNotifications::default(),
             feeds: RwLock::new(HashMap::new()),
             health: RwLock::new(HashMap::new()),
             directories: StdMutex::new(HashMap::new()),
@@ -270,7 +272,7 @@ impl Engine {
                     health.last_success = Some(now());
                     health.message = None;
                     delay = Duration::from_secs(self.account.poll_seconds);
-                    self.changed.notify_waiters();
+                    self.changed.metadata();
                     // One coalescing worker, not a task per notification burst.
                     self.discovery.notify_one();
                 }
@@ -445,7 +447,7 @@ impl Engine {
                 return match result {
                     cirrove_store::AbsenceResult::Published { changed } => {
                         if changed {
-                            self.changed.notify_waiters();
+                            self.changed.metadata();
                         }
                         Err(ProviderError::NotFound)
                     }
@@ -466,7 +468,7 @@ impl Engine {
         match result {
             cirrove_store::ObservationResult::Published { value, changed } => {
                 if changed {
-                    self.changed.notify_waiters();
+                    self.changed.metadata();
                 }
                 Ok(value)
             }
@@ -684,7 +686,7 @@ impl Engine {
                         result,
                         DirectoryPublicationResult::Published { changed: true }
                     ) {
-                        engine.changed.notify_waiters();
+                        engine.changed.metadata();
                     }
                     let mut targets = Vec::new();
                     if result != (DirectoryPublicationResult::Superseded { known: false }) {

@@ -1537,7 +1537,7 @@ async fn refresh_fixture(engine: &Engine, cloud: &Cloud) {
     )
     .await
     .unwrap();
-    engine.changed.notify_waiters();
+    engine.changed.metadata();
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires synthetic kernel FUSE; clean copies hand off to remote metadata without losing local identity"]
@@ -1724,7 +1724,7 @@ assert open('renamed.txt','rb').read()==b'updated'
         },
     )
     .unwrap();
-    engine.changed.notify_waiters();
+    engine.changed.metadata();
     application(
         &mount,
         r#"
@@ -2564,7 +2564,7 @@ with open('{route}/keep.txt','wb',buffering=0) as f:
                 )
                 .unwrap();
         }
-        engine.changed.notify_waiters();
+        engine.changed.metadata();
         let read = format!(
             r#"
 import os,sys
@@ -2699,7 +2699,7 @@ with open('Shortcut','ab',buffering=0) as f:
             )
             .unwrap();
     }
-    engine.changed.notify_waiters();
+    engine.changed.metadata();
     let read = r#"
 import os,sys
 os.chdir(sys.argv[1])

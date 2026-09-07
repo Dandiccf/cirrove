@@ -1,0 +1,47 @@
+{
+  "date": "2026-09-07",
+  "source_base": "3a046ee432b1779da6e93cf5c404a84c77fc726e",
+  "source_sha256": {
+    "crates/cirrove-service/src/engine.rs": "bb112deb18e3b521c343aa069a6fbea67f976cb0a69e4b5163cdcb805760d840",
+    "crates/cirrove-service/src/engine/changes.rs": "829cee9caa912ade10fc68df3204acb831341b49a8f3aee9fe0aef50f42b9a37",
+    "crates/cirrove-service/src/filesystem.rs": "d905ecbd776d3a5f7d88882e1d25c724a66796d8be37d04fe615ea36b2e6940a",
+    "crates/cirrove-service/src/filesystem/capacity.rs": "3f19e4d194a73eca9e5b6652c67a74bf06c42b10d64476985e0a085a60641882",
+    "crates/cirrove-service/src/filesystem/capacity/parents.rs": "fd8c487c2e55122aaafb515a6ae7f818b25f0f71d942dd158c20e41273b4e885",
+    "crates/cirrove-service/src/filesystem/invalidation.rs": "f25a59c2b1a98482779e0a9eec897dd00f5acd3fab4f04fc7943765822961d1e",
+    "crates/cirrove-service/src/filesystem/residency.rs": "56c00000aace9a94805d540c4d5bec0ac1b0be52f20ec9ed0ed5b5bd726b17a2",
+    "crates/cirrove-service/src/filesystem/residency/invalidation.rs": "89239f974d3b05597c06e282938c6bd559a76978a2934e4b6315a65c5f42ca7f",
+    "crates/cirrove-service/tests/writable_session.rs": "fa159923cdf19f67eb3c0ceb0e0570039b23a39b4db52e8a827eb6fbfd6c1a7e",
+    "crates/cirrove-store/src/lib.rs": "93770232201a203d0986fc7c049f07254c10bc8eedc7832693917640d61cbc05",
+    "crates/cirrove-store/src/metadata_changes.rs": "b7fb870c273e98b7cbd492bcf375a29cf53084e5feac5541bb902b9920974abc"
+  },
+  "fixture": "Actual kernel FUSE; generated indexed metadata; no cloud account or provider content reads.",
+  "single_update": {
+    "build": "release",
+    "elapsed_ms": 6.252071,
+    "indexed_files": 500000,
+    "memory": {
+      "anonymous_pss_kib": 7580,
+      "peak_rss_kib": 18192,
+      "pss_kib": 15531,
+      "rss_kib": 18192
+    },
+    "metadata_marks": 2,
+    "notified_views": 2,
+    "resolved_files": 3000
+  },
+  "burst": {
+    "cached_navigation_ms": 0.034894,
+    "cached_navigation_operations": 16,
+    "changed_files": 100,
+    "elapsed_ms": 6.003474,
+    "metadata_marks": 201,
+    "notified_views": 101
+  },
+  "limits": [
+    "The library has 500000 indexed files and only 3000 resolved files; this is not 500000 simultaneously referenced views.",
+    "Warm metadata calls may be satisfied by the kernel cache; they are not a count of FUSE or provider requests.",
+    "Memory is process RSS/PSS, not total filesystem/page-cache usage.",
+    "No 24-hour churn, combined 500k deep/alias workload, real provider latency or view-payload byte budget is established.",
+    "Local namespace events, experimental writable mounts and recovery still perform a bounded full sweep."
+  ]
+}

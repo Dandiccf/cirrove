@@ -638,3 +638,189 @@ mod cold;
 async fn real_cold_directory_pages_publish_with_bounded_memory() {
     cold::mounted().await;
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "actual synthetic kernel FUSE; bounded targeted metadata invalidation"]
+async fn real_targeted_invalidations_preserve_unrelated_cached_views() {
+    let files =
+        std::env::var("CIRROVE_INVALIDATION_FILES").map_or(10_000, |s| s.parse::<usize>().unwrap());
+    assert!((3000..=500_000).contains(&files));
+    let provider = Arc::new(GeneratedLibrary {
+        files,
+        per_directory: 1000,
+        revision: AtomicU32::new(1),
+        content_reads: AtomicU64::new(0),
+        foreground_requests: AtomicU64::new(0),
+    });
+    let tmp = tempfile::tempdir().unwrap();
+    let mount = tmp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let engine = Engine::new(
+        account(mount.clone()),
+        provider.clone(),
+        tmp.path().join("state"),
+    )
+    .await
+    .unwrap();
+    let scope = engine.scope("capacity-drive");
+    crate::refresh(provider.as_ref(), &scope, &engine.db, false, &engine.cancel)
+        .await
+        .unwrap();
+    let fs = CloudFs::new(engine.clone()).unwrap();
+    let inner = fs.inner.clone();
+    let session = fs.mount(&mount).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while inner.invalidation_metrics.batches.load(Ordering::Relaxed) == 0 {
+        assert!(Instant::now() < deadline);
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    let path = mount.clone();
+    let held = tokio::task::spawn_blocking(move || {
+        for file in 0..3000 {
+            let path = path
+                .join(format!("directory-{:06}", file / 1000))
+                .join(format!("Projektunterlagen – Übersicht {file:08}.txt"));
+            assert_eq!(std::fs::metadata(path).unwrap().len(), 0);
+        }
+        std::fs::File::open(
+            path.join("directory-000000/Projektunterlagen – Übersicht 00000000.txt"),
+        )
+        .unwrap()
+    })
+    .await
+    .unwrap();
+    assert!(inner.views.lock().unwrap().len() >= 3004);
+    let before = inner.invalidation_metrics.entries.load(Ordering::Relaxed);
+    let before_marks = inner.invalidation_metrics.marks.load(Ordering::Relaxed);
+    let mut changed = provider.node_at(provider.directories() + 1);
+    changed.size = 17;
+    changed.etag = Some("changed".into());
+    Store::open(&engine.db)
+        .unwrap()
+        .observe_node(&scope, &changed)
+        .unwrap();
+    let started = Instant::now();
+    engine.changed.metadata();
+    let deadline = started + Duration::from_secs(5);
+    while inner.invalidation_metrics.entries.load(Ordering::Relaxed) < before + 2 {
+        assert!(Instant::now() < deadline);
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    let path = mount.clone();
+    tokio::task::spawn_blocking(move || {
+        assert_eq!(
+            std::fs::metadata(
+                path.join("directory-000000/Projektunterlagen – Übersicht 00000000.txt")
+            )
+            .unwrap()
+            .len(),
+            17
+        );
+        assert_eq!(
+            std::fs::metadata(
+                path.join("directory-000002/Projektunterlagen – Übersicht 00002999.txt")
+            )
+            .unwrap()
+            .len(),
+            0
+        );
+        assert_eq!(held.metadata().unwrap().len(), 0);
+        drop(held);
+    })
+    .await
+    .unwrap();
+    assert!(
+        started.elapsed() < Duration::from_millis(500),
+        "targeted update exceeded cached navigation bound"
+    );
+    let notified = inner.invalidation_metrics.entries.load(Ordering::Relaxed) - before;
+    let marks = inner.invalidation_metrics.marks.load(Ordering::Relaxed) - before_marks;
+    assert_eq!(notified, 2);
+    assert_eq!(marks, 2);
+    assert!(
+        inner.views.lock().unwrap().len() > 2900,
+        "unrelated kernel references were discarded"
+    );
+    assert!(inner.invalidation_metrics.max_batch.load(Ordering::Relaxed) <= 128);
+    println!(
+        "CIRROVE_TARGETED_INVALIDATION {}",
+        serde_json::json!({"indexed_files":files,"resolved_files":3000,"notified_views":notified,"metadata_marks":marks,"elapsed_ms":started.elapsed().as_secs_f64()*1000.0,"memory":process_memory(),"build":if cfg!(debug_assertions){"debug"}else{"release"}})
+    );
+    let before = inner.invalidation_metrics.entries.load(Ordering::Relaxed);
+    let before_marks = inner.invalidation_metrics.marks.load(Ordering::Relaxed);
+    let mut store = Store::open(&engine.db).unwrap();
+    let cursor = store.begin(&scope, false).unwrap();
+    store
+        .stage(
+            &scope,
+            cursor.as_ref(),
+            &ChangePage {
+                changes: (100..200)
+                    .map(|file| {
+                        let mut node = provider.node_at(provider.directories() + 1 + file);
+                        node.size = 1;
+                        node.etag = Some("burst".into());
+                        Change::Upsert(node)
+                    })
+                    .collect(),
+                checkpoint: Checkpoint::Complete(Cursor("burst-complete".into())),
+            },
+        )
+        .unwrap();
+    drop(store);
+    let burst = Instant::now();
+    engine.changed.metadata();
+    let path = mount.clone();
+    let navigation = Instant::now();
+    tokio::task::spawn_blocking(move || {
+        for file in 2000..2016 {
+            assert_eq!(
+                std::fs::metadata(
+                    path.join("directory-000002")
+                        .join(format!("Projektunterlagen – Übersicht {file:08}.txt"))
+                )
+                .unwrap()
+                .len(),
+                0
+            );
+        }
+    })
+    .await
+    .unwrap();
+    let navigation_ms = navigation.elapsed().as_secs_f64() * 1000.0;
+    assert!(
+        navigation_ms < 500.0,
+        "cached navigation stalled during a metadata burst"
+    );
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while inner.invalidation_metrics.entries.load(Ordering::Relaxed) < before + 101 {
+        assert!(Instant::now() < deadline);
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    assert_eq!(
+        inner.invalidation_metrics.entries.load(Ordering::Relaxed) - before,
+        101
+    );
+    assert_eq!(
+        inner.invalidation_metrics.marks.load(Ordering::Relaxed) - before_marks,
+        201
+    );
+    println!(
+        "CIRROVE_INVALIDATION_BURST {}",
+        serde_json::json!({"changed_files":100,"metadata_marks":201,"notified_views":101,"cached_navigation_operations":16,"cached_navigation_ms":navigation_ms,"elapsed_ms":burst.elapsed().as_secs_f64()*1000.0})
+    );
+    parents::settle(&inner, 1).await;
+    assert_eq!(provider.content_reads.load(Ordering::SeqCst), 0);
+    assert_eq!(provider.foreground_requests.load(Ordering::SeqCst), 0);
+    engine.stop().await;
+    tokio::task::spawn_blocking(move || session.umount_and_join())
+        .await
+        .unwrap()
+        .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "actual synthetic FUSE; target/source alias changes and scope reset"]
+async fn real_targeted_alias_invalidations_preserve_open_versions() {
+    parents::targeted_aliases().await;
+}

@@ -56,6 +56,12 @@ Separate three-pass kernel runs now cover 500k files in one directory and in
 500 directories, with snapshot storage fully released after close. Opening the
 giant directory still takes 5.49–7.31 seconds, and process RSS still rises across
 passes; see [the measurements](benchmarks/directory-snapshot-pages.json).
+Metadata changes now select affected live projections through revision and identity
+indexes, including shortcut sources, targets and old content versions. Kernel
+notifications are batched outside the view lock; local namespace and recovery events
+retain a coalesced full sweep. Synthetic mount tests cover targeted updates, bursts,
+held versions and alias/scope changes. Resident payload budgets and combined sustained
+load acceptance remain open; see [measurements](benchmarks/targeted-invalidation.json).
 A shared conditional read-session prototype now removes per-block Graph checks in
 an explicit developer path. A synthetic 1 GiB adapter read uses two Graph requests
 instead of 512; an isolated business-file comparison also verifies subsequent

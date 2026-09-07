@@ -68,7 +68,7 @@ pub(super) fn validate(db: &Connection) -> Result<()> {
     db.prepare("SELECT o.source_revision,d.source_revision FROM observed o JOIN directories d ON d.scope=o.scope LIMIT 0")?;
     Ok(())
 }
-fn clock(db: &Connection) -> Result<(String, i64)> {
+pub(super) fn clock(db: &Connection) -> Result<(String, i64)> {
     Ok(db.query_row(
         "SELECT identity,revision FROM metadata_clock WHERE singleton=1",
         [],

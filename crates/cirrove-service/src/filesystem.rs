@@ -4,6 +4,7 @@
 #[cfg(test)]
 mod capacity;
 mod directories;
+mod invalidation;
 mod lifecycle;
 mod residency;
 use residency::{LookupRefs, NamespaceViews};
@@ -70,6 +71,7 @@ struct Inner {
     edits: lifecycle::EditAdmission,
     runtime: Handle,
     views: Mutex<NamespaceViews>,
+    invalidation_metrics: invalidation::InvalidationMetrics,
     files: Mutex<HashMap<u64, Arc<OpenFile>>>,
     directories: Mutex<HashMap<u64, Arc<OpenDirectory>>>,
     directory_budget: directories::Budget,
@@ -168,6 +170,7 @@ impl CloudFs {
                 edits: lifecycle::EditAdmission::new(),
                 runtime: Handle::current(),
                 views: Mutex::new(NamespaceViews::new(root)),
+                invalidation_metrics: invalidation::InvalidationMetrics::default(),
                 files: Mutex::new(HashMap::new()),
                 directories: Mutex::new(HashMap::new()),
                 directory_budget: directories::Budget::default(),
@@ -182,52 +185,10 @@ impl CloudFs {
         })
     }
     pub fn start_invalidations(&self, notifier: fuser::Notifier) {
-        let inner = self.inner.clone();
-        self.inner.runtime.spawn(async move {
-            loop {
-                tokio::select! {
-                    biased;
-                    _ = inner.cancel.cancelled() => break,
-                    _ = inner.engine.changed.notified() => {}
-                }
-                let entries = inner
-                    .views
-                    .lock()
-                    .map(|views| {
-                        views
-                            .values()
-                            .map(|view| {
-                                (
-                                    view.inode,
-                                    view.parent,
-                                    view.name.clone(),
-                                    view.node.kind == NodeKind::Folder,
-                                )
-                            })
-                            .collect::<Vec<_>>()
-                    })
-                    .unwrap_or_default();
-                let notifier = notifier.clone();
-                let _ = tokio::task::spawn_blocking(move || {
-                    for (inode, parent, name, directory) in entries {
-                        // Root attributes are synthetic and fixed for the mount.
-                        // Invalidating them while its first GETATTR is in flight
-                        // can discard that reply and leave initial kernel owner/
-                        // permissions in place. Child dentries are invalidated
-                        // individually below; directory handles do not cache data.
-                        if inode == 1 {
-                            continue;
-                        }
-                        // File revisions have separate inodes. Preserve pages of
-                        // an old open mapping; refresh attributes and path lookup.
-                        let offset = if directory { 0 } else { -1 };
-                        let _ = notifier.inval_inode(INodeNo(inode), offset, 0);
-                        let _ = notifier.inval_entry(INodeNo(parent), OsStr::new(&name));
-                    }
-                })
-                .await;
-            }
-        });
+        let wake = self.inner.engine.changed.subscribe();
+        self.inner
+            .runtime
+            .spawn(invalidation::run(self.inner.clone(), notifier, wake));
     }
     fn start_view_reclamation(&self) {
         let inner = self.inner.clone();

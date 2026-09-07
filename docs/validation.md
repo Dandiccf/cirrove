@@ -873,3 +873,36 @@ The checked source passed formatting, strict workspace Clippy, 321 regular tests
 46 actual-kernel regressions, the workspace build, Rustdoc and service smoke/observer
 checks. Builds used the worktree-specific target directory; expected nonzero
 filtered test counts were verified.
+
+## Targeted namespace invalidation (2026-09-07)
+
+Metadata schema 6 adds a covering revision index. Tests page committed marks while
+another connection replaces rows or resets a scope, without retaining a SQLite read
+transaction between pages. Wrong-database positions are rejected. Migration failure
+preserves the old version and rows, and large identities trigger the page-byte bound.
+Query checks verify index use without full scans or sorts.
+
+Live projection indexes retain both source and target identities for shortcuts,
+including distinct aliases, accounts and content revisions. Unit tests cover updates,
+retirement during paging and full/scope selection. A watch generation preserves wakes
+received during work; local namespace changes explicitly request a full sweep.
+Experimental writable mounts also use full sweeps for remote metadata because
+their local IDs may differ from provider IDs. Writable handoff and retained-route
+fixtures now signal actual metadata changes through that path.
+
+An actual mounted 500,000-file index resolves 3,000 files and holds an old descriptor.
+One changed file produces two metadata marks and two notified views, preserving
+unrelated cached views and the old descriptor's size. A 100-file delta burst produces
+201 marks and 101 notified views while 16 warm metadata calls satisfy the existing
+500 ms navigation bound. Those calls may hit kernel caches. Another kernel fixture
+checks duplicate shortcut targets, source-link rename, held old versions and target
+scope reset. Full recovery releases unused views through actual kernel FORGET.
+[Raw measurements](benchmarks/targeted-invalidation.json) include source hashes and
+scope limits. These checks do not establish a resident byte budget or close the
+combined large-library/24-hour acceptance gate.
+
+The final source passed formatting, strict workspace Clippy, 328 regular tests,
+48 actual-kernel regressions, the workspace build, Rustdoc and service smoke/observer
+checks. The separate release 500k fixture and focused writable identity-handoff
+regression also passed. Every build used the worktree-specific target directory,
+and filtered commands were checked for the expected nonzero test counts.
