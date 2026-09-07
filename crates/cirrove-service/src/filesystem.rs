@@ -421,10 +421,16 @@ impl Inner {
                 .await
                 .map_err(|error| errno(&error))??;
             // Do not announce EOF before the consistent metadata read finishes.
-            if let Some(snapshot) = builder.complete()? {
-                Self::send_listing(&mut send, snapshot, &route)?;
-            }
-            Ok::<_, Errno>(())
+            // Final buffered writes and descriptor cleanup still belong on a
+            // blocking worker, even though the initial scan has already ended.
+            tokio::task::spawn_blocking(move || {
+                if let Some(snapshot) = builder.complete()? {
+                    Self::send_listing(&mut send, snapshot, &route)?;
+                }
+                Ok::<_, Errno>(())
+            })
+            .await
+            .map_err(|_| Errno::EIO)?
         });
         match receive.await {
             Ok(listing) => Ok(listing),
