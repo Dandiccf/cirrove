@@ -252,8 +252,10 @@ part of staging and cannot be removed by its cleanup.
 A synthetic 1 GiB test now runs the actual OneDrive HTTP adapter through the shared
 disk cache: 40 Graph requests and 20 content requests, compared with the previous
 512/256 conservative cost, with exactly 1 GiB downloaded. This closes the narrow
-sequential-window amplification fixture; real provider windows, optimized kernel
-navigation/application latency and the wider recovery matrix remain open. See
+sequential-window amplification fixture. Actual-kernel fixtures also verify
+overlapping reads, cached navigation during paused windows, failed final validation
+and cancellation with open descriptors. Real provider windows, wider application
+load/latency and the recovery matrix remain open. See
 [the measured record](adr/0004-read-session-efficiency.md#bounded-sequential-window-fallback).
 
 Blocks have SHA-256 checksums. Temporary bytes and the containing directory are

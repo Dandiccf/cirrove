@@ -37,7 +37,10 @@ instead of 512; an isolated business-file comparison also verifies subsequent
 conditional ranges without additional Graph calls. Bounded disk-staged windows now
 also reduce the conservative fallback to 40 Graph calls in the actual-adapter/shared
 cache 1 GiB fixture. The narrow eightfold-reduction gate passes; the full provider
-matrix and optimized kernel/application latency/resource measurements remain open.
+matrix and wider application latency/resource measurements remain open. Actual-kernel
+fixtures now cover overlapping window readers, cached navigation during stalled
+transfer/final validation, version rejection and shutdown with open descriptors;
+they do not yet cover live indexing or desktop thumbnail load on the optimized path.
 Ordinary accounts still use the original conservative path pending that acceptance.
 Graph Socket.IO and provider-neutral coalescing hints are now implemented. This
 does not close the live-response gate: notifications can be delayed upstream.

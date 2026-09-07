@@ -227,6 +227,35 @@ corruption, cancellation and retaining reservations for in-flight blocking I/O.
 The wider kernel/application, real-provider and failure acceptance below remains
 open; this increment does not enable optimized ordinary mounts.
 
+## Streamed windows through kernel FUSE
+
+Three actual-kernel fixtures now run ordinary positional file reads through the
+OneDrive loopback adapter and shared cache. They pause an 8 MiB window after its
+first 4 MiB, then pause the final Graph comparison after the entire body has reached
+the staging sink. Two overlapping readers receive no bytes until both transfer and
+validation succeed. An independent file and a distant range of the same file remain
+readable; repeated cached directory listing plus stat calls retain a 500 ms deadline.
+
+The success case uses one shared window, four total content requests and eight Graph
+requests, including the initial block and both independent reads. A same-size version
+change at final validation returns ESTALE to both window readers without publishing
+their blocks. Cancellation during the partial body returns ENODEV; unmount completes
+with the test descriptors still open. Staging reservations return to zero in all
+three cases. CI runs these fixtures explicitly and compiles their executables before
+starting runtime deadlines.
+
+One local debug run on 2026-09-07 recorded 80 directory samples across these cases,
+with per-case p95 values of 1.79–2.01 ms and an overall maximum of 4.32 ms. These are
+controlled loopback stalls with transactionally seeded metadata, not live indexing,
+desktop thumbnail bursts, first-byte performance or provider latency measurements.
+The wider application/load and real-provider gates remain open.
+
+```sh
+cargo test -p cirrove-service --lib --locked --no-run
+timeout 90s cargo test -p cirrove-service --lib --locked \
+  content::windows::tests::graph::kernel::real_ -- --ignored --nocapture --test-threads=1
+```
+
 ## Acceptance gates
 
 - [ ] Deterministic request-count tests for 3.1 MB previews, a 1 GiB sequential

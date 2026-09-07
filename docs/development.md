@@ -139,6 +139,7 @@ a Linux session with `/dev/fuse` and `fusermount3`:
 
 ```sh
 cargo test -p cirrove-service --test read_only --locked real_ -- --ignored --nocapture --test-threads=1
+cargo test -p cirrove-service --lib --locked content::windows::tests::graph::kernel::real_ -- --ignored --nocapture --test-threads=1
 cargo test -p cirrove-service --test writable_session --locked real_ -- --ignored --nocapture
 cargo test -p cirrove-service --test read_only --locked synthetic_latency_report -- --ignored --nocapture
 ```
