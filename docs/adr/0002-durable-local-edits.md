@@ -221,8 +221,15 @@ queue completion. Historical remote metadata stays on the detached victim; only
 active ownership affects provider-listing projection. This also permits the same
 string to be a retained local ID and another object's current provider ID.
 
-FUSE integration remains incomplete. In particular, callbacks must publish related
-ownership changes atomically; a standalone refresh of one object is insufficient.
+Schema 12 coalesces each object's latest namespace change in the same transaction.
+Callbacks publish all changed objects at one committed frontier, validating the
+complete batch before transferring in-memory bindings. The cursor moves only with
+the whole batch. This preserves chained replacements when acknowledgements arrive
+before earlier callbacks, without replaying every intermediate save or reloading
+unchanged objects. The existing 10,000-object limit bounds the complete changed set;
+larger namespaces need bounded transaction groups rather than arbitrary pagination.
+
+FUSE replacement integration remains incomplete.
 Reader preservation must happen after the local rename releases the kernel directory
 lock, and an uncached source requires deferred preparation. Journal fixtures establish
 transaction and ordering behavior, not complete mounted application compatibility.

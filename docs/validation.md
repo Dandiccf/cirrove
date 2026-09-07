@@ -585,3 +585,28 @@ FUSE still refuses replacement of an occupied path. Atomic in-memory publication
 background preservation of old readers, uncached-source preparation and actual
 application/provider replacement acceptance remain open. No live cloud documents
 or installed service state were changed.
+
+## Atomic publication of local namespace changes
+
+Journal schema 12 records one coalesced change marker per local object. The mount
+publishes the complete changed set at a committed database frontier, including all
+sides of ownership transfers. Four journal fixtures exercise repeated writes with
+128 unchanged objects, indexed incremental reads, actual schema-11 migration,
+restart, missing publication structures, transaction rollback and clock exhaustion.
+Four projection fixtures exercise target-binding transfer in adversarial object
+order, chained replacements with delayed callbacks, rejected incomplete/corrupt
+batches and acknowledgement rollback followed by successful retry. Old, intermediate
+and current local streams retain their separate bytes.
+
+The final local run passed 207 default workspace tests and all 27 existing actual
+synthetic kernel-FUSE checks, plus formatting, strict Clippy, build, executable
+smoke, two observer checks and Rustdoc. SQLite snapshot reads and decoding leave
+cached projection lookups available; final index publication holds the projection
+lock. These checks do not establish a new latency bound or large-library capacity.
+
+The ordinary service remains read-only, and experimental FUSE rename still refuses
+an occupied destination. Replacement-specific reader preservation, deferred
+preparation of uncached sources and actual mounted application-save acceptance
+remain open. The 10,000-object namespace limit bounds a publication batch; removing
+that limit requires bounded transaction groups and retained-history cleanup.
+No installed service, credentials or cloud files were changed.

@@ -8,6 +8,7 @@ mod generations;
 mod handoff;
 mod mutations;
 mod namespace;
+mod publication;
 mod replacements;
 mod unlinked;
 mod working;
@@ -18,6 +19,7 @@ pub use mutations::{MutationRecord, MutationState};
 pub use namespace::{
     NamespaceCollision, NamespaceListing, NamespaceNames, NamespaceObject, project_namespace,
 };
+pub use publication::{NamespacePublication, NamespaceSnapshot};
 pub use replacements::ReplacementRecord;
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
@@ -199,7 +201,7 @@ impl UploadJournal {
         let mut db = Connection::open(database)?;
         db.busy_timeout(std::time::Duration::from_secs(3))?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if version > 11 {
+        if version > 12 {
             return Err(JournalError::Schema);
         }
         db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;
@@ -224,6 +226,7 @@ impl UploadJournal {
         unlinked::migrate(&mut db, version)?;
         barriers::migrate(&mut db, version)?;
         replacements::migrate(&mut db, version)?;
+        publication::migrate(&mut db, version)?;
         // Never infer that a transfer failed just because its process died.
         db.execute(
             "UPDATE uploads SET state='verify_required',

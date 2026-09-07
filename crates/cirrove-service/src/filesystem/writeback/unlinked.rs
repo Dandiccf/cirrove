@@ -91,8 +91,8 @@ impl Writeback {
                 .map(|id| j.working_file(id))
                 .transpose()
                 .map_err(error)?;
+            Self::publish_locked(&j, &writer.projection)?;
             let mut p = writer.projection.lock().map_err(|_| Errno::EIO)?;
-            p.merge(object.clone(), working.clone())?;
             let users = p
                 .streams
                 .get(&key(&object.scope, &object.node.id))
@@ -136,18 +136,21 @@ impl Writeback {
         for record in records {
             *self.preserving_cursor.lock().map_err(|_| Errno::EIO)? = record.sequence;
             let id = record.id;
-            let (object, working) = self
+            let object_id = self
                 .local(move |j| {
                     let object = j
                         .namespace_for_operation(id)?
                         .ok_or(JournalError::Corrupt)?;
-                    let working = object
-                        .working_file
-                        .map(|id| j.working_file(id))
-                        .transpose()?;
-                    Ok((object, working))
+                    Ok(object.id)
                 })
                 .await?;
+            self.refresh_projection().await?;
+            let (object, working) = {
+                let p = self.projection.lock().map_err(|_| Errno::EIO)?;
+                let object = p.objects.get(&object_id).ok_or(Errno::EIO)?.clone();
+                let working = object.working_file.and_then(|id| p.files.get(&id)).cloned();
+                (object, working)
+            };
             if self
                 .maintenance_retries
                 .lock()
@@ -159,8 +162,7 @@ impl Writeback {
             }
             let result=async {
                 let users={
-                    let mut p=self.projection.lock().map_err(|_|Errno::EIO)?;
-                    p.merge(object.clone(),working.clone())?;
+                    let p=self.projection.lock().map_err(|_|Errno::EIO)?;
                     p.streams.get(&key(&object.scope,&object.node.id)).into_iter().flatten()
                         .filter_map(Weak::upgrade).collect::<Vec<_>>()
                 };

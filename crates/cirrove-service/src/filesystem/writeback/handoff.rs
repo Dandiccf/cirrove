@@ -61,11 +61,14 @@ impl Writeback {
             .local_object(scope, item)
             .is_some_and(|o| o.follows_remote))
     }
-    /// At most 16 durable objects and one provider request per call. The cursor
-    /// makes pending/open objects yield to others. Reloading durable snapshots
-    /// also repairs an earlier failed local projection refresh without replaying
-    /// the provider operation.
+    /// After publishing pending namespace changes, inspect at most 16 cleanup
+    /// candidates and make one provider request. The cursor makes pending/open
+    /// objects yield to others. Publication also repairs a missed callback
+    /// without replaying the provider operation.
     pub async fn maintain(self: &Arc<Self>, engine: &Engine) -> Result<bool> {
+        if self.refresh_projection().await? {
+            engine.changed.notify_waiters();
+        }
         if self.preserve_unlinked(engine).await? {
             return Ok(true);
         }
@@ -78,11 +81,7 @@ impl Writeback {
                     .into_iter()
                     .map(|object| {
                         let clean = j.namespace_is_clean(&object)?;
-                        let working = object
-                            .working_file
-                            .map(|id| j.working_file(id))
-                            .transpose()?;
-                        Ok((object, working, clean))
+                        Ok((object, clean))
                     })
                     .collect::<crate::journal::Result<Vec<_>>>()
             })
@@ -91,19 +90,8 @@ impl Writeback {
             *self.maintenance_cursor.lock().map_err(|_| Errno::EIO)? = None;
             return Ok(false);
         }
-        for (object, working, clean) in batch {
+        for (object, clean) in batch {
             *self.maintenance_cursor.lock().map_err(|_| Errno::EIO)? = Some(object.id);
-            let repaired = {
-                let mut projection = self.projection.lock().map_err(|_| Errno::EIO)?;
-                let changed = projection.validate_merge(&object, working.as_ref())?;
-                if changed {
-                    projection.apply(object.clone(), working);
-                }
-                changed
-            };
-            if repaired {
-                engine.changed.notify_waiters();
-            }
             if !clean {
                 continue;
             }
@@ -183,6 +171,7 @@ impl Writeback {
                 let following = object.followed(remote.clone()).map_err(error)?;
                 // Reserve and validate the in-memory publication before the
                 // durable detach. Once committed, applying it is infallible.
+                Self::publish_locked(&journal, &writer.projection)?;
                 let mut projection = writer.projection.lock().map_err(|_| Errno::EIO)?;
                 if !projection.validate_merge(&following, None)? {
                     return Err(Errno::ESTALE);

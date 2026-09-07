@@ -71,8 +71,10 @@ Local stream lookups and provider-binding lookups are now separate in the journa
 and mount. This is a prerequisite for transferring a cloud binding during atomic
 replacement. The journal now implements the two-object transaction and separate
 completion prerequisites, with conditional source cleanup after destination
-publication. Mounted replacement, atomic in-memory publication, background reader
-preservation and uncached-source preparation remain open.
+publication. All changed objects now publish together into memory at a committed
+frontier, including delayed callbacks and chained ownership transfers. Mounted
+replacement, background reader preservation for replacement and uncached-source
+preparation remain open.
 
 - [x] Provider-neutral create, update, rename, move and delete contracts (regular-file deletion; folder removal remains an explicit gap).
 - [ ] Durable local file contents and journal before local-save acknowledgement.

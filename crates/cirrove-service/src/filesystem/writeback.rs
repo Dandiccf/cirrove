@@ -1,6 +1,7 @@
 //! Experimental local edit projection. Network hydration never holds the journal
 //! or namespace mutex. Ordinary daemon mounts do not construct this layer yet.
 mod handoff;
+mod publication;
 mod unlinked;
 use super::*;
 use crate::journal::{
@@ -18,7 +19,7 @@ type EditKey = (String, String, String, String);
 pub(super) struct Writeback {
     journal: Arc<Mutex<UploadJournal>>,
     pub wake: Arc<tokio::sync::Notify>,
-    projection: Mutex<Projection>,
+    projection: Arc<Mutex<Projection>>,
     hydrating: Mutex<HashMap<EditKey, Weak<tokio::sync::Mutex<()>>>>,
     activity: Mutex<HashMap<EditKey, Weak<tokio::sync::RwLock<()>>>>,
     maintenance_cursor: Mutex<Option<Uuid>>,
@@ -27,6 +28,7 @@ pub(super) struct Writeback {
 }
 #[derive(Default)]
 struct Projection {
+    frontier: u64,
     objects: HashMap<Uuid, NamespaceObject>,
     local_identities: HashMap<EditKey, Uuid>,
     remote_bindings: HashMap<EditKey, Uuid>,
@@ -37,7 +39,7 @@ struct Projection {
 impl Projection {
     // A journal snapshot is published atomically, in revision order. A delayed
     // save callback cannot undo a newer rename or its confirmed remote alias.
-    fn validate_merge(
+    fn validate_snapshot(
         &self,
         object: &NamespaceObject,
         working: Option<&WorkingFile>,
@@ -73,15 +75,6 @@ impl Projection {
         {
             return Err(Errno::EIO);
         }
-        if object.remote_owned
-            && object.remote.as_ref().is_some_and(|remote| {
-                self.remote_bindings
-                    .get(&key(&object.scope, &remote.id))
-                    .is_some_and(|id| *id != object.id)
-            })
-        {
-            return Err(Errno::EIO);
-        }
         match &working {
             Some(file)
                 if object.working_file == Some(file.id)
@@ -91,6 +84,25 @@ impl Projection {
                     && file.node == object.node => {}
             None if object.working_file.is_none() => {}
             _ => return Err(Errno::EIO),
+        }
+        Ok(true)
+    }
+    fn validate_merge(
+        &self,
+        object: &NamespaceObject,
+        working: Option<&WorkingFile>,
+    ) -> Result<bool> {
+        if !self.validate_snapshot(object, working)? {
+            return Ok(false);
+        }
+        if object.remote_owned
+            && object.remote.as_ref().is_some_and(|remote| {
+                self.remote_bindings
+                    .get(&key(&object.scope, &remote.id))
+                    .is_some_and(|id| *id != object.id)
+            })
+        {
+            return Err(Errno::EIO);
         }
         Ok(true)
     }
@@ -111,8 +123,10 @@ impl Projection {
             .filter(|o| o.remote_owned)
             .and_then(|o| o.remote.as_ref())
         {
-            self.remote_bindings
-                .remove(&key(&object.scope, &old_remote.id));
+            let old_key = key(&object.scope, &old_remote.id);
+            if self.remote_bindings.get(&old_key) == Some(&object.id) {
+                self.remote_bindings.remove(&old_key);
+            }
         }
         if object.remote_owned
             && let Some(remote) = &object.remote
@@ -125,6 +139,7 @@ impl Projection {
         }
         self.objects.insert(object.id, object);
     }
+    #[cfg(test)]
     fn merge(&mut self, object: NamespaceObject, working: Option<WorkingFile>) -> Result<()> {
         if self.validate_merge(&object, working.as_ref())? {
             self.apply(object, working);
@@ -174,15 +189,7 @@ impl Writeback {
                 return Err(JournalError::Account);
             }
             let mut projection = Projection::default();
-            for object in j.namespace_objects()? {
-                let working = object
-                    .working_file
-                    .map(|id| j.working_file(id))
-                    .transpose()?;
-                projection
-                    .merge(object, working)
-                    .map_err(|_| JournalError::Corrupt)?;
-            }
+            projection.catch_up(&j).map_err(|_| JournalError::Corrupt)?;
             Ok(projection)
         })
         .await
@@ -191,7 +198,7 @@ impl Writeback {
         Ok(Arc::new(Self {
             journal,
             wake: Arc::new(tokio::sync::Notify::new()),
-            projection: Mutex::new(projection),
+            projection: Arc::new(Mutex::new(projection)),
             hydrating: Mutex::new(HashMap::new()),
             activity: Mutex::new(HashMap::new()),
             maintenance_cursor: Mutex::new(None),
@@ -213,19 +220,8 @@ impl Writeback {
         .map_err(error)
     }
     async fn publish(&self, record: WorkingFile) -> Result<WorkingFile> {
-        let scope = record.scope.clone();
-        let item = record.node.id.clone();
-        let (object, working) = self
-            .local(move |j| {
-                let object = j
-                    .namespace_by_local(&scope, &item)?
-                    .ok_or(JournalError::Corrupt)?;
-                let working = j.working_file(object.working_file.ok_or(JournalError::Corrupt)?)?;
-                Ok((object, working))
-            })
-            .await?;
-        let mut projection = self.projection.lock().map_err(|_| Errno::EIO)?;
-        projection.merge(object, Some(working))?;
+        self.refresh_projection().await?;
+        let projection = self.projection.lock().map_err(|_| Errno::EIO)?;
         projection
             .local_object(&record.scope, &record.node.id)
             .and_then(|o| o.working_file)
@@ -233,26 +229,10 @@ impl Writeback {
             .cloned()
             .ok_or(Errno::EIO)
     }
-    pub async fn refresh_operation(&self, id: Uuid) -> Result<()> {
-        let snapshot = self
-            .local(move |j| {
-                j.namespace_for_operation(id)?
-                    .map(|object| {
-                        let working = object
-                            .working_file
-                            .map(|id| j.working_file(id))
-                            .transpose()?;
-                        Ok((object, working))
-                    })
-                    .transpose()
-            })
-            .await?;
-        if let Some((object, working)) = snapshot {
-            self.projection
-                .lock()
-                .map_err(|_| Errno::EIO)?
-                .merge(object, working)?;
-        }
+    pub async fn refresh_operation(&self, _id: Uuid) -> Result<()> {
+        // The operation is a wake hint. Its receipt can change several objects,
+        // and a later replacement may already have transferred their bindings.
+        self.refresh_projection().await?;
         Ok(())
     }
     pub fn node(&self, scope: &Scope, item: &str) -> Result<Option<Node>> {
@@ -317,7 +297,7 @@ impl Writeback {
         parent: String,
         name: String,
     ) -> Result<Node> {
-        let (object, working) = self
+        let object = self
             .local(move |j| {
                 let object = Self::materialize(j, scope, node)?;
                 // Recheck the source at the journal's serialization point. Another
@@ -328,18 +308,13 @@ impl Writeback {
                     return Err(JournalError::Stale);
                 }
                 j.relocate_namespace_file(object.id, object.revision, parent, name)?;
-                let object = j.namespace_object(object.id)?;
-                let working = object
-                    .working_file
-                    .map(|id| j.working_file(id))
-                    .transpose()?;
-                Ok((object, working))
+                j.namespace_object(object.id)
             })
             .await?;
         let scope = object.scope.clone();
         let item = object.node.id.clone();
-        let mut projection = self.projection.lock().map_err(|_| Errno::EIO)?;
-        projection.merge(object, working)?;
+        self.refresh_projection().await?;
+        let projection = self.projection.lock().map_err(|_| Errno::EIO)?;
         let node = projection
             .local_object(&scope, &item)
             .ok_or(Errno::EIO)?

@@ -474,7 +474,8 @@ files remain retained and quota-accounted. A separate bounded collector removes
 only acknowledged immutable upload payloads, retaining their receipts and lineage.
 Pending, uncertain, failed and conflicted payloads remain protected.
 
-Each maintenance pass checks at most 16 active objects and requests metadata for at
+After publishing pending namespace changes, each maintenance pass checks at most
+16 active cleanup candidates and requests metadata for at
 most one candidate. It reuses cached metadata only when it matches the confirmed
 receipt; otherwise it requests an ordered item observation with a 30-second deadline.
 An accepted NotFound observation releases an acknowledged overlay of a missing
@@ -559,10 +560,28 @@ Old descriptor
 writes remain detached recovery data. Metadata capacity for cleanup is reserved at
 local acceptance, before cloud publication, rather than allocated after success.
 
-This is a journal API, not yet the mounted rename implementation. FUSE still refuses
-replacement of an occupied destination. Wiring requires atomic in-memory publication
-of the affected objects, old-reader preservation outside the VFS directory lock,
-and actual application-save tests. A source with no local working bytes also needs
+Schema 12 records a monotonically ordered, coalesced change marker for each local
+object. Triggers update the marker in the namespace transaction, so rolled-back
+changes cannot be published. A reader takes the complete changed set and matching
+working metadata at one committed database frontier. It does not paginate this set:
+a page could split a transfer, or omit the new owner from a later replacement.
+The sequence index reads only changed objects during ordinary saves; repeated writes
+retain one marker per object. The current 10,000-object journal limit also bounds a
+batch. Removing that limit will require bounded group publication and history cleanup.
+
+The mount validates the complete batch before changing any in-memory index, removes
+old bindings together, then assigns the new owners and advances its cursor. Delayed
+callbacks cannot reverse that frontier. Upload callbacks, working-file publication
+and maintenance consume this same stream; a callback's operation ID is only a wake
+hint. Maintenance can also recover publication missed by an earlier callback. These
+updates follow journal-then-projection lock order, with no provider request or file
+hydration. SQLite reads and decoding keep the journal stable while allowing cached
+projection lookups; the final index update holds the projection lock. Streams remain keyed to their original local
+identities.
+
+This is not yet the mounted rename implementation. FUSE still refuses replacement
+of an occupied destination. Wiring requires old-reader preservation outside the VFS
+directory lock and actual application-save tests. A source with no local working bytes also needs
 a deferred hydration path. Retained history, restored IDs, recovery UI and broader
 real-provider replacement/cleanup acceptance remain open. Ordinary mounts stay
 read-only.
