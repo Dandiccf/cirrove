@@ -32,9 +32,8 @@ pub enum AbsenceResult {
     Superseded(Option<Node>),
 }
 
-pub(super) fn migrate(db: &mut Connection, version: u32) -> Result<()> {
+pub(super) fn migrate(tx: &Transaction<'_>, version: u32) -> Result<()> {
     if version < 4 {
-        let tx = db.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         tx.execute_batch("CREATE TABLE IF NOT EXISTS metadata_clock(singleton INTEGER PRIMARY KEY CHECK(singleton=1),
             identity TEXT NOT NULL, revision INTEGER NOT NULL CHECK(revision>=0));
             INSERT OR IGNORE INTO metadata_clock SELECT 1,hex(randomblob(16)),max(
@@ -57,9 +56,10 @@ pub(super) fn migrate(db: &mut Connection, version: u32) -> Result<()> {
             }
         }
         tx.execute_batch("CREATE INDEX IF NOT EXISTS observed_parent ON observed(scope,json_extract(body,'$.parent_id'),source_revision);")?;
-        tx.pragma_update(None, "user_version", 4)?;
-        tx.commit()?;
     }
+    Ok(())
+}
+pub(super) fn validate(db: &Connection) -> Result<()> {
     clock(db)?;
     db.prepare("SELECT scope,id,source_revision FROM observed_absent LIMIT 0")?;
     db.prepare("SELECT scope,kind,identity,revision FROM metadata_versions LIMIT 0")?;
@@ -287,17 +287,7 @@ fn write_directory(
     for node in nodes {
         write_node(tx, scope, node, seen, source_revision)?;
     }
-    tx.execute(
-        "INSERT INTO directories(scope,parent,body,seen,source_revision) VALUES(?1,?2,?3,?4,?5)
-        ON CONFLICT(scope,parent) DO UPDATE SET body=excluded.body,seen=excluded.seen,source_revision=excluded.source_revision",
-        params![
-            Store::key(scope)?,
-            parent,
-            serde_json::to_string(nodes)?,
-            seen,
-            source_revision
-        ],
-    )?;
+    directories::write_snapshot(tx, scope, parent, nodes, seen, source_revision)?;
     Ok(changed)
 }
 impl Store {

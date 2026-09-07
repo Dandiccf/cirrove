@@ -97,7 +97,7 @@ A replacement baseline is built alongside the last visible index. Interrupted wo
 resumes; an expired cursor does not immediately empty a usable directory tree.
 
 Cold foreground listings are atomically recorded separately from the delta index.
-Metadata schema 4 assigns a persistent logical revision before each network
+Metadata schema 4 introduced a persistent logical revision before each network
 observation and feed round; completion wall time is used only for age reporting.
 Publication checks the observation's ticket against intervening commits for that
 item, its affected directories and its scope. A superseded response yields the
@@ -125,6 +125,25 @@ The schema migration preserves existing metadata and seeds the logical clock fro
 legacy ordering values. The observation database remains separate from the upload
 journal. This ordering prevents local publication races; it cannot establish a
 globally consistent snapshot across an eventually consistent provider's endpoints.
+
+Metadata schema 5 stores directory snapshot entries as individual indexed rows,
+replacing a single JSON array per directory. Reads merge snapshot/index rows and
+newer item observations in name/identity order within one read transaction. The
+Store visitor decodes one node at a time; tests check that both query paths use
+their ordering indexes without a full-directory sort or unrelated-row scan.
+Other connections can publish while this reader retains its consistent snapshot.
+The compatibility `children()` API still collects a vector, and Engine/FUSE and
+foreground observation publication still materialize whole listings. This removes
+an intermediate array/map allocation, not the complete directory memory limit.
+Long-lived read transactions also retain WAL history until released; the visitor
+is for bounded local work, never network waits or idle open directory handles.
+
+Schema upgrades recheck the version under the writer lock and commit all migration
+steps, validation and the new version together. Invalid legacy arrays, duplicate
+entry identities or an unusable metadata clock fail without losing the old schema
+and data. Concurrent opens and rollback across schemas 3 and 4 have regression
+coverage. Older binaries reject schema 5; deployment rollback must preserve a
+compatible metadata backup rather than attempting an in-place downgrade.
 
 Reading a directory registers a 60-second activity lease. Each account retains at
 most 32 recently used directories and has one revalidation worker, with at least

@@ -157,6 +157,30 @@ thumbnail read-burst deadline; cached-directory latency retains its own assertio
 
 ## Namespace capacity baseline
 
+To isolate the metadata Store's read allocations, run the 500,000-entry
+single-directory fixture in release mode. Each variant needs its own process:
+
+```sh
+cargo test -p cirrove-store --lib --locked --release --no-run
+for snapshot in 0 1; do
+  for mode in stream collect; do
+    CIRROVE_DIRECTORY_SNAPSHOT="$snapshot" CIRROVE_DIRECTORY_READ_MODE="$mode" \
+      timeout 240s cargo test -p cirrove-store --lib --locked --release \
+      large_directory_read_memory -- --ignored --nocapture --test-threads=1
+  done
+done
+```
+
+This Linux fixture creates metadata in bounded pages and exercises both the delta
+index (`snapshot=0`) and persisted foreground-snapshot representation (`snapshot=1`).
+It reports read time, RSS/PSS, process high-water mark and database size. The stream
+variant asserts under 64 MiB of extra RSS/high-water growth during the read; the
+collect variant deliberately retains the returned nodes to expose the remaining
+compatibility API cost. Snapshot fixtures are prepared in SQL to avoid contaminating
+the read baseline with a full-directory input vector. The fixture does not exercise
+FUSE, foreground network publication or full pipeline memory, and needs temporary
+disk space for two copies of the metadata plus indexes and WAL.
+
 Run the explicit synthetic 500,000-file benchmark on a machine with several GiB of
 free memory and disk space, with the same FUSE prerequisites as the kernel suite:
 
