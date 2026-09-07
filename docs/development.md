@@ -171,6 +171,13 @@ traverses the actual temporary mount three times, changing every file's revision
 between passes. Each post-pass sample waits for directory handles to close and
 prints retained views, map capacity, RSS/PSS and peak RSS. It refuses unexpected
 content or foreground metadata requests; it reads no real account or keyring.
+Each immediate `closed_after_revision_*` sample is followed by an
+`after_invalidation_revision_*` sample after normal kernel invalidation and
+reference-aware reclamation leave only the root. Kernel references are not
+fabricated or discarded to reach that count. Record both phases: logical view
+retirement alone does not establish a process-memory plateau. The checked-in
+[parent-lifetime record](benchmarks/namespace-parent-lifetime.json) uses `--release`;
+select the same build profile when comparing timings and memory.
 
 The test's successful exit means its measurement completed correctly, **not** that
 the memory release gate passed. It provides a comparison for namespace lifetime changes.

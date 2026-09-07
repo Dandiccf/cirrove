@@ -1,0 +1,155 @@
+{
+  "runtime_change": "Resolved directory views retire when kernel and child/open/operation leases end; parent leases preserve live ancestor chains.",
+  "source_base": "a0e8aaeeb6cc839c278fabc86b66523c9c43cd31",
+  "capacity_measurement": {
+    "build": "release",
+    "source_sha256": {
+      "crates/cirrove-service/src/filesystem.rs": "f251f40da3f5c29650763b5320668d788c8e1eabd488c2808aaa7315c626cf8e",
+      "crates/cirrove-service/src/filesystem/residency.rs": "7619f055505831373dc8f54875da675c9eadd34f1b32dc6d13134e065906d96c",
+      "crates/cirrove-service/src/filesystem/capacity.rs": "c9e566ea6b352dab11e7e5ebd5aecd1832a3666390d20742314c8e581d8df8ae",
+      "crates/cirrove-service/src/filesystem/capacity/parents.rs": "d9b20ba22aaf6dcbe3543daf6c8148180ed1f2b640676929fd30b9adfe4b4680"
+    },
+    "samples": [
+      {
+        "build": "release",
+        "directories": 500,
+        "files": 500000,
+        "files_per_directory": 1000,
+        "fixture": "synthetic kernel FUSE; generated metadata, no credentials or content reads",
+        "interpretation": "baseline measurement only; no memory capacity gate is asserted"
+      },
+      {
+        "directory_snapshot_entries": 0,
+        "memory": {
+          "anonymous_pss_kib": 1924,
+          "peak_rss_kib": 13672,
+          "pss_kib": 9239,
+          "rss_kib": 11932
+        },
+        "open_directory_handles": 0,
+        "open_files": 0,
+        "phase": "indexed_baseline",
+        "retained_views": 1,
+        "seconds": 3.194893233,
+        "view_map_capacity": 3
+      },
+      {
+        "directory_snapshot_entries": 0,
+        "memory": {
+          "anonymous_pss_kib": 10980,
+          "peak_rss_kib": 21504,
+          "pss_kib": 18807,
+          "rss_kib": 21504
+        },
+        "open_directory_handles": 0,
+        "open_files": 0,
+        "phase": "closed_after_revision_1",
+        "retained_views": 501,
+        "seconds": 4.45186883,
+        "view_map_capacity": 896
+      },
+      {
+        "directory_snapshot_entries": 0,
+        "memory": {
+          "anonymous_pss_kib": 10980,
+          "peak_rss_kib": 21504,
+          "pss_kib": 18807,
+          "rss_kib": 21504
+        },
+        "open_directory_handles": 0,
+        "open_files": 0,
+        "phase": "after_invalidation_revision_1",
+        "retained_views": 1,
+        "seconds": 4.503929511,
+        "view_map_capacity": 872
+      },
+      {
+        "directory_snapshot_entries": 0,
+        "memory": {
+          "anonymous_pss_kib": 21172,
+          "peak_rss_kib": 32332,
+          "pss_kib": 29000,
+          "rss_kib": 31696
+        },
+        "open_directory_handles": 0,
+        "open_files": 0,
+        "phase": "closed_after_revision_2",
+        "retained_views": 501,
+        "seconds": 4.352606275,
+        "view_map_capacity": 896
+      },
+      {
+        "directory_snapshot_entries": 0,
+        "memory": {
+          "anonymous_pss_kib": 21172,
+          "peak_rss_kib": 32332,
+          "pss_kib": 29000,
+          "rss_kib": 31696
+        },
+        "open_directory_handles": 0,
+        "open_files": 0,
+        "phase": "after_invalidation_revision_2",
+        "retained_views": 1,
+        "seconds": 4.403438387,
+        "view_map_capacity": 872
+      },
+      {
+        "directory_snapshot_entries": 0,
+        "memory": {
+          "anonymous_pss_kib": 30300,
+          "peak_rss_kib": 41036,
+          "pss_kib": 38128,
+          "rss_kib": 40824
+        },
+        "open_directory_handles": 0,
+        "open_files": 0,
+        "phase": "closed_after_revision_3",
+        "retained_views": 501,
+        "seconds": 4.611131899,
+        "view_map_capacity": 896
+      },
+      {
+        "directory_snapshot_entries": 0,
+        "memory": {
+          "anonymous_pss_kib": 30300,
+          "peak_rss_kib": 41036,
+          "pss_kib": 38128,
+          "rss_kib": 40824
+        },
+        "open_directory_handles": 0,
+        "open_files": 0,
+        "phase": "after_invalidation_revision_3",
+        "retained_views": 1,
+        "seconds": 4.662382977,
+        "view_map_capacity": 872
+      }
+    ]
+  },
+  "ancestry_regression": {
+    "build": "debug",
+    "source_sha256": {
+      "crates/cirrove-service/src/filesystem.rs": "f251f40da3f5c29650763b5320668d788c8e1eabd488c2808aaa7315c626cf8e",
+      "crates/cirrove-service/src/filesystem/residency.rs": "7619f055505831373dc8f54875da675c9eadd34f1b32dc6d13134e065906d96c",
+      "crates/cirrove-service/src/filesystem/capacity.rs": "c9e566ea6b352dab11e7e5ebd5aecd1832a3666390d20742314c8e581d8df8ae",
+      "crates/cirrove-service/src/filesystem/capacity/parents.rs": "9ef41d84f5797b00d5064b44872ea8393d57b5c0acedff3a4c5bc64676176092"
+    },
+    "renamed_leaf": "leaf-1500",
+    "result": {
+      "depth": 8,
+      "fixture": "synthetic kernel FUSE with deep paths and duplicate linked-drive projections",
+      "held_snapshot_survived_remote_rename": true,
+      "leaves_per_directory": 2000,
+      "offline_revisit_provider_requests": 0,
+      "retained_after_close": 1
+    }
+  },
+  "notes": [
+    "Synthetic metadata, actual temporary kernel FUSE mounts; no credentials, real cloud data or content downloads.",
+    "Immediate post-close samples retain kernel directory references. Post-invalidation samples wait for normal invalidations, kernel FORGET and the bounded collector; no live references are discarded.",
+    "Each of three post-invalidation samples retains only the root, but RSS continues to rise. Allocator, SQLite, persistent history and other retention still need attribution; this is not the full capacity gate.",
+    "The earlier namespace-listing-lifetime.json used a debug build. Absolute timings and RSS are not a controlled same-profile before/after comparison.",
+    "The 500k-file benchmark and the smaller depth/duplicate-alias/held-snapshot regression are separate fixtures.",
+    "After the capacity run, the ancestry regression was strengthened to rename leaf-1500 beyond the initial directory buffer. Both tested source fingerprints are preserved; production sources and the capacity fixture did not change.",
+    "No single 500k-entry directory, mass-stat/mapping stress, real provider acceptance or 24-hour churn is claimed."
+  ]
+}

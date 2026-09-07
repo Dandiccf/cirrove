@@ -1,5 +1,5 @@
-//! Conservative residency for resolved regular-file views. Directory ancestry
-//! remains pinned until its separate lifetime model is implemented.
+//! Reference-aware residency for resolved views. Child views retain parent
+//! residency; the root and inconsistent kernel counts remain conservative.
 use super::View;
 use cirrove_core::{NodeKind, ProviderError};
 use std::{
@@ -20,7 +20,6 @@ struct Entry {
     view: View,
     generation: u64,
     queued: bool,
-    directory: bool,
 }
 pub(super) struct NamespaceViews {
     entries: HashMap<u64, Box<Entry>>,
@@ -36,7 +35,6 @@ impl NamespaceViews {
                     view: root,
                     generation: 0,
                     queued: false,
-                    directory: true,
                 }),
             )]),
             candidates: VecDeque::new(),
@@ -60,11 +58,11 @@ impl NamespaceViews {
 
     pub(super) fn insert(&mut self, mut view: View) -> Result<View, ProviderError> {
         let inode = view.inode;
+        view._parent_residency = Some(self.parent_lease(inode, view.parent)?);
         if let Some(entry) = self.entries.get_mut(&inode) {
             // All earlier clones (open files, operations and in-flight reads)
             // must pin the same residency even when the visible path changes.
             view.residency = entry.view.residency.clone();
-            entry.directory |= view.node.kind != NodeKind::File;
             entry.view = view.clone();
         } else {
             self.generation = self
@@ -74,7 +72,6 @@ impl NamespaceViews {
             self.entries.insert(
                 inode,
                 Box::new(Entry {
-                    directory: view.node.kind != NodeKind::File,
                     view: view.clone(),
                     generation: self.generation,
                     queued: false,
@@ -84,9 +81,40 @@ impl NamespaceViews {
         self.queue(inode);
         Ok(view)
     }
+    fn parent_lease(&self, inode: u64, parent: u64) -> Result<Arc<LookupRefs>, ProviderError> {
+        if inode <= 1 {
+            return Err(ProviderError::Protocol("reserved namespace inode"));
+        }
+        let entry = self.entries.get(&parent).ok_or(ProviderError::NotFound)?;
+        if entry.view.node.kind != NodeKind::Folder {
+            return Err(ProviderError::Protocol(
+                "namespace parent is not a directory",
+            ));
+        }
+        let lease = entry.view.residency.clone();
+        let mut ancestor = parent;
+        // No allocations or I/O under this map's lock. Every successful insert
+        // preserves an acyclic parent graph. The entry count bounds even an
+        // inconsistent preexisting chain without imposing a new path-depth cap.
+        for _ in 0..self.entries.len() {
+            if ancestor == inode {
+                return Err(ProviderError::Protocol("namespace ancestor cycle"));
+            }
+            if ancestor == 1 {
+                return Ok(lease);
+            }
+            ancestor = self
+                .entries
+                .get(&ancestor)
+                .ok_or(ProviderError::NotFound)?
+                .view
+                .parent;
+        }
+        Err(ProviderError::Protocol("namespace ancestor cycle"))
+    }
     fn queue(&mut self, inode: u64) {
         if let Some(entry) = self.entries.get_mut(&inode)
-            && !entry.directory
+            && inode != 1
             && !entry.queued
             && !entry.view.residency.quarantine.load(Ordering::SeqCst)
         {
@@ -132,7 +160,7 @@ impl NamespaceViews {
         true
     }
     fn reclaimable(entry: &Entry) -> bool {
-        !entry.directory && entry.view.residency.kernel.load(Ordering::SeqCst) == 0
+        entry.view.inode != 1 && entry.view.residency.kernel.load(Ordering::SeqCst) == 0
             && !entry.view.residency.quarantine.load(Ordering::SeqCst)
             // NamespaceViews is locked by the caller. At count one, no external
             // View exists from which another thread could clone this token.
@@ -172,6 +200,7 @@ mod tests {
     fn view(inode: u64, kind: NodeKind) -> View {
         View {
             residency: Arc::default(),
+            _parent_residency: None,
             inode,
             parent: 1,
             scope: Scope {
@@ -273,12 +302,12 @@ mod tests {
     }
 
     #[test]
-    fn collection_work_is_bounded_and_does_not_discard_directory_ancestry() {
+    fn collection_work_is_bounded_and_preserves_a_held_directory() {
         let mut cache = cache();
         for inode in 2..8 {
             drop(cache.insert(view(inode, NodeKind::File)).unwrap());
         }
-        drop(cache.insert(view(8, NodeKind::Folder)).unwrap());
+        let held = cache.insert(view(8, NodeKind::Folder)).unwrap();
         cache.acquire_lookup(8).unwrap();
         assert!(cache.forget(8, 1));
         assert_eq!(cache.collect(2), 2);
@@ -287,7 +316,96 @@ mod tests {
         assert_eq!(cache.collect(2), 2);
         assert_eq!(cache.len(), 2);
         assert!(cache.get(&8).is_some());
+        drop(held);
+        assert_eq!(cache.collect(2), 1);
+        assert!(cache.get(&8).is_none());
         assert!(cache.forget(1, u64::MAX));
         assert!(cache.get(&1).is_some());
+    }
+
+    fn child(cache: &mut NamespaceViews, inode: u64, parent: u64, kind: NodeKind) -> View {
+        let mut node = view(inode, kind);
+        node.parent = parent;
+        cache.insert(node).unwrap()
+    }
+
+    #[test]
+    fn child_and_queued_operation_leases_keep_the_whole_ancestor_chain() {
+        let mut cache = cache();
+        drop(child(&mut cache, 2, 1, NodeKind::Folder));
+        drop(child(&mut cache, 3, 2, NodeKind::Folder));
+        let queued = child(&mut cache, 4, 3, NodeKind::File);
+        for id in 2..=4 {
+            cache.acquire_lookup(id).unwrap();
+        }
+        for id in 2..=4 {
+            assert!(cache.forget(id, 1));
+        }
+        assert_eq!(cache.collect(100), 0);
+        assert!(cache.get(&2).is_some() && cache.get(&3).is_some());
+        // The callback already owns its View even if its async body has not run.
+        assert_eq!(queued.parent, 3);
+        drop(queued);
+        for _ in 0..3 {
+            cache.collect(100);
+        }
+        assert_eq!(cache.len(), 1);
+    }
+
+    #[test]
+    fn listing_only_projection_protects_parent_without_acquiring_kernel_references() {
+        let mut cache = cache();
+        let parent = child(&mut cache, 2, 1, NodeKind::Folder);
+        let projected =
+            super::super::Inner::project(&parent, view(3, NodeKind::File).node).unwrap();
+        drop(parent);
+        assert_eq!(cache.collect(100), 0);
+        assert_eq!(cache.len(), 2);
+        drop(projected);
+        assert_eq!(cache.collect(100), 1);
+        assert_eq!(cache.len(), 1);
+    }
+
+    #[test]
+    fn moving_a_view_preserves_old_and_new_parent_leases_until_their_users_close() {
+        let mut cache = cache();
+        drop(child(&mut cache, 2, 1, NodeKind::Folder));
+        drop(child(&mut cache, 3, 1, NodeKind::Folder));
+        let old = child(&mut cache, 4, 2, NodeKind::File);
+        let new = child(&mut cache, 4, 3, NodeKind::File);
+        assert!(Arc::ptr_eq(&old.residency, &new.residency));
+        assert_eq!(cache.collect(100), 0);
+        drop(old);
+        cache.collect(100);
+        assert!(cache.get(&2).is_none());
+        assert!(cache.get(&3).is_some());
+        drop(new);
+        for _ in 0..2 {
+            cache.collect(100);
+        }
+        assert_eq!(cache.len(), 1);
+    }
+
+    #[test]
+    fn ancestor_cycles_and_missing_parents_are_rejected_without_changing_live_views() {
+        let mut cache = cache();
+        drop(child(&mut cache, 2, 1, NodeKind::Folder));
+        drop(child(&mut cache, 3, 2, NodeKind::Folder));
+        let mut cycle = view(2, NodeKind::Folder);
+        cycle.parent = 3;
+        assert!(cache.insert(cycle).is_err());
+        assert_eq!(cache.get(&2).unwrap().parent, 1);
+        let mut missing = view(4, NodeKind::File);
+        missing.parent = 99;
+        assert!(matches!(
+            cache.insert(missing),
+            Err(ProviderError::NotFound)
+        ));
+        assert!(cache.get(&4).is_none());
+        assert!(cache.insert(view(1, NodeKind::Folder)).is_err());
+        for _ in 0..2 {
+            cache.collect(100);
+        }
+        assert_eq!(cache.len(), 1);
     }
 }
