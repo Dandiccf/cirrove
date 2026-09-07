@@ -228,6 +228,8 @@ The wider correctness/provider/desktop performance gates remain open.
 
 The [mounted application workload](adr/0004-read-session-efficiency.md#mounted-application-workload-and-measured-tradeoffs)
 runs in a separate release CI job. It compares the original, strong-session and
-streamed-window paths through actual FUSE and a separate Python reader process,
+conservative-window paths through actual FUSE and a separate Python reader process.
+The strong-session variant now uses conditional windows too; the earlier per-range
+results remain in the baseline artifact. Both window paths are exercised
 with zero and 20 ms imposed response latency. Use the ADR's explicit commands for
 this fixture; it is ignored in the normal suite and does not contact a cloud account.

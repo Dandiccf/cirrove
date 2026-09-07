@@ -539,6 +539,8 @@ struct WindowSink {
     bytes: u64,
     fail: bool,
 }
+
+mod strong_windows;
 #[async_trait]
 impl ReadWindowSink for WindowSink {
     async fn write_chunk(&mut self, bytes: &[u8]) -> Result<(), ProviderError> {

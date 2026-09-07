@@ -47,7 +47,8 @@ and Nautilus badges are not implemented.
 - Version-checked 4 MiB range cache, concurrent-request coalescing, checksums,
   bounded eviction and interrupted-publication recovery. An explicit developer
   read-session prototype reduces repeated Graph checks; bounded streamed windows
-  also amortize conservative checks during sequential reads. Ordinary accounts retain
+  also amortize conservative checks and combine conditional transfers during sequential
+  reads. Ordinary accounts retain
   conservative reads until the [acceptance gates](docs/adr/0004-read-session-efficiency.md) pass.
 - Private status socket, desired mount state, accidental-ejection remount and
   graceful worker/session shutdown. Settings and metadata persist across runs.

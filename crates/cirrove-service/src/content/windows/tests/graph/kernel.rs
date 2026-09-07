@@ -60,8 +60,9 @@ impl Drop for Mounted {
     }
 }
 impl Mounted {
-    async fn new() -> anyhow::Result<Self> {
+    async fn new(strong: bool) -> anyhow::Result<Self> {
         let control = Arc::new(Control {
+            strong,
             pause_body: AtomicBool::new(true),
             pause_final: AtomicBool::new(true),
             ..Default::default()
@@ -217,12 +218,12 @@ enum Outcome {
     Cancelled,
 }
 
-async fn scenario(outcome: Outcome) -> anyhow::Result<()> {
-    let mut mounted = Mounted::new().await?;
+async fn scenario(outcome: Outcome, strong: bool) -> anyhow::Result<()> {
+    let mut mounted = Mounted::new(strong).await?;
     let mut readers = Vec::new();
     let mut samples = Vec::new();
     let result = tokio::time::timeout(Duration::from_secs(25), async {
-        // The first actual syscall establishes the conservative session. The
+        // The first actual syscall establishes the version-bound session. The
         // next block must create an 8 MiB streamed window, not a plain range.
         bytes(read(mounted.file.clone(), 17), b'A').await?;
         ensure!(mounted.server.graph.load(Ordering::SeqCst) == 2);
@@ -247,17 +248,19 @@ async fn scenario(outcome: Outcome) -> anyhow::Result<()> {
             mounted.engine.stop().await;
         } else {
             mounted.control.release_body.notify_one();
-            signal(&mounted.control.final_entered).await.context("window never reached final Graph check")?;
-            // The complete body has now reached the staging sink, but the final
-            // Graph comparison has not returned. No syscall may receive it yet.
-            for _ in 0..10 {
-                navigate(&mounted, &mut samples).await?;
-                ensure!(readers.iter().all(|reader| !reader.is_finished()), "unvalidated window was exposed");
-                tokio::time::sleep(Duration::from_millis(25)).await;
+            if !strong {
+                signal(&mounted.control.final_entered).await.context("window never reached final Graph check")?;
+                // The complete body has now reached the staging sink, but the final
+                // Graph comparison has not returned. No syscall may receive it yet.
+                for _ in 0..10 {
+                    navigate(&mounted, &mut samples).await?;
+                    ensure!(readers.iter().all(|reader| !reader.is_finished()), "unvalidated window was exposed");
+                    tokio::time::sleep(Duration::from_millis(25)).await;
+                }
+                ensure!(mounted.engine.cache.window_stats().validated_windows == 0);
+                mounted.control.changed.store(matches!(outcome, Outcome::Changed), Ordering::SeqCst);
+                mounted.control.release_final.notify_one();
             }
-            ensure!(mounted.engine.cache.window_stats().validated_windows == 0);
-            mounted.control.changed.store(matches!(outcome, Outcome::Changed), Ordering::SeqCst);
-            mounted.control.release_final.notify_one();
         }
         for reader in &mut readers {
             let result = tokio::time::timeout(DEADLINE, reader).await??;
@@ -269,7 +272,7 @@ async fn scenario(outcome: Outcome) -> anyhow::Result<()> {
         }
         let stats = mounted.engine.cache.window_stats();
         ensure!(stats.validated_windows == u64::from(matches!(outcome, Outcome::Valid)));
-        ensure!(mounted.server.graph.load(Ordering::SeqCst) == if matches!(outcome, Outcome::Cancelled) { 7 } else { 8 });
+        ensure!(mounted.server.graph.load(Ordering::SeqCst) == if strong { 4 } else if matches!(outcome, Outcome::Cancelled) { 7 } else { 8 });
         ensure!(mounted.server.content.load(Ordering::SeqCst) == 4);
         if matches!(outcome, Outcome::Changed) {
             let entries = std::fs::read_dir(&mounted.engine.cache.path)?.collect::<Result<Vec<_>, _>>()?;
@@ -280,7 +283,7 @@ async fn scenario(outcome: Outcome) -> anyhow::Result<()> {
         samples.sort_by(f64::total_cmp);
         println!("CIRROVE_KERNEL_WINDOWS {}", serde_json::json!({
             "fixture": "actual kernel FUSE + loopback OneDrive adapter; cached metadata, no background indexing or cloud account",
-            "build_profile": build_profile(), "outcome": format!("{outcome:?}"), "window_bytes": 2 * BLOCK_SIZE,
+            "strong": strong, "build_profile": build_profile(), "outcome": format!("{outcome:?}"), "window_bytes": 2 * BLOCK_SIZE,
             "graph_gets": mounted.server.graph.load(Ordering::SeqCst),
             "content_gets": mounted.server.content.load(Ordering::SeqCst),
             "staging": stats, "directory_samples": samples.len(),
@@ -300,19 +303,68 @@ async fn scenario(outcome: Outcome) -> anyhow::Result<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires /dev/fuse and fusermount3; synthetic loopback only"]
 async fn real_window_coalesces_and_preserves_navigation_until_validated() -> anyhow::Result<()> {
-    scenario(Outcome::Valid).await
+    scenario(Outcome::Valid, false).await
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires /dev/fuse and fusermount3; synthetic loopback only"]
 async fn real_window_rejects_changed_content_without_publishing() -> anyhow::Result<()> {
-    scenario(Outcome::Changed).await
+    scenario(Outcome::Changed, false).await
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires /dev/fuse and fusermount3; synthetic loopback only"]
 async fn real_window_cancels_and_unmounts_with_open_readers() -> anyhow::Result<()> {
-    scenario(Outcome::Cancelled).await
+    scenario(Outcome::Cancelled, false).await
 }
 
 mod workloads;
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires /dev/fuse and fusermount3; synthetic loopback only"]
+async fn real_strong_window_coalesces_and_keeps_navigation_available() -> anyhow::Result<()> {
+    scenario(Outcome::Valid, true).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires /dev/fuse and fusermount3; synthetic loopback only"]
+async fn real_strong_window_cancellation_discards_partial_staging() -> anyhow::Result<()> {
+    scenario(Outcome::Cancelled, true).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires FUSE and Python SQLite; only an isolated metadata database"]
+async fn real_cached_navigation_does_not_wait_for_metadata_writer() -> anyhow::Result<()> {
+    use tokio::io::{AsyncBufReadExt, BufReader};
+    let mut mounted = Mounted::configured(SIZE, 64 * 1024 * 1024, Arc::default()).await?;
+    // Opening `other` during setup already allocated its inode. Hold a writer
+    // in a separate process while ordinary read_dir/stat requests use that map.
+    let mut writer = tokio::process::Command::new("python3")
+        .args(["-u", "-c", "import sqlite3,sys; db=sqlite3.connect(sys.argv[1],isolation_level=None); db.execute('BEGIN IMMEDIATE'); print('held',flush=True); sys.stdin.read(1); db.execute('ROLLBACK')"])
+        .arg(&mounted.engine.db)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()?;
+    let mut input = writer.stdin.take().context("writer stdin")?;
+    let mut output = BufReader::new(writer.stdout.take().context("writer stdout")?).lines();
+    let result = async {
+        ensure!(tokio::time::timeout(DEADLINE, output.next_line()).await??.as_deref() == Some("held"));
+        let mut samples = Vec::new();
+        for _ in 0..5 {
+            navigate(&mounted, &mut samples).await?;
+        }
+        ensure!(mounted.server.graph.load(Ordering::SeqCst) == 0);
+        ensure!(mounted.server.content.load(Ordering::SeqCst) == 0);
+        println!("CIRROVE_CACHED_WRITER_NAV {}", serde_json::json!({"fixture":"actual kernel directory reads while a separate process holds the SQLite writer; synthetic only", "directory_samples_ms":samples}));
+        Ok::<_, anyhow::Error>(())
+    }.await;
+    // Release the lock and detach our mount before returning an assertion error.
+    let release = input.write_all(b"x").await;
+    let exited = tokio::time::timeout(DEADLINE, writer.wait()).await;
+    let cleanup = mounted.close().await;
+    result?;
+    release?;
+    ensure!(exited??.success(), "synthetic metadata writer failed");
+    cleanup
+}

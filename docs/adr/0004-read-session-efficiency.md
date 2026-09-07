@@ -177,8 +177,9 @@ The adapter writes bounded untrusted chunks to a caller-owned sink and reports
 success only after validating the whole requested window. OneDrive checks the
 original Graph identity/revision/size before and after the streamed HTTP range;
 status, range, encoding and exact byte count retain the existing validation rules.
-It advertises windows only for the conservative session fallback. Strong-validator
-sessions keep their conditional per-range path without adding Graph calls.
+Both fallback and strong-validator sessions now advertise windows after the first
+validated read. The fallback keeps the Graph before/after pair; strong windows use
+the conditional validation described below without adding per-window Graph calls.
 
 The service starts with a normal 4 MiB cache block. Sequential misses then grow
 8/16/32/64 MiB windows, bounded by remaining file size, adapter capability, observed
@@ -291,7 +292,8 @@ The service counters must agree with the server's HTTP request counters after ev
 application phase. Each variant runs in a fresh process so allocator retention from
 an earlier variant does not contaminate the next measurement.
 
-On 2026-09-07 the release build produced these **synthetic** sequential results:
+The original workload baseline at source revision `9a5a789` produced these
+**synthetic** sequential results on 2026-09-07:
 
 | Read strategy | Graph GETs | Content GETs | No imposed delay | 20 ms per response |
 | --- | ---: | ---: | ---: | ---: |
@@ -317,11 +319,11 @@ memory ceiling. Metadata is preseeded: live indexing, real thumbnail decoders,
 provider throttling and internet conditions are **not** exercised here.
 
 The measurements expose two costs rather than declaring one strategy universally
-faster: staging adds local I/O at low latency, and the strong path still issues one
-content request per cache block. Applying validated transfer windows to strong
-sessions is the next request-efficiency improvement; it must retain exact conditions,
-bounded staging and safe renewal without appending a restarted transfer to a partial
-sink. The cold sparse-read amplification remains visible in subsequent latency work.
+faster: staging adds local I/O at low latency, and the baseline strong range path
+still issued one content request per cache block. The conditional-window increment
+below addresses the latter cost while retaining the former. It keeps exact
+conditions, bounded staging and safe renewal without appending a restarted transfer
+to a partial sink. The cold sparse-read amplification remains visible in subsequent latency work.
 Only the request-count and stable-session implementation gates above are closed by
 this combined evidence; the real-provider, failure and desktop-load gates remain open.
 
@@ -337,3 +339,58 @@ for delay in 0 20; do
   done
 done
 ```
+
+## Conditional streamed windows
+
+Strong content-origin bindings now share the bounded window path. A fresh binding
+sends one conditional content request per window, checks the effective resource,
+strong ETag, range and encoding before streaming, then checks the exact body length
+and binding lease before returning success. Nothing is published while the window
+is partial. Request counters distinguish `conditional_ranges` and
+`conditional_windows`; Graph setup/renewal counts remain separate.
+
+Ranges and windows share the per-version renewal gate. If a binding has expired or
+its headers reject the old context, the requested window itself is downloaded
+between the original Graph identity/revision checks. It establishes a replacement
+binding without an extra probe or another copy of the body. The binding lease starts
+before those checks. A renewed weak validator returns to conservative validation.
+Once any bytes have reached the sink, a body/sink failure, cancellation or expired
+lease fails the whole window; the service discards it before a later request can
+start over. A failed renewal shares its failure with waiting ranges and windows.
+
+Seven additional adapter tests cover large chunked windows, concurrent range/window
+renewal, same-size replacement including an origin ignoring If-Match, failed final
+renewal validation, malformed/short/oversized bodies, sink failures, throttling,
+lease expiry, cancellation and weak-validator fallback. Two additional kernel tests
+pause a conditional window mid-body and verify coalescing, independent reads,
+cached navigation and cancellation/unmount with held descriptors. The adapter
+replacement fixtures do not constitute a real-provider race test.
+
+The [conditional-window measurements](../benchmarks/conditional-read-windows.json)
+repeat the same mounted application workload in fresh release processes at zero
+and 20 ms imposed response delay. In each, the sequential 1 GiB phase uses **two
+Graph and twenty content requests**, with no renewal required during the run.
+The earlier strong-range baseline needed 256 content requests. Small previews,
+reopens, sparse reads and concurrent readers retain their request counts. The
+final local samples took 3.95 s without imposed delay and 4.18 s with 20 ms per
+response. These single samples do not isolate a statistically reliable latency
+gain. Cached navigation stayed below 3.82 ms, peak reserved staging was 64 MiB, and
+all staging reservations were released. The raw artifact retains phase timings
+and memory observations for all six repeated strategy/delay combinations.
+
+These runs demonstrate request reduction, not a universal speedup. Staging remains
+extra local I/O; the original low-latency strong-range run was faster. Real-provider
+window validation, wider desktop load and recovery gates still apply, and normal
+accounts continue to use the original conservative construction.
+
+
+The initial conditional-window CI run also exposed a cached-navigation deadline
+failure. Investigation reproduced an independent blocking dependency: batch inode
+resolution requested an immediate SQLite writer even when all mappings already
+existed. Cached batches now stay on the read path; missing mappings recheck under
+the writer before allocation. A regression test failed with DatabaseBusy before
+this correction and succeeds while another connection still holds that writer.
+An actual FUSE fixture repeats directory listing/stat under a separate process's
+held writer, preserving the 500 ms bound. This removes that demonstrated dependency;
+it does not attribute every possible slow CI sample to SQLite or establish a
+universal latency guarantee. Workload errors now identify their application phase.
