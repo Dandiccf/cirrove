@@ -333,3 +333,25 @@ The strong-session variant now uses conditional windows too; the earlier per-ran
 results remain in the baseline artifact. Both window paths are exercised
 with zero and 20 ms imposed response latency. Use the ADR's explicit commands for
 this fixture; it is ignored in the normal suite and does not contact a cloud account.
+
+### Targeted metadata invalidation
+
+```sh
+cargo test -p cirrove-store --lib --locked metadata_changes
+cargo test -p cirrove-service --lib --locked residency
+cargo test -p cirrove-service --lib --locked real_targeted_ -- --ignored --nocapture --test-threads=1
+CIRROVE_INVALIDATION_FILES=500000 cargo test -p cirrove-service --lib --release --locked real_targeted_invalidations_preserve -- --ignored --nocapture --test-threads=1
+```
+
+The kernel fixture indexes generated metadata, resolves 3,000 files, holds an old
+file descriptor, and changes one file. It expects only that file and its parent
+attributes to be notified, retaining unrelated cached views. A 100-file delta burst
+then runs alongside 16 cached metadata requests with the existing 500 ms navigation
+bound. A separate alias fixture checks both target updates and source-link rename,
+plus replacement-baseline scope invalidation. Full recovery still retires unused
+views through real kernel FORGET, never manufactured reference counts.
+
+Schema 6 adds only the metadata revision covering index; migration and index
+validation commit atomically with the version. Earlier binaries cannot reopen
+schema 6. Keep a compatible metadata backup for deployment rollback. These fixtures
+use isolated state and do not upgrade an installed account.

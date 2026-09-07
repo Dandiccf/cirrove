@@ -1,6 +1,8 @@
 //! Crash-resumable metadata staging. Visible rows and the completed cursor advance
 //! in one transaction, only after the last page. This is not an upload journal.
 mod directories;
+mod metadata_changes;
+pub use metadata_changes::{MetadataChange, MetadataChangeKind, MetadataChanges, MetadataPosition};
 mod observations;
 use cirrove_core::{Change, ChangePage, Cursor, Node, Scope};
 pub use observations::{
@@ -88,10 +90,10 @@ impl Store {
         db.busy_timeout(std::time::Duration::from_secs(3))?;
         db.execute_batch("PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;")?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if version > 5 {
+        if version > 6 {
             return Err(StoreError::SchemaVersion);
         }
-        if version < 5 {
+        if version < 6 {
             if version < 2 {
                 initial_wal(&db)?;
             }
@@ -99,7 +101,7 @@ impl Store {
             // Another connection may have migrated while this one waited for
             // the writer. All schema steps and their version publish together.
             let version: u32 = tx.pragma_query_value(None, "user_version", |r| r.get(0))?;
-            if version > 5 {
+            if version > 6 {
                 return Err(StoreError::SchemaVersion);
             }
             if version < 2 {
@@ -133,17 +135,20 @@ impl Store {
             }
             observations::migrate(&tx, version)?;
             directories::migrate(&tx, version)?;
+            metadata_changes::migrate(&tx, version)?;
             // An unusable clock or malformed schema must roll back migration,
             // just like a failure while copying directory entries.
             observations::validate(&tx)?;
+            metadata_changes::validate(&tx)?;
             directories::validate(&tx)?;
-            if version < 5 {
-                tx.pragma_update(None, "user_version", 5)?;
+            if version < 6 {
+                tx.pragma_update(None, "user_version", 6)?;
             }
             tx.commit()?;
         }
         observations::validate(&db)?;
         directories::validate(&db)?;
+        metadata_changes::validate(&db)?;
         Ok(Self { db })
     }
     fn key(scope: &Scope) -> Result<String> {
@@ -901,7 +906,7 @@ mod tests {
             db.db
                 .pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0))
                 .unwrap(),
-            5
+            6
         );
         assert_eq!(
             db.db

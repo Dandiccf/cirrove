@@ -1,7 +1,10 @@
 //! Reference-aware residency for resolved views. Child views retain parent
 //! residency; the root and inconsistent kernel counts remain conservative.
 use super::View;
+mod invalidation;
 use cirrove_core::{NodeKind, ProviderError};
+pub(super) use invalidation::InvalidationCursor;
+use invalidation::ProjectionIndex;
 use std::{
     collections::{HashMap, VecDeque},
     sync::{
@@ -25,9 +28,12 @@ pub(super) struct NamespaceViews {
     entries: HashMap<u64, Box<Entry>>,
     candidates: VecDeque<(u64, u64)>,
     generation: u64,
+    invalidation: ProjectionIndex,
 }
 impl NamespaceViews {
     pub(super) fn new(root: View) -> Self {
+        let mut invalidation = ProjectionIndex::default();
+        invalidation.insert(&root);
         Self {
             entries: HashMap::from([(
                 1,
@@ -39,11 +45,13 @@ impl NamespaceViews {
             )]),
             candidates: VecDeque::new(),
             generation: 0,
+            invalidation,
         }
     }
     pub(super) fn get(&self, inode: &u64) -> Option<&View> {
         self.entries.get(inode).map(|entry| &entry.view)
     }
+    #[cfg(test)]
     pub(super) fn values(&self) -> impl Iterator<Item = &View> {
         self.entries.values().map(|entry| &entry.view)
     }
@@ -63,6 +71,7 @@ impl NamespaceViews {
             // All earlier clones (open files, operations and in-flight reads)
             // must pin the same residency even when the visible path changes.
             view.residency = entry.view.residency.clone();
+            self.invalidation.remove(&entry.view);
             entry.view = view.clone();
         } else {
             self.generation = self
@@ -78,6 +87,7 @@ impl NamespaceViews {
                 }),
             );
         }
+        self.invalidation.insert(&view);
         self.queue(inode);
         Ok(view)
     }
@@ -152,7 +162,9 @@ impl NamespaceViews {
         refs.kernel.store(next, Ordering::SeqCst);
         if next == 0 {
             if Self::reclaimable(entry) {
-                self.entries.remove(&inode);
+                if let Some(entry) = self.entries.remove(&inode) {
+                    self.invalidation.remove(&entry.view);
+                }
             } else {
                 self.queue(inode);
             }
@@ -181,7 +193,9 @@ impl NamespaceViews {
             };
             entry.queued = false;
             if Self::reclaimable(entry) {
-                self.entries.remove(&inode);
+                if let Some(entry) = self.entries.remove(&inode) {
+                    self.invalidation.remove(&entry.view);
+                }
                 removed += 1;
             } else if entry.view.residency.kernel.load(Ordering::SeqCst) == 0 {
                 self.queue(inode);
@@ -197,7 +211,7 @@ mod tests {
     use super::*;
     use cirrove_core::{Node, Scope};
 
-    fn view(inode: u64, kind: NodeKind) -> View {
+    pub(super) fn view(inode: u64, kind: NodeKind) -> View {
         View {
             residency: Arc::default(),
             _parent_residency: None,
@@ -226,7 +240,7 @@ mod tests {
             ancestry: vec![],
         }
     }
-    fn cache() -> NamespaceViews {
+    pub(super) fn cache() -> NamespaceViews {
         NamespaceViews::new(view(1, NodeKind::Folder))
     }
 

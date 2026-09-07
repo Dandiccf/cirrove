@@ -25,8 +25,9 @@ automatic materialization of every item merely because the index contains 500,00
 files. Required ancestor chains remain protected, and kernel-referenced views
 cannot yet shed their full metadata payloads. Full namespace lifetime remains a
 scalability gap. The content-cache quota does
-not limit these allocations. The invalidation worker also copies and walks the
-retained view map on each coalesced change wake, adding CPU and temporary memory.
+not limit these allocations. Metadata invalidation now uses revision and live-projection
+indexes. Local or recovery sweeps still visit all live entries, but copy only bounded
+batches.
 
 Open directories now retain immutable anonymous disk snapshots of compact
 inode/kind/name records, with a separate offset index. The read-only cached path
@@ -151,6 +152,19 @@ fixture does not establish a 24-hour memory plateau. A separate actual-kernel co
 listing fixture verifies 500k entries, offline revisit and remount without a
 completed delta index. See [the measured scope and raw results](../benchmarks/directory-publication.json).
 
+Metadata invalidation now consumes schema-6 revision-index pages and selects live
+views through target/source identity indexes. Marks and view notifications have
+separate bounded page sizes; notifications never hold the namespace lock. Directory
+content changes preserve unrelated child dentries, while item/name changes and scope
+resets retain their required invalidations. Watch generations keep hints received
+during work; local writes, experimental writable projections and recovery still
+use paged full sweeps. Unit tests cover revision replacement/reset during pagination,
+atomic migration failure, alias/account selection and view retirement. Actual mounts
+cover held old versions, duplicate
+shortcuts, source-link rename and target-scope reset. See
+[the synthetic update/burst measurements](../benchmarks/targeted-invalidation.json).
+This does not close resident payload budgeting or the 24-hour gate.
+
 ## Planned lifetime model
 
 1. Track kernel lookup references, open file/directory leases, in-flight requests
@@ -176,9 +190,11 @@ completed delta index. See [the measured scope and raw results](../benchmarks/di
    instead of a 100,000-entry vector limit. The 500k cold fixture covers publication,
    listing and offline remount. Compatibility collectors and writable overlays
    remain outside the streaming path.
-4. Replace mount-wide invalidation scans with an index of affected, live projections
-   and bounded coalesced work. Measure allocation and navigation latency during a
-   remote-change burst; avoiding retained views must not lose live invalidations.
+4. Metadata invalidation now uses an index of affected live projections and bounded
+   coalesced work, including target/source aliases. Local namespace and recovery
+   notifications retain a paged full sweep. Extend the current synthetic burst
+   measurements to combined deep/alias/held-reference and sustained workloads;
+   avoiding retained views must not lose live invalidations.
 5. Count resident, evictable, referenced and protected bytes/entries, directory
    snapshot storage, invalidation work and persistent inode/alias history separately.
    Record process RSS/PSS as well as logical cache usage; allocator retention and
@@ -219,6 +235,7 @@ This is an explicit **milestone-1 / OneDrive-1.0 blocker**, independent of the
       check. Report workload, reference counts and memory slope; a mount that sits
       idle for 24 hours does not close this gate.
 
-Compact/budgeted view payloads, streaming of remaining compatibility/writable
-consumers and targeted invalidation remain unimplemented. These planned limits must not be
-advertised as supported capacity until the tests pass.
+Compact/budgeted view payloads and streaming of remaining compatibility/writable
+consumers remain unimplemented. Targeted invalidation has narrow synthetic coverage;
+combined and sustained acceptance remains open. Planned limits must not be advertised
+as supported capacity until their tests pass.

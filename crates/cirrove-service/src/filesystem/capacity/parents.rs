@@ -207,3 +207,166 @@ pub(super) async fn directories_and_aliases() {
         .unwrap()
         .unwrap();
 }
+
+pub(super) async fn targeted_aliases() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let provider = Arc::new(GeneratedLibrary {
+        files: 0,
+        per_directory: 1000,
+        revision: AtomicU32::new(1),
+        content_reads: AtomicU64::new(0),
+        foreground_requests: AtomicU64::new(0),
+    });
+    let engine = Engine::new(
+        account(mount.clone()),
+        provider.clone(),
+        temp.path().join("state"),
+    )
+    .await
+    .unwrap();
+    let root = tree("root").remove(0);
+    let mut a = root.clone();
+    a.id = "link-a".into();
+    a.parent_id = Some("root".into());
+    a.name = "Alias A".into();
+    a.kind = NodeKind::Shortcut;
+    a.target = Some(RemoteRef {
+        collection: "shared".into(),
+        item: "shared-root".into(),
+        kind: Some(NodeKind::Folder),
+    });
+    let mut b = a.clone();
+    b.id = "link-b".into();
+    b.name = "Alias B".into();
+    seed(&engine, "capacity-drive", vec![root, a.clone(), b]).await;
+    let root = tree("shared-root").remove(0);
+    let mut leaf = root.clone();
+    leaf.id = "leaf".into();
+    leaf.parent_id = Some("shared-root".into());
+    leaf.name = "leaf".into();
+    leaf.kind = NodeKind::File;
+    seed(&engine, "shared", vec![root.clone(), leaf.clone()]).await;
+    let fs = CloudFs::new(engine.clone()).unwrap();
+    let inner = fs.inner.clone();
+    let session = fs.mount(&mount).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while inner.invalidation_metrics.batches.load(Ordering::Relaxed) == 0 {
+        assert!(Instant::now() < deadline);
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    let path = mount.clone();
+    let held = tokio::task::spawn_blocking(move || {
+        let a = std::fs::File::open(path.join("Alias A/leaf")).unwrap();
+        let b = std::fs::File::open(path.join("Alias B/leaf")).unwrap();
+        assert_ne!(a.metadata().unwrap().ino(), b.metadata().unwrap().ino());
+        (a, b)
+    })
+    .await
+    .unwrap();
+    let before = inner.invalidation_metrics.entries.load(Ordering::Relaxed);
+    leaf.name = "renamed".into();
+    leaf.size = 7;
+    leaf.etag = Some("changed".into());
+    Store::open(&engine.db)
+        .unwrap()
+        .observe_node(&engine.scope("shared"), &leaf)
+        .unwrap();
+    engine.changed.metadata();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while inner.invalidation_metrics.entries.load(Ordering::Relaxed) < before + 4 {
+        assert!(Instant::now() < deadline);
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    let path = mount.clone();
+    tokio::task::spawn_blocking(move || {
+        for alias in ["Alias A", "Alias B"] {
+            assert_eq!(
+                std::fs::metadata(path.join(alias).join("leaf"))
+                    .unwrap_err()
+                    .kind(),
+                std::io::ErrorKind::NotFound
+            );
+            assert_eq!(
+                std::fs::metadata(path.join(alias).join("renamed"))
+                    .unwrap()
+                    .len(),
+                7
+            );
+        }
+        assert_eq!(held.0.metadata().unwrap().len(), 0);
+        assert_eq!(held.1.metadata().unwrap().len(), 0);
+        drop(held);
+    })
+    .await
+    .unwrap();
+    let before = inner.invalidation_metrics.entries.load(Ordering::Relaxed);
+    a.name = "Moved alias".into();
+    Store::open(&engine.db)
+        .unwrap()
+        .observe_node(&engine.scope("capacity-drive"), &a)
+        .unwrap();
+    engine.changed.metadata();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while inner.invalidation_metrics.entries.load(Ordering::Relaxed) == before {
+        assert!(Instant::now() < deadline);
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    let path = mount.clone();
+    tokio::task::spawn_blocking(move || {
+        assert_eq!(
+            std::fs::metadata(path.join("Alias A")).unwrap_err().kind(),
+            std::io::ErrorKind::NotFound
+        );
+        assert_eq!(
+            std::fs::metadata(path.join("Moved alias/renamed"))
+                .unwrap()
+                .len(),
+            7
+        );
+        assert_eq!(
+            std::fs::metadata(path.join("Alias B/renamed"))
+                .unwrap()
+                .len(),
+            7
+        );
+    })
+    .await
+    .unwrap();
+    // A replacement feed uses a scope mark, including all aliases of that scope.
+    let before = inner.invalidation_metrics.entries.load(Ordering::Relaxed);
+    leaf.name = "after-reset".into();
+    seed(&engine, "shared", vec![root, leaf]).await;
+    engine.changed.metadata();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while inner.invalidation_metrics.entries.load(Ordering::Relaxed) == before {
+        assert!(Instant::now() < deadline);
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+    let path = mount.clone();
+    tokio::task::spawn_blocking(move || {
+        assert_eq!(
+            std::fs::metadata(path.join("Moved alias/after-reset"))
+                .unwrap()
+                .len(),
+            7
+        );
+        assert_eq!(
+            std::fs::metadata(path.join("Alias B/after-reset"))
+                .unwrap()
+                .len(),
+            7
+        );
+    })
+    .await
+    .unwrap();
+    settle(&inner, 1).await;
+    assert_eq!(provider.foreground_requests.load(Ordering::SeqCst), 0);
+    assert_eq!(provider.content_reads.load(Ordering::SeqCst), 0);
+    engine.stop().await;
+    tokio::task::spawn_blocking(move || session.umount_and_join())
+        .await
+        .unwrap()
+        .unwrap();
+}

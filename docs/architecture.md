@@ -181,7 +181,8 @@ Schema upgrades recheck the version under the writer lock and commit all migrati
 steps, validation and the new version together. Invalid legacy arrays, duplicate
 entry identities or an unusable metadata clock fail without losing the old schema
 and data. Concurrent opens and rollback across schemas 3 and 4 have regression
-coverage. Older binaries reject schema 5; deployment rollback must preserve a
+coverage. Schema 6 adds a covering revision index for invalidation marks. Binaries
+supporting earlier schemas reject schema 6; deployment rollback must preserve a
 compatible metadata backup rather than attempting an in-place downgrade.
 
 The initial WAL transition retries SQLITE_BUSY within a three-second total
@@ -407,12 +408,35 @@ capture while unused directory chains retire through the bounded collector.
 Actual-kernel tests cover deep paths, duplicate linked-drive projections, open
 files, continued directory snapshots across rename, and offline inode-preserving
 revisit after reclamation. They do not prove arbitrary large-library capacity.
-Invalidation still walks the resident map. There is no view-payload byte budget,
-and failed reply delivery can conservatively
-retain references because the FUSE wrapper does not expose delivery results.
-Full-pipeline paging, compact referenced payloads, cancellation accounting and
-targeted invalidation remain part of the explicit 500,000-file and long-session release
-gate; see [namespace memory](adr/0005-namespace-memory.md).
+Metadata invalidation now reads committed scope/item/directory revision marks through
+a covering index. Each read returns at most 256 marks under a 64 KiB payload budget;
+a single larger mark, up to 1 MiB, occupies a page alone. A captured upper revision
+and an ordered continuation allow short independent read transactions. Marks
+superseded during paging are read in the next round; a replacement feed retains a
+newer scope mark. Database identity changes or invalid streams trigger a conservative
+full recovery sweep with retry, rather than advancing past failed work.
+
+Live projection indexes include target identities and shortcut source identities,
+including distinct aliases and content-version inodes. Item changes select only their
+live projections; scope resets select that scope's projections. Directory-content
+marks refresh directory attributes without invalidating the directory's own name,
+which would discard its unchanged child dentries. Item marks still invalidate names
+for rename/deletion. The root's synthetic attributes remain exempt. Old file mappings
+retain their pages. Kernel notifications happen after releasing the namespace lock,
+in batches of at most 128 indexed entries and 64 KiB of names (a single larger name
+can occupy a batch alone). Index entries retire with their corresponding views.
+
+A watch generation coalesces wakeups without losing events received during work.
+Local-write and explicit recovery notifications request a full sweep, also paged
+through the live index. Experimental writable mounts also use full sweeps for
+remote metadata: their durable local IDs can differ from provider IDs, and provider
+bindings belong to the writeback projection. Initial mount startup captures a revision
+position before its initial full sweep so later changes remain pending. The index adds memory per
+live projection; it does not establish a view-payload byte budget. Failed reply
+delivery can still retain conservative references because the FUSE wrapper does
+not expose delivery results. Remaining collection paths, compact referenced payloads,
+cancellation accounting and sustained invalidation-load acceptance remain part of
+the explicit [500,000-file and long-session gate](adr/0005-namespace-memory.md).
 
 This first projection has read-only permissions and rejects write opens. File-manager
 thumbnail generation still causes real content reads; reserved metadata capacity
