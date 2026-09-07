@@ -42,13 +42,15 @@ struct View {
     _parent_residency: Option<Arc<LookupRefs>>,
     inode: u64,
     parent: u64,
-    scope: Scope,
-    node: Node,
-    name: String,
-    alias: Vec<(String, String)>,
+    // Immutable metadata is shared by operations/open handles. Sibling files
+    // also share their unchanged scope, alias route and ancestry.
+    scope: Arc<Scope>,
+    node: Arc<Node>,
+    name: Arc<str>,
+    alias: Arc<Vec<(String, String)>>,
     reference: bool,
-    entry: Option<Node>,
-    ancestry: Vec<(String, String)>,
+    entry: Option<Arc<Node>>,
+    ancestry: Arc<Vec<(String, String)>>,
 }
 #[derive(Clone)]
 struct OpenFile {
@@ -154,11 +156,11 @@ impl CloudFs {
             _parent_residency: None,
             inode: 1,
             parent: 1,
-            ancestry: vec![(scope.collection.clone(), root.id.clone())],
-            scope,
-            node: root,
-            name: engine.account.label.clone(),
-            alias: vec![],
+            ancestry: vec![(scope.collection.clone(), root.id.clone())].into(),
+            scope: scope.into(),
+            node: root.into(),
+            name: engine.account.label.as_str().into(),
+            alias: vec![].into(),
             reference: false,
             entry: None,
         };
@@ -257,13 +259,14 @@ impl Inner {
         {
             return Err(ProviderError::Protocol("invalid cloud filename"));
         }
-        let name = child.name.clone();
+        let name = child.name.as_str().into();
         let mut scope = parent.scope.clone();
         let mut alias = parent.alias.clone();
         let mut ancestry = parent.ancestry.clone();
-        let mut node = child.clone();
-        if let Some(target) = &child.target {
-            scope.collection = target.collection.clone();
+        let entry = child.target.as_ref().map(|_| Arc::new(child.clone()));
+        let mut node = child;
+        if let Some(target) = node.target.take() {
+            Arc::make_mut(&mut scope).collection = target.collection.clone();
             if ancestry
                 .iter()
                 .any(|v| v == &(target.collection.clone(), target.item.clone()))
@@ -271,7 +274,7 @@ impl Inner {
             {
                 return Err(ProviderError::Protocol("shortcut cycle or excessive depth"));
             }
-            alias.push((parent.scope.collection.clone(), child.id.clone()));
+            Arc::make_mut(&mut alias).push((parent.scope.collection.clone(), node.id.clone()));
             node.id = target.item.clone();
             node.kind = target.kind.clone().unwrap_or(NodeKind::Folder);
             node.etag = None;
@@ -279,7 +282,7 @@ impl Inner {
             node.target = None;
         }
         if node.kind == NodeKind::Folder {
-            ancestry.push((scope.collection.clone(), node.id.clone()));
+            Arc::make_mut(&mut ancestry).push((scope.collection.clone(), node.id.clone()));
         }
         let view = View {
             residency: Arc::default(),
@@ -287,11 +290,11 @@ impl Inner {
             inode: 0,
             parent: parent.inode,
             scope,
-            node,
+            node: node.into(),
             name,
             alias,
-            reference: child.target.is_some(),
-            entry: child.target.as_ref().map(|_| child.clone()),
+            reference: entry.is_some(),
+            entry,
             ancestry,
         };
         Ok(view)
@@ -299,7 +302,7 @@ impl Inner {
     fn inode_key(view: &View, writable: bool) -> Result<String, ProviderError> {
         let identity = (
             &view.scope.account,
-            &view.alias,
+            view.alias.as_ref(),
             &view.scope.collection,
             &view.node.id,
         );
@@ -333,13 +336,13 @@ impl Inner {
                 None => (None, false),
             };
             if let Some(local) = local {
-                view.node.id = local;
-                view.node = self.node(&view).await?;
+                Arc::make_mut(&mut view.node).id = local;
+                view.node = self.node(&view).await?.into();
             } else if view.node.kind == NodeKind::Folder && retained {
                 // A retained shortcut is the local route to an absent target
                 // root. Its directory view remains traversable without metadata.
             } else {
-                view.node = self.engine.node(&view.scope, &view.node.id).await?;
+                view.node = self.engine.node(&view.scope, &view.node.id).await?.into();
             }
         }
         let key = Self::inode_key(&view, self.writeback.is_some())?;
@@ -432,7 +435,7 @@ impl Inner {
                     .node(&view.scope, &view.node.id)
                     .map_err(|_| Errno::EIO)?
             {
-                view.node = node;
+                view.node = node.into();
             }
         }
         let keys = projected
@@ -494,7 +497,7 @@ impl Inner {
                 .retains_directory(&view.scope, &view.node.id)
                 .map_err(|_| ProviderError::Unavailable)?
         {
-            return Ok(view.node.clone());
+            return Ok(view.node.as_ref().clone());
         }
         if let Some(writer) = &self.writeback
             && writer
@@ -513,7 +516,7 @@ impl Inner {
             return Ok(node);
         }
         if view.inode == 1 || view.node.kind == NodeKind::File {
-            return Ok(view.node.clone());
+            return Ok(view.node.as_ref().clone());
         }
         self.engine.node(&view.scope, &view.node.id).await
     }
@@ -734,7 +737,7 @@ impl Filesystem for CloudFs {
                 }
                 inner.capture_ancestors(&parent).await?;
                 let node = writer
-                    .create_directory(parent.scope.clone(), parent.node.id.clone(), name)
+                    .create_directory(parent.scope.as_ref().clone(), parent.node.id.clone(), name)
                     .await
                     .map_err(|e| if e == Errno::ESTALE { Errno::EEXIST } else { e })?;
                 let view = inner
@@ -818,7 +821,7 @@ impl Filesystem for CloudFs {
                 };
                 inner.capture_ancestors(&parent).await?;
                 let record = writer
-                    .create(parent.scope.clone(), node)
+                    .create(parent.scope.as_ref().clone(), node)
                     .await
                     .map_err(|e| if e == Errno::ESTALE { Errno::EEXIST } else { e })?;
                 let lease = writer
@@ -962,7 +965,12 @@ impl Filesystem for CloudFs {
                         return Err(Errno::EOPNOTSUPP);
                     }
                     let moved = writer
-                        .replace(&inner, parent.scope.clone(), source, victim.clone())
+                        .replace(
+                            &inner,
+                            parent.scope.as_ref().clone(),
+                            source,
+                            victim.clone(),
+                        )
                         .await?;
                     inner
                         .insert(&destination, moved)
@@ -972,7 +980,7 @@ impl Filesystem for CloudFs {
                 }
                 let moved = writer
                     .relocate(
-                        parent.scope.clone(),
+                        parent.scope.as_ref().clone(),
                         source,
                         parent.node.id.clone(),
                         name,
@@ -1204,7 +1212,7 @@ impl Filesystem for CloudFs {
                     .lease(&view.scope, &view.node.id, &inner.cancel)
                     .await?;
                 let mut view = view;
-                view.node = inner.node(&view).await.map_err(|e| errno(&e))?;
+                view.node = inner.node(&view).await.map_err(|e| errno(&e))?.into();
                 inner.capture_ancestors(&view).await?;
                 let working = writer
                     .prepare(&inner.engine, &view, size == 0, &inner.cancel)
@@ -1335,7 +1343,7 @@ impl Filesystem for CloudFs {
                 };
                 if flags.0 & libc::O_ACCMODE != libc::O_RDONLY {
                     let writer = inner.writeback.as_ref().ok_or(Errno::EROFS)?;
-                    view.node = node.clone();
+                    view.node = node.clone().into();
                     inner.capture_ancestors(&view).await?;
                     writer
                         .prepare(

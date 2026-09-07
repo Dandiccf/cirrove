@@ -165,6 +165,25 @@ shortcuts, source-link rename and target-scope reset. See
 [the synthetic update/burst measurements](../benchmarks/targeted-invalidation.json).
 This does not close resident payload budgeting or the 24-hour gate.
 
+Immutable view payloads now share reference-counted scope, alias/ancestry routes,
+node metadata and presentation names. File siblings reuse unchanged parent routes;
+folder/shortcut projection detaches only routes it extends. Reverse-index target
+scopes and notification names share those allocations too. Local binding/metadata
+updates detach their payloads, preserving held older views and parent leases. No
+new intern pool retains data after its users close. Persisted inode-key encoding is
+unchanged, including aliases and writable local identities.
+
+A separate representation fixture retains 50,000 views across three 12-level routes
+(one ordinary route and two shortcuts), including the production live index and
+32 held clones. It compares the owned and shared representations in separate release
+processes, then retires every view except the root. This isolates duplication; it
+has no kernel, SQLite or provider workload. The larger 500k variant and kernel
+invalidation regression are recorded separately in
+[the shared-payload measurements](../benchmarks/shared-projection-payloads.json).
+High RSS after logical retirement still needs allocator/storage attribution. This
+correction does not provide evictable byte accounting, reconstructible disk-backed
+views, combined 500k kernel churn or 24-hour acceptance.
+
 ## Planned lifetime model
 
 1. Track kernel lookup references, open file/directory leases, in-flight requests
@@ -235,7 +254,8 @@ This is an explicit **milestone-1 / OneDrive-1.0 blocker**, independent of the
       check. Report workload, reference counts and memory slope; a mount that sits
       idle for 24 hours does not close this gate.
 
-Compact/budgeted view payloads and streaming of remaining compatibility/writable
-consumers remain unimplemented. Targeted invalidation has narrow synthetic coverage;
+Shared immutable payloads reduce duplication, but byte budgets, further compaction/
+reconstruction and streaming of remaining compatibility/writable consumers remain
+unimplemented. Targeted invalidation has narrow synthetic coverage;
 combined and sustained acceptance remains open. Planned limits must not be advertised
 as supported capacity until their tests pass.

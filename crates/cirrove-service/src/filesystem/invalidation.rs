@@ -35,8 +35,8 @@ async fn invalidate(
                     let offset = if entry.directory { 0 } else { -1 };
                     let _ = notifier.inval_inode(INodeNo(entry.inode), offset, 0);
                     if entry.entry {
-                        let _ =
-                            notifier.inval_entry(INodeNo(entry.parent), OsStr::new(&entry.name));
+                        let _ = notifier
+                            .inval_entry(INodeNo(entry.parent), OsStr::new(entry.name.as_ref()));
                     }
                 }
             })

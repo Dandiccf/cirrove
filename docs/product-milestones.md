@@ -62,6 +62,12 @@ notifications are batched outside the view lock; local namespace and recovery ev
 retain a coalesced full sweep. Synthetic mount tests cover targeted updates, bursts,
 held versions and alias/scope changes. Resident payload budgets and combined sustained
 load acceptance remain open; see [measurements](benchmarks/targeted-invalidation.json).
+Resolved view clones now share immutable metadata and sibling routes, including
+scopes used by the live invalidation index. A representation benchmark measures the
+reduction; persistent inode keys, old content versions and parent leases retain their
+semantics. Resident byte budgets, reconstructible evicted views and the combined
+large-library/24-hour gate remain open; see
+[shared-payload measurements](benchmarks/shared-projection-payloads.json).
 A shared conditional read-session prototype now removes per-block Graph checks in
 an explicit developer path. A synthetic 1 GiB adapter read uses two Graph requests
 instead of 512; an isolated business-file comparison also verifies subsequent

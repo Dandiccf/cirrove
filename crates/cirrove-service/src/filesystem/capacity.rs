@@ -824,3 +824,5 @@ async fn real_targeted_invalidations_preserve_unrelated_cached_views() {
 async fn real_targeted_alias_invalidations_preserve_open_versions() {
     parents::targeted_aliases().await;
 }
+
+mod projections;

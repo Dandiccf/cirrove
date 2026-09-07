@@ -51,6 +51,8 @@ and Nautilus badges are not implemented.
   snapshots with bounded read buffers and a separate per-mount storage budget.
   Resolved file and directory views retire after kernel references and
   open/operation/child leases end; retained children protect their ancestor routes.
+  Immutable scope, alias/ancestry routes and node payloads are shared across resolved
+  view clones; sibling files reuse their unchanged routes.
   View byte budgets, remaining full-list consumers and long-session capacity retain an open
   [namespace memory gate](docs/adr/0005-namespace-memory.md).
 - Version-checked 4 MiB range cache, concurrent-request coalescing, checksums,

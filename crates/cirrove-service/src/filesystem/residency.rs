@@ -221,7 +221,8 @@ mod tests {
                 account: "account".into(),
                 provider: "fixture".into(),
                 collection: "drive".into(),
-            },
+            }
+            .into(),
             node: Node {
                 id: format!("item-{inode}"),
                 parent_id: Some("root".into()),
@@ -232,12 +233,13 @@ mod tests {
                 etag: Some("version".into()),
                 content_version: None,
                 target: None,
-            },
-            name: format!("item-{inode}"),
-            alias: vec![],
+            }
+            .into(),
+            name: format!("item-{inode}").into(),
+            alias: vec![].into(),
             reference: false,
             entry: None,
-            ancestry: vec![],
+            ancestry: vec![].into(),
         }
     }
     pub(super) fn cache() -> NamespaceViews {
@@ -277,7 +279,7 @@ mod tests {
         assert!(Arc::ptr_eq(&old.residency, &latest.residency));
         drop(latest);
         assert_eq!(cache.collect(128), 0);
-        assert_eq!(cache.get(&2).unwrap().name, "new-name");
+        assert_eq!(cache.get(&2).unwrap().name.as_ref(), "new-name");
         drop(old);
         assert_eq!(cache.collect(128), 1);
     }
@@ -367,11 +369,79 @@ mod tests {
     }
 
     #[test]
+    fn shared_projection_metadata_preserves_inode_encoding_and_detaches_edits() {
+        use super::super::Inner;
+        let parent = view(1, NodeKind::Folder);
+        let first = Inner::project(&parent, view(3, NodeKind::File).node.as_ref().clone()).unwrap();
+        let sibling =
+            Inner::project(&parent, view(4, NodeKind::File).node.as_ref().clone()).unwrap();
+        assert!(Arc::ptr_eq(&first.scope, &sibling.scope));
+        assert!(Arc::ptr_eq(&first.alias, &sibling.alias));
+        assert!(Arc::ptr_eq(&first.ancestry, &sibling.ancestry));
+        // Persistent inode keys must remain byte-for-byte compatible with owned metadata.
+        assert_eq!(
+            Inner::inode_key(&first, false).unwrap(),
+            r#"["content-inode-v1",["account",[],"drive","item-3"],["etag","version"],0]"#
+        );
+        assert_eq!(
+            Inner::inode_key(&first, true).unwrap(),
+            r#"["account",[],"drive","item-3"]"#
+        );
+        let mut changed = first.clone();
+        assert!(Arc::ptr_eq(&first.node, &changed.node));
+        Arc::make_mut(&mut changed.node).etag = Some("replacement".into());
+        assert_eq!(first.node.etag.as_deref(), Some("version"));
+        assert_ne!(
+            Inner::inode_key(&first, false).unwrap(),
+            Inner::inode_key(&changed, false).unwrap()
+        );
+        assert_eq!(
+            Inner::inode_key(&first, true).unwrap(),
+            Inner::inode_key(&changed, true).unwrap()
+        );
+
+        let mut node = view(5, NodeKind::Shortcut).node.as_ref().clone();
+        node.target = Some(cirrove_core::RemoteRef {
+            collection: "shared".into(),
+            item: "target".into(),
+            kind: Some(NodeKind::Folder),
+        });
+        let link = Inner::project(&parent, node.clone()).unwrap();
+        assert_eq!(link.entry.as_deref(), Some(&node));
+        assert!(link.node.target.is_none());
+        assert_eq!(link.node.id, "target");
+        assert_eq!(parent.scope.collection, "drive");
+        assert!(parent.alias.is_empty());
+        assert!(parent.ancestry.is_empty());
+        assert_eq!(
+            Inner::inode_key(&link, false).unwrap(),
+            r#"["account",[["drive","item-5"]],"shared","target"]"#
+        );
+        let mut another = node;
+        another.id = "another-shortcut".into();
+        let another = Inner::project(&parent, another).unwrap();
+        assert_ne!(
+            Inner::inode_key(&link, false).unwrap(),
+            Inner::inode_key(&another, false).unwrap()
+        );
+        // Appending a linked folder route cannot change its siblings or parent.
+        assert_eq!(
+            link.alias.as_ref(),
+            &vec![("drive".into(), "item-5".into())]
+        );
+        assert_eq!(
+            link.ancestry.as_ref(),
+            &vec![("shared".into(), "target".into())]
+        );
+    }
+
+    #[test]
     fn listing_only_projection_protects_parent_without_acquiring_kernel_references() {
         let mut cache = cache();
         let parent = child(&mut cache, 2, 1, NodeKind::Folder);
         let projected =
-            super::super::Inner::project(&parent, view(3, NodeKind::File).node).unwrap();
+            super::super::Inner::project(&parent, view(3, NodeKind::File).node.as_ref().clone())
+                .unwrap();
         drop(parent);
         assert_eq!(cache.collect(100), 0);
         assert_eq!(cache.len(), 2);

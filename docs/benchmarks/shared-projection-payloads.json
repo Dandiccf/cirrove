@@ -1,0 +1,134 @@
+{
+  "date": "2026-09-07",
+  "source_base": "c045450b6b51ea9104757a09655c46310da2de93",
+  "before_source": "c045450b6b51ea9104757a09655c46310da2de93 plus the identical representation fixture and its module declaration",
+  "fixture_sha256": "8bccede4583377a26052706d1fac5eff351c88ef3f5eb9bb87989dd62839dbe4",
+  "source_sha256": {
+    "crates/cirrove-service/src/filesystem.rs": "770a91e1a2aea0124baefcca11e205fb1a9bcdd9c3f7533ba5a593d0f21a6b82",
+    "crates/cirrove-service/src/filesystem/residency.rs": "a3c53e8652a92e51f4b6b0e38719bbb567c6d9f8c0531aa38293023b7b92085e",
+    "crates/cirrove-service/src/filesystem/residency/invalidation.rs": "f86e0ce0fd53db51dd685a0a40a8e46824ed942ab4bf8bc77765c1144aba8987",
+    "crates/cirrove-service/src/filesystem/invalidation.rs": "6c2947286249c15134adb88c2d4290fa12050c93cb6562bd2b9612780262401b",
+    "crates/cirrove-service/src/filesystem/capacity.rs": "c5c3a7606ad17586f84fed33aef33f3a3223a9c2a07f038a8c18dcaf228a5112",
+    "crates/cirrove-service/src/filesystem/capacity/projections.rs": "8bccede4583377a26052706d1fac5eff351c88ef3f5eb9bb87989dd62839dbe4",
+    "crates/cirrove-service/src/filesystem/writeback.rs": "bb3c54dd7b7b3ca66498a3a1c900b33eaabca2c304e072b2149a93be769693ff",
+    "crates/cirrove-service/src/filesystem/writeback/ancestry.rs": "4f73336908d54988df2fa2b88ce6d1f3186a3d0e0889facb2409b5d8efe9ffcf",
+    "crates/cirrove-service/src/filesystem/writeback/unlinked.rs": "44aca30fa4211dfca7a1c33f092cb91fb8e1abcf2dec32f8725c2a5a60c87081"
+  },
+  "owned_50k": {
+    "after_retirement": {
+      "anonymous_pss_kib": 174840,
+      "peak_rss_kib": 180748,
+      "pss_kib": 178392,
+      "rss_kib": 180748
+    },
+    "before": {
+      "anonymous_pss_kib": 644,
+      "peak_rss_kib": 5524,
+      "pss_kib": 3172,
+      "rss_kib": 5524
+    },
+    "build": "release",
+    "directory_depth": 12,
+    "files": 50000,
+    "held_clones": 32,
+    "populate_ms": 161.878686,
+    "populated": {
+      "anonymous_pss_kib": 174836,
+      "peak_rss_kib": 180612,
+      "pss_kib": 178260,
+      "rss_kib": 180612
+    },
+    "retained_views": 1,
+    "routes": 3,
+    "scope": "in-process production projection/index/lifetime code; no kernel, SQLite or provider calls",
+    "view_inline_bytes": 584
+  },
+  "shared_50k": {
+    "after_retirement": {
+      "anonymous_pss_kib": 45156,
+      "peak_rss_kib": 51164,
+      "pss_kib": 48894,
+      "rss_kib": 51164
+    },
+    "before": {
+      "anonymous_pss_kib": 640,
+      "peak_rss_kib": 5304,
+      "pss_kib": 3034,
+      "rss_kib": 5304
+    },
+    "build": "release",
+    "directory_depth": 12,
+    "files": 50000,
+    "held_clones": 32,
+    "populate_ms": 68.50998299999999,
+    "populated": {
+      "anonymous_pss_kib": 45148,
+      "peak_rss_kib": 50900,
+      "pss_kib": 48630,
+      "rss_kib": 50900
+    },
+    "retained_views": 1,
+    "routes": 3,
+    "scope": "in-process production projection/index/lifetime code; no kernel, SQLite or provider calls",
+    "view_inline_bytes": 96
+  },
+  "shared_500k": {
+    "after_retirement": {
+      "anonymous_pss_kib": 451380,
+      "peak_rss_kib": 457332,
+      "pss_kib": 454990,
+      "rss_kib": 457332
+    },
+    "before": {
+      "anonymous_pss_kib": 644,
+      "peak_rss_kib": 5316,
+      "pss_kib": 2974,
+      "rss_kib": 5316
+    },
+    "build": "release",
+    "directory_depth": 12,
+    "files": 500000,
+    "held_clones": 32,
+    "populate_ms": 622.460864,
+    "populated": {
+      "anonymous_pss_kib": 451372,
+      "peak_rss_kib": 457132,
+      "pss_kib": 454790,
+      "rss_kib": 457132
+    },
+    "retained_views": 1,
+    "routes": 3,
+    "scope": "in-process production projection/index/lifetime code; no kernel, SQLite or provider calls",
+    "view_inline_bytes": 96
+  },
+  "kernel_single_update": {
+    "build": "release",
+    "elapsed_ms": 6.878734,
+    "indexed_files": 500000,
+    "memory": {
+      "anonymous_pss_kib": 5036,
+      "peak_rss_kib": 15628,
+      "pss_kib": 12942,
+      "rss_kib": 15628
+    },
+    "metadata_marks": 2,
+    "notified_views": 2,
+    "resolved_files": 3000
+  },
+  "kernel_burst": {
+    "cached_navigation_ms": 0.074983,
+    "cached_navigation_operations": 16,
+    "changed_files": 100,
+    "elapsed_ms": 6.213052,
+    "metadata_marks": 201,
+    "notified_views": 101
+  },
+  "limits": [
+    "Representation runs retain every file through a simulated lookup reference; these are not kernel mounts and contain no SQLite or provider workload.",
+    "The three routes consist of an ordinary route and two distinct shortcuts; each has 12 directories and 32 total extra held view clones.",
+    "The owned and shared 50k runs use identical fixtures in separate release processes; the 500k representation run measures only the shared version.",
+    "The separate kernel invalidation fixture has 500000 indexed files and 3000 resolved files; it does not retain 500000 live views.",
+    "RSS/PSS includes allocator retention. Retirement to one view does not imply the allocator returned that memory to the OS.",
+    "No resident byte admission budget, disk-backed view reconstruction, combined 500k kernel churn, real-provider reliability or 24-hour acceptance is established."
+  ]
+}
