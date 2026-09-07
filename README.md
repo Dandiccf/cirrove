@@ -13,8 +13,9 @@ metadata workers and a FUSE mount are implemented. Local synthetic tests exercis
 actual filesystem reads and recovery. Isolated business-account checks have
 exercised Graph operations; sustained operation and wider account/provider coverage
 remain under validation. Do not replace a trusted cloud
-client with this preview. Writable mounts, pins, tray UI and Nautilus badges are not
-implemented. A separate developer upload worker is undergoing validation.
+client with this preview. Ordinary mounts remain read-only. An isolated experimental
+writable filesystem API and upload worker are undergoing validation; pins, tray UI
+and Nautilus badges are not implemented.
 
 ## Current implementation
 
@@ -46,6 +47,11 @@ implemented. A separate developer upload worker is undergoing validation.
   these workers are not enabled in ordinary mounts. Conditional rename, move,
   folder creation and file deletion now share durable ordering with uploads;
   their isolated checks preserve collisions and uncertain results.
+- Experimental local working files and immutable save generations, with actual
+  synthetic FUSE create/write/truncate/fsync and offline-restart checks. A new save
+  waits for its predecessor's confirmed remote identity and ETag. This API requires
+  an explicitly writable, disabled test account; ordinary mounts do not enable it.
+  Atomic replacement and writable namespace operations remain incomplete.
 
 These are implementation capabilities, not a production-readiness claim. See the
 [validation record](docs/validation.md) for what has actually been tested.

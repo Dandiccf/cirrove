@@ -1,6 +1,7 @@
 //! Read-only FUSE projection. Callbacks dispatch asynchronous work; no callback
 //! holds the namespace map while awaiting a provider or a database operation.
 mod session;
+mod writeback;
 use crate::engine::Engine;
 use cirrove_core::{CancellationToken, Node, NodeKind, ProviderError, Scope};
 use cirrove_store::Store;
@@ -39,12 +40,14 @@ struct View {
 struct OpenFile {
     view: View,
     node: Node,
+    flags: i32,
 }
 pub struct CloudFs {
     inner: Arc<Inner>,
 }
 struct Inner {
     engine: Arc<Engine>,
+    writeback: Option<Arc<writeback::Writeback>>,
     runtime: Handle,
     views: Mutex<HashMap<u64, View>>,
     files: Mutex<HashMap<u64, OpenFile>>,
@@ -53,17 +56,56 @@ struct Inner {
     pending: Arc<Semaphore>,
     admitted_reads: Arc<Semaphore>,
     reads: Arc<Semaphore>,
+    writes: Arc<Semaphore>,
     uid: u32,
     gid: u32,
     cancel: CancellationToken,
 }
 impl CloudFs {
-    fn finish_read_only_handle(&self, handle: FileHandle, reply: ReplyEmpty) {
-        match self.inner.files.lock() {
-            Ok(files) if files.contains_key(&handle.0) => reply.ok(),
-            Ok(_) => reply.error(Errno::EBADF),
-            Err(_) => reply.error(Errno::EIO),
-        }
+    fn finish_handle(&self, handle: FileHandle, reply: ReplyEmpty) {
+        let inner = self.inner.clone();
+        self.inner.runtime.spawn(async move {
+            let file = inner
+                .files
+                .lock()
+                .ok()
+                .and_then(|f| f.get(&handle.0).cloned());
+            let Some(file) = file else {
+                reply.error(Errno::EBADF);
+                return;
+            };
+            // A thumbnailer/preview closing its read handle must never publish
+            // another application's unfinished mutable generation.
+            if file.flags & libc::O_ACCMODE == libc::O_RDONLY {
+                reply.ok();
+                return;
+            }
+            if let Some(writer) = &inner.writeback {
+                match writer.working(&file.view.scope, &file.view.node.id) {
+                    Ok(Some(record)) => match writer.seal(record.id).await {
+                        Ok(()) => reply.ok(),
+                        Err(e) => reply.error(e),
+                    },
+                    Ok(None) => reply.ok(),
+                    Err(e) => reply.error(e),
+                }
+            } else {
+                reply.ok();
+            }
+        });
+    }
+    /// Developer-only writable sessions. The manager still uses `new` (read-only).
+    /// The supplied account must be disabled and explicitly granted write access.
+    pub async fn new_experimental_writable(
+        engine: Arc<Engine>,
+        journal: Arc<Mutex<crate::journal::UploadJournal>>,
+    ) -> std::io::Result<Self> {
+        let writer = writeback::Writeback::new(&engine, journal).await?;
+        let mut fs = Self::new(engine)?;
+        Arc::get_mut(&mut fs.inner)
+            .ok_or_else(|| std::io::Error::other("filesystem already shared"))?
+            .writeback = Some(writer);
+        Ok(fs)
     }
     pub fn new(engine: Arc<Engine>) -> std::io::Result<Self> {
         let owner = std::fs::metadata("/proc/self")?;
@@ -93,6 +135,7 @@ impl CloudFs {
             inner: Arc::new(Inner {
                 cancel: engine.cancel.child_token(),
                 engine,
+                writeback: None,
                 runtime: Handle::current(),
                 views: Mutex::new(HashMap::from([(1, root)])),
                 files: Mutex::new(HashMap::new()),
@@ -101,6 +144,7 @@ impl CloudFs {
                 pending: Arc::new(Semaphore::new(128)),
                 admitted_reads: Arc::new(Semaphore::new(1024)),
                 reads: Arc::new(Semaphore::new(32)),
+                writes: Arc::new(Semaphore::new(32)),
                 uid: owner.uid(),
                 gid: owner.gid(),
             }),
@@ -151,7 +195,11 @@ impl CloudFs {
     pub fn mount(self, path: &std::path::Path) -> std::io::Result<CloudSession> {
         let mut config = fuser::Config::default();
         config.mount_options = vec![
-            fuser::MountOption::RO,
+            if self.inner.writeback.is_some() {
+                fuser::MountOption::RW
+            } else {
+                fuser::MountOption::RO
+            },
             fuser::MountOption::NoDev,
             fuser::MountOption::NoSuid,
             fuser::MountOption::DefaultPermissions,
@@ -225,7 +273,7 @@ impl Inner {
         };
         Ok(view)
     }
-    fn inode_key(view: &View) -> Result<String, ProviderError> {
+    fn inode_key(view: &View, writable: bool) -> Result<String, ProviderError> {
         let identity = (
             &view.scope.account,
             &view.alias,
@@ -234,7 +282,7 @@ impl Inner {
         );
         // Regular-file revisions have independent kernel page caches. Stable
         // provider identity remains account/drive/item; names never enter the key.
-        if view.node.kind == NodeKind::File {
+        if view.node.kind == NodeKind::File && !writable {
             serde_json::to_string(&(
                 "content-inode-v1",
                 identity,
@@ -251,7 +299,7 @@ impl Inner {
         if view.reference {
             view.node = self.engine.node(&view.scope, &view.node.id).await?;
         }
-        let key = Self::inode_key(&view)?;
+        let key = Self::inode_key(&view, self.writeback.is_some())?;
         let db = self.engine.db.clone();
         view.inode = tokio::task::spawn_blocking(move || Store::open(db)?.inode(&key))
             .await
@@ -265,7 +313,7 @@ impl Inner {
     }
     async fn listing(&self, inode: u64) -> Result<Vec<View>, ProviderError> {
         let parent = self.view(inode)?;
-        let nodes = self.engine.children(&parent.scope, &parent.node.id).await?;
+        let nodes = self.children(&parent).await?;
         let mut result = vec![
             View {
                 name: ".".into(),
@@ -287,6 +335,7 @@ impl Inner {
             }
         }
         let db = self.engine.db.clone();
+        let writable = self.writeback.is_some();
         let projected = tokio::task::spawn_blocking(move || -> Result<Vec<View>, ProviderError> {
             let mut store = Store::open(db).map_err(|_| ProviderError::Unavailable)?;
             for view in &mut projected {
@@ -303,7 +352,7 @@ impl Inner {
             }
             let keys = projected
                 .iter()
-                .map(Self::inode_key)
+                .map(|view| Self::inode_key(view, writable))
                 .collect::<Result<Vec<_>, _>>()?;
             let inodes = store
                 .inodes(&keys)
@@ -322,7 +371,23 @@ impl Inner {
         }
         Ok(result)
     }
+    async fn children(&self, parent: &View) -> Result<Vec<Node>, ProviderError> {
+        let nodes = self.engine.children(&parent.scope, &parent.node.id).await?;
+        match &self.writeback {
+            Some(writer) => writer
+                .overlay(&parent.scope, &parent.node.id, nodes)
+                .map_err(|_| ProviderError::Unavailable),
+            None => Ok(nodes),
+        }
+    }
     async fn node(&self, view: &View) -> Result<Node, ProviderError> {
+        if let Some(writer) = &self.writeback
+            && let Some(record) = writer
+                .working(&view.scope, &view.node.id)
+                .map_err(|_| ProviderError::Unavailable)?
+        {
+            return Ok(record.node);
+        }
         if view.inode == 1 || view.node.kind == NodeKind::File {
             return Ok(view.node.clone());
         }
@@ -344,7 +409,13 @@ impl Inner {
             } else {
                 FileType::RegularFile
             },
-            perm: if directory { 0o500 } else { 0o400 },
+            perm: if self.writeback.is_some() {
+                if directory { 0o700 } else { 0o600 }
+            } else if directory {
+                0o500
+            } else {
+                0o400
+            },
             nlink: if directory { 2 } else { 1 },
             uid: self.uid,
             gid: self.gid,
@@ -371,6 +442,9 @@ fn errno(error: &ProviderError) -> Errno {
 }
 impl Filesystem for CloudFs {
     fn init(&mut self, _req: &Request, config: &mut fuser::KernelConfig) -> std::io::Result<()> {
+        if self.inner.writeback.is_some() {
+            return Ok(());
+        }
         config
             .add_capabilities(fuser::InitFlags::FUSE_DIRECT_IO_ALLOW_MMAP)
             .map_err(|_| {
@@ -393,10 +467,7 @@ impl Filesystem for CloudFs {
             let _permit = permit;
             let result = async {
                 let parent = inner.view(parent.0)?;
-                let nodes = inner
-                    .engine
-                    .children(&parent.scope, &parent.node.id)
-                    .await?;
+                let nodes = inner.children(&parent).await?;
                 let node = nodes
                     .into_iter()
                     .find(|n| OsStr::new(&n.name) == name)
@@ -432,6 +503,219 @@ impl Filesystem for CloudFs {
             }
         });
     }
+    fn create(
+        &self,
+        _req: &Request,
+        parent: INodeNo,
+        name: &OsStr,
+        mode: u32,
+        _umask: u32,
+        flags: i32,
+        reply: fuser::ReplyCreate,
+    ) {
+        let Some(writer) = self.inner.writeback.clone() else {
+            reply.error(Errno::EROFS);
+            return;
+        };
+        if mode & libc::S_IFMT != libc::S_IFREG {
+            reply.error(Errno::EOPNOTSUPP);
+            return;
+        }
+        let Some(name) = name.to_str().map(str::to_owned) else {
+            reply.error(Errno::EINVAL);
+            return;
+        };
+        let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
+            reply.error(Errno::EAGAIN);
+            return;
+        };
+        let inner = self.inner.clone();
+        self.inner.runtime.spawn(async move {
+            let _permit = permit;
+            let result = async {
+                let parent = inner.view(parent.0).map_err(|e| errno(&e))?;
+                let nodes = inner.children(&parent).await.map_err(|e| errno(&e))?;
+                if nodes
+                    .iter()
+                    .any(|n| n.name.to_lowercase() == name.to_lowercase())
+                {
+                    return Err(Errno::EEXIST);
+                }
+                let node = Node {
+                    id: String::new(),
+                    parent_id: Some(parent.node.id.clone()),
+                    name,
+                    kind: NodeKind::File,
+                    size: 0,
+                    modified_unix: 0,
+                    etag: None,
+                    content_version: None,
+                    target: None,
+                };
+                let record = writer
+                    .create(parent.scope.clone(), node)
+                    .await
+                    .map_err(|e| if e == Errno::ESTALE { Errno::EEXIST } else { e })?;
+                let view = inner
+                    .insert(&parent, record.node.clone())
+                    .await
+                    .map_err(|e| errno(&e))?;
+                let attr = inner.attr(&view, &record.node);
+                let handle = inner.handle();
+                inner.files.lock().map_err(|_| Errno::EIO)?.insert(
+                    handle,
+                    OpenFile {
+                        view,
+                        node: record.node,
+                        flags,
+                    },
+                );
+                Ok::<_, Errno>((attr, handle))
+            }
+            .await;
+            match result {
+                Ok((attr, handle)) => reply.created(
+                    &TTL,
+                    &attr,
+                    Generation(0),
+                    FileHandle(handle),
+                    FopenFlags::FOPEN_DIRECT_IO,
+                ),
+                Err(e) => reply.error(e),
+            }
+        });
+    }
+    fn write(
+        &self,
+        _req: &Request,
+        _ino: INodeNo,
+        handle: FileHandle,
+        offset: u64,
+        data: &[u8],
+        _write_flags: fuser::WriteFlags,
+        _flags: OpenFlags,
+        _owner: Option<LockOwner>,
+        reply: fuser::ReplyWrite,
+    ) {
+        let Some(writer) = self.inner.writeback.clone() else {
+            reply.error(Errno::EROFS);
+            return;
+        };
+        if data.len() > 8 * 1024 * 1024 {
+            reply.error(Errno::EINVAL);
+            return;
+        }
+        let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
+            reply.error(Errno::EAGAIN);
+            return;
+        };
+        let inner = self.inner.clone();
+        let bytes = data.to_vec();
+        self.inner.runtime.spawn(async move {
+            let _permit = permit;
+            let result = async {
+                let file = inner
+                    .files
+                    .lock()
+                    .map_err(|_| Errno::EIO)?
+                    .get(&handle.0)
+                    .cloned()
+                    .ok_or(Errno::EBADF)?;
+                if file.flags & libc::O_ACCMODE == libc::O_RDONLY {
+                    return Err(Errno::EBADF);
+                }
+                let working = writer
+                    .working(&file.view.scope, &file.view.node.id)?
+                    .ok_or(Errno::EIO)?;
+                let count = writer
+                    .write(working.id, offset, bytes, file.flags & libc::O_APPEND != 0)
+                    .await?;
+                if file.flags & (libc::O_SYNC | libc::O_DSYNC) != 0 {
+                    writer.seal(working.id).await?;
+                }
+                Ok::<_, Errno>(count)
+            }
+            .await;
+            match result {
+                Ok(count) => reply.written(count),
+                Err(e) => reply.error(e),
+            }
+        });
+    }
+    fn setattr(
+        &self,
+        _req: &Request,
+        ino: INodeNo,
+        mode: Option<u32>,
+        uid: Option<u32>,
+        gid: Option<u32>,
+        size: Option<u64>,
+        atime: Option<fuser::TimeOrNow>,
+        mtime: Option<fuser::TimeOrNow>,
+        ctime: Option<std::time::SystemTime>,
+        fh: Option<FileHandle>,
+        crtime: Option<std::time::SystemTime>,
+        chgtime: Option<std::time::SystemTime>,
+        bkuptime: Option<std::time::SystemTime>,
+        flags: Option<fuser::BsdFileFlags>,
+        reply: ReplyAttr,
+    ) {
+        let Some(writer) = self.inner.writeback.clone() else {
+            reply.error(Errno::EROFS);
+            return;
+        };
+        if mode.is_some()
+            || uid.is_some()
+            || gid.is_some()
+            || atime.is_some()
+            || mtime.is_some()
+            || ctime.is_some()
+            || crtime.is_some()
+            || chgtime.is_some()
+            || bkuptime.is_some()
+            || flags.is_some()
+        {
+            reply.error(Errno::EOPNOTSUPP);
+            return;
+        }
+        let Some(size) = size else {
+            reply.error(Errno::EINVAL);
+            return;
+        };
+        let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
+            reply.error(Errno::EAGAIN);
+            return;
+        };
+        let inner = self.inner.clone();
+        self.inner.runtime.spawn(async move {
+            let _permit = permit;
+            let result = async {
+                if let Some(fh) = fh {
+                    let file = inner
+                        .files
+                        .lock()
+                        .map_err(|_| Errno::EIO)?
+                        .get(&fh.0)
+                        .cloned()
+                        .ok_or(Errno::EBADF)?;
+                    if file.flags & libc::O_ACCMODE == libc::O_RDONLY {
+                        return Err(Errno::EBADF);
+                    }
+                }
+                let view = inner.view(ino.0).map_err(|e| errno(&e))?;
+                let working = writer
+                    .prepare(&inner.engine, &view, size == 0, &inner.cancel)
+                    .await?;
+                let record = writer.truncate(working.id, size).await?;
+                Ok::<_, Errno>(inner.attr(&view, &record.node))
+            }
+            .await;
+            match result {
+                Ok(attr) => reply.attr(&TTL, &attr),
+                Err(e) => reply.error(e),
+            }
+        });
+    }
     fn getxattr(
         &self,
         _req: &Request,
@@ -462,7 +746,7 @@ impl Filesystem for CloudFs {
         _owner: LockOwner,
         reply: ReplyEmpty,
     ) {
-        self.finish_read_only_handle(handle, reply);
+        self.finish_handle(handle, reply);
     }
     fn fsync(
         &self,
@@ -472,10 +756,12 @@ impl Filesystem for CloudFs {
         _datasync: bool,
         reply: ReplyEmpty,
     ) {
-        self.finish_read_only_handle(handle, reply);
+        self.finish_handle(handle, reply);
     }
     fn open(&self, _req: &Request, inode: INodeNo, flags: OpenFlags, reply: ReplyOpen) {
-        if flags.0 & libc::O_ACCMODE != libc::O_RDONLY {
+        if self.inner.writeback.is_none()
+            && (flags.0 & libc::O_ACCMODE != libc::O_RDONLY || flags.0 & libc::O_TRUNC != 0)
+        {
             reply.error(Errno::EROFS);
             return;
         }
@@ -487,23 +773,37 @@ impl Filesystem for CloudFs {
         self.inner.runtime.spawn(async move {
             let _permit = permit;
             let result = async {
-                let view = inner.view(inode.0)?;
-                let node = inner.node(&view).await?;
+                let view = inner.view(inode.0).map_err(|e| errno(&e))?;
+                let node = inner.node(&view).await.map_err(|e| errno(&e))?;
                 if node.kind != NodeKind::File {
-                    return Err(ProviderError::Protocol("not a regular file"));
+                    return Err(Errno::EISDIR);
+                }
+                if flags.0 & libc::O_ACCMODE != libc::O_RDONLY {
+                    let writer = inner.writeback.as_ref().ok_or(Errno::EROFS)?;
+                    writer
+                        .prepare(
+                            &inner.engine,
+                            &view,
+                            flags.0 & libc::O_TRUNC != 0,
+                            &inner.cancel,
+                        )
+                        .await?;
                 }
                 let handle = inner.handle();
-                inner
-                    .files
-                    .lock()
-                    .map_err(|_| ProviderError::Unavailable)?
-                    .insert(handle, OpenFile { view, node });
-                Ok::<_, ProviderError>(handle)
+                inner.files.lock().map_err(|_| Errno::EIO)?.insert(
+                    handle,
+                    OpenFile {
+                        view,
+                        node,
+                        flags: flags.0,
+                    },
+                );
+                Ok::<_, Errno>(handle)
             }
             .await;
             match result {
                 Ok(handle) => reply.opened(FileHandle(handle), FopenFlags::FOPEN_DIRECT_IO),
-                Err(e) => reply.error(errno(&e)),
+                Err(e) => reply.error(e),
             }
         });
     }
@@ -549,6 +849,19 @@ impl Filesystem for CloudFs {
                     .get(&handle.0)
                     .cloned()
                     .ok_or(ProviderError::NotFound)?;
+                if file.flags & libc::O_ACCMODE == libc::O_WRONLY {
+                    return Err(ProviderError::Permission);
+                }
+                if let Some(writer) = &inner.writeback
+                    && let Some(record) = writer
+                        .working(&file.view.scope, &file.view.node.id)
+                        .map_err(|_| ProviderError::Unavailable)?
+                {
+                    return writer
+                        .read(record.id, offset, size)
+                        .await
+                        .map_err(|_| ProviderError::Unavailable);
+                }
                 inner
                     .engine
                     .cache

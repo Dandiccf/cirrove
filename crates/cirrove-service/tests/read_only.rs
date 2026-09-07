@@ -1940,3 +1940,403 @@ async fn real_active_directory_refreshes_during_a_stalled_read_without_push_or_d
     assert!(reader.await.unwrap().is_err());
     result.unwrap().unwrap();
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires kernel FUSE; experimental isolated local writes and journal recovery"]
+async fn real_local_saves_remain_readable_during_upload_and_after_offline_restart() {
+    use cirrove_service::journal::{UploadIntent, UploadJournal, UploadState};
+    use std::{
+        io::{Read, Seek, SeekFrom, Write},
+        sync::Mutex,
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    let state = temp.path().join("state");
+    let journal_root = temp.path().join("journal");
+    std::fs::create_dir(&mount).unwrap();
+    let provider = Fixture::new();
+    let mut account = account(mount.clone());
+    account.enabled = false;
+    account.access = cirrove_auth::AccessMode::ReadWrite;
+    let engine = Engine::new(account.clone(), provider.clone(), state.clone())
+        .await
+        .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&journal_root, &account.id, 64 * 1024 * 1024).unwrap(),
+    ));
+    let session = CloudFs::new_experimental_writable(engine.clone(), journal.clone())
+        .await
+        .unwrap()
+        .mount(&mount)
+        .unwrap();
+    let path = mount.join("Grüße & Kärnten.txt");
+    let j = journal.clone();
+    let m = mount.clone();
+    let last = tokio::task::spawn_blocking(move || {
+        let mut f = std::fs::OpenOptions::new()
+            .create_new(true)
+            .read(true)
+            .write(true)
+            .open(&path)
+            .unwrap();
+        f.write_all(b"first").unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"first");
+        assert!(
+            j.lock().unwrap().list(0, 100).unwrap().is_empty(),
+            "closing a read-only preview must not seal another application's unfinished edit"
+        );
+        f.sync_all().unwrap();
+        let first = j.lock().unwrap().claim_next().unwrap().unwrap();
+        assert_eq!(first.state, UploadState::Uploading);
+        f.seek(SeekFrom::Start(0)).unwrap();
+        f.write_all(b"second save").unwrap();
+        f.set_len(11).unwrap();
+        f.sync_all().unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"second save");
+        assert!(j.lock().unwrap().claim_next().unwrap().is_none());
+        {
+            let mut j = j.lock().unwrap();
+            let mut bytes = vec![];
+            j.payload(first.id)
+                .unwrap()
+                .read_to_end(&mut bytes)
+                .unwrap();
+            assert_eq!(bytes, b"first");
+            let receipt = Node {
+                id: "created-remote-id".into(),
+                parent_id: Some("root".into()),
+                name: "Grüße & Kärnten.txt".into(),
+                kind: NodeKind::File,
+                size: 5,
+                modified_unix: 1,
+                etag: Some("receipt-one".into()),
+                content_version: Some("uploaded-one".into()),
+                target: None,
+            };
+            j.acknowledge(first.id, first.attempt.unwrap(), receipt)
+                .unwrap();
+            let second = j.claim_next().unwrap().unwrap();
+            assert_eq!(
+                second.intent,
+                UploadIntent::Replace {
+                    item: "created-remote-id".into(),
+                    expected_etag: "receipt-one".into()
+                }
+            );
+            let mut bytes = vec![];
+            j.payload(second.id)
+                .unwrap()
+                .read_to_end(&mut bytes)
+                .unwrap();
+            assert_eq!(bytes, b"second save");
+        }
+        f.set_len(6).unwrap();
+        f.sync_all().unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"second");
+        drop(f);
+        // Editing one byte keeps the rest of an existing remote file intact.
+        let existing = m.join("folder/deep.txt");
+        let original = std::fs::read(&existing).unwrap();
+        let mut edit = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&existing)
+            .unwrap();
+        edit.seek(SeekFrom::Start(4)).unwrap();
+        edit.write_all(b"X").unwrap();
+        edit.sync_all().unwrap();
+        let mut expected = original;
+        expected[4] = b'X';
+        assert_eq!(std::fs::read(existing).unwrap(), expected);
+        let records = j.lock().unwrap().list(0, 100).unwrap();
+        records.into_iter().find(|r| r.size == 6).unwrap().id
+    })
+    .await
+    .unwrap();
+    provider.offline.store(true, Ordering::SeqCst);
+    engine.stop().await;
+    tokio::task::spawn_blocking(move || session.umount_and_join())
+        .await
+        .unwrap()
+        .unwrap();
+    drop(engine);
+    drop(journal);
+    let engine = Engine::new(account.clone(), provider, state).await.unwrap();
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&journal_root, &account.id, 64 * 1024 * 1024).unwrap(),
+    ));
+    assert_eq!(
+        journal.lock().unwrap().get(last).unwrap().state,
+        UploadState::Pending
+    );
+    let session = CloudFs::new_experimental_writable(engine.clone(), journal)
+        .await
+        .unwrap()
+        .mount(&mount)
+        .unwrap();
+    tokio::task::spawn_blocking(move || {
+        assert_eq!(
+            std::fs::read(mount.join("Grüße & Kärnten.txt")).unwrap(),
+            b"second"
+        );
+        let edited = std::fs::read(mount.join("folder/deep.txt")).unwrap();
+        assert_eq!(edited[4], b'X');
+        assert_eq!(edited.len(), 17);
+    })
+    .await
+    .unwrap();
+    engine.stop().await;
+    tokio::task::spawn_blocking(move || session.umount_and_join())
+        .await
+        .unwrap()
+        .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires kernel FUSE; delayed writable hydration must not block navigation or other saves"]
+async fn real_stalled_write_open_preserves_navigation_and_independent_local_saves() {
+    use cirrove_service::journal::UploadJournal;
+    use std::{io::Write, sync::Mutex};
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let provider = Fixture::new();
+    let mut account = account(mount.clone());
+    account.enabled = false;
+    account.access = cirrove_auth::AccessMode::ReadWrite;
+    let engine = Engine::new(account.clone(), provider.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 64 * 1024 * 1024).unwrap(),
+    ));
+    let session = CloudFs::new_experimental_writable(engine.clone(), journal.clone())
+        .await
+        .unwrap()
+        .mount(&mount)
+        .unwrap();
+    provider.stall.store(true, Ordering::SeqCst);
+    let p = mount.join("small.txt");
+    let blocked =
+        tokio::task::spawn_blocking(move || std::fs::OpenOptions::new().write(true).open(p));
+    tokio::time::timeout(Duration::from_secs(2), async {
+        while provider.reads.load(Ordering::SeqCst) == 0 {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert!(
+        journal.try_lock().is_ok(),
+        "network hydration retained the upload journal lock"
+    );
+    tokio::time::timeout(
+        Duration::from_secs(2),
+        tokio::task::spawn_blocking(move || {
+            assert!(std::fs::read_dir(&mount).unwrap().count() >= 4);
+            let mut f = std::fs::File::create(mount.join("independent.txt")).unwrap();
+            f.write_all(b"saved during stalled download").unwrap();
+            f.sync_all().unwrap();
+        }),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    engine.stop().await;
+    assert!(blocked.await.unwrap().is_err());
+    tokio::task::spawn_blocking(move || session.umount_and_join())
+        .await
+        .unwrap()
+        .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "synthetic writable FUSE child, launched only by its crash-recovery parent"]
+async fn writable_crash_mount_fixture() {
+    use cirrove_service::journal::UploadJournal;
+    use std::sync::Mutex;
+    let Some(root) = std::env::var_os("CIRROVE_WRITABLE_CRASH_ROOT") else {
+        return;
+    };
+    let root = std::path::PathBuf::from(root);
+    let mount = root.join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let mut account = account(mount.clone());
+    account.enabled = false;
+    account.access = cirrove_auth::AccessMode::ReadWrite;
+    let engine = Engine::new(account.clone(), Fixture::new(), root.join("state"))
+        .await
+        .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&root.join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let _session = CloudFs::new_experimental_writable(engine.clone(), journal)
+        .await
+        .unwrap()
+        .mount(&mount)
+        .unwrap();
+    std::fs::write(root.join("ready"), b"mounted").unwrap();
+    std::future::pending::<()>().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires kernel FUSE; kills only an isolated synthetic writable mount process"]
+async fn real_writable_mount_crash_keeps_the_saved_generation_and_newer_local_bytes() {
+    use cirrove_service::journal::{UploadJournal, UploadState};
+    use std::{
+        io::{Read, Seek, SeekFrom, Write},
+        sync::Mutex,
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    struct Cleanup(std::path::PathBuf);
+    impl Drop for Cleanup {
+        fn drop(&mut self) {
+            let _ = std::process::Command::new("fusermount3")
+                .args(["-u", "-z", "--"])
+                .arg(&self.0)
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status();
+        }
+    }
+    let _cleanup = Cleanup(mount.clone());
+    let mut child = tokio::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "writable_crash_mount_fixture",
+            "--ignored",
+            "--nocapture",
+        ])
+        .env("CIRROVE_WRITABLE_CRASH_ROOT", temp.path())
+        .kill_on_drop(true)
+        .spawn()
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(20), async {
+        while !temp.path().join("ready").exists() {
+            assert!(child.try_wait().unwrap().is_none());
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    // The application is a different process from the daemon. Holding a write
+    // handle to its own FUSE mount can deadlock a dying test daemon in close().
+    let file_path = mount.join("saved.txt");
+    let file = tokio::task::spawn_blocking(move || {
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(file_path)
+            .unwrap();
+        file.write_all(b"durable generation").unwrap();
+        file.sync_all().unwrap();
+        file.seek(SeekFrom::Start(0)).unwrap();
+        file.write_all(b"newer").unwrap();
+        file
+    })
+    .await
+    .unwrap();
+    child.kill().await.unwrap();
+    child.wait().await.unwrap();
+    drop(file);
+    assert_eq!(
+        std::fs::read(mount.join("saved.txt"))
+            .unwrap_err()
+            .raw_os_error(),
+        Some(libc::ENOTCONN)
+    );
+    assert!(
+        std::process::Command::new("fusermount3")
+            .args(["-u", "-z", "--"])
+            .arg(&mount)
+            .status()
+            .unwrap()
+            .success()
+    );
+    let mut account = account(mount.clone());
+    account.enabled = false;
+    account.access = cirrove_auth::AccessMode::ReadWrite;
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    {
+        let j = journal.lock().unwrap();
+        let record = j.list(0, 100).unwrap().remove(0);
+        assert_eq!(record.state, UploadState::Pending);
+        let mut bytes = vec![];
+        j.payload(record.id)
+            .unwrap()
+            .read_to_end(&mut bytes)
+            .unwrap();
+        assert_eq!(bytes, b"durable generation");
+        assert!(j.working_files().unwrap()[0].dirty);
+    }
+    let provider = Fixture::new();
+    provider.offline.store(true, Ordering::SeqCst);
+    let engine = Engine::new(account, provider, temp.path().join("state"))
+        .await
+        .unwrap();
+    let session = CloudFs::new_experimental_writable(engine.clone(), journal)
+        .await
+        .unwrap()
+        .mount(&mount)
+        .unwrap();
+    tokio::task::spawn_blocking(move || {
+        assert_eq!(
+            std::fs::read(mount.join("saved.txt")).unwrap(),
+            b"newerle generation"
+        )
+    })
+    .await
+    .unwrap();
+    engine.stop().await;
+    tokio::task::spawn_blocking(move || session.umount_and_join())
+        .await
+        .unwrap()
+        .unwrap();
+}
+
+#[tokio::test]
+async fn experimental_writes_require_isolated_opt_in_and_matching_journal_owner() {
+    use cirrove_service::journal::UploadJournal;
+    use std::sync::Mutex;
+    for (enabled, access, matching, accepted) in [
+        (false, cirrove_auth::AccessMode::ReadOnly, true, false),
+        (true, cirrove_auth::AccessMode::ReadWrite, true, false),
+        (false, cirrove_auth::AccessMode::ReadWrite, false, false),
+        (false, cirrove_auth::AccessMode::ReadWrite, true, true),
+    ] {
+        let temp = tempfile::tempdir().unwrap();
+        let mut account = account(temp.path().join("mount"));
+        account.enabled = enabled;
+        account.access = access;
+        let journal = Arc::new(Mutex::new(
+            UploadJournal::open(
+                &temp.path().join("journal"),
+                if matching {
+                    &account.id
+                } else {
+                    "another-account"
+                },
+                1024,
+            )
+            .unwrap(),
+        ));
+        let engine = Engine::new(account, Fixture::new(), temp.path().join("state"))
+            .await
+            .unwrap();
+        assert_eq!(
+            CloudFs::new_experimental_writable(engine, journal)
+                .await
+                .is_ok(),
+            accepted
+        );
+    }
+}

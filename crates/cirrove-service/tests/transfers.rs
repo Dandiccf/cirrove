@@ -550,3 +550,78 @@ async fn failed_secret_cleanup_does_not_undo_a_durable_upload_receipt() {
     assert_eq!(v.values.lock().unwrap().len(), 1);
     assert_local(&j, id);
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn saving_again_during_a_transfer_preserves_both_generations_through_recovery() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let (probe, provider, vault) = fixture();
+    let j = journal(&root, &probe);
+    let working = {
+        let mut j = j.lock().unwrap();
+        let node = Node {
+            id: String::new(),
+            parent_id: Some("root".into()),
+            name: "Saved.txt".into(),
+            kind: NodeKind::File,
+            size: 0,
+            modified_unix: 0,
+            etag: None,
+            content_version: None,
+            target: None,
+        };
+        let w = j
+            .create_working(
+                Scope {
+                    account: "fixture".into(),
+                    provider: "onedrive".into(),
+                    collection: "drive".into(),
+                },
+                node,
+                true,
+                &b""[..],
+            )
+            .unwrap();
+        j.write_working(w.id, 0, DATA).unwrap();
+        j.seal_working(w.id).unwrap();
+        w
+    };
+    provider.pause_offset.store(4, Ordering::SeqCst);
+    let cancel = CancellationToken::new();
+    let worker = TransferWorker::new(j.clone(), provider.clone(), vault.clone(), cancel.clone());
+    let upload = tokio::spawn(async move { worker.run_once().await });
+    tokio::time::timeout(Duration::from_secs(2), provider.entered.notified())
+        .await
+        .unwrap();
+    let second = {
+        let mut j = j.lock().unwrap();
+        j.write_working(working.id, 0, b"newer-edit").unwrap();
+        j.seal_working(working.id).unwrap().unwrap()
+    };
+    assert_eq!(provider.state.lock().unwrap().data, b"abcd");
+    cancel.cancel();
+    upload.await.unwrap().unwrap();
+    drop(j);
+    let j = journal(&root, &probe);
+    provider.pause_offset.store(u64::MAX, Ordering::SeqCst);
+    let worker = TransferWorker::new(j.clone(), provider.clone(), vault, CancellationToken::new());
+    // Explicit retry retains the existing verification requirement and session.
+    {
+        let mut j = j.lock().unwrap();
+        let first = j.list(0, 100).unwrap()[0].id;
+        j.request_retry(first).unwrap();
+    }
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+    assert_eq!(provider.state.lock().unwrap().data, DATA);
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+    assert_eq!(provider.state.lock().unwrap().data, b"newer-edit");
+    let j = j.lock().unwrap();
+    assert_eq!(j.get(second.id).unwrap().state, UploadState::Uploaded);
+    assert_eq!(j.read_working(working.id, 0, 100).unwrap(), b"newer-edit");
+}

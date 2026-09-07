@@ -117,7 +117,8 @@ pub(super) fn migrate_queue(db: &mut Connection, version: u32) -> Result<()> {
         }
     }
     tx.execute("UPDATE mutations SET state='verify_required', body=json_set(body,'$.state','verify_required','$.attempt',NULL) WHERE state IN ('applying','verifying')",[])?;
-    tx.pragma_update(None, "user_version", 3)?;
+    // Never downgrade a newer journal if the process dies before later migration.
+    tx.pragma_update(None, "user_version", version.max(3))?;
     tx.commit()?;
     Ok(())
 }
@@ -193,6 +194,9 @@ impl UploadJournal {
         Ok(())
     }
     pub fn claim_mutation(&mut self) -> Result<Option<MutationRecord>> {
+        if !self.resolve_ready_generations()? {
+            return Ok(None);
+        }
         let body: Option<String> = self.db.query_row("SELECT m.body FROM mutations m WHERE m.state IN ('pending','verify_required') AND json_extract(m.body,'$.retry_at')<=?1 AND NOT EXISTS (
             SELECT 1 FROM write_queue previous JOIN write_resources a ON a.id=previous.id JOIN write_resources b ON b.resource=a.resource AND b.id=m.id WHERE previous.sequence<m.sequence AND previous.complete=0)
             ORDER BY m.sequence LIMIT 1",[now_seconds() as i64],|r|r.get(0)).optional()?;
