@@ -34,6 +34,11 @@ use tokio::{runtime::Handle, sync::Semaphore};
 
 const TTL: Duration = Duration::from_secs(1);
 const READ_QUEUE_TIMEOUT: Duration = Duration::from_secs(30);
+/// Allocator trims performed since start. Three attempts at the trim condition
+/// failed because whether it fired could only be inferred from the memory it was
+/// supposed to move; this makes it a number a fixture can assert on directly.
+pub(crate) static TRIMS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 #[derive(Clone)]
 struct View {
     residency: Arc<LookupRefs>,
@@ -197,36 +202,46 @@ impl CloudFs {
         self.inner.runtime.spawn(async move {
             let mut tick = tokio::time::interval(Duration::from_secs(1));
             // A traversal leaves most of its memory freed but not returned. Give
-            // it back once the mount goes quiet, and once per quiet period rather
-            // than every second: trimming takes every arena lock in turn.
+            // it back once the mount has shed what it was holding and gone quiet.
             //
-            // The obvious spelling, firing when the idle count equals the
-            // threshold, fires once in the process lifetime and never again: the
-            // count only resets when the collector finds work, so it passes the
-            // threshold early and climbs past it forever. Track whether this
-            // quiet period has already been trimmed instead.
+            // The signal has to be the view count, not the collector's own work.
+            // `forget` reclaims directly when the kernel drops its last reference,
+            // so on a traversal workload the collector reclaims nothing at all and
+            // anything keyed to its return value fires once at mount, against an
+            // empty namespace, and never again. Two earlier spellings of this
+            // failed exactly that way and the measurements looked like a trim that
+            // did nothing.
+            //
+            // So: remember the most views held since the last trim, and trim when
+            // the mount is quiet and now holds far fewer. That is precisely when
+            // there are freed pages worth returning.
             const QUIESCENT_TICKS: u32 = 5;
+            const SHED_FACTOR: usize = 2;
+            const SHED_FLOOR: usize = 1024;
             let mut idle = 0u32;
-            let mut trimmed = false;
+            let mut high_water = 0usize;
             loop {
                 tokio::select! { biased;
                     _ = inner.cancel.cancelled() => break,
                     _ = tick.tick() => {
-                        let reclaimed = match inner.views.lock() {
-                            Ok(mut views) => views.collect(4096),
+                        let (reclaimed, held) = match inner.views.lock() {
+                            Ok(mut views) => (views.collect(4096), views.len()),
                             Err(_) => continue,
                         };
                         // The guard is dropped before trimming: trim takes every
                         // arena lock in turn, and holding the namespace lock
                         // across that would block every filesystem reply.
-                        if reclaimed == 0 {
-                            idle = idle.saturating_add(1);
+                        idle = if reclaimed == 0 {
+                            idle.saturating_add(1)
                         } else {
-                            idle = 0;
-                            trimmed = false;
-                        }
-                        if idle >= QUIESCENT_TICKS && !trimmed {
-                            trimmed = true;
+                            0
+                        };
+                        high_water = high_water.max(held);
+                        if idle >= QUIESCENT_TICKS
+                            && high_water > held.saturating_mul(SHED_FACTOR).max(SHED_FLOOR)
+                        {
+                            high_water = held;
+                            TRIMS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                             tokio::task::spawn_blocking(|| {
                                 let released = cirrove_allocator::trim();
                                 tracing::debug!(released, "returned free pages to the kernel");

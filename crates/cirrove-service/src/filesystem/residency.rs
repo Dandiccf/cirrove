@@ -55,7 +55,9 @@ impl NamespaceViews {
     pub(super) fn values(&self) -> impl Iterator<Item = &View> {
         self.entries.values().map(|entry| &entry.view)
     }
-    #[cfg(test)]
+    /// Resident view count. Not test-only: the reclamation tick needs it to tell
+    /// a mount that has shed what it was holding from one that never held it, and
+    /// a shipped daemon that cannot count its own views cannot report on them.
     pub(super) fn len(&self) -> usize {
         self.entries.len()
     }

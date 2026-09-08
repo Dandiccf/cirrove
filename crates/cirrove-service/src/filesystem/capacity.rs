@@ -182,6 +182,7 @@ fn namespace_sample(inner: &Inner, phase: &str, seconds: f64) -> serde_json::Val
     // fixture that emitted neither.
     let references = inner.views.lock().unwrap().diagnostics();
     serde_json::json!({
+        "allocator_trims": super::TRIMS.load(std::sync::atomic::Ordering::Relaxed),
         "references": references,
         "phase": phase, "seconds": seconds, "retained_views": retained,
         "open_directory_handles": handles,
