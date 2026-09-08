@@ -34,6 +34,7 @@ EXCUSED = {
     "handoff_crash_child": "subprocess entry point, driven by its parent test",
     "replacement_crash_child": "subprocess entry point, driven by its parent test",
     "unlinked_crash_child": "subprocess entry point, driven by its parent test",
+    "directories_crash_child": "subprocess entry point, driven by its parent test",
     # Capacity benchmarks. Minutes to hours, and their memory numbers are only
     # comparable on a quiet machine, which a shared runner is not.
     "namespace_capacity_baseline": "capacity benchmark; run deliberately, not on a shared runner",

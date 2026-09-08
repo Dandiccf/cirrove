@@ -3,7 +3,7 @@
   "box": "Crash/fault tests at every durable transition and concurrent remote edits (milestone 2)",
   "method": "Enumerated the journal modules containing fsync or transaction commits, then read the tests that reach each. Test names were not used as evidence; see docs/development.md on why that undercounts here.",
   "durable_modules": 11,
-  "with_a_kill_point": 8,
+  "with_a_kill_point": 11,
   "rows": [
     {
       "module": "journal.rs",
@@ -32,8 +32,8 @@
     },
     {
       "module": "journal/generations.rs",
-      "crash_test": null,
-      "note": "Reached only indirectly; no test kills between a generation advance and its commit."
+      "crash_test": "Transitively: tests/upload_journal.rs journal_crash_fixture calls claim_next, which runs resolve_ready_generations -- the only runtime commit in this module.",
+      "note": "Its other two commits are in migrate and migrate_dependencies, covered by version_five_migration_keeps_existing_save_lineage_and_refuses_newer_schema. No separate kill point: the runtime transition has no entry point of its own."
     },
     {
       "module": "journal/handoff.rs",
@@ -52,22 +52,23 @@
     },
     {
       "module": "journal/directories.rs",
-      "crash_test": null,
-      "note": "tests/local_directories.rs covers restart; no kill mid-commit."
+      "crash_test": "tests/local_directories.rs: actual_process_death_keeps_a_pending_folder_and_its_waiting_child_consistent",
+      "note": "SIGKILL before and after the folder's cloud confirmation. Before it the waiting child must stay unclaimable rather than upload to a guessed parent; after it the child must be claimable under the folder's real cloud id and not wait forever for a folder that already exists."
     },
     {
       "module": "journal/publication.rs",
-      "crash_test": null,
-      "note": "No kill point."
+      "crash_test": "Not applicable: no runtime durable transition.",
+      "note": "Its single commit is inside migrate, raising user_version to 12. Schema migrations are covered by the migration tests in causal_edits.rs and clean_handoff.rs. Counting this module as an uncovered durable transition was an error in the first version of this enumeration, which grepped for commit() without asking which function it was in."
     }
   ],
-  "conclusion": "Eight of eleven journal modules carrying durable transitions have a test that kills the process at one. The other three are covered for rollback and restart by injected failure, which is narrower evidence: an injected error unwinds a transaction the program still controls, while a SIGKILL leaves whatever the kernel had actually written. The box says every transition, and seven are not that. It stays unticked.",
-  "cheapest_next_step": "Generations, directories and publication remain; the pattern is demonstrated eight times over.",
+  "conclusion": "Ten modules carry runtime durable transitions and all ten are now crossed by a test that kills the process: nine directly, and generations.rs transitively through claim_next, which is its only runtime commit path and has no entry point of its own. publication.rs carries only a migration.\\n\\nThis is module-level coverage, not transition-level. The milestone says every durable transition, and a module may hold several with only one crossed. The box stays unticked on that distinction, which is now the only thing between it and being ticked.",
+  "cheapest_next_step": "Enumerate transitions rather than modules: one row per tx.commit() and per fsync on a runtime path, each with the kill point that crosses it. That is a mechanical pass over about twenty sites and would settle the box either way.",
   "not_reachable_autonomously": "Physical power loss and a lying fsync are a different class again, need dm-flakey and root, and the milestone text already names physical-fault coverage as an open gap.",
   "open_question_found_while_writing_this": {
     "observation": "Detached bytes survive the SIGKILL and are gone after the next UploadJournal::open. Measured by checking the spool path before and after reopening: present, then absent.",
     "why_it_matters": "docs/adr/0002-durable-local-edits.md states that detached bytes remain recovery data and that their cleanup and presentation policy is unfinished. A recovery that removes them on the next open is that policy defaulting to deletion, silently. Between a handoff and an explicit cleanup those bytes are the only local copy of an edit whose remote metadata has already moved on.",
     "not_yet_established": "Which recovery step removes them. recover_working iterates working_files, which is empty after a handoff; recover_preparation_files only matches .cirrove-preparing- names. The removal was not located, and it may be correct behaviour rather than a defect.",
     "why_the_test_does_not_pin_it": "Asserting behaviour whose intent is undecided makes a change detector rather than a guard. The test asserts what is settled -- the handoff is durable and the bytes survive the kill -- and this records the rest."
-  }
+  },
+  "correction": "The first version of this file counted eleven modules with durable transitions by grepping for tx.commit(). Two of those commits are schema migrations, not runtime transitions: publication.rs has only that, and two of generations.rs's four are migrate. Grepping for a call without asking which function contains it is the same error as counting test names, three files earlier in this repository's history."
 }

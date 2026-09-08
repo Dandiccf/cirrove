@@ -10,6 +10,7 @@ use cirrove_service::journal::{
 };
 use std::{
     path::Path,
+    process::{Command, Stdio},
     time::{Duration, Instant},
 };
 
@@ -364,5 +365,81 @@ fn moving_a_new_file_waits_for_both_its_upload_and_its_destination_folder() {
         assert!(
             matches!(&claimed.intent,UploadIntent::Replace{item,expected_etag} if item=="cloud-file" && expected_etag=="moved-etag")
         );
+    }
+}
+
+/// Child for the crash test: creates a pending folder with a child waiting on it,
+/// stops at the requested durable transition, then waits to be killed.
+#[test]
+#[ignore = "subprocess fixture; activated only by its parent test"]
+fn directories_crash_child() {
+    let root = std::env::var("CIRROVE_DIRECTORIES_FIXTURE_ROOT").unwrap();
+    let root = Path::new(&root);
+    let mut j = open(&root.join("journal"));
+    let top = j
+        .create_namespace_directory(scope(), "root".into(), "Grüße".into())
+        .unwrap();
+    let waiting = child(&mut j, &top.node.id, "waiting.txt");
+    if std::env::var("CIRROVE_DIRECTORIES_FIXTURE_PHASE").unwrap() == "confirmed" {
+        ack_folder(&mut j, &top, "cloud-top");
+    }
+    std::fs::write(
+        root.join("ready"),
+        format!("{} {}", top.node.id, waiting.id),
+    )
+    .unwrap();
+    loop {
+        std::thread::sleep(Duration::from_secs(1));
+    }
+}
+
+/// A killed process must keep a pending folder and whatever is waiting on it
+/// together, in whichever state the last durable write left them.
+///
+/// A local folder exists before the cloud has one, and its children cannot be
+/// uploaded until it is confirmed, because their destination is its cloud id.
+/// A crash before confirmation must leave the child unclaimable rather than
+/// uploading it to a guessed parent; a crash after confirmation must not make the
+/// child wait forever for a folder that already exists remotely.
+#[test]
+fn actual_process_death_keeps_a_pending_folder_and_its_waiting_child_consistent() {
+    for phase in ["pending", "confirmed"] {
+        let temp = tempfile::tempdir().unwrap();
+        let mut child_process = Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "directories_crash_child", "--ignored"])
+            .env("CIRROVE_DIRECTORIES_FIXTURE_ROOT", temp.path())
+            .env("CIRROVE_DIRECTORIES_FIXTURE_PHASE", phase)
+            .stdout(Stdio::null())
+            .spawn()
+            .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !temp.path().join("ready").exists() {
+            if Instant::now() >= deadline {
+                child_process.kill().unwrap();
+                child_process.wait().unwrap();
+                panic!("directories fixture did not become ready");
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        child_process.kill().unwrap();
+        child_process.wait().unwrap();
+
+        let ready = std::fs::read_to_string(temp.path().join("ready")).unwrap();
+        let waiting: uuid::Uuid = ready.split_whitespace().nth(1).unwrap().parse().unwrap();
+        let mut j = open(&temp.path().join("journal"));
+        let claim = j.claim_next().unwrap();
+        if phase == "confirmed" {
+            let claim = claim.expect("a confirmed folder must release its waiting child");
+            assert_eq!(claim.id, waiting);
+            assert!(
+                matches!(&claim.intent, UploadIntent::Create { parent, .. } if parent == "cloud-top"),
+                "the child must be created under the folder's cloud id, not a guess"
+            );
+        } else {
+            assert!(
+                claim.is_none(),
+                "a child was claimable before its folder existed remotely"
+            );
+        }
     }
 }
