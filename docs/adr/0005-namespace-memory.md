@@ -426,12 +426,30 @@ runs only non-full rounds, so no sustained sample is post-invalidation root-only
 and there is no series a plateau rule can be applied to. Sustained mode also
 carries no memory assertion at all.
 
-**Not covered by any criterion above, and needing one.** The persistent SQLite
-`inodes` table grows by roughly 154 MiB per 500,000-file pass and by about 27 rows
-per sustained round. `crates/` contains no `DELETE FROM inodes`. Because the table
-is file-backed it contributes nothing to process RSS and would be reclaimed under
-any cgroup cap, so it can grow without bound on disk while every criterion above
-passes. This is a hole in the gate definition, not in the implementation.
+**G8, the persistent inode table.** Measured across two 500,000-file runs: rows go
+from 1 to 750,495 and the database file from 565.6 to 662.7 MiB. The first pass
+adds one row per projected view, about 97 MiB; each round after it adds 27, one
+per changed file. An earlier working note put this at 154 MiB per pass, which is
+both the wrong figure and the wrong axis.
+
+The axis is revisions, not passes. The key embeds the content revision, so every
+revision of every file mints a permanent row, and `crates/` contains no
+`DELETE FROM inodes` anywhere. A library churning steadily therefore grows this
+table without bound for the life of the account. Because it is file-backed it
+contributes nothing to process RSS and would be reclaimed under any cgroup cap,
+so every memory criterion above passes while it grows.
+
+**Criterion:** on `real_combined_namespace_churn` at 500,000 files, `inode_rows`
+after three rounds must not exceed the projected view count by more than one
+percent, and the sustained arm must not add more than one row per changed file per
+round. That bounds the shape rather than the size, which is the right bound while
+no pruning path exists.
+
+Pruning is not cheap and should not be assumed. The table is the persistent inode
+key and the fixture asserts inodes stay stable across remount, so naive deletion
+renumbers a user's library on upgrade. Recording the criterion now at least means
+a regression in the shape fails a build; a pruning design is separate work that
+may end up deferred with a written justification rather than done.
 
 ## The paged-payload prototype does not reach the gate's own workload
 
