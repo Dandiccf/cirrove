@@ -1,6 +1,6 @@
 {
   "generated_from": "docs/product-milestones.md",
-  "note": "One row per acceptance box. `blocker` says what stands between the box and being ticked, not how hard the code is. `asserted_by` names the test that would fail if the claim stopped holding; a box may not be ticked while it is null.",
+  "note": "One row per acceptance box. `blocker` says what stands between the box and being ticked, not how hard the code is. `asserted_by` names the test that would fail if the claim stopped holding; a box may not be ticked while it is null. `candidate_assertions` are tests that look like they might assert the box and have not been read. They deliberately do not satisfy the tick check.",
   "totals": {
     "boxes": 51,
     "ticked": 2,
@@ -52,7 +52,12 @@
       "text": "Responsive navigation during initial indexing and competing downloads.",
       "blocker": "autonomous",
       "evidence": null,
-      "asserted_by": null
+      "asserted_by": null,
+      "candidate_assertions": [
+        "filesystem::capacity::real_combined_namespace_churn (navigation_ms per round, bounded)",
+        "content::windows::tests::graph::kernel::real_* (cached navigation during stalled transfer)"
+      ],
+      "candidate_note": "Named by matching test names to the box, NOT by reading them. A test name is not evidence: a coverage survey earlier today reported five FUSE handlers as untested because it grepped names, and two of the five were covered under a differently named test. Read these before promoting any of them to asserted_by, and expect some to cover less than the box claims."
     },
     {
       "milestone": 1,
@@ -122,8 +127,9 @@
       "done": false,
       "text": "Durable local file contents and journal before local-save acknowledgement.",
       "blocker": "autonomous",
-      "evidence": null,
-      "asserted_by": null
+      "evidence": "docs/adr/0002-durable-local-edits.md",
+      "asserted_by": "tests/working_files.rs: killed_process_preserves_fsynced_save_and_newer_unsealed_changes -- read, not name-matched: after a SIGKILL it asserts the fsynced payload survives verbatim, the working file is still marked dirty, and the newer unsealed bytes are readable. Supported by queue_commit_and_working_generation_advance_are_one_transaction and partial_write_metadata_failure_recovers_actual_bytes_without_claiming_a_save.",
+      "caveat": "Covers process death. Physical power loss and a lying fsync are not covered and need dm-flakey and root; the milestone text names physical-fault coverage as an open gap. The box is not ticked on this alone."
     },
     {
       "milestone": 2,
@@ -133,7 +139,13 @@
       "text": "Persisted upload progress, resumable transfers and idempotent recovery.",
       "blocker": "autonomous",
       "evidence": null,
-      "asserted_by": null
+      "asserted_by": null,
+      "candidate_assertions": [
+        "tests/upload_journal.rs: later_saves_follow_receipts_across_creation_upload_and_restart",
+        "tests/upload_journal.rs: missing_receipt_precondition_never_falls_back_to_a_second_create",
+        "tests/upload_journal.rs: snapshots_are_private_immutable_and_survive_restart_with_unicode_names"
+      ],
+      "candidate_note": "Named by matching test names to the box, NOT by reading them. A test name is not evidence: a coverage survey earlier today reported five FUSE handlers as untested because it grepped names, and two of the five were covered under a differently named test. Read these before promoting any of them to asserted_by, and expect some to cover less than the box claims."
     },
     {
       "milestone": 2,
@@ -143,7 +155,12 @@
       "text": "Version-conditional changes and preservation of both sides of conflicts.",
       "blocker": "autonomous",
       "evidence": null,
-      "asserted_by": null
+      "asserted_by": null,
+      "candidate_assertions": [
+        "tests/upload_journal.rs: conflicted_predecessors_retain_newer_saves_and_allow_independent_work",
+        "tests/causal_edits.rs: a_conflicted_rename_blocks_descendants_but_not_another_file"
+      ],
+      "candidate_note": "Named by matching test names to the box, NOT by reading them. A test name is not evidence: a coverage survey earlier today reported five FUSE handlers as untested because it grepped names, and two of the five were covered under a differently named test. Read these before promoting any of them to asserted_by, and expect some to cover less than the box claims."
     },
     {
       "milestone": 2,
@@ -153,7 +170,11 @@
       "text": "Distinct local-save, pending-upload, uploading, uploaded and failure states.",
       "blocker": "autonomous",
       "evidence": null,
-      "asserted_by": null
+      "asserted_by": null,
+      "candidate_assertions": [
+        "tests/clean_handoff.rs: dirty_pending_inflight_and_successor_bytes_cannot_be_retired"
+      ],
+      "candidate_note": "Named by matching test names to the box, NOT by reading them. A test name is not evidence: a coverage survey earlier today reported five FUSE handlers as untested because it grepped names, and two of the five were covered under a differently named test. Read these before promoting any of them to asserted_by, and expect some to cover less than the box claims."
     },
     {
       "milestone": 2,
