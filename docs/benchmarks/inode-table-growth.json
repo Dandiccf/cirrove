@@ -25,5 +25,6 @@
     "not_a_memory_finding": "It is on disk, not in RSS. Every namespace memory criterion passes while this grows, which is why it needed its own measurement rather than a mention."
   },
   "what_makes_pruning_safe": "The table is `inode INTEGER PRIMARY KEY AUTOINCREMENT`, so SQLite records a high-water mark in sqlite_sequence and never reissues a deleted inode number. The reuse hazard -- deleting a row and later handing the same number to a different object while the kernel still caches the old one -- is therefore already closed by the schema. What remains is not reuse but reachability, and that is a criterion, not a mechanism.",
-  "what_is_not_measured": "Whether pruning at mount is safe against kernel references that survive a remount, and what the pruning pass costs on a database this size. Both are named in docs/adr/0007-inode-table-growth.md and neither has been run."
+  "what_is_not_measured": "Whether pruning at mount is safe against kernel references that survive a remount, and what the pruning pass costs on a database this size. Both are named under G8 in docs/adr/0005-namespace-memory.md and neither has been run.",
+  "relation_to_g8": "G8 already bounds the shape of this table and recorded 97 MiB of file growth for the first pass. This measurement does not replace that; it explains why the file figure understates the cost. The database held 32,385 free pages (126.5 MiB) at baseline, which the table consumed before growing the file, so 97 MiB of growth and 223.6 MiB of table reconcile exactly."
 }

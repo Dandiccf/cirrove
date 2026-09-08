@@ -451,6 +451,35 @@ renumbers a user's library on upgrade. Recording the criterion now at least mean
 a regression in the shape fails a build; a pruning design is separate work that
 may end up deferred with a written justification rather than done.
 
+**What the file growth hid.** The 97 MiB above is what the *file* grew, and it is
+not what the table cost. `dbstat` on the sustained pilot's database
+([the measurement](../benchmarks/inode-table-growth.json)) charges 750,460 rows
+**223.6 MiB** -- 312 bytes each, of which 149 are the table and 163 the UNIQUE
+index on `key`, an index larger than the table it indexes because the key is a
+JSON tuple stored whole. The two figures reconcile exactly: the database held
+32,385 free pages at baseline, 126.5 MiB, and the table consumed those before it
+grew the file at all. So the cost is 34 percent of the whole metadata database,
+and the axis that reveals it is per-table bytes rather than file size.
+
+**The hazard is reachability, not reuse.** The schema is
+`inode INTEGER PRIMARY KEY AUTOINCREMENT`, so SQLite keeps a high-water mark in
+`sqlite_sequence` and never reissues a deleted number. A pruned row cannot
+therefore collide with a kernel reference to some other object; what it can do is
+mint a *fresh* number for the same object on the next lookup, which is what would
+renumber a library. That narrows the safe set to keys the current namespace can
+no longer resolve, and it means the danger of deletion is narrower and better
+understood than "naive deletion renumbers" suggested.
+
+Two measurements would decide whether pruning is even the right remedy, and
+neither has been run. **What would it reclaim?** Count, on that same database,
+the rows whose item already has a newer revision. If the answer is small the
+growth is dominated by first-traversal rows, which are all reachable, and a
+narrower key -- not a pruning pass -- is the remedy. **What does the pass cost?**
+Time the reachability delete cold against 750,460 rows. Mount is the only moment
+with no kernel references to respect, and it is also the moment a user is
+waiting; if the pass does not fit there, it has to run after mount, which changes
+the safety argument. Knowing both before writing either version is the point.
+
 ## The paged-payload prototype does not reach the gate's own workload
 
 `feature/paged-view-payloads` (32dc281) moves projection payloads into a per-mount
