@@ -414,6 +414,31 @@ CIRROVE_CHURN_FILES=500000 CIRROVE_CHURN_PER_DIRECTORY=250000 cargo test -p cirr
 CIRROVE_CHURN_FILES=500000 CIRROVE_CHURN_SECONDS=86400 cargo test -p cirrove-service --lib --release --locked filesystem::capacity::real_combined_namespace_churn -- --exact --ignored --nocapture --test-threads=1
 ```
 
+## Assessing coverage in this repository
+
+Counting test names, or grepping for a function's name in `tests/`, systematically
+undercounts coverage here and has misdirected work three times in one day.
+
+Two conventions cause it. Tests are named after the scenario they exercise rather
+than the code they reach, so `getxattr` and `listxattr` are asserted inside a test
+called `real_fuse_reads_shortcuts_seek_readonly_restart_and_ejection`. And most
+modules under `filesystem/` are reached through an actual mount rather than called
+directly, so `writeback/replacement.rs` has no in-module tests and no mention of
+`replace` outside its own file, while three kernel fixtures drive it end to end.
+
+A survey that counted names reported five FUSE handlers as untested; two were
+covered. Another reported `writeback/{ancestry,replacement,unlinked}.rs` as having
+no coverage; all three are exercised, by `tests/namespace_ancestry.rs`,
+`tests/unlinked_files.rs` and the `real_replacement_*` fixtures respectively.
+Acting on either would have produced duplicate tests for guarded behaviour.
+
+Ask instead what a test *does*. Search for the operation a user would perform --
+`remove_file`, `set_len`, `sync_all`, a rename through the mount -- and read the
+assertions. `docs/acceptance-ledger.json` records the result of doing that for
+each acceptance box, in `asserted_by`, alongside a `caveat` naming what the
+assertion does not reach. Candidates that were matched by name and not yet read
+are kept in a separate field precisely so they cannot be mistaken for evidence.
+
 Those fixtures report process RSS and PSS, which cannot separate live application
 data from memory the process has freed and glibc has not returned. The namespace
 memory gate turns on that distinction, so attribute it with
