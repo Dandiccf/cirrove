@@ -170,7 +170,6 @@ fn process_memory() -> serde_json::Value {
 fn namespace_sample(inner: &Inner, phase: &str, seconds: f64) -> serde_json::Value {
     let views = inner.views.lock().unwrap();
     let retained = views.len();
-    let capacity = views.capacity();
     drop(views);
     let directories = inner.directories.lock().unwrap();
     let handles = directories.len();
@@ -179,7 +178,7 @@ fn namespace_sample(inner: &Inner, phase: &str, seconds: f64) -> serde_json::Val
     let (snapshot_bytes, snapshot_reservations) = inner.directory_budget.usage();
     serde_json::json!({
         "phase": phase, "seconds": seconds, "retained_views": retained,
-        "view_map_capacity": capacity, "open_directory_handles": handles,
+        "open_directory_handles": handles,
         "directory_snapshot_entries": entries,
         "snapshot_logical_bytes": snapshot_bytes, "snapshot_reservations": snapshot_reservations,
         "open_files": inner.files.lock().unwrap().len(),

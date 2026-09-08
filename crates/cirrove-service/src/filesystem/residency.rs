@@ -59,10 +59,6 @@ impl NamespaceViews {
     pub(super) fn len(&self) -> usize {
         self.entries.len()
     }
-    #[cfg(test)]
-    pub(super) fn capacity(&self) -> Option<usize> {
-        None
-    }
 
     /// Test diagnostics count references, not allocator or shared payload bytes.
     #[cfg(test)]
@@ -77,7 +73,7 @@ impl NamespaceViews {
             quarantined += usize::from(entry.view.residency.quarantine.load(Ordering::SeqCst));
         }
         let (identity_keys, inode_keys) = (self.invalidation.count(), self.entries.len());
-        serde_json::json!({"views":self.entries.len(),"map_capacity":null,"map_storage":"btree",
+        serde_json::json!({"views":self.entries.len(),"map_storage":"btree",
             "kernel_referenced_views":kernel_referenced,"lease_protected_views":lease_protected,
             "quarantined_views":quarantined,"candidate_entries":self.candidates.len(),
             "candidate_capacity":self.candidates.capacity(),"identity_index_entries":identity_keys,
@@ -251,6 +247,14 @@ impl NamespaceViews {
             } else if entry.view.residency.kernel.load(Ordering::SeqCst) == 0 {
                 self.queue(inode);
             }
+        }
+        // The queue only grows while lookups retire faster than this drains, so
+        // its capacity is a high-water mark of past churn rather than of current
+        // work. Give it back once a burst has passed; halving is the threshold so
+        // a steady workload never reallocates.
+        if self.candidates.capacity() > 64 && self.candidates.len() * 2 < self.candidates.capacity()
+        {
+            self.candidates.shrink_to_fit();
         }
         removed
     }
