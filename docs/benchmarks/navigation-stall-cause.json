@@ -1,0 +1,281 @@
+{
+ "question": "Why does cached navigation intermittently exceed its 500 ms bound in the conservative sequential workload?",
+ "date": "2026-09-08",
+ "finding": "The OPENDIR stage is filesystem-bound. Creating the two anonymous directory-snapshot files takes 0.058 ms on a quiet filesystem and 51.27 ms when the same filesystem is congested by concurrent writes, an 884-fold increase, while opening the SQLite connection is barely affected. The conservative sequential phase is the only phase that writes a gibibyte of content blocks to that filesystem.",
+ "method": "The existing failure-only diagnostic was temporarily extended to report every navigation sample by stage, and separately to time the SQLite open and the snapshot file creation inside OPENDIR. Both instrumentations were reverted afterwards. No bound was changed and no production code was modified for these measurements.",
+ "bound_ms": 500,
+ "test": "content::windows::tests::graph::kernel::workloads::real_mounted_conservative_read_workload",
+ "why_it_never_reproduced_before": [
+  "The three local rechecks recorded as passing all ran with synthetic_request_delay_ms 0, while the later CI failure occurred in the delay-20 iteration; that configuration had never been run locally.",
+  "More decisively, /tmp on the development machine is tmpfs, so tempfile::tempdir() placed the database, the content cache and the snapshot files in RAM. Every local reproduction was structurally incapable of showing a filesystem-contention stall. CI runners place /tmp on real storage."
+ ],
+ "worst_navigation_ms": {
+  "tmpfs_no_congestion": 3.893838,
+  "btrfs_no_congestion": 5.398914,
+  "btrfs_with_four_competing_fsync_writers": 182.997546
+ },
+ "stage_breakdown": {
+  "tmpfs": {
+   "delay0-cpus0-3": {
+    "admission_ms": {
+     "median": 0.014,
+     "p95": 0.055,
+     "max": 0.155
+    },
+    "opendir_ms": {
+     "median": 0.6655,
+     "p95": 1.081,
+     "max": 1.86
+    },
+    "enumerate_ms": {
+     "median": 0.1065,
+     "p95": 0.265,
+     "max": 0.513
+    },
+    "metadata_ms": {
+     "median": 0.0035,
+     "p95": 0.029,
+     "max": 0.621
+    },
+    "reply_ms": {
+     "median": 0.0122,
+     "p95": 0.0243,
+     "max": 0.0268
+    },
+    "total_ms": {
+     "median": 0.8268,
+     "p95": 1.3304,
+     "max": 2.6796
+    }
+   },
+   "delay0-cpusall": {
+    "admission_ms": {
+     "median": 0.008,
+     "p95": 0.051,
+     "max": 0.096
+    },
+    "opendir_ms": {
+     "median": 0.688,
+     "p95": 1.159,
+     "max": 1.764
+    },
+    "enumerate_ms": {
+     "median": 0.079,
+     "p95": 0.176,
+     "max": 0.286
+    },
+    "metadata_ms": {
+     "median": 0.004,
+     "p95": 0.008,
+     "max": 0.817
+    },
+    "reply_ms": {
+     "median": 0.01,
+     "p95": 0.022,
+     "max": 0.0249
+    },
+    "total_ms": {
+     "median": 0.8228,
+     "p95": 1.2802,
+     "max": 2.6771
+    }
+   },
+   "delay20-cpus0-3": {
+    "admission_ms": {
+     "median": 0.028,
+     "p95": 0.122,
+     "max": 0.185
+    },
+    "opendir_ms": {
+     "median": 0.831,
+     "p95": 1.286,
+     "max": 2.648
+    },
+    "enumerate_ms": {
+     "median": 0.15,
+     "p95": 0.358,
+     "max": 0.696
+    },
+    "metadata_ms": {
+     "median": 0.004,
+     "p95": 0.109,
+     "max": 2.089
+    },
+    "reply_ms": {
+     "median": 0.0144,
+     "p95": 0.037,
+     "max": 0.3097
+    },
+    "total_ms": {
+     "median": 1.0587,
+     "p95": 1.9397,
+     "max": 3.6026
+    }
+   },
+   "delay20-cpusall": {
+    "admission_ms": {
+     "median": 0.0185,
+     "p95": 0.129,
+     "max": 0.173
+    },
+    "opendir_ms": {
+     "median": 0.8515,
+     "p95": 1.316,
+     "max": 2.954
+    },
+    "enumerate_ms": {
+     "median": 0.124,
+     "p95": 0.336,
+     "max": 0.769
+    },
+    "metadata_ms": {
+     "median": 0.004,
+     "p95": 0.067,
+     "max": 1.351
+    },
+    "reply_ms": {
+     "median": 0.0114,
+     "p95": 0.1017,
+     "max": 0.1762
+    },
+    "total_ms": {
+     "median": 1.0462,
+     "p95": 1.9306,
+     "max": 3.8938
+    }
+   }
+  },
+  "btrfs": {
+   "delay20-cpus0-3-disk-press4": {
+    "samples": 710,
+    "competing_fsync_writers": 4,
+    "stages": {
+     "admission_ms": {
+      "median": 0.01,
+      "p95": 0.147,
+      "max": 2.271
+     },
+     "opendir_ms": {
+      "median": 1.6665,
+      "p95": 21.449,
+      "max": 96.484
+     },
+     "enumerate_ms": {
+      "median": 0.062,
+      "p95": 1.281,
+      "max": 2.9
+     },
+     "metadata_ms": {
+      "median": 0.004,
+      "p95": 0.77,
+      "max": 9.565
+     },
+     "reply_ms": {
+      "median": 0.0134,
+      "p95": 0.0541,
+      "max": 2.7476
+     },
+     "total_ms": {
+      "median": 2.0394,
+      "p95": 22.066,
+      "max": 98.1161
+     }
+    },
+    "worst_sample": {
+     "total_ms": 98.116149,
+     "admission_ms": 0.435,
+     "opendir_ms": 96.484,
+     "enumerate_ms": 1.1569999999999965,
+     "metadata_ms": 0.007000000000005002,
+     "reply_ms": 0.033148999999994544
+    }
+   },
+   "delay20-cpus0-3-disk-press0": {
+    "samples": 445,
+    "competing_fsync_writers": 0,
+    "stages": {
+     "admission_ms": {
+      "median": 0.03,
+      "p95": 0.116,
+      "max": 0.176
+     },
+     "opendir_ms": {
+      "median": 0.936,
+      "p95": 1.72,
+      "max": 3.151
+     },
+     "enumerate_ms": {
+      "median": 0.133,
+      "p95": 0.349,
+      "max": 0.534
+     },
+     "metadata_ms": {
+      "median": 0.005,
+      "p95": 0.074,
+      "max": 1.981
+     },
+     "reply_ms": {
+      "median": 0.0137,
+      "p95": 0.0371,
+      "max": 0.1112
+     },
+     "total_ms": {
+      "median": 1.1627,
+      "p95": 2.0783,
+      "max": 4.0297
+     }
+    },
+    "worst_sample": {
+     "total_ms": 4.029731,
+     "admission_ms": 0.116,
+     "opendir_ms": 2.457,
+     "enumerate_ms": 0.21399999999999997,
+     "metadata_ms": 1.1990000000000003,
+     "reply_ms": 0.04373099999999974
+    }
+   }
+  }
+ },
+ "opendir_split": {
+  "press4": {
+   "samples": 764,
+   "competing_fsync_writers": 4,
+   "store_open_ms": {
+    "median": 0.1271,
+    "p95": 0.1459,
+    "max": 2.4525
+   },
+   "snapshot_files_ms": {
+    "median": 0.0286,
+    "p95": 2.1894,
+    "max": 51.2694
+   }
+  },
+  "press0": {
+   "samples": 444,
+   "competing_fsync_writers": 0,
+   "store_open_ms": {
+    "median": 0.1125,
+    "p95": 0.1271,
+    "max": 0.2066
+   },
+   "snapshot_files_ms": {
+    "median": 0.0174,
+    "p95": 0.0284,
+    "max": 0.0577
+   }
+  }
+ },
+ "consistency_with_the_recorded_failures": [
+  "Both failures are the conservative mode and the sequential phase, the only phase that downloads and durably publishes 1 GiB in 256 separate blocks.",
+  "Conservative mode has no streamed windows, so it maximises separate block publications and therefore write pressure.",
+  "Intermittency follows runner storage speed and concurrent load rather than anything in the request path.",
+  "One failure occurred in the first test immediately after a 2m44s build step, when writeback of the build output was still in flight."
+ ],
+ "what_is_not_established": [
+  "No local run reached 500 ms; the worst observed was 183.0 ms on a fast local NVMe under deliberate congestion.",
+  "No CI failure has been captured since the stage diagnostic landed, so the attribution rests on the mechanism and its scaling, not on a recorded stall.",
+  "The remaining OPENDIR time beyond file creation, 96.5 ms worst against 51.3 ms for creation alone, is not itself split further; buffered writes to those files and FUSE transport share it."
+ ],
+ "implication": "A cached listing of a single entry still creates two files on the same filesystem the content cache is saturating. Keeping small listings in memory and spilling to files only past a threshold would take ordinary navigation off that filesystem while preserving the memory bound that motivated disk snapshots."
+}

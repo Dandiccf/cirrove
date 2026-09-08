@@ -1201,3 +1201,46 @@ This is strong circumstantial evidence, not proof. The feed states at the moment
 the failure were never recorded, so the original failure is retained as a finding
 rather than reclassified; the helper now reports them and a recurrence settles it.
 See [the margin measurements](benchmarks/startup-readiness-margin.json).
+
+## Cause of the cached-navigation stalls (2026-09-08)
+
+The two recorded workload failures share the conservative mode and the sequential
+phase, the only phase that downloads and durably publishes a gibibyte in 256
+separate blocks. The failure-only stage diagnostic never fired again, so the
+measurement was inverted: every navigation sample was temporarily reported by
+stage, then the OPENDIR stage was split further. Both instrumentations were
+reverted; no bound or production path was changed for them.
+
+Two earlier reproduction attempts could not have worked. The three local rechecks
+recorded as passing all ran with `synthetic_request_delay_ms` 0, while the later CI
+failure occurred in the delay-20 iteration. More decisively, `/tmp` on the
+development machine is tmpfs, so the fixture placed the database, the content cache
+and the snapshot files in RAM; no local run had a filesystem in the path at all.
+
+| Condition | Worst navigation sample |
+| --- | ---: |
+| tmpfs, no congestion | 3.894 ms |
+| Btrfs, no congestion | 5.399 ms |
+| Btrfs, four competing fsync writers | 182.998 ms |
+
+Under that congestion the OPENDIR stage dominates: 96.484 ms worst against 2.900 ms
+for enumeration, 9.565 ms for metadata and 2.748 ms for the reply. Splitting OPENDIR
+separates the components cleanly.
+
+| Component inside OPENDIR | Quiet filesystem | Congested filesystem | Factor |
+| --- | ---: | ---: | ---: |
+| SQLite connection open | 0.207 ms | 2.453 ms | 12 |
+| Snapshot file creation | 0.058 ms | 51.269 ms | 884 |
+
+Every cached OPENDIR creates two anonymous snapshot files on the same filesystem the
+content cache is saturating, even for a directory holding one entry. That file
+creation is a filesystem metadata operation, so it queues behind the transaction the
+content writes are congesting. The behaviour matches every property of the recorded
+failures: the phase, the mode, the intermittency, and one failure landing in the
+first test immediately after a build step whose writeback was still in flight.
+
+This is not proof. No local run reached 500 ms; the worst was 183.0 ms on a fast
+local NVMe, and CI runners use slower shared storage. No CI stall has been captured
+since the diagnostic landed, so the attribution rests on the mechanism and its
+scaling rather than on a recorded failure. The original failures stay findings. See
+[the measurements](benchmarks/navigation-stall-cause.json).
