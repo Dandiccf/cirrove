@@ -535,3 +535,49 @@ One clean signal did separate. Traversal wall time is 573 to 575 seconds in the
 seconds, and the fastest run was also the last, so this is not machine drift. That
 is `arena_max=2` contending eight stat workers over two arenas, and it is an
 argument against shipping `arena_max` on cost rather than on memory.
+
+## malloc_trim reaches what the tunables could not, and that re-scopes the gate
+
+Every allocator arm recorded above configured `GLIBC_TUNABLES`. `trim_threshold`
+governs trimming the top of an arena on `free()`. `malloc_trim(0)` is a different
+operation: it walks every arena and returns free page ranges within each heap. No
+recorded arm had asked that question. See
+[the probe](../benchmarks/namespace-malloc-trim.json) and
+[its pre-registration](../benchmarks/namespace-malloc-trim-preregistration.md),
+written before the run.
+
+| round | G3 before | G3 after `malloc_trim(0)` | returned |
+| ---: | ---: | ---: | ---: |
+| 1 | 476.4 MiB | **10.2 MiB** | 466.2 MiB |
+| 2 | 466.8 MiB | **12.4 MiB** | 454.3 MiB |
+| 3 | 479.6 MiB | **14.2 MiB** | 465.4 MiB |
+
+G3 goes from 1.86 times over its budget to twenty-five times under it. The predicted
+range was 40 to 150 MiB, so the effect is larger than expected, and the named failure
+mode — fragmentation leaving one live object per page — did not occur. Live heap holds
+at 17.0 to 17.2 MiB while RSS falls to 23.5 to 27.4 MiB, so RSS is live heap plus
+overhead and the pages are genuinely returned rather than merely unaccounted.
+
+**This is not the win it looks like, and the pre-registration said so before the
+number existed.** `malloc_trim` does not touch the traversal peak, which stays at
+489.0 to 492.6 MiB with 750,438 live views. G3 measures what remains after release;
+whether the service runs on modest hardware depends on what it holds during
+traversal. A process can now pass this gate while its high-water mark sits at half a
+gibibyte.
+
+Two consequences follow.
+
+**Shedding is re-scoped rather than cancelled.** It moves from required-for-G3 to
+required for the peak and for survivability under a memory cap. That is a difference
+of weeks of work, and it is the honest reading: an idle-gated trim is cheap, and the
+resident bound is still the only thing that lowers the high-water mark.
+
+**G3 needs a sibling criterion.** Adding `VmHWM` minus the indexed baseline, and
+promoting the cgroup survivability arm from a nice-to-have to a hard gate, restores
+what G3 was written to mean. This tightens the acceptance criteria, and it arrived
+from a result that superficially reads as a pass. It is recorded as a re-scoping.
+
+The trim itself is not yet shipped. It must be idle-gated — earlier measurements put
+it at 20 to 26 milliseconds median and 62 milliseconds maximum at around a gibibyte,
+and it takes every arena lock in turn, so it belongs on a quiescent reclamation tick
+via a blocking worker and never on a runtime thread that owns a filesystem reply.

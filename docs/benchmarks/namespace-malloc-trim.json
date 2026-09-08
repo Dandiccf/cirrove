@@ -1,0 +1,64 @@
+{
+  "recorded_at": "2026-09-08T17:42:00+00:00",
+  "question": "Does malloc_trim(0) return the free arena that trim_threshold cannot reach? No recorded arm had asked: every allocator arm configured GLIBC_TUNABLES, and trim_threshold trims only the top of an arena on free().",
+  "preregistered_prediction": "post-trim G3 lands at 40-150 MiB, i.e. the gate as literally written passes. Failure mode named in advance: glibc returns only whole free pages, so 750k retired small objects could leave one live object per page.",
+  "preregistered_decision_rule": "If post-trim is under 256 MiB in all rounds, shedding is demoted from required-for-G3 to required-for-the-peak, and a peak criterion must be argued for rather than the pass being banked.",
+  "fixture": "filesystem::capacity::real_combined_namespace_churn, CIRROVE_CHURN_FILES=500000",
+  "binary": ".local-state/compact-resident/cirrove-service-compact-release (frozen release)",
+  "tmpdir_fstype": "btrfs",
+  "result": "Prediction beaten. Post-trim G3 is 10.2 / 12.4 / 14.2 MiB, 25x UNDER the 256 MiB budget rather than 1.86x over. 454-466 MiB is returned per round. The fragmentation failure mode did not occur.",
+  "identity_check": "Live heap holds at 17.0-17.2 MiB across all three rounds while RSS falls to 23.5-27.4 MiB, so RSS is live heap plus overhead and the returned pages are genuinely with the kernel.",
+  "the_half_that_is_not_a_win": "malloc_trim does not touch the traversal peak, which stays at 489.0-492.6 MiB with 750,438 live views. G3 measures what is left after release; running on modest hardware depends on what is held during it. A gate that a process passes while its high-water mark sits at half a gigabyte is not measuring what it was written to measure.",
+  "consequence": "Shedding moves from required-for-G3 to required-for-the-peak and for survivability under a memory cap. That is a difference of weeks. G3 needs a sibling criterion on VmHWM, and the cgroup survivability arm should become a hard gate rather than a nice-to-have. This tightens the gate; it arrived from a result that looks superficially like a pass.",
+  "limits": [
+    "One run, three rounds. This establishes a large effect well outside the 6 percent between-run variation of retained RSS, not a precise figure.",
+    "The trim is called from an LD_PRELOAD interposer at a quiescent fixture marker. A shipped trim must be idle-gated and its cost measured; earlier data records 20-26 ms median and 62 ms maximum at around 1 GB.",
+    "Zero-length files throughout. No content mappings are held."
+  ],
+  "rounds": [
+    {
+      "round": 1,
+      "g3_before_trim_mib": 476.4,
+      "g3_after_trim_mib": 10.2,
+      "returned_mib": 466.2,
+      "live_heap_after_trim_mib": 17.0,
+      "free_arena_after_trim_mib": 477.1,
+      "rss_after_trim_mib": 23.5
+    },
+    {
+      "round": 2,
+      "g3_before_trim_mib": 466.8,
+      "g3_after_trim_mib": 12.4,
+      "returned_mib": 454.3,
+      "live_heap_after_trim_mib": 17.1,
+      "free_arena_after_trim_mib": 505.1,
+      "rss_after_trim_mib": 25.7
+    },
+    {
+      "round": 3,
+      "g3_before_trim_mib": 479.6,
+      "g3_after_trim_mib": 14.2,
+      "returned_mib": 465.4,
+      "live_heap_after_trim_mib": 17.2,
+      "free_arena_after_trim_mib": 507.9,
+      "rss_after_trim_mib": 27.4
+    }
+  ],
+  "traversal_peaks": [
+    {
+      "round": 1,
+      "peak_rss_mib": 489.5,
+      "views": 750438
+    },
+    {
+      "round": 2,
+      "peak_rss_mib": 489.0,
+      "views": 750438
+    },
+    {
+      "round": 3,
+      "peak_rss_mib": 492.6,
+      "views": 750438
+    }
+  ]
+}
