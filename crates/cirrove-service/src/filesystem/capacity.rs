@@ -640,6 +640,12 @@ async fn real_cold_directory_pages_publish_with_bounded_memory() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "actual synthetic FUSE; SIGKILL of clients during cold LOOKUP and OPENDIR"]
+async fn real_interrupted_clients_release_namespace_references_and_snapshots() {
+    cold::interrupted_clients().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "actual synthetic kernel FUSE; bounded targeted metadata invalidation"]
 async fn real_targeted_invalidations_preserve_unrelated_cached_views() {
     let files =

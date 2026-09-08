@@ -127,9 +127,14 @@ A separate actual-kernel fixture now stats 300 files, holds an old file open acr
 a revision change, and observes all other regular-file views retire after kernel
 invalidation. Old and new open versions remain distinct; after close and FORGET,
 both retire. This proves the tested reference lifetime, not the full memory gate.
-The FUSE wrapper's entry/create replies return no delivery outcome. Cancelled or
-failed delivery can therefore leave conservative references; accounting must not
-guess them away. Interruption and delivery-failure acceptance remain open.
+The FUSE wrapper's entry/create/open replies return no delivery outcome; accounting
+must not guess away references merely because a caller was interrupted. An actual
+kernel fixture now kills a client while cold LOOKUP or OPENDIR waits for a provider
+page, then lets the server finish its original request. Both cases release request
+permits, snapshots and lookup references through normal kernel cleanup, and permit
+an offline revisit of the completed metadata. This required no production-state
+change. Failed reply writes, interrupted experimental CREATE and broader I/O races
+remain outside that fixture and retain their acceptance gap.
 
 Foreground directory publication now stages one provider page at a time in a
 connection-owned, disk-backed TEMP database, with atomic publication after the
