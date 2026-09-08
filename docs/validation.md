@@ -1343,3 +1343,46 @@ gibibyte, 256 file creations, 256 renames and roughly 1,781 unlinks. Cache block
 re-downloadable, so that durability is not required, and reducing it would widen the
 margin further on slow storage. See
 [the measurements](benchmarks/navigation-stall-cause.json).
+
+## Acceptance under congestion, and what it does and does not settle (2026-09-08)
+
+Twelve alternating runs of the conservative sequential workload on one machine
+under four competing fsync writers on the same Btrfs filesystem, six with the
+pre-hardening binary and six with the hardened one:
+
+| | Runs | Bound violations | Worst sample per run |
+| --- | ---: | ---: | --- |
+| Before | 6 | **3** | 44.8 / 85.1 / 181.3 ms, plus three aborted at the bound |
+| After | 6 | **0** | 10.1 / 10.9 / 10.9 / 11.4 / 20.3 / 36.6 ms |
+
+The three failures reproduce the recorded CI stall exactly: everything sits in
+LOOKUP and OPENDIR, which returned only after 1,959 ms and 1,763 ms in the two
+cases where the two-second diagnostic window caught it, while the enumeration that
+followed took 0.05 ms. This is the first local reproduction of the failure, and it
+makes the workload usable as an acceptance gate rather than a hope.
+
+**What this does not settle.** A completeness review of the whole investigation
+raised three objections that hold up.
+
+First, the failing fixture seeds seven nodes, so its metadata database is a few
+hundred kilobytes. Any argument from page-cache eviction or from a warm private
+page cache — including the measured 22-fold cost of a foreign commit on a 95 MB
+index — applies to a real library, not to this test. The block-index split is
+retained for users whose index does not fit comfortably in the page cache, and is
+not claimed as a cause of the recorded failures.
+
+Second, all three recorded failures land within seconds of a large build
+finishing, so the dominant writer at that moment was the build, not Cirrove, which
+had written about 375 MB in 4.2 seconds. Every write-side change reduces Cirrove's
+share of a congestion it did not dominate. The connection lifetime is a different
+kind of fix, and the one the evidence supports: it removes durable filesystem work
+from the read path regardless of who is congesting the device.
+
+Third, FUSE dispatch is single-threaded. `fuser` defaults `n_threads` to one and
+the mount never overrides it, so every request is dispatched from one thread, and
+`lookup`, `getattr` and `opendir` each take the view lock on it before spawning.
+During the sequential phase the application issues 16,384 reads through that same
+thread. A single 505 ms block followed three milliseconds later by a 2.888 ms
+operation of the same class is as consistent with a queue as with per-operation
+cost, and no measurement so far distinguishes them, because every stage timestamp
+is taken in the client. A server-side measurement of the handler is in progress.
