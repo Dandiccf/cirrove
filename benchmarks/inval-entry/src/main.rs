@@ -22,7 +22,6 @@
 //!
 //! Deliberately outside the workspace: it is a measurement instrument, not a
 //! feature, and the workspace forbids adding abstractions for unimplemented work.
-use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -44,7 +43,7 @@ struct Directory {
 
 fn attr(inode: u64, directory: bool) -> fuser::FileAttr {
     fuser::FileAttr {
-        ino: inode,
+        ino: fuser::INodeNo(inode),
         size: 0,
         blocks: 0,
         atime: SystemTime::UNIX_EPOCH,
@@ -68,15 +67,15 @@ fn attr(inode: u64, directory: bool) -> fuser::FileAttr {
 
 impl fuser::Filesystem for Directory {
     fn lookup(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        parent: u64,
+        &self,
+        _req: &fuser::Request,
+        parent: fuser::INodeNo,
         name: &OsStr,
         reply: fuser::ReplyEntry,
     ) {
         let started = Instant::now();
-        if parent != PARENT {
-            reply.error(libc::ENOENT);
+        if parent.0 != PARENT {
+            reply.error(fuser::Errno::ENOENT);
             return;
         }
         let Some(index) = name
@@ -85,13 +84,13 @@ impl fuser::Filesystem for Directory {
             .and_then(|n| n.parse::<u64>().ok())
             .filter(|index| *index < ENTRIES)
         else {
-            reply.error(libc::ENOENT);
+            reply.error(fuser::Errno::ENOENT);
             return;
         };
         if !self.delay.is_zero() {
             std::thread::sleep(self.delay);
         }
-        reply.entry(&TTL, &attr(index + 2, false), 0);
+        reply.entry(&TTL, &attr(index + 2, false), fuser::Generation(0));
         // Recorded after the reply so the measurement includes the reply itself,
         // which is where a blocked i_rwsem would show up.
         self.lookups
@@ -101,13 +100,13 @@ impl fuser::Filesystem for Directory {
     }
 
     fn getattr(
-        &mut self,
-        _req: &fuser::Request<'_>,
-        inode: u64,
-        _fh: Option<u64>,
+        &self,
+        _req: &fuser::Request,
+        inode: fuser::INodeNo,
+        _fh: Option<fuser::FileHandle>,
         reply: fuser::ReplyAttr,
     ) {
-        reply.attr(&TTL, &attr(inode, inode == PARENT));
+        reply.attr(&TTL, &attr(inode.0, inode.0 == PARENT));
     }
 }
 
@@ -139,19 +138,19 @@ fn main() {
         delay: Duration::from_millis(delay_ms),
         lookups: lookups.clone(),
     };
-    let session = fuser::Session::new(
-        filesystem,
-        std::path::Path::new(&mount),
-        // Single-threaded, matching the dispatcher this is measuring for.
-        &[fuser::MountOption::RO, fuser::MountOption::FSName("inval".into())],
-    )
-    .expect("mount");
+    let mut config = fuser::Config::default();
+    // Single-threaded, matching the dispatcher this is measuring for.
+    config.mount_options = vec![
+        fuser::MountOption::RO,
+        fuser::MountOption::FSName("inval".into()),
+    ];
+    let session = fuser::Session::new(filesystem, std::path::Path::new(&mount), &config)
+        .expect("mount");
     let notifier = session.notifier();
     let mounted = std::thread::spawn(move || session.run());
 
     std::thread::sleep(Duration::from_millis(200));
     let stop = Arc::new(AtomicU64::new(0));
-    let stats: Arc<Mutex<HashMap<&'static str, u64>>> = Arc::new(Mutex::new(HashMap::new()));
 
     let mut stat_threads = Vec::new();
     for worker in 0..workers {
@@ -178,7 +177,7 @@ fn main() {
     while Instant::now() < deadline {
         let call = Instant::now();
         let name = name_of(sent % ENTRIES);
-        match notifier.inval_entry(PARENT, OsStr::new(&name)) {
+        match notifier.inval_entry(fuser::INodeNo(PARENT), OsStr::new(&name)) {
             Ok(()) => sent += 1,
             // ENOENT means the kernel had already dropped it, which is success
             // for our purposes and must not be counted as a stall.
@@ -196,7 +195,6 @@ fn main() {
     for thread in stat_threads {
         let _ = thread.join();
     }
-    stats.lock().unwrap().insert("sent", sent);
 
     let mut samples = lookups.lock().unwrap().clone();
     samples.sort_unstable();

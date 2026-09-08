@@ -1,0 +1,80 @@
+{
+  "recorded_at": "2026-09-08T21:00:00+00:00",
+  "question": "Can notify_inval_entry sustain the roughly 1,400 sheds per second a resident ceiling would need during a 500,000-file traversal, with concurrent lookup p99 under 100 ms?",
+  "answer": "No, and not close. Under concurrent lookups on the same parent the achieved rate collapses to about 107 per second regardless of what is requested. Shedding cannot bind during a traversal.",
+  "instrument": "benchmarks/inval-entry, a standalone single-threaded fuser server outside the workspace, 250,000 entries under one parent, 20-second runs",
+  "the_bar": "A 500,000-file traversal resolves about 750,000 views in roughly 530 seconds, so a ceiling that binds during traversal must shed at about 1,400 per second.",
+  "matrix": [
+    {
+      "requested": 1400,
+      "delay_ms": 0,
+      "workers": 8,
+      "achieved": 1400.0,
+      "lookups": 4841327,
+      "lookup_p99_us": 1,
+      "lookup_max_us": 1888
+    },
+    {
+      "requested": 1400,
+      "delay_ms": 1,
+      "workers": 8,
+      "achieved": 107.9,
+      "lookups": 17900,
+      "lookup_p99_us": 1092,
+      "lookup_max_us": 1226
+    },
+    {
+      "requested": 4000,
+      "delay_ms": 1,
+      "workers": 8,
+      "achieved": 107.4,
+      "lookups": 17821
+    },
+    {
+      "requested": 12000,
+      "delay_ms": 1,
+      "workers": 8,
+      "achieved": 106.6,
+      "lookups": 17808
+    },
+    {
+      "requested": 1400,
+      "delay_ms": 50,
+      "workers": 8,
+      "achieved": 2.4,
+      "lookups": 413
+    }
+  ],
+  "control": [
+    {
+      "requested": 1400,
+      "delay_ms": 1,
+      "workers": 0,
+      "achieved": 1400.0,
+      "slowest_inval_us": 74
+    },
+    {
+      "requested": 1400,
+      "delay_ms": 0,
+      "workers": 0,
+      "achieved": 1400.0,
+      "slowest_inval_us": 59
+    },
+    {
+      "requested": 1400,
+      "delay_ms": 1,
+      "workers": 1,
+      "achieved": 428.9,
+      "slowest_inval_us": 7037
+    }
+  ],
+  "mechanism": "The control settles it. With no concurrent lookups the full 1,400 per second is reached at either delay, and the slowest single invalidation is 74 microseconds. Adding one stat worker drops it to 429 per second and the slowest invalidation to 7 milliseconds; eight workers drop it to 108. fuse_reverse_inval_entry takes the parent's i_rwsem exclusively while lookup_slow holds it shared across the whole round trip, so each in-flight lookup on that parent costs invalidation slots. The requested rate is irrelevant: 1400, 4000 and 12000 all yield about 107.",
+  "what_this_costs_the_design": "A resident ceiling has to bind DURING a traversal, because released memory tracks the peak and the peak is what a modest machine has to survive. A traversal is by definition a stream of concurrent lookups, which is exactly the condition under which shedding runs at 107 per second. Shedding 750,000 views at that rate takes about two hours. Shedding therefore works only on an idle mount, which is when memory pressure matters least.",
+  "what_survives": "Lookups are not harmed: p99 stayed at 1 millisecond, essentially the injected server delay, in every arm. The failure is throughput, not latency, so a slow background shed on an idle mount remains viable as a courtesy. It is not a bound.",
+  "consequence": "The shedding design recorded in ADR 0005 cannot close the peak criterion as written. Bounding bytes per view, or refusing to resolve views beyond a ceiling in the first place, are the remaining directions; both are larger changes than shedding was. One day of measurement, and it retires several weeks of planned work before any of it was written.",
+  "limits": [
+    "The injected delay stands in for real per-lookup server work. Cirrove opens a store connection per published view -- a canonicalize plus four SQL round trips -- so one millisecond is a plausible order, but it was not measured against the real handler.",
+    "One parent directory. Invalidations spread across many parents would contend less; the giant-directory topology, where density is highest, is the case measured here.",
+    "Single-threaded server, matching Cirrove's deliberately single-threaded dispatcher. Concurrent dispatch is a recorded failure there."
+  ]
+}
