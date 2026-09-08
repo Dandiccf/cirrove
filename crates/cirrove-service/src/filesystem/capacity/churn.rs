@@ -247,14 +247,20 @@ fn check_memory(value: &serde_json::Value, criterion: &str, observed: u64, files
 /// the wait is recorded in the sample so a run that timed out is visible rather
 /// than silently averaged in.
 async fn settle_memory() {
-    let deadline = Instant::now() + Duration::from_secs(20);
+    // Waiting for memory to stop falling is not enough on its own: before the
+    // trim fires it has not started falling, so "flat" and "finished" look
+    // identical and the wait ends after three seconds having measured nothing.
+    // Sit out the reclamation tick's quiescent window first -- longer than the
+    // five idle seconds it requires -- and only then ask for stability. A build
+    // with no trim at all simply waits this out and reports what it finds.
+    const QUIESCENT_WINDOW: Duration = Duration::from_secs(8);
+    let deadline = Instant::now() + Duration::from_secs(25);
     let started = Instant::now();
     let mut previous = u64::MAX;
     let mut stable = 0;
-    while Instant::now() < deadline && stable < 2 {
+    while Instant::now() < deadline && (started.elapsed() < QUIESCENT_WINDOW || stable < 2) {
         tokio::time::sleep(Duration::from_secs(1)).await;
         let current = process_memory()["rss_kib"].as_u64().unwrap_or(0);
-        // A tick that frees nothing leaves this flat; the trim shows up as a step.
         stable = if current >= previous { stable + 1 } else { 0 };
         previous = current;
     }
