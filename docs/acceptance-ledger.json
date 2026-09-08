@@ -91,7 +91,8 @@
       "blocker": "needs-machine-window",
       "evidence": "docs/benchmarks/namespace-trim-closes-g3.json",
       "asserted_by": "filesystem::capacity::real_combined_namespace_churn (g3_released enforced; peak_resident reporting)",
-      "operator_steps": "docs/authorization-request.md"
+      "operator_steps": "docs/authorization-request.md",
+      "caveat": "G3 is closed and enforced. The sibling peak criterion is not: traversal holds 490-504 MiB and trimming cannot lower a high-water mark. Shedding was retired by measurement -- notify_inval_entry sustains 107/s against a needed 1,400 under concurrent lookups. docs/adr/0006-peak-namespace-memory.md proposes the successor and names the two measurements that would decide it; neither has been run."
     },
     {
       "milestone": 1,

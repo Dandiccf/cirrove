@@ -718,7 +718,12 @@ stat worker, and 107 with eight, at which rate shedding one traversal's views
 takes two hours. Latency was never the problem — lookup p99 stayed at the injected
 server delay throughout. Throughput was.
 
-**What remains for the peak.** Two directions, both larger than shedding was.
+**What remains for the peak.** [ADR 0006](0006-peak-namespace-memory.md) proposes
+the successor: rather than pushing invalidations into the lock the lookup path
+holds, make the kernel's own dentry reclamation able to do the work by shortening
+the entry TTL above a resident ceiling. That path is the one the cgroup experiment
+already measured as affordable. Two directions were considered, both larger than
+shedding was.
 Reduce bytes per view, which has been pushed three times for 15 to 20 percent each
 and will not reach a factor of two on its own. Or decline to resolve views beyond
 a ceiling in the first place, which is a change to the lookup contract rather than
