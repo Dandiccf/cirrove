@@ -412,7 +412,7 @@ fn actual_process_death_keeps_a_file_unlinked_and_still_owes_its_removal() {
             .unwrap()
             .parse()
             .unwrap();
-        let mut j = journal(&temp.path().join("journal"));
+        let j = journal(&temp.path().join("journal"));
         // The name stays hidden even though the remote still reports the file.
         let remote = node("remote", "document.txt", 3);
         assert!(
