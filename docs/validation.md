@@ -1138,17 +1138,30 @@ entries are still being produced. Each pass ends with every snapshot reservation
 released, only the root view retained after invalidation, and no foreground
 metadata or content request to the provider.
 
-The [earlier completed-snapshot run](benchmarks/directory-snapshot-pages.json) of
-the same fixture took 5.487, 7.314 and 6.844 seconds to reach that first entry.
-The improvement is about three orders of magnitude and cannot be explained by
-session differences, but the two runs are not a controlled pair: this session was
-also slower in the unrelated indexing baseline, 6.33 s against 3.55 s.
+A controlled pair then measured the same fixture directly. Two frozen release
+binaries, differing only in the directory path and built from `ce9c298` and this
+source, ran alternately in one session on an idle machine, in the order
+baseline / new / new / baseline / baseline / new. The measured fixture is
+byte-identical in both sources.
 
-Whole-pass traversal is slower here than in that earlier run: 9.18, 10.73 and
-10.16 seconds against 5.68, 7.47 and 7.02 seconds. Part of that gap follows the
-same slower session, and part may be real streaming overhead. No attribution is
-claimed without a controlled frozen-binary pair. Post-invalidation RSS still rises
-across passes, 18.3 / 33.9 / 43.4 MiB, so this run establishes neither a memory
-plateau nor the capacity gate. Mapped content, writable overlays, desktop
-applications, real-provider acceptance and 24-hour operation are all untested here.
+| Measurement | Pre-change `ce9c298` | Prefix publication |
+| --- | ---: | ---: |
+| First entry, nine samples | 8,802-10,755 ms | 4.33-5.23 ms |
+| First entry, median | 10,398 ms | 4.73 ms |
+| Whole traversal, median | 10.585 s | 10.232 s |
+| Indexing baseline, median | 6.272 s | 6.300 s |
+
+The first-entry distributions do not overlap at any sample, and the median ratio
+is 2,199. Whole-pass traversal is unchanged, a ratio of 0.967 with fully
+overlapping ranges, so publication of the prefix costs no measurable throughput.
+The unrelated indexing baseline agrees within 0.5 percent, which is what makes the
+pairing usable at all. The slower traversal seconds against the earlier
+[2026-09-07 artifact](benchmarks/directory-snapshot-pages.json) were therefore a
+session difference, not streaming overhead; that earlier comparison was never
+controlled and is retained only as context.
+
+Post-invalidation RSS still rises across passes, 18.3 / 33.9 / 43.4 MiB, so this
+run establishes neither a memory plateau nor the capacity gate. Mapped content,
+writable overlays, desktop applications, real-provider acceptance and 24-hour
+operation are all untested here.
 See [the machine-readable results](benchmarks/early-directory-prefix.json).
