@@ -473,3 +473,22 @@ The measured attribution above makes the prototype's premise weaker still. Its
 retained RSS is allocator-held free arena that no relocation of live bytes
 reduces. Off-heap payloads therefore address the smaller of the two failures,
 and only for as long as the arena holds.
+
+### Replication
+
+A second independent run of the identical configuration, same frozen binary,
+separates the two components further. Live heap agrees to within 0.1-0.8 percent
+at every phase, and bytes per view at the traversal peak come out 653/637/656
+against 653/637/657: the quantity the resident-bound work depends on reproduces
+to within 0.2 percent.
+
+Retained RSS does not. Rounds two and three differ by 5.9 percent between runs,
+and G3 lands at 477.3/483.5/513.4 MiB against 476.4/514.8/546.7 MiB. All of the
+run-to-run variation is in the allocator-retained component, which depends on
+thread scheduling and allocation interleaving, and none of it is in the live data.
+
+Two consequences. The live-peak figure is solid enough to justify building a
+resident bound on it. The retained-RSS figures must not be quoted to three
+significant figures from a single run, and any allocator comparison needs
+replicated arms rather than one run per arm. G3 fails in both runs in every
+round, by 1.86x to 2.14x.

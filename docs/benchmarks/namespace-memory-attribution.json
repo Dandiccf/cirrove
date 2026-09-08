@@ -177,5 +177,121 @@
       "mmap_bytes": 0,
       "inode_rows": 750495
     }
-  ]
+  ],
+  "replication": {
+    "note": "Second independent run of the identical configuration, same frozen binary, recorded 2026-09-08 15:31-15:58 as the control arm of an allocator comparison.",
+    "agreement": [
+      "Live heap agrees to within 0.1-0.8 percent at every phase. Bytes per view at the traversal peak are 653/637/656 against 653/637/657 in the first run: the load-bearing quantity reproduces to within 0.2 percent.",
+      "Retained RSS does not reproduce nearly as tightly: rounds two and three differ by 5.9 percent, and G3 comes out 477.3/483.5/513.4 MiB against 476.4/514.8/546.7 MiB.",
+      "All of the variation is therefore in the allocator-retained component, which depends on thread scheduling and allocation interleaving, and none of it is in the live data. This is what makes the live-peak conclusion safe to build weeks of work on and the retained-RSS numbers unsafe to quote to three significant figures.",
+      "G3 fails in both runs in every round, by 1.86x to 2.14x."
+    ],
+    "samples": [
+      {
+        "phase": "indexed_baseline",
+        "round": 0,
+        "views": 1,
+        "rss_kib": 13204,
+        "pss_kib": 10647,
+        "allocated_arena_bytes": 17067184,
+        "free_arena_bytes": 3363664
+      },
+      {
+        "phase": "held_before_update",
+        "round": 1,
+        "views": 69,
+        "rss_kib": 17784,
+        "pss_kib": 15099,
+        "allocated_arena_bytes": 17368896,
+        "free_arena_bytes": 5728448
+      },
+      {
+        "phase": "traversed_with_old_files",
+        "round": 1,
+        "views": 750438,
+        "rss_kib": 502020,
+        "pss_kib": 499205,
+        "allocated_arena_bytes": 507608576,
+        "free_arena_bytes": 11125248,
+        "live_bytes_per_view": 653
+      },
+      {
+        "phase": "released",
+        "round": 1,
+        "views": 1,
+        "rss_kib": 502176,
+        "pss_kib": 499393,
+        "allocated_arena_bytes": 17905840,
+        "free_arena_bytes": 500832080,
+        "g3_released_minus_baseline_mib": 477.3
+      },
+      {
+        "phase": "held_before_update",
+        "round": 2,
+        "views": 69,
+        "rss_kib": 502176,
+        "pss_kib": 499361,
+        "allocated_arena_bytes": 18112064,
+        "free_arena_bytes": 500625856
+      },
+      {
+        "phase": "traversed_with_old_files",
+        "round": 2,
+        "views": 750438,
+        "rss_kib": 508548,
+        "pss_kib": 505737,
+        "allocated_arena_bytes": 495403072,
+        "free_arena_bytes": 29855680,
+        "live_bytes_per_view": 637
+      },
+      {
+        "phase": "released",
+        "round": 2,
+        "views": 1,
+        "rss_kib": 508552,
+        "pss_kib": 505769,
+        "allocated_arena_bytes": 17969040,
+        "free_arena_bytes": 507289712,
+        "g3_released_minus_baseline_mib": 483.5
+      },
+      {
+        "phase": "held_before_update",
+        "round": 3,
+        "views": 69,
+        "rss_kib": 508552,
+        "pss_kib": 505737,
+        "allocated_arena_bytes": 18168896,
+        "free_arena_bytes": 507089856
+      },
+      {
+        "phase": "traversed_with_old_files",
+        "round": 3,
+        "views": 750438,
+        "rss_kib": 539024,
+        "pss_kib": 536209,
+        "allocated_arena_bytes": 509880496,
+        "free_arena_bytes": 46720848,
+        "live_bytes_per_view": 656
+      },
+      {
+        "phase": "released",
+        "round": 3,
+        "views": 1,
+        "rss_kib": 539164,
+        "pss_kib": 536381,
+        "allocated_arena_bytes": 18035648,
+        "free_arena_bytes": 538565696,
+        "g3_released_minus_baseline_mib": 513.4
+      },
+      {
+        "phase": "offline_remount",
+        "round": 3,
+        "views": 1,
+        "rss_kib": 555308,
+        "pss_kib": 552525,
+        "allocated_arena_bytes": 17933088,
+        "free_arena_bytes": 555416800
+      }
+    ]
+  }
 }
