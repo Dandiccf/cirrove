@@ -339,3 +339,40 @@ the earlier many-directory timing/backing limitations and full raw records are i
 [the comparison](../benchmarks/compact-namespace-churn.json). These zero-byte
 fixtures predate the mapped-content and early-prefix changes; they do not validate
 those variants at scale or establish a total-host-memory or resident byte ceiling.
+
+## Direct attribution of the memory gate (2026-09-08)
+
+The gate has two distinct failures that earlier records treated as one. A frozen
+release binary carrying the compact representation ran
+`real_combined_namespace_churn` at `CIRROVE_CHURN_FILES=500000` under an
+`LD_PRELOAD` `mallinfo2` interposer sampling on every fixture marker, with the
+temporary directory on btrfs rather than tmpfs so that no bytes hide outside
+process RSS. See [the attribution run](../benchmarks/namespace-memory-attribution.json).
+
+**The traversal peak is live application data.** At 750,438 live views the
+allocator reports 495.0-510.3 MB allocated across three rounds, that is 637-657
+bytes per view over a 17.3 MB baseline. No allocator setting reduces this;
+only a bound on resident view count or on bytes per view does.
+
+**The retained floor is allocator-held.** After release the live heap returns to
+17.8-18.1 MB while RSS stays at 489.5-559.8 MB, so 96.4-96.8 percent of retained
+RSS is free arena that glibc has not returned. Released RSS tracks the peak to
+within 0.3 MB. No view budget reduces this; only trimming does.
+
+Peak RSS rises 38.1 and 32.0 MB between rounds while the live peak stays flat.
+The inter-round slope on this fixture is therefore allocator retention, and it is
+three to four times the roughly 10 MB per pass recorded on `namespace_capacity_baseline`,
+which never exceeds 501 live views and is not representative of the gate.
+
+Released PSS above the indexed baseline is 476.4 / 514.8 / 546.7 MiB against the
+256 MiB budget: missed by 1.86x, 2.01x and 2.14x, with the miss growing each round.
+
+This corrects an earlier statement in this document. The heavy fixture does
+converge: its traversed peaks decay geometrically rather than rising without
+limit. It converges at 476-771 MiB, which is the actual failure. The absence of a
+plateau reported for `namespace_capacity_baseline` is the signature of glibc arena
+growth under a fixed workload, not of unbounded namespace retention; retained view
+counts return to one in every recorded run.
+
+The two remedies are complementary, and neither alone closes the gate. This run
+is attribution only: one binary, one run per phase, no before/after control.
