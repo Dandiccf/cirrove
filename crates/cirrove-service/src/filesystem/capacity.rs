@@ -850,6 +850,37 @@ mod projections;
 mod churn;
 mod writable;
 
+/// Dispatch must stay single-threaded, and that must fail loudly if changed.
+///
+/// The failure it guards against is quiet: at four threads, three namespace views
+/// survive a twelve-second settle in one ignored kernel fixture. That reads as
+/// flakiness, and the reference-accounting reason for it -- `acquire_lookup` in a
+/// spawned task against `forget` on the dispatch thread -- is not visible from the
+/// symptom. Needs no mount, so unlike the fixture it guards, this one runs in CI.
+#[tokio::test]
+async fn dispatch_stays_single_threaded() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let provider = Arc::new(GeneratedLibrary {
+        files: 1,
+        per_directory: 1,
+        revision: AtomicU32::new(1),
+        content_reads: AtomicU64::new(0),
+        foreground_requests: AtomicU64::new(0),
+    });
+    let engine = Engine::new(account(mount.clone()), provider, temp.path().join("state"))
+        .await
+        .unwrap();
+    let config = CloudFs::new(engine.clone()).unwrap().dispatch_config();
+    assert!(
+        matches!(config.n_threads, None | Some(1)),
+        "dispatch must stay single-threaded until reference accounting is \
+         order-independent; see filesystem.rs::dispatch_config"
+    );
+    engine.stop().await;
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires synthetic kernel FUSE; capacity of a writable mount"]
 async fn real_writable_namespace_retires_and_stays_bounded() {

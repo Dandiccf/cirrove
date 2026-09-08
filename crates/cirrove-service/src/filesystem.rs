@@ -252,15 +252,24 @@ impl CloudFs {
             }
         });
     }
-    pub fn mount(self, path: &std::path::Path) -> std::io::Result<CloudSession> {
+    /// Mount options, and deliberately not a thread count.
+    ///
+    /// Dispatch stays single-threaded. Raising fuser's `n_threads` to four leaves
+    /// three namespace views alive after twelve seconds in
+    /// `filesystem::capacity::real_combined_namespace_churn_preserves_mapped_content`:
+    /// concurrent dispatch reorders requests against the lookup-count bookkeeping
+    /// a view's lifetime depends on, because `acquire_lookup` runs inside a
+    /// spawned task while `forget` runs on the dispatch thread, and one thread
+    /// serialises them by construction where four do not. Head-of-line blocking
+    /// behind bulk reads is therefore still possible, and making the reference
+    /// accounting order-independent is a prerequisite for addressing it.
+    ///
+    /// Split out so a test can hold that decision in place. The failure it
+    /// prevents is a handful of views surviving a settle window in one ignored
+    /// fixture -- quiet, intermittent-looking, and easy to attribute to anything
+    /// else.
+    fn dispatch_config(&self) -> fuser::Config {
         let mut config = fuser::Config::default();
-        // Dispatch stays single-threaded on purpose. Raising fuser's n_threads
-        // to four leaves three namespace views alive after twelve seconds in
-        // filesystem::capacity::real_combined_namespace_churn_preserves_mapped_content:
-        // concurrent dispatch reorders requests against the lookup-count
-        // bookkeeping, which a view's lifetime depends on. Head-of-line
-        // blocking behind bulk reads is therefore still possible, and fixing
-        // the reference accounting is a prerequisite for addressing it.
         config.mount_options = vec![
             if self.inner.writeback.is_some() {
                 fuser::MountOption::RW
@@ -273,6 +282,10 @@ impl CloudFs {
             fuser::MountOption::FSName(format!("cirrove:{}", self.inner.engine.account.id)),
             fuser::MountOption::Subtype("cirrove".into()),
         ];
+        config
+    }
+    pub fn mount(self, path: &std::path::Path) -> std::io::Result<CloudSession> {
+        let config = self.dispatch_config();
         let inner = self.inner.clone();
         let session = fuser::Session::new(self, path, &config)?;
         let notifier = session.notifier();
