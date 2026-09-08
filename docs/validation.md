@@ -1420,3 +1420,25 @@ Neither variant produced a bound violation during those instrumented runs, so
 this measures handler cost, not the extreme tail. Whether a 500 ms event is
 handler work or queueing remains unsettled, because no instrumented run captured
 one.
+
+## Final acceptance of the complete hardening (2026-09-08)
+
+Twelve alternating runs of the conservative sequential workload under four bounded
+competing fsync writers on the same Btrfs filesystem, frozen binaries, six with the
+pre-hardening source and six with the complete hardening.
+
+| | Worst sample per run | Median of maxima | Median p95 | Headroom to the bound |
+| --- | --- | ---: | ---: | ---: |
+| Before | 110.5 / 120.0 / 135.6 / 159.7 / 185.9 / 371.7 ms | 147.7 ms | 38.11 ms | 1.3x |
+| After | 7.9 / 10.5 / 12.3 / 12.4 / 13.1 / 18.1 ms | 12.4 ms | 5.02 ms | **27.6x** |
+
+The distributions do not overlap: every hardened run is below every pre-hardening
+run, by a factor of six to twenty. That is the number the product requirement turns
+on. A machine twenty times slower than this one still holds the 500 ms bound with
+the hardening, and does not without it — the pre-hardening worst sample already sat
+at 1.3 times the bound on a fast encrypted NVMe.
+
+Neither variant violated the bound in this round. An earlier round of the same
+shape produced three violations in six pre-hardening runs and none in six hardened
+runs, which remains the sharper result; this one measures the margin rather than
+the failure rate.
