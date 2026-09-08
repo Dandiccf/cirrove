@@ -31,8 +31,10 @@
       "done": false,
       "text": "Recovery after process failure, suspend/resume and loss of network access.",
       "blocker": "needs-reboot",
-      "evidence": null,
-      "asserted_by": null
+      "evidence": "docs/benchmarks/namespace-memory-attribution.json",
+      "asserted_by": "Two of its three clauses. Process failure: tests/read_only.rs real_manager_recovers_disconnected_mount_after_process_death kills the mount process and asserts the manager reconnects, and real_manager_exits_with_client_handles_open covers the reverse. Loss of network access: the capacity fixtures' offline_remount phase remounts with the provider unreachable and asserts foreground_requests and content_reads both stay at zero, and tests/read_only.rs real_local_saves_remain_readable_during_upload_and_after_offline_restart covers the writable side.",
+      "caveat": "Suspend and resume are not covered and cannot be here: a real S3 or S4 cycle suspends the machine and ends the session running the test. A cgroup-freezer plus clock-skew simulation would be a reasonable regression test but is not the evidence this clause asks for. The other two clauses are covered, so this row is blocked on one third of itself.",
+      "note": "Reclassified after reading: the row conflates three failure kinds and only one needs the machine."
     },
     {
       "milestone": 1,
