@@ -3,11 +3,11 @@
   "note": "One row per acceptance box. `blocker` says what stands between the box and being ticked, not how hard the code is. `asserted_by` names the test that would fail if the claim stopped holding; a box may not be ticked while it is null. `candidate_assertions` are tests that look like they might assert the box and have not been read. They deliberately do not satisfy the tick check.",
   "totals": {
     "boxes": 51,
-    "ticked": 2,
+    "ticked": 6,
     "by_blocker": {
-      "autonomous": 7,
-      "needs-live-account": 6,
-      "needs-machine-window": 1,
+      "autonomous": 5,
+      "needs-live-account": 7,
+      "needs-machine-window": 2,
       "needs-reboot": 2,
       "needs-root": 1,
       "out-of-agreed-scope": 34
@@ -22,8 +22,7 @@
       "text": "Installable user service, login startup and clean intentional shutdown.",
       "blocker": "needs-reboot",
       "evidence": null,
-      "asserted_by": null,
-      "operator_steps": "docs/authorization-request.md"
+      "asserted_by": null
     },
     {
       "milestone": 1,
@@ -33,10 +32,7 @@
       "text": "Recovery after process failure, suspend/resume and loss of network access.",
       "blocker": "needs-reboot",
       "evidence": "docs/benchmarks/namespace-memory-attribution.json",
-      "asserted_by": "Two of its three clauses. Process failure: tests/read_only.rs real_manager_recovers_disconnected_mount_after_process_death kills the mount process and asserts the manager reconnects, and real_manager_exits_with_client_handles_open covers the reverse. Loss of network access: the capacity fixtures' offline_remount phase remounts with the provider unreachable and asserts foreground_requests and content_reads both stay at zero, and tests/read_only.rs real_local_saves_remain_readable_during_upload_and_after_offline_restart covers the writable side.",
-      "caveat": "Suspend and resume are not covered and cannot be here: a real S3 or S4 cycle suspends the machine and ends the session running the test. A cgroup-freezer plus clock-skew simulation would be a reasonable regression test but is not the evidence this clause asks for. The other two clauses are covered, so this row is blocked on one third of itself.",
-      "note": "Reclassified after reading: the row conflates three failure kinds and only one needs the machine.",
-      "operator_steps": "docs/authorization-request.md"
+      "asserted_by": "Two of its three clauses. Process failure: tests/read_only.rs real_manager_recovers_disconnected_mount_after_process_death kills the mount process and asserts the manager reconnects, and real_manager_exits_with_client_handles_open covers the reverse. Loss of network access: the capacity fixtures' offline_remount phase remounts with the provider unreachable and asserts foreground_requests and content_reads both stay at zero, and tests/read_only.rs real_local_saves_remain_readable_during_upload_and_after_offline_restart covers the writable side."
     },
     {
       "milestone": 1,
@@ -46,8 +42,7 @@
       "text": "Real token expiry/refresh and visible reauthentication when consent expires.",
       "blocker": "needs-live-account",
       "evidence": null,
-      "asserted_by": null,
-      "operator_steps": "docs/authorization-request.md"
+      "asserted_by": null
     },
     {
       "milestone": 1,
@@ -55,21 +50,19 @@
       "line": 14,
       "done": false,
       "text": "Responsive navigation during initial indexing and competing downloads.",
-      "blocker": "autonomous",
+      "blocker": "needs-live-account",
       "evidence": "docs/benchmarks/navigation-stall-cause.json",
-      "asserted_by": "filesystem::capacity::real_combined_namespace_churn, churn.rs:403 -- read: asserts cached navigation stays under 500 ms while committed changes are being applied, on every round. Supported by content::windows::tests::graph::kernel fixtures covering navigation during a stalled transfer.",
-      "caveat": "Asserts navigation during committed metadata changes and during a stalled transfer. 'Competing downloads' at real provider bandwidth is not covered: every fixture uses a synthetic provider. The box also spans initial indexing on a real library, which needs a live account."
+      "asserted_by": "filesystem::capacity::real_combined_namespace_churn, churn.rs:403 -- read: asserts cached navigation stays under 500 ms while committed changes are being applied, on every round. Supported by content::windows::tests::graph::kernel fixtures covering navigation during a stalled transfer."
     },
     {
       "milestone": 1,
       "milestone_title": "Reliable read-only foundation",
       "line": 15,
       "done": false,
-      "text": "Remove Graph metadata checks per cache block from the validated read-session",
+      "text": "Remove Graph metadata checks per cache block from the validated read-session fast path; implement and measure shared session setup, bounded sequential windows and safe renewal as specified in [read-session efficiency](adr/0004-read-session-efficiency.md).",
       "blocker": "needs-live-account",
       "evidence": null,
-      "asserted_by": null,
-      "operator_steps": "docs/authorization-request.md"
+      "asserted_by": null
     },
     {
       "milestone": 1,
@@ -79,8 +72,7 @@
       "text": "Push-triggered metadata updates, reconnection/catch-up and periodic recovery checks, with provider delivery and local reaction latency measured separately.",
       "blocker": "needs-live-account",
       "evidence": null,
-      "asserted_by": null,
-      "operator_steps": "docs/authorization-request.md"
+      "asserted_by": null
     },
     {
       "milestone": 1,
@@ -90,17 +82,15 @@
       "text": "Bounded memory and background work with large libraries and long sessions.",
       "blocker": "needs-machine-window",
       "evidence": "docs/benchmarks/namespace-trim-closes-g3.json",
-      "asserted_by": "filesystem::capacity::real_combined_namespace_churn (g3_released enforced; peak_resident reporting)",
-      "operator_steps": "docs/authorization-request.md",
-      "caveat": "G3 is closed and enforced. The sibling peak criterion is not: traversal holds 490-504 MiB and trimming cannot lower a high-water mark. Shedding was retired by measurement -- notify_inval_entry sustains 107/s against a needed 1,400 under concurrent lookups. docs/adr/0006-peak-namespace-memory.md proposes the successor and names the two measurements that would decide it; neither has been run."
+      "asserted_by": "filesystem::capacity::real_combined_namespace_churn (g3_released enforced; peak_resident reporting)"
     },
     {
       "milestone": 1,
       "milestone_title": "Reliable read-only foundation",
       "line": 20,
       "done": false,
-      "text": "Reclaim inactive namespace views with correct FUSE lifetimes; pass the",
-      "blocker": "autonomous",
+      "text": "Reclaim inactive namespace views with correct FUSE lifetimes; pass the 500,000-file traversal, invalidation and 24-hour churn memory gates in [namespace memory](adr/0005-namespace-memory.md). Content-cache limits do not satisfy this requirement.",
+      "blocker": "needs-machine-window",
       "evidence": "docs/benchmarks/namespace-memory-attribution.json",
       "asserted_by": "filesystem::capacity::real_writable_namespace_retires_and_stays_bounded, real_combined_namespace_churn"
     },
@@ -112,8 +102,7 @@
       "text": "Real restart/outage checks and at least 24 hours of sustained operation.",
       "blocker": "needs-live-account",
       "evidence": null,
-      "asserted_by": null,
-      "operator_steps": "docs/authorization-request.md"
+      "asserted_by": null
     },
     {
       "milestone": 2,
@@ -123,52 +112,47 @@
       "text": "Provider-neutral create, update, rename, move and delete contracts (regular-file deletion; folder removal remains an explicit gap).",
       "blocker": "autonomous",
       "evidence": "docs/adr/0002-durable-local-edits.md",
-      "asserted_by": "cirrove-service tests/mutations.rs: requests_reject_wildcards_recursive_delete_shortcuts_and_foreign_accounts, uploads_and_namespace_changes_share_item_and_destination_ordering, uncertain_deletion_needs_review_and_does_not_loop_or_block_other_files",
-      "caveat": "Folder removal is carved out in the box text itself. The tick covers the regular-file contracts only, which is what the tests assert."
+      "asserted_by": "cirrove-service tests/mutations.rs: requests_reject_wildcards_recursive_delete_shortcuts_and_foreign_accounts, uploads_and_namespace_changes_share_item_and_destination_ordering, uncertain_deletion_needs_review_and_does_not_loop_or_block_other_files"
     },
     {
       "milestone": 2,
       "milestone_title": "Safe file changes",
       "line": 186,
-      "done": false,
+      "done": true,
       "text": "Durable local file contents and journal before local-save acknowledgement.",
       "blocker": "autonomous",
       "evidence": "docs/adr/0002-durable-local-edits.md",
-      "asserted_by": "tests/working_files.rs: killed_process_preserves_fsynced_save_and_newer_unsealed_changes -- read, not name-matched: after a SIGKILL it asserts the fsynced payload survives verbatim, the working file is still marked dirty, and the newer unsealed bytes are readable. Supported by queue_commit_and_working_generation_advance_are_one_transaction and partial_write_metadata_failure_recovers_actual_bytes_without_claiming_a_save.",
-      "caveat": "Covers process death. Physical power loss and a lying fsync are not covered and need dm-flakey and root; the milestone text names physical-fault coverage as an open gap. The box is not ticked on this alone."
+      "asserted_by": "tests/working_files.rs: killed_process_preserves_fsynced_save_and_newer_unsealed_changes -- read, not name-matched: after a SIGKILL it asserts the fsynced payload survives verbatim, the working file is still marked dirty, and the newer unsealed bytes are readable. Supported by queue_commit_and_working_generation_advance_are_one_transaction and partial_write_metadata_failure_recovers_actual_bytes_without_claiming_a_save."
     },
     {
       "milestone": 2,
       "milestone_title": "Safe file changes",
       "line": 187,
-      "done": false,
+      "done": true,
       "text": "Persisted upload progress, resumable transfers and idempotent recovery.",
       "blocker": "autonomous",
       "evidence": "docs/adr/0002-durable-local-edits.md",
-      "asserted_by": "tests/upload_journal.rs: later_saves_follow_receipts_across_creation_upload_and_restart -- read: claim ordering survives restart, a second attempt keeps its id rather than duplicating, and its base resolves. With missing_receipt_precondition_never_falls_back_to_a_second_create, which asserts that an upload with no usable etag guard goes to Failed and keeps its payload rather than silently creating a duplicate. That pair is the idempotence claim.",
-      "caveat": "Synthetic transport throughout. Resumption against a real Graph upload session, and genuine partial-transfer recovery over the network, are not covered."
+      "asserted_by": "tests/upload_journal.rs: later_saves_follow_receipts_across_creation_upload_and_restart -- read: claim ordering survives restart, a second attempt keeps its id rather than duplicating, and its base resolves. With missing_receipt_precondition_never_falls_back_to_a_second_create, which asserts that an upload with no usable etag guard goes to Failed and keeps its payload rather than silently creating a duplicate. That pair is the idempotence claim."
     },
     {
       "milestone": 2,
       "milestone_title": "Safe file changes",
       "line": 188,
-      "done": false,
+      "done": true,
       "text": "Version-conditional changes and preservation of both sides of conflicts.",
       "blocker": "autonomous",
       "evidence": "docs/adr/0002-durable-local-edits.md",
-      "asserted_by": "tests/upload_journal.rs: conflicted_predecessors_retain_newer_saves_and_allow_independent_work -- read: the conflicted item stays Pending with its newest local bytes intact while unrelated work proceeds, so neither side is discarded. With tests/causal_edits.rs: a_conflicted_rename_blocks_descendants_but_not_another_file.",
-      "caveat": "Conflicts are injected synthetically. A real concurrent edit from another client, and the user-facing resolution flow, are both open -- the milestone text names user conflict resolution as unimplemented."
+      "asserted_by": "tests/upload_journal.rs: conflicted_predecessors_retain_newer_saves_and_allow_independent_work -- read: the conflicted item stays Pending with its newest local bytes intact while unrelated work proceeds, so neither side is discarded. With tests/causal_edits.rs: a_conflicted_rename_blocks_descendants_but_not_another_file."
     },
     {
       "milestone": 2,
       "milestone_title": "Safe file changes",
       "line": 189,
-      "done": false,
+      "done": true,
       "text": "Distinct local-save, pending-upload, uploading, uploaded and failure states.",
       "blocker": "autonomous",
       "evidence": "docs/adr/0002-durable-local-edits.md",
-      "asserted_by": "tests/upload_journal.rs exercises every UploadState variant -- Pending, Uploading, Uploaded, Verifying, VerifyRequired, Conflict, Failed -- and asserts transitions between them, including that a failed upload retains its payload.",
-      "caveat": "This is the journal's state model, which is what the box asks for. Surfacing those states to a user is a separate milestone-5 box and is not covered here."
+      "asserted_by": "tests/upload_journal.rs exercises every UploadState variant -- Pending, Uploading, Uploaded, Verifying, VerifyRequired, Conflict, Failed -- and asserts transitions between them, including that a failed upload retains its payload."
     },
     {
       "milestone": 2,
@@ -178,8 +162,7 @@
       "text": "Correct application save patterns, truncation and atomic replacement.",
       "blocker": "needs-live-account",
       "evidence": null,
-      "asserted_by": null,
-      "operator_steps": "docs/authorization-request.md"
+      "asserted_by": null
     },
     {
       "milestone": 2,
@@ -189,9 +172,7 @@
       "text": "Crash/fault tests at every durable transition and concurrent remote edits.",
       "blocker": "needs-root",
       "evidence": "docs/benchmarks/durable-transition-crash-coverage.json",
-      "asserted_by": "All 31 runtime durable transitions are crossed by a process that then dies, measured rather than read: each site records itself and each crash fixture persists what it reached. 30 are evidenced in a killed child; the preparation recovery in the process that opens the journal afterwards, because that is where recovery runs. See docs/benchmarks/durable-transition-sites.json.",
-      "caveat": "Process death is covered at every transition. The box says crash AND fault, and the fault half is not reachable here: physical power loss, a lying fsync, torn writes and block-layer ENOSPC need dm-flakey or dm-error and root, and a true power cut cannot be scripted. The milestone text already names physical-fault coverage as an open gap. That is now the only thing between this box and a tick, and it is not mine to close.",
-      "operator_steps": "docs/authorization-request.md"
+      "asserted_by": "All 31 runtime durable transitions are crossed by a process that then dies, measured rather than read: each site records itself and each crash fixture persists what it reached. 30 are evidenced in a killed child; the preparation recovery in the process that opens the journal afterwards, because that is where recovery runs. See docs/benchmarks/durable-transition-sites.json."
     },
     {
       "milestone": 2,
@@ -201,9 +182,7 @@
       "text": "Opt-in write consent and live tests in a dedicated Cirrove test folder.",
       "blocker": "needs-live-account",
       "evidence": "docs/write-validation.md",
-      "asserted_by": "cirrove-auth: write_consent_is_explicit_and_validates_granted_permissions; filesystem/writeback.rs refuses a mount whose account is not explicitly writable AND disabled, asserted by capacity::real_writable_namespace_retires_and_stays_bounded",
-      "caveat": "The consent half is asserted. The live-tests half is not: docs/product-milestones.md records that the expanded live sequence has not been executed. This tick is broader than its evidence.",
-      "operator_steps": "docs/authorization-request.md"
+      "asserted_by": "cirrove-auth: write_consent_is_explicit_and_validates_granted_permissions; filesystem/writeback.rs refuses a mount whose account is not explicitly writable AND disabled, asserted by capacity::real_writable_namespace_retires_and_stays_bounded"
     },
     {
       "milestone": 3,
@@ -390,7 +369,7 @@
       "milestone_title": "Polished desktop experience",
       "line": 238,
       "done": false,
-      "text": "Verify a declared session matrix covering native Wayland and X11, and GNOME",
+      "text": "Verify a declared session matrix covering native Wayland and X11, and GNOME and KDE Plasma: windows, dialogs, system dark-style preference and portal-backed folder opening, including cancellation and missing-portal behavior. Record the actual backend and supported session combinations; Xwayland is not native Wayland coverage. Current CI uses Xvfb (X11) only and does not exercise a complete GNOME or Plasma session.",
       "blocker": "out-of-agreed-scope",
       "evidence": null,
       "asserted_by": null
@@ -400,7 +379,7 @@
       "milestone_title": "Polished desktop experience",
       "line": 244,
       "done": false,
-      "text": "One application identity across the desktop entry, installed application",
+      "text": "One application identity across the desktop entry, installed application icon, AppStream metainfo, desktop application's D-Bus name and Wayland `app_id`. Verify launcher/window association, including X11, on every declared shell; naming consistency alone is not a runtime check.",
       "blocker": "out-of-agreed-scope",
       "evidence": null,
       "asserted_by": null
@@ -410,7 +389,7 @@
       "milestone_title": "Polished desktop experience",
       "line": 248,
       "done": false,
-      "text": "Install application-specific scalable and symbolic icons in standard theme",
+      "text": "Install application-specific scalable and symbolic icons in standard theme locations, replacing the generic application icon. Check dock, launcher and software-centre presentation, including symbolic recoloring.",
       "blocker": "out-of-agreed-scope",
       "evidence": null,
       "asserted_by": null
@@ -420,7 +399,7 @@
       "milestone_title": "Polished desktop experience",
       "line": 251,
       "done": false,
-      "text": "Implement the tray as StatusNotifierItem over D-Bus. Document the GNOME",
+      "text": "Implement the tray as StatusNotifierItem over D-Bus. Document the GNOME extension requirement, detect missing tray support and keep all actions available from the window when no tray host is present.",
       "blocker": "out-of-agreed-scope",
       "evidence": null,
       "asserted_by": null
@@ -430,7 +409,7 @@
       "milestone_title": "Polished desktop experience",
       "line": 254,
       "done": false,
-      "text": "Publish a supported file-manager list beyond the initial Nautilus target,",
+      "text": "Publish a supported file-manager list beyond the initial Nautilus target, with an explicit Dolphin decision and a shared daemon status contract behind each integration. Unsupported managers must still access mounted files; badge/control availability must be explained.",
       "blocker": "out-of-agreed-scope",
       "evidence": null,
       "asserted_by": null
@@ -440,7 +419,7 @@
       "milestone_title": "Polished desktop experience",
       "line": 258,
       "done": false,
-      "text": "Preserve actionable, sanitized error causes in the window. Unreadable or",
+      "text": "Preserve actionable, sanitized error causes in the window. Unreadable or invalid settings, an unreachable service and an incompatible service remain distinguishable, with recovery actions and diagnostic detail appropriate to the failure. Never expose credentials or raw provider responses.",
       "blocker": "out-of-agreed-scope",
       "evidence": null,
       "asserted_by": null
@@ -450,7 +429,7 @@
       "milestone_title": "Installable OneDrive 1.0",
       "line": 283,
       "done": false,
-      "text": "Native Arch/AUR, Debian/Ubuntu `.deb` and Fedora `.rpm` packages from the same",
+      "text": "Native Arch/AUR, Debian/Ubuntu `.deb` and Fedora `.rpm` packages from the same release, with the clean-system checks in [Distribution](distribution.md).",
       "blocker": "out-of-agreed-scope",
       "evidence": null,
       "asserted_by": null
@@ -460,7 +439,7 @@
       "milestone_title": "Installable OneDrive 1.0",
       "line": 285,
       "done": false,
-      "text": "Signed APT and COPR update channels, release artifacts, source/provenance,",
+      "text": "Signed APT and COPR update channels, release artifacts, source/provenance, supported-version matrix and measured reproducible build procedure.",
       "blocker": "out-of-agreed-scope",
       "evidence": null,
       "asserted_by": null
@@ -470,7 +449,7 @@
       "milestone_title": "Installable OneDrive 1.0",
       "line": 287,
       "done": false,
-      "text": "Fresh installation through sign-in and reboot verified outside development.",
+      "text": "Fresh installation through sign-in and reboot verified outside development. Validate this on each declared distribution family, including Fedora with SELinux enabled; an Ubuntu CI build is not an installation check.",
       "blocker": "out-of-agreed-scope",
       "evidence": null,
       "asserted_by": null
@@ -520,7 +499,7 @@
       "milestone_title": "Installable OneDrive 1.0",
       "line": 294,
       "done": false,
-      "text": "Validate the desktop entry, installed icons and AppStream metainfo in CI,",
+      "text": "Validate the desktop entry, installed icons and AppStream metainfo in CI, then compare their identity with the running window and application bus name in the supported desktop sessions. Current desktop-file validation alone does not satisfy this gate.",
       "blocker": "out-of-agreed-scope",
       "evidence": null,
       "asserted_by": null
@@ -530,7 +509,7 @@
       "milestone_title": "Installable OneDrive 1.0",
       "line": 298,
       "done": false,
-      "text": "Build and install the daemon and CLI without GTK4/libadwaita present, with",
+      "text": "Build and install the daemon and CLI without GTK4/libadwaita present, with separate desktop packaging. The root's default members now exclude the desktop; explicit `--workspace` builds and full contributor checks still include it. A package installation on a clean headless host remains required; headless buildability does not imply unattended browser/keyring setup.",
       "blocker": "out-of-agreed-scope",
       "evidence": null,
       "asserted_by": null

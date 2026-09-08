@@ -42,10 +42,12 @@ def boxes() -> list[dict]:
     """Every acceptance checkbox, with the milestone it belongs to."""
     found = []
     milestone = None
+    open_box = False
     for number, line in enumerate(MILESTONES.read_text().splitlines(), 1):
         heading = re.match(r"^## (\d)\. (.+)$", line)
         if heading:
             milestone = (int(heading.group(1)), heading.group(2))
+            open_box = False
             continue
         box = re.match(r"^- \[([ x])\] (.+)$", line)
         if box and milestone:
@@ -58,6 +60,20 @@ def boxes() -> list[dict]:
                     "text": re.sub(r"\s+", " ", box.group(2)).strip(),
                 }
             )
+            open_box = True
+            continue
+        # A wrapped box continues on the indented lines directly beneath it.
+        # Taking only the first line truncated two of the longest claims --
+        # including the one naming the 24-hour churn gate -- so the ledger held
+        # half a sentence and would not have noticed the other half being
+        # reworded. A blank line, a heading or an unindented line ends the item;
+        # without that, the last box swallowed the prose paragraph after it.
+        if open_box and re.match(r"^ {2,}\S", line):
+            found[-1]["text"] = re.sub(
+                r"\s+", " ", found[-1]["text"] + " " + line
+            ).strip()
+            continue
+        open_box = False
     return found
 
 

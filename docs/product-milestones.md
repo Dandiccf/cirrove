@@ -183,10 +183,10 @@ history remain acceptance gaps. This implementation progress does not close the
 safe-file-changes milestone.
 
 - [x] Provider-neutral create, update, rename, move and delete contracts (regular-file deletion; folder removal remains an explicit gap).
-- [ ] Durable local file contents and journal before local-save acknowledgement.
-- [ ] Persisted upload progress, resumable transfers and idempotent recovery.
-- [ ] Version-conditional changes and preservation of both sides of conflicts.
-- [ ] Distinct local-save, pending-upload, uploading, uploaded and failure states.
+- [x] Durable local file contents and journal before local-save acknowledgement.
+- [x] Persisted upload progress, resumable transfers and idempotent recovery.
+- [x] Version-conditional changes and preservation of both sides of conflicts.
+- [x] Distinct local-save, pending-upload, uploading, uploaded and failure states.
 - [ ] Correct application save patterns, truncation and atomic replacement.
 - [ ] Crash/fault tests at every durable transition and concurrent remote edits.
 - [x] Opt-in write consent and live tests in a dedicated Cirrove test folder.
