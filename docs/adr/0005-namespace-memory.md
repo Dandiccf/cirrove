@@ -65,12 +65,13 @@ abandoned producers. A separate CI startup-readiness failure remains unresolved.
 A frozen release binary then runs the same three-pass 500,000-file fixture with
 every file in one directory. Its first entry arrives in 4.08-4.92 ms against the
 unchanged 500 ms bound, from a published prefix of 130 entries, while the rest of
-the listing is still being produced. The earlier completed-snapshot run of that
-fixture needed 5.49-7.31 seconds. Whole-pass traversal is slower in the new run,
-9.18-10.73 against 5.68-7.47 seconds, but that session was also slower in the
-unrelated indexing baseline; a controlled frozen-binary pair is still needed before
-attributing throughput cost. Post-invalidation RSS still rises across passes, so
-sustained capacity remains unproven. See
+the listing is still being produced. A controlled pair of frozen release binaries,
+differing only in this path and run alternately in one session, gives 8.80-10.76
+seconds before the change against 4.33-5.23 ms after it, with no overlapping
+sample and a median ratio of 2,199. Whole-pass traversal is unchanged in that
+pair, 10.585 against 10.232 seconds, so the earlier apparent throughput cost was a
+session difference. Post-invalidation RSS still rises across passes, so sustained
+capacity remains unproven. See
 [the giant-directory measurements](../validation.md#giant-directory-first-entry-with-prefix-publication-2026-09-08).
 
 The Store read path now uses individual indexed directory-snapshot rows and an
