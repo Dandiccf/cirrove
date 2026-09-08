@@ -622,3 +622,76 @@ resting on it is a bound. The fallback is a view-count ceiling derived from the
 measured 637 to 657 bytes per view: weaker, because it cannot see a change in
 per-view size, but honest, and it costs a day rather than a phase. That choice is
 to be made in the open, not by loosening the tolerance until the model passes.
+
+## Shedding: the design, before the code
+
+Recorded before implementation for the same reason as the charge formula above.
+Whether it is built at all depends on a measurement that has not been taken.
+
+**What it is.** Above a resident ceiling, select entries and emit
+`notify_inval_entry` for them through the batch machinery in
+`filesystem/invalidation.rs`, which already runs on a blocking worker outside the
+namespace lock and is already cursor-resumable. The kernel drops the dentry,
+queues FORGET, and `NamespaceViews::forget` reclaims exactly as it does today.
+Every reference count, lease and FORGET path stays untouched.
+
+**Why not eviction with reconstruction.** The fuller design needs a reverse
+inode-to-key lookup that `cirrove-store` does not have, a debt map for outstanding
+kernel references, a single-flight gate and a hydration path, and it narrows
+old-revision behaviour from serving stale attributes to `ESTALE`. It also makes
+the never-pruned `inodes` table load-bearing for correctness, which makes pruning
+it strictly harder later. Shedding reaches the same bound with none of that,
+because the kernel's own re-lookup path is already proven to cost no provider
+request: `foreground_requests == 0` is asserted at the end of the churn fixture.
+
+**Selection.** `inode != 1`, not quarantined, `Arc::strong_count(&residency) == 1`,
+ordered by the existing generation counter as a clock hand.
+
+Four corrections are mandatory, each from a specific failure this codebase can
+already exhibit.
+
+1. **Backpressure the shed channel; never drop.** `ProjectionIndex::invalidation_batch`
+   resolves candidates through `self.get(&inode)` and misses on anything absent,
+   so a dropped notify silently removes that entry from every future change sweep.
+   That is stale metadata with no error and no counter. Blocking when full also
+   caps how fast unresolved state can accumulate.
+
+2. **The pinned class is larger than it looks, and the fixtures are its best case.**
+   `Inner::project` sets `_parent_residency` on every child, so every ancestor of
+   every resident view has a strong count above one and cannot be shed. The
+   ceiling is therefore hard over leaves and soft over the directory spine. The
+   500,000-file fixtures have 500 directories, or three in the giant topology,
+   where the pinned class is negligible. On a deep, wide library it scales with
+   directory count. Report the pinned-class size as a first-class metric and claim
+   a bound only where it is measured small, rather than assuming it.
+
+3. **Shedding buys re-lookups, and re-lookup is expensive.** `filesystem.rs` opens
+   a store connection per published view, and `lookup`, `getattr` and `opendir`
+   gate on a 128-permit semaphore that replies `EAGAIN` when exhausted. A shed
+   storm is a `Store::open` storm behind that gate, and `ls: Resource temporarily
+   unavailable` is the failure a user would see. Requires hysteresis — shed down
+   to 0.9 of the ceiling, never oscillate — a bounded shed rate, a pooled read
+   connection, and an assertion in the churn fixture that no operation returns
+   `EAGAIN` during a shed cycle. Add that assertion before the shed loop, so the
+   failure is a red test rather than a field report.
+
+4. **The kernel-side cost is unmeasured and is the gate on all of this.**
+   `fuse_reverse_inval_entry` takes the parent's `i_rwsem` exclusively while
+   `lookup_slow` holds it shared across a full round trip, against a
+   writer-preferring rwsem and a deliberately single-threaded dispatcher. The
+   cgroup experiment that suggested shedding is affordable measured the kernel's
+   own dcache shrinker taking `d_lock` off the LRU with no FUSE upcall, and
+   transfers no information about this. `benchmarks/inval-entry` measures it
+   directly, outside this workspace.
+
+**The bar, and what failing it means.** A 500,000-file traversal resolves about
+750,000 views in roughly 530 seconds, so a ceiling that binds during traversal
+must sustain about 1,400 sheds per second with concurrent-lookup p99 under 100
+milliseconds. If that is not reached, shedding becomes a soft ceiling with a
+measured overshoot factor rather than a bound, and may need disabling above some
+entry density — that is, disabled exactly where density is highest. Everything in
+this section is contingent on that number.
+
+**Every claim here is for a single dispatch thread.** Raising `n_threads` to four
+is a recorded failure, and shedding makes order-independent reference accounting a
+harder prerequisite for concurrency later, not an easier one.
