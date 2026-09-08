@@ -78,7 +78,11 @@ delta worker. A bounded generation signal retains hints received during a refres
 The worker consumes the generation before starting network work and coalesces bursts
 with at least 250 ms between refresh starts. Failed refreshes retain their backoff;
 push cannot bypass Retry-After. A single coalescing discovery task prevents push
-bursts from accumulating linked-library discovery tasks.
+bursts from accumulating linked-library discovery tasks. That task shares the store
+with every feed, so a transient store failure is retried on its own schedule, one
+second doubling to one minute and reset by success. Waiting for the next successful
+poll instead would hide a linked drive for that whole interval, and permanently once
+the feed stops succeeding, because only a successful poll notifies discovery.
 
 OneDrive obtains the signed Socket.IO endpoint through authenticated Graph, then
 uses a separate Rustls WebSocket connection without Graph bearer headers. Engine.IO
