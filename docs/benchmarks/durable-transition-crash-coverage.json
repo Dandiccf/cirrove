@@ -3,7 +3,7 @@
   "box": "Crash/fault tests at every durable transition and concurrent remote edits (milestone 2)",
   "method": "Enumerated the journal modules containing fsync or transaction commits, then read the tests that reach each. Test names were not used as evidence; see docs/development.md on why that undercounts here.",
   "durable_modules": 11,
-  "with_a_kill_point": 7,
+  "with_a_kill_point": 8,
   "rows": [
     {
       "module": "journal.rs",
@@ -47,8 +47,8 @@
     },
     {
       "module": "journal/unlinked.rs",
-      "crash_test": null,
-      "note": "tests/unlinked_files.rs covers rollback by injection; no kill point."
+      "crash_test": "tests/unlinked_files.rs: actual_process_death_keeps_a_file_unlinked_and_still_owes_its_removal",
+      "note": "SIGKILL after the unlink and after the removal mutation is claimed. The name stays hidden even though the remote still reports the file -- a crash must not resurrect a deleted one -- and the removal owed to the cloud is never simply gone. Killing after the claim is the harder case: the mutation is in flight, so recovery cannot assume it never started."
     },
     {
       "module": "journal/directories.rs",
@@ -61,8 +61,8 @@
       "note": "No kill point."
     }
   ],
-  "conclusion": "Seven of eleven journal modules carrying durable transitions have a test that kills the process at one. The other four are covered for rollback and restart by injected failure, which is narrower evidence: an injected error unwinds a transaction the program still controls, while a SIGKILL leaves whatever the kernel had actually written. The box says every transition, and seven are not that. It stays unticked.",
-  "cheapest_next_step": "Preparation, handoff and replacements are done -- the three that span the most state. Generations, unlinked, directories and publication remain, and the pattern is demonstrated seven times over.",
+  "conclusion": "Eight of eleven journal modules carrying durable transitions have a test that kills the process at one. The other three are covered for rollback and restart by injected failure, which is narrower evidence: an injected error unwinds a transaction the program still controls, while a SIGKILL leaves whatever the kernel had actually written. The box says every transition, and seven are not that. It stays unticked.",
+  "cheapest_next_step": "Generations, directories and publication remain; the pattern is demonstrated eight times over.",
   "not_reachable_autonomously": "Physical power loss and a lying fsync are a different class again, need dm-flakey and root, and the milestone text already names physical-fault coverage as an open gap.",
   "open_question_found_while_writing_this": {
     "observation": "Detached bytes survive the SIGKILL and are gone after the next UploadJournal::open. Measured by checking the spool path before and after reopening: present, then absent.",
