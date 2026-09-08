@@ -323,7 +323,7 @@
   "measured_coverage": {
     "method": "Every one of the 31 runtime sites now calls durable::record. Each crash fixture's child was run once per phase, its reached set read from disk, and the union taken. This is what the program did, not what a call graph says it would do. All eight crash fixtures now report, including the two older ones.",
     "sites": 31,
-    "reached": 26,
+    "reached": 28,
     "per_fixture": {
       "preparation_crash_child": 14,
       "handoff_crash_child": 9,
@@ -336,13 +336,11 @@
       "ancestry_crash_child": 5
     },
     "not_reached": [
-      "generations::resolve_mutation",
-      "generations::resolve_upload",
       "journal::prune_uploaded_payload",
       "namespace::observe_namespace_file::1",
       "preparation::recover_preparation_files"
     ],
-    "reading_the_gap": "ancestry::capture_namespace_ancestors was closed by giving it a caller: it had no crash fixture at all, only ordinary tests. directories::resolve_destination was closed by having its fixture claim after the folder's confirmation, because the destination is resolved by the claim rather than by the confirmation.\\n\\nFive remain, each with a named requirement. Two recovery paths -- recover_preparation_files and, in effect, prune_uploaded_payload -- only run when a previous process left work behind, so they need a fixture that crashes during a write rather than after one, and then crashes again. Two resolution commits inside claim_next and claim_mutation only run when a generation is actually ready, which no fixture arranges; an estimate that the older fixtures crossed these was measured wrong. And observe_namespace_file's update-from-remote arm has a narrower precondition than observing the same node twice, which was tried and does not take that branch.",
-    "honest_status": "26 of 31, measured. Five remain, each with what it would take written next to it."
+    "reading_the_gap": "Both resolution commits were closed the same way, and the shape is worth keeping: a generation resolves against its predecessor's receipt, and only the claim AFTER the acknowledgement performs that resolution. Each fixture had been stopping at the acknowledgement. The same one-step-short mistake as directories::resolve_destination, where the destination is resolved by the claim rather than by the confirmation.\\n\\nThree remain. Two are recovery paths that only run when a previous process left work behind, so they need a fixture that crashes DURING a write rather than after one, and then crashes again. One is observe_namespace_file's update-from-remote arm, whose precondition is narrower than observing the same node twice -- that was tried and measured not to take the branch.",
+    "honest_status": "28 of 31, measured. Three remain: two need a double crash, one needs a precondition nobody has identified yet."
   }
 }

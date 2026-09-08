@@ -596,7 +596,7 @@ impl Drop for KillOnDrop {
 }
 #[test]
 fn actual_process_death_preserves_pending_uncertain_and_acknowledged_states() {
-    for phase in ["pending", "uploading", "uploaded"] {
+    for phase in ["pending", "uploading", "uploaded", "resolved"] {
         let temp = tempfile::tempdir().unwrap();
         let mut child = KillOnDrop(
             Command::new(std::env::current_exe().unwrap())
@@ -626,6 +626,8 @@ fn actual_process_death_preserves_pending_uncertain_and_acknowledged_states() {
         let state = match phase {
             "pending" => UploadState::Pending,
             "uploading" => UploadState::VerifyRequired,
+            // "resolved" kills after a successor was resolved and claimed; the
+            // acknowledged predecessor must be untouched by that.
             _ => UploadState::Uploaded,
         };
         assert_eq!(journal.get(record.id).unwrap().state, state);
@@ -647,10 +649,19 @@ fn journal_crash_fixture() {
         .unwrap();
     if phase != "pending" {
         let attempt = journal.claim_next().unwrap().unwrap();
-        if phase == "uploaded" {
+        if phase == "uploaded" || phase == "resolved" {
             journal
                 .acknowledge(record.id, attempt.attempt.unwrap(), remote(&record))
                 .unwrap();
+        }
+        if phase == "resolved" {
+            // A successor becomes resolvable only once its predecessor is
+            // acknowledged, and it is resolved by the claim that follows. That
+            // claim is the only path through resolve_upload.
+            journal
+                .enqueue_after(record.id, b"second save".as_slice())
+                .unwrap();
+            journal.claim_next().unwrap().unwrap();
         }
     }
     // Publish the marker atomically; its appearance follows the durable call.
