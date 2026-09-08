@@ -7,6 +7,7 @@ license.workspace = true
 publish = false
 
 [dependencies]
+cirrove-allocator.workspace = true
 cirrove-core.workspace = true
 cirrove-store.workspace = true
 cirrove-onedrive.workspace = true

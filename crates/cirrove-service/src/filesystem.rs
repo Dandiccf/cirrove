@@ -196,11 +196,28 @@ impl CloudFs {
         let inner = self.inner.clone();
         self.inner.runtime.spawn(async move {
             let mut tick = tokio::time::interval(Duration::from_secs(1));
+            // A traversal leaves most of its memory freed but not returned. Give
+            // it back once the mount goes quiet, and only once: `==` rather than
+            // `>=` so an idle mount trims a single time rather than every second.
+            const QUIESCENT_TICKS: u32 = 5;
+            let mut idle = 0u32;
             loop {
                 tokio::select! { biased;
                     _ = inner.cancel.cancelled() => break,
                     _ = tick.tick() => {
-                        if let Ok(mut views) = inner.views.lock() { views.collect(4096); }
+                        let reclaimed = match inner.views.lock() {
+                            Ok(mut views) => views.collect(4096),
+                            Err(_) => continue,
+                        };
+                        // The guard is dropped before trimming: trim takes every
+                        // arena lock in turn, and holding the namespace lock
+                        // across that would block every filesystem reply.
+                        idle = if reclaimed == 0 { idle.saturating_add(1) } else { 0 };
+                        if idle == QUIESCENT_TICKS {
+                            tokio::task::spawn_blocking(|| {
+                                let _ = cirrove_allocator::trim();
+                            });
+                        }
                     }
                 }
             }

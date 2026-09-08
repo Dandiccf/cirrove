@@ -1,0 +1,28 @@
+{
+  "recorded_at": "2026-09-08T18:20:00+00:00",
+  "question": "Does setting glibc's trim and mmap thresholds at startup help, as the analysis on record argued it would?",
+  "answer": "No. It makes retained memory substantially worse, and it was never needed.",
+  "what_was_built": "cirrove_allocator::configure() called mallopt(M_TRIM_THRESHOLD, 128 KiB) and mallopt(M_MMAP_THRESHOLD, 8 MiB) once at daemon startup. The reasoning was that calling mallopt on either threshold sets glibc's no_dyn_threshold, disabling the ratchet that leaves freed pages in arena tops, and that the mmap threshold had to sit above the content path's 4 MiB block buffer to avoid a page-fault storm on cached reads.",
+  "measurement": {
+    "fixture": "real_combined_namespace_churn, CIRROVE_CHURN_FILES=500000, frozen release binary",
+    "g3_without_configure_mib": [
+      476.4,
+      466.8,
+      479.6
+    ],
+    "g3_with_configure_mib": [
+      479.2,
+      576.3,
+      633.4
+    ],
+    "delta_mib": [
+      2.8,
+      109.5,
+      153.8
+    ]
+  },
+  "attribution": "Unambiguous. The released phase is sampled 0.72 seconds after the preceding one in all three rounds, and the idle-gated trim requires five quiescent ticks, so malloc_trim never ran. The entire regression is the two mallopt calls.",
+  "mechanism": "Raising M_MMAP_THRESHOLD to 8 MiB sets no_dyn_threshold AND lifts the threshold far above glibc's 128 KiB default. Allocations between the two sizes stop being mmapped, so memory that previously returned to the kernel on free now lands in arenas and stays. The 4 MiB block buffer the change was protecting is never allocated by this fixture, whose files are zero length: the cost was paid everywhere and the benefit was hypothetical here.",
+  "correction": "configure() removed. malloc_trim needs no preparation: the interposer probe that established the 476 -> 10 MiB effect called it with no mallopt at all.",
+  "lesson": "This was reasoning shipped as if it were measurement. The mechanism was plausible, sourced from a careful analysis, and wrong on this workload. It cost one 29-minute run to find, which is the argument for measuring a remedy before believing it."
+}

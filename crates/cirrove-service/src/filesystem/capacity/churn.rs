@@ -241,6 +241,30 @@ fn check_memory(value: &serde_json::Value, criterion: &str, observed: u64, files
     );
 }
 
+/// Wait until resident memory stops falling, or give up after a bounded wait.
+///
+/// Bounded so a fixture cannot hang on a machine where the tick never quiesces;
+/// the wait is recorded in the sample so a run that timed out is visible rather
+/// than silently averaged in.
+async fn settle_memory() {
+    let deadline = Instant::now() + Duration::from_secs(20);
+    let started = Instant::now();
+    let mut previous = u64::MAX;
+    let mut stable = 0;
+    while Instant::now() < deadline && stable < 2 {
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        let current = process_memory()["rss_kib"].as_u64().unwrap_or(0);
+        // A tick that frees nothing leaves this flat; the trim shows up as a step.
+        stable = if current >= previous { stable + 1 } else { 0 };
+        previous = current;
+    }
+    println!(
+        "CIRROVE_MEMORY_SETTLE {}",
+        serde_json::json!({"seconds": started.elapsed().as_secs_f64(),
+            "settled": stable >= 2, "rss_kib": previous})
+    );
+}
+
 async fn sample(inner: &Arc<Inner>, round: usize, phase: &'static str, started: Instant) {
     let mut value = namespace_sample(inner, phase, started.elapsed().as_secs_f64());
     assert_eq!(value["references"]["quarantined_views"], 0);
@@ -471,6 +495,11 @@ async fn round(
     }
     if full {
         parents::settle(inner, 1).await;
+        // Retiring the views is not the end of it: the allocator returns their
+        // pages on a quiescent tick a few seconds later. Sampling immediately
+        // records a moment between the two that a user never observes, so wait
+        // for resident memory to stop falling before calling this released.
+        settle_memory().await;
     }
     sample(inner, number, "released", started).await;
     ids

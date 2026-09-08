@@ -348,6 +348,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "cirrove-allocator"
+version = "0.1.0-dev"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "cirrove-auth"
 version = "0.1.0-dev"
 dependencies = [
@@ -424,6 +431,7 @@ version = "0.1.0-dev"
 dependencies = [
  "anyhow",
  "async-trait",
+ "cirrove-allocator",
  "cirrove-auth",
  "cirrove-core",
  "cirrove-onedrive",
