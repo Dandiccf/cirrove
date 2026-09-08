@@ -847,6 +847,13 @@ async fn real_targeted_alias_invalidations_preserve_open_versions() {
 mod projections;
 
 mod churn;
+mod writable;
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; capacity of a writable mount"]
+async fn real_writable_namespace_retires_and_stays_bounded() {
+    writable::run().await;
+}
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "actual synthetic kernel FUSE; deep aliases, every-file stat, held versions and churn"]

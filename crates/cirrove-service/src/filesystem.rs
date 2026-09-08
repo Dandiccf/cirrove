@@ -197,10 +197,17 @@ impl CloudFs {
         self.inner.runtime.spawn(async move {
             let mut tick = tokio::time::interval(Duration::from_secs(1));
             // A traversal leaves most of its memory freed but not returned. Give
-            // it back once the mount goes quiet, and only once: `==` rather than
-            // `>=` so an idle mount trims a single time rather than every second.
+            // it back once the mount goes quiet, and once per quiet period rather
+            // than every second: trimming takes every arena lock in turn.
+            //
+            // The obvious spelling, firing when the idle count equals the
+            // threshold, fires once in the process lifetime and never again: the
+            // count only resets when the collector finds work, so it passes the
+            // threshold early and climbs past it forever. Track whether this
+            // quiet period has already been trimmed instead.
             const QUIESCENT_TICKS: u32 = 5;
             let mut idle = 0u32;
+            let mut trimmed = false;
             loop {
                 tokio::select! { biased;
                     _ = inner.cancel.cancelled() => break,
@@ -212,10 +219,17 @@ impl CloudFs {
                         // The guard is dropped before trimming: trim takes every
                         // arena lock in turn, and holding the namespace lock
                         // across that would block every filesystem reply.
-                        idle = if reclaimed == 0 { idle.saturating_add(1) } else { 0 };
-                        if idle == QUIESCENT_TICKS {
+                        if reclaimed == 0 {
+                            idle = idle.saturating_add(1);
+                        } else {
+                            idle = 0;
+                            trimmed = false;
+                        }
+                        if idle >= QUIESCENT_TICKS && !trimmed {
+                            trimmed = true;
                             tokio::task::spawn_blocking(|| {
-                                let _ = cirrove_allocator::trim();
+                                let released = cirrove_allocator::trim();
+                                tracing::debug!(released, "returned free pages to the kernel");
                             });
                         }
                     }
