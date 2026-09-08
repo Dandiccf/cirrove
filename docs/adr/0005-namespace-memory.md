@@ -581,3 +581,44 @@ The trim itself is not yet shipped. It must be idle-gated — earlier measuremen
 it at 20 to 26 milliseconds median and 62 milliseconds maximum at around a gibibyte,
 and it takes every arena lock in turn, so it belongs on a quiescent reclamation tick
 via a blocking worker and never on a runtime thread that owns a filesystem reply.
+
+## The charge formula for `resident_bytes`
+
+G2 bounds a named `resident_bytes.evictable` counter, and this document requires
+its charge formula to be written before the counter exists. This is that formula.
+It is recorded first so that a counter which disagrees with measurement is a
+falsified model rather than a formula quietly adjusted until it agrees.
+
+A resident view is `Entry` in `NamespaceViews::entries`: a `View`, a generation
+and a queued flag, in a `BTreeMap` node. `View` owns seven reference-counted
+payloads, and three of them are deliberately shared between siblings by
+`ProjectionIndex::matches`: `scope`, `alias` and `ancestry`. `residency` is shared
+differently — every child holds its parent's through `_parent_residency`, which is
+what keeps an ancestor chain alive.
+
+**Charge each distinct allocation once, not each view that can see it.** Walk the
+entries collecting `Arc::as_ptr` for every payload, sort, deduplicate, and sum the
+allocation sizes of the survivors. Crediting whichever view was inserted first and
+debiting the same stored value on removal drifts the counter below truth by
+roughly what the interning saves, which is about a fifth on the measured
+representation, and an advertised bound that undercounts is not a bound.
+
+The walk must not allocate while it runs. A pre-reserved `Vec<usize>` with a sort
+and dedup, never a `BTreeSet`: 750,438 views times roughly five payloads is about
+3.75 million node allocations into the very arenas being measured, which
+permanently raises `peak_rss_kib` — one of the four scalars every comparison in
+this document depends on.
+
+It is `#[cfg(test)]` and never on a filesystem path. It takes the namespace lock
+in front of a deliberately single-threaded dispatcher, so a hundred-millisecond
+hold is head-of-line blocking on exactly the lookup path five commits were spent
+de-stalling. Each sample records the walk's own duration, so a slow sample is
+visible rather than averaged into the result.
+
+**Validate before building anything on it.** Compare the modelled total against
+measured `Pss_Anon` at every phase, both topologies. Agreement within 15 percent
+accepts the model; more than that means the formula is fiction and no ceiling
+resting on it is a bound. The fallback is a view-count ceiling derived from the
+measured 637 to 657 bytes per view: weaker, because it cannot see a change in
+per-view size, but honest, and it costs a day rather than a phase. That choice is
+to be made in the open, not by loosening the tolerance until the model passes.
