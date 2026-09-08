@@ -35,10 +35,15 @@
 #include <unistd.h>
 
 static int output = -1;
+static int trim_on_release = 0;
 
 __attribute__((constructor)) static void init_probe(void) {
     const char *path = getenv("CIRROVE_HEAP_PROBE_LOG");
     if (path) output = open(path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0600);
+    /* Opt-in: glibc's trim_threshold only trims the top of an arena on free().
+     * malloc_trim(0) walks every arena and returns free page ranges within each
+     * heap, which is a different question and one no recorded arm has asked. */
+    trim_on_release = getenv("CIRROVE_HEAP_PROBE_TRIM") != NULL;
 }
 
 ssize_t write(int fd, const void *buffer, size_t size) {
@@ -61,6 +66,38 @@ ssize_t write(int fd, const void *buffer, size_t size) {
             memory.fordblks, memory.hblkhd);
         if (n > 0 && (size_t)n < sizeof record)
             syscall(SYS_write, output, record, n);
+        if (trim_on_release && memmem(buffer, size, "\"phase\":\"released\"", 18)) {
+            int trimmed = malloc_trim(0);
+            struct mallinfo2 after = mallinfo2();
+            /* Read our own rollup rather than trusting the fixture's, which was
+             * sampled before the trim. */
+            long rss = -1, pss = -1, anon = -1;
+            int fd = open("/proc/self/smaps_rollup", O_RDONLY | O_CLOEXEC);
+            if (fd >= 0) {
+                char rollup[4096];
+                ssize_t got = syscall(SYS_read, fd, rollup, sizeof rollup - 1);
+                if (got > 0) {
+                    rollup[got] = 0;
+                    const char *r = strstr(rollup, "\nRss:");
+                    const char *ps = strstr(rollup, "\nPss:");
+                    const char *an = strstr(rollup, "\nPss_Anon:");
+                    if (r) rss = strtol(r + 5, NULL, 10);
+                    if (ps) pss = strtol(ps + 5, NULL, 10);
+                    if (an) anon = strtol(an + 10, NULL, 10);
+                }
+                close(fd);
+            }
+            char post[512];
+            int m = snprintf(post, sizeof post,
+                "{\"post_trim\":true,\"trimmed\":%d,\"arena_bytes\":%zu,"
+                "\"allocated_arena_bytes\":%zu,\"free_arena_bytes\":%zu,"
+                "\"mmap_bytes\":%zu,\"rss_kib\":%ld,\"pss_kib\":%ld,"
+                "\"anonymous_pss_kib\":%ld}\n",
+                trimmed, after.arena, after.uordblks, after.fordblks,
+                after.hblkhd, rss, pss, anon);
+            if (m > 0 && (size_t)m < sizeof post)
+                syscall(SYS_write, output, post, m);
+        }
     }
     return result;
 }
