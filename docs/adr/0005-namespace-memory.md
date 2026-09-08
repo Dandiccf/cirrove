@@ -492,3 +492,46 @@ resident bound on it. The retained-RSS figures must not be quoted to three
 significant figures from a single run, and any allocator comparison needs
 replicated arms rather than one run per arm. G3 fails in both runs in every
 round, by 1.86x to 2.14x.
+
+## Allocator configuration does not reach the gate (2026-09-08)
+
+Every allocator diagnostic before today ran `namespace_capacity_baseline`, which
+never exceeds 501 live views. Four runs of the heavy fixture at 500,000 files,
+same frozen binary, tested whether any glibc configuration reaches the budget.
+See [the arms](../benchmarks/namespace-allocator-arms.json).
+
+| arm | tunables | G3, MiB |
+| --- | --- | --- |
+| default | none | 476.4 / 514.8 / 546.7 |
+| default | none | 477.3 / 483.5 / 513.4 |
+| trim | `trim_threshold=131072` | 474.3 / 534.0 / 642.3 |
+| full | `arena_max=2` + trim + `mmap_threshold=131072` | 478.3 / 571.0 / 607.8 |
+
+Round one lands at 474.3 to 478.3 MiB in every arm, a spread of 3.9 MiB and about
+1.86 times the 256 MiB budget. No configuration comes near it. The pre-registered
+rule is therefore settled against the allocator lane: bounding resident views is
+required, and tuning cannot substitute for it.
+
+Nothing further should be read into these numbers, and two readings that suggest
+themselves are wrong.
+
+**They do not show that tuning is harmful.** The later rounds diverge, but the two
+untuned runs differ from each other by 6.2 against 38.4 MiB on the same round step,
+so the untuned spread is itself sixfold. The arms also ran sequentially through one
+shared temporary directory and are confounded with run order; the only arm with a
+private untouched directory recorded the lowest round-one value. Comparing absolute
+G3 beyond round one across single runs is not supported.
+
+**`mallinfo2` alone does not measure live heap.** It reports mmap'd chunks in
+`hblkhd`, not in `arena` or `uordblks`. Setting either threshold also sets glibc's
+`no_dyn_threshold`, after which large allocations stay mmapped: at release the
+tuned arms report 1.1 to 1.6 MiB in `uordblks` against 16.9 to 17.3 MiB untuned,
+which invites the conclusion that they retain far more. Adding `hblkhd` gives 17.1
+to 17.6 MiB in every arm. Live heap is the sum; a ratio built on `uordblks` alone
+counts live mmap'd data as allocator-held free memory.
+
+One clean signal did separate. Traversal wall time is 573 to 575 seconds in the
+`full` arm against 526 to 550 across the other three, every round within two
+seconds, and the fastest run was also the last, so this is not machine drift. That
+is `arena_max=2` contending eight stat workers over two arenas, and it is an
+argument against shipping `arena_max` on cost rather than on memory.

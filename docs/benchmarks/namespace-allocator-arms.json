@@ -1,0 +1,147 @@
+{
+  "recorded_at": "2026-09-08T15:30:00+00:00",
+  "fixture": "filesystem::capacity::real_combined_namespace_churn, CIRROVE_CHURN_FILES=500000",
+  "binary": ".local-state/compact-resident/cirrove-service-compact-release (frozen release, same binary for every arm)",
+  "question": "Does any glibc allocator configuration bring G3 (released PSS minus indexed_baseline PSS) under the 256 MiB budget on the heavy fixture? Every prior allocator diagnostic used namespace_capacity_baseline, which never exceeds 501 live views.",
+  "answer": "No. Round 1 lands at 474.3-478.3 MiB in all four runs, a spread of 3.9 MiB, every arm about 1.86x over budget. Allocator configuration is not a route to this gate.",
+  "limits": [
+    "One run per tuned arm, two for the untuned configuration.",
+    "The arms ran sequentially through one shared TMPDIR and are therefore confounded with run order; the full arm inherited a directory destroyed and recreated by operator error partway through the series. Only the trim arm had a private untouched TMPDIR, and it has the lowest round-1 value.",
+    "Between-run variation in retained RSS is large and already documented: the two untuned runs differ by 6.2 vs 38.4 MiB on the same round step. Absolute G3 beyond round 1 must not be compared across single runs.",
+    "No conclusion is drawn here about whether tuning helps or harms. It does not reach the budget, which is the only question this answers."
+  ],
+  "arms": [
+    {
+      "arm": "default-a",
+      "glibc_tunables": "(none)",
+      "g3_released_minus_baseline_mib": [
+        476.4,
+        514.8,
+        546.7
+      ],
+      "g3_round_steps_mib": [
+        38.4,
+        31.9
+      ],
+      "live_bytes_per_view_at_peak": [
+        653,
+        637,
+        657
+      ],
+      "live_heap_at_released_mib": [
+        16.9,
+        17.1,
+        17.3
+      ],
+      "mmap_bytes_at_peak": [
+        0,
+        0,
+        0
+      ],
+      "traversal_seconds": [
+        534.0,
+        1071.0,
+        1600.0
+      ]
+    },
+    {
+      "arm": "default-b",
+      "glibc_tunables": "(none)",
+      "g3_released_minus_baseline_mib": [
+        477.3,
+        483.5,
+        513.4
+      ],
+      "g3_round_steps_mib": [
+        6.2,
+        29.9
+      ],
+      "live_bytes_per_view_at_peak": [
+        653,
+        637,
+        656
+      ],
+      "live_heap_at_released_mib": [
+        17.1,
+        17.1,
+        17.2
+      ],
+      "mmap_bytes_at_peak": [
+        0,
+        0,
+        0
+      ],
+      "traversal_seconds": [
+        551.0,
+        1091.0,
+        1633.0
+      ]
+    },
+    {
+      "arm": "trim",
+      "glibc_tunables": "glibc.malloc.trim_threshold=131072",
+      "g3_released_minus_baseline_mib": [
+        474.3,
+        534.0,
+        642.3
+      ],
+      "g3_round_steps_mib": [
+        59.7,
+        108.3
+      ],
+      "live_bytes_per_view_at_peak": [
+        653,
+        638,
+        673
+      ],
+      "live_heap_at_released_mib": [
+        17.1,
+        17.2,
+        34.2
+      ],
+      "mmap_bytes_at_peak": [
+        16785408,
+        16785408,
+        16785408
+      ],
+      "traversal_seconds": [
+        532.0,
+        1059.0,
+        1678.0
+      ]
+    },
+    {
+      "arm": "full",
+      "glibc_tunables": "glibc.malloc.arena_max=2:glibc.malloc.trim_threshold=131072:glibc.malloc.mmap_threshold=131072",
+      "g3_released_minus_baseline_mib": [
+        478.3,
+        571.0,
+        607.8
+      ],
+      "g3_round_steps_mib": [
+        92.7,
+        36.8
+      ],
+      "live_bytes_per_view_at_peak": [
+        662,
+        645,
+        663
+      ],
+      "live_heap_at_released_mib": [
+        17.2,
+        17.4,
+        17.6
+      ],
+      "mmap_bytes_at_peak": [
+        16785408,
+        16785408,
+        16785408
+      ],
+      "traversal_seconds": [
+        574.0,
+        1150.0,
+        1724.0
+      ]
+    }
+  ]
+}
