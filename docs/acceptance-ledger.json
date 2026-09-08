@@ -1,0 +1,530 @@
+{
+  "generated_from": "docs/product-milestones.md",
+  "note": "One row per acceptance box. `blocker` says what stands between the box and being ticked, not how hard the code is. `asserted_by` names the test that would fail if the claim stopped holding; a box may not be ticked while it is null.",
+  "totals": {
+    "boxes": 51,
+    "ticked": 2,
+    "by_blocker": {
+      "autonomous": 7,
+      "needs-live-account": 6,
+      "needs-machine-window": 1,
+      "needs-reboot": 2,
+      "needs-root": 1,
+      "out-of-agreed-scope": 34
+    }
+  },
+  "rows": [
+    {
+      "milestone": 1,
+      "milestone_title": "Reliable read-only foundation",
+      "line": 11,
+      "done": false,
+      "text": "Installable user service, login startup and clean intentional shutdown.",
+      "blocker": "needs-reboot",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 1,
+      "milestone_title": "Reliable read-only foundation",
+      "line": 12,
+      "done": false,
+      "text": "Recovery after process failure, suspend/resume and loss of network access.",
+      "blocker": "needs-reboot",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 1,
+      "milestone_title": "Reliable read-only foundation",
+      "line": 13,
+      "done": false,
+      "text": "Real token expiry/refresh and visible reauthentication when consent expires.",
+      "blocker": "needs-live-account",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 1,
+      "milestone_title": "Reliable read-only foundation",
+      "line": 14,
+      "done": false,
+      "text": "Responsive navigation during initial indexing and competing downloads.",
+      "blocker": "autonomous",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 1,
+      "milestone_title": "Reliable read-only foundation",
+      "line": 15,
+      "done": false,
+      "text": "Remove Graph metadata checks per cache block from the validated read-session",
+      "blocker": "needs-live-account",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 1,
+      "milestone_title": "Reliable read-only foundation",
+      "line": 18,
+      "done": false,
+      "text": "Push-triggered metadata updates, reconnection/catch-up and periodic recovery checks, with provider delivery and local reaction latency measured separately.",
+      "blocker": "needs-live-account",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 1,
+      "milestone_title": "Reliable read-only foundation",
+      "line": 19,
+      "done": false,
+      "text": "Bounded memory and background work with large libraries and long sessions.",
+      "blocker": "needs-machine-window",
+      "evidence": "docs/benchmarks/namespace-trim-closes-g3.json",
+      "asserted_by": "filesystem::capacity::real_combined_namespace_churn (g3_released enforced; peak_resident reporting)"
+    },
+    {
+      "milestone": 1,
+      "milestone_title": "Reliable read-only foundation",
+      "line": 20,
+      "done": false,
+      "text": "Reclaim inactive namespace views with correct FUSE lifetimes; pass the",
+      "blocker": "autonomous",
+      "evidence": "docs/benchmarks/namespace-memory-attribution.json",
+      "asserted_by": "filesystem::capacity::real_writable_namespace_retires_and_stays_bounded, real_combined_namespace_churn"
+    },
+    {
+      "milestone": 1,
+      "milestone_title": "Reliable read-only foundation",
+      "line": 24,
+      "done": false,
+      "text": "Real restart/outage checks and at least 24 hours of sustained operation.",
+      "blocker": "needs-live-account",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 2,
+      "milestone_title": "Safe file changes",
+      "line": 185,
+      "done": true,
+      "text": "Provider-neutral create, update, rename, move and delete contracts (regular-file deletion; folder removal remains an explicit gap).",
+      "blocker": "autonomous",
+      "evidence": "docs/adr/0002-durable-local-edits.md",
+      "asserted_by": "cirrove-service tests/mutations.rs: requests_reject_wildcards_recursive_delete_shortcuts_and_foreign_accounts, uploads_and_namespace_changes_share_item_and_destination_ordering, uncertain_deletion_needs_review_and_does_not_loop_or_block_other_files",
+      "caveat": "Folder removal is carved out in the box text itself. The tick covers the regular-file contracts only, which is what the tests assert."
+    },
+    {
+      "milestone": 2,
+      "milestone_title": "Safe file changes",
+      "line": 186,
+      "done": false,
+      "text": "Durable local file contents and journal before local-save acknowledgement.",
+      "blocker": "autonomous",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 2,
+      "milestone_title": "Safe file changes",
+      "line": 187,
+      "done": false,
+      "text": "Persisted upload progress, resumable transfers and idempotent recovery.",
+      "blocker": "autonomous",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 2,
+      "milestone_title": "Safe file changes",
+      "line": 188,
+      "done": false,
+      "text": "Version-conditional changes and preservation of both sides of conflicts.",
+      "blocker": "autonomous",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 2,
+      "milestone_title": "Safe file changes",
+      "line": 189,
+      "done": false,
+      "text": "Distinct local-save, pending-upload, uploading, uploaded and failure states.",
+      "blocker": "autonomous",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 2,
+      "milestone_title": "Safe file changes",
+      "line": 190,
+      "done": false,
+      "text": "Correct application save patterns, truncation and atomic replacement.",
+      "blocker": "needs-live-account",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 2,
+      "milestone_title": "Safe file changes",
+      "line": 191,
+      "done": false,
+      "text": "Crash/fault tests at every durable transition and concurrent remote edits.",
+      "blocker": "needs-root",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 2,
+      "milestone_title": "Safe file changes",
+      "line": 192,
+      "done": true,
+      "text": "Opt-in write consent and live tests in a dedicated Cirrove test folder.",
+      "blocker": "needs-live-account",
+      "evidence": "docs/write-validation.md",
+      "asserted_by": "cirrove-auth: write_consent_is_explicit_and_validates_granted_permissions; filesystem/writeback.rs refuses a mount whose account is not explicitly writable AND disabled, asserted by capacity::real_writable_namespace_retires_and_stays_bounded",
+      "caveat": "The consent half is asserted. The live-tests half is not: docs/product-milestones.md records that the expanded live sequence has not been executed. This tick is broader than its evidence."
+    },
+    {
+      "milestone": 3,
+      "milestone_title": "Offline availability",
+      "line": 199,
+      "done": false,
+      "text": "Persistent per-file and recursive-folder pinning with storage reservations.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 3,
+      "milestone_title": "Offline availability",
+      "line": 200,
+      "done": false,
+      "text": "Clear unpin/free-space behavior and accurate availability status.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 3,
+      "milestone_title": "Offline availability",
+      "line": 201,
+      "done": false,
+      "text": "Offline access and editing of pinned content, including across restart.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 3,
+      "milestone_title": "Offline availability",
+      "line": 202,
+      "done": false,
+      "text": "Unsent changes excluded from cache eviction and connection cleanup.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 3,
+      "milestone_title": "Offline availability",
+      "line": 203,
+      "done": false,
+      "text": "Disk-full recovery preserves edited data and explains required action.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 4,
+      "milestone_title": "Complete OneDrive coverage",
+      "line": 207,
+      "done": false,
+      "text": "Personal and business accounts, including multiple simultaneous accounts.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 4,
+      "milestone_title": "Complete OneDrive coverage",
+      "line": 208,
+      "done": false,
+      "text": "Explicit account, drive and SharePoint library selection.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 4,
+      "milestone_title": "Complete OneDrive coverage",
+      "line": 209,
+      "done": false,
+      "text": "Linked folders, duplicate links, moved/deleted links and folder-only access.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 4,
+      "milestone_title": "Complete OneDrive coverage",
+      "line": 210,
+      "done": false,
+      "text": "Per-item capabilities, restricted permissions and revoked-access behavior.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 4,
+      "milestone_title": "Complete OneDrive coverage",
+      "line": 211,
+      "done": false,
+      "text": "Remote creates, edits, moves and deletions update mounted views correctly.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 4,
+      "milestone_title": "Complete OneDrive coverage",
+      "line": 212,
+      "done": false,
+      "text": "Defined filename, package/notebook, trash and unsupported-operation behavior.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 4,
+      "milestone_title": "Complete OneDrive coverage",
+      "line": 213,
+      "done": false,
+      "text": "Documented compatibility matrix backed by real-account checks.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 5,
+      "milestone_title": "Polished desktop experience",
+      "line": 232,
+      "done": false,
+      "text": "GTK4/libadwaita setup and settings without a terminal in ordinary flows.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 5,
+      "milestone_title": "Polished desktop experience",
+      "line": 233,
+      "done": false,
+      "text": "Account picker, mount controls, reconnect, connection removal and cleanup.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 5,
+      "milestone_title": "Polished desktop experience",
+      "line": 234,
+      "done": false,
+      "text": "Tray status and actions using the daemon as the source of truth.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 5,
+      "milestone_title": "Polished desktop experience",
+      "line": 235,
+      "done": false,
+      "text": "Nautilus badges, pin/unpin actions and consistent status refresh.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 5,
+      "milestone_title": "Polished desktop experience",
+      "line": 236,
+      "done": false,
+      "text": "Actionable errors, progress, cancellation and conflict resolution.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 5,
+      "milestone_title": "Polished desktop experience",
+      "line": 237,
+      "done": false,
+      "text": "Keyboard navigation, accessibility, localization and visual verification.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 5,
+      "milestone_title": "Polished desktop experience",
+      "line": 238,
+      "done": false,
+      "text": "Verify a declared session matrix covering native Wayland and X11, and GNOME",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 5,
+      "milestone_title": "Polished desktop experience",
+      "line": 244,
+      "done": false,
+      "text": "One application identity across the desktop entry, installed application",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 5,
+      "milestone_title": "Polished desktop experience",
+      "line": 248,
+      "done": false,
+      "text": "Install application-specific scalable and symbolic icons in standard theme",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 5,
+      "milestone_title": "Polished desktop experience",
+      "line": 251,
+      "done": false,
+      "text": "Implement the tray as StatusNotifierItem over D-Bus. Document the GNOME",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 5,
+      "milestone_title": "Polished desktop experience",
+      "line": 254,
+      "done": false,
+      "text": "Publish a supported file-manager list beyond the initial Nautilus target,",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 5,
+      "milestone_title": "Polished desktop experience",
+      "line": 258,
+      "done": false,
+      "text": "Preserve actionable, sanitized error causes in the window. Unreadable or",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 6,
+      "milestone_title": "Installable OneDrive 1.0",
+      "line": 283,
+      "done": false,
+      "text": "Native Arch/AUR, Debian/Ubuntu `.deb` and Fedora `.rpm` packages from the same",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 6,
+      "milestone_title": "Installable OneDrive 1.0",
+      "line": 285,
+      "done": false,
+      "text": "Signed APT and COPR update channels, release artifacts, source/provenance,",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 6,
+      "milestone_title": "Installable OneDrive 1.0",
+      "line": 287,
+      "done": false,
+      "text": "Fresh installation through sign-in and reboot verified outside development.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 6,
+      "milestone_title": "Installable OneDrive 1.0",
+      "line": 290,
+      "done": false,
+      "text": "Upgrade/migration rollback protects settings, credentials and pending work.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 6,
+      "milestone_title": "Installable OneDrive 1.0",
+      "line": 291,
+      "done": false,
+      "text": "Clean uninstall and explicit retention/removal choices for local data.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 6,
+      "milestone_title": "Installable OneDrive 1.0",
+      "line": 292,
+      "done": false,
+      "text": "User documentation, redacted diagnostics and supported-version policy.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 6,
+      "milestone_title": "Installable OneDrive 1.0",
+      "line": 293,
+      "done": false,
+      "text": "Dependency/security review, extended testing and tracked release blockers.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 6,
+      "milestone_title": "Installable OneDrive 1.0",
+      "line": 294,
+      "done": false,
+      "text": "Validate the desktop entry, installed icons and AppStream metainfo in CI,",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 6,
+      "milestone_title": "Installable OneDrive 1.0",
+      "line": 298,
+      "done": false,
+      "text": "Build and install the daemon and CLI without GTK4/libadwaita present, with",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    },
+    {
+      "milestone": 6,
+      "milestone_title": "Installable OneDrive 1.0",
+      "line": 303,
+      "done": false,
+      "text": "Tagged release and verified installation from the published artifacts.",
+      "blocker": "out-of-agreed-scope",
+      "evidence": null,
+      "asserted_by": null
+    }
+  ]
+}

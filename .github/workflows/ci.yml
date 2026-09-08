@@ -24,6 +24,8 @@ jobs:
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Every ignored test is either run by CI or excused by name
         run: python3 scripts/ci-coverage.py
+      - name: No acceptance box is ticked without a test asserting it
+        run: python3 scripts/acceptance-ledger.py
       - run: cargo test --workspace --locked
       # Package-specific feature resolution can rebuild dependencies. Keep that
       # compilation outside the native window's unchanged runtime deadline.
