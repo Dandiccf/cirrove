@@ -713,3 +713,37 @@ this section is contingent on that number.
 **Every claim here is for a single dispatch thread.** Raising `n_threads` to four
 is a recorded failure, and shedding makes order-independent reference accounting a
 harder prerequisite for concurrency later, not an easier one.
+
+## G3 closes; the peak does not
+
+The reclamation tick now returns freed pages once a mount has shed its views and
+gone quiet. Measured on the gate's own fixture at 500,000 files, against main's
+477.5 / 626.8 / 645.4 MiB the same evening:
+
+| round | G3 | trims | peak during traversal |
+| ---: | ---: | ---: | ---: |
+| 1 | **13.3 MiB** | 1 | 492.8 MiB |
+| 2 | **16.1 MiB** | 3 | 490.7 MiB |
+| 3 | **16.3 MiB** | 5 | 504.1 MiB |
+
+G3 was missing its 256 MiB budget by 1.86 to 2.14 times. It now sits twenty-five
+times under it. The `LD_PRELOAD` probe that first established the effect measured
+10.2 / 12.4 / 14.2, so the mechanism reproduces in shipped code rather than only
+under a diagnostic.
+
+**G3 is therefore a hard assertion from here.** A gate that passes and cannot fail
+is worth nothing, and this one spent weeks in that state.
+
+**The peak is untouched and that is not a detail.** Traversal holds 490 to 504 MiB
+with 750,438 live views. Trimming returns pages after the fact; it cannot lower a
+high-water mark reached while the views were held. Whether this service runs on a
+machine with a gibibyte of usable memory turns on the peak, not on the residue, so
+the sibling criterion stays open and reporting. Only bounding the resident count
+lowers it, which is what shedding is for — and whether shedding is affordable is
+still gated on a kernel measurement nobody has taken.
+
+It took four attempts to get the trim condition right, and the first three failed
+invisibly: whether it fired could only be inferred from the memory it was supposed
+to move, and each failure looked like a mechanism that did not work rather than a
+trigger that never ran. The `allocator_trims` counter now in every sample is what
+made the fourth attempt verifiable, and it should have existed before the first.

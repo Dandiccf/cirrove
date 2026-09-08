@@ -210,16 +210,28 @@ static FIXTURE_FILES: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
 /// returns half a gibibyte after the fact still needed it during, and "runs on
 /// any hardware" turns on the peak rather than on the residue.
 ///
-/// Both are reported at every eligible phase and enforced only when
-/// `CIRROVE_CHURN_ENFORCE_MEMORY` is set, because both currently fail: G3 by
-/// about 1.86x, and the peak by about 1.9x. Reporting them makes a regression
-/// visible today; enforcing them is what closing the gate means.
+/// G3 is enforced. It was missing its budget by 1.86x until the reclamation tick
+/// began returning freed pages, and now lands at 13 to 16 MiB across three rounds
+/// at 500,000 files. A gate that passes and cannot fail is worth nothing, so it
+/// fails the build from here.
+///
+/// The peak criterion is reported, not enforced, because it still fails at about
+/// 1.9x: trimming returns pages after the fact and does not lower the high-water
+/// mark reached while the views were held. Only bounding the resident count does
+/// that. `CIRROVE_CHURN_ENFORCE_MEMORY` turns it into an assertion for anyone
+/// working on that, and it becomes unconditional when they finish.
 const MEMORY_BUDGET_KIB: u64 = 256 * 1024;
 /// Below this the fixture is a correctness check, not a capacity measurement,
 /// and its memory is dominated by fixed overhead.
 const MEMORY_GATE_MINIMUM_FILES: usize = 100_000;
 
-fn check_memory(value: &serde_json::Value, criterion: &str, observed: u64, files: usize) {
+fn check_memory(
+    value: &serde_json::Value,
+    criterion: &str,
+    observed: u64,
+    files: usize,
+    enforced: bool,
+) {
     if files < MEMORY_GATE_MINIMUM_FILES {
         return;
     }
@@ -235,7 +247,7 @@ fn check_memory(value: &serde_json::Value, criterion: &str, observed: u64, files
             "budget_kib":MEMORY_BUDGET_KIB,"within":within})
     );
     assert!(
-        within || std::env::var("CIRROVE_CHURN_ENFORCE_MEMORY").is_err(),
+        within || !(enforced || std::env::var("CIRROVE_CHURN_ENFORCE_MEMORY").is_ok()),
         "{criterion} exceeded the namespace memory budget: {over} KiB over the \
          indexed baseline against {MEMORY_BUDGET_KIB} KiB"
     );
@@ -323,6 +335,7 @@ async fn sample(inner: &Arc<Inner>, round: usize, phase: &'static str, started: 
             "g3_released",
             memory["pss_kib"].as_u64().unwrap(),
             files,
+            true,
         );
     }
     if phase == "traversed_with_old_files" {
@@ -331,6 +344,7 @@ async fn sample(inner: &Arc<Inner>, round: usize, phase: &'static str, started: 
             "peak_resident",
             memory["peak_rss_kib"].as_u64().unwrap(),
             files,
+            false,
         );
     }
     println!("CIRROVE_COMBINED_CHURN {value}");
