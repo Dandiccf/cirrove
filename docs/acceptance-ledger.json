@@ -179,7 +179,7 @@
       "blocker": "autonomous",
       "evidence": "docs/benchmarks/durable-transition-crash-coverage.json",
       "asserted_by": "Module-level. All ten journal modules carrying runtime durable transitions are crossed by a test that kills the process: journal, working, mutations, namespace, preparation, handoff, replacements, unlinked, directories directly, and generations transitively through claim_next. publication carries only a schema migration. See docs/benchmarks/durable-transition-crash-coverage.json.",
-      "caveat": "Module-level is not transition-level, and the box says every transition. A module may hold several durable writes with only one crossed by a kill. Settling it means one row per tx.commit and per fsync on a runtime path -- about twenty sites -- rather than per module. Separately, physical power loss and a lying fsync need dm-flakey and root and stay out of reach."
+      "caveat": "Module-level is not transition-level. The transitions are now enumerated -- 31 durable writes on runtime paths across 22 functions, plus 12 inside schema migrations, in docs/benchmarks/durable-transition-sites.json -- so the denominator is settled and the numerator is not. Which sites a given kill fixture reaches cannot be established by reading call graphs through test helpers; an attempt produced a plainly wrong answer for one fixture. Settling it means a #[cfg(test)] counter at each site with the fixtures asserting which they reached, roughly a day. Separately, physical power loss and a lying fsync need dm-flakey and root and stay out of reach."
     },
     {
       "milestone": 2,

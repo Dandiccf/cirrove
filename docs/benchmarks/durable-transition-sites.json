@@ -1,0 +1,315 @@
+{
+  "recorded_at": "2026-09-08T22:00:00+00:00",
+  "purpose": "Milestone 2 asks for crash tests at every durable transition. A per-module sweep was completed first and found all ten modules with runtime transitions crossed by a kill. This is the finer enumeration that sweep said was needed: one row per commit and per fsync.",
+  "totals": {
+    "sites": 43,
+    "runtime": 31,
+    "migration": 12,
+    "distinct_runtime_functions": 22
+  },
+  "what_this_settles": "The denominator. Thirty-one durable writes on runtime paths across twenty-two functions, and twelve more inside schema migrations. Before this the box's scope was a guess.",
+  "what_this_does_not_settle": "The numerator, and static reading cannot supply it. Deciding which of the thirty-one a given kill fixture crosses means following calls through test helpers and through internal journal functions; an attempt to extract it by regex found nothing for one fixture that plainly does durable work, because its calls go through helpers. Reading each by hand would produce a number nobody could check, which is the same failure as counting test names.\\n\\nWhat would settle it: a #[cfg(test)] counter incremented at each of these thirty-one sites, with the crash fixtures asserting which they reached before dying. That turns the claim into a measurement, and it is roughly a day. Until then the honest statement is module-level coverage, which is what the acceptance ledger records.",
+  "sites": [
+    {
+      "file": "journal/ancestry.rs",
+      "line": 226,
+      "function": "capture_namespace_ancestors",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/barriers.rs",
+      "line": 30,
+      "function": "migrate",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/directories.rs",
+      "line": 17,
+      "function": "migrate",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/directories.rs",
+      "line": 290,
+      "function": "resolve_destination",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/generations.rs",
+      "line": 22,
+      "function": "migrate",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/generations.rs",
+      "line": 42,
+      "function": "migrate_dependencies",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/generations.rs",
+      "line": 290,
+      "function": "resolve_upload",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/generations.rs",
+      "line": 333,
+      "function": "resolve_mutation",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/handoff.rs",
+      "line": 18,
+      "function": "migrate",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/handoff.rs",
+      "line": 132,
+      "function": "handoff_namespace",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/handoff.rs",
+      "line": 189,
+      "function": "collect_retired_working",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal/mutations.rs",
+      "line": 134,
+      "function": "migrate_queue",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/mutations.rs",
+      "line": 260,
+      "function": "enqueue_mutation_transaction",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/mutations.rs",
+      "line": 307,
+      "function": "save_mutation",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/namespace.rs",
+      "line": 332,
+      "function": "migrate",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/namespace.rs",
+      "line": 565,
+      "function": "observe_namespace_file",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/namespace.rs",
+      "line": 595,
+      "function": "observe_namespace_file",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/preparation.rs",
+      "line": 25,
+      "function": "migrate",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/preparation.rs",
+      "line": 131,
+      "function": "enqueue_preparing_replacement",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/preparation.rs",
+      "line": 192,
+      "function": "claim_preparation",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/preparation.rs",
+      "line": 251,
+      "function": "recover_preparation_files",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal/preparation.rs",
+      "line": 370,
+      "function": "complete_preparation",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal/preparation.rs",
+      "line": 383,
+      "function": "complete_preparation",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal/publication.rs",
+      "line": 47,
+      "function": "migrate",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/replacements.rs",
+      "line": 42,
+      "function": "migrate",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/unlinked.rs",
+      "line": 17,
+      "function": "migrate",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/unlinked.rs",
+      "line": 142,
+      "function": "unlink_namespace_file",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/working.rs",
+      "line": 55,
+      "function": "complete_descriptor",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal/working.rs",
+      "line": 87,
+      "function": "migrate",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/working.rs",
+      "line": 211,
+      "function": "save_working",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/working.rs",
+      "line": 356,
+      "function": "publish_working_content",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal/working.rs",
+      "line": 360,
+      "function": "publish_working_content",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal/working.rs",
+      "line": 377,
+      "function": "publish_working_content",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/working.rs",
+      "line": 437,
+      "function": "seal_working",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal.rs",
+      "line": 248,
+      "function": "open",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal.rs",
+      "line": 249,
+      "function": "open",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal.rs",
+      "line": 250,
+      "function": "open",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal.rs",
+      "line": 254,
+      "function": "open",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal.rs",
+      "line": 351,
+      "function": "enqueue_generation",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal.rs",
+      "line": 372,
+      "function": "enqueue_generation",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal.rs",
+      "line": 417,
+      "function": "enqueue_generation",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal.rs",
+      "line": 532,
+      "function": "save",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal.rs",
+      "line": 704,
+      "function": "prune_uploaded_payload",
+      "kind": "fsync",
+      "migration": false
+    }
+  ]
+}
