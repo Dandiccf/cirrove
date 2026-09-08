@@ -432,3 +432,44 @@ per sustained round. `crates/` contains no `DELETE FROM inodes`. Because the tab
 is file-backed it contributes nothing to process RSS and would be reclaimed under
 any cgroup cap, so it can grow without bound on disk while every criterion above
 passes. This is a hole in the gate definition, not in the implementation.
+
+## The paged-payload prototype does not reach the gate's own workload
+
+`feature/paged-view-payloads` (32dc281) moves projection payloads into a per-mount
+anonymous file. Its production arena is fixed at one gibibyte:
+`Store::new` passes `1 << 30`, and `with_file` rejects anything outside
+`512..=1 << 30`, so the size is a constant and not configuration. Extents are
+rounded to powers of two with a 512-byte minimum.
+
+That makes capacity a function of encoded record size alone:
+
+| encoded record | extent | records in 1 GiB |
+| --- | ---: | ---: |
+| up to 512 B | 512 B | 2,097,152 |
+| up to 1 KiB | 1 KiB | 1,048,576 |
+| up to 2 KiB | 2 KiB | 524,288 |
+| up to 4 KiB | 4 KiB | 262,144 |
+
+`real_combined_namespace_churn` at 500,000 files holds 750,438 live views, which
+allows at most 1,430 bytes per extent, so every record must encode below one
+kibibyte for the prototype to cover the gate's own fixture. A record carries a
+36-byte header plus a serialised projection with scope, alias and ancestry
+vectors, presentation name and identity keys; deep paths and long shared-link
+identifiers make one kibibyte a tight ceiling rather than a comfortable one.
+
+Exhaustion is not graceful. The allocator returns `ENOSPC`, which reaches the
+kernel from `lookup`, so the failure mode is a namespace operation failing rather
+than a payload being spilled or re-fetched.
+
+The prototype has never been run at 500,000 files or in a release build, and it
+has committed no benchmark JSON, so this is a structural reading of its
+constants rather than a measured failure. It is recorded because the arithmetic
+is decidable without running anything: a fixed one-gibibyte arena cannot be sized
+to a library, and the gate names a workload it cannot hold at any record size
+above one kibibyte.
+
+The measured attribution above makes the prototype's premise weaker still. Its
+16 MiB cache and off-heap records address the traversal peak, but 96 percent of
+retained RSS is allocator-held free arena that no relocation of live bytes
+reduces. Off-heap payloads therefore address the smaller of the two failures,
+and only for as long as the arena holds.
