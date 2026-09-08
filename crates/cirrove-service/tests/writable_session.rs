@@ -608,6 +608,65 @@ async fn real_automatic_uploads_preserve_generations_and_resume_a_shutdown_save(
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; setattr and fsync through an actual mount"]
+async fn real_truncate_and_fsync_reach_the_journal_through_the_kernel() {
+    // The journal's truncate path has tests; the FUSE handlers that reach it do
+    // not. `setattr` and `fsync` were the two of five named handlers with no
+    // coverage through a mount at all -- getxattr and listxattr turned out to be
+    // covered already, inside a differently named read-only test.
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    let vault = Arc::new(Vault::default());
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account.clone(), cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session = WritableSession::mount(engine, journal, cloud.clone(), vault)
+        .await
+        .unwrap();
+
+    let path = mount.join("truncated.txt");
+    let observed = tokio::task::spawn_blocking(move || {
+        let mut file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&path)
+            .unwrap();
+        std::io::Write::write_all(&mut file, b"twelve chars").unwrap();
+        // fsync: the handler must acknowledge rather than fail, and the bytes
+        // must survive it.
+        file.sync_all().unwrap();
+        let after_sync = file.metadata().unwrap().len();
+
+        // setattr with a size: shorten, then extend into a hole.
+        file.set_len(5).unwrap();
+        let shortened = std::fs::read(&path).unwrap();
+        file.set_len(9).unwrap();
+        file.sync_data().unwrap();
+        let extended = std::fs::read(&path).unwrap();
+        (after_sync, shortened, extended)
+    })
+    .await
+    .unwrap();
+
+    let (after_sync, shortened, extended) = observed;
+    assert_eq!(after_sync, 12, "fsync must not lose or alter written bytes");
+    assert_eq!(shortened, b"twelv", "truncate must shorten in place");
+    assert_eq!(
+        extended, b"twelv\0\0\0\0",
+        "extending must read back as a hole, not as stale bytes"
+    );
+    session.shutdown().await.unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires synthetic kernel FUSE; remote or credential futures deliberately ignore cancellation"]
 async fn real_shutdown_cancels_stalled_uploads_and_keyring_without_losing_saved_bytes() {
     for keyring in [false, true] {
