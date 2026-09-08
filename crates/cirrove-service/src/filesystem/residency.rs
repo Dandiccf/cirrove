@@ -222,7 +222,15 @@ impl NamespaceViews {
     }
     pub(super) fn collect(&mut self, limit: usize) -> usize {
         let mut removed = 0;
-        for _ in 0..limit.min(self.candidates.len()) {
+        // Examine each queued candidate once, but start the count again after a
+        // removal: retiring a child can release an ancestor already examined in
+        // this pass, and `limit` still bounds the total work either way.
+        let mut unchanged = self.candidates.len();
+        for _ in 0..limit {
+            if unchanged == 0 {
+                break;
+            }
+            unchanged -= 1;
             let Some((inode, generation)) = self.candidates.pop_front() else {
                 break;
             };
@@ -239,6 +247,7 @@ impl NamespaceViews {
                     self.invalidation.remove(&entry.view);
                 }
                 removed += 1;
+                unchanged = self.candidates.len();
             } else if entry.view.residency.kernel.load(Ordering::SeqCst) == 0 {
                 self.queue(inode);
             }
@@ -453,6 +462,50 @@ mod tests {
         for _ in 0..3 {
             cache.collect(100);
         }
+        assert_eq!(cache.len(), 1);
+    }
+
+    #[test]
+    fn one_pass_retires_a_whole_ancestor_chain_within_its_budget() {
+        let mut cache = cache();
+        for inode in 2..=9 {
+            drop(child(&mut cache, inode, inode - 1, NodeKind::Folder));
+        }
+        for inode in 2..=9 {
+            cache.acquire_lookup(inode).unwrap();
+        }
+        // Released deepest last, so every ancestor is queued before the leaf
+        // that holds it and is examined before that leaf is removed.
+        for inode in 2..=9 {
+            assert!(cache.forget(inode, 1));
+        }
+        // `forget` already retires the leaf, leaving seven held ancestors. All
+        // of them go in ONE pass, well inside the budget. Counting only the
+        // queue length at entry retires one level per pass instead, which costs
+        // a second per ancestor against the collector's one-second tick.
+        assert_eq!(cache.len(), 8);
+        assert_eq!(cache.collect(100), 7);
+        assert_eq!(cache.len(), 1);
+    }
+
+    #[test]
+    fn collect_still_honours_its_limit_when_a_removal_restarts_the_count() {
+        let mut cache = cache();
+        for inode in 2..=9 {
+            drop(child(&mut cache, inode, inode - 1, NodeKind::Folder));
+        }
+        for inode in 2..=9 {
+            cache.acquire_lookup(inode).unwrap();
+        }
+        for inode in 2..=9 {
+            assert!(cache.forget(inode, 1));
+        }
+        // Restarting the count after a removal must not let a cascade run past
+        // the caller's budget: three examinations reach no reclaimable ancestor,
+        // because the only one is queued behind the six that still hold leases.
+        assert_eq!(cache.collect(3), 0);
+        assert_eq!(cache.len(), 8);
+        assert_eq!(cache.collect(100), 7);
         assert_eq!(cache.len(), 1);
     }
 
