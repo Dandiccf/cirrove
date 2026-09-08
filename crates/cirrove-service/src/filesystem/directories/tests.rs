@@ -1,6 +1,5 @@
 #![allow(clippy::unwrap_used)]
 use super::*;
-use std::os::unix::fs::MetadataExt;
 
 #[test]
 fn pages_preserve_cookies_names_and_independent_reader_positions() {
@@ -15,8 +14,8 @@ fn pages_preserve_cookies_names_and_independent_reader_positions() {
     }
     let snapshot = Arc::new(builder.finish().unwrap());
     assert_eq!(snapshot.len(), names.len() as u64);
-    assert_eq!(snapshot.data.metadata().unwrap().nlink(), 0);
-    assert_eq!(snapshot.index.metadata().unwrap().nlink(), 0);
+    assert!(!snapshot.resident(), "a 2400-entry listing must spill");
+    assert!(snapshot.unlinked());
     assert_eq!(std::fs::read_dir(temp.path()).unwrap().count(), 0);
     assert_eq!(
         budget.usage().0,
@@ -75,7 +74,27 @@ fn failed_builds_release_reservations_and_cannot_publish_a_partial_directory() {
     assert!(other.finish().is_err());
     drop(occupied);
     assert_eq!(budget.usage(), (0, 0));
-    assert!(budget.start(&temp.path().join("missing")).is_err());
+    // Starting no longer touches the filesystem, so an unusable directory is
+    // reported when the listing outgrows its resident allowance, and a small
+    // listing keeps working without one.
+    let mut missing = budget.start(&temp.path().join("missing")).unwrap();
+    missing.push(1, false, "small").unwrap();
+    assert_eq!(
+        missing.publish().unwrap().unwrap().page(0).unwrap().len(),
+        1
+    );
+    let mut spilling = budget.start(&temp.path().join("missing")).unwrap();
+    let mut spill_error = None;
+    for index in 0..SPILL_BYTES / HEADER_BYTES as u64 {
+        if let Err(error) = spilling.push(index + 1, false, &format!("entry-{index}")) {
+            spill_error = error.raw_os_error();
+            break;
+        }
+    }
+    assert_eq!(spill_error, Some(libc::ENOENT), "the spill must report why");
+    // A builder that failed stays failed and can never publish afterwards.
+    assert!(spilling.finish().is_err());
+    drop(missing);
     assert_eq!(budget.usage(), (0, 0));
     let mut too_long = budget.start(temp.path()).unwrap();
     assert_eq!(
@@ -98,16 +117,10 @@ fn damaged_index_and_record_fail_without_unbounded_allocation_or_panics() {
         builder.push(1, false, "file").unwrap();
         let snapshot = builder.finish().unwrap();
         match damage {
-            0 => snapshot
-                .index
-                .write_all_at(&u64::MAX.to_le_bytes(), 0)
-                .unwrap(),
-            1 => snapshot.data.write_all_at(&[7], 8).unwrap(),
-            2 => snapshot
-                .data
-                .write_all_at(&u32::MAX.to_le_bytes(), 9)
-                .unwrap(),
-            _ => snapshot.data.set_len(2).unwrap(),
+            0 => snapshot.damage(Part::Index, 0, &u64::MAX.to_le_bytes()),
+            1 => snapshot.damage(Part::Data, 8, &[7]),
+            2 => snapshot.damage(Part::Data, 9, &u32::MAX.to_le_bytes()),
+            _ => snapshot.truncate(Part::Data, 2),
         }
         assert!(snapshot.page(0).is_err());
     }
@@ -142,16 +155,10 @@ fn delayed_disk_full_at_flush_never_publishes_and_releases_the_reservation() {
     let budget = Budget::default();
     for fail_index in [false, true] {
         let mut builder = budget.start(temp.path()).unwrap();
-        let full = std::fs::OpenOptions::new()
-            .write(true)
-            .open("/dev/full")
+        builder
+            .fail_writes(if fail_index { Part::Index } else { Part::Data })
             .unwrap();
-        if fail_index {
-            builder.index = BufWriter::new(full);
-        } else {
-            builder.data = BufWriter::new(full);
-        }
-        // Buffered writes succeed before the backing file reports ENOSPC.
+        // Accepting an entry succeeds before the stream reports ENOSPC.
         builder.push(1, false, "cloud-file").unwrap();
         assert!(budget.usage().0 > 0);
         let error = builder.finish().err().unwrap();
@@ -232,15 +239,9 @@ async fn late_flush_failure_keeps_the_prefix_and_reports_error_instead_of_eof() 
         let mut builder = budget.start(temp.path()).unwrap();
         builder.push(1, false, "preserved").unwrap();
         let snapshot = builder.publish().unwrap().unwrap();
-        let full = std::fs::OpenOptions::new()
-            .write(true)
-            .open("/dev/full")
+        builder
+            .fail_writes(if fail_index { Part::Index } else { Part::Data })
             .unwrap();
-        if fail_index {
-            builder.index = BufWriter::new(full);
-        } else {
-            builder.data = BufWriter::new(full);
-        }
         builder.push(2, false, "unpublished").unwrap();
         assert_eq!(
             builder.publish().err().unwrap().raw_os_error(),
@@ -300,5 +301,95 @@ async fn abandoned_producer_wakes_readers_and_last_reader_cancels_production() {
         Some(libc::ECANCELED)
     );
     drop(builder);
+    assert_eq!(budget.usage(), (0, 0));
+}
+
+#[test]
+fn an_ordinary_listing_stays_resident_while_a_large_one_spills() {
+    let temp = tempfile::tempdir().unwrap();
+    let budget = Budget::default();
+    let names = |count: u64| {
+        (0..count)
+            .map(|index| format!("Projektunterlagen {index:04}.txt"))
+            .collect::<Vec<_>>()
+    };
+    let read = |snapshot: &Snapshot, count: u64| {
+        let mut seen = Vec::new();
+        let mut cursor = 0;
+        while cursor < count {
+            for entry in snapshot.page(cursor).unwrap() {
+                assert_eq!(entry.inode, cursor + 1);
+                seen.push(entry.name);
+                cursor += 1;
+            }
+        }
+        seen
+    };
+    // An ordinary directory is served entirely from memory, so no snapshot file
+    // is created on the filesystem the content cache also writes to.
+    let small = names(500);
+    let mut builder = budget.start(temp.path()).unwrap();
+    for (index, name) in small.iter().enumerate() {
+        builder.push(index as u64 + 1, false, name).unwrap();
+    }
+    let resident = builder.finish().unwrap();
+    assert!(resident.resident());
+    assert!(resident.unlinked());
+    assert_eq!(read(&resident, 500), small);
+    let resident_bytes = budget.usage().0;
+    drop(resident);
+
+    // Past the allowance the same listing spills, with identical contents and
+    // identical byte accounting.
+    let large = names(4000);
+    let mut builder = budget.start(temp.path()).unwrap();
+    for (index, name) in large.iter().enumerate() {
+        builder.push(index as u64 + 1, false, name).unwrap();
+    }
+    let spilled = builder.finish().unwrap();
+    assert!(!spilled.resident());
+    assert!(spilled.unlinked());
+    assert_eq!(read(&spilled, 4000), large);
+    assert!(budget.usage().0 > resident_bytes);
+    drop(spilled);
+    assert_eq!(budget.usage(), (0, 0));
+}
+
+#[tokio::test]
+async fn a_spill_preserves_the_prefix_an_open_reader_already_publishes() {
+    let temp = tempfile::tempdir().unwrap();
+    let budget = Budget::default();
+    let mut builder = budget.start(temp.path()).unwrap();
+    for index in 0..200u64 {
+        builder
+            .push(index + 1, false, &format!("früh-{index:04}"))
+            .unwrap();
+    }
+    let snapshot = builder.publish().unwrap().unwrap();
+    assert!(snapshot.resident(), "a short prefix starts resident");
+    assert_eq!(snapshot.page(0).unwrap().len(), 200);
+
+    // The same reader keeps its positions while the producer moves the bytes to
+    // anonymous files underneath it.
+    for index in 200..6000u64 {
+        builder
+            .push(index + 1, false, &format!("früh-{index:04}"))
+            .unwrap();
+    }
+    assert!(builder.publish().unwrap().is_none());
+    snapshot.ready(200).await.unwrap();
+    assert!(!snapshot.resident(), "the listing must have spilled");
+    let mut cursor = 0;
+    while cursor < 6000 {
+        for entry in snapshot.page(cursor).unwrap() {
+            assert_eq!(entry.inode, cursor + 1);
+            assert_eq!(entry.name, format!("früh-{cursor:04}"));
+            cursor += 1;
+        }
+    }
+    builder.complete().unwrap();
+    snapshot.ready(6000).await.unwrap();
+    assert!(snapshot.page(6000).unwrap().is_empty());
+    drop(snapshot);
     assert_eq!(budget.usage(), (0, 0));
 }
