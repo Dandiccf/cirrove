@@ -244,6 +244,11 @@ fn working_crash_fixture() {
         serde_json::to_vec(&j.working_file(w.id).unwrap()).unwrap(),
     )
     .unwrap();
+    std::fs::write(
+        root.join("reached"),
+        cirrove_service::journal::durable::reached().join("\n"),
+    )
+    .unwrap();
     std::fs::rename(root.join("marker.tmp"), root.join("ready.json")).unwrap();
     loop {
         std::thread::park();

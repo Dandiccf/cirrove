@@ -179,7 +179,7 @@
       "blocker": "autonomous",
       "evidence": "docs/benchmarks/durable-transition-crash-coverage.json",
       "asserted_by": "Measured, not read. All 31 runtime durable sites record themselves; each crash fixture persists the set it reached before dying. 24 of 31 are crossed. See docs/benchmarks/durable-transition-sites.json for the seven that are not.",
-      "caveat": "Seven sites are not reached. Two are recovery paths needing a fixture that crashes twice; two are resolution steps that the older journal and working crash fixtures plausibly cross but which are not yet instrumented to report, so unmeasured rather than absent; three are ordinary transitions no fixture exercises. The box says every transition and this is 24 of 31, so it stays unticked -- but the number is now one anyone can recompute. Physical power loss and a lying fsync remain a separate class needing dm-flakey and root."
+      "caveat": "Seven sites are not reached, and all eight crash fixtures now report so that is measured rather than estimated. Two are recovery paths needing a fixture that crashes twice; two are resolution commits that only run when a generation is actually ready; three are ordinary transitions no fixture exercises. An earlier estimate that wiring the two older fixtures would reach 26 was wrong -- they add nothing new. Physical power loss and a lying fsync remain a separate class needing dm-flakey and root."
     },
     {
       "milestone": 2,

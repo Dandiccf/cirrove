@@ -321,7 +321,7 @@
     "remaining": "26 of the 31 runtime sites are not yet instrumented. Mechanical: one line per site, one assertion per fixture."
   },
   "measured_coverage": {
-    "method": "Every one of the 31 runtime sites now calls durable::record. Each crash fixture's child was run once per phase, its reached set read from disk, and the union taken. This is what the program did, not what a call graph says it would do.",
+    "method": "Every one of the 31 runtime sites now calls durable::record. Each crash fixture's child was run once per phase, its reached set read from disk, and the union taken. This is what the program did, not what a call graph says it would do. All eight crash fixtures now report, including the two older ones.",
     "sites": 31,
     "reached": 24,
     "per_fixture": {
@@ -330,7 +330,9 @@
       "replacement_crash_child": 12,
       "unlinked_crash_child": 7,
       "directories_crash_child": 14,
-      "namespace_crash_child": 6
+      "namespace_crash_child": 6,
+      "journal_crash_fixture": 8,
+      "working_crash_fixture": 12
     },
     "not_reached": [
       "ancestry::capture_namespace_ancestors",
@@ -341,7 +343,7 @@
       "namespace::observe_namespace_file::1",
       "preparation::recover_preparation_files"
     ],
-    "reading_the_gap": "Two of the seven are recovery paths that only run when a previous process left work behind -- recover_preparation_files and, in effect, prune_uploaded_payload -- so reaching them needs a fixture that crashes twice. Two are resolution steps inside claim_next and claim_mutation (generations::resolve_upload, resolve_mutation) which the existing journal and working crash fixtures plausibly cross; those two fixtures are not yet instrumented to report, so their contribution is unmeasured rather than absent. The remaining three are ordinary transitions no current fixture happens to exercise before dying.",
-    "honest_status": "24 of 31 measured. Not 31, and the seven are named rather than estimated. Instrumenting the two older crash fixtures to report would settle whether the true number is 24 or 26; the rest need new fixtures, including one that crashes twice to reach the recovery paths."
+    "reading_the_gap": "A guess recorded here earlier was that generations::resolve_upload and resolve_mutation were 'plausibly crossed' by the older journal and working fixtures, and that instrumenting them would move the count to 26. Measured: those fixtures reach 8 and 12 sites respectively and add nothing the newer ones did not already cover. The union stays at 24. resolve_ready_generations returns before its commit when nothing is ready, which these fixtures never arrange.\\n\\nOf the seven: two are recovery paths that only run when a previous process left work behind, so they need a fixture that crashes twice. Two are those resolution commits, which need a fixture that leaves a generation actually ready. Three are ordinary transitions no fixture exercises before dying.",
+    "honest_status": "24 of 31, and the count did not move when the last two fixtures were wired in -- which is the value of measuring rather than reasoning: the estimate of 26 was wrong, and only running it showed that."
   }
 }
