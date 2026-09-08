@@ -88,7 +88,16 @@ impl Store {
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         let mut db = Connection::open(path)?;
         db.busy_timeout(std::time::Duration::from_secs(3))?;
-        db.execute_batch("PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;")?;
+        // A connection is held for the account's lifetime so that per-operation
+        // opens never become the last one, which would checkpoint and unlink the
+        // write-ahead log inside a cached read. That also means the log is no
+        // longer truncated on close, so bound it explicitly: automatic
+        // checkpointing keeps it near 1,000 pages, and this limit returns the
+        // space afterwards instead of leaving a high-water-mark file behind.
+        db.execute_batch(
+            "PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;
+            PRAGMA journal_size_limit=16777216;",
+        )?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
         if version > 6 {
             return Err(StoreError::SchemaVersion);
