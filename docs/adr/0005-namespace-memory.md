@@ -376,3 +376,59 @@ counts return to one in every recorded run.
 
 The two remedies are complementary, and neither alone closes the gate. This run
 is attribution only: one binary, one run per phase, no before/after control.
+
+## Acceptance criteria, bound to named fixtures (2026-09-08)
+
+Until now this gate has been described in prose and measured on whichever fixture
+was to hand. The two fixtures differ by two orders of magnitude in what they
+stress, so a change can improve one while doing nothing for the other. These
+criteria name the fixture, the metric and the number, so that a result either
+passes or does not.
+
+The workspace currently contains exactly two memory assertions:
+`filesystem::capacity::cold::…` (capacity/cold.rs:337-344, `peak_rss_kib` minus
+`rss_kib` under 256 MiB on cold publication) and a 64 MiB bound in
+`cirrove-store/src/directories/tests/capacity.rs:126`. Neither is on the churn
+fixture. The namespace memory gate is therefore measured but not asserted
+anywhere, which is why it has been possible to record progress against it for
+weeks without it ever failing a build.
+
+**Metric.** PSS is the gate. `Pss_Anon`, `mallinfo2` live heap and arena committed
+bytes are attribution terms, not gates. `VmHWM` is a separate headroom bound. All
+four are already emitted by `capacity.rs:151-168`.
+
+Anonymous PSS must not be the gate on its own: it would let any design that
+relocates bytes into a file pass by placing that file on tmpfs. That is the same
+objection which already rejected SQLite TEMP for the payload path, and it applies
+directly to any anonymous-file scheme in the account state directory.
+
+Unconstrained cgroup `memory.peak` must not be the gate either. It is dominated by
+clean page cache, which grows to fill available memory, so it would look worst on
+the largest machine — backwards for a requirement about running on any hardware.
+
+| Gate | Fixture | Criterion |
+| --- | --- | --- |
+| G3 resident bound | `real_combined_namespace_churn`, `CIRROVE_CHURN_FILES=500000`, both topologies | `released` PSS minus `indexed_baseline` PSS at most 256 MiB, every round |
+| G2 evictable bound | same | a named `resident_bytes.evictable` counter at most 64 MiB, with its charge formula written here before the counter is built |
+| G7 sustained plateau | same, sustained mode | over the final twelve hours of a twenty-four hour run, post-settle PSS must not exceed the hour-two sample by more than X percent |
+| Survivability | same, under `MemoryMax` with `MemorySwapMax=0` | no OOM kill; assertions intact |
+
+G3 currently fails at 476.4 / 514.8 / 546.7 MiB, missing by 1.86x to 2.14x.
+
+X in the plateau rule must be fixed from a two-hour pilot on `main` before the
+twenty-four hour run, not chosen by intuition. The only sustained datum that
+exists is a sixty-five second debug run rising 9.7 percent per round, so a rule
+picked blind would fail both arms inside the first hour.
+
+Two prerequisites block G7 as written. `capacity/churn.rs:414` skips
+`parents::settle` unless the round is full, and the sustained loop at :491-508
+runs only non-full rounds, so no sustained sample is post-invalidation root-only
+and there is no series a plateau rule can be applied to. Sustained mode also
+carries no memory assertion at all.
+
+**Not covered by any criterion above, and needing one.** The persistent SQLite
+`inodes` table grows by roughly 154 MiB per 500,000-file pass and by about 27 rows
+per sustained round. `crates/` contains no `DELETE FROM inodes`. Because the table
+is file-backed it contributes nothing to process RSS and would be reclaimed under
+any cgroup cap, so it can grow without bound on disk while every criterion above
+passes. This is a hole in the gate definition, not in the implementation.
