@@ -1,0 +1,28 @@
+{
+  "question": "Does a shorter entry TTL lower the namespace traversal peak, and what does it cost in navigation?",
+  "why": "ADR 0006's proposal. G3 is closed but its sibling criterion is not: the traversal peak sits at 490-504 MiB against a 256 MiB budget, and trimming cannot lower a high-water mark reached while the views were held. Shedding was retired by measurement, and the successor idea was to stop pushing invalidations into the parent's i_rwsem and instead let entries expire so the kernel's own reclamation does the work.",
+  "preregistered": ".local-state/memory-gate/PREREGISTERED-ttl.md, written before the run",
+  "prediction_recorded_before": "The peak falls with a shorter TTL but does not reach the 256 MiB ceiling, because the pinned ancestor spine does not expire: every child holds its parent through `_parent_residency`. Guess for 10 ms: between 250 and 400 MiB.",
+  "method": "filesystem::capacity::real_combined_namespace_churn at 500,000 files, three rounds per arm, one frozen release binary, TMPDIR on btrfs, arms run sequentially with nothing else on the machine and no compilation during any of them. CIRROVE_ENTRY_TTL_MS is the only difference between arms.",
+  "arms": [
+    {"entry_ttl_ms": 1000, "peak_rss_mib": [492.7, 536.0, 554.8], "g3_released_mib": [14.0, 72.6, 110.4], "navigation_ms": [13.4, 13.0, 11.4], "traversal_seconds": [319, 357, 418], "result": "ok"},
+    {"entry_ttl_ms": 100, "peak_rss_mib": [492.2, 491.0, 499.5], "g3_released_mib": [15.5, 16.1, 18.2], "navigation_ms": [22.9, 12.6, 11.8], "traversal_seconds": [322, 322, 323], "result": "ok"},
+    {"entry_ttl_ms": 10, "peak_rss_mib": [490.3, 489.2, 498.7], "g3_released_mib": [11.1, 14.3, 16.1], "navigation_ms": [53.8, 51.9, 49.3], "traversal_seconds": [358, 338, 359], "result": "ok"}
+  ],
+  "answer_to_the_first_question": {
+    "verdict": "No. The peak does not fall.",
+    "detail": "492.7 MiB at 1000 ms against 490.3 MiB at 10 ms -- 0.5 percent for a hundredfold reduction in TTL. The prediction was wrong, and wrong in the unfavourable direction: it forecast a fall that stopped short of the ceiling, and there is no fall.",
+    "why": "Expiry is not eviction. An expired entry is revalidated on next access; it is not dropped. The kernel's dentry shrinker runs under memory pressure, and a machine with 64 GB under no pressure keeps everything regardless of TTL. The cgroup experiment that shed 136,000 of 150,138 views worked because it applied pressure, not because entries were cheap to drop -- and that distinction is what ADR 0006 got wrong."
+  },
+  "answer_to_the_second_question": {
+    "verdict": "Affordable, but there is nothing to buy with it.",
+    "detail": "Navigation rises from 13.4 ms to 53.8 ms, about fourfold, and stays roughly ten times inside the asserted 500 ms bound. Traversal itself is unchanged at 10 ms (358 s against 322 s at 100 ms, within the spread of prior runs). The cost was never the obstacle."
+  },
+  "unplanned_observation": {
+    "what": "The 1000 ms arm degrades across rounds in three quantities at once -- peak +12.6 percent, released residue 14 to 110 MiB, traversal 319 to 418 seconds -- while both short-TTL arms are flat in all three.",
+    "why_it_matters": "A rising peak across rounds is exactly what a 24-hour plateau rule would fail on, so this bears on G7 rather than on the peak criterion. It is also not an allocator or sampling artefact: those cannot slow a traversal by 31 percent.",
+    "confound": "trim-v5, an older binary at the same 1000 ms TTL, was flat in all three (322/322/323 s, peak 492.8/491.4/504.1, G3 13.3/16.1/16.3). So the accumulation may be a regression between 3eb7993 and HEAD that a short TTL happens to mask, rather than a TTL effect. Being tested by a preregistered replication holding TTL at 1000 ms and varying only the binary: .local-state/memory-gate/PREREGISTERED-g3-stability.md",
+    "not_claimed": "That a short TTL fixes accumulation. One run per arm supports a direction, not a result, and the confound above is unresolved."
+  },
+  "decision": "The preregistered rule was: peak does not move, record it as a dead end and do not retry with a shorter TTL to force a result. The peak did not move. ADR 0006's mechanism is rejected as a route to the peak criterion."
+}

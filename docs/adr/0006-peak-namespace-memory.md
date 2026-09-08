@@ -1,7 +1,9 @@
 # Bounding the namespace peak
 
-Status: proposed. Nothing here is implemented, and the measurement that would
-decide it has not been run.
+Status: **rejected by its own measurement.** Both named measurements were run on
+2026-09-09. The peak does not move, so the mechanism below is not a route to the
+peak criterion. The document stays because the negative result is the useful
+part, and because what it rules out narrows what is left.
 
 ## Why this exists
 
@@ -107,9 +109,66 @@ inconvenient would empty it. If the TTL measurement shows a floor well above
 256 MiB that no reachable design clears, that argument should be made explicitly,
 with the floor measured, rather than by quietly adjusting the number.
 
+## What the measurements said
+
+[The arms](../benchmarks/namespace-entry-ttl.json), 500,000 files, three rounds
+each, one frozen binary, TTL the only difference:
+
+| entry TTL | round-1 peak | peak across rounds | navigation |
+| ---: | ---: | --- | --- |
+| 1000 ms | 492.7 MiB | 492.7 → 554.8 | 13.4 / 13.0 / 11.4 ms |
+| 100 ms | 492.2 MiB | 492.2 → 499.5 | 22.9 / 12.6 / 11.8 ms |
+| 10 ms | 490.3 MiB | 490.3 → 498.7 | 53.8 / 51.9 / 49.3 ms |
+
+**The peak does not fall.** A hundredfold reduction in TTL moves it by 0.5
+percent. The prediction recorded before the run was that it would fall but stop
+short of the ceiling; it was wrong, and wrong in the unfavourable direction.
+
+The reason is a distinction this document did not make. **Expiry is not
+eviction.** An expired entry is revalidated on next access, not dropped. The
+kernel's dentry shrinker runs under *memory pressure*, and a machine with no
+pressure keeps everything however short the TTL. The cgroup experiment that shed
+136,000 of 150,138 views for 4.1 percent did so because a cap applied pressure --
+not because a TTL made the entries cheap. "Tell the kernel which entries are
+cheap to drop" was therefore never the lever; the lever was the pressure, and a
+user-level daemon does not have it to give.
+
+The cost question, answered anyway: navigation rises about fourfold and stays
+roughly ten times inside its 500 ms bound. The cost was never the obstacle.
+
+The preregistered decision rule said that if the peak did not move, this would be
+recorded as a dead end and **not** retried with a shorter TTL until a result
+appeared. That is what this section is.
+
+## What it leaves, and one thing worth arguing
+
+Of the three alternatives above, TTL pressure was the cheapest and it is gone.
+Reducing bytes per view is measured at 15 to 20 percent, which takes 490 MiB to
+about 410 and not to 256. Eviction with reconstruction is larger than shedding
+was, and shedding was retired for being unaffordable.
+
+That leaves the argument this document reserved for exactly this outcome: if the
+measurement shows a floor well above 256 MiB that no reachable design clears,
+make the case explicitly, with the floor measured. The floor is now measured. It
+is 490 MiB for 750,438 views, about 657 bytes each, stable to a fraction of a
+percent across seven runs and three TTLs.
+
+The case, stated so it can be argued against rather than assumed: the criterion
+measures resident bytes on an unloaded machine, and the failure it exists to
+prevent is a machine that cannot cope. Those are not the same measurement. Under
+an actual cap the kernel sheds the views and the mount keeps working at 4.1
+percent -- which is the behaviour "runs on any hardware" is asking about, and it
+already passes. A criterion phrased as behaviour under pressure would be
+falsifiable, would bind the thing users experience, and would not be met by
+quietly raising a number until the implementation fits.
+
+This is not a change anyone should make on their own, and it is not made here.
+The budget was chosen to give "runs on any hardware" teeth, and re-phrasing a
+criterion after failing it is exactly the move that empties one. It needs a
+decision, and the decision needs the person whose product it is.
+
 ## Open
 
-Everything. This is a design with a mechanism and two named measurements, not a
-result. It is recorded now because the previous plan was retired by measurement
-and leaving no successor would make the peak criterion look like an oversight
-rather than an open problem with a next step.
+Whether the peak criterion stays as an absolute bound, moves to a
+behaviour-under-pressure form, or stands unmet with a recorded floor. Nothing
+else here is open: the mechanism is measured and rejected.
