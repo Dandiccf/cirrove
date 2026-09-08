@@ -3,7 +3,7 @@
   "box": "Crash/fault tests at every durable transition and concurrent remote edits (milestone 2)",
   "method": "Enumerated the journal modules containing fsync or transaction commits, then read the tests that reach each. Test names were not used as evidence; see docs/development.md on why that undercounts here.",
   "durable_modules": 11,
-  "with_a_kill_point": 4,
+  "with_a_kill_point": 5,
   "rows": [
     {
       "module": "journal.rs",
@@ -27,8 +27,8 @@
     },
     {
       "module": "journal/preparation.rs",
-      "crash_test": null,
-      "note": "No kill point. tests/upload_preparation.rs covers rollback and interrupted preparation by injection, not by process death."
+      "crash_test": "tests/upload_preparation.rs: actual_process_death_keeps_a_claimed_preparation_unfinished_and_a_completed_one_whole",
+      "note": "SIGKILL at both durable transitions. Killed after claim_preparation, the record stays Preparing with no adoptable payload -- a placeholder there would upload an empty replacement over a real document. Killed after complete_preparation, the captured source survives verbatim. Verified discriminating: removing the child's ready signal makes it time out and fail."
     },
     {
       "module": "journal/generations.rs",
@@ -61,7 +61,7 @@
       "note": "No kill point."
     }
   ],
-  "conclusion": "Four of eleven journal modules carrying durable transitions have a test that kills the process at one. The other seven are covered for rollback and restart by injected failure, which is narrower evidence: an injected error unwinds a transaction the program still controls, while a SIGKILL leaves whatever the kernel had actually written. The box says every transition, and seven are not that. It stays unticked.",
-  "cheapest_next_step": "The subprocess pattern already exists four times over -- re-exec the test binary with --exact <fixture> --ignored, a ready sentinel and a Drop guard. Adding a kill point per module is mechanical rather than novel; preparation, handoff and replacements are the three whose commits span the most state and are worth doing first.",
+  "conclusion": "Five of eleven journal modules carrying durable transitions have a test that kills the process at one. The other six are covered for rollback and restart by injected failure, which is narrower evidence: an injected error unwinds a transaction the program still controls, while a SIGKILL leaves whatever the kernel had actually written. The box says every transition, and seven are not that. It stays unticked.",
+  "cheapest_next_step": "Preparation is done. Handoff and replacements span the most remaining state and are worth doing next; the pattern is now demonstrated five times over.",
   "not_reachable_autonomously": "Physical power loss and a lying fsync are a different class again, need dm-flakey and root, and the milestone text already names physical-fault coverage as an open gap."
 }
