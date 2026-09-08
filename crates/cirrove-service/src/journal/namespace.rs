@@ -563,6 +563,8 @@ impl UploadJournal {
                     .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
                 save(&tx, &object)?;
                 tx.commit()?;
+                #[cfg(feature = "test-support")]
+                crate::journal::durable::record("namespace::observe_namespace_file::1");
             }
             return Ok(object);
         }
@@ -593,6 +595,8 @@ impl UploadJournal {
         ensure_legacy_policy(&tx, &object.scope)?;
         save(&tx, &object)?;
         tx.commit()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("namespace::observe_namespace_file::2");
         Ok(object)
     }
     /// A metadata-only relocation, or a relocation of the same object's working

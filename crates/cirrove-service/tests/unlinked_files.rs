@@ -369,6 +369,11 @@ fn unlinked_crash_child() {
         // may not have seen it when the process dies.
         j.claim_mutation().unwrap().unwrap();
     }
+    std::fs::write(
+        root.join("reached"),
+        cirrove_service::journal::durable::reached().join("\n"),
+    )
+    .unwrap();
     std::fs::write(root.join("ready"), removed.object.id.to_string()).unwrap();
     loop {
         std::thread::sleep(Duration::from_secs(1));

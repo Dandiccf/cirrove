@@ -288,6 +288,8 @@ impl UploadJournal {
             [id.to_string()],
         )?;
         tx.commit()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("directories::resolve_destination");
         Ok(())
     }
 }

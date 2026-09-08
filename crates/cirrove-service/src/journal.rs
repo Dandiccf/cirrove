@@ -246,12 +246,20 @@ impl UploadJournal {
             [],
         )?;
         File::open(&objects)?.sync_all()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("journal::open::1");
         File::open(&working)?.sync_all()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("journal::open::2");
         File::open(root)?.sync_all()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("journal::open::3");
         // Persist newly created ancestor entries too; syncing only the immediate
         // parent is insufficient when a whole account directory was just made.
         for parent in root.ancestors().skip(1) {
             File::open(parent)?.sync_all()?;
+            #[cfg(feature = "test-support")]
+            crate::journal::durable::record("journal::open::4");
         }
         let mut journal = Self {
             db,
@@ -349,6 +357,8 @@ impl UploadJournal {
             .as_file()
             .set_permissions(std::fs::Permissions::from_mode(0o400))?;
         temporary.as_file().sync_all()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("journal::enqueue_generation::1");
         let mut record = UploadRecord {
             id: Uuid::new_v4(),
             sequence: 0,
@@ -370,6 +380,8 @@ impl UploadJournal {
             .persist_noclobber(self.objects.join(record.id.to_string()))
             .map_err(|_| JournalError::Storage)?;
         File::open(&self.objects)?.sync_all()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("journal::enqueue_generation::2");
         // Failures after publication retain an orphan; never delete possibly
         // acknowledged bytes in an error/recovery path.
         let tx = self.db.transaction()?;
@@ -415,6 +427,8 @@ impl UploadJournal {
             }
         }
         tx.commit()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("journal::enqueue_generation::3");
         Ok(record)
     }
     pub fn get(&self, id: Uuid) -> Result<UploadRecord> {
@@ -530,6 +544,8 @@ impl UploadJournal {
             namespace::confirm(&tx, record.id, record.sequence, remote)?;
         }
         tx.commit()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("journal::save");
         Ok(())
     }
     fn active_attempt(&self, id: Uuid, attempt: Uuid) -> Result<UploadRecord> {
@@ -701,7 +717,11 @@ impl UploadJournal {
             return Err(JournalError::Stale);
         }
         match std::fs::remove_file(self.objects.join(id.to_string())) {
-            Ok(()) => File::open(&self.objects)?.sync_all()?,
+            Ok(()) => {
+                File::open(&self.objects)?.sync_all()?;
+                #[cfg(feature = "test-support")]
+                crate::journal::durable::record("journal::prune_uploaded_payload");
+            }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
             Err(_) => return Err(JournalError::Storage),
         }

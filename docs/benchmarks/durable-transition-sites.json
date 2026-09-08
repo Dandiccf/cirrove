@@ -319,5 +319,29 @@
     "proven_on": "preparation.rs, all five runtime sites. The fixture now asserts it crossed enqueue_preparing_replacement and claim_preparation, and that complete_preparation is reached in exactly one of its two phases.",
     "discrimination_check": "Asserting a site name that does not exist fails with the measured set printed: [\"preparation::claim_preparation\", \"preparation::enqueue_preparing_replacement\"]. The assertion reads what the program did.",
     "remaining": "26 of the 31 runtime sites are not yet instrumented. Mechanical: one line per site, one assertion per fixture."
+  },
+  "measured_coverage": {
+    "method": "Every one of the 31 runtime sites now calls durable::record. Each crash fixture's child was run once per phase, its reached set read from disk, and the union taken. This is what the program did, not what a call graph says it would do.",
+    "sites": 31,
+    "reached": 24,
+    "per_fixture": {
+      "preparation_crash_child": 14,
+      "handoff_crash_child": 9,
+      "replacement_crash_child": 12,
+      "unlinked_crash_child": 7,
+      "directories_crash_child": 14,
+      "namespace_crash_child": 6
+    },
+    "not_reached": [
+      "ancestry::capture_namespace_ancestors",
+      "directories::resolve_destination",
+      "generations::resolve_mutation",
+      "generations::resolve_upload",
+      "journal::prune_uploaded_payload",
+      "namespace::observe_namespace_file::1",
+      "preparation::recover_preparation_files"
+    ],
+    "reading_the_gap": "Two of the seven are recovery paths that only run when a previous process left work behind -- recover_preparation_files and, in effect, prune_uploaded_payload -- so reaching them needs a fixture that crashes twice. Two are resolution steps inside claim_next and claim_mutation (generations::resolve_upload, resolve_mutation) which the existing journal and working crash fixtures plausibly cross; those two fixtures are not yet instrumented to report, so their contribution is unmeasured rather than absent. The remaining three are ordinary transitions no current fixture happens to exercise before dying.",
+    "honest_status": "24 of 31 measured. Not 31, and the seven are named rather than estimated. Instrumenting the two older crash fixtures to report would settle whether the true number is 24 or 26; the rest need new fixtures, including one that crashes twice to reach the recovery paths."
   }
 }

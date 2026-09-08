@@ -130,6 +130,8 @@ impl UploadJournal {
         }
         super::namespace::save(&tx, &object)?;
         tx.commit()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("handoff::handoff_namespace");
         Ok(object)
     }
 
@@ -187,6 +189,8 @@ impl UploadJournal {
                 Err(e) => return Err(e.into()),
             }
             File::open(&self.working)?.sync_all()?;
+            #[cfg(feature = "test-support")]
+            crate::journal::durable::record("handoff::collect_retired_working");
             self.db
                 .execute("DELETE FROM retired_working WHERE id=?1", [id.to_string()])?;
             removed += 1;

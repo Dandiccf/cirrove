@@ -224,6 +224,8 @@ impl UploadJournal {
             namespace::save(&tx, &object)?;
         }
         tx.commit()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("ancestry::capture_namespace_ancestors");
         Ok(())
     }
 }

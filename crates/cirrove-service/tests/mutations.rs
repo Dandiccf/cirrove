@@ -388,6 +388,11 @@ fn namespace_crash_child() {
         j.acknowledge_mutation(active.id, active.attempt.unwrap(), receipt(&active.request))
             .unwrap();
     }
+    std::fs::write(
+        root.join("reached"),
+        cirrove_service::journal::durable::reached().join("\n"),
+    )
+    .unwrap();
     std::fs::write(root.join("ready"), record.id.to_string()).unwrap();
     loop {
         std::thread::sleep(Duration::from_secs(1));

@@ -384,6 +384,11 @@ fn directories_crash_child() {
         ack_folder(&mut j, &top, "cloud-top");
     }
     std::fs::write(
+        root.join("reached"),
+        cirrove_service::journal::durable::reached().join("\n"),
+    )
+    .unwrap();
+    std::fs::write(
         root.join("ready"),
         format!("{} {}", top.node.id, waiting.id),
     )

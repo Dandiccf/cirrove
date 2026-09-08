@@ -140,6 +140,8 @@ impl UploadJournal {
         }
         super::namespace::save(&tx, &object)?;
         tx.commit()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("unlinked::unlink_namespace_file");
         Ok(UnlinkedFile {
             object,
             working,

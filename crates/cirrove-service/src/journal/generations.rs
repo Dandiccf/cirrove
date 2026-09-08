@@ -288,6 +288,8 @@ impl UploadJournal {
             ],
         )?;
         tx.commit()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("generations::resolve_upload");
         Ok(())
     }
     fn resolve_mutation(&mut self, id: Uuid) -> Result<()> {
@@ -331,6 +333,8 @@ impl UploadJournal {
             params![id.to_string(), serde_json::to_string(&record)?],
         )?;
         tx.commit()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("generations::resolve_mutation");
         Ok(())
     }
 }

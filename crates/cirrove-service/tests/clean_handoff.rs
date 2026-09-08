@@ -409,6 +409,11 @@ fn handoff_crash_child() {
         .join("journal")
         .join("working")
         .join(file.id.to_string());
+    std::fs::write(
+        root.join("reached"),
+        cirrove_service::journal::durable::reached().join("\n"),
+    )
+    .unwrap();
     std::fs::write(root.join("ready"), spool.display().to_string()).unwrap();
     loop {
         std::thread::sleep(Duration::from_secs(1));

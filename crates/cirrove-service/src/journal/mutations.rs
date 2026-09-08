@@ -258,6 +258,8 @@ impl UploadJournal {
             }
         }
         tx.commit()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("mutations::enqueue_mutation_transaction");
         Ok(record)
     }
     pub fn mutation(&self, id: Uuid) -> Result<MutationRecord> {
@@ -305,6 +307,8 @@ impl UploadJournal {
             super::namespace::confirm(&tx, record.id, record.sequence, remote)?;
         }
         tx.commit()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("mutations::save_mutation");
         Ok(())
     }
     pub fn claim_mutation(&mut self) -> Result<Option<MutationRecord>> {

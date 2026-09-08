@@ -671,6 +671,11 @@ fn replacement_crash_child() {
     if std::env::var("CIRROVE_REPLACEMENT_FIXTURE_PHASE").unwrap() == "released" {
         j.release_replacement_readers(replacement.id).unwrap();
     }
+    std::fs::write(
+        root.join("reached"),
+        cirrove_service::journal::durable::reached().join("\n"),
+    )
+    .unwrap();
     std::fs::write(root.join("ready"), old.id.to_string()).unwrap();
     loop {
         std::thread::sleep(Duration::from_secs(1));
