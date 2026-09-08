@@ -1455,3 +1455,28 @@ Neither variant violated the bound in this round. An earlier round of the same
 shape produced three violations in six pre-hardening runs and none in six hardened
 runs, which remains the sharper result; this one measures the margin rather than
 the failure rate.
+
+## A store write-contention fragility, found while landing the stack (2026-09-08)
+
+Updating pull request #30 against the moved `main` produced a red `linux` check on
+`cirrove-store`'s `concurrent_observations_and_delta_commits_preserve_all_completed_listings`,
+with `SQLITE_BUSY`, "database is locked". The duplicate job for the same commit on
+another runner passed, so this is load sensitivity rather than a logic error, and it
+is not caused by anything in this branch: pull request #30 predates the hardening.
+
+The mechanism is the same class this branch has been working on. The test runs four
+threads, each committing a hundred write transactions to one database at
+`synchronous=FULL`, so four hundred fsyncing commits serialise behind SQLite's single
+writer while a three-second busy timeout runs. On a congested runner one waiter
+exhausts that timeout.
+
+It matters beyond the test. `observe_directory` and the delta commit path return that
+error to callers, which map it to `ProviderError::Unavailable` and therefore to an
+I/O error at the kernel boundary, so a user writing heavily could see a spurious
+failure on a namespace operation rather than a slow success. The test's expectation —
+that every concurrent writer succeeds within the busy timeout — is stronger than
+SQLite guarantees.
+
+This is recorded as an open finding rather than repaired here, because it predates
+this work and its repair changes error semantics across the store. The pull request
+was unblocked by re-running the failed job, which does not explain or fix anything.
