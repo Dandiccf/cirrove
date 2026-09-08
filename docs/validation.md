@@ -8,9 +8,11 @@ acceptance for roadmap stages 1–3.
 ## Local checks
 
 - Formatting and strict Clippy cover all crates and test targets.
-- Current default workspace suite: **160 tests passed**. Twenty-one kernel-FUSE tests
-  run separately; subprocess fixture entry points and the optional performance
-  fixture remain excluded from the default suite.
+- Current default workspace suite: **349 tests passed**, with 67 ignored. CI runs 53
+  of those 67 separately through kernel-FUSE and desktop steps; the remaining 14 are
+  subprocess fixture entry points, capacity benchmarks and one host-keyring test,
+  each excused by name in `scripts/ci-coverage.py`, which fails the build if an
+  ignored test is neither run nor excused.
 - Built both binaries and generated workspace Rustdoc.
 - Executable smoke test passed: synthetic staging, status, competing ownership,
   recovery after SIGKILL, SIGTERM and socket cleanup. Two observer-script tests pass.

@@ -176,7 +176,13 @@ fn namespace_sample(inner: &Inner, phase: &str, seconds: f64) -> serde_json::Val
     let entries: u64 = directories.values().map(|v| v.snapshot.len()).sum();
     drop(directories);
     let (snapshot_bytes, snapshot_reservations) = inner.directory_budget.usage();
+    // Reference and index counts come from the same helper churn.rs uses. Without
+    // them a sample cannot separate quarantined-view leakage or index growth from
+    // allocator retention, and the headline slope figures were recorded on a
+    // fixture that emitted neither.
+    let references = inner.views.lock().unwrap().diagnostics();
     serde_json::json!({
+        "references": references,
         "phase": phase, "seconds": seconds, "retained_views": retained,
         "open_directory_handles": handles,
         "directory_snapshot_entries": entries,
