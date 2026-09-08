@@ -323,7 +323,7 @@
   "measured_coverage": {
     "method": "Every one of the 31 runtime sites now calls durable::record. Each crash fixture's child was run once per phase, its reached set read from disk, and the union taken. This is what the program did, not what a call graph says it would do. All eight crash fixtures now report, including the two older ones.",
     "sites": 31,
-    "reached": 25,
+    "reached": 26,
     "per_fixture": {
       "preparation_crash_child": 14,
       "handoff_crash_child": 9,
@@ -332,17 +332,17 @@
       "directories_crash_child": 14,
       "namespace_crash_child": 6,
       "journal_crash_fixture": 8,
-      "working_crash_fixture": 12
+      "working_crash_fixture": 12,
+      "ancestry_crash_child": 5
     },
     "not_reached": [
-      "ancestry::capture_namespace_ancestors",
       "generations::resolve_mutation",
       "generations::resolve_upload",
       "journal::prune_uploaded_payload",
       "namespace::observe_namespace_file::1",
       "preparation::recover_preparation_files"
     ],
-    "reading_the_gap": "directories::resolve_destination was closed by having the fixture claim after the folder's confirmation: the destination is resolved by the claim, not by the confirmation, so the child had been stopping one step short.\\n\\nSix remain, in three kinds. Two are recovery paths that only run when a previous process left work behind (recover_preparation_files, and prune_uploaded_payload in effect), so reaching them needs a fixture that crashes twice. Two are resolution commits inside claim_next and claim_mutation that only run when a generation is actually ready, which no fixture arranges -- an earlier estimate that the older fixtures crossed these was measured wrong. Two are branches a fixture does not take: observe_namespace_file's update-from-remote arm was attempted by observing the same node twice and still went down the insert arm, so its precondition is narrower than that; and capture_namespace_ancestors has no fixture calling it at all.",
-    "honest_status": "25 of 31. Each remaining site is named with what it would take: a double-crash fixture for two, a ready generation for two, a narrower precondition for one, and a caller for one."
+    "reading_the_gap": "ancestry::capture_namespace_ancestors was closed by giving it a caller: it had no crash fixture at all, only ordinary tests. directories::resolve_destination was closed by having its fixture claim after the folder's confirmation, because the destination is resolved by the claim rather than by the confirmation.\\n\\nFive remain, each with a named requirement. Two recovery paths -- recover_preparation_files and, in effect, prune_uploaded_payload -- only run when a previous process left work behind, so they need a fixture that crashes during a write rather than after one, and then crashes again. Two resolution commits inside claim_next and claim_mutation only run when a generation is actually ready, which no fixture arranges; an estimate that the older fixtures crossed these was measured wrong. And observe_namespace_file's update-from-remote arm has a narrower precondition than observing the same node twice, which was tried and does not take that branch.",
+    "honest_status": "26 of 31, measured. Five remain, each with what it would take written next to it."
   }
 }
