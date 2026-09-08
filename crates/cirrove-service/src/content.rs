@@ -1,5 +1,7 @@
 //! Version-keyed, bounded on-demand block cache. A cache block is published only
 //! after the provider proves the requested version and the file is durable.
+#[cfg(test)]
+mod durability;
 mod sessions;
 mod windows;
 use crate::private_dir;
@@ -213,9 +215,14 @@ impl ContentCache {
                 .await?;
             file.write_all(&Sha256::digest(&bytes)).await?;
             file.write_all(&bytes).await?;
-            file.sync_all().await?;
+            // No fsync here, and none of the directory afterwards. Every read
+            // checks the block's length and its leading SHA-256 through
+            // read_verified, so a block that a power failure left short or
+            // unwritten is rejected and downloaded again, exactly like a block
+            // that was never cached. Paying two durable syncs per 4 MiB block
+            // would buy nothing but would congest the filesystem that cached
+            // navigation shares. Local edits are durable in a separate journal.
             tokio::fs::rename(&tmp, &path).await?;
-            tokio::fs::File::open(&self.path).await?.sync_all().await?;
             Ok::<_, std::io::Error>(())
         }
         .await;
