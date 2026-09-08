@@ -1,0 +1,91 @@
+{
+ "question": "How much slack does the three-second readiness bound actually have?",
+ "method": "The test helper was temporarily instrumented to report the time from the readiness wait until both feeds are ready, measured on a frozen debug build of the same test, then reverted. No bound was changed.",
+ "date": "2026-09-08",
+ "bound_ms": 3000,
+ "test": "real_active_directory_refreshes_during_a_stalled_read_without_push_or_delta",
+ "conditions": {
+  "idle": {
+   "rounds": 10,
+   "pinned_cpus": null,
+   "competing_spinners": 0,
+   "writeback_loops": 0,
+   "ready_ms": [
+    11.24057,
+    10.961679,
+    11.016025,
+    10.501572000000001,
+    11.756381999999999,
+    11.122562,
+    10.45051,
+    10.493127999999999,
+    10.78428,
+    11.009107
+   ],
+   "median_ms": 10.985,
+   "max_ms": 11.756,
+   "headroom_factor": 255.2,
+   "failures": 0
+  },
+  "two_loaded_cores": {
+   "rounds": 20,
+   "pinned_cpus": "0,1",
+   "competing_spinners": 3,
+   "writeback_loops": 2,
+   "ready_ms": [
+    22.147489,
+    22.931748,
+    23.010180000000002,
+    24.668427,
+    24.501513,
+    23.22437,
+    23.167462,
+    25.447046,
+    23.140878,
+    21.366782,
+    22.469174000000002,
+    27.703827,
+    22.949689,
+    24.850331,
+    22.931628,
+    21.151159999999997,
+    22.060511,
+    23.974068000000003,
+    24.467995,
+    22.789844
+   ],
+   "median_ms": 23.076,
+   "max_ms": 27.704,
+   "headroom_factor": 108.3,
+   "failures": 0
+  }
+ },
+ "stochastic_reproduction": [
+  {
+   "rounds": 12,
+   "scope": "whole read-only kernel suite",
+   "load": "idle machine",
+   "failures": 0
+  },
+  {
+   "rounds": 8,
+   "scope": "whole read-only kernel suite",
+   "load": "12 competing spinners and two fsync loops on 16 cores",
+   "failures": 0
+  },
+  {
+   "rounds": 9,
+   "scope": "the failing test alone",
+   "load": "pinned to two cores with three spinners and two fsync loops",
+   "failures": 0,
+   "note": "Stopped in favour of measuring the readiness margin directly."
+  }
+ ],
+ "interpretation": [
+  "Competing load on two pinned cores with continuous fsync pressure only doubles the readiness time, from 11 to 23 ms.",
+  "For the bound to expire from host slowness alone, the runner would have to be about 108 times slower than that deliberately overloaded configuration.",
+  "The same failing job was not broadly slow: its kernel suite finished in 57.26 s against 59.45 s for the passing job, with individual tests matching within tenths of a second.",
+  "A discarded discovery error instead produces an unbounded wait, since the only feed then sleeps for an hour, which matches a clean three-second timeout on an otherwise healthy runner.",
+  "This is strong circumstantial evidence, not proof: the feed states at the time of the failure were never recorded. The helper now reports them, so a recurrence settles it."
+ ]
+}

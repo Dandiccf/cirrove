@@ -1165,3 +1165,52 @@ run establishes neither a memory plateau nor the capacity gate. Mapped content,
 writable overlays, desktop applications, real-provider acceptance and 24-hour
 operation are all untested here.
 See [the machine-readable results](benchmarks/early-directory-prefix.json).
+
+## Startup readiness and linked-drive discovery (2026-09-08)
+
+The [PR Linux job](https://github.com/Dandiccf/cirrove/actions/runs/34160221911/job/101860283655)
+that failed `real_active_directory_refreshes_during_a_stalled_read_without_push_or_delta`
+recorded nothing about the feeds behind its three-second timeout. The helper now
+reports the last observed states instead of an anonymous `Elapsed`; the bound is
+unchanged.
+
+The recorded log narrows the conditions without settling the cause. That job was
+not broadly slow: its whole kernel suite finished in 57.26 s against 59.45 s for
+the passing job, and individual tests match within a few tenths of a second, except
+the deliberately load-heavy thumbnail burst at 17.91 s against 10.27 s. The failure
+happened 4.03 s into the test binary, in the first test of the step, about one
+second after a 37.9 s build step ended. Store commits use `synchronous=FULL`, so an
+fsync behind a fresh build's writeback is a plausible stall, but no measurement
+proves it. Twelve local repetitions of the whole kernel suite on an idle machine
+produced no failure.
+
+The investigation did expose an independent recovery gap, now fixed. Discovery
+errors were discarded and the worker then waited for another notification, which
+only a successful feed poll sends. One transient store failure therefore left a
+linked drive unsubscribed for a whole poll interval, an hour in that test account,
+and permanently once the feed stopped succeeding. A unit fixture holds a real SQLite
+writer until every discovery write exhausts the store's busy timeout, releases it,
+and then requires the linked drive to appear with no further notification, while
+asserting the sleeping feed never polled again. Without the retry the fixture fails
+with the primary feed alone and its next attempt an hour away.
+
+Measuring the bound's slack then made the host-stall explanation implausible.
+The helper was temporarily instrumented to report how long the wait actually takes,
+and reverted afterwards. On an idle machine both feeds are ready in 10.99 ms median,
+11.76 ms worst; pinned to two cores against three competing spinners and two
+continuous fsync loops, that rises only to 23.08 ms median and 27.70 ms worst. Heavy
+load costs a factor of two, and the worst loaded sample still leaves the bound 108
+times of headroom. A runner would have to be about 108 times slower than that
+deliberately overloaded configuration for the three seconds to expire, while the same
+job's other kernel tests matched the passing job within tenths of a second.
+
+A discarded discovery error instead produces an unbounded wait, because the only feed
+then sleeps for an hour. That matches a clean three-second timeout on an otherwise
+healthy runner. Three stochastic reproductions found no failure: twelve idle runs of
+the whole kernel suite, eight under twelve spinners and two fsync loops, and nine of
+the failing test alone pinned to two loaded cores.
+
+This is strong circumstantial evidence, not proof. The feed states at the moment of
+the failure were never recorded, so the original failure is retained as a finding
+rather than reclassified; the helper now reports them and a recurrence settles it.
+See [the margin measurements](benchmarks/startup-readiness-margin.json).
