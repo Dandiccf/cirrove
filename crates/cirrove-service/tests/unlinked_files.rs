@@ -361,6 +361,12 @@ fn unlinked_crash_child() {
     let mut j = journal(&root.join("journal"));
     let remote = node("remote", "document.txt", 3);
     let object = j.observe_namespace_file(scope(), remote).unwrap();
+    // Observe again with changed metadata: that is the update-from-remote branch,
+    // a durable transition of its own and one no fixture was reaching.
+    let mut renamed = node("remote", "document.txt", 3);
+    renamed.name = "renamed.txt".into();
+    let _ = object;
+    let object = j.observe_namespace_file(scope(), renamed).unwrap();
     let removed = j
         .unlink_namespace_file(object.id, object.revision, false)
         .unwrap();

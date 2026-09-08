@@ -382,6 +382,9 @@ fn directories_crash_child() {
     let waiting = child(&mut j, &top.node.id, "waiting.txt");
     if std::env::var("CIRROVE_DIRECTORIES_FIXTURE_PHASE").unwrap() == "confirmed" {
         ack_folder(&mut j, &top, "cloud-top");
+        // The destination is resolved by the claim that follows confirmation, not
+        // by the confirmation itself: another durable transition, reached here.
+        let _ = j.claim_next().unwrap();
     }
     std::fs::write(
         root.join("reached"),
@@ -432,17 +435,19 @@ fn actual_process_death_keeps_a_pending_folder_and_its_waiting_child_consistent(
         let ready = std::fs::read_to_string(temp.path().join("ready")).unwrap();
         let waiting: uuid::Uuid = ready.split_whitespace().nth(1).unwrap().parse().unwrap();
         let mut j = open(&temp.path().join("journal"));
-        let claim = j.claim_next().unwrap();
         if phase == "confirmed" {
-            let claim = claim.expect("a confirmed folder must release its waiting child");
-            assert_eq!(claim.id, waiting);
+            // The child claimed it before dying, so the crash must leave it
+            // claimed against the folder's real cloud id rather than losing the
+            // destination or reverting to a guess.
+            let record = j.get(waiting).unwrap();
             assert!(
-                matches!(&claim.intent, UploadIntent::Create { parent, .. } if parent == "cloud-top"),
-                "the child must be created under the folder's cloud id, not a guess"
+                matches!(&record.intent, UploadIntent::Create { parent, .. } if parent == "cloud-top"),
+                "the destination was lost or guessed: {:?}",
+                record.intent
             );
         } else {
             assert!(
-                claim.is_none(),
+                j.claim_next().unwrap().is_none(),
                 "a child was claimable before its folder existed remotely"
             );
         }
