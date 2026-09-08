@@ -9,9 +9,9 @@ use cirrove_core::{
 use cirrove_onedrive::DriveInfo;
 use std::time::Instant;
 
-struct LinkedLibrary {
-    linked: AtomicBool,
-    primary_changes: AtomicU64,
+pub(super) struct LinkedLibrary {
+    pub(super) linked: AtomicBool,
+    pub(super) primary_changes: AtomicU64,
 }
 impl LinkedLibrary {
     fn folder(id: &str, name: &str) -> Node {
@@ -117,29 +117,8 @@ impl ReadProvider for LinkedLibrary {
     }
 }
 
-async fn settle(engine: &Arc<Engine>, reason: &str, mut ready: impl FnMut(&[FeedHealth]) -> bool) {
-    let deadline = Instant::now() + Duration::from_secs(20);
-    loop {
-        let health = engine.health().await;
-        if ready(&health) {
-            return;
-        }
-        assert!(
-            Instant::now() < deadline,
-            "{reason}; last observed: {health:?}"
-        );
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn a_failed_discovery_still_subscribes_the_linked_drive_without_another_poll() {
-    let temp = tempfile::tempdir().unwrap();
-    let provider = Arc::new(LinkedLibrary {
-        linked: AtomicBool::new(false),
-        primary_changes: AtomicU64::new(0),
-    });
-    let account = crate::accounts::Account {
+pub(super) fn fixture_account(mount_path: std::path::PathBuf) -> crate::accounts::Account {
+    crate::accounts::Account {
         id: "00000000-0000-4000-8000-000000000015".into(),
         label: "discovery-fixture".into(),
         registration: AppRegistration {
@@ -162,13 +141,38 @@ async fn a_failed_discovery_still_subscribes_the_linked_drive_without_another_po
             web_url: "https://example.invalid".into(),
         },
         root_id: "root".into(),
-        mount_path: temp.path().join("mount"),
+        mount_path,
         enabled: true,
         // An hour of quiet is what makes this test meaningful: nothing but the
         // discovery worker itself can subscribe the linked drive afterwards.
         poll_seconds: 3600,
         cache_bytes: 8 * 1024 * 1024,
-    };
+    }
+}
+
+async fn settle(engine: &Arc<Engine>, reason: &str, mut ready: impl FnMut(&[FeedHealth]) -> bool) {
+    let deadline = Instant::now() + Duration::from_secs(20);
+    loop {
+        let health = engine.health().await;
+        if ready(&health) {
+            return;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "{reason}; last observed: {health:?}"
+        );
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_failed_discovery_still_subscribes_the_linked_drive_without_another_poll() {
+    let temp = tempfile::tempdir().unwrap();
+    let provider = Arc::new(LinkedLibrary {
+        linked: AtomicBool::new(false),
+        primary_changes: AtomicU64::new(0),
+    });
+    let account = fixture_account(temp.path().join("mount"));
     let engine = Engine::new(account, provider.clone(), temp.path().join("state"))
         .await
         .unwrap();

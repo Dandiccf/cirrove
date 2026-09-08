@@ -3,6 +3,8 @@
 mod changes;
 #[cfg(test)]
 mod discovery;
+#[cfg(test)]
+mod persistence;
 use crate::{accounts::Account, content::ContentCache, private_dir, refresh};
 use anyhow::Result;
 pub use changes::ChangeNotifications;
@@ -62,6 +64,14 @@ pub struct Engine {
     discovery_started: AtomicBool,
     discovery_failures: AtomicU64,
     activity: crate::activity::DirectoryActivity,
+    /// One connection stays open for the account's lifetime. Without it every
+    /// `Store::open` is both the first and the last connection to a WAL
+    /// database, so SQLite creates `metadata.db-wal` and `-shm` on open and, on
+    /// close, checkpoints and unlinks them. That is durable filesystem work
+    /// inside every cached read, on the filesystem the content cache is
+    /// saturating. It is never used for queries; it only keeps the WAL index
+    /// alive, and it holds no transaction, so checkpointing stays normal.
+    _keeper: StdMutex<Store>,
     _owner: std::fs::File,
 }
 impl Engine {
@@ -75,7 +85,7 @@ impl Engine {
         let owner = crate::accounts::account_lock(&directory)?;
         let db = directory.join("metadata.db");
         let path = db.clone();
-        tokio::task::spawn_blocking(move || Store::open(path)).await??;
+        let keeper = tokio::task::spawn_blocking(move || Store::open(path)).await??;
         let cache_db = db.clone();
         let quota = account.cache_bytes;
         let cache = tokio::task::spawn_blocking(move || {
@@ -98,6 +108,7 @@ impl Engine {
             discovery_started: AtomicBool::new(false),
             discovery_failures: AtomicU64::new(0),
             activity: crate::activity::DirectoryActivity::default(),
+            _keeper: StdMutex::new(keeper),
             _owner: owner,
         }))
     }
