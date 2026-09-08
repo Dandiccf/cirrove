@@ -1480,3 +1480,21 @@ SQLite guarantees.
 This is recorded as an open finding rather than repaired here, because it predates
 this work and its repair changes error semantics across the store. The pull request
 was unblocked by re-running the failed job, which does not explain or fix anything.
+
+## The same defect in a second test (2026-09-08)
+
+While landing the stack, pull request #33 — which predates the fix — failed
+`filesystem::capacity::real_indexed_name_lookup_avoids_materializing_the_directory`
+with `indexed lookup exceeded the cached navigation bound`. Seventeen indexed
+lookups in a 50,000-file directory took **1,071.754 ms** against the same unchanged
+500 ms bound, in a debug build, with zero provider requests and zero content reads.
+
+This is the write-ahead log lifetime again, in an operation with no directory
+snapshot at all: each lookup opens two to three connections, and each of those
+created `-wal` and `-shm`, checkpointed with two fsyncs and unlinked them. It is
+the strongest independent corroboration available that the cause is per-connection
+and not specific to OPENDIR, because this test never builds a snapshot.
+
+The duplicate job for the same commit passed, matching the intermittency recorded
+throughout. The pull request was unblocked by re-running, which explains nothing;
+the repair lands with pull request #35 later in the same series.
