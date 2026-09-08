@@ -1232,12 +1232,16 @@ separates the components cleanly.
 | SQLite connection open | 0.207 ms | 2.453 ms | 12 |
 | Snapshot file creation | 0.058 ms | 51.269 ms | 884 |
 
-Every cached OPENDIR creates two anonymous snapshot files on the same filesystem the
-content cache is saturating, even for a directory holding one entry. That file
-creation is a filesystem metadata operation, so it queues behind the transaction the
-content writes are congesting. The behaviour matches every property of the recorded
-failures: the phase, the mode, the intermittency, and one failure landing in the
-first test immediately after a build step whose writeback was still in flight.
+The navigation path touches the filesystem that the content cache is saturating, and
+that contention is what the tail follows. File creation is the component with the
+largest amplification: every cached OPENDIR created two anonymous snapshot files even
+for a directory holding one entry, and creating them is a filesystem metadata
+operation that queues behind the congested transaction. It is not the only touch,
+though, and removing it alone does not move the tail; see the
+[paired measurement](#resident-directory-listings-and-what-they-do-not-fix-2026-09-08).
+Filesystem contention matches every property of the recorded failures: the phase, the
+mode, the intermittency, and one failure landing in the first test immediately after a
+build step whose writeback was still in flight.
 
 This is not proof. No local run reached 500 ms; the worst was 183.0 ms on a fast
 local NVMe, and CI runners use slower shared storage. No CI stall has been captured
