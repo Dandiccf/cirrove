@@ -1,0 +1,29 @@
+{
+  "question": "How much does the never-pruned `inodes` table cost, and how fast does it grow?",
+  "why": "No DELETE FROM inodes exists anywhere in the repository. A read-only mount's inode key embeds the content revision and size (filesystem.rs:397-403), so every revision of every file a user navigates to mints a permanent row. The table is file-backed, so it contributes nothing to RSS and every memory criterion passes while it grows without bound on disk. That is exactly the shape of a cost that stays invisible until a user's disk is full.",
+  "method": "Read from artifacts already on disk rather than from a new run: row counts and database geometry from the `store` block of the CIRROVE_COMBINED_CHURN samples in .local-state/memory-gate/runs/{main-baseline,trim-shipped}/stdout.log, and per-table bytes from `dbstat` on the metadata database left by the sustained pilot. Nothing was rebuilt or re-measured, so this disturbs no running measurement.",
+  "fixture": "filesystem::capacity::real_combined_namespace_churn at 500,000 files",
+  "row_counts": {
+    "indexed_baseline": 1,
+    "after_first_full_traversal": 750441,
+    "per_churn_round_after_that": 27,
+    "note": "The first traversal resolves every file and directory once. Later rounds add only the 27 views whose content revision changed, which is the rate that matters: it is the steady-state cost of ordinary remote edits."
+  },
+  "size": {
+    "measured_on": "the sustained pilot's metadata.db, 750,460 inode rows",
+    "page_size": 4096,
+    "inodes_table_bytes": 112156672,
+    "inodes_key_index_bytes": 122281984,
+    "inodes_total_bytes": 234438656,
+    "bytes_per_row": 312.4,
+    "database_file_bytes": 693563392,
+    "share_of_metadata_database": 0.338,
+    "note": "The UNIQUE index on `key` is larger than the table it indexes, because the key is a JSON tuple of account, alias, collection, item id, content revision and size, stored whole."
+  },
+  "what_it_implies": {
+    "steady_state": "One row per (item, content revision, size) ever resolved, at 312 bytes. A 200,000-file library whose files are each edited weekly mints about 62 MB of permanent rows per week -- roughly 3 GB in a year -- in a database whose useful content does not grow at all.",
+    "not_a_memory_finding": "It is on disk, not in RSS. Every namespace memory criterion passes while this grows, which is why it needed its own measurement rather than a mention."
+  },
+  "what_makes_pruning_safe": "The table is `inode INTEGER PRIMARY KEY AUTOINCREMENT`, so SQLite records a high-water mark in sqlite_sequence and never reissues a deleted inode number. The reuse hazard -- deleting a row and later handing the same number to a different object while the kernel still caches the old one -- is therefore already closed by the schema. What remains is not reuse but reachability, and that is a criterion, not a mechanism.",
+  "what_is_not_measured": "Whether pruning at mount is safe against kernel references that survive a remount, and what the pruning pass costs on a database this size. Both are named in docs/adr/0007-inode-table-growth.md and neither has been run."
+}

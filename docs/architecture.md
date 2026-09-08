@@ -45,7 +45,10 @@ retains its target drive/item and target kind. Duplicate projections receive dis
 inodes, while cached bytes share the same remote identity and version. Directories
 retain their inodes; regular-file inode keys additionally contain the content revision
 and size to separate kernel pages belonging to different versions. A metadata-only
-rename reuses the inode and bytes when a provider content tag is available.
+rename reuses the inode and bytes when a provider content tag is available. That
+key shape has a cost nothing currently reclaims: every revision ever resolved
+keeps a row, 312 bytes each and a third of the metadata database at 750,000 rows,
+measured in [the inode table's growth](adr/0007-inode-table-growth.md).
 
 Resolving an already allocated batch of inode mappings uses read-only queries.
 Cached directory listing therefore does not reserve SQLite's writer merely to
