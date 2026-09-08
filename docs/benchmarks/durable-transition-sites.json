@@ -323,7 +323,7 @@
   "measured_coverage": {
     "method": "Every one of the 31 runtime sites now calls durable::record. Each crash fixture's child was run once per phase, its reached set read from disk, and the union taken. This is what the program did, not what a call graph says it would do. All eight crash fixtures now report, including the two older ones.",
     "sites": 31,
-    "reached": 28,
+    "reached": 30,
     "per_fixture": {
       "preparation_crash_child": 14,
       "handoff_crash_child": 9,
@@ -336,11 +336,13 @@
       "ancestry_crash_child": 5
     },
     "not_reached": [
-      "journal::prune_uploaded_payload",
-      "namespace::observe_namespace_file::1",
-      "preparation::recover_preparation_files"
+      "journal::prune_uploaded_payload"
     ],
-    "reading_the_gap": "Both resolution commits were closed the same way, and the shape is worth keeping: a generation resolves against its predecessor's receipt, and only the claim AFTER the acknowledgement performs that resolution. Each fixture had been stopping at the acknowledgement. The same one-step-short mistake as directories::resolve_destination, where the destination is resolved by the claim rather than by the confirmation.\\n\\nThree remain. Two are recovery paths that only run when a previous process left work behind, so they need a fixture that crashes DURING a write rather than after one, and then crashes again. One is observe_namespace_file's update-from-remote arm, whose precondition is narrower than observing the same node twice -- that was tried and measured not to take the branch.",
-    "honest_status": "28 of 31, measured. Three remain: two need a double crash, one needs a precondition nobody has identified yet."
+    "reading_the_gap": "prune_uploaded_payload is the last. It runs from collect_uploaded_payloads, not from the retired-working collector the handoff fixture used. Calling the right collector was tried and still does not reach it: that fixture leaves nothing prunable. Reaching it needs a fixture that uploads a payload, has its namespace go clean, and then collects -- and then crashes. The call was kept, asserting zero, because a collector run against a handed-off object is a state it has to tolerate.",
+    "honest_status": "30 of 31. One remains, and what it needs is specific: an uploaded payload whose namespace has gone clean, collected, then a crash.",
+    "evidence_kinds": {
+      "in_a_killed_child": "28 sites, read from the set each crash fixture persists before dying.",
+      "in_the_recovering_parent": "1 site, preparation::recover_preparation_files. Recovery runs in the process that opens the journal after the crash, so the parent asserts on its own reached set. The child now calls reserve_preparation before dying, which leaves the .cirrove-preparing- temporary that recovery exists to clean up."
+    }
   }
 }

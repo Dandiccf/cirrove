@@ -402,6 +402,11 @@ fn handoff_crash_child() {
     j.handoff_namespace(object.id, object.revision, new)
         .unwrap();
     if std::env::var("CIRROVE_HANDOFF_FIXTURE_PHASE").unwrap() == "collected" {
+        // Uploaded payloads have a different collector than retired working
+        // files. Calling it here does not reach prune_uploaded_payload -- this
+        // fixture leaves nothing prunable -- but it exercises the collector
+        // against a handed-off object, which is the state it has to tolerate.
+        assert_eq!(j.collect_uploaded_payloads(4).unwrap(), 0);
         assert_eq!(j.collect_retired_working(1).unwrap(), 1);
     }
     // Report the spool path rather than letting the parent assume a layout.

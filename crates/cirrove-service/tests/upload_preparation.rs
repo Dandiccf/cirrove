@@ -411,6 +411,12 @@ fn preparation_crash_child() {
     let mut j = open(&root.join("journal"), 4096);
     let r = pair(&mut j, true);
     let (preparing, _source) = j.claim_preparation().unwrap().unwrap();
+    // Reserving leaves a .cirrove-preparing- temporary on disk. Dying here is the
+    // state the next process has to recover from, which is a durable transition
+    // of its own and one no fixture reaches by finishing cleanly.
+    let _reserved = j
+        .reserve_preparation(r.id, preparing.attempt.unwrap())
+        .unwrap();
     if std::env::var("CIRROVE_PREPARATION_FIXTURE_PHASE").unwrap() == "completed" {
         let data = bytes(&mut j, b"new");
         j.complete_preparation(r.id, preparing.attempt.unwrap(), data)
@@ -476,7 +482,14 @@ fn actual_process_death_keeps_a_claimed_preparation_unfinished_and_a_completed_o
             phase == "completed",
             "completion must be reached in exactly one of the two phases"
         );
+        // Opening here IS the recovery pass: this process is the one that has to
+        // clean up after the killed one, so its own reached set is the evidence.
         let mut j = open(&temp.path().join("journal"), 4096);
+        assert!(
+            cirrove_service::journal::durable::reached()
+                .contains(&"preparation::recover_preparation_files"),
+            "opening after a kill mid-preparation did not run recovery"
+        );
         if phase == "completed" {
             // The captured source survives the kill verbatim.
             assert_eq!(payload(&j, id), b"new");
