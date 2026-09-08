@@ -1498,3 +1498,54 @@ and not specific to OPENDIR, because this test never builds a snapshot.
 The duplicate job for the same commit passed, matching the intermittency recorded
 throughout. The pull request was unblocked by re-running, which explains nothing;
 the repair lands with pull request #35 later in the same series.
+
+## Store write contention: a queue instead of a race (2026-09-08)
+
+The recorded fragility was `SQLITE_BUSY`, "database is locked", reaching an
+application as an I/O error at the kernel boundary — a heavy writer saw a spurious
+failure where it should have seen a slow success.
+
+The cause is not that three seconds is too short. **SQLite's busy handler has no
+queue**: a blocked writer sleeps and retries, and nothing orders the waiters, so
+under sustained contention one of them can lose repeatedly. Measured here with four
+writers of a hundred transactions each against one database at `synchronous=FULL`:
+
+| | Busy errors | p50 | p99 | Worst wait |
+| --- | ---: | ---: | ---: | ---: |
+| Quiet, no queue | 0 | 0.40 ms | 1.06 ms | **180.0 ms** |
+| Quiet, in-process queue | 0 | 1.88 ms | 2.42 ms | **2.8 ms** |
+| Congested, no queue | 0 | 0.72 ms | 24.17 ms | **1,144.6 ms** |
+| Congested, in-process queue | 0 | 9.96 ms | 362.79 ms | **366.3 ms** |
+
+A median of 0.4 ms beside a worst case of 180 ms on an idle filesystem is the
+signature of unfairness, not of slowness.
+
+Writers to one database now queue in this process. That is legitimate rather than a
+workaround, because exactly one process writes an account's databases: `account_lock`
+holds an exclusive lock on `owner.lock`. Between our own writers the error therefore
+becomes structurally impossible rather than merely rarer. Eleven write-transaction
+sites take the queue; every read path is untouched, and `Store::inodes` still takes
+it only on the allocation path, so a cached navigation that finds its mappings never
+queues at all. The registry of queues is read-mostly, because `Store::open` runs on
+the navigation path and must not become a process-wide write lock per open.
+
+`a_writer_blocked_past_the_busy_timeout_waits_instead_of_failing` is the regression
+gate: it holds the write lock past the busy timeout and requires the second writer to
+wait it out and succeed. Without the queue it fails with exactly the recorded error,
+`Database(SqliteFailure(Error { code: DatabaseBusy, extended_code: 5 }, Some("database is locked")))`.
+
+**Two honest negatives.** A stress test of eight writers and two hundred
+transactions each — four times the recorded contention — passed six runs of six both
+with and without the queue under four competing fsync writers, so it does not
+discriminate and is not offered as evidence; it is kept for the correctness of its
+final listings. And the CI failure itself could not be reproduced on this machine at
+all: the worst wait measured here is 1,144.6 ms against a three-second timeout, so
+the runner's storage must be substantially slower than a local encrypted NVMe.
+
+Latency was re-measured rather than assumed. Frozen binaries of `main` and this
+change, four alternating runs each under congestion: median p95 5.05 against 4.90 ms,
+no bound violation in either, headroom 42.2 against 28.3 times. The p95 reproduces
+tightly and is unchanged; the difference in maxima sits inside the run-to-run spread
+recorded earlier, where identical code produced maxima from 17 to 112 ms.
+
+This does not make writes faster, and it cannot order writers in another process.

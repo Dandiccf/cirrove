@@ -299,6 +299,8 @@ impl Store {
         let Target::Node(id) = &ticket.target else {
             return Err(StoreError::OutOfOrder);
         };
+        let gate = self.gate.clone();
+        let _write = hold(&gate);
         let tx = self
             .db
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
@@ -343,6 +345,8 @@ impl Store {
         self.observation(scope, Target::Directory(parent.into()))
     }
     fn observation(&mut self, scope: &Scope, target: Target) -> Result<ObservationTicket> {
+        let gate = self.gate.clone();
+        let _write = hold(&gate);
         let tx = self
             .db
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
@@ -367,6 +371,8 @@ impl Store {
         if id != &node.id {
             return Err(StoreError::OutOfOrder);
         }
+        let gate = self.gate.clone();
+        let _write = hold(&gate);
         let tx = self
             .db
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
@@ -394,6 +400,8 @@ impl Store {
         let Target::Directory(parent) = &ticket.target else {
             return Err(StoreError::OutOfOrder);
         };
+        let gate = self.gate.clone();
+        let _write = hold(&gate);
         let tx = self
             .db
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
@@ -414,6 +422,8 @@ impl Store {
     /// Immediate publication for already available metadata. For a network read,
     /// capture node_observation before starting I/O and finish with publish_node.
     pub fn observe_node(&mut self, scope: &Scope, node: &Node) -> Result<()> {
+        let gate = self.gate.clone();
+        let _write = hold(&gate);
         let tx = self
             .db
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
@@ -430,6 +440,8 @@ impl Store {
         parent: &str,
         nodes: &[Node],
     ) -> Result<bool> {
+        let gate = self.gate.clone();
+        let _write = hold(&gate);
         let tx = self
             .db
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
