@@ -30,6 +30,8 @@ EXCUSED = {
     "working_crash_fixture": "subprocess entry point, driven by its parent test",
     "journal_crash_fixture": "subprocess entry point, driven by its parent test",
     "namespace_crash_child": "subprocess entry point, driven by its parent test",
+    "preparation_crash_child": "subprocess entry point, driven by its parent test",
+    "handoff_crash_child": "subprocess entry point, driven by its parent test",
     # Capacity benchmarks. Minutes to hours, and their memory numbers are only
     # comparable on a quiet machine, which a shared runner is not.
     "namespace_capacity_baseline": "capacity benchmark; run deliberately, not on a shared runner",

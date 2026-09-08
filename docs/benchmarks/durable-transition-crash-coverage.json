@@ -3,7 +3,7 @@
   "box": "Crash/fault tests at every durable transition and concurrent remote edits (milestone 2)",
   "method": "Enumerated the journal modules containing fsync or transaction commits, then read the tests that reach each. Test names were not used as evidence; see docs/development.md on why that undercounts here.",
   "durable_modules": 11,
-  "with_a_kill_point": 5,
+  "with_a_kill_point": 6,
   "rows": [
     {
       "module": "journal.rs",
@@ -37,8 +37,8 @@
     },
     {
       "module": "journal/handoff.rs",
-      "crash_test": null,
-      "note": "tests/clean_handoff.rs asserts a failed detach transaction keeps its rows, bytes and cleanup intents together, and that restart finishes only explicit cleanup -- injected failure and restart, not process death mid-commit."
+      "crash_test": "tests/clean_handoff.rs: actual_process_death_keeps_detached_bytes_on_disk",
+      "note": "SIGKILL after the handoff and after cleanup. The handoff is durable across the kill and the detached bytes are still on disk when the process dies. What the NEXT journal open does to them is an open question, below."
     },
     {
       "module": "journal/replacements.rs",
@@ -61,7 +61,13 @@
       "note": "No kill point."
     }
   ],
-  "conclusion": "Five of eleven journal modules carrying durable transitions have a test that kills the process at one. The other six are covered for rollback and restart by injected failure, which is narrower evidence: an injected error unwinds a transaction the program still controls, while a SIGKILL leaves whatever the kernel had actually written. The box says every transition, and seven are not that. It stays unticked.",
+  "conclusion": "Six of eleven journal modules carrying durable transitions have a test that kills the process at one. The other five are covered for rollback and restart by injected failure, which is narrower evidence: an injected error unwinds a transaction the program still controls, while a SIGKILL leaves whatever the kernel had actually written. The box says every transition, and seven are not that. It stays unticked.",
   "cheapest_next_step": "Preparation is done. Handoff and replacements span the most remaining state and are worth doing next; the pattern is now demonstrated five times over.",
-  "not_reachable_autonomously": "Physical power loss and a lying fsync are a different class again, need dm-flakey and root, and the milestone text already names physical-fault coverage as an open gap."
+  "not_reachable_autonomously": "Physical power loss and a lying fsync are a different class again, need dm-flakey and root, and the milestone text already names physical-fault coverage as an open gap.",
+  "open_question_found_while_writing_this": {
+    "observation": "Detached bytes survive the SIGKILL and are gone after the next UploadJournal::open. Measured by checking the spool path before and after reopening: present, then absent.",
+    "why_it_matters": "docs/adr/0002-durable-local-edits.md states that detached bytes remain recovery data and that their cleanup and presentation policy is unfinished. A recovery that removes them on the next open is that policy defaulting to deletion, silently. Between a handoff and an explicit cleanup those bytes are the only local copy of an edit whose remote metadata has already moved on.",
+    "not_yet_established": "Which recovery step removes them. recover_working iterates working_files, which is empty after a handoff; recover_preparation_files only matches .cirrove-preparing- names. The removal was not located, and it may be correct behaviour rather than a defect.",
+    "why_the_test_does_not_pin_it": "Asserting behaviour whose intent is undecided makes a change detector rather than a guard. The test asserts what is settled -- the handoff is durable and the bytes survive the kill -- and this records the rest."
+  }
 }

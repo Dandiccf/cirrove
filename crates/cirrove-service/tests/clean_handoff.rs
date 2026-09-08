@@ -5,6 +5,7 @@ use cirrove_service::journal::{JournalError, UploadIntent, UploadJournal};
 use std::{
     os::unix::fs::PermissionsExt,
     path::Path,
+    process::{Command, Stdio},
     time::{Duration, Instant},
 };
 fn scope() -> Scope {
@@ -379,4 +380,93 @@ fn acknowledged_snapshot_cleanup_retries_after_metadata_failure_and_keeps_pendin
     assert_eq!(bytes, b"pending");
     assert_eq!(j.read_working(done.id, 0, 20).unwrap(), b"done");
     assert_eq!(j.read_working(pending.id, 0, 20).unwrap(), b"pending");
+}
+
+/// Child for the crash test: hands a namespace entry over to remote ownership,
+/// stops at the requested durable transition, then waits to be killed.
+#[test]
+#[ignore = "subprocess fixture; activated only by its parent test"]
+fn handoff_crash_child() {
+    let root = std::env::var("CIRROVE_HANDOFF_FIXTURE_ROOT").unwrap();
+    let root = Path::new(&root);
+    // open() sets permissions on the directory, so it has to exist first.
+    std::fs::create_dir_all(root.join("journal")).unwrap();
+    let mut j = open(&root.join("journal"));
+    let old = node("remote", "before.txt", "one", 3);
+    let file = j
+        .create_working(scope(), old.clone(), false, b"old".as_slice())
+        .unwrap();
+    let object = j.namespace_by_remote(&scope(), &old.id).unwrap().unwrap();
+    let mut new = node("remote", "after.txt", "two", 5);
+    new.parent_id = Some("other".into());
+    j.handoff_namespace(object.id, object.revision, new)
+        .unwrap();
+    if std::env::var("CIRROVE_HANDOFF_FIXTURE_PHASE").unwrap() == "collected" {
+        assert_eq!(j.collect_retired_working(1).unwrap(), 1);
+    }
+    // Report the spool path rather than letting the parent assume a layout.
+    let spool = root
+        .join("journal")
+        .join("working")
+        .join(file.id.to_string());
+    std::fs::write(root.join("ready"), spool.display().to_string()).unwrap();
+    loop {
+        std::thread::sleep(Duration::from_secs(1));
+    }
+}
+
+/// A killed process must not lose detached bytes before anything claims them.
+///
+/// The existing tests reach retirement by injecting a failed transaction and by
+/// restarting cleanly, which are narrower: they unwind or resume state the program
+/// still owns. This leaves whatever the kernel had actually written.
+///
+/// The bytes are the point. Detaching hands the namespace entry to remote
+/// metadata while the local copy becomes recovery data, so between the handoff and
+/// an explicit cleanup they are the only copy of an edit whose remote side has
+/// already moved on.
+///
+/// This asserts the part that is settled: the handoff itself is durable, and the
+/// detached bytes are still on disk when the process dies. What happens to them on
+/// the NEXT open is recorded as an open question rather than pinned here -- see
+/// docs/benchmarks/durable-transition-crash-coverage.json. Pinning behaviour whose
+/// intent is undecided would turn this into a change detector.
+#[test]
+fn actual_process_death_keeps_detached_bytes_on_disk() {
+    for phase in ["handed-off", "collected"] {
+        let temp = tempfile::tempdir().unwrap();
+        let mut child = Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "handoff_crash_child", "--ignored"])
+            .env("CIRROVE_HANDOFF_FIXTURE_ROOT", temp.path())
+            .env("CIRROVE_HANDOFF_FIXTURE_PHASE", phase)
+            .stdout(Stdio::null())
+            .spawn()
+            .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !temp.path().join("ready").exists() {
+            if Instant::now() >= deadline {
+                child.kill().unwrap();
+                child.wait().unwrap();
+                panic!("handoff fixture did not become ready");
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        child.kill().unwrap();
+        child.wait().unwrap();
+
+        let spool =
+            std::path::PathBuf::from(std::fs::read_to_string(temp.path().join("ready")).unwrap());
+        // Read the disk before reopening: a journal open runs recovery, and this
+        // is about what the kill left, not what recovery then decides.
+        assert_eq!(
+            spool.exists(),
+            phase == "handed-off",
+            "a kill must leave detached bytes on disk until cleanup claims them, \
+             and must not leave them once it has"
+        );
+        // The handoff itself committed before the kill: the namespace entry now
+        // belongs to remote metadata and no working file claims it.
+        let j = open(&temp.path().join("journal"));
+        assert!(j.working_files().unwrap().is_empty());
+    }
 }

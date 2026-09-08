@@ -178,8 +178,8 @@
       "text": "Crash/fault tests at every durable transition and concurrent remote edits.",
       "blocker": "autonomous",
       "evidence": "docs/benchmarks/durable-transition-crash-coverage.json",
-      "asserted_by": "Partially. Five of eleven journal modules carrying durable transitions have a test that kills the process at one: journal.rs, working.rs, mutations.rs, namespace.rs and preparation.rs. See docs/benchmarks/durable-transition-crash-coverage.json for the enumeration.",
-      "caveat": "Six modules -- generations, handoff, replacements, unlinked, directories, publication -- are covered for rollback and restart by injected failure only. An injected error unwinds a transaction the program still controls; a SIGKILL leaves whatever the kernel had actually written. The box says every transition. Adding the missing kill points is mechanical: the subprocess pattern exists four times over. Physical power loss and a lying fsync are a separate class needing dm-flakey and root."
+      "asserted_by": "Partially. Six of eleven journal modules carrying durable transitions have a test that kills the process at one: journal.rs, working.rs, mutations.rs, namespace.rs, preparation.rs and handoff.rs. See docs/benchmarks/durable-transition-crash-coverage.json for the enumeration.",
+      "caveat": "Five modules -- generations, replacements, unlinked, directories, publication -- are covered for rollback and restart by injected failure only. An injected error unwinds a transaction the program still controls; a SIGKILL leaves whatever the kernel had actually written. The box says every transition. Adding the missing kill points is mechanical: the subprocess pattern exists four times over. Physical power loss and a lying fsync are a separate class needing dm-flakey and root."
     },
     {
       "milestone": 2,
