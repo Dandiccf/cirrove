@@ -1284,3 +1284,62 @@ bound under congestion needs navigation metadata served without touching that
 filesystem, less write pressure from content publication, or separate storage for
 the two. That is a design decision rather than a local fix, and the recorded
 failures stay open. See [the measurements](benchmarks/navigation-stall-cause.json).
+
+## The write-ahead log kept open, and the stall closed (2026-09-08)
+
+CI captured the stall with the stage diagnostic in place:
+[the failing job](https://github.com/Dandiccf/cirrove/actions/runs/34190151083/job/101946380643)
+observed 501.763 ms against the 500 ms bound. The decomposition is unambiguous:
+0.019 ms to admit the blocking worker, **504.947 ms inside LOOKUP and OPENDIR**,
+then 0.157 ms to enumerate and 2.888 ms for the metadata lookup. Host pressure at
+that moment was 6.61 percent I/O *full*, 0.00 percent CPU full and 0.00 percent
+memory full: every runnable task was blocked on storage, not on CPU or memory. The
+stall landed 4.5 seconds after a two-minute-58-second release build finished, while
+its writeback was still draining, and 367 MB into the download. That binary already
+contained the resident-listing change, so no snapshot file was created.
+
+The cause is the SQLite write-ahead log lifetime. Nothing held a connection to
+`metadata.db` open, so every `Store::open` was both the first and the last connection
+to a WAL database. SQLite therefore creates `metadata.db-wal` and `-shm` on open and,
+on close, checkpoints with two fsyncs and unlinks both files: two file creations, two
+fsyncs and two unlinks per connection, at two to three connections per navigation,
+inside the blocking task the FUSE reply awaits, on the filesystem the content cache is
+saturating. The earlier split measured connection open but never connection close,
+which is why 2.453 ms plus 51.269 ms accounted for only 54 ms of the 96.484 ms
+OPENDIR stage, and why removing the snapshot files did not move the tail.
+
+Measured in isolation on this Btrfs volume, open-and-drop cycles with and without one
+idle connection held:
+
+| | Without keeper | With keeper |
+| --- | --- | --- |
+| Quiet, p50 / p95 / max | 0.139 / 0.150 / 0.379 ms | 0.044 / 0.049 / 0.331 ms |
+| Four fsync writers, p50 / p95 / max | 0.224 / 2.849 / 9.220 ms | 0.049 / 0.057 / 0.262 ms |
+
+The decisive property is not the ratio but the decoupling: with the connection held,
+congested is statistically identical to quiet, 0.057 against 0.049 ms at p95.
+
+A controlled pair of frozen release binaries differing only in the keeper, run
+alternately under four competing fsync writers:
+
+| | Worst sequential sample | p95 |
+| --- | --- | --- |
+| Before | 237.9 / 66.4 / 46.9 ms | 15.84 / 13.28 / 13.58 ms |
+| After | 19.1 / 10.4 / 25.6 ms | 4.51 / 4.41 / 4.58 ms |
+| Median ratio | 3.49 | 3.01 |
+
+The distributions do not overlap: every post-change maximum is below every
+pre-change maximum. The p95 spread also collapses, from 13.28-15.84 ms to
+4.41-4.58 ms. Headroom against the unchanged 500 ms bound rises from 2.1 to 19.5
+times, which is what the requirement of holding on unknown user hardware needs.
+
+`engine::persistence::cached_reads_never_create_or_unlink_the_write_ahead_log` is the
+regression gate. It asserts the log and its shared index exist continuously across
+cached reads and are retired on shutdown, so it measures the mechanism rather than a
+duration and is hardware independent. It fails without the keeper.
+
+The content path remains the source of the congestion: about 2,627 fsyncs per
+gibibyte, 256 file creations, 256 renames and roughly 1,781 unlinks. Cache blocks are
+re-downloadable, so that durability is not required, and reducing it would widen the
+margin further on slow storage. See
+[the measurements](benchmarks/navigation-stall-cause.json).

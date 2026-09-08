@@ -408,5 +408,146 @@
    "The navigation path still opens the metadata database and reads its pages on the same filesystem the content cache saturates. Removing one of several disk touches does not move the tail."
   ],
   "still_open": "Meeting the bound under filesystem congestion needs either navigation metadata served without touching that filesystem, less write pressure from content publication, or separate storage for the two. That is a design decision, not a local fix."
+ },
+ "captured_ci_stall": {
+  "what": "The cached-navigation stall was captured in CI with the stage diagnostic in place.",
+  "run": "https://github.com/Dandiccf/cirrove/actions/runs/34190151083/job/101946380643",
+  "branch_head_includes_resident_listings": true,
+  "observed_ms": 501.763095,
+  "bound_ms": 500,
+  "stage_at_failure": {
+   "blocking_worker_started_ms": 0.019,
+   "enumeration_finished_ms": null,
+   "metadata_finished_ms": null,
+   "opendir_returned_ms": null
+  },
+  "stage_after_diagnostic_wait": {
+   "blocking_worker_started_ms": 0.019,
+   "enumeration_finished_ms": 505.123,
+   "metadata_finished_ms": 508.011,
+   "opendir_returned_ms": 504.966
+  },
+  "decomposition_ms": {
+   "blocking_worker_admission": 0.019,
+   "lookup_and_opendir": 504.947,
+   "enumeration": 0.157,
+   "metadata_lookup": 2.888
+  },
+  "host_pressure": {
+   "cpu": "some avg10=13.30 avg60=19.23 avg300=8.67 total=34685070\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n",
+   "io": "some avg10=6.96 avg60=6.63 avg300=9.34 total=61325966\nfull avg10=6.61 avg60=6.19 avg300=8.77 total=57938686\n",
+   "memory": "some avg10=0.00 avg60=0.00 avg300=0.00 total=4\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=4\n"
+  },
+  "workload_position": {
+   "downloaded_bytes": 366910144,
+   "content_requests": 88,
+   "graph_requests": 176,
+   "mode": "conservative",
+   "phase": "sequential",
+   "synthetic_request_delay_ms": 0
+  },
+  "timeline_seconds_from_job_start": {
+   "release_build_finished": 218.6,
+   "workload_started": 218.9,
+   "stall": 223.1,
+   "note": "The stall lands 4.5 s after a 2 minute 58 second release build finished, while its writeback is still draining."
+  },
+  "conclusions": [
+   "The entire 505 ms is inside std::fs::read_dir, that is LOOKUP plus OPENDIR. Enumeration took 0.157 ms and the metadata lookup 2.888 ms afterwards, so nothing after the directory opened was slow.",
+   "CPU full pressure was 0.00 percent and memory full pressure 0.00 percent, while I/O full pressure was 6.61 percent over the preceding ten seconds. All runnable tasks were blocked on storage, not on CPU or memory.",
+   "The failing binary already contains the resident-listing change, so no snapshot file was created for this single-entry directory. The remaining cost is metadata reads: several fresh SQLite connections and their queries.",
+   "This is the third recorded failure within seconds of a large build finishing, after the PR 27 workload failure and the startup readiness failure. Dirty-page writeback from the build overlaps the workload own writes."
+  ]
+ },
+ "write_ahead_log_keeper": {
+  "root_cause": "Nothing kept a connection to metadata.db open, so every Store::open was both the first and the last connection to a WAL database. SQLite creates metadata.db-wal and -shm on open and, on close, checkpoints with two fsyncs and unlinks both files. That is two file creations, two fsyncs and two unlinks per connection, at two to three connections per navigation, inside the blocking task the FUSE reply awaits, on the filesystem the content cache is saturating.",
+  "why_the_earlier_split_missed_it": "The split measured connection open but never connection close, so 2.453 ms plus 51.269 ms accounted for only about 54 ms of the 96.484 ms OPENDIR stage.",
+  "isolated_measurement": {
+   "method": "Open-and-drop cycles against a WAL database on this Btrfs volume, with and without one idle connection held.",
+   "quiet": {
+    "without_keeper_ms": {
+     "p50": 0.139,
+     "p95": 0.15,
+     "max": 0.379
+    },
+    "with_keeper_ms": {
+     "p50": 0.044,
+     "p95": 0.049,
+     "max": 0.331
+    }
+   },
+   "four_competing_fsync_writers": {
+    "without_keeper_ms": {
+     "p50": 0.224,
+     "p95": 2.849,
+     "max": 9.22
+    },
+    "with_keeper_ms": {
+     "p50": 0.049,
+     "p95": 0.057,
+     "max": 0.262
+    }
+   },
+   "decisive_property": "With the connection held, congested is statistically identical to quiet, 0.057 against 0.049 ms at p95. The path is no longer coupled to filesystem congestion."
+  },
+  "controlled_pair": {
+   "method": "Two frozen release binaries differing only in the keeper, run alternately under four competing fsync writers on the same filesystem, order before/after/after/before/before/after.",
+   "sources": {
+    "after": "427faead2b6d29ec9a4ffc914989d93388faaf78",
+    "before": "16491b054e44ea3428bd4f21535040602d789ad9"
+   },
+   "binaries": {
+    "after": "6e5468d9612ce40980def5d16dade5880f31c5dd2276600ee47bf73339bd19d5",
+    "before": "c38166e9f904c92712889a51b37cedaea5c3d5de2ce1fe634d63cc3e5e1abb0c"
+   },
+   "sequential_max_ms": {
+    "before": [
+     237.90982,
+     66.434749,
+     46.947900000000004
+    ],
+    "after": [
+     19.062921,
+     10.398777999999998,
+     25.594134
+    ]
+   },
+   "sequential_p95_ms": {
+    "before": [
+     15.839032,
+     13.276357,
+     13.581201
+    ],
+    "after": [
+     4.5118540000000005,
+     4.412088,
+     4.583274
+    ]
+   },
+   "median_of_maxima_ms": {
+    "before": 66.434749,
+    "after": 19.062921
+   },
+   "median_of_p95_ms": {
+    "before": 13.581201,
+    "after": 4.5118540000000005
+   },
+   "ratios": {
+    "max_median_ratio": 3.485024619259556,
+    "p95_median_ratio": 3.0101153539099443
+   },
+   "distributions_overlap": false,
+   "worst_single_sample_ms": {
+    "before": 237.90982,
+    "after": 25.594134
+   },
+   "headroom_to_bound": {
+    "before": 2.1,
+    "after": 19.5
+   }
+  },
+  "regression_gate": "engine::persistence::cached_reads_never_create_or_unlink_the_write_ahead_log asserts the log and its shared index exist continuously across cached reads and are retired on shutdown. It measures the mechanism rather than a duration, so it is hardware independent, and it fails without the keeper.",
+  "memory_cost": "SQLite's default per-connection page cache, 2 MiB, one connection per account.",
+  "still_open": "The content path itself remains the source of the congestion: about 2,627 fsyncs per gibibyte, 256 file creations, 256 renames and roughly 1,781 unlinks. Cache blocks are re-downloadable, so that durability is not required, and reducing it would widen the margin further on slow storage."
  }
 }
