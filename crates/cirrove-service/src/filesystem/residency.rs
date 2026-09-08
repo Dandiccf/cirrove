@@ -6,7 +6,7 @@ use cirrove_core::{NodeKind, ProviderError};
 pub(super) use invalidation::InvalidationCursor;
 use invalidation::ProjectionIndex;
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{BTreeMap, VecDeque},
     sync::{
         Arc,
         atomic::{AtomicBool, AtomicU64, Ordering},
@@ -25,7 +25,7 @@ struct Entry {
     queued: bool,
 }
 pub(super) struct NamespaceViews {
-    entries: HashMap<u64, Box<Entry>>,
+    entries: BTreeMap<u64, Entry>,
     candidates: VecDeque<(u64, u64)>,
     generation: u64,
     invalidation: ProjectionIndex,
@@ -35,13 +35,13 @@ impl NamespaceViews {
         let mut invalidation = ProjectionIndex::default();
         invalidation.insert(&root);
         Self {
-            entries: HashMap::from([(
+            entries: BTreeMap::from([(
                 1,
-                Box::new(Entry {
+                Entry {
                     view: root,
                     generation: 0,
                     queued: false,
-                }),
+                },
             )]),
             candidates: VecDeque::new(),
             generation: 0,
@@ -60,8 +60,8 @@ impl NamespaceViews {
         self.entries.len()
     }
     #[cfg(test)]
-    pub(super) fn capacity(&self) -> usize {
-        self.entries.capacity()
+    pub(super) fn capacity(&self) -> Option<usize> {
+        None
     }
 
     /// Test diagnostics count references, not allocator or shared payload bytes.
@@ -76,8 +76,8 @@ impl NamespaceViews {
             lease_protected += usize::from(Arc::strong_count(&entry.view.residency) > 1);
             quarantined += usize::from(entry.view.residency.quarantine.load(Ordering::SeqCst));
         }
-        let (identity_keys, inode_keys) = self.invalidation.counts();
-        serde_json::json!({"views":self.entries.len(),"map_capacity":self.entries.capacity(),
+        let (identity_keys, inode_keys) = (self.invalidation.count(), self.entries.len());
+        serde_json::json!({"views":self.entries.len(),"map_capacity":null,"map_storage":"btree",
             "kernel_referenced_views":kernel_referenced,"lease_protected_views":lease_protected,
             "quarantined_views":quarantined,"candidate_entries":self.candidates.len(),
             "candidate_capacity":self.candidates.capacity(),"identity_index_entries":identity_keys,
@@ -87,6 +87,28 @@ impl NamespaceViews {
     pub(super) fn insert(&mut self, mut view: View) -> Result<View, ProviderError> {
         let inode = view.inode;
         view._parent_residency = Some(self.parent_lease(inode, view.parent)?);
+        // Alias routes keep distinct lifetimes/inodes. Exactly equal immutable
+        // metadata can reuse an already live projection, without an intern cache.
+        let shared = self
+            .invalidation
+            .matches(&view.scope, &view.node.id)
+            .find_map(|candidate| {
+                let existing = &self.entries.get(&candidate)?.view;
+                (existing.scope == view.scope && existing.node == view.node).then(|| {
+                    (
+                        existing.scope.clone(),
+                        existing.node.clone(),
+                        existing.name.clone(),
+                    )
+                })
+            });
+        if let Some((scope, node, name)) = shared {
+            view.scope = scope;
+            view.node = node;
+            if view.name == name {
+                view.name = name;
+            }
+        }
         if let Some(entry) = self.entries.get_mut(&inode) {
             // All earlier clones (open files, operations and in-flight reads)
             // must pin the same residency even when the visible path changes.
@@ -100,11 +122,11 @@ impl NamespaceViews {
                 .ok_or(ProviderError::Protocol("namespace generation exhausted"))?;
             self.entries.insert(
                 inode,
-                Box::new(Entry {
+                Entry {
                     view: view.clone(),
                     generation: self.generation,
                     queued: false,
-                }),
+                },
             );
         }
         self.invalidation.insert(&view);
@@ -267,6 +289,52 @@ mod tests {
     }
 
     #[test]
+    fn equal_alias_payloads_share_without_reusing_versions_accounts_or_lifetimes() {
+        let mut cache = cache();
+        let first = cache.insert(view(2, NodeKind::File)).unwrap();
+        let mut alias = first.clone();
+        alias.inode = 3;
+        alias.residency = Arc::default();
+        alias.node = Arc::new(first.node.as_ref().clone());
+        alias.name = first.name.as_ref().into();
+        alias.alias = vec![("drive".into(), "second-link".into())].into();
+        assert!(!Arc::ptr_eq(&first.node, &alias.node));
+        let alias = cache.insert(alias).unwrap();
+        assert!(Arc::ptr_eq(&first.node, &alias.node));
+        assert!(Arc::ptr_eq(&first.name, &alias.name));
+        assert!(!Arc::ptr_eq(&first.residency, &alias.residency));
+        assert_ne!(
+            super::super::Inner::inode_key(&first, false).unwrap(),
+            super::super::Inner::inode_key(&alias, false).unwrap()
+        );
+        let mut changed = alias.clone();
+        changed.inode = 4;
+        changed.residency = Arc::default();
+        Arc::make_mut(&mut changed.node).etag = Some("new-version".into());
+        let changed = cache.insert(changed).unwrap();
+        assert!(!Arc::ptr_eq(&first.node, &changed.node));
+        assert_eq!(first.node.etag.as_deref(), Some("version"));
+        let mut other = first.clone();
+        other.inode = 5;
+        other.residency = Arc::default();
+        other.node = Arc::new(first.node.as_ref().clone());
+        Arc::make_mut(&mut other.scope).account = "other-account".into();
+        let other = cache.insert(other).unwrap();
+        assert!(!Arc::ptr_eq(&first.node, &other.node));
+        drop((first, alias, changed, other));
+        cache.collect(128);
+        assert_eq!(cache.len(), 1);
+    }
+
+    #[test]
+    fn boxed_targets_keep_the_existing_node_json_format() {
+        let encoded = r#"{"id":"link","parent_id":"root","name":"Shared","kind":"shortcut","size":0,"modified_unix":0,"etag":null,"content_version":null,"target":{"collection":"shared","item":"target","kind":"folder"}}"#;
+        let node: Node = serde_json::from_str(encoded).unwrap();
+        assert_eq!(serde_json::to_string(&node).unwrap(), encoded);
+        assert_eq!(node.target.as_ref().unwrap().item, "target");
+    }
+
+    #[test]
     fn kernel_references_and_cloned_views_both_protect_residency() {
         let mut cache = cache();
         let open = cache.insert(view(2, NodeKind::File)).unwrap();
@@ -421,11 +489,11 @@ mod tests {
         );
 
         let mut node = view(5, NodeKind::Shortcut).node.as_ref().clone();
-        node.target = Some(cirrove_core::RemoteRef {
+        node.target = Some(Box::new(cirrove_core::RemoteRef {
             collection: "shared".into(),
             item: "target".into(),
             kind: Some(NodeKind::Folder),
-        });
+        }));
         let link = Inner::project(&parent, node.clone()).unwrap();
         assert_eq!(link.entry.as_deref(), Some(&node));
         assert!(link.node.target.is_none());

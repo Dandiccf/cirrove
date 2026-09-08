@@ -414,8 +414,19 @@ replaces or detaches its payload, preserving older clones. The reverse invalidat
 index shares target scopes, and notification batches retain shared names. No global
 intern table extends their lifetime. Provider/journal boundaries still receive owned
 records, and persistent inode-key serialization is unchanged; this requires no schema
-migration. Sharing reduces duplication but does not evict live payloads, implement a
-resident byte budget or bound process RSS after allocator retention.
+migration. Publication can reuse an exactly equal node/scope from up to eight
+already-live identity projections, so duplicate aliases can share immutable payloads
+without an additional intern table. Names share only when equal; aliases retain their
+own routes, inodes and residency/parent leases. Different revisions or metadata do
+not reuse a payload merely because their item identity matches.
+
+The ordered namespace map also supplies full invalidation traversal, replacing the
+separate all-inodes set and per-entry boxes. Reverse-index item strings have unique
+ownership instead of unused reference-count headers. Node keeps its optional remote
+link target in a box, so ordinary file/folder nodes do not carry space for an absent
+link descriptor. Its serialized JSON, identity and completed-cursor semantics are
+unchanged. Sharing and layout compaction reduce duplication but do not evict live
+payloads, implement a resident byte budget or bound RSS after allocator retention.
 
 Actual-kernel tests cover deep paths, duplicate linked-drive projections, open
 files, continued directory snapshots across rename, and offline inode-preserving

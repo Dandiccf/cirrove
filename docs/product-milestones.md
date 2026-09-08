@@ -68,6 +68,12 @@ reduction; persistent inode keys, old content versions and parent leases retain 
 semantics. Resident byte budgets, reconstructible evicted views and the combined
 large-library/24-hour gate remain open; see
 [shared-payload measurements](benchmarks/shared-projection-payloads.json).
+The resident representation now removes duplicate inode-index storage, boxes uncommon
+link-target data and reuses exactly equal live alias payloads. A 500k projection-only
+comparison reduces RSS by about 20 percent, with somewhat longer population time and
+high RSS after retirement. It introduces no new cache or disk state. Actual-kernel,
+byte-budget and sustained acceptance remain open; see
+[the comparison and its limits](benchmarks/compact-resident-metadata.json).
 A combined kernel workload runner now stats all projected files across deep paths
 and duplicate aliases, preserves held old files/snapshots during updates, and checks
 offline remount. Its sustained mode measures a fixed active set without forced full

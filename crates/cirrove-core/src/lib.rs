@@ -47,7 +47,8 @@ pub struct Node {
     #[serde(default)]
     pub content_version: Option<String>,
     /// A link across drives must retain the target identity, never just a path.
-    pub target: Option<RemoteRef>,
+    // Keep the uncommon cross-drive target out of every ordinary node allocation.
+    pub target: Option<Box<RemoteRef>>,
 }
 impl Node {
     /// Retain the tag namespace: a content tag must not collide with an ETag.

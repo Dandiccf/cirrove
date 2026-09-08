@@ -706,7 +706,7 @@ impl Engine {
                                         ) {
                                             continue;
                                         }
-                                        targets.push(target);
+                                        targets.push(*target);
                                         if targets.len() == 257 {
                                             break;
                                         }

@@ -8,7 +8,7 @@ use std::{collections::BTreeSet, ops::Bound};
 #[derive(Clone, PartialEq, Eq)]
 struct Key {
     scope: Arc<Scope>,
-    item: Arc<str>,
+    item: Box<str>,
     inode: u64,
 }
 impl Key {
@@ -37,7 +37,6 @@ const BYTES: usize = 64 * 1024;
 #[derive(Default)]
 pub(super) struct ProjectionIndex {
     identities: BTreeSet<Key>,
-    all: BTreeSet<u64>,
 }
 #[derive(Default)]
 pub(in crate::filesystem) struct InvalidationCursor {
@@ -76,15 +75,28 @@ fn keys(view: &View) -> impl Iterator<Item = Key> {
 }
 impl ProjectionIndex {
     #[cfg(test)]
-    pub(super) fn counts(&self) -> (usize, usize) {
-        (self.identities.len(), self.all.len())
+    pub(super) fn count(&self) -> usize {
+        self.identities.len()
+    }
+    /// Optional reuse examines at most eight already-live projections. Long
+    /// version histories cannot turn publication into an unbounded scan. Missing
+    /// a match only forgoes sharing; it never changes metadata or identity.
+    pub(super) fn matches<'a>(
+        &'a self,
+        scope: &'a Arc<Scope>,
+        item: &'a str,
+    ) -> impl Iterator<Item = u64> + 'a {
+        let lower = key(scope.clone(), item, 0);
+        self.identities
+            .range((Bound::Included(lower), Bound::Unbounded))
+            .take(8)
+            .take_while(move |key| key.scope == *scope && key.item.as_ref() == item)
+            .map(|key| key.inode)
     }
     pub(super) fn insert(&mut self, view: &View) {
-        self.all.insert(view.inode);
         self.identities.extend(keys(view));
     }
     pub(super) fn remove(&mut self, view: &View) {
-        self.all.remove(&view.inode);
         for key in keys(view) {
             self.identities.remove(&key);
         }
@@ -162,7 +174,7 @@ impl NamespaceViews {
             }
         } else {
             let start = cursor.inode.map_or(Bound::Unbounded, Bound::Excluded);
-            for inode in self.invalidation.all.range((start, Bound::Unbounded)) {
+            for (inode, _) in self.entries.range((start, Bound::Unbounded)) {
                 if visited == ENTRIES || !push(*inode) {
                     complete = false;
                     break;
@@ -262,6 +274,6 @@ mod tests {
         let next = cache.invalidation_batch(None, first.next);
         assert!(next.complete);
         assert!(next.entries.is_empty());
-        assert_eq!(cache.invalidation.all.len(), 1);
+        assert_eq!(cache.entries.len(), 1);
     }
 }

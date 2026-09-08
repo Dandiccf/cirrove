@@ -87,11 +87,11 @@ fn snapshots_protect_linked_paths_across_restart_and_release_after_confirmation(
     shared.collection = "shared".into();
     let mut link = folder("link", "root", "Documents");
     link.kind = NodeKind::Shortcut;
-    link.target = Some(RemoteRef {
+    link.target = Some(Box::new(RemoteRef {
         collection: shared.collection.clone(),
         item: "shared-root".into(),
         kind: Some(NodeKind::Folder),
-    });
+    }));
     j.capture_namespace_ancestors(vec![
         (scope(), link),
         (shared.clone(), folder("nested", "shared-root", "Projects")),

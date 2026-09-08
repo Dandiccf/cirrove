@@ -969,3 +969,26 @@ tests, 49 actual-kernel regressions, the workspace build, Rustdoc and smoke/obse
 checks. Separate release-small and 65-second debug sustained runs also passed.
 Builds used the dedicated worktree target, and filtered tests were checked against
 their expected nonzero counts. These checks do not close the large-library gates.
+
+## Compact resident metadata candidate (2026-09-07)
+
+The resident inode map now also supplies ordered full invalidation traversal,
+removing the duplicate inode index. Uncommon link targets are boxed, and exactly
+equal live alias metadata can share payloads through a bounded search of the
+existing identity index. This adds no cache, database state or payload storage.
+Tests verify distinct alias lifetimes/inode keys, separation across accounts and
+content versions, and unchanged serialized node data.
+
+The measured Rust source passed formatting, strict workspace Clippy, 331 regular
+tests, 49 actual-kernel regressions, workspace build, Rustdoc and smoke/observer
+checks. Builds used the dedicated worktree target; filtered kernel commands were
+checked for 15 read-only, eight capacity, six streamed-window and 20 experimental
+write tests. The nested crash-recovery subprocess is not counted twice.
+
+Fresh release processes compare the same representation fixture in three 50k
+pairs and one 500k pair. At 500k, populated RSS falls from 457304 to 366124 KiB,
+while population time rises from 622.87 to 692.47 ms in that pair. Both processes
+retire to one root view but retain high RSS. The fixture excludes kernel, SQLite
+and provider work. [Raw samples and source/executable hashes](benchmarks/compact-resident-metadata.json)
+record the measured scope. Large combined kernel runs, resident byte accounting
+and sustained/provider acceptance remain separate open gates.

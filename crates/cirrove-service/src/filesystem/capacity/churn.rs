@@ -75,11 +75,11 @@ impl Tree {
             node.name = format!("Shared {alias}");
             node.parent_id = Some("root".into());
             node.kind = NodeKind::Shortcut;
-            node.target = Some(cirrove_core::RemoteRef {
+            node.target = Some(Box::new(cirrove_core::RemoteRef {
                 collection: "shared".into(),
                 item: "shared-root".into(),
                 kind: Some(NodeKind::Folder),
-            });
+            }));
         }
         node
     }

@@ -2487,11 +2487,11 @@ async fn real_pending_local_files_keep_deleted_ancestors_and_sharepoint_routes()
             parent_id: Some("root".into()),
             name: "SharePoint".into(),
             kind: NodeKind::Shortcut,
-            target: Some(RemoteRef {
+            target: Some(Box::new(RemoteRef {
                 collection: "shared".into(),
                 item: "shared-root".into(),
                 kind: Some(NodeKind::Folder),
-            }),
+            })),
             etag: Some("link-etag".into()),
             ..root()
         };
@@ -2657,11 +2657,11 @@ with open('original.txt','wb',buffering=0) as f:
         parent_id: Some("root".into()),
         name: "Shortcut".into(),
         kind: NodeKind::Shortcut,
-        target: Some(RemoteRef {
+        target: Some(Box::new(RemoteRef {
             collection: "drive".into(),
             item: remote.id.clone(),
             kind: Some(NodeKind::File),
-        }),
+        })),
         ..remote
     };
     cloud

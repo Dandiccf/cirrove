@@ -99,11 +99,11 @@ pub(super) async fn directories_and_aliases() {
             parent_id: Some("root".into()),
             name: name.into(),
             kind: NodeKind::Shortcut,
-            target: Some(RemoteRef {
+            target: Some(Box::new(RemoteRef {
                 collection: "shared".into(),
                 item: "shared-root".into(),
                 kind: Some(NodeKind::Folder),
-            }),
+            })),
             ..primary[0].clone()
         });
     }
@@ -232,11 +232,11 @@ pub(super) async fn targeted_aliases() {
     a.parent_id = Some("root".into());
     a.name = "Alias A".into();
     a.kind = NodeKind::Shortcut;
-    a.target = Some(RemoteRef {
+    a.target = Some(Box::new(RemoteRef {
         collection: "shared".into(),
         item: "shared-root".into(),
         kind: Some(NodeKind::Folder),
-    });
+    }));
     let mut b = a.clone();
     b.id = "link-b".into();
     b.name = "Alias B".into();
