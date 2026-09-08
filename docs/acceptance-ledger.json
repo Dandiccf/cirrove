@@ -51,13 +51,9 @@
       "done": false,
       "text": "Responsive navigation during initial indexing and competing downloads.",
       "blocker": "autonomous",
-      "evidence": null,
-      "asserted_by": null,
-      "candidate_assertions": [
-        "filesystem::capacity::real_combined_namespace_churn (navigation_ms per round, bounded)",
-        "content::windows::tests::graph::kernel::real_* (cached navigation during stalled transfer)"
-      ],
-      "candidate_note": "Named by matching test names to the box, NOT by reading them. A test name is not evidence: a coverage survey earlier today reported five FUSE handlers as untested because it grepped names, and two of the five were covered under a differently named test. Read these before promoting any of them to asserted_by, and expect some to cover less than the box claims."
+      "evidence": "docs/benchmarks/navigation-stall-cause.json",
+      "asserted_by": "filesystem::capacity::real_combined_namespace_churn, churn.rs:403 -- read: asserts cached navigation stays under 500 ms while committed changes are being applied, on every round. Supported by content::windows::tests::graph::kernel fixtures covering navigation during a stalled transfer.",
+      "caveat": "Asserts navigation during committed metadata changes and during a stalled transfer. 'Competing downloads' at real provider bandwidth is not covered: every fixture uses a synthetic provider. The box also spans initial indexing on a real library, which needs a live account."
     },
     {
       "milestone": 1,
@@ -138,14 +134,9 @@
       "done": false,
       "text": "Persisted upload progress, resumable transfers and idempotent recovery.",
       "blocker": "autonomous",
-      "evidence": null,
-      "asserted_by": null,
-      "candidate_assertions": [
-        "tests/upload_journal.rs: later_saves_follow_receipts_across_creation_upload_and_restart",
-        "tests/upload_journal.rs: missing_receipt_precondition_never_falls_back_to_a_second_create",
-        "tests/upload_journal.rs: snapshots_are_private_immutable_and_survive_restart_with_unicode_names"
-      ],
-      "candidate_note": "Named by matching test names to the box, NOT by reading them. A test name is not evidence: a coverage survey earlier today reported five FUSE handlers as untested because it grepped names, and two of the five were covered under a differently named test. Read these before promoting any of them to asserted_by, and expect some to cover less than the box claims."
+      "evidence": "docs/adr/0002-durable-local-edits.md",
+      "asserted_by": "tests/upload_journal.rs: later_saves_follow_receipts_across_creation_upload_and_restart -- read: claim ordering survives restart, a second attempt keeps its id rather than duplicating, and its base resolves. With missing_receipt_precondition_never_falls_back_to_a_second_create, which asserts that an upload with no usable etag guard goes to Failed and keeps its payload rather than silently creating a duplicate. That pair is the idempotence claim.",
+      "caveat": "Synthetic transport throughout. Resumption against a real Graph upload session, and genuine partial-transfer recovery over the network, are not covered."
     },
     {
       "milestone": 2,
@@ -154,13 +145,9 @@
       "done": false,
       "text": "Version-conditional changes and preservation of both sides of conflicts.",
       "blocker": "autonomous",
-      "evidence": null,
-      "asserted_by": null,
-      "candidate_assertions": [
-        "tests/upload_journal.rs: conflicted_predecessors_retain_newer_saves_and_allow_independent_work",
-        "tests/causal_edits.rs: a_conflicted_rename_blocks_descendants_but_not_another_file"
-      ],
-      "candidate_note": "Named by matching test names to the box, NOT by reading them. A test name is not evidence: a coverage survey earlier today reported five FUSE handlers as untested because it grepped names, and two of the five were covered under a differently named test. Read these before promoting any of them to asserted_by, and expect some to cover less than the box claims."
+      "evidence": "docs/adr/0002-durable-local-edits.md",
+      "asserted_by": "tests/upload_journal.rs: conflicted_predecessors_retain_newer_saves_and_allow_independent_work -- read: the conflicted item stays Pending with its newest local bytes intact while unrelated work proceeds, so neither side is discarded. With tests/causal_edits.rs: a_conflicted_rename_blocks_descendants_but_not_another_file.",
+      "caveat": "Conflicts are injected synthetically. A real concurrent edit from another client, and the user-facing resolution flow, are both open -- the milestone text names user conflict resolution as unimplemented."
     },
     {
       "milestone": 2,
@@ -169,12 +156,9 @@
       "done": false,
       "text": "Distinct local-save, pending-upload, uploading, uploaded and failure states.",
       "blocker": "autonomous",
-      "evidence": null,
-      "asserted_by": null,
-      "candidate_assertions": [
-        "tests/clean_handoff.rs: dirty_pending_inflight_and_successor_bytes_cannot_be_retired"
-      ],
-      "candidate_note": "Named by matching test names to the box, NOT by reading them. A test name is not evidence: a coverage survey earlier today reported five FUSE handlers as untested because it grepped names, and two of the five were covered under a differently named test. Read these before promoting any of them to asserted_by, and expect some to cover less than the box claims."
+      "evidence": "docs/adr/0002-durable-local-edits.md",
+      "asserted_by": "tests/upload_journal.rs exercises every UploadState variant -- Pending, Uploading, Uploaded, Verifying, VerifyRequired, Conflict, Failed -- and asserts transitions between them, including that a failed upload retains its payload.",
+      "caveat": "This is the journal's state model, which is what the box asks for. Surfacing those states to a user is a separate milestone-5 box and is not covered here."
     },
     {
       "milestone": 2,
