@@ -641,10 +641,18 @@ measured 637 to 657 bytes per view: weaker, because it cannot see a change in
 per-view size, but honest, and it costs a day rather than a phase. That choice is
 to be made in the open, not by loosening the tolerance until the model passes.
 
-## Shedding: the design, before the code
+## Shedding: the design, and why it was not built
 
-Recorded before implementation for the same reason as the charge formula above.
-Whether it is built at all depends on a measurement that has not been taken.
+**Retired by measurement. Kept as a record of what was designed and what killed
+it, not as a plan.** The gating number was taken and it failed: under concurrent
+lookups on the same parent, `notify_inval_entry` sustains about 107 per second
+against a required 1,400, and requesting more changes nothing. A ceiling has to
+bind during a traversal, and a traversal is a stream of concurrent lookups. See
+[the measurement](../benchmarks/inval-entry-rate.json).
+
+The design below was recorded before implementation for the same reason as the
+charge formula above, and the discipline paid: one day of measurement retired
+several weeks of work before any of it was written.
 
 **What it is.** Above a resident ceiling, select entries and emit
 `notify_inval_entry` for them through the batch machinery in
@@ -702,13 +710,20 @@ already exhibit.
    transfers no information about this. `benchmarks/inval-entry` measures it
    directly, outside this workspace.
 
-**The bar, and what failing it means.** A 500,000-file traversal resolves about
-750,000 views in roughly 530 seconds, so a ceiling that binds during traversal
-must sustain about 1,400 sheds per second with concurrent-lookup p99 under 100
-milliseconds. If that is not reached, shedding becomes a soft ceiling with a
-measured overshoot factor rather than a bound, and may need disabling above some
-entry density — that is, disabled exactly where density is highest. Everything in
-this section is contingent on that number.
+**The bar, and what failing it meant.** A 500,000-file traversal resolves about
+750,000 views in roughly 530 seconds, so a ceiling that binds during traversal had
+to sustain about 1,400 sheds per second with concurrent-lookup p99 under 100
+milliseconds. Measured: 1,400 per second with no concurrent lookups, 429 with one
+stat worker, and 107 with eight, at which rate shedding one traversal's views
+takes two hours. Latency was never the problem — lookup p99 stayed at the injected
+server delay throughout. Throughput was.
+
+**What remains for the peak.** Two directions, both larger than shedding was.
+Reduce bytes per view, which has been pushed three times for 15 to 20 percent each
+and will not reach a factor of two on its own. Or decline to resolve views beyond
+a ceiling in the first place, which is a change to the lookup contract rather than
+to reclamation, and needs its own ADR. A slow background shed on an idle mount
+survives as a courtesy; it is not a bound and must not be described as one.
 
 **Every claim here is for a single dispatch thread.** Raising `n_threads` to four
 is a recorded failure, and shedding makes order-independent reference accounting a
