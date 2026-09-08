@@ -1,9 +1,11 @@
 //! Crash-resumable metadata staging. Visible rows and the completed cursor advance
 //! in one transaction, only after the last page. This is not an upload journal.
+mod blocks;
 mod directories;
 mod metadata_changes;
 pub use metadata_changes::{MetadataChange, MetadataChangeKind, MetadataChanges, MetadataPosition};
 mod observations;
+pub use blocks::BlockIndex;
 use cirrove_core::{Change, ChangePage, Cursor, Node, Scope};
 pub use observations::{
     AbsenceResult, DirectoryPublication, DirectoryPublicationResult, ObservationResult,
@@ -88,7 +90,16 @@ impl Store {
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         let mut db = Connection::open(path)?;
         db.busy_timeout(std::time::Duration::from_secs(3))?;
-        db.execute_batch("PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;")?;
+        // A connection is held for the account's lifetime so that per-operation
+        // opens never become the last one, which would checkpoint and unlink the
+        // write-ahead log inside a cached read. That also means the log is no
+        // longer truncated on close, so bound it explicitly: automatic
+        // checkpointing keeps it near 1,000 pages, and this limit returns the
+        // space afterwards instead of leaving a high-water-mark file behind.
+        db.execute_batch(
+            "PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;
+            PRAGMA journal_size_limit=16777216;",
+        )?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
         if version > 6 {
             return Err(StoreError::SchemaVersion);
@@ -123,6 +134,8 @@ impl Store {
             INSERT OR IGNORE INTO inodes(inode,key) VALUES(1,'root');
             CREATE TABLE IF NOT EXISTS health (scope TEXT PRIMARY KEY,body TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS subscriptions (account TEXT NOT NULL,collection TEXT NOT NULL,root TEXT NOT NULL,PRIMARY KEY(account,collection,root));
+            -- Legacy. The block index now lives in its own database, rebuilt
+            -- from the cache directory, so nothing reads this table any more.
             CREATE TABLE IF NOT EXISTS cache_blocks (key TEXT PRIMARY KEY,size INTEGER NOT NULL,touched INTEGER NOT NULL);
 ",
                 )?;
@@ -468,23 +481,6 @@ impl Store {
             )?;
         }
         tx.commit()?;
-        Ok(())
-    }
-    pub fn touch_block(&mut self, key: &str, size: u64) -> Result<()> {
-        self.db.execute("INSERT INTO cache_blocks(key,size,touched) VALUES(?1,?2,?3) ON CONFLICT(key) DO UPDATE SET touched=excluded.touched,size=excluded.size",params![key,size as i64,timestamp()])?;
-        Ok(())
-    }
-    pub fn oldest_blocks(&self) -> Result<Vec<(String, u64)>> {
-        let mut query = self
-            .db
-            .prepare("SELECT key,size FROM cache_blocks ORDER BY touched")?;
-        Ok(query
-            .query_map([], |r| Ok((r.get(0)?, r.get::<_, i64>(1)? as u64)))?
-            .collect::<std::result::Result<Vec<_>, _>>()?)
-    }
-    pub fn forget_block(&mut self, key: &str) -> Result<()> {
-        self.db
-            .execute("DELETE FROM cache_blocks WHERE key=?1", [key])?;
         Ok(())
     }
     pub fn counts(&self) -> Result<(u64, u64)> {

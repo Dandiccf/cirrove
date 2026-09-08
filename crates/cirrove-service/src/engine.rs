@@ -2,7 +2,11 @@
 //! share a provider client but never hold SQLite locks across network awaits.
 mod changes;
 #[cfg(test)]
+mod deadlines;
+#[cfg(test)]
 mod discovery;
+#[cfg(test)]
+mod persistence;
 use crate::{accounts::Account, content::ContentCache, private_dir, refresh};
 use anyhow::Result;
 pub use changes::ChangeNotifications;
@@ -24,6 +28,9 @@ use tokio_util::task::TaskTracker;
 
 /// Discovery shares the store with every feed, so a transient store failure must
 /// recover on its own schedule rather than on the next successful poll.
+/// A single-item fetch on the filesystem path must not wait indefinitely for an
+/// adapter. The directory path already bounds itself at sixty seconds.
+const SINGLE_ITEM_TIMEOUT: Duration = Duration::from_secs(60);
 const DISCOVERY_RETRY: Duration = Duration::from_secs(1);
 const DISCOVERY_RETRY_LIMIT: Duration = Duration::from_secs(60);
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -62,6 +69,14 @@ pub struct Engine {
     discovery_started: AtomicBool,
     discovery_failures: AtomicU64,
     activity: crate::activity::DirectoryActivity,
+    /// One connection stays open for the account's lifetime. Without it every
+    /// `Store::open` is both the first and the last connection to a WAL
+    /// database, so SQLite creates `metadata.db-wal` and `-shm` on open and, on
+    /// close, checkpoints and unlinks them. That is durable filesystem work
+    /// inside every cached read, on the filesystem the content cache is
+    /// saturating. It is never used for queries; it only keeps the WAL index
+    /// alive, and it holds no transaction, so checkpointing stays normal.
+    _keeper: StdMutex<Store>,
     _owner: std::fs::File,
 }
 impl Engine {
@@ -75,11 +90,11 @@ impl Engine {
         let owner = crate::accounts::account_lock(&directory)?;
         let db = directory.join("metadata.db");
         let path = db.clone();
-        tokio::task::spawn_blocking(move || Store::open(path)).await??;
-        let cache_db = db.clone();
+        let keeper = tokio::task::spawn_blocking(move || Store::open(path)).await??;
+        let blocks = directory.join("blocks.db");
         let quota = account.cache_bytes;
         let cache = tokio::task::spawn_blocking(move || {
-            ContentCache::new(directory.join("cache"), cache_db, quota)
+            ContentCache::new(directory.join("cache"), blocks, quota)
         })
         .await??;
         Ok(Arc::new(Self {
@@ -98,6 +113,7 @@ impl Engine {
             discovery_started: AtomicBool::new(false),
             discovery_failures: AtomicU64::new(0),
             activity: crate::activity::DirectoryActivity::default(),
+            _keeper: StdMutex::new(keeper),
             _owner: owner,
         }))
     }
@@ -456,7 +472,17 @@ impl Engine {
             return Ok(node);
         }
         let ticket = ticket.ok_or(ProviderError::Unavailable)?;
-        let node = match self.provider.node(scope, id, &self.cancel).await {
+        // A single-item fetch reaches this point only when the index has no row
+        // for the item, which a cached navigation should never hit; several
+        // actual-kernel fixtures assert zero foreground requests across deep
+        // traversals. When it does happen it is on a latency-bounded FUSE path,
+        // so enforce the deadline here rather than trusting an adapter to honour
+        // the token, exactly as the directory path already does.
+        let fetch = tokio::time::timeout(
+            SINGLE_ITEM_TIMEOUT,
+            self.provider.node(scope, id, &self.cancel),
+        );
+        let node = match fetch.await.unwrap_or(Err(ProviderError::Unavailable)) {
             Ok(node) => node,
             Err(ProviderError::NotFound) => {
                 let db = self.db.clone();

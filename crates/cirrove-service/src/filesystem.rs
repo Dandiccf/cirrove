@@ -208,6 +208,13 @@ impl CloudFs {
     }
     pub fn mount(self, path: &std::path::Path) -> std::io::Result<CloudSession> {
         let mut config = fuser::Config::default();
+        // Dispatch stays single-threaded on purpose. Raising fuser's n_threads
+        // to four leaves three namespace views alive after twelve seconds in
+        // filesystem::capacity::real_combined_namespace_churn_preserves_mapped_content:
+        // concurrent dispatch reorders requests against the lookup-count
+        // bookkeeping, which a view's lifetime depends on. Head-of-line
+        // blocking behind bulk reads is therefore still possible, and fixing
+        // the reference accounting is a prerequisite for addressing it.
         config.mount_options = vec![
             if self.inner.writeback.is_some() {
                 fuser::MountOption::RW

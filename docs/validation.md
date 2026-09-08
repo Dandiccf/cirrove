@@ -1214,3 +1214,287 @@ This is strong circumstantial evidence, not proof. The feed states at the moment
 the failure were never recorded, so the original failure is retained as a finding
 rather than reclassified; the helper now reports them and a recurrence settles it.
 See [the margin measurements](benchmarks/startup-readiness-margin.json).
+
+## Cause of the cached-navigation stalls (2026-09-08)
+
+The two recorded workload failures share the conservative mode and the sequential
+phase, the only phase that downloads and durably publishes a gibibyte in 256
+separate blocks. The failure-only stage diagnostic never fired again, so the
+measurement was inverted: every navigation sample was temporarily reported by
+stage, then the OPENDIR stage was split further. Both instrumentations were
+reverted; no bound or production path was changed for them.
+
+Two earlier reproduction attempts could not have worked. The three local rechecks
+recorded as passing all ran with `synthetic_request_delay_ms` 0, while the later CI
+failure occurred in the delay-20 iteration. More decisively, `/tmp` on the
+development machine is tmpfs, so the fixture placed the database, the content cache
+and the snapshot files in RAM; no local run had a filesystem in the path at all.
+
+| Condition | Worst navigation sample |
+| --- | ---: |
+| tmpfs, no congestion | 3.894 ms |
+| Btrfs, no congestion | 5.399 ms |
+| Btrfs, four competing fsync writers | 182.998 ms |
+
+Under that congestion the OPENDIR stage dominates: 96.484 ms worst against 2.900 ms
+for enumeration, 9.565 ms for metadata and 2.748 ms for the reply. Splitting OPENDIR
+separates the components cleanly.
+
+| Component inside OPENDIR | Quiet filesystem | Congested filesystem | Factor |
+| --- | ---: | ---: | ---: |
+| SQLite connection open | 0.207 ms | 2.453 ms | 12 |
+| Snapshot file creation | 0.058 ms | 51.269 ms | 884 |
+
+The navigation path touches the filesystem that the content cache is saturating, and
+that contention is what the tail follows. File creation is the component with the
+largest amplification: every cached OPENDIR created two anonymous snapshot files even
+for a directory holding one entry, and creating them is a filesystem metadata
+operation that queues behind the congested transaction. It is not the only touch,
+though, and removing it alone does not move the tail; see the
+[paired measurement](#resident-directory-listings-and-what-they-do-not-fix-2026-09-08).
+Filesystem contention matches every property of the recorded failures: the phase, the
+mode, the intermittency, and one failure landing in the first test immediately after a
+build step whose writeback was still in flight.
+
+This is not proof. No local run reached 500 ms; the worst was 183.0 ms on a fast
+local NVMe, and CI runners use slower shared storage. No CI stall has been captured
+since the diagnostic landed, so the attribution rests on the mechanism and its
+scaling rather than on a recorded failure. The original failures stay findings. See
+[the measurements](benchmarks/navigation-stall-cause.json).
+
+## Resident directory listings, and what they do not fix (2026-09-08)
+
+An ordinary cached listing no longer touches the filesystem. A listing stays
+resident until its data and index reach 64 KiB and spills to anonymous files only
+beyond that, so a mount holds at most 16 MiB across its 256 snapshots. Readers share
+the backing, so a spill stays visible to a handle that already published positions,
+while the producer keeps independent writer handles. Byte accounting, the reader
+frontier, error semantics and anonymity are unchanged. Starting a listing performs no
+filesystem operation, so an unusable state directory is now reported when the listing
+spills rather than at open, and a small listing keeps working without one.
+
+Two new unit tests cover the resident and spilled forms and, in particular, a spill
+that happens underneath an open reader that has already published positions.
+
+**This does not fix the stalls.** A controlled pair of frozen release binaries
+differing only in this change, run alternately under four competing fsync writers:
+
+| | Worst sequential sample | p95 |
+| --- | --- | --- |
+| Before | 87.1 / 140.7 / 85.6 ms | 28.8 / 22.0 / 26.4 ms |
+| After | 81.1 / 79.7 / 183.4 ms | 23.4 / 27.3 / 20.6 ms |
+| Median ratio | 1.07 | 1.13 |
+
+Both ratios sit inside the run-to-run spread, and one post-change run reached
+183.4 ms. An uncontrolled single-run comparison had suggested 183 ms falling to
+130 ms; the paired measurement does not support that, and it is kept only as a
+reminder of why the pair was necessary.
+
+The reason is that file creation was one of several disk touches. Navigation still
+opens the metadata database and reads its pages from the same filesystem the content
+cache saturates, so removing one touch leaves the tail where it was. Meeting the
+bound under congestion needs navigation metadata served without touching that
+filesystem, less write pressure from content publication, or separate storage for
+the two. That is a design decision rather than a local fix, and the recorded
+failures stay open. See [the measurements](benchmarks/navigation-stall-cause.json).
+
+## The write-ahead log kept open, and the stall closed (2026-09-08)
+
+CI captured the stall with the stage diagnostic in place:
+[the failing job](https://github.com/Dandiccf/cirrove/actions/runs/34190151083/job/101946380643)
+observed 501.763 ms against the 500 ms bound. The decomposition is unambiguous:
+0.019 ms to admit the blocking worker, **504.947 ms inside LOOKUP and OPENDIR**,
+then 0.157 ms to enumerate and 2.888 ms for the metadata lookup. Host pressure at
+that moment was 6.61 percent I/O *full*, 0.00 percent CPU full and 0.00 percent
+memory full: every runnable task was blocked on storage, not on CPU or memory. The
+stall landed 4.5 seconds after a two-minute-58-second release build finished, while
+its writeback was still draining, and 367 MB into the download. That binary already
+contained the resident-listing change, so no snapshot file was created.
+
+The cause is the SQLite write-ahead log lifetime. Nothing held a connection to
+`metadata.db` open, so every `Store::open` was both the first and the last connection
+to a WAL database. SQLite therefore creates `metadata.db-wal` and `-shm` on open and,
+on close, checkpoints with two fsyncs and unlinks both files: two file creations, two
+fsyncs and two unlinks per connection, at two to three connections per navigation,
+inside the blocking task the FUSE reply awaits, on the filesystem the content cache is
+saturating. The earlier split measured connection open but never connection close,
+which is why 2.453 ms plus 51.269 ms accounted for only 54 ms of the 96.484 ms
+OPENDIR stage, and why removing the snapshot files did not move the tail.
+
+Measured in isolation on this Btrfs volume, open-and-drop cycles with and without one
+idle connection held:
+
+| | Without keeper | With keeper |
+| --- | --- | --- |
+| Quiet, p50 / p95 / max | 0.139 / 0.150 / 0.379 ms | 0.044 / 0.049 / 0.331 ms |
+| Four fsync writers, p50 / p95 / max | 0.224 / 2.849 / 9.220 ms | 0.049 / 0.057 / 0.262 ms |
+
+The decisive property is not the ratio but the decoupling: with the connection held,
+congested is statistically identical to quiet, 0.057 against 0.049 ms at p95.
+
+A controlled pair of frozen release binaries differing only in the keeper, run
+alternately under four competing fsync writers:
+
+| | Worst sequential sample | p95 |
+| --- | --- | --- |
+| Before | 237.9 / 66.4 / 46.9 ms | 15.84 / 13.28 / 13.58 ms |
+| After | 19.1 / 10.4 / 25.6 ms | 4.51 / 4.41 / 4.58 ms |
+| Median ratio | 3.49 | 3.01 |
+
+The distributions do not overlap: every post-change maximum is below every
+pre-change maximum. The p95 spread also collapses, from 13.28-15.84 ms to
+4.41-4.58 ms. Headroom against the unchanged 500 ms bound rises from 2.1 to 19.5
+times, which is what the requirement of holding on unknown user hardware needs.
+
+`engine::persistence::cached_reads_never_create_or_unlink_the_write_ahead_log` is the
+regression gate. It asserts the log and its shared index exist continuously across
+cached reads and are retired on shutdown, so it measures the mechanism rather than a
+duration and is hardware independent. It fails without the keeper.
+
+The content path remains the source of the congestion: about 2,627 fsyncs per
+gibibyte, 256 file creations, 256 renames and roughly 1,781 unlinks. Cache blocks are
+re-downloadable, so that durability is not required, and reducing it would widen the
+margin further on slow storage. See
+[the measurements](benchmarks/navigation-stall-cause.json).
+
+## Acceptance under congestion, and what it does and does not settle (2026-09-08)
+
+Twelve alternating runs of the conservative sequential workload on one machine
+under four competing fsync writers on the same Btrfs filesystem, six with the
+pre-hardening binary and six with the hardened one:
+
+| | Runs | Bound violations | Worst sample per run |
+| --- | ---: | ---: | --- |
+| Before | 6 | **3** | 44.8 / 85.1 / 181.3 ms, plus three aborted at the bound |
+| After | 6 | **0** | 10.1 / 10.9 / 10.9 / 11.4 / 20.3 / 36.6 ms |
+
+The three failures reproduce the recorded CI stall exactly: everything sits in
+LOOKUP and OPENDIR, which returned only after 1,959 ms and 1,763 ms in the two
+cases where the two-second diagnostic window caught it, while the enumeration that
+followed took 0.05 ms. This is the first local reproduction of the failure, and it
+makes the workload usable as an acceptance gate rather than a hope.
+
+**What this does not settle.** A completeness review of the whole investigation
+raised three objections that hold up.
+
+First, the failing fixture seeds seven nodes, so its metadata database is a few
+hundred kilobytes. Any argument from page-cache eviction or from a warm private
+page cache — including the measured 22-fold cost of a foreign commit on a 95 MB
+index — applies to a real library, not to this test. The block-index split is
+retained for users whose index does not fit comfortably in the page cache, and is
+not claimed as a cause of the recorded failures.
+
+Second, all three recorded failures land within seconds of a large build
+finishing, so the dominant writer at that moment was the build, not Cirrove, which
+had written about 375 MB in 4.2 seconds. Every write-side change reduces Cirrove's
+share of a congestion it did not dominate. The connection lifetime is a different
+kind of fix, and the one the evidence supports: it removes durable filesystem work
+from the read path regardless of who is congesting the device.
+
+Third, FUSE dispatch is single-threaded. `fuser` defaults `n_threads` to one and
+the mount never overrides it, so every request is dispatched from one thread, and
+`lookup`, `getattr` and `opendir` each take the view lock on it before spawning.
+During the sequential phase the application issues 16,384 reads through that same
+thread. A single 505 ms block followed three milliseconds later by a 2.888 ms
+operation of the same class is as consistent with a queue as with per-operation
+cost, and no measurement so far distinguishes them, because every stage timestamp
+is taken in the client. A server-side measurement of the handler is in progress.
+
+## Concurrent FUSE dispatch is not yet safe (2026-09-08)
+
+Head-of-line blocking behind bulk reads is a structural risk: `fuser` defaults
+`n_threads` to one, so every request is decoded and dispatched from a single
+thread while an application read of a gibibyte issues 16,384 of them.
+
+Raising it to four does not work today. With four dispatch threads,
+`filesystem::capacity::real_combined_namespace_churn_preserves_mapped_content`
+fails with three namespace views still alive after the twelve-second settle
+window, where one is expected. Twelve seconds is far past any scheduling wobble,
+so the views are genuinely not released: concurrent dispatch reorders requests
+against the lookup-count bookkeeping that a view's lifetime depends on, and that
+bookkeeping is completed in a spawned task rather than before the reply.
+
+The change is therefore reverted and the reason recorded at the mount site.
+Making the reference accounting order-independent is a prerequisite for
+addressing head-of-line blocking, and it is a change to kernel-facing lifetime
+semantics that must not be rushed. Until then, a single slow handler can still
+delay every request behind it, which bounds how much the per-operation work
+removed elsewhere can guarantee.
+
+A server-side measurement of the OPENDIR handler under four competing fsync
+writers, six runs per variant, shows what that work costs today:
+
+| | Handler maximum | Samples above 20 ms per run |
+| --- | ---: | ---: |
+| Before the hardening | 39.8-85.1 ms | 16-26 |
+| After | 21.1-26.2 ms | 0-2 |
+
+Neither variant produced a bound violation during those instrumented runs, so
+this measures handler cost, not the extreme tail. Whether a 500 ms event is
+handler work or queueing remains unsettled, because no instrumented run captured
+one.
+
+## Final acceptance of the complete hardening (2026-09-08)
+
+Twelve alternating runs of the conservative sequential workload under four bounded
+competing fsync writers on the same Btrfs filesystem, frozen binaries, six with the
+pre-hardening source and six with the complete hardening.
+
+| | Worst sample per run | Median of maxima | Median p95 | Headroom to the bound |
+| --- | --- | ---: | ---: | ---: |
+| Before | 110.5 / 120.0 / 135.6 / 159.7 / 185.9 / 371.7 ms | 147.7 ms | 38.11 ms | 1.3x |
+| After | 7.9 / 10.5 / 12.3 / 12.4 / 13.1 / 18.1 ms | 12.4 ms | 5.02 ms | **27.6x** |
+
+The distributions do not overlap: every hardened run is below every pre-hardening
+run, by a factor of six to twenty. That is the number the product requirement turns
+on. A machine twenty times slower than this one still holds the 500 ms bound with
+the hardening, and does not without it — the pre-hardening worst sample already sat
+at 1.3 times the bound on a fast encrypted NVMe.
+
+Neither variant violated the bound in this round. An earlier round of the same
+shape produced three violations in six pre-hardening runs and none in six hardened
+runs, which remains the sharper result; this one measures the margin rather than
+the failure rate.
+
+## A store write-contention fragility, found while landing the stack (2026-09-08)
+
+Updating pull request #30 against the moved `main` produced a red `linux` check on
+`cirrove-store`'s `concurrent_observations_and_delta_commits_preserve_all_completed_listings`,
+with `SQLITE_BUSY`, "database is locked". The duplicate job for the same commit on
+another runner passed, so this is load sensitivity rather than a logic error, and it
+is not caused by anything in this branch: pull request #30 predates the hardening.
+
+The mechanism is the same class this branch has been working on. The test runs four
+threads, each committing a hundred write transactions to one database at
+`synchronous=FULL`, so four hundred fsyncing commits serialise behind SQLite's single
+writer while a three-second busy timeout runs. On a congested runner one waiter
+exhausts that timeout.
+
+It matters beyond the test. `observe_directory` and the delta commit path return that
+error to callers, which map it to `ProviderError::Unavailable` and therefore to an
+I/O error at the kernel boundary, so a user writing heavily could see a spurious
+failure on a namespace operation rather than a slow success. The test's expectation —
+that every concurrent writer succeeds within the busy timeout — is stronger than
+SQLite guarantees.
+
+This is recorded as an open finding rather than repaired here, because it predates
+this work and its repair changes error semantics across the store. The pull request
+was unblocked by re-running the failed job, which does not explain or fix anything.
+
+## The same defect in a second test (2026-09-08)
+
+While landing the stack, pull request #33 — which predates the fix — failed
+`filesystem::capacity::real_indexed_name_lookup_avoids_materializing_the_directory`
+with `indexed lookup exceeded the cached navigation bound`. Seventeen indexed
+lookups in a 50,000-file directory took **1,071.754 ms** against the same unchanged
+500 ms bound, in a debug build, with zero provider requests and zero content reads.
+
+This is the write-ahead log lifetime again, in an operation with no directory
+snapshot at all: each lookup opens two to three connections, and each of those
+created `-wal` and `-shm`, checkpointed with two fsyncs and unlinked them. It is
+the strongest independent corroboration available that the cause is per-connection
+and not specific to OPENDIR, because this test never builds a snapshot.
+
+The duplicate job for the same commit passed, matching the intermittency recorded
+throughout. The pull request was unblocked by re-running, which explains nothing;
+the repair lands with pull request #35 later in the same series.

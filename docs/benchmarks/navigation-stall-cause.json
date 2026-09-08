@@ -1,0 +1,725 @@
+{
+ "question": "Why does cached navigation intermittently exceed its 500 ms bound in the conservative sequential workload?",
+ "date": "2026-09-08",
+ "finding": "The OPENDIR stage is filesystem-bound. Creating the two anonymous directory-snapshot files takes 0.058 ms on a quiet filesystem and 51.27 ms when the same filesystem is congested by concurrent writes, an 884-fold increase, while opening the SQLite connection is barely affected. The conservative sequential phase is the only phase that writes a gibibyte of content blocks to that filesystem.",
+ "method": "The existing failure-only diagnostic was temporarily extended to report every navigation sample by stage, and separately to time the SQLite open and the snapshot file creation inside OPENDIR. Both instrumentations were reverted afterwards. No bound was changed and no production code was modified for these measurements.",
+ "bound_ms": 500,
+ "test": "content::windows::tests::graph::kernel::workloads::real_mounted_conservative_read_workload",
+ "why_it_never_reproduced_before": [
+  "The three local rechecks recorded as passing all ran with synthetic_request_delay_ms 0, while the later CI failure occurred in the delay-20 iteration; that configuration had never been run locally.",
+  "More decisively, /tmp on the development machine is tmpfs, so tempfile::tempdir() placed the database, the content cache and the snapshot files in RAM. Every local reproduction was structurally incapable of showing a filesystem-contention stall. CI runners place /tmp on real storage."
+ ],
+ "worst_navigation_ms": {
+  "tmpfs_no_congestion": 3.893838,
+  "btrfs_no_congestion": 5.398914,
+  "btrfs_with_four_competing_fsync_writers": 182.997546
+ },
+ "stage_breakdown": {
+  "tmpfs": {
+   "delay0-cpus0-3": {
+    "admission_ms": {
+     "median": 0.014,
+     "p95": 0.055,
+     "max": 0.155
+    },
+    "opendir_ms": {
+     "median": 0.6655,
+     "p95": 1.081,
+     "max": 1.86
+    },
+    "enumerate_ms": {
+     "median": 0.1065,
+     "p95": 0.265,
+     "max": 0.513
+    },
+    "metadata_ms": {
+     "median": 0.0035,
+     "p95": 0.029,
+     "max": 0.621
+    },
+    "reply_ms": {
+     "median": 0.0122,
+     "p95": 0.0243,
+     "max": 0.0268
+    },
+    "total_ms": {
+     "median": 0.8268,
+     "p95": 1.3304,
+     "max": 2.6796
+    }
+   },
+   "delay0-cpusall": {
+    "admission_ms": {
+     "median": 0.008,
+     "p95": 0.051,
+     "max": 0.096
+    },
+    "opendir_ms": {
+     "median": 0.688,
+     "p95": 1.159,
+     "max": 1.764
+    },
+    "enumerate_ms": {
+     "median": 0.079,
+     "p95": 0.176,
+     "max": 0.286
+    },
+    "metadata_ms": {
+     "median": 0.004,
+     "p95": 0.008,
+     "max": 0.817
+    },
+    "reply_ms": {
+     "median": 0.01,
+     "p95": 0.022,
+     "max": 0.0249
+    },
+    "total_ms": {
+     "median": 0.8228,
+     "p95": 1.2802,
+     "max": 2.6771
+    }
+   },
+   "delay20-cpus0-3": {
+    "admission_ms": {
+     "median": 0.028,
+     "p95": 0.122,
+     "max": 0.185
+    },
+    "opendir_ms": {
+     "median": 0.831,
+     "p95": 1.286,
+     "max": 2.648
+    },
+    "enumerate_ms": {
+     "median": 0.15,
+     "p95": 0.358,
+     "max": 0.696
+    },
+    "metadata_ms": {
+     "median": 0.004,
+     "p95": 0.109,
+     "max": 2.089
+    },
+    "reply_ms": {
+     "median": 0.0144,
+     "p95": 0.037,
+     "max": 0.3097
+    },
+    "total_ms": {
+     "median": 1.0587,
+     "p95": 1.9397,
+     "max": 3.6026
+    }
+   },
+   "delay20-cpusall": {
+    "admission_ms": {
+     "median": 0.0185,
+     "p95": 0.129,
+     "max": 0.173
+    },
+    "opendir_ms": {
+     "median": 0.8515,
+     "p95": 1.316,
+     "max": 2.954
+    },
+    "enumerate_ms": {
+     "median": 0.124,
+     "p95": 0.336,
+     "max": 0.769
+    },
+    "metadata_ms": {
+     "median": 0.004,
+     "p95": 0.067,
+     "max": 1.351
+    },
+    "reply_ms": {
+     "median": 0.0114,
+     "p95": 0.1017,
+     "max": 0.1762
+    },
+    "total_ms": {
+     "median": 1.0462,
+     "p95": 1.9306,
+     "max": 3.8938
+    }
+   }
+  },
+  "btrfs": {
+   "delay20-cpus0-3-disk-press4": {
+    "samples": 710,
+    "competing_fsync_writers": 4,
+    "stages": {
+     "admission_ms": {
+      "median": 0.01,
+      "p95": 0.147,
+      "max": 2.271
+     },
+     "opendir_ms": {
+      "median": 1.6665,
+      "p95": 21.449,
+      "max": 96.484
+     },
+     "enumerate_ms": {
+      "median": 0.062,
+      "p95": 1.281,
+      "max": 2.9
+     },
+     "metadata_ms": {
+      "median": 0.004,
+      "p95": 0.77,
+      "max": 9.565
+     },
+     "reply_ms": {
+      "median": 0.0134,
+      "p95": 0.0541,
+      "max": 2.7476
+     },
+     "total_ms": {
+      "median": 2.0394,
+      "p95": 22.066,
+      "max": 98.1161
+     }
+    },
+    "worst_sample": {
+     "total_ms": 98.116149,
+     "admission_ms": 0.435,
+     "opendir_ms": 96.484,
+     "enumerate_ms": 1.1569999999999965,
+     "metadata_ms": 0.007000000000005002,
+     "reply_ms": 0.033148999999994544
+    }
+   },
+   "delay20-cpus0-3-disk-press0": {
+    "samples": 445,
+    "competing_fsync_writers": 0,
+    "stages": {
+     "admission_ms": {
+      "median": 0.03,
+      "p95": 0.116,
+      "max": 0.176
+     },
+     "opendir_ms": {
+      "median": 0.936,
+      "p95": 1.72,
+      "max": 3.151
+     },
+     "enumerate_ms": {
+      "median": 0.133,
+      "p95": 0.349,
+      "max": 0.534
+     },
+     "metadata_ms": {
+      "median": 0.005,
+      "p95": 0.074,
+      "max": 1.981
+     },
+     "reply_ms": {
+      "median": 0.0137,
+      "p95": 0.0371,
+      "max": 0.1112
+     },
+     "total_ms": {
+      "median": 1.1627,
+      "p95": 2.0783,
+      "max": 4.0297
+     }
+    },
+    "worst_sample": {
+     "total_ms": 4.029731,
+     "admission_ms": 0.116,
+     "opendir_ms": 2.457,
+     "enumerate_ms": 0.21399999999999997,
+     "metadata_ms": 1.1990000000000003,
+     "reply_ms": 0.04373099999999974
+    }
+   }
+  }
+ },
+ "opendir_split": {
+  "press4": {
+   "samples": 764,
+   "competing_fsync_writers": 4,
+   "store_open_ms": {
+    "median": 0.1271,
+    "p95": 0.1459,
+    "max": 2.4525
+   },
+   "snapshot_files_ms": {
+    "median": 0.0286,
+    "p95": 2.1894,
+    "max": 51.2694
+   }
+  },
+  "press0": {
+   "samples": 444,
+   "competing_fsync_writers": 0,
+   "store_open_ms": {
+    "median": 0.1125,
+    "p95": 0.1271,
+    "max": 0.2066
+   },
+   "snapshot_files_ms": {
+    "median": 0.0174,
+    "p95": 0.0284,
+    "max": 0.0577
+   }
+  }
+ },
+ "consistency_with_the_recorded_failures": [
+  "Both failures are the conservative mode and the sequential phase, the only phase that downloads and durably publishes 1 GiB in 256 separate blocks.",
+  "Conservative mode has no streamed windows, so it maximises separate block publications and therefore write pressure.",
+  "Intermittency follows runner storage speed and concurrent load rather than anything in the request path.",
+  "One failure occurred in the first test immediately after a 2m44s build step, when writeback of the build output was still in flight."
+ ],
+ "what_is_not_established": [
+  "No local run reached 500 ms; the worst observed was 183.0 ms on a fast local NVMe under deliberate congestion.",
+  "No CI failure has been captured since the stage diagnostic landed, so the attribution rests on the mechanism and its scaling, not on a recorded stall.",
+  "The remaining OPENDIR time beyond file creation, 96.5 ms worst against 51.3 ms for creation alone, is not itself split further; buffered writes to those files and FUSE transport share it."
+ ],
+ "implication": "A cached listing of a single entry still creates two files on the same filesystem the content cache is saturating. Keeping small listings in memory and spilling to files only past a threshold would take ordinary navigation off that filesystem while preserving the memory bound that motivated disk snapshots.",
+ "resident_listing_change": {
+  "change": "A listing now stays resident until its data and index reach 64 KiB and spills to anonymous files only beyond that, so an ordinary cached OPENDIR creates no file at all.",
+  "controlled_pair": {
+   "method": "Two frozen release binaries differing only in this change, run alternately in one session under four competing fsync writers on the same filesystem, order before/after/after/before/before/after.",
+   "sources": {
+    "after": "cac8ca243ed118efbb7f27e4c69d022f70655ee8",
+    "before": "51dc0b09aa49e0c0023e32a8a217708fd9181f1e"
+   },
+   "binaries": {
+    "after": "c38166e9f904c92712889a51b37cedaea5c3d5de2ce1fe634d63cc3e5e1abb0c",
+    "before": "bd5ac4353402db30e5bdf5754e0e425f079840c8bf17f51e4962bf84a9813269"
+   },
+   "sequential_max_ms": {
+    "before": [
+     87.124408,
+     140.739991,
+     85.584527
+    ],
+    "after": [
+     81.114668,
+     79.736078,
+     183.409426
+    ]
+   },
+   "sequential_p95_ms": {
+    "before": [
+     28.827502000000003,
+     21.953633,
+     26.381176999999997
+    ],
+    "after": [
+     23.400852,
+     27.325215,
+     20.64876
+    ]
+   },
+   "median_of_maxima_ms": {
+    "before": 87.124408,
+    "after": 81.114668
+   },
+   "median_of_p95_ms": {
+    "before": 26.381176999999997,
+    "after": 23.400852
+   },
+   "ratios": {
+    "max_median_ratio": 1.0740894359575017,
+    "p95_median_ratio": 1.1273596790407459
+   }
+  },
+  "stage_profile_after": {
+   "delay20-cpus0-3-disk-press4": {
+    "samples": 754,
+    "competing_fsync_writers": 4,
+    "stages": {
+     "admission_ms": {
+      "median": 0.011,
+      "p95": 0.463,
+      "max": 2.846
+     },
+     "opendir_ms": {
+      "median": 1.3535,
+      "p95": 16.842,
+      "max": 63.568
+     },
+     "enumerate_ms": {
+      "median": 0.057,
+      "p95": 1.068,
+      "max": 4.166
+     },
+     "metadata_ms": {
+      "median": 0.004,
+      "p95": 0.034,
+      "max": 12.221
+     },
+     "reply_ms": {
+      "median": 0.0132,
+      "p95": 0.0319,
+      "max": 2.8244
+     },
+     "total_ms": {
+      "median": 1.7591,
+      "p95": 18.0032,
+      "max": 63.7555
+     }
+    }
+   },
+   "delay20-cpus0-3-disk-press0": {
+    "samples": 445,
+    "competing_fsync_writers": 0,
+    "stages": {
+     "admission_ms": {
+      "median": 0.027,
+      "p95": 0.149,
+      "max": 0.262
+     },
+     "opendir_ms": {
+      "median": 0.942,
+      "p95": 1.914,
+      "max": 2.913
+     },
+     "enumerate_ms": {
+      "median": 0.142,
+      "p95": 0.373,
+      "max": 0.767
+     },
+     "metadata_ms": {
+      "median": 0.005,
+      "p95": 0.087,
+      "max": 1.064
+     },
+     "reply_ms": {
+      "median": 0.0138,
+      "p95": 0.0368,
+      "max": 0.1862
+     },
+     "total_ms": {
+      "median": 1.1664,
+      "p95": 2.3129,
+      "max": 3.9109
+     }
+    }
+   }
+  },
+  "conclusion": [
+   "The change removes two file creations per listing, a component measured at an 884-fold amplification under congestion, and leaves quiet-filesystem latency unchanged.",
+   "It does NOT fix the stalls. The controlled pair gives a worst-sample ratio of 1.07 and a p95 ratio of 1.13, both within the run-to-run spread; one post-change run reached 183.4 ms.",
+   "An uncontrolled single-run comparison had suggested 183 ms falling to 130 ms. The paired measurement does not support that, and the earlier number is retained only as an example of why the pair was needed.",
+   "The navigation path still opens the metadata database and reads its pages on the same filesystem the content cache saturates. Removing one of several disk touches does not move the tail."
+  ],
+  "still_open": "Meeting the bound under filesystem congestion needs either navigation metadata served without touching that filesystem, less write pressure from content publication, or separate storage for the two. That is a design decision, not a local fix."
+ },
+ "captured_ci_stall": {
+  "what": "The cached-navigation stall was captured in CI with the stage diagnostic in place.",
+  "run": "https://github.com/Dandiccf/cirrove/actions/runs/34190151083/job/101946380643",
+  "branch_head_includes_resident_listings": true,
+  "observed_ms": 501.763095,
+  "bound_ms": 500,
+  "stage_at_failure": {
+   "blocking_worker_started_ms": 0.019,
+   "enumeration_finished_ms": null,
+   "metadata_finished_ms": null,
+   "opendir_returned_ms": null
+  },
+  "stage_after_diagnostic_wait": {
+   "blocking_worker_started_ms": 0.019,
+   "enumeration_finished_ms": 505.123,
+   "metadata_finished_ms": 508.011,
+   "opendir_returned_ms": 504.966
+  },
+  "decomposition_ms": {
+   "blocking_worker_admission": 0.019,
+   "lookup_and_opendir": 504.947,
+   "enumeration": 0.157,
+   "metadata_lookup": 2.888
+  },
+  "host_pressure": {
+   "cpu": "some avg10=13.30 avg60=19.23 avg300=8.67 total=34685070\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n",
+   "io": "some avg10=6.96 avg60=6.63 avg300=9.34 total=61325966\nfull avg10=6.61 avg60=6.19 avg300=8.77 total=57938686\n",
+   "memory": "some avg10=0.00 avg60=0.00 avg300=0.00 total=4\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=4\n"
+  },
+  "workload_position": {
+   "downloaded_bytes": 366910144,
+   "content_requests": 88,
+   "graph_requests": 176,
+   "mode": "conservative",
+   "phase": "sequential",
+   "synthetic_request_delay_ms": 0
+  },
+  "timeline_seconds_from_job_start": {
+   "release_build_finished": 218.6,
+   "workload_started": 218.9,
+   "stall": 223.1,
+   "note": "The stall lands 4.5 s after a 2 minute 58 second release build finished, while its writeback is still draining."
+  },
+  "conclusions": [
+   "The entire 505 ms is inside std::fs::read_dir, that is LOOKUP plus OPENDIR. Enumeration took 0.157 ms and the metadata lookup 2.888 ms afterwards, so nothing after the directory opened was slow.",
+   "CPU full pressure was 0.00 percent and memory full pressure 0.00 percent, while I/O full pressure was 6.61 percent over the preceding ten seconds. All runnable tasks were blocked on storage, not on CPU or memory.",
+   "The failing binary already contains the resident-listing change, so no snapshot file was created for this single-entry directory. The remaining cost is metadata reads: several fresh SQLite connections and their queries.",
+   "This is the third recorded failure within seconds of a large build finishing, after the PR 27 workload failure and the startup readiness failure. Dirty-page writeback from the build overlaps the workload own writes."
+  ]
+ },
+ "write_ahead_log_keeper": {
+  "root_cause": "Nothing kept a connection to metadata.db open, so every Store::open was both the first and the last connection to a WAL database. SQLite creates metadata.db-wal and -shm on open and, on close, checkpoints with two fsyncs and unlinks both files. That is two file creations, two fsyncs and two unlinks per connection, at two to three connections per navigation, inside the blocking task the FUSE reply awaits, on the filesystem the content cache is saturating.",
+  "why_the_earlier_split_missed_it": "The split measured connection open but never connection close, so 2.453 ms plus 51.269 ms accounted for only about 54 ms of the 96.484 ms OPENDIR stage.",
+  "isolated_measurement": {
+   "method": "Open-and-drop cycles against a WAL database on this Btrfs volume, with and without one idle connection held.",
+   "quiet": {
+    "without_keeper_ms": {
+     "p50": 0.139,
+     "p95": 0.15,
+     "max": 0.379
+    },
+    "with_keeper_ms": {
+     "p50": 0.044,
+     "p95": 0.049,
+     "max": 0.331
+    }
+   },
+   "four_competing_fsync_writers": {
+    "without_keeper_ms": {
+     "p50": 0.224,
+     "p95": 2.849,
+     "max": 9.22
+    },
+    "with_keeper_ms": {
+     "p50": 0.049,
+     "p95": 0.057,
+     "max": 0.262
+    }
+   },
+   "decisive_property": "With the connection held, congested is statistically identical to quiet, 0.057 against 0.049 ms at p95. The path is no longer coupled to filesystem congestion."
+  },
+  "controlled_pair": {
+   "method": "Two frozen release binaries differing only in the keeper, run alternately under four competing fsync writers on the same filesystem, order before/after/after/before/before/after.",
+   "sources": {
+    "after": "427faead2b6d29ec9a4ffc914989d93388faaf78",
+    "before": "16491b054e44ea3428bd4f21535040602d789ad9"
+   },
+   "binaries": {
+    "after": "6e5468d9612ce40980def5d16dade5880f31c5dd2276600ee47bf73339bd19d5",
+    "before": "c38166e9f904c92712889a51b37cedaea5c3d5de2ce1fe634d63cc3e5e1abb0c"
+   },
+   "sequential_max_ms": {
+    "before": [
+     237.90982,
+     66.434749,
+     46.947900000000004
+    ],
+    "after": [
+     19.062921,
+     10.398777999999998,
+     25.594134
+    ]
+   },
+   "sequential_p95_ms": {
+    "before": [
+     15.839032,
+     13.276357,
+     13.581201
+    ],
+    "after": [
+     4.5118540000000005,
+     4.412088,
+     4.583274
+    ]
+   },
+   "median_of_maxima_ms": {
+    "before": 66.434749,
+    "after": 19.062921
+   },
+   "median_of_p95_ms": {
+    "before": 13.581201,
+    "after": 4.5118540000000005
+   },
+   "ratios": {
+    "max_median_ratio": 3.485024619259556,
+    "p95_median_ratio": 3.0101153539099443
+   },
+   "distributions_overlap": false,
+   "worst_single_sample_ms": {
+    "before": 237.90982,
+    "after": 25.594134
+   },
+   "headroom_to_bound": {
+    "before": 2.1,
+    "after": 19.5
+   }
+  },
+  "regression_gate": "engine::persistence::cached_reads_never_create_or_unlink_the_write_ahead_log asserts the log and its shared index exist continuously across cached reads and are retired on shutdown. It measures the mechanism rather than a duration, so it is hardware independent, and it fails without the keeper.",
+  "memory_cost": "SQLite's default per-connection page cache, 2 MiB, one connection per account.",
+  "still_open": "The content path itself remains the source of the congestion: about 2,627 fsyncs per gibibyte, 256 file creations, 256 renames and roughly 1,781 unlinks. Cache blocks are re-downloadable, so that durability is not required, and reducing it would widen the margin further on slow storage."
+ },
+ "acceptance_under_congestion": {
+  "method": "Twelve alternating runs of the conservative sequential workload under four competing fsync writers on the same Btrfs filesystem, six with the pre-hardening binary and six with the hardened one.",
+  "congestion": "four dd writers with conv=fsync on the same Btrfs filesystem",
+  "summary": {
+   "baseline": {
+    "runs": 6,
+    "bound_violations": 3,
+    "worst_observed_ms": 181.28684,
+    "all_maxima_ms": [
+     44.799103,
+     85.055602,
+     181.28684
+    ]
+   },
+   "full": {
+    "runs": 6,
+    "bound_violations": 0,
+    "worst_observed_ms": 36.626939,
+    "all_maxima_ms": [
+     10.148137,
+     10.870505000000001,
+     10.94988,
+     11.390129,
+     20.285846,
+     36.626939
+    ]
+   }
+  },
+  "captured_stalls": [
+   {
+    "binary": "baseline",
+    "index": 4,
+    "observed_ms": 501.124698,
+    "at_failure": {
+     "blocking_worker_started_ms": 0.312,
+     "enumeration_finished_ms": null,
+     "metadata_finished_ms": null,
+     "opendir_returned_ms": null
+    },
+    "after_wait": {
+     "blocking_worker_started_ms": 0.312,
+     "enumeration_finished_ms": 1959.287,
+     "metadata_finished_ms": 1961.035,
+     "opendir_returned_ms": 1959.24
+    },
+    "host_pressure": {
+     "cpu": "some avg10=9.81 avg60=11.00 avg300=8.32 total=1579300357\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n",
+     "io": "some avg10=8.89 avg60=9.85 avg300=7.56 total=882936566\nfull avg10=2.52 avg60=2.98 avg300=2.34 total=623814479\n",
+     "memory": "some avg10=4.43 avg60=5.03 avg300=3.78 total=40648573\nfull avg10=4.43 avg60=5.02 avg300=3.76 total=40200602\n"
+    }
+   },
+   {
+    "binary": "baseline",
+    "index": 7,
+    "observed_ms": 501.80858399999994,
+    "at_failure": {
+     "blocking_worker_started_ms": 0.021,
+     "enumeration_finished_ms": null,
+     "metadata_finished_ms": null,
+     "opendir_returned_ms": null
+    },
+    "after_wait": {
+     "blocking_worker_started_ms": 0.021,
+     "enumeration_finished_ms": null,
+     "metadata_finished_ms": null,
+     "opendir_returned_ms": null
+    },
+    "host_pressure": {
+     "cpu": "some avg10=10.61 avg60=10.88 avg300=8.82 total=1588527848\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n",
+     "io": "some avg10=8.30 avg60=9.33 avg300=7.88 total=890884754\nfull avg10=2.36 avg60=2.99 avg300=2.50 total=626713491\n",
+     "memory": "some avg10=3.73 avg60=4.50 avg300=3.87 total=44529852\nfull avg10=3.69 avg60=4.46 avg300=3.84 total=44043055\n"
+    }
+   },
+   {
+    "binary": "baseline",
+    "index": 11,
+    "observed_ms": 500.704828,
+    "at_failure": {
+     "blocking_worker_started_ms": 0.01,
+     "enumeration_finished_ms": null,
+     "metadata_finished_ms": null,
+     "opendir_returned_ms": null
+    },
+    "after_wait": {
+     "blocking_worker_started_ms": 0.01,
+     "enumeration_finished_ms": 1763.533,
+     "metadata_finished_ms": 1766.798,
+     "opendir_returned_ms": 1763.487
+    },
+    "host_pressure": {
+     "cpu": "some avg10=8.31 avg60=9.61 avg300=9.22 total=1604529185\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n",
+     "io": "some avg10=9.61 avg60=10.38 avg300=8.74 total=906636741\nfull avg10=3.51 avg60=3.83 avg300=2.89 total=632541701\n",
+     "memory": "some avg10=4.15 avg60=4.53 avg300=4.12 total=51967883\nfull avg10=4.01 avg60=4.45 avg300=4.08 total=51412175\n"
+    }
+   }
+  ],
+  "significance": "The first local reproduction of the recorded CI failure, with the same signature: the whole stall sits in LOOKUP and OPENDIR and the enumeration that follows takes 0.05 ms."
+ },
+ "review_objections_that_hold": [
+  "The failing fixture seeds seven nodes, so its metadata database is a few hundred kilobytes. Arguments from page-cache eviction, including the measured 22-fold cost of a foreign commit on a 95 MB index, apply to a real library and not to this test. The block-index split is kept for large libraries and is not claimed as a cause here.",
+  "All three recorded failures land within seconds of a large build finishing, so the dominant writer was the build, not Cirrove, which had written about 375 MB in 4.2 seconds. Write-side changes reduce a share of congestion Cirrove did not dominate; the connection lifetime is the fix the evidence supports because it removes durable filesystem work from the read path regardless of who congests the device.",
+  "FUSE dispatch is single-threaded: fuser defaults n_threads to one and the mount never overrides it. A 505 ms block followed three milliseconds later by a 2.888 ms operation of the same class is as consistent with a queue as with per-operation cost, and every stage timestamp so far is taken in the client. A server-side handler measurement is in progress."
+ ],
+ "final_acceptance": {
+  "method": "Twelve alternating runs of the conservative sequential workload under four bounded fsync writers on the same Btrfs filesystem, six with the pre-hardening binary and six with the complete hardening, frozen binaries, order baseline/full/full/baseline repeated.",
+  "commits": {
+   "baseline": "16491b054e44ea3428bd4f21535040602d789ad9",
+   "full": "7651b913e633a4fa0ec5dfaa95749277151e5d08"
+  },
+  "binaries": {
+   "baseline": "c38166e9f904c92712889a51b37cedaea5c3d5de2ce1fe634d63cc3e5e1abb0c",
+   "full": "c3ebfb96276e141188146409516d81f6ef722e474d89a14d1bd56c96308d4fb9"
+  },
+  "results": {
+   "baseline": {
+    "runs": 6,
+    "bound_violations": 0,
+    "max_ms": [
+     110.486081,
+     120.000283,
+     135.579076,
+     159.72282900000002,
+     185.932746,
+     371.707166
+    ],
+    "median_of_maxima": 147.65095250000002,
+    "p95_ms": [
+     34.068937,
+     34.505824999999994,
+     35.502297,
+     40.712931,
+     47.148008999999995,
+     51.711219
+    ],
+    "median_of_p95": 38.107614,
+    "median_of_p50": 1.9163495,
+    "worst": 371.707166,
+    "headroom_to_bound": 1.3
+   },
+   "full": {
+    "runs": 6,
+    "bound_violations": 0,
+    "max_ms": [
+     7.8670219999999995,
+     10.48924,
+     12.341555000000001,
+     12.407782,
+     13.104099,
+     18.127554
+    ],
+    "median_of_maxima": 12.3746685,
+    "p95_ms": [
+     4.324123,
+     4.330121999999999,
+     4.9603909999999996,
+     5.086748,
+     5.168534,
+     5.258768
+    ],
+    "median_of_p95": 5.0235695,
+    "median_of_p50": 1.09623,
+    "worst": 18.127554,
+    "headroom_to_bound": 27.6
+   }
+  },
+  "findings": [
+   "The distributions do not overlap: every hardened run is below every pre-hardening run, by a factor of six to twenty.",
+   "Worst sample 371.7 ms before and 18.1 ms after, so headroom against the unchanged 500 ms bound rises from 1.3 to 27.6 times. A machine twenty times slower than this one would still hold the bound with the hardening and would not without it.",
+   "Median p95 falls from 38.11 ms to 5.02 ms.",
+   "Neither variant violated the bound in this round; an earlier round of the same shape produced three violations in six pre-hardening runs and none in six hardened runs."
+  ]
+ }
+}

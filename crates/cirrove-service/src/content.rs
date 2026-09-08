@@ -1,10 +1,12 @@
 //! Version-keyed, bounded on-demand block cache. A cache block is published only
 //! after the provider proves the requested version and the file is durable.
+#[cfg(test)]
+mod durability;
 mod sessions;
 mod windows;
 use crate::private_dir;
 use cirrove_core::{CancellationToken, Node, ProviderError, ReadProvider, Scope};
-use cirrove_store::Store;
+use cirrove_store::BlockIndex;
 use sha2::{Digest, Sha256};
 use std::{
     collections::HashMap,
@@ -24,7 +26,7 @@ const RANGE_TIMEOUT: Duration = Duration::from_secs(30);
 type MemoryBlocks = HashMap<String, (Arc<Vec<u8>>, Instant)>;
 pub struct ContentCache {
     path: PathBuf,
-    db: PathBuf,
+    blocks: PathBuf,
     quota: u64,
     gates: StdMutex<HashMap<String, Weak<Mutex<()>>>>,
     memory: StdMutex<MemoryBlocks>,
@@ -33,19 +35,23 @@ pub struct ContentCache {
     publish: Mutex<()>,
     sessions: sessions::Sessions,
     staging: Arc<windows::Staging>,
+    /// Held for the cache's lifetime so that per-operation connections are
+    /// never the last one, which would checkpoint and unlink the log.
+    _keeper: StdMutex<BlockIndex>,
 }
 impl ContentCache {
-    pub fn new(path: PathBuf, db: PathBuf, quota: u64) -> anyhow::Result<Self> {
+    pub fn new(path: PathBuf, blocks: PathBuf, quota: u64) -> anyhow::Result<Self> {
         private_dir(&path)?;
         if quota < BLOCK_SIZE as u64 + 32 {
             anyhow::bail!("cache quota must fit one block");
         }
         let staging = Arc::new(windows::Staging::new(path.clone(), quota));
         let quota = quota - staging.capacity() as u64;
-        reconcile(&path, &db, quota)?;
+        reconcile(&path, &blocks, quota)?;
+        let keeper = BlockIndex::open(&blocks)?;
         Ok(Self {
             path,
-            db,
+            blocks,
             quota,
             gates: StdMutex::new(HashMap::new()),
             memory: StdMutex::new(HashMap::new()),
@@ -54,6 +60,7 @@ impl ContentCache {
             publish: Mutex::new(()),
             sessions: sessions::Sessions::with_staging(staging.clone()),
             staging,
+            _keeper: StdMutex::new(keeper),
         })
     }
     pub fn window_stats(&self) -> WindowStats {
@@ -213,9 +220,14 @@ impl ContentCache {
                 .await?;
             file.write_all(&Sha256::digest(&bytes)).await?;
             file.write_all(&bytes).await?;
-            file.sync_all().await?;
+            // No fsync here, and none of the directory afterwards. Every read
+            // checks the block's length and its leading SHA-256 through
+            // read_verified, so a block that a power failure left short or
+            // unwritten is rejected and downloaded again, exactly like a block
+            // that was never cached. Paying two durable syncs per 4 MiB block
+            // would buy nothing but would congest the filesystem that cached
+            // navigation shares. Local edits are durable in a separate journal.
             tokio::fs::rename(&tmp, &path).await?;
-            tokio::fs::File::open(&self.path).await?.sync_all().await?;
             Ok::<_, std::io::Error>(())
         }
         .await;
@@ -228,15 +240,15 @@ impl ContentCache {
         Ok(bytes)
     }
     async fn touch(&self, key: String, size: u64) -> Result<(), ProviderError> {
-        let db = self.db.clone();
-        tokio::task::spawn_blocking(move || Store::open(db)?.touch_block(&key, size))
+        let blocks = self.blocks.clone();
+        tokio::task::spawn_blocking(move || BlockIndex::open(blocks)?.touch(&key, size))
             .await
             .map_err(|_| ProviderError::Unavailable)?
             .map_err(|_| ProviderError::Unavailable)
     }
     async fn evict(&self, keep: &str) -> Result<(), ProviderError> {
-        let db = self.db.clone();
-        let blocks = tokio::task::spawn_blocking(move || Store::open(db)?.oldest_blocks())
+        let index = self.blocks.clone();
+        let blocks = tokio::task::spawn_blocking(move || BlockIndex::open(index)?.oldest())
             .await
             .map_err(|_| ProviderError::Unavailable)?
             .map_err(|_| ProviderError::Unavailable)?;
@@ -253,8 +265,8 @@ impl ContentCache {
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
                 Err(_) => return Err(ProviderError::Unavailable),
             }
-            let db = self.db.clone();
-            tokio::task::spawn_blocking(move || Store::open(db)?.forget_block(&key))
+            let index = self.blocks.clone();
+            tokio::task::spawn_blocking(move || BlockIndex::open(index)?.forget(&key))
                 .await
                 .map_err(|_| ProviderError::Unavailable)?
                 .map_err(|_| ProviderError::Unavailable)?;
@@ -271,14 +283,11 @@ fn valid_key(key: &str) -> bool {
 }
 /// Reconcile publication interrupted between rename and the LRU transaction.
 /// Only Cirrove's block names and temporary files are touched.
-fn reconcile(path: &Path, db: &Path, quota: u64) -> anyhow::Result<()> {
-    let mut store = Store::open(db)?;
+fn reconcile(path: &Path, blocks: &Path, quota: u64) -> anyhow::Result<()> {
+    let mut store = BlockIndex::open(blocks)?;
     let mut found = std::collections::HashSet::new();
-    let indexed: std::collections::HashSet<_> = store
-        .oldest_blocks()?
-        .into_iter()
-        .map(|(key, _)| key)
-        .collect();
+    let indexed: std::collections::HashSet<_> =
+        store.oldest()?.into_iter().map(|(key, _)| key).collect();
     for entry in std::fs::read_dir(path)? {
         let entry = entry?;
         let name = entry.file_name();
@@ -291,7 +300,7 @@ fn reconcile(path: &Path, db: &Path, quota: u64) -> anyhow::Result<()> {
         if valid_key(name) {
             found.insert(name.to_owned());
             if !indexed.contains(name) {
-                store.touch_block(name, entry.metadata()?.len())?;
+                store.touch(name, entry.metadata()?.len())?;
             }
         } else if let Some((key, suffix)) = name.split_once('.')
             && valid_key(key)
@@ -303,16 +312,16 @@ fn reconcile(path: &Path, db: &Path, quota: u64) -> anyhow::Result<()> {
         }
     }
     for key in indexed.difference(&found) {
-        store.forget_block(key)?;
+        store.forget(key)?;
     }
-    let blocks = store.oldest_blocks()?;
+    let blocks = store.oldest()?;
     let mut total: u64 = blocks.iter().map(|(_, size)| size).sum();
     for (key, size) in blocks {
         if total <= quota {
             break;
         }
         std::fs::remove_file(path.join(&key))?;
-        store.forget_block(&key)?;
+        store.forget(&key)?;
         total = total.saturating_sub(size);
     }
     Ok(())

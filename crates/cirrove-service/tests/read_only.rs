@@ -10,7 +10,7 @@ use cirrove_service::{
     engine::Engine,
     filesystem::CloudFs,
 };
-use cirrove_store::Store;
+use cirrove_store::{BlockIndex, Store};
 use std::{
     collections::HashMap,
     sync::{
@@ -585,7 +585,7 @@ async fn corrupt_blocks_redownload_and_interrupted_publications_obey_quota() {
         .map(|entry| entry.unwrap().metadata().unwrap().len())
         .sum();
     assert!(total <= BLOCK_SIZE as u64 + 32);
-    assert_eq!(Store::open(db).unwrap().oldest_blocks().unwrap().len(), 1);
+    assert_eq!(BlockIndex::open(db).unwrap().oldest().unwrap().len(), 1);
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires kernel FUSE; retains application handles during service shutdown"]
