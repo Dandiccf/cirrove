@@ -277,5 +277,136 @@
   "No CI failure has been captured since the stage diagnostic landed, so the attribution rests on the mechanism and its scaling, not on a recorded stall.",
   "The remaining OPENDIR time beyond file creation, 96.5 ms worst against 51.3 ms for creation alone, is not itself split further; buffered writes to those files and FUSE transport share it."
  ],
- "implication": "A cached listing of a single entry still creates two files on the same filesystem the content cache is saturating. Keeping small listings in memory and spilling to files only past a threshold would take ordinary navigation off that filesystem while preserving the memory bound that motivated disk snapshots."
+ "implication": "A cached listing of a single entry still creates two files on the same filesystem the content cache is saturating. Keeping small listings in memory and spilling to files only past a threshold would take ordinary navigation off that filesystem while preserving the memory bound that motivated disk snapshots.",
+ "resident_listing_change": {
+  "change": "A listing now stays resident until its data and index reach 64 KiB and spills to anonymous files only beyond that, so an ordinary cached OPENDIR creates no file at all.",
+  "controlled_pair": {
+   "method": "Two frozen release binaries differing only in this change, run alternately in one session under four competing fsync writers on the same filesystem, order before/after/after/before/before/after.",
+   "sources": {
+    "after": "cac8ca243ed118efbb7f27e4c69d022f70655ee8",
+    "before": "51dc0b09aa49e0c0023e32a8a217708fd9181f1e"
+   },
+   "binaries": {
+    "after": "c38166e9f904c92712889a51b37cedaea5c3d5de2ce1fe634d63cc3e5e1abb0c",
+    "before": "bd5ac4353402db30e5bdf5754e0e425f079840c8bf17f51e4962bf84a9813269"
+   },
+   "sequential_max_ms": {
+    "before": [
+     87.124408,
+     140.739991,
+     85.584527
+    ],
+    "after": [
+     81.114668,
+     79.736078,
+     183.409426
+    ]
+   },
+   "sequential_p95_ms": {
+    "before": [
+     28.827502000000003,
+     21.953633,
+     26.381176999999997
+    ],
+    "after": [
+     23.400852,
+     27.325215,
+     20.64876
+    ]
+   },
+   "median_of_maxima_ms": {
+    "before": 87.124408,
+    "after": 81.114668
+   },
+   "median_of_p95_ms": {
+    "before": 26.381176999999997,
+    "after": 23.400852
+   },
+   "ratios": {
+    "max_median_ratio": 1.0740894359575017,
+    "p95_median_ratio": 1.1273596790407459
+   }
+  },
+  "stage_profile_after": {
+   "delay20-cpus0-3-disk-press4": {
+    "samples": 754,
+    "competing_fsync_writers": 4,
+    "stages": {
+     "admission_ms": {
+      "median": 0.011,
+      "p95": 0.463,
+      "max": 2.846
+     },
+     "opendir_ms": {
+      "median": 1.3535,
+      "p95": 16.842,
+      "max": 63.568
+     },
+     "enumerate_ms": {
+      "median": 0.057,
+      "p95": 1.068,
+      "max": 4.166
+     },
+     "metadata_ms": {
+      "median": 0.004,
+      "p95": 0.034,
+      "max": 12.221
+     },
+     "reply_ms": {
+      "median": 0.0132,
+      "p95": 0.0319,
+      "max": 2.8244
+     },
+     "total_ms": {
+      "median": 1.7591,
+      "p95": 18.0032,
+      "max": 63.7555
+     }
+    }
+   },
+   "delay20-cpus0-3-disk-press0": {
+    "samples": 445,
+    "competing_fsync_writers": 0,
+    "stages": {
+     "admission_ms": {
+      "median": 0.027,
+      "p95": 0.149,
+      "max": 0.262
+     },
+     "opendir_ms": {
+      "median": 0.942,
+      "p95": 1.914,
+      "max": 2.913
+     },
+     "enumerate_ms": {
+      "median": 0.142,
+      "p95": 0.373,
+      "max": 0.767
+     },
+     "metadata_ms": {
+      "median": 0.005,
+      "p95": 0.087,
+      "max": 1.064
+     },
+     "reply_ms": {
+      "median": 0.0138,
+      "p95": 0.0368,
+      "max": 0.1862
+     },
+     "total_ms": {
+      "median": 1.1664,
+      "p95": 2.3129,
+      "max": 3.9109
+     }
+    }
+   }
+  },
+  "conclusion": [
+   "The change removes two file creations per listing, a component measured at an 884-fold amplification under congestion, and leaves quiet-filesystem latency unchanged.",
+   "It does NOT fix the stalls. The controlled pair gives a worst-sample ratio of 1.07 and a p95 ratio of 1.13, both within the run-to-run spread; one post-change run reached 183.4 ms.",
+   "An uncontrolled single-run comparison had suggested 183 ms falling to 130 ms. The paired measurement does not support that, and the earlier number is retained only as an example of why the pair was needed.",
+   "The navigation path still opens the metadata database and reads its pages on the same filesystem the content cache saturates. Removing one of several disk touches does not move the tail."
+  ],
+  "still_open": "Meeting the bound under filesystem congestion needs either navigation metadata served without touching that filesystem, less write pressure from content publication, or separate storage for the two. That is a design decision, not a local fix."
+ }
 }

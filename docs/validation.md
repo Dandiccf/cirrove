@@ -1244,3 +1244,39 @@ local NVMe, and CI runners use slower shared storage. No CI stall has been captu
 since the diagnostic landed, so the attribution rests on the mechanism and its
 scaling rather than on a recorded failure. The original failures stay findings. See
 [the measurements](benchmarks/navigation-stall-cause.json).
+
+## Resident directory listings, and what they do not fix (2026-09-08)
+
+An ordinary cached listing no longer touches the filesystem. A listing stays
+resident until its data and index reach 64 KiB and spills to anonymous files only
+beyond that, so a mount holds at most 16 MiB across its 256 snapshots. Readers share
+the backing, so a spill stays visible to a handle that already published positions,
+while the producer keeps independent writer handles. Byte accounting, the reader
+frontier, error semantics and anonymity are unchanged. Starting a listing performs no
+filesystem operation, so an unusable state directory is now reported when the listing
+spills rather than at open, and a small listing keeps working without one.
+
+Two new unit tests cover the resident and spilled forms and, in particular, a spill
+that happens underneath an open reader that has already published positions.
+
+**This does not fix the stalls.** A controlled pair of frozen release binaries
+differing only in this change, run alternately under four competing fsync writers:
+
+| | Worst sequential sample | p95 |
+| --- | --- | --- |
+| Before | 87.1 / 140.7 / 85.6 ms | 28.8 / 22.0 / 26.4 ms |
+| After | 81.1 / 79.7 / 183.4 ms | 23.4 / 27.3 / 20.6 ms |
+| Median ratio | 1.07 | 1.13 |
+
+Both ratios sit inside the run-to-run spread, and one post-change run reached
+183.4 ms. An uncontrolled single-run comparison had suggested 183 ms falling to
+130 ms; the paired measurement does not support that, and it is kept only as a
+reminder of why the pair was necessary.
+
+The reason is that file creation was one of several disk touches. Navigation still
+opens the metadata database and reads its pages from the same filesystem the content
+cache saturates, so removing one touch leaves the tail where it was. Meeting the
+bound under congestion needs navigation metadata served without touching that
+filesystem, less write pressure from content publication, or separate storage for
+the two. That is a design decision rather than a local fix, and the recorded
+failures stay open. See [the measurements](benchmarks/navigation-stall-cause.json).
