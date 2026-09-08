@@ -296,17 +296,24 @@ fn assert_bytes(bytes: &[u8], offset: u64) {
     );
 }
 async fn ready(engine: &Arc<Engine>) {
-    tokio::time::timeout(Duration::from_secs(3), async {
+    let mut observed = Vec::new();
+    let waited = tokio::time::timeout(Duration::from_secs(3), async {
         loop {
             let feeds = engine.health().await;
             if feeds.len() == 2 && feeds.iter().all(|feed| feed.state == "ready") {
-                break;
+                return;
             }
+            observed = feeds;
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
     })
-    .await
-    .unwrap();
+    .await;
+    // The bound stays at three seconds; a timeout must say which feeds were
+    // missing and in which state, instead of an anonymous Elapsed.
+    assert!(
+        waited.is_ok(),
+        "feeds were not ready within three seconds; last observed: {observed:?}"
+    );
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn coalesced_large_range_reads_survive_restart_and_offline() {
