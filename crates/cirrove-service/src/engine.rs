@@ -86,10 +86,10 @@ impl Engine {
         let db = directory.join("metadata.db");
         let path = db.clone();
         let keeper = tokio::task::spawn_blocking(move || Store::open(path)).await??;
-        let cache_db = db.clone();
+        let blocks = directory.join("blocks.db");
         let quota = account.cache_bytes;
         let cache = tokio::task::spawn_blocking(move || {
-            ContentCache::new(directory.join("cache"), cache_db, quota)
+            ContentCache::new(directory.join("cache"), blocks, quota)
         })
         .await??;
         Ok(Arc::new(Self {

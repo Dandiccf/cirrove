@@ -1,9 +1,11 @@
 //! Crash-resumable metadata staging. Visible rows and the completed cursor advance
 //! in one transaction, only after the last page. This is not an upload journal.
+mod blocks;
 mod directories;
 mod metadata_changes;
 pub use metadata_changes::{MetadataChange, MetadataChangeKind, MetadataChanges, MetadataPosition};
 mod observations;
+pub use blocks::BlockIndex;
 use cirrove_core::{Change, ChangePage, Cursor, Node, Scope};
 pub use observations::{
     AbsenceResult, DirectoryPublication, DirectoryPublicationResult, ObservationResult,
@@ -132,6 +134,8 @@ impl Store {
             INSERT OR IGNORE INTO inodes(inode,key) VALUES(1,'root');
             CREATE TABLE IF NOT EXISTS health (scope TEXT PRIMARY KEY,body TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS subscriptions (account TEXT NOT NULL,collection TEXT NOT NULL,root TEXT NOT NULL,PRIMARY KEY(account,collection,root));
+            -- Legacy. The block index now lives in its own database, rebuilt
+            -- from the cache directory, so nothing reads this table any more.
             CREATE TABLE IF NOT EXISTS cache_blocks (key TEXT PRIMARY KEY,size INTEGER NOT NULL,touched INTEGER NOT NULL);
 ",
                 )?;
@@ -477,23 +481,6 @@ impl Store {
             )?;
         }
         tx.commit()?;
-        Ok(())
-    }
-    pub fn touch_block(&mut self, key: &str, size: u64) -> Result<()> {
-        self.db.execute("INSERT INTO cache_blocks(key,size,touched) VALUES(?1,?2,?3) ON CONFLICT(key) DO UPDATE SET touched=excluded.touched,size=excluded.size",params![key,size as i64,timestamp()])?;
-        Ok(())
-    }
-    pub fn oldest_blocks(&self) -> Result<Vec<(String, u64)>> {
-        let mut query = self
-            .db
-            .prepare("SELECT key,size FROM cache_blocks ORDER BY touched")?;
-        Ok(query
-            .query_map([], |r| Ok((r.get(0)?, r.get::<_, i64>(1)? as u64)))?
-            .collect::<std::result::Result<Vec<_>, _>>()?)
-    }
-    pub fn forget_block(&mut self, key: &str) -> Result<()> {
-        self.db
-            .execute("DELETE FROM cache_blocks WHERE key=?1", [key])?;
         Ok(())
     }
     pub fn counts(&self) -> Result<(u64, u64)> {

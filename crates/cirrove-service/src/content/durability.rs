@@ -85,8 +85,7 @@ fn node(size: u64) -> Node {
 async fn a_block_that_did_not_survive_is_rejected_and_fetched_again() {
     let temp = tempfile::tempdir().unwrap();
     let cache_dir = temp.path().join("cache");
-    let db = temp.path().join("metadata.db");
-    let keeper = Store::open(&db).unwrap();
+    let blocks = temp.path().join("blocks.db");
     let size = 96 * 1024u64;
     let provider = CountingProvider {
         bytes: (0..size).map(|i| (i % 251) as u8).collect(),
@@ -99,7 +98,7 @@ async fn a_block_that_did_not_survive_is_rejected_and_fetched_again() {
     };
     let node = node(size);
     let cancel = CancellationToken::new();
-    let open = || ContentCache::new(cache_dir.clone(), db.clone(), 64 * 1024 * 1024).unwrap();
+    let open = || ContentCache::new(cache_dir.clone(), blocks.clone(), 64 * 1024 * 1024).unwrap();
 
     let cache = open();
     let first = cache
@@ -155,5 +154,4 @@ async fn a_block_that_did_not_survive_is_rejected_and_fetched_again() {
             "{damage} must force exactly one fresh request"
         );
     }
-    drop(keeper);
 }
