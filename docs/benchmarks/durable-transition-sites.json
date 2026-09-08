@@ -323,7 +323,7 @@
   "measured_coverage": {
     "method": "Every one of the 31 runtime sites now calls durable::record. Each crash fixture's child was run once per phase, its reached set read from disk, and the union taken. This is what the program did, not what a call graph says it would do. All eight crash fixtures now report, including the two older ones.",
     "sites": 31,
-    "reached": 30,
+    "reached": 31,
     "per_fixture": {
       "preparation_crash_child": 14,
       "handoff_crash_child": 9,
@@ -335,14 +335,13 @@
       "working_crash_fixture": 12,
       "ancestry_crash_child": 5
     },
-    "not_reached": [
-      "journal::prune_uploaded_payload"
-    ],
-    "reading_the_gap": "prune_uploaded_payload is the last. It runs from collect_uploaded_payloads, not from the retired-working collector the handoff fixture used. Calling the right collector was tried and still does not reach it: that fixture leaves nothing prunable. Reaching it needs a fixture that uploads a payload, has its namespace go clean, and then collects -- and then crashes. The call was kept, asserting zero, because a collector run against a handed-off object is a state it has to tolerate.",
-    "honest_status": "30 of 31. One remains, and what it needs is specific: an uploaded payload whose namespace has gone clean, collected, then a crash.",
+    "not_reached": [],
+    "reading_the_gap": "None remain. The last, prune_uploaded_payload, needed its own phase rather than a bigger fixture: collecting an acknowledged upload's payload is what reaches it, and adding that to the existing 'uploaded' phase broke that phase's own assertion, because pruning removes the bytes it checks for. The separate 'collected' phase asserts the opposite -- that a crash may not resurrect bytes the collector already released.",
+    "honest_status": "31 of 31 durable transitions on runtime paths are crossed by a process that then dies. Measured, not read: each site records itself and each fixture persists what it reached.",
     "evidence_kinds": {
-      "in_a_killed_child": "28 sites, read from the set each crash fixture persists before dying.",
+      "in_a_killed_child": "30 sites, read from the set each crash fixture persists before dying.",
       "in_the_recovering_parent": "1 site, preparation::recover_preparation_files. Recovery runs in the process that opens the journal after the crash, so the parent asserts on its own reached set. The child now calls reserve_preparation before dying, which leaves the .cirrove-preparing- temporary that recovery exists to clean up."
     }
-  }
+  },
+  "conclusion_after_measurement": "Every runtime durable transition is now covered, which is what the milestone asked for in that clause. The box still is not ticked, and the reason is the other clause: 'crash/fault tests' includes faults this cannot reach. Process death is covered at every transition; physical power loss, a lying fsync, torn writes and block-layer ENOSPC need dm-flakey or dm-error and root, and a true power cut cannot be scripted at all. The milestone text names physical-fault coverage as an open gap, and it remains the gap -- now the only one."
 }

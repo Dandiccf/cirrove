@@ -596,7 +596,7 @@ impl Drop for KillOnDrop {
 }
 #[test]
 fn actual_process_death_preserves_pending_uncertain_and_acknowledged_states() {
-    for phase in ["pending", "uploading", "uploaded", "resolved"] {
+    for phase in ["pending", "uploading", "uploaded", "resolved", "collected"] {
         let temp = tempfile::tempdir().unwrap();
         let mut child = KillOnDrop(
             Command::new(std::env::current_exe().unwrap())
@@ -631,7 +631,13 @@ fn actual_process_death_preserves_pending_uncertain_and_acknowledged_states() {
             _ => UploadState::Uploaded,
         };
         assert_eq!(journal.get(record.id).unwrap().state, state);
-        assert_eq!(payload(&journal, record.id), BYTES);
+        if phase == "collected" {
+            // The payload was pruned before the kill, and must stay pruned: a
+            // crash may not resurrect bytes the collector already released.
+            assert!(journal.payload(record.id).is_err());
+        } else {
+            assert_eq!(payload(&journal, record.id), BYTES);
+        }
     }
 }
 
@@ -649,10 +655,17 @@ fn journal_crash_fixture() {
         .unwrap();
     if phase != "pending" {
         let attempt = journal.claim_next().unwrap().unwrap();
-        if phase == "uploaded" || phase == "resolved" {
+        if phase == "uploaded" || phase == "resolved" || phase == "collected" {
             journal
                 .acknowledge(record.id, attempt.attempt.unwrap(), remote(&record))
                 .unwrap();
+        }
+        if phase == "collected" {
+            // An acknowledged upload still holds its payload until collected.
+            // Collecting it is the only path through prune_uploaded_payload, and
+            // dying immediately after is what tests that the prune is durable
+            // rather than merely attempted.
+            assert_eq!(journal.collect_uploaded_payloads(4).unwrap(), 1);
         }
         if phase == "resolved" {
             // A successor becomes resolvable only once its predecessor is

@@ -176,10 +176,10 @@
       "line": 191,
       "done": false,
       "text": "Crash/fault tests at every durable transition and concurrent remote edits.",
-      "blocker": "autonomous",
+      "blocker": "needs-root",
       "evidence": "docs/benchmarks/durable-transition-crash-coverage.json",
-      "asserted_by": "Measured, not read. All 31 runtime durable sites record themselves; each crash fixture persists the set it reached before dying. 30 of 31 are crossed. See docs/benchmarks/durable-transition-sites.json for the seven that are not. 29 are evidenced in a killed child; one, the preparation recovery, in the process that opens the journal afterwards, because that is where recovery runs.",
-      "caveat": "One site is not reached: prune_uploaded_payload needs an uploaded payload whose namespace has gone clean, collected, and then a crash. Physical power loss and a lying fsync remain a separate class needing dm-flakey and root, and are the larger gap."
+      "asserted_by": "All 31 runtime durable transitions are crossed by a process that then dies, measured rather than read: each site records itself and each crash fixture persists what it reached. 30 are evidenced in a killed child; the preparation recovery in the process that opens the journal afterwards, because that is where recovery runs. See docs/benchmarks/durable-transition-sites.json.",
+      "caveat": "Process death is covered at every transition. The box says crash AND fault, and the fault half is not reachable here: physical power loss, a lying fsync, torn writes and block-layer ENOSPC need dm-flakey or dm-error and root, and a true power cut cannot be scripted. The milestone text already names physical-fault coverage as an open gap. That is now the only thing between this box and a tick, and it is not mine to close."
     },
     {
       "milestone": 2,
