@@ -40,12 +40,39 @@ view. It survives concurrent metadata changes and independent cookie readers.
 Per mount, at most 256 snapshots and 256 MiB of logical data/index bytes are
 reserved before writes. Exhaustion returns EMFILE/ENOSPC. Physical disk blocks,
 filesystem metadata and kernel page cache are additional. Anonymous files close
-after the last in-flight reader or handle releases them, including process death;
+after the producer and last in-flight reader or handle release them, including process death;
 they are not durable state and need no orphan sweep. Builders fail closed on I/O,
-quota or cancellation errors. Idle handles keep no SQLite read transaction.
-Construction still scans the directory before returning its first entry. The
-SQLite inode table has its own persistent lifetime; neither its growth nor the
-remaining view payloads are solved by snapshot paging.
+quota or cancellation errors. Read-only construction now publishes its first
+flushed 128-node batch before the complete scan, then extends an immutable prefix
+in roughly 1,024-entry batches. A watch frontier lets READDIR wait asynchronously
+for more entries. Only successful completion permits EOF; later I/O errors and
+abandoned producers are observable failures. The final reader disappearing stops
+further building, while the existing reservation remains until writer and reader
+descriptors close. The builder continues independently of reader speed, so idle
+handles do not keep a read transaction after construction finishes. Writable
+overlays retain completed-snapshot semantics. Large-directory latency and sustained
+acceptance for this path remain open. The SQLite inode table has its own persistent
+lifetime; neither its growth nor remaining view payloads are solved by snapshot paging.
+
+A small actual-kernel fixture blocks later inode allocation with a separate SQLite
+writer while permitting the first cached batch. First entries arrive in 4.448–4.642
+ms, before the writer releases. Complete old/fresh listings across a concurrent
+rename and closing during construction both preserve their expected behavior and
+reclaim snapshot storage. Unit tests exercise late data/index flush failures and
+abandoned producers. A separate CI startup-readiness failure remains unresolved. See
+[the validation scope](../validation.md#directory-prefixes-before-construction-completes-2026-09-07).
+
+A frozen release binary then runs the same three-pass 500,000-file fixture with
+every file in one directory. Its first entry arrives in 4.08-4.92 ms against the
+unchanged 500 ms bound, from a published prefix of 130 entries, while the rest of
+the listing is still being produced. A controlled pair of frozen release binaries,
+differing only in this path and run alternately in one session, gives 8.80-10.76
+seconds before the change against 4.33-5.23 ms after it, with no overlapping
+sample and a median ratio of 2,199. Whole-pass traversal is unchanged in that
+pair, 10.585 against 10.232 seconds, so the earlier apparent throughput cost was a
+session difference. Post-invalidation RSS still rises across passes, so sustained
+capacity remains unproven. See
+[the giant-directory measurements](../validation.md#giant-directory-first-entry-with-prefix-publication-2026-09-08).
 
 The Store read path now uses individual indexed directory-snapshot rows and an
 ordered visitor, with one decoded node per callback. It avoids loading a JSON
@@ -85,7 +112,8 @@ all logical snapshot bytes after close and return to the root alone after
 invalidation, without content or foreground metadata requests. The single large
 directory holds 33,000,045 logical snapshot bytes; peak process RSS rises by
 26,964 KiB over its 11,944 KiB ready baseline. Its first entry takes 5.49–7.31
-seconds, so the memory reduction does not solve opening latency. The first
+seconds, so the memory reduction does not solve opening latency; prefix
+publication later reduced that first entry to milliseconds. The first
 1,000-file directory takes 7.1–9.4 ms in the other variant.
 
 Post-invalidation RSS still rises across passes: 18,340 / 28,876 / 38,404 KiB for
@@ -299,3 +327,15 @@ The 256 MiB additional-RSS budget above remains a proposed benchmark target. Sel
 further storage machinery requires measured benefit across realistic and extreme
 workloads, with the same correctness and latency checks. Simplicity does not close
 those gates, and passing narrow tests does not justify extra state on its own.
+
+The compact representation now also has separate full kernel comparisons with
+500k indexed/750k projected files, in both many-directory and giant-directory
+topologies. Each variant passes three complete stat traversals and offline remount,
+retiring all views except the root and releasing snapshots. Final released RSS is
+about 15 percent lower for many directories and 18.7 percent lower for giant
+directories. High retained RSS and the unmeasured 24-hour plateau remain open.
+The giant pair used explicit Btrfs temporary storage without competing local builds;
+the earlier many-directory timing/backing limitations and full raw records are in
+[the comparison](../benchmarks/compact-namespace-churn.json). These zero-byte
+fixtures predate the mapped-content and early-prefix changes; they do not validate
+those variants at scale or establish a total-host-memory or resident byte ceiling.

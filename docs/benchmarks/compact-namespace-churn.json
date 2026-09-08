@@ -1,0 +1,2054 @@
+{
+  "scope": "Separate actual-kernel comparisons of the compact resident representation at source57752c2; these binaries precede early directory-prefix publication and the combined mapped-content variant.",
+  "many_directories": {
+    "scope": "Three complete actual-kernel stat traversals of 500k indexed files projected as 750k paths, 12 levels, duplicate aliases, held old descriptors and directory snapshots, then offline remount.",
+    "baseline": {
+      "source_commit": "dba5ac8fd218813e3890510a0de2bdaf0eb109cb",
+      "executable_sha256": "aeb90d3d539bfec9ec03b8050bf5d3ac28ba840d1faccffdf58ceb017d39196d",
+      "exit_code": 0,
+      "log_sha256": "c081b4c5b5f9979d6a69bfed6715f04ec2dc0cbe9ac0b7f6137c730209f7f855",
+      "temporary_filesystem": "Not independently recorded while this old process was live; it used default temporary-directory placement.",
+      "config": {
+        "build": "release",
+        "depth": 12,
+        "files_per_directory": 2000,
+        "held_files": 24,
+        "held_snapshots": 3,
+        "indexed_files": 500000,
+        "projected_files": 750000,
+        "queued_stat_entries": 128,
+        "routes": 3,
+        "scope": "synthetic kernel FUSE; complete traversal stats every projected file; no provider content or metadata requests",
+        "stat_workers": 8,
+        "sustained_seconds": 0
+      },
+      "rounds": [
+        {
+          "full_traversal": true,
+          "navigation_ms": 7.818898,
+          "round": 1,
+          "stat_operations": 750000,
+          "traversal_seconds": 389.409755735
+        },
+        {
+          "full_traversal": true,
+          "navigation_ms": 7.765562,
+          "round": 2,
+          "stat_operations": 750000,
+          "traversal_seconds": 390.632935169
+        },
+        {
+          "full_traversal": true,
+          "navigation_ms": 8.591145999999998,
+          "round": 3,
+          "stat_operations": 750000,
+          "traversal_seconds": 410.461995597
+        }
+      ],
+      "samples": [
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 0,
+          "invalidation_notifications": 0,
+          "max_invalidation_batch": 0,
+          "memory": {
+            "anonymous_pss_kib": 3484,
+            "peak_rss_kib": 13556,
+            "pss_kib": 10932,
+            "rss_kib": 13556
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "indexed_baseline",
+          "references": {
+            "candidate_capacity": 0,
+            "candidate_entries": 0,
+            "identity_index_entries": 1,
+            "inode_index_entries": 1,
+            "kernel_referenced_views": 0,
+            "lease_protected_views": 0,
+            "map_capacity": 3,
+            "quarantined_views": 0,
+            "views": 1
+          },
+          "retained_views": 1,
+          "round": 0,
+          "seconds": 3.5489e-05,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "store": {
+            "database_file_bytes": 593108992,
+            "database_pages": 144802,
+            "freelist_pages": 32385,
+            "inode_rows": 1,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": 3
+        },
+        {
+          "directory_snapshot_entries": 6006,
+          "invalidation_marks": 0,
+          "invalidation_notifications": 0,
+          "max_invalidation_batch": 0,
+          "memory": {
+            "anonymous_pss_kib": 6464,
+            "peak_rss_kib": 17628,
+            "pss_kib": 14968,
+            "rss_kib": 17628
+          },
+          "open_directory_handles": 3,
+          "open_files": 24,
+          "phase": "held_before_update",
+          "references": {
+            "candidate_capacity": 128,
+            "candidate_entries": 68,
+            "identity_index_entries": 71,
+            "inode_index_entries": 69,
+            "kernel_referenced_views": 68,
+            "lease_protected_views": 66,
+            "map_capacity": 112,
+            "quarantined_views": 0,
+            "views": 69
+          },
+          "retained_views": 69,
+          "round": 1,
+          "seconds": 0.09047528,
+          "snapshot_logical_bytes": 396135,
+          "snapshot_reservations": 3,
+          "store": {
+            "database_file_bytes": 593108992,
+            "database_pages": 144802,
+            "freelist_pages": 31935,
+            "inode_rows": 6042,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": 112
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 38,
+          "invalidation_notifications": 27,
+          "max_invalidation_batch": 2,
+          "memory": {
+            "anonymous_pss_kib": 601732,
+            "peak_rss_kib": 613088,
+            "pss_kib": 610303,
+            "rss_kib": 613088
+          },
+          "open_directory_handles": 0,
+          "open_files": 24,
+          "phase": "traversed_with_old_files",
+          "references": {
+            "candidate_capacity": 4096,
+            "candidate_entries": 876,
+            "identity_index_entries": 750440,
+            "inode_index_entries": 750438,
+            "kernel_referenced_views": 750437,
+            "lease_protected_views": 438,
+            "map_capacity": 917504,
+            "quarantined_views": 0,
+            "views": 750438
+          },
+          "retained_views": 750438,
+          "round": 1,
+          "seconds": 389.466077327,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "store": {
+            "database_file_bytes": 694718464,
+            "database_pages": 169609,
+            "freelist_pages": 0,
+            "inode_rows": 750441,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": 917504
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 38,
+          "invalidation_notifications": 10666,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 602016,
+            "peak_rss_kib": 613372,
+            "pss_kib": 610619,
+            "rss_kib": 613372
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "released",
+          "references": {
+            "candidate_capacity": 4096,
+            "candidate_entries": 0,
+            "identity_index_entries": 1,
+            "inode_index_entries": 1,
+            "kernel_referenced_views": 0,
+            "lease_protected_views": 0,
+            "map_capacity": 669114,
+            "quarantined_views": 0,
+            "views": 1
+          },
+          "retained_views": 1,
+          "round": 1,
+          "seconds": 390.236239343,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "store": {
+            "database_file_bytes": 694718464,
+            "database_pages": 169609,
+            "freelist_pages": 0,
+            "inode_rows": 750441,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": 669114
+        },
+        {
+          "directory_snapshot_entries": 6006,
+          "invalidation_marks": 38,
+          "invalidation_notifications": 10666,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 602016,
+            "peak_rss_kib": 613372,
+            "pss_kib": 610587,
+            "rss_kib": 613372
+          },
+          "open_directory_handles": 3,
+          "open_files": 24,
+          "phase": "held_before_update",
+          "references": {
+            "candidate_capacity": 4096,
+            "candidate_entries": 68,
+            "identity_index_entries": 71,
+            "inode_index_entries": 69,
+            "kernel_referenced_views": 68,
+            "lease_protected_views": 66,
+            "map_capacity": 669136,
+            "quarantined_views": 0,
+            "views": 69
+          },
+          "retained_views": 69,
+          "round": 2,
+          "seconds": 390.329930018,
+          "snapshot_logical_bytes": 396063,
+          "snapshot_reservations": 3,
+          "store": {
+            "database_file_bytes": 694718464,
+            "database_pages": 169609,
+            "freelist_pages": 0,
+            "inode_rows": 750441,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": 669136
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 76,
+          "invalidation_notifications": 10693,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 750340,
+            "peak_rss_kib": 761696,
+            "pss_kib": 758910,
+            "rss_kib": 761696
+          },
+          "open_directory_handles": 0,
+          "open_files": 24,
+          "phase": "traversed_with_old_files",
+          "references": {
+            "candidate_capacity": 4096,
+            "candidate_entries": 1823,
+            "identity_index_entries": 750440,
+            "inode_index_entries": 750438,
+            "kernel_referenced_views": 750437,
+            "lease_protected_views": 438,
+            "map_capacity": 917496,
+            "quarantined_views": 0,
+            "views": 750438
+          },
+          "retained_views": 750438,
+          "round": 2,
+          "seconds": 780.956946739,
+          "snapshot_logical_bytes": 132045,
+          "snapshot_reservations": 1,
+          "store": {
+            "database_file_bytes": 694730752,
+            "database_pages": 169612,
+            "freelist_pages": 0,
+            "inode_rows": 750468,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": 917496
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 76,
+          "invalidation_notifications": 23721,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 750340,
+            "peak_rss_kib": 761696,
+            "pss_kib": 758942,
+            "rss_kib": 761696
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "released",
+          "references": {
+            "candidate_capacity": 4096,
+            "candidate_entries": 0,
+            "identity_index_entries": 1,
+            "inode_index_entries": 1,
+            "kernel_referenced_views": 0,
+            "lease_protected_views": 0,
+            "map_capacity": 669059,
+            "quarantined_views": 0,
+            "views": 1
+          },
+          "retained_views": 1,
+          "round": 2,
+          "seconds": 781.728882567,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "store": {
+            "database_file_bytes": 694730752,
+            "database_pages": 169612,
+            "freelist_pages": 0,
+            "inode_rows": 750468,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": 669059
+        },
+        {
+          "directory_snapshot_entries": 6006,
+          "invalidation_marks": 76,
+          "invalidation_notifications": 23721,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 750340,
+            "peak_rss_kib": 761696,
+            "pss_kib": 758910,
+            "rss_kib": 761696
+          },
+          "open_directory_handles": 3,
+          "open_files": 24,
+          "phase": "held_before_update",
+          "references": {
+            "candidate_capacity": 4096,
+            "candidate_entries": 68,
+            "identity_index_entries": 71,
+            "inode_index_entries": 69,
+            "kernel_referenced_views": 68,
+            "lease_protected_views": 66,
+            "map_capacity": 669081,
+            "quarantined_views": 0,
+            "views": 69
+          },
+          "retained_views": 69,
+          "round": 3,
+          "seconds": 781.820425574,
+          "snapshot_logical_bytes": 396063,
+          "snapshot_reservations": 3,
+          "store": {
+            "database_file_bytes": 694730752,
+            "database_pages": 169612,
+            "freelist_pages": 0,
+            "inode_rows": 750468,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": 669081
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 114,
+          "invalidation_notifications": 23748,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 777128,
+            "peak_rss_kib": 788484,
+            "pss_kib": 785698,
+            "rss_kib": 788484
+          },
+          "open_directory_handles": 0,
+          "open_files": 24,
+          "phase": "traversed_with_old_files",
+          "references": {
+            "candidate_capacity": 4096,
+            "candidate_entries": 482,
+            "identity_index_entries": 719686,
+            "inode_index_entries": 719684,
+            "kernel_referenced_views": 719683,
+            "lease_protected_views": 424,
+            "map_capacity": 907713,
+            "quarantined_views": 0,
+            "views": 719684
+          },
+          "retained_views": 719684,
+          "round": 3,
+          "seconds": 1192.268634629,
+          "snapshot_logical_bytes": 132045,
+          "snapshot_reservations": 1,
+          "store": {
+            "database_file_bytes": 694738944,
+            "database_pages": 169614,
+            "freelist_pages": 0,
+            "inode_rows": 750495,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": 907713
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 114,
+          "invalidation_notifications": 50516,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 777864,
+            "peak_rss_kib": 789220,
+            "pss_kib": 786466,
+            "rss_kib": 789220
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "released",
+          "references": {
+            "candidate_capacity": 4096,
+            "candidate_entries": 0,
+            "identity_index_entries": 1,
+            "inode_index_entries": 1,
+            "kernel_referenced_views": 0,
+            "lease_protected_views": 0,
+            "map_capacity": 669026,
+            "quarantined_views": 0,
+            "views": 1
+          },
+          "retained_views": 1,
+          "round": 3,
+          "seconds": 1192.994485085,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "store": {
+            "database_file_bytes": 694738944,
+            "database_pages": 169614,
+            "freelist_pages": 0,
+            "inode_rows": 750495,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": 669026
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 0,
+          "invalidation_notifications": 45,
+          "max_invalidation_batch": 45,
+          "memory": {
+            "anonymous_pss_kib": 761732,
+            "peak_rss_kib": 787928,
+            "pss_kib": 770366,
+            "rss_kib": 773152
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "offline_remount",
+          "references": {
+            "candidate_capacity": 64,
+            "candidate_entries": 45,
+            "identity_index_entries": 1,
+            "inode_index_entries": 1,
+            "kernel_referenced_views": 0,
+            "lease_protected_views": 0,
+            "map_capacity": 37,
+            "quarantined_views": 0,
+            "views": 1
+          },
+          "retained_views": 1,
+          "round": 3,
+          "seconds": 1193.1717432,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "store": {
+            "database_file_bytes": 694738944,
+            "database_pages": 169614,
+            "freelist_pages": 0,
+            "inode_rows": 750495,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": 37
+        }
+      ]
+    },
+    "compact": {
+      "source_commit": "57752c2ac3c8168283f41a996ad11f44f76c3c1a",
+      "executable_sha256": "62b50d91babccbd39e7de1a7c68ffdaad5d6532253015962557d1cd50308300b",
+      "exit_code": 0,
+      "log_sha256": "07f2849b1e17ee3c5004df50423dc666a180700520031895037d3df35428bee1",
+      "temporary_filesystem": "Live /proc descriptors verified the synthetic state and snapshots under /tmp; findmnt verified tmpfs. No TMPDIR/TMP/TEMP override.",
+      "config": {
+        "build": "release",
+        "depth": 12,
+        "files_per_directory": 2000,
+        "held_files": 24,
+        "held_snapshots": 3,
+        "indexed_files": 500000,
+        "projected_files": 750000,
+        "queued_stat_entries": 128,
+        "routes": 3,
+        "scope": "synthetic kernel FUSE; complete traversal stats every projected file; no provider content or metadata requests",
+        "stat_workers": 8,
+        "sustained_seconds": 0
+      },
+      "rounds": [
+        {
+          "full_traversal": true,
+          "navigation_ms": 7.735028,
+          "round": 1,
+          "stat_operations": 750000,
+          "traversal_seconds": 399.436915538
+        },
+        {
+          "full_traversal": true,
+          "navigation_ms": 7.619044000000001,
+          "round": 2,
+          "stat_operations": 750000,
+          "traversal_seconds": 406.725593596
+        },
+        {
+          "full_traversal": true,
+          "navigation_ms": 7.788139999999999,
+          "round": 3,
+          "stat_operations": 750000,
+          "traversal_seconds": 408.012376037
+        }
+      ],
+      "samples": [
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 0,
+          "invalidation_notifications": 0,
+          "max_invalidation_batch": 0,
+          "memory": {
+            "anonymous_pss_kib": 3208,
+            "peak_rss_kib": 13360,
+            "pss_kib": 10726,
+            "rss_kib": 13360
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "indexed_baseline",
+          "references": {
+            "candidate_capacity": 0,
+            "candidate_entries": 0,
+            "identity_index_entries": 1,
+            "inode_index_entries": 1,
+            "kernel_referenced_views": 0,
+            "lease_protected_views": 0,
+            "map_capacity": null,
+            "map_storage": "btree",
+            "quarantined_views": 0,
+            "views": 1
+          },
+          "retained_views": 1,
+          "round": 0,
+          "seconds": 5.1798e-05,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "store": {
+            "database_file_bytes": 593108992,
+            "database_pages": 144802,
+            "freelist_pages": 32385,
+            "inode_rows": 1,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": null
+        },
+        {
+          "directory_snapshot_entries": 6006,
+          "invalidation_marks": 0,
+          "invalidation_notifications": 0,
+          "max_invalidation_batch": 0,
+          "memory": {
+            "anonymous_pss_kib": 6368,
+            "peak_rss_kib": 17740,
+            "pss_kib": 15070,
+            "rss_kib": 17740
+          },
+          "open_directory_handles": 3,
+          "open_files": 24,
+          "phase": "held_before_update",
+          "references": {
+            "candidate_capacity": 128,
+            "candidate_entries": 68,
+            "identity_index_entries": 71,
+            "inode_index_entries": 69,
+            "kernel_referenced_views": 68,
+            "lease_protected_views": 66,
+            "map_capacity": null,
+            "map_storage": "btree",
+            "quarantined_views": 0,
+            "views": 69
+          },
+          "retained_views": 69,
+          "round": 1,
+          "seconds": 0.086325892,
+          "snapshot_logical_bytes": 396135,
+          "snapshot_reservations": 3,
+          "store": {
+            "database_file_bytes": 593108992,
+            "database_pages": 144802,
+            "freelist_pages": 31935,
+            "inode_rows": 6042,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": null
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 38,
+          "invalidation_notifications": 27,
+          "max_invalidation_batch": 2,
+          "memory": {
+            "anonymous_pss_kib": 487996,
+            "peak_rss_kib": 499752,
+            "pss_kib": 496956,
+            "rss_kib": 499752
+          },
+          "open_directory_handles": 0,
+          "open_files": 24,
+          "phase": "traversed_with_old_files",
+          "references": {
+            "candidate_capacity": 4096,
+            "candidate_entries": 912,
+            "identity_index_entries": 750440,
+            "inode_index_entries": 750438,
+            "kernel_referenced_views": 750437,
+            "lease_protected_views": 438,
+            "map_capacity": null,
+            "map_storage": "btree",
+            "quarantined_views": 0,
+            "views": 750438
+          },
+          "retained_views": 750438,
+          "round": 1,
+          "seconds": 399.482916942,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "store": {
+            "database_file_bytes": 694718464,
+            "database_pages": 169609,
+            "freelist_pages": 0,
+            "inode_rows": 750441,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": null
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 38,
+          "invalidation_notifications": 9625,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 488172,
+            "peak_rss_kib": 499928,
+            "pss_kib": 497164,
+            "rss_kib": 499928
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "released",
+          "references": {
+            "candidate_capacity": 4096,
+            "candidate_entries": 0,
+            "identity_index_entries": 1,
+            "inode_index_entries": 1,
+            "kernel_referenced_views": 0,
+            "lease_protected_views": 0,
+            "map_capacity": null,
+            "map_storage": "btree",
+            "quarantined_views": 0,
+            "views": 1
+          },
+          "retained_views": 1,
+          "round": 1,
+          "seconds": 400.20823491,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "store": {
+            "database_file_bytes": 694718464,
+            "database_pages": 169609,
+            "freelist_pages": 0,
+            "inode_rows": 750441,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": null
+        },
+        {
+          "directory_snapshot_entries": 6006,
+          "invalidation_marks": 38,
+          "invalidation_notifications": 9625,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 489976,
+            "peak_rss_kib": 501732,
+            "pss_kib": 498936,
+            "rss_kib": 501732
+          },
+          "open_directory_handles": 3,
+          "open_files": 24,
+          "phase": "held_before_update",
+          "references": {
+            "candidate_capacity": 4096,
+            "candidate_entries": 68,
+            "identity_index_entries": 71,
+            "inode_index_entries": 69,
+            "kernel_referenced_views": 68,
+            "lease_protected_views": 66,
+            "map_capacity": null,
+            "map_storage": "btree",
+            "quarantined_views": 0,
+            "views": 69
+          },
+          "retained_views": 69,
+          "round": 2,
+          "seconds": 400.305013792,
+          "snapshot_logical_bytes": 396063,
+          "snapshot_reservations": 3,
+          "store": {
+            "database_file_bytes": 694718464,
+            "database_pages": 169609,
+            "freelist_pages": 0,
+            "inode_rows": 750441,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": null
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 76,
+          "invalidation_notifications": 9652,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 640808,
+            "peak_rss_kib": 652564,
+            "pss_kib": 649767,
+            "rss_kib": 652564
+          },
+          "open_directory_handles": 0,
+          "open_files": 24,
+          "phase": "traversed_with_old_files",
+          "references": {
+            "candidate_capacity": 4096,
+            "candidate_entries": 42,
+            "identity_index_entries": 750440,
+            "inode_index_entries": 750438,
+            "kernel_referenced_views": 750437,
+            "lease_protected_views": 438,
+            "map_capacity": null,
+            "map_storage": "btree",
+            "quarantined_views": 0,
+            "views": 750438
+          },
+          "retained_views": 750438,
+          "round": 2,
+          "seconds": 807.021997123,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "store": {
+            "database_file_bytes": 694730752,
+            "database_pages": 169612,
+            "freelist_pages": 0,
+            "inode_rows": 750468,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": null
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 76,
+          "invalidation_notifications": 16324,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 640812,
+            "peak_rss_kib": 652568,
+            "pss_kib": 649803,
+            "rss_kib": 652568
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "released",
+          "references": {
+            "candidate_capacity": 4096,
+            "candidate_entries": 42,
+            "identity_index_entries": 1,
+            "inode_index_entries": 1,
+            "kernel_referenced_views": 0,
+            "lease_protected_views": 0,
+            "map_capacity": null,
+            "map_storage": "btree",
+            "quarantined_views": 0,
+            "views": 1
+          },
+          "retained_views": 1,
+          "round": 2,
+          "seconds": 807.744952851,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "store": {
+            "database_file_bytes": 694730752,
+            "database_pages": 169612,
+            "freelist_pages": 0,
+            "inode_rows": 750468,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": null
+        },
+        {
+          "directory_snapshot_entries": 6006,
+          "invalidation_marks": 76,
+          "invalidation_notifications": 16324,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 640812,
+            "peak_rss_kib": 652568,
+            "pss_kib": 649771,
+            "rss_kib": 652568
+          },
+          "open_directory_handles": 3,
+          "open_files": 24,
+          "phase": "held_before_update",
+          "references": {
+            "candidate_capacity": 4096,
+            "candidate_entries": 110,
+            "identity_index_entries": 71,
+            "inode_index_entries": 69,
+            "kernel_referenced_views": 68,
+            "lease_protected_views": 66,
+            "map_capacity": null,
+            "map_storage": "btree",
+            "quarantined_views": 0,
+            "views": 69
+          },
+          "retained_views": 69,
+          "round": 3,
+          "seconds": 807.8400453,
+          "snapshot_logical_bytes": 396063,
+          "snapshot_reservations": 3,
+          "store": {
+            "database_file_bytes": 694730752,
+            "database_pages": 169612,
+            "freelist_pages": 0,
+            "inode_rows": 750468,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": null
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 114,
+          "invalidation_notifications": 16351,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 655640,
+            "peak_rss_kib": 667396,
+            "pss_kib": 664599,
+            "rss_kib": 667396
+          },
+          "open_directory_handles": 0,
+          "open_files": 24,
+          "phase": "traversed_with_old_files",
+          "references": {
+            "candidate_capacity": 4096,
+            "candidate_entries": 1535,
+            "identity_index_entries": 750440,
+            "inode_index_entries": 750438,
+            "kernel_referenced_views": 750437,
+            "lease_protected_views": 438,
+            "map_capacity": null,
+            "map_storage": "btree",
+            "quarantined_views": 0,
+            "views": 750438
+          },
+          "retained_views": 750438,
+          "round": 3,
+          "seconds": 1215.840292376,
+          "snapshot_logical_bytes": 132045,
+          "snapshot_reservations": 1,
+          "store": {
+            "database_file_bytes": 694738944,
+            "database_pages": 169614,
+            "freelist_pages": 0,
+            "inode_rows": 750495,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": null
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 114,
+          "invalidation_notifications": 20975,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 655752,
+            "peak_rss_kib": 667508,
+            "pss_kib": 664743,
+            "rss_kib": 667508
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "released",
+          "references": {
+            "candidate_capacity": 4096,
+            "candidate_entries": 0,
+            "identity_index_entries": 1,
+            "inode_index_entries": 1,
+            "kernel_referenced_views": 0,
+            "lease_protected_views": 0,
+            "map_capacity": null,
+            "map_storage": "btree",
+            "quarantined_views": 0,
+            "views": 1
+          },
+          "retained_views": 1,
+          "round": 3,
+          "seconds": 1216.56481195,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "store": {
+            "database_file_bytes": 694738944,
+            "database_pages": 169614,
+            "freelist_pages": 0,
+            "inode_rows": 750495,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": null
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 0,
+          "invalidation_notifications": 45,
+          "max_invalidation_batch": 45,
+          "memory": {
+            "anonymous_pss_kib": 671860,
+            "peak_rss_kib": 683616,
+            "pss_kib": 680851,
+            "rss_kib": 683616
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "offline_remount",
+          "references": {
+            "candidate_capacity": 64,
+            "candidate_entries": 45,
+            "identity_index_entries": 1,
+            "inode_index_entries": 1,
+            "kernel_referenced_views": 0,
+            "lease_protected_views": 0,
+            "map_capacity": null,
+            "map_storage": "btree",
+            "quarantined_views": 0,
+            "views": 1
+          },
+          "retained_views": 1,
+          "round": 3,
+          "seconds": 1216.728978691,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "store": {
+            "database_file_bytes": 694738944,
+            "database_pages": 169614,
+            "freelist_pages": 0,
+            "inode_rows": 750495,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": null
+        }
+      ]
+    },
+    "comparison": [
+      {
+        "round": 1,
+        "baseline_traversal_seconds": 389.409755735,
+        "compact_traversal_seconds": 399.436915538,
+        "baseline_navigation_ms": 7.818898,
+        "compact_navigation_ms": 7.735028,
+        "baseline_released_rss_kib": 613372,
+        "compact_released_rss_kib": 499928,
+        "both_released_views": 1,
+        "both_snapshot_bytes_after_release": 0
+      },
+      {
+        "round": 2,
+        "baseline_traversal_seconds": 390.632935169,
+        "compact_traversal_seconds": 406.725593596,
+        "baseline_navigation_ms": 7.765562,
+        "compact_navigation_ms": 7.619044000000001,
+        "baseline_released_rss_kib": 761696,
+        "compact_released_rss_kib": 652568,
+        "both_released_views": 1,
+        "both_snapshot_bytes_after_release": 0
+      },
+      {
+        "round": 3,
+        "baseline_traversal_seconds": 410.461995597,
+        "compact_traversal_seconds": 408.012376037,
+        "baseline_navigation_ms": 8.591145999999998,
+        "compact_navigation_ms": 7.788139999999999,
+        "baseline_released_rss_kib": 789220,
+        "compact_released_rss_kib": 667508,
+        "both_released_views": 1,
+        "both_snapshot_bytes_after_release": 0
+      }
+    ],
+    "limits": [
+      "Zero-byte files exclude content bytes and memory-mapping integrity from this fixture.",
+      "No real provider or desktop applications; no 24-hour churn or memory plateau acceptance.",
+      "Process RSS/PSS exclude additional tmpfs storage and kernel memory. These observations do not establish SSD throughput or total host memory.",
+      "Source compilation overlapped later parts of the older baseline, so timing differences are observational, not an isolated performance claim.",
+      "Correct view retirement does not implement resident byte budgets or prove that all retained RSS is reclaimable allocator memory."
+    ]
+  },
+  "giant_directories": {
+    "scope": "Actual-kernel churn: 500k indexed zero-byte files, 750k projected paths, 250k entries per directory, deep routes and duplicate aliases; three complete stat traversals, held old files/snapshots and offline remount.",
+    "baseline": {
+      "source_commit": "dba5ac8fd218813e3890510a0de2bdaf0eb109cb",
+      "executable_sha256": "aeb90d3d539bfec9ec03b8050bf5d3ac28ba840d1faccffdf58ceb017d39196d",
+      "exit_code": 0,
+      "temporary_filesystem": {
+        "fstype": "btrfs",
+        "placement": "Explicit TMPDIR and SQLITE_TMPDIR on the account filesystem for both processes."
+      },
+      "environment": {
+        "CIRROVE_CHURN_FILES": "500000",
+        "CIRROVE_CHURN_PER_DIRECTORY": "250000",
+        "CIRROVE_CHURN_STAT_WORKERS": "8",
+        "CIRROVE_CHURN_SECONDS": "0"
+      },
+      "config": {
+        "build": "release",
+        "depth": 12,
+        "files_per_directory": 250000,
+        "held_files": 24,
+        "held_snapshots": 3,
+        "indexed_files": 500000,
+        "projected_files": 750000,
+        "queued_stat_entries": 128,
+        "routes": 3,
+        "scope": "synthetic kernel FUSE; complete traversal stats every projected file; no provider content or metadata requests",
+        "stat_workers": 8,
+        "sustained_seconds": 0
+      },
+      "rounds": [
+        {
+          "full_traversal": true,
+          "navigation_ms": 69.48157,
+          "round": 1,
+          "stat_operations": 750000,
+          "traversal_seconds": 559.028921118
+        },
+        {
+          "full_traversal": true,
+          "navigation_ms": 51.222956,
+          "round": 2,
+          "stat_operations": 750000,
+          "traversal_seconds": 561.149636125
+        },
+        {
+          "full_traversal": true,
+          "navigation_ms": 42.767253,
+          "round": 3,
+          "stat_operations": 750000,
+          "traversal_seconds": 541.929465869
+        }
+      ],
+      "samples": [
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 0,
+          "invalidation_notifications": 0,
+          "max_invalidation_batch": 0,
+          "memory": {
+            "anonymous_pss_kib": 3520,
+            "peak_rss_kib": 13440,
+            "pss_kib": 11189,
+            "rss_kib": 13440
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "indexed_baseline",
+          "references": {
+            "candidate_capacity": 0,
+            "candidate_entries": 0,
+            "identity_index_entries": 1,
+            "inode_index_entries": 1,
+            "kernel_referenced_views": 0,
+            "lease_protected_views": 0,
+            "map_capacity": 3,
+            "quarantined_views": 0,
+            "views": 1
+          },
+          "retained_views": 1,
+          "round": 0,
+          "seconds": 1.6125e-05,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "store": {
+            "database_file_bytes": 592834560,
+            "database_pages": 144735,
+            "freelist_pages": 32370,
+            "inode_rows": 1,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": 3
+        },
+        {
+          "directory_snapshot_entries": 750006,
+          "invalidation_marks": 0,
+          "invalidation_notifications": 0,
+          "max_invalidation_batch": 0,
+          "memory": {
+            "anonymous_pss_kib": 8868,
+            "peak_rss_kib": 20200,
+            "pss_kib": 17498,
+            "rss_kib": 20200
+          },
+          "open_directory_handles": 3,
+          "open_files": 24,
+          "phase": "held_before_update",
+          "references": {
+            "candidate_capacity": 32,
+            "candidate_entries": 0,
+            "identity_index_entries": 71,
+            "inode_index_entries": 69,
+            "kernel_referenced_views": 68,
+            "lease_protected_views": 66,
+            "map_capacity": 112,
+            "quarantined_views": 0,
+            "views": 69
+          },
+          "retained_views": 69,
+          "round": 1,
+          "seconds": 13.480309574,
+          "snapshot_logical_bytes": 49500135,
+          "snapshot_reservations": 3,
+          "store": {
+            "database_file_bytes": 689676288,
+            "database_pages": 168378,
+            "freelist_pages": 0,
+            "inode_rows": 750042,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": 112
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 38,
+          "invalidation_notifications": 27,
+          "max_invalidation_batch": 2,
+          "memory": {
+            "anonymous_pss_kib": 584032,
+            "peak_rss_kib": 595556,
+            "pss_kib": 592729,
+            "rss_kib": 595556
+          },
+          "open_directory_handles": 0,
+          "open_files": 24,
+          "phase": "traversed_with_old_files",
+          "references": {
+            "candidate_capacity": 2048,
+            "candidate_entries": 1188,
+            "identity_index_entries": 750068,
+            "inode_index_entries": 750066,
+            "kernel_referenced_views": 750065,
+            "lease_protected_views": 66,
+            "map_capacity": 917504,
+            "quarantined_views": 0,
+            "views": 750066
+          },
+          "retained_views": 750066,
+          "round": 1,
+          "seconds": 572.835369179,
+          "snapshot_logical_bytes": 16500021,
+          "snapshot_reservations": 1,
+          "store": {
+            "database_file_bytes": 689721344,
+            "database_pages": 168389,
+            "freelist_pages": 0,
+            "inode_rows": 750069,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": 917504
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 38,
+          "invalidation_notifications": 25899,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 586424,
+            "peak_rss_kib": 597948,
+            "pss_kib": 595153,
+            "rss_kib": 597948
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "released",
+          "references": {
+            "candidate_capacity": 2048,
+            "candidate_entries": 0,
+            "identity_index_entries": 1,
+            "inode_index_entries": 1,
+            "kernel_referenced_views": 0,
+            "lease_protected_views": 0,
+            "map_capacity": 667091,
+            "quarantined_views": 0,
+            "views": 1
+          },
+          "retained_views": 1,
+          "round": 1,
+          "seconds": 573.610843937,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "store": {
+            "database_file_bytes": 689721344,
+            "database_pages": 168389,
+            "freelist_pages": 0,
+            "inode_rows": 750069,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": 667091
+        },
+        {
+          "directory_snapshot_entries": 750006,
+          "invalidation_marks": 38,
+          "invalidation_notifications": 25899,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 586424,
+            "peak_rss_kib": 597948,
+            "pss_kib": 595120,
+            "rss_kib": 597948
+          },
+          "open_directory_handles": 3,
+          "open_files": 24,
+          "phase": "held_before_update",
+          "references": {
+            "candidate_capacity": 2048,
+            "candidate_entries": 19,
+            "identity_index_entries": 71,
+            "inode_index_entries": 69,
+            "kernel_referenced_views": 68,
+            "lease_protected_views": 66,
+            "map_capacity": 667116,
+            "quarantined_views": 0,
+            "views": 69
+          },
+          "retained_views": 69,
+          "round": 2,
+          "seconds": 575.76054089,
+          "snapshot_logical_bytes": 49500063,
+          "snapshot_reservations": 3,
+          "store": {
+            "database_file_bytes": 689721344,
+            "database_pages": 168389,
+            "freelist_pages": 0,
+            "inode_rows": 750069,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": 667116
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 76,
+          "invalidation_notifications": 25926,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 613636,
+            "peak_rss_kib": 625160,
+            "pss_kib": 622331,
+            "rss_kib": 625160
+          },
+          "open_directory_handles": 0,
+          "open_files": 24,
+          "phase": "traversed_with_old_files",
+          "references": {
+            "candidate_capacity": 2048,
+            "candidate_entries": 412,
+            "identity_index_entries": 750068,
+            "inode_index_entries": 750066,
+            "kernel_referenced_views": 750065,
+            "lease_protected_views": 66,
+            "map_capacity": 917494,
+            "quarantined_views": 0,
+            "views": 750066
+          },
+          "retained_views": 750066,
+          "round": 2,
+          "seconds": 1137.285374318,
+          "snapshot_logical_bytes": 16500021,
+          "snapshot_reservations": 1,
+          "store": {
+            "database_file_bytes": 689725440,
+            "database_pages": 168390,
+            "freelist_pages": 0,
+            "inode_rows": 750096,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": 917494
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 76,
+          "invalidation_notifications": 43990,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 613636,
+            "peak_rss_kib": 625160,
+            "pss_kib": 622331,
+            "rss_kib": 625160
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "released",
+          "references": {
+            "candidate_capacity": 2048,
+            "candidate_entries": 0,
+            "identity_index_entries": 1,
+            "inode_index_entries": 1,
+            "kernel_referenced_views": 0,
+            "lease_protected_views": 0,
+            "map_capacity": 667009,
+            "quarantined_views": 0,
+            "views": 1
+          },
+          "retained_views": 1,
+          "round": 2,
+          "seconds": 1138.057206865,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "store": {
+            "database_file_bytes": 689725440,
+            "database_pages": 168390,
+            "freelist_pages": 0,
+            "inode_rows": 750096,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": 667009
+        },
+        {
+          "directory_snapshot_entries": 750006,
+          "invalidation_marks": 76,
+          "invalidation_notifications": 43990,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 613636,
+            "peak_rss_kib": 625160,
+            "pss_kib": 622331,
+            "rss_kib": 625160
+          },
+          "open_directory_handles": 3,
+          "open_files": 24,
+          "phase": "held_before_update",
+          "references": {
+            "candidate_capacity": 2048,
+            "candidate_entries": 0,
+            "identity_index_entries": 71,
+            "inode_index_entries": 69,
+            "kernel_referenced_views": 68,
+            "lease_protected_views": 66,
+            "map_capacity": 667037,
+            "quarantined_views": 0,
+            "views": 69
+          },
+          "retained_views": 69,
+          "round": 3,
+          "seconds": 1140.124494859,
+          "snapshot_logical_bytes": 49500063,
+          "snapshot_reservations": 3,
+          "store": {
+            "database_file_bytes": 689725440,
+            "database_pages": 168390,
+            "freelist_pages": 0,
+            "inode_rows": 750096,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": 667037
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 114,
+          "invalidation_notifications": 44017,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 616768,
+            "peak_rss_kib": 628292,
+            "pss_kib": 625463,
+            "rss_kib": 628292
+          },
+          "open_directory_handles": 0,
+          "open_files": 24,
+          "phase": "traversed_with_old_files",
+          "references": {
+            "candidate_capacity": 2048,
+            "candidate_entries": 751,
+            "identity_index_entries": 750068,
+            "inode_index_entries": 750066,
+            "kernel_referenced_views": 750065,
+            "lease_protected_views": 66,
+            "map_capacity": 917487,
+            "quarantined_views": 0,
+            "views": 750066
+          },
+          "retained_views": 750066,
+          "round": 3,
+          "seconds": 1682.560113856,
+          "snapshot_logical_bytes": 16500021,
+          "snapshot_reservations": 1,
+          "store": {
+            "database_file_bytes": 689733632,
+            "database_pages": 168392,
+            "freelist_pages": 0,
+            "inode_rows": 750123,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": 917487
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 114,
+          "invalidation_notifications": 72730,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 617008,
+            "peak_rss_kib": 628532,
+            "pss_kib": 625735,
+            "rss_kib": 628532
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "released",
+          "references": {
+            "candidate_capacity": 2048,
+            "candidate_entries": 0,
+            "identity_index_entries": 1,
+            "inode_index_entries": 1,
+            "kernel_referenced_views": 0,
+            "lease_protected_views": 0,
+            "map_capacity": 666982,
+            "quarantined_views": 0,
+            "views": 1
+          },
+          "retained_views": 1,
+          "round": 3,
+          "seconds": 1683.323123476,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "store": {
+            "database_file_bytes": 689733632,
+            "database_pages": 168392,
+            "freelist_pages": 0,
+            "inode_rows": 750123,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": 666982
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 0,
+          "invalidation_notifications": 45,
+          "max_invalidation_batch": 45,
+          "memory": {
+            "anonymous_pss_kib": 615236,
+            "peak_rss_kib": 627764,
+            "pss_kib": 624027,
+            "rss_kib": 626824
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "offline_remount",
+          "references": {
+            "candidate_capacity": 64,
+            "candidate_entries": 45,
+            "identity_index_entries": 1,
+            "inode_index_entries": 1,
+            "kernel_referenced_views": 0,
+            "lease_protected_views": 0,
+            "map_capacity": 33,
+            "quarantined_views": 0,
+            "views": 1
+          },
+          "retained_views": 1,
+          "round": 3,
+          "seconds": 1683.504590453,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "store": {
+            "database_file_bytes": 689733632,
+            "database_pages": 168392,
+            "freelist_pages": 0,
+            "inode_rows": 750123,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": 33
+        }
+      ],
+      "limits": [
+        "Synthetic zero-byte files; no provider content, mappings or desktop applications.",
+        "Three passes do not establish a 24-hour memory plateau or resident byte budget.",
+        "Each process runs separately after the preceding kernel workload completes.",
+        "Explicit TMPDIR and SQLITE_TMPDIR use the account filesystem (btrfs), unlike the previous many-directory tmpfs fixture; cross-filesystem timing comparisons are not controlled."
+      ],
+      "log_sha256": "0552d847fcfa0cbeba00b108141bce743858d9bd8eea545f12ce81e75bbc2124",
+      "launch_utc": "2026-09-07T20:00:42.421648+00:00",
+      "completed_utc": "2026-09-07T20:28:50.695454+00:00"
+    },
+    "compact": {
+      "source_commit": "57752c2ac3c8168283f41a996ad11f44f76c3c1a",
+      "executable_sha256": "62b50d91babccbd39e7de1a7c68ffdaad5d6532253015962557d1cd50308300b",
+      "exit_code": 0,
+      "temporary_filesystem": {
+        "fstype": "btrfs",
+        "placement": "Explicit TMPDIR and SQLITE_TMPDIR on the account filesystem for both processes."
+      },
+      "environment": {
+        "CIRROVE_CHURN_FILES": "500000",
+        "CIRROVE_CHURN_PER_DIRECTORY": "250000",
+        "CIRROVE_CHURN_STAT_WORKERS": "8",
+        "CIRROVE_CHURN_SECONDS": "0"
+      },
+      "config": {
+        "build": "release",
+        "depth": 12,
+        "files_per_directory": 250000,
+        "held_files": 24,
+        "held_snapshots": 3,
+        "indexed_files": 500000,
+        "projected_files": 750000,
+        "queued_stat_entries": 128,
+        "routes": 3,
+        "scope": "synthetic kernel FUSE; complete traversal stats every projected file; no provider content or metadata requests",
+        "stat_workers": 8,
+        "sustained_seconds": 0
+      },
+      "rounds": [
+        {
+          "full_traversal": true,
+          "navigation_ms": 63.662938000000004,
+          "round": 1,
+          "stat_operations": 750000,
+          "traversal_seconds": 541.880686278
+        },
+        {
+          "full_traversal": true,
+          "navigation_ms": 44.532858000000004,
+          "round": 2,
+          "stat_operations": 750000,
+          "traversal_seconds": 540.236143421
+        },
+        {
+          "full_traversal": true,
+          "navigation_ms": 43.022273999999996,
+          "round": 3,
+          "stat_operations": 750000,
+          "traversal_seconds": 541.775173445
+        }
+      ],
+      "samples": [
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 0,
+          "invalidation_notifications": 0,
+          "max_invalidation_batch": 0,
+          "memory": {
+            "anonymous_pss_kib": 2628,
+            "peak_rss_kib": 12232,
+            "pss_kib": 10045,
+            "rss_kib": 12232
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "indexed_baseline",
+          "references": {
+            "candidate_capacity": 0,
+            "candidate_entries": 0,
+            "identity_index_entries": 1,
+            "inode_index_entries": 1,
+            "kernel_referenced_views": 0,
+            "lease_protected_views": 0,
+            "map_capacity": null,
+            "map_storage": "btree",
+            "quarantined_views": 0,
+            "views": 1
+          },
+          "retained_views": 1,
+          "round": 0,
+          "seconds": 2.1686e-05,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "store": {
+            "database_file_bytes": 592834560,
+            "database_pages": 144735,
+            "freelist_pages": 32370,
+            "inode_rows": 1,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": null
+        },
+        {
+          "directory_snapshot_entries": 750006,
+          "invalidation_marks": 0,
+          "invalidation_notifications": 0,
+          "max_invalidation_batch": 0,
+          "memory": {
+            "anonymous_pss_kib": 8036,
+            "peak_rss_kib": 19244,
+            "pss_kib": 16542,
+            "rss_kib": 19244
+          },
+          "open_directory_handles": 3,
+          "open_files": 24,
+          "phase": "held_before_update",
+          "references": {
+            "candidate_capacity": 32,
+            "candidate_entries": 0,
+            "identity_index_entries": 71,
+            "inode_index_entries": 69,
+            "kernel_referenced_views": 68,
+            "lease_protected_views": 66,
+            "map_capacity": null,
+            "map_storage": "btree",
+            "quarantined_views": 0,
+            "views": 69
+          },
+          "retained_views": 69,
+          "round": 1,
+          "seconds": 12.184198695,
+          "snapshot_logical_bytes": 49500135,
+          "snapshot_reservations": 3,
+          "store": {
+            "database_file_bytes": 689676288,
+            "database_pages": 168378,
+            "freelist_pages": 0,
+            "inode_rows": 750042,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": null
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 38,
+          "invalidation_notifications": 27,
+          "max_invalidation_batch": 2,
+          "memory": {
+            "anonymous_pss_kib": 473816,
+            "peak_rss_kib": 485408,
+            "pss_kib": 482580,
+            "rss_kib": 485408
+          },
+          "open_directory_handles": 0,
+          "open_files": 24,
+          "phase": "traversed_with_old_files",
+          "references": {
+            "candidate_capacity": 2048,
+            "candidate_entries": 493,
+            "identity_index_entries": 750068,
+            "inode_index_entries": 750066,
+            "kernel_referenced_views": 750065,
+            "lease_protected_views": 66,
+            "map_capacity": null,
+            "map_storage": "btree",
+            "quarantined_views": 0,
+            "views": 750066
+          },
+          "retained_views": 750066,
+          "round": 1,
+          "seconds": 554.36705702,
+          "snapshot_logical_bytes": 16500021,
+          "snapshot_reservations": 1,
+          "store": {
+            "database_file_bytes": 689721344,
+            "database_pages": 168389,
+            "freelist_pages": 0,
+            "inode_rows": 750069,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": null
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 38,
+          "invalidation_notifications": 10878,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 476064,
+            "peak_rss_kib": 487656,
+            "pss_kib": 484860,
+            "rss_kib": 487656
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "released",
+          "references": {
+            "candidate_capacity": 2048,
+            "candidate_entries": 0,
+            "identity_index_entries": 1,
+            "inode_index_entries": 1,
+            "kernel_referenced_views": 0,
+            "lease_protected_views": 0,
+            "map_capacity": null,
+            "map_storage": "btree",
+            "quarantined_views": 0,
+            "views": 1
+          },
+          "retained_views": 1,
+          "round": 1,
+          "seconds": 555.142188156,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "store": {
+            "database_file_bytes": 689721344,
+            "database_pages": 168389,
+            "freelist_pages": 0,
+            "inode_rows": 750069,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": null
+        },
+        {
+          "directory_snapshot_entries": 750006,
+          "invalidation_marks": 38,
+          "invalidation_notifications": 10878,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 478416,
+            "peak_rss_kib": 490008,
+            "pss_kib": 487180,
+            "rss_kib": 490008
+          },
+          "open_directory_handles": 3,
+          "open_files": 24,
+          "phase": "held_before_update",
+          "references": {
+            "candidate_capacity": 2048,
+            "candidate_entries": 0,
+            "identity_index_entries": 71,
+            "inode_index_entries": 69,
+            "kernel_referenced_views": 68,
+            "lease_protected_views": 66,
+            "map_capacity": null,
+            "map_storage": "btree",
+            "quarantined_views": 0,
+            "views": 69
+          },
+          "retained_views": 69,
+          "round": 2,
+          "seconds": 557.1873351,
+          "snapshot_logical_bytes": 49500063,
+          "snapshot_reservations": 3,
+          "store": {
+            "database_file_bytes": 689721344,
+            "database_pages": 168389,
+            "freelist_pages": 0,
+            "inode_rows": 750069,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": null
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 76,
+          "invalidation_notifications": 10905,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 498184,
+            "peak_rss_kib": 509776,
+            "pss_kib": 506948,
+            "rss_kib": 509776
+          },
+          "open_directory_handles": 0,
+          "open_files": 24,
+          "phase": "traversed_with_old_files",
+          "references": {
+            "candidate_capacity": 2048,
+            "candidate_entries": 1224,
+            "identity_index_entries": 750068,
+            "inode_index_entries": 750066,
+            "kernel_referenced_views": 750065,
+            "lease_protected_views": 66,
+            "map_capacity": null,
+            "map_storage": "btree",
+            "quarantined_views": 0,
+            "views": 750066
+          },
+          "retained_views": 750066,
+          "round": 2,
+          "seconds": 1097.887641853,
+          "snapshot_logical_bytes": 16500021,
+          "snapshot_reservations": 1,
+          "store": {
+            "database_file_bytes": 689725440,
+            "database_pages": 168390,
+            "freelist_pages": 0,
+            "inode_rows": 750096,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": null
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 76,
+          "invalidation_notifications": 24233,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 498228,
+            "peak_rss_kib": 509820,
+            "pss_kib": 507024,
+            "rss_kib": 509820
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "released",
+          "references": {
+            "candidate_capacity": 2048,
+            "candidate_entries": 0,
+            "identity_index_entries": 1,
+            "inode_index_entries": 1,
+            "kernel_referenced_views": 0,
+            "lease_protected_views": 0,
+            "map_capacity": null,
+            "map_storage": "btree",
+            "quarantined_views": 0,
+            "views": 1
+          },
+          "retained_views": 1,
+          "round": 2,
+          "seconds": 1098.6517077,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "store": {
+            "database_file_bytes": 689725440,
+            "database_pages": 168390,
+            "freelist_pages": 0,
+            "inode_rows": 750096,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": null
+        },
+        {
+          "directory_snapshot_entries": 750006,
+          "invalidation_marks": 76,
+          "invalidation_notifications": 24233,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 498228,
+            "peak_rss_kib": 509820,
+            "pss_kib": 506992,
+            "rss_kib": 509820
+          },
+          "open_directory_handles": 3,
+          "open_files": 24,
+          "phase": "held_before_update",
+          "references": {
+            "candidate_capacity": 2048,
+            "candidate_entries": 0,
+            "identity_index_entries": 71,
+            "inode_index_entries": 69,
+            "kernel_referenced_views": 68,
+            "lease_protected_views": 66,
+            "map_capacity": null,
+            "map_storage": "btree",
+            "quarantined_views": 0,
+            "views": 69
+          },
+          "retained_views": 69,
+          "round": 3,
+          "seconds": 1100.649564656,
+          "snapshot_logical_bytes": 49500063,
+          "snapshot_reservations": 3,
+          "store": {
+            "database_file_bytes": 689725440,
+            "database_pages": 168390,
+            "freelist_pages": 0,
+            "inode_rows": 750096,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": null
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 114,
+          "invalidation_notifications": 24260,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 498232,
+            "peak_rss_kib": 509824,
+            "pss_kib": 506996,
+            "rss_kib": 509824
+          },
+          "open_directory_handles": 0,
+          "open_files": 24,
+          "phase": "traversed_with_old_files",
+          "references": {
+            "candidate_capacity": 2048,
+            "candidate_entries": 1075,
+            "identity_index_entries": 750068,
+            "inode_index_entries": 750066,
+            "kernel_referenced_views": 750065,
+            "lease_protected_views": 66,
+            "map_capacity": null,
+            "map_storage": "btree",
+            "quarantined_views": 0,
+            "views": 750066
+          },
+          "retained_views": 750066,
+          "round": 3,
+          "seconds": 1642.755113085,
+          "snapshot_logical_bytes": 16500021,
+          "snapshot_reservations": 1,
+          "store": {
+            "database_file_bytes": 689733632,
+            "database_pages": 168392,
+            "freelist_pages": 0,
+            "inode_rows": 750123,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": null
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 114,
+          "invalidation_notifications": 34486,
+          "max_invalidation_batch": 128,
+          "memory": {
+            "anonymous_pss_kib": 499288,
+            "peak_rss_kib": 510880,
+            "pss_kib": 508084,
+            "rss_kib": 510880
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "released",
+          "references": {
+            "candidate_capacity": 2048,
+            "candidate_entries": 0,
+            "identity_index_entries": 1,
+            "inode_index_entries": 1,
+            "kernel_referenced_views": 0,
+            "lease_protected_views": 0,
+            "map_capacity": null,
+            "map_storage": "btree",
+            "quarantined_views": 0,
+            "views": 1
+          },
+          "retained_views": 1,
+          "round": 3,
+          "seconds": 1643.517740746,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "store": {
+            "database_file_bytes": 689733632,
+            "database_pages": 168392,
+            "freelist_pages": 0,
+            "inode_rows": 750123,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": null
+        },
+        {
+          "directory_snapshot_entries": 0,
+          "invalidation_marks": 0,
+          "invalidation_notifications": 45,
+          "max_invalidation_batch": 45,
+          "memory": {
+            "anonymous_pss_kib": 515264,
+            "peak_rss_kib": 526856,
+            "pss_kib": 524060,
+            "rss_kib": 526856
+          },
+          "open_directory_handles": 0,
+          "open_files": 0,
+          "phase": "offline_remount",
+          "references": {
+            "candidate_capacity": 64,
+            "candidate_entries": 45,
+            "identity_index_entries": 1,
+            "inode_index_entries": 1,
+            "kernel_referenced_views": 0,
+            "lease_protected_views": 0,
+            "map_capacity": null,
+            "map_storage": "btree",
+            "quarantined_views": 0,
+            "views": 1
+          },
+          "retained_views": 1,
+          "round": 3,
+          "seconds": 1643.674383104,
+          "snapshot_logical_bytes": 0,
+          "snapshot_reservations": 0,
+          "store": {
+            "database_file_bytes": 689733632,
+            "database_pages": 168392,
+            "freelist_pages": 0,
+            "inode_rows": 750123,
+            "wal_file_bytes": 0
+          },
+          "view_map_capacity": null
+        }
+      ],
+      "limits": [
+        "Synthetic zero-byte files; no provider content, mappings or desktop applications.",
+        "Three passes do not establish a 24-hour memory plateau or resident byte budget.",
+        "Each process runs separately after the preceding kernel workload completes.",
+        "Explicit TMPDIR and SQLITE_TMPDIR use the account filesystem (btrfs), unlike the previous many-directory tmpfs fixture; cross-filesystem timing comparisons are not controlled."
+      ],
+      "log_sha256": "4fc3cf683a782f6f94171b77ed033158a17ffce4a0e1e4d3d19fa16e37641405",
+      "launch_utc": "2026-09-07T20:28:50.697718+00:00",
+      "completed_utc": "2026-09-07T20:56:19.061014+00:00"
+    },
+    "comparison": [
+      {
+        "round": 1,
+        "baseline_traversal_seconds": 559.028921118,
+        "compact_traversal_seconds": 541.880686278,
+        "baseline_navigation_ms": 69.48157,
+        "compact_navigation_ms": 63.662938000000004,
+        "baseline_released_rss_kib": 597948,
+        "compact_released_rss_kib": 487656,
+        "released_rss_reduction_percent": 18.445082181059224,
+        "both_released_views": 1,
+        "both_snapshot_bytes_after_release": 0
+      },
+      {
+        "round": 2,
+        "baseline_traversal_seconds": 561.149636125,
+        "compact_traversal_seconds": 540.236143421,
+        "baseline_navigation_ms": 51.222956,
+        "compact_navigation_ms": 44.532858000000004,
+        "baseline_released_rss_kib": 625160,
+        "compact_released_rss_kib": 509820,
+        "released_rss_reduction_percent": 18.449676882718023,
+        "both_released_views": 1,
+        "both_snapshot_bytes_after_release": 0
+      },
+      {
+        "round": 3,
+        "baseline_traversal_seconds": 541.929465869,
+        "compact_traversal_seconds": 541.775173445,
+        "baseline_navigation_ms": 42.767253,
+        "compact_navigation_ms": 43.022273999999996,
+        "baseline_released_rss_kib": 628532,
+        "compact_released_rss_kib": 510880,
+        "released_rss_reduction_percent": 18.718537799189217,
+        "both_released_views": 1,
+        "both_snapshot_bytes_after_release": 0
+      }
+    ],
+    "limits": [
+      "One pair of sequential processes on one development host, not statistical performance acceptance.",
+      "Local compilation and competing kernel/latency/memory fixtures were kept off this pair; unrelated host activity is not controlled.",
+      "No real provider, file content, memory-mapping integrity or desktop application coverage.",
+      "Process RSS/PSS exclude additional kernel/page-cache storage. Neither total host memory nor a resident byte budget is established.",
+      "Three passes do not establish a 24-hour memory plateau. Correct reference retirement is distinct from allocator RSS release.",
+      "Previous many-directory results used a different temporary-filesystem setup; comparisons across those topologies are not controlled."
+    ]
+  },
+  "interpretation": "View retirement and lower sampled RSS are verified at these observation points. No resident byte ceiling, 24-hour plateau, total-host-memory bound or real-provider/content acceptance is established."
+}

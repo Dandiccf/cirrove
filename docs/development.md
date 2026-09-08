@@ -405,13 +405,13 @@ verifies inode-preserving offline revisit and remount. No provider calls are all
 
 ```sh
 # Small correctness fixture, also included in the kernel CI suite.
-cargo test -p cirrove-service --lib --release --locked real_combined_namespace_churn -- --ignored --nocapture --test-threads=1
+cargo test -p cirrove-service --lib --release --locked filesystem::capacity::real_combined_namespace_churn -- --exact --ignored --nocapture --test-threads=1
 # Full many-directory workload; this stats 750,000 projected files per pass.
-CIRROVE_CHURN_FILES=500000 cargo test -p cirrove-service --lib --release --locked real_combined_namespace_churn -- --ignored --nocapture --test-threads=1
+CIRROVE_CHURN_FILES=500000 cargo test -p cirrove-service --lib --release --locked filesystem::capacity::real_combined_namespace_churn -- --exact --ignored --nocapture --test-threads=1
 # The same library with one large directory per collection.
-CIRROVE_CHURN_FILES=500000 CIRROVE_CHURN_PER_DIRECTORY=250000 cargo test -p cirrove-service --lib --release --locked real_combined_namespace_churn -- --ignored --nocapture --test-threads=1
+CIRROVE_CHURN_FILES=500000 CIRROVE_CHURN_PER_DIRECTORY=250000 cargo test -p cirrove-service --lib --release --locked filesystem::capacity::real_combined_namespace_churn -- --exact --ignored --nocapture --test-threads=1
 # Sustained active-set churn after the initial three full passes.
-CIRROVE_CHURN_FILES=500000 CIRROVE_CHURN_SECONDS=86400 cargo test -p cirrove-service --lib --release --locked real_combined_namespace_churn -- --ignored --nocapture --test-threads=1
+CIRROVE_CHURN_FILES=500000 CIRROVE_CHURN_SECONDS=86400 cargo test -p cirrove-service --lib --release --locked filesystem::capacity::real_combined_namespace_churn -- --exact --ignored --nocapture --test-threads=1
 ```
 
 The default is 4,000 indexed files in 2,000-file groups. `CIRROVE_CHURN_STAT_WORKERS`
@@ -437,3 +437,39 @@ new version's inode; its unchanged limit is 500 ms. The fixture uses zero-length
 files and does not exercise content reads or mappings. Small and short-duration
 results in [the fixture record](benchmarks/namespace-churn-fixture.json) validate
 the runner, not the full 500k/24-hour memory or real-provider acceptance gates.
+
+### Content mappings during namespace churn
+
+A separate variant adds two 8 KiB content files through three deep routes, including
+both shared aliases. Six old/new read-only mappings outlive their original file
+descriptors during each full stat traversal. The client compares all bytes before
+and after traversal, checks version/alias inodes, and reopens current paths. A fresh
+Engine remount reads disk-cached bytes with unchanged inodes and no additional
+provider calls. The synthetic provider rejects stale requested versions.
+
+```sh
+cargo test -p cirrove-service --lib --release --locked filesystem::capacity::real_combined_namespace_churn_preserves_mapped_content -- --exact --ignored --nocapture --test-threads=1
+```
+
+The same `CIRROVE_CHURN_*` settings control size, topology and sustained duration.
+Use the exact test name: a substring filter for the metadata fixture also matches
+the content variant. Small CI coverage is recorded in the validation log; large,
+sustained, real-provider and cache-eviction fault acceptance remain open.
+
+### Directory output before snapshot completion
+
+```sh
+cargo test -p cirrove-service --lib --locked filesystem::directories::tests::
+cargo test -p cirrove-service --lib --locked filesystem::capacity::real_directory_prefix_precedes_completion_and_close_cancels_building -- --exact --ignored --nocapture --test-threads=1
+```
+
+The kernel fixture seeds only the first 128 inode keys, then holds a SQLite writer
+required by later batches. It requires a meaningful first entry within 500 ms while
+that writer is still held. One case commits a rename and verifies the entire old
+listing plus a fresh listing; the other closes during construction. Both require
+complete snapshot reclamation and root-only namespace cleanup through the kernel.
+This checks causality with 2,000 synthetic files; use the existing
+`namespace_capacity_baseline` with `CIRROVE_NAMESPACE_FILES=500000` and
+`CIRROVE_NAMESPACE_PER_DIRECTORY=500000` for separate first-entry/throughput
+measurements. During construction, `directory_snapshot_entries` reports the
+published prefix, and snapshot reservations also include buffered unpublished data.

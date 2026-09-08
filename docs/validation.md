@@ -1013,3 +1013,155 @@ Rustdoc also pass. The nested crash subprocess is not counted twice.
 This is narrow signal-interruption coverage on the Ubuntu CI runner. It does not
 inject a failed FUSE reply write, interrupt experimental CREATE, or establish
 content/mapping integrity under combined large-library load. Those gates remain open.
+
+## Content mappings during namespace churn (2026-09-07)
+
+The content variant of the combined churn fixture passed on source
+`24ceedf5cc742e13c18ff9a7bfd336f534b6eee5`. Two 8 KiB files are projected through
+three routes. Six old/new memory mappings retain their kernel file lifetimes after
+the original descriptors close, while the fixture stats every metadata file. It
+compares all bytes, preserves distinct alias/version inodes, and reopens current
+paths. Four content versions require eight range fetches; offline remount uses
+the same inodes and disk-cached content with zero additional provider calls.
+
+The [Linux CI log](https://github.com/Dandiccf/cirrove/actions/runs/34158229286/job/101854395944)
+records 331 regular and 51 kernel tests, plus native-window, formatting, strict
+Clippy, build, smoke/observer and Rustdoc checks. This is the small synthetic
+fixture; large/sustained mappings, cache-eviction faults, private/COW mappings and
+real-provider behavior remain separate gates.
+
+The separate [conservative sequential-read workload](https://github.com/Dandiccf/cirrove/actions/runs/34158229286/job/101854396082)
+exceeded its unchanged 500 ms cached-navigation bound. The duplicate push run
+passed. This repeats the unresolved earlier navigation failure; it is not explained
+by the content fixture passing in a different CI job.
+
+A test-only diagnostic helper at `ce9c298d1d482fcf7d4f5b2da68a992e81169ef0` records
+blocking-worker start, directory-open return, enumeration and metadata completion.
+A failed check briefly observes the same worker without retrying or accepting late
+completion. Aggregate transfer/staging counts and host pressure provide context,
+not causal attribution. An explicit wall-clock check also prevents a ready worker
+from bypassing the existing bound after delayed timer polling.
+
+All four CI jobs passed for that helper: [Linux checks](https://github.com/Dandiccf/cirrove/actions/runs/34159190419/job/101857258108)
+record 331 regular and 51 kernel tests, and the [PR workload job](https://github.com/Dandiccf/cirrove/actions/runs/34159190419/job/101857258236)
+and [push workload job](https://github.com/Dandiccf/cirrove/actions/runs/34159106827/job/101857010854)
+ran twelve successful mode/delay scenarios in total. Maximum sampled navigation
+was 35.033 ms. These passes validate instrumentation; they do not establish a
+root cause or a production fix for the earlier stalls.
+
+## Directory prefixes before construction completes (2026-09-07)
+
+Source `82d22db3fb6ee3973b0bb7d8a2d0162bc8d5ca35` publishes a flushed directory
+prefix while later inode batches are still being constructed. In the synthetic
+actual-kernel fixture, only the first 128 inode mappings are cached and a separate
+SQLite writer blocks allocation for the remaining entries. The first meaningful
+entry arrives in 4.642 ms and 4.448 ms in the two cases, while that writer is still
+held; the unchanged bound is 500 ms. A committed rename cannot change the old
+listing, while a fresh listing sees it. Closing during construction cancels the
+producer after its blocked batch returns. Both cases retire all views except the
+root and release all snapshot storage.
+
+Unit tests verify that unpublished bytes cannot appear, waiting readers wake on
+prefix/completion changes, and errors at either file's flush remain errors rather
+than false EOF. Abandoned producers wake readers; the last reader closing cancels
+further publication, while the writer keeps its reservation until its files close.
+
+The [push Linux job](https://github.com/Dandiccf/cirrove/actions/runs/34160218749/job/101860272100)
+passes 334 regular and 52 actual-kernel tests (15 read-only, 11 namespace, six
+streamed-window, 20 experimental-write), native window, formatting, strict Clippy,
+build, smoke/observer and Rustdoc checks. Both separate workload jobs pass all six
+mode/delay scenarios, with maximum navigation 13.063 ms and 8.272 ms.
+
+The [PR Linux job](https://github.com/Dandiccf/cirrove/actions/runs/34160221911/job/101860283655)
+failed the existing three-second `ready(engine)` helper in
+`real_active_directory_refreshes_during_a_stalled_read_without_push_or_delta`,
+before constructing or mounting CloudFs. It passed 334 regular tests and 14 other
+read-only tests. The missing ready-feed state was not recorded, so the startup
+cause remains unresolved. The passing duplicate is not a cause or repair.
+Large-directory first-entry/throughput measurements, sustained construction and
+full capacity/provider acceptance remain open; the small kernel fixture establishes
+the publication, consistency and close behavior, not those larger gates.
+
+## Compact representation under combined 500k churn (2026-09-07)
+
+Frozen release binaries at baseline `dba5ac8fd218813e3890510a0de2bdaf0eb109cb` and
+compact `57752c2ac3c8168283f41a996ad11f44f76c3c1a` each complete three traversals
+of 500,000 indexed files projected as 750,000 paths. Every path is statted. The
+fixture includes deep paths, duplicate shared aliases, 24 held old descriptors,
+three held directory snapshots, version changes/renames and offline remount.
+Every completed release and final remount returns to the root view alone, with
+zero kernel references, quarantined views or snapshot reservations.
+
+| Topology | Pass | Baseline released RSS (MiB) | Compact released RSS (MiB) | Baseline traversal (s) | Compact traversal (s) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 2,000 files/directory | 1 | 599.0 | 488.2 | 389.41 | 399.44 |
+| 2,000 files/directory | 2 | 743.8 | 637.3 | 390.63 | 406.73 |
+| 2,000 files/directory | 3 | 770.7 | 651.9 | 410.46 | 408.01 |
+| 250,000 files/directory | 1 | 583.9 | 476.2 | 559.03 | 541.88 |
+| 250,000 files/directory | 2 | 610.5 | 497.9 | 561.15 | 540.24 |
+| 250,000 files/directory | 3 | 613.8 | 498.9 | 541.93 | 541.78 |
+
+Final released RSS is about 15 percent lower with many directories and 18.7 percent
+lower with giant directories. All navigation samples remain below the unchanged
+500 ms bound: the largest is 8.591 ms for the many-directory pair and 69.482 ms for
+the giant pair. Offline remount samples are reported separately in
+[the full artifact](benchmarks/compact-namespace-churn.json), alongside source,
+executable/log hashes, every memory/reference sample and measurement limits.
+
+The giant pair ran sequentially, with explicit TMPDIR and SQLITE_TMPDIR on Btrfs
+verified in the live processes; local builds and competing kernel benchmarks were
+kept off the pair. The earlier many-directory compact process used tmpfs, verified
+while live; the old baseline's temporary backing was not independently recorded,
+and source compilation overlapped later parts of that baseline. Its timing
+differences are observational. Comparisons across topologies/filesystems are not
+controlled, and one pair does not establish a general speedup.
+
+These are zero-byte metadata fixtures and use binaries from before the mapped-content
+variant and early-prefix publication. Process RSS/PSS omit additional kernel/page
+cache storage. The remaining high RSS is not proof of live-view leakage or of
+reclaimable allocator memory; three passes do not establish a memory plateau.
+Resident byte accounting/budgets, sustained 24-hour churn, large mapped-content and
+real-provider acceptance remain open.
+
+## Giant-directory first entry with prefix publication (2026-09-08)
+
+A frozen release binary built from `7f64f57ecc8f6da185d74befd78ec3253cc260c5`
+(SHA256 `996d4ae4d6f0f6e0ac8290eb76bd5afc859261524b1d8035d7215d05d2ae5ad3`,
+Rust sources unchanged since `82d22db`) runs the actual-kernel
+`filesystem::capacity::namespace_capacity_baseline` fixture with all 500,000
+generated files in a single directory, over three changed-revision passes.
+
+The first entry of that directory arrives in 4.076, 4.918 and 4.369 ms, against
+the unchanged 500 ms bound. At that moment the published prefix holds 130 of
+500,002 entries and 8,493 logical bytes, so the reader starts while the remaining
+entries are still being produced. Each pass ends with every snapshot reservation
+released, only the root view retained after invalidation, and no foreground
+metadata or content request to the provider.
+
+A controlled pair then measured the same fixture directly. Two frozen release
+binaries, differing only in the directory path and built from `ce9c298` and this
+source, ran alternately in one session on an idle machine, in the order
+baseline / new / new / baseline / baseline / new. The measured fixture is
+byte-identical in both sources.
+
+| Measurement | Pre-change `ce9c298` | Prefix publication |
+| --- | ---: | ---: |
+| First entry, nine samples | 8,802-10,755 ms | 4.33-5.23 ms |
+| First entry, median | 10,398 ms | 4.73 ms |
+| Whole traversal, median | 10.585 s | 10.232 s |
+| Indexing baseline, median | 6.272 s | 6.300 s |
+
+The first-entry distributions do not overlap at any sample, and the median ratio
+is 2,199. Whole-pass traversal is unchanged, a ratio of 0.967 with fully
+overlapping ranges, so publication of the prefix costs no measurable throughput.
+The unrelated indexing baseline agrees within 0.5 percent, which is what makes the
+pairing usable at all. The slower traversal seconds against the earlier
+[2026-09-07 artifact](benchmarks/directory-snapshot-pages.json) were therefore a
+session difference, not streaming overhead; that earlier comparison was never
+controlled and is retained only as context.
+
+Post-invalidation RSS still rises across passes, 18.3 / 33.9 / 43.4 MiB, so this
+run establishes neither a memory plateau nor the capacity gate. Mapped content,
+writable overlays, desktop applications, real-provider acceptance and 24-hour
+operation are all untested here.
+See [the machine-readable results](benchmarks/early-directory-prefix.json).

@@ -632,6 +632,14 @@ async fn real_directory_ancestry_retires_after_last_kernel_snapshot_and_file_use
 }
 
 mod cold;
+mod early;
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; first directory batch before a blocked inode writer"]
+async fn real_directory_prefix_precedes_completion_and_close_cancels_building() {
+    early::run(false).await;
+    early::run(true).await;
+}
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "actual synthetic FUSE; cold publication, offline revisit and remount"]

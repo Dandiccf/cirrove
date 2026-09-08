@@ -357,6 +357,9 @@ impl Inner {
             .insert(view)
     }
     async fn listing(&self, parent: &View) -> Result<OpenDirectory, Errno> {
+        if self.writeback.is_none() {
+            return self.streaming_listing(parent).await;
+        }
         let route = [
             parent.clone(),
             self.view(parent.parent).map_err(|e| errno(&e))?,
@@ -368,21 +371,88 @@ impl Inner {
         let build = move |nodes: &mut dyn Iterator<Item = cirrove_store::Result<Node>>| {
             Self::build_listing(nodes, &route, &db, &budget, writable, &cancel)
         };
-        if self.writeback.is_none() {
-            // The metadata reader and inode writer are independent WAL
-            // connections. No read-to-write upgrade or full remote Vec is needed.
-            self.engine
-                .with_children(&parent.scope, &parent.node.id, build)
+        // Preserve the atomic writable overlay until it has a streaming contract.
+        let nodes = self.children(parent).await.map_err(|e| errno(&e))?;
+        tokio::task::spawn_blocking(move || build(&mut nodes.into_iter().map(Ok)))
+            .await
+            .map_err(|_| Errno::EIO)?
+    }
+    async fn streaming_listing(&self, parent: &View) -> Result<OpenDirectory, Errno> {
+        let route = [
+            parent.clone(),
+            self.view(parent.parent).map_err(|e| errno(&e))?,
+        ];
+        let (engine, budget, cancel) = (
+            self.engine.clone(),
+            self.directory_budget.clone(),
+            self.cancel.clone(),
+        );
+        let (scope, item, db) = (
+            parent.scope.clone(),
+            parent.node.id.clone(),
+            engine.db.clone(),
+        );
+        let (send, receive) = tokio::sync::oneshot::channel();
+        let worker = self.runtime.spawn(async move {
+            let mut send = Some(send);
+            let (builder, mut send, route) = engine
+                .with_children(&scope, &item, move |nodes| {
+                    let mut send = send.take();
+                    let mut batches = 0usize;
+                    let builder = Self::build_snapshot(
+                        nodes,
+                        &route,
+                        &db,
+                        &budget,
+                        false,
+                        &cancel,
+                        |builder| {
+                            batches += 1;
+                            if (batches - 1).is_multiple_of(8)
+                                && let Some(snapshot) = builder.publish()?
+                            {
+                                Self::send_listing(&mut send, snapshot, &route)?;
+                            }
+                            Ok(())
+                        },
+                    )?;
+                    Ok::<_, Errno>((builder, send, route.clone()))
+                })
                 .await
-                .map_err(|e| errno(&e))?
-        } else {
-            // Preserve the existing atomic local overlay until that projection
-            // also has a streaming contract; never omit pending local entries.
-            let nodes = self.children(parent).await.map_err(|e| errno(&e))?;
-            tokio::task::spawn_blocking(move || build(&mut nodes.into_iter().map(Ok)))
-                .await
-                .map_err(|_| Errno::EIO)?
+                .map_err(|error| errno(&error))??;
+            // Do not announce EOF before the consistent metadata read finishes.
+            // Final buffered writes and descriptor cleanup still belong on a
+            // blocking worker, even though the initial scan has already ended.
+            tokio::task::spawn_blocking(move || {
+                if let Some(snapshot) = builder.complete()? {
+                    Self::send_listing(&mut send, snapshot, &route)?;
+                }
+                Ok::<_, Errno>(())
+            })
+            .await
+            .map_err(|_| Errno::EIO)?
+        });
+        match receive.await {
+            Ok(listing) => Ok(listing),
+            // A cold-provider or pre-publication error keeps its original errno.
+            Err(_) => match worker.await {
+                Ok(Err(error)) => Err(error),
+                _ => Err(Errno::EIO),
+            },
         }
+    }
+    fn send_listing(
+        send: &mut Option<tokio::sync::oneshot::Sender<OpenDirectory>>,
+        snapshot: directories::Snapshot,
+        route: &[View; 2],
+    ) -> Result<(), Errno> {
+        send.take()
+            .ok_or(Errno::EIO)?
+            .send(OpenDirectory {
+                snapshot,
+                _route: route.clone(),
+            })
+            .map_err(|_| Errno::ENODEV)
     }
     fn build_listing(
         nodes: &mut dyn Iterator<Item = cirrove_store::Result<Node>>,
@@ -392,34 +462,54 @@ impl Inner {
         writable: bool,
         cancel: &CancellationToken,
     ) -> Result<OpenDirectory, Errno> {
-        let mut store = Store::open(db).map_err(|_| Errno::EIO)?;
-        let mut snapshot = budget.start(db.parent().ok_or(Errno::EIO)?)?;
-        snapshot.push(route[0].inode, true, ".")?;
-        snapshot.push(route[1].inode, true, "..")?;
-        let mut projected = Vec::with_capacity(128);
-        for node in nodes {
-            if cancel.is_cancelled() {
-                return Err(Errno::ENODEV);
-            }
-            match Self::project(&route[0], node.map_err(|_| Errno::EIO)?) {
-                Ok(view) => projected.push(view),
-                Err(ProviderError::Protocol(_)) => {
-                    tracing::warn!("cloud entry could not be projected (cycle or invalid name)");
-                }
-                Err(error) => return Err(errno(&error)),
-            }
-            if projected.len() == 128 {
-                Self::snapshot_batch(&mut store, &mut projected, writable, &mut snapshot)?;
-            }
-        }
-        Self::snapshot_batch(&mut store, &mut projected, writable, &mut snapshot)?;
-        if cancel.is_cancelled() {
-            return Err(Errno::ENODEV);
-        }
+        let snapshot =
+            Self::build_snapshot(nodes, route, db, budget, writable, cancel, |_| Ok(()))?;
         Ok(OpenDirectory {
             snapshot: snapshot.finish()?,
             _route: route.clone(),
         })
+    }
+    fn build_snapshot(
+        nodes: &mut dyn Iterator<Item = cirrove_store::Result<Node>>,
+        route: &[View; 2],
+        db: &std::path::Path,
+        budget: &directories::Budget,
+        writable: bool,
+        cancel: &CancellationToken,
+        mut publish: impl FnMut(&mut directories::Builder) -> Result<(), Errno>,
+    ) -> Result<directories::Builder, Errno> {
+        let mut store = Store::open(db).map_err(|_| Errno::EIO)?;
+        let mut snapshot = budget.start(db.parent().ok_or(Errno::EIO)?)?;
+        let result = (|| {
+            snapshot.push(route[0].inode, true, ".")?;
+            snapshot.push(route[1].inode, true, "..")?;
+            let mut projected = Vec::with_capacity(128);
+            for node in nodes {
+                if cancel.is_cancelled() || snapshot.cancelled() {
+                    return Err(Errno::ENODEV);
+                }
+                match Self::project(&route[0], node.map_err(|_| Errno::EIO)?) {
+                    Ok(view) => projected.push(view),
+                    Err(ProviderError::Protocol(_)) => {
+                        tracing::warn!(
+                            "cloud entry could not be projected (cycle or invalid name)"
+                        );
+                    }
+                    Err(error) => return Err(errno(&error)),
+                }
+                if projected.len() == 128 {
+                    Self::snapshot_batch(&mut store, &mut projected, writable, &mut snapshot)?;
+                    publish(&mut snapshot)?;
+                }
+            }
+            Self::snapshot_batch(&mut store, &mut projected, writable, &mut snapshot)?;
+            if cancel.is_cancelled() || snapshot.cancelled() {
+                return Err(Errno::ENODEV);
+            }
+            Ok(())
+        })();
+        result.inspect_err(|error: &Errno| snapshot.fail(error.code()))?;
+        Ok(snapshot)
     }
     fn snapshot_batch(
         store: &mut Store,
@@ -1518,38 +1608,47 @@ impl Filesystem for CloudFs {
             return;
         };
         let cancel = self.inner.cancel.clone();
-        self.inner.runtime.spawn_blocking(move || {
-            let _permit = permit;
-            if cancel.is_cancelled() {
-                reply.error(Errno::ENODEV);
+        self.inner.runtime.spawn(async move {
+            let ready = tokio::select! {
+                biased;
+                _ = cancel.cancelled() => Err(Errno::ENODEV),
+                result = entries.snapshot.ready(offset) => result.map_err(Errno::from),
+            };
+            if let Err(error) = ready {
+                reply.error(error);
                 return;
             }
-            let page = match entries.snapshot.page(offset) {
-                Ok(page) => page,
-                Err(error) => {
-                    reply.error(error.into());
+            tokio::task::spawn_blocking(move || {
+                let _permit = permit;
+                let page = match entries.snapshot.page(offset) {
+                    Ok(page) => page,
+                    Err(error) => {
+                        reply.error(error.into());
+                        return;
+                    }
+                };
+                if cancel.is_cancelled() {
+                    reply.error(Errno::ENODEV);
                     return;
                 }
-            };
-            if cancel.is_cancelled() {
-                reply.error(Errno::ENODEV);
-                return;
-            }
-            for (index, entry) in page.into_iter().enumerate() {
-                if reply.add(
-                    INodeNo(entry.inode),
-                    offset + index as u64 + 1,
-                    if entry.directory {
-                        FileType::Directory
-                    } else {
-                        FileType::RegularFile
-                    },
-                    OsString::from(entry.name),
-                ) {
-                    break;
+                for (index, entry) in page.into_iter().enumerate() {
+                    if reply.add(
+                        INodeNo(entry.inode),
+                        offset + index as u64 + 1,
+                        if entry.directory {
+                            FileType::Directory
+                        } else {
+                            FileType::RegularFile
+                        },
+                        OsString::from(entry.name),
+                    ) {
+                        break;
+                    }
                 }
-            }
-            reply.ok();
+                reply.ok();
+            })
+            .await
+            .ok();
         });
     }
     fn releasedir(

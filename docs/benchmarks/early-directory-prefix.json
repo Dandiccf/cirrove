@@ -1,0 +1,549 @@
+{
+ "runtime_change": "Cached read-only OPENDIR publishes an immutable flushed prefix while later batches are still being constructed; READDIR waits on a frontier instead of the complete snapshot.",
+ "date": "2026-09-08",
+ "source_base": "7f64f57ecc8f6da185d74befd78ec3253cc260c5",
+ "source_code_commit": "82d22db3fb6ee3973b0bb7d8a2d0162bc8d5ca35",
+ "build": "release",
+ "source_sha256": {
+  "crates/cirrove-service/src/filesystem.rs": "3fd5ae8f2f862eafb99c9ef87e3dc5c4fd7094c586107e6a1019684a630286aa",
+  "crates/cirrove-service/src/filesystem/directories.rs": "ba60d6068b853bf85e2806232d29940257c10d7960c559e78a8a2f774bedeb6b",
+  "crates/cirrove-service/src/filesystem/directories/tests.rs": "d322ba1bb23a264646bf119e3078fccc9ea87a6e9c4bf510cfb11a7cc75f295c",
+  "crates/cirrove-service/src/filesystem/capacity.rs": "1a6c0d2214dcbfc7501260dd0ef8905e7f4696eb3b97981594f485173b18aecd",
+  "crates/cirrove-service/src/filesystem/capacity/early.rs": "817fed9afcbbdb472a1943a687cf65934eee0022e591a4b53a213cc362ae3072"
+ },
+ "frozen_executable_sha256": "996d4ae4d6f0f6e0ac8290eb76bd5afc859261524b1d8035d7215d05d2ae5ad3",
+ "small_kernel_fixture": {
+  "test": "filesystem::capacity::real_directory_prefix_precedes_completion_and_close_cancels_building",
+  "files_in_directory": 2000,
+  "method": "Only the first 128 inode mappings are cached; a separate SQLite writer holds BEGIN IMMEDIATE so later inode batches cannot proceed until released.",
+  "ci_first_entry_ms": [
+   4.642224,
+   4.448108
+  ],
+  "local_release_first_entry_ms": [
+   0.940505,
+   0.825193
+  ],
+  "bound_ms": 500,
+  "behaviour": [
+   "A rename committed after OPENDIR does not change the already-opened listing; a fresh listing observes it.",
+   "Closing during construction cancels the producer once its blocked batch returns.",
+   "Both cases retire every view except the root and release all snapshot storage."
+  ]
+ },
+ "large_directory": {
+  "files": 500000,
+  "directories": 1,
+  "files_per_directory": 500000,
+  "passes": 3,
+  "first_entry_ms": [
+   4.0764119999999995,
+   4.917533,
+   4.368759
+  ],
+  "first_entry_bound_ms": 500,
+  "traversal_seconds": [
+   9.182016922,
+   10.730222644,
+   10.16186673
+  ],
+  "indexed_baseline_seconds": 6.333313854,
+  "published_prefix_entries_at_first_entry": 130,
+  "snapshot_logical_bytes_at_first_entry": 8493,
+  "post_invalidation_rss_kib": [
+   18256,
+   33888,
+   43408
+  ],
+  "peak_rss_kib": 44068,
+  "retained_views_after_invalidation": [
+   1
+  ],
+  "snapshot_reservations_after_close": 0,
+  "provider_foreground_requests": 0,
+  "provider_content_reads": 0,
+  "samples": [
+   {
+    "directory_snapshot_entries": 0,
+    "memory": {
+     "anonymous_pss_kib": 2632,
+     "peak_rss_kib": 13544,
+     "pss_kib": 10250,
+     "rss_kib": 12488
+    },
+    "open_directory_handles": 0,
+    "open_files": 0,
+    "phase": "indexed_baseline",
+    "retained_views": 1,
+    "seconds": 6.333313854,
+    "snapshot_logical_bytes": 0,
+    "snapshot_reservations": 0,
+    "view_map_capacity": null
+   },
+   {
+    "directory_snapshot_entries": 130,
+    "memory": {
+     "anonymous_pss_kib": 3416,
+     "peak_rss_kib": 14656,
+     "pss_kib": 11962,
+     "rss_kib": 14656
+    },
+    "open_directory_handles": 1,
+    "open_files": 0,
+    "phase": "first_entry_revision_1",
+    "retained_views": 2,
+    "seconds": 0.004076412,
+    "snapshot_logical_bytes": 8493,
+    "snapshot_reservations": 1,
+    "view_map_capacity": null
+   },
+   {
+    "directory_snapshot_entries": 0,
+    "memory": {
+     "anonymous_pss_kib": 7048,
+     "peak_rss_kib": 18256,
+     "pss_kib": 15562,
+     "rss_kib": 18256
+    },
+    "open_directory_handles": 0,
+    "open_files": 0,
+    "phase": "closed_after_revision_1",
+    "retained_views": 2,
+    "seconds": 9.182016922,
+    "snapshot_logical_bytes": 0,
+    "snapshot_reservations": 0,
+    "view_map_capacity": null
+   },
+   {
+    "directory_snapshot_entries": 0,
+    "memory": {
+     "anonymous_pss_kib": 7088,
+     "peak_rss_kib": 18256,
+     "pss_kib": 15602,
+     "rss_kib": 18256
+    },
+    "open_directory_handles": 0,
+    "open_files": 0,
+    "phase": "after_invalidation_revision_1",
+    "retained_views": 1,
+    "seconds": 9.233581814,
+    "snapshot_logical_bytes": 0,
+    "snapshot_reservations": 0,
+    "view_map_capacity": null
+   },
+   {
+    "directory_snapshot_entries": 130,
+    "memory": {
+     "anonymous_pss_kib": 18692,
+     "peak_rss_kib": 30884,
+     "pss_kib": 27238,
+     "rss_kib": 29932
+    },
+    "open_directory_handles": 1,
+    "open_files": 0,
+    "phase": "first_entry_revision_2",
+    "retained_views": 2,
+    "seconds": 0.004917533,
+    "snapshot_logical_bytes": 8493,
+    "snapshot_reservations": 1,
+    "view_map_capacity": null
+   },
+   {
+    "directory_snapshot_entries": 0,
+    "memory": {
+     "anonymous_pss_kib": 22680,
+     "peak_rss_kib": 33888,
+     "pss_kib": 31194,
+     "rss_kib": 33888
+    },
+    "open_directory_handles": 0,
+    "open_files": 0,
+    "phase": "closed_after_revision_2",
+    "retained_views": 2,
+    "seconds": 10.730222644,
+    "snapshot_logical_bytes": 0,
+    "snapshot_reservations": 0,
+    "view_map_capacity": null
+   },
+   {
+    "directory_snapshot_entries": 0,
+    "memory": {
+     "anonymous_pss_kib": 22680,
+     "peak_rss_kib": 33888,
+     "pss_kib": 31194,
+     "rss_kib": 33888
+    },
+    "open_directory_handles": 0,
+    "open_files": 0,
+    "phase": "after_invalidation_revision_2",
+    "retained_views": 1,
+    "seconds": 10.781442918,
+    "snapshot_logical_bytes": 0,
+    "snapshot_reservations": 0,
+    "view_map_capacity": null
+   },
+   {
+    "directory_snapshot_entries": 130,
+    "memory": {
+     "anonymous_pss_kib": 32200,
+     "peak_rss_kib": 44068,
+     "pss_kib": 40746,
+     "rss_kib": 43440
+    },
+    "open_directory_handles": 1,
+    "open_files": 0,
+    "phase": "first_entry_revision_3",
+    "retained_views": 2,
+    "seconds": 0.004368759,
+    "snapshot_logical_bytes": 8493,
+    "snapshot_reservations": 1,
+    "view_map_capacity": null
+   },
+   {
+    "directory_snapshot_entries": 0,
+    "memory": {
+     "anonymous_pss_kib": 32200,
+     "peak_rss_kib": 44068,
+     "pss_kib": 40714,
+     "rss_kib": 43408
+    },
+    "open_directory_handles": 0,
+    "open_files": 0,
+    "phase": "closed_after_revision_3",
+    "retained_views": 2,
+    "seconds": 10.16186673,
+    "snapshot_logical_bytes": 0,
+    "snapshot_reservations": 0,
+    "view_map_capacity": null
+   },
+   {
+    "directory_snapshot_entries": 0,
+    "memory": {
+     "anonymous_pss_kib": 32200,
+     "peak_rss_kib": 44068,
+     "pss_kib": 40746,
+     "rss_kib": 43408
+    },
+    "open_directory_handles": 0,
+    "open_files": 0,
+    "phase": "after_invalidation_revision_3",
+    "retained_views": 1,
+    "seconds": 10.213155544,
+    "snapshot_logical_bytes": 0,
+    "snapshot_reservations": 0,
+    "view_map_capacity": null
+   }
+  ]
+ },
+ "previous_measurement_for_context": {
+  "source_base": "7056cd9d3e675b7c93eb6f5a510ce1197e5fd10f",
+  "artifact": "directory-snapshot-pages.json",
+  "first_entry_seconds": [
+   5.486995447,
+   7.313834456,
+   6.84420265
+  ],
+  "traversal_seconds": [
+   5.6841186409999995,
+   7.470463025,
+   7.017687696
+  ],
+  "indexed_baseline_seconds": 3.550922796,
+  "note": "Separate earlier run of the same fixture before prefix publication. Recorded for context only; it is a different source and session, not a controlled paired comparison."
+ },
+ "scope_and_limits": [
+  "One frozen local release binary, synthetic generated zero-byte metadata, no cloud credentials, content reads or foreground provider requests.",
+  "TMPDIR and SQLITE_TMPDIR were placed explicitly on Btrfs and verified in the live environment. No concurrent local compilation or other benchmarks ran.",
+  "first_entry seconds measure only OPENDIR to the first returned entry of the giant directory. Traversal seconds measure a whole pass, including the complete enumeration and deferred release.",
+  "At the first entry the published prefix holds 130 of 500,002 entries and 8,493 logical bytes; the remaining entries are produced while the reader consumes that prefix.",
+  "The first-entry improvement is confirmed by a controlled frozen-binary pair on one idle machine: baseline 8.80-10.76 s against 4.33-5.23 ms, with no overlap between the distributions.",
+  "The same controlled pair shows whole-pass traversal unchanged, medians 10.585 s baseline against 10.232 s new. The higher traversal seconds against the 2026-09-07 artifact were a session difference; that earlier pair was never controlled and is kept only for context.",
+  "Post-invalidation RSS still rises across the three passes (18.3 / 33.9 / 43.4 MiB). This run does not establish a memory plateau and does not close the namespace capacity gate.",
+  "No mapped content, writable overlays, deep aliases, held descriptors, desktop applications, real-provider acceptance or 24-hour sustained operation."
+ ],
+ "controlled_pair": {
+  "method": "Two frozen release binaries differing only in the directory path, run alternately in one session on one idle machine, order baseline/new/new/baseline/baseline/new. The measured fixture is byte-identical in both sources.",
+  "date": "2026-09-08",
+  "binaries": {
+   "baseline": {
+    "commit": "ce9c298d1d482fcf7d4f5b2da68a992e81169ef0",
+    "sha256": "6efe113d727cfc5c4bcc38c79bbcefcc01ec1ab750f663e651469c3014be5356"
+   },
+   "new": {
+    "commit": "7f64f57ecc8f6da185d74befd78ec3253cc260c5",
+    "sha256": "996d4ae4d6f0f6e0ac8290eb76bd5afc859261524b1d8035d7215d05d2ae5ad3",
+    "rust_source_commit": "82d22db3fb6ee3973b0bb7d8a2d0162bc8d5ca35"
+   }
+  },
+  "runs_per_binary": 3,
+  "passes_per_run": 3,
+  "first_entry_ms": {
+   "baseline": {
+    "values": [
+     8889.533706,
+     10610.771443000001,
+     10397.958372,
+     8801.842337,
+     10755.38576,
+     10141.415791,
+     8896.570033,
+     10684.748365000001,
+     10516.3876
+    ],
+    "median": 10397.958372,
+    "min": 8801.842337,
+    "max": 10755.38576
+   },
+   "new": {
+    "values": [
+     4.334524,
+     4.838353,
+     4.756638,
+     4.722741,
+     4.729208000000001,
+     4.854263,
+     4.381717,
+     5.234083,
+     4.672540000000001
+    ],
+    "median": 4.729208000000001,
+    "min": 4.334524,
+    "max": 5.234083
+   }
+  },
+  "traversal_seconds": {
+   "baseline": {
+    "values": [
+     9.0679026,
+     10.795728762,
+     10.584581632,
+     8.96061565,
+     10.905268406,
+     10.290530129,
+     9.08334745,
+     10.83731286,
+     10.695511683
+    ],
+    "median": 10.584581632,
+    "min": 8.96061565,
+    "max": 10.905268406
+   },
+   "new": {
+    "values": [
+     9.09537503,
+     10.697743046,
+     10.421728191,
+     8.807244011,
+     10.627270693,
+     10.230170967,
+     9.07572546,
+     10.596752798,
+     10.231636869999999
+    ],
+    "median": 10.231636869999999,
+    "min": 8.807244011,
+    "max": 10.697743046
+   }
+  },
+  "indexed_baseline_seconds": {
+   "baseline": {
+    "values": [
+     6.284538649,
+     6.189003522,
+     6.271993853
+    ],
+    "median": 6.271993853
+   },
+   "new": {
+    "values": [
+     6.24577671,
+     6.299840481,
+     6.476374742
+    ],
+    "median": 6.299840481
+   }
+  },
+  "ratios": {
+   "first_entry_median": 2198.668016293637,
+   "traversal_median": 0.9666548216763754,
+   "indexed_baseline_median": 1.0044398366217597
+  },
+  "findings": [
+   "First-entry distributions do not overlap: every baseline sample is at least 8.80 s and every new sample is at most 5.23 ms. The median ratio is 2,199.",
+   "Whole-pass traversal is unchanged: medians 10.585 s baseline against 10.232 s new, a ratio of 0.967, with fully overlapping ranges.",
+   "The unrelated indexing baseline matches within 0.5 percent, which is what makes the pairing usable.",
+   "The apparent traversal regression against the 2026-09-07 artifact was a session difference, not streaming overhead."
+  ],
+  "temporary_filesystem": [
+   {
+    "target": "/home",
+    "source": "/dev/mapper/root[/@home]",
+    "fstype": "btrfs"
+   }
+  ],
+  "runs": [
+   {
+    "index": 0,
+    "binary": "baseline",
+    "first_entry_ms": [
+     8889.533706,
+     10610.771443000001,
+     10397.958372
+    ],
+    "traversal_seconds": [
+     9.0679026,
+     10.795728762,
+     10.584581632
+    ],
+    "indexed_baseline_seconds": 6.284538649,
+    "post_invalidation_rss_kib": [
+     18752,
+     30280,
+     35856
+    ],
+    "entries_at_first_entry": [
+     500002,
+     500002,
+     500002
+    ],
+    "exit_code": 0,
+    "log_sha256": "1bd16bab2921324ae9a677940d2397dbfa1a1fb9e2d37a7cc2c5618bf389fb47"
+   },
+   {
+    "index": 1,
+    "binary": "new",
+    "first_entry_ms": [
+     4.334524,
+     4.838353,
+     4.756638
+    ],
+    "traversal_seconds": [
+     9.09537503,
+     10.697743046,
+     10.421728191
+    ],
+    "indexed_baseline_seconds": 6.24577671,
+    "post_invalidation_rss_kib": [
+     18424,
+     34060,
+     43588
+    ],
+    "entries_at_first_entry": [
+     130,
+     130,
+     130
+    ],
+    "exit_code": 0,
+    "log_sha256": "357e892854324ad7e2114d70e276fb142cbb61167a7b96fe9b35315fca715508"
+   },
+   {
+    "index": 2,
+    "binary": "new",
+    "first_entry_ms": [
+     4.722741,
+     4.729208000000001,
+     4.854263
+    ],
+    "traversal_seconds": [
+     8.807244011,
+     10.627270693,
+     10.230170967
+    ],
+    "indexed_baseline_seconds": 6.299840481,
+    "post_invalidation_rss_kib": [
+     18480,
+     33832,
+     43328
+    ],
+    "entries_at_first_entry": [
+     130,
+     130,
+     130
+    ],
+    "exit_code": 0,
+    "log_sha256": "98746f166e47e31fbeb3e60d90d7337c9ad04bdb91ba6d3b9dd2f04018ea0257"
+   },
+   {
+    "index": 3,
+    "binary": "baseline",
+    "first_entry_ms": [
+     8801.842337,
+     10755.38576,
+     10141.415791
+    ],
+    "traversal_seconds": [
+     8.96061565,
+     10.905268406,
+     10.290530129
+    ],
+    "indexed_baseline_seconds": 6.189003522,
+    "post_invalidation_rss_kib": [
+     18736,
+     34252,
+     39804
+    ],
+    "entries_at_first_entry": [
+     500002,
+     500002,
+     500002
+    ],
+    "exit_code": 0,
+    "log_sha256": "620c010b6cf7626139521734585b5e06a498621ce457c2652d81b4967db517ca"
+   },
+   {
+    "index": 4,
+    "binary": "baseline",
+    "first_entry_ms": [
+     8896.570033,
+     10684.748365000001,
+     10516.3876
+    ],
+    "traversal_seconds": [
+     9.08334745,
+     10.83731286,
+     10.695511683
+    ],
+    "indexed_baseline_seconds": 6.271993853,
+    "post_invalidation_rss_kib": [
+     18376,
+     34180,
+     39732
+    ],
+    "entries_at_first_entry": [
+     500002,
+     500002,
+     500002
+    ],
+    "exit_code": 0,
+    "log_sha256": "717ac47259e5bbdbff0f8adb6d5d3ce0e0540008fc8944d282acc2dea95b8758"
+   },
+   {
+    "index": 5,
+    "binary": "new",
+    "first_entry_ms": [
+     4.381717,
+     5.234083,
+     4.672540000000001
+    ],
+    "traversal_seconds": [
+     9.07572546,
+     10.596752798,
+     10.231636869999999
+    ],
+    "indexed_baseline_seconds": 6.476374742,
+    "post_invalidation_rss_kib": [
+     18356,
+     33980,
+     39548
+    ],
+    "entries_at_first_entry": [
+     130,
+     130,
+     130
+    ],
+    "exit_code": 0,
+    "log_sha256": "2035cf7d7fecca711f38763d65e894c0a8286f15ce070fb40e6f3f633e02f6b5"
+   }
+  ]
+ }
+}
