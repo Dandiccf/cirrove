@@ -11,7 +11,7 @@ with `blocker` naming the class. This document is the operator's version of it.
 
 ## Live provider, read only — about 15 minutes plus one wait
 
-Six boxes turn on a real Microsoft account. Nothing in the repository has ever
+Six open boxes turn on a real Microsoft account. Nothing in the repository has ever
 contacted one: every provider is either an in-process fake or a loopback HTTP
 server the real adapter talks to, and `AGENTS.md` requires explicit authorization
 for anything else.
@@ -107,8 +107,10 @@ to change buys nothing.
 
 ## What this list is not
 
-It is not a claim that the remaining work is small. Six of the fifteen boxes in
-milestones 1 and 2 need the live account, and the evidence clause of milestone 1
-asks for provider-backed reads and ordinary desktop applications, so even a
-perfect synthetic result leaves it open. What the list does claim is that nothing
-here is waiting on analysis.
+It is not a claim that the remaining work is small. Eleven boxes in milestones 1
+and 2 are still open: six need the live account, two a reboot, two an exclusive
+machine window and one root. The evidence clause of milestone 1 asks for
+provider-backed reads and ordinary desktop applications, so even a perfect
+synthetic result leaves its boxes open -- which is why "responsive navigation"
+is on this list rather than closed by its 500 ms assertion. What the list does
+claim is that nothing here is waiting on analysis.
