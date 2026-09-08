@@ -1,5 +1,6 @@
 //! Combined kernel workload. Reports individual acceptance evidence and open limits.
 use super::*;
+mod mappings;
 use std::{
     fs::{File, ReadDir},
     os::unix::fs::MetadataExt,
@@ -13,6 +14,7 @@ struct Tree {
     files: usize,
     per_directory: usize,
     stat_workers: usize,
+    mappings: bool,
 }
 impl Tree {
     fn groups(self) -> usize {
@@ -46,6 +48,11 @@ impl Tree {
         }
     }
     fn node(self, index: usize, primary: bool) -> Node {
+        if self.mappings
+            && index == 1 + DEPTH + self.groups() + self.files + if primary { 2 } else { 0 }
+        {
+            return mappings::node(0);
+        }
         let root = if primary { "root" } else { "shared-root" };
         let mut node = self.file(0, 0);
         node.kind = NodeKind::Folder;
@@ -98,7 +105,12 @@ impl Tree {
             let mut store = Store::open(db).unwrap();
             for (index, scope) in scopes.iter().enumerate() {
                 let primary = index == 0;
-                let total = 1 + DEPTH + self.groups() + self.files + if primary { 2 } else { 0 };
+                let total = 1
+                    + DEPTH
+                    + self.groups()
+                    + self.files
+                    + if primary { 2 } else { 0 }
+                    + usize::from(self.mappings);
                 let mut cursor = store.begin(scope, true).unwrap();
                 for start in (0..total).step_by(PAGE) {
                     let end = (start + PAGE).min(total);
@@ -136,6 +148,7 @@ impl Tree {
                             changes: (0..HELD_PER_ROUTE)
                                 .chain(std::iter::once(RENAME_FILE))
                                 .map(|file| Change::Upsert(self.file(file, round)))
+                                .chain(self.mappings.then(|| Change::Upsert(mappings::node(round))))
                                 .collect(),
                             checkpoint: Checkpoint::Complete(Cursor(format!("round-{round}"))),
                         },
@@ -237,13 +250,22 @@ async fn round(
     number: usize,
     full: bool,
     started: Instant,
+    content: Option<&mappings::Provider>,
 ) -> Vec<u64> {
     let paths = routes.clone();
     let held = tokio::task::spawn_blocking(move || hold(&paths, number - 1))
         .await
         .unwrap();
+    let mut mapped = if content.is_some() {
+        Some(mappings::Client::start(&routes, number - 1).await)
+    } else {
+        None
+    };
     sample(inner, number, "held_before_update", started).await;
     let navigation = Instant::now();
+    if let Some(content) = content {
+        content.revision.store(number, Ordering::SeqCst);
+    }
     tree.update(&inner.engine, number).await;
     let paths = routes.clone();
     let old_first = held.files[0].1;
@@ -276,6 +298,9 @@ async fn round(
         navigation_ms < 500.0,
         "cached navigation exceeded 500 ms during committed changes: {navigation_ms}"
     );
+    if let Some(mapped) = &mut mapped {
+        mapped.update().await;
+    }
     let paths = routes.clone();
     let (files, ids) = tokio::task::spawn_blocking(move || {
         for (directory, path) in held.directories.into_iter().zip(&paths) {
@@ -370,6 +395,9 @@ async fn round(
         serde_json::json!({"round":number,"full_traversal":full,
         "stat_operations":visited,"navigation_ms":navigation_ms,"traversal_seconds":traversal.elapsed().as_secs_f64()})
     );
+    if let Some(mapped) = mapped {
+        mapped.finish().await;
+    }
     drop(files);
     let deadline = Instant::now() + Duration::from_secs(5);
     while !inner.files.lock().unwrap().is_empty() || inner.directory_budget.usage() != (0, 0) {
@@ -387,6 +415,12 @@ async fn round(
 }
 
 pub(super) async fn mounted() {
+    run(false).await;
+}
+pub(super) async fn mounted_with_mappings() {
+    run(true).await;
+}
+async fn run(with_mappings: bool) {
     let files = std::env::var("CIRROVE_CHURN_FILES").map_or(4000, |s| s.parse::<usize>().unwrap());
     assert!((4000..=500_000).contains(&files) && files.is_multiple_of(2));
     let per_directory =
@@ -401,14 +435,20 @@ pub(super) async fn mounted() {
         files: files / 2,
         per_directory,
         stat_workers,
+        mappings: with_mappings,
     };
-    let provider = Arc::new(GeneratedLibrary {
+    let generated = Arc::new(GeneratedLibrary {
         files: 0,
         per_directory: 1000,
         revision: AtomicU32::new(1),
         content_reads: AtomicU64::new(0),
         foreground_requests: AtomicU64::new(0),
     });
+    let content = with_mappings.then(|| Arc::new(mappings::Provider::new(generated.clone())));
+    let provider: Arc<dyn ReadProvider> = match &content {
+        Some(content) => content.clone(),
+        None => generated.clone(),
+    };
     let temp = tempfile::tempdir().unwrap();
     let mount = temp.path().join("mount");
     std::fs::create_dir(&mount).unwrap();
@@ -427,12 +467,22 @@ pub(super) async fn mounted() {
         "CIRROVE_CHURN_CONFIG {}",
         serde_json::json!({"indexed_files":files,"projected_files":tree.files*3,
         "depth":DEPTH,"routes":3,"files_per_directory":per_directory,"held_files":24,"held_snapshots":3,
+        "additional_content_files":if with_mappings {2}else{0},"held_mappings":if with_mappings {6}else{0},
         "stat_workers":stat_workers,"queued_stat_entries":128,"sustained_seconds":seconds,"build":if cfg!(debug_assertions){"debug"}else{"release"},
-        "scope":"synthetic kernel FUSE; complete traversal stats every projected file; no provider content or metadata requests"})
+        "scope":if with_mappings {"synthetic kernel FUSE; complete metadata traversal plus held old/new content mappings; synthetic version-checked content provider"}else{"synthetic kernel FUSE; complete traversal stats every projected file; no provider content or metadata requests"}})
     );
     let mut previous = None;
     for number in 1..=3 {
-        let ids = round(tree, &inner, routes.clone(), number, true, started).await;
+        let ids = round(
+            tree,
+            &inner,
+            routes.clone(),
+            number,
+            true,
+            started,
+            content.as_deref(),
+        )
+        .await;
         if let Some(previous) = &previous {
             assert_eq!(&ids, previous);
         }
@@ -442,7 +492,16 @@ pub(super) async fn mounted() {
     let mut number = 3;
     while sustained.elapsed() < Duration::from_secs(seconds) {
         number += 1;
-        let ids = round(tree, &inner, routes.clone(), number, false, started).await;
+        let ids = round(
+            tree,
+            &inner,
+            routes.clone(),
+            number,
+            false,
+            started,
+            content.as_deref(),
+        )
+        .await;
         assert_eq!(Some(ids), previous);
         let remaining = Duration::from_secs(seconds).saturating_sub(sustained.elapsed());
         tokio::time::sleep(remaining.min(Duration::from_secs(30))).await;
@@ -452,6 +511,25 @@ pub(super) async fn mounted() {
     let inode = tokio::task::spawn_blocking(move || std::fs::metadata(path).unwrap().ino())
         .await
         .unwrap();
+    let mapped_inodes = if let Some(content) = &content {
+        assert_eq!(
+            content.content_requests.load(Ordering::SeqCst),
+            2 * (number as u64 + 1)
+        );
+        let paths = mappings::paths(&routes);
+        let ids =
+            tokio::task::spawn_blocking(move || paths.map(|p| std::fs::metadata(p).unwrap().ino()))
+                .await
+                .unwrap();
+        content.offline.store(true, Ordering::SeqCst);
+        Some((
+            ids,
+            content.node_requests.load(Ordering::SeqCst),
+            content.content_requests.load(Ordering::SeqCst),
+        ))
+    } else {
+        None
+    };
     engine.stop().await;
     tokio::task::spawn_blocking(move || session.umount_and_join())
         .await
@@ -466,6 +544,16 @@ pub(super) async fn mounted() {
     let inner = fs.inner.clone();
     let session = fs.mount(&mount).unwrap();
     let routes = Tree::routes(&mount);
+    if let Some((ids, nodes, ranges)) = mapped_inodes {
+        mappings::offline(&routes, number, ids).await;
+        let content = content.as_ref().unwrap();
+        assert_eq!(content.node_requests.load(Ordering::SeqCst), nodes);
+        assert_eq!(content.content_requests.load(Ordering::SeqCst), ranges);
+        println!(
+            "CIRROVE_CHURN_MAPPINGS {}",
+            serde_json::json!({"content_files":2,"mapped_routes":3,"held_mappings":6,"file_bytes":8192,"content_versions":number+1,"provider_range_calls":ranges,"provider_node_calls":nodes,"offline_additional_calls":0})
+        );
+    }
     tokio::task::spawn_blocking(move || {
         assert_eq!(
             std::fs::metadata(routes[0].join("group-000000").join(Tree::name(0, number)))
@@ -494,8 +582,8 @@ pub(super) async fn mounted() {
     .unwrap();
     parents::settle(&inner, 1).await;
     sample(&inner, number, "offline_remount", started).await;
-    assert_eq!(provider.foreground_requests.load(Ordering::SeqCst), 0);
-    assert_eq!(provider.content_reads.load(Ordering::SeqCst), 0);
+    assert_eq!(generated.foreground_requests.load(Ordering::SeqCst), 0);
+    assert_eq!(generated.content_reads.load(Ordering::SeqCst), 0);
     engine.stop().await;
     tokio::task::spawn_blocking(move || session.umount_and_join())
         .await

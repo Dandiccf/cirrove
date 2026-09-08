@@ -840,3 +840,9 @@ mod churn;
 async fn real_combined_namespace_churn() {
     churn::mounted().await;
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "actual synthetic FUSE; combined namespace churn with held old/new mappings and offline bytes"]
+async fn real_combined_namespace_churn_preserves_mapped_content() {
+    churn::mounted_with_mappings().await;
+}
