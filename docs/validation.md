@@ -1386,3 +1386,37 @@ thread. A single 505 ms block followed three milliseconds later by a 2.888 ms
 operation of the same class is as consistent with a queue as with per-operation
 cost, and no measurement so far distinguishes them, because every stage timestamp
 is taken in the client. A server-side measurement of the handler is in progress.
+
+## Concurrent FUSE dispatch is not yet safe (2026-09-08)
+
+Head-of-line blocking behind bulk reads is a structural risk: `fuser` defaults
+`n_threads` to one, so every request is decoded and dispatched from a single
+thread while an application read of a gibibyte issues 16,384 of them.
+
+Raising it to four does not work today. With four dispatch threads,
+`filesystem::capacity::real_combined_namespace_churn_preserves_mapped_content`
+fails with three namespace views still alive after the twelve-second settle
+window, where one is expected. Twelve seconds is far past any scheduling wobble,
+so the views are genuinely not released: concurrent dispatch reorders requests
+against the lookup-count bookkeeping that a view's lifetime depends on, and that
+bookkeeping is completed in a spawned task rather than before the reply.
+
+The change is therefore reverted and the reason recorded at the mount site.
+Making the reference accounting order-independent is a prerequisite for
+addressing head-of-line blocking, and it is a change to kernel-facing lifetime
+semantics that must not be rushed. Until then, a single slow handler can still
+delay every request behind it, which bounds how much the per-operation work
+removed elsewhere can guarantee.
+
+A server-side measurement of the OPENDIR handler under four competing fsync
+writers, six runs per variant, shows what that work costs today:
+
+| | Handler maximum | Samples above 20 ms per run |
+| --- | ---: | ---: |
+| Before the hardening | 39.8-85.1 ms | 16-26 |
+| After | 21.1-26.2 ms | 0-2 |
+
+Neither variant produced a bound violation during those instrumented runs, so
+this measures handler cost, not the extreme tail. Whether a 500 ms event is
+handler work or queueing remains unsettled, because no instrumented run captured
+one.
