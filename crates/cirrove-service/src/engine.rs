@@ -1,6 +1,8 @@
 //! Per-account metadata service. Change feeds and foreground directory requests
 //! share a provider client but never hold SQLite locks across network awaits.
 mod changes;
+#[cfg(test)]
+mod discovery;
 use crate::{accounts::Account, content::ContentCache, private_dir, refresh};
 use anyhow::Result;
 pub use changes::ChangeNotifications;
@@ -13,13 +15,17 @@ use std::{
     path::PathBuf,
     sync::{
         Arc, Mutex as StdMutex, Weak,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tokio::sync::{Mutex, Notify, RwLock, watch};
 use tokio_util::task::TaskTracker;
 
+/// Discovery shares the store with every feed, so a transient store failure must
+/// recover on its own schedule rather than on the next successful poll.
+const DISCOVERY_RETRY: Duration = Duration::from_secs(1);
+const DISCOVERY_RETRY_LIMIT: Duration = Duration::from_secs(60);
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FeedHealth {
     pub collection: String,
@@ -54,6 +60,7 @@ pub struct Engine {
     directory_publications: Arc<tokio::sync::Semaphore>,
     discovery: Notify,
     discovery_started: AtomicBool,
+    discovery_failures: AtomicU64,
     activity: crate::activity::DirectoryActivity,
     _owner: std::fs::File,
 }
@@ -89,6 +96,7 @@ impl Engine {
             directory_publications: Arc::new(tokio::sync::Semaphore::new(2)),
             discovery: Notify::new(),
             discovery_started: AtomicBool::new(false),
+            discovery_failures: AtomicU64::new(0),
             activity: crate::activity::DirectoryActivity::default(),
             _owner: owner,
         }))
@@ -108,12 +116,25 @@ impl Engine {
             });
             let engine = self.clone();
             self.tasks.spawn(async move {
+                // A failed discovery must not wait for the next successful feed
+                // poll. That interval can be an hour, and a feed that stops
+                // succeeding never notifies again, so a linked drive would stay
+                // unsubscribed for the whole time.
+                let mut retry = Duration::ZERO;
                 loop {
                     tokio::select! {biased;
                         _=engine.cancel.cancelled()=>return,
                         _=engine.discovery.notified()=>(),
+                        _=tokio::time::sleep(retry), if !retry.is_zero()=>(),
                     }
-                    let _ = engine.discover().await;
+                    match engine.discover().await {
+                        Ok(()) => retry = Duration::ZERO,
+                        Err(error) => {
+                            engine.discovery_failures.fetch_add(1, Ordering::SeqCst);
+                            retry = (retry * 2).clamp(DISCOVERY_RETRY, DISCOVERY_RETRY_LIMIT);
+                            tracing::warn!(%error, "linked-drive discovery failed; retrying");
+                        }
+                    }
                 }
             });
         }
