@@ -2,6 +2,8 @@
 //! share a provider client but never hold SQLite locks across network awaits.
 mod changes;
 #[cfg(test)]
+mod deadlines;
+#[cfg(test)]
 mod discovery;
 #[cfg(test)]
 mod persistence;
@@ -26,6 +28,9 @@ use tokio_util::task::TaskTracker;
 
 /// Discovery shares the store with every feed, so a transient store failure must
 /// recover on its own schedule rather than on the next successful poll.
+/// A single-item fetch on the filesystem path must not wait indefinitely for an
+/// adapter. The directory path already bounds itself at sixty seconds.
+const SINGLE_ITEM_TIMEOUT: Duration = Duration::from_secs(60);
 const DISCOVERY_RETRY: Duration = Duration::from_secs(1);
 const DISCOVERY_RETRY_LIMIT: Duration = Duration::from_secs(60);
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -467,7 +472,17 @@ impl Engine {
             return Ok(node);
         }
         let ticket = ticket.ok_or(ProviderError::Unavailable)?;
-        let node = match self.provider.node(scope, id, &self.cancel).await {
+        // A single-item fetch reaches this point only when the index has no row
+        // for the item, which a cached navigation should never hit; several
+        // actual-kernel fixtures assert zero foreground requests across deep
+        // traversals. When it does happen it is on a latency-bounded FUSE path,
+        // so enforce the deadline here rather than trusting an adapter to honour
+        // the token, exactly as the directory path already does.
+        let fetch = tokio::time::timeout(
+            SINGLE_ITEM_TIMEOUT,
+            self.provider.node(scope, id, &self.cancel),
+        );
+        let node = match fetch.await.unwrap_or(Err(ProviderError::Unavailable)) {
             Ok(node) => node,
             Err(ProviderError::NotFound) => {
                 let db = self.db.clone();
