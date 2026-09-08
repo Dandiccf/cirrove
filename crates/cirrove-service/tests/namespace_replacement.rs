@@ -7,6 +7,7 @@ use cirrove_service::journal::{
 };
 use std::{
     path::Path,
+    process::{Command, Stdio},
     time::{Duration, Instant},
 };
 
@@ -650,4 +651,82 @@ fn already_cached_source_and_target_need_no_synthetic_predecessor_operation() {
     );
     assert_eq!(j.read_working(old.id, 0, 100).unwrap(), b"old");
     assert_eq!(j.read_working(new.id, 0, 100).unwrap(), b"new");
+}
+
+/// Child for the crash test: performs a local replacement, stops at the requested
+/// durable transition, then waits to be killed.
+#[test]
+#[ignore = "subprocess fixture; activated only by its parent test"]
+fn replacement_crash_child() {
+    let root = std::env::var("CIRROVE_REPLACEMENT_FIXTURE_ROOT").unwrap();
+    let root = Path::new(&root);
+    let mut j = open(&root.join("journal"));
+    let old = victim(&mut j);
+    let new = source(&mut j, "temporary");
+    let src = object(&j, &new);
+    let dst = object(&j, &old);
+    let replacement = j
+        .replace_namespace_file(src.id, src.revision, dst.id, dst.revision, true)
+        .unwrap();
+    if std::env::var("CIRROVE_REPLACEMENT_FIXTURE_PHASE").unwrap() == "released" {
+        j.release_replacement_readers(replacement.id).unwrap();
+    }
+    std::fs::write(root.join("ready"), old.id.to_string()).unwrap();
+    loop {
+        std::thread::sleep(Duration::from_secs(1));
+    }
+}
+
+/// A killed process must not resurrect a replaced name or drop a reader still
+/// holding the old bytes.
+///
+/// Replacement swaps a name between two objects and keeps the victim's stream
+/// alive for descriptors that were already open. Both halves are durable state,
+/// and the existing tests reach them by injected failure and clean restart, which
+/// unwind or resume state the program still owns. This leaves whatever the kernel
+/// had actually written.
+///
+/// The reader gate is the sharp edge: released too eagerly after a crash, a
+/// descriptor that was reading the old document loses its bytes; held forever, the
+/// bytes never retire. The kill has to leave the gate exactly where the last
+/// durable write put it.
+#[test]
+fn actual_process_death_preserves_the_swapped_name_and_the_reader_gate() {
+    for phase in ["replaced", "released"] {
+        let temp = tempfile::tempdir().unwrap();
+        let mut child = Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "replacement_crash_child", "--ignored"])
+            .env("CIRROVE_REPLACEMENT_FIXTURE_ROOT", temp.path())
+            .env("CIRROVE_REPLACEMENT_FIXTURE_PHASE", phase)
+            .stdout(Stdio::null())
+            .spawn()
+            .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !temp.path().join("ready").exists() {
+            if Instant::now() >= deadline {
+                child.kill().unwrap();
+                child.wait().unwrap();
+                panic!("replacement fixture did not become ready");
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        child.kill().unwrap();
+        child.wait().unwrap();
+
+        let victim_id: uuid::Uuid = std::fs::read_to_string(temp.path().join("ready"))
+            .unwrap()
+            .parse()
+            .unwrap();
+        let j = open(&temp.path().join("journal"));
+        // The swap committed before the kill: the name belongs to the source and
+        // the victim is unlinked. A crash must not restore the old name.
+        assert_eq!(
+            names(&j, vec![node("target-id", "document", "target-etag", 3)]),
+            vec!["document"]
+        );
+        let victim = j.working_file(victim_id).unwrap();
+        assert!(victim.unlinked, "the replaced file must stay unlinked");
+        // And the old bytes are still readable, because a descriptor may hold them.
+        assert_eq!(j.read_working(victim_id, 0, 100).unwrap(), b"old");
+    }
 }
