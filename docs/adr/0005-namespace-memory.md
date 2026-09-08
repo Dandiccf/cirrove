@@ -59,9 +59,19 @@ writer while permitting the first cached batch. First entries arrive in 4.448–
 ms, before the writer releases. Complete old/fresh listings across a concurrent
 rename and closing during construction both preserve their expected behavior and
 reclaim snapshot storage. Unit tests exercise late data/index flush failures and
-abandoned producers. A separate CI startup-readiness failure remains unresolved;
-large-directory latency and sustained capacity still require evidence. See
+abandoned producers. A separate CI startup-readiness failure remains unresolved. See
 [the validation scope](../validation.md#directory-prefixes-before-construction-completes-2026-09-07).
+
+A frozen release binary then runs the same three-pass 500,000-file fixture with
+every file in one directory. Its first entry arrives in 4.08-4.92 ms against the
+unchanged 500 ms bound, from a published prefix of 130 entries, while the rest of
+the listing is still being produced. The earlier completed-snapshot run of that
+fixture needed 5.49-7.31 seconds. Whole-pass traversal is slower in the new run,
+9.18-10.73 against 5.68-7.47 seconds, but that session was also slower in the
+unrelated indexing baseline; a controlled frozen-binary pair is still needed before
+attributing throughput cost. Post-invalidation RSS still rises across passes, so
+sustained capacity remains unproven. See
+[the giant-directory measurements](../validation.md#giant-directory-first-entry-with-prefix-publication-2026-09-08).
 
 The Store read path now uses individual indexed directory-snapshot rows and an
 ordered visitor, with one decoded node per callback. It avoids loading a JSON
@@ -101,7 +111,8 @@ all logical snapshot bytes after close and return to the root alone after
 invalidation, without content or foreground metadata requests. The single large
 directory holds 33,000,045 logical snapshot bytes; peak process RSS rises by
 26,964 KiB over its 11,944 KiB ready baseline. Its first entry takes 5.49–7.31
-seconds, so the memory reduction does not solve opening latency. The first
+seconds, so the memory reduction does not solve opening latency; prefix
+publication later reduced that first entry to milliseconds. The first
 1,000-file directory takes 7.1–9.4 ms in the other variant.
 
 Post-invalidation RSS still rises across passes: 18,340 / 28,876 / 38,404 KiB for

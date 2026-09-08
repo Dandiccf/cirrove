@@ -54,7 +54,11 @@ absence/move semantics and cancellation. A synthetic 500k-file cold mount, offli
 revisit and remount pass; writable overlays and compatibility APIs still materialize
 lists. Read-only snapshot construction now publishes an immutable flushed prefix
 before completing the scan; waiting readers distinguish completion from late errors.
-Large-directory latency and sustained acceptance for this path remain open.
+A frozen release binary opens a single 500,000-file directory and returns its first
+entry in 4.08-4.92 ms across three passes, against the earlier 5.49-7.31 seconds for
+the same fixture and the unchanged 500 ms bound. Whole-pass traversal is slower in
+that session and is not yet attributed; sustained acceptance remains open. See
+[the giant-directory measurements](benchmarks/early-directory-prefix.json).
 This remains partial progress toward the paging and memory gate; see
 [foreground publication measurements](benchmarks/directory-publication.json).
 Separate three-pass kernel runs now cover 500k files in one directory and in

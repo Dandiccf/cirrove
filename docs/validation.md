@@ -1122,3 +1122,33 @@ cache storage. The remaining high RSS is not proof of live-view leakage or of
 reclaimable allocator memory; three passes do not establish a memory plateau.
 Resident byte accounting/budgets, sustained 24-hour churn, large mapped-content and
 real-provider acceptance remain open.
+
+## Giant-directory first entry with prefix publication (2026-09-08)
+
+A frozen release binary built from `7f64f57ecc8f6da185d74befd78ec3253cc260c5`
+(SHA256 `996d4ae4d6f0f6e0ac8290eb76bd5afc859261524b1d8035d7215d05d2ae5ad3`,
+Rust sources unchanged since `82d22db`) runs the actual-kernel
+`filesystem::capacity::namespace_capacity_baseline` fixture with all 500,000
+generated files in a single directory, over three changed-revision passes.
+
+The first entry of that directory arrives in 4.076, 4.918 and 4.369 ms, against
+the unchanged 500 ms bound. At that moment the published prefix holds 130 of
+500,002 entries and 8,493 logical bytes, so the reader starts while the remaining
+entries are still being produced. Each pass ends with every snapshot reservation
+released, only the root view retained after invalidation, and no foreground
+metadata or content request to the provider.
+
+The [earlier completed-snapshot run](benchmarks/directory-snapshot-pages.json) of
+the same fixture took 5.487, 7.314 and 6.844 seconds to reach that first entry.
+The improvement is about three orders of magnitude and cannot be explained by
+session differences, but the two runs are not a controlled pair: this session was
+also slower in the unrelated indexing baseline, 6.33 s against 3.55 s.
+
+Whole-pass traversal is slower here than in that earlier run: 9.18, 10.73 and
+10.16 seconds against 5.68, 7.47 and 7.02 seconds. Part of that gap follows the
+same slower session, and part may be real streaming overhead. No attribution is
+claimed without a controlled frozen-binary pair. Post-invalidation RSS still rises
+across passes, 18.3 / 33.9 / 43.4 MiB, so this run establishes neither a memory
+plateau nor the capacity gate. Mapped content, writable overlays, desktop
+applications, real-provider acceptance and 24-hour operation are all untested here.
+See [the machine-readable results](benchmarks/early-directory-prefix.json).
