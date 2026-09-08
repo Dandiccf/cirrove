@@ -1181,5 +1181,23 @@ and then requires the linked drive to appear with no further notification, while
 asserting the sleeping feed never polled again. Without the retry the fixture fails
 with the primary feed alone and its next attempt an hour away.
 
-Whether that gap caused the recorded CI timeout remains unproven, and the original
-failure is retained as a finding rather than reclassified.
+Measuring the bound's slack then made the host-stall explanation implausible.
+The helper was temporarily instrumented to report how long the wait actually takes,
+and reverted afterwards. On an idle machine both feeds are ready in 10.99 ms median,
+11.76 ms worst; pinned to two cores against three competing spinners and two
+continuous fsync loops, that rises only to 23.08 ms median and 27.70 ms worst. Heavy
+load costs a factor of two, and the worst loaded sample still leaves the bound 108
+times of headroom. A runner would have to be about 108 times slower than that
+deliberately overloaded configuration for the three seconds to expire, while the same
+job's other kernel tests matched the passing job within tenths of a second.
+
+A discarded discovery error instead produces an unbounded wait, because the only feed
+then sleeps for an hour. That matches a clean three-second timeout on an otherwise
+healthy runner. Three stochastic reproductions found no failure: twelve idle runs of
+the whole kernel suite, eight under twelve spinners and two fsync loops, and nine of
+the failing test alone pinned to two loaded cores.
+
+This is strong circumstantial evidence, not proof. The feed states at the moment of
+the failure were never recorded, so the original failure is retained as a finding
+rather than reclassified; the helper now reports them and a recurrence settles it.
+See [the margin measurements](benchmarks/startup-readiness-margin.json).
