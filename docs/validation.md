@@ -932,3 +932,40 @@ The final source passed formatting, strict workspace Clippy, 329 regular tests,
 Separate release processes passed the 50k/500k representation fixtures and the
 500k-index targeted-invalidation fixture. Builds used the dedicated worktree target,
 and filtered commands were verified against their expected nonzero counts.
+
+## Combined namespace workload runner (2026-09-07)
+
+The synthetic kernel runner splits indexed files between primary and shared scopes,
+projects the shared tree through two aliases, and traverses 12-level routes. It
+keeps 24 old descriptors and three directory snapshots while changing eight file
+versions and renaming another entry per collection. Every projected file is statted
+in each of three passes, using eight workers and a 128-entry application queue.
+Old descriptors retain their inodes, continued snapshots retain the old unbuffered
+name, directory/alias inodes remain distinct and stable, and offline remount sees
+the committed names without provider calls. Normal kernel invalidation/FORGET
+releases all views except the root after each full pass.
+
+An optional timed phase repeats changes and stats in a fixed active group, allowing
+normal targeted invalidation to operate without a full sweep after every round.
+The initial 65-second trial validates this control path, not a 24-hour gate. The
+runner measures reference/index/candidate counts, snapshot storage, RSS/PSS and
+metadata database/WAL/inode growth separately. These are not payload-byte accounting
+or an allocator/SQLite buffer breakdown. Zero-length files exclude content/mapping
+coverage. [Recorded small/short results](benchmarks/namespace-churn-fixture.json)
+include exact source hashes and scope limits; large-library and sustained acceptance
+remain open. The CI suite's outer timeout accommodates the added full traversal;
+the individual 500 ms update/navigation bound remains unchanged.
+
+During the preceding shared-metadata CI, one conservative sequential-read workload
+exceeded the unchanged 500 ms cached-navigation limit. The duplicate PR job and
+one targeted rerun passed; three fresh local runs of the same release binary
+also passed with maximum samples below 3.4 ms. The cause remains unestablished.
+The [original CI run](https://github.com/Dandiccf/cirrove/actions/runs/34152465330/attempts/1)
+is retained as evidence for the open read-only latency acceptance work; successful
+reruns do not establish sustained reliability.
+
+The final runner source passed formatting, strict workspace Clippy, 329 regular
+tests, 49 actual-kernel regressions, the workspace build, Rustdoc and smoke/observer
+checks. Separate release-small and 65-second debug sustained runs also passed.
+Builds used the dedicated worktree target, and filtered tests were checked against
+their expected nonzero counts. These checks do not close the large-library gates.

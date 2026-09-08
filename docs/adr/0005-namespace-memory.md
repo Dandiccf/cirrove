@@ -184,6 +184,17 @@ High RSS after logical retirement still needs allocator/storage attribution. Thi
 correction does not provide evictable byte accounting, reconstructible disk-backed
 views, combined 500k kernel churn or 24-hour acceptance.
 
+A combined actual-kernel runner now exercises 12-level paths, duplicate shared-tree
+aliases and stat of every projected file, with 24 held old file descriptors and
+three stable directory snapshots across changes. It supports three full passes,
+optional sustained churn in a fixed active set, and offline remount. Metadata seeds
+and application work queues remain bounded. Reference/index/candidate counts and
+persistent inode/database growth are recorded separately from RSS/PSS and snapshot
+storage. It has small correctness and short-duration validation; the full 500k and
+24-hour gates below remain unverified. Zero-length files do not add mapping/content
+coverage. See [reproduction and interpretation](../development.md#combined-namespace-traversal-and-churn)
+and [the fixture-validation record](../benchmarks/namespace-churn-fixture.json).
+
 ## Planned lifetime model
 
 1. Track kernel lookup references, open file/directory leases, in-flight requests

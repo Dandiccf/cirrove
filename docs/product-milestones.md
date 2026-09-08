@@ -68,6 +68,11 @@ reduction; persistent inode keys, old content versions and parent leases retain 
 semantics. Resident byte budgets, reconstructible evicted views and the combined
 large-library/24-hour gate remain open; see
 [shared-payload measurements](benchmarks/shared-projection-payloads.json).
+A combined kernel workload runner now stats all projected files across deep paths
+and duplicate aliases, preserves held old files/snapshots during updates, and checks
+offline remount. Its sustained mode measures a fixed active set without forced full
+sweeps each round. Small/short runs validate the runner; 500k and 24-hour acceptance,
+byte accounting and reconstruction still require evidence and implementation.
 A shared conditional read-session prototype now removes per-block Graph checks in
 an explicit developer path. A synthetic 1 GiB adapter read uses two Graph requests
 instead of 512; an isolated business-file comparison also verifies subsequent
