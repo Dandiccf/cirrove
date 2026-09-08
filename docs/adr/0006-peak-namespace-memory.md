@@ -147,6 +147,23 @@ Reducing bytes per view is measured at 15 to 20 percent, which takes 490 MiB to
 about 410 and not to 256. Eviction with reconstruction is larger than shedding
 was, and shedding was retired for being unaffordable.
 
+Off-heap payloads look like a fourth option and are not one. ADR 0005 assessed
+`feature/paged-view-payloads` when 96 percent of retained RSS was allocator free
+arena, and concluded it addressed "the smaller of the two failures". The trim
+has since closed the retained failure, so that premise has inverted and the
+prototype now aims at the only failure left. It still does not pass, for the
+reason the TTL arms just demonstrated: a file-backed mapping's pages are
+resident until something reclaims them, and on an unloaded machine nothing does.
+Moving 470 MiB of live payload from the heap into a mapping moves which counter
+it lands in, not whether it is resident.
+
+That generalises, and it is the useful part of this whole result. Any design
+that keeps the payload reachable without a round trip leaves it resident on an
+idle machine, whatever it is stored in. The peak criterion as phrased can
+therefore only be met by a design that **discards** data and pays to rebuild it
+-- which is why eviction with reconstruction is not merely the last candidate
+standing but the only category that could ever have worked.
+
 That leaves the argument this document reserved for exactly this outcome: if the
 measurement shows a floor well above 256 MiB that no reachable design clears,
 make the case explicitly, with the floor measured. The floor is now measured. It
