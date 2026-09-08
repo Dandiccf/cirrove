@@ -37,8 +37,6 @@ EXCUSED = {
     "directory_publication_capacity": "500k-row benchmark; run deliberately",
     "large_directory_read_memory": "500k-entry benchmark; needs CIRROVE_DIRECTORY_* set explicitly",
     "synthetic_latency_report": "reporting fixture, not a pass/fail test",
-    # Needs a real unlocked Secret Service.
-    "desktop_keyring_checkpoint_updates_survive_new_sessions": "needs a host keyring",
 }
 
 
