@@ -8,7 +8,7 @@
     "distinct_runtime_functions": 22
   },
   "what_this_settles": "The denominator. Thirty-one durable writes on runtime paths across twenty-two functions, and twelve more inside schema migrations. Before this the box's scope was a guess.",
-  "what_this_does_not_settle": "The numerator, and static reading cannot supply it. Deciding which of the thirty-one a given kill fixture crosses means following calls through test helpers and through internal journal functions; an attempt to extract it by regex found nothing for one fixture that plainly does durable work, because its calls go through helpers. Reading each by hand would produce a number nobody could check, which is the same failure as counting test names.\\n\\nWhat would settle it: a #[cfg(test)] counter incremented at each of these thirty-one sites, with the crash fixtures asserting which they reached before dying. That turns the claim into a measurement, and it is roughly a day. Until then the honest statement is module-level coverage, which is what the acceptance ledger records.",
+  "what_this_does_not_settle": "The numerator, and static reading cannot supply it. Deciding which of the thirty-one a given kill fixture crosses means following calls through test helpers and through internal journal functions; an attempt to extract it by regex found nothing for one fixture that plainly does durable work, because its calls go through helpers. Reading each by hand would produce a number nobody could check, which is the same failure as counting test names.\\n\\n",
   "sites": [
     {
       "file": "journal/ancestry.rs",
@@ -311,5 +311,13 @@
       "kind": "fsync",
       "migration": false
     }
-  ]
+  ],
+  "instrument": {
+    "built": true,
+    "where": "journal::durable, behind the test-support feature rather than cfg(test), because the crash fixtures are integration tests and link the library without cfg(test) set.",
+    "how": "Each durable site calls durable::record(\"module::function::detail\") immediately after its commit or fsync. A crash fixture writes durable::reached() beside its ready signal, before being killed, and the parent asserts on that set.",
+    "proven_on": "preparation.rs, all five runtime sites. The fixture now asserts it crossed enqueue_preparing_replacement and claim_preparation, and that complete_preparation is reached in exactly one of its two phases.",
+    "discrimination_check": "Asserting a site name that does not exist fails with the measured set printed: [\"preparation::claim_preparation\", \"preparation::enqueue_preparing_replacement\"]. The assertion reads what the program did.",
+    "remaining": "26 of the 31 runtime sites are not yet instrumented. Mechanical: one line per site, one assertion per fixture."
+  }
 }

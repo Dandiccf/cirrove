@@ -6,6 +6,13 @@ rust-version.workspace = true
 license.workspace = true
 publish = false
 
+[features]
+# Records which durable writes a process reached, so a crash fixture can assert on
+# what it actually did. Integration tests link the library without cfg(test), so a
+# cfg(test) module is invisible to them; this is the same shape as
+# cirrove-onedrive's test-support feature.
+test-support = []
+
 [dependencies]
 cirrove-allocator.workspace = true
 cirrove-core.workspace = true
@@ -33,6 +40,10 @@ tracing-subscriber.workspace = true
 async-trait.workspace = true
 
 [dev-dependencies]
+# Self-dependency so the crate's own integration tests get test-support without
+# every cargo invocation naming it. The crash fixtures need the durable-site
+# recorder, and they link the library without cfg(test).
+cirrove-service = { path = ".", features = ["test-support"] }
 cirrove-onedrive = { workspace = true, features = ["test-support"] }
 # Virtual time, so a sixty-second service deadline can be asserted in a test
 # without spending sixty seconds. Tests only.

@@ -715,3 +715,45 @@ fn now_seconds() -> u64 {
         .as_secs()
         .min(i64::MAX as u64)
 }
+
+/// Which durable writes a process actually reached before it died.
+///
+/// Milestone 2 asks for crash tests at every durable transition. Enumerating the
+/// transitions is static and settled -- 31 on runtime paths, see
+/// `docs/benchmarks/durable-transition-sites.json` -- but deciding which ones a
+/// given crash fixture crosses is not: an attempt to read it out of the call
+/// graph returned nothing for a fixture that plainly performs durable work,
+/// because its calls run through test helpers.
+///
+/// So the fixtures measure it instead. Each site records itself, and a crash
+/// fixture writes the set it reached alongside its ready signal, before being
+/// killed. The claim then rests on what the program did rather than on what
+/// someone read.
+///
+/// Behind `test-support` rather than `cfg(test)`: the crash fixtures are
+/// integration tests, which link this library without `cfg(test)` set. `reached`
+/// is a plain sorted `Vec<&'static str>` behind a mutex rather than anything
+/// cleverer, because it is written a few dozen times per fixture and read once.
+#[cfg(feature = "test-support")]
+pub mod durable {
+    use std::sync::Mutex;
+
+    static REACHED: Mutex<Vec<&'static str>> = Mutex::new(Vec::new());
+
+    /// Called immediately after a durable write commits or fsyncs.
+    pub fn record(site: &'static str) {
+        if let Ok(mut reached) = REACHED.lock()
+            && !reached.contains(&site)
+        {
+            reached.push(site);
+        }
+    }
+
+    /// The sites reached so far, sorted, for a fixture to persist before dying.
+    #[must_use]
+    pub fn reached() -> Vec<&'static str> {
+        let mut sites = REACHED.lock().map(|r| r.clone()).unwrap_or_default();
+        sites.sort_unstable();
+        sites
+    }
+}

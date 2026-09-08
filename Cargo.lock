@@ -435,6 +435,7 @@ dependencies = [
  "cirrove-auth",
  "cirrove-core",
  "cirrove-onedrive",
+ "cirrove-service",
  "cirrove-store",
  "clap",
  "fs2",

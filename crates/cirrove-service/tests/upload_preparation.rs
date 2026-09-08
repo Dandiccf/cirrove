@@ -416,6 +416,13 @@ fn preparation_crash_child() {
         j.complete_preparation(r.id, preparing.attempt.unwrap(), data)
             .unwrap();
     }
+    // Persist which durable writes were actually reached, so the parent asserts
+    // on what the program did rather than on a reading of the call graph.
+    std::fs::write(
+        root.join("reached"),
+        cirrove_service::journal::durable::reached().join("\n"),
+    )
+    .unwrap();
     std::fs::write(root.join("ready"), r.id.to_string()).unwrap();
     loop {
         std::thread::sleep(Duration::from_secs(1));
@@ -457,6 +464,18 @@ fn actual_process_death_keeps_a_claimed_preparation_unfinished_and_a_completed_o
             .unwrap()
             .parse()
             .unwrap();
+        let reached = std::fs::read_to_string(temp.path().join("reached")).unwrap();
+        let reached: Vec<&str> = reached.lines().collect();
+        assert!(
+            reached.contains(&"preparation::enqueue_preparing_replacement")
+                && reached.contains(&"preparation::claim_preparation"),
+            "the fixture died without crossing the transitions it exists to cover: {reached:?}"
+        );
+        assert_eq!(
+            reached.contains(&"preparation::complete_preparation::objects_dir"),
+            phase == "completed",
+            "completion must be reached in exactly one of the two phases"
+        );
         let mut j = open(&temp.path().join("journal"), 4096);
         if phase == "completed" {
             // The captured source survives the kill verbatim.
