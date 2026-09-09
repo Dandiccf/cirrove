@@ -129,6 +129,8 @@ impl UploadJournal {
         )?;
         replacements::commit(&tx, &plan, &record)?;
         tx.commit()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("preparation::enqueue_preparing_replacement");
         Ok(record)
     }
 
@@ -190,6 +192,8 @@ impl UploadJournal {
             params![id.to_string(), serde_json::to_string(&record)?],
         )?;
         tx.commit()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("preparation::claim_preparation");
         Ok(Some((record, preparation)))
     }
 
@@ -249,6 +253,8 @@ impl UploadJournal {
             }
             if changed {
                 File::open(directory)?.sync_all()?;
+                #[cfg(feature = "test-support")]
+                crate::journal::durable::record("preparation::recover_preparation_files");
             }
         }
         Ok(())
@@ -368,6 +374,8 @@ impl UploadJournal {
                 .as_file()
                 .set_permissions(std::fs::Permissions::from_mode(0o400))?;
             temporary.as_file().sync_all()?;
+            #[cfg(feature = "test-support")]
+            crate::journal::durable::record("preparation::complete_preparation::temporary");
         }
         if preparation.sha256.is_none() {
             preparation.sha256 = Some(digest.clone());
@@ -381,6 +389,8 @@ impl UploadJournal {
                 .persist_noclobber(self.objects.join(id.to_string()))
                 .map_err(|_| JournalError::Storage)?;
             File::open(&self.objects)?.sync_all()?;
+            #[cfg(feature = "test-support")]
+            crate::journal::durable::record("preparation::complete_preparation::objects_dir");
         }
         self.finish_preparation(record, preparation, digest, Some(source))
     }

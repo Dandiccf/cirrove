@@ -91,6 +91,14 @@ enum Command {
         label: String,
         #[arg(long)]
         state_dir: Option<PathBuf>,
+        /// Request write consent for this account instead of keeping its current
+        /// mode. The only way to move an existing account between read-only and
+        /// writable without discarding its index.
+        #[arg(long, conflicts_with = "read_only")]
+        write_access: bool,
+        /// Return this account to read-only consent.
+        #[arg(long)]
+        read_only: bool,
     },
     /// Sign in through the browser and select an account/drive (read-only).
     Connect {
@@ -226,12 +234,19 @@ async fn main() -> Result<()> {
         Command::Reauth {
             label,
             state_dir: state,
+            write_access,
+            read_only,
         } => {
             let state = match state {
                 Some(path) => path,
                 None => state_dir()?,
             };
-            cirrove_service::accounts::reauthenticate(state, label).await?;
+            let access = match (write_access, read_only) {
+                (true, _) => Some(cirrove_auth::AccessMode::ReadWrite),
+                (_, true) => Some(cirrove_auth::AccessMode::ReadOnly),
+                _ => None,
+            };
+            cirrove_service::accounts::reauthenticate(state, label, access).await?;
         }
         Command::Connect {
             label,

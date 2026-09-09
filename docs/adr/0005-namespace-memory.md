@@ -339,3 +339,469 @@ the earlier many-directory timing/backing limitations and full raw records are i
 [the comparison](../benchmarks/compact-namespace-churn.json). These zero-byte
 fixtures predate the mapped-content and early-prefix changes; they do not validate
 those variants at scale or establish a total-host-memory or resident byte ceiling.
+
+## Direct attribution of the memory gate (2026-09-08)
+
+The gate has two distinct failures that earlier records treated as one. A frozen
+release binary carrying the compact representation ran
+`real_combined_namespace_churn` at `CIRROVE_CHURN_FILES=500000` under an
+`LD_PRELOAD` `mallinfo2` interposer sampling on every fixture marker, with the
+temporary directory on btrfs rather than tmpfs so that no bytes hide outside
+process RSS. See [the attribution run](../benchmarks/namespace-memory-attribution.json).
+
+**The traversal peak is live application data.** At 750,438 live views the
+allocator reports 495.0-510.3 MB allocated across three rounds, that is 637-657
+bytes per view over a 17.3 MB baseline. No allocator setting reduces this;
+only a bound on resident view count or on bytes per view does.
+
+**The retained floor is allocator-held.** After release the live heap returns to
+17.8-18.1 MB while RSS stays at 489.5-559.8 MB, so 96.4-96.8 percent of retained
+RSS is free arena that glibc has not returned. Released RSS tracks the peak to
+within 0.3 MB. No view budget reduces this; only trimming does.
+
+Peak RSS rises 38.1 and 32.0 MB between rounds while the live peak stays flat.
+The inter-round slope on this fixture is therefore allocator retention, and it is
+three to four times the roughly 10 MB per pass recorded on `namespace_capacity_baseline`,
+which never exceeds 501 live views and is not representative of the gate.
+
+Released PSS above the indexed baseline is 476.4 / 514.8 / 546.7 MiB against the
+256 MiB budget: missed by 1.86x, 2.01x and 2.14x, with the miss growing each round.
+
+This corrects an earlier statement in this document. The heavy fixture does
+converge: its traversed peaks decay geometrically rather than rising without
+limit. It converges at 476-771 MiB, which is the actual failure. The absence of a
+plateau reported for `namespace_capacity_baseline` is the signature of glibc arena
+growth under a fixed workload, not of unbounded namespace retention; retained view
+counts return to one in every recorded run.
+
+The two remedies are complementary, and neither alone closes the gate. This run
+is attribution only: one binary, one run per phase, no before/after control.
+
+## Acceptance criteria, bound to named fixtures (2026-09-08)
+
+Until now this gate has been described in prose and measured on whichever fixture
+was to hand. The two fixtures differ by two orders of magnitude in what they
+stress, so a change can improve one while doing nothing for the other. These
+criteria name the fixture, the metric and the number, so that a result either
+passes or does not.
+
+The workspace currently contains exactly two memory assertions:
+`filesystem::capacity::cold::…` (capacity/cold.rs:337-344, `peak_rss_kib` minus
+`rss_kib` under 256 MiB on cold publication) and a 64 MiB bound in
+`cirrove-store/src/directories/tests/capacity.rs:126`. Neither is on the churn
+fixture. The namespace memory gate is therefore measured but not asserted
+anywhere, which is why it has been possible to record progress against it for
+weeks without it ever failing a build.
+
+**Metric.** PSS is the gate. `Pss_Anon`, `mallinfo2` live heap and arena committed
+bytes are attribution terms, not gates. `VmHWM` is a separate headroom bound. All
+four are already emitted by `capacity.rs:151-168`.
+
+Anonymous PSS must not be the gate on its own: it would let any design that
+relocates bytes into a file pass by placing that file on tmpfs. That is the same
+objection which already rejected SQLite TEMP for the payload path, and it applies
+directly to any anonymous-file scheme in the account state directory.
+
+Unconstrained cgroup `memory.peak` must not be the gate either. It is dominated by
+clean page cache, which grows to fill available memory, so it would look worst on
+the largest machine — backwards for a requirement about running on any hardware.
+
+| Gate | Fixture | Criterion |
+| --- | --- | --- |
+| G3 resident bound | `real_combined_namespace_churn`, `CIRROVE_CHURN_FILES=500000`, both topologies | `released` PSS minus `indexed_baseline` PSS at most 256 MiB, every round |
+| G2 evictable bound | same | a named `resident_bytes.evictable` counter at most 64 MiB, with its charge formula written here before the counter is built |
+| G7 sustained plateau | same, sustained mode | over the final twelve hours of a twenty-four hour run, post-settle PSS must not exceed the hour-two sample by more than X percent |
+| Survivability | same, under `MemoryMax` with `MemorySwapMax=0` | no OOM kill; assertions intact |
+
+G3 currently fails at 476.4 / 514.8 / 546.7 MiB, missing by 1.86x to 2.14x.
+
+X in the plateau rule must be fixed from a two-hour pilot on `main` before the
+twenty-four hour run, not chosen by intuition. The only sustained datum that
+exists is a sixty-five second debug run rising 9.7 percent per round, so a rule
+picked blind would fail both arms inside the first hour.
+
+Two prerequisites block G7 as written. `capacity/churn.rs:414` skips
+`parents::settle` unless the round is full, and the sustained loop at :491-508
+runs only non-full rounds, so no sustained sample is post-invalidation root-only
+and there is no series a plateau rule can be applied to. Sustained mode also
+carries no memory assertion at all.
+
+**G8, the persistent inode table.** Measured across two 500,000-file runs: rows go
+from 1 to 750,495 and the database file from 565.6 to 662.7 MiB. The first pass
+adds one row per projected view, about 97 MiB; each round after it adds 27, one
+per changed file. An earlier working note put this at 154 MiB per pass, which is
+both the wrong figure and the wrong axis.
+
+The axis is revisions, not passes. The key embeds the content revision, so every
+revision of every file mints a permanent row, and `crates/` contains no
+`DELETE FROM inodes` anywhere. A library churning steadily therefore grows this
+table without bound for the life of the account. Because it is file-backed it
+contributes nothing to process RSS and would be reclaimed under any cgroup cap,
+so every memory criterion above passes while it grows.
+
+**Criterion:** on `real_combined_namespace_churn` at 500,000 files, `inode_rows`
+after three rounds must not exceed the projected view count by more than one
+percent, and the sustained arm must not add more than one row per changed file per
+round. That bounds the shape rather than the size, which is the right bound while
+no pruning path exists.
+
+Pruning is not cheap and should not be assumed. The table is the persistent inode
+key and the fixture asserts inodes stay stable across remount, so naive deletion
+renumbers a user's library on upgrade. Recording the criterion now at least means
+a regression in the shape fails a build; a pruning design is separate work that
+may end up deferred with a written justification rather than done.
+
+**What the file growth hid.** The 97 MiB above is what the *file* grew, and it is
+not what the table cost. `dbstat` on the sustained pilot's database
+([the measurement](../benchmarks/inode-table-growth.json)) charges 750,460 rows
+**223.6 MiB** -- 312 bytes each, of which 149 are the table and 163 the UNIQUE
+index on `key`, an index larger than the table it indexes because the key is a
+JSON tuple stored whole. The two figures reconcile exactly: the database held
+32,385 free pages at baseline, 126.5 MiB, and the table consumed those before it
+grew the file at all. So the cost is 34 percent of the whole metadata database,
+and the axis that reveals it is per-table bytes rather than file size.
+
+**The hazard is reachability, not reuse.** The schema is
+`inode INTEGER PRIMARY KEY AUTOINCREMENT`, so SQLite keeps a high-water mark in
+`sqlite_sequence` and never reissues a deleted number. A pruned row cannot
+therefore collide with a kernel reference to some other object; what it can do is
+mint a *fresh* number for the same object on the next lookup, which is what would
+renumber a library. That narrows the safe set to keys the current namespace can
+no longer resolve, and it means the danger of deletion is narrower and better
+understood than "naive deletion renumbers" suggested.
+
+**Both deciding measurements are now taken, and pruning is not the remedy.** Of
+746,000 distinct projections in that database, **27** have a superseded revision.
+A reachability pass would reclaim 27 rows, about 8 KB, or 0.0036 percent. Cost is
+not the obstacle either: a full grouped pass takes about a third of a second over
+746,027 rows.
+
+The reason is that the axis named above is the smaller one. 250,000 items produce
+746,000 rows because each file is projected under its own path and two shortcuts,
+and duplicate projections deliberately receive distinct inodes. So the table is
+one row per *projection*, bounded by the library, plus one row per revision ever
+resolved, measured at 27 per round. The revision term is genuinely unbounded in
+time and genuinely small: a hundred edits a day is about 31 KB a day.
+
+That redirects the remedy rather than removing it. If 223.6 MiB for a
+750,000-view library is worth reducing, the lever is the 312 bytes per row -- 163
+of which are a UNIQUE index over a JSON tuple stored whole -- and a fixed-width
+digest key would cut it. That needs a migration, so it is a decision and not a
+cleanup, and it is not made here.
+
+## The paged-payload prototype does not reach the gate's own workload
+
+`feature/paged-view-payloads` (32dc281) moves projection payloads into a per-mount
+anonymous file. Its production arena is fixed at one gibibyte:
+`Store::new` passes `1 << 30`, and `with_file` rejects anything outside
+`512..=1 << 30`, so the size is a constant and not configuration. Extents are
+rounded to powers of two with a 512-byte minimum.
+
+That makes capacity a function of encoded record size alone:
+
+| encoded record | extent | records in 1 GiB |
+| --- | ---: | ---: |
+| up to 512 B | 512 B | 2,097,152 |
+| up to 1 KiB | 1 KiB | 1,048,576 |
+| up to 2 KiB | 2 KiB | 524,288 |
+| up to 4 KiB | 4 KiB | 262,144 |
+
+`real_combined_namespace_churn` at 500,000 files holds 750,438 live views, which
+allows at most 1,430 bytes per extent, so every record must encode below one
+kibibyte for the prototype to cover the gate's own fixture. A record carries a
+36-byte header plus a serialised projection with scope, alias and ancestry
+vectors, presentation name and identity keys; deep paths and long shared-link
+identifiers make one kibibyte a tight ceiling rather than a comfortable one.
+
+Exhaustion is not graceful. The allocator returns `ENOSPC`, which reaches the
+kernel from `lookup`, so the failure mode is a namespace operation failing rather
+than a payload being spilled or re-fetched.
+
+The prototype has never been run at 500,000 files or in a release build, and it
+has committed no benchmark JSON, so this is a structural reading of its
+constants rather than a measured failure. It is recorded because the arithmetic
+is decidable without running anything: a fixed one-gibibyte arena cannot be sized
+to a library, and the gate names a workload it cannot hold at any record size
+above one kibibyte.
+
+The measured attribution above makes the prototype's premise weaker still. Its
+16 MiB cache and off-heap records address the traversal peak, but 96 percent of
+retained RSS is allocator-held free arena that no relocation of live bytes
+reduces. Off-heap payloads therefore address the smaller of the two failures,
+and only for as long as the arena holds.
+
+### Replication
+
+A second independent run of the identical configuration, same frozen binary,
+separates the two components further. Live heap agrees to within 0.1-0.8 percent
+at every phase, and bytes per view at the traversal peak come out 653/637/656
+against 653/637/657: the quantity the resident-bound work depends on reproduces
+to within 0.2 percent.
+
+Retained RSS does not. Rounds two and three differ by 5.9 percent between runs,
+and G3 lands at 477.3/483.5/513.4 MiB against 476.4/514.8/546.7 MiB. All of the
+run-to-run variation is in the allocator-retained component, which depends on
+thread scheduling and allocation interleaving, and none of it is in the live data.
+
+Two consequences. The live-peak figure is solid enough to justify building a
+resident bound on it. The retained-RSS figures must not be quoted to three
+significant figures from a single run, and any allocator comparison needs
+replicated arms rather than one run per arm. G3 fails in both runs in every
+round, by 1.86x to 2.14x.
+
+## Allocator configuration does not reach the gate (2026-09-08)
+
+Every allocator diagnostic before today ran `namespace_capacity_baseline`, which
+never exceeds 501 live views. Four runs of the heavy fixture at 500,000 files,
+same frozen binary, tested whether any glibc configuration reaches the budget.
+See [the arms](../benchmarks/namespace-allocator-arms.json).
+
+| arm | tunables | G3, MiB |
+| --- | --- | --- |
+| default | none | 476.4 / 514.8 / 546.7 |
+| default | none | 477.3 / 483.5 / 513.4 |
+| trim | `trim_threshold=131072` | 474.3 / 534.0 / 642.3 |
+| full | `arena_max=2` + trim + `mmap_threshold=131072` | 478.3 / 571.0 / 607.8 |
+
+Round one lands at 474.3 to 478.3 MiB in every arm, a spread of 3.9 MiB and about
+1.86 times the 256 MiB budget. No configuration comes near it. The pre-registered
+rule is therefore settled against the allocator lane: bounding resident views is
+required, and tuning cannot substitute for it.
+
+Nothing further should be read into these numbers, and two readings that suggest
+themselves are wrong.
+
+**They do not show that tuning is harmful.** The later rounds diverge, but the two
+untuned runs differ from each other by 6.2 against 38.4 MiB on the same round step,
+so the untuned spread is itself sixfold. The arms also ran sequentially through one
+shared temporary directory and are confounded with run order; the only arm with a
+private untouched directory recorded the lowest round-one value. Comparing absolute
+G3 beyond round one across single runs is not supported.
+
+**`mallinfo2` alone does not measure live heap.** It reports mmap'd chunks in
+`hblkhd`, not in `arena` or `uordblks`. Setting either threshold also sets glibc's
+`no_dyn_threshold`, after which large allocations stay mmapped: at release the
+tuned arms report 1.1 to 1.6 MiB in `uordblks` against 16.9 to 17.3 MiB untuned,
+which invites the conclusion that they retain far more. Adding `hblkhd` gives 17.1
+to 17.6 MiB in every arm. Live heap is the sum; a ratio built on `uordblks` alone
+counts live mmap'd data as allocator-held free memory.
+
+One clean signal did separate. Traversal wall time is 573 to 575 seconds in the
+`full` arm against 526 to 550 across the other three, every round within two
+seconds, and the fastest run was also the last, so this is not machine drift. That
+is `arena_max=2` contending eight stat workers over two arenas, and it is an
+argument against shipping `arena_max` on cost rather than on memory.
+
+## malloc_trim reaches what the tunables could not, and that re-scopes the gate
+
+Every allocator arm recorded above configured `GLIBC_TUNABLES`. `trim_threshold`
+governs trimming the top of an arena on `free()`. `malloc_trim(0)` is a different
+operation: it walks every arena and returns free page ranges within each heap. No
+recorded arm had asked that question. See
+[the probe](../benchmarks/namespace-malloc-trim.json) and
+[its pre-registration](../benchmarks/namespace-malloc-trim-preregistration.md),
+written before the run.
+
+| round | G3 before | G3 after `malloc_trim(0)` | returned |
+| ---: | ---: | ---: | ---: |
+| 1 | 476.4 MiB | **10.2 MiB** | 466.2 MiB |
+| 2 | 466.8 MiB | **12.4 MiB** | 454.3 MiB |
+| 3 | 479.6 MiB | **14.2 MiB** | 465.4 MiB |
+
+G3 goes from 1.86 times over its budget to twenty-five times under it. The predicted
+range was 40 to 150 MiB, so the effect is larger than expected, and the named failure
+mode — fragmentation leaving one live object per page — did not occur. Live heap holds
+at 17.0 to 17.2 MiB while RSS falls to 23.5 to 27.4 MiB, so RSS is live heap plus
+overhead and the pages are genuinely returned rather than merely unaccounted.
+
+**This is not the win it looks like, and the pre-registration said so before the
+number existed.** `malloc_trim` does not touch the traversal peak, which stays at
+489.0 to 492.6 MiB with 750,438 live views. G3 measures what remains after release;
+whether the service runs on modest hardware depends on what it holds during
+traversal. A process can now pass this gate while its high-water mark sits at half a
+gibibyte.
+
+Two consequences follow.
+
+**Shedding is re-scoped rather than cancelled.** It moves from required-for-G3 to
+required for the peak and for survivability under a memory cap. That is a difference
+of weeks of work, and it is the honest reading: an idle-gated trim is cheap, and the
+resident bound is still the only thing that lowers the high-water mark.
+
+**G3 needs a sibling criterion.** Adding `VmHWM` minus the indexed baseline, and
+promoting the cgroup survivability arm from a nice-to-have to a hard gate, restores
+what G3 was written to mean. This tightens the acceptance criteria, and it arrived
+from a result that superficially reads as a pass. It is recorded as a re-scoping.
+
+The trim itself is not yet shipped. It must be idle-gated — earlier measurements put
+it at 20 to 26 milliseconds median and 62 milliseconds maximum at around a gibibyte,
+and it takes every arena lock in turn, so it belongs on a quiescent reclamation tick
+via a blocking worker and never on a runtime thread that owns a filesystem reply.
+
+## The charge formula for `resident_bytes`
+
+G2 bounds a named `resident_bytes.evictable` counter, and this document requires
+its charge formula to be written before the counter exists. This is that formula.
+It is recorded first so that a counter which disagrees with measurement is a
+falsified model rather than a formula quietly adjusted until it agrees.
+
+A resident view is `Entry` in `NamespaceViews::entries`: a `View`, a generation
+and a queued flag, in a `BTreeMap` node. `View` owns seven reference-counted
+payloads, and three of them are deliberately shared between siblings by
+`ProjectionIndex::matches`: `scope`, `alias` and `ancestry`. `residency` is shared
+differently — every child holds its parent's through `_parent_residency`, which is
+what keeps an ancestor chain alive.
+
+**Charge each distinct allocation once, not each view that can see it.** Walk the
+entries collecting `Arc::as_ptr` for every payload, sort, deduplicate, and sum the
+allocation sizes of the survivors. Crediting whichever view was inserted first and
+debiting the same stored value on removal drifts the counter below truth by
+roughly what the interning saves, which is about a fifth on the measured
+representation, and an advertised bound that undercounts is not a bound.
+
+The walk must not allocate while it runs. A pre-reserved `Vec<usize>` with a sort
+and dedup, never a `BTreeSet`: 750,438 views times roughly five payloads is about
+3.75 million node allocations into the very arenas being measured, which
+permanently raises `peak_rss_kib` — one of the four scalars every comparison in
+this document depends on.
+
+It is `#[cfg(test)]` and never on a filesystem path. It takes the namespace lock
+in front of a deliberately single-threaded dispatcher, so a hundred-millisecond
+hold is head-of-line blocking on exactly the lookup path five commits were spent
+de-stalling. Each sample records the walk's own duration, so a slow sample is
+visible rather than averaged into the result.
+
+**Validate before building anything on it.** Compare the modelled total against
+measured `Pss_Anon` at every phase, both topologies. Agreement within 15 percent
+accepts the model; more than that means the formula is fiction and no ceiling
+resting on it is a bound. The fallback is a view-count ceiling derived from the
+measured 637 to 657 bytes per view: weaker, because it cannot see a change in
+per-view size, but honest, and it costs a day rather than a phase. That choice is
+to be made in the open, not by loosening the tolerance until the model passes.
+
+## Shedding: the design, and why it was not built
+
+**Retired by measurement. Kept as a record of what was designed and what killed
+it, not as a plan.** The gating number was taken and it failed: under concurrent
+lookups on the same parent, `notify_inval_entry` sustains about 107 per second
+against a required 1,400, and requesting more changes nothing. A ceiling has to
+bind during a traversal, and a traversal is a stream of concurrent lookups. See
+[the measurement](../benchmarks/inval-entry-rate.json).
+
+The design below was recorded before implementation for the same reason as the
+charge formula above, and the discipline paid: one day of measurement retired
+several weeks of work before any of it was written.
+
+**What it is.** Above a resident ceiling, select entries and emit
+`notify_inval_entry` for them through the batch machinery in
+`filesystem/invalidation.rs`, which already runs on a blocking worker outside the
+namespace lock and is already cursor-resumable. The kernel drops the dentry,
+queues FORGET, and `NamespaceViews::forget` reclaims exactly as it does today.
+Every reference count, lease and FORGET path stays untouched.
+
+**Why not eviction with reconstruction.** The fuller design needs a reverse
+inode-to-key lookup that `cirrove-store` does not have, a debt map for outstanding
+kernel references, a single-flight gate and a hydration path, and it narrows
+old-revision behaviour from serving stale attributes to `ESTALE`. It also makes
+the never-pruned `inodes` table load-bearing for correctness, which makes pruning
+it strictly harder later. Shedding reaches the same bound with none of that,
+because the kernel's own re-lookup path is already proven to cost no provider
+request: `foreground_requests == 0` is asserted at the end of the churn fixture.
+
+**Selection.** `inode != 1`, not quarantined, `Arc::strong_count(&residency) == 1`,
+ordered by the existing generation counter as a clock hand.
+
+Four corrections are mandatory, each from a specific failure this codebase can
+already exhibit.
+
+1. **Backpressure the shed channel; never drop.** `ProjectionIndex::invalidation_batch`
+   resolves candidates through `self.get(&inode)` and misses on anything absent,
+   so a dropped notify silently removes that entry from every future change sweep.
+   That is stale metadata with no error and no counter. Blocking when full also
+   caps how fast unresolved state can accumulate.
+
+2. **The pinned class is larger than it looks, and the fixtures are its best case.**
+   `Inner::project` sets `_parent_residency` on every child, so every ancestor of
+   every resident view has a strong count above one and cannot be shed. The
+   ceiling is therefore hard over leaves and soft over the directory spine. The
+   500,000-file fixtures have 500 directories, or three in the giant topology,
+   where the pinned class is negligible. On a deep, wide library it scales with
+   directory count. Report the pinned-class size as a first-class metric and claim
+   a bound only where it is measured small, rather than assuming it.
+
+3. **Shedding buys re-lookups, and re-lookup is expensive.** `filesystem.rs` opens
+   a store connection per published view, and `lookup`, `getattr` and `opendir`
+   gate on a 128-permit semaphore that replies `EAGAIN` when exhausted. A shed
+   storm is a `Store::open` storm behind that gate, and `ls: Resource temporarily
+   unavailable` is the failure a user would see. Requires hysteresis — shed down
+   to 0.9 of the ceiling, never oscillate — a bounded shed rate, a pooled read
+   connection, and an assertion in the churn fixture that no operation returns
+   `EAGAIN` during a shed cycle. Add that assertion before the shed loop, so the
+   failure is a red test rather than a field report.
+
+4. **The kernel-side cost is unmeasured and is the gate on all of this.**
+   `fuse_reverse_inval_entry` takes the parent's `i_rwsem` exclusively while
+   `lookup_slow` holds it shared across a full round trip, against a
+   writer-preferring rwsem and a deliberately single-threaded dispatcher. The
+   cgroup experiment that suggested shedding is affordable measured the kernel's
+   own dcache shrinker taking `d_lock` off the LRU with no FUSE upcall, and
+   transfers no information about this. `benchmarks/inval-entry` measures it
+   directly, outside this workspace.
+
+**The bar, and what failing it meant.** A 500,000-file traversal resolves about
+750,000 views in roughly 530 seconds, so a ceiling that binds during traversal had
+to sustain about 1,400 sheds per second with concurrent-lookup p99 under 100
+milliseconds. Measured: 1,400 per second with no concurrent lookups, 429 with one
+stat worker, and 107 with eight, at which rate shedding one traversal's views
+takes two hours. Latency was never the problem — lookup p99 stayed at the injected
+server delay throughout. Throughput was.
+
+**What remains for the peak.** [ADR 0006](0006-peak-namespace-memory.md) proposes
+the successor: rather than pushing invalidations into the lock the lookup path
+holds, make the kernel's own dentry reclamation able to do the work by shortening
+the entry TTL above a resident ceiling. That path is the one the cgroup experiment
+already measured as affordable. Two directions were considered, both larger than
+shedding was.
+Reduce bytes per view, which has been pushed three times for 15 to 20 percent each
+and will not reach a factor of two on its own. Or decline to resolve views beyond
+a ceiling in the first place, which is a change to the lookup contract rather than
+to reclamation, and needs its own ADR. A slow background shed on an idle mount
+survives as a courtesy; it is not a bound and must not be described as one.
+
+**Every claim here is for a single dispatch thread.** Raising `n_threads` to four
+is a recorded failure, and shedding makes order-independent reference accounting a
+harder prerequisite for concurrency later, not an easier one.
+
+## G3 closes; the peak does not
+
+The reclamation tick now returns freed pages once a mount has shed its views and
+gone quiet. Measured on the gate's own fixture at 500,000 files, against main's
+477.5 / 626.8 / 645.4 MiB the same evening:
+
+| round | G3 | trims | peak during traversal |
+| ---: | ---: | ---: | ---: |
+| 1 | **13.3 MiB** | 1 | 492.8 MiB |
+| 2 | **16.1 MiB** | 3 | 490.7 MiB |
+| 3 | **16.3 MiB** | 5 | 504.1 MiB |
+
+G3 was missing its 256 MiB budget by 1.86 to 2.14 times. It now sits twenty-five
+times under it. The `LD_PRELOAD` probe that first established the effect measured
+10.2 / 12.4 / 14.2, so the mechanism reproduces in shipped code rather than only
+under a diagnostic.
+
+**G3 is therefore a hard assertion from here.** A gate that passes and cannot fail
+is worth nothing, and this one spent weeks in that state.
+
+**The peak is untouched and that is not a detail.** Traversal holds 490 to 504 MiB
+with 750,438 live views. Trimming returns pages after the fact; it cannot lower a
+high-water mark reached while the views were held. Whether this service runs on a
+machine with a gibibyte of usable memory turns on the peak, not on the residue, so
+the sibling criterion stays open and reporting. Only bounding the resident count
+lowers it, which is what shedding is for — and whether shedding is affordable is
+still gated on a kernel measurement nobody has taken.
+
+It took four attempts to get the trim condition right, and the first three failed
+invisibly: whether it fired could only be inferred from the memory it was supposed
+to move, and each failure looked like a mechanism that did not work rather than a
+trigger that never ran. The `allocator_trims` counter now in every sample is what
+made the fourth attempt verifiable, and it should have existed before the first.

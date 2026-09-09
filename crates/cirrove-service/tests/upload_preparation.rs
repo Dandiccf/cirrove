@@ -5,6 +5,7 @@ use cirrove_service::journal::{JournalError, UploadJournal, UploadState, Working
 use std::{
     io::Read,
     path::Path,
+    process::{Command, Stdio},
     time::{Duration, Instant},
 };
 
@@ -398,4 +399,109 @@ fn delayed_hydration_cannot_attach_to_the_new_owner_of_a_transferred_provider_id
     assert!(j.namespace_object(r.victim).unwrap().working_file.is_none());
     let current = j.namespace_object(r.source).unwrap().working_file.unwrap();
     assert_eq!(j.read_working(current, 0, 10).unwrap(), b"new");
+}
+
+/// Child for the crash test: prepares a replacement, stops at the requested
+/// durable transition, then waits to be killed.
+#[test]
+#[ignore = "subprocess fixture; activated only by its parent test"]
+fn preparation_crash_child() {
+    let root = std::env::var("CIRROVE_PREPARATION_FIXTURE_ROOT").unwrap();
+    let root = Path::new(&root);
+    let mut j = open(&root.join("journal"), 4096);
+    let r = pair(&mut j, true);
+    let (preparing, _source) = j.claim_preparation().unwrap().unwrap();
+    // Reserving leaves a .cirrove-preparing- temporary on disk. Dying here is the
+    // state the next process has to recover from, which is a durable transition
+    // of its own and one no fixture reaches by finishing cleanly.
+    let _reserved = j
+        .reserve_preparation(r.id, preparing.attempt.unwrap())
+        .unwrap();
+    if std::env::var("CIRROVE_PREPARATION_FIXTURE_PHASE").unwrap() == "completed" {
+        let data = bytes(&mut j, b"new");
+        j.complete_preparation(r.id, preparing.attempt.unwrap(), data)
+            .unwrap();
+    }
+    // Persist which durable writes were actually reached, so the parent asserts
+    // on what the program did rather than on a reading of the call graph.
+    std::fs::write(
+        root.join("reached"),
+        cirrove_service::journal::durable::reached().join("\n"),
+    )
+    .unwrap();
+    std::fs::write(root.join("ready"), r.id.to_string()).unwrap();
+    loop {
+        std::thread::sleep(Duration::from_secs(1));
+    }
+}
+
+/// A killed process must leave preparation in the state its last durable write
+/// reached, not in the state it was heading for.
+///
+/// The other preparation tests interrupt by injecting an error, which unwinds a
+/// transaction the program still controls. This leaves whatever the kernel had
+/// actually written, which is the case the milestone's "crash at every durable
+/// transition" is about, and preparation was one of seven journal modules
+/// carrying durable transitions with no kill point at all.
+#[test]
+fn actual_process_death_keeps_a_claimed_preparation_unfinished_and_a_completed_one_whole() {
+    for phase in ["claimed", "completed"] {
+        let temp = tempfile::tempdir().unwrap();
+        let mut child = Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "preparation_crash_child", "--ignored"])
+            .env("CIRROVE_PREPARATION_FIXTURE_ROOT", temp.path())
+            .env("CIRROVE_PREPARATION_FIXTURE_PHASE", phase)
+            .stdout(Stdio::null())
+            .spawn()
+            .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !temp.path().join("ready").exists() {
+            if Instant::now() >= deadline {
+                child.kill().unwrap();
+                child.wait().unwrap();
+                panic!("preparation fixture did not become ready");
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        child.kill().unwrap();
+        child.wait().unwrap();
+
+        let id: uuid::Uuid = std::fs::read_to_string(temp.path().join("ready"))
+            .unwrap()
+            .parse()
+            .unwrap();
+        let reached = std::fs::read_to_string(temp.path().join("reached")).unwrap();
+        let reached: Vec<&str> = reached.lines().collect();
+        assert!(
+            reached.contains(&"preparation::enqueue_preparing_replacement")
+                && reached.contains(&"preparation::claim_preparation"),
+            "the fixture died without crossing the transitions it exists to cover: {reached:?}"
+        );
+        assert_eq!(
+            reached.contains(&"preparation::complete_preparation::objects_dir"),
+            phase == "completed",
+            "completion must be reached in exactly one of the two phases"
+        );
+        // Opening here IS the recovery pass: this process is the one that has to
+        // clean up after the killed one, so its own reached set is the evidence.
+        let mut j = open(&temp.path().join("journal"), 4096);
+        assert!(
+            cirrove_service::journal::durable::reached()
+                .contains(&"preparation::recover_preparation_files"),
+            "opening after a kill mid-preparation did not run recovery"
+        );
+        if phase == "completed" {
+            // The captured source survives the kill verbatim.
+            assert_eq!(payload(&j, id), b"new");
+        } else {
+            // Killed before capture: no bytes were adopted, and nothing may be
+            // uploadable. A placeholder here would upload an empty replacement
+            // over a real document.
+            assert!(matches!(j.payload(id), Err(JournalError::Stale)));
+            assert_eq!(j.get(id).unwrap().state, UploadState::Preparing);
+        }
+        // Either way the reservation is recoverable rather than orphaned: a
+        // fresh claim must be possible after restart.
+        assert!(j.claim_preparation().unwrap().is_some() || phase == "completed");
+    }
 }

@@ -124,6 +124,62 @@ impl Writeback {
         inner.engine.changed.notify_waiters();
         Ok(())
     }
+    /// Release an empty directory and queue its conditional remote removal.
+    ///
+    /// Simpler than `unlink` because a directory has no working bytes and no open
+    /// streams to preserve: there is nothing a reader could still be holding. The
+    /// caller has already refused a non-empty directory from its own listing; the
+    /// journal refuses one whose children exist only locally, and the adapter
+    /// checks the provider's side immediately before deleting.
+    pub async fn rmdir(self: &Arc<Self>, inner: &Arc<Inner>, view: View) -> Result<()> {
+        let _lease = self
+            .lease(&view.scope, &view.node.id, &inner.cancel)
+            .await?;
+        let parent = view.node.parent_id.clone().ok_or(Errno::EINVAL)?;
+        let name = view.node.name.clone();
+        let writer = self.clone();
+        let scope = view.scope.as_ref().clone();
+        let source = view.node.as_ref().clone();
+        tokio::task::spawn_blocking(move || -> Result<()> {
+            let mut j = writer.journal.lock().map_err(|_| Errno::EIO)?;
+            let object = Self::materialize(&mut j, scope, source).map_err(error)?;
+            if object.unlinked {
+                return Err(Errno::ENOENT);
+            }
+            if object.node.kind != NodeKind::Folder {
+                return Err(Errno::ENOTDIR);
+            }
+            if object.node.parent_id.as_ref() != Some(&parent) || object.node.name != name {
+                return Err(Errno::ESTALE);
+            }
+            // A directory whose creation the provider has not acknowledged has no
+            // ETag, so no conditional removal can be expressed against it.
+            // Cancelling an in-flight creation is a different operation and is not
+            // implemented; reporting it as busy is honest, where letting it reach
+            // the journal would surface as a malformed request.
+            if object.remote.is_none() {
+                return Err(Errno::EBUSY);
+            }
+            Self::publish_locked(&j, &writer.projection)?;
+            let mut p = writer.projection.lock().map_err(|_| Errno::EIO)?;
+            let mut next = object.clone();
+            next.unlinked = true;
+            next.revision = next.revision.checked_add(1).ok_or(Errno::ENOSPC)?;
+            if !p.validate_merge(&next, None)? {
+                return Err(Errno::ESTALE);
+            }
+            let committed = j
+                .remove_namespace_directory(object.id, object.revision)
+                .map_err(error)?;
+            p.apply(committed.object, None);
+            Ok(())
+        })
+        .await
+        .map_err(|_| Errno::EIO)??;
+        self.wake.notify_waiters();
+        inner.engine.changed.notify_waiters();
+        Ok(())
+    }
     /// Runs after the local namespace call, outside VFS directory locks. Both
     /// replacement streams and unlinked victims keep their original bytes.
     pub async fn preserve_unlinked(self: &Arc<Self>, engine: &Engine) -> Result<bool> {

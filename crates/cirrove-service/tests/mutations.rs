@@ -64,9 +64,11 @@ fn receipt(request: &MutationRequest) -> MutationReceipt {
             node.name = name.clone();
             MutationReceipt::Upsert(node)
         }
-        MutationIntent::RemoveFile { before } => MutationReceipt::Removed {
-            item: before.id.clone(),
-        },
+        MutationIntent::RemoveFile { before } | MutationIntent::RemoveFolder { before } => {
+            MutationReceipt::Removed {
+                item: before.id.clone(),
+            }
+        }
     }
 }
 fn journal(root: &std::path::Path) -> UploadJournal {
@@ -384,10 +386,27 @@ fn namespace_crash_child() {
     let mut j = journal(&root.join("journal"));
     let record = j.enqueue_mutation(request()).unwrap();
     let active = j.claim_mutation().unwrap().unwrap();
-    if std::env::var("CIRROVE_MUTATION_FIXTURE_PHASE").unwrap() == "applied" {
+    let phase = std::env::var("CIRROVE_MUTATION_FIXTURE_PHASE").unwrap();
+    if phase == "applied" || phase == "resolved" {
         j.acknowledge_mutation(active.id, active.attempt.unwrap(), receipt(&active.request))
             .unwrap();
     }
+    if phase == "resolved" {
+        // A successor mutation resolves against its predecessor's receipt, and
+        // only the claim that follows performs that resolution. It is the one
+        // path through resolve_mutation.
+        let mut successor = request();
+        if let MutationIntent::Relocate { name, .. } = &mut successor.intent {
+            *name = "renamed-again.txt".into();
+        }
+        j.enqueue_mutation_after(record.id, successor).unwrap();
+        let _ = j.claim_mutation().unwrap();
+    }
+    std::fs::write(
+        root.join("reached"),
+        cirrove_service::journal::durable::reached().join("\n"),
+    )
+    .unwrap();
     std::fs::write(root.join("ready"), record.id.to_string()).unwrap();
     loop {
         std::thread::sleep(Duration::from_secs(1));
@@ -395,7 +414,7 @@ fn namespace_crash_child() {
 }
 #[test]
 fn actual_sigkill_preserves_pending_outcome_and_acknowledged_receipt() {
-    for phase in ["applying", "applied"] {
+    for phase in ["applying", "applied", "resolved"] {
         let tmp = tempfile::tempdir().unwrap();
         let mut child = Command::new(std::env::current_exe().unwrap())
             .args(["--exact", "namespace_crash_child", "--ignored"])
@@ -423,12 +442,12 @@ fn actual_sigkill_preserves_pending_outcome_and_acknowledged_receipt() {
         let record = j.mutation(id).unwrap();
         assert_eq!(
             record.state,
-            if phase == "applied" {
-                MutationState::Applied
-            } else {
+            if phase == "applying" {
                 MutationState::VerifyRequired
+            } else {
+                MutationState::Applied
             }
         );
-        assert_eq!(record.receipt.is_some(), phase == "applied");
+        assert_eq!(record.receipt.is_some(), phase != "applying");
     }
 }

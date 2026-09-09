@@ -10,6 +10,7 @@ use cirrove_service::journal::{
 };
 use std::{
     path::Path,
+    process::{Command, Stdio},
     time::{Duration, Instant},
 };
 
@@ -365,4 +366,141 @@ fn moving_a_new_file_waits_for_both_its_upload_and_its_destination_folder() {
             matches!(&claimed.intent,UploadIntent::Replace{item,expected_etag} if item=="cloud-file" && expected_etag=="moved-etag")
         );
     }
+}
+
+/// Child for the crash test: creates a pending folder with a child waiting on it,
+/// stops at the requested durable transition, then waits to be killed.
+#[test]
+#[ignore = "subprocess fixture; activated only by its parent test"]
+fn directories_crash_child() {
+    let root = std::env::var("CIRROVE_DIRECTORIES_FIXTURE_ROOT").unwrap();
+    let root = Path::new(&root);
+    let mut j = open(&root.join("journal"));
+    let top = j
+        .create_namespace_directory(scope(), "root".into(), "Grüße".into())
+        .unwrap();
+    let waiting = child(&mut j, &top.node.id, "waiting.txt");
+    if std::env::var("CIRROVE_DIRECTORIES_FIXTURE_PHASE").unwrap() == "confirmed" {
+        ack_folder(&mut j, &top, "cloud-top");
+        // The destination is resolved by the claim that follows confirmation, not
+        // by the confirmation itself: another durable transition, reached here.
+        let _ = j.claim_next().unwrap();
+    }
+    std::fs::write(
+        root.join("reached"),
+        cirrove_service::journal::durable::reached().join("\n"),
+    )
+    .unwrap();
+    std::fs::write(
+        root.join("ready"),
+        format!("{} {}", top.node.id, waiting.id),
+    )
+    .unwrap();
+    loop {
+        std::thread::sleep(Duration::from_secs(1));
+    }
+}
+
+/// A killed process must keep a pending folder and whatever is waiting on it
+/// together, in whichever state the last durable write left them.
+///
+/// A local folder exists before the cloud has one, and its children cannot be
+/// uploaded until it is confirmed, because their destination is its cloud id.
+/// A crash before confirmation must leave the child unclaimable rather than
+/// uploading it to a guessed parent; a crash after confirmation must not make the
+/// child wait forever for a folder that already exists remotely.
+#[test]
+fn actual_process_death_keeps_a_pending_folder_and_its_waiting_child_consistent() {
+    for phase in ["pending", "confirmed"] {
+        let temp = tempfile::tempdir().unwrap();
+        let mut child_process = Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "directories_crash_child", "--ignored"])
+            .env("CIRROVE_DIRECTORIES_FIXTURE_ROOT", temp.path())
+            .env("CIRROVE_DIRECTORIES_FIXTURE_PHASE", phase)
+            .stdout(Stdio::null())
+            .spawn()
+            .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !temp.path().join("ready").exists() {
+            if Instant::now() >= deadline {
+                child_process.kill().unwrap();
+                child_process.wait().unwrap();
+                panic!("directories fixture did not become ready");
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        child_process.kill().unwrap();
+        child_process.wait().unwrap();
+
+        let ready = std::fs::read_to_string(temp.path().join("ready")).unwrap();
+        let waiting: uuid::Uuid = ready.split_whitespace().nth(1).unwrap().parse().unwrap();
+        let mut j = open(&temp.path().join("journal"));
+        if phase == "confirmed" {
+            // The child claimed it before dying, so the crash must leave it
+            // claimed against the folder's real cloud id rather than losing the
+            // destination or reverting to a guess.
+            let record = j.get(waiting).unwrap();
+            assert!(
+                matches!(&record.intent, UploadIntent::Create { parent, .. } if parent == "cloud-top"),
+                "the destination was lost or guessed: {:?}",
+                record.intent
+            );
+        } else {
+            assert!(
+                j.claim_next().unwrap().is_none(),
+                "a child was claimable before its folder existed remotely"
+            );
+        }
+    }
+}
+
+/// `rmdir` is not recursive, and the journal is the only place that can see a
+/// child which exists nowhere else yet.
+///
+/// The provider cannot help here: a locally created directory or file has no
+/// remote identity to list, so an emptiness check against Graph would report the
+/// parent empty and the recursive DELETE would take the pending child with it.
+/// Dropping the `namespace_objects` scan in `remove_namespace_directory` makes
+/// the first two removals below succeed.
+#[test]
+fn a_directory_is_not_removed_while_a_purely_local_child_still_names_it() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut j = open(&temp.path().join("journal"));
+    let parent = j
+        .create_namespace_directory(scope(), "root".into(), "Grüße".into())
+        .unwrap();
+    let nested = j
+        .create_namespace_directory(scope(), parent.node.id.clone(), "nested".into())
+        .unwrap();
+
+    // A pending child directory holds the parent.
+    assert!(matches!(
+        j.remove_namespace_directory(parent.id, parent.revision),
+        Err(JournalError::Intent)
+    ));
+
+    // The empty child is refused too, for a different reason worth stating: a
+    // directory whose creation the provider has not acknowledged has no ETag, and
+    // a conditional removal cannot be expressed against it at all. Cancelling an
+    // unconfirmed creation is a different operation from removing a directory,
+    // and it is not implemented. `Writeback::rmdir` reports EBUSY for this rather
+    // than letting it surface as a malformed request.
+    assert!(nested.remote.is_none());
+    assert!(matches!(
+        j.remove_namespace_directory(nested.id, nested.revision),
+        Err(JournalError::Intent)
+    ));
+
+    // A pending child file holds it as well.
+    child(&mut j, &parent.node.id, "held.txt");
+    assert!(matches!(
+        j.remove_namespace_directory(parent.id, parent.revision),
+        Err(JournalError::Intent)
+    ));
+
+    // Every refusal left the parent alone: a rejected rmdir must not consume the
+    // revision it checked, or the retry after the child is gone would be stale.
+    let unchanged = j.namespace_object(parent.id).unwrap();
+    assert!(!unchanged.unlinked);
+    assert_eq!(unchanged.revision, parent.revision);
 }

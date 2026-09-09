@@ -7,6 +7,11 @@ mod directories;
 mod invalidation;
 mod lifecycle;
 mod residency;
+/// How many namespace views have been quarantined since start. Re-exported so a
+/// daemon can report it: the flag is set on a reference-count inconsistency,
+/// cleared nowhere, and a quarantined view pins its ancestor chain for the life
+/// of the mount.
+pub use residency::quarantined_views;
 use residency::{LookupRefs, NamespaceViews};
 mod session;
 pub(crate) use lifecycle::WriteControl;
@@ -32,8 +37,21 @@ use std::{
 };
 use tokio::{runtime::Handle, sync::Semaphore};
 
+/// How long the kernel may cache an entry or attribute before asking again.
+///
+/// A constant, and deliberately not configurable. It was briefly overridable so
+/// that ADR 0006 could measure whether a shorter TTL lowers the traversal peak.
+/// It does not: a hundredfold reduction moved the peak by half a percent, because
+/// expiry is revalidation rather than eviction and the kernel's dentry shrinker
+/// runs under memory pressure, not on a clock. See
+/// docs/benchmarks/namespace-entry-ttl.json before reaching for this again.
 const TTL: Duration = Duration::from_secs(1);
 const READ_QUEUE_TIMEOUT: Duration = Duration::from_secs(30);
+/// Allocator trims performed since start. Three attempts at the trim condition
+/// failed because whether it fired could only be inferred from the memory it was
+/// supposed to move; this makes it a number a fixture can assert on directly.
+pub(crate) static TRIMS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 #[derive(Clone)]
 struct View {
     residency: Arc<LookupRefs>,
@@ -196,25 +214,75 @@ impl CloudFs {
         let inner = self.inner.clone();
         self.inner.runtime.spawn(async move {
             let mut tick = tokio::time::interval(Duration::from_secs(1));
+            // A traversal leaves most of its memory freed but not returned. Give
+            // it back once the mount has shed what it was holding and gone quiet.
+            //
+            // The signal has to be the view count, not the collector's own work.
+            // `forget` reclaims directly when the kernel drops its last reference,
+            // so on a traversal workload the collector reclaims nothing at all and
+            // anything keyed to its return value fires once at mount, against an
+            // empty namespace, and never again. Two earlier spellings of this
+            // failed exactly that way and the measurements looked like a trim that
+            // did nothing.
+            //
+            // So: remember the most views held since the last trim, and trim when
+            // the mount is quiet and now holds far fewer. That is precisely when
+            // there are freed pages worth returning.
+            const QUIESCENT_TICKS: u32 = 5;
+            const SHED_FACTOR: usize = 2;
+            const SHED_FLOOR: usize = 1024;
+            let mut idle = 0u32;
+            let mut high_water = 0usize;
             loop {
                 tokio::select! { biased;
                     _ = inner.cancel.cancelled() => break,
                     _ = tick.tick() => {
-                        if let Ok(mut views) = inner.views.lock() { views.collect(4096); }
+                        let (reclaimed, held) = match inner.views.lock() {
+                            Ok(mut views) => (views.collect(4096), views.len()),
+                            Err(_) => continue,
+                        };
+                        // The guard is dropped before trimming: trim takes every
+                        // arena lock in turn, and holding the namespace lock
+                        // across that would block every filesystem reply.
+                        idle = if reclaimed == 0 {
+                            idle.saturating_add(1)
+                        } else {
+                            0
+                        };
+                        high_water = high_water.max(held);
+                        if idle >= QUIESCENT_TICKS
+                            && high_water > held.saturating_mul(SHED_FACTOR).max(SHED_FLOOR)
+                        {
+                            high_water = held;
+                            TRIMS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                            tokio::task::spawn_blocking(|| {
+                                let released = cirrove_allocator::trim();
+                                tracing::debug!(released, "returned free pages to the kernel");
+                            });
+                        }
                     }
                 }
             }
         });
     }
-    pub fn mount(self, path: &std::path::Path) -> std::io::Result<CloudSession> {
+    /// Mount options, and deliberately not a thread count.
+    ///
+    /// Dispatch stays single-threaded. Raising fuser's `n_threads` to four leaves
+    /// three namespace views alive after twelve seconds in
+    /// `filesystem::capacity::real_combined_namespace_churn_preserves_mapped_content`:
+    /// concurrent dispatch reorders requests against the lookup-count bookkeeping
+    /// a view's lifetime depends on, because `acquire_lookup` runs inside a
+    /// spawned task while `forget` runs on the dispatch thread, and one thread
+    /// serialises them by construction where four do not. Head-of-line blocking
+    /// behind bulk reads is therefore still possible, and making the reference
+    /// accounting order-independent is a prerequisite for addressing it.
+    ///
+    /// Split out so a test can hold that decision in place. The failure it
+    /// prevents is a handful of views surviving a settle window in one ignored
+    /// fixture -- quiet, intermittent-looking, and easy to attribute to anything
+    /// else.
+    fn dispatch_config(&self) -> fuser::Config {
         let mut config = fuser::Config::default();
-        // Dispatch stays single-threaded on purpose. Raising fuser's n_threads
-        // to four leaves three namespace views alive after twelve seconds in
-        // filesystem::capacity::real_combined_namespace_churn_preserves_mapped_content:
-        // concurrent dispatch reorders requests against the lookup-count
-        // bookkeeping, which a view's lifetime depends on. Head-of-line
-        // blocking behind bulk reads is therefore still possible, and fixing
-        // the reference accounting is a prerequisite for addressing it.
         config.mount_options = vec![
             if self.inner.writeback.is_some() {
                 fuser::MountOption::RW
@@ -227,6 +295,10 @@ impl CloudFs {
             fuser::MountOption::FSName(format!("cirrove:{}", self.inner.engine.account.id)),
             fuser::MountOption::Subtype("cirrove".into()),
         ];
+        config
+    }
+    pub fn mount(self, path: &std::path::Path) -> std::io::Result<CloudSession> {
+        let config = self.dispatch_config();
         let inner = self.inner.clone();
         let session = fuser::Session::new(self, path, &config)?;
         let notifier = session.notifier();
@@ -1096,6 +1168,81 @@ impl Filesystem for CloudFs {
             match result {
                 Ok(()) => reply.ok(),
                 Err(error) => reply.error(error),
+            }
+        });
+    }
+    /// Remove an empty directory, refusing a populated one the way POSIX does.
+    ///
+    /// The `ENOTEMPTY` below is the user-visible guarantee, and it is checked from
+    /// the directory's own listing. The provider is checked again immediately
+    /// before the delete, because Graph's DELETE on a folder is recursive and a
+    /// folder's eTag does not move when a child appears, so no precondition can
+    /// carry this. That leaves a window of one round trip in which a child created
+    /// by someone else is removed along with the directory. It is documented on
+    /// `MutationIntent::RemoveFolder` and it cannot be closed over Graph.
+    fn rmdir(&self, _req: &Request, parent: INodeNo, name: &OsStr, reply: ReplyEmpty) {
+        let Some(writer) = self.inner.writeback.clone() else {
+            reply.error(Errno::EROFS);
+            return;
+        };
+        let Some(name) = name.to_str().map(str::to_owned) else {
+            reply.error(Errno::EINVAL);
+            return;
+        };
+        let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
+            reply.error(Errno::EAGAIN);
+            return;
+        };
+        let Ok(admission) = self.inner.edits.admit() else {
+            reply.error(Errno::ENODEV);
+            return;
+        };
+        let inner = self.inner.clone();
+        // Capture residency before dispatch, including its ancestor leases.
+        let parent = match inner.view(parent.0) {
+            Ok(view) => view,
+            Err(error) => {
+                reply.error(errno(&error));
+                return;
+            }
+        };
+        self.inner.runtime.spawn(async move {
+            let _permit = permit;
+            let _admission = admission;
+            let result = async {
+                if parent.node.kind != NodeKind::Folder {
+                    return Err(Errno::ENOTDIR);
+                }
+                let source = inner
+                    .children(&parent)
+                    .await
+                    .map_err(|e| errno(&e))?
+                    .into_iter()
+                    .find(|n| n.name == name)
+                    .ok_or(Errno::ENOENT)?;
+                if source.kind != NodeKind::Folder {
+                    return Err(Errno::ENOTDIR);
+                }
+                // A shortcut names a directory somewhere else. Removing the link
+                // is not removing the target, and this path cannot express that.
+                if source.target.is_some() {
+                    return Err(Errno::EOPNOTSUPP);
+                }
+                let view = inner.insert(&parent, source).await.map_err(|e| errno(&e))?;
+                if !inner
+                    .children(&view)
+                    .await
+                    .map_err(|e| errno(&e))?
+                    .is_empty()
+                {
+                    return Err(Errno::ENOTEMPTY);
+                }
+                writer.rmdir(&inner, view).await
+            }
+            .await;
+            match result {
+                Ok(()) => reply.ok(),
+                Err(e) => reply.error(e),
             }
         });
     }

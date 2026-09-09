@@ -32,6 +32,7 @@ pub(super) struct ReadCounters {
     conditional_ranges: AtomicU64,
     conditional_windows: AtomicU64,
     fallback_ranges: AtomicU64,
+    fallback_windows: AtomicU64,
 }
 #[derive(Debug, Serialize)]
 pub struct ReadCountersSnapshot {
@@ -43,6 +44,7 @@ pub struct ReadCountersSnapshot {
     pub conditional_ranges: u64,
     pub conditional_windows: u64,
     pub fallback_ranges: u64,
+    pub fallback_windows: u64,
 }
 
 #[derive(Clone)]
@@ -150,6 +152,14 @@ impl GraphReadSession {
                     }
                 }
                 State::Fallback => {
+                    // This arm served windows silently. A session reaching it stops
+                    // reporting entirely: it never re-binds, so `renewals` cannot
+                    // move, and no other counter covered it either. That made a zero
+                    // here indistinguishable from a read that never happened.
+                    self.graph
+                        .counters
+                        .fallback_windows
+                        .fetch_add(1, Ordering::Relaxed);
                     return self
                         .graph
                         .checked_window(&self.identity.scope, &self.node, offset, length, sink)
@@ -366,6 +376,7 @@ impl OneDrive {
             conditional_ranges: c.conditional_ranges.load(Ordering::Relaxed),
             conditional_windows: c.conditional_windows.load(Ordering::Relaxed),
             fallback_ranges: c.fallback_ranges.load(Ordering::Relaxed),
+            fallback_windows: c.fallback_windows.load(Ordering::Relaxed),
         }
     }
     pub(super) async fn checked_read(

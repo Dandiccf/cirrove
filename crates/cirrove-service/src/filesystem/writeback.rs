@@ -183,10 +183,22 @@ impl Writeback {
         engine: &Engine,
         journal: Arc<Mutex<UploadJournal>>,
     ) -> std::io::Result<Arc<Self>> {
-        if engine.account.access != cirrove_auth::AccessMode::ReadWrite || engine.account.enabled {
+        // The explicit write grant is the opt-in, and it is the whole opt-in.
+        //
+        // This used to also require `!engine.account.enabled`, which made writable
+        // mounts unreachable in ordinary use rather than merely deliberate: the
+        // daemon does not mount a disabled account, so the only way to satisfy both
+        // halves was a validator mounting a disabled account by hand. An interlock
+        // that no supported configuration can pass is not a safety property, it is
+        // a feature that is off.
+        //
+        // What remains is the property that was doing the work: an account reaches
+        // this path only if someone signed in with `--write-access` for it. A
+        // read-only grant cannot write, and Graph would refuse it anyway.
+        if engine.account.access != cirrove_auth::AccessMode::ReadWrite {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::PermissionDenied,
-                "experimental writes require a disabled, explicitly writable test account",
+                "writes require an account connected with --write-access",
             ));
         }
         let owner = engine.account.id.clone();

@@ -1,4 +1,4 @@
-use super::{DriveItem, OneDrive, map_item};
+use super::{ChildrenResponse, DriveItem, OneDrive, map_item};
 use async_trait::async_trait;
 use cirrove_core::mutation::{
     MutationError, MutationIntent, MutationProvider, MutationReceipt, MutationReconciliation,
@@ -75,6 +75,65 @@ impl MutationProvider for OneDrive {
                     return Err(UploadError::Conflict);
                 }
             }
+            if matches!(request.intent, MutationIntent::RemoveFolder { .. }) {
+                let bytes = self
+                    .request_bytes(self.resource_url(&[
+                        "drives",
+                        &request.scope.collection,
+                        "items",
+                        &before.id,
+                    ])?)
+                    .await?;
+                let current: DriveItem =
+                    serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)?;
+                if current.id != before.id
+                    || current.folder.is_none()
+                    || current.file.is_some()
+                    // A OneNote notebook carries a folder facet. Removing one
+                    // through rmdir would be a surprise, so it is refused here
+                    // rather than left to the caller to notice.
+                    || current.package.is_some()
+                    || current.deleted.is_some()
+                    || current.remote_item.is_some()
+                    || current.e_tag != before.etag
+                    || current
+                        .parent_reference
+                        .as_ref()
+                        .and_then(|p| p.drive_id.as_ref())
+                        != Some(&request.scope.collection)
+                {
+                    return Err(UploadError::Conflict);
+                }
+                // Emptiness is checked separately, last, and from the children
+                // listing rather than the folder's own `childCount`. Graph's
+                // DELETE on a folder is recursive, and a folder's eTag and
+                // lastModifiedDateTime do not move when a child is added --
+                // measured, see `folder_etag_and_mtime_ignore_their_children`.
+                // So the eTag precondition below cannot detect a new child, and
+                // the item's own counters are not trusted to either. The listing
+                // was measured to be fresh immediately after a create.
+                //
+                // This narrows the window to one round trip. It does not close
+                // it: a child created between this call and the DELETE is
+                // destroyed by it. Nothing available over Graph closes it.
+                let mut children = self.resource_url(&[
+                    "drives",
+                    &request.scope.collection,
+                    "items",
+                    &before.id,
+                    "children",
+                ])?;
+                children
+                    .query_pairs_mut()
+                    .append_pair("$top", "1")
+                    .append_pair("$select", "id");
+                let bytes = self.request_bytes(children).await?;
+                let page: ChildrenResponse =
+                    serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)?;
+                if !page.value.is_empty() {
+                    return Err(UploadError::Conflict);
+                }
+            }
             let url =
                 self.resource_url(&["drives", &request.scope.collection, "items", &before.id])?;
             let (method, body) = match &request.intent {
@@ -86,14 +145,18 @@ impl MutationProvider for OneDrive {
                         "@microsoft.graph.conflictBehavior": "fail"
                     })),
                 ),
-                MutationIntent::RemoveFile { .. } => (Method::DELETE, None),
+                MutationIntent::RemoveFile { .. } | MutationIntent::RemoveFolder { .. } => {
+                    (Method::DELETE, None)
+                }
                 _ => return Err(UploadError::Invalid),
             };
             let response = self
                 .authorized_upload(method, url, body, before.etag.as_deref())
                 .await?;
-            if matches!(request.intent, MutationIntent::RemoveFile { .. })
-                && response.status() == StatusCode::NO_CONTENT
+            if matches!(
+                request.intent,
+                MutationIntent::RemoveFile { .. } | MutationIntent::RemoveFolder { .. }
+            ) && response.status() == StatusCode::NO_CONTENT
             {
                 return Ok(MutationReceipt::Removed {
                     item: before.id.clone(),
@@ -101,7 +164,10 @@ impl MutationProvider for OneDrive {
             }
             let (status, bytes) = self.upload_body(response, false).await?;
             if status != StatusCode::OK
-                || matches!(request.intent, MutationIntent::RemoveFile { .. })
+                || matches!(
+                    request.intent,
+                    MutationIntent::RemoveFile { .. } | MutationIntent::RemoveFolder { .. }
+                )
             {
                 return Err(UploadError::Uncertain);
             }

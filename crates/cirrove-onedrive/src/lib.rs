@@ -407,6 +407,19 @@ impl MetadataProvider for OneDrive {
 
 #[async_trait]
 impl ReadProvider for OneDrive {
+    fn read_path_counters(&self) -> Option<cirrove_core::ReadPathCounters> {
+        let counters = self.read_counters();
+        Some(cirrove_core::ReadPathCounters {
+            setups: counters.setups,
+            renewals: counters.renewals,
+            conditional_ranges: counters.conditional_ranges,
+            conditional_windows: counters.conditional_windows,
+            fallback_ranges: counters.fallback_ranges,
+            fallback_windows: counters.fallback_windows,
+            graph_gets: counters.graph_get_attempts,
+            content_gets: counters.content_get_attempts,
+        })
+    }
     async fn open_read_session(
         &self,
         scope: &Scope,
@@ -527,7 +540,7 @@ impl ReadProvider for OneDrive {
     }
 }
 #[derive(Deserialize)]
-struct ChildrenResponse {
+pub(crate) struct ChildrenResponse {
     value: Vec<DriveItem>,
     #[serde(rename = "@odata.nextLink")]
     next: Option<String>,

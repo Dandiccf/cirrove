@@ -471,13 +471,29 @@ impl Store {
         {
             return Ok(inode as u64);
         }
-        self.db
-            .execute("INSERT OR IGNORE INTO inodes(key) VALUES(?1)", [key])?;
-        Ok(self
+        // This is the namespace LOOKUP path, so it allocates far more often than
+        // any other writer. End the read before reserving the writer, then
+        // recheck: another allocator may have inserted the key while this one
+        // waited for admission.
+        let gate = self.gate.clone();
+        let _write = hold(&gate);
+        let tx = self
             .db
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        let inode = match tx
             .query_row("SELECT inode FROM inodes WHERE key=?1", [key], |r| {
                 r.get::<_, i64>(0)
-            })? as u64)
+            })
+            .optional()?
+        {
+            Some(inode) => inode as u64,
+            None => {
+                tx.execute("INSERT INTO inodes(key) VALUES(?1)", [key])?;
+                tx.last_insert_rowid() as u64
+            }
+        };
+        tx.commit()?;
+        Ok(inode)
     }
     pub fn inodes(&mut self, keys: &[String]) -> Result<Vec<u64>> {
         // Inode mappings are immutable. A fully cached directory needs no writer
@@ -746,6 +762,50 @@ mod tests {
                 started.elapsed() > BUSY_TIMEOUT,
                 "the writer did not actually wait out the timeout"
             );
+            releasing.join().unwrap();
+        });
+    }
+
+    #[test]
+    fn a_blocked_inode_allocation_waits_instead_of_failing() {
+        // Inode allocation is the namespace LOOKUP path and allocates once per
+        // projected view: 750,441 times in one 500,000-file traversal. Left
+        // outside the write queue it loses the same race every other writer was
+        // moved out of, and SQLITE_BUSY reaches the application as an I/O error
+        // from a plain stat.
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("db");
+        Store::open(&path).unwrap();
+        let (release, released) = std::sync::mpsc::channel();
+        let (entered, holding) = std::sync::mpsc::channel();
+        std::thread::scope(|threads| {
+            let blocking = path.clone();
+            threads.spawn(move || {
+                let mut blocker = Store::open(&blocking).unwrap();
+                entered.send(()).unwrap();
+                blocker.write_and_block(&released).unwrap();
+            });
+            holding.recv().unwrap();
+            std::thread::sleep(std::time::Duration::from_millis(200));
+            let releasing = std::thread::spawn(move || {
+                std::thread::sleep(BUSY_TIMEOUT + std::time::Duration::from_millis(500));
+                release.send(()).unwrap();
+            });
+            let mut waiting = Store::open(&path).unwrap();
+            let started = std::time::Instant::now();
+            let allocated = waiting
+                .inode("content-inode-v1:blocked")
+                .expect("a blocked inode allocation must wait, not fail");
+            assert!(
+                started.elapsed() > BUSY_TIMEOUT,
+                "the allocation did not actually wait out the timeout"
+            );
+            // The same key must keep its number, and a new key must not reuse it.
+            assert_eq!(
+                waiting.inode("content-inode-v1:blocked").unwrap(),
+                allocated
+            );
+            assert_ne!(waiting.inode("content-inode-v1:other").unwrap(), allocated);
             releasing.join().unwrap();
         });
     }

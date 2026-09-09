@@ -198,11 +198,94 @@ fn hold(routes: &[PathBuf; 3], round: usize) -> Held {
     assert_ne!(held.directory_inodes[1], held.directory_inodes[2]);
     held
 }
+/// PSS at `indexed_baseline`, against which both memory criteria are measured.
+static BASELINE_PSS_KIB: std::sync::OnceLock<u64> = std::sync::OnceLock::new();
+/// Indexed file count, so a sample can tell a capacity run from a correctness one.
+static FIXTURE_FILES: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+
+/// The namespace memory gate, from docs/adr/0005-namespace-memory.md.
+///
+/// G3 bounds what is still held after every view is released. Its sibling bounds
+/// the high-water mark reached while they were held, because a process that
+/// returns half a gibibyte after the fact still needed it during, and "runs on
+/// any hardware" turns on the peak rather than on the residue.
+///
+/// G3 is enforced. It was missing its budget by 1.86x until the reclamation tick
+/// began returning freed pages, and now lands at 13 to 16 MiB across three rounds
+/// at 500,000 files. A gate that passes and cannot fail is worth nothing, so it
+/// fails the build from here.
+///
+/// The peak criterion is reported, not enforced, because it still fails at about
+/// 1.9x: trimming returns pages after the fact and does not lower the high-water
+/// mark reached while the views were held. Only bounding the resident count does
+/// that. `CIRROVE_CHURN_ENFORCE_MEMORY` turns it into an assertion for anyone
+/// working on that, and it becomes unconditional when they finish.
+const MEMORY_BUDGET_KIB: u64 = 256 * 1024;
+/// Below this the fixture is a correctness check, not a capacity measurement,
+/// and its memory is dominated by fixed overhead.
+const MEMORY_GATE_MINIMUM_FILES: usize = 100_000;
+
+fn check_memory(
+    value: &serde_json::Value,
+    criterion: &str,
+    observed: u64,
+    files: usize,
+    enforced: bool,
+) {
+    if files < MEMORY_GATE_MINIMUM_FILES {
+        return;
+    }
+    let Some(baseline) = BASELINE_PSS_KIB.get() else {
+        return;
+    };
+    let over = observed.saturating_sub(*baseline);
+    let within = over <= MEMORY_BUDGET_KIB;
+    println!(
+        "CIRROVE_MEMORY_GATE {}",
+        serde_json::json!({"criterion":criterion,"phase":value["phase"],
+            "round":value["round"],"over_baseline_kib":over,
+            "budget_kib":MEMORY_BUDGET_KIB,"within":within})
+    );
+    assert!(
+        within || !(enforced || std::env::var("CIRROVE_CHURN_ENFORCE_MEMORY").is_ok()),
+        "{criterion} exceeded the namespace memory budget: {over} KiB over the \
+         indexed baseline against {MEMORY_BUDGET_KIB} KiB"
+    );
+}
+
+/// Wait until resident memory stops falling, or give up after a bounded wait.
+///
+/// Bounded so a fixture cannot hang on a machine where the tick never quiesces;
+/// the wait is recorded in the sample so a run that timed out is visible rather
+/// than silently averaged in.
+async fn settle_memory() {
+    // Waiting for memory to stop falling is not enough on its own: before the
+    // trim fires it has not started falling, so "flat" and "finished" look
+    // identical and the wait ends after three seconds having measured nothing.
+    // Sit out the reclamation tick's quiescent window first -- longer than the
+    // five idle seconds it requires -- and only then ask for stability. A build
+    // with no trim at all simply waits this out and reports what it finds.
+    const QUIESCENT_WINDOW: Duration = Duration::from_secs(8);
+    let deadline = Instant::now() + Duration::from_secs(25);
+    let started = Instant::now();
+    let mut previous = u64::MAX;
+    let mut stable = 0;
+    while Instant::now() < deadline && (started.elapsed() < QUIESCENT_WINDOW || stable < 2) {
+        tokio::time::sleep(Duration::from_secs(1)).await;
+        let current = process_memory()["rss_kib"].as_u64().unwrap_or(0);
+        stable = if current >= previous { stable + 1 } else { 0 };
+        previous = current;
+    }
+    println!(
+        "CIRROVE_MEMORY_SETTLE {}",
+        serde_json::json!({"seconds": started.elapsed().as_secs_f64(),
+            "settled": stable >= 2, "rss_kib": previous})
+    );
+}
+
 async fn sample(inner: &Arc<Inner>, round: usize, phase: &'static str, started: Instant) {
     let mut value = namespace_sample(inner, phase, started.elapsed().as_secs_f64());
-    let diagnostics = inner.views.lock().unwrap().diagnostics();
-    assert_eq!(diagnostics["quarantined_views"], 0);
-    value["references"] = diagnostics;
+    assert_eq!(value["references"]["quarantined_views"], 0);
     assert!(value["open_files"].as_u64().unwrap() <= 32);
     assert!(value["open_directory_handles"].as_u64().unwrap() <= 8);
     value["round"] = round.into();
@@ -241,6 +324,29 @@ async fn sample(inner: &Arc<Inner>, round: usize, phase: &'static str, started: 
         .load(Ordering::Relaxed)
         .into();
     assert!(value["max_invalidation_batch"].as_u64().unwrap() <= 128);
+    let files = FIXTURE_FILES.get().copied().unwrap_or(0);
+    let memory = &value["memory"];
+    if phase == "indexed_baseline" {
+        let _ = BASELINE_PSS_KIB.set(memory["pss_kib"].as_u64().unwrap());
+    }
+    if phase == "released" {
+        check_memory(
+            &value,
+            "g3_released",
+            memory["pss_kib"].as_u64().unwrap(),
+            files,
+            true,
+        );
+    }
+    if phase == "traversed_with_old_files" {
+        check_memory(
+            &value,
+            "peak_resident",
+            memory["peak_rss_kib"].as_u64().unwrap(),
+            files,
+            false,
+        );
+    }
     println!("CIRROVE_COMBINED_CHURN {value}");
 }
 async fn round(
@@ -409,6 +515,11 @@ async fn round(
     }
     if full {
         parents::settle(inner, 1).await;
+        // Retiring the views is not the end of it: the allocator returns their
+        // pages on a quiescent tick a few seconds later. Sampling immediately
+        // records a moment between the two that a user never observes, so wait
+        // for resident memory to stop falling before calling this released.
+        settle_memory().await;
     }
     sample(inner, number, "released", started).await;
     ids
@@ -428,6 +539,13 @@ async fn run(with_mappings: bool) {
     assert!((2000..=files / 2).contains(&per_directory));
     let seconds = std::env::var("CIRROVE_CHURN_SECONDS").map_or(0, |s| s.parse::<u64>().unwrap());
     assert!(seconds <= 86_400);
+    let _ = FIXTURE_FILES.set(files);
+    // Sustained rounds are not full, so they never settle, and every sample taken
+    // during them is pre-invalidation and not root-only. That leaves no series a
+    // plateau rule can bind to, which is why the twenty-four hour gate has no
+    // result. Zero keeps the historical behaviour so earlier runs stay comparable.
+    let full_every = std::env::var("CIRROVE_CHURN_SUSTAINED_FULL_EVERY")
+        .map_or(0, |s| s.parse::<usize>().unwrap());
     let stat_workers =
         std::env::var("CIRROVE_CHURN_STAT_WORKERS").map_or(8, |s| s.parse::<usize>().unwrap());
     assert!((1..=16).contains(&stat_workers));
@@ -492,12 +610,13 @@ async fn run(with_mappings: bool) {
     let mut number = 3;
     while sustained.elapsed() < Duration::from_secs(seconds) {
         number += 1;
+        let settle_this_round = full_every > 0 && (number - 3usize).is_multiple_of(full_every);
         let ids = round(
             tree,
             &inner,
             routes.clone(),
             number,
-            false,
+            settle_this_round,
             started,
             content.as_deref(),
         )

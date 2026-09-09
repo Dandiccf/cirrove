@@ -414,6 +414,56 @@ CIRROVE_CHURN_FILES=500000 CIRROVE_CHURN_PER_DIRECTORY=250000 cargo test -p cirr
 CIRROVE_CHURN_FILES=500000 CIRROVE_CHURN_SECONDS=86400 cargo test -p cirrove-service --lib --release --locked filesystem::capacity::real_combined_namespace_churn -- --exact --ignored --nocapture --test-threads=1
 ```
 
+## Assessing coverage in this repository
+
+Counting test names, or grepping for a function's name in `tests/`, systematically
+undercounts coverage here and has misdirected work three times in one day.
+
+Two conventions cause it. Tests are named after the scenario they exercise rather
+than the code they reach, so `getxattr` and `listxattr` are asserted inside a test
+called `real_fuse_reads_shortcuts_seek_readonly_restart_and_ejection`. And most
+modules under `filesystem/` are reached through an actual mount rather than called
+directly, so `writeback/replacement.rs` has no in-module tests and no mention of
+`replace` outside its own file, while three kernel fixtures drive it end to end.
+
+A survey that counted names reported five FUSE handlers as untested; two were
+covered. Another reported `writeback/{ancestry,replacement,unlinked}.rs` as having
+no coverage; all three are exercised, by `tests/namespace_ancestry.rs`,
+`tests/unlinked_files.rs` and the `real_replacement_*` fixtures respectively.
+Acting on either would have produced duplicate tests for guarded behaviour.
+
+Ask instead what a test *does*. Search for the operation a user would perform --
+`remove_file`, `set_len`, `sync_all`, a rename through the mount -- and read the
+assertions. `docs/acceptance-ledger.json` records the result of doing that for
+each acceptance box, in `asserted_by`, alongside a `caveat` naming what the
+assertion does not reach. Candidates that were matched by name and not yet read
+are kept in a separate field precisely so they cannot be mistaken for evidence.
+
+Those fixtures report process RSS and PSS, which cannot separate live application
+data from memory the process has freed and glibc has not returned. The namespace
+memory gate turns on that distinction, so attribute it with
+[`scripts/heap-probe.c`](../scripts/heap-probe.c), a diagnostic `LD_PRELOAD`
+interposer that appends a `mallinfo2` sample for each marker the fixture prints.
+It is never loaded by the service or by CI.
+
+```sh
+gcc -O2 -fPIC -shared -o .local-state/heap-probe.so scripts/heap-probe.c -ldl
+mkdir -p .local-state/heap-tmp   # must not be tmpfs; check with findmnt --target
+TMPDIR=$PWD/.local-state/heap-tmp SQLITE_TMPDIR=$PWD/.local-state/heap-tmp \
+LD_PRELOAD=$PWD/.local-state/heap-probe.so \
+CIRROVE_HEAP_PROBE_LOG=$PWD/.local-state/heap.jsonl \
+CIRROVE_CHURN_FILES=500000 <frozen release test binary> --exact \
+  filesystem::capacity::real_combined_namespace_churn --nocapture --ignored
+```
+
+Samples are emitted one per marker, in order, so join `heap.jsonl` to the
+fixture's own `CIRROVE_COMBINED_CHURN` lines by line number. `allocated_arena_bytes`
+is live application heap; `free_arena_bytes` is memory the allocator holds but has
+not returned. A temporary directory on tmpfs would move bytes out of process RSS
+without reducing host memory, so it must be disk-backed. See
+[the attribution run](benchmarks/namespace-memory-attribution.json) for a worked
+example and its conclusions.
+
 The default is 4,000 indexed files in 2,000-file groups. `CIRROVE_CHURN_STAT_WORKERS`
 accepts 1–16 workers. Each invocation owns a temporary state directory and mount;
 its data is removed after successful shutdown. Run long measurements separately

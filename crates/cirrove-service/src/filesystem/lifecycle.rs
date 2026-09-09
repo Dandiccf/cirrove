@@ -75,10 +75,14 @@ impl WriteControl {
     }
     pub async fn drain(&self) -> std::io::Result<()> {
         self.inner.edits.tasks.wait().await;
-        self.writer.seal_all().await.map_err(|_| {
-            std::io::Error::other(
-                "some local edits could not be sealed; working bytes remain retained",
-            )
+        // Keep the errno. Sealing fails for two unrelated reasons -- a working
+        // file that would not fsync, or a publication that failed afterwards --
+        // and collapsing both into one sentence cost a CI failure that could
+        // not be told apart from the other.
+        self.writer.seal_all().await.map_err(|error| {
+            std::io::Error::other(format!(
+                "some local edits could not be sealed; working bytes remain retained ({error:?})"
+            ))
         })
     }
     pub fn wake(&self) -> Arc<tokio::sync::Notify> {

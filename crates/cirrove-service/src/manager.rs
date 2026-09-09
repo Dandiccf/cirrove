@@ -1,5 +1,6 @@
 //! Desired account state, mount ownership and status. Observation failures never
 //! count as an ejection; mount directories are checked on every mount attempt.
+use crate::writable::WriteProvider;
 use crate::{
     accounts::{Account, Settings, provider},
     engine::{Engine, FeedHealth},
@@ -38,10 +39,22 @@ pub struct AccountStatus {
     pub feeds: Vec<FeedHealth>,
     #[serde(default)]
     pub directory_freshness: crate::DirectoryFreshness,
+    /// Adapter read-path counters, when the adapter keeps them. Reported because
+    /// nothing else can see them: the window path runs only behind the content
+    /// cache, so a direct-to-adapter check reports zero windows no matter how the
+    /// mounted daemon is behaving. `null` means this adapter does not count.
+    #[serde(default)]
+    pub read_path: Option<cirrove_core::ReadPathCounters>,
     pub indexed_feeds: u64,
     pub indexed_items: u64,
 }
 pub type ProviderFactory = Arc<dyn Fn(&Account) -> Result<Arc<dyn ReadProvider>> + Send + Sync>;
+/// Builds the write half of a provider, for accounts that carry a write grant.
+///
+/// Kept separate from `ProviderFactory` rather than folded into it because the
+/// deterministic providers the tests inject supply reads only. A mount they drive
+/// stays read-only, which is the honest outcome, instead of failing to start.
+pub type WriteFactory = Arc<dyn Fn(&Account) -> Result<Arc<dyn WriteProvider>> + Send + Sync>;
 #[derive(Default)]
 pub struct Manager {
     pub status: RwLock<Vec<AccountStatus>>,
@@ -50,10 +63,23 @@ struct Running {
     config: Account,
     engine: Arc<Engine>,
     session: Option<CloudSession>,
+    /// Present only for a mount that carries a write grant. Drained before the
+    /// kernel session is detached: a worker can still be holding a projection the
+    /// kernel is able to reach.
+    writers: Option<crate::writable::WriteWorkers>,
     mount_error: Option<String>,
 }
 impl Running {
     async fn stop(mut self) {
+        if let Some(writers) = self.writers.take() {
+            self.engine.cancel.cancel();
+            if let Err(error) = writers.drain().await {
+                tracing::warn!(
+                    %error,
+                    "local edits could not be sealed; working bytes remain retained"
+                );
+            }
+        }
         self.engine.stop().await;
         if let Some(session) = self.session.take() {
             let result = tokio::task::spawn_blocking(move || session.umount_and_join()).await;
@@ -68,7 +94,12 @@ impl Manager {
         state: PathBuf,
         cancel: CancellationToken,
     ) -> (Arc<Self>, tokio::task::JoinHandle<()>) {
-        Self::start_with_provider(state, cancel, Arc::new(|account| Ok(provider(account)?)))
+        Self::start_with_providers(
+            state,
+            cancel,
+            Arc::new(|account| Ok(provider(account)?)),
+            Some(Arc::new(|account| Ok(provider(account)?))),
+        )
     }
     /// The same account lifecycle is used for production and deterministic providers.
     pub fn start_with_provider(
@@ -76,10 +107,21 @@ impl Manager {
         cancel: CancellationToken,
         factory: ProviderFactory,
     ) -> (Arc<Self>, tokio::task::JoinHandle<()>) {
+        Self::start_with_providers(state, cancel, factory, None)
+    }
+    /// Without a write factory every mount is read-only, whatever an account's
+    /// recorded permission says. That is deliberate: a provider that cannot write
+    /// should produce a read-only mount, not a writable one that fails on save.
+    pub fn start_with_providers(
+        state: PathBuf,
+        cancel: CancellationToken,
+        factory: ProviderFactory,
+        writes: Option<WriteFactory>,
+    ) -> (Arc<Self>, tokio::task::JoinHandle<()>) {
         let manager = Arc::new(Self::default());
         let worker = manager.clone();
         let task = tokio::spawn(async move {
-            worker.run(state, cancel, factory).await;
+            worker.run(state, cancel, factory, writes).await;
         });
         (manager, task)
     }
@@ -88,6 +130,7 @@ impl Manager {
         state: PathBuf,
         cancel: CancellationToken,
         factory: ProviderFactory,
+        writes: Option<WriteFactory>,
     ) {
         let mut running: HashMap<String, Running> = HashMap::new();
         loop {
@@ -95,7 +138,17 @@ impl Manager {
                 break;
             }
             let directory = state.clone();
-            let settings = tokio::task::spawn_blocking(move || Settings::load(&directory)).await;
+            let settings = tokio::task::spawn_blocking(move || {
+                // Before reading desired state, put back anything a sign-in
+                // disabled and never restored. A failure here is not fatal: it
+                // only means an account stays disabled, which is the state we
+                // already have.
+                if let Err(error) = crate::accounts::heal_interrupted_sign_ins(&directory) {
+                    tracing::warn!(%error, "could not check for interrupted sign-ins");
+                }
+                Settings::load(&directory)
+            })
+            .await;
             match settings {
                 Ok(Ok(settings)) => {
                     let desired: HashMap<_, _> = settings
@@ -127,7 +180,14 @@ impl Manager {
                         if running.contains_key(&account.id) {
                             continue;
                         }
-                        match Self::launch(account.clone(), state.clone(), &factory).await {
+                        match Self::launch(
+                            account.clone(),
+                            state.clone(),
+                            &factory,
+                            writes.as_ref(),
+                        )
+                        .await
+                        {
                             Ok(active) => {
                                 running.insert(account.id.clone(), active);
                             }
@@ -163,6 +223,7 @@ impl Manager {
                             }),
                             feeds: vec![],
                             directory_freshness: crate::DirectoryFreshness::default(),
+                            read_path: None,
                             indexed_feeds: 0,
                             indexed_items: 0,
                         };
@@ -183,15 +244,40 @@ impl Manager {
                                         active.mount_error = None;
                                     }
                                     if !status.mounted && !cancel.is_cancelled() {
+                                        // A remount replaces the kernel session, so
+                                        // workers bound to the old one are drained
+                                        // before it is detached rather than left
+                                        // running against a mount nobody can reach.
+                                        // The engine is not cancelled: it survives.
+                                        if let Some(writers) = active.writers.take()
+                                            && let Err(error) = writers.drain().await
+                                        {
+                                            tracing::warn!(
+                                                %error,
+                                                "local edits could not be sealed before remount"
+                                            );
+                                        }
                                         if let Some(session) = active.session.take() {
                                             let _ = tokio::task::spawn_blocking(move || {
                                                 session.umount_and_join()
                                             })
                                             .await;
                                         }
-                                        match mount_checked(active.engine.clone()).await {
-                                            Ok(session) => {
+                                        let writable = match writes.as_ref() {
+                                            Some(writes)
+                                                if active.config.access
+                                                    == cirrove_auth::AccessMode::ReadWrite =>
+                                            {
+                                                writes(&active.config).ok()
+                                            }
+                                            _ => None,
+                                        };
+                                        match mount_checked(active.engine.clone(), &state, writable)
+                                            .await
+                                        {
+                                            Ok((session, workers)) => {
                                                 active.session = Some(session);
+                                                active.writers = workers;
                                                 active.mount_error = None;
                                                 status.mounted = true;
                                             }
@@ -209,6 +295,7 @@ impl Manager {
                             }
                             status.feeds = active.engine.health().await;
                             status.directory_freshness = active.engine.directory_freshness();
+                            status.read_path = active.engine.provider.read_path_counters();
                             let db = active.engine.db.clone();
                             if let Ok(Ok((feeds, items))) = tokio::task::spawn_blocking(move || {
                                 cirrove_store::Store::open(db)?.counts()
@@ -252,21 +339,33 @@ impl Manager {
         account: Account,
         state: PathBuf,
         factory: &ProviderFactory,
+        writes: Option<&WriteFactory>,
     ) -> Result<Running> {
         let graph = factory(&account)?;
-        let engine = Engine::new(account.clone(), graph, state).await?;
+        // A write grant is what selects a writable mount, and it is the only
+        // thing that does. Without one, or without a provider that can write,
+        // this is the read-only mount it has always been.
+        let writable = match writes {
+            Some(writes) if account.access == cirrove_auth::AccessMode::ReadWrite => {
+                Some(writes(&account)?)
+            }
+            _ => None,
+        };
+        let engine = Engine::new(account.clone(), graph, state.clone()).await?;
         if let Err(error) = engine.start().await {
             engine.stop().await;
             return Err(error);
         }
-        let (session, mount_error) = match mount_checked(engine.clone()).await {
-            Ok(session) => (Some(session), None),
-            Err(error) => (None, Some(mount_error(&error))),
-        };
+        let (session, writers, mount_error) =
+            match mount_checked(engine.clone(), &state, writable).await {
+                Ok((session, writers)) => (Some(session), writers, None),
+                Err(error) => (None, None, Some(mount_error(&error))),
+            };
         Ok(Running {
             config: account,
             engine,
             session,
+            writers,
             mount_error,
         })
     }
@@ -279,17 +378,52 @@ fn mount_error(error: &anyhow::Error) -> String {
     }
     "mount unavailable; directory must be empty and unmounted".into()
 }
-async fn mount_checked(engine: Arc<Engine>) -> Result<CloudSession> {
+async fn mount_checked(
+    engine: Arc<Engine>,
+    state: &Path,
+    writable: Option<Arc<dyn WriteProvider>>,
+) -> Result<(CloudSession, Option<crate::writable::WriteWorkers>)> {
     let path = engine.account.mount_path.clone();
     recover_disconnected_mount(&engine.account).await?;
     // CloudFs captures this async runtime, while filesystem checks and the FUSE
     // handshake execute on a blocking worker.
-    let fs = CloudFs::new(engine)?;
-    tokio::task::spawn_blocking(move || {
-        validate_mount_directory(&path)?;
-        Ok(fs.mount(&path)?)
+    let Some(provider) = writable else {
+        let fs = CloudFs::new(engine)?;
+        let session = tokio::task::spawn_blocking(move || {
+            validate_mount_directory(&path)?;
+            Ok::<_, anyhow::Error>(fs.mount(&path)?)
+        })
+        .await??;
+        return Ok((session, None));
+    };
+    // The journal lives beside the account's index and cache, because it holds
+    // the same kind of thing: local state that belongs to exactly this account
+    // and must not outlive it.
+    let directory = state
+        .join("accounts")
+        .join(&engine.account.id)
+        .join("journal");
+    let owner = engine.account.id.clone();
+    let journal = tokio::task::spawn_blocking(move || {
+        crate::journal::UploadJournal::open(&directory, &owner, 64 * 1024 * 1024)
     })
-    .await?
+    .await??;
+    let journal = Arc::new(std::sync::Mutex::new(journal));
+    let fs = CloudFs::new_experimental_writable(engine.clone(), journal.clone()).await?;
+    let control = fs.write_control()?;
+    let session = tokio::task::spawn_blocking(move || {
+        validate_mount_directory(&path)?;
+        Ok::<_, anyhow::Error>(fs.mount(&path)?)
+    })
+    .await??;
+    let workers = crate::writable::WriteWorkers::spawn(
+        control,
+        journal,
+        provider,
+        Arc::new(cirrove_auth::DesktopVault),
+        &engine.cancel,
+    );
+    Ok((session, Some(workers)))
 }
 
 /// An account's owner lock is held by Engine before this is called. A crashed

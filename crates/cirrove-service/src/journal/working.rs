@@ -53,6 +53,8 @@ impl WorkingSource {
         let mut file = self.temporary.as_file().try_clone()?;
         owned_private(&file)?;
         file.sync_all()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("working::complete_descriptor");
         file.seek(SeekFrom::Start(0))?;
         Ok(file)
     }
@@ -209,6 +211,8 @@ impl UploadJournal {
         }
         super::namespace::update_working(&tx, record)?;
         tx.commit()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("working::save_working");
         Ok(())
     }
 
@@ -354,10 +358,14 @@ impl UploadJournal {
         }
         let temporary = source.temporary;
         temporary.as_file().sync_all()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("working::publish_working_content::1");
         temporary
             .persist_noclobber(self.working.join(id.to_string()))
             .map_err(|_| JournalError::Storage)?;
         File::open(&self.working)?.sync_all()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("working::publish_working_content::2");
         // Publication failures retain the orphan and count it against quota.
         let tx = self
             .db
@@ -375,6 +383,8 @@ impl UploadJournal {
             ],
         )?;
         tx.commit()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("working::publish_working_content::3");
         Ok(record)
     }
 
@@ -435,6 +445,8 @@ impl UploadJournal {
         let record = self.working_file(id)?;
         let mut bytes = self.working_descriptor(id, true)?;
         bytes.sync_all()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("working::seal_working");
         if !record.dirty || record.unlinked {
             return Ok(None);
         }

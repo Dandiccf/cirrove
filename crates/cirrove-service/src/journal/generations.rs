@@ -95,7 +95,9 @@ impl Operation {
             Self::Mutation(r) => match &r.request.intent {
                 MutationIntent::CreateFolder { .. } => Some(NodeKind::Folder),
                 MutationIntent::Relocate { before, .. } => Some(before.kind.clone()),
-                MutationIntent::RemoveFile { .. } => None,
+                // A removal leaves no node behind, so it contributes no kind to
+                // the generation, folders included.
+                MutationIntent::RemoveFile { .. } | MutationIntent::RemoveFolder { .. } => None,
             },
         }
     }
@@ -288,6 +290,8 @@ impl UploadJournal {
             ],
         )?;
         tx.commit()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("generations::resolve_upload");
         Ok(())
     }
     fn resolve_mutation(&mut self, id: Uuid) -> Result<()> {
@@ -331,6 +335,8 @@ impl UploadJournal {
             params![id.to_string(), serde_json::to_string(&record)?],
         )?;
         tx.commit()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("generations::resolve_mutation");
         Ok(())
     }
 }

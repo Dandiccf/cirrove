@@ -156,9 +156,46 @@ pub struct DirectoryPage {
     pub next: Option<Cursor>,
 }
 
+/// What an adapter's read path has actually done since the process started.
+///
+/// This exists because a validator cannot observe it. The bounded sequential
+/// window path runs only behind the service's content cache, so a check that
+/// talks to an adapter directly reports zero windows however well the mounted
+/// daemon is doing -- which is exactly the wrong conclusion to draw from a zero.
+/// Reporting the counters from a running daemon is the only way to see whether
+/// the optimized read session is working on real data.
+#[derive(Debug, Default, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+pub struct ReadPathCounters {
+    /// Transport sessions established from cold.
+    pub setups: u64,
+    /// Sessions re-bound after their lease expired rather than set up again.
+    pub renewals: u64,
+    /// Exact ranges served against a live session binding.
+    pub conditional_ranges: u64,
+    /// Bounded sequential windows served against a live session binding.
+    pub conditional_windows: u64,
+    /// Ranges served without a usable session, on the conservative path.
+    pub fallback_ranges: u64,
+    /// Windows served without a usable session, on the conservative path. A
+    /// session that degrades to fallback never re-binds, so this rising while
+    /// `renewals` stays at zero is the expected shape rather than a puzzle.
+    pub fallback_windows: u64,
+    /// Every Graph metadata GET this adapter attempted, whether or not a read
+    /// session was involved. Without it a read served outside the session paths
+    /// is indistinguishable from no read at all.
+    pub graph_gets: u64,
+    /// Every content GET this adapter attempted, on any path.
+    pub content_gets: u64,
+}
+
 /// Read-only filesystem operations, deliberately separate from change feeds.
 #[async_trait]
 pub trait ReadProvider: MetadataProvider {
+    /// Read-path counters, for adapters that keep them. `None` means the adapter
+    /// does not count, which is not the same as counting zero.
+    fn read_path_counters(&self) -> Option<ReadPathCounters> {
+        None
+    }
     /// Optional version-bound transport. The shared service coalesces creation
     /// and bounds residency; adapters keep credentials and validators private.
     /// None uses the existing exact-range contract without a transport session.

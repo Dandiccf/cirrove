@@ -1,0 +1,347 @@
+{
+  "recorded_at": "2026-09-08T22:00:00+00:00",
+  "purpose": "Milestone 2 asks for crash tests at every durable transition. A per-module sweep was completed first and found all ten modules with runtime transitions crossed by a kill. This is the finer enumeration that sweep said was needed: one row per commit and per fsync.",
+  "totals": {
+    "sites": 43,
+    "runtime": 31,
+    "migration": 12,
+    "distinct_runtime_functions": 22
+  },
+  "what_this_settles": "The denominator. Thirty-one durable writes on runtime paths across twenty-two functions, and twelve more inside schema migrations. Before this the box's scope was a guess.",
+  "what_this_does_not_settle": "The numerator, and static reading cannot supply it. Deciding which of the thirty-one a given kill fixture crosses means following calls through test helpers and through internal journal functions; an attempt to extract it by regex found nothing for one fixture that plainly does durable work, because its calls go through helpers. Reading each by hand would produce a number nobody could check, which is the same failure as counting test names.\\n\\n",
+  "sites": [
+    {
+      "file": "journal/ancestry.rs",
+      "line": 226,
+      "function": "capture_namespace_ancestors",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/barriers.rs",
+      "line": 30,
+      "function": "migrate",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/directories.rs",
+      "line": 17,
+      "function": "migrate",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/directories.rs",
+      "line": 290,
+      "function": "resolve_destination",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/generations.rs",
+      "line": 22,
+      "function": "migrate",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/generations.rs",
+      "line": 42,
+      "function": "migrate_dependencies",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/generations.rs",
+      "line": 290,
+      "function": "resolve_upload",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/generations.rs",
+      "line": 333,
+      "function": "resolve_mutation",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/handoff.rs",
+      "line": 18,
+      "function": "migrate",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/handoff.rs",
+      "line": 132,
+      "function": "handoff_namespace",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/handoff.rs",
+      "line": 189,
+      "function": "collect_retired_working",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal/mutations.rs",
+      "line": 134,
+      "function": "migrate_queue",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/mutations.rs",
+      "line": 260,
+      "function": "enqueue_mutation_transaction",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/mutations.rs",
+      "line": 307,
+      "function": "save_mutation",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/namespace.rs",
+      "line": 332,
+      "function": "migrate",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/namespace.rs",
+      "line": 565,
+      "function": "observe_namespace_file",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/namespace.rs",
+      "line": 595,
+      "function": "observe_namespace_file",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/preparation.rs",
+      "line": 25,
+      "function": "migrate",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/preparation.rs",
+      "line": 131,
+      "function": "enqueue_preparing_replacement",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/preparation.rs",
+      "line": 192,
+      "function": "claim_preparation",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/preparation.rs",
+      "line": 251,
+      "function": "recover_preparation_files",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal/preparation.rs",
+      "line": 370,
+      "function": "complete_preparation",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal/preparation.rs",
+      "line": 383,
+      "function": "complete_preparation",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal/publication.rs",
+      "line": 47,
+      "function": "migrate",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/replacements.rs",
+      "line": 42,
+      "function": "migrate",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/unlinked.rs",
+      "line": 17,
+      "function": "migrate",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/unlinked.rs",
+      "line": 142,
+      "function": "unlink_namespace_file",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/working.rs",
+      "line": 55,
+      "function": "complete_descriptor",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal/working.rs",
+      "line": 87,
+      "function": "migrate",
+      "kind": "commit",
+      "migration": true
+    },
+    {
+      "file": "journal/working.rs",
+      "line": 211,
+      "function": "save_working",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/working.rs",
+      "line": 356,
+      "function": "publish_working_content",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal/working.rs",
+      "line": 360,
+      "function": "publish_working_content",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal/working.rs",
+      "line": 377,
+      "function": "publish_working_content",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal/working.rs",
+      "line": 437,
+      "function": "seal_working",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal.rs",
+      "line": 248,
+      "function": "open",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal.rs",
+      "line": 249,
+      "function": "open",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal.rs",
+      "line": 250,
+      "function": "open",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal.rs",
+      "line": 254,
+      "function": "open",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal.rs",
+      "line": 351,
+      "function": "enqueue_generation",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal.rs",
+      "line": 372,
+      "function": "enqueue_generation",
+      "kind": "fsync",
+      "migration": false
+    },
+    {
+      "file": "journal.rs",
+      "line": 417,
+      "function": "enqueue_generation",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal.rs",
+      "line": 532,
+      "function": "save",
+      "kind": "commit",
+      "migration": false
+    },
+    {
+      "file": "journal.rs",
+      "line": 704,
+      "function": "prune_uploaded_payload",
+      "kind": "fsync",
+      "migration": false
+    }
+  ],
+  "instrument": {
+    "built": true,
+    "where": "journal::durable, behind the test-support feature rather than cfg(test), because the crash fixtures are integration tests and link the library without cfg(test) set.",
+    "how": "Each durable site calls durable::record(\"module::function::detail\") immediately after its commit or fsync. A crash fixture writes durable::reached() beside its ready signal, before being killed, and the parent asserts on that set.",
+    "proven_on": "preparation.rs, all five runtime sites. The fixture now asserts it crossed enqueue_preparing_replacement and claim_preparation, and that complete_preparation is reached in exactly one of its two phases.",
+    "discrimination_check": "Asserting a site name that does not exist fails with the measured set printed: [\"preparation::claim_preparation\", \"preparation::enqueue_preparing_replacement\"]. The assertion reads what the program did.",
+    "remaining": "26 of the 31 runtime sites are not yet instrumented. Mechanical: one line per site, one assertion per fixture."
+  },
+  "measured_coverage": {
+    "method": "Every one of the 31 runtime sites now calls durable::record. Each crash fixture's child was run once per phase, its reached set read from disk, and the union taken. This is what the program did, not what a call graph says it would do. All eight crash fixtures now report, including the two older ones.",
+    "sites": 31,
+    "reached": 31,
+    "per_fixture": {
+      "preparation_crash_child": 14,
+      "handoff_crash_child": 9,
+      "replacement_crash_child": 12,
+      "unlinked_crash_child": 7,
+      "directories_crash_child": 14,
+      "namespace_crash_child": 6,
+      "journal_crash_fixture": 8,
+      "working_crash_fixture": 12,
+      "ancestry_crash_child": 5
+    },
+    "not_reached": [],
+    "reading_the_gap": "None remain. The last, prune_uploaded_payload, needed its own phase rather than a bigger fixture: collecting an acknowledged upload's payload is what reaches it, and adding that to the existing 'uploaded' phase broke that phase's own assertion, because pruning removes the bytes it checks for. The separate 'collected' phase asserts the opposite -- that a crash may not resurrect bytes the collector already released.",
+    "honest_status": "31 of 31 durable transitions on runtime paths are crossed by a process that then dies. Measured, not read: each site records itself and each fixture persists what it reached.",
+    "evidence_kinds": {
+      "in_a_killed_child": "30 sites, read from the set each crash fixture persists before dying.",
+      "in_the_recovering_parent": "1 site, preparation::recover_preparation_files. Recovery runs in the process that opens the journal after the crash, so the parent asserts on its own reached set. The child now calls reserve_preparation before dying, which leaves the .cirrove-preparing- temporary that recovery exists to clean up."
+    }
+  },
+  "conclusion_after_measurement": "Every runtime durable transition is now covered, which is what the milestone asked for in that clause. The box still is not ticked, and the reason is the other clause: 'crash/fault tests' includes faults this cannot reach. Process death is covered at every transition; physical power loss, a lying fsync, torn writes and block-layer ENOSPC need dm-flakey or dm-error and root, and a true power cut cannot be scripted at all. The milestone text names physical-fault coverage as an open gap, and it remains the gap -- now the only one."
+}

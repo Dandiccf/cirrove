@@ -184,8 +184,13 @@ async fn browser_login(
 ) -> Result<(Identity, cirrove_auth::Credentials)> {
     let pending = PendingLogin::with_access(app, access).await?;
     if access == AccessMode::ReadWrite {
+        // This used to promise that mounts stayed read-only. That was true while
+        // the only writable path was a validator mounting a disabled account by
+        // hand; it stopped being true when the daemon learned to mount writable
+        // from the grant, and a consent screen is the wrong place to be wrong.
         println!(
-            "Requesting write consent for developer validation. Filesystem mounts remain read-only."
+            "Requesting write consent. An account with this grant is mounted writable, \
+             so applications can change cloud files through it."
         );
     }
     println!("Opening Microsoft sign-in in your browser. Select the account you want to connect.");
@@ -215,13 +220,184 @@ async fn await_browser_login<T>(
 }
 /// Temporarily disables just this account and waits for its owned workers to
 /// release credentials before replacing a grant. Other accounts keep running.
-pub async fn reauthenticate(state: PathBuf, label: String) -> Result<()> {
+/// Where a sign-in records the desired state it is about to overwrite.
+///
+/// The disable has to be durable, so the intent to undo it has to be durable too,
+/// or the two disagree exactly when it matters. Without this, an interrupted run
+/// left the account disabled and a *later successful* run inherited that: it read
+/// the already-disabled file as the account's own wish and faithfully preserved
+/// it, so the drive stayed unmounted through a sign-in that reported nothing
+/// wrong. That is the failure this file prevents.
+pub(crate) fn restore_marker(state: &Path, id: &str) -> PathBuf {
+    state.join(format!("restore-{id}.json"))
+}
+
+/// The desired state a sign-in interrupted, if one did.
+///
+/// Present means some run disabled this account and never put it back, so the
+/// `enabled` recorded in settings is that run's leftover rather than anything the
+/// user asked for.
+pub(crate) fn interrupted_desired_state(state: &Path, id: &str) -> Option<bool> {
+    let bytes = std::fs::read(restore_marker(state, id)).ok()?;
+    serde_json::from_slice::<serde_json::Value>(&bytes)
+        .ok()?
+        .get("enabled")?
+        .as_bool()
+}
+
+fn write_restore_marker(state: &Path, id: &str, enabled: bool) -> Result<()> {
+    let path = restore_marker(state, id);
+    let mut file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .mode(0o600)
+        .open(&path)?;
+    file.write_all(&serde_json::to_vec(
+        &serde_json::json!({ "enabled": enabled }),
+    )?)?;
+    file.sync_all()?;
+    File::open(state)?.sync_all()?;
+    Ok(())
+}
+
+/// Undo a sign-in that never put an account back, when none is running.
+///
+/// The daemon does this because the user cannot see what to undo: an interrupted
+/// sign-in leaves the account disabled, a disabled account is not mounted, and a
+/// missing mount looks like nothing at all. Gated on the per-account operation
+/// lock, so it can never fight a sign-in still waiting on a browser -- that lock
+/// is held for exactly as long as the disable is meant to last.
+pub fn heal_interrupted_sign_ins(state: &Path) -> Result<bool> {
+    let mut healed = false;
+    for account in Settings::load(state)?.accounts {
+        let Some(enabled) = interrupted_desired_state(state, &account.id) else {
+            continue;
+        };
+        let Ok(_operation) = account_operation(state, &account.id) else {
+            continue; // a sign-in is in progress; its own guard owns the restore
+        };
+        if account.enabled != enabled {
+            let _lock = config_lock(state)?;
+            let mut settings = Settings::load(state)?;
+            if let Some(stored) = settings.accounts.iter_mut().find(|a| a.id == account.id) {
+                stored.enabled = enabled;
+            }
+            settings.save(state)?;
+            healed = true;
+            tracing::warn!(
+                account = %account.id,
+                "restored an account that an interrupted sign-in left disabled"
+            );
+        }
+        let _ = std::fs::remove_file(restore_marker(state, &account.id));
+    }
+    Ok(healed)
+}
+
+/// Puts an account's desired state back after a sign-in attempt.
+///
+/// Sign-in has to disable the account durably, because that is how the daemon is
+/// asked to release the mount, and it then waits on a human in a browser. So the
+/// window between disabling and restoring is long and easy to interrupt, and an
+/// interrupted run used to leave the account disabled with nothing said: the
+/// drive simply stopped being mounted, across reboots, until somebody noticed.
+///
+/// Restoring from `Drop` closes that for a panic or an early return. It cannot
+/// close it for process death, which is why `reauthenticate` says out loud what
+/// to run if the attempt does not finish.
+struct DesiredState {
+    state: PathBuf,
+    id: String,
+    enabled: bool,
+    access: Option<AccessMode>,
+}
+impl DesiredState {
+    /// Adopt the requested permission mode, then restore. Consumes the guard so
+    /// the `Drop` path cannot also run.
+    fn settle(mut self, requested: AccessMode) {
+        self.access = Some(requested);
+        drop(self);
+    }
+}
+impl Drop for DesiredState {
+    fn drop(&mut self) {
+        let restore = || -> Result<()> {
+            let _lock = config_lock(&self.state)?;
+            let mut settings = Settings::load(&self.state)?;
+            let account = settings
+                .accounts
+                .iter_mut()
+                .find(|a| a.id == self.id)
+                .context("account removed during sign-in")?;
+            settle(account, self.enabled, self.access);
+            settings.save(&self.state)?;
+            // Only after the settings write lands. A marker removed first would
+            // lose the intent if the write failed.
+            let _ = std::fs::remove_file(restore_marker(&self.state, &self.id));
+            Ok(())
+        };
+        if let Err(error) = restore() {
+            tracing::error!(
+                %error,
+                account = %self.id,
+                "could not restore this account's desired state after sign-in; \
+                 re-enable it with `cirrove enable <label>`"
+            );
+        }
+    }
+}
+
+/// Restore an account after a sign-in attempt, adopting the requested permission
+/// mode only if that attempt actually succeeded.
+///
+/// The recorded mode is what `Writeback::new` consults before allowing writes, so
+/// recording a mode the credential does not have is worse than refusing the
+/// upgrade: writes would be admitted locally and then refused by the provider,
+/// after an application believed its save had been accepted. A refused consent, a
+/// different account chosen in the browser and an unreadable drive root all land
+/// here as `succeeded == false`.
+fn settle(account: &mut Account, enabled: bool, granted: Option<AccessMode>) {
+    account.enabled = enabled;
+    if let Some(access) = granted {
+        account.access = access;
+    }
+}
+
+/// Sign in again for an existing account, optionally changing its permission mode.
+///
+/// `access: None` preserves what the account already has, which is the ordinary
+/// case: a grant that expired or was revoked. `Some(mode)` requests a different
+/// one, and this is the only way to move an account between read-only and
+/// writable. Without it the alternatives were both destructive -- `connect`
+/// refuses an existing label or mount path, so upgrading meant deleting the
+/// account and re-indexing the drive from nothing.
+///
+/// The stored mode changes only after the browser grant is validated and the
+/// selected drive's root is read back, so a refused or abandoned consent leaves
+/// the account exactly as it was.
+pub async fn reauthenticate(
+    state: PathBuf,
+    label: String,
+    access: Option<AccessMode>,
+) -> Result<()> {
     let original = Settings::load(&state)?
         .accounts
         .into_iter()
         .find(|a| a.label == label)
         .context("unknown account label")?;
+    let requested = access.unwrap_or(original.access);
     let _operation = account_operation(&state, &original.id)?;
+    // A marker here means an earlier run disabled this account and never put it
+    // back. Its `enabled` is the account's own wish; what settings currently say
+    // is that run's leftover, and adopting it would carry the damage forward.
+    let was_enabled = interrupted_desired_state(&state, &original.id).unwrap_or(original.enabled);
+    if was_enabled != original.enabled {
+        println!(
+            "{label} was left disabled by an interrupted sign-in; restoring it after this one."
+        );
+    }
+    write_restore_marker(&state, &original.id, was_enabled)?;
     {
         let _lock = config_lock(&state)?;
         let mut settings = Settings::load(&state)?;
@@ -232,6 +408,20 @@ pub async fn reauthenticate(state: PathBuf, label: String) -> Result<()> {
             .context("account removed")?;
         account.enabled = false;
         settings.save(&state)?;
+    }
+    // Held from here on. Disabling is durable because it is how the daemon is
+    // asked to release the mount; restoring it is this guard's only job.
+    let desired = DesiredState {
+        state: state.clone(),
+        id: original.id.clone(),
+        enabled: was_enabled,
+        access: None,
+    };
+    if was_enabled {
+        println!(
+            "{label} is disabled while you sign in. If this does not finish, run \
+             `cirrove enable {label}` to put it back."
+        );
     }
     let result = async {
         let directory = state.join("accounts").join(&original.id);
@@ -246,7 +436,7 @@ pub async fn reauthenticate(state: PathBuf, label: String) -> Result<()> {
         .await
         .context("account did not stop; close files in this mount and try again")?;
         let (identity, credentials) =
-            browser_login(original.registration.clone(), original.access).await?;
+            browser_login(original.registration.clone(), requested).await?;
         if identity.tenant_id != original.identity.tenant_id
             || identity.graph_user_id != original.identity.graph_user_id
         {
@@ -263,16 +453,11 @@ pub async fn reauthenticate(state: PathBuf, label: String) -> Result<()> {
         Ok(())
     }
     .await;
-    {
-        let _lock = config_lock(&state)?;
-        let mut settings = Settings::load(&state)?;
-        let account = settings
-            .accounts
-            .iter_mut()
-            .find(|a| a.id == original.id)
-            .context("account removed during sign-in")?;
-        account.enabled = original.enabled;
-        settings.save(&state)?;
+    if result.is_ok() {
+        desired.settle(requested);
+        println!("{label} is signed in again; permission is now {requested:?}.");
+    } else {
+        drop(desired);
     }
     result
 }
@@ -283,10 +468,18 @@ pub fn provider(account: &Account) -> Result<Arc<OneDrive>> {
         account.credential_id.clone(),
         Arc::new(DesktopVault),
     )?;
-    Ok(Arc::new(OneDrive::new(
-        account.id.clone(),
-        Arc::new(broker),
-    )?))
+    let graph = OneDrive::new(account.id.clone(), Arc::new(broker))?;
+    // ADR 0004's window and renewal behaviour is only observable on a live mount:
+    // windows need staging from the content cache, and renewal needs a session that
+    // outlives SESSION_LEASE. Neither is reachable from the adapter-level validator,
+    // so the acceptance box stays open until the counters are read off a daemon.
+    // This opt-in exists to run that measurement. The default stays off; switching
+    // the path on by default is a separate decision and not this one.
+    let graph = match std::env::var_os("CIRROVE_EXPERIMENTAL_READ_SESSIONS") {
+        Some(value) if value == "1" => graph.with_experimental_read_sessions(),
+        _ => graph,
+    };
+    Ok(Arc::new(graph))
 }
 /// Complete browser sign-in, display verified identity and let the caller choose a
 /// drive. Persistence happens only after the selected drive's root is verified.
@@ -502,5 +695,213 @@ mod tests {
         assert_eq!(result, 7);
         assert!(child.try_wait().unwrap().is_none());
         child.kill().await.unwrap();
+    }
+
+    /// A permission mode is recorded only when the sign-in that granted it worked.
+    ///
+    /// `Writeback::new` admits writes on the strength of this field, so recording
+    /// a mode the credential does not have is worse than refusing the upgrade: an
+    /// application's save would be accepted locally and then refused by the
+    /// provider. Adopting `requested` unconditionally makes the read-only rows
+    /// below fail.
+    #[test]
+    fn a_failed_sign_in_never_records_the_permission_it_asked_for() {
+        for (had, granted, expected) in [
+            (
+                AccessMode::ReadOnly,
+                Some(AccessMode::ReadWrite),
+                AccessMode::ReadWrite,
+            ),
+            (AccessMode::ReadOnly, None, AccessMode::ReadOnly),
+            (
+                AccessMode::ReadWrite,
+                Some(AccessMode::ReadOnly),
+                AccessMode::ReadOnly,
+            ),
+            (AccessMode::ReadWrite, None, AccessMode::ReadWrite),
+        ] {
+            for enabled in [false, true] {
+                let mut account = fixture_account(had);
+                super::settle(&mut account, enabled, granted);
+                assert_eq!(account.access, expected, "{had:?}->{granted:?}");
+                // The mount's desired state is restored either way; a sign-in
+                // attempt is not a way to disable an account by failing.
+                assert_eq!(account.enabled, enabled);
+            }
+        }
+    }
+
+    /// An abandoned sign-in puts the account back where it found it.
+    ///
+    /// Disabling is durable, because it is how the daemon is asked to release the
+    /// mount, and what follows is a person in a browser. Without this restore an
+    /// interrupted run left the drive unmounted, across reboots, with nothing
+    /// said and nothing to read. Deleting the `Drop` impl makes this fail.
+    #[test]
+    fn an_abandoned_sign_in_restores_the_account_it_disabled() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let state = temp.path().join("state");
+        crate::private_dir(&state).expect("state directory");
+        let mut account = fixture_account(AccessMode::ReadOnly);
+        account.enabled = true;
+        let id = account.id.clone();
+        Settings {
+            version: 1,
+            accounts: vec![account],
+        }
+        .save(&state)
+        .expect("seed");
+
+        // Exactly what reauthenticate does before it waits on the browser.
+        let mut disabled = Settings::load(&state).expect("load");
+        disabled.accounts[0].enabled = false;
+        disabled.save(&state).expect("disable");
+        assert!(!Settings::load(&state).expect("load").accounts[0].enabled);
+
+        // The sign-in never finishes: no granted access, guard dropped.
+        drop(super::DesiredState {
+            state: state.clone(),
+            id,
+            enabled: true,
+            access: None,
+        });
+
+        let after = Settings::load(&state).expect("load");
+        assert!(
+            after.accounts[0].enabled,
+            "an abandoned sign-in left the account disabled and the drive unmounted"
+        );
+        assert_eq!(
+            after.accounts[0].access,
+            AccessMode::ReadOnly,
+            "and it must not have adopted a permission nobody granted"
+        );
+    }
+
+    /// A later sign-in must not inherit what an interrupted one left behind.
+    ///
+    /// This is the failure that actually happened. An earlier attempt disabled the
+    /// account and died; a following attempt then read that file, believed
+    /// `enabled: false` was the account's own wish, upgraded the permission and
+    /// preserved the disable. Settings said `read_write` and the drive was not
+    /// mounted at all, with nothing reported wrong. Only the durable marker can
+    /// tell the two apart, because the disable itself has to be durable.
+    #[test]
+    fn a_later_sign_in_does_not_inherit_an_interrupted_ones_disable() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let state = temp.path().join("state");
+        crate::private_dir(&state).expect("state directory");
+        let mut account = fixture_account(AccessMode::ReadOnly);
+        account.enabled = true;
+        let id = account.id.clone();
+
+        // An attempt records its intent, disables, and is killed.
+        Settings {
+            version: 1,
+            accounts: vec![account],
+        }
+        .save(&state)
+        .expect("seed");
+        super::write_restore_marker(&state, &id, true).expect("marker");
+        let mut settings = Settings::load(&state).expect("load");
+        settings.accounts[0].enabled = false;
+        settings.save(&state).expect("disable");
+
+        // What the next run reads is the leftover, not the wish.
+        assert!(!Settings::load(&state).expect("load").accounts[0].enabled);
+        assert_eq!(
+            super::interrupted_desired_state(&state, &id),
+            Some(true),
+            "the marker is what remembers the account was enabled"
+        );
+
+        // The daemon puts it back and clears the marker.
+        assert!(super::heal_interrupted_sign_ins(&state).expect("heal"));
+        assert!(
+            Settings::load(&state).expect("load").accounts[0].enabled,
+            "an interrupted sign-in kept the drive unmounted"
+        );
+        assert_eq!(super::interrupted_desired_state(&state, &id), None);
+        assert!(
+            !super::heal_interrupted_sign_ins(&state).expect("heal"),
+            "healing twice must not report a second repair"
+        );
+    }
+
+    /// A sign-in that is still running owns its own restore.
+    #[test]
+    fn healing_leaves_an_account_alone_while_its_sign_in_holds_the_operation_lock() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let state = temp.path().join("state");
+        crate::private_dir(&state).expect("state directory");
+        let mut account = fixture_account(AccessMode::ReadOnly);
+        account.enabled = false;
+        let id = account.id.clone();
+        Settings {
+            version: 1,
+            accounts: vec![account],
+        }
+        .save(&state)
+        .expect("seed");
+        super::write_restore_marker(&state, &id, true).expect("marker");
+
+        let held = super::account_operation(&state, &id).expect("operation lock");
+        assert!(!super::heal_interrupted_sign_ins(&state).expect("heal"));
+        assert!(
+            !Settings::load(&state).expect("load").accounts[0].enabled,
+            "re-enabling mid sign-in would fight the run that disabled it"
+        );
+        assert_eq!(super::interrupted_desired_state(&state, &id), Some(true));
+        drop(held);
+        // Parallel tests launch child processes. Between fork and exec a child can
+        // retain the open description underlying flock, even with CLOEXEC, so the
+        // operation lock this test just dropped can stay held for a short interval.
+        // `heal_interrupted_sign_ins` reads that as a sign-in still running and
+        // declines, which is correct of it and is what this assertion would
+        // otherwise mistake for a failure to heal. Require prompt eventual healing
+        // rather than instantaneous healing; the assertion above still proves that
+        // a held lock suppresses it.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        loop {
+            if super::heal_interrupted_sign_ins(&state).expect("heal") {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "an account left disabled by an interrupted sign-in was never restored"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+    }
+
+    fn fixture_account(access: AccessMode) -> Account {
+        Account {
+            id: "00000000-0000-4000-8000-000000000007".into(),
+            label: "fixture".into(),
+            registration: cirrove_auth::AppRegistration {
+                client_id: "00000000-0000-4000-8000-000000000001".into(),
+                authority: "common".into(),
+            },
+            identity: cirrove_auth::Identity {
+                tenant_id: "00000000-0000-4000-8000-000000000002".into(),
+                subject: "fixture".into(),
+                username: "fixture@example.invalid".into(),
+                graph_user_id: "fixture".into(),
+                display_name: "fixture".into(),
+            },
+            credential_id: "00000000-0000-4000-8000-000000000008".into(),
+            access,
+            drive: cirrove_onedrive::DriveInfo {
+                id: "drive".into(),
+                name: "fixture".into(),
+                drive_type: "business".into(),
+                web_url: "https://example.invalid".into(),
+            },
+            root_id: "root".into(),
+            mount_path: "/nonexistent/reauth-fixture".into(),
+            enabled: false,
+            poll_seconds: 3600,
+            cache_bytes: 8 * 1024 * 1024,
+        }
     }
 }

@@ -170,16 +170,22 @@ fn process_memory() -> serde_json::Value {
 fn namespace_sample(inner: &Inner, phase: &str, seconds: f64) -> serde_json::Value {
     let views = inner.views.lock().unwrap();
     let retained = views.len();
-    let capacity = views.capacity();
     drop(views);
     let directories = inner.directories.lock().unwrap();
     let handles = directories.len();
     let entries: u64 = directories.values().map(|v| v.snapshot.len()).sum();
     drop(directories);
     let (snapshot_bytes, snapshot_reservations) = inner.directory_budget.usage();
+    // Reference and index counts come from the same helper churn.rs uses. Without
+    // them a sample cannot separate quarantined-view leakage or index growth from
+    // allocator retention, and the headline slope figures were recorded on a
+    // fixture that emitted neither.
+    let references = inner.views.lock().unwrap().diagnostics();
     serde_json::json!({
+        "allocator_trims": super::TRIMS.load(std::sync::atomic::Ordering::Relaxed),
+        "references": references,
         "phase": phase, "seconds": seconds, "retained_views": retained,
-        "view_map_capacity": capacity, "open_directory_handles": handles,
+        "open_directory_handles": handles,
         "directory_snapshot_entries": entries,
         "snapshot_logical_bytes": snapshot_bytes, "snapshot_reservations": snapshot_reservations,
         "open_files": inner.files.lock().unwrap().len(),
@@ -842,6 +848,44 @@ async fn real_targeted_alias_invalidations_preserve_open_versions() {
 mod projections;
 
 mod churn;
+mod writable;
+
+/// Dispatch must stay single-threaded, and that must fail loudly if changed.
+///
+/// The failure it guards against is quiet: at four threads, three namespace views
+/// survive a twelve-second settle in one ignored kernel fixture. That reads as
+/// flakiness, and the reference-accounting reason for it -- `acquire_lookup` in a
+/// spawned task against `forget` on the dispatch thread -- is not visible from the
+/// symptom. Needs no mount, so unlike the fixture it guards, this one runs in CI.
+#[tokio::test]
+async fn dispatch_stays_single_threaded() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let provider = Arc::new(GeneratedLibrary {
+        files: 1,
+        per_directory: 1,
+        revision: AtomicU32::new(1),
+        content_reads: AtomicU64::new(0),
+        foreground_requests: AtomicU64::new(0),
+    });
+    let engine = Engine::new(account(mount.clone()), provider, temp.path().join("state"))
+        .await
+        .unwrap();
+    let config = CloudFs::new(engine.clone()).unwrap().dispatch_config();
+    assert!(
+        matches!(config.n_threads, None | Some(1)),
+        "dispatch must stay single-threaded until reference accounting is \
+         order-independent; see filesystem.rs::dispatch_config"
+    );
+    engine.stop().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; capacity of a writable mount"]
+async fn real_writable_namespace_retires_and_stays_bounded() {
+    writable::run().await;
+}
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "actual synthetic kernel FUSE; deep aliases, every-file stat, held versions and churn"]

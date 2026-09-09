@@ -7,6 +7,7 @@ use cirrove_core::{
 use cirrove_service::journal::{JournalError, MutationState, UploadJournal};
 use std::{
     path::Path,
+    process::{Command, Stdio},
     time::{Duration, Instant},
 };
 fn scope() -> Scope {
@@ -348,4 +349,97 @@ fn reader_barriers_gate_only_their_delete_and_expire_with_the_old_owner() {
             .nodes
             .is_empty()
     );
+}
+
+/// Child for the crash test: unlinks a file, stops at the requested durable
+/// transition, then waits to be killed.
+#[test]
+#[ignore = "subprocess fixture; activated only by its parent test"]
+fn unlinked_crash_child() {
+    let root = std::env::var("CIRROVE_UNLINKED_FIXTURE_ROOT").unwrap();
+    let root = Path::new(&root);
+    let mut j = journal(&root.join("journal"));
+    let remote = node("remote", "document.txt", 3);
+    let object = j.observe_namespace_file(scope(), remote).unwrap();
+    // Observe again with changed metadata: that is the update-from-remote branch,
+    // a durable transition of its own and one no fixture was reaching.
+    let mut renamed = node("remote", "document.txt", 3);
+    renamed.name = "renamed.txt".into();
+    let _ = object;
+    let object = j.observe_namespace_file(scope(), renamed).unwrap();
+    let removed = j
+        .unlink_namespace_file(object.id, object.revision, false)
+        .unwrap();
+    if std::env::var("CIRROVE_UNLINKED_FIXTURE_PHASE").unwrap() == "claimed" {
+        // The removal mutation is claimed but not acknowledged: the cloud may or
+        // may not have seen it when the process dies.
+        j.claim_mutation().unwrap().unwrap();
+    }
+    std::fs::write(
+        root.join("reached"),
+        cirrove_service::journal::durable::reached().join("\n"),
+    )
+    .unwrap();
+    std::fs::write(root.join("ready"), removed.object.id.to_string()).unwrap();
+    loop {
+        std::thread::sleep(Duration::from_secs(1));
+    }
+}
+
+/// A killed process must not resurrect an unlinked name, and must not lose the
+/// removal it still owes the cloud.
+///
+/// Unlinking hides a name locally and enqueues a removal mutation, and those are
+/// two durable writes. Losing the first resurrects a file the user deleted.
+/// Losing the second leaves it deleted locally and present remotely, which the
+/// next refresh would restore -- a deletion that silently undoes itself.
+///
+/// Killed after the claim rather than before it covers the harder case: the
+/// mutation is in flight, so recovery cannot assume it never started.
+#[test]
+fn actual_process_death_keeps_a_file_unlinked_and_still_owes_its_removal() {
+    for phase in ["unlinked", "claimed"] {
+        let temp = tempfile::tempdir().unwrap();
+        let mut child = Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "unlinked_crash_child", "--ignored"])
+            .env("CIRROVE_UNLINKED_FIXTURE_ROOT", temp.path())
+            .env("CIRROVE_UNLINKED_FIXTURE_PHASE", phase)
+            .stdout(Stdio::null())
+            .spawn()
+            .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !temp.path().join("ready").exists() {
+            if Instant::now() >= deadline {
+                child.kill().unwrap();
+                child.wait().unwrap();
+                panic!("unlinked fixture did not become ready");
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        child.kill().unwrap();
+        child.wait().unwrap();
+
+        let object_id: uuid::Uuid = std::fs::read_to_string(temp.path().join("ready"))
+            .unwrap()
+            .parse()
+            .unwrap();
+        let j = journal(&temp.path().join("journal"));
+        // The name stays hidden even though the remote still reports the file.
+        let remote = node("remote", "document.txt", 3);
+        assert!(
+            j.namespace_overlay(&scope(), "root", vec![remote])
+                .unwrap()
+                .nodes
+                .is_empty(),
+            "a crash resurrected an unlinked name"
+        );
+        assert!(j.namespace_object(object_id).unwrap().unlinked);
+        // And the removal is still owed: either claimable again, or already
+        // claimed and awaiting its outcome. Never simply gone.
+        assert!(
+            !j.namespace_is_clean(&j.namespace_object(object_id).unwrap())
+                .unwrap(),
+            "the removal owed to the cloud was lost to the kill"
+        );
+    }
 }

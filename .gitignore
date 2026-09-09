@@ -1,4 +1,6 @@
-/target/
+# Unanchored: benchmarks/inval-entry is its own workspace with its own target
+# directory, and the anchored form let 244 MB of build output be committed.
+target/
 /.cargo-home/
 /.local-state/
 __pycache__/

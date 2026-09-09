@@ -8,9 +8,11 @@ acceptance for roadmap stages 1–3.
 ## Local checks
 
 - Formatting and strict Clippy cover all crates and test targets.
-- Current default workspace suite: **160 tests passed**. Twenty-one kernel-FUSE tests
-  run separately; subprocess fixture entry points and the optional performance
-  fixture remain excluded from the default suite.
+- Current default workspace suite: **356 tests passed**, with 75 ignored. CI runs 58
+  of those 75 separately through kernel-FUSE and desktop steps; the remaining 17 are
+  subprocess fixture entry points, capacity benchmarks and one host-keyring test,
+  each excused by name in `scripts/ci-coverage.py`, which fails the build if an
+  ignored test is neither run nor excused.
 - Built both binaries and generated workspace Rustdoc.
 - Executable smoke test passed: synthetic staging, status, competing ownership,
   recovery after SIGKILL, SIGTERM and socket cleanup. Two observer-script tests pass.
@@ -679,9 +681,10 @@ uses ordinary local files; it does not establish Graph behavior. All 218 default
 workspace tests and the existing 31 actual synthetic kernel-FUSE checks passed,
 with formatting, strict Clippy, build, smoke, two observer checks and Rustdoc.
 
-The expanded live sequence has **not yet been executed**. Its launch remains
-pending explicit authorization for the new folder, generated uploads and three
-conditional deletions of run-created sources. Earlier live evidence remains
+The expanded live sequence had **not yet been executed** when this increment was
+written. It was authorized and run on 2026-09-09; see the live provider run at the
+end of this document for what it proved and what it left open. The paragraph below
+is kept as written, because the state it records is what the increment shipped. Earlier live evidence remains
 limited to the already recorded operations and two basic mounted saves. This
 increment does not close the application/provider acceptance matrix or any of
 the six release milestones.
@@ -1549,3 +1552,360 @@ tightly and is unchanged; the difference in maxima sits inside the run-to-run sp
 recorded earlier, where identical code produced maxima from 17 to 112 ms.
 
 This does not make writes faster, and it cannot order writers in another process.
+
+## Live provider run (2026-09-09)
+
+Five live validators were run end to end against a real Microsoft business drive
+(`goodguysai-my.sharepoint.com`, `driveType: business`) from a frozen
+`--release` build of `fix/namespace-memory-attribution`. Reads used the ordinary
+read-only grant; every mutation used the separate `Files.ReadWrite.All` grant in
+its own state directory, whose account is `enabled: false`, so no ordinary mount
+could reach it. Item identifiers and folder names stay in private local evidence.
+
+This section exists partly to correct a claim. `docs/authorization-request.md`
+said "nothing in the repository has ever contacted" a real account. That was
+written about the automated suites and was read as a statement about the product;
+live evidence has existed since 2026-09-06. What had genuinely never run is the
+*expanded* write sequence, and it has now run.
+
+### Conservative read path — GET only, no mutation
+
+Five preconditions against one 161,826-byte file, real Graph:
+
+| condition | status | meaning |
+| --- | ---: | --- |
+| `range` | 206 | exact range honoured, identity encoding |
+| `if_match_mismatch` | 412 | a stale ETag is refused, not silently served |
+| `if_range_mismatch` | 200 | full representation, correctly not a partial one |
+| `if_match_same` | 206 | bytes matched the initial read |
+| `if_range_same` | 206 | bytes matched the initial read |
+
+Two metadata operations and five content operations; metadata unchanged across
+the run. Strong ETags throughout, and no redirect on any sample.
+
+### Read-session efficiency — measured, and two parts not exercised
+
+Five bounded samples of the same file, optimized session against conservative
+comparison reads, `all_samples_match: true`:
+
+| path | Graph GETs | content GETs | wall clock |
+| --- | ---: | ---: | ---: |
+| optimized session | 3 | 5 | 271 ms for four ranges after a 578 ms first range |
+| conservative | 13 | 10 | 2,166 ms |
+
+**What this does not show, and why the zeros are not what they look like.** The
+report's own counters read `conditional_windows: 0` and `renewals: 0`; only
+`conditional_ranges` was exercised (4). The first reading of that was that two of
+[ADR 0004](adr/0004-read-session-efficiency.md)'s three claims have no live
+evidence. That reading is wrong, and the reason matters more than the numbers.
+
+The window path at `content/sessions.rs:200` runs only when staging is present,
+and staging comes from the content cache, which `content.rs:61` always builds for
+a mount. This validator talks to the adapter directly, with no cache at all, so it
+**cannot reach the window path by construction** -- it would report zero windows
+against a mount serving nothing but windows. `SESSION_LEASE` is 60 seconds, so
+renewal is likewise unreachable inside a two-second check while being routine on
+any real mount.
+
+So the zeros measure the harness, not the code. What they exposed is a genuine
+gap of a different kind: nothing reported these counters from a running daemon,
+so the optimized read path was unobservable on real data. `cirrove status` now
+carries them per account. The acceptance box stays open until they are read off a
+live mount, which needs a daemon built after this change.
+
+### Directory freshness through a real mount
+
+Three folder changes, Unicode names, observed through an actual read-only kernel
+FUSE mount with Graph delta and push deliberately excluded, so this isolates
+directory refresh from notification:
+
+| sample | provider ack | visible after ack | total |
+| ---: | ---: | ---: | ---: |
+| 0 | 293 ms | 4,871 ms | 5,164 ms |
+| 1 | 2,910 ms | 2,182 ms | 5,093 ms |
+| 2 | 381 ms | 4,768 ms | 5,149 ms |
+
+One directory page each. The totals are far tighter than their parts, which is
+what a fixed refresh cadence looks like rather than a race.
+
+### Push notifications — delivery and reaction measured separately
+
+Subscribed through the official Graph Socket.IO endpoint, no polling. Three
+changes, each observed in a delta requested *because of* a notification:
+
+| sample | provider ack | notification delivered | local reaction |
+| ---: | ---: | ---: | ---: |
+| 0 | 318 ms | 30,023 ms | 287 ms |
+| 1 | 430 ms | 31,029 ms | 169 ms |
+| 2 | 596 ms | 31,352 ms | 174 ms |
+
+**Delivery is about thirty seconds and the spread is 1.3 seconds across three
+samples.** That tightness is the finding: it reads as a fixed batching interval
+on the provider's side, not as variable latency. Local reaction is under
+300 ms in every case. The acceptance box asks for these two measured
+separately, and they now are — but it also asks for reconnection, catch-up and
+periodic recovery on a live account, which remain covered only synthetically,
+so the box stays open.
+
+### One notification was never delivered
+
+The `--check-renewal` run failed on its first sample with `no matching
+notification-triggered delta within deadline`, against a 90-second deadline and a
+typical delivery of 30 seconds. The change itself was acknowledged by the provider
+in 277 ms, so the write happened and the notification did not arrive.
+
+A discriminating retry was pre-registered before it was run: if the plain
+three-sample check failed too, immediately afterwards and with the same
+back-to-back subscription pattern, the cause would be subscription interference
+rather than delivery. **It passed, all three samples.** The interference
+hypothesis is refuted and the miss stands unexplained.
+
+The final tally is one lost notification in eleven live samples. That is a real
+rate on a small sample, not a bound, and it is recorded rather than retried away.
+What it argues for is the clause the acceptance box already contains: push cannot
+be the only refresh mechanism, and periodic recovery is not belt-and-braces. In
+the shipped daemon it is not, because the account polls every 30 seconds, so a
+dropped notification costs bounded staleness rather than a stale mount. The
+validator disables polling on purpose, which is why it fails hard where the
+product would not.
+
+### Uploads in a dedicated folder
+
+Multi-part upload with independent readback; a create refused against an
+existing name (`Conflict`); an empty file; a conditional replacement of the
+run's own fixture; an old revision refused (`Conflict`); and a competing edit
+introduced after all replacement bytes were staged but before final commit,
+which produced `VerifyRequired` and then `Conflict` rather than a lost update.
+
+### Namespace mutations in a dedicated folder
+
+Durable folder creation; Unicode rename then move with byte readback; a
+colliding rename that preserved both files; a stale rename refused; conditional
+removal of a run-created file; a stale delete that preserved the newer revision;
+and folder rename plus move with an existing child read back intact.
+
+### Writable mount — real application saves
+
+A separate application process wrote through the mount into a run-owned folder,
+including a name with spaces and umlauts:
+
+| generation | size | local save | note |
+| ---: | ---: | ---: | --- |
+| 1 | 131,071 B | 7.0 ms | direct save, `fsync` |
+| 2 | 262,177 B | 6.6 ms | direct save, `fsync` |
+| 3 | 65,537 B | 6.7 ms | **in-place shrinking truncation**, `fsync` |
+| 4 | 196,613 B | 506 ms | atomic replacement, old descriptor preserved |
+| 5 | 229,379 B | 463 ms | atomic replacement, old descriptor preserved |
+| 6 | 294,911 B | 752 ms | replacement of an online-only source after remount |
+
+Rename cost 5.6 to 6.5 ms. Nine upload receipts, three conditional source
+cleanups, independent cloud checks matched, and the fixture survived a remount
+with reopened metadata and journal.
+
+**Truncation was named by the box and covered by nothing.** The first run of this
+sequence exposed it: the application script wrote each generation from offset
+zero and then called `truncate(size)` at exactly the size just written, so the
+call was a no-op every time, and the one generation that shrinks did so by
+*atomic replacement* — a different path that never reaches `setattr`.
+
+Generation 3 above now shrinks the file in place, 262,177 to 65,537 bytes, on an
+open descriptor followed by `fsync`. It went through `setattr`'s `fh` branch into
+writeback, uploaded, and `readback_verified` confirmed 65,537 bytes by an
+independent cloud read. Removing the `truncate()` makes the fixture fail;
+restoring it passes.
+
+The first attempt at this failed, and the cause was mine rather than the
+product's: the two application scripts share one generation numbering, and adding
+a direct save collided with the replacement sequence's `data(generation-1)`
+assertion. The failure is worth recording because of what it proved on the way
+past — the three direct saves, the shrink among them, had already uploaded and
+verified before the replacement stage aborted.
+
+### What this run changes, and what it does not
+
+Proven live: the conservative read preconditions, shared read-session setup,
+directory freshness through a mount, push delivery separated from local
+reaction, subscription renewal at the real 50-minute boundary, the upload
+conflict matrix, the namespace conflict matrix, and application saves with
+in-place truncation and atomic replacement across a remount.
+
+Still open on this account: bounded sequential windows and session renewal read
+off a live mount rather than a direct-to-adapter check, live reconnection and
+catch-up, consent expiry with visible reauthentication, and the 24-hour
+sustained run. Token *refresh* is separately evidenced by the installed daemon,
+which has refreshed hourly for a day and a half without intervention; consent
+*expiry* is a different event and has not been observed.
+
+### Subscription renewal at the real boundary
+
+The `--check-renewal` run held one Socket.IO subscription for
+**2,999,973 ms — 49 minutes 60 seconds —** then reconnected through the renewed
+subscription and observed a fresh change in a notification-triggered delta
+30,441 ms later. Its three pre-renewal samples delivered in 32,680, 30,942 and
+32,330 ms.
+
+Across every live sample in this run, delivery sits between 30.0 and 32.7
+seconds. Eleven samples is not a distribution, but nothing in them looks like
+variable latency; it looks like a fixed cadence with one drop.
+
+## A folder's eTag ignores its children (2026-09-09)
+
+Measured before designing `rmdir`, because it decides whether the feature can be
+built safely at all. Graph's DELETE on a folder is **recursive**: it removes
+whatever the folder contains. POSIX `rmdir` promises the opposite, refusing a
+non-empty directory, so offering that promise over Graph means checking emptiness
+and then deleting under a precondition that fails if the folder changed in
+between.
+
+The prediction recorded before the run was that a folder's eTag *does* move when
+a child is added, because `childCount` is part of the folder item. **It was
+wrong.** Two runs, one folder each, reading the parent before a child was created,
+immediately after, and again sixty seconds later:
+
+| reading | eTag | mtime |
+| --- | --- | ---: |
+| empty | `{1AB03CEF-…},2` | 1788930707 |
+| immediately after a child | `{1AB03CEF-…},2` | 1788930707 |
+| sixty seconds after | `{1AB03CEF-…},2` | 1788930707 |
+
+Byte-identical in all three, and the children listing confirms the child exists.
+The first run showed the same on a different folder.
+
+**The consequence is the useful part.** `If-Match` on a folder's eTag cannot close
+the window between an emptiness check and a recursive DELETE. A *delayed* update
+would not rescue it either — it would let the precondition pass at exactly the
+moment it needs to fail. Any `rmdir` built on Graph therefore carries a residual
+window in which a concurrently created child is destroyed by a delete that
+believed the folder was empty.
+
+That window can be narrowed to a single round trip and the loss can be detected
+afterwards through the delta feed, with OneDrive's recycle bin as the recovery
+path. It cannot be closed with a precondition, and the design must not be written
+as though it can. `folder_etag_and_mtime_ignore_their_children` asserts the
+measured behaviour so that a provider change is noticed rather than silently
+making the hazard obsolete — or the design unsound.
+
+It also bears on change detection more generally: a mount cannot learn that a
+directory's contents changed by watching the directory's own item.
+
+### Read-session behaviour on a live mount — two of three claims, and one that stayed at zero
+
+The previous read-session entry above recorded `conditional_windows: 0` and
+`renewals: 0` and argued that neither number measured the code: the
+adapter-level validator has no content cache, so staging never exists and the
+window path cannot run, and it finishes long before a 60 s lease could expire.
+The acceptance box was left open for exactly that reason. This run reads the
+counters off a live mount of the real business drive, where both conditions
+exist. Registered beforehand in
+[`benchmarks/live-read-session-counters.json`](benchmarks/live-read-session-counters.json).
+
+| counter | arm A, path off | arm B, path on |
+| --- | ---: | ---: |
+| `setups` | 0 | 1 |
+| `conditional_ranges` | 0 | 1 |
+| `conditional_windows` | 0 | **3** |
+| `renewals` | 0 | **0** |
+| `fallback_ranges` | 0 | 0 |
+
+Both arms read 48 MiB of a 663 MiB file — a 32 MiB sequential prefix, an interior
+range, then a 70 s pause with the handle open, then a range near the end. The two
+arms read *different* files of byte-identical size, because a single file would
+have left arm B reading blocks arm A had already cached, issuing no provider
+requests at all. Arm B's cache grew by 13 blocks and 50.7 MiB against 48 MiB
+requested, which is how the counters are attributable to the workload rather than
+to a cache hit.
+
+**The bounded-window path runs.** `conditional_windows: 3`, one per read phase,
+is the first observation of that path anywhere. The zero in the earlier entry was
+a property of that harness, and this confirms the reading given there rather than
+overturning it.
+
+**Renewal did not happen, and the reason is not yet established.** The pause
+outlived `SESSION_LEASE` by ten seconds with the file still open. `setups` stayed
+at 1, so no second session was opened, and the read after the pause did reach the
+provider: 798 ms to first byte against 5.7 ms for the prefix. Two explanations
+survive. Either the window path serves ranges without passing through the
+bind/renew accounting at `read_sessions.rs:189` and `:267`, so a renewal happens
+uncounted; or no renewal was needed, because `SESSION_LEASE` is a local 60 s bound
+while a Graph signed URL ordinarily outlives it, in which case the workload never
+reached the condition and the code is not at fault. Separating them needs a pause
+longer than the provider URL's own lifetime, plus instrumentation of whether the
+post-pause request carried a re-bound URL. Neither has been done.
+
+**On speed, this run says almost nothing.** Subtracting the 70 s pause leaves
+about 11.8 s of reading in arm A against about 4.7 s in arm B for the same 48 MiB.
+That is one run per arm, on two different files, against a provider whose
+throughput is not controlled. It is a direction and not a result, and it is
+recorded here only so that it is not later mistaken for a measurement. The 8x
+figure in the entry above remains an adapter-level number.
+
+**The box stays open.** The registered rule required shared setup, bounded windows
+and safe renewal together. Two now have live evidence; the third has a zero whose
+meaning is unknown, which is not the same as evidence of absence and is certainly
+not evidence of presence.
+
+Two corrections to this run's own method, recorded because the artifact is the
+place for them. The registration said both arms would read the same file, which
+would have made the comparison meaningless for the reason given above; the
+two-file design replaced it, and with it the registered byte-identity check, which
+two different files cannot satisfy. This run therefore adds no mount-level
+byte-correctness evidence — that still rests on the adapter-level
+`all_samples_match`. The registration also predicted a `graph_get_attempts`
+difference, which `cirrove status` does not report; that prediction was
+unmeasurable as written.
+
+The optimized path remains off by default. It is selected here only by an explicit
+opt-in that `accounts::provider` reads, so that this measurement was possible
+without changing what the daemon does for anyone who has not asked for it.
+
+### The renewal zero was the workload, and the counters could not have said so
+
+The entry above left `renewals: 0` with two candidate explanations and no way to
+choose between them. Both were wrong, and more usefully, the counters as they
+stood could not have distinguished them from a third possibility. Two holes:
+`window()`'s `State::Fallback` arm served windows without touching any counter,
+and reads served outside the session paths were outside `read_path` altogether.
+A zero meant "no renewal", "a renewal nobody counted" or "a read the session
+never saw", with nothing to separate them.
+
+`fallback_windows` now covers the first hole, and the adapter's `graph_gets` and
+`content_gets` are surfaced through `cirrove status` for the second.
+`a_fallback_session_reports_the_windows_it_serves` fails 0 against 2 without the
+increment.
+
+| counter | arm C, idle pause | arm D, continuous |
+| --- | ---: | ---: |
+| `setups` | 1 | 1 |
+| `renewals` | 0 | **1** |
+| `conditional_ranges` | 1 | 1 |
+| `conditional_windows` | 3 | 8 |
+| `fallback_windows` | 0 | 0 |
+| `content_gets` | 5 | 11 |
+
+Arm C repeats the earlier workload on a third cold file with the counters in
+place. `fallback_windows: 0` **refutes the reading taken from the code**, which
+was that the session had degraded to fallback and could therefore never re-bind.
+It had not. But `content_gets` rose by 5 against four session operations, so a
+fifth read reached the provider through a path no session counter covers. That is
+the read after the pause. The session was never asked for those bytes, so its
+expired lease was never consulted, so nothing renewed.
+
+Arm D replaced the idle pause with 90 seconds of continuous paced reading, 312
+reads, on a fourth cold file. `renewals: 1`. Renewal was never broken, and
+`SESSION_LEASE` was never the obstacle; an idle handle was. The lease is a local
+bound the code checks itself, so had the session been asked for bytes after it
+expired, it would have re-bound whatever the provider URL's own lifetime was —
+which is why that second candidate explanation was never as plausible as it read.
+
+A smaller correction falls out of the unit test. `setups` counts the attempt made
+from `Cold`, not a binding that succeeded: a session that immediately falls back
+still reports `setups: 1`. The claim that shared setup is established rests on
+`conditional_windows`, which requires `State::Bound`, and not on `setups`.
+
+**The box still does not close.** All three of ADR 0004's behaviours now have
+live-mount evidence, which is new. But the registered rule also required a
+byte-correctness check on the mount, which the two-file design made unsatisfiable
+and which no run has since supplied; and the box's first clause, that per-cache-block
+Graph metadata checks are gone from the fast path, is not established by a
+`graph_gets` figure that also counts unrelated adapter traffic. Two specific
+things are missing, and they are the two things to do next.

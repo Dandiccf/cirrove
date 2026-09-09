@@ -2,6 +2,7 @@
 members = ["crates/*"]
 # A plain root build needs no desktop toolchain. Contributor/CI checks use --workspace.
 default-members = [
+    "crates/cirrove-allocator",
     "crates/cirrove-auth",
     "crates/cirrove-core",
     "crates/cirrove-onedrive",
@@ -18,6 +19,7 @@ license = "Apache-2.0"
 repository = "https://github.com/Dandiccf/cirrove"
 
 [workspace.dependencies]
+cirrove-allocator = { path = "crates/cirrove-allocator" }
 cirrove-core = { path = "crates/cirrove-core" }
 cirrove-store = { path = "crates/cirrove-store" }
 cirrove-onedrive = { path = "crates/cirrove-onedrive" }

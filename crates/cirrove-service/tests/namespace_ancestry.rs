@@ -207,3 +207,66 @@ fn snapshots_cannot_take_over_an_existing_local_name_and_foreign_occupants_are_r
     assert_eq!(listing.conflicts[0].remote, foreign);
     assert!(listing.nodes.iter().any(|n| n.id == "ancestor"));
 }
+
+/// Child for the crash test: captures a traversed ancestor, then waits to be
+/// killed.
+#[test]
+#[ignore = "subprocess fixture; activated only by its parent test"]
+fn ancestry_crash_child() {
+    let root = std::env::var("CIRROVE_ANCESTRY_FIXTURE_ROOT").unwrap();
+    let root = std::path::PathBuf::from(root);
+    let mut j = UploadJournal::open(&root.join("journal"), &scope().account, 4096).unwrap();
+    let parent = folder("parent", "root", "Documents");
+    j.capture_namespace_ancestors(vec![(scope(), parent)])
+        .unwrap();
+    std::fs::write(
+        root.join("reached"),
+        cirrove_service::journal::durable::reached().join("\n"),
+    )
+    .unwrap();
+    std::fs::write(root.join("ready"), "1").unwrap();
+    loop {
+        std::thread::sleep(std::time::Duration::from_secs(1));
+    }
+}
+
+/// A killed process must keep an ancestor it captured before editing beneath it.
+///
+/// Ancestors are snapshotted before local data or names change under them, so a
+/// later edit can still resolve its path even if the remote metadata moves. Lose
+/// that to a crash and the edit is orphaned: it has bytes and no route.
+#[test]
+fn actual_process_death_keeps_a_captured_ancestor() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "ancestry_crash_child", "--ignored"])
+        .env("CIRROVE_ANCESTRY_FIXTURE_ROOT", temp.path())
+        .stdout(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while !temp.path().join("ready").exists() {
+        if std::time::Instant::now() >= deadline {
+            child.kill().unwrap();
+            child.wait().unwrap();
+            panic!("ancestry fixture did not become ready");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    child.kill().unwrap();
+    child.wait().unwrap();
+
+    let reached = std::fs::read_to_string(temp.path().join("reached")).unwrap();
+    assert!(
+        reached
+            .lines()
+            .any(|site| site == "ancestry::capture_namespace_ancestors"),
+        "the fixture died without crossing the transition it exists to cover: {reached:?}"
+    );
+    let j = UploadJournal::open(&temp.path().join("journal"), &scope().account, 4096).unwrap();
+    let objects = j.namespace_objects().unwrap();
+    assert!(
+        objects.iter().any(|o| o.node.name == "Documents"),
+        "the captured ancestor was lost to the kill"
+    );
+}

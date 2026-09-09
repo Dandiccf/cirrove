@@ -11,7 +11,12 @@ const APPLICATION: &str = r#"
 import hashlib,json,os,sys,time
 root,mode,generation=sys.argv[1],sys.argv[2],int(sys.argv[3])
 def data(g):
-    size={2:262177,3:196613,4:229379,5:294911}[g]
+    # Generations are shared with the direct-save script in writable.rs, which
+    # owns 1..3 and leaves the file at generation 3. This map must therefore carry
+    # generation 3 too: every replacement asserts the old descriptor still reads
+    # data(generation-1), so a gap here fails on the previous generation's bytes
+    # rather than on anything the product did.
+    size={3:65537,4:196613,5:229379,6:294911}[g]
     return bytes((i*13+g*17)%251 for i in range(size))
 body=data(generation)
 target=os.path.join(root,'Grüße & Kärnten.txt')
@@ -189,14 +194,16 @@ pub(super) async fn local_saves(
     mut previous: UploadRecord,
     cancel: &CancellationToken,
 ) -> Result<OnlinePair> {
-    for (generation, count) in [(3, 4), (4, 6)] {
+    // Counts are absolute upload-receipt totals, so they carry the three direct
+    // application saves that precede this sequence.
+    for (generation, count) in [(4, 5), (5, 7)] {
         let started = std::time::Instant::now();
         let report = application(&engine.account.mount_path, "local", generation).await?;
         event(
             log,
             serde_json::json!({"stage":"atomic_local_save","application":report}),
         )?;
-        let (uploads, mutations) = completed(session, count, (generation - 2) as usize).await?;
+        let (uploads, mutations) = completed(session, count, (generation - 3) as usize).await?;
         let source = &uploads[count - 2];
         let replacement = &uploads[count - 1];
         anyhow::ensure!(
@@ -223,8 +230,8 @@ pub(super) async fn local_saves(
         )?;
         previous = replacement.clone();
     }
-    let report = application(&engine.account.mount_path, "create", 5).await?;
-    let (uploads, _) = completed(session, 7, 2).await?;
+    let report = application(&engine.account.mount_path, "create", 6).await?;
+    let (uploads, _) = completed(session, 8, 2).await?;
     let source = uploads.last().context("online source missing")?.clone();
     anyhow::ensure!(
         matches!(&source.intent, UploadIntent::Create { name, parent }
@@ -262,12 +269,12 @@ pub(super) async fn after_remount(
         "remount source is not online-only"
     );
     let started = std::time::Instant::now();
-    let report = application(&engine.account.mount_path, "online", 5).await?;
+    let report = application(&engine.account.mount_path, "online", 6).await?;
     event(
         log,
         serde_json::json!({"stage":"online_atomic_save","application":report}),
     )?;
-    let (uploads, mutations) = completed(session, 8, 3).await?;
+    let (uploads, mutations) = completed(session, 9, 3).await?;
     let latest = uploads.last().context("replacement missing")?;
     matching_bytes(latest, &report)?;
     verify_pair(
@@ -304,17 +311,20 @@ mod tests {
     #[tokio::test]
     async fn separate_atomic_save_application_preserves_streams_and_reuses_temporary_name() {
         let temp = tempfile::tempdir().expect("fixture");
-        let bytes: Vec<u8> = (0..262177).map(|i| ((i * 13 + 34) % 251) as u8).collect();
+        // Seed with generation 3: that is what the direct-save script leaves behind,
+        // and every replacement asserts the old descriptor still reads its
+        // predecessor, so seeding anything else fails on the wrong bytes.
+        let bytes: Vec<u8> = (0..65537).map(|i| ((i * 13 + 51) % 251) as u8).collect();
         std::fs::write(temp.path().join(DOCUMENT), bytes).expect("initial file");
-        for generation in [3, 4] {
+        for generation in [4, 5] {
             let report = application(temp.path(), "local", generation)
                 .await
                 .expect("atomic save");
             assert_eq!(report["old_descriptor_preserved"], true);
             assert!(!temp.path().join(TEMPORARY).exists());
         }
-        application(temp.path(), "create", 5).await.expect("source");
-        let report = application(temp.path(), "online", 5)
+        application(temp.path(), "create", 6).await.expect("source");
+        let report = application(temp.path(), "online", 6)
             .await
             .expect("online replacement");
         assert_eq!(report["old_descriptor_preserved"], true);

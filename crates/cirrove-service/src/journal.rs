@@ -246,12 +246,20 @@ impl UploadJournal {
             [],
         )?;
         File::open(&objects)?.sync_all()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("journal::open::1");
         File::open(&working)?.sync_all()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("journal::open::2");
         File::open(root)?.sync_all()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("journal::open::3");
         // Persist newly created ancestor entries too; syncing only the immediate
         // parent is insufficient when a whole account directory was just made.
         for parent in root.ancestors().skip(1) {
             File::open(parent)?.sync_all()?;
+            #[cfg(feature = "test-support")]
+            crate::journal::durable::record("journal::open::4");
         }
         let mut journal = Self {
             db,
@@ -349,6 +357,8 @@ impl UploadJournal {
             .as_file()
             .set_permissions(std::fs::Permissions::from_mode(0o400))?;
         temporary.as_file().sync_all()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("journal::enqueue_generation::1");
         let mut record = UploadRecord {
             id: Uuid::new_v4(),
             sequence: 0,
@@ -370,6 +380,8 @@ impl UploadJournal {
             .persist_noclobber(self.objects.join(record.id.to_string()))
             .map_err(|_| JournalError::Storage)?;
         File::open(&self.objects)?.sync_all()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("journal::enqueue_generation::2");
         // Failures after publication retain an orphan; never delete possibly
         // acknowledged bytes in an error/recovery path.
         let tx = self.db.transaction()?;
@@ -415,6 +427,8 @@ impl UploadJournal {
             }
         }
         tx.commit()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("journal::enqueue_generation::3");
         Ok(record)
     }
     pub fn get(&self, id: Uuid) -> Result<UploadRecord> {
@@ -530,6 +544,8 @@ impl UploadJournal {
             namespace::confirm(&tx, record.id, record.sequence, remote)?;
         }
         tx.commit()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("journal::save");
         Ok(())
     }
     fn active_attempt(&self, id: Uuid, attempt: Uuid) -> Result<UploadRecord> {
@@ -701,7 +717,11 @@ impl UploadJournal {
             return Err(JournalError::Stale);
         }
         match std::fs::remove_file(self.objects.join(id.to_string())) {
-            Ok(()) => File::open(&self.objects)?.sync_all()?,
+            Ok(()) => {
+                File::open(&self.objects)?.sync_all()?;
+                #[cfg(feature = "test-support")]
+                crate::journal::durable::record("journal::prune_uploaded_payload");
+            }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
             Err(_) => return Err(JournalError::Storage),
         }
@@ -714,4 +734,46 @@ fn now_seconds() -> u64 {
         .unwrap_or_default()
         .as_secs()
         .min(i64::MAX as u64)
+}
+
+/// Which durable writes a process actually reached before it died.
+///
+/// Milestone 2 asks for crash tests at every durable transition. Enumerating the
+/// transitions is static and settled -- 31 on runtime paths, see
+/// `docs/benchmarks/durable-transition-sites.json` -- but deciding which ones a
+/// given crash fixture crosses is not: an attempt to read it out of the call
+/// graph returned nothing for a fixture that plainly performs durable work,
+/// because its calls run through test helpers.
+///
+/// So the fixtures measure it instead. Each site records itself, and a crash
+/// fixture writes the set it reached alongside its ready signal, before being
+/// killed. The claim then rests on what the program did rather than on what
+/// someone read.
+///
+/// Behind `test-support` rather than `cfg(test)`: the crash fixtures are
+/// integration tests, which link this library without `cfg(test)` set. `reached`
+/// is a plain sorted `Vec<&'static str>` behind a mutex rather than anything
+/// cleverer, because it is written a few dozen times per fixture and read once.
+#[cfg(feature = "test-support")]
+pub mod durable {
+    use std::sync::Mutex;
+
+    static REACHED: Mutex<Vec<&'static str>> = Mutex::new(Vec::new());
+
+    /// Called immediately after a durable write commits or fsyncs.
+    pub fn record(site: &'static str) {
+        if let Ok(mut reached) = REACHED.lock()
+            && !reached.contains(&site)
+        {
+            reached.push(site);
+        }
+    }
+
+    /// The sites reached so far, sorted, for a fixture to persist before dying.
+    #[must_use]
+    pub fn reached() -> Vec<&'static str> {
+        let mut sites = REACHED.lock().map(|r| r.clone()).unwrap_or_default();
+        sites.sort_unstable();
+        sites
+    }
 }

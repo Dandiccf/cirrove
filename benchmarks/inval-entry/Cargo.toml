@@ -1,0 +1,20 @@
+# Outside the workspace on purpose: a measurement instrument, not a feature, and
+# the workspace forbids adding abstractions for unimplemented work. It also needs
+# unsafe for two getuid/getgid calls, which the workspace forbids outright.
+# Its own workspace root: this must not inherit the outer lints, which forbid
+# the unsafe getuid/getgid calls a FUSE attr reply needs.
+[workspace]
+
+[package]
+name = "inval-entry"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+fuser = { version = "0.18", default-features = false }
+libc = "0.2"
+serde_json = "1.0"
+
+[profile.release]
+debug = true

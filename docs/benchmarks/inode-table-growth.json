@@ -1,0 +1,45 @@
+{
+  "question": "How much does the never-pruned `inodes` table cost, and how fast does it grow?",
+  "why": "No DELETE FROM inodes exists anywhere in the repository. A read-only mount's inode key embeds the content revision and size (filesystem.rs:397-403), so every revision of every file a user navigates to mints a permanent row. The table is file-backed, so it contributes nothing to RSS and every memory criterion passes while it grows without bound on disk. That is exactly the shape of a cost that stays invisible until a user's disk is full.",
+  "method": "Read from artifacts already on disk rather than from a new run: row counts and database geometry from the `store` block of the CIRROVE_COMBINED_CHURN samples in .local-state/memory-gate/runs/{main-baseline,trim-shipped}/stdout.log, and per-table bytes from `dbstat` on the metadata database left by the sustained pilot. Nothing was rebuilt or re-measured, so this disturbs no running measurement.",
+  "fixture": "filesystem::capacity::real_combined_namespace_churn at 500,000 files",
+  "row_counts": {
+    "indexed_baseline": 1,
+    "after_first_full_traversal": 750441,
+    "per_churn_round_after_that": 27,
+    "note": "The first traversal resolves every file and directory once. Later rounds add only the 27 views whose content revision changed, which is the rate that matters: it is the steady-state cost of ordinary remote edits."
+  },
+  "size": {
+    "measured_on": "the sustained pilot's metadata.db, 750,460 inode rows",
+    "page_size": 4096,
+    "inodes_table_bytes": 112156672,
+    "inodes_key_index_bytes": 122281984,
+    "inodes_total_bytes": 234438656,
+    "bytes_per_row": 312.4,
+    "database_file_bytes": 693563392,
+    "share_of_metadata_database": 0.338,
+    "note": "The UNIQUE index on `key` is larger than the table it indexes, because the key is a JSON tuple of account, alias, collection, item id, content revision and size, stored whole."
+  },
+  "what_it_implies": {
+    "dominant_term": "One row per projection, bounded by the library. 746,000 rows at 312 bytes is 223.6 MiB, and it does not grow with time.",
+    "unbounded_term": "One row per content revision ever resolved, measured at 27 per churn round. Real but small: a user editing a hundred files a day adds about 31 KB a day. The earlier extrapolation of roughly 3 GB a year assumed a 200,000-file library edited weekly in full, which is an assumption about behaviour rather than a measurement.",
+    "where_the_lever_is": "If this cost is worth reducing, it is the 312 bytes per row -- 163 of which are the UNIQUE index on a JSON tuple stored whole -- and not the number of rows. A fixed-width digest key would cut the index and needs a migration, which makes it a decision rather than a cleanup.",
+    "not_a_memory_finding": "It is on disk, not in RSS. Every namespace memory criterion passes while this grows, which is why it needed its own measurement rather than a mention."
+  },
+  "what_makes_pruning_safe": "The table is `inode INTEGER PRIMARY KEY AUTOINCREMENT`, so SQLite records a high-water mark in sqlite_sequence and never reissues a deleted inode number. The reuse hazard -- deleting a row and later handing the same number to a different object while the kernel still caches the old one -- is therefore already closed by the schema. What remains is not reuse but reachability, and that is a criterion, not a mechanism.",
+  "what_is_not_measured": "Whether pruning at mount is safe against kernel references that survive a remount, and what the pruning pass costs on a database this size. Both are named under G8 in docs/adr/0005-namespace-memory.md and neither has been run.",
+  "relation_to_g8": "G8 already bounds the shape of this table and recorded 97 MiB of file growth for the first pass. This measurement does not replace that; it explains why the file figure understates the cost. The database held 32,385 free pages (126.5 MiB) at baseline, which the table consumed before growing the file, so 97 MiB of growth and 223.6 MiB of table reconcile exactly.",
+  "what_pruning_would_reclaim": {
+    "measured_on": "the sustained pilot's metadata.db, 746,027 content-keyed rows",
+    "distinct_projections": 746000,
+    "projections_with_a_superseded_revision": 27,
+    "prunable_rows": 27,
+    "prunable_fraction": 3.6e-05,
+    "verdict": "Pruning is not the remedy. A reachability pass would reclaim 27 rows -- about 8 KB -- because 745,973 of 746,000 projections have exactly one revision. The table's size is one row per projection, and projections are bounded by the library rather than by time.",
+    "why_three_rows_per_item": "250,000 items produce 746,000 projections because the fixture projects each file under its own path and two shortcuts, and duplicate projections deliberately receive distinct inodes. That is the design, not waste."
+  },
+  "what_the_pass_costs": {
+    "grouped_scan_seconds": 0.34,
+    "note": "Expressed as a group-by over the whole table, a full pass takes about a third of a second on 746,027 rows, so mount-time cost was never the obstacle either. Expressed as a correlated subquery it did not finish in ten minutes and was killed; that is a statement about the query, not about the problem."
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "question": "Was the 1000 ms TTL arm's degradation across rounds a regression, run-to-run variance, or neither?",
+  "why": "That arm rose in three quantities together -- peak 492.7 to 554.8 MiB, released residue 14.0 to 110.4 MiB, traversal 319 to 418 seconds -- while the 100 ms and 10 ms arms were flat in all three. An older binary at the same TTL had also been flat. Since G3 is an enforced assertion, a residue that can reach 110 MiB when the same gate is usually quoted at 16 matters more than the TTL question that produced it.",
+  "preregistered": ".local-state/memory-gate/PREREGISTERED-g3-stability.md, written before the run and before the third TTL arm was read",
+  "prediction_recorded_before": "Variance, not the binary: at least one repetition of the older binary lands above 50 MiB at round three, which no run of it had ever done.",
+  "method": "Two binaries at a fixed 1000 ms TTL, two repetitions each, interleaved A B A B so that any drift in machine state is shared rather than assigned to one arm. Same fixture, 500,000 files, three rounds, nothing else on the machine, no compilation during any repetition.",
+  "arms": {
+    "A_is_trim-v5_the_binary_g3_was_closed_on": [
+      {"rep": 1, "peak_rss_mib": [493.5, 492.7, 501.0], "g3_released_mib": [12.5, 14.4, 15.3], "traversal_seconds": [340, 341, 322]},
+      {"rep": 2, "peak_rss_mib": [492.2, 491.3, 504.3], "g3_released_mib": [12.5, 14.2, 17.4], "traversal_seconds": [321, 320, 321]}
+    ],
+    "B_is_the_current_branch": [
+      {"rep": 1, "peak_rss_mib": [493.6, 492.2, 499.2], "g3_released_mib": [10.8, 13.4, 15.8], "traversal_seconds": [339, 339, 337]},
+      {"rep": 2, "peak_rss_mib": [492.4, 491.3, 504.8], "g3_released_mib": [10.6, 14.2, 15.3], "traversal_seconds": [318, 341, 319]}
+    ]
+  },
+  "result": {
+    "verdict": "Neither. Both hypotheses are refuted and the original arm stands as an unexplained outlier.",
+    "round_three_residue_mib": {"four_replications": [15.3, 17.4, 15.8, 15.3], "outlier_run": 110.4},
+    "detail": "All four repetitions are flat in residue, peak and traversal time, and the two binaries are indistinguishable from each other. The prediction that the older binary would straddle both regimes is refuted: its worst round-three residue is 17.4 MiB.",
+    "correlate_not_claimed_as_cause": "The outlier was the first fixture run after a build, in a freshly created TMPDIR. The two arms that followed it in the same directory were flat. That is a correlation over a single case and is recorded as such."
+  },
+  "decision": "The preregistered rule for this branch was to record it as unexplained and not to run a fifth repetition hoping the outlier returns. G3's assertion stands unchanged at 256 MiB, and the honest statement of the gate is 15 to 17 MiB across replications with one unexplained observation at 110 -- still inside budget, but the margin is 15x rather than 16x on every run.",
+  "what_this_corrects": "docs/benchmarks/namespace-entry-ttl.json recorded the across-rounds degradation as an unplanned observation bearing on G7, with the confound named. The confound was the answer: there is no degradation to explain, and no G7 implication."
+}

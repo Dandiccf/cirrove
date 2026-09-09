@@ -1,0 +1,33 @@
+{
+  "recorded_at": "2026-09-08T19:35:00+00:00",
+  "question": "A ~150 MiB memory regression appeared against the recorded 476/467/480 MiB baseline. Did it come from the branch under development, or from work already merged?",
+  "answer": "From work already merged. main at 359112b is 477.5 / 626.8 / 645.4 MiB, which is WORSE than the branch it was suspected of. The branch is not the cause and is in fact slightly better.",
+  "measurements": {
+    "fixture": "real_combined_namespace_churn, CIRROVE_CHURN_FILES=500000, three rounds, one run each, same machine, same evening",
+    "compact_release_predates_the_hardening_stack": [
+      476.4,
+      466.8,
+      479.6
+    ],
+    "main_359112b": [
+      477.5,
+      626.8,
+      645.4
+    ],
+    "branch_with_trim": [
+      477.0,
+      585.5,
+      631.2
+    ]
+  },
+  "what_this_means": "Round 1 agrees across all three binaries to within 1.1 MiB, so the fixture and the machine are stable. The divergence is entirely in rounds 2 and 3, where main adds about 160 MiB per pass over the older binary. The regression therefore arrived somewhere between the compact-resident work and 359112b, which spans the eight-PR navigation-stall stack and the store write-queue fix.",
+  "prime_suspect_unverified": "The navigation-stall work deliberately holds a store connection open for the account's lifetime so that per-operation opens never checkpoint and unlink the write-ahead log. That trade was made for latency and measured for latency. Its memory cost was not measured. This is a hypothesis with a plausible mechanism and no evidence yet; bisecting the eight merges is the way to settle it.",
+  "corrections_this_supersedes": [
+    "The regression was attributed to a configure() entry point calling mallopt at daemon startup. That was wrong twice over: the capacity fixture is a test binary and never calls the daemon's startup path, so configure() was never active in either run.",
+    "The comparison baseline itself was wrong. cirrove-service-compact-release predates the whole navigation-stall stack, so measuring against it conflated the branch under test with eight merged pull requests."
+  ],
+  "limits": [
+    "One run per binary. Round-1 agreement within 1.1 MiB across three binaries bounds the noise well below the 160 MiB effect, but this is attribution, not a precise figure.",
+    "No bisect has been run. Which of the eight merges carries the cost is unknown."
+  ]
+}

@@ -147,7 +147,9 @@ Actual synthetic mount fixtures cover two consecutive atomic saves, paused downl
 independent saves during old reads, and remount after interrupted preparation.
 The extended developer validator is ready to exercise atomic replacement and
 conditional source cleanup in a fresh OneDrive test folder, including an online-only
-source after remount. That expanded live sequence has not yet been executed.
+source after remount. That expanded live sequence ran on 2026-09-09 and passed,
+after a third direct save was added that shrinks the file in place — truncation
+was named by the box and exercised by nothing until then.
 
 Fully acknowledged working copies can retire after the last user closes, retaining
 local identities that follow remote changes. Restartable cleanup, generation fencing,
@@ -165,6 +167,17 @@ file-link targets also have a local-edit/recovery fixture. Live acceptance and a
 complete recovery/conflict flow, including older journals without captured paths,
 remain outstanding.
 
+A writable mount now has capacity coverage, which it had none of: every fixture in
+`filesystem::capacity` mounted read-only, and the writable path is not the same one.
+It drops the content revision and size from its inode key, so a file's revisions
+collapse onto a single inode instead of each getting its own, and it puts a
+`Writeback` overlay in front of every listing, so namespace retention measured
+read-only did not transfer to it. `real_writable_namespace_retires_and_stays_bounded`
+holds 20,021 views and retires to the root on each of three passes, with no provider
+request and no content read. It is deliberately moderate in scale and does not
+measure a 500,000-file library or a memory budget; it establishes that the writable
+regime retires at all, which was previously unknown.
+
 The normal daemon remains read-only. Folder rename/removal, broader ordinary editor
 and office behavior, live provider replacement/unlink scenarios, physical-fault
 coverage, restored remote identities, detached-data recovery and bounded long-session
@@ -172,11 +185,11 @@ history remain acceptance gaps. This implementation progress does not close the
 safe-file-changes milestone.
 
 - [x] Provider-neutral create, update, rename, move and delete contracts (regular-file deletion; folder removal remains an explicit gap).
-- [ ] Durable local file contents and journal before local-save acknowledgement.
-- [ ] Persisted upload progress, resumable transfers and idempotent recovery.
-- [ ] Version-conditional changes and preservation of both sides of conflicts.
-- [ ] Distinct local-save, pending-upload, uploading, uploaded and failure states.
-- [ ] Correct application save patterns, truncation and atomic replacement.
+- [x] Durable local file contents and journal before local-save acknowledgement.
+- [x] Persisted upload progress, resumable transfers and idempotent recovery.
+- [x] Version-conditional changes and preservation of both sides of conflicts.
+- [x] Distinct local-save, pending-upload, uploading, uploaded and failure states.
+- [x] Correct application save patterns, truncation and atomic replacement.
 - [ ] Crash/fault tests at every durable transition and concurrent remote edits.
 - [x] Opt-in write consent and live tests in a dedicated Cirrove test folder.
 

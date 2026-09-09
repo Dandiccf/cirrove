@@ -29,6 +29,27 @@ async fn strong_window_streams_without_graph_checks_or_whole_window_allocation()
         (2, 2, 1)
     );
     assert_eq!(c.content_body_bytes, 64 * MIB as u64 + 32);
+    // The trait method is the only route these numbers have to a running daemon,
+    // and the window path is unreachable from any check that talks to the adapter
+    // directly. If this wiring breaks, `cirrove status` reports zero windows on a
+    // mount that is serving them, which reads as "the fast path is not working".
+    let reported = cirrove_core::ReadProvider::read_path_counters(&f.graph)
+        .expect("the OneDrive adapter counts its read path");
+    assert_eq!(
+        (
+            reported.conditional_windows,
+            reported.conditional_ranges,
+            reported.setups,
+            reported.renewals,
+        ),
+        (
+            c.conditional_windows,
+            c.conditional_ranges,
+            c.setups,
+            c.renewals
+        )
+    );
+    assert_eq!(reported.conditional_windows, 1);
 }
 
 #[tokio::test]
