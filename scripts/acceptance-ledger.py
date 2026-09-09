@@ -136,6 +136,22 @@ def main() -> int:
         if row.get("blocker") not in BLOCKERS:
             problems.append(f"unknown blocker {row.get('blocker')!r}: {box['text'][:60]}")
 
+    # The totals block is written only by --sync, and nothing used to check it, so
+    # ticking a box left the summary behind. Anyone reading the JSON rather than
+    # running this script then saw a stale count -- which is the exact failure this
+    # file exists to prevent, one level up.
+    totals = ledger.get("totals", {})
+    expected = {
+        "boxes": len(ledger["rows"]),
+        "ticked": sum(row["done"] for row in ledger["rows"]),
+    }
+    for field, value in expected.items():
+        if totals.get(field) != value:
+            problems.append(
+                f"totals.{field} says {totals.get(field)}, the rows say {value}; "
+                "run --sync to rewrite the summary"
+            )
+
     counts = {}
     for row in ledger["rows"]:
         counts[row["blocker"]] = counts.get(row["blocker"], 0) + 1
