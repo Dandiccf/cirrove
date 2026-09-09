@@ -24,10 +24,24 @@ pub const BLOCK_SIZE: u32 = 4 * 1024 * 1024;
 const MEMORY_BLOCKS: usize = 8;
 const RANGE_TIMEOUT: Duration = Duration::from_secs(30);
 type MemoryBlocks = HashMap<String, (Arc<Vec<u8>>, Instant)>;
+/// What pinning claims from the cache, kept beside the cache rather than inside
+/// it so that eviction needs no database handle of its own.
+///
+/// `reserved` shrinks the budget the ordinary cache may fill; `protected` names
+/// blocks eviction must not take. Both are needed: a reservation alone would let
+/// eviction remove the very blocks it reserved room for, and a protected set
+/// alone would let unpinned content fill the budget and then find nothing it is
+/// allowed to evict.
+#[derive(Default)]
+pub struct Reservations {
+    pub protected: std::collections::HashSet<String>,
+    pub reserved: u64,
+}
 pub struct ContentCache {
     path: PathBuf,
     blocks: PathBuf,
     quota: u64,
+    reservations: Arc<StdMutex<Reservations>>,
     gates: StdMutex<HashMap<String, Weak<Mutex<()>>>>,
     memory: StdMutex<MemoryBlocks>,
     failures: StdMutex<HashMap<String, (ProviderError, Instant)>>,
@@ -53,6 +67,7 @@ impl ContentCache {
             path,
             blocks,
             quota,
+            reservations: Arc::new(StdMutex::new(Reservations::default())),
             gates: StdMutex::new(HashMap::new()),
             memory: StdMutex::new(HashMap::new()),
             failures: StdMutex::new(HashMap::new()),
@@ -246,18 +261,33 @@ impl ContentCache {
             .map_err(|_| ProviderError::Unavailable)?
             .map_err(|_| ProviderError::Unavailable)
     }
+    /// The shared view of what pinning claims. The engine updates it when pins
+    /// change; eviction reads it on every pass.
+    pub fn reservations(&self) -> Arc<StdMutex<Reservations>> {
+        self.reservations.clone()
+    }
     async fn evict(&self, keep: &str) -> Result<(), ProviderError> {
         let index = self.blocks.clone();
         let blocks = tokio::task::spawn_blocking(move || BlockIndex::open(index)?.oldest())
             .await
             .map_err(|_| ProviderError::Unavailable)?
             .map_err(|_| ProviderError::Unavailable)?;
+        let (protected, reserved) = match self.reservations.lock() {
+            Ok(view) => (view.protected.clone(), view.reserved),
+            // A poisoned view must not silently drop protection. Reserving the
+            // whole budget stops eviction rather than letting it take pinned
+            // blocks, which is the failure that would lose offline content.
+            Err(_) => (std::collections::HashSet::new(), self.quota),
+        };
+        // Pinned bytes are spoken for, so the ordinary cache lives in what is
+        // left rather than in the whole budget.
+        let budget = self.quota.saturating_sub(reserved);
         let mut total: u64 = blocks.iter().map(|(_, size)| size).sum();
         for (key, size) in blocks {
-            if total <= self.quota {
+            if total <= budget {
                 break;
             }
-            if key == keep {
+            if key == keep || protected.contains(&key) {
                 continue;
             }
             match tokio::fs::remove_file(self.path.join(&key)).await {
@@ -347,3 +377,6 @@ async fn read_verified(path: &Path, expected: usize) -> Option<Vec<u8>> {
     }
     Some(body.split_off(32))
 }
+
+#[cfg(test)]
+mod tests;

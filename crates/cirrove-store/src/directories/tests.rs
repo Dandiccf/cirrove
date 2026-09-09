@@ -103,7 +103,7 @@ fn concurrent_open_initializes_or_migrates_once_without_losing_metadata() {
                             db.db
                                 .pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
                                 .unwrap(),
-                            6
+                            7
                         );
                         db.inode("same-identity").unwrap()
                     })

@@ -3,6 +3,7 @@
 mod blocks;
 mod directories;
 mod metadata_changes;
+pub mod pins;
 pub use metadata_changes::{MetadataChange, MetadataChangeKind, MetadataChanges, MetadataPosition};
 mod observations;
 pub use blocks::BlockIndex;
@@ -159,10 +160,10 @@ impl Store {
             PRAGMA journal_size_limit=16777216;",
         )?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if version > 6 {
+        if version > 7 {
             return Err(StoreError::SchemaVersion);
         }
-        if version < 6 {
+        if version < 7 {
             if version < 2 {
                 initial_wal(&db)?;
             }
@@ -171,7 +172,7 @@ impl Store {
             // Another connection may have migrated while this one waited for
             // the writer. All schema steps and their version publish together.
             let version: u32 = tx.pragma_query_value(None, "user_version", |r| r.get(0))?;
-            if version > 6 {
+            if version > 7 {
                 return Err(StoreError::SchemaVersion);
             }
             if version < 2 {
@@ -208,13 +209,15 @@ impl Store {
             observations::migrate(&tx, version)?;
             directories::migrate(&tx, version)?;
             metadata_changes::migrate(&tx, version)?;
+            pins::migrate(&tx, version)?;
             // An unusable clock or malformed schema must roll back migration,
             // just like a failure while copying directory entries.
             observations::validate(&tx)?;
             metadata_changes::validate(&tx)?;
             directories::validate(&tx)?;
-            if version < 6 {
-                tx.pragma_update(None, "user_version", 6)?;
+            pins::validate(&tx)?;
+            if version < 7 {
+                tx.pragma_update(None, "user_version", 7)?;
             }
             tx.commit()?;
         }
@@ -1170,7 +1173,7 @@ mod tests {
             db.db
                 .pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0))
                 .unwrap(),
-            6
+            7
         );
         assert_eq!(
             db.db
