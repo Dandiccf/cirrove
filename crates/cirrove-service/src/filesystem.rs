@@ -7,6 +7,11 @@ mod directories;
 mod invalidation;
 mod lifecycle;
 mod residency;
+/// How many namespace views have been quarantined since start. Re-exported so a
+/// daemon can report it: the flag is set on a reference-count inconsistency,
+/// cleared nowhere, and a quarantined view pins its ancestor chain for the life
+/// of the mount.
+pub use residency::quarantined_views;
 use residency::{LookupRefs, NamespaceViews};
 mod session;
 pub(crate) use lifecycle::WriteControl;

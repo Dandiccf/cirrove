@@ -19,6 +19,38 @@ pub(super) struct LookupRefs {
     quarantine: AtomicBool,
 }
 
+/// Views quarantined since start, process-wide.
+///
+/// A quarantined view is never reclaimed and never queued, so it pins its whole
+/// ancestor chain for the life of the mount. That is the conservative choice --
+/// the alternative to preserving an entry with an inconsistent count is
+/// use-after-forget -- but it was invisible: the flag is set in two places,
+/// cleared in none, and the only reader was a `#[cfg(test)]` diagnostic. A
+/// shipped daemon could hold a growing pinned set and report nothing.
+static QUARANTINED: AtomicU64 = AtomicU64::new(0);
+
+/// How many views have been quarantined since this process started.
+#[must_use]
+pub fn quarantined_views() -> u64 {
+    QUARANTINED.load(Ordering::Relaxed)
+}
+
+/// Preserve a view whose reference count cannot be trusted, and say so.
+///
+/// Logged at error level rather than counted quietly: reaching either call site
+/// means the kernel's reference count and ours have diverged, which is a defect
+/// in the accounting and not a condition to be tolerated in the field.
+fn quarantine(refs: &LookupRefs, inode: u64, reason: &'static str) {
+    if !refs.quarantine.swap(true, Ordering::SeqCst) {
+        QUARANTINED.fetch_add(1, Ordering::Relaxed);
+        tracing::error!(
+            inode,
+            reason,
+            "namespace view quarantined; it will not be reclaimed"
+        );
+    }
+}
+
 struct Entry {
     view: View,
     generation: u64,
@@ -177,7 +209,7 @@ impl NamespaceViews {
         let refs = &entry.view.residency;
         let count = refs.kernel.load(Ordering::SeqCst);
         let Some(next) = count.checked_add(1) else {
-            refs.quarantine.store(true, Ordering::SeqCst);
+            quarantine(refs, inode, "lookup count would overflow");
             return Err(ProviderError::Protocol(
                 "namespace reference count exhausted",
             ));
@@ -196,7 +228,7 @@ impl NamespaceViews {
         };
         let refs = &entry.view.residency;
         let Some(next) = refs.kernel.load(Ordering::SeqCst).checked_sub(count) else {
-            refs.quarantine.store(true, Ordering::SeqCst);
+            quarantine(refs, inode, "forget exceeded the lookup count");
             return false;
         };
         refs.kernel.store(next, Ordering::SeqCst);
@@ -404,6 +436,10 @@ mod tests {
 
     #[test]
     fn reference_underflow_and_overflow_preserve_affected_entries() {
+        // Counted as a delta rather than an absolute: the counter is
+        // process-wide, and a test that assumes it starts at zero would depend
+        // on which other tests shared its binary.
+        let quarantined_before = quarantined_views();
         let mut cache = cache();
         drop(cache.insert(view(2, NodeKind::File)).unwrap());
         cache.acquire_lookup(2).unwrap();
@@ -418,6 +454,9 @@ mod tests {
         live.residency.kernel.store(0, Ordering::SeqCst);
         drop(live);
         assert_eq!(cache.collect(128), 0);
+        // Both paths reported themselves. Without this a quarantined view is
+        // preserved silently, and preserved means pinned for the mount's life.
+        assert_eq!(quarantined_views() - quarantined_before, 2);
     }
 
     #[test]
