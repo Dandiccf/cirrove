@@ -95,7 +95,9 @@ impl Operation {
             Self::Mutation(r) => match &r.request.intent {
                 MutationIntent::CreateFolder { .. } => Some(NodeKind::Folder),
                 MutationIntent::Relocate { before, .. } => Some(before.kind.clone()),
-                MutationIntent::RemoveFile { .. } => None,
+                // A removal leaves no node behind, so it contributes no kind to
+                // the generation, folders included.
+                MutationIntent::RemoveFile { .. } | MutationIntent::RemoveFolder { .. } => None,
             },
         }
     }

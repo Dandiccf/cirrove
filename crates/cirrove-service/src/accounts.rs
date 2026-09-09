@@ -215,12 +215,45 @@ async fn await_browser_login<T>(
 }
 /// Temporarily disables just this account and waits for its owned workers to
 /// release credentials before replacing a grant. Other accounts keep running.
-pub async fn reauthenticate(state: PathBuf, label: String) -> Result<()> {
+/// Restore an account after a sign-in attempt, adopting the requested permission
+/// mode only if that attempt actually succeeded.
+///
+/// The recorded mode is what `Writeback::new` consults before allowing writes, so
+/// recording a mode the credential does not have is worse than refusing the
+/// upgrade: writes would be admitted locally and then refused by the provider,
+/// after an application believed its save had been accepted. A refused consent, a
+/// different account chosen in the browser and an unreadable drive root all land
+/// here as `succeeded == false`.
+fn settle(account: &mut Account, enabled: bool, requested: AccessMode, succeeded: bool) {
+    account.enabled = enabled;
+    if succeeded {
+        account.access = requested;
+    }
+}
+
+/// Sign in again for an existing account, optionally changing its permission mode.
+///
+/// `access: None` preserves what the account already has, which is the ordinary
+/// case: a grant that expired or was revoked. `Some(mode)` requests a different
+/// one, and this is the only way to move an account between read-only and
+/// writable. Without it the alternatives were both destructive -- `connect`
+/// refuses an existing label or mount path, so upgrading meant deleting the
+/// account and re-indexing the drive from nothing.
+///
+/// The stored mode changes only after the browser grant is validated and the
+/// selected drive's root is read back, so a refused or abandoned consent leaves
+/// the account exactly as it was.
+pub async fn reauthenticate(
+    state: PathBuf,
+    label: String,
+    access: Option<AccessMode>,
+) -> Result<()> {
     let original = Settings::load(&state)?
         .accounts
         .into_iter()
         .find(|a| a.label == label)
         .context("unknown account label")?;
+    let requested = access.unwrap_or(original.access);
     let _operation = account_operation(&state, &original.id)?;
     {
         let _lock = config_lock(&state)?;
@@ -246,7 +279,7 @@ pub async fn reauthenticate(state: PathBuf, label: String) -> Result<()> {
         .await
         .context("account did not stop; close files in this mount and try again")?;
         let (identity, credentials) =
-            browser_login(original.registration.clone(), original.access).await?;
+            browser_login(original.registration.clone(), requested).await?;
         if identity.tenant_id != original.identity.tenant_id
             || identity.graph_user_id != original.identity.graph_user_id
         {
@@ -271,7 +304,7 @@ pub async fn reauthenticate(state: PathBuf, label: String) -> Result<()> {
             .iter_mut()
             .find(|a| a.id == original.id)
             .context("account removed during sign-in")?;
-        account.enabled = original.enabled;
+        settle(account, original.enabled, requested, result.is_ok());
         settings.save(&state)?;
     }
     result
@@ -502,5 +535,82 @@ mod tests {
         assert_eq!(result, 7);
         assert!(child.try_wait().unwrap().is_none());
         child.kill().await.unwrap();
+    }
+
+    /// A permission mode is recorded only when the sign-in that granted it worked.
+    ///
+    /// `Writeback::new` admits writes on the strength of this field, so recording
+    /// a mode the credential does not have is worse than refusing the upgrade: an
+    /// application's save would be accepted locally and then refused by the
+    /// provider. Adopting `requested` unconditionally makes the read-only rows
+    /// below fail.
+    #[test]
+    fn a_failed_sign_in_never_records_the_permission_it_asked_for() {
+        for (had, requested, succeeded, expected) in [
+            (
+                AccessMode::ReadOnly,
+                AccessMode::ReadWrite,
+                true,
+                AccessMode::ReadWrite,
+            ),
+            (
+                AccessMode::ReadOnly,
+                AccessMode::ReadWrite,
+                false,
+                AccessMode::ReadOnly,
+            ),
+            (
+                AccessMode::ReadWrite,
+                AccessMode::ReadOnly,
+                true,
+                AccessMode::ReadOnly,
+            ),
+            (
+                AccessMode::ReadWrite,
+                AccessMode::ReadOnly,
+                false,
+                AccessMode::ReadWrite,
+            ),
+        ] {
+            for enabled in [false, true] {
+                let mut account = fixture_account(had);
+                super::settle(&mut account, enabled, requested, succeeded);
+                assert_eq!(account.access, expected, "{had:?}->{requested:?}");
+                // The mount's desired state is restored either way; a sign-in
+                // attempt is not a way to disable an account by failing.
+                assert_eq!(account.enabled, enabled);
+            }
+        }
+    }
+
+    fn fixture_account(access: AccessMode) -> Account {
+        Account {
+            id: "settle".into(),
+            label: "fixture".into(),
+            registration: cirrove_auth::AppRegistration {
+                client_id: "00000000-0000-4000-8000-000000000001".into(),
+                authority: "common".into(),
+            },
+            identity: cirrove_auth::Identity {
+                tenant_id: "00000000-0000-4000-8000-000000000002".into(),
+                subject: "fixture".into(),
+                username: "fixture@example.invalid".into(),
+                graph_user_id: "fixture".into(),
+                display_name: "fixture".into(),
+            },
+            credential_id: "fixture".into(),
+            access,
+            drive: cirrove_onedrive::DriveInfo {
+                id: "drive".into(),
+                name: "fixture".into(),
+                drive_type: "business".into(),
+                web_url: "https://example.invalid".into(),
+            },
+            root_id: "root".into(),
+            mount_path: "/nonexistent/settle".into(),
+            enabled: false,
+            poll_seconds: 3600,
+            cache_bytes: 8 * 1024 * 1024,
+        }
     }
 }

@@ -29,6 +29,13 @@ WORKFLOW = ROOT / ".github/workflows/ci.yml"
 # Ignored tests deliberately not run by CI. A test belongs here only with a
 # reason someone can disagree with.
 EXCUSED = {
+    # Needs a live Microsoft account with a write grant, which CI has no way to
+    # hold. It records a provider behaviour the rmdir design depends on -- a
+    # folder's eTag does not move when a child is added -- so it is run by hand
+    # when that assumption is worth re-checking, not on every build.
+    "folder_etag_and_mtime_ignore_their_children": (
+        "live write-access account; records the provider behaviour rmdir depends on"
+    ),
     # Re-exec entry points: the parent test invokes the binary again with
     # --exact <name> --ignored, so these do execute, just not by CI directly.
     "abrupt_exit_mount_fixture": "subprocess entry point, driven by its parent test",

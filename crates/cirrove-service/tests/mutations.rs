@@ -64,9 +64,11 @@ fn receipt(request: &MutationRequest) -> MutationReceipt {
             node.name = name.clone();
             MutationReceipt::Upsert(node)
         }
-        MutationIntent::RemoveFile { before } => MutationReceipt::Removed {
-            item: before.id.clone(),
-        },
+        MutationIntent::RemoveFile { before } | MutationIntent::RemoveFolder { before } => {
+            MutationReceipt::Removed {
+                item: before.id.clone(),
+            }
+        }
     }
 }
 fn journal(root: &std::path::Path) -> UploadJournal {

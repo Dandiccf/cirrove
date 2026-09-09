@@ -39,12 +39,29 @@ pub enum MutationIntent {
     RemoveFile {
         before: Node,
     },
+    /// Delete an **empty** folder using its original ETag, the way POSIX `rmdir`
+    /// does. Never recursive: a folder with children must be emptied first, one
+    /// confirmed removal at a time, so that every deletion carries its own
+    /// precondition.
+    ///
+    /// Adapters must verify emptiness immediately before deleting, because the
+    /// provider call underneath may well be recursive -- Graph's is. A folder's
+    /// eTag on OneDrive does not move when a child is added (measured: see
+    /// `folder_etag_and_mtime_ignore_their_children`), so a precondition on the
+    /// folder cannot close the window between that check and the delete. It can
+    /// only be narrowed to one round trip. Implementations must not pretend
+    /// otherwise, and callers must not present `rmdir` as atomic.
+    RemoveFolder {
+        before: Node,
+    },
 }
 impl MutationIntent {
     pub fn before(&self) -> Option<&Node> {
         match self {
             Self::CreateFolder { .. } => None,
-            Self::Relocate { before, .. } | Self::RemoveFile { before } => Some(before),
+            Self::Relocate { before, .. }
+            | Self::RemoveFile { before }
+            | Self::RemoveFolder { before } => Some(before),
         }
     }
 }
@@ -89,6 +106,7 @@ impl MutationRequest {
                 ..
             } => text(parent) && name(value),
             MutationIntent::RemoveFile { before } => before.kind == NodeKind::File,
+            MutationIntent::RemoveFolder { before } => before.kind == NodeKind::Folder,
         };
         if !valid {
             return Err(MutationError::Invalid);
@@ -125,9 +143,10 @@ impl MutationRequest {
                     && node.parent_id.as_ref() == Some(parent)
                     && node.etag.as_ref().is_some_and(|s| !s.is_empty())
             }
-            (MutationIntent::RemoveFile { before }, MutationReceipt::Removed { item }) => {
-                &before.id == item
-            }
+            (
+                MutationIntent::RemoveFile { before } | MutationIntent::RemoveFolder { before },
+                MutationReceipt::Removed { item },
+            ) => &before.id == item,
             _ => false,
         }
     }

@@ -480,4 +480,41 @@ mod tests {
         f.writer.maintain(&f.engine).await.unwrap();
         assert_eq!(f.journal.lock().unwrap().retained_bytes().unwrap(), 0);
     }
+
+    /// An explicit write grant is the opt-in, and it is the only one.
+    ///
+    /// The guard also required `!enabled` until that clause was removed. The two
+    /// together were unsatisfiable in ordinary use, because the daemon does not
+    /// mount a disabled account, so writable mounts were unreachable rather than
+    /// deliberate. Restoring the clause makes the `(ReadWrite, enabled)` row fail.
+    #[tokio::test]
+    async fn writes_need_an_explicit_grant_and_nothing_else() {
+        for (access, enabled, allowed) in [
+            (AccessMode::ReadWrite, false, true),
+            (AccessMode::ReadWrite, true, true),
+            (AccessMode::ReadOnly, false, false),
+            (AccessMode::ReadOnly, true, false),
+        ] {
+            let f = Fixture::new(false).await;
+            let mut account = f.engine.account.clone();
+            account.access = access;
+            account.enabled = enabled;
+            let temp = tempfile::tempdir().unwrap();
+            let engine = Engine::new(account, f.provider.clone(), temp.path().join("state"))
+                .await
+                .unwrap();
+            let journal = Arc::new(Mutex::new(
+                UploadJournal::open(&temp.path().join("journal"), "handoff", 4096).unwrap(),
+            ));
+            let result = Writeback::new(&engine, journal).await;
+            assert_eq!(
+                result.is_ok(),
+                allowed,
+                "access {access:?} enabled {enabled}"
+            );
+            if let Err(error) = result {
+                assert_eq!(error.kind(), std::io::ErrorKind::PermissionDenied);
+            }
+        }
+    }
 }

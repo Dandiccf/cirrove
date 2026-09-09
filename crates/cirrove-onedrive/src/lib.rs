@@ -537,7 +537,7 @@ impl ReadProvider for OneDrive {
     }
 }
 #[derive(Deserialize)]
-struct ChildrenResponse {
+pub(crate) struct ChildrenResponse {
     value: Vec<DriveItem>,
     #[serde(rename = "@odata.nextLink")]
     next: Option<String>,

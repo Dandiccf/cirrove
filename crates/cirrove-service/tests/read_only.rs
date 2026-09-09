@@ -2416,13 +2416,19 @@ async fn real_writable_mount_crash_keeps_the_saved_generation_and_newer_local_by
 }
 
 #[tokio::test]
-async fn experimental_writes_require_isolated_opt_in_and_matching_journal_owner() {
+async fn experimental_writes_require_opt_in_and_matching_journal_owner() {
     use cirrove_service::journal::UploadJournal;
     use std::sync::Mutex;
+    // An enabled account used to be refused as well. That made a writable mount
+    // unreachable rather than deliberate: the daemon does not mount a disabled
+    // account, so nothing a user could configure satisfied both halves. The write
+    // grant is the opt-in, and the journal owner still has to match.
     for (enabled, access, matching, accepted) in [
         (false, cirrove_auth::AccessMode::ReadOnly, true, false),
-        (true, cirrove_auth::AccessMode::ReadWrite, true, false),
+        (true, cirrove_auth::AccessMode::ReadOnly, true, false),
+        (true, cirrove_auth::AccessMode::ReadWrite, true, true),
         (false, cirrove_auth::AccessMode::ReadWrite, false, false),
+        (true, cirrove_auth::AccessMode::ReadWrite, false, false),
         (false, cirrove_auth::AccessMode::ReadWrite, true, true),
     ] {
         let temp = tempfile::tempdir().unwrap();
