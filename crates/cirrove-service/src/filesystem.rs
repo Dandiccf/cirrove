@@ -34,25 +34,13 @@ use tokio::{runtime::Handle, sync::Semaphore};
 
 /// How long the kernel may cache an entry or attribute before asking again.
 ///
-/// One second by default. Overridable only so that ADR 0006's first measurement
-/// can be taken: the traversal peak is 490-504 MiB and trimming cannot lower a
-/// high-water mark, so the open question is whether letting the kernel expire
-/// bulk-traversal entries sooner lowers what is held at all. That has to be
-/// measured before a ceiling is built on it, and measuring it needs the knob.
-///
-/// Not a tuning parameter. A short TTL turns cached navigation into repeated
-/// re-lookups, each of which opens a store connection behind a 128-permit
-/// semaphore that replies EAGAIN when exhausted.
-fn entry_ttl() -> Duration {
-    static TTL: std::sync::OnceLock<Duration> = std::sync::OnceLock::new();
-    *TTL.get_or_init(|| {
-        std::env::var("CIRROVE_ENTRY_TTL_MS")
-            .ok()
-            .and_then(|value| value.parse().ok())
-            .filter(|ms| (1..=60_000).contains(ms))
-            .map_or(Duration::from_secs(1), Duration::from_millis)
-    })
-}
+/// A constant, and deliberately not configurable. It was briefly overridable so
+/// that ADR 0006 could measure whether a shorter TTL lowers the traversal peak.
+/// It does not: a hundredfold reduction moved the peak by half a percent, because
+/// expiry is revalidation rather than eviction and the kernel's dentry shrinker
+/// runs under memory pressure, not on a clock. See
+/// docs/benchmarks/namespace-entry-ttl.json before reaching for this again.
+const TTL: Duration = Duration::from_secs(1);
 const READ_QUEUE_TIMEOUT: Duration = Duration::from_secs(30);
 /// Allocator trims performed since start. Three attempts at the trim condition
 /// failed because whether it fired could only be inferred from the memory it was
@@ -828,7 +816,7 @@ impl Filesystem for CloudFs {
             .await;
             match result {
                 Ok((view, node)) => match inner.acquire_lookup(view.inode) {
-                    Ok(()) => reply.entry(&entry_ttl(), &inner.attr(&view, &node), Generation(0)),
+                    Ok(()) => reply.entry(&TTL, &inner.attr(&view, &node), Generation(0)),
                     Err(error) => reply.error(errno(&error)),
                 },
                 Err(e) => reply.error(errno(&e)),
@@ -856,7 +844,7 @@ impl Filesystem for CloudFs {
             }
             .await;
             match result {
-                Ok((view, node)) => reply.attr(&entry_ttl(), &inner.attr(&view, &node)),
+                Ok((view, node)) => reply.attr(&TTL, &inner.attr(&view, &node)),
                 Err(e) => reply.error(errno(&e)),
             }
         });
@@ -927,7 +915,7 @@ impl Filesystem for CloudFs {
             .await;
             match result {
                 Ok((view, attr)) => match inner.acquire_lookup(view.inode) {
-                    Ok(()) => reply.entry(&entry_ttl(), &attr, Generation(0)),
+                    Ok(()) => reply.entry(&TTL, &attr, Generation(0)),
                     Err(error) => reply.error(errno(&error)),
                 },
                 Err(error) => reply.error(error),
@@ -1026,7 +1014,7 @@ impl Filesystem for CloudFs {
             match result {
                 Ok((attr, handle)) => match inner.acquire_lookup(attr.ino.0) {
                     Ok(()) => reply.created(
-                        &entry_ttl(),
+                        &TTL,
                         &attr,
                         Generation(0),
                         FileHandle(handle),
@@ -1398,7 +1386,7 @@ impl Filesystem for CloudFs {
             }
             .await;
             match result {
-                Ok(attr) => reply.attr(&entry_ttl(), &attr),
+                Ok(attr) => reply.attr(&TTL, &attr),
                 Err(e) => reply.error(e),
             }
         });

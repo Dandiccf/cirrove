@@ -183,7 +183,6 @@ fn namespace_sample(inner: &Inner, phase: &str, seconds: f64) -> serde_json::Val
     let references = inner.views.lock().unwrap().diagnostics();
     serde_json::json!({
         "allocator_trims": super::TRIMS.load(std::sync::atomic::Ordering::Relaxed),
-        "entry_ttl_ms": super::entry_ttl().as_millis() as u64,
         "references": references,
         "phase": phase, "seconds": seconds, "retained_views": retained,
         "open_directory_handles": handles,

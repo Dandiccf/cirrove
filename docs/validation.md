@@ -8,8 +8,8 @@ acceptance for roadmap stages 1–3.
 ## Local checks
 
 - Formatting and strict Clippy cover all crates and test targets.
-- Current default workspace suite: **349 tests passed**, with 67 ignored. CI runs 53
-  of those 67 separately through kernel-FUSE and desktop steps; the remaining 14 are
+- Current default workspace suite: **356 tests passed**, with 75 ignored. CI runs 59
+  of those 75 separately through kernel-FUSE and desktop steps; the remaining 16 are
   subprocess fixture entry points, capacity benchmarks and one host-keyring test,
   each excused by name in `scripts/ci-coverage.py`, which fails the build if an
   ignored test is neither run nor excused.
