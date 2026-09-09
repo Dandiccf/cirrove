@@ -184,8 +184,13 @@ async fn browser_login(
 ) -> Result<(Identity, cirrove_auth::Credentials)> {
     let pending = PendingLogin::with_access(app, access).await?;
     if access == AccessMode::ReadWrite {
+        // This used to promise that mounts stayed read-only. That was true while
+        // the only writable path was a validator mounting a disabled account by
+        // hand; it stopped being true when the daemon learned to mount writable
+        // from the grant, and a consent screen is the wrong place to be wrong.
         println!(
-            "Requesting write consent for developer validation. Filesystem mounts remain read-only."
+            "Requesting write consent. An account with this grant is mounted writable, \
+             so applications can change cloud files through it."
         );
     }
     println!("Opening Microsoft sign-in in your browser. Select the account you want to connect.");
@@ -215,6 +220,55 @@ async fn await_browser_login<T>(
 }
 /// Temporarily disables just this account and waits for its owned workers to
 /// release credentials before replacing a grant. Other accounts keep running.
+/// Puts an account's desired state back after a sign-in attempt.
+///
+/// Sign-in has to disable the account durably, because that is how the daemon is
+/// asked to release the mount, and it then waits on a human in a browser. So the
+/// window between disabling and restoring is long and easy to interrupt, and an
+/// interrupted run used to leave the account disabled with nothing said: the
+/// drive simply stopped being mounted, across reboots, until somebody noticed.
+///
+/// Restoring from `Drop` closes that for a panic or an early return. It cannot
+/// close it for process death, which is why `reauthenticate` says out loud what
+/// to run if the attempt does not finish.
+struct DesiredState {
+    state: PathBuf,
+    id: String,
+    enabled: bool,
+    access: Option<AccessMode>,
+}
+impl DesiredState {
+    /// Adopt the requested permission mode, then restore. Consumes the guard so
+    /// the `Drop` path cannot also run.
+    fn settle(mut self, requested: AccessMode) {
+        self.access = Some(requested);
+        drop(self);
+    }
+}
+impl Drop for DesiredState {
+    fn drop(&mut self) {
+        let restore = || -> Result<()> {
+            let _lock = config_lock(&self.state)?;
+            let mut settings = Settings::load(&self.state)?;
+            let account = settings
+                .accounts
+                .iter_mut()
+                .find(|a| a.id == self.id)
+                .context("account removed during sign-in")?;
+            settle(account, self.enabled, self.access);
+            settings.save(&self.state)
+        };
+        if let Err(error) = restore() {
+            tracing::error!(
+                %error,
+                account = %self.id,
+                "could not restore this account's desired state after sign-in; \
+                 re-enable it with `cirrove enable <label>`"
+            );
+        }
+    }
+}
+
 /// Restore an account after a sign-in attempt, adopting the requested permission
 /// mode only if that attempt actually succeeded.
 ///
@@ -224,10 +278,10 @@ async fn await_browser_login<T>(
 /// after an application believed its save had been accepted. A refused consent, a
 /// different account chosen in the browser and an unreadable drive root all land
 /// here as `succeeded == false`.
-fn settle(account: &mut Account, enabled: bool, requested: AccessMode, succeeded: bool) {
+fn settle(account: &mut Account, enabled: bool, granted: Option<AccessMode>) {
     account.enabled = enabled;
-    if succeeded {
-        account.access = requested;
+    if let Some(access) = granted {
+        account.access = access;
     }
 }
 
@@ -266,6 +320,20 @@ pub async fn reauthenticate(
         account.enabled = false;
         settings.save(&state)?;
     }
+    // Held from here on. Disabling is durable because it is how the daemon is
+    // asked to release the mount; restoring it is this guard's only job.
+    let desired = DesiredState {
+        state: state.clone(),
+        id: original.id.clone(),
+        enabled: original.enabled,
+        access: None,
+    };
+    if original.enabled {
+        println!(
+            "{label} is disabled while you sign in. If this does not finish, run \
+             `cirrove enable {label}` to put it back."
+        );
+    }
     let result = async {
         let directory = state.join("accounts").join(&original.id);
         let _owner = tokio::time::timeout(std::time::Duration::from_secs(30), async {
@@ -296,16 +364,10 @@ pub async fn reauthenticate(
         Ok(())
     }
     .await;
-    {
-        let _lock = config_lock(&state)?;
-        let mut settings = Settings::load(&state)?;
-        let account = settings
-            .accounts
-            .iter_mut()
-            .find(|a| a.id == original.id)
-            .context("account removed during sign-in")?;
-        settle(account, original.enabled, requested, result.is_ok());
-        settings.save(&state)?;
+    if result.is_ok() {
+        desired.settle(requested);
+    } else {
+        drop(desired);
     }
     result
 }
@@ -546,36 +608,24 @@ mod tests {
     /// below fail.
     #[test]
     fn a_failed_sign_in_never_records_the_permission_it_asked_for() {
-        for (had, requested, succeeded, expected) in [
+        for (had, granted, expected) in [
             (
                 AccessMode::ReadOnly,
-                AccessMode::ReadWrite,
-                true,
+                Some(AccessMode::ReadWrite),
                 AccessMode::ReadWrite,
             ),
-            (
-                AccessMode::ReadOnly,
-                AccessMode::ReadWrite,
-                false,
-                AccessMode::ReadOnly,
-            ),
+            (AccessMode::ReadOnly, None, AccessMode::ReadOnly),
             (
                 AccessMode::ReadWrite,
-                AccessMode::ReadOnly,
-                true,
+                Some(AccessMode::ReadOnly),
                 AccessMode::ReadOnly,
             ),
-            (
-                AccessMode::ReadWrite,
-                AccessMode::ReadOnly,
-                false,
-                AccessMode::ReadWrite,
-            ),
+            (AccessMode::ReadWrite, None, AccessMode::ReadWrite),
         ] {
             for enabled in [false, true] {
                 let mut account = fixture_account(had);
-                super::settle(&mut account, enabled, requested, succeeded);
-                assert_eq!(account.access, expected, "{had:?}->{requested:?}");
+                super::settle(&mut account, enabled, granted);
+                assert_eq!(account.access, expected, "{had:?}->{granted:?}");
                 // The mount's desired state is restored either way; a sign-in
                 // attempt is not a way to disable an account by failing.
                 assert_eq!(account.enabled, enabled);
@@ -583,9 +633,56 @@ mod tests {
         }
     }
 
+    /// An abandoned sign-in puts the account back where it found it.
+    ///
+    /// Disabling is durable, because it is how the daemon is asked to release the
+    /// mount, and what follows is a person in a browser. Without this restore an
+    /// interrupted run left the drive unmounted, across reboots, with nothing
+    /// said and nothing to read. Deleting the `Drop` impl makes this fail.
+    #[test]
+    fn an_abandoned_sign_in_restores_the_account_it_disabled() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let state = temp.path().join("state");
+        crate::private_dir(&state).expect("state directory");
+        let mut account = fixture_account(AccessMode::ReadOnly);
+        account.enabled = true;
+        let id = account.id.clone();
+        Settings {
+            version: 1,
+            accounts: vec![account],
+        }
+        .save(&state)
+        .expect("seed");
+
+        // Exactly what reauthenticate does before it waits on the browser.
+        let mut disabled = Settings::load(&state).expect("load");
+        disabled.accounts[0].enabled = false;
+        disabled.save(&state).expect("disable");
+        assert!(!Settings::load(&state).expect("load").accounts[0].enabled);
+
+        // The sign-in never finishes: no granted access, guard dropped.
+        drop(super::DesiredState {
+            state: state.clone(),
+            id,
+            enabled: true,
+            access: None,
+        });
+
+        let after = Settings::load(&state).expect("load");
+        assert!(
+            after.accounts[0].enabled,
+            "an abandoned sign-in left the account disabled and the drive unmounted"
+        );
+        assert_eq!(
+            after.accounts[0].access,
+            AccessMode::ReadOnly,
+            "and it must not have adopted a permission nobody granted"
+        );
+    }
+
     fn fixture_account(access: AccessMode) -> Account {
         Account {
-            id: "settle".into(),
+            id: "00000000-0000-4000-8000-000000000007".into(),
             label: "fixture".into(),
             registration: cirrove_auth::AppRegistration {
                 client_id: "00000000-0000-4000-8000-000000000001".into(),
@@ -598,7 +695,7 @@ mod tests {
                 graph_user_id: "fixture".into(),
                 display_name: "fixture".into(),
             },
-            credential_id: "fixture".into(),
+            credential_id: "00000000-0000-4000-8000-000000000008".into(),
             access,
             drive: cirrove_onedrive::DriveInfo {
                 id: "drive".into(),
@@ -607,7 +704,7 @@ mod tests {
                 web_url: "https://example.invalid".into(),
             },
             root_id: "root".into(),
-            mount_path: "/nonexistent/settle".into(),
+            mount_path: "/nonexistent/reauth-fixture".into(),
             enabled: false,
             poll_seconds: 3600,
             cache_bytes: 8 * 1024 * 1024,
