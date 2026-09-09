@@ -1660,7 +1660,7 @@ back-to-back subscription pattern, the cause would be subscription interference
 rather than delivery. **It passed, all three samples.** The interference
 hypothesis is refuted and the miss stands unexplained.
 
-The tally so far is one lost notification in seven live samples. That is a real
+The final tally is one lost notification in eleven live samples. That is a real
 rate on a small sample, not a bound, and it is recorded rather than retried away.
 What it argues for is the clause the acceptance box already contains: push cannot
 be the only refresh mechanism, and periodic recovery is not belt-and-braces. In
@@ -1691,35 +1691,59 @@ including a name with spaces and umlauts:
 
 | generation | size | local save | note |
 | ---: | ---: | ---: | --- |
-| 1 | 131,071 B | 6.8 ms | direct save, `fsync` |
-| 2 | 262,177 B | 8.3 ms | direct save, `fsync` |
-| 3 | 196,613 B | 445 ms | atomic replacement, old descriptor preserved |
-| 4 | 229,379 B | 33 ms | atomic replacement, old descriptor preserved |
-| 5 | 294,911 B | 501 ms | replacement of an online-only source after remount |
+| 1 | 131,071 B | 7.0 ms | direct save, `fsync` |
+| 2 | 262,177 B | 6.6 ms | direct save, `fsync` |
+| 3 | 65,537 B | 6.7 ms | **in-place shrinking truncation**, `fsync` |
+| 4 | 196,613 B | 506 ms | atomic replacement, old descriptor preserved |
+| 5 | 229,379 B | 463 ms | atomic replacement, old descriptor preserved |
+| 6 | 294,911 B | 752 ms | replacement of an online-only source after remount |
 
-Rename cost 5.2 to 6.1 ms. Eight upload receipts, three conditional source
+Rename cost 5.6 to 6.5 ms. Nine upload receipts, three conditional source
 cleanups, independent cloud checks matched, and the fixture survived a remount
 with reopened metadata and journal.
 
-**Truncation is still not covered, despite the box naming it.** The application
-script writes each generation from offset zero and then calls `truncate(size)`
-at exactly the size just written, so the call is a no-op every time. Generation 3
-is smaller than generation 2, but it shrinks through *atomic replacement*, not
-through truncating an open descriptor. Shrinking a file in place has no live
-evidence, and `- [ ] Correct application save patterns, truncation and atomic
-replacement` therefore stays unticked with saves and replacement proven and
-truncation not.
+**Truncation was named by the box and covered by nothing.** The first run of this
+sequence exposed it: the application script wrote each generation from offset
+zero and then called `truncate(size)` at exactly the size just written, so the
+call was a no-op every time, and the one generation that shrinks did so by
+*atomic replacement* — a different path that never reaches `setattr`.
+
+Generation 3 above now shrinks the file in place, 262,177 to 65,537 bytes, on an
+open descriptor followed by `fsync`. It went through `setattr`'s `fh` branch into
+writeback, uploaded, and `readback_verified` confirmed 65,537 bytes by an
+independent cloud read. Removing the `truncate()` makes the fixture fail;
+restoring it passes.
+
+The first attempt at this failed, and the cause was mine rather than the
+product's: the two application scripts share one generation numbering, and adding
+a direct save collided with the replacement sequence's `data(generation-1)`
+assertion. The failure is worth recording because of what it proved on the way
+past — the three direct saves, the shrink among them, had already uploaded and
+verified before the replacement stage aborted.
 
 ### What this run changes, and what it does not
 
 Proven live: the conservative read preconditions, shared read-session setup,
 directory freshness through a mount, push delivery separated from local
-reaction, the upload conflict matrix, the namespace conflict matrix, and
-application saves with atomic replacement across a remount.
+reaction, subscription renewal at the real 50-minute boundary, the upload
+conflict matrix, the namespace conflict matrix, and application saves with
+in-place truncation and atomic replacement across a remount.
 
-Still open on this account: in-place truncation, bounded sequential windows,
-session renewal, live reconnection and catch-up, consent expiry with visible
-reauthentication, and the 24-hour sustained run. Token *refresh* is separately
-evidenced by the installed daemon, which has refreshed hourly for a day and a
-half without intervention; consent *expiry* is a different event and has not
-been observed.
+Still open on this account: bounded sequential windows and session renewal read
+off a live mount rather than a direct-to-adapter check, live reconnection and
+catch-up, consent expiry with visible reauthentication, and the 24-hour
+sustained run. Token *refresh* is separately evidenced by the installed daemon,
+which has refreshed hourly for a day and a half without intervention; consent
+*expiry* is a different event and has not been observed.
+
+### Subscription renewal at the real boundary
+
+The `--check-renewal` run held one Socket.IO subscription for
+**2,999,973 ms — 49 minutes 60 seconds —** then reconnected through the renewed
+subscription and observed a fresh change in a notification-triggered delta
+30,441 ms later. Its three pre-renewal samples delivered in 32,680, 30,942 and
+32,330 ms.
+
+Across every live sample in this run, delivery sits between 30.0 and 32.7
+seconds. Eleven samples is not a distribution, but nothing in them looks like
+variable latency; it looks like a fixed cadence with one drop.

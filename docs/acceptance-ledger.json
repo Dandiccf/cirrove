@@ -71,7 +71,7 @@
       "done": false,
       "text": "Push-triggered metadata updates, reconnection/catch-up and periodic recovery checks, with provider delivery and local reaction latency measured separately.",
       "blocker": "needs-live-account",
-      "evidence": "docs/validation.md#push-notifications--delivery-and-reaction-measured-separately -- live 2026-09-09: delivery 30.0/31.0/31.4 s, local reaction 287/169/174 ms, measured separately as the box requires. NOT covered live: reconnection, catch-up and periodic recovery, which remain synthetic only. One notification in seven live samples was never delivered (90 s deadline, 30 s typical); the pre-registered interference hypothesis was refuted by an immediately passing retry. Cause unexplained; the shipped 30 s poll bounds the impact.",
+      "evidence": "docs/validation.md#push-notifications and #subscription-renewal-at-the-real-boundary -- live 2026-09-09: delivery 30.0-32.7 s across eleven samples, local reaction 169-287 ms, measured separately as the box requires. One subscription held 2,999,973 ms, renewed, reconnected, and delivered a fresh change 30,441 ms later. One notification in eleven was never delivered (90 s deadline); the pre-registered interference hypothesis was refuted by an immediately passing retry and the miss stands unexplained; the shipped 30 s poll bounds the impact. STILL NOT COVERED LIVE: catch-up of changes made while disconnected (the renewal change was made after reconnect), and periodic recovery checks.",
       "asserted_by": null
     },
     {
@@ -158,11 +158,11 @@
       "milestone": 2,
       "milestone_title": "Safe file changes",
       "line": 190,
-      "done": false,
+      "done": true,
       "text": "Correct application save patterns, truncation and atomic replacement.",
       "blocker": "needs-live-account",
-      "evidence": "docs/validation.md#writable-mount--real-application-saves -- live 2026-09-09: two direct saves (6.8/8.3 ms) and three atomic replacements including an online-only source after remount, old descriptor preserved, eight receipts, three conditional cleanups. NOT covered: in-place truncation -- the fixture calls truncate() at the size just written, so it is a no-op; generation 3 shrinks by replacement, not truncation.",
-      "asserted_by": null
+      "evidence": "docs/validation.md#writable-mount--real-application-saves -- live 2026-09-09 against a real business drive: three direct saves (131,071 / 262,177 / 65,537 B at 7.0 / 6.6 / 6.7 ms), the third an in-place shrink through setattr's fh branch, uploaded and confirmed by an independent cloud read; three atomic replacements (196,613 / 229,379 / 294,911 B) with the old descriptor preserved, the last replacing an online-only source after a remount; nine upload receipts and three conditional source cleanups.",
+      "asserted_by": "cirrove-service: separate_application_script_reports_fsynced_generations_and_exact_final_bytes asserts the third direct save shrinks the file in place (removing truncate() makes it fail); separate_atomic_save_application_preserves_streams_and_reuses_temporary_name asserts atomic replacement keeps the old descriptor readable and reuses the temporary name. Live: cirrove validate-onedrive-writable."
     },
     {
       "milestone": 2,

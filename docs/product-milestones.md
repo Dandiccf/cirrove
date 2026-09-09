@@ -147,8 +147,9 @@ Actual synthetic mount fixtures cover two consecutive atomic saves, paused downl
 independent saves during old reads, and remount after interrupted preparation.
 The extended developer validator is ready to exercise atomic replacement and
 conditional source cleanup in a fresh OneDrive test folder, including an online-only
-source after remount. That expanded live sequence ran on 2026-09-09 and passed;
-in-place truncation remains uncovered, which is why the box above stays open.
+source after remount. That expanded live sequence ran on 2026-09-09 and passed,
+after a third direct save was added that shrinks the file in place — truncation
+was named by the box and exercised by nothing until then.
 
 Fully acknowledged working copies can retire after the last user closes, retaining
 local identities that follow remote changes. Restartable cleanup, generation fencing,
@@ -188,7 +189,7 @@ safe-file-changes milestone.
 - [x] Persisted upload progress, resumable transfers and idempotent recovery.
 - [x] Version-conditional changes and preservation of both sides of conflicts.
 - [x] Distinct local-save, pending-upload, uploading, uploaded and failure states.
-- [ ] Correct application save patterns, truncation and atomic replacement.
+- [x] Correct application save patterns, truncation and atomic replacement.
 - [ ] Crash/fault tests at every durable transition and concurrent remote edits.
 - [x] Opt-in write consent and live tests in a dedicated Cirrove test folder.
 
