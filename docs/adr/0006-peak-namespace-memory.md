@@ -114,11 +114,18 @@ with the floor measured, rather than by quietly adjusting the number.
 [The arms](../benchmarks/namespace-entry-ttl.json), 500,000 files, three rounds
 each, one frozen binary, TTL the only difference:
 
-| entry TTL | round-1 peak | peak across rounds | navigation |
-| ---: | ---: | --- | --- |
-| 1000 ms | 492.7 MiB | 492.7 → 554.8 | 13.4 / 13.0 / 11.4 ms |
-| 100 ms | 492.2 MiB | 492.2 → 499.5 | 22.9 / 12.6 / 11.8 ms |
-| 10 ms | 490.3 MiB | 490.3 → 498.7 | 53.8 / 51.9 / 49.3 ms |
+| entry TTL | round-1 peak | navigation |
+| ---: | ---: | --- |
+| 1000 ms | 492.7 MiB | 13.4 / 13.0 / 11.4 ms |
+| 100 ms | 492.2 MiB | 22.9 / 12.6 / 11.8 ms |
+| 10 ms | 490.3 MiB | 53.8 / 51.9 / 49.3 ms |
+
+The 1000 ms arm also rose across its three rounds, in peak, residue and traversal
+time together, where the short-TTL arms were flat. That looked like a finding and
+was not: [four replications](../benchmarks/namespace-g3-replication.json) at
+1000 ms, two per binary, are flat in all three, with round-three residue between
+15.3 and 17.4 MiB against that arm's 110.4. It was one outlier in eleven runs,
+and it is recorded as unexplained rather than explained away.
 
 **The peak does not fall.** A hundredfold reduction in TTL moves it by 0.5
 percent. The prediction recorded before the run was that it would fall but stop
