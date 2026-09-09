@@ -7,6 +7,8 @@ mod deadlines;
 mod discovery;
 #[cfg(test)]
 mod persistence;
+#[cfg(test)]
+mod pinning;
 use crate::{accounts::Account, content::ContentCache, private_dir, refresh};
 use anyhow::Result;
 pub use changes::ChangeNotifications;
@@ -124,7 +126,64 @@ impl Engine {
             collection: collection.into(),
         }
     }
+    /// Publish what pinning currently claims to the cache.
+    ///
+    /// The cache holds no database handle, so the two are kept in step here
+    /// rather than by eviction reading the store on every pass. Called at start
+    /// and after every pin change; a mount that skipped it would evict pinned
+    /// content while the registry still said it was kept.
+    pub async fn refresh_reservations(&self) -> Result<()> {
+        let db = self.db.clone();
+        let (reserved, protected) = tokio::task::spawn_blocking(
+            move || -> cirrove_store::Result<(u64, std::collections::HashSet<String>)> {
+                let store = Store::open(db)?;
+                Ok((store.reserved_bytes()?, store.protected_blocks()?))
+            },
+        )
+        .await??;
+        if let Ok(mut view) = self.cache.reservations().lock() {
+            view.reserved = reserved;
+            view.protected = protected;
+        }
+        Ok(())
+    }
+    /// Record a pin and put it into effect. Refusals are returned, not raised:
+    /// a budget that cannot hold the request is an answer for the caller, not a
+    /// fault of the engine.
+    pub async fn pin(
+        &self,
+        scope: Scope,
+        item: String,
+        recursive: bool,
+        reserved: u64,
+    ) -> Result<std::result::Result<cirrove_store::pins::Pin, cirrove_store::pins::PinRefusal>>
+    {
+        let db = self.db.clone();
+        let budget = self.account.cache_bytes;
+        let key = serde_json::to_string(&scope).unwrap_or_default();
+        let outcome = tokio::task::spawn_blocking(move || {
+            Store::open(db)?.pin(&key, &item, recursive, reserved, budget)
+        })
+        .await??;
+        if outcome.is_ok() {
+            self.refresh_reservations().await?;
+        }
+        Ok(outcome)
+    }
+    /// Release a pin and the space it held. Reports whether one existed.
+    pub async fn unpin(&self, scope: Scope, item: String) -> Result<bool> {
+        let db = self.db.clone();
+        let key = serde_json::to_string(&scope).unwrap_or_default();
+        let removed =
+            tokio::task::spawn_blocking(move || Store::open(db)?.unpin(&key, &item)).await??;
+        self.refresh_reservations().await?;
+        Ok(removed)
+    }
     pub async fn start(self: &Arc<Self>) -> Result<()> {
+        // Before anything can evict, so a restart never spends the window
+        // between mounting and the first pin change treating pinned blocks as
+        // ordinary ones.
+        self.refresh_reservations().await?;
         if !self.discovery_started.swap(true, Ordering::SeqCst) {
             let engine = self.clone();
             self.tasks.spawn(async move {
