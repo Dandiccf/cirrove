@@ -261,7 +261,7 @@
       "done": false,
       "text": "Linked folders, duplicate links, moved/deleted links and folder-only access.",
       "blocker": "out-of-agreed-scope",
-      "evidence": null,
+      "evidence": "PARTIAL, from work on other boxes 2026-09-09 rather than from a check aimed at this one (docs/validation.md#the-same-file-through-two-cold-mounts-with-the-path-off-and-on and #navigating-a-real-collection-while-it-is-being-indexed). The live account is itself an instance of this box: 42 nodes live in its own drive and 183,960 in a linked collection, reached through a single shortcut node whose target names the collection and its root item. Two consequences were measured rather than reasoned about. A fixture that builds its scope from account.drive.id addresses 0.02 percent of what is mounted and fails with 'remote item not found'. An engine given a root id that does not exist inside the named collection serves no listing at all and times out after two minutes without saying why; that now fails immediately with 'root item is not reachable in the named collection'. NOT COVERED: duplicate links, moved or deleted links, and folder-only access, none of which this account exercises.",
       "asserted_by": null
     },
     {
@@ -281,7 +281,7 @@
       "done": false,
       "text": "Remote creates, edits, moves and deletions update mounted views correctly.",
       "blocker": "out-of-agreed-scope",
-      "evidence": null,
+      "evidence": "PARTIAL 2026-09-09, creates only (docs/validation.md#catch-up-after-a-reconnection-and-the-periodic-recovery-refresh). A folder created through Graph while a read-only mount was idle became visible through that mount by two separate routes, each measured with the other disabled: 408 ms after a subscription reconnected, and 29,421 ms by the periodic refresh with no subscription at all. Directory activity revalidation is a third route, and finds such a change within about five seconds for a directory somebody is looking at. NOT COVERED: edits, moves and deletions through a mounted view. Provider-level rename, move and deletion are exercised by validate-onedrive-mutations, but nothing has checked that a mounted view follows them.",
       "asserted_by": null
     },
     {
