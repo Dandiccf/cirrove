@@ -14,8 +14,12 @@ actual filesystem reads and recovery. Isolated business-account checks have
 exercised Graph operations; sustained operation and wider account/provider coverage
 remain under validation. Do not replace a trusted cloud
 client with this preview. Ordinary mounts remain read-only. An isolated experimental
-writable filesystem API and upload worker are undergoing validation; pins, tray UI
-and Nautilus badges are not implemented.
+writable filesystem API and upload worker are undergoing validation. Offline pinning
+exists at the daemon and command line: a pin is durable, reserves cache space that
+eviction may not take, and keeps pinned content readable with the provider
+unreachable across a restart. It is not in any user interface, pinned content is
+not yet fetched automatically in the background, and none of it has been measured
+on a real account. Tray UI and Nautilus badges are not implemented.
 
 ## Current implementation
 
@@ -83,6 +87,17 @@ and Nautilus badges are not implemented.
   atomic replacement now has synthetic application checks. Folder creation and
   nested local saves are also implemented experimentally; folder rename/removal
   and broader real-application acceptance remain incomplete.
+- Offline pinning with storage reservations. A pin is recorded in the metadata
+  index and survives restart; it reserves bytes against the cache budget when it is
+  made, so a request the budget cannot hold is refused rather than accepted and
+  later evicted. Reservations may not claim the whole budget, because a cache with
+  no unreserved room would evict each block an unpinned read had just fetched.
+  Eviction skips pinned blocks both at runtime and in the reconcile pass a mount
+  runs before anything else can. Folder pins walk cached directory views and report
+  whether the walk saw the whole subtree. Status separates what a pin reserved from
+  what it actually holds, counted from files present rather than from the block
+  index. Not reachable from any user interface, and pinned content is fetched when
+  something asks for it rather than in the background.
 - Durable local object identities and directory entries separate from optional
   working bytes. Local stream lookups are separate from provider-binding lookups,
   so provider aliases cannot redirect existing local views. Experimental mounts
