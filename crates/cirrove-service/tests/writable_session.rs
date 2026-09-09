@@ -2928,3 +2928,85 @@ async fn real_rmdir_refuses_a_populated_directory_and_removes_an_empty_one() {
     }
     session.shutdown().await.unwrap();
 }
+
+/// The account manager mounts writable only for an account carrying a write
+/// grant, and read-only for every other one.
+///
+/// Until this landed the daemon called `CloudFs::new` unconditionally, so a write
+/// grant changed the recorded permission and nothing else: every mount stayed
+/// read-only and `reauth --write-access` bought nothing. Restoring that makes the
+/// ReadWrite row below fail on the mkdir.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; the manager selects a writable mount from the grant"]
+async fn real_manager_mounts_writable_only_for_an_account_with_a_write_grant() {
+    use cirrove_auth::AccessMode;
+    use cirrove_service::accounts::Settings;
+    use cirrove_service::manager::{Manager, ProviderFactory, WriteFactory};
+    for (access, writable) in [(AccessMode::ReadWrite, true), (AccessMode::ReadOnly, false)] {
+        let temp = tempfile::tempdir().unwrap();
+        let mount = temp.path().join("mount");
+        std::fs::create_dir(&mount).unwrap();
+        let state = temp.path().join("state");
+        cirrove_service::private_dir(&state).unwrap();
+        let mut config = account(&mount);
+        config.access = access;
+        config.enabled = true;
+        // The manager loads through `Settings`, which enforces the label rules the
+        // rest of these fixtures never go through.
+        config.label = "writable-fixture".into();
+        std::fs::write(
+            state.join("accounts.json"),
+            serde_json::to_vec(&Settings {
+                version: 1,
+                accounts: vec![config],
+            })
+            .unwrap(),
+        )
+        .unwrap();
+        let cloud = Arc::new(Cloud::default());
+        namespace_fixture(&cloud);
+        let reads = cloud.clone();
+        let writes = cloud.clone();
+        let read_factory: ProviderFactory = Arc::new(move |_| Ok(reads.clone()));
+        let write_factory: WriteFactory = Arc::new(move |_| Ok(writes.clone()));
+        let cancel = CancellationToken::new();
+        let (manager, worker) =
+            Manager::start_with_providers(state, cancel.clone(), read_factory, Some(write_factory));
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
+        loop {
+            let seen: Vec<_> = manager
+                .status
+                .read()
+                .await
+                .iter()
+                .map(|s| (s.state.clone(), s.mounted))
+                .collect();
+            if seen.first().is_some_and(|(_, mounted)| *mounted) {
+                break;
+            }
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "never mounted for {access:?}; status {seen:?}"
+            );
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+
+        let target = mount.join("made-by-the-daemon");
+        let created = tokio::task::spawn_blocking(move || std::fs::create_dir(&target))
+            .await
+            .unwrap();
+        match (writable, created) {
+            (true, Ok(())) => {}
+            (false, Err(error)) => assert_eq!(
+                error.kind(),
+                std::io::ErrorKind::ReadOnlyFilesystem,
+                "read-only account: {error}"
+            ),
+            (expected, result) => {
+                panic!("writable={expected} but mkdir gave {result:?} for {access:?}")
+            }
+        }
+        cancel.cancel();
+        let _ = tokio::time::timeout(Duration::from_secs(20), worker).await;
+    }
+}
