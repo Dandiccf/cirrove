@@ -175,6 +175,20 @@ impl Engine {
         }
         Ok(())
     }
+    /// How much of the cache budget pins may claim.
+    ///
+    /// Not all of it. A reservation covering the whole quota leaves nothing for
+    /// ordinary reading: every block an unpinned file needs would be the block
+    /// eviction has to take next, so the mount would fetch and discard the same
+    /// bytes forever while appearing to work. The headroom is a tenth of the
+    /// budget, and never fewer than eight blocks, so a small cache keeps enough
+    /// to stream through rather than a tenth of very little.
+    pub fn pinnable_budget(&self) -> u64 {
+        let headroom = (self.account.cache_bytes / 10)
+            .max(8 * crate::content::BLOCK_SIZE as u64)
+            .min(self.account.cache_bytes);
+        self.account.cache_bytes.saturating_sub(headroom)
+    }
     /// Record a pin and put it into effect. Refusals are returned, not raised:
     /// a budget that cannot hold the request is an answer for the caller, not a
     /// fault of the engine.
@@ -187,7 +201,7 @@ impl Engine {
     ) -> Result<std::result::Result<cirrove_store::pins::Pin, cirrove_store::pins::PinRefusal>>
     {
         let db = self.db.clone();
-        let budget = self.account.cache_bytes;
+        let budget = self.pinnable_budget();
         let key = serde_json::to_string(&scope).unwrap_or_default();
         let outcome = tokio::task::spawn_blocking(move || {
             Store::open(db)?.pin(&key, &item, recursive, reserved, budget)

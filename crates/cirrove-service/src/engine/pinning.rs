@@ -470,3 +470,48 @@ async fn pinned_content_reads_offline_and_still_does_after_a_restart() {
     );
     engine.stop().await;
 }
+
+#[tokio::test]
+async fn pins_may_not_claim_the_whole_budget_and_leave_nothing_to_read_with() {
+    let temp = tempfile::tempdir().unwrap();
+    let budget = 640 * 1024 * 1024;
+    let engine = engine(&temp, budget).await;
+    // A pin covering the entire cache would leave every unpinned read with no
+    // room at all: the block it just fetched is the one eviction takes next, so
+    // the mount would refetch the same bytes forever and still look healthy.
+    let refusal = engine
+        .pin(scope(), "greedy".into(), true, budget)
+        .await
+        .unwrap()
+        .expect_err("the whole budget must not be pinnable");
+    assert!(matches!(
+        refusal,
+        cirrove_store::pins::PinRefusal::WouldExceedBudget { .. }
+    ));
+    let allowed = engine.pinnable_budget();
+    assert!(allowed < budget, "some of the budget stays unpinnable");
+    assert!(
+        allowed >= budget / 2,
+        "the headroom is a margin, not half the cache"
+    );
+    engine
+        .pin(scope(), "at-the-limit".into(), true, allowed)
+        .await
+        .unwrap()
+        .expect("pinning up to the limit is allowed");
+    let reservations = engine.cache.reservations();
+    assert_eq!(reservations.lock().unwrap().reserved, allowed);
+}
+#[tokio::test]
+async fn a_small_cache_keeps_whole_blocks_of_headroom_rather_than_a_tenth_of_very_little() {
+    let temp = tempfile::tempdir().unwrap();
+    // A tenth of a small cache is less than one block, which would leave a
+    // reader unable to hold even the block it is reading.
+    let budget = 64 * 1024 * 1024;
+    let engine = engine(&temp, budget).await;
+    let headroom = budget - engine.pinnable_budget();
+    assert!(
+        headroom >= 8 * crate::content::BLOCK_SIZE as u64,
+        "headroom {headroom} is under eight blocks"
+    );
+}
