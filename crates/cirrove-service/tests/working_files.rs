@@ -276,3 +276,54 @@ fn incomplete_hydration_stays_invisible_and_reserved_bytes_bound_concurrent_work
     assert_eq!(j.read_working(w.id, 0, 100).unwrap(), b"complete");
     assert_eq!(j.retained_bytes().unwrap(), 8);
 }
+
+/// A full budget and a full disk are different problems with opposite remedies,
+/// and both reach an application as ENOSPC. If the journal collapses them into
+/// one error, the difference is gone before anything can report it: a user whose
+/// saves fail is told "no space left on device" on a filesystem with gigabytes
+/// free, and waiting for uploads to drain -- which fixes one and not the other --
+/// looks equally plausible either way.
+#[test]
+fn a_full_budget_and_a_full_disk_are_reported_as_different_problems() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut j = open(&temp.path().join("journal"), 20);
+    let working = j
+        .create_working(scope(), node(0), true, b"".as_slice())
+        .unwrap();
+    j.write_working(working.id, 5, b"abc").unwrap();
+    j.truncate_working(working.id, 6).unwrap();
+    let saved = j.seal_working(working.id).unwrap().unwrap();
+
+    // The budget, not the device.
+    j.truncate_working(working.id, 12).unwrap();
+    let budget = j.seal_working(working.id).unwrap_err();
+    assert!(
+        matches!(budget, JournalError::Quota),
+        "a budget that is full must not be reported as a full disk: {budget:?}"
+    );
+    let explanation = format!("{budget}");
+    assert!(
+        explanation.contains("uploads") || explanation.contains("upload"),
+        "the budget message must say what releases the space: {explanation}"
+    );
+    assert!(
+        explanation.contains("cache_bytes"),
+        "and how to make room now: {explanation}"
+    );
+
+    // The device, not the budget.
+    let device = JournalError::from(std::io::Error::from_raw_os_error(libc::ENOSPC));
+    assert!(
+        matches!(device, JournalError::DeviceFull),
+        "a physical ENOSPC must not be reported as a full budget: {device:?}"
+    );
+    let explanation = format!("{device}");
+    assert!(
+        explanation.contains("freed"),
+        "the device message must name the action that is actually required: {explanation}"
+    );
+
+    // The edit survives both, which is the other half of the box.
+    assert_eq!(payload(&j, saved.id), b"\0\0\0\0\0a");
+    assert!(j.working_file(working.id).unwrap().dirty);
+}

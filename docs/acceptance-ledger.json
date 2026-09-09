@@ -231,7 +231,7 @@
       "done": false,
       "text": "Disk-full recovery preserves edited data and explains required action.",
       "blocker": "needs-root",
-      "evidence": "Scope expanded by the user on 2026-09-09 from milestones 1 and 2 to all six, so this row is no longer out of the agreed frame. Fixture-level ENOSPC is reachable without privileges; a real full filesystem needs a mounted image and therefore root, like the crash/fault box.",
+      "evidence": "Scope expanded by the user on 2026-09-09. PART DONE 2026-09-09. Preservation was already covered: truncate_sparse_writes_and_quota_failures_preserve_the_working_copy shows a refused save leaves the sealed payload and the dirty working copy intact. The explanation half was not: a full local budget and a physically full disk both became JournalError::Quota and both reach an application as ENOSPC, so a user whose saves failed was told 'no space left on device' on a filesystem with gigabytes free, and the two remedies are opposite -- one clears itself as uploads drain, the other never does. DeviceFull is now a separate variant carrying its own remedy, asserted by a_full_budget_and_a_full_disk_are_reported_as_different_problems, which checks the messages name the action rather than only differing. STILL NEEDS ROOT: a genuinely full filesystem. The physical path is exercised here by constructing the io::Error, not by filling a device, which needs a mounted image.",
       "asserted_by": null
     },
     {

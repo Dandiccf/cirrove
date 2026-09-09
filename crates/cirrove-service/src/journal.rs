@@ -50,8 +50,20 @@ pub enum JournalError {
     Account,
     #[error("invalid upload intent")]
     Intent,
-    #[error("local pending-upload storage limit reached")]
+    #[error(
+        "the local pending-upload budget is full; unsent changes are kept, and space \
+         is released as they upload. Raising cache_bytes for this account makes room now."
+    )]
     Quota,
+    /// The filesystem holding the journal is out of space, which is not the same
+    /// problem as the budget being full and does not have the same remedy. Both
+    /// reach an application as ENOSPC, so the difference has to be carried here
+    /// or it is lost: one clears itself as uploads drain, the other never does.
+    #[error(
+        "the disk holding Cirrove's local state is full; unsent changes are kept, \
+         but nothing can be saved until space is freed on that filesystem"
+    )]
+    DeviceFull,
     #[error("upload operation not found")]
     Missing,
     #[error("upload attempt is stale or out of order")]
@@ -64,7 +76,7 @@ pub enum JournalError {
 impl From<std::io::Error> for JournalError {
     fn from(error: std::io::Error) -> Self {
         match error.raw_os_error() {
-            Some(libc::ENOSPC | libc::EDQUOT) => Self::Quota,
+            Some(libc::ENOSPC | libc::EDQUOT) => Self::DeviceFull,
             _ => Self::Storage,
         }
     }
