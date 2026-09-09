@@ -6,6 +6,80 @@
 use super::discovery::{LinkedLibrary, fixture_account};
 use super::*;
 
+/// Serves deterministic bytes for one file, so a materialised pin can be checked
+/// against blocks that actually exist rather than against an empty cache.
+#[derive(Default)]
+struct OneFile {
+    reads: AtomicU64,
+}
+impl OneFile {
+    fn node(size: u64) -> Node {
+        Node {
+            id: "pinned-file".into(),
+            parent_id: Some("root".into()),
+            name: "pinned".into(),
+            kind: cirrove_core::NodeKind::File,
+            size,
+            modified_unix: 0,
+            etag: Some("\"v1\"".into()),
+            content_version: Some("v1".into()),
+            target: None,
+        }
+    }
+}
+#[async_trait::async_trait]
+impl cirrove_core::MetadataProvider for OneFile {
+    fn provider_id(&self) -> &'static str {
+        "fixture"
+    }
+    async fn changes(
+        &self,
+        _: &Scope,
+        _: Option<&cirrove_core::Cursor>,
+        _: &CancellationToken,
+    ) -> std::result::Result<cirrove_core::ChangePage, ProviderError> {
+        Ok(cirrove_core::ChangePage {
+            changes: vec![],
+            checkpoint: cirrove_core::Checkpoint::Complete(cirrove_core::Cursor("done".into())),
+        })
+    }
+}
+#[async_trait::async_trait]
+impl ReadProvider for OneFile {
+    async fn node(
+        &self,
+        _: &Scope,
+        id: &str,
+        _: &CancellationToken,
+    ) -> std::result::Result<Node, ProviderError> {
+        if id == "pinned-file" {
+            Ok(Self::node(0))
+        } else {
+            Err(ProviderError::NotFound)
+        }
+    }
+    async fn children(
+        &self,
+        _: &Scope,
+        _: &str,
+        _: Option<&cirrove_core::Cursor>,
+        _: &CancellationToken,
+    ) -> std::result::Result<cirrove_core::DirectoryPage, ProviderError> {
+        Err(ProviderError::NotFound)
+    }
+    async fn read_range(
+        &self,
+        _: &Scope,
+        node: &Node,
+        offset: u64,
+        length: u32,
+        _: &CancellationToken,
+    ) -> std::result::Result<Vec<u8>, ProviderError> {
+        self.reads.fetch_add(1, Ordering::SeqCst);
+        let end = (offset + length as u64).min(node.size);
+        Ok((offset..end).map(|i| (i % 251) as u8).collect())
+    }
+}
 async fn engine(temp: &tempfile::TempDir, budget: u64) -> Arc<Engine> {
     let provider = Arc::new(LinkedLibrary {
         linked: AtomicBool::new(false),
@@ -104,4 +178,46 @@ async fn unpinning_releases_the_budget_at_the_cache() {
         !engine.unpin(scope(), "item".into()).await.unwrap(),
         "unpinning what is not pinned reports that rather than pretending"
     );
+}
+
+#[tokio::test]
+async fn materialising_a_pin_fetches_its_blocks_and_protects_exactly_those() {
+    let temp = tempfile::tempdir().unwrap();
+    let provider = Arc::new(OneFile::default());
+    let mut account = fixture_account(temp.path().join("mount"));
+    account.cache_bytes = 64 * 1024 * 1024;
+    let engine = Engine::new(account, provider.clone(), temp.path().join("engine"))
+        .await
+        .unwrap();
+    // Two full blocks and a short third, so an off-by-one in the key walk shows
+    // up as a count rather than passing on a size that divides evenly.
+    let size = 2 * crate::content::BLOCK_SIZE as u64 + 1024;
+    let node = OneFile::node(size);
+    engine
+        .pin(scope(), node.id.clone(), false, size)
+        .await
+        .unwrap()
+        .expect("fits");
+    let blocks = engine.materialise_pin(&scope(), &node).await.unwrap();
+    assert_eq!(blocks, 3, "a partial last block is still a block");
+    assert!(
+        provider.reads.load(Ordering::SeqCst) >= 3,
+        "content was fetched"
+    );
+    let reservations = engine.cache.reservations();
+    let view = reservations.lock().unwrap();
+    assert_eq!(view.protected.len(), 3);
+    // Named with the cache's own derivation. A protected set built any other way
+    // would cover keys nothing writes, and would look identical to no protection.
+    for start in [
+        0,
+        crate::content::BLOCK_SIZE as u64,
+        2 * crate::content::BLOCK_SIZE as u64,
+    ] {
+        let key = crate::content::block_key(&scope(), &node, start).expect("key");
+        assert!(
+            view.protected.contains(&key),
+            "block at {start} is unprotected"
+        );
+    }
 }

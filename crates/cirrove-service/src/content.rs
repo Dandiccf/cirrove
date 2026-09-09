@@ -155,12 +155,13 @@ impl ContentCache {
         start: u64,
         cancel: &CancellationToken,
     ) -> Result<Arc<Vec<u8>>, ProviderError> {
-        let version = node
-            .content_revision()
+        // Checked here rather than left to block_key so the caller still gets the
+        // reason. A file without a version tag cannot be cached at all, and
+        // reporting that as a generic failure would send anyone debugging it
+        // looking at the cache instead of at the provider response.
+        node.content_revision()
             .ok_or(ProviderError::Protocol("file has no version tag"))?;
-        let identity = serde_json::to_vec(&(scope, &node.id, version, node.size, start))
-            .map_err(|_| ProviderError::Unavailable)?;
-        let key = hex::encode(Sha256::digest(&identity));
+        let key = block_key(scope, node, start).ok_or(ProviderError::Unavailable)?;
         if let Some(bytes) = self.recalled(&key)? {
             return Ok(bytes);
         }
@@ -304,6 +305,26 @@ impl ContentCache {
         }
         Ok(())
     }
+}
+/// The cache key for one block of one revision of one file.
+///
+/// Pinning has to name the blocks it protects, and naming them any other way
+/// than the cache does would protect keys nothing ever writes. Deriving both
+/// from here is what keeps a protected set from silently covering nothing.
+pub fn block_key(scope: &Scope, node: &Node, start: u64) -> Option<String> {
+    let version = node.content_revision()?;
+    let identity = serde_json::to_vec(&(scope, &node.id, version, node.size, start)).ok()?;
+    Some(hex::encode(Sha256::digest(&identity)))
+}
+/// Every block key a file's content occupies, in order.
+pub fn block_keys(scope: &Scope, node: &Node) -> Option<Vec<String>> {
+    let mut keys = Vec::new();
+    let mut start = 0;
+    while start < node.size {
+        keys.push(block_key(scope, node, start)?);
+        start += BLOCK_SIZE as u64;
+    }
+    Some(keys)
 }
 fn valid_key(key: &str) -> bool {
     key.len() == 64

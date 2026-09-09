@@ -170,6 +170,49 @@ impl Engine {
         }
         Ok(outcome)
     }
+    /// Fetch a pinned file's content and protect the blocks it occupies.
+    ///
+    /// Pinning without this is an accounting entry: the space is reserved and
+    /// nothing is kept, so the first offline read still fails. The blocks are
+    /// named with the cache's own key derivation, because a protected set built
+    /// any other way would cover keys nothing ever writes and would be
+    /// indistinguishable from no protection at all.
+    ///
+    /// Content revisions change block keys, so this is also what a pin needs
+    /// after the file changes remotely.
+    pub async fn materialise_pin(&self, scope: &Scope, node: &Node) -> Result<usize> {
+        let keys = anyhow::Context::context(
+            crate::content::block_keys(scope, node),
+            "pinned file has no content version to bind its blocks to",
+        )?;
+        let mut start = 0;
+        while start < node.size {
+            let length = (node.size - start).min(crate::content::BLOCK_SIZE as u64) as u32;
+            self.cache
+                .read(
+                    self.provider.as_ref(),
+                    scope,
+                    node,
+                    start,
+                    length,
+                    &self.cancel,
+                )
+                .await?;
+            start += crate::content::BLOCK_SIZE as u64;
+        }
+        let db = self.db.clone();
+        let key = serde_json::to_string(scope).unwrap_or_default();
+        let item = node.id.clone();
+        let count = keys.len();
+        let owned = keys.clone();
+        tokio::task::spawn_blocking(move || Store::open(db)?.protect_blocks(&key, &item, &owned))
+            .await??;
+        // Published only after the blocks exist. Protecting keys before their
+        // content is fetched would shrink what eviction may take while the cache
+        // still has to make room for the fetch itself.
+        self.refresh_reservations().await?;
+        Ok(count)
+    }
     /// Release a pin and the space it held. Reports whether one existed.
     pub async fn unpin(&self, scope: Scope, item: String) -> Result<bool> {
         let db = self.db.clone();
