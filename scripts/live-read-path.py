@@ -59,6 +59,17 @@ def main():
         default=70,
         help="must exceed SESSION_LEASE or renewal cannot be reached",
     )
+    parser.add_argument(
+        "--pace-seconds",
+        type=int,
+        default=0,
+        help=(
+            "instead of pausing, read continuously at a pace that spreads the work "
+            "over this many seconds. An idle pause does not reach renewal: the read "
+            "after it is served outside the session entirely, so the session is never "
+            "asked for bytes with an expired lease. Only continuous use reaches it."
+        ),
+    )
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
 
@@ -78,9 +89,21 @@ def main():
         mid = (size // 2) & ~0xFFFFF
         mid_read, _ = read_range(handle, mid, window, digest)
 
-        # The lease is what this waits out. The handle stays open across it, so the
-        # next read continues an existing session instead of opening a new one.
-        time.sleep(args.pause_seconds)
+        paced_reads = 0
+        if args.pace_seconds:
+            # Keep the session working across the lease rather than letting it idle.
+            deadline = time.monotonic() + args.pace_seconds
+            offset = mid + window
+            step = 1 << 20
+            while time.monotonic() < deadline and offset + step < size:
+                got, _ = read_range(handle, offset, step, digest)
+                offset += step
+                paced_reads += 1
+                time.sleep(0.25)
+        else:
+            # The lease is what this waits out. The handle stays open across it, so
+            # the next read continues an existing session instead of opening a new one.
+            time.sleep(args.pause_seconds)
 
         late = (size - window) & ~0xFFFFF
         late_read, late_first_byte = read_range(handle, late, window, digest)
@@ -97,6 +120,8 @@ def main():
         "first_byte_after_pause_seconds": late_first_byte,
         "wall_clock_seconds": round(elapsed, 3),
         "pause_seconds": args.pause_seconds,
+        "pace_seconds": args.pace_seconds,
+        "paced_reads": paced_reads,
         "counters_before": before,
         "counters_after": after,
         "counters_delta": delta,

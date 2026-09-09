@@ -176,6 +176,16 @@ pub struct ReadPathCounters {
     pub conditional_windows: u64,
     /// Ranges served without a usable session, on the conservative path.
     pub fallback_ranges: u64,
+    /// Windows served without a usable session, on the conservative path. A
+    /// session that degrades to fallback never re-binds, so this rising while
+    /// `renewals` stays at zero is the expected shape rather than a puzzle.
+    pub fallback_windows: u64,
+    /// Every Graph metadata GET this adapter attempted, whether or not a read
+    /// session was involved. Without it a read served outside the session paths
+    /// is indistinguishable from no read at all.
+    pub graph_gets: u64,
+    /// Every content GET this adapter attempted, on any path.
+    pub content_gets: u64,
 }
 
 /// Read-only filesystem operations, deliberately separate from change feeds.

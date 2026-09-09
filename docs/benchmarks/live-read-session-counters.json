@@ -102,7 +102,7 @@
     "P1_discriminator": "HOLDS. Arm A reported setups 0, arm B reported setups 1. The opt-in is what selects the path, so the remaining counters are attributable.",
     "P2": "HOLDS. conditional_ranges 1.",
     "P3": "HOLDS, and this is what the run was for. conditional_windows 3 -- one per read phase. The bounded-window path had never been observed anywhere: the adapter-level validator cannot build staging and so reported a zero that measured its own harness. It runs on a live mount.",
-    "P4": "FAILS. renewals 0, after a 70 s pause with the handle open against a 60 s SESSION_LEASE. setups stayed at 1, so no second session was opened either, and the post-pause read did reach the provider -- it took 798 ms against 5.7 ms for the first byte, and the cache grew by more than the prefix alone.",
+    "P4": "RESOLVED, and not as first recorded. The original FAILS verdict stands as a statement about that workload: an idle pause does not reach renewal. With continuous use across the lease, arm D reports renewals: 1. Safe renewal has live-mount evidence.",
     "P5": "UNMEASURABLE as registered; see method_correction.",
     "P6": "INVALIDATED by the method correction; see method_correction."
   },
@@ -115,5 +115,33 @@
     "how_to_separate_them": "Repeat arm B with a pause longer than the provider URL's own lifetime, and separately instrument whether the post-pause range request carried a re-bound URL. Until one of these is done, neither explanation is established.",
     "note": "These are candidates, not a diagnosis. The run establishes that the counter stayed at zero, and nothing more."
   },
-  "decision": "The milestone 1 read-session box STAYS OPEN. The registered rule required P1, P3, P4 and P6 together; P4 failed and P6 was invalidated by a correction to my own method. Two of ADR 0004's three claims -- shared setup and bounded windows -- now have live-mount evidence for the first time. Safe renewal does not."
+  "decision": "All three ADR 0004 behaviours now have live-mount evidence: shared setup and bounded windows from arms B and C, safe renewal from arm D. The acceptance box is still NOT ticked here. The registered rule also required P6, mount-level byte correctness, which the two-file design made unsatisfiable and which no run has since supplied; and the box's first clause -- that per-cache-block Graph metadata checks are gone from the fast path -- is not established by counters that include unrelated adapter traffic. Ticking it needs a byte-correctness check on the mount and an attribution of graph_gets to the read itself. Neither is done.",
+  "follow_up": {
+    "why": "The first run left renewals at zero and offered two explanations without separating them. Both were wrong, and the counters as they stood could not have told anyone so: the window path's fallback arm incremented nothing, and reads served outside the session paths were outside read_path entirely. A zero was therefore indistinguishable from a read the session never saw.",
+    "instrumentation_added": "fallback_windows, plus the adapter's existing graph_gets and content_gets surfaced through cirrove status. The unit test a_fallback_session_reports_the_windows_it_serves fails 0 against 2 without the increment.",
+    "arm_C_same_workload_now_instrumented": {
+      "graph_gets": 39,
+      "fallback_windows": 0,
+      "fallback_ranges": 0,
+      "setups": 1,
+      "content_gets": 5,
+      "renewals": 0,
+      "conditional_ranges": 1,
+      "conditional_windows": 3
+    },
+    "arm_D_continuous_instead_of_idle": {
+      "graph_gets": 40,
+      "setups": 1,
+      "content_gets": 11,
+      "fallback_ranges": 0,
+      "conditional_ranges": 1,
+      "conditional_windows": 8,
+      "fallback_windows": 0,
+      "renewals": 1
+    },
+    "arm_D_shape": "90 s of continuous paced reading in place of the idle pause, 312 reads, 93.259 s wall clock",
+    "diagnosis": "Renewal was never broken and the lease was never the obstacle. An idle pause is what prevented it: arm C shows fallback_windows 0, so the session did not degrade, while content_gets rose by 5 against 4 session operations -- the read after the pause was served outside every session path, so the session was never asked for bytes with an expired lease. Arm D kept the same session working across the lease and renewed once.",
+    "hypothesis_that_was_wrong": "Reading the code, I concluded the session had degraded to State::Fallback, whose window arm reported nothing and which never re-binds. fallback_windows: 0 refutes that. The counter added to test the hypothesis is what falsified it, which is the outcome that would have been unavailable an hour earlier.",
+    "setups_caveat": "The unit test also established that setups counts the attempt made from Cold rather than a binding that succeeded. A session that immediately falls back still reports setups: 1, so that counter alone does not establish that a session exists. In these runs the binding is established by conditional_windows, which requires State::Bound."
+  }
 }

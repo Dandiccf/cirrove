@@ -578,6 +578,42 @@ async fn streamed_window_has_one_metadata_pair_and_bounded_chunks() {
     assert_eq!(c.content_body_bytes, 64 * 1024 * 1024 + 32);
 }
 #[tokio::test]
+async fn a_fallback_session_reports_the_windows_it_serves() {
+    // A session that cannot bind serves every later window through the conservative
+    // path, and used to do so without touching any counter. Nothing distinguished
+    // that from a read the session never saw, which is the shape a live measurement
+    // actually produced: three windows, one setup, and a later read that reached the
+    // provider while every counter stood still.
+    let f = fixture(128 * 1024 * 1024).await;
+    f.mode("weak");
+    let s = f.session();
+    read(&s, 0, 32).await.unwrap();
+    for offset in [4 * 1024 * 1024, 16 * 1024 * 1024] {
+        let mut sink = WindowSink {
+            bytes: 0,
+            fail: false,
+        };
+        s.read_window(
+            offset,
+            8 * 1024 * 1024,
+            &mut sink,
+            &CancellationToken::new(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(sink.bytes, 8 * 1024 * 1024);
+    }
+    let c = f.graph.read_counters();
+    assert_eq!(c.fallback_windows, 2);
+    // The session never bound, so it can never re-bind. A zero in `renewals` beside
+    // a rising `fallback_windows` is the expected shape and not a missing renewal.
+    assert_eq!((c.renewals, c.conditional_windows), (0, 0));
+    // `setups` counts the attempt made from Cold, not a binding that succeeded: this
+    // session recorded one and then served everything conservatively. A reading of
+    // `setups: 1` on its own therefore does not establish that a session exists.
+    assert_eq!(c.setups, 1);
+}
+#[tokio::test]
 async fn streamed_window_rejects_response_faults_and_failed_final_version_check() {
     for mode in [
         "wrong_range",

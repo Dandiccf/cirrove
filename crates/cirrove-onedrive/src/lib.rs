@@ -415,6 +415,9 @@ impl ReadProvider for OneDrive {
             conditional_ranges: counters.conditional_ranges,
             conditional_windows: counters.conditional_windows,
             fallback_ranges: counters.fallback_ranges,
+            fallback_windows: counters.fallback_windows,
+            graph_gets: counters.graph_get_attempts,
+            content_gets: counters.content_get_attempts,
         })
     }
     async fn open_read_session(

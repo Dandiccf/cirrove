@@ -1857,3 +1857,55 @@ unmeasurable as written.
 The optimized path remains off by default. It is selected here only by an explicit
 opt-in that `accounts::provider` reads, so that this measurement was possible
 without changing what the daemon does for anyone who has not asked for it.
+
+### The renewal zero was the workload, and the counters could not have said so
+
+The entry above left `renewals: 0` with two candidate explanations and no way to
+choose between them. Both were wrong, and more usefully, the counters as they
+stood could not have distinguished them from a third possibility. Two holes:
+`window()`'s `State::Fallback` arm served windows without touching any counter,
+and reads served outside the session paths were outside `read_path` altogether.
+A zero meant "no renewal", "a renewal nobody counted" or "a read the session
+never saw", with nothing to separate them.
+
+`fallback_windows` now covers the first hole, and the adapter's `graph_gets` and
+`content_gets` are surfaced through `cirrove status` for the second.
+`a_fallback_session_reports_the_windows_it_serves` fails 0 against 2 without the
+increment.
+
+| counter | arm C, idle pause | arm D, continuous |
+| --- | ---: | ---: |
+| `setups` | 1 | 1 |
+| `renewals` | 0 | **1** |
+| `conditional_ranges` | 1 | 1 |
+| `conditional_windows` | 3 | 8 |
+| `fallback_windows` | 0 | 0 |
+| `content_gets` | 5 | 11 |
+
+Arm C repeats the earlier workload on a third cold file with the counters in
+place. `fallback_windows: 0` **refutes the reading taken from the code**, which
+was that the session had degraded to fallback and could therefore never re-bind.
+It had not. But `content_gets` rose by 5 against four session operations, so a
+fifth read reached the provider through a path no session counter covers. That is
+the read after the pause. The session was never asked for those bytes, so its
+expired lease was never consulted, so nothing renewed.
+
+Arm D replaced the idle pause with 90 seconds of continuous paced reading, 312
+reads, on a fourth cold file. `renewals: 1`. Renewal was never broken, and
+`SESSION_LEASE` was never the obstacle; an idle handle was. The lease is a local
+bound the code checks itself, so had the session been asked for bytes after it
+expired, it would have re-bound whatever the provider URL's own lifetime was —
+which is why that second candidate explanation was never as plausible as it read.
+
+A smaller correction falls out of the unit test. `setups` counts the attempt made
+from `Cold`, not a binding that succeeded: a session that immediately falls back
+still reports `setups: 1`. The claim that shared setup is established rests on
+`conditional_windows`, which requires `State::Bound`, and not on `setups`.
+
+**The box still does not close.** All three of ADR 0004's behaviours now have
+live-mount evidence, which is new. But the registered rule also required a
+byte-correctness check on the mount, which the two-file design made unsatisfiable
+and which no run has since supplied; and the box's first clause, that per-cache-block
+Graph metadata checks are gone from the fast path, is not established by a
+`graph_gets` figure that also counts unrelated adapter traffic. Two specific
+things are missing, and they are the two things to do next.

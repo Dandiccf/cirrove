@@ -853,7 +853,25 @@ mod tests {
         );
         assert_eq!(super::interrupted_desired_state(&state, &id), Some(true));
         drop(held);
-        assert!(super::heal_interrupted_sign_ins(&state).expect("heal"));
+        // Parallel tests launch child processes. Between fork and exec a child can
+        // retain the open description underlying flock, even with CLOEXEC, so the
+        // operation lock this test just dropped can stay held for a short interval.
+        // `heal_interrupted_sign_ins` reads that as a sign-in still running and
+        // declines, which is correct of it and is what this assertion would
+        // otherwise mistake for a failure to heal. Require prompt eventual healing
+        // rather than instantaneous healing; the assertion above still proves that
+        // a held lock suppresses it.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        loop {
+            if super::heal_interrupted_sign_ins(&state).expect("heal") {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "an account left disabled by an interrupted sign-in was never restored"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
     }
 
     fn fixture_account(access: AccessMode) -> Account {
