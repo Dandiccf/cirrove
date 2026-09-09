@@ -407,6 +407,16 @@ impl MetadataProvider for OneDrive {
 
 #[async_trait]
 impl ReadProvider for OneDrive {
+    fn read_path_counters(&self) -> Option<cirrove_core::ReadPathCounters> {
+        let counters = self.read_counters();
+        Some(cirrove_core::ReadPathCounters {
+            setups: counters.setups,
+            renewals: counters.renewals,
+            conditional_ranges: counters.conditional_ranges,
+            conditional_windows: counters.conditional_windows,
+            fallback_ranges: counters.fallback_ranges,
+        })
+    }
     async fn open_read_session(
         &self,
         scope: &Scope,

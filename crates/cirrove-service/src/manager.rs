@@ -38,6 +38,12 @@ pub struct AccountStatus {
     pub feeds: Vec<FeedHealth>,
     #[serde(default)]
     pub directory_freshness: crate::DirectoryFreshness,
+    /// Adapter read-path counters, when the adapter keeps them. Reported because
+    /// nothing else can see them: the window path runs only behind the content
+    /// cache, so a direct-to-adapter check reports zero windows no matter how the
+    /// mounted daemon is behaving. `null` means this adapter does not count.
+    #[serde(default)]
+    pub read_path: Option<cirrove_core::ReadPathCounters>,
     pub indexed_feeds: u64,
     pub indexed_items: u64,
 }
@@ -163,6 +169,7 @@ impl Manager {
                             }),
                             feeds: vec![],
                             directory_freshness: crate::DirectoryFreshness::default(),
+                            read_path: None,
                             indexed_feeds: 0,
                             indexed_items: 0,
                         };
@@ -209,6 +216,7 @@ impl Manager {
                             }
                             status.feeds = active.engine.health().await;
                             status.directory_freshness = active.engine.directory_freshness();
+                            status.read_path = active.engine.provider.read_path_counters();
                             let db = active.engine.db.clone();
                             if let Ok(Ok((feeds, items))) = tokio::task::spawn_blocking(move || {
                                 cirrove_store::Store::open(db)?.counts()
