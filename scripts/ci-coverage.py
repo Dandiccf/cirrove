@@ -11,6 +11,12 @@ filter that requires `real_` after it, so neither has ever run automatically.
 This turns that silence into a failing build. Every `#[ignore]`d test must either
 match a filter CI actually uses, or appear below with a reason. Nothing is
 excused by accident.
+
+What it does not check is whether a selected test finishes. A step's `timeout`
+kills the whole group, so one slow addition takes every test after it down and
+the log simply stops mid-test -- which is how a 426-second capacity fixture went
+unnoticed until a docs-only commit went red for it. Selection is proved here;
+runtime is not.
 """
 
 import re
@@ -43,6 +49,10 @@ EXCUSED = {
     "directory_publication_capacity": "500k-row benchmark; run deliberately",
     "large_directory_read_memory": "500k-entry benchmark; needs CIRROVE_DIRECTORY_* set explicitly",
     "synthetic_latency_report": "reporting fixture, not a pass/fail test",
+    "real_writable_namespace_retires_and_stays_bounded": (
+        "capacity benchmark; 426 s measured in a debug build, so it never fit the "
+        "150 s step it was added to and took the whole group red with it"
+    ),
 }
 
 

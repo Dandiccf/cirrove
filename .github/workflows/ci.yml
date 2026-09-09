@@ -58,7 +58,7 @@ jobs:
         # Each fixture still exercises its own concurrent requests/accounts.
         run: timeout 150s cargo test -p cirrove-service --test read_only --locked real_ -- --ignored --nocapture --test-threads=1
       - name: Namespace reclamation, deep-alias churn and held file versions
-        run: timeout 150s cargo test -p cirrove-service --lib --locked filesystem::capacity::real_ -- --ignored --nocapture --test-threads=1
+        run: timeout 150s cargo test -p cirrove-service --lib --locked filesystem::capacity::real_ -- --ignored --nocapture --test-threads=1 --skip real_writable_namespace_retires_and_stays_bounded
       - name: Streamed windows, concurrent kernel readers and navigation
         run: timeout 90s cargo test -p cirrove-service --lib --locked content::windows::tests::graph::kernel::real_ -- --ignored --nocapture --test-threads=1
       - name: Automatic writable-session uploads and draining
