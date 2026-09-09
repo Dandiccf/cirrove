@@ -4,6 +4,7 @@ mod catchup;
 mod freshness;
 mod namespace;
 mod notifications;
+mod read_bytes;
 mod writable;
 use crate::{
     accounts,
@@ -23,6 +24,7 @@ use cirrove_onedrive::OneDrive;
 pub use freshness::onedrive_freshness;
 pub use namespace::onedrive_mutations;
 pub use notifications::onedrive_notifications;
+pub use read_bytes::onedrive_read_bytes;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use std::{
@@ -200,6 +202,21 @@ async fn verify(
     Ok(())
 }
 
+/// A configured account for a check that only reads.
+///
+/// `test_account` refuses an enabled account and demands a write grant, because
+/// the checks that use it mutate a drive and must never be pointed at a running
+/// one. A read-only measurement has neither hazard: it opens its own engine
+/// directory, mounts somewhere else, and issues GETs. Refusing the ordinary
+/// account here would mean the read path could only ever be measured against a
+/// drive nobody uses.
+fn read_only_account(state: &Path, label: &str) -> Result<accounts::Account> {
+    accounts::Settings::load(state)?
+        .accounts
+        .into_iter()
+        .find(|a| a.label == label)
+        .context("unknown account")
+}
 fn test_account(state: &Path, label: &str) -> Result<accounts::Account> {
     let account = accounts::Settings::load(state)?
         .accounts

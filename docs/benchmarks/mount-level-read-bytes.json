@@ -1,0 +1,82 @@
+{
+  "question": "Through a real mount, does the experimental read path serve the same bytes as the conservative one, and does it actually remove Graph metadata requests from the read?",
+  "why_now": "benchmarks/live-read-session-counters.json closed the counter question and left two things open, both of which this answers. Its two-file design made the registered byte-identity check unsatisfiable, so no mount-level byte evidence exists; correctness still rests on the adapter-level all_samples_match. And the acceptance box's first clause -- that per-cache-block Graph metadata checks are gone from the fast path -- was not established, because graph_gets there counted the adapter's lifetime traffic including work unrelated to the read.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-09",
+  "how_the_earlier_obstacles_are_removed": {
+    "same_file_in_both_arms": "Each arm builds its own engine directory, so each starts with an empty content cache. The second arm cannot be served blocks the first fetched, which is what forced the two-file design last time and destroyed the byte comparison with it.",
+    "attributable_counters": "Each arm constructs its own adapter and samples read_counters immediately before and after the read itself. The difference is that read's traffic, not a lifetime total, and the running daemon's adapter is a different object entirely."
+  },
+  "arms": [
+    {
+      "name": "conservative",
+      "description": "accounts::provider, conditional_reads false. Mounted read-only on the file's own parent folder so the engine indexes that folder rather than the whole drive."
+    },
+    {
+      "name": "optimized",
+      "description": "accounts::experimental_read_provider, the same adapter with the read-session path selected. Same file, same mount shape, its own cold engine directory."
+    }
+  ],
+  "workload": "Read one 32 MiB file end to end through the kernel mount with ordinary buffered reads, hashing as it goes. Nothing is written, renamed, moved or deleted; the account's own daemon mount is untouched and the fixture mounts live under the run directory.",
+  "endpoint": "The SHA-256 of the bytes each arm read, and the Graph metadata GETs, content GETs, session setups and bounded windows attributable to each read.",
+  "predictions": [
+    {
+      "id": "P1",
+      "claim": "Both arms read the same byte count and the same SHA-256.",
+      "role": "the correctness gate, and the one this run exists for. A mismatch is a defect that stops all work on the read path regardless of any speed result."
+    },
+    {
+      "id": "P2",
+      "claim": "The optimized arm reports setups > 0 and conditional_windows > 0, and the conservative arm reports zero for both.",
+      "role": "discriminator -- without it a byte match would say nothing about the fast path, because both arms might have taken the same route"
+    },
+    {
+      "id": "P3",
+      "claim": "The optimized arm issues materially fewer Graph metadata GETs for the same 32 MiB read. The conservative path validates per cache block, so its count should scale with the number of blocks while the optimized path's should stay near the constant cost of establishing one session."
+    }
+  ],
+  "decision_rule": "The milestone 1 read-session box may be recorded as having mount-level byte evidence only if P1 and P2 both hold. P3 addresses the box's first clause about per-cache-block metadata checks; a small or absent difference there would mean the clause is unmet and would be recorded as such rather than explained away. Ticking the box remains a separate judgement, since enabling the path by default is a product decision that is not this measurement's to make.",
+  "safety": {
+    "account": "The user's real work drive, read-only, with their explicit permission for read testing.",
+    "writes": "None. The fixture mounts are read-only, and the only file operation is a sequential read.",
+    "note": "Two cold reads of one 32 MiB file, so 64 MiB of provider traffic in total."
+  },
+  "result": {
+    "large_file": {
+      "bytes": 41918278,
+      "conservative": {
+        "graph_gets": 22,
+        "content_gets": 10,
+        "seconds": 10.1
+      },
+      "optimized": {
+        "graph_gets": 4,
+        "content_gets": 4,
+        "seconds": 2.9
+      },
+      "sha256_match": true
+    },
+    "small_file": {
+      "bytes": 9402197,
+      "conservative": {
+        "graph_gets": 7,
+        "content_gets": 3,
+        "seconds": 3.2
+      },
+      "optimized": {
+        "graph_gets": 3,
+        "content_gets": 2,
+        "seconds": 1.6
+      },
+      "sha256_match": true
+    },
+    "note": "The second size was not planned in the registration. It was added because a single size cannot separate 'per cache block' from 'more work for a bigger file', and the box's wording is specifically about the former."
+  },
+  "verdict": {
+    "P1": "HOLDS at both sizes. Identical byte counts and identical SHA-256 through the kernel mount, from two cold mounts of the same file. This is the mount-level byte evidence the earlier two-file design could not produce.",
+    "P2": "HOLDS. The run asserts it: the optimized arm established a bound session and served bounded windows, the conservative arm did neither. Without that the byte match would not be evidence about the fast path.",
+    "P3": "HOLDS, and the second size is what makes it a statement about cache blocks rather than about size. Conservative Graph metadata GETs track content GETs at about two per block -- 22 against 10, and 7 against 3, both close to 2n. Optimized does not: 4 against 4, and 3 against 2. The conservative cost grows with the number of blocks; the optimized cost does not."
+  },
+  "timing_note": "10.1 s against 2.9 s, and 3.2 s against 1.6 s, same file per pair and both arms cold. This is a fairer comparison than the earlier one, which used different files, but it is still one run per arm against an uncontrolled provider. A direction, not a result. The request counts are the durable finding: they are structural rather than timing-dependent, and they reproduce across two sizes.",
+  "decision": "Every clause of the milestone 1 read-session box now has live evidence. Per-cache-block Graph metadata checks are measurably absent from the fast path; shared setup, bounded windows and safe renewal were each observed on a live mount in benchmarks/live-read-session-counters.json and live-catchup-and-recovery.json's sibling run; and the bytes match through the mount at two sizes. The box is still not ticked, for one reason that is not a measurement: conditional_reads is false by default, so a shipped daemon still performs the per-block checks this measures the removal of. What is left is the decision to enable it, which belongs to the user and not to this artifact."
+}

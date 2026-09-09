@@ -481,6 +481,22 @@ pub fn provider(account: &Account) -> Result<Arc<OneDrive>> {
     };
     Ok(Arc::new(graph))
 }
+/// The same adapter with the experimental read-session path selected.
+///
+/// The builder consumes the adapter, so a measurement cannot flip an existing
+/// `Arc<OneDrive>`; it has to be constructed this way from the start. Kept next
+/// to `provider` so the two stay in step.
+pub fn experimental_read_provider(account: &Account) -> Result<Arc<OneDrive>> {
+    let broker = TokenBroker::new(
+        account.registration.clone(),
+        account.identity.clone(),
+        account.credential_id.clone(),
+        Arc::new(DesktopVault),
+    )?;
+    Ok(Arc::new(
+        OneDrive::new(account.id.clone(), Arc::new(broker))?.with_experimental_read_sessions(),
+    ))
+}
 /// Complete browser sign-in, display verified identity and let the caller choose a
 /// drive. Persistence happens only after the selected drive's root is verified.
 pub async fn connect(

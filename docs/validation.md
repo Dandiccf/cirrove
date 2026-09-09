@@ -1959,3 +1959,53 @@ call that produced it rather than to visibility, which all three paths can cause
 notification in eleven that was never delivered and remains unexplained. What
 this run adds is a measured bound on that miss: with no subscription connected at
 all, the periodic refresh found an untold change in 29.4 seconds.
+
+### The same file through two cold mounts, with the path off and on
+
+Two things were still missing after the counters were read off a live mount. The
+two-file design there made the registered byte-identity check unsatisfiable, so
+no mount-level byte evidence existed; and its `graph_gets` figure counted the
+adapter's lifetime traffic, which cannot speak to a clause about per-cache-block
+checks. Both are answered by giving each arm its own engine directory, and so its
+own empty content cache, and its own adapter sampled around the read alone.
+Registered beforehand in
+[`benchmarks/mount-level-read-bytes.json`](benchmarks/mount-level-read-bytes.json).
+
+| file | arm | content GETs | Graph metadata GETs | wall clock |
+| --- | --- | ---: | ---: | ---: |
+| 41,918,278 B | conservative | 10 | 22 | 10.1 s |
+| 41,918,278 B | optimized | 4 | **4** | 2.9 s |
+| 9,402,197 B | conservative | 3 | 7 | 3.2 s |
+| 9,402,197 B | optimized | 2 | **3** | 1.6 s |
+
+SHA-256 identical between the arms at both sizes, read end to end through the
+kernel mount. The optimized arm established a bound session and served bounded
+windows; the conservative arm did neither, which is asserted rather than assumed,
+because a byte match between two arms that took the same route would say nothing.
+
+The second size was not in the registration and is the reason this says anything
+about cache blocks. One size cannot separate "per block" from "more work for a
+bigger file". Conservative Graph metadata requests track content requests at
+about two per block — 22 against 10, and 7 against 3, both close to `2n`. The
+optimized path does not: 4 against 4, and 3 against 2. The conservative cost
+grows with the number of blocks and the optimized cost does not, which is the
+clause stated as the box states it.
+
+Timing is recorded and claims little: one run per arm against an uncontrolled
+provider is a direction. The request counts are the durable part, being
+structural rather than timing-dependent, and they reproduce across a four-fold
+difference in size.
+
+**Every clause of this box now has live evidence, and it still does not close.**
+Not for want of a measurement: `conditional_reads` is `false` by default, so a
+shipped daemon still performs exactly the per-block checks measured absent above.
+What remains is the decision to turn it on, and that is not a measurement's to
+make.
+
+**One finding outside the box.** The first attempt failed with "remote item not
+found" because the fixture built its scope from `account.drive.id`. This account
+holds 42 nodes in its own drive and 183,960 in a linked collection, so a check
+that silently assumes the selected drive addresses 0.02 percent of what is
+mounted. The fixture now takes the collection explicitly. Milestone 4 carries a
+box for linked folders; this account is already an instance of it, and any
+measurement written against the account drive alone will keep missing it.
