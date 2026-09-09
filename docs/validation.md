@@ -2050,3 +2050,37 @@ closer agreement than a single run would justify claiming. And these runs were
 made before anything was registered, which is not the discipline this repository
 asks for; the registration says so rather than presenting derived predictions as
 foresight.
+
+### A mounted view following remote creates, moves and deletions
+
+Provider-level mutations were already covered. Whether the filesystem somebody is
+looking at follows them is a different claim, and one a provider-level check
+cannot make: a provider can accept a rename the mount never reflects, and nothing
+in that check would notice.
+
+| remote operation | visible in the mounted view after |
+| --- | ---: |
+| create a folder | 5,058 ms |
+| rename it | 4,654 ms |
+| delete it | 4,254 ms |
+
+All three land within four to five seconds, which is not a coincidence and not
+the notification path: it is the five-second activity revalidation interval from
+`activity.rs`, reached because the fixture is watching that directory and so
+keeps it active. A directory nobody is looking at would follow the same changes
+by catch-up or the thirty-second poll instead, both measured separately in the
+entry above.
+
+The rename check requires both halves — the new name present *and* the old one
+gone. A view that shows the new name and keeps the old has followed nothing; it
+has added.
+
+**Not covered: edits.** The box names creates, edits, moves and deletions, and a
+content change to an existing file goes through the upload path rather than a
+namespace mutation. Three of four is what this run establishes.
+
+One method note. The first attempt failed with `remote item or destination
+changed`, because the rename's precondition used the node returned by creation.
+A conditional mutation against a validator that has since moved on is refused as
+a conflict that never happened, so the precondition now comes from a fresh read
+taken immediately beforehand.

@@ -6,6 +6,7 @@ mod namespace;
 mod navigation;
 mod notifications;
 mod read_bytes;
+mod remote_changes;
 mod writable;
 use crate::{
     accounts,
@@ -27,6 +28,7 @@ pub use namespace::onedrive_mutations;
 pub use navigation::onedrive_navigation;
 pub use notifications::onedrive_notifications;
 pub use read_bytes::onedrive_read_bytes;
+pub use remote_changes::onedrive_remote_changes;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use std::{

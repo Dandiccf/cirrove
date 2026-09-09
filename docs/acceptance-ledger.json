@@ -280,8 +280,8 @@
       "line": 213,
       "done": false,
       "text": "Remote creates, edits, moves and deletions update mounted views correctly.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": "PARTIAL 2026-09-09, creates only (docs/validation.md#catch-up-after-a-reconnection-and-the-periodic-recovery-refresh). A folder created through Graph while a read-only mount was idle became visible through that mount by two separate routes, each measured with the other disabled: 408 ms after a subscription reconnected, and 29,421 ms by the periodic refresh with no subscription at all. Directory activity revalidation is a third route, and finds such a change within about five seconds for a directory somebody is looking at. NOT COVERED: edits, moves and deletions through a mounted view. Provider-level rename, move and deletion are exercised by validate-onedrive-mutations, but nothing has checked that a mounted view follows them.",
+      "blocker": "autonomous",
+      "evidence": "MOSTLY DONE 2026-09-09 (docs/validation.md#a-mounted-view-following-remote-creates-moves-and-deletions, and #catch-up-after-a-reconnection-and-the-periodic-recovery-refresh). Through a real read-only mount of an isolated account: a remote folder creation became visible in 5,058 ms, a rename in 4,654 ms and a deletion in 4,254 ms, the rename asserted on both halves so that a view adding the new name while keeping the old one fails. All three land at the five-second activity revalidation interval because the fixture watches that directory; a directory nobody is looking at follows the same changes by reconnection catch-up in 408 ms or by the thirty-second poll in 29,421 ms, each measured with the other disabled. NOT COVERED: edits. A content change to an existing file goes through the upload path rather than a namespace mutation, and nothing here exercises it.",
       "asserted_by": null
     },
     {
