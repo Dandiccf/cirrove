@@ -3,6 +3,7 @@
 mod catchup;
 mod freshness;
 mod namespace;
+mod navigation;
 mod notifications;
 mod read_bytes;
 mod writable;
@@ -23,6 +24,7 @@ use cirrove_core::{
 use cirrove_onedrive::OneDrive;
 pub use freshness::onedrive_freshness;
 pub use namespace::onedrive_mutations;
+pub use navigation::onedrive_navigation;
 pub use notifications::onedrive_notifications;
 pub use read_bytes::onedrive_read_bytes;
 use secrecy::SecretString;

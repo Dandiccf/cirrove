@@ -51,7 +51,7 @@
       "done": false,
       "text": "Responsive navigation during initial indexing and competing downloads.",
       "blocker": "needs-live-account",
-      "evidence": "docs/benchmarks/navigation-stall-cause.json",
+      "evidence": "docs/benchmarks/navigation-stall-cause.json Live 2026-09-09 on a real 184,000-item linked collection, cold-indexed (docs/validation.md#navigating-a-real-collection-while-it-is-being-indexed, benchmarks/live-navigation-during-indexing.json): first visits to directories not seen before measure p50 192.1 ms and p95 317.0 ms while indexing, and p50 210.5 ms with p95 435.3 ms under a competing download, across 375 directories with no failed listing. The 500 ms threshold the fixture asserts against is exceeded once in 132 samples without a download and six times in 243 with one. STILL OPEN: the tail, not the median. A companion run that re-listed one directory reported p50 1.3 ms and is not evidence for this box, because a directory listed every 250 ms stays active and is refreshed in the background.",
       "asserted_by": "filesystem::capacity::real_combined_namespace_churn, churn.rs:403 -- read: asserts cached navigation stays under 500 ms while committed changes are being applied, on every round. Supported by content::windows::tests::graph::kernel fixtures covering navigation during a stalled transfer."
     },
     {

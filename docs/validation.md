@@ -2009,3 +2009,44 @@ that silently assumes the selected drive addresses 0.02 percent of what is
 mounted. The fixture now takes the collection explicitly. Milestone 4 carries a
 box for linked folders; this account is already an instance of it, and any
 measurement written against the account drive alone will keep missing it.
+
+### Navigating a real collection while it is being indexed
+
+The evidence for this box was a fixture asserting that cached navigation stays
+under 500 ms while committed changes are applied. That is true and narrow: it is
+a claim about navigation that is already cached, in a fixture's library. This
+run mounts the linked collection holding this account's 184,000 items with an
+empty engine directory, so the index really is built from nothing while the
+directory tree is walked. Registered, with its own irregularity recorded, in
+[`benchmarks/live-navigation-during-indexing.json`](benchmarks/live-navigation-during-indexing.json).
+
+| phase | directories | p50 | p95 | max | over 500 ms |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| indexing only | 132 | 192.1 ms | 317.0 ms | 523.3 ms | 1 |
+| indexing and a competing download | 243 | 210.5 ms | 435.3 ms | 834.5 ms | 6 |
+
+All 375 samples were taken while the collection was still indexing, on 375
+directories none of which had been visited before, with no failed listing.
+
+**A companion run reported p50 1.3 ms, and it is not evidence for this box.** It
+re-listed the mount root every 250 ms. A directory listed that often stays
+active, and an active directory is refetched in the background every five
+seconds, so that loop measured a hot directory rather than navigation. The gap
+between those two numbers is a factor of 150, and the box's wording — responsive
+navigation *during initial indexing* — is about the larger one. The first design
+was written before that was obvious; recording it is cheaper than someone
+rediscovering it.
+
+**The box stays open, and now for a stated reason.** The median is comfortable.
+The tail is not: one sample in 132 crosses the 500 ms the existing fixture
+asserts against, and six in 243 do once a download competes. The competing
+transfer moves p95 by a factor of 1.37 and the maximum from 523 ms to 834 ms, so
+it degrades excursions rather than the median. Anyone working on this should be
+measuring the tail under a competing transfer.
+
+Two notes on method. The exploratory run measured p50 192.081 ms over 99
+directories and this one 192.12 ms over 132, on independent cold mounts, which is
+closer agreement than a single run would justify claiming. And these runs were
+made before anything was registered, which is not the discipline this repository
+asks for; the registration says so rather than presenting derived predictions as
+foresight.

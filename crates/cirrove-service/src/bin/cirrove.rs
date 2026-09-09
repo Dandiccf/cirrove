@@ -61,6 +61,26 @@ enum Command {
         #[arg(long)]
         state_dir: PathBuf,
     },
+    /// Measure directory listing latency on a cold mount of a real collection,
+    /// while its index is still being built and while a download competes.
+    ValidateOnedriveNavigation {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        drive: Option<String>,
+        /// How long to sample. The competing download starts after a third of it.
+        #[arg(long, default_value = "300")]
+        seconds: u64,
+        /// A large file to download against the navigation loop.
+        #[arg(long)]
+        item: Option<String>,
+        /// Root item inside --drive. Required for a linked collection, whose root
+        /// is not the account's own.
+        #[arg(long)]
+        root: Option<String>,
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
+    },
     /// Read one file through two cold mounts, with the experimental read path off
     /// and on, and compare the bytes and the Graph metadata requests. GET-only.
     ValidateOnedriveReadBytes {
@@ -237,6 +257,20 @@ async fn main() -> Result<()> {
         }
         Command::ValidateOnedriveFreshness { label, state_dir } => {
             cirrove_service::validation::onedrive_freshness(&state_dir, &label).await?;
+        }
+        Command::ValidateOnedriveNavigation {
+            label,
+            drive,
+            seconds,
+            item,
+            root,
+            state_dir: state,
+        } => {
+            let state = state.map(Ok).unwrap_or_else(state_dir)?;
+            cirrove_service::validation::onedrive_navigation(
+                &state, &label, drive, seconds, item, root,
+            )
+            .await?;
         }
         Command::ValidateOnedriveReadBytes {
             label,
