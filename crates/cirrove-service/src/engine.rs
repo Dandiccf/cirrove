@@ -213,6 +213,96 @@ impl Engine {
         self.refresh_reservations().await?;
         Ok(count)
     }
+    /// Every file at or below `root`, with the total bytes they occupy.
+    ///
+    /// Reads the cached directory views rather than the provider: a recursive pin
+    /// is a decision about what is already known to be there, and walking the
+    /// provider would make pinning a large folder an expensive remote traversal
+    /// before it has kept a single byte. A subtree that is not indexed yet is
+    /// reported as what is known, so the caller can see the difference rather
+    /// than being handed a total that quietly excluded it.
+    pub async fn subtree_files(&self, scope: &Scope, root: &str) -> Result<(Vec<Node>, u64, bool)> {
+        let db = self.db.clone();
+        let scope = scope.clone();
+        let root = root.to_string();
+        Ok(
+            tokio::task::spawn_blocking(
+                move || -> cirrove_store::Result<(Vec<Node>, u64, bool)> {
+                    let store = Store::open(db)?;
+                    let mut files = Vec::new();
+                    let mut bytes = 0u64;
+                    let mut complete = true;
+                    let mut pending = vec![root];
+                    // Depth-first with an explicit stack. A folder tree deep enough to
+                    // overflow a recursive walk is a folder tree a user can make.
+                    while let Some(parent) = pending.pop() {
+                        match store.children(&scope, &parent)? {
+                            Some(children) => {
+                                for child in children {
+                                    match child.kind {
+                                        cirrove_core::NodeKind::Folder => pending.push(child.id),
+                                        _ => {
+                                            bytes = bytes.saturating_add(child.size);
+                                            files.push(child);
+                                        }
+                                    }
+                                }
+                            }
+                            None => complete = false,
+                        }
+                    }
+                    Ok((files, bytes, complete))
+                },
+            )
+            .await??,
+        )
+    }
+    /// Pin a folder and everything under it.
+    ///
+    /// Returns the refusal untouched when the subtree does not fit, before any
+    /// content is fetched: a partial download that is then refused would have
+    /// spent the bandwidth and kept nothing.
+    pub async fn pin_folder(
+        &self,
+        scope: &Scope,
+        root: &Node,
+    ) -> Result<std::result::Result<(usize, bool), cirrove_store::pins::PinRefusal>> {
+        let (files, bytes, complete) = self.subtree_files(scope, &root.id).await?;
+        if let Err(refusal) = self
+            .pin(scope.clone(), root.id.clone(), true, bytes)
+            .await?
+        {
+            return Ok(Err(refusal));
+        }
+        let key = serde_json::to_string(scope).unwrap_or_default();
+        let mut keys = Vec::new();
+        for file in &files {
+            let mut start = 0;
+            while start < file.size {
+                let length = (file.size - start).min(crate::content::BLOCK_SIZE as u64) as u32;
+                self.cache
+                    .read(
+                        self.provider.as_ref(),
+                        scope,
+                        file,
+                        start,
+                        length,
+                        &self.cancel,
+                    )
+                    .await?;
+                start += crate::content::BLOCK_SIZE as u64;
+            }
+            if let Some(file_keys) = crate::content::block_keys(scope, file) {
+                keys.extend(file_keys);
+            }
+        }
+        let db = self.db.clone();
+        let item = root.id.clone();
+        tokio::task::spawn_blocking(move || Store::open(db)?.protect_blocks(&key, &item, &keys))
+            .await??;
+        self.refresh_reservations().await?;
+        Ok(Ok((files.len(), complete)))
+    }
     /// Release a pin and the space it held. Reports whether one existed.
     pub async fn unpin(&self, scope: Scope, item: String) -> Result<bool> {
         let db = self.db.clone();

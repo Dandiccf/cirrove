@@ -91,6 +91,44 @@ async fn engine(temp: &tempfile::TempDir, budget: u64) -> Arc<Engine> {
         .await
         .unwrap()
 }
+fn folder(id: &str) -> Node {
+    Node {
+        id: id.into(),
+        parent_id: Some("root".into()),
+        name: id.into(),
+        kind: cirrove_core::NodeKind::Folder,
+        size: 0,
+        modified_unix: 0,
+        etag: Some("\"v1\"".into()),
+        content_version: None,
+        target: None,
+    }
+}
+fn file(id: &str, parent: &str, size: u64) -> Node {
+    Node {
+        id: id.into(),
+        parent_id: Some(parent.into()),
+        name: id.into(),
+        kind: cirrove_core::NodeKind::File,
+        size,
+        modified_unix: 0,
+        etag: Some("\"v1\"".into()),
+        content_version: Some("v1".into()),
+        target: None,
+    }
+}
+async fn seed_directory(engine: &Arc<Engine>, parent: &str, children: &[Node]) {
+    let db = engine.db.clone();
+    let (parent, children) = (parent.to_string(), children.to_vec());
+    tokio::task::spawn_blocking(move || {
+        let mut store = cirrove_store::Store::open(db).unwrap();
+        store
+            .observe_directory(&scope(), &parent, &children)
+            .unwrap();
+    })
+    .await
+    .unwrap();
+}
 fn scope() -> Scope {
     Scope {
         account: "00000000-0000-4000-8000-000000000015".into(),
@@ -220,4 +258,77 @@ async fn materialising_a_pin_fetches_its_blocks_and_protects_exactly_those() {
             "block at {start} is unprotected"
         );
     }
+}
+
+#[tokio::test]
+async fn a_folder_pin_covers_every_file_under_it_and_says_what_it_could_not_see() {
+    let temp = tempfile::tempdir().unwrap();
+    let provider = Arc::new(OneFile::default());
+    let mut account = fixture_account(temp.path().join("mount"));
+    account.cache_bytes = 64 * 1024 * 1024;
+    let engine = Engine::new(account, provider, temp.path().join("engine"))
+        .await
+        .unwrap();
+    // Two indexed folders and one that was never indexed. The unindexed one is
+    // the point: a walk that silently skipped it would report a total covering
+    // less than the user asked for, and nothing would say so.
+    let files: Vec<Node> = (0..3)
+        .map(|i| file(&format!("f{i}"), "top", 1024 * (i + 1)))
+        .collect();
+    let nested = vec![file("deep", "sub", 4096)];
+    seed_directory(
+        &engine,
+        "top",
+        &[
+            folder("sub"),
+            files[0].clone(),
+            files[1].clone(),
+            files[2].clone(),
+        ],
+    )
+    .await;
+    seed_directory(&engine, "sub", &nested).await;
+
+    let (found, total, complete) = engine.subtree_files(&scope(), "top").await.unwrap();
+    assert_eq!(found.len(), 4, "the nested file counts");
+    assert_eq!(total, 1024 + 2048 + 3072 + 4096);
+    assert!(complete, "every folder in this tree is indexed");
+
+    let (pinned, complete) = engine
+        .pin_folder(&scope(), &folder("top"))
+        .await
+        .unwrap()
+        .expect("the budget holds it");
+    assert_eq!(pinned, 4);
+    assert!(complete);
+    let reservations = engine.cache.reservations();
+    let view = reservations.lock().unwrap();
+    assert_eq!(view.reserved, total);
+    assert_eq!(
+        view.protected.len(),
+        4,
+        "one block each, all four protected"
+    );
+}
+#[tokio::test]
+async fn an_unindexed_subtree_is_reported_rather_than_quietly_excluded() {
+    let temp = tempfile::tempdir().unwrap();
+    let provider = Arc::new(OneFile::default());
+    let engine = Engine::new(
+        fixture_account(temp.path().join("mount")),
+        provider,
+        temp.path().join("engine"),
+    )
+    .await
+    .unwrap();
+    // "sub" is named as a child but never indexed itself.
+    seed_directory(&engine, "top", &[folder("sub"), file("f0", "top", 1024)]).await;
+    let (found, total, complete) = engine.subtree_files(&scope(), "top").await.unwrap();
+    assert_eq!(found.len(), 1);
+    assert_eq!(total, 1024);
+    assert!(
+        !complete,
+        "a total that excluded an unindexed folder must say so, or a folder pin \
+         silently reserves less than the user asked to keep"
+    );
 }
