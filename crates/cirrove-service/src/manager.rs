@@ -138,7 +138,17 @@ impl Manager {
                 break;
             }
             let directory = state.clone();
-            let settings = tokio::task::spawn_blocking(move || Settings::load(&directory)).await;
+            let settings = tokio::task::spawn_blocking(move || {
+                // Before reading desired state, put back anything a sign-in
+                // disabled and never restored. A failure here is not fatal: it
+                // only means an account stays disabled, which is the state we
+                // already have.
+                if let Err(error) = crate::accounts::heal_interrupted_sign_ins(&directory) {
+                    tracing::warn!(%error, "could not check for interrupted sign-ins");
+                }
+                Settings::load(&directory)
+            })
+            .await;
             match settings {
                 Ok(Ok(settings)) => {
                     let desired: HashMap<_, _> = settings
