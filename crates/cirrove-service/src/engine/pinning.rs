@@ -515,3 +515,98 @@ async fn a_small_cache_keeps_whole_blocks_of_headroom_rather_than_a_tenth_of_ver
         "headroom {headroom} is under eight blocks"
     );
 }
+
+/// Editing pinned content with the provider unreachable, and finding both the
+/// edit and the pin intact after a restart.
+///
+/// The two features are built separately and the box asks for them together.
+/// Pinning keeps blocks the cache may not evict; the journal keeps bytes that
+/// have not reached the provider. A restart rebuilds the cache's view from the
+/// registry and the journal's from its own files, and nothing in either path
+/// knows about the other, so their surviving together is a claim that has to be
+/// made rather than assumed.
+#[tokio::test]
+async fn a_pinned_file_can_be_edited_offline_and_both_survive_a_restart() {
+    let temp = tempfile::tempdir().unwrap();
+    let provider = Arc::new(OneFile::default());
+    let mut account = fixture_account(temp.path().join("mount"));
+    account.cache_bytes = 64 * 1024 * 1024;
+    let node = OneFile::node(crate::content::BLOCK_SIZE as u64 + 2048);
+    let engine_dir = temp.path().join("engine");
+    let journal_dir = temp.path().join("journal");
+    let expected: Vec<u8> = (0..node.size).map(|i| (i % 251) as u8).collect();
+
+    let (working_id, sealed_id) = {
+        let engine = Engine::new(account.clone(), provider.clone(), engine_dir.clone())
+            .await
+            .unwrap();
+        engine
+            .pin(scope(), node.id.clone(), false, node.size)
+            .await
+            .unwrap()
+            .expect("fits");
+        engine.materialise_pin(&scope(), &node).await.unwrap();
+        provider.offline.store(true, Ordering::SeqCst);
+
+        // The edit happens with the provider unreachable, which is the ordinary
+        // case this box describes rather than a fault to recover from.
+        let mut journal =
+            crate::journal::UploadJournal::open(&journal_dir, &scope().account, 16 * 1024 * 1024)
+                .unwrap();
+        let working = journal
+            .create_working(scope(), node.clone(), false, expected.as_slice())
+            .unwrap();
+        journal
+            .write_working(working.id, 0, b"edited offline")
+            .unwrap();
+        let sealed = journal
+            .seal_working(working.id)
+            .unwrap()
+            .expect("an offline edit must still produce a pending upload");
+        engine.stop().await;
+        (working.id, sealed.id)
+    };
+
+    // Restart both. Neither rebuild consults the other.
+    let engine = Engine::new(account, provider.clone(), engine_dir)
+        .await
+        .unwrap();
+    let journal =
+        crate::journal::UploadJournal::open(&journal_dir, &scope().account, 16 * 1024 * 1024)
+            .unwrap();
+
+    let pending = journal.list(0, 100).unwrap();
+    assert_eq!(pending.len(), 1, "the unsent edit survived");
+    assert_eq!(pending[0].id, sealed_id);
+    let mut bytes = Vec::new();
+    std::io::Read::read_to_end(&mut journal.payload(sealed_id).unwrap(), &mut bytes).unwrap();
+    assert_eq!(
+        &bytes[..14],
+        b"edited offline",
+        "and it survived with the edited bytes, not the original ones"
+    );
+    assert!(journal.working_file(working_id).is_ok());
+
+    let reservations = engine.cache.reservations();
+    assert_eq!(
+        reservations.lock().unwrap().reserved,
+        node.size,
+        "the pin's reservation is in force before anything can evict"
+    );
+    assert_eq!(reservations.lock().unwrap().protected.len(), 2);
+    // And the pinned content still reads with the provider still unreachable.
+    let read = engine
+        .cache
+        .read(
+            provider.as_ref(),
+            &scope(),
+            &node,
+            0,
+            node.size as u32,
+            &CancellationToken::new(),
+        )
+        .await
+        .expect("pinned content must still read offline after the restart");
+    assert_eq!(read, expected);
+    engine.stop().await;
+}
