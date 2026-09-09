@@ -1787,3 +1787,73 @@ making the hazard obsolete — or the design unsound.
 
 It also bears on change detection more generally: a mount cannot learn that a
 directory's contents changed by watching the directory's own item.
+
+### Read-session behaviour on a live mount — two of three claims, and one that stayed at zero
+
+The previous read-session entry above recorded `conditional_windows: 0` and
+`renewals: 0` and argued that neither number measured the code: the
+adapter-level validator has no content cache, so staging never exists and the
+window path cannot run, and it finishes long before a 60 s lease could expire.
+The acceptance box was left open for exactly that reason. This run reads the
+counters off a live mount of the real business drive, where both conditions
+exist. Registered beforehand in
+[`benchmarks/live-read-session-counters.json`](benchmarks/live-read-session-counters.json).
+
+| counter | arm A, path off | arm B, path on |
+| --- | ---: | ---: |
+| `setups` | 0 | 1 |
+| `conditional_ranges` | 0 | 1 |
+| `conditional_windows` | 0 | **3** |
+| `renewals` | 0 | **0** |
+| `fallback_ranges` | 0 | 0 |
+
+Both arms read 48 MiB of a 663 MiB file — a 32 MiB sequential prefix, an interior
+range, then a 70 s pause with the handle open, then a range near the end. The two
+arms read *different* files of byte-identical size, because a single file would
+have left arm B reading blocks arm A had already cached, issuing no provider
+requests at all. Arm B's cache grew by 13 blocks and 50.7 MiB against 48 MiB
+requested, which is how the counters are attributable to the workload rather than
+to a cache hit.
+
+**The bounded-window path runs.** `conditional_windows: 3`, one per read phase,
+is the first observation of that path anywhere. The zero in the earlier entry was
+a property of that harness, and this confirms the reading given there rather than
+overturning it.
+
+**Renewal did not happen, and the reason is not yet established.** The pause
+outlived `SESSION_LEASE` by ten seconds with the file still open. `setups` stayed
+at 1, so no second session was opened, and the read after the pause did reach the
+provider: 798 ms to first byte against 5.7 ms for the prefix. Two explanations
+survive. Either the window path serves ranges without passing through the
+bind/renew accounting at `read_sessions.rs:189` and `:267`, so a renewal happens
+uncounted; or no renewal was needed, because `SESSION_LEASE` is a local 60 s bound
+while a Graph signed URL ordinarily outlives it, in which case the workload never
+reached the condition and the code is not at fault. Separating them needs a pause
+longer than the provider URL's own lifetime, plus instrumentation of whether the
+post-pause request carried a re-bound URL. Neither has been done.
+
+**On speed, this run says almost nothing.** Subtracting the 70 s pause leaves
+about 11.8 s of reading in arm A against about 4.7 s in arm B for the same 48 MiB.
+That is one run per arm, on two different files, against a provider whose
+throughput is not controlled. It is a direction and not a result, and it is
+recorded here only so that it is not later mistaken for a measurement. The 8x
+figure in the entry above remains an adapter-level number.
+
+**The box stays open.** The registered rule required shared setup, bounded windows
+and safe renewal together. Two now have live evidence; the third has a zero whose
+meaning is unknown, which is not the same as evidence of absence and is certainly
+not evidence of presence.
+
+Two corrections to this run's own method, recorded because the artifact is the
+place for them. The registration said both arms would read the same file, which
+would have made the comparison meaningless for the reason given above; the
+two-file design replaced it, and with it the registered byte-identity check, which
+two different files cannot satisfy. This run therefore adds no mount-level
+byte-correctness evidence — that still rests on the adapter-level
+`all_samples_match`. The registration also predicted a `graph_get_attempts`
+difference, which `cirrove status` does not report; that prediction was
+unmeasurable as written.
+
+The optimized path remains off by default. It is selected here only by an explicit
+opt-in that `accounts::provider` reads, so that this measurement was possible
+without changing what the daemon does for anyone who has not asked for it.

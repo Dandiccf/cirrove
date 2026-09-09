@@ -468,10 +468,18 @@ pub fn provider(account: &Account) -> Result<Arc<OneDrive>> {
         account.credential_id.clone(),
         Arc::new(DesktopVault),
     )?;
-    Ok(Arc::new(OneDrive::new(
-        account.id.clone(),
-        Arc::new(broker),
-    )?))
+    let graph = OneDrive::new(account.id.clone(), Arc::new(broker))?;
+    // ADR 0004's window and renewal behaviour is only observable on a live mount:
+    // windows need staging from the content cache, and renewal needs a session that
+    // outlives SESSION_LEASE. Neither is reachable from the adapter-level validator,
+    // so the acceptance box stays open until the counters are read off a daemon.
+    // This opt-in exists to run that measurement. The default stays off; switching
+    // the path on by default is a separate decision and not this one.
+    let graph = match std::env::var_os("CIRROVE_EXPERIMENTAL_READ_SESSIONS") {
+        Some(value) if value == "1" => graph.with_experimental_read_sessions(),
+        _ => graph,
+    };
+    Ok(Arc::new(graph))
 }
 /// Complete browser sign-in, display verified identity and let the caller choose a
 /// drive. Persistence happens only after the selected drive's root is verified.
