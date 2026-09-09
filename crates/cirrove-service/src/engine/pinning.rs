@@ -188,16 +188,22 @@ async fn a_restart_republishes_pins_before_anything_can_evict() {
             .expect("fits");
         engine.stop().await;
     }
-    // The registry is durable, but the cache's view is not: it is rebuilt in
-    // memory. A mount that waited for the next pin change to publish it would
-    // treat pinned blocks as ordinary ones for as long as nobody pinned
-    // anything, which on a restarted daemon is indefinitely.
+    // The registry is durable, the cache's view is not: it is rebuilt in memory.
+    // Publishing it has to happen at construction rather than at start, because
+    // the cache's reconcile pass evicts to fit the quota while it is being built.
+    // A view published even one step later would arrive after the blocks it was
+    // meant to protect had already been deleted.
     let engine = engine(&temp, 64 * 1024 * 1024).await;
-    assert_eq!(engine.cache.reservations().lock().unwrap().reserved, 0);
+    assert_eq!(
+        engine.cache.reservations().lock().unwrap().reserved,
+        reserved,
+        "a restarted mount must know what is pinned before anything can evict"
+    );
     engine.start().await.unwrap();
     assert_eq!(
         engine.cache.reservations().lock().unwrap().reserved,
-        reserved
+        reserved,
+        "and starting must not lose it"
     );
     engine.stop().await;
 }

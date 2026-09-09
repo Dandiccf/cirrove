@@ -74,3 +74,45 @@ async fn a_reservation_shrinks_the_budget_the_ordinary_cache_may_fill() {
         "the reservation must shrink what unpinned blocks may occupy"
     );
 }
+
+/// Fill a cache past its budget and reopen it, optionally telling the new cache
+/// that the oldest block is pinned. Returns whether that block survived.
+fn survives_reconcile(temp: &tempfile::TempDir, reserve: bool) -> bool {
+    let (cache_path, blocks) = (temp.path().join("cache"), temp.path().join("db"));
+    let quota = 512 * MIB;
+    // Both keys must be hex. A name outside 0-9a-f is not recognised as a block
+    // at all: reconcile forgets it from the index and leaves the file, which
+    // silently removes the eviction pressure this fixture exists to create.
+    let oldest = key('e');
+    let size = {
+        let cache = ContentCache::new(cache_path.clone(), blocks.clone(), quota).expect("cache");
+        let size = cache.quota;
+        place(&cache, &oldest, size);
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        place(&cache, &key('f'), size);
+        size
+    };
+    let mut reservations = Reservations::default();
+    if reserve {
+        reservations.protected.insert(oldest.clone());
+        reservations.reserved = size;
+    }
+    let _cache = ContentCache::new_reserving(cache_path.clone(), blocks, quota, reservations)
+        .expect("cache");
+    cache_path.join(&oldest).exists()
+}
+#[tokio::test]
+async fn the_reconcile_pass_at_mount_time_also_leaves_protected_blocks_alone() {
+    // Reconcile evicts to fit the quota before any engine exists to publish a
+    // reservation, so this is the pass that would silently delete pinned content
+    // at every mount. Both halves are needed: the first shows the block survives,
+    // and the second shows this fixture would notice if it did not.
+    assert!(
+        survives_reconcile(&tempfile::tempdir().expect("fixture"), true),
+        "a pinned block must survive the mount-time reconcile, not only runtime eviction"
+    );
+    assert!(
+        !survives_reconcile(&tempfile::tempdir().expect("fixture"), false),
+        "without the reservation the same block is evicted, so the check above means something"
+    );
+}

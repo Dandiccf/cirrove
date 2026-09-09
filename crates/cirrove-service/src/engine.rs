@@ -108,8 +108,23 @@ impl Engine {
         let keeper = tokio::task::spawn_blocking(move || Store::open(path)).await??;
         let blocks = directory.join("blocks.db");
         let quota = account.cache_bytes;
+        // Read pins before the cache exists. Its reconcile pass evicts to fit the
+        // quota at construction, long before start() could publish anything, so a
+        // cache built without them would delete pinned blocks at every mount
+        // while the registry went on saying they were kept.
+        let pins = db.clone();
+        let reservations = tokio::task::spawn_blocking(
+            move || -> cirrove_store::Result<crate::content::Reservations> {
+                let store = Store::open(pins)?;
+                Ok(crate::content::Reservations {
+                    protected: store.protected_blocks()?,
+                    reserved: store.reserved_bytes()?,
+                })
+            },
+        )
+        .await??;
         let cache = tokio::task::spawn_blocking(move || {
-            ContentCache::new(directory.join("cache"), blocks, quota)
+            ContentCache::new_reserving(directory.join("cache"), blocks, quota, reservations)
         })
         .await??;
         Ok(Arc::new(Self {
