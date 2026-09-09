@@ -1,5 +1,6 @@
 //! Explicit developer-only cloud mutation checks. Never called by the daemon.
 //! Every target is created by this run; no existing document is accepted as input.
+mod catchup;
 mod freshness;
 mod namespace;
 mod notifications;
@@ -10,6 +11,7 @@ use crate::{
     transfers::TransferWorker,
 };
 use anyhow::{Context, Result, bail};
+pub use catchup::onedrive_catchup;
 use cirrove_auth::{AccessMode, DesktopVault};
 use cirrove_core::{
     CancellationToken, Node, Scope,

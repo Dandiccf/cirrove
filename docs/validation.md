@@ -1909,3 +1909,53 @@ and which no run has since supplied; and the box's first clause, that per-cache-
 Graph metadata checks are gone from the fast path, is not established by a
 `graph_gets` figure that also counts unrelated adapter traffic. Two specific
 things are missing, and they are the two things to do next.
+
+### Catch-up after a reconnection, and the periodic recovery refresh
+
+The push entry above ends by naming what it could not show: catch-up of changes
+made while disconnected, and periodic recovery checks. Its renewal sample made
+its change *after* reconnecting, so no run had yet made a change during a gap.
+Both mechanisms are in the code — `ChangeHintSender::connected` bumps the
+generation, and the engine polls every `poll_seconds` — and neither had been
+observed. Registered beforehand in
+[`benchmarks/live-catchup-and-recovery.json`](benchmarks/live-catchup-and-recovery.json).
+
+| phase | mechanism enabled | delta after enabling | entry listed after delta | connects | listings before delta |
+| --- | --- | ---: | ---: | ---: | ---: |
+| reconnect | subscription connects; poll set to 3600 s | **408 ms** | 206 ms | 1 | 0 |
+| periodic | nothing connects; poll at the shipped 30 s | **29,421 ms** | 307 ms | 0 | 0 |
+
+Each phase disables the other, and each ran against a fixture folder changed
+through Graph while the mount was idle. Catch-up is a delta request a
+reconnection triggers rather than a wait for a delivery, and it shows: 408 ms
+against the 30.0–32.7 s the provider takes to deliver a push. The periodic figure
+is one poll interval, which is what a 30-second poll should look like when it is
+the only thing running.
+
+**Two designs failed before this one, and the second is worth keeping.** The
+first held the change invisible by listing the mount every 200 ms; the folder
+appeared during the hold with nothing connected and the poll an hour away. That
+reads as an unknown third refresh path until the cause becomes clear — the reads
+themselves. An actively viewed directory revalidates, which is what the freshness
+entry above exists to measure, so the observation produced exactly what it was
+meant to exclude.
+
+The second removed the reads and asserted only that no delta ran. It failed with
+zero deltas and **eleven directory listings in sixty seconds**, on a mount nobody
+was touching. `activity.rs` sets `LEASE` to 60 s and `INTERVAL` to 5 s: a
+directory stays active for a minute after it is used and is refetched every five
+seconds throughout. Twelve refreshes in a sixty-second window is that mechanism,
+exactly.
+
+That is a fact about the product rather than about the fixture, and it is the
+more useful of the two: **for a directory somebody is looking at, a remote change
+is found within about five seconds**, long before catch-up or the poll would
+matter. Neither of those two mechanisms is what a person watching a folder
+actually experiences. The run now waits for `directory_freshness().active` to
+reach zero before changing anything, and attributes a discovery to the provider
+call that produced it rather than to visibility, which all three paths can cause.
+
+**The box does not close here.** Its push clause still carries the one
+notification in eleven that was never delivered and remains unexplained. What
+this run adds is a measured bound on that miss: with no subscription connected at
+all, the periodic refresh found an untold change in 29.4 seconds.

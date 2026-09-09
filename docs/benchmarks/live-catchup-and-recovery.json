@@ -1,0 +1,78 @@
+{
+  "question": "On a live mount, does a change made while the mount is not being told about anything still reach it -- once by the catch-up a reconnection triggers, and once by the ordinary periodic refresh?",
+  "why_now": "docs/validation.md records push delivery at 30.0-32.7 s over eleven samples and one subscription renewal at the real boundary, and then says plainly what is still missing: catch-up of changes made while disconnected, and periodic recovery checks. The renewal sample's change was made after reconnecting, so no run has yet made a change during a gap. Both mechanisms exist in the code -- ChangeHintSender::connected bumps the generation, and the engine polls every poll_seconds -- and neither has live evidence.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-09",
+  "attribution_principle": "A change discovered by a mount running both mechanisms proves nothing about either. Each phase therefore disables the other, and asserts the change is invisible before enabling the one under test, so that a discovery which had already happened cannot be counted as one the mechanism produced.",
+  "phases": [
+    {
+      "name": "reconnect",
+      "shape": "Index an empty fixture folder through a real read-only mount whose notification subscription has never connected, with poll_seconds set to 3600 so the periodic refresh cannot fire within the run. Create a child folder through Graph, behind the mount's back. Hold for 60 s asserting it stays invisible, which also gives the provider's own delta time to carry it. Then let the subscription connect, and time how long the child takes to appear.",
+      "isolates": "Only a reconnection can explain a discovery here: nothing was ever connected before, and the poll is an hour away.",
+      "guard": "exactly one subscription connect is counted; more would mean the phase cannot say which one did it"
+    },
+    {
+      "name": "periodic",
+      "shape": "Same fixture root, a fresh mount whose subscription never connects at all, poll_seconds at the shipped default of 30. Create a second child through Graph and time its appearance.",
+      "isolates": "Only the periodic refresh can explain this one.",
+      "guard": "zero subscription connects"
+    }
+  ],
+  "endpoint": "Wall-clock milliseconds from enabling the mechanism until the new entry is listed through the kernel mount, read by an ordinary readdir rather than from internal state.",
+  "predictions": [
+    {
+      "id": "P1",
+      "claim": "In the reconnect phase the child stays invisible for the full 60 s hold.",
+      "role": "discriminator -- if it appears while nothing is connected and the poll is an hour out, some third mechanism is refreshing the mount and every number in this artifact is unattributable"
+    },
+    {
+      "id": "P2",
+      "claim": "After the subscription connects, the child appears within 15 s. The catch-up is a delta request the reconnection triggers, not a wait for a notification, so it should be far quicker than the 30-32.7 s the provider takes to deliver a push."
+    },
+    {
+      "id": "P3",
+      "claim": "In the periodic phase the child appears within 90 s, that is within three poll intervals, with no subscription ever connected."
+    },
+    {
+      "id": "P4",
+      "claim": "Both phases report the guards they were given: one connect in the reconnect phase, zero in the periodic phase."
+    }
+  ],
+  "decision_rule": "The milestone 1 box 'Push-triggered metadata updates, reconnection/catch-up and periodic recovery checks' may have its two remaining clauses recorded as evidenced only if P1 and P4 hold and both phases discover their change at all. P2 and P3 are the interesting numbers rather than gates: a slower discovery is still a discovery, and would be recorded as measured rather than as a failure. If P1 fails nothing is recorded, because nothing would be attributable.",
+  "safety": {
+    "account": "The isolated upload-validation account, not the user's work drive. It is a separate state directory, its own drive selection, and disabled so that no daemon mounts it.",
+    "writes": "Two folders created inside one new fixture folder on that account. Nothing existing is read, renamed, moved or deleted.",
+    "cleanup": "The fixture is retained, as every validator here does. Removing it is a human decision on a real tenant, not something this run should automate."
+  },
+  "result": {
+    "reconnect": {
+      "delta_after_connect_ms": 408,
+      "entry_listed_after_delta_ms": 206,
+      "total_after_change_ms": 60617,
+      "idle_hold_ms": 60000,
+      "subscription_connects": 1,
+      "directory_listings_before_delta": 0
+    },
+    "periodic": {
+      "delta_after_change_ms": 29421,
+      "entry_listed_after_delta_ms": 307,
+      "poll_seconds": 30,
+      "subscription_connects": 0,
+      "directory_listings_before_delta": 0
+    }
+  },
+  "verdict": {
+    "P1": "HOLDS, on the third design. The idle hold passed with zero deltas and zero directory listings, so the mount was genuinely idle when the change landed.",
+    "P2": "HOLDS, and by a wider margin than predicted. 408 ms from connecting to the delta against a predicted 15 s. The reasoning was right -- catch-up is a request a reconnection triggers, not a wait for a delivery -- and the number was simply far better. For scale, the provider's own push delivery measures 30.0-32.7 s.",
+    "P3": "HOLDS. 29,421 ms, which is one poll interval rather than the three the prediction allowed for.",
+    "P4": "HOLDS. One connect in the reconnect phase, zero in the periodic phase, and zero directory listings before the delta in both."
+  },
+  "two_failed_designs_before_this_one": {
+    "why_recorded": "Both were mine, both produced a wrong answer before the guards caught them, and the second one explains a real behaviour worth knowing.",
+    "first": "The invisibility check listed the mount every 200 ms. The change appeared during the hold with nothing connected and the poll an hour away, which reads as a third refresh mechanism until you notice the reads are the cause: an actively viewed directory revalidates. The observation produced what it was meant to exclude.",
+    "second": "Reading was removed and the hold asserted only that no delta ran. It failed with zero deltas and eleven directory listings in sixty seconds, from a mount nobody was touching. activity.rs sets LEASE to 60 s and INTERVAL to 5 s: a directory stays active for a minute after it is used and is refetched every five seconds while it is. Twelve refreshes in a sixty-second window is that mechanism exactly.",
+    "consequence": "The run now waits for directory_freshness().active to reach zero before making the change, and attributes discovery to the provider call that produced it -- a delta -- rather than to visibility, which any of the three mechanisms can produce.",
+    "practical_note": "For a directory a person is looking at, activity revalidation finds a remote change within about five seconds, long before catch-up or the poll would matter. That is a property of the product rather than an artefact of this fixture, and it is the reason both of the above happened."
+  },
+  "decision": "The two clauses that docs/validation.md recorded as not covered live -- catch-up of changes made while disconnected, and periodic recovery checks -- now have live evidence, each attributed to the mechanism that produced it. The box is not ticked here. Its push clause still carries one notification in eleven that was never delivered and stands unexplained; what this run adds is a measured bound on that miss, since the periodic refresh found an untold change in 29.4 s without any subscription at all."
+}

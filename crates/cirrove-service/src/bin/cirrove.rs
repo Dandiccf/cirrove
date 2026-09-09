@@ -61,6 +61,14 @@ enum Command {
         #[arg(long)]
         state_dir: PathBuf,
     },
+    /// Observe catch-up after a reconnection and the periodic recovery refresh,
+    /// each with the other mechanism disabled so a discovery is attributable.
+    ValidateOnedriveCatchup {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        state_dir: PathBuf,
+    },
     /// Verify Graph notifications using one new isolated synthetic cloud folder.
     ValidateOnedriveNotifications {
         #[arg(long)]
@@ -216,6 +224,9 @@ async fn main() -> Result<()> {
         }
         Command::ValidateOnedriveFreshness { label, state_dir } => {
             cirrove_service::validation::onedrive_freshness(&state_dir, &label).await?;
+        }
+        Command::ValidateOnedriveCatchup { label, state_dir } => {
+            cirrove_service::validation::onedrive_catchup(&state_dir, &label).await?;
         }
         Command::ValidateOnedriveNotifications {
             label,
