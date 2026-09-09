@@ -1593,14 +1593,25 @@ comparison reads, `all_samples_match: true`:
 | optimized session | 3 | 5 | 271 ms for four ranges after a 578 ms first range |
 | conservative | 13 | 10 | 2,166 ms |
 
-**What this does not show.** The report's own counters read
-`conditional_windows: 0` and `renewals: 0`. Only `conditional_ranges` was
-exercised (4). The bounded *sequential window* path in
-`read_sessions.rs:112` and the renewal branch at `read_sessions.rs:189` were
-never entered, because a session binding does not expire inside a two-second
-test. [ADR 0004](adr/0004-read-session-efficiency.md) asks for shared setup,
-bounded sequential windows *and* safe renewal; one of the three is measured live.
-Its acceptance box stays open, and this is why.
+**What this does not show, and why the zeros are not what they look like.** The
+report's own counters read `conditional_windows: 0` and `renewals: 0`; only
+`conditional_ranges` was exercised (4). The first reading of that was that two of
+[ADR 0004](adr/0004-read-session-efficiency.md)'s three claims have no live
+evidence. That reading is wrong, and the reason matters more than the numbers.
+
+The window path at `content/sessions.rs:200` runs only when staging is present,
+and staging comes from the content cache, which `content.rs:61` always builds for
+a mount. This validator talks to the adapter directly, with no cache at all, so it
+**cannot reach the window path by construction** -- it would report zero windows
+against a mount serving nothing but windows. `SESSION_LEASE` is 60 seconds, so
+renewal is likewise unreachable inside a two-second check while being routine on
+any real mount.
+
+So the zeros measure the harness, not the code. What they exposed is a genuine
+gap of a different kind: nothing reported these counters from a running daemon,
+so the optimized read path was unobservable on real data. `cirrove status` now
+carries them per account. The acceptance box stays open until they are read off a
+live mount, which needs a daemon built after this change.
 
 ### Directory freshness through a real mount
 
