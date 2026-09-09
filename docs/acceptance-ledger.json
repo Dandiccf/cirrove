@@ -211,7 +211,7 @@
       "done": false,
       "text": "Offline access and editing of pinned content, including across restart.",
       "blocker": "autonomous",
-      "evidence": "Scope expanded by the user on 2026-09-09 from milestones 1 and 2 to all six, so this row is no longer out of the agreed frame. ",
+      "evidence": "Scope expanded by the user on 2026-09-09. READ HALF DONE 2026-09-09: a pinned file reads with the provider returning Unavailable, and still reads after the engine is dropped and rebuilt on the same directory, where the memory cache is empty so the bytes can only come from blocks on disk. The provider's read counter must not move during that second read, so a fixture that silently refetched would fail rather than pass on fresh bytes. Asserted by engine::pinning::pinned_content_reads_offline_and_still_does_after_a_restart. STILL OPEN: the editing half. Offline writes go through the upload journal and none of that is exercised here, and nothing has been measured on a real account.",
       "asserted_by": null
     },
     {

@@ -11,6 +11,7 @@ use super::*;
 #[derive(Default)]
 struct OneFile {
     reads: AtomicU64,
+    offline: AtomicBool,
 }
 impl OneFile {
     fn node(size: u64) -> Node {
@@ -76,6 +77,9 @@ impl ReadProvider for OneFile {
         _: &CancellationToken,
     ) -> std::result::Result<Vec<u8>, ProviderError> {
         self.reads.fetch_add(1, Ordering::SeqCst);
+        if self.offline.load(Ordering::SeqCst) {
+            return Err(ProviderError::Unavailable);
+        }
         let end = (offset + length as u64).min(node.size);
         Ok((offset..end).map(|i| (i % 251) as u8).collect())
     }
@@ -399,4 +403,70 @@ async fn a_block_missing_from_disk_is_not_counted_as_available() {
         status[0].resident < node.size,
         "a block that is gone from disk must stop counting as available"
     );
+}
+
+#[tokio::test]
+async fn pinned_content_reads_offline_and_still_does_after_a_restart() {
+    let temp = tempfile::tempdir().unwrap();
+    let provider = Arc::new(OneFile::default());
+    let mut account = fixture_account(temp.path().join("mount"));
+    account.cache_bytes = 64 * 1024 * 1024;
+    let node = OneFile::node(crate::content::BLOCK_SIZE as u64 + 4096);
+    let expected: Vec<u8> = (0..node.size).map(|i| (i % 251) as u8).collect();
+    {
+        let engine = Engine::new(
+            account.clone(),
+            provider.clone(),
+            temp.path().join("engine"),
+        )
+        .await
+        .unwrap();
+        engine
+            .pin(scope(), node.id.clone(), false, node.size)
+            .await
+            .unwrap()
+            .expect("fits");
+        engine.materialise_pin(&scope(), &node).await.unwrap();
+        provider.offline.store(true, Ordering::SeqCst);
+        let read = engine
+            .cache
+            .read(
+                provider.as_ref(),
+                &scope(),
+                &node,
+                0,
+                node.size as u32,
+                &CancellationToken::new(),
+            )
+            .await
+            .expect("a pinned file must read with the provider unreachable");
+        assert_eq!(read, expected);
+        engine.stop().await;
+    }
+    // A second engine on the same directory has an empty memory cache, so this
+    // can only be served from the blocks on disk. Without the restart the test
+    // would pass on the in-process copy and say nothing about durability.
+    let engine = Engine::new(account, provider.clone(), temp.path().join("engine"))
+        .await
+        .unwrap();
+    let before = provider.reads.load(Ordering::SeqCst);
+    let read = engine
+        .cache
+        .read(
+            provider.as_ref(),
+            &scope(),
+            &node,
+            0,
+            node.size as u32,
+            &CancellationToken::new(),
+        )
+        .await
+        .expect("pinned content must survive a restart and read while offline");
+    assert_eq!(read, expected);
+    assert_eq!(
+        provider.reads.load(Ordering::SeqCst),
+        before,
+        "the provider must not have been asked at all"
+    );
+    engine.stop().await;
 }
