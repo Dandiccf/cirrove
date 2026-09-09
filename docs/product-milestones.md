@@ -147,7 +147,8 @@ Actual synthetic mount fixtures cover two consecutive atomic saves, paused downl
 independent saves during old reads, and remount after interrupted preparation.
 The extended developer validator is ready to exercise atomic replacement and
 conditional source cleanup in a fresh OneDrive test folder, including an online-only
-source after remount. That expanded live sequence has not yet been executed.
+source after remount. That expanded live sequence ran on 2026-09-09 and passed;
+in-place truncation remains uncovered, which is why the box above stays open.
 
 Fully acknowledged working copies can retire after the last user closes, retaining
 local identities that follow remote changes. Restartable cleanup, generation fencing,

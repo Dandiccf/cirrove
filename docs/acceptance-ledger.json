@@ -41,7 +41,7 @@
       "done": false,
       "text": "Real token expiry/refresh and visible reauthentication when consent expires.",
       "blocker": "needs-live-account",
-      "evidence": null,
+      "evidence": "Partial: the installed daemon has refreshed its Microsoft grant hourly for 1.5 days without intervention (journal, 2026-09-07..09), which evidences real token refresh. Consent EXPIRY with visible reauthentication is a different event and unobserved.",
       "asserted_by": null
     },
     {
@@ -61,7 +61,7 @@
       "done": false,
       "text": "Remove Graph metadata checks per cache block from the validated read-session fast path; implement and measure shared session setup, bounded sequential windows and safe renewal as specified in [read-session efficiency](adr/0004-read-session-efficiency.md).",
       "blocker": "needs-live-account",
-      "evidence": null,
+      "evidence": "docs/validation.md#read-session-efficiency--measured-and-two-parts-not-exercised -- live 2026-09-09: shared setup measured (3 vs 13 Graph GETs, 271 vs 2166 ms, all samples matched). NOT exercised: conditional_windows=0 and renewals=0 in the run's own counters, so bounded sequential windows and safe renewal have no live evidence.",
       "asserted_by": null
     },
     {
@@ -71,7 +71,7 @@
       "done": false,
       "text": "Push-triggered metadata updates, reconnection/catch-up and periodic recovery checks, with provider delivery and local reaction latency measured separately.",
       "blocker": "needs-live-account",
-      "evidence": null,
+      "evidence": "docs/validation.md#push-notifications--delivery-and-reaction-measured-separately -- live 2026-09-09: delivery 30.0/31.0/31.4 s, local reaction 287/169/174 ms, measured separately as the box requires. NOT covered live: reconnection, catch-up and periodic recovery, which remain synthetic only. One notification in seven live samples was never delivered (90 s deadline, 30 s typical); the pre-registered interference hypothesis was refuted by an immediately passing retry. Cause unexplained; the shipped 30 s poll bounds the impact.",
       "asserted_by": null
     },
     {
@@ -161,7 +161,7 @@
       "done": false,
       "text": "Correct application save patterns, truncation and atomic replacement.",
       "blocker": "needs-live-account",
-      "evidence": null,
+      "evidence": "docs/validation.md#writable-mount--real-application-saves -- live 2026-09-09: two direct saves (6.8/8.3 ms) and three atomic replacements including an online-only source after remount, old descriptor preserved, eight receipts, three conditional cleanups. NOT covered: in-place truncation -- the fixture calls truncate() at the size just written, so it is a no-op; generation 3 shrinks by replacement, not truncation.",
       "asserted_by": null
     },
     {

@@ -246,7 +246,12 @@ import hashlib,json,os,sys,time
 path=sys.argv[1]
 records=[]
 with open(path,'x+b',buffering=0) as file:
-    for generation,size in ((1,131071),(2,262177)):
+    # Generation 3 is deliberately SMALLER than generation 2, so truncate() actually
+    # shrinks the file rather than being the no-op it is when the size equals the
+    # bytes just written. In-place shrinking had no live evidence before this:
+    # generation 3 of the replacement sequence also shrinks, but by atomic
+    # replacement, which is a different code path.
+    for generation,size in ((1,131071),(2,262177),(3,65537)):
         data=bytes((i*13+generation*17)%251 for i in range(size))
         start=time.monotonic()
         file.seek(0)
@@ -340,12 +345,15 @@ pub async fn onedrive_writable(state: &Path, label: &str) -> Result<()> {
             "mounted application write failed; fixture and journal retained"
         );
         let saves: Vec<serde_json::Value> = serde_json::from_slice(&output.stdout)?;
-        anyhow::ensure!(saves.len() == 2, "unexpected application save report");
+        anyhow::ensure!(saves.len() == 3, "unexpected application save report");
         event(
             &mut log,
             serde_json::json!({"stage":"local_saves","saves":saves}),
         )?;
-        println!("Both application saves completed locally; waiting for cloud acknowledgement.");
+        println!(
+            "Three application saves completed locally, the last shrinking the file \
+             in place; waiting for cloud acknowledgement."
+        );
         let uploads = loop {
             let rows = session.uploads(0, 100).await?;
             anyhow::ensure!(
@@ -354,7 +362,7 @@ pub async fn onedrive_writable(state: &Path, label: &str) -> Result<()> {
                     .any(|r| matches!(r.state, UploadState::Failed | UploadState::Conflict)),
                 "mounted upload requires review; local bytes and journal retained"
             );
-            if rows.len() == 2 && rows.iter().all(|r| r.state == UploadState::Uploaded) {
+            if rows.len() == 3 && rows.iter().all(|r| r.state == UploadState::Uploaded) {
                 break rows;
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
@@ -440,7 +448,7 @@ pub async fn onedrive_writable(state: &Path, label: &str) -> Result<()> {
     result?;
     shutdown?;
     println!(
-        "Mounted write check passed: two direct saves, three atomic replacements including an online-only source after remount, old-descriptor preservation, eight upload receipts and three conditional source cleanups. Independent cloud checks matched. The final document and local evidence are retained."
+        "Mounted write check passed: three direct saves including an in-place shrinking truncation, three atomic replacements including an online-only source after remount, old-descriptor preservation, nine upload receipts and three conditional source cleanups. Independent cloud checks matched. The final document and local evidence are retained."
     );
     Ok(())
 }
@@ -549,16 +557,18 @@ mod tests {
         assert!(output.status.success());
         let rows: Vec<serde_json::Value> =
             serde_json::from_slice(&output.stdout).expect("save reports");
-        assert_eq!(rows.len(), 2);
+        assert_eq!(rows.len(), 3);
         let bytes = std::fs::read(path).expect("final bytes");
-        assert_eq!(bytes.len(), 262177);
+        // The shrink is the point. Without the truncate() this file would still be
+        // 262,177 bytes, with generation 2's tail left behind generation 3's prefix.
+        assert_eq!(bytes.len(), 65537);
         assert!(
             bytes
                 .iter()
                 .enumerate()
-                .all(|(i, b)| *b == ((i * 13 + 34) % 251) as u8)
+                .all(|(i, b)| *b == ((i * 13 + 51) % 251) as u8)
         );
-        assert_eq!(rows[1]["sha256"], hex::encode(Sha256::digest(&bytes)));
+        assert_eq!(rows[2]["sha256"], hex::encode(Sha256::digest(&bytes)));
     }
 
     #[tokio::test]

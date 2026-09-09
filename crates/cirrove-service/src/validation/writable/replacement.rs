@@ -189,7 +189,9 @@ pub(super) async fn local_saves(
     mut previous: UploadRecord,
     cancel: &CancellationToken,
 ) -> Result<OnlinePair> {
-    for (generation, count) in [(3, 4), (4, 6)] {
+    // Counts are absolute upload-receipt totals, so they carry the three direct
+    // application saves that precede this sequence.
+    for (generation, count) in [(3, 5), (4, 7)] {
         let started = std::time::Instant::now();
         let report = application(&engine.account.mount_path, "local", generation).await?;
         event(
@@ -224,7 +226,7 @@ pub(super) async fn local_saves(
         previous = replacement.clone();
     }
     let report = application(&engine.account.mount_path, "create", 5).await?;
-    let (uploads, _) = completed(session, 7, 2).await?;
+    let (uploads, _) = completed(session, 8, 2).await?;
     let source = uploads.last().context("online source missing")?.clone();
     anyhow::ensure!(
         matches!(&source.intent, UploadIntent::Create { name, parent }
@@ -267,7 +269,7 @@ pub(super) async fn after_remount(
         log,
         serde_json::json!({"stage":"online_atomic_save","application":report}),
     )?;
-    let (uploads, mutations) = completed(session, 8, 3).await?;
+    let (uploads, mutations) = completed(session, 9, 3).await?;
     let latest = uploads.last().context("replacement missing")?;
     matching_bytes(latest, &report)?;
     verify_pair(

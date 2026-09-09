@@ -681,9 +681,10 @@ uses ordinary local files; it does not establish Graph behavior. All 218 default
 workspace tests and the existing 31 actual synthetic kernel-FUSE checks passed,
 with formatting, strict Clippy, build, smoke, two observer checks and Rustdoc.
 
-The expanded live sequence has **not yet been executed**. Its launch remains
-pending explicit authorization for the new folder, generated uploads and three
-conditional deletions of run-created sources. Earlier live evidence remains
+The expanded live sequence had **not yet been executed** when this increment was
+written. It was authorized and run on 2026-09-09; see the live provider run at the
+end of this document for what it proved and what it left open. The paragraph below
+is kept as written, because the state it records is what the increment shipped. Earlier live evidence remains
 limited to the already recorded operations and two basic mounted saves. This
 increment does not close the application/provider acceptance matrix or any of
 the six release milestones.
@@ -1551,3 +1552,163 @@ tightly and is unchanged; the difference in maxima sits inside the run-to-run sp
 recorded earlier, where identical code produced maxima from 17 to 112 ms.
 
 This does not make writes faster, and it cannot order writers in another process.
+
+## Live provider run (2026-09-09)
+
+Five live validators were run end to end against a real Microsoft business drive
+(`goodguysai-my.sharepoint.com`, `driveType: business`) from a frozen
+`--release` build of `fix/namespace-memory-attribution`. Reads used the ordinary
+read-only grant; every mutation used the separate `Files.ReadWrite.All` grant in
+its own state directory, whose account is `enabled: false`, so no ordinary mount
+could reach it. Item identifiers and folder names stay in private local evidence.
+
+This section exists partly to correct a claim. `docs/authorization-request.md`
+said "nothing in the repository has ever contacted" a real account. That was
+written about the automated suites and was read as a statement about the product;
+live evidence has existed since 2026-09-06. What had genuinely never run is the
+*expanded* write sequence, and it has now run.
+
+### Conservative read path — GET only, no mutation
+
+Five preconditions against one 161,826-byte file, real Graph:
+
+| condition | status | meaning |
+| --- | ---: | --- |
+| `range` | 206 | exact range honoured, identity encoding |
+| `if_match_mismatch` | 412 | a stale ETag is refused, not silently served |
+| `if_range_mismatch` | 200 | full representation, correctly not a partial one |
+| `if_match_same` | 206 | bytes matched the initial read |
+| `if_range_same` | 206 | bytes matched the initial read |
+
+Two metadata operations and five content operations; metadata unchanged across
+the run. Strong ETags throughout, and no redirect on any sample.
+
+### Read-session efficiency — measured, and two parts not exercised
+
+Five bounded samples of the same file, optimized session against conservative
+comparison reads, `all_samples_match: true`:
+
+| path | Graph GETs | content GETs | wall clock |
+| --- | ---: | ---: | ---: |
+| optimized session | 3 | 5 | 271 ms for four ranges after a 578 ms first range |
+| conservative | 13 | 10 | 2,166 ms |
+
+**What this does not show.** The report's own counters read
+`conditional_windows: 0` and `renewals: 0`. Only `conditional_ranges` was
+exercised (4). The bounded *sequential window* path in
+`read_sessions.rs:112` and the renewal branch at `read_sessions.rs:189` were
+never entered, because a session binding does not expire inside a two-second
+test. [ADR 0004](adr/0004-read-session-efficiency.md) asks for shared setup,
+bounded sequential windows *and* safe renewal; one of the three is measured live.
+Its acceptance box stays open, and this is why.
+
+### Directory freshness through a real mount
+
+Three folder changes, Unicode names, observed through an actual read-only kernel
+FUSE mount with Graph delta and push deliberately excluded, so this isolates
+directory refresh from notification:
+
+| sample | provider ack | visible after ack | total |
+| ---: | ---: | ---: | ---: |
+| 0 | 293 ms | 4,871 ms | 5,164 ms |
+| 1 | 2,910 ms | 2,182 ms | 5,093 ms |
+| 2 | 381 ms | 4,768 ms | 5,149 ms |
+
+One directory page each. The totals are far tighter than their parts, which is
+what a fixed refresh cadence looks like rather than a race.
+
+### Push notifications — delivery and reaction measured separately
+
+Subscribed through the official Graph Socket.IO endpoint, no polling. Three
+changes, each observed in a delta requested *because of* a notification:
+
+| sample | provider ack | notification delivered | local reaction |
+| ---: | ---: | ---: | ---: |
+| 0 | 318 ms | 30,023 ms | 287 ms |
+| 1 | 430 ms | 31,029 ms | 169 ms |
+| 2 | 596 ms | 31,352 ms | 174 ms |
+
+**Delivery is about thirty seconds and the spread is 1.3 seconds across three
+samples.** That tightness is the finding: it reads as a fixed batching interval
+on the provider's side, not as variable latency. Local reaction is under
+300 ms in every case. The acceptance box asks for these two measured
+separately, and they now are — but it also asks for reconnection, catch-up and
+periodic recovery on a live account, which remain covered only synthetically,
+so the box stays open.
+
+### One notification was never delivered
+
+The `--check-renewal` run failed on its first sample with `no matching
+notification-triggered delta within deadline`, against a 90-second deadline and a
+typical delivery of 30 seconds. The change itself was acknowledged by the provider
+in 277 ms, so the write happened and the notification did not arrive.
+
+A discriminating retry was pre-registered before it was run: if the plain
+three-sample check failed too, immediately afterwards and with the same
+back-to-back subscription pattern, the cause would be subscription interference
+rather than delivery. **It passed, all three samples.** The interference
+hypothesis is refuted and the miss stands unexplained.
+
+The tally so far is one lost notification in seven live samples. That is a real
+rate on a small sample, not a bound, and it is recorded rather than retried away.
+What it argues for is the clause the acceptance box already contains: push cannot
+be the only refresh mechanism, and periodic recovery is not belt-and-braces. In
+the shipped daemon it is not, because the account polls every 30 seconds, so a
+dropped notification costs bounded staleness rather than a stale mount. The
+validator disables polling on purpose, which is why it fails hard where the
+product would not.
+
+### Uploads in a dedicated folder
+
+Multi-part upload with independent readback; a create refused against an
+existing name (`Conflict`); an empty file; a conditional replacement of the
+run's own fixture; an old revision refused (`Conflict`); and a competing edit
+introduced after all replacement bytes were staged but before final commit,
+which produced `VerifyRequired` and then `Conflict` rather than a lost update.
+
+### Namespace mutations in a dedicated folder
+
+Durable folder creation; Unicode rename then move with byte readback; a
+colliding rename that preserved both files; a stale rename refused; conditional
+removal of a run-created file; a stale delete that preserved the newer revision;
+and folder rename plus move with an existing child read back intact.
+
+### Writable mount — real application saves
+
+A separate application process wrote through the mount into a run-owned folder,
+including a name with spaces and umlauts:
+
+| generation | size | local save | note |
+| ---: | ---: | ---: | --- |
+| 1 | 131,071 B | 6.8 ms | direct save, `fsync` |
+| 2 | 262,177 B | 8.3 ms | direct save, `fsync` |
+| 3 | 196,613 B | 445 ms | atomic replacement, old descriptor preserved |
+| 4 | 229,379 B | 33 ms | atomic replacement, old descriptor preserved |
+| 5 | 294,911 B | 501 ms | replacement of an online-only source after remount |
+
+Rename cost 5.2 to 6.1 ms. Eight upload receipts, three conditional source
+cleanups, independent cloud checks matched, and the fixture survived a remount
+with reopened metadata and journal.
+
+**Truncation is still not covered, despite the box naming it.** The application
+script writes each generation from offset zero and then calls `truncate(size)`
+at exactly the size just written, so the call is a no-op every time. Generation 3
+is smaller than generation 2, but it shrinks through *atomic replacement*, not
+through truncating an open descriptor. Shrinking a file in place has no live
+evidence, and `- [ ] Correct application save patterns, truncation and atomic
+replacement` therefore stays unticked with saves and replacement proven and
+truncation not.
+
+### What this run changes, and what it does not
+
+Proven live: the conservative read preconditions, shared read-session setup,
+directory freshness through a mount, push delivery separated from local
+reaction, the upload conflict matrix, the namespace conflict matrix, and
+application saves with atomic replacement across a remount.
+
+Still open on this account: in-place truncation, bounded sequential windows,
+session renewal, live reconnection and catch-up, consent expiry with visible
+reauthentication, and the 24-hour sustained run. Token *refresh* is separately
+evidenced by the installed daemon, which has refreshed hourly for a day and a
+half without intervention; consent *expiry* is a different event and has not
+been observed.

@@ -11,10 +11,17 @@ with `blocker` naming the class. This document is the operator's version of it.
 
 ## Live provider, read only — about 15 minutes plus one wait
 
-Six open boxes turn on a real Microsoft account. Nothing in the repository has ever
-contacted one: every provider is either an in-process fake or a loopback HTTP
-server the real adapter talks to, and `AGENTS.md` requires explicit authorization
-for anything else.
+Six open boxes turn on a real Microsoft account. No *automated test* contacts one:
+every provider in the suites is an in-process fake or a loopback HTTP server the
+real adapter talks to, and `AGENTS.md` requires explicit authorization for anything
+else.
+
+That is a statement about the suites, and an earlier wording of it -- "nothing in
+the repository has ever contacted one" -- was read as a statement about the
+product and repeated as such. It is not true of the product. Live evidence against
+a real business drive exists from 2026-09-06, and the expanded write sequence ran
+on 2026-09-09; both are recorded in `docs/validation.md`. What the boxes below
+need is the *remaining* live evidence, not a first contact.
 
 Connect a **separate** grant, not your working account:
 
@@ -38,8 +45,9 @@ filesystem. Four of the six boxes need exactly this.
 
 ## Live provider, writable — about 45 minutes, and it changes cloud data
 
-Milestone 2's expanded sequence is recorded in `docs/product-milestones.md` as
-never executed, pending authorization. It runs in a folder it creates:
+Milestone 2's expanded sequence **ran on 2026-09-09 and passed**; it is recorded at
+the end of `docs/validation.md`. It is repeatable, and it runs in a folder it
+creates each time:
 
     cirrove validate-onedrive-uploads   --label validation --state-dir ... --write-access
     cirrove validate-onedrive-mutations --label validation --state-dir ... --write-access
