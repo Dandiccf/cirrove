@@ -1747,3 +1747,43 @@ subscription and observed a fresh change in a notification-triggered delta
 Across every live sample in this run, delivery sits between 30.0 and 32.7
 seconds. Eleven samples is not a distribution, but nothing in them looks like
 variable latency; it looks like a fixed cadence with one drop.
+
+## A folder's eTag ignores its children (2026-09-09)
+
+Measured before designing `rmdir`, because it decides whether the feature can be
+built safely at all. Graph's DELETE on a folder is **recursive**: it removes
+whatever the folder contains. POSIX `rmdir` promises the opposite, refusing a
+non-empty directory, so offering that promise over Graph means checking emptiness
+and then deleting under a precondition that fails if the folder changed in
+between.
+
+The prediction recorded before the run was that a folder's eTag *does* move when
+a child is added, because `childCount` is part of the folder item. **It was
+wrong.** Two runs, one folder each, reading the parent before a child was created,
+immediately after, and again sixty seconds later:
+
+| reading | eTag | mtime |
+| --- | --- | ---: |
+| empty | `{1AB03CEF-…},2` | 1788930707 |
+| immediately after a child | `{1AB03CEF-…},2` | 1788930707 |
+| sixty seconds after | `{1AB03CEF-…},2` | 1788930707 |
+
+Byte-identical in all three, and the children listing confirms the child exists.
+The first run showed the same on a different folder.
+
+**The consequence is the useful part.** `If-Match` on a folder's eTag cannot close
+the window between an emptiness check and a recursive DELETE. A *delayed* update
+would not rescue it either — it would let the precondition pass at exactly the
+moment it needs to fail. Any `rmdir` built on Graph therefore carries a residual
+window in which a concurrently created child is destroyed by a delete that
+believed the folder was empty.
+
+That window can be narrowed to a single round trip and the loss can be detected
+afterwards through the delta feed, with OneDrive's recycle bin as the recovery
+path. It cannot be closed with a precondition, and the design must not be written
+as though it can. `folder_etag_and_mtime_ignore_their_children` asserts the
+measured behaviour so that a provider change is noticed rather than silently
+making the hazard obsolete — or the design unsound.
+
+It also bears on change detection more generally: a mount cannot learn that a
+directory's contents changed by watching the directory's own item.
