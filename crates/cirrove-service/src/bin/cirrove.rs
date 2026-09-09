@@ -175,6 +175,29 @@ enum Command {
         #[arg(long)]
         state_dir: Option<PathBuf>,
     },
+    /// Keep an item available offline, reserving cache space for it.
+    Pin {
+        label: String,
+        /// Provider item id. Read `cirrove status` to see what is pinned.
+        #[arg(long)]
+        item: String,
+        /// Pin every file beneath a folder as well.
+        #[arg(long)]
+        recursive: bool,
+        /// Bytes to reserve. Defaults to the size in the local index.
+        #[arg(long)]
+        bytes: Option<u64>,
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
+    },
+    /// Release a pin and the cache space it reserved.
+    Unpin {
+        label: String,
+        #[arg(long)]
+        item: String,
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
+    },
     /// Verify desktop credential storage using an isolated synthetic entry.
     KeyringCheck,
 
@@ -383,6 +406,30 @@ async fn main() -> Result<()> {
                 None => state_dir()?,
             };
             cirrove_service::accounts::set_enabled(&state, &label, false)?;
+        }
+        Command::Pin {
+            label,
+            item,
+            recursive,
+            bytes,
+            state_dir: state,
+        } => {
+            let state = state.map(Ok).unwrap_or_else(state_dir)?;
+            println!(
+                "{}",
+                cirrove_service::accounts::set_pin(&state, &label, &item, recursive, bytes)?
+            );
+        }
+        Command::Unpin {
+            label,
+            item,
+            state_dir: state,
+        } => {
+            let state = state.map(Ok).unwrap_or_else(state_dir)?;
+            println!(
+                "{}",
+                cirrove_service::accounts::clear_pin(&state, &label, &item)?
+            );
         }
         Command::KeyringCheck => cirrove_service::accounts::keyring_check().await?,
 

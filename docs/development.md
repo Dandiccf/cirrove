@@ -523,3 +523,26 @@ This checks causality with 2,000 synthetic files; use the existing
 `CIRROVE_NAMESPACE_PER_DIRECTORY=500000` for separate first-entry/throughput
 measurements. During construction, `directory_snapshot_entries` reports the
 published prefix, and snapshot reservations also include buffered unpublished data.
+
+## Schema versions and a running daemon
+
+The metadata index carries a `user_version`, and `Store::open` migrates it
+forward. A daemon built before that version then refuses its own index: its feeds
+go offline reporting `local metadata operation failed` while the mount stays up,
+which reads as a network fault rather than as a version mismatch.
+
+Any tool that shares a state directory with a running service therefore has to
+ask before it opens. `cirrove_store::schema_version` reads the version without
+opening or migrating, and `cirrove_store::SCHEMA_VERSION` is what this build
+writes. The `pin` and `unpin` commands check both and refuse rather than migrate
+while `cirroved` holds the state.
+
+This is written down because it happened: a `pin` invocation aimed at
+demonstrating an error message was run without `--state-dir`, migrated a live
+account's index on the way to failing, and left the installed daemon unable to
+read it. Recovery is `PRAGMA user_version=<previous>` on that database — the
+migration only adds empty tables, and `CREATE TABLE IF NOT EXISTS` makes the real
+migration idempotent afterwards — followed by a service restart.
+
+Upgrading properly is: install the new binaries first, then restart the service,
+then use the new commands.

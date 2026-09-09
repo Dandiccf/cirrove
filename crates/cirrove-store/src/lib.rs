@@ -91,6 +91,17 @@ pub enum StoreError {
 }
 pub type Result<T> = std::result::Result<T, StoreError>;
 
+/// The schema this build writes and can read.
+///
+/// Exposed so that a tool sharing a state directory with a running service can
+/// ask whether opening a store would migrate it, rather than finding out by
+/// having migrated it.
+pub const SCHEMA_VERSION: u32 = 7;
+/// The schema version a database is currently at, without opening or migrating it.
+pub fn schema_version(path: impl AsRef<Path>) -> Result<u32> {
+    let db = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+    Ok(db.pragma_query_value(None, "user_version", |r| r.get(0))?)
+}
 fn timestamp() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -160,10 +171,10 @@ impl Store {
             PRAGMA journal_size_limit=16777216;",
         )?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if version > 7 {
+        if version > SCHEMA_VERSION {
             return Err(StoreError::SchemaVersion);
         }
-        if version < 7 {
+        if version < SCHEMA_VERSION {
             if version < 2 {
                 initial_wal(&db)?;
             }
@@ -172,7 +183,7 @@ impl Store {
             // Another connection may have migrated while this one waited for
             // the writer. All schema steps and their version publish together.
             let version: u32 = tx.pragma_query_value(None, "user_version", |r| r.get(0))?;
-            if version > 7 {
+            if version > SCHEMA_VERSION {
                 return Err(StoreError::SchemaVersion);
             }
             if version < 2 {
@@ -216,8 +227,8 @@ impl Store {
             metadata_changes::validate(&tx)?;
             directories::validate(&tx)?;
             pins::validate(&tx)?;
-            if version < 7 {
-                tx.pragma_update(None, "user_version", 7)?;
+            if version < SCHEMA_VERSION {
+                tx.pragma_update(None, "user_version", SCHEMA_VERSION)?;
             }
             tx.commit()?;
         }
