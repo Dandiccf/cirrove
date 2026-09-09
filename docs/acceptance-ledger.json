@@ -201,7 +201,7 @@
       "done": false,
       "text": "Clear unpin/free-space behavior and accurate availability status.",
       "blocker": "autonomous",
-      "evidence": "Scope expanded by the user on 2026-09-09 from milestones 1 and 2 to all six, so this row is no longer out of the agreed frame. ",
+      "evidence": "Scope expanded by the user on 2026-09-09. PART DONE 2026-09-09: availability status separates what a pin reserved from what it has actually kept, counted from files present in the cache directory rather than from the block index, which is derived state and would keep reporting a deleted block as available. Unpin releases both the reservation and the protection and reports whether a pin existed. Asserted by engine::pinning availability tests and pins::tests::unpinning_releases_both. STILL OPEN: free-space behaviour proper -- what happens as the budget fills and how that is explained to the user -- and any of this being reachable from a terminal.",
       "asserted_by": null
     },
     {
@@ -221,7 +221,7 @@
       "done": false,
       "text": "Unsent changes excluded from cache eviction and connection cleanup.",
       "blocker": "autonomous",
-      "evidence": "Scope expanded by the user on 2026-09-09 from milestones 1 and 2 to all six, so this row is no longer out of the agreed frame. ",
+      "evidence": "Scope expanded by the user on 2026-09-09. Holds structurally rather than by a rule that could be relaxed: the upload journal is a sibling of the cache directory, and eviction only ever removes files whose names it recognises as its own block keys, plus its own <key>.<uuid>.tmp temporaries. No production path in the tree calls remove_dir_all at all. Asserted by content::tests::eviction_never_reaches_outside_its_own_block_names, which places an unsent journal entry beside the cache and a non-block file inside it, drives both the runtime eviction pass and the mount-time reconcile pass under real pressure, and requires a genuine block to have been removed so that survival of the other two means something. STILL OPEN: the connection-cleanup half. Nothing removes the journal today, but no test pins that down across account disable and removal, and there is no measured evidence on a real account.",
       "asserted_by": null
     },
     {

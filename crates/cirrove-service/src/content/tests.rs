@@ -116,3 +116,45 @@ async fn the_reconcile_pass_at_mount_time_also_leaves_protected_blocks_alone() {
         "without the reservation the same block is evicted, so the check above means something"
     );
 }
+
+#[tokio::test]
+async fn eviction_never_reaches_outside_its_own_block_names() {
+    let temp = tempfile::tempdir().expect("fixture");
+    let (cache_path, blocks) = (temp.path().join("cache"), temp.path().join("db"));
+    // The upload journal is a sibling of the cache, holding local edits that have
+    // not reached the provider. Milestone 3 requires that unsent changes are
+    // excluded from cache eviction, and the way that holds today is structural:
+    // eviction only ever removes files it recognises as its own blocks. This
+    // fails the moment anything widens that.
+    let journal = temp.path().join("journal");
+    std::fs::create_dir_all(&journal).expect("journal");
+    std::fs::write(journal.join("unsent-0001"), b"local edit").expect("unsent");
+    let quota = 512 * MIB;
+    let stray = {
+        let cache = ContentCache::new(cache_path.clone(), blocks.clone(), quota).expect("cache");
+        let size = cache.quota;
+        place(&cache, &key('a'), size);
+        std::thread::sleep(std::time::Duration::from_millis(5));
+        place(&cache, &key('b'), size);
+        // A file inside the cache directory that is not a block name at all.
+        let stray = cache_path.join("not-a-block");
+        std::fs::write(&stray, b"keep me").expect("stray");
+        cache.evict("").await.expect("evict");
+        stray
+    };
+    // Reopening runs reconcile over the same directory, which is the other pass
+    // that deletes things.
+    let _cache = ContentCache::new(cache_path.clone(), blocks, quota).expect("cache");
+    assert!(
+        journal.join("unsent-0001").exists(),
+        "an unsent local change must survive every eviction pass"
+    );
+    assert!(
+        stray.exists(),
+        "a file in the cache directory that is not a block must be left alone"
+    );
+    assert!(
+        !cache_path.join(key('a')).exists(),
+        "and the pass must still have removed a real block, or this proves nothing"
+    );
+}
