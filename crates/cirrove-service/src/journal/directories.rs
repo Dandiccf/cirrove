@@ -4,6 +4,12 @@ use super::*;
 use cirrove_core::mutation::{MutationIntent, MutationRequest};
 use rusqlite::Transaction;
 
+/// A directory whose name is released and whose remote removal is queued.
+pub struct RemovedDirectory {
+    pub object: NamespaceObject,
+    pub mutation: MutationRecord,
+}
+
 pub(super) fn migrate(db: &mut Connection, version: u32) -> Result<()> {
     if version < 14 {
         let tx = db.transaction()?;
@@ -157,6 +163,105 @@ impl UploadJournal {
         };
         self.enqueue_namespace_mutation(request, None, object)?;
         self.namespace_object(id)
+    }
+
+    /// Release a directory name and queue its conditional remote removal.
+    ///
+    /// Never recursive, the way POSIX `rmdir` is not. Emptiness against the
+    /// provider is the adapter's job, immediately before the delete; what is
+    /// checked here is the half the provider cannot see -- a locally created
+    /// directory or file that lives only in this journal and would be orphaned by
+    /// removing its parent. Callers are expected to have refused a non-empty
+    /// directory already, so reaching either check means a race, not a user error.
+    pub fn remove_namespace_directory(
+        &mut self,
+        id: Uuid,
+        revision: u64,
+    ) -> Result<RemovedDirectory> {
+        let mut object = self.namespace_object(id)?;
+        if object.scope.account != self.account {
+            return Err(JournalError::Account);
+        }
+        if object.unlinked || object.follows_remote || object.revision != revision {
+            return Err(JournalError::Stale);
+        }
+        if object.node.kind != NodeKind::Folder
+            || object.node.target.is_some()
+            || object.working_file.is_some()
+        {
+            return Err(JournalError::Intent);
+        }
+        if self.namespace_objects()?.iter().any(|child| {
+            !child.unlinked
+                && child.id != object.id
+                && child.scope == object.scope
+                && child.node.parent_id.as_deref() == Some(object.node.id.as_str())
+        }) {
+            return Err(JournalError::Intent);
+        }
+        let before = if object.latest.is_some() {
+            object.node.clone()
+        } else {
+            object.remote.clone().ok_or(JournalError::Stale)?
+        };
+        let request = MutationRequest {
+            scope: object.scope.clone(),
+            intent: MutationIntent::RemoveFolder { before },
+        };
+        let base = if let Some(predecessor) = object.latest {
+            self.validate_mutation_base(predecessor, &request)?;
+            self.ensure_successor_free(predecessor)?;
+            Some(WriteBase {
+                predecessor,
+                resolved: false,
+            })
+        } else {
+            request.validate().map_err(|_| JournalError::Intent)?;
+            None
+        };
+        let mut mutation = MutationRecord {
+            id: Uuid::new_v4(),
+            sequence: 0,
+            request,
+            state: MutationState::Pending,
+            attempt: None,
+            receipt: None,
+            retry_at: 0,
+            failed_attempts: 0,
+            base,
+            working_file: None,
+            local_ready: true,
+        };
+        object.unlinked = true;
+        object.latest = Some(mutation.id);
+        object.revision = object.revision.checked_add(1).ok_or(JournalError::Quota)?;
+        let tx = self
+            .db
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        mutation.sequence = super::mutations::queue_insert(
+            &tx,
+            mutation.id,
+            super::mutations::mutation_resources(&mutation.request)?,
+        )?;
+        super::generations::insert_dependency(
+            &tx,
+            mutation.id,
+            mutation.sequence,
+            mutation.base.as_ref(),
+        )?;
+        tx.execute(
+            "INSERT INTO mutations VALUES(?1,?2,'pending',?3)",
+            params![
+                mutation.sequence as i64,
+                mutation.id.to_string(),
+                serde_json::to_string(&mutation)?
+            ],
+        )?;
+        namespace::save(&tx, &object)?;
+        tx.commit()?;
+        #[cfg(feature = "test-support")]
+        crate::journal::durable::record("directories::remove_namespace_directory");
+        Ok(RemovedDirectory { object, mutation })
     }
 
     pub(crate) fn following_namespace(

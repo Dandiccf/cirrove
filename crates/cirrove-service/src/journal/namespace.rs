@@ -529,14 +529,24 @@ impl UploadJournal {
         if scope.account != self.account {
             return Err(JournalError::Account);
         }
-        if node.kind != NodeKind::File {
-            return Err(JournalError::Intent);
-        }
-        MutationRequest {
-            scope: scope.clone(),
-            intent: MutationIntent::RemoveFile {
+        // Folders are adopted too, so that `rmdir` can act on a directory this
+        // journal has never touched. The removal intent is used only as a shape
+        // check on the node -- id, name, parent and a usable ETag -- and it has to
+        // match the kind, because each refuses the other.
+        let intent = match node.kind {
+            NodeKind::File => MutationIntent::RemoveFile {
                 before: node.clone(),
             },
+            NodeKind::Folder => MutationIntent::RemoveFolder {
+                before: node.clone(),
+            },
+            // A shortcut names something in another tree. Adopting it here would
+            // give this journal an identity it must never mutate.
+            NodeKind::Shortcut => return Err(JournalError::Intent),
+        };
+        MutationRequest {
+            scope: scope.clone(),
+            intent,
         }
         .validate()
         .map_err(|_| JournalError::Intent)?;

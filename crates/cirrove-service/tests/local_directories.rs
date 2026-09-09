@@ -453,3 +453,54 @@ fn actual_process_death_keeps_a_pending_folder_and_its_waiting_child_consistent(
         }
     }
 }
+
+/// `rmdir` is not recursive, and the journal is the only place that can see a
+/// child which exists nowhere else yet.
+///
+/// The provider cannot help here: a locally created directory or file has no
+/// remote identity to list, so an emptiness check against Graph would report the
+/// parent empty and the recursive DELETE would take the pending child with it.
+/// Dropping the `namespace_objects` scan in `remove_namespace_directory` makes
+/// the first two removals below succeed.
+#[test]
+fn a_directory_is_not_removed_while_a_purely_local_child_still_names_it() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut j = open(&temp.path().join("journal"));
+    let parent = j
+        .create_namespace_directory(scope(), "root".into(), "Grüße".into())
+        .unwrap();
+    let nested = j
+        .create_namespace_directory(scope(), parent.node.id.clone(), "nested".into())
+        .unwrap();
+
+    // A pending child directory holds the parent.
+    assert!(matches!(
+        j.remove_namespace_directory(parent.id, parent.revision),
+        Err(JournalError::Intent)
+    ));
+
+    // The empty child is refused too, for a different reason worth stating: a
+    // directory whose creation the provider has not acknowledged has no ETag, and
+    // a conditional removal cannot be expressed against it at all. Cancelling an
+    // unconfirmed creation is a different operation from removing a directory,
+    // and it is not implemented. `Writeback::rmdir` reports EBUSY for this rather
+    // than letting it surface as a malformed request.
+    assert!(nested.remote.is_none());
+    assert!(matches!(
+        j.remove_namespace_directory(nested.id, nested.revision),
+        Err(JournalError::Intent)
+    ));
+
+    // A pending child file holds it as well.
+    child(&mut j, &parent.node.id, "held.txt");
+    assert!(matches!(
+        j.remove_namespace_directory(parent.id, parent.revision),
+        Err(JournalError::Intent)
+    ));
+
+    // Every refusal left the parent alone: a rejected rmdir must not consume the
+    // revision it checked, or the retry after the child is gone would be stale.
+    let unchanged = j.namespace_object(parent.id).unwrap();
+    assert!(!unchanged.unlinked);
+    assert_eq!(unchanged.revision, parent.revision);
+}

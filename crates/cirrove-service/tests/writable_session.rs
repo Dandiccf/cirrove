@@ -395,6 +395,32 @@ impl MutationProvider for Cloud {
                 item: before.id.clone(),
             });
         }
+        if let MutationIntent::RemoveFolder { before } = &request.intent {
+            let mut remote = self.remote.lock().unwrap();
+            let (node, _) = remote
+                .files
+                .get(&before.id)
+                .ok_or(ProviderError::NotFound)?;
+            if node.etag != before.etag || node.kind != NodeKind::Folder {
+                return Err(MutationError::Conflict);
+            }
+            // The real adapter checks emptiness immediately before deleting,
+            // because Graph's DELETE on a folder is recursive. This fixture
+            // refuses a populated folder for the same reason: a mock that
+            // cascaded silently would hide the absence of that check.
+            if remote
+                .files
+                .values()
+                .any(|(n, _)| n.parent_id.as_ref() == Some(&before.id))
+            {
+                return Err(MutationError::Conflict);
+            }
+            remote.files.remove(&before.id);
+            remote.deletes.push(request.clone());
+            return Ok(MutationReceipt::Removed {
+                item: before.id.clone(),
+            });
+        }
         let MutationIntent::Relocate {
             before,
             parent,
@@ -2806,5 +2832,99 @@ old.close()
     assert_eq!(session.mutations(0, 100).await.unwrap().len(), 1);
     assert!(cloud.remote.lock().unwrap().deletes.is_empty());
     drop(engine);
+    session.shutdown().await.unwrap();
+}
+
+async fn applied(session: &WritableSession, count: usize) {
+    use cirrove_service::journal::MutationState;
+    tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            let rows = session.mutations(0, 100).await.unwrap();
+            assert!(!rows.iter().any(|r| matches!(
+                r.state,
+                MutationState::Failed | MutationState::Conflict | MutationState::NeedsReview
+            )));
+            if rows.len() == count && rows.iter().all(|r| r.state == MutationState::Applied) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+}
+
+/// `rmdir` keeps its POSIX promise: a populated directory is refused, an empty
+/// one is removed, and the removal reaches the provider.
+///
+/// `ENOTEMPTY` comes from the mount's own listing. It has to, because nothing the
+/// provider offers can carry it: Graph's DELETE on a folder is recursive and a
+/// folder's eTag does not move when a child is added, so a precondition cannot
+/// express "only if still empty". Removing the listing check in `rmdir` makes the
+/// first assertion here fail, and the synthetic cloud then refuses the delete --
+/// which is the second line of defence doing its job, not a passing test.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; rmdir refuses a populated directory and removes an empty one"]
+async fn real_rmdir_refuses_a_populated_directory_and_removes_an_empty_one() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    namespace_fixture(&cloud);
+    {
+        let inside = Node {
+            id: "inside".into(),
+            parent_id: Some("folder".into()),
+            name: "inside.txt".into(),
+            kind: NodeKind::File,
+            size: 3,
+            modified_unix: 1,
+            etag: Some("inside-etag".into()),
+            content_version: Some("inside-content".into()),
+            target: None,
+        };
+        cloud
+            .remote
+            .lock()
+            .unwrap()
+            .files
+            .insert(inside.id.clone(), (inside, b"abc".to_vec()));
+    }
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session =
+        WritableSession::mount(engine, journal, cloud.clone(), Arc::new(Vault::default()))
+            .await
+            .unwrap();
+
+    let path = mount.join("folder");
+    let populated = path.clone();
+    tokio::task::spawn_blocking(move || {
+        let error = std::fs::remove_dir(&populated).unwrap_err();
+        assert_eq!(
+            error.kind(),
+            std::io::ErrorKind::DirectoryNotEmpty,
+            "populated directory: {error}"
+        );
+        // The refusal must not have removed anything on the way.
+        assert_eq!(std::fs::read(populated.join("inside.txt")).unwrap(), b"abc");
+        std::fs::remove_file(populated.join("inside.txt")).unwrap();
+        std::fs::remove_dir(&populated).unwrap();
+        assert!(!populated.exists());
+    })
+    .await
+    .unwrap();
+
+    applied(&session, 2).await;
+    {
+        let remote = cloud.remote.lock().unwrap();
+        assert!(!remote.files.contains_key("folder"));
+        assert!(!remote.files.contains_key("inside"));
+    }
     session.shutdown().await.unwrap();
 }

@@ -1171,6 +1171,81 @@ impl Filesystem for CloudFs {
             }
         });
     }
+    /// Remove an empty directory, refusing a populated one the way POSIX does.
+    ///
+    /// The `ENOTEMPTY` below is the user-visible guarantee, and it is checked from
+    /// the directory's own listing. The provider is checked again immediately
+    /// before the delete, because Graph's DELETE on a folder is recursive and a
+    /// folder's eTag does not move when a child appears, so no precondition can
+    /// carry this. That leaves a window of one round trip in which a child created
+    /// by someone else is removed along with the directory. It is documented on
+    /// `MutationIntent::RemoveFolder` and it cannot be closed over Graph.
+    fn rmdir(&self, _req: &Request, parent: INodeNo, name: &OsStr, reply: ReplyEmpty) {
+        let Some(writer) = self.inner.writeback.clone() else {
+            reply.error(Errno::EROFS);
+            return;
+        };
+        let Some(name) = name.to_str().map(str::to_owned) else {
+            reply.error(Errno::EINVAL);
+            return;
+        };
+        let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
+            reply.error(Errno::EAGAIN);
+            return;
+        };
+        let Ok(admission) = self.inner.edits.admit() else {
+            reply.error(Errno::ENODEV);
+            return;
+        };
+        let inner = self.inner.clone();
+        // Capture residency before dispatch, including its ancestor leases.
+        let parent = match inner.view(parent.0) {
+            Ok(view) => view,
+            Err(error) => {
+                reply.error(errno(&error));
+                return;
+            }
+        };
+        self.inner.runtime.spawn(async move {
+            let _permit = permit;
+            let _admission = admission;
+            let result = async {
+                if parent.node.kind != NodeKind::Folder {
+                    return Err(Errno::ENOTDIR);
+                }
+                let source = inner
+                    .children(&parent)
+                    .await
+                    .map_err(|e| errno(&e))?
+                    .into_iter()
+                    .find(|n| n.name == name)
+                    .ok_or(Errno::ENOENT)?;
+                if source.kind != NodeKind::Folder {
+                    return Err(Errno::ENOTDIR);
+                }
+                // A shortcut names a directory somewhere else. Removing the link
+                // is not removing the target, and this path cannot express that.
+                if source.target.is_some() {
+                    return Err(Errno::EOPNOTSUPP);
+                }
+                let view = inner.insert(&parent, source).await.map_err(|e| errno(&e))?;
+                if !inner
+                    .children(&view)
+                    .await
+                    .map_err(|e| errno(&e))?
+                    .is_empty()
+                {
+                    return Err(Errno::ENOTEMPTY);
+                }
+                writer.rmdir(&inner, view).await
+            }
+            .await;
+            match result {
+                Ok(()) => reply.ok(),
+                Err(e) => reply.error(e),
+            }
+        });
+    }
     fn unlink(&self, _req: &Request, parent: INodeNo, name: &OsStr, reply: ReplyEmpty) {
         let Some(writer) = self.inner.writeback.clone() else {
             reply.error(Errno::EROFS);
