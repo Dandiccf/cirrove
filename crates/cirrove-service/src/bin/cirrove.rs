@@ -61,6 +61,54 @@ enum Command {
         #[arg(long)]
         state_dir: PathBuf,
     },
+    /// Measure directory listing latency on a cold mount of a real collection,
+    /// while its index is still being built and while a download competes.
+    ValidateOnedriveNavigation {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        drive: Option<String>,
+        /// How long to sample. The competing download starts after a third of it.
+        #[arg(long, default_value = "300")]
+        seconds: u64,
+        /// A large file to download against the navigation loop.
+        #[arg(long)]
+        item: Option<String>,
+        /// Root item inside --drive. Required for a linked collection, whose root
+        /// is not the account's own.
+        #[arg(long)]
+        root: Option<String>,
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
+    },
+    /// Read one file through two cold mounts, with the experimental read path off
+    /// and on, and compare the bytes and the Graph metadata requests. GET-only.
+    ValidateOnedriveReadBytes {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        item: String,
+        /// The selected account drive is used unless a linked collection is given.
+        #[arg(long)]
+        drive: Option<String>,
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
+    },
+    /// Watch a mounted view follow remote creates, moves and deletions.
+    ValidateOnedriveRemoteChanges {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        state_dir: PathBuf,
+    },
+    /// Observe catch-up after a reconnection and the periodic recovery refresh,
+    /// each with the other mechanism disabled so a discovery is attributable.
+    ValidateOnedriveCatchup {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        state_dir: PathBuf,
+    },
     /// Verify Graph notifications using one new isolated synthetic cloud folder.
     ValidateOnedriveNotifications {
         #[arg(long)]
@@ -131,6 +179,29 @@ enum Command {
     },
     Disable {
         label: String,
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
+    },
+    /// Keep an item available offline, reserving cache space for it.
+    Pin {
+        label: String,
+        /// Provider item id. Read `cirrove status` to see what is pinned.
+        #[arg(long)]
+        item: String,
+        /// Pin every file beneath a folder as well.
+        #[arg(long)]
+        recursive: bool,
+        /// Bytes to reserve. Defaults to the size in the local index.
+        #[arg(long)]
+        bytes: Option<u64>,
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
+    },
+    /// Release a pin and the cache space it reserved.
+    Unpin {
+        label: String,
+        #[arg(long)]
+        item: String,
         #[arg(long)]
         state_dir: Option<PathBuf>,
     },
@@ -216,6 +287,35 @@ async fn main() -> Result<()> {
         }
         Command::ValidateOnedriveFreshness { label, state_dir } => {
             cirrove_service::validation::onedrive_freshness(&state_dir, &label).await?;
+        }
+        Command::ValidateOnedriveNavigation {
+            label,
+            drive,
+            seconds,
+            item,
+            root,
+            state_dir: state,
+        } => {
+            let state = state.map(Ok).unwrap_or_else(state_dir)?;
+            cirrove_service::validation::onedrive_navigation(
+                &state, &label, drive, seconds, item, root,
+            )
+            .await?;
+        }
+        Command::ValidateOnedriveReadBytes {
+            label,
+            item,
+            drive,
+            state_dir: state,
+        } => {
+            let state = state.map(Ok).unwrap_or_else(state_dir)?;
+            cirrove_service::validation::onedrive_read_bytes(&state, &label, &item, drive).await?;
+        }
+        Command::ValidateOnedriveRemoteChanges { label, state_dir } => {
+            cirrove_service::validation::onedrive_remote_changes(&state_dir, &label).await?;
+        }
+        Command::ValidateOnedriveCatchup { label, state_dir } => {
+            cirrove_service::validation::onedrive_catchup(&state_dir, &label).await?;
         }
         Command::ValidateOnedriveNotifications {
             label,
@@ -316,6 +416,30 @@ async fn main() -> Result<()> {
                 None => state_dir()?,
             };
             cirrove_service::accounts::set_enabled(&state, &label, false)?;
+        }
+        Command::Pin {
+            label,
+            item,
+            recursive,
+            bytes,
+            state_dir: state,
+        } => {
+            let state = state.map(Ok).unwrap_or_else(state_dir)?;
+            println!(
+                "{}",
+                cirrove_service::accounts::set_pin(&state, &label, &item, recursive, bytes)?
+            );
+        }
+        Command::Unpin {
+            label,
+            item,
+            state_dir: state,
+        } => {
+            let state = state.map(Ok).unwrap_or_else(state_dir)?;
+            println!(
+                "{}",
+                cirrove_service::accounts::clear_pin(&state, &label, &item)?
+            );
         }
         Command::KeyringCheck => cirrove_service::accounts::keyring_check().await?,
 

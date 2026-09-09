@@ -184,7 +184,7 @@ mod tests {
             db.db
                 .pragma_query_value(None, "user_version", |r| r.get::<_, u32>(0))
                 .unwrap(),
-            6
+            7
         );
         assert!(db.metadata_changes(&old).unwrap().changes.is_empty());
     }

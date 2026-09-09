@@ -51,7 +51,7 @@
       "done": false,
       "text": "Responsive navigation during initial indexing and competing downloads.",
       "blocker": "needs-live-account",
-      "evidence": "docs/benchmarks/navigation-stall-cause.json",
+      "evidence": "docs/benchmarks/navigation-stall-cause.json Live 2026-09-09 on a real 184,000-item linked collection, cold-indexed (docs/validation.md#navigating-a-real-collection-while-it-is-being-indexed, benchmarks/live-navigation-during-indexing.json): first visits to directories not seen before measure p50 192.1 ms and p95 317.0 ms while indexing, and p50 210.5 ms with p95 435.3 ms under a competing download, across 375 directories with no failed listing. The 500 ms threshold the fixture asserts against is exceeded once in 132 samples without a download and six times in 243 with one. STILL OPEN: the tail, not the median. A companion run that re-listed one directory reported p50 1.3 ms and is not evidence for this box, because a directory listed every 250 ms stays active and is refreshed in the background.",
       "asserted_by": "filesystem::capacity::real_combined_namespace_churn, churn.rs:403 -- read: asserts cached navigation stays under 500 ms while committed changes are being applied, on every round. Supported by content::windows::tests::graph::kernel fixtures covering navigation during a stalled transfer."
     },
     {
@@ -61,7 +61,7 @@
       "done": false,
       "text": "Remove Graph metadata checks per cache block from the validated read-session fast path; implement and measure shared session setup, bounded sequential windows and safe renewal as specified in [read-session efficiency](adr/0004-read-session-efficiency.md).",
       "blocker": "needs-live-account",
-      "evidence": "docs/validation.md#read-session-efficiency -- live 2026-09-09: shared setup measured (3 vs 13 Graph GETs, 271 vs 2166 ms, all samples matched). The run's conditional_windows=0 and renewals=0 measure the harness, not the code: the window path needs the content cache (content/sessions.rs:200, content.rs:61) and this validator talks to the adapter directly, and SESSION_LEASE is 60 s. Both are routine on a mount. cirrove status now reports the counters (manager.rs, asserted by strong_window_streams_without_graph_checks_or_whole_window_allocation); the box closes when they are read off a live mount running a daemon built after that change.",
+      "evidence": "docs/validation.md#the-same-file-through-two-cold-mounts-with-the-path-off-and-on plus #read-session-behaviour-on-a-live-mount, benchmarks/mount-level-read-bytes.json and live-read-session-counters.json, live 2026-09-09. All four clauses are now evidenced on a live mount. Per-cache-block metadata checks: conservative Graph metadata GETs track content GETs at about two per block (22 against 10, and 7 against 3 at a four-fold smaller size) while the optimized path does not (4 against 4, 3 against 2), each arm on its own cold engine directory with counters sampled around the read alone. Bytes are SHA-256 identical through the kernel mount at both sizes, with the optimized arm asserted to have bound a session and the conservative arm asserted not to. Shared setup and bounded windows: setups 1 and conditional_windows 3 on a live mount. Safe renewal: renewals 1 under continuous reading across the 60 s lease; an idle pause does not reach it because the read after it is served outside the session. NOT TICKED, and not for want of evidence: conditional_reads is false by default, so a shipped daemon still performs the per-block checks measured absent here. Enabling it is a product decision.",
       "asserted_by": "cirrove-onedrive: strong_window_streams_without_graph_checks_or_whole_window_allocation asserts ReadProvider::read_path_counters reports the adapter's own window, range, setup and renewal counts; returning Default makes it fail."
     },
     {
@@ -71,7 +71,7 @@
       "done": false,
       "text": "Push-triggered metadata updates, reconnection/catch-up and periodic recovery checks, with provider delivery and local reaction latency measured separately.",
       "blocker": "needs-live-account",
-      "evidence": "docs/validation.md#push-notifications and #subscription-renewal-at-the-real-boundary -- live 2026-09-09: delivery 30.0-32.7 s across eleven samples, local reaction 169-287 ms, measured separately as the box requires. One subscription held 2,999,973 ms, renewed, reconnected, and delivered a fresh change 30,441 ms later. One notification in eleven was never delivered (90 s deadline); the pre-registered interference hypothesis was refuted by an immediately passing retry and the miss stands unexplained; the shipped 30 s poll bounds the impact. STILL NOT COVERED LIVE: catch-up of changes made while disconnected (the renewal change was made after reconnect), and periodic recovery checks.",
+      "evidence": "docs/validation.md#push-notifications and #subscription-renewal-at-the-real-boundary -- live 2026-09-09: delivery 30.0-32.7 s across eleven samples, local reaction 169-287 ms, measured separately as the box requires. One subscription held 2,999,973 ms, renewed, reconnected, and delivered a fresh change 30,441 ms later. One notification in eleven was never delivered (90 s deadline); the pre-registered interference hypothesis was refuted by an immediately passing retry and the miss stands unexplained; the shipped 30 s poll bounds the impact. Catch-up and periodic recovery are now covered live too (docs/validation.md#catch-up-after-a-reconnection-and-the-periodic-recovery-refresh, benchmarks/live-catchup-and-recovery.json, 2026-09-09): a change made with nothing connected and the poll an hour away was fetched 408 ms after the subscription connected and listed 206 ms later; with no subscription at all the 30 s poll found one in 29,421 ms. Each phase disabled the other and counted zero directory listings before its delta, so neither is explained by activity revalidation. STILL OPEN: the one notification in eleven that was never delivered remains unexplained; the periodic figure now bounds its impact rather than accounting for it.",
       "asserted_by": null
     },
     {
@@ -190,8 +190,8 @@
       "line": 201,
       "done": false,
       "text": "Persistent per-file and recursive-folder pinning with storage reservations.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
+      "blocker": "autonomous",
+      "evidence": "Scope expanded by the user on 2026-09-09 from milestones 1 and 2 to all six, so this row is no longer out of the agreed frame. IMPLEMENTED 2026-09-09, acceptance evidence still owed. Pins live in the metadata database at schema version 7 and survive restart; a reservation is checked against the cache budget when the pin is made and refused if it does not fit; eviction reads a published view and neither takes protected blocks nor counts reserved bytes as free. Folder pins walk cached directory views and report whether the walk was complete. Asserted by cirrove-store pins::tests (4) and cirrove-service engine::pinning (7) and content::tests (2); each was shown to fail without its subject. NOT YET: a control-socket verb, so this is unreachable from a terminal, and no measured evidence on a real account.",
       "asserted_by": null
     },
     {
@@ -200,8 +200,8 @@
       "line": 202,
       "done": false,
       "text": "Clear unpin/free-space behavior and accurate availability status.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
+      "blocker": "autonomous",
+      "evidence": "Scope expanded by the user on 2026-09-09. PART DONE 2026-09-09: availability status separates what a pin reserved from what it has actually kept, counted from files present in the cache directory rather than from the block index, which is derived state and would keep reporting a deleted block as available. Unpin releases both the reservation and the protection and reports whether a pin existed. Asserted by engine::pinning availability tests and pins::tests::unpinning_releases_both. STILL OPEN: free-space behaviour proper -- what happens as the budget fills and how that is explained to the user -- and any of this being reachable from a terminal.",
       "asserted_by": null
     },
     {
@@ -210,8 +210,8 @@
       "line": 203,
       "done": false,
       "text": "Offline access and editing of pinned content, including across restart.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
+      "blocker": "autonomous",
+      "evidence": "Scope expanded by the user on 2026-09-09. DONE at the durability layer 2026-09-09. Reading: a pinned file reads with the provider returning Unavailable and still reads after the engine is rebuilt on the same directory, where the memory cache is empty so the bytes can only come from disk, with the provider's read counter asserted not to move. Editing: a pinned file is edited with the provider unreachable, the edit seals into a pending upload, and after restarting both the engine and the journal the edited bytes are still pending, the working file is still there, the pin's reservation is in force before anything can evict, and the pinned content still reads offline. Asserted by engine::pinning::pinned_content_reads_offline_and_still_does_after_a_restart and a_pinned_file_can_be_edited_offline_and_both_survive_a_restart. The second matters because the cache's view and the journal's are rebuilt by separate paths that do not consult each other, so surviving together is a claim rather than a consequence. STILL OPEN: none of this goes through the kernel mount, whose writable tests need --test-threads=1 and a mounted FUSE session, and nothing has been measured on a real account.",
       "asserted_by": null
     },
     {
@@ -220,8 +220,8 @@
       "line": 204,
       "done": false,
       "text": "Unsent changes excluded from cache eviction and connection cleanup.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
+      "blocker": "autonomous",
+      "evidence": "Scope expanded by the user on 2026-09-09. Holds structurally rather than by a rule that could be relaxed: the upload journal is a sibling of the cache directory, and eviction only ever removes files whose names it recognises as its own block keys, plus its own <key>.<uuid>.tmp temporaries. No production path in the tree calls remove_dir_all at all. Asserted by content::tests::eviction_never_reaches_outside_its_own_block_names, which places an unsent journal entry beside the cache and a non-block file inside it, drives both the runtime eviction pass and the mount-time reconcile pass under real pressure, and requires a genuine block to have been removed so that survival of the other two means something. STILL OPEN: the connection-cleanup half. Nothing removes the journal today, but no test pins that down across account disable and removal, and there is no measured evidence on a real account.",
       "asserted_by": null
     },
     {
@@ -230,8 +230,8 @@
       "line": 205,
       "done": false,
       "text": "Disk-full recovery preserves edited data and explains required action.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
+      "blocker": "needs-root",
+      "evidence": "Scope expanded by the user on 2026-09-09. PART DONE 2026-09-09. Preservation was already covered: truncate_sparse_writes_and_quota_failures_preserve_the_working_copy shows a refused save leaves the sealed payload and the dirty working copy intact. The explanation half was not: a full local budget and a physically full disk both became JournalError::Quota and both reach an application as ENOSPC, so a user whose saves failed was told 'no space left on device' on a filesystem with gigabytes free, and the two remedies are opposite -- one clears itself as uploads drain, the other never does. DeviceFull is now a separate variant carrying its own remedy, asserted by a_full_budget_and_a_full_disk_are_reported_as_different_problems, which checks the messages name the action rather than only differing. STILL NEEDS ROOT: a genuinely full filesystem. The physical path is exercised here by constructing the io::Error, not by filling a device, which needs a mounted image.",
       "asserted_by": null
     },
     {
@@ -261,7 +261,7 @@
       "done": false,
       "text": "Linked folders, duplicate links, moved/deleted links and folder-only access.",
       "blocker": "out-of-agreed-scope",
-      "evidence": null,
+      "evidence": "PARTIAL, from work on other boxes 2026-09-09 rather than from a check aimed at this one (docs/validation.md#the-same-file-through-two-cold-mounts-with-the-path-off-and-on and #navigating-a-real-collection-while-it-is-being-indexed). The live account is itself an instance of this box: 42 nodes live in its own drive and 183,960 in a linked collection, reached through a single shortcut node whose target names the collection and its root item. Two consequences were measured rather than reasoned about. A fixture that builds its scope from account.drive.id addresses 0.02 percent of what is mounted and fails with 'remote item not found'. An engine given a root id that does not exist inside the named collection serves no listing at all and times out after two minutes without saying why; that now fails immediately with 'root item is not reachable in the named collection'. NOT COVERED: duplicate links, moved or deleted links, and folder-only access, none of which this account exercises.",
       "asserted_by": null
     },
     {
@@ -280,8 +280,8 @@
       "line": 213,
       "done": false,
       "text": "Remote creates, edits, moves and deletions update mounted views correctly.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
+      "blocker": "autonomous",
+      "evidence": "MOSTLY DONE 2026-09-09 (docs/validation.md#a-mounted-view-following-remote-creates-moves-and-deletions, and #catch-up-after-a-reconnection-and-the-periodic-recovery-refresh). Through a real read-only mount of an isolated account: a remote folder creation became visible in 5,058 ms, a rename in 4,654 ms and a deletion in 4,254 ms, the rename asserted on both halves so that a view adding the new name while keeping the old one fails. All three land at the five-second activity revalidation interval because the fixture watches that directory; a directory nobody is looking at follows the same changes by reconnection catch-up in 408 ms or by the thirty-second poll in 29,421 ms, each measured with the other disabled. NOT COVERED: edits. A content change to an existing file goes through the upload path rather than a namespace mutation, and nothing here exercises it.",
       "asserted_by": null
     },
     {

@@ -1,8 +1,12 @@
 //! Explicit developer-only cloud mutation checks. Never called by the daemon.
 //! Every target is created by this run; no existing document is accepted as input.
+mod catchup;
 mod freshness;
 mod namespace;
+mod navigation;
 mod notifications;
+mod read_bytes;
+mod remote_changes;
 mod writable;
 use crate::{
     accounts,
@@ -10,6 +14,7 @@ use crate::{
     transfers::TransferWorker,
 };
 use anyhow::{Context, Result, bail};
+pub use catchup::onedrive_catchup;
 use cirrove_auth::{AccessMode, DesktopVault};
 use cirrove_core::{
     CancellationToken, Node, Scope,
@@ -20,7 +25,10 @@ use cirrove_core::{
 use cirrove_onedrive::OneDrive;
 pub use freshness::onedrive_freshness;
 pub use namespace::onedrive_mutations;
+pub use navigation::onedrive_navigation;
 pub use notifications::onedrive_notifications;
+pub use read_bytes::onedrive_read_bytes;
+pub use remote_changes::onedrive_remote_changes;
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
 use std::{
@@ -198,6 +206,21 @@ async fn verify(
     Ok(())
 }
 
+/// A configured account for a check that only reads.
+///
+/// `test_account` refuses an enabled account and demands a write grant, because
+/// the checks that use it mutate a drive and must never be pointed at a running
+/// one. A read-only measurement has neither hazard: it opens its own engine
+/// directory, mounts somewhere else, and issues GETs. Refusing the ordinary
+/// account here would mean the read path could only ever be measured against a
+/// drive nobody uses.
+fn read_only_account(state: &Path, label: &str) -> Result<accounts::Account> {
+    accounts::Settings::load(state)?
+        .accounts
+        .into_iter()
+        .find(|a| a.label == label)
+        .context("unknown account")
+}
 fn test_account(state: &Path, label: &str) -> Result<accounts::Account> {
     let account = accounts::Settings::load(state)?
         .accounts

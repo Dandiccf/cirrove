@@ -1,0 +1,67 @@
+{
+  "question": "While a real 184,000-item collection is indexed from nothing, how long does it take to list a directory that has not been visited before, and does a competing download change that?",
+  "why_now": "The box's existing evidence is a fixture asserting that cached navigation stays under 500 ms while committed changes are applied. That is a claim about a fixture's library and about navigation that is already cached. Neither the size of a real library nor the cost of a first visit is in it.",
+  "registration_honesty": {
+    "pre_registered": false,
+    "what_happened": "Two exploratory runs were made before anything was registered, which is not the discipline this repository asks for and is recorded here rather than tidied away. The first re-listed the mount root every 250 ms and reported p50 1.3 ms, p95 1.9 ms, max 2.3 ms across 713 samples. That number is real and means almost nothing: a directory listed every 250 ms stays active, and an active directory is refreshed in the background every five seconds, so the loop measured a hot directory rather than navigation. The second walked into directories not yet visited and reported p50 192 ms, p95 280 ms, max 504 ms across 99 directories, with one sample over 500 ms.",
+    "consequence": "The predictions below are derived from that second run, so this registration confirms rather than discovers. Saying so is the only thing that keeps the confirmation worth anything."
+  },
+  "workload": "A cold engine directory mounts the linked collection that holds this account's content. From the moment the mount is listable, each sample takes a directory discovered but not yet visited, times an ordinary readdir on it, and adds any subdirectories it finds to the queue. A third of the way in, a large file download starts against the same connection. Every sample records whether the collection was still indexing.",
+  "endpoint": "Wall-clock milliseconds per readdir through the kernel mount, split by whether the download is running, with the count of directories actually visited beside it.",
+  "predictions": [
+    {
+      "id": "P1",
+      "claim": "Every sample is taken while the collection is still indexing, and at least 50 directories are visited.",
+      "role": "discriminator -- a run that finished indexing early, or that never left the root, would not have measured the condition the box names, and its latencies would say nothing"
+    },
+    {
+      "id": "P2",
+      "claim": "p50 falls between 120 and 280 ms and p95 below 400 ms for a first visit during indexing."
+    },
+    {
+      "id": "P3",
+      "claim": "At least one sample exceeds 500 ms, the threshold the existing fixture asserts against."
+    },
+    {
+      "id": "P4",
+      "claim": "The competing download raises p95 by less than a factor of two. If it raises it by more, the box's 'and competing downloads' clause is the part that fails, not the indexing clause."
+    }
+  ],
+  "decision_rule": "The box is not tickable on this evidence whatever the numbers, because P3 expects samples above the very threshold the existing fixture asserts. What this run decides is which clause is unmet and by how much: a p50 in the low hundreds of milliseconds with occasional excursions past 500 ms is a different problem from a p50 already past it. The result is recorded either way.",
+  "safety": {
+    "account": "The user's real work drive, read-only, with their permission for read testing.",
+    "writes": "None. Directory listings and one sequential download.",
+    "note": "The fixture mounts under the run directory and never touches the daemon's own mount."
+  },
+  "result": {
+    "indexing_only": {
+      "directories": 132,
+      "samples": 132,
+      "while_indexing": 132,
+      "p50_ms": 192.12,
+      "p95_ms": 316.966,
+      "max_ms": 523.283,
+      "over_500ms": 1,
+      "failed_listings": 0
+    },
+    "indexing_and_download": {
+      "directories": 243,
+      "samples": 243,
+      "while_indexing": 243,
+      "p50_ms": 210.514,
+      "p95_ms": 435.268,
+      "max_ms": 834.497,
+      "over_500ms": 6,
+      "failed_listings": 0
+    },
+    "reproduction": "The exploratory run reported p50 192.081 ms over 99 directories; this one reports 192.12 ms over 132. A figure that lands that close on an independent cold mount is not a fluke of one run."
+  },
+  "verdict": {
+    "P1": "HOLDS. All 375 samples were taken while the collection was still indexing, across 375 distinct directories, with no failed listing.",
+    "P2": "HOLDS. p50 192.1 ms and p95 317.0 ms while indexing alone.",
+    "P3": "HOLDS. One sample of 132 exceeded 500 ms without a download, and six of 243 with one. The threshold the existing fixture asserts against is exceeded under real conditions.",
+    "P4": "HOLDS. The competing download raised p95 from 317 ms to 435 ms, a factor of 1.37, and the maximum from 523 ms to 834 ms."
+  },
+  "what_this_changes": "The fixture's claim was never wrong; it was narrow. Cached navigation does stay under 500 ms. A first visit during initial indexing costs about 192 ms at the median and occasionally more than 500 ms, and a competing download makes the tail worse rather than the median. The gap between the fixture's 1.3 ms hot-directory figure and this 192 ms is a factor of 150, and the box's wording -- responsive navigation during initial indexing -- is about the second one.",
+  "decision": "The box stays open, and this run says which clause and by how much. The median is comfortable; the tail is not. One sample in 132 crosses 500 ms during indexing alone and six in 243 with a download, so the failure is an excursion rather than a baseline. Anyone tightening this should be measuring the tail under a competing transfer, not the median."
+}

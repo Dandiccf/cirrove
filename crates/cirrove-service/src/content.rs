@@ -24,10 +24,24 @@ pub const BLOCK_SIZE: u32 = 4 * 1024 * 1024;
 const MEMORY_BLOCKS: usize = 8;
 const RANGE_TIMEOUT: Duration = Duration::from_secs(30);
 type MemoryBlocks = HashMap<String, (Arc<Vec<u8>>, Instant)>;
+/// What pinning claims from the cache, kept beside the cache rather than inside
+/// it so that eviction needs no database handle of its own.
+///
+/// `reserved` shrinks the budget the ordinary cache may fill; `protected` names
+/// blocks eviction must not take. Both are needed: a reservation alone would let
+/// eviction remove the very blocks it reserved room for, and a protected set
+/// alone would let unpinned content fill the budget and then find nothing it is
+/// allowed to evict.
+#[derive(Default)]
+pub struct Reservations {
+    pub protected: std::collections::HashSet<String>,
+    pub reserved: u64,
+}
 pub struct ContentCache {
     path: PathBuf,
     blocks: PathBuf,
     quota: u64,
+    reservations: Arc<StdMutex<Reservations>>,
     gates: StdMutex<HashMap<String, Weak<Mutex<()>>>>,
     memory: StdMutex<MemoryBlocks>,
     failures: StdMutex<HashMap<String, (ProviderError, Instant)>>,
@@ -41,18 +55,33 @@ pub struct ContentCache {
 }
 impl ContentCache {
     pub fn new(path: PathBuf, blocks: PathBuf, quota: u64) -> anyhow::Result<Self> {
+        Self::new_reserving(path, blocks, quota, Reservations::default())
+    }
+    /// Build a cache that already knows what pinning claims.
+    ///
+    /// The reconcile pass evicts to fit the quota before any engine exists to
+    /// publish reservations, so a cache constructed without them would delete
+    /// pinned blocks at every mount and leave the registry saying they were
+    /// kept. Passing them in is the only point early enough to matter.
+    pub fn new_reserving(
+        path: PathBuf,
+        blocks: PathBuf,
+        quota: u64,
+        reservations: Reservations,
+    ) -> anyhow::Result<Self> {
         private_dir(&path)?;
         if quota < BLOCK_SIZE as u64 + 32 {
             anyhow::bail!("cache quota must fit one block");
         }
         let staging = Arc::new(windows::Staging::new(path.clone(), quota));
         let quota = quota - staging.capacity() as u64;
-        reconcile(&path, &blocks, quota)?;
+        reconcile(&path, &blocks, quota, &reservations)?;
         let keeper = BlockIndex::open(&blocks)?;
         Ok(Self {
             path,
             blocks,
             quota,
+            reservations: Arc::new(StdMutex::new(reservations)),
             gates: StdMutex::new(HashMap::new()),
             memory: StdMutex::new(HashMap::new()),
             failures: StdMutex::new(HashMap::new()),
@@ -140,12 +169,13 @@ impl ContentCache {
         start: u64,
         cancel: &CancellationToken,
     ) -> Result<Arc<Vec<u8>>, ProviderError> {
-        let version = node
-            .content_revision()
+        // Checked here rather than left to block_key so the caller still gets the
+        // reason. A file without a version tag cannot be cached at all, and
+        // reporting that as a generic failure would send anyone debugging it
+        // looking at the cache instead of at the provider response.
+        node.content_revision()
             .ok_or(ProviderError::Protocol("file has no version tag"))?;
-        let identity = serde_json::to_vec(&(scope, &node.id, version, node.size, start))
-            .map_err(|_| ProviderError::Unavailable)?;
-        let key = hex::encode(Sha256::digest(&identity));
+        let key = block_key(scope, node, start).ok_or(ProviderError::Unavailable)?;
         if let Some(bytes) = self.recalled(&key)? {
             return Ok(bytes);
         }
@@ -246,18 +276,33 @@ impl ContentCache {
             .map_err(|_| ProviderError::Unavailable)?
             .map_err(|_| ProviderError::Unavailable)
     }
+    /// The shared view of what pinning claims. The engine updates it when pins
+    /// change; eviction reads it on every pass.
+    pub fn reservations(&self) -> Arc<StdMutex<Reservations>> {
+        self.reservations.clone()
+    }
     async fn evict(&self, keep: &str) -> Result<(), ProviderError> {
         let index = self.blocks.clone();
         let blocks = tokio::task::spawn_blocking(move || BlockIndex::open(index)?.oldest())
             .await
             .map_err(|_| ProviderError::Unavailable)?
             .map_err(|_| ProviderError::Unavailable)?;
+        let (protected, reserved) = match self.reservations.lock() {
+            Ok(view) => (view.protected.clone(), view.reserved),
+            // A poisoned view must not silently drop protection. Reserving the
+            // whole budget stops eviction rather than letting it take pinned
+            // blocks, which is the failure that would lose offline content.
+            Err(_) => (std::collections::HashSet::new(), self.quota),
+        };
+        // Pinned bytes are spoken for, so the ordinary cache lives in what is
+        // left rather than in the whole budget.
+        let budget = self.quota.saturating_sub(reserved);
         let mut total: u64 = blocks.iter().map(|(_, size)| size).sum();
         for (key, size) in blocks {
-            if total <= self.quota {
+            if total <= budget {
                 break;
             }
-            if key == keep {
+            if key == keep || protected.contains(&key) {
                 continue;
             }
             match tokio::fs::remove_file(self.path.join(&key)).await {
@@ -275,6 +320,26 @@ impl ContentCache {
         Ok(())
     }
 }
+/// The cache key for one block of one revision of one file.
+///
+/// Pinning has to name the blocks it protects, and naming them any other way
+/// than the cache does would protect keys nothing ever writes. Deriving both
+/// from here is what keeps a protected set from silently covering nothing.
+pub fn block_key(scope: &Scope, node: &Node, start: u64) -> Option<String> {
+    let version = node.content_revision()?;
+    let identity = serde_json::to_vec(&(scope, &node.id, version, node.size, start)).ok()?;
+    Some(hex::encode(Sha256::digest(&identity)))
+}
+/// Every block key a file's content occupies, in order.
+pub fn block_keys(scope: &Scope, node: &Node) -> Option<Vec<String>> {
+    let mut keys = Vec::new();
+    let mut start = 0;
+    while start < node.size {
+        keys.push(block_key(scope, node, start)?);
+        start += BLOCK_SIZE as u64;
+    }
+    Some(keys)
+}
 fn valid_key(key: &str) -> bool {
     key.len() == 64
         && key
@@ -283,7 +348,12 @@ fn valid_key(key: &str) -> bool {
 }
 /// Reconcile publication interrupted between rename and the LRU transaction.
 /// Only Cirrove's block names and temporary files are touched.
-fn reconcile(path: &Path, blocks: &Path, quota: u64) -> anyhow::Result<()> {
+fn reconcile(
+    path: &Path,
+    blocks: &Path,
+    quota: u64,
+    reservations: &Reservations,
+) -> anyhow::Result<()> {
     let mut store = BlockIndex::open(blocks)?;
     let mut found = std::collections::HashSet::new();
     let indexed: std::collections::HashSet<_> =
@@ -315,10 +385,14 @@ fn reconcile(path: &Path, blocks: &Path, quota: u64) -> anyhow::Result<()> {
         store.forget(key)?;
     }
     let blocks = store.oldest()?;
+    let budget = quota.saturating_sub(reservations.reserved);
     let mut total: u64 = blocks.iter().map(|(_, size)| size).sum();
     for (key, size) in blocks {
-        if total <= quota {
+        if total <= budget {
             break;
+        }
+        if reservations.protected.contains(&key) {
+            continue;
         }
         std::fs::remove_file(path.join(&key))?;
         store.forget(&key)?;
@@ -347,3 +421,6 @@ async fn read_verified(path: &Path, expected: usize) -> Option<Vec<u8>> {
     }
     Some(body.split_off(32))
 }
+
+#[cfg(test)]
+mod tests;

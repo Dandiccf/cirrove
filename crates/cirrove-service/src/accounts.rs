@@ -481,6 +481,130 @@ pub fn provider(account: &Account) -> Result<Arc<OneDrive>> {
     };
     Ok(Arc::new(graph))
 }
+/// The same adapter with the experimental read-session path selected.
+///
+/// The builder consumes the adapter, so a measurement cannot flip an existing
+/// `Arc<OneDrive>`; it has to be constructed this way from the start. Kept next
+/// to `provider` so the two stay in step.
+pub fn experimental_read_provider(account: &Account) -> Result<Arc<OneDrive>> {
+    let broker = TokenBroker::new(
+        account.registration.clone(),
+        account.identity.clone(),
+        account.credential_id.clone(),
+        Arc::new(DesktopVault),
+    )?;
+    Ok(Arc::new(
+        OneDrive::new(account.id.clone(), Arc::new(broker))?.with_experimental_read_sessions(),
+    ))
+}
+/// Refuse to migrate a store that a running daemon is using.
+///
+/// Opening a store migrates it, and a daemon built before that schema then
+/// cannot read its own index: its feeds go offline with "local metadata
+/// operation failed" while the mount stays up, which looks like a network fault
+/// rather than what it is. Any tool sharing a state directory with a running
+/// service has to check before it opens, not after.
+///
+/// This exists because it happened. A pin command run against a live state
+/// directory migrated the account it was only meant to report an error about.
+fn refuse_to_migrate_under_a_running_daemon(state: &Path, db: &Path) -> Result<()> {
+    if daemon_lock(state).is_ok() {
+        return Ok(()); // nothing is running; migrating on open is the normal path
+    }
+    let Ok(version) = cirrove_store::schema_version(db) else {
+        return Ok(()); // no database yet, so nothing to migrate
+    };
+    if version < cirrove_store::SCHEMA_VERSION {
+        bail!(
+            "this account's index is at schema {version} and this build writes {}. \
+             A daemon is running and was built for {version}; opening the index here would \
+             migrate it and stop that daemon reading its own metadata. \
+             Install the matching build and restart cirroved first.",
+            cirrove_store::SCHEMA_VERSION
+        );
+    }
+    Ok(())
+}
+/// Record or release a pin from outside the daemon.
+///
+/// Writes the registry directly rather than commanding the running service. The
+/// daemon re-reads reservations on its status cycle, so a pin made here takes
+/// effect within seconds without a control verb, and one made while no daemon
+/// runs is already in place when the next mount reads pins at construction.
+///
+/// The account operation lock is held for the write, so this cannot interleave
+/// with a sign-in that is changing the same account.
+pub fn set_pin(
+    state: &Path,
+    label: &str,
+    item: &str,
+    recursive: bool,
+    bytes: Option<u64>,
+) -> Result<String> {
+    let account = Settings::load(state)?
+        .accounts
+        .into_iter()
+        .find(|a| a.label == label)
+        .context("unknown account")?;
+    let _operation = account_operation(state, &account.id)?;
+    let directory = state.join("accounts").join(&account.id);
+    let scope = cirrove_core::Scope {
+        account: account.id.clone(),
+        provider: "onedrive".into(),
+        collection: account.drive.id.clone(),
+    };
+    let key = serde_json::to_string(&scope)?;
+    let db = directory.join("metadata.db");
+    refuse_to_migrate_under_a_running_daemon(state, &db)?;
+    let mut store = cirrove_store::Store::open(db)?;
+    let reserved = match bytes {
+        Some(bytes) => bytes,
+        // Taken from the local index rather than the provider: pinning should not
+        // need the network, and an item nobody has indexed is one whose size this
+        // command cannot honestly guess.
+        None => {
+            store
+                .node(&scope, item)?
+                .context("item is not in the local index; pass --bytes to pin it anyway")?
+                .size
+        }
+    };
+    let headroom = (account.cache_bytes / 10)
+        .max(8 * 4 * 1024 * 1024)
+        .min(account.cache_bytes);
+    let budget = account.cache_bytes.saturating_sub(headroom);
+    match store.pin(&key, item, recursive, reserved, budget)? {
+        Ok(pin) => Ok(format!(
+            "pinned {} reserving {} bytes{}",
+            pin.item,
+            pin.reserved,
+            if pin.recursive { ", recursively" } else { "" }
+        )),
+        Err(refusal) => bail!("{refusal}"),
+    }
+}
+pub fn clear_pin(state: &Path, label: &str, item: &str) -> Result<String> {
+    let account = Settings::load(state)?
+        .accounts
+        .into_iter()
+        .find(|a| a.label == label)
+        .context("unknown account")?;
+    let _operation = account_operation(state, &account.id)?;
+    let scope = cirrove_core::Scope {
+        account: account.id.clone(),
+        provider: "onedrive".into(),
+        collection: account.drive.id.clone(),
+    };
+    let key = serde_json::to_string(&scope)?;
+    let db = state.join("accounts").join(&account.id).join("metadata.db");
+    refuse_to_migrate_under_a_running_daemon(state, &db)?;
+    let mut store = cirrove_store::Store::open(db)?;
+    Ok(if store.unpin(&key, item)? {
+        format!("released {item}")
+    } else {
+        format!("{item} was not pinned")
+    })
+}
 /// Complete browser sign-in, display verified identity and let the caller choose a
 /// drive. Persistence happens only after the selected drive's root is verified.
 pub async fn connect(
@@ -626,6 +750,42 @@ pub async fn keyring_check() -> Result<()> {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    #[test]
+    fn a_pin_will_not_migrate_an_index_a_running_daemon_is_reading() {
+        let temp = tempfile::tempdir().expect("fixture");
+        let state = temp.path().join("state");
+        private_dir(&state).expect("state");
+        let account = fixture_account(AccessMode::ReadOnly);
+        let id = account.id.clone();
+        Settings {
+            version: 1,
+            accounts: vec![account],
+        }
+        .save(&state)
+        .expect("seed");
+        let directory = state.join("accounts").join(&id);
+        private_dir(&directory).expect("account directory");
+        // An index written by an older build.
+        let db = directory.join("metadata.db");
+        let old = rusqlite::Connection::open(&db).expect("db");
+        old.pragma_update(None, "user_version", cirrove_store::SCHEMA_VERSION - 1)
+            .expect("older schema");
+        drop(old);
+
+        // With no daemon holding the state, migrating on open is the normal path.
+        super::refuse_to_migrate_under_a_running_daemon(&state, &db)
+            .expect("no daemon, no refusal");
+
+        // With one running, the refusal is the whole point: migrating here leaves
+        // that daemon unable to read its own metadata while its mount stays up,
+        // which reads as a network fault rather than as what it is.
+        let held = daemon_lock(&state).expect("daemon lock");
+        let refusal = super::refuse_to_migrate_under_a_running_daemon(&state, &db)
+            .expect_err("a running daemon must block the migration");
+        let message = format!("{refusal}");
+        assert!(message.contains("Install the matching build"), "{message}");
+        drop(held);
+    }
     #[test]
     fn config_writes_are_atomic_and_daemon_ownership_is_exclusive() {
         let temp = tempfile::tempdir().unwrap();

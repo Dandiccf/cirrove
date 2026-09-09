@@ -7,6 +7,8 @@ mod deadlines;
 mod discovery;
 #[cfg(test)]
 mod persistence;
+#[cfg(test)]
+mod pinning;
 use crate::{accounts::Account, content::ContentCache, private_dir, refresh};
 use anyhow::Result;
 pub use changes::ChangeNotifications;
@@ -33,6 +35,19 @@ use tokio_util::task::TaskTracker;
 const SINGLE_ITEM_TIMEOUT: Duration = Duration::from_secs(60);
 const DISCOVERY_RETRY: Duration = Duration::from_secs(1);
 const DISCOVERY_RETRY_LIMIT: Duration = Duration::from_secs(60);
+/// What one pin reserved and what it has actually kept.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PinStatus {
+    pub item: String,
+    pub recursive: bool,
+    /// Claimed from the cache budget when the pin was made.
+    pub reserved: u64,
+    /// Bytes of this pin's blocks present in the cache right now.
+    pub resident: u64,
+    /// How many blocks the pin owns, so a caller can tell "nothing fetched yet"
+    /// from "nothing to fetch".
+    pub blocks: u64,
+}
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FeedHealth {
     pub collection: String,
@@ -93,8 +108,23 @@ impl Engine {
         let keeper = tokio::task::spawn_blocking(move || Store::open(path)).await??;
         let blocks = directory.join("blocks.db");
         let quota = account.cache_bytes;
+        // Read pins before the cache exists. Its reconcile pass evicts to fit the
+        // quota at construction, long before start() could publish anything, so a
+        // cache built without them would delete pinned blocks at every mount
+        // while the registry went on saying they were kept.
+        let pins = db.clone();
+        let reservations = tokio::task::spawn_blocking(
+            move || -> cirrove_store::Result<crate::content::Reservations> {
+                let store = Store::open(pins)?;
+                Ok(crate::content::Reservations {
+                    protected: store.protected_blocks()?,
+                    reserved: store.reserved_bytes()?,
+                })
+            },
+        )
+        .await??;
         let cache = tokio::task::spawn_blocking(move || {
-            ContentCache::new(directory.join("cache"), blocks, quota)
+            ContentCache::new_reserving(directory.join("cache"), blocks, quota, reservations)
         })
         .await??;
         Ok(Arc::new(Self {
@@ -124,7 +154,257 @@ impl Engine {
             collection: collection.into(),
         }
     }
+    /// Publish what pinning currently claims to the cache.
+    ///
+    /// The cache holds no database handle, so the two are kept in step here
+    /// rather than by eviction reading the store on every pass. Called at start
+    /// and after every pin change; a mount that skipped it would evict pinned
+    /// content while the registry still said it was kept.
+    pub async fn refresh_reservations(&self) -> Result<()> {
+        let db = self.db.clone();
+        let (reserved, protected) = tokio::task::spawn_blocking(
+            move || -> cirrove_store::Result<(u64, std::collections::HashSet<String>)> {
+                let store = Store::open(db)?;
+                Ok((store.reserved_bytes()?, store.protected_blocks()?))
+            },
+        )
+        .await??;
+        if let Ok(mut view) = self.cache.reservations().lock() {
+            view.reserved = reserved;
+            view.protected = protected;
+        }
+        Ok(())
+    }
+    /// How much of the cache budget pins may claim.
+    ///
+    /// Not all of it. A reservation covering the whole quota leaves nothing for
+    /// ordinary reading: every block an unpinned file needs would be the block
+    /// eviction has to take next, so the mount would fetch and discard the same
+    /// bytes forever while appearing to work. The headroom is a tenth of the
+    /// budget, and never fewer than eight blocks, so a small cache keeps enough
+    /// to stream through rather than a tenth of very little.
+    pub fn pinnable_budget(&self) -> u64 {
+        let headroom = (self.account.cache_bytes / 10)
+            .max(8 * crate::content::BLOCK_SIZE as u64)
+            .min(self.account.cache_bytes);
+        self.account.cache_bytes.saturating_sub(headroom)
+    }
+    /// Record a pin and put it into effect. Refusals are returned, not raised:
+    /// a budget that cannot hold the request is an answer for the caller, not a
+    /// fault of the engine.
+    pub async fn pin(
+        &self,
+        scope: Scope,
+        item: String,
+        recursive: bool,
+        reserved: u64,
+    ) -> Result<std::result::Result<cirrove_store::pins::Pin, cirrove_store::pins::PinRefusal>>
+    {
+        let db = self.db.clone();
+        let budget = self.pinnable_budget();
+        let key = serde_json::to_string(&scope).unwrap_or_default();
+        let outcome = tokio::task::spawn_blocking(move || {
+            Store::open(db)?.pin(&key, &item, recursive, reserved, budget)
+        })
+        .await??;
+        if outcome.is_ok() {
+            self.refresh_reservations().await?;
+        }
+        Ok(outcome)
+    }
+    /// Fetch a pinned file's content and protect the blocks it occupies.
+    ///
+    /// Pinning without this is an accounting entry: the space is reserved and
+    /// nothing is kept, so the first offline read still fails. The blocks are
+    /// named with the cache's own key derivation, because a protected set built
+    /// any other way would cover keys nothing ever writes and would be
+    /// indistinguishable from no protection at all.
+    ///
+    /// Content revisions change block keys, so this is also what a pin needs
+    /// after the file changes remotely.
+    pub async fn materialise_pin(&self, scope: &Scope, node: &Node) -> Result<usize> {
+        let keys = anyhow::Context::context(
+            crate::content::block_keys(scope, node),
+            "pinned file has no content version to bind its blocks to",
+        )?;
+        let mut start = 0;
+        while start < node.size {
+            let length = (node.size - start).min(crate::content::BLOCK_SIZE as u64) as u32;
+            self.cache
+                .read(
+                    self.provider.as_ref(),
+                    scope,
+                    node,
+                    start,
+                    length,
+                    &self.cancel,
+                )
+                .await?;
+            start += crate::content::BLOCK_SIZE as u64;
+        }
+        let db = self.db.clone();
+        let key = serde_json::to_string(scope).unwrap_or_default();
+        let item = node.id.clone();
+        let count = keys.len();
+        let owned = keys.clone();
+        tokio::task::spawn_blocking(move || Store::open(db)?.protect_blocks(&key, &item, &owned))
+            .await??;
+        // Published only after the blocks exist. Protecting keys before their
+        // content is fetched would shrink what eviction may take while the cache
+        // still has to make room for the fetch itself.
+        self.refresh_reservations().await?;
+        Ok(count)
+    }
+    /// Every file at or below `root`, with the total bytes they occupy.
+    ///
+    /// Reads the cached directory views rather than the provider: a recursive pin
+    /// is a decision about what is already known to be there, and walking the
+    /// provider would make pinning a large folder an expensive remote traversal
+    /// before it has kept a single byte. A subtree that is not indexed yet is
+    /// reported as what is known, so the caller can see the difference rather
+    /// than being handed a total that quietly excluded it.
+    pub async fn subtree_files(&self, scope: &Scope, root: &str) -> Result<(Vec<Node>, u64, bool)> {
+        let db = self.db.clone();
+        let scope = scope.clone();
+        let root = root.to_string();
+        Ok(
+            tokio::task::spawn_blocking(
+                move || -> cirrove_store::Result<(Vec<Node>, u64, bool)> {
+                    let store = Store::open(db)?;
+                    let mut files = Vec::new();
+                    let mut bytes = 0u64;
+                    let mut complete = true;
+                    let mut pending = vec![root];
+                    // Depth-first with an explicit stack. A folder tree deep enough to
+                    // overflow a recursive walk is a folder tree a user can make.
+                    while let Some(parent) = pending.pop() {
+                        match store.children(&scope, &parent)? {
+                            Some(children) => {
+                                for child in children {
+                                    match child.kind {
+                                        cirrove_core::NodeKind::Folder => pending.push(child.id),
+                                        _ => {
+                                            bytes = bytes.saturating_add(child.size);
+                                            files.push(child);
+                                        }
+                                    }
+                                }
+                            }
+                            None => complete = false,
+                        }
+                    }
+                    Ok((files, bytes, complete))
+                },
+            )
+            .await??,
+        )
+    }
+    /// Pin a folder and everything under it.
+    ///
+    /// Returns the refusal untouched when the subtree does not fit, before any
+    /// content is fetched: a partial download that is then refused would have
+    /// spent the bandwidth and kept nothing.
+    pub async fn pin_folder(
+        &self,
+        scope: &Scope,
+        root: &Node,
+    ) -> Result<std::result::Result<(usize, bool), cirrove_store::pins::PinRefusal>> {
+        let (files, bytes, complete) = self.subtree_files(scope, &root.id).await?;
+        if let Err(refusal) = self
+            .pin(scope.clone(), root.id.clone(), true, bytes)
+            .await?
+        {
+            return Ok(Err(refusal));
+        }
+        let key = serde_json::to_string(scope).unwrap_or_default();
+        let mut keys = Vec::new();
+        for file in &files {
+            let mut start = 0;
+            while start < file.size {
+                let length = (file.size - start).min(crate::content::BLOCK_SIZE as u64) as u32;
+                self.cache
+                    .read(
+                        self.provider.as_ref(),
+                        scope,
+                        file,
+                        start,
+                        length,
+                        &self.cancel,
+                    )
+                    .await?;
+                start += crate::content::BLOCK_SIZE as u64;
+            }
+            if let Some(file_keys) = crate::content::block_keys(scope, file) {
+                keys.extend(file_keys);
+            }
+        }
+        let db = self.db.clone();
+        let item = root.id.clone();
+        tokio::task::spawn_blocking(move || Store::open(db)?.protect_blocks(&key, &item, &keys))
+            .await??;
+        self.refresh_reservations().await?;
+        Ok(Ok((files.len(), complete)))
+    }
+    /// What each pin has actually kept, as against what it reserved.
+    ///
+    /// Reserved and resident are reported separately on purpose. A pin whose
+    /// content was never fetched reserves space and keeps nothing, and a status
+    /// that showed only the reservation would report content as available that
+    /// no offline read could produce.
+    pub async fn pin_status(&self) -> Result<Vec<PinStatus>> {
+        let db = self.db.clone();
+        let blocks = self.blocks_path();
+        let cache = self.cache_path();
+        tokio::task::spawn_blocking(move || -> anyhow::Result<Vec<PinStatus>> {
+            let store = Store::open(db)?;
+            let index = cirrove_store::BlockIndex::open(&blocks)?;
+            let sizes: std::collections::HashMap<String, u64> =
+                index.oldest()?.into_iter().collect();
+            let mut out = Vec::new();
+            for pin in store.pins()? {
+                let keys = store.blocks_of(&pin.scope, &pin.item)?;
+                // Present on disk, not merely indexed: the index is rebuilt from
+                // the directory, but between a block being forgotten and the
+                // rebuild it would otherwise be counted as available.
+                let resident = keys
+                    .iter()
+                    .filter(|key| cache.join(key).exists())
+                    .filter_map(|key| sizes.get(key))
+                    .sum();
+                out.push(PinStatus {
+                    item: pin.item,
+                    recursive: pin.recursive,
+                    reserved: pin.reserved,
+                    resident,
+                    blocks: keys.len() as u64,
+                });
+            }
+            Ok(out)
+        })
+        .await?
+    }
+    pub(crate) fn blocks_path(&self) -> PathBuf {
+        self.db.with_file_name("blocks.db")
+    }
+    /// Where published blocks live. Exposed so a caller reasoning about cache
+    /// files derives the path from here rather than rebuilding it and drifting.
+    pub(crate) fn cache_path(&self) -> PathBuf {
+        self.db.with_file_name("cache")
+    }
+    /// Release a pin and the space it held. Reports whether one existed.
+    pub async fn unpin(&self, scope: Scope, item: String) -> Result<bool> {
+        let db = self.db.clone();
+        let key = serde_json::to_string(&scope).unwrap_or_default();
+        let removed =
+            tokio::task::spawn_blocking(move || Store::open(db)?.unpin(&key, &item)).await??;
+        self.refresh_reservations().await?;
+        Ok(removed)
+    }
     pub async fn start(self: &Arc<Self>) -> Result<()> {
+        // Before anything can evict, so a restart never spends the window
+        // between mounting and the first pin change treating pinned blocks as
+        // ordinary ones.
+        self.refresh_reservations().await?;
         if !self.discovery_started.swap(true, Ordering::SeqCst) {
             let engine = self.clone();
             self.tasks.spawn(async move {

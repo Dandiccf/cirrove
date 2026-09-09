@@ -170,7 +170,10 @@ fn key(scope: &Scope, item: &str) -> EditKey {
 }
 fn error(error: JournalError) -> Errno {
     match error {
-        JournalError::Quota => Errno::ENOSPC,
+        // Both are ENOSPC to the kernel, because that is what an application
+        // can act on. The difference between them survives in the journal error
+        // and is reported through status, where it can say which one it is.
+        JournalError::Quota | JournalError::DeviceFull => Errno::ENOSPC,
         JournalError::Missing => Errno::ENOENT,
         JournalError::Account => Errno::EACCES,
         JournalError::Intent => Errno::EINVAL,

@@ -1909,3 +1909,178 @@ and which no run has since supplied; and the box's first clause, that per-cache-
 Graph metadata checks are gone from the fast path, is not established by a
 `graph_gets` figure that also counts unrelated adapter traffic. Two specific
 things are missing, and they are the two things to do next.
+
+### Catch-up after a reconnection, and the periodic recovery refresh
+
+The push entry above ends by naming what it could not show: catch-up of changes
+made while disconnected, and periodic recovery checks. Its renewal sample made
+its change *after* reconnecting, so no run had yet made a change during a gap.
+Both mechanisms are in the code — `ChangeHintSender::connected` bumps the
+generation, and the engine polls every `poll_seconds` — and neither had been
+observed. Registered beforehand in
+[`benchmarks/live-catchup-and-recovery.json`](benchmarks/live-catchup-and-recovery.json).
+
+| phase | mechanism enabled | delta after enabling | entry listed after delta | connects | listings before delta |
+| --- | --- | ---: | ---: | ---: | ---: |
+| reconnect | subscription connects; poll set to 3600 s | **408 ms** | 206 ms | 1 | 0 |
+| periodic | nothing connects; poll at the shipped 30 s | **29,421 ms** | 307 ms | 0 | 0 |
+
+Each phase disables the other, and each ran against a fixture folder changed
+through Graph while the mount was idle. Catch-up is a delta request a
+reconnection triggers rather than a wait for a delivery, and it shows: 408 ms
+against the 30.0–32.7 s the provider takes to deliver a push. The periodic figure
+is one poll interval, which is what a 30-second poll should look like when it is
+the only thing running.
+
+**Two designs failed before this one, and the second is worth keeping.** The
+first held the change invisible by listing the mount every 200 ms; the folder
+appeared during the hold with nothing connected and the poll an hour away. That
+reads as an unknown third refresh path until the cause becomes clear — the reads
+themselves. An actively viewed directory revalidates, which is what the freshness
+entry above exists to measure, so the observation produced exactly what it was
+meant to exclude.
+
+The second removed the reads and asserted only that no delta ran. It failed with
+zero deltas and **eleven directory listings in sixty seconds**, on a mount nobody
+was touching. `activity.rs` sets `LEASE` to 60 s and `INTERVAL` to 5 s: a
+directory stays active for a minute after it is used and is refetched every five
+seconds throughout. Twelve refreshes in a sixty-second window is that mechanism,
+exactly.
+
+That is a fact about the product rather than about the fixture, and it is the
+more useful of the two: **for a directory somebody is looking at, a remote change
+is found within about five seconds**, long before catch-up or the poll would
+matter. Neither of those two mechanisms is what a person watching a folder
+actually experiences. The run now waits for `directory_freshness().active` to
+reach zero before changing anything, and attributes a discovery to the provider
+call that produced it rather than to visibility, which all three paths can cause.
+
+**The box does not close here.** Its push clause still carries the one
+notification in eleven that was never delivered and remains unexplained. What
+this run adds is a measured bound on that miss: with no subscription connected at
+all, the periodic refresh found an untold change in 29.4 seconds.
+
+### The same file through two cold mounts, with the path off and on
+
+Two things were still missing after the counters were read off a live mount. The
+two-file design there made the registered byte-identity check unsatisfiable, so
+no mount-level byte evidence existed; and its `graph_gets` figure counted the
+adapter's lifetime traffic, which cannot speak to a clause about per-cache-block
+checks. Both are answered by giving each arm its own engine directory, and so its
+own empty content cache, and its own adapter sampled around the read alone.
+Registered beforehand in
+[`benchmarks/mount-level-read-bytes.json`](benchmarks/mount-level-read-bytes.json).
+
+| file | arm | content GETs | Graph metadata GETs | wall clock |
+| --- | --- | ---: | ---: | ---: |
+| 41,918,278 B | conservative | 10 | 22 | 10.1 s |
+| 41,918,278 B | optimized | 4 | **4** | 2.9 s |
+| 9,402,197 B | conservative | 3 | 7 | 3.2 s |
+| 9,402,197 B | optimized | 2 | **3** | 1.6 s |
+
+SHA-256 identical between the arms at both sizes, read end to end through the
+kernel mount. The optimized arm established a bound session and served bounded
+windows; the conservative arm did neither, which is asserted rather than assumed,
+because a byte match between two arms that took the same route would say nothing.
+
+The second size was not in the registration and is the reason this says anything
+about cache blocks. One size cannot separate "per block" from "more work for a
+bigger file". Conservative Graph metadata requests track content requests at
+about two per block — 22 against 10, and 7 against 3, both close to `2n`. The
+optimized path does not: 4 against 4, and 3 against 2. The conservative cost
+grows with the number of blocks and the optimized cost does not, which is the
+clause stated as the box states it.
+
+Timing is recorded and claims little: one run per arm against an uncontrolled
+provider is a direction. The request counts are the durable part, being
+structural rather than timing-dependent, and they reproduce across a four-fold
+difference in size.
+
+**Every clause of this box now has live evidence, and it still does not close.**
+Not for want of a measurement: `conditional_reads` is `false` by default, so a
+shipped daemon still performs exactly the per-block checks measured absent above.
+What remains is the decision to turn it on, and that is not a measurement's to
+make.
+
+**One finding outside the box.** The first attempt failed with "remote item not
+found" because the fixture built its scope from `account.drive.id`. This account
+holds 42 nodes in its own drive and 183,960 in a linked collection, so a check
+that silently assumes the selected drive addresses 0.02 percent of what is
+mounted. The fixture now takes the collection explicitly. Milestone 4 carries a
+box for linked folders; this account is already an instance of it, and any
+measurement written against the account drive alone will keep missing it.
+
+### Navigating a real collection while it is being indexed
+
+The evidence for this box was a fixture asserting that cached navigation stays
+under 500 ms while committed changes are applied. That is true and narrow: it is
+a claim about navigation that is already cached, in a fixture's library. This
+run mounts the linked collection holding this account's 184,000 items with an
+empty engine directory, so the index really is built from nothing while the
+directory tree is walked. Registered, with its own irregularity recorded, in
+[`benchmarks/live-navigation-during-indexing.json`](benchmarks/live-navigation-during-indexing.json).
+
+| phase | directories | p50 | p95 | max | over 500 ms |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| indexing only | 132 | 192.1 ms | 317.0 ms | 523.3 ms | 1 |
+| indexing and a competing download | 243 | 210.5 ms | 435.3 ms | 834.5 ms | 6 |
+
+All 375 samples were taken while the collection was still indexing, on 375
+directories none of which had been visited before, with no failed listing.
+
+**A companion run reported p50 1.3 ms, and it is not evidence for this box.** It
+re-listed the mount root every 250 ms. A directory listed that often stays
+active, and an active directory is refetched in the background every five
+seconds, so that loop measured a hot directory rather than navigation. The gap
+between those two numbers is a factor of 150, and the box's wording — responsive
+navigation *during initial indexing* — is about the larger one. The first design
+was written before that was obvious; recording it is cheaper than someone
+rediscovering it.
+
+**The box stays open, and now for a stated reason.** The median is comfortable.
+The tail is not: one sample in 132 crosses the 500 ms the existing fixture
+asserts against, and six in 243 do once a download competes. The competing
+transfer moves p95 by a factor of 1.37 and the maximum from 523 ms to 834 ms, so
+it degrades excursions rather than the median. Anyone working on this should be
+measuring the tail under a competing transfer.
+
+Two notes on method. The exploratory run measured p50 192.081 ms over 99
+directories and this one 192.12 ms over 132, on independent cold mounts, which is
+closer agreement than a single run would justify claiming. And these runs were
+made before anything was registered, which is not the discipline this repository
+asks for; the registration says so rather than presenting derived predictions as
+foresight.
+
+### A mounted view following remote creates, moves and deletions
+
+Provider-level mutations were already covered. Whether the filesystem somebody is
+looking at follows them is a different claim, and one a provider-level check
+cannot make: a provider can accept a rename the mount never reflects, and nothing
+in that check would notice.
+
+| remote operation | visible in the mounted view after |
+| --- | ---: |
+| create a folder | 5,058 ms |
+| rename it | 4,654 ms |
+| delete it | 4,254 ms |
+
+All three land within four to five seconds, which is not a coincidence and not
+the notification path: it is the five-second activity revalidation interval from
+`activity.rs`, reached because the fixture is watching that directory and so
+keeps it active. A directory nobody is looking at would follow the same changes
+by catch-up or the thirty-second poll instead, both measured separately in the
+entry above.
+
+The rename check requires both halves — the new name present *and* the old one
+gone. A view that shows the new name and keeps the old has followed nothing; it
+has added.
+
+**Not covered: edits.** The box names creates, edits, moves and deletions, and a
+content change to an existing file goes through the upload path rather than a
+namespace mutation. Three of four is what this run establishes.
+
+One method note. The first attempt failed with `remote item or destination
+changed`, because the rename's precondition used the node returned by creation.
+A conditional mutation against a validator that has since moved on is refused as
+a conflict that never happened, so the precondition now comes from a fresh read
+taken immediately beforehand.

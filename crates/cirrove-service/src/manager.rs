@@ -45,6 +45,12 @@ pub struct AccountStatus {
     /// mounted daemon is behaving. `null` means this adapter does not count.
     #[serde(default)]
     pub read_path: Option<cirrove_core::ReadPathCounters>,
+    /// What each pin reserved and what it has actually kept. Reported here
+    /// because there is nowhere else to see it: pinning changes what the cache
+    /// may evict, and a user with no view of that cannot tell content that is
+    /// held offline from content that merely happens to be cached.
+    #[serde(default)]
+    pub pins: Vec<crate::engine::PinStatus>,
     pub indexed_feeds: u64,
     pub indexed_items: u64,
 }
@@ -224,6 +230,7 @@ impl Manager {
                             feeds: vec![],
                             directory_freshness: crate::DirectoryFreshness::default(),
                             read_path: None,
+                            pins: Vec::new(),
                             indexed_feeds: 0,
                             indexed_items: 0,
                         };
@@ -296,6 +303,13 @@ impl Manager {
                             status.feeds = active.engine.health().await;
                             status.directory_freshness = active.engine.directory_freshness();
                             status.read_path = active.engine.provider.read_path_counters();
+                            // Re-read the registry, not only report it. Pins are
+                            // recorded by whatever process the user ran, and a
+                            // daemon that only refreshed on its own changes would
+                            // keep evicting content that another process had just
+                            // been told was pinned. Five seconds is the cost.
+                            let _ = active.engine.refresh_reservations().await;
+                            status.pins = active.engine.pin_status().await.unwrap_or_default();
                             let db = active.engine.db.clone();
                             if let Ok(Ok((feeds, items))) = tokio::task::spawn_blocking(move || {
                                 cirrove_store::Store::open(db)?.counts()
