@@ -62,7 +62,13 @@ jobs:
       - name: Streamed windows, concurrent kernel readers and navigation
         run: timeout 90s cargo test -p cirrove-service --lib --locked content::windows::tests::graph::kernel::real_ -- --ignored --nocapture --test-threads=1
       - name: Automatic writable-session uploads and draining
-        run: timeout 90s cargo test -p cirrove-service --test writable_session --locked real_ -- --ignored --nocapture
+        # Serialized like its neighbours. This was the only kernel-FUSE step
+        # running its mounts concurrently -- twenty-one of them on a two-core
+        # runner -- and it produced a sealing failure that neither reproduces
+        # locally standalone nor when the same group is run one at a time. The
+        # budget matches the read-only step; serialized, the group takes 34 s
+        # here.
+        run: timeout 150s cargo test -p cirrove-service --test writable_session --locked real_ -- --ignored --nocapture --test-threads=1
       - run: cargo build --workspace --locked
       - run: python3 scripts/smoke.py
       - run: python3 scripts/test-observe-service.py
