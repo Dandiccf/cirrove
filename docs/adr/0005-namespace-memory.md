@@ -470,15 +470,24 @@ renumber a library. That narrows the safe set to keys the current namespace can
 no longer resolve, and it means the danger of deletion is narrower and better
 understood than "naive deletion renumbers" suggested.
 
-Two measurements would decide whether pruning is even the right remedy, and
-neither has been run. **What would it reclaim?** Count, on that same database,
-the rows whose item already has a newer revision. If the answer is small the
-growth is dominated by first-traversal rows, which are all reachable, and a
-narrower key -- not a pruning pass -- is the remedy. **What does the pass cost?**
-Time the reachability delete cold against 750,460 rows. Mount is the only moment
-with no kernel references to respect, and it is also the moment a user is
-waiting; if the pass does not fit there, it has to run after mount, which changes
-the safety argument. Knowing both before writing either version is the point.
+**Both deciding measurements are now taken, and pruning is not the remedy.** Of
+746,000 distinct projections in that database, **27** have a superseded revision.
+A reachability pass would reclaim 27 rows, about 8 KB, or 0.0036 percent. Cost is
+not the obstacle either: a full grouped pass takes about a third of a second over
+746,027 rows.
+
+The reason is that the axis named above is the smaller one. 250,000 items produce
+746,000 rows because each file is projected under its own path and two shortcuts,
+and duplicate projections deliberately receive distinct inodes. So the table is
+one row per *projection*, bounded by the library, plus one row per revision ever
+resolved, measured at 27 per round. The revision term is genuinely unbounded in
+time and genuinely small: a hundred edits a day is about 31 KB a day.
+
+That redirects the remedy rather than removing it. If 223.6 MiB for a
+750,000-view library is worth reducing, the lever is the 312 bytes per row -- 163
+of which are a UNIQUE index over a JSON tuple stored whole -- and a fixed-width
+digest key would cut it. That needs a migration, so it is a decision and not a
+cleanup, and it is not made here.
 
 ## The paged-payload prototype does not reach the gate's own workload
 
