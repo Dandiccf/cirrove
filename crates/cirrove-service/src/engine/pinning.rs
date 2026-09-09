@@ -332,3 +332,65 @@ async fn an_unindexed_subtree_is_reported_rather_than_quietly_excluded() {
          silently reserves less than the user asked to keep"
     );
 }
+
+#[tokio::test]
+async fn availability_separates_what_a_pin_reserved_from_what_it_kept() {
+    let temp = tempfile::tempdir().unwrap();
+    let provider = Arc::new(OneFile::default());
+    let mut account = fixture_account(temp.path().join("mount"));
+    account.cache_bytes = 64 * 1024 * 1024;
+    let engine = Engine::new(account, provider, temp.path().join("engine"))
+        .await
+        .unwrap();
+    let size = crate::content::BLOCK_SIZE as u64 + 512;
+    let node = OneFile::node(size);
+    engine
+        .pin(scope(), node.id.clone(), false, size)
+        .await
+        .unwrap()
+        .expect("fits");
+
+    // Reserved but never fetched. Reporting this as available would promise an
+    // offline read that cannot be served.
+    let before = engine.pin_status().await.unwrap();
+    assert_eq!(before.len(), 1);
+    assert_eq!(before[0].reserved, size);
+    assert_eq!(before[0].resident, 0, "nothing has been fetched yet");
+    assert_eq!(before[0].blocks, 0, "and no blocks are claimed yet");
+
+    engine.materialise_pin(&scope(), &node).await.unwrap();
+    let after = engine.pin_status().await.unwrap();
+    assert_eq!(after[0].blocks, 2, "two blocks, the second a short one");
+    assert!(
+        after[0].resident >= size,
+        "resident {} should cover the file's {size} bytes",
+        after[0].resident
+    );
+}
+#[tokio::test]
+async fn a_block_missing_from_disk_is_not_counted_as_available() {
+    let temp = tempfile::tempdir().unwrap();
+    let provider = Arc::new(OneFile::default());
+    let mut account = fixture_account(temp.path().join("mount"));
+    account.cache_bytes = 64 * 1024 * 1024;
+    let engine = Engine::new(account, provider, temp.path().join("engine"))
+        .await
+        .unwrap();
+    let node = OneFile::node(crate::content::BLOCK_SIZE as u64 + 512);
+    engine
+        .pin(scope(), node.id.clone(), false, node.size)
+        .await
+        .unwrap()
+        .expect("fits");
+    engine.materialise_pin(&scope(), &node).await.unwrap();
+    // Remove one block behind the cache's back, as a stray deletion or a failed
+    // disk would. The index still lists it, so a status that trusted the index
+    // would keep reporting the whole pin as available.
+    let key = crate::content::block_key(&scope(), &node, 0).expect("key");
+    std::fs::remove_file(engine.cache_path().join(&key)).unwrap();
+    let status = engine.pin_status().await.unwrap();
+    assert!(
+        status[0].resident < node.size,
+        "a block that is gone from disk must stop counting as available"
+    );
+}

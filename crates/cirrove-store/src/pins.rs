@@ -160,6 +160,15 @@ impl Store {
         tx.commit()?;
         Ok(())
     }
+    /// The blocks one pin owns.
+    pub fn blocks_of(&self, scope: &str, item: &str) -> Result<Vec<String>> {
+        let mut query = self
+            .db
+            .prepare("SELECT key FROM pin_blocks WHERE scope=?1 AND item=?2")?;
+        Ok(query
+            .query_map(params![scope, item], |r| r.get::<_, String>(0))?
+            .collect::<std::result::Result<Vec<_>, _>>()?)
+    }
     /// Every block eviction must leave alone.
     pub fn protected_blocks(&self) -> Result<std::collections::HashSet<String>> {
         let mut query = self.db.prepare("SELECT key FROM pin_blocks")?;

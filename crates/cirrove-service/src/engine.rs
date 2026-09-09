@@ -35,6 +35,19 @@ use tokio_util::task::TaskTracker;
 const SINGLE_ITEM_TIMEOUT: Duration = Duration::from_secs(60);
 const DISCOVERY_RETRY: Duration = Duration::from_secs(1);
 const DISCOVERY_RETRY_LIMIT: Duration = Duration::from_secs(60);
+/// What one pin reserved and what it has actually kept.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PinStatus {
+    pub item: String,
+    pub recursive: bool,
+    /// Claimed from the cache budget when the pin was made.
+    pub reserved: u64,
+    /// Bytes of this pin's blocks present in the cache right now.
+    pub resident: u64,
+    /// How many blocks the pin owns, so a caller can tell "nothing fetched yet"
+    /// from "nothing to fetch".
+    pub blocks: u64,
+}
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FeedHealth {
     pub collection: String,
@@ -302,6 +315,52 @@ impl Engine {
             .await??;
         self.refresh_reservations().await?;
         Ok(Ok((files.len(), complete)))
+    }
+    /// What each pin has actually kept, as against what it reserved.
+    ///
+    /// Reserved and resident are reported separately on purpose. A pin whose
+    /// content was never fetched reserves space and keeps nothing, and a status
+    /// that showed only the reservation would report content as available that
+    /// no offline read could produce.
+    pub async fn pin_status(&self) -> Result<Vec<PinStatus>> {
+        let db = self.db.clone();
+        let blocks = self.blocks_path();
+        let cache = self.cache_path();
+        tokio::task::spawn_blocking(move || -> anyhow::Result<Vec<PinStatus>> {
+            let store = Store::open(db)?;
+            let index = cirrove_store::BlockIndex::open(&blocks)?;
+            let sizes: std::collections::HashMap<String, u64> =
+                index.oldest()?.into_iter().collect();
+            let mut out = Vec::new();
+            for pin in store.pins()? {
+                let keys = store.blocks_of(&pin.scope, &pin.item)?;
+                // Present on disk, not merely indexed: the index is rebuilt from
+                // the directory, but between a block being forgotten and the
+                // rebuild it would otherwise be counted as available.
+                let resident = keys
+                    .iter()
+                    .filter(|key| cache.join(key).exists())
+                    .filter_map(|key| sizes.get(key))
+                    .sum();
+                out.push(PinStatus {
+                    item: pin.item,
+                    recursive: pin.recursive,
+                    reserved: pin.reserved,
+                    resident,
+                    blocks: keys.len() as u64,
+                });
+            }
+            Ok(out)
+        })
+        .await?
+    }
+    pub(crate) fn blocks_path(&self) -> PathBuf {
+        self.db.with_file_name("blocks.db")
+    }
+    /// Where published blocks live. Exposed so a caller reasoning about cache
+    /// files derives the path from here rather than rebuilding it and drifting.
+    pub(crate) fn cache_path(&self) -> PathBuf {
+        self.db.with_file_name("cache")
     }
     /// Release a pin and the space it held. Reports whether one existed.
     pub async fn unpin(&self, scope: Scope, item: String) -> Result<bool> {
