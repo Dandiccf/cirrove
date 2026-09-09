@@ -190,8 +190,8 @@
       "line": 201,
       "done": false,
       "text": "Persistent per-file and recursive-folder pinning with storage reservations.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
+      "blocker": "autonomous",
+      "evidence": "Scope expanded by the user on 2026-09-09 from milestones 1 and 2 to all six, so this row is no longer out of the agreed frame. IMPLEMENTED 2026-09-09, acceptance evidence still owed. Pins live in the metadata database at schema version 7 and survive restart; a reservation is checked against the cache budget when the pin is made and refused if it does not fit; eviction reads a published view and neither takes protected blocks nor counts reserved bytes as free. Folder pins walk cached directory views and report whether the walk was complete. Asserted by cirrove-store pins::tests (4) and cirrove-service engine::pinning (7) and content::tests (2); each was shown to fail without its subject. NOT YET: a control-socket verb, so this is unreachable from a terminal, and no measured evidence on a real account.",
       "asserted_by": null
     },
     {
@@ -200,8 +200,8 @@
       "line": 202,
       "done": false,
       "text": "Clear unpin/free-space behavior and accurate availability status.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
+      "blocker": "autonomous",
+      "evidence": "Scope expanded by the user on 2026-09-09 from milestones 1 and 2 to all six, so this row is no longer out of the agreed frame. ",
       "asserted_by": null
     },
     {
@@ -210,8 +210,8 @@
       "line": 203,
       "done": false,
       "text": "Offline access and editing of pinned content, including across restart.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
+      "blocker": "autonomous",
+      "evidence": "Scope expanded by the user on 2026-09-09 from milestones 1 and 2 to all six, so this row is no longer out of the agreed frame. ",
       "asserted_by": null
     },
     {
@@ -220,8 +220,8 @@
       "line": 204,
       "done": false,
       "text": "Unsent changes excluded from cache eviction and connection cleanup.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
+      "blocker": "autonomous",
+      "evidence": "Scope expanded by the user on 2026-09-09 from milestones 1 and 2 to all six, so this row is no longer out of the agreed frame. ",
       "asserted_by": null
     },
     {
@@ -230,8 +230,8 @@
       "line": 205,
       "done": false,
       "text": "Disk-full recovery preserves edited data and explains required action.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
+      "blocker": "needs-root",
+      "evidence": "Scope expanded by the user on 2026-09-09 from milestones 1 and 2 to all six, so this row is no longer out of the agreed frame. Fixture-level ENOSPC is reachable without privileges; a real full filesystem needs a mounted image and therefore root, like the crash/fault box.",
       "asserted_by": null
     },
     {
