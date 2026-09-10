@@ -51,6 +51,25 @@ pub fn free_arena_bytes() -> u64 {
     info.fordblks as u64
 }
 
+/// This process's resident size, in bytes.
+///
+/// The figure a reclamation decision is ultimately about, and the only one that
+/// moves when a trim succeeds. Reading `/proc/self/status` costs a small read;
+/// zero when it cannot be read, so an unknown reads as "nothing to do".
+#[must_use]
+pub fn resident_bytes() -> u64 {
+    let Ok(status) = std::fs::read_to_string("/proc/self/status") else {
+        return 0;
+    };
+    status
+        .lines()
+        .find_map(|line| line.strip_prefix("VmRSS:"))
+        .and_then(|value| value.split_whitespace().next())
+        .and_then(|kib| kib.parse::<u64>().ok())
+        .map(|kib| kib * 1024)
+        .unwrap_or(0)
+}
+
 /// Resident memory this process holds that is not live heap.
 ///
 /// The figure a reclamation decision actually wants: what the kernel counts as
@@ -59,10 +78,13 @@ pub fn free_arena_bytes() -> u64 {
 /// because a successful trim lowers resident size. So it provides its own
 /// hysteresis rather than needing one bolted on.
 ///
-/// It is an over-estimate: it includes the binary's own mappings, thread stacks
-/// and anything else resident that is not malloc'd heap. On this service that
-/// baseline is tens of mebibytes and roughly constant, which is why a floor
-/// works. Reading `/proc/self/status` costs a small read once a tick.
+/// It is an over-estimate, and by more than "tens of mebibytes and roughly
+/// constant", which is what an earlier version of this comment claimed. It
+/// includes everything resident that is not malloc'd heap -- on this service the
+/// SQLite page cache over a 560 MB index -- so on a real daemon it sits
+/// permanently around 90 MiB and never falls after a trim. Reported because it
+/// is worth seeing; do not use it to decide whether to trim. Measured in
+/// docs/benchmarks/trim-trigger-reaches-reads.json.
 ///
 /// Zero when the status file cannot be read, so a caller treats an unknown as
 /// "nothing to do" rather than trimming blindly.

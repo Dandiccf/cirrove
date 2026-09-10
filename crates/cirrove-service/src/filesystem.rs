@@ -259,13 +259,17 @@ impl CloudFs {
             // 717 microseconds around 50 MiB, roughly 14 microseconds per
             // mebibyte, so eight is about a hundred microseconds.
             //
-            // The floor is measured, not chosen. A settled daemon on this
-            // machine reports 16 to 19 MiB retained -- binary mappings, thread
-            // stacks and whatever else is resident and not malloc'd heap -- and
-            // it is roughly constant. Anything at or below that trims a process
-            // that has nothing to give back, once a second, forever. Sixty-four
-            // sits well clear of it and well below the hundred-odd mebibytes the
-            // same daemon accumulates over a few hundred megabytes of reading.
+            // The floor is growth worth a pass, and it moved twice before it
+            // meant that. Against a level it had to clear a baseline; against
+            // growth since the last trim it only has to be worth the walk, and a
+            // pass costs about 14 microseconds per mebibyte. Thirty-two is under
+            // half a millisecond, once, on an idle mount.
+            //
+            // Sixty-four was tried and is too high for this: a measured read pass
+            // grew resident size by 57.7 MiB and no trim fired, leaving the
+            // daemon 51 MiB up. Recorded in
+            // docs/benchmarks/trim-trigger-reaches-reads.json rather than left as
+            // a number that looks chosen.
             //
             // The signal is resident memory that is not live heap, and getting
             // there took two wrong answers that are recorded rather than tidied
@@ -294,9 +298,12 @@ impl CloudFs {
             let floor = std::env::var("CIRROVE_RECLAIM_FLOOR_BYTES")
                 .ok()
                 .and_then(|value| value.parse::<u64>().ok())
-                .unwrap_or(64 * 1024 * 1024);
+                .unwrap_or(32 * 1024 * 1024);
             let mut idle = 0u32;
             let mut high_water = 0usize;
+            // Resident size as the last trim left it. Zero to start, so the
+            // first pass needs only the floor.
+            let after_trim = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
             loop {
                 tokio::select! { biased;
                     _ = inner.cancel.cancelled() => break,
@@ -315,13 +322,38 @@ impl CloudFs {
                         };
                         high_water = high_water.max(held);
                         let shed = high_water > held.saturating_mul(SHED_FACTOR).max(SHED_FLOOR);
-                        let retained =
-                            cirrove_allocator::retained_bytes() >= floor;
+                        // Fire when resident size has grown a floor above where
+                        // the last trim left it. That is a back-off and a
+                        // threshold in one figure: if a trim lowered resident
+                        // size, the next needs real growth before it runs again;
+                        // if a trim changed nothing, resident size does not move
+                        // and this stops firing entirely.
+                        //
+                        // Both earlier attempts lacked exactly this. Free arena
+                        // bytes never fall after a trim, and resident-minus-live
+                        // includes everything resident that is not malloc heap --
+                        // on this daemon the SQLite page cache over a 560 MB
+                        // index -- so it sits permanently above any floor and
+                        // fired every tick just the same. Measured: 12 trims in
+                        // 12 seconds with it flat at 88-95 MiB.
+                        let resident = cirrove_allocator::resident_bytes();
+                        let retained = resident
+                            >= after_trim
+                                .load(std::sync::atomic::Ordering::Relaxed)
+                                .saturating_add(floor);
                         if idle >= QUIESCENT_TICKS && (shed || retained) {
                             high_water = held;
                             TRIMS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                            let mark = after_trim.clone();
                             tokio::task::spawn_blocking(move || {
                                 let released = cirrove_allocator::trim();
+                                // Recorded after the pass, so the next decision
+                                // is made against what this one achieved rather
+                                // than what it started from.
+                                mark.store(
+                                    cirrove_allocator::resident_bytes(),
+                                    std::sync::atomic::Ordering::Relaxed,
+                                );
                                 // At info, not debug: this was invisible in a
                                 // real session, so "has it ever fired?" could
                                 // not be answered from the journal, only
