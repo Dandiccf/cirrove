@@ -230,7 +230,7 @@
       "line": 205,
       "done": false,
       "text": "Disk-full recovery preserves edited data and explains required action.",
-      "blocker": null,
+      "blocker": "autonomous",
       "evidence": "Scope expanded by the user on 2026-09-09. 2026-09-10: run on a real filesystem, docs/benchmarks/full-disk-journal-errors.json. The root blocker is discharged and it found a defect the constructed-error test could not see: on an ext4 filesystem with no free block, a save failed as JournalError::Storage, 'local upload storage is unavailable', because the journal writes metadata through SQLite before any payload byte and From<rusqlite::Error> discarded the reason. The DeviceFull variant added for this case was unreachable from a real device. journal.rs now maps SQLITE_FULL and the two SQLite I/O reports for a store that could not take bytes to DeviceFull. Preservation held on the same device, before and after the fix: the payload sealed before the disk filled read back byte for byte and the working copy stayed dirty. NOT TICKED: this covers the journal's save path. Whether the message reaches a user through the daemon's own reporting is not measured here.",
       "asserted_by": "a_genuinely_full_filesystem_explains_what_to_free, which fills the filesystem it is given, asserts ENOSPC outside the journal before trusting any journal error, and fails against the previous code with 'it said: local upload storage is unavailable'. truncate_sparse_writes_and_quota_failures_preserve_the_working_copy and a_full_budget_and_a_full_disk_are_reported_as_different_problems still cover the budget half."
     },
