@@ -3010,3 +3010,86 @@ async fn real_manager_mounts_writable_only_for_an_account_with_a_write_grant() {
         let _ = tokio::time::timeout(Duration::from_secs(20), worker).await;
     }
 }
+
+/// A refused save must be explicable by something other than the kernel.
+///
+/// `writeback::error` maps a full budget and a full disk to the same `ENOSPC`,
+/// which is right -- that is what an application can act on -- and it is also
+/// everything the application is told. The remedies are opposite: a budget
+/// clears itself as uploads drain, a disk does not. writeback.rs carried a
+/// comment saying the difference was "reported through status"; `AccountStatus`
+/// had no such field and nothing filled one, so the distinction died at the
+/// syscall boundary.
+///
+/// This drives a real mount into its budget through the kernel and asserts the
+/// engine can name which of the two happened.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; a refused save names the budget rather than only ENOSPC"]
+async fn real_a_refused_save_is_reported_as_a_budget_and_not_only_as_enospc() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    // Nothing drains, so the budget cannot recover underneath the assertion.
+    cloud.stall.store(true, Ordering::SeqCst);
+    let vault = Arc::new(Vault::default());
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 64 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let watched = engine.clone();
+    let session = WritableSession::mount(engine, journal.clone(), cloud.clone(), vault)
+        .await
+        .unwrap();
+
+    assert!(
+        watched.save_refusals.latest().is_none(),
+        "nothing has been refused yet; a field that is already set would make the \
+         assertion below meaningless"
+    );
+
+    // Write past the budget through the kernel. Which write crosses it is not
+    // fixed -- the journal spends the budget on its own bookkeeping too -- so
+    // the loop asserts that one of them does, and that it is ENOSPC.
+    let mut refused = None;
+    let mut accepted = 0;
+    for index in 0..64 {
+        let path = mount.join(format!("file-{index}.bin"));
+        match std::fs::write(&path, vec![b'x'; 8 * 1024]) {
+            Ok(()) => accepted += 1,
+            Err(failure) => {
+                refused = Some(failure);
+                break;
+            }
+        }
+    }
+    let refused = refused.expect("a 64 KiB budget cannot hold 512 KiB of writes");
+    assert!(
+        accepted > 0,
+        "a mount that refuses the first write is broken rather than full, and          would satisfy every assertion below for the wrong reason"
+    );
+    assert_eq!(
+        refused.raw_os_error(),
+        Some(libc::ENOSPC),
+        "the kernel must still report ENOSPC, which is what an application acts on: {refused}"
+    );
+
+    let refusal = watched
+        .save_refusals
+        .latest()
+        .expect("a refused save must leave something status can report");
+    assert_eq!(
+        refusal.kind, "budget",
+        "the budget is full and the disk is not; reporting `device` would send a \
+         user to free space that would not help"
+    );
+    assert!(
+        refusal.message.contains("cache_bytes"),
+        "the budget message has to say what makes room now: {}",
+        refusal.message
+    );
+    session.shutdown().await.unwrap();
+}

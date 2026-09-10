@@ -20,6 +20,7 @@ type EditKey = (String, String, String, String);
 
 pub(super) struct Writeback {
     journal: Arc<Mutex<UploadJournal>>,
+    refusals: Arc<crate::journal::SaveRefusals>,
     pub wake: Arc<tokio::sync::Notify>,
     projection: Arc<Mutex<Projection>>,
     hydrating: Mutex<HashMap<EditKey, Weak<tokio::sync::Mutex<()>>>>,
@@ -171,8 +172,11 @@ fn key(scope: &Scope, item: &str) -> EditKey {
 fn error(error: JournalError) -> Errno {
     match error {
         // Both are ENOSPC to the kernel, because that is what an application
-        // can act on. The difference between them survives in the journal error
-        // and is reported through status, where it can say which one it is.
+        // can act on. The difference between them is kept by
+        // `Writeback::local`, which records the refusal on the engine so that
+        // `cirrove status` can say which of the two it was. That claim used to
+        // sit here with nothing behind it: `AccountStatus` had no such field
+        // and no code path filled one.
         JournalError::Quota | JournalError::DeviceFull => Errno::ENOSPC,
         JournalError::Missing => Errno::ENOENT,
         JournalError::Account => Errno::EACCES,
@@ -220,6 +224,7 @@ impl Writeback {
         .map_err(std::io::Error::other)?;
         Ok(Arc::new(Self {
             journal,
+            refusals: engine.save_refusals.clone(),
             wake: Arc::new(tokio::sync::Notify::new()),
             projection: Arc::new(Mutex::new(projection)),
             hydrating: Mutex::new(HashMap::new()),
@@ -240,6 +245,7 @@ impl Writeback {
         })
         .await
         .map_err(|_| Errno::EIO)?
+        .inspect_err(|failure| self.refusals.note(failure))
         .map_err(error)
     }
     async fn publish(&self, record: WorkingFile) -> Result<WorkingFile> {

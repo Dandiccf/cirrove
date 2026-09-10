@@ -2,7 +2,7 @@
 #![allow(clippy::unwrap_used)]
 use cirrove_core::{Node, NodeKind, Scope};
 use cirrove_service::journal::{
-    JournalError, UploadIntent, UploadJournal, UploadState, WorkingFile,
+    JournalError, SaveRefusals, UploadIntent, UploadJournal, UploadState, WorkingFile,
 };
 use std::{
     io::Read,
@@ -457,4 +457,41 @@ fn a_genuinely_full_filesystem_explains_what_to_free() {
         "a save that failed because the disk is full must name freeing space \
          as the action required; it said: {message}"
     );
+}
+
+/// The recorder keeps the two no-space refusals apart and lets everything else
+/// through untouched.
+///
+/// `real_a_refused_save_is_reported_as_a_budget_and_not_only_as_enospc` proves
+/// the mounted path reaches this for a full budget. The device case shares that
+/// path and this classification, and no run has yet driven a mount on a
+/// physically full filesystem -- so what is established there is the mapping,
+/// not the journey.
+#[test]
+fn only_the_two_no_space_refusals_are_recorded_and_they_stay_distinct() {
+    let refusals = SaveRefusals::default();
+    assert!(refusals.latest().is_none());
+
+    // An error that is not about space must not populate a field whose whole
+    // purpose is to answer "why did my save fail for lack of room".
+    refusals.note(&JournalError::Corrupt);
+    assert!(
+        refusals.latest().is_none(),
+        "a corruption error is not a reason to tell someone to free space"
+    );
+
+    refusals.note(&JournalError::Quota);
+    let budget = refusals.latest().unwrap();
+    assert_eq!(budget.kind, "budget");
+    assert!(budget.message.contains("cache_bytes"), "{}", budget.message);
+
+    refusals.note(&JournalError::DeviceFull);
+    let device = refusals.latest().unwrap();
+    assert_eq!(device.kind, "device");
+    assert!(device.message.contains("freed"), "{}", device.message);
+
+    // The remedies are opposite, so a caller must never be able to read one for
+    // the other. Matching on `kind` rather than on prose is the point of it.
+    assert_ne!(budget.kind, device.kind);
+    assert_ne!(budget.message, device.message);
 }

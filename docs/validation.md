@@ -2119,3 +2119,35 @@ still marked dirty, and both were readable while the filesystem was still full.
 
 What is not covered: this is the journal's save path. Whether the message
 reaches a person through the daemon's own reporting was not measured.
+
+## Whether a refused save can be explained by anything but the kernel
+
+Same day, following the run above. `writeback.rs` mapped both no-space
+refusals to `ENOSPC` with a comment saying the difference "is reported through
+status, where it can say which one it is". `AccountStatus` had no such field
+and no code path filled one. The comment described an intention.
+
+`ENOSPC` is the right answer to give an application -- it is what an
+application can act on -- and it is also everything the application learns. A
+full budget and a full disk have opposite remedies: one clears itself as
+uploads drain, the other never does. "No space left on device" on a filesystem
+with gigabytes free reads as a defect in Cirrove.
+
+The refusal is now recorded where every save already passes:
+`Writeback::local`, one choke point rather than the twenty `map_err(error)`
+sites around it. It is kept on the `Engine`, which survives a remount, and not
+on the write workers, which do not -- failing saves can themselves provoke the
+remount that would otherwise erase the answer. `cirrove status` reports it per
+account as `save_refusal`, with `kind` being `budget` or `device` so a caller
+decides on a word rather than by parsing prose.
+
+`real_a_refused_save_is_reported_as_a_budget_and_not_only_as_enospc` drives a
+real mount into its budget through the kernel: it asserts the write still
+fails with `ENOSPC`, that at least one earlier write was accepted -- a mount
+refusing everything would otherwise satisfy the rest for the wrong reason --
+and that the engine names the budget. It fails without the recorder.
+
+What is not covered: no run has driven a mount on a physically full
+filesystem. The device case shares the choke point, the recorder and the
+classification, and `only_the_two_no_space_refusals_are_recorded_and_they_stay_distinct`
+covers the mapping, but the journey is proven for the budget only.
