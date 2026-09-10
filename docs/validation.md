@@ -2084,3 +2084,38 @@ changed`, because the rename's precondition used the node returned by creation.
 A conditional mutation against a validator that has since moved on is refused as
 a conflict that never happened, so the precondition now comes from a fresh read
 taken immediately beforehand.
+
+## A save on a filesystem with no free block
+
+`docs/benchmarks/full-disk-journal-errors.json`, 2026-09-10, on a 64 MiB
+loop-backed ext4 with reserved blocks set to zero. Root was needed once, to
+attach the loop device and mount it.
+
+The journal was driven directly, with no provider and no credentials. A working
+file was sealed while there was still room, the filesystem was then filled to
+its last block, and an ordinary edit was attempted. That the filesystem was
+genuinely full is asserted outside the journal: a 64 KiB write to a new file on
+the mount fails with `errno 28` before any journal error is trusted.
+
+The edit failed at `write_working`, and it failed as `JournalError::Storage` --
+*"local upload storage is unavailable"*. That names no action. The `DeviceFull`
+variant, added precisely so a full disk would not be confused with a full
+budget, was never reached, because `write_working` persists metadata through
+SQLite before it writes a byte and `From<rusqlite::Error>` mapped every SQLite
+failure, `SQLITE_FULL` included, to `Storage`. The mapping from `ENOSPC` to
+`DeviceFull` existed and was correct; nothing on a real filesystem arrived at
+it.
+
+`journal.rs` now recognises `SQLITE_FULL`, and the two SQLite I/O reports for a
+store that could not take the bytes, as `DeviceFull`. The same run then reports
+*"the disk holding Cirrove's local state is full; unsent changes are kept, but
+nothing can be saved until space is freed on that filesystem"*. The trade is
+recorded in the artifact: an I/O error carries no errno, so a write failure that
+is not about space is now also reported as a full disk.
+
+Preservation held on the same device, before and after the change: the payload
+sealed before the disk filled read back byte for byte, the working copy was
+still marked dirty, and both were readable while the filesystem was still full.
+
+What is not covered: this is the journal's save path. Whether the message
+reaches a person through the daemon's own reporting was not measured.
