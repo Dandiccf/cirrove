@@ -1,0 +1,79 @@
+{
+  "question": "Is the 164 MiB run-to-run variance in the sequential phase glibc malloc retaining freed read buffers across per-thread arenas, rather than the service holding more memory?",
+  "why_now": "docs/benchmarks/rss-variance-by-phase.json localised the whole variance to the 1 GiB sequential read and then took away every explanation that was on the table. Across sixty runs the service issues 20 content GETs, validates 18 windows and peaks at 64 MiB of staging -- identical every time -- while the resident figure moves from 140.5 to 304.6 MiB. Work identical, memory not. Whatever varies is not what the service does.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-10",
+  "hypothesis": "The crate uses the system allocator. glibc malloc creates up to eight arenas per core, so 128 on this 16-core machine, and a block freed by one thread returns to that thread's arena rather than to the OS. A work-stealing runtime spreads the same 4 MiB read buffers differently across threads on every run, so the same work leaves a different amount of memory resident. Capping the arenas should collapse the spread without changing a single thing the service does.",
+  "why_it_also_explains_the_earlier_oddity": "CPU load suppressed the failure -- 0 in 30 against 8 in 60 quiet -- which made no sense under any story where the service was genuinely using more memory. Under contention fewer runtime threads run at once, so fewer arenas accumulate retained blocks. The hypothesis predicts that in the right direction rather than having to excuse it.",
+  "arms": [
+    {
+      "name": "default",
+      "description": "MALLOC_ARENA_MAX unset. glibc picks its own arena count."
+    },
+    {
+      "name": "one-arena",
+      "description": "MALLOC_ARENA_MAX=1. Same binary, same workload, one arena."
+    }
+  ],
+  "workload": "The strong read workload, release profile, 40 runs per arm, TMPDIR on the btrfs root, quiet machine. Every run emits its report whether it passes or fails.",
+  "endpoint": "The spread of the sequential phase's RSS growth in each arm, and the failure count against the 256 MiB assertion.",
+  "predictions": [
+    {
+      "id": "P1",
+      "claim": "The one-arena arm's sequential spread -- largest minus smallest -- is under 60 MiB, against 164 MiB at default.",
+      "role": "the hypothesis. Arena retention predicts the spread collapses; nothing else on the table predicts an environment variable changing it at all."
+    },
+    {
+      "id": "P2",
+      "claim": "The one-arena arm produces zero failures in 40 runs.",
+      "role": "the consequence that matters. At the default rate of roughly one in seven, 40 clean runs would be about a 0.2 percent coincidence."
+    },
+    {
+      "id": "P3",
+      "claim": "Both arms report the same 20 sequential content GETs, 18 validated windows and 64 MiB staging peak in every run.",
+      "role": "discriminator -- if capping arenas changes what the service does, then it is not only an allocator effect and the comparison is not clean"
+    },
+    {
+      "id": "P4",
+      "claim": "The one-arena arm's median is lower than the default arm's median, but by less than its spread shrinks.",
+      "reasoning": "Retention should cost more at the tail than at the middle. A median that falls as far as the spread does would suggest the arenas were holding memory in every run, not only in unlucky ones."
+    }
+  ],
+  "decision_rule": "If P1, P2 and P3 all hold, the failure is glibc retention rather than the service, and the assertion has been measuring the allocator. That would make three things arguable which are not arguable now: capping arenas for the daemon, capping them for this fixture only, or setting the limit from a distribution that is understood rather than merely observed. Choosing among those is the owner's and is not decided here. If P1 fails, the hypothesis is wrong and the variance is still unexplained, which is recorded as such.",
+  "what_this_cannot_show": "rss_bytes() reads /proc/self/status, so it covers the test process as a whole: the service, the loopback HTTP server serving the bytes, and the tokio runtime under both. If arenas are the cause, this run cannot say whose buffers they hold. A daemon in production has no loopback server in its address space, so the size of the effect here is not the size of the effect there.",
+  "result": {
+    "arms": {
+      "default": {
+        "runs": 40,
+        "failures": 7,
+        "sequential_min_mib": 133.2,
+        "sequential_median_mib": 166.4,
+        "sequential_max_mib": 302.4,
+        "spread_mib": 169.2,
+        "work_every_run": "content_gets 20, validated_windows 18, staging peak 64 MiB"
+      },
+      "one-arena": {
+        "runs": 40,
+        "failures": 0,
+        "sequential_min_mib": 44.3,
+        "sequential_median_mib": 45.2,
+        "sequential_max_mib": 47.3,
+        "spread_mib": 3.0,
+        "work_every_run": "content_gets 20, validated_windows 18, staging peak 64 MiB"
+      }
+    },
+    "spread_default_mib": 169.2,
+    "spread_one_arena_mib": 3.0,
+    "median_drop_mib": 121.3
+  },
+  "verdict": {
+    "P1": "HOLDS, and by far more than predicted. The spread falls from 169.2 MiB to 3.0 MiB. The prediction allowed 60 MiB.",
+    "P2": "HOLDS. 0 failures in 40, against 7 in 40 on the same binary in the same session. At the default rate that is roughly a 0.2 percent coincidence.",
+    "P3": "HOLDS. Both arms report content_gets 20, validated_windows 18 and a 64 MiB staging peak in every one of the eighty runs. Capping arenas changed nothing the service does.",
+    "P4": "HOLDS numerically -- the median falls 121.3 MiB against a spread that shrinks 166.2 -- but its reasoning is refuted and that matters more than the arithmetic. I expected retention to cost mainly at the tail. It costs 121 MiB at the MEDIAN: the workload's actual footprint is about 45 MiB and the default allocator holds three to seven times that in every single run, not only in unlucky ones."
+  },
+  "what_this_establishes": "The assertion has been measuring glibc rather than Cirrove. The same work -- twenty content GETs, eighteen validated windows, a 64 MiB staging peak, identical in all 80 runs -- needs about 45 MiB resident and is reported as 133 to 302. The intermittent failure was never a property of the code under test, and every explanation offered before this one, including two of mine, was looking in the wrong place.",
+  "the_part_that_is_not_about_the_test": "cirroved links the same allocator and runs the same multi-threaded runtime, and nothing caps its arenas. If this mechanism carries -- and the caveat below says why this run cannot show that it does -- then a daemon reading large files holds several times the memory it needs, and milestone 3's bounded-memory box is asking a question this measurement was never able to answer. That is a product finding rather than a fixture finding, and it is the reason this artifact should not end with 'the test was wrong'.",
+  "what_this_still_cannot_show": "rss_bytes() reads /proc/self/status, so every figure here covers the test process as a whole: the service, the loopback HTTP server that serves the bytes, and the tokio runtime under both. Which of them owns the retained blocks is not established. A shipped daemon has no loopback server in its address space, so the 45 MiB floor and the 302 MiB ceiling are properties of this fixture and do not transfer. What transfers is the mechanism and the fact that nobody has measured the daemon itself this way.",
+  "decision": "Nothing changed, and the limit still not moved. Three things are now arguable that were not before, and the choice among them belongs to the owner: (1) cap arenas in the fixture, which makes the assertion measure the service and would have caught this class of regression all along; (2) cap them in the daemon, which is a product decision about real memory and needs its own measurement first, on the daemon rather than on this fixture; (3) leave the allocator alone and set the limit from the observed distribution, which keeps the test green and keeps it measuring glibc. The recommendation attached to this artifact is (1) now and (2) as a separate, measured question, on the grounds that a bound nobody understands is not a bound."
+}

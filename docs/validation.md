@@ -2219,3 +2219,61 @@ yet loaded runs peak lower. That points at real memory behaviour rather than
 sampling luck. The concurrent phase opens 32 readers at once, and under
 contention those serialise with fewer 4 MiB buffers live together. Nothing
 here instruments what is resident, so that stays a candidate.
+
+## The memory assertion was measuring glibc
+
+`docs/benchmarks/rss-variance-by-phase.json` and
+`docs/benchmarks/rss-allocator-arenas.json`, 2026-09-10, following the two
+artifacts above.
+
+The intermittent `whole-file-sized service RSS growth` failure is not a
+property of the code under test. It is glibc malloc holding freed read
+buffers.
+
+Two steps got there. The first localised the variance: across sixty
+instrumented runs the peak is owned by the 1 GiB sequential phase in **all**
+of them, passing and failing alike, and every other phase is flat to within
+1.6 MiB. That killed the explanation I had been carrying -- 32 concurrent
+readers overlapping -- since the concurrent phase is the second most stable
+in the workload.
+
+It also took away every remaining candidate, because the service does the
+same thing every run: 20 content GETs, 18 validated windows, a 64 MiB
+staging peak, identical in all sixty. Work identical, memory not.
+
+The second step tested what was left. The crate uses the system allocator,
+and glibc creates up to eight arenas per core -- 128 on this machine. A block
+freed by one thread returns to that thread's arena rather than to the OS, so
+the same work leaves a different amount resident depending on how a
+work-stealing runtime spread it. `MALLOC_ARENA_MAX` tests that without
+touching a line of code:
+
+| | default | `MALLOC_ARENA_MAX=1` |
+|---|---|---|
+| failures | 7 / 40 | **0 / 40** |
+| sequential median | 166.4 MiB | **45.2 MiB** |
+| sequential max | 302.4 MiB | 47.3 MiB |
+| **spread** | **169.2 MiB** | **3.0 MiB** |
+
+Both arms report the same 20 content GETs, 18 validated windows and 64 MiB
+staging peak in every one of the eighty runs. Capping arenas changed nothing
+the service does.
+
+The prediction that failed is the informative one. I expected retention to
+cost mainly at the tail. It costs 121 MiB at the **median**: this workload
+needs about 45 MiB and the default allocator holds three to seven times that
+in every single run, not only in unlucky ones.
+
+**The part that is not about the test.** `cirroved` links the same allocator,
+runs the same multi-threaded runtime, and nothing caps its arenas. If the
+mechanism carries, a daemon reading large files holds several times the
+memory it needs, and milestone 3's bounded-memory box is asking a question
+this fixture was never able to answer.
+
+What this cannot show: `rss_bytes()` reads `/proc/self/status`, so every
+figure covers the test process as a whole -- service, loopback HTTP server
+and the runtime under both. Which of them owns the retained blocks is not
+established, and a shipped daemon has no loopback server in its address
+space. The mechanism transfers; the numbers do not.
+
+Nothing was changed and the limit was not moved.

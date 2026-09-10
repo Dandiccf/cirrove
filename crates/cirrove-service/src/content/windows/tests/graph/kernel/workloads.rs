@@ -105,6 +105,10 @@ async fn workload(mode: Mode) -> anyhow::Result<serde_json::Value> {
     let result = tokio::time::timeout(Duration::from_secs(180), async {
         for expected in ["preview", "reopen", "sparse", "concurrent", "sequential"] {
             let mut navigation = Vec::new();
+            // A running maximum over the whole workload says how big the peak
+            // was and not where it came from, which is the question when the
+            // figure varies by a factor of two between runs.
+            let mut phase_peak = rss_bytes();
             let mut tick = tokio::time::interval(Duration::from_millis(50));
             tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             let mut phase: serde_json::Value = loop {
@@ -114,7 +118,9 @@ async fn workload(mode: Mode) -> anyhow::Result<serde_json::Value> {
                     }
                     _ = tick.tick() => {
                         navigate(&mounted, &mut navigation).await.with_context(|| format!("{mode:?}/{expected}: cached navigation"))?;
-                        peak = peak.max(rss_bytes());
+                        let sample = rss_bytes();
+                        peak = peak.max(sample);
+                        phase_peak = phase_peak.max(sample);
                     }
                 }
             };
@@ -133,12 +139,23 @@ async fn workload(mode: Mode) -> anyhow::Result<serde_json::Value> {
             } else {
                 serde_json::json!({"samples":navigation.len(),"p50_ms":navigation[(navigation.len()-1)/2],"p95_ms":navigation[(navigation.len()-1)*95/100],"max_ms":navigation.last()})
             };
+            phase["sampled_rss_peak_bytes"] = phase_peak.into();
+            phase["rss_samples"] = navigation.len().into();
             phases.push(phase);
             counts = next;
             input.write_all(b"continue\n").await?;
         }
         ensure!(child.wait().await?.success(), "mounted read application failed");
         let stats = mounted.engine.cache.window_stats();
+        let report = serde_json::json!({
+            "mode":format!("{mode:?}"),"build_profile":build_profile(),"phases":phases,
+            "synthetic_request_delay_ms":delay_ms,
+            "staging":stats,"elapsed_ms":start.elapsed().as_secs_f64()*1000.0,
+            "service_and_loopback_sampled_rss_baseline_bytes":baseline,
+            "service_and_loopback_sampled_rss_peak_bytes":peak,
+            "fixture":"separate Python application, actual FUSE, loopback OneDrive adapter, seeded metadata; no real provider/indexing/desktop decoder"
+        });
+        println!("CIRROVE_MOUNTED_READ_WORKLOAD {report}");
         ensure!(stats.staging_reserved_bytes == 0);
         ensure!(stats.staging_peak_bytes <= 64 * 1024 * 1024);
         // The number belongs in the failure, not only in the report that a
@@ -153,14 +170,7 @@ async fn workload(mode: Mode) -> anyhow::Result<serde_json::Value> {
             baseline as f64 / (1024.0 * 1024.0)
         );
         ensure!(!matches!(mode, Mode::Conservative) == (stats.validated_windows > 0));
-        Ok::<_, anyhow::Error>(serde_json::json!({
-            "mode":format!("{mode:?}"),"build_profile":build_profile(),"phases":phases,
-            "synthetic_request_delay_ms":delay_ms,
-            "staging":stats,"elapsed_ms":start.elapsed().as_secs_f64()*1000.0,
-            "service_and_loopback_sampled_rss_baseline_bytes":baseline,
-            "service_and_loopback_sampled_rss_peak_bytes":peak,
-            "fixture":"separate Python application, actual FUSE, loopback OneDrive adapter, seeded metadata; no real provider/indexing/desktop decoder"
-        }))
+        Ok::<_, anyhow::Error>(report)
     }).await.context("mounted application workload deadline").and_then(|r| r);
     if result.is_err() {
         let _ = child.kill().await;
@@ -174,29 +184,20 @@ async fn workload(mode: Mode) -> anyhow::Result<serde_json::Value> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires FUSE and loopback HTTP; run explicitly, preferably --release"]
 async fn real_mounted_conservative_read_workload() -> anyhow::Result<()> {
-    println!(
-        "CIRROVE_MOUNTED_READ_WORKLOAD {}",
-        workload(Mode::Conservative).await?
-    );
+    workload(Mode::Conservative).await?;
     Ok(())
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires FUSE and loopback HTTP; run explicitly, preferably --release"]
 async fn real_mounted_strong_read_workload() -> anyhow::Result<()> {
-    println!(
-        "CIRROVE_MOUNTED_READ_WORKLOAD {}",
-        workload(Mode::Strong).await?
-    );
+    workload(Mode::Strong).await?;
     Ok(())
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires FUSE and loopback HTTP; run explicitly, preferably --release"]
 async fn real_mounted_windows_read_workload() -> anyhow::Result<()> {
-    println!(
-        "CIRROVE_MOUNTED_READ_WORKLOAD {}",
-        workload(Mode::Windows).await?
-    );
+    workload(Mode::Windows).await?;
     Ok(())
 }
