@@ -2160,3 +2160,170 @@ What is not covered: no run has driven a mount on a physically full
 filesystem. The device case shares the choke point, the recorder and the
 classification, and `only_the_two_no_space_refusals_are_recorded_and_they_stay_distinct`
 covers the mapping, but the journey is proven for the budget only.
+
+## An acceptance assertion that fails about one run in eight
+
+`docs/benchmarks/strong-workload-rss-flake.json` and, superseding most of it,
+`docs/benchmarks/rss-flake-under-load.json`. 2026-09-10. Found while checking
+that two branches worked together, not looked for.
+
+`real_mounted_strong_read_workload` fails intermittently on
+`whole-file-sized service RSS growth`, the assertion that the service's
+resident memory grows by less than 256 MiB across a workload that reads a
+256 MiB file sparsely and 1 GiB sequentially.
+
+It is not caused by recent work. The same rate appears on the branch
+combination, on plain `main`, and on the commit before the read-session
+default flip.
+
+**The first explanation was wrong, and backwards.** Thirty runs taken while
+the machine was compiling gave three failures; twenty taken while it was idle
+gave none, and load sensitivity went into the record as a suggestion. Ninety
+further runs across three arms say the opposite: sixteen CPU-bound processes
+took the failure rate from 8 in 60 to **0 in 30**, and p95 from 272-289 MiB
+down to 202 MiB. Load suppresses it. The earlier zero needs no explanation
+beyond chance -- twenty draws of a one-in-eight event come up empty about
+seven percent of the time.
+
+**tmpfs was a real violation and a false lead.** `TMPDIR` was unset and `/tmp`
+here is a 31 GiB tmpfs, which this repository's discipline forbids for exactly
+this kind of measurement; the fixture mounts, caches and stages under its
+tempdir. Predicted before running: tmpfs fails, disk does not. Disk failed
+too, 3 of 30 against 5 of 30, and tmpfs's median was the *lower* of the two.
+
+**What it actually is.** Peak growth over ninety runs spans 127 to 301 MiB
+with a median of 162. The limit sits inside the natural spread of the
+measurement, in its upper tail. This is not an external condition intruding on
+a stable number; the number itself varies by a factor of 2.4.
+
+Two things were fixed along the way, both in the measuring rather than the
+measured. A failing run printed no figures at all, because the report is built
+after the assertions -- so the first distributions described passing runs only,
+and their "nothing reached the limit" line was censoring, not a finding. The
+assertion now states how far over it went, which also means a red CI build
+stops saying `whole-file-sized service RSS growth` and nothing else. And a
+striking gap between the highest pass (255.4 MiB) and the lowest failure
+(261.2 MiB) was nearly written up as bimodality; it is the cutoff itself, since
+every run under 256 is recorded as a pass by definition.
+
+Nothing in the code under test was changed and the limit was deliberately not
+moved. What remains is a choice, and it is not a measurement's to make: treat
+the 2.4-fold variance as the defect and find what holds buffers live, or set
+the limit from the observed distribution with a stated margin. Raising the
+number until the red goes away, without saying which, would be worse than
+either.
+
+A mechanism the data supports without establishing: `peak` is sampled every
+50 ms, so a slower run is sampled *more* and should catch more high moments --
+yet loaded runs peak lower. That points at real memory behaviour rather than
+sampling luck. The concurrent phase opens 32 readers at once, and under
+contention those serialise with fewer 4 MiB buffers live together. Nothing
+here instruments what is resident, so that stays a candidate.
+
+## The memory assertion was measuring glibc
+
+`docs/benchmarks/rss-variance-by-phase.json` and
+`docs/benchmarks/rss-allocator-arenas.json`, 2026-09-10, following the two
+artifacts above.
+
+The intermittent `whole-file-sized service RSS growth` failure is not a
+property of the code under test. It is glibc malloc holding freed read
+buffers.
+
+Two steps got there. The first localised the variance: across sixty
+instrumented runs the peak is owned by the 1 GiB sequential phase in **all**
+of them, passing and failing alike, and every other phase is flat to within
+1.6 MiB. That killed the explanation I had been carrying -- 32 concurrent
+readers overlapping -- since the concurrent phase is the second most stable
+in the workload.
+
+It also took away every remaining candidate, because the service does the
+same thing every run: 20 content GETs, 18 validated windows, a 64 MiB
+staging peak, identical in all sixty. Work identical, memory not.
+
+The second step tested what was left. The crate uses the system allocator,
+and glibc creates up to eight arenas per core -- 128 on this machine. A block
+freed by one thread returns to that thread's arena rather than to the OS, so
+the same work leaves a different amount resident depending on how a
+work-stealing runtime spread it. `MALLOC_ARENA_MAX` tests that without
+touching a line of code:
+
+| | default | `MALLOC_ARENA_MAX=1` |
+|---|---|---|
+| failures | 7 / 40 | **0 / 40** |
+| sequential median | 166.4 MiB | **45.2 MiB** |
+| sequential max | 302.4 MiB | 47.3 MiB |
+| **spread** | **169.2 MiB** | **3.0 MiB** |
+
+Both arms report the same 20 content GETs, 18 validated windows and 64 MiB
+staging peak in every one of the eighty runs. Capping arenas changed nothing
+the service does.
+
+The prediction that failed is the informative one. I expected retention to
+cost mainly at the tail. It costs 121 MiB at the **median**: this workload
+needs about 45 MiB and the default allocator holds three to seven times that
+in every single run, not only in unlucky ones.
+
+**The part that is not about the test.** `cirroved` links the same allocator,
+runs the same multi-threaded runtime, and nothing caps its arenas. If the
+mechanism carries, a daemon reading large files holds several times the
+memory it needs, and milestone 3's bounded-memory box is asking a question
+this fixture was never able to answer.
+
+What this cannot show: `rss_bytes()` reads `/proc/self/status`, so every
+figure covers the test process as a whole -- service, loopback HTTP server
+and the runtime under both. Which of them owns the retained blocks is not
+established, and a shipped daemon has no loopback server in its address
+space. The mechanism transfers; the numbers do not.
+
+Nothing was changed and the limit was not moved.
+
+## The daemon has it too, and it accumulates
+
+`docs/benchmarks/daemon-allocator-arenas.json`, 2026-09-10, on the user's own
+account with their standing permission for read testing. Four files, 475 MB,
+read through the real mount and served entirely from the on-disk cache —
+zero provider content requests in all six passes.
+
+Both daemons restarted, then an identical unmeasured warm-up, then two
+measured passes each:
+
+| | default arenas | `MALLOC_ARENA_MAX=1` |
+|---|---|---|
+| resting after warm-up | 182.4 MiB | **104.6 MiB** |
+| pass 1: growth / residue | +11.0 / +11.0 | +0.0 / +0.0 |
+| pass 2: growth / residue | +20.4 / +17.8 | +3.3 / +3.3 |
+| resting after both | 211.3 MiB | **107.9 MiB** |
+
+The default daemon grows with read work and **returns essentially none of
+it**. Peak and residue are the same number in almost every pass, which is
+why the prediction that they would differ holds only degenerately: there is
+nothing to separate.
+
+The user's own daemon, running since their restart rather than freshly
+warmed, sat at 288.9 MiB and went to 338.4 on a single pass, keeping all of
+it.
+
+**Both registered magnitudes were wrong.** I predicted a per-pass residue of
+at least 100 MiB in the default arm and a per-pass difference of at least 50
+MiB between arms; the real per-pass figures are 11-20 MiB and 11-15 MiB. The
+effect is cumulative, not per-pass, and describing it that way is both more
+accurate and more concerning: 77.8 MiB apart after a warm-up, 103.4 MiB
+apart two passes later, on a daemon that runs for days.
+
+What this does not settle: every read came from cache, so nothing here
+speaks to memory while downloading. The resting difference after warm-up
+conflates retention with whatever else differs between two fresh daemons;
+only the per-pass growth is a clean paired comparison. And
+`MALLOC_ARENA_MAX=1` is not obviously the right cap — one arena serialises
+allocation across every runtime thread, and no measurement here asked what
+that costs in throughput.
+
+Nothing was changed. The drop-in was removed and the daemon restarted;
+`/proc/<pid>/environ` carries no `MALLOC_*` and the account reports ready,
+mounted, 184,011 items.
+
+The consequence for milestone 3 is not optional: the same daemon doing the
+same work rests at 108 MiB or 211 MiB depending on a setting nobody has
+chosen, so a bounded-memory box cannot be answered without naming the
+allocator.

@@ -1,0 +1,47 @@
+{
+  "question": "real_mounted_strong_read_workload fails intermittently on `whole-file-sized service RSS growth`. Is that caused by recent work, and under what conditions does it happen?",
+  "why_now": "It appeared while checking that the save-refusal branch and the read-session default flip work together. A test that fails one run in ten and passes the next teaches everyone to re-run until green, which is worse than not having the assertion: the next real memory regression will be re-run away too.",
+  "registration_honesty": {
+    "pre_registered": false,
+    "what_happened": "This began as a regression check on a branch combination, not as a measurement, and became one when the failure appeared. Nothing here was predicted in advance.",
+    "consequence": "Treat the numbers as an observation that narrows the question, not as a controlled result. Load was not held constant and was not instrumented."
+  },
+  "the_assertion": "workloads.rs: ensure!(peak.saturating_sub(baseline) < 256 * 1024 * 1024). `peak` is sampled opportunistically every 50 ms during phase navigation, so what it catches depends on when the sampler happens to run.",
+  "what_was_run": "The same ignored test, release profile, repeated on three different commits, then repeated again once the machine was quiet.",
+  "result": {
+    "under_load": {
+      "description": "Runs interleaved with cargo invocations; the machine had been compiling the workspace continuously beforehand.",
+      "probe_41_merged_with_main": "9 of 10 passed",
+      "plain_main_b177279": "9 of 10 passed",
+      "before_the_read_session_flip_2fea318": "9 of 10 passed",
+      "failures": 3,
+      "runs": 30
+    },
+    "quiet": {
+      "description": "Same binary, same command, after the build queue drained.",
+      "failures": 0,
+      "runs": 20
+    },
+    "a_passing_run_for_scale": {
+      "baseline_bytes": 16277504,
+      "peak_bytes": 155705344,
+      "growth_mib": 133.1,
+      "limit_mib": 256.0
+    }
+  },
+  "verdict": {
+    "not_caused_by_recent_work": "HOLDS, and this is the load-bearing conclusion. The same one-in-ten rate appears on the merge of the save-refusal branch, on plain main, and on the commit before the read-session default became the default. None of today's changes introduced it.",
+    "load_sensitive": "SUGGESTED, not established. Three failures in thirty runs taken while the machine was compiling, none in twenty taken while it was idle. That is consistent with load mattering and is not proof of it: n is small, load was neither controlled nor measured, and a one-in-ten event can miss twenty draws by chance alone (about 12% of the time).",
+    "typical_headroom": "A passing run grows 133 MiB against a 256 MiB limit, so a failure is roughly a doubling rather than a slow drift past the line."
+  },
+  "what_was_not_done": "No diagnosis of where the extra resident memory comes from. Candidates not separated: allocator arenas retaining freed 4 MiB block buffers, the 64 MiB staging window coinciding with decode buffers, or the sampler catching a transient that a quieter run schedules away. Establishing any of these needs the quiet-machine discipline this repository asks for -- one measurement at a time, nothing compiling -- and instrumentation of what is resident rather than how much.",
+  "decision": "Recorded, not fixed, and deliberately not loosened. Raising the limit until it stops failing would remove the only thing standing between a real whole-file residency regression and nobody noticing. The next step is a diagnosis under controlled load, not a new number. SUPERSEDED in part: see correction_2026_09_10 and docs/benchmarks/rss-flake-under-load.json. The diagnosis asked for there was done; it did not find an external condition, it found a limit sitting inside the spread of what it measures.",
+  "cost_if_ignored": "CI runs this workload six times per build, in two jobs that already serialise. At one failure in ten runs, a build has a meaningful chance of going red for a reason unrelated to the change under review.",
+  "correction_2026_09_10": {
+    "why_here": "The claim was made in this file, so the correction belongs in it and not only in the artifact that overturned it.",
+    "what_was_wrong": "This artifact offered load sensitivity as the explanation, on three failures in thirty runs taken while the machine compiled and zero in twenty taken while it was idle. It hedged the claim as SUGGESTED rather than established, which was right, but the direction it suggested is backwards.",
+    "what_the_larger_run_found": "docs/benchmarks/rss-flake-under-load.json, ninety runs across three arms: 0 of 30 failures under sixteen CPU-bound processes against 8 of 60 quiet, with p95 falling from 272-289 MiB to 202 MiB. Load suppresses the failure.",
+    "how_the_zero_is_explained_now": "Without load at all. The quiet rate is about one in eight, and twenty draws of a one-in-eight event come up empty roughly 7 percent of the time. The twenty clean runs recorded here were unremarkable.",
+    "what_survives": "The conclusion that recent work did not cause it, which the larger run reproduces, and the decision not to raise the limit."
+  }
+}

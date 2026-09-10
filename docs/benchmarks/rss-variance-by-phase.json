@@ -1,0 +1,95 @@
+{
+  "question": "Which phase of the workload produces the peak, and does the phase that owns it differ between runs that pass and runs that fail?",
+  "why_now": "docs/benchmarks/rss-flake-under-load.json established that peak growth spans 127-301 MiB with the 256 MiB limit inside that spread, and that neither tmpfs nor machine load explains it. It did not establish where the memory goes. A running maximum over five phases says how large the peak was, not which part of the workload made it, and that is the question a factor-of-2.4 variance actually poses.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-10",
+  "instrumentation_added_first": {
+    "per_phase_peak": "Each phase now records its own sampled maximum, so the global peak can be attributed to one of preview, reopen, sparse, concurrent or sequential.",
+    "report_emitted_before_the_assertions": "A failing run used to print nothing at all, because the report was built after the assertions that fail. That censored the first three distributions in the sibling artifact into describing passing runs only. Every run now emits its report, pass or fail, which is also what makes this measurement possible at all.",
+    "not_a_behaviour_change": "Both are reporting. Nothing about what the service does under the workload is altered."
+  },
+  "what_rss_actually_covers": "rss_bytes() reads /proc/self/status, so it is the test process: the service, the loopback HTTP server that serves the bytes, and the tokio runtime under both. The assertion's name says 'service_and_loopback'. Any conclusion below is about that whole process and cannot separate the service from the fake provider without further work.",
+  "workload_phases": {
+    "preview": "one 3.1 MB file read once",
+    "reopen": "the same file read three more times, served from cache",
+    "sparse": "four 4 MiB blocks out of a 256 MiB file",
+    "concurrent": "32 readers opened at once against one file",
+    "sequential": "1 GiB read end to end"
+  },
+  "predictions": [
+    {
+      "id": "P1",
+      "claim": "In runs that fail, the phase owning the global peak is `concurrent` more often than any other phase.",
+      "reasoning": "It is the only phase whose parallelism is decided by the scheduler rather than by the fixture. 32 readers against 4 MiB buffers is up to 128 MiB of buffer live at once if they overlap fully, and near nothing if they serialise -- which is also why CPU load, which forces them to serialise, suppressed the failure.",
+      "role": "the hypothesis under test"
+    },
+    {
+      "id": "P2",
+      "claim": "In runs that pass, the phase owning the global peak is `sequential` at least as often as `concurrent`.",
+      "role": "discriminator -- if `concurrent` owns the peak in every run regardless of outcome, then phase attribution does not separate passes from failures and P1 holding would mean nothing"
+    },
+    {
+      "id": "P3",
+      "claim": "The `concurrent` phase's own peak varies more between runs than any other phase's, measured as the spread between its smallest and largest value across the sample."
+    }
+  ],
+  "decision_rule": "P1 and P2 together would localise the variance to the concurrent phase and make the overlapping-buffer explanation worth testing directly, by instrumenting what is resident rather than how much. If P2 fails, the peak is wherever it always is and the variance is not about which phase but about something spanning them, which is a different investigation. Nothing about the limit is decided here either way.",
+  "sample": "60 runs of the strong workload, release profile, TMPDIR on the btrfs root rather than the tmpfs /tmp, quiet machine. At roughly one failure in eight that is around 7 failures, which is few; the artifact will say so rather than reading a pattern into three.",
+  "result": {
+    "runs": 60,
+    "failures": 9,
+    "reports_captured": 60,
+    "peak_owning_phase": {
+      "sequential_pass": 51,
+      "sequential_fail": 9,
+      "any_other_phase": 0
+    },
+    "per_phase_growth_mib": {
+      "preview": {
+        "min": 0.4,
+        "median": 0.4,
+        "max": 0.7,
+        "spread": 0.3
+      },
+      "reopen": {
+        "min": 6.7,
+        "median": 7.7,
+        "max": 8.3,
+        "spread": 1.6
+      },
+      "sparse": {
+        "min": 7.0,
+        "median": 7.8,
+        "max": 8.6,
+        "spread": 1.6
+      },
+      "concurrent": {
+        "min": 24.4,
+        "median": 26.3,
+        "max": 29.9,
+        "spread": 5.4
+      },
+      "sequential": {
+        "min": 140.5,
+        "median": 170.7,
+        "max": 304.6,
+        "spread": 164.1
+      }
+    },
+    "the_service_does_the_same_thing_every_run": {
+      "sequential_content_gets": "20 in all 60 runs",
+      "staging_peak_bytes": "64 MiB in all 60 runs",
+      "validated_windows": "18 in all 60 runs",
+      "correlation_growth_with_elapsed_ms": 0.131,
+      "correlation_growth_with_sample_count": 0.127,
+      "note": "Every counter describing what the service actually did is identical run to run. Only the resident figure moves, and it moves by 164 MiB."
+    }
+  },
+  "verdict": {
+    "P1": "FAILS. The peak is owned by the sequential phase in all 60 runs, passing and failing alike. It is never the concurrent phase. The overlapping-readers explanation is dead.",
+    "P2": "HOLDS, and its holding is what makes P1's failure decisive rather than ambiguous: phase attribution is perfectly stable, so it separates nothing, because there is nothing to separate.",
+    "P3": "FAILS, and inverted. The concurrent phase is the second most stable in the workload -- 24.4 to 29.9 MiB, a spread of 5.4 -- while sequential spans 140.5 to 304.6, a spread of 164.1. Every other phase is flat to within 1.6 MiB."
+  },
+  "what_this_leaves": "The variance is entirely inside the 1 GiB sequential read, and it is not variance in what the service does there. Twenty content GETs, eighteen validated windows and a 64 MiB staging peak, identical in all sixty runs, against a resident figure that moves by 164 MiB. Work identical, memory not. That excludes the explanations that were on the table -- overlapping buffers, window-size adaptation, staging pressure -- because all three would have moved a counter.",
+  "next_hypothesis": "Allocator retention. The crate uses the system allocator, so glibc malloc, and glibc creates up to eight arenas per core -- 128 on this 16-core machine. Freed 4 MiB read buffers are returned to the arena of whichever thread freed them and need not be returned to the OS, so resident size depends on how a work-stealing runtime happened to spread the same work across threads. It also explains the finding that made no sense under any earlier story: CPU load suppressed the failure. Contention keeps fewer runtime threads active at once, so fewer arenas accumulate retained blocks. Testable without touching the code: MALLOC_ARENA_MAX is an environment variable."
+}

@@ -67,6 +67,26 @@ fn check_counts(
 }
 
 async fn workload(mode: Mode) -> anyhow::Result<serde_json::Value> {
+    // Refuse to run where the memory assertion below would measure glibc rather
+    // than the service. Uncapped, glibc keeps up to eight arenas per core and a
+    // buffer freed by one thread stays in that thread's arena; the same work
+    // then leaves 133 to 302 MiB resident depending only on how a work-stealing
+    // runtime spread it. Capped at one arena the identical work reports 44.3 to
+    // 47.3 MiB -- a spread of 3.0 MiB instead of 169.2, with every counter
+    // describing what the service did unchanged. Measured in
+    // docs/benchmarks/rss-allocator-arenas.json.
+    //
+    // This is checked rather than set because the workspace forbids unsafe_code,
+    // so mallopt is unavailable, and because glibc reads the variable before
+    // main: setting it from here would be too late and would silently do
+    // nothing, which is worse than refusing.
+    ensure!(
+        std::env::var("MALLOC_ARENA_MAX").is_ok_and(|value| value == "1"),
+        "run this with MALLOC_ARENA_MAX=1. Without it the RSS assertion measures \
+         glibc arena retention, not the service: the same workload reports \
+         anywhere from 133 to 302 MiB and fails about one run in seven for \
+         reasons that have nothing to do with this code."
+    );
     let delay_ms = std::env::var("CIRROVE_FIXTURE_REQUEST_DELAY_MS")
         .unwrap_or_else(|_| "0".into())
         .parse::<u64>()?;
@@ -105,6 +125,10 @@ async fn workload(mode: Mode) -> anyhow::Result<serde_json::Value> {
     let result = tokio::time::timeout(Duration::from_secs(180), async {
         for expected in ["preview", "reopen", "sparse", "concurrent", "sequential"] {
             let mut navigation = Vec::new();
+            // A running maximum over the whole workload says how big the peak
+            // was and not where it came from, which is the question when the
+            // figure varies by a factor of two between runs.
+            let mut phase_peak = rss_bytes();
             let mut tick = tokio::time::interval(Duration::from_millis(50));
             tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             let mut phase: serde_json::Value = loop {
@@ -114,7 +138,9 @@ async fn workload(mode: Mode) -> anyhow::Result<serde_json::Value> {
                     }
                     _ = tick.tick() => {
                         navigate(&mounted, &mut navigation).await.with_context(|| format!("{mode:?}/{expected}: cached navigation"))?;
-                        peak = peak.max(rss_bytes());
+                        let sample = rss_bytes();
+                        peak = peak.max(sample);
+                        phase_peak = phase_peak.max(sample);
                     }
                 }
             };
@@ -133,24 +159,48 @@ async fn workload(mode: Mode) -> anyhow::Result<serde_json::Value> {
             } else {
                 serde_json::json!({"samples":navigation.len(),"p50_ms":navigation[(navigation.len()-1)/2],"p95_ms":navigation[(navigation.len()-1)*95/100],"max_ms":navigation.last()})
             };
+            phase["sampled_rss_peak_bytes"] = phase_peak.into();
+            phase["rss_samples"] = navigation.len().into();
             phases.push(phase);
             counts = next;
             input.write_all(b"continue\n").await?;
         }
         ensure!(child.wait().await?.success(), "mounted read application failed");
         let stats = mounted.engine.cache.window_stats();
-        ensure!(stats.staging_reserved_bytes == 0);
-        ensure!(stats.staging_peak_bytes <= 64 * 1024 * 1024);
-        ensure!(peak.saturating_sub(baseline) < 256 * 1024 * 1024, "whole-file-sized service RSS growth");
-        ensure!(!matches!(mode, Mode::Conservative) == (stats.validated_windows > 0));
-        Ok::<_, anyhow::Error>(serde_json::json!({
+        let report = serde_json::json!({
             "mode":format!("{mode:?}"),"build_profile":build_profile(),"phases":phases,
             "synthetic_request_delay_ms":delay_ms,
             "staging":stats,"elapsed_ms":start.elapsed().as_secs_f64()*1000.0,
             "service_and_loopback_sampled_rss_baseline_bytes":baseline,
             "service_and_loopback_sampled_rss_peak_bytes":peak,
+            "malloc_arena_max":std::env::var("MALLOC_ARENA_MAX").ok(),
             "fixture":"separate Python application, actual FUSE, loopback OneDrive adapter, seeded metadata; no real provider/indexing/desktop decoder"
-        }))
+        });
+        println!("CIRROVE_MOUNTED_READ_WORKLOAD {report}");
+        ensure!(stats.staging_reserved_bytes == 0);
+        ensure!(stats.staging_peak_bytes <= 64 * 1024 * 1024);
+        // The number belongs in the failure, not only in the report that a
+        // failure never reaches: the report is built below these assertions, so
+        // a red run used to say "RSS growth" and nothing else -- neither how far
+        // over it went nor whether it was close. A limit without a measurement
+        // beside it cannot be argued with, only re-run.
+        // 128 MiB, and the number has a derivation now rather than a round
+        // shape. With arenas capped this workload's growth is 44.3 to 47.3 MiB
+        // over 40 runs, so the bound is the 64 MiB staging budget plus 64 MiB of
+        // working margin -- roughly 2.7x the observed maximum, and still far
+        // below anything that could be called whole-file-sized against a 1 GiB
+        // read. The previous 256 MiB was never reached by the service; it was
+        // reached by the allocator, which is why it fired at random.
+        const RSS_GROWTH_LIMIT: u64 = 128 * 1024 * 1024;
+        ensure!(
+            peak.saturating_sub(baseline) < RSS_GROWTH_LIMIT,
+            "whole-file-sized service RSS growth: {:.1} MiB over a {:.1} MiB baseline, limit {:.1} MiB",
+            peak.saturating_sub(baseline) as f64 / (1024.0 * 1024.0),
+            baseline as f64 / (1024.0 * 1024.0),
+            RSS_GROWTH_LIMIT as f64 / (1024.0 * 1024.0)
+        );
+        ensure!(!matches!(mode, Mode::Conservative) == (stats.validated_windows > 0));
+        Ok::<_, anyhow::Error>(report)
     }).await.context("mounted application workload deadline").and_then(|r| r);
     if result.is_err() {
         let _ = child.kill().await;
@@ -164,29 +214,20 @@ async fn workload(mode: Mode) -> anyhow::Result<serde_json::Value> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires FUSE and loopback HTTP; run explicitly, preferably --release"]
 async fn real_mounted_conservative_read_workload() -> anyhow::Result<()> {
-    println!(
-        "CIRROVE_MOUNTED_READ_WORKLOAD {}",
-        workload(Mode::Conservative).await?
-    );
+    workload(Mode::Conservative).await?;
     Ok(())
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires FUSE and loopback HTTP; run explicitly, preferably --release"]
 async fn real_mounted_strong_read_workload() -> anyhow::Result<()> {
-    println!(
-        "CIRROVE_MOUNTED_READ_WORKLOAD {}",
-        workload(Mode::Strong).await?
-    );
+    workload(Mode::Strong).await?;
     Ok(())
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires FUSE and loopback HTTP; run explicitly, preferably --release"]
 async fn real_mounted_windows_read_workload() -> anyhow::Result<()> {
-    println!(
-        "CIRROVE_MOUNTED_READ_WORKLOAD {}",
-        workload(Mode::Windows).await?
-    );
+    workload(Mode::Windows).await?;
     Ok(())
 }

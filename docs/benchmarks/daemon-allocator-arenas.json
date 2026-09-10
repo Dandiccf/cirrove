@@ -1,0 +1,120 @@
+{
+  "question": "Does the shipped daemon retain memory the way the test fixture does, and would capping glibc's arenas reduce what cirroved holds after serving large reads?",
+  "why_now": "docs/benchmarks/rss-allocator-arenas.json showed that the read workload's own footprint is about 45 MiB and that the default allocator holds three to seven times that -- but it measured a test process containing the service, a loopback HTTP server and the runtime under both, so it cannot say whose blocks those are. cirroved links the same allocator, runs the same multi-threaded runtime, and nothing caps its arenas. Milestone 3 has a bounded-memory box; if this carries, that box has never been measured against the thing that actually determines the answer.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-10",
+  "why_this_is_a_separate_measurement": "The fixture result is about a fixture. Applying it to the daemon without measuring the daemon would be exactly the move this repository's discipline exists to prevent, and the sibling artifact says so in its own limitations.",
+  "arms": [
+    {
+      "name": "default",
+      "description": "cirroved as it runs now. No MALLOC_* in its environment, verified from /proc/<pid>/environ."
+    },
+    {
+      "name": "one-arena",
+      "description": "The same binary restarted under a systemd drop-in setting MALLOC_ARENA_MAX=1. The drop-in is removed and the daemon restarted again afterwards, whatever the result."
+    }
+  ],
+  "workload": "Four files of 60-120 MB read end to end through the real mount with ordinary buffered reads, output discarded. A warm-up pass reads all four first and is not measured, so both arms are served from the content cache rather than one cold and one warm -- the cache already holds 4.9 GB, so this is mostly free and, more importantly, makes the arms comparable.",
+  "endpoint": "The daemon's VmRSS from /proc/<pid>/status: before the arm, its maximum during, and again 30 seconds after the last read completes. The third figure is the one that matters. A peak is memory in use; what is still held half a minute after the work finished is memory not returned.",
+  "predictions": [
+    {
+      "id": "P1",
+      "claim": "In the default arm the daemon's RSS 30 s after the reads stays at least 100 MiB above where it started.",
+      "role": "the hypothesis. Retention predicts memory that does not come back; a daemon that returns what it borrowed would end near where it began."
+    },
+    {
+      "id": "P2",
+      "claim": "In the one-arena arm the same figure is at least 50 MiB lower than in the default arm.",
+      "role": "the consequence that would make capping arenas worth considering for the product"
+    },
+    {
+      "id": "P3",
+      "claim": "Both arms read the same four files to the same byte counts, and neither arm issues provider content requests, since both are served from cache.",
+      "role": "discriminator -- if one arm downloads and the other does not, they did different work and the memory comparison says nothing"
+    },
+    {
+      "id": "P4",
+      "claim": "The peak difference between arms is smaller than the after difference.",
+      "reasoning": "Arenas do not stop memory being used, they stop it being given back. If capping lowers the peak as much as the residue, something other than retention is being changed."
+    }
+  ],
+  "decision_rule": "P1 and P2 holding would make 'cap arenas in cirroved' a real product option and would mean milestone 3's bounded-memory box needs measuring with the allocator named. P1 failing would mean the daemon does not have the fixture's problem and the fixture fix stands alone, which is a perfectly good outcome and the one that costs least. Nothing is changed in the daemon on this evidence either way; four reads on one account on one machine is a direction.",
+  "safety": {
+    "account": "The user's real work drive, read-only, with their standing permission for read testing.",
+    "writes": "None. Four sequential reads, output to /dev/null.",
+    "service_disruption": "One restart between arms and one to restore. The mount goes away and comes back; nothing is deleted and no configuration outside the temporary drop-in is touched.",
+    "restoration": "The drop-in is removed and the daemon restarted regardless of outcome, and the artifact records whether the environment came back clean."
+  },
+  "result": {
+    "paired_from_equal_starting_conditions": {
+      "note": "Both daemons restarted, then an identical unmeasured warm-up pass over the same four files, then two measured passes each.",
+      "one_arena_pass1": {
+        "before_mib": 104.6,
+        "peak_mib": 104.6,
+        "after_30s_mib": 104.6,
+        "growth_mib": 0.0,
+        "residue_mib": 0.0,
+        "bytes_read": 475382875,
+        "provider_content_gets": 0
+      },
+      "one_arena_pass2": {
+        "before_mib": 104.6,
+        "peak_mib": 107.9,
+        "after_30s_mib": 107.9,
+        "growth_mib": 3.3,
+        "residue_mib": 3.3,
+        "bytes_read": 475382875,
+        "provider_content_gets": 0
+      },
+      "default_pass1": {
+        "before_mib": 182.4,
+        "peak_mib": 193.4,
+        "after_30s_mib": 193.4,
+        "growth_mib": 11.0,
+        "residue_mib": 11.0,
+        "bytes_read": 475382875,
+        "provider_content_gets": 0
+      },
+      "default_pass2": {
+        "before_mib": 193.4,
+        "peak_mib": 213.9,
+        "after_30s_mib": 211.3,
+        "growth_mib": 20.4,
+        "residue_mib": 17.8,
+        "bytes_read": 475382875,
+        "provider_content_gets": 0
+      },
+      "resting_rss_after_warmup": {
+        "one_arena_mib": 104.6,
+        "default_mib": 182.4,
+        "difference_mib": 77.8
+      },
+      "resting_rss_after_two_passes": {
+        "one_arena_mib": 107.9,
+        "default_mib": 211.3,
+        "difference_mib": 103.4
+      }
+    },
+    "long_lived_daemon_before_any_restart": {
+      "note": "The daemon the user had been running, measured before the arms. Included because it is what a real session looks like after hours rather than after a warm-up.",
+      "before_mib": 288.9,
+      "peak_mib": 338.4,
+      "after_30s_mib": 338.4,
+      "growth_mib": 49.5,
+      "residue_mib": 49.5,
+      "bytes_read": 475382875,
+      "provider_content_gets": 0
+    },
+    "every_pass": "475 MB read, 0 provider content GETs -- served entirely from the on-disk cache in all six passes."
+  },
+  "verdict": {
+    "P1": "FAILS as registered. I predicted the default arm would end at least 100 MiB above where it started within one arm. Per pass it was 11.0 and 17.8 MiB, and 49.5 on the long-lived daemon. The prediction described a per-pass effect; what exists is a cumulative one.",
+    "P2": "FAILS as registered, for the same reason. The residue difference per pass is 11-15 MiB, not the 50 I predicted. Comparing what accumulates rather than what one pass adds gives 77.8 MiB after the warm-up alone and 103.4 MiB after two further passes.",
+    "P3": "HOLDS. 475 MB in every pass and zero provider content GETs in all six, so both arms did the same work out of the same cache and the memory comparison is about memory.",
+    "P4": "HOLDS, degenerately and informatively. Peak and residue are the same number in almost every pass: the default daemon returns none of what it takes. There is nothing for a peak-versus-residue comparison to separate, which is itself the finding."
+  },
+  "what_the_run_actually_shows": "The daemon does have the fixture's behaviour, and my predictions were the wrong shape rather than the wrong direction. Reading the same 475 MB out of cache, the default daemon grows 11 to 20 MiB per pass and gives back essentially none of it, pass after pass. Capped at one arena it grows 0.0 and then 3.3 MiB. The gap is therefore cumulative, and it is already large: after an identical restart and warm-up the capped daemon sits at 104.6 MiB against 182.4, and after two further passes at 107.9 against 211.3. The user's own daemon, running since their restart, was at 288.9 MiB and went to 338.4 on one pass without returning any of it.",
+  "limits": "One machine, one account, four files, six passes. Every read was served from the on-disk cache, so this says nothing about memory while downloading. The resting difference after warm-up conflates retention with anything else that differs between two fresh daemons, and only the per-pass growth is a clean paired comparison. MALLOC_ARENA_MAX=1 is also not obviously the right cap: one arena serialises allocation across every runtime thread, and nothing here measured whether that costs throughput. A daemon is not a benchmark harness and may care.",
+  "restoration": "The drop-in was removed and the daemon restarted; /proc/<pid>/environ carries no MALLOC_* and the account reports ready, mounted, 184,011 items.",
+  "decision": "Recorded, nothing changed. Capping arenas in cirroved is now a real option with a measured effect rather than an inference from a fixture, and it is a product decision: it trades resident memory against allocator concurrency, and the second half has not been measured at all. What is no longer arguable is that milestone 3's bounded-memory box cannot be answered without naming the allocator -- the same daemon doing the same work sits at 108 MiB or 211 MiB depending on a setting nobody has chosen."
+}
