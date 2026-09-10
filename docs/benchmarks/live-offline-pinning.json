@@ -1,0 +1,38 @@
+{
+  "question": "On a real account, does a pin made the way a user makes one keep content that is then readable through a mount with the provider unreachable?",
+  "why_now": "All five milestone 3 boxes now say the same thing and nothing else: no measured evidence on a real account. The feature was connected on 2026-09-10 and covered by nine tests including six through a kernel mount, but every one of them uses a fixture provider. A fixture cannot produce the shapes a real drive does -- content revisions that change block keys, a linked collection whose scope is not the account's own drive, files whose size the index and the provider disagree about.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-10",
+  "workload": "An isolated validation connection, disabled so no daemon mounts it, on the user's real business drive. A fixture folder is created and one generated file uploaded into it, so nothing pre-existing is touched. The file is pinned through the same request path the command line uses; the engine is then rebuilt on the same directory so the in-memory cache is empty; the mount is brought up; the provider is made unreachable by cancelling its token source; the file is read through the kernel.",
+  "endpoint": "Whether the read succeeds, whether its bytes match what was uploaded, and whether any provider content request was made during it.",
+  "predictions": [
+    {
+      "id": "P1",
+      "claim": "The pin is accepted and reports resident bytes greater than zero through the engine's own status.",
+      "role": "without this the rest measures an accounting entry"
+    },
+    {
+      "id": "P2",
+      "claim": "After a rebuild and a mount, the file reads through the kernel with the provider unreachable, byte for byte.",
+      "role": "the box's claim, on a real drive"
+    },
+    {
+      "id": "P3",
+      "claim": "No provider content request is made during that read.",
+      "role": "discriminator -- bytes fetched during the read would prove nothing about the pin"
+    },
+    {
+      "id": "P4",
+      "claim": "An unpinned file in the same folder cannot be read under the same conditions.",
+      "role": "discriminator -- without it a provider that quietly kept serving would look like a working pin"
+    }
+  ],
+  "decision_rule": "P1 through P4 all holding is what the five milestone 3 rows are missing and nothing more; each row also has clauses this does not address, and the ledger says which. If P4 fails the run is void, because the offline condition was never established.",
+  "safety": {
+    "account": "A separate validation connection with a write grant, disabled, in its own state directory. Not the user's working account and not mounted by any daemon.",
+    "writes": "One new folder and one generated file inside it. Nothing pre-existing is read, changed, moved or deleted.",
+    "cleanup": "The fixture folder is retained, as every validator here does. Removing it on a real tenant is a human decision."
+  },
+  "result": null,
+  "verdict": null
+}

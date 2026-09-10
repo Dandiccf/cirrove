@@ -126,6 +126,14 @@ enum Command {
         #[arg(long)]
         state_dir: PathBuf,
     },
+    /// Pin a generated file on a real account and read it back through a mount
+    /// without touching the provider, with an unpinned control that must.
+    ValidateOnedrivePinning {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        state_dir: PathBuf,
+    },
     /// Observe catch-up after a reconnection and the periodic recovery refresh,
     /// each with the other mechanism disabled so a discovery is attributable.
     ValidateOnedriveCatchup {
@@ -358,6 +366,9 @@ async fn main() -> Result<()> {
         } => {
             let state = state.map(Ok).unwrap_or_else(state_dir)?;
             cirrove_service::validation::onedrive_read_bytes(&state, &label, &item, drive).await?;
+        }
+        Command::ValidateOnedrivePinning { label, state_dir } => {
+            cirrove_service::validation::onedrive_pinning(&state_dir, &label).await?;
         }
         Command::ValidateOnedriveRemoteChanges { label, state_dir } => {
             cirrove_service::validation::onedrive_remote_changes(&state_dir, &label).await?;
