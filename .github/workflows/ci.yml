@@ -92,7 +92,10 @@ jobs:
         # locally standalone nor when the same group is run one at a time. The
         # budget matches the read-only step; serialized, the group takes 34 s
         # here.
-        run: timeout 150s cargo test -p cirrove-service --test writable_session --locked real_ -- --ignored --nocapture --test-threads=1
+        # The full-device test is skipped here and run by the loop-image step
+        # below: this one supplies no filesystem for it to fill, and it refuses
+        # rather than silently measuring the wrong device.
+        run: timeout 150s cargo test -p cirrove-service --test writable_session --locked real_ -- --ignored --nocapture --test-threads=1 --skip real_a_save_on_a_full_device_is_reported_as_a_device_and_not_a_budget
       - name: A save on a filesystem with no free block
         # The test consumes every free block of the filesystem it is handed, so
         # it gets one of its own rather than the runner's disk: a loop-backed
