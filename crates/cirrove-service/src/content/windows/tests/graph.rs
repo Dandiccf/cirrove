@@ -46,7 +46,7 @@ async fn controlled_server(size: u64, control: Arc<Control>) -> Server {
     let provider = if control.conservative {
         provider
     } else {
-        provider.with_experimental_read_sessions()
+        provider.with_read_sessions()
     };
     let graph = Arc::new(AtomicUsize::new(0));
     let content = Arc::new(AtomicUsize::new(0));

@@ -469,33 +469,38 @@ pub fn provider(account: &Account) -> Result<Arc<OneDrive>> {
         Arc::new(DesktopVault),
     )?;
     let graph = OneDrive::new(account.id.clone(), Arc::new(broker))?;
-    // ADR 0004's window and renewal behaviour is only observable on a live mount:
-    // windows need staging from the content cache, and renewal needs a session that
-    // outlives SESSION_LEASE. Neither is reachable from the adapter-level validator,
-    // so the acceptance box stays open until the counters are read off a daemon.
-    // This opt-in exists to run that measurement. The default stays off; switching
-    // the path on by default is a separate decision and not this one.
-    let graph = match std::env::var_os("CIRROVE_EXPERIMENTAL_READ_SESSIONS") {
-        Some(value) if value == "1" => graph.with_experimental_read_sessions(),
+    // The read-session path is the default since 2026-09-10. This is the escape
+    // hatch, not an opt-in: a tenant that misbehaves under sessions can be put
+    // back on per-block revalidation without a rebuild, and the variable is read
+    // here rather than baked in so that the fallback survives a restart.
+    let graph = match std::env::var_os("CIRROVE_CONSERVATIVE_READS") {
+        Some(value) if value == "1" => graph.without_read_sessions(),
         _ => graph,
     };
     Ok(Arc::new(graph))
 }
-/// The same adapter with the experimental read-session path selected.
+/// The adapter with the read-session path selected regardless of environment.
 ///
 /// The builder consumes the adapter, so a measurement cannot flip an existing
-/// `Arc<OneDrive>`; it has to be constructed this way from the start. Kept next
-/// to `provider` so the two stay in step.
-pub fn experimental_read_provider(account: &Account) -> Result<Arc<OneDrive>> {
+/// `Arc<OneDrive>`; it has to be constructed this way from the start. This and
+/// its conservative twin exist so an A/B arm names itself instead of inheriting
+/// whatever the default happens to be, which is what makes the comparison
+/// survive a change to that default.
+pub fn read_session_provider(account: &Account) -> Result<Arc<OneDrive>> {
+    Ok(Arc::new(base_provider(account)?.with_read_sessions()))
+}
+/// The control arm: per-cache-block revalidation, environment ignored.
+pub fn conservative_read_provider(account: &Account) -> Result<Arc<OneDrive>> {
+    Ok(Arc::new(base_provider(account)?.without_read_sessions()))
+}
+fn base_provider(account: &Account) -> Result<OneDrive> {
     let broker = TokenBroker::new(
         account.registration.clone(),
         account.identity.clone(),
         account.credential_id.clone(),
         Arc::new(DesktopVault),
     )?;
-    Ok(Arc::new(
-        OneDrive::new(account.id.clone(), Arc::new(broker))?.with_experimental_read_sessions(),
-    ))
+    Ok(OneDrive::new(account.id.clone(), Arc::new(broker))?)
 }
 /// Refuse to migrate a store that a running daemon is using.
 ///

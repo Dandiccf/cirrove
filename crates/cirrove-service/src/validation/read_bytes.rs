@@ -39,9 +39,9 @@ async fn arm(
     // A second adapter, built for this arm alone, so its counters describe this
     // arm and the daemon's own traffic cannot leak into them.
     let graph = if optimized {
-        accounts::experimental_read_provider(account)?
+        accounts::read_session_provider(account)?
     } else {
-        accounts::provider(account)?
+        accounts::conservative_read_provider(account)?
     };
     let mut config = account.clone();
     // Most of this account's content lives in a linked collection rather than in
