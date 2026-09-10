@@ -3,14 +3,14 @@
   "note": "One row per acceptance box. `blocker` says what stands between the box and being ticked, not how hard the code is. `asserted_by` names the test that would fail if the claim stopped holding; a box may not be ticked while it is null. `candidate_assertions` are tests that look like they might assert the box and have not been read. They deliberately do not satisfy the tick check.",
   "totals": {
     "boxes": 51,
-    "ticked": 7,
+    "ticked": 8,
     "by_blocker": {
-      "autonomous": 5,
+      "autonomous": 11,
       "needs-live-account": 7,
       "needs-machine-window": 2,
       "needs-reboot": 2,
       "needs-root": 1,
-      "out-of-agreed-scope": 34
+      "out-of-agreed-scope": 28
     }
   },
   "rows": [
@@ -58,11 +58,11 @@
       "milestone": 1,
       "milestone_title": "Reliable read-only foundation",
       "line": 15,
-      "done": false,
+      "done": true,
       "text": "Remove Graph metadata checks per cache block from the validated read-session fast path; implement and measure shared session setup, bounded sequential windows and safe renewal as specified in [read-session efficiency](adr/0004-read-session-efficiency.md).",
       "blocker": "needs-live-account",
-      "evidence": "docs/validation.md#the-same-file-through-two-cold-mounts-with-the-path-off-and-on plus #read-session-behaviour-on-a-live-mount, benchmarks/mount-level-read-bytes.json and live-read-session-counters.json, live 2026-09-09. All four clauses are now evidenced on a live mount. Per-cache-block metadata checks: conservative Graph metadata GETs track content GETs at about two per block (22 against 10, and 7 against 3 at a four-fold smaller size) while the optimized path does not (4 against 4, 3 against 2), each arm on its own cold engine directory with counters sampled around the read alone. Bytes are SHA-256 identical through the kernel mount at both sizes, with the optimized arm asserted to have bound a session and the conservative arm asserted not to. Shared setup and bounded windows: setups 1 and conditional_windows 3 on a live mount. Safe renewal: renewals 1 under continuous reading across the 60 s lease; an idle pause does not reach it because the read after it is served outside the session. NOT TICKED, and not for want of evidence: conditional_reads is false by default, so a shipped daemon still performs the per-block checks measured absent here. Enabling it is a product decision.",
-      "asserted_by": "cirrove-onedrive: strong_window_streams_without_graph_checks_or_whole_window_allocation asserts ReadProvider::read_path_counters reports the adapter's own window, range, setup and renewal counts; returning Default makes it fail."
+      "evidence": "docs/validation.md#the-same-file-through-two-cold-mounts-with-the-path-off-and-on plus #read-session-behaviour-on-a-live-mount, benchmarks/mount-level-read-bytes.json and live-read-session-counters.json, live 2026-09-09. All four clauses are now evidenced on a live mount. Per-cache-block metadata checks: conservative Graph metadata GETs track content GETs at about two per block (22 against 10, and 7 against 3 at a four-fold smaller size) while the optimized path does not (4 against 4, 3 against 2), each arm on its own cold engine directory with counters sampled around the read alone. Bytes are SHA-256 identical through the kernel mount at both sizes, with the optimized arm asserted to have bound a session and the conservative arm asserted not to. Shared setup and bounded windows: setups 1 and conditional_windows 3 on a live mount. Safe renewal: renewals 1 under continuous reading across the 60 s lease; an idle pause does not reach it because the read after it is served outside the session. NOT TICKED, and not for want of evidence: conditional_reads is false by default, so a shipped daemon still performs the per-block checks measured absent here. Enabling it is a product decision. CLOSED 2026-09-10: the one thing left was never a measurement. The default was false, so a shipped daemon still made the per-block checks these runs measured absent. The owner made that call on this evidence and conditional_reads is now true in OneDrive::new.",
+      "asserted_by": "an_adapter_built_the_ordinary_way_takes_the_session_path asserts the constructor rather than the builder and fails against the previous default; opting_out_returns_no_session_and_scope_is_checked covers CIRROVE_CONSERVATIVE_READS' route back. The read-session fixture no longer selects the path by name, so a regression in the default cannot pass unnoticed behind the other tests in that module."
     },
     {
       "milestone": 1,
@@ -525,5 +525,5 @@
       "asserted_by": null
     }
   ],
-  "operator_guide": "docs/authorization-request.md — the command, blast radius and evidence for every box this file marks as blocked on something an agent cannot supply."
+  "operator_guide": "docs/authorization-request.md \u2014 the command, blast radius and evidence for every box this file marks as blocked on something an agent cannot supply."
 }

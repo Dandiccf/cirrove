@@ -49,8 +49,7 @@ async fn fixture(size: u64) -> Fixture {
         Arc::new(StaticToken(SecretString::from("test-token"))),
         Url::parse(&format!("{origin}/v1.0/")).unwrap(),
     )
-    .unwrap()
-    .with_experimental_read_sessions();
+    .unwrap();
     let remote = Arc::new(StdMutex::new(Remote {
         version: 1,
         generation: 1,
@@ -465,17 +464,35 @@ async fn cancelled_setup_releases_gate_and_does_not_publish_a_session() {
     assert_eq!(f.requests.lock().unwrap().len(), count);
 }
 
+/// The default is the entire content of the 2026-09-10 decision: a shipped
+/// daemon has to take the session path without anyone selecting it. Every other
+/// test here would pass unchanged with the default off, because the fixture used
+/// to ask for the path by name. It no longer does, so this asserts the
+/// constructor rather than the builder.
 #[tokio::test]
-async fn ordinary_construction_stays_conservative_and_scope_is_checked() {
+async fn an_adapter_built_the_ordinary_way_takes_the_session_path() {
     let f = fixture(4096).await;
-    let mut ordinary = f.graph.clone();
-    ordinary.conditional_reads = false;
+    assert!(
+        f.graph
+            .open_read_session(&scope(), &f.node, &CancellationToken::new())
+            .await
+            .unwrap()
+            .is_some(),
+        "read sessions are the default; an adapter nobody configured must use them"
+    );
+}
+
+#[tokio::test]
+async fn opting_out_returns_no_session_and_scope_is_checked() {
+    let f = fixture(4096).await;
+    let ordinary = f.graph.clone().without_read_sessions();
     assert!(
         ordinary
             .open_read_session(&scope(), &f.node, &CancellationToken::new())
             .await
             .unwrap()
-            .is_none()
+            .is_none(),
+        "the escape hatch has to actually return to per-block revalidation"
     );
     let mut wrong = scope();
     wrong.account = "other".into();

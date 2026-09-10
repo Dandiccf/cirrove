@@ -358,9 +358,19 @@ impl From<ProviderError> for DownloadError {
 }
 
 impl OneDrive {
-    /// Developer acceptance path, not selected by ordinary account construction.
-    pub fn with_experimental_read_sessions(mut self) -> Self {
+    /// Select the read-session path explicitly. This is the default, so the
+    /// builder exists for adapters built by other means and for a measurement
+    /// that wants to name the arm it is in rather than inherit it.
+    pub fn with_read_sessions(mut self) -> Self {
         self.conditional_reads = true;
+        self
+    }
+    /// The conservative path: revalidate per cache block instead of holding a
+    /// session. It is the route back if the session path misbehaves against a
+    /// tenant, and it is the control arm every A/B comparison here needs, which
+    /// is why it is a supported builder and not a deleted branch.
+    pub fn without_read_sessions(mut self) -> Self {
+        self.conditional_reads = false;
         self
     }
     /// Adapter-level attempts; token-broker calls and automatic content redirects
