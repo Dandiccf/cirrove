@@ -313,7 +313,16 @@ async fn a_folder_pin_covers_every_file_under_it_and_says_what_it_could_not_see(
     assert!(complete);
     let reservations = engine.cache.reservations();
     let view = reservations.lock().unwrap();
-    assert_eq!(view.reserved, total);
+    // `subtree_files` sums logical sizes; the cache stores a SHA-256 ahead of
+    // every block, so the reservation covers one digest more per block. Pinned
+    // blocks are the ones eviction may not take, so a reservation short by that
+    // much is never recovered -- it just lets the cache sit over its budget.
+    let stored: u64 = found
+        .iter()
+        .map(|f| crate::content::stored_bytes(f.size))
+        .sum();
+    assert_eq!(stored, total + 4 * crate::content::BLOCK_DIGEST);
+    assert_eq!(view.reserved, stored);
     assert_eq!(
         view.protected.len(),
         4,

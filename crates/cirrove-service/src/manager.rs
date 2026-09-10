@@ -71,6 +71,40 @@ pub type WriteFactory = Arc<dyn Fn(&Account) -> Result<Arc<dyn WriteProvider>> +
 #[derive(Default)]
 pub struct Manager {
     pub status: RwLock<Vec<AccountStatus>>,
+    /// The engines the run loop is holding, so a control request can reach one.
+    ///
+    /// `running` is a local in `run()`, which is why `accounts::set_pin` wrote the
+    /// store out of band: nothing outside that loop had an engine. This is the
+    /// same shape as `status` above and is written at the same two points, so a
+    /// request never reaches an engine whose mount is being torn down.
+    engines: RwLock<HashMap<String, Arc<Engine>>>,
+}
+impl Manager {
+    /// The running engine for an account label, or for the only account when the
+    /// label is empty. `Err` carries a message a user can act on.
+    pub async fn engine(&self, label: &str) -> Result<Arc<Engine>> {
+        let status = self.status.read().await;
+        let matched: Vec<_> = status
+            .iter()
+            .filter(|a| label.is_empty() || a.label == label)
+            .collect();
+        let account = match matched.as_slice() {
+            [one] => *one,
+            [] if label.is_empty() => bail!("no accounts are configured"),
+            [] => bail!("no account is labelled {label:?}"),
+            _ => bail!("more than one account is configured; name one with --label"),
+        };
+        let id = account.account_id.clone();
+        let mounted = account.mounted;
+        drop(status);
+        self.engines.read().await.get(&id).cloned().ok_or_else(|| {
+            if mounted {
+                anyhow::anyhow!("the account is mounted but its engine is not ready yet")
+            } else {
+                anyhow::anyhow!("the account is not running; enable it first")
+            }
+        })
+    }
 }
 struct Running {
     config: Account,
@@ -182,6 +216,11 @@ impl Manager {
                         .collect();
                     for id in remove {
                         if let Some(old) = running.remove(&id) {
+                            // Withdrawn before the engine is stopped, not after:
+                            // a control request that arrived in between would
+                            // otherwise reach an engine whose mount is being
+                            // detached.
+                            self.engines.write().await.remove(&id);
                             old.stop().await;
                         }
                     }
@@ -202,6 +241,10 @@ impl Manager {
                         .await
                         {
                             Ok(active) => {
+                                self.engines
+                                    .write()
+                                    .await
+                                    .insert(account.id.clone(), active.engine.clone());
                                 running.insert(account.id.clone(), active);
                             }
                             Err(_) => {
@@ -353,6 +396,8 @@ impl Manager {
             }
             tokio::select! {biased;_=cancel.cancelled()=>break,_=tokio::time::sleep(Duration::from_secs(5))=>()}
         }
+        // Same ordering as a single removal: withdrawn before stopped.
+        self.engines.write().await.clear();
         for (_, active) in running {
             active.stop().await;
         }

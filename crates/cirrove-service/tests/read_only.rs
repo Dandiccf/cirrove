@@ -2773,3 +2773,127 @@ async fn late_not_found_reply_cannot_hide_a_newer_visible_item() {
         Some(newer)
     );
 }
+
+/// A pin made the way a user makes one must actually keep the bytes.
+///
+/// Until now `cirrove pin` wrote the reservation straight into the index and
+/// stopped: `Engine::materialise_pin` and `Engine::pin_folder` had no caller
+/// outside their own tests, because only the daemon holds an engine and the
+/// command line is not the daemon. So a pin reserved space and kept nothing, and
+/// the first offline read still failed -- which is the whole of what pinning is
+/// for.
+///
+/// This drives the real path: a manager holding a live engine, a control socket
+/// beside it, and the same client function the command line calls. It fails
+/// against a daemon whose socket answers only `status`.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_pin_from_the_command_line_reaches_the_daemon_and_keeps_the_bytes() {
+    use cirrove_service::{accounts::Settings, manager::Manager, private_dir};
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let state = temp.path().join("state");
+    private_dir(&state).unwrap();
+    let mut config = account(mount.clone());
+    // The shared fixture account carries a 16 MiB cache, and reservations may not
+    // claim the whole budget: the floor is eight blocks, which is 32 MiB, so a
+    // 16 MiB cache can pin nothing at all. That refusal is correct and is not
+    // what this test is about.
+    config.cache_bytes = 128 * 1024 * 1024;
+    std::fs::write(
+        state.join("accounts.json"),
+        serde_json::to_vec(&Settings {
+            version: 1,
+            accounts: vec![config],
+        })
+        .unwrap(),
+    )
+    .unwrap();
+
+    let provider = Fixture::new();
+    let reads = provider.clone();
+    let cancel = CancellationToken::new();
+    let factory: cirrove_service::manager::ProviderFactory = {
+        let provider = provider.clone();
+        Arc::new(move |_| Ok(provider.clone()))
+    };
+    let (manager, worker) = Manager::start_with_provider(state.clone(), cancel.clone(), factory);
+    tokio::time::timeout(Duration::from_secs(15), async {
+        loop {
+            if manager
+                .status
+                .read()
+                .await
+                .first()
+                .is_some_and(|s| s.state == "ready")
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("account did not become ready");
+
+    let socket = state.join("control.sock");
+    let server = tokio::spawn(cirrove_service::serve_managed(
+        state.join("metadata.db"),
+        socket.clone(),
+        cancel.clone(),
+        Some(manager.clone()),
+    ));
+    tokio::time::timeout(Duration::from_secs(10), async {
+        while cirrove_service::status(&socket).await.is_err() {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .expect("control socket never answered");
+
+    // Nothing fetched yet, so a later read counter has something to be measured
+    // against.
+    let before = reads.reads.load(Ordering::SeqCst);
+    let reply = cirrove_service::pin(
+        &socket,
+        &cirrove_service::PinRequest {
+            path: Some("small.txt".into()),
+            ..Default::default()
+        },
+    )
+    .await
+    .expect("pin request failed");
+    assert!(
+        reply.accepted && reply.refusal.is_none(),
+        "the daemon refused an ordinary pin: {reply:?}"
+    );
+    assert!(
+        reads.reads.load(Ordering::SeqCst) > before,
+        "a pin that fetches nothing is an accounting entry; the provider was never read"
+    );
+
+    let pinned = tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            let status = cirrove_service::status(&socket).await.unwrap();
+            if let Some(pin) = status.accounts[0].pins.first()
+                && pin.resident > 0
+            {
+                break pin.clone();
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("status never reported resident bytes for the pin");
+    assert!(
+        pinned.blocks > 0 && pinned.resident > 0,
+        "status must report what the pin kept, not only what it reserved: {pinned:?}"
+    );
+    assert!(
+        pinned.reserved >= pinned.resident,
+        "a pin cannot hold more than it reserved: {pinned:?}"
+    );
+
+    cancel.cancel();
+    let _ = tokio::time::timeout(Duration::from_secs(10), worker).await;
+    let _ = tokio::time::timeout(Duration::from_secs(5), server).await;
+}

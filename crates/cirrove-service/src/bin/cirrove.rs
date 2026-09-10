@@ -1,4 +1,29 @@
 use anyhow::{Context, Result, bail};
+
+/// Print what the daemon did, in a sentence rather than as JSON.
+///
+/// A refusal is an ordinary outcome here, not a crash: the exit status says the
+/// request was not carried out, and the message says why in words the caller can
+/// act on -- free space, unpin something, raise the budget.
+fn report_pin(reply: &cirrove_service::PinReply) -> Result<()> {
+    if let Some(refusal) = &reply.refusal {
+        bail!("{refusal}");
+    }
+    let mut line = format!("pinned {}", reply.item);
+    if reply.files > 1 {
+        line.push_str(&format!(", {} files", reply.files));
+    }
+    if reply.reserved > 0 {
+        line.push_str(&format!(", {} bytes reserved", reply.reserved));
+    }
+    if !reply.complete {
+        line.push_str(
+            "; part of this folder is not indexed yet and will be kept as it is discovered",
+        );
+    }
+    println!("{line}");
+    Ok(())
+}
 use cirrove_core::{
     CancellationToken, Change, ChangePage, Checkpoint, Cursor, Node, NodeKind, Scope,
 };
@@ -184,26 +209,37 @@ enum Command {
     },
     /// Keep an item available offline, reserving cache space for it.
     Pin {
+        /// Account label. Omit when only one account is configured.
+        #[arg(default_value = "")]
         label: String,
-        /// Provider item id. Read `cirrove status` to see what is pinned.
+        /// Mount-relative path, for example `Documents/Reports`. The daemon
+        /// resolves it, because only it can list a directory the index has not
+        /// reached and only it knows which linked collection holds the item.
         #[arg(long)]
-        item: String,
+        path: Option<String>,
+        /// Provider item id, when you already have one.
+        #[arg(long)]
+        item: Option<String>,
         /// Pin every file beneath a folder as well.
         #[arg(long)]
         recursive: bool,
-        /// Bytes to reserve. Defaults to the size in the local index.
+        /// Bytes to reserve. Defaults to what the daemon can see, which is the
+        /// figure that agrees with the walk.
         #[arg(long)]
         bytes: Option<u64>,
         #[arg(long)]
-        state_dir: Option<PathBuf>,
+        socket: Option<PathBuf>,
     },
-    /// Release a pin and the cache space it reserved.
+    /// Release a pin and free the cache space it held.
     Unpin {
+        #[arg(default_value = "")]
         label: String,
         #[arg(long)]
-        item: String,
+        path: Option<String>,
         #[arg(long)]
-        state_dir: Option<PathBuf>,
+        item: Option<String>,
+        #[arg(long)]
+        socket: Option<PathBuf>,
     },
     /// Verify desktop credential storage using an isolated synthetic entry.
     KeyringCheck,
@@ -419,27 +455,42 @@ async fn main() -> Result<()> {
         }
         Command::Pin {
             label,
+            path,
             item,
             recursive,
             bytes,
-            state_dir: state,
+            socket,
         } => {
-            let state = state.map(Ok).unwrap_or_else(state_dir)?;
-            println!(
-                "{}",
-                cirrove_service::accounts::set_pin(&state, &label, &item, recursive, bytes)?
-            );
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            let request = cirrove_service::PinRequest {
+                label,
+                item,
+                path,
+                recursive,
+                bytes,
+            };
+            report_pin(&cirrove_service::pin(&socket, &request).await?)?;
         }
         Command::Unpin {
             label,
+            path,
             item,
-            state_dir: state,
+            socket,
         } => {
-            let state = state.map(Ok).unwrap_or_else(state_dir)?;
-            println!(
-                "{}",
-                cirrove_service::accounts::clear_pin(&state, &label, &item)?
-            );
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            let request = cirrove_service::PinRequest {
+                label,
+                item,
+                path,
+                ..Default::default()
+            };
+            report_pin(&cirrove_service::unpin(&socket, &request).await?)?;
         }
         Command::KeyringCheck => cirrove_service::accounts::keyring_check().await?,
 

@@ -41,6 +41,54 @@ pub struct Status {
     pub accounts: Vec<manager::AccountStatus>,
 }
 
+/// A pin request carried over the control socket.
+///
+/// The command line used to write `Store::pin` directly, which is why
+/// `Engine::materialise_pin` and `Engine::pin_folder` had no caller outside their
+/// tests: a process that is not the daemon has no engine to reach. Routing the
+/// request to the daemon puts the budget rule, the scope resolution and the
+/// fetching in the one place that owns them.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct PinRequest {
+    /// Account label. Empty means the only account, and is an error when there
+    /// is more than one.
+    #[serde(default)]
+    pub label: String,
+    /// Provider item id. Exactly one of `item` or `path` must be set.
+    #[serde(default)]
+    pub item: Option<String>,
+    /// Mount-relative path, resolved by the daemon because only it can list an
+    /// unindexed directory or follow a shortcut into a linked collection.
+    #[serde(default)]
+    pub path: Option<String>,
+    #[serde(default)]
+    pub recursive: bool,
+    /// Bytes to reserve. `None` means the daemon decides from what it can see,
+    /// which is the only figure that agrees with the walk.
+    #[serde(default)]
+    pub bytes: Option<u64>,
+}
+/// What the daemon actually did, as opposed to what was asked for.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct PinReply {
+    pub accepted: bool,
+    #[serde(default)]
+    pub item: String,
+    #[serde(default)]
+    pub reserved: u64,
+    /// Files the walk found. Zero for a single-file pin.
+    #[serde(default)]
+    pub files: u64,
+    /// False when part of the subtree is not indexed yet. The pin is still
+    /// recorded and honoured for what is known; it converges as the index fills.
+    #[serde(default)]
+    pub complete: bool,
+    /// Present when the request was refused, carrying the reason a user can act
+    /// on rather than a status code.
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+
 pub fn state_dir() -> Result<PathBuf> {
     let base = match std::env::var_os("XDG_STATE_HOME").filter(|v| !v.is_empty()) {
         Some(value) => PathBuf::from(value),
@@ -123,20 +171,102 @@ pub async fn refresh(
 }
 
 pub async fn status(socket: &Path) -> Result<Status> {
+    request(socket, "status", None::<()>, "Cirrove status").await
+}
+/// Ask the daemon to pin an item. See [`PinRequest`].
+pub async fn pin(socket: &Path, body: &PinRequest) -> Result<PinReply> {
+    request(socket, "pin", Some(body), "Cirrove pin").await
+}
+/// Ask the daemon to release a pin and reclaim the space it held.
+pub async fn unpin(socket: &Path, body: &PinRequest) -> Result<PinReply> {
+    request(socket, "unpin", Some(body), "Cirrove unpin").await
+}
+async fn request<B: Serialize, R: for<'a> Deserialize<'a>>(
+    socket: &Path,
+    verb: &str,
+    body: Option<B>,
+    what: &str,
+) -> Result<R> {
+    let mut line = verb.to_owned();
+    if let Some(body) = body {
+        line.push(' ');
+        line.push_str(&serde_json::to_string(&body)?);
+    }
+    line.push('\n');
     tokio::time::timeout(Duration::from_secs(3), async {
         let mut stream = UnixStream::connect(socket)
             .await
             .context("Cirrove service is not reachable")?;
-        stream.write_all(b"status\n").await?;
-        let mut body = Vec::new();
-        stream.take(1024 * 1024 + 1).read_to_end(&mut body).await?;
-        if body.len() > 1024 * 1024 {
+        stream.write_all(line.as_bytes()).await?;
+        let mut reply = Vec::new();
+        stream.take(1024 * 1024 + 1).read_to_end(&mut reply).await?;
+        if reply.len() > 1024 * 1024 {
             bail!("oversized control response");
         }
-        Ok(serde_json::from_slice(&body)?)
+        Ok(serde_json::from_slice(&reply)?)
     })
     .await
-    .context("Cirrove status timed out")?
+    .with_context(|| format!("{what} timed out"))?
+}
+
+/// Handle a control verb other than `status`.
+///
+/// Errors become a reply rather than a dropped connection: a user who typed a
+/// verb this daemon does not know should be told so, not left waiting.
+async fn handle_control(
+    verb: &str,
+    body: &str,
+    manager: &Option<std::sync::Arc<manager::Manager>>,
+) -> Result<PinReply> {
+    let Some(manager) = manager else {
+        return Ok(PinReply {
+            refusal: Some("this daemon manages no accounts".into()),
+            ..Default::default()
+        });
+    };
+    let request: PinRequest = match verb {
+        "pin" | "unpin" => serde_json::from_str(body).context("malformed request body")?,
+        other => {
+            return Ok(PinReply {
+                refusal: Some(format!("unknown control request {other:?}")),
+                ..Default::default()
+            });
+        }
+    };
+    let engine = match manager.engine(&request.label).await {
+        Ok(engine) => engine,
+        Err(error) => {
+            return Ok(PinReply {
+                refusal: Some(error.to_string()),
+                ..Default::default()
+            });
+        }
+    };
+    match verb {
+        "pin" => engine.apply_pin_request(&request).await,
+        _ => engine.apply_unpin_request(&request).await,
+    }
+}
+
+/// Read one request line, bounded. A client that sends no newline, or more than
+/// this, gets an error rather than a daemon that waits or allocates for it.
+async fn read_request_line(stream: &mut UnixStream) -> Result<String> {
+    const LIMIT: usize = 8 * 1024;
+    let mut line = Vec::new();
+    let mut byte = [0u8; 1];
+    loop {
+        if stream.read_exact(&mut byte).await.is_err() {
+            bail!("control request ended without a newline");
+        }
+        if byte[0] == b'\n' {
+            break;
+        }
+        line.push(byte[0]);
+        if line.len() > LIMIT {
+            bail!("oversized control request");
+        }
+    }
+    String::from_utf8(line).context("control request is not UTF-8")
 }
 
 struct SocketGuard {
@@ -206,8 +336,24 @@ pub async fn serve_managed(
                 let path=db_path.clone();let manager=manager.clone();
                 requests.spawn(async move {
                     let result=tokio::time::timeout(Duration::from_secs(3),async {
-                        let mut command=[0u8;7]; stream.read_exact(&mut command).await?;
-                        if &command!=b"status\n" {bail!("unknown control request");}
+                        // Was a fixed seven-byte read compared against b"status\n",
+                        // which is why there has only ever been one verb. Bounded
+                        // line read instead; `status\n` stays byte-identical on the
+                        // wire so an older client keeps working, and
+                        // STATUS_PROTOCOL_VERSION does not move -- the desktop
+                        // compares it for equality, so a bump would make every
+                        // mismatched pair report incompatible over an added verb
+                        // that changes no payload it reads.
+                        let line=read_request_line(&mut stream).await?;
+                        let (verb,body)=match line.split_once(' ') {
+                            Some((verb,body))=>(verb,body.trim()),
+                            None=>(line.as_str(),""),
+                        };
+                        if verb!="status" {
+                            let reply=handle_control(verb,body,&manager).await;
+                            stream.write_all(&serde_json::to_vec(&reply?)?).await?;
+                            return Ok::<_,anyhow::Error>(());
+                        }
                         let (mut feeds,mut items)=tokio::task::spawn_blocking(move || Store::open(path)?.counts()).await??;
                         let accounts=match &manager {Some(m)=>m.status.read().await.clone(),None=>vec![]};
                         if manager.is_some() {feeds=accounts.iter().map(|a|a.indexed_feeds).sum();items=accounts.iter().map(|a|a.indexed_items).sum();}

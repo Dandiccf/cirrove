@@ -21,6 +21,18 @@ use tokio::{
 pub use windows::WindowStats;
 
 pub const BLOCK_SIZE: u32 = 4 * 1024 * 1024;
+/// Every cached block carries its own SHA-256 ahead of the body.
+pub const BLOCK_DIGEST: u64 = 32;
+
+/// What a file of this size occupies in the cache once it is fetched.
+///
+/// A reservation made in logical bytes is short by one digest per block, and
+/// pinned blocks are the ones eviction may not take -- so the shortfall is not
+/// recovered later, it simply lets the cache sit that far over its budget. Small
+/// per block, and exact is the only thing a reservation is for.
+pub fn stored_bytes(size: u64) -> u64 {
+    size + size.div_ceil(BLOCK_SIZE as u64) * BLOCK_DIGEST
+}
 const MEMORY_BLOCKS: usize = 8;
 const RANGE_TIMEOUT: Duration = Duration::from_secs(30);
 type MemoryBlocks = HashMap<String, (Arc<Vec<u8>>, Instant)>;
@@ -280,6 +292,15 @@ impl ContentCache {
     /// change; eviction reads it on every pass.
     pub fn reservations(&self) -> Arc<StdMutex<Reservations>> {
         self.reservations.clone()
+    }
+    /// Bring the cache back within its budget now, keeping nothing back.
+    ///
+    /// `evict` has exactly one caller -- the publish path, after a download -- so
+    /// releasing a reservation used to free no bytes at all: they sat on disk
+    /// until some unrelated read happened to trigger a pass. An unpin that leaves
+    /// the disk exactly as full as it was is not what the word means.
+    pub async fn reclaim(&self) -> Result<(), ProviderError> {
+        self.evict("").await
     }
     async fn evict(&self, keep: &str) -> Result<(), ProviderError> {
         let index = self.blocks.clone();
