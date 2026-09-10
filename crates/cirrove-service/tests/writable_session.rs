@@ -3199,3 +3199,112 @@ async fn real_a_pinned_file_is_edited_offline_and_both_survive_through_the_mount
     );
     engine.stop().await;
 }
+
+/// Unsent changes must survive disabling an account, and removal must refuse
+/// while they exist.
+///
+/// This was the milestone's open clause and it could not be tested, because
+/// there was no removal path: a test would have asserted that a thing which
+/// does not exist does not delete a journal, and would have passed before and
+/// after any change for the same reason. `accounts::forget` exists now, so the
+/// clause has a subject.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; unsent work survives disable and blocks removal"]
+async fn real_unsent_changes_survive_disabling_and_refuse_removal() {
+    use cirrove_service::accounts::{Settings, forget, set_enabled};
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let mut config = account(&mount);
+    config.label = "removable".into();
+    config.enabled = false;
+    std::fs::write(
+        state.join("accounts.json"),
+        serde_json::to_vec(&Settings {
+            version: 1,
+            accounts: vec![config.clone()],
+        })
+        .unwrap(),
+    )
+    .unwrap();
+
+    // Uploads stall, so what the application writes stays unsent.
+    let cloud = Arc::new(Cloud::default());
+    cloud.stall.store(true, Ordering::SeqCst);
+    let vault = Arc::new(Vault::default());
+    let account_dir = state.join("accounts").join(&config.id);
+    cirrove_service::private_dir(&account_dir).unwrap();
+    let journal_dir = account_dir.join("journal");
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&journal_dir, &config.id, 4 * 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(config.clone(), cloud.clone(), account_dir.clone())
+        .await
+        .unwrap();
+    let session = WritableSession::mount(engine, journal.clone(), cloud.clone(), vault)
+        .await
+        .unwrap();
+    let written = b"work that never reached the cloud".to_vec();
+    {
+        let path = mount.join("unsent.txt");
+        let written = written.clone();
+        tokio::task::spawn_blocking(move || std::fs::write(path, written))
+            .await
+            .unwrap()
+            .unwrap();
+    }
+    session.shutdown().await.unwrap();
+    drop(journal);
+
+    // Disabling is a settings flag. Nothing in that path may touch the journal.
+    set_enabled(&state, "removable", false).unwrap();
+    let reopened = UploadJournal::open(&journal_dir, &config.id, 4 * 1024 * 1024).unwrap();
+    let rows = reopened.list(0, 100).unwrap();
+    assert!(
+        !rows.is_empty(),
+        "disabling an account must not discard work that has not been sent"
+    );
+    let mut payload = Vec::new();
+    std::io::Read::read_to_end(&mut reopened.payload(rows[0].id).unwrap(), &mut payload).unwrap();
+    assert_eq!(
+        payload, written,
+        "the unsent bytes changed across a disable"
+    );
+    drop(reopened);
+
+    // Removal must refuse, and say how much is at stake.
+    let refused = forget(&state, "removable", false).expect_err("removal must refuse");
+    let message = refused.to_string();
+    assert!(
+        message.contains("have not reached the cloud") && message.contains("discard-unsent"),
+        "a refusal has to name what is at stake and the way past it: {message}"
+    );
+    assert!(
+        journal_dir.exists(),
+        "a refused removal must leave the journal exactly where it was"
+    );
+
+    // Asked explicitly, it moves the data aside rather than deleting it.
+    let done = forget(&state, "removable", true).expect("explicit discard must be accepted");
+    assert!(done.contains("moved to"), "unexpected report: {done}");
+    assert!(!account_dir.exists(), "the account directory must be gone");
+    let removed: Vec<_> = std::fs::read_dir(state.join("removed"))
+        .unwrap()
+        .filter_map(Result::ok)
+        .collect();
+    assert_eq!(removed.len(), 1, "the data must be kept, not deleted");
+    assert!(
+        removed[0].path().join("journal").exists(),
+        "the journal must be inside what was moved aside"
+    );
+    assert!(
+        Settings::load(&state).unwrap().accounts.is_empty(),
+        "the account must be out of the settings"
+    );
+    assert!(
+        mount.exists(),
+        "removal must never touch the mount directory itself"
+    );
+}

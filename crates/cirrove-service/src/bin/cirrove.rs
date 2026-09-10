@@ -241,6 +241,18 @@ enum Command {
         #[arg(long)]
         socket: Option<PathBuf>,
     },
+    /// Remove an account and move its local data aside.
+    ///
+    /// Refuses while the account is enabled, and refuses while it still holds
+    /// changes that have not reached the cloud.
+    Forget {
+        label: String,
+        /// Remove the account even though it still holds unsent changes.
+        #[arg(long)]
+        discard_unsent: bool,
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
+    },
     /// Verify desktop credential storage using an isolated synthetic entry.
     KeyringCheck,
 
@@ -491,6 +503,17 @@ async fn main() -> Result<()> {
                 ..Default::default()
             };
             report_pin(&cirrove_service::unpin(&socket, &request).await?)?;
+        }
+        Command::Forget {
+            label,
+            discard_unsent,
+            state_dir: state,
+        } => {
+            let state = state.map(Ok).unwrap_or_else(state_dir)?;
+            println!(
+                "{}",
+                cirrove_service::accounts::forget(&state, &label, discard_unsent)?
+            );
         }
         Command::KeyringCheck => cirrove_service::accounts::keyring_check().await?,
 

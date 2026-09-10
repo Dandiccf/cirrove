@@ -737,6 +737,91 @@ fn update_enabled(state: &Path, select: impl Fn(&Account) -> bool, enabled: bool
     account.enabled = enabled;
     settings.save(state)
 }
+/// Remove an account, refusing while it still holds work nobody has sent.
+///
+/// Built because milestone 3 asks that unsent changes survive "account disable
+/// and removal" and there was no removal path at all -- so a test of the clause
+/// would have asserted that a thing which does not exist does not delete a
+/// journal, and would have passed before and after any change for the same
+/// reason.
+///
+/// Three deliberate narrownesses. It refuses while the account is enabled, so
+/// removal never races a live mount and reuses machinery that already exists.
+/// It refuses when the journal still holds unsent records, naming how many,
+/// unless the caller says explicitly to discard them -- that refusal is the
+/// clause. And it MOVES the account directory to `removed/` rather than
+/// deleting it, which is what AGENTS.md asks of anything that would otherwise
+/// be a recursive delete near a mount; a human empties that directory.
+///
+/// The mount directory itself is never touched. A stray local file there is
+/// already asserted to survive a remount, and removal must not become the
+/// exception.
+pub fn forget(state: &Path, label: &str, discard_unsent: bool) -> Result<String> {
+    let _lock = config_lock(state)?;
+    let mut settings = Settings::load(state)?;
+    let index = settings
+        .accounts
+        .iter()
+        .position(|a| a.label == label)
+        .context("no account carries that label")?;
+    let account = settings.accounts[index].clone();
+    let _operation = account_operation(state, &account.id)?;
+    if account.enabled {
+        bail!("{label} is still enabled; disable it first so removal cannot race a running mount");
+    }
+    let directory = state.join("accounts").join(&account.id);
+    let unsent = unsent_uploads(&directory, &account.id)?;
+    if unsent > 0 && !discard_unsent {
+        bail!(
+            "{label} still holds {unsent} change(s) that have not reached the cloud. \
+Enable it and let them upload, or pass --discard-unsent to remove them with it."
+        );
+    }
+    let removed = state.join("removed");
+    private_dir(&removed)?;
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let target = removed.join(format!("{}-{stamp}", account.id));
+    if directory.exists() {
+        std::fs::rename(&directory, &target)
+            .with_context(|| format!("could not move {} aside", directory.display()))?;
+    }
+    settings.accounts.remove(index);
+    settings.save(state)?;
+    Ok(format!(
+        "removed {label}; its local data was moved to {} rather than deleted{}",
+        target.display(),
+        if unsent > 0 {
+            format!(", including {unsent} unsent change(s)")
+        } else {
+            String::new()
+        }
+    ))
+}
+/// How many uploads are still waiting, without disturbing them.
+///
+/// Opening the journal takes its lock, so this runs only under
+/// `account_operation` and only for an account nothing is running.
+fn unsent_uploads(directory: &Path, owner: &str) -> Result<usize> {
+    let journal = directory.join("journal");
+    if !journal.exists() {
+        return Ok(0);
+    }
+    let open = crate::journal::UploadJournal::open(&journal, owner, u64::MAX)
+        .context("could not read the account's pending uploads")?;
+    let rows = open.list(0, 10_000)?;
+    Ok(rows
+        .iter()
+        .filter(|r| {
+            !matches!(
+                r.state,
+                crate::journal::UploadState::Uploaded | crate::journal::UploadState::Failed
+            )
+        })
+        .count())
+}
 pub async fn keyring_check() -> Result<()> {
     let key = format!("selftest-{}", uuid::Uuid::new_v4());
     let value = secrecy::SecretString::from("cirrove-synthetic-keyring-check");
