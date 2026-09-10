@@ -117,7 +117,12 @@ impl OneDrive {
             tokens,
             budget: RequestBudget::default(),
             cooldown: Arc::new(Mutex::new(None)),
-            conditional_reads: false,
+            // On by default since 2026-09-10. Evidence in
+            // docs/benchmarks/mount-level-read-bytes.json: identical bytes through
+            // the mount at two sizes from cold, and Graph metadata GETs that stop
+            // growing with the number of cache blocks -- 22 against 4 for 42 MB,
+            // 7 against 3 for 9 MB. `without_read_sessions` is the way back.
+            conditional_reads: true,
             counters: Arc::new(read_sessions::ReadCounters::default()),
         })
     }

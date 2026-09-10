@@ -3,14 +3,14 @@
   "note": "One row per acceptance box. `blocker` says what stands between the box and being ticked, not how hard the code is. `asserted_by` names the test that would fail if the claim stopped holding; a box may not be ticked while it is null. `candidate_assertions` are tests that look like they might assert the box and have not been read. They deliberately do not satisfy the tick check.",
   "totals": {
     "boxes": 51,
-    "ticked": 7,
+    "ticked": 8,
     "by_blocker": {
-      "autonomous": 5,
+      "autonomous": 11,
       "needs-live-account": 7,
       "needs-machine-window": 2,
       "needs-reboot": 2,
       "needs-root": 1,
-      "out-of-agreed-scope": 34
+      "out-of-agreed-scope": 28
     }
   },
   "rows": [
@@ -58,11 +58,11 @@
       "milestone": 1,
       "milestone_title": "Reliable read-only foundation",
       "line": 15,
-      "done": false,
+      "done": true,
       "text": "Remove Graph metadata checks per cache block from the validated read-session fast path; implement and measure shared session setup, bounded sequential windows and safe renewal as specified in [read-session efficiency](adr/0004-read-session-efficiency.md).",
       "blocker": "needs-live-account",
-      "evidence": "docs/validation.md#the-same-file-through-two-cold-mounts-with-the-path-off-and-on plus #read-session-behaviour-on-a-live-mount, benchmarks/mount-level-read-bytes.json and live-read-session-counters.json, live 2026-09-09. All four clauses are now evidenced on a live mount. Per-cache-block metadata checks: conservative Graph metadata GETs track content GETs at about two per block (22 against 10, and 7 against 3 at a four-fold smaller size) while the optimized path does not (4 against 4, 3 against 2), each arm on its own cold engine directory with counters sampled around the read alone. Bytes are SHA-256 identical through the kernel mount at both sizes, with the optimized arm asserted to have bound a session and the conservative arm asserted not to. Shared setup and bounded windows: setups 1 and conditional_windows 3 on a live mount. Safe renewal: renewals 1 under continuous reading across the 60 s lease; an idle pause does not reach it because the read after it is served outside the session. NOT TICKED, and not for want of evidence: conditional_reads is false by default, so a shipped daemon still performs the per-block checks measured absent here. Enabling it is a product decision.",
-      "asserted_by": "cirrove-onedrive: strong_window_streams_without_graph_checks_or_whole_window_allocation asserts ReadProvider::read_path_counters reports the adapter's own window, range, setup and renewal counts; returning Default makes it fail."
+      "evidence": "docs/validation.md#the-same-file-through-two-cold-mounts-with-the-path-off-and-on plus #read-session-behaviour-on-a-live-mount, benchmarks/mount-level-read-bytes.json and live-read-session-counters.json, live 2026-09-09. All four clauses are now evidenced on a live mount. Per-cache-block metadata checks: conservative Graph metadata GETs track content GETs at about two per block (22 against 10, and 7 against 3 at a four-fold smaller size) while the optimized path does not (4 against 4, 3 against 2), each arm on its own cold engine directory with counters sampled around the read alone. Bytes are SHA-256 identical through the kernel mount at both sizes, with the optimized arm asserted to have bound a session and the conservative arm asserted not to. Shared setup and bounded windows: setups 1 and conditional_windows 3 on a live mount. Safe renewal: renewals 1 under continuous reading across the 60 s lease; an idle pause does not reach it because the read after it is served outside the session. NOT TICKED, and not for want of evidence: conditional_reads is false by default, so a shipped daemon still performs the per-block checks measured absent here. Enabling it is a product decision. CLOSED 2026-09-10: the one thing left was never a measurement. The default was false, so a shipped daemon still made the per-block checks these runs measured absent. The owner made that call on this evidence and conditional_reads is now true in OneDrive::new.",
+      "asserted_by": "an_adapter_built_the_ordinary_way_takes_the_session_path asserts the constructor rather than the builder and fails against the previous default; opting_out_returns_no_session_and_scope_is_checked covers CIRROVE_CONSERVATIVE_READS' route back. The read-session fixture no longer selects the path by name, so a regression in the default cannot pass unnoticed behind the other tests in that module."
     },
     {
       "milestone": 1,
@@ -192,7 +192,7 @@
       "text": "Persistent per-file and recursive-folder pinning with storage reservations.",
       "blocker": "autonomous",
       "evidence": "Scope expanded by the user on 2026-09-09 from milestones 1 and 2 to all six, so this row is no longer out of the agreed frame. IMPLEMENTED 2026-09-09, acceptance evidence still owed. Pins live in the metadata database at schema version 7 and survive restart; a reservation is checked against the cache budget when the pin is made and refused if it does not fit; eviction reads a published view and neither takes protected blocks nor counts reserved bytes as free. Folder pins walk cached directory views and report whether the walk was complete. Asserted by cirrove-store pins::tests (4) and cirrove-service engine::pinning (7) and content::tests (2); each was shown to fail without its subject. NOT YET: a control-socket verb, so this is unreachable from a terminal, and no measured evidence on a real account.",
-      "asserted_by": null
+      "asserted_by": "Persistence: store::pins::tests::a_pin_and_its_protected_blocks_survive_reopening_the_store, and engine::pinning::a_restart_republishes_pins_before_anything_can_evict, which is the stronger of the two because it asserts the ordering rather than only the survival. Recursive folders: engine::pinning::a_folder_pin_covers_every_file_under_it_and_says_what_it_could_not_see and an_unindexed_subtree_is_reported_rather_than_quietly_excluded. Reservations: store::pins::tests::raising_a_pin_counts_only_the_difference_against_the_budget, engine::pinning::a_refused_pin_changes_nothing, content::tests::a_reservation_shrinks_the_budget_the_ordinary_cache_may_fill, and engine::pinning::materialising_a_pin_fetches_its_blocks_and_protects_exactly_those."
     },
     {
       "milestone": 3,
@@ -202,7 +202,7 @@
       "text": "Clear unpin/free-space behavior and accurate availability status.",
       "blocker": "autonomous",
       "evidence": "Scope expanded by the user on 2026-09-09. PART DONE 2026-09-09: availability status separates what a pin reserved from what it has actually kept, counted from files present in the cache directory rather than from the block index, which is derived state and would keep reporting a deleted block as available. Unpin releases both the reservation and the protection and reports whether a pin existed. Asserted by engine::pinning availability tests and pins::tests::unpinning_releases_both. STILL OPEN: free-space behaviour proper -- what happens as the budget fills and how that is explained to the user -- and any of this being reachable from a terminal.",
-      "asserted_by": null
+      "asserted_by": "engine::pinning::unpinning_releases_the_budget_at_the_cache and store::pins::tests::unpinning_releases_both_the_reservation_and_the_protection cover the free-space half; engine::pinning::availability_separates_what_a_pin_reserved_from_what_it_kept covers the status half."
     },
     {
       "milestone": 3,
@@ -212,7 +212,7 @@
       "text": "Offline access and editing of pinned content, including across restart.",
       "blocker": "autonomous",
       "evidence": "Scope expanded by the user on 2026-09-09. DONE at the durability layer 2026-09-09. Reading: a pinned file reads with the provider returning Unavailable and still reads after the engine is rebuilt on the same directory, where the memory cache is empty so the bytes can only come from disk, with the provider's read counter asserted not to move. Editing: a pinned file is edited with the provider unreachable, the edit seals into a pending upload, and after restarting both the engine and the journal the edited bytes are still pending, the working file is still there, the pin's reservation is in force before anything can evict, and the pinned content still reads offline. Asserted by engine::pinning::pinned_content_reads_offline_and_still_does_after_a_restart and a_pinned_file_can_be_edited_offline_and_both_survive_a_restart. The second matters because the cache's view and the journal's are rebuilt by separate paths that do not consult each other, so surviving together is a claim rather than a consequence. STILL OPEN: none of this goes through the kernel mount, whose writable tests need --test-threads=1 and a mounted FUSE session, and nothing has been measured on a real account.",
-      "asserted_by": null
+      "asserted_by": "engine::pinning::pinned_content_reads_offline_and_still_does_after_a_restart and engine::pinning::a_pinned_file_can_be_edited_offline_and_both_survive_a_restart. The second is the load-bearing one: the cache's view and the journal's are rebuilt by separate paths that do not consult each other, so surviving together is a claim rather than a consequence."
     },
     {
       "milestone": 3,
@@ -222,7 +222,7 @@
       "text": "Unsent changes excluded from cache eviction and connection cleanup.",
       "blocker": "autonomous",
       "evidence": "Scope expanded by the user on 2026-09-09. Holds structurally rather than by a rule that could be relaxed: the upload journal is a sibling of the cache directory, and eviction only ever removes files whose names it recognises as its own block keys, plus its own <key>.<uuid>.tmp temporaries. No production path in the tree calls remove_dir_all at all. Asserted by content::tests::eviction_never_reaches_outside_its_own_block_names, which places an unsent journal entry beside the cache and a non-block file inside it, drives both the runtime eviction pass and the mount-time reconcile pass under real pressure, and requires a genuine block to have been removed so that survival of the other two means something. STILL OPEN: the connection-cleanup half. Nothing removes the journal today, but no test pins that down across account disable and removal, and there is no measured evidence on a real account.",
-      "asserted_by": null
+      "asserted_by": "content::tests::eviction_never_reaches_outside_its_own_block_names, which places an unsent journal entry beside the cache and a non-block file inside it, drives both deletion passes -- evict and the reconcile that runs on reopening -- and asserts a real block was removed as well, so a pass that deleted nothing could not satisfy it. content::tests::eviction_leaves_a_protected_block_and_takes_the_next_one_instead and the_reconcile_pass_at_mount_time_also_leaves_protected_blocks_alone cover the same two passes for pinned blocks."
     },
     {
       "milestone": 3,
@@ -282,7 +282,7 @@
       "text": "Remote creates, edits, moves and deletions update mounted views correctly.",
       "blocker": "autonomous",
       "evidence": "MOSTLY DONE 2026-09-09 (docs/validation.md#a-mounted-view-following-remote-creates-moves-and-deletions, and #catch-up-after-a-reconnection-and-the-periodic-recovery-refresh). Through a real read-only mount of an isolated account: a remote folder creation became visible in 5,058 ms, a rename in 4,654 ms and a deletion in 4,254 ms, the rename asserted on both halves so that a view adding the new name while keeping the old one fails. All three land at the five-second activity revalidation interval because the fixture watches that directory; a directory nobody is looking at follows the same changes by reconnection catch-up in 408 ms or by the thirty-second poll in 29,421 ms, each measured with the other disabled. NOT COVERED: edits. A content change to an existing file goes through the upload path rather than a namespace mutation, and nothing here exercises it.",
-      "asserted_by": null
+      "asserted_by": "validation::remote_changes::onedrive_remote_changes, run live against an isolated account and recorded in docs/validation.md; there is no unit-level assertion, and the box's uncovered clause -- a content edit to an existing file -- has no run at all."
     },
     {
       "milestone": 4,
@@ -525,5 +525,5 @@
       "asserted_by": null
     }
   ],
-  "operator_guide": "docs/authorization-request.md — the command, blast radius and evidence for every box this file marks as blocked on something an agent cannot supply."
+  "operator_guide": "docs/authorization-request.md \u2014 the command, blast radius and evidence for every box this file marks as blocked on something an agent cannot supply."
 }

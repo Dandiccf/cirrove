@@ -60,11 +60,12 @@ on a real account. Tray UI and Nautilus badges are not implemented.
   View byte budgets, remaining full-list consumers and long-session capacity retain an open
   [namespace memory gate](docs/adr/0005-namespace-memory.md).
 - Version-checked 4 MiB range cache, concurrent-request coalescing, checksums,
-  bounded eviction and interrupted-publication recovery. An explicit developer
-  read-session prototype reduces repeated Graph checks; bounded streamed windows
-  also amortize conservative checks and combine conditional transfers during sequential
-  reads. Ordinary accounts retain
-  conservative reads until the [acceptance gates](docs/adr/0004-read-session-efficiency.md) pass.
+  bounded eviction and interrupted-publication recovery. Reads hold a shared
+  [read session](docs/adr/0004-read-session-efficiency.md) by default, so Graph
+  metadata checks no longer repeat per cache block; bounded streamed windows
+  amortize conservative checks and combine conditional transfers during
+  sequential reads. Setting `CIRROVE_CONSERVATIVE_READS=1` returns an account to
+  per-block revalidation.
 - Private status socket, desired mount state, accidental-ejection remount and
   graceful worker/session shutdown. Settings and metadata persist across runs.
 - Native GTK4/libadwaita account overview with mount controls and opening confirmed

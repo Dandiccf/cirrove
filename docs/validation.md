@@ -2002,6 +2002,15 @@ shipped daemon still performs exactly the per-block checks measured absent above
 What remains is the decision to turn it on, and that is not a measurement's to
 make.
 
+> **Closed on 2026-09-10.** The owner made that decision on this evidence and the
+> default is now `true`. `an_adapter_built_the_ordinary_way_takes_the_session_path`
+> asserts it against the constructor rather than the builder, and fails with the
+> old default. The fixture that every other read-session test uses no longer asks
+> for the path by name, so a regression in the default cannot hide behind them.
+> `CIRROVE_CONSERVATIVE_READS=1` is the route back, and
+> `accounts::conservative_read_provider` keeps the control arm nameable so future
+> A/B runs do not inherit whatever the default has become.
+
 **One finding outside the box.** The first attempt failed with "remote item not
 found" because the fixture built its scope from `account.drive.id`. This account
 holds 42 nodes in its own drive and 183,960 in a linked collection, so a check

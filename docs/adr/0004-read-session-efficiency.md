@@ -127,8 +127,11 @@ These observations alone did not enable an optimized path or close an acceptance
 The service coalesces creation and limits residency to 64 identities; active entries
 cannot be evicted. Entries idle for 60 seconds are pruned on later use. Saturation
 uses the existing exact-range contract rather than adding unbounded sessions.
-OneDrive exposes an explicit `with_experimental_read_sessions` builder; ordinary
-account construction does not select it.
+OneDrive selects the session path by ordinary account construction as of
+2026-09-10. `with_read_sessions` and `without_read_sessions` name an arm
+explicitly, which an A/B measurement needs so that its control does not silently
+follow a change to the default; `CIRROVE_CONSERVATIVE_READS=1` is the operational
+route back for an account that misbehaves under sessions.
 
 The first requested range performs the existing Graph before/after checks and
 binds the content origin's own strong ETag. Later ranges validate both the condition
