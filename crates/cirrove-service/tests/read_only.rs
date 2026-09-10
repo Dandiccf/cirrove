@@ -3200,3 +3200,84 @@ async fn real_a_refused_pin_names_the_budget_and_leaves_the_kept_one_alone() {
     session.umount_and_join().unwrap();
     engine.stop().await;
 }
+
+/// Pin protection survives a restart and holds against pressure arriving at once.
+///
+/// Two mechanisms establish it and either one suffices: `ContentCache` is built
+/// already knowing what pinning claims, and `Engine::start` republishes the
+/// reservations before anything else runs. Disabling one at a time leaves this
+/// test green; disabling both makes it fail with a pinned block evicted. So it
+/// asserts the property, not which path provides it -- the redundancy is
+/// deliberate and the earlier name for this test claimed more than it measures.
+///
+/// What it adds over `a_restart_republishes_pins_before_anything_can_evict` is
+/// the route a user takes: `Engine::new`, a real mount, and cache pressure with
+/// no pause in between.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires a working /dev/fuse and fusermount3; run explicitly"]
+async fn real_pin_protection_survives_a_restart_and_immediate_cache_pressure() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir_all(&mount).unwrap();
+    let provider = Fixture::new();
+    let mut config = account(mount.clone());
+    config.cache_bytes = 40 * 1024 * 1024;
+    let engine = Engine::new(config.clone(), provider.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    assert!(
+        engine
+            .apply_pin_request(&cirrove_service::PinRequest {
+                path: Some("small.txt".into()),
+                ..Default::default()
+            })
+            .await
+            .unwrap()
+            .accepted
+    );
+    let scope = engine.scope("home");
+    let pinned = engine.node(&scope, "small.txt").await.unwrap();
+    let keys = cirrove_service::content::block_keys(&scope, &pinned).unwrap();
+    let cache = engine.cache_path();
+    engine.stop().await;
+    drop(engine);
+
+    // Rebuilt and put under pressure with no pause in between.
+    let engine = Engine::new(config, provider.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    let session = CloudFs::new(engine.clone()).unwrap().mount(&mount).unwrap();
+    let big = engine.node(&scope, "large.bin").await.unwrap();
+    for start in 0..16u64 {
+        let _ = engine
+            .cache
+            .read(
+                engine.provider.as_ref(),
+                &scope,
+                &big,
+                start * cirrove_service::content::BLOCK_SIZE as u64,
+                cirrove_service::content::BLOCK_SIZE,
+                &engine.cancel,
+            )
+            .await;
+    }
+    assert_eq!(
+        keys.iter().filter(|k| cache.join(k).exists()).count(),
+        keys.len(),
+        "a pinned block was evicted in the window between remounting and the first pin refresh"
+    );
+
+    provider.offline.store(true, Ordering::SeqCst);
+    let path = mount.join("small.txt");
+    let bytes = tokio::task::spawn_blocking(move || std::fs::read(path))
+        .await
+        .unwrap()
+        .expect("the pinned file must still read offline after all that pressure");
+    assert_eq!(bytes.len() as u64, pinned.size);
+    session.umount_and_join().unwrap();
+    engine.stop().await;
+}

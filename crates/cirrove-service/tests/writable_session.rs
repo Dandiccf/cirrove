@@ -80,6 +80,9 @@ struct Cloud {
     hold_folder: AtomicBool,
     folder_entered: Notify,
     folder_release: Notify,
+    /// Refuse every content read, so an offline claim can be tested rather than
+    /// asserted. Nothing else in this fixture can make the provider unreachable.
+    offline: AtomicBool,
 }
 fn root() -> Node {
     Node {
@@ -169,6 +172,9 @@ impl ReadProvider for Cloud {
         _: &CancellationToken,
     ) -> Result<Vec<u8>, ProviderError> {
         self.reads.fetch_add(1, Ordering::SeqCst);
+        if self.offline.load(Ordering::SeqCst) {
+            return Err(ProviderError::Unavailable);
+        }
         if self.hold_read.swap(false, Ordering::SeqCst) {
             self.read_entered.notify_one();
             self.read_release.notified().await;
@@ -3092,4 +3098,104 @@ async fn real_a_refused_save_is_reported_as_a_budget_and_not_only_as_enospc() {
         refusal.message
     );
     session.shutdown().await.unwrap();
+}
+
+/// A pinned file edited with the provider unreachable, through the kernel.
+///
+/// `engine::pinning::a_pinned_file_can_be_edited_offline_and_both_survive_a_restart`
+/// makes this claim at the durability layer, and makes it well: the cache's view
+/// and the journal's are rebuilt by separate paths that do not consult each
+/// other, so their surviving together has to be asserted rather than assumed.
+/// What it never touches is the kernel. This does the same thing through a real
+/// writable mount, which is the only place an ordinary application lives.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; a pinned file is edited with the provider unreachable"]
+async fn real_a_pinned_file_is_edited_offline_and_both_survive_through_the_mount() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let mut account = account(&mount);
+    // The pin floor is eight blocks; the fixture's own budget cannot hold one.
+    account.cache_bytes = 64 * 1024 * 1024;
+    let cloud = Arc::new(Cloud::default());
+    let original = b"the bytes that were there before".to_vec();
+    {
+        let node = Node {
+            id: "pinned".into(),
+            parent_id: Some("root".into()),
+            name: "pinned.txt".into(),
+            kind: NodeKind::File,
+            size: original.len() as u64,
+            modified_unix: 1,
+            etag: Some("original-etag".into()),
+            content_version: Some("original-content".into()),
+            target: None,
+        };
+        cloud
+            .remote
+            .lock()
+            .unwrap()
+            .files
+            .insert(node.id.clone(), (node, original.clone()));
+    }
+    let vault = Arc::new(Vault::default());
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 4 * 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account.clone(), cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let pin = cirrove_service::PinRequest {
+        path: Some("pinned.txt".into()),
+        ..Default::default()
+    };
+    assert!(
+        engine.apply_pin_request(&pin).await.unwrap().accepted,
+        "the budget holds one small file"
+    );
+    let session = WritableSession::mount(engine, journal.clone(), cloud.clone(), vault)
+        .await
+        .unwrap();
+
+    // From here the provider answers nothing. Both halves happen offline.
+    cloud.offline.store(true, Ordering::SeqCst);
+    let path = mount.join("pinned.txt");
+    let read_back = {
+        let path = path.clone();
+        tokio::task::spawn_blocking(move || std::fs::read(path))
+            .await
+            .unwrap()
+            .expect("the pinned file must read offline through the mount")
+    };
+    assert_eq!(read_back, original, "offline read returned the wrong bytes");
+
+    let edited = b"the bytes an application wrote while offline".to_vec();
+    {
+        let path = path.clone();
+        let edited = edited.clone();
+        tokio::task::spawn_blocking(move || std::fs::write(path, edited))
+            .await
+            .unwrap()
+            .expect("editing a pinned file offline must be accepted locally");
+    }
+    session.shutdown().await.unwrap();
+
+    // Rebuilt from disk: the cache's registry and the journal's files are
+    // reconstructed by paths that do not consult each other.
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let pins = engine.pin_status().await.unwrap();
+    assert_eq!(pins.len(), 1, "the pin must survive the restart");
+    assert!(
+        pins[0].reserved > 0,
+        "the pin lost its reservation across the restart: {:?}",
+        pins[0]
+    );
+    let unsent = journal.lock().unwrap().list(0, 100).unwrap();
+    assert!(
+        !unsent.is_empty(),
+        "the offline edit must still be waiting to upload after a restart"
+    );
+    engine.stop().await;
 }
