@@ -52,6 +52,16 @@ const READ_QUEUE_TIMEOUT: Duration = Duration::from_secs(30);
 /// supposed to move; this makes it a number a fixture can assert on directly.
 pub(crate) static TRIMS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
+/// How many times this process has returned free pages to the kernel.
+///
+/// Exposed because the daemon had no way to answer "has the trim ever fired?".
+/// It logged at debug against a daemon running at info, so a real session could
+/// only be inferred from memory that never came back -- which is how a trigger
+/// that could not fire on a read workload went unnoticed.
+pub fn allocator_trims() -> u64 {
+    TRIMS.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 #[derive(Clone)]
 struct View {
     residency: Arc<LookupRefs>,
@@ -228,9 +238,37 @@ impl CloudFs {
             // So: remember the most views held since the last trim, and trim when
             // the mount is quiet and now holds far fewer. That is precisely when
             // there are freed pages worth returning.
+            // The view-count signal above catches a traversal. It cannot catch a
+            // mount that only reads content: reading changes no view count, so
+            // `high_water` never exceeds `held * 2` and never exceeds SHED_FLOOR,
+            // and the trim never runs at all. Measured on a live daemon reading
+            // 475 MB out of cache, peak and residue were the same number in
+            // nearly every pass -- it returned none of what it took.
+            //
+            // So: a second, independent signal. Free bytes across the arenas is
+            // exactly what trimming would give back, and it is the only figure
+            // that separates a process holding half a gibibyte it has already
+            // freed from one that is genuinely using it. Either signal may fire;
+            // both are gated on the same quiet mount and the same blocking
+            // worker.
+            //
+            // The floor only avoids a pointless walk; it is not what protects
+            // throughput. The quiescent gate does that -- the trim cannot fire
+            // while the mount is doing anything -- so the floor can sit where
+            // returning the memory stops being worth the walk rather than where
+            // a busy mount would notice. A pass measured 717 microseconds around
+            // 50 MiB, so roughly 14 microseconds per mebibyte: eight is about a
+            // hundred microseconds, once, on a mount that is already idle.
+            //
+            // Measured, not chosen to fit: a read-only mount fixture holds a flat
+            // 11.4 MiB free across four rounds of 192 MiB each. Thirty-two would
+            // never fire there. See docs/benchmarks/trim-trigger-reaches-reads.json,
+            // which also records that this fixture does NOT reproduce the growth
+            // seen on the live daemon.
             const QUIESCENT_TICKS: u32 = 5;
             const SHED_FACTOR: usize = 2;
             const SHED_FLOOR: usize = 1024;
+            const RETAINED_FLOOR: u64 = 8 * 1024 * 1024;
             let mut idle = 0u32;
             let mut high_water = 0usize;
             loop {
@@ -250,14 +288,23 @@ impl CloudFs {
                             0
                         };
                         high_water = high_water.max(held);
-                        if idle >= QUIESCENT_TICKS
-                            && high_water > held.saturating_mul(SHED_FACTOR).max(SHED_FLOOR)
-                        {
+                        let shed = high_water > held.saturating_mul(SHED_FACTOR).max(SHED_FLOOR);
+                        let retained = cirrove_allocator::free_arena_bytes() >= RETAINED_FLOOR;
+                        if idle >= QUIESCENT_TICKS && (shed || retained) {
                             high_water = held;
                             TRIMS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                            tokio::task::spawn_blocking(|| {
+                            tokio::task::spawn_blocking(move || {
                                 let released = cirrove_allocator::trim();
-                                tracing::debug!(released, "returned free pages to the kernel");
+                                // At info, not debug: this was invisible in a
+                                // real session, so "has it ever fired?" could
+                                // not be answered from the journal, only
+                                // inferred from memory that never came back.
+                                tracing::info!(
+                                    released,
+                                    shed,
+                                    retained,
+                                    "returned free pages to the kernel"
+                                );
                             });
                         }
                     }

@@ -3281,3 +3281,75 @@ async fn real_pin_protection_survives_a_restart_and_immediate_cache_pressure() {
     session.umount_and_join().unwrap();
     engine.stop().await;
 }
+
+/// The reclamation tick must reach a mount that only reads.
+///
+/// Its trigger was a namespace view-count signal: it fires when a mount has held
+/// more than a thousand views and since shed half of them, which is a traversal.
+/// Reading content changes no view count, so on a mount that only reads the
+/// condition is never true and the trim never runs -- which is what a live daemon
+/// measurement showed as peak and residue being the same number, pass after pass.
+///
+/// This reads enough to leave real free memory in the arenas, goes quiet, and
+/// waits. It fails against the previous trigger, which cannot fire here at all.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires a working /dev/fuse and fusermount3; waits out the quiescent ticks"]
+async fn real_reclamation_reaches_a_mount_that_only_reads() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let provider = Fixture::new();
+    let mut config = account(mount.clone());
+    config.cache_bytes = 256 * 1024 * 1024;
+    let engine = Engine::new(config, provider.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    let session = CloudFs::new(engine.clone()).unwrap().mount(&mount).unwrap();
+    let before = cirrove_service::filesystem::allocator_trims();
+
+    // Read enough that the allocator is holding something worth returning. The
+    // view count barely moves: this is one file read repeatedly, which is the
+    // shape the old trigger cannot see.
+    let scope = engine.scope("home");
+    let big = engine.node(&scope, "large.bin").await.unwrap();
+    for round in 0..4u64 {
+        for start in 0..48u64 {
+            let _ = engine
+                .cache
+                .read(
+                    engine.provider.as_ref(),
+                    &scope,
+                    &big,
+                    start * cirrove_service::content::BLOCK_SIZE as u64,
+                    cirrove_service::content::BLOCK_SIZE,
+                    &engine.cancel,
+                )
+                .await;
+        }
+        println!(
+            "TRIM_TRIGGER round={round} free_arena_mib={:.1}",
+            cirrove_allocator::free_arena_bytes() as f64 / (1024.0 * 1024.0)
+        );
+    }
+
+    // Quiet, and long enough for the quiescent gate plus a tick or two.
+    let trimmed = tokio::time::timeout(Duration::from_secs(30), async {
+        loop {
+            if cirrove_service::filesystem::allocator_trims() > before {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(200)).await;
+        }
+    })
+    .await;
+    assert!(
+        trimmed.is_ok(),
+        "a mount that only reads never reclaimed; the allocator held {:.1} MiB free",
+        cirrove_allocator::free_arena_bytes() as f64 / (1024.0 * 1024.0)
+    );
+
+    session.umount_and_join().unwrap();
+    engine.stop().await;
+}

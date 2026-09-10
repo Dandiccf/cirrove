@@ -29,6 +29,26 @@
 // `malloc_trim` needs no such preparation. The probe that established the effect
 // called it from an interposer with no `mallopt` at all.
 
+/// Bytes the allocator holds free across every arena.
+///
+/// The signal a caller needs to decide whether trimming is worth its cost: this
+/// is what `trim` would be walking the arenas to give back. It is cheap --
+/// `mallinfo2` reads counters glibc already maintains -- and it is the only way
+/// to tell a process that has freed half a gibibyte from one that has freed
+/// nothing, since resident size cannot distinguish them.
+///
+/// `mallinfo2` rather than `mallinfo`, whose fields are `int` and wrap silently
+/// above two gibibytes. This service has been measured holding 490 MiB; wrapping
+/// is not far away.
+#[must_use]
+pub fn free_arena_bytes() -> u64 {
+    // SAFETY: `mallinfo2` reads the allocator's own counters and returns them by
+    // value. It takes no arguments, allocates nothing and touches no caller
+    // memory.
+    let info = unsafe { libc::mallinfo2() };
+    info.fordblks as u64
+}
+
 /// Release free pages held by every arena. Returns whether anything was released.
 ///
 /// This takes each arena's lock in turn, so every allocating thread stalls behind

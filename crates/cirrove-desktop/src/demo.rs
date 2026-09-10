@@ -52,6 +52,8 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
             indexed_items: 1234,
             active_mounts: 1,
             accounts,
+            allocator_trims: 0,
+            free_arena_bytes: 0,
         }),
     })
 }

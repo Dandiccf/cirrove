@@ -1,0 +1,49 @@
+{
+  "question": "Does the daemon's reclamation tick ever fire on a workload that reads content, and does adding a retention signal make it fire without trimming so often that it costs something?",
+  "why_now": "docs/benchmarks/daemon-allocator-arenas.json measured the live daemon reading 475 MB out of cache and found peak and residue identical in nearly every pass -- it returns none of what it takes, resting at 211.3 MiB against 107.9 with arenas capped. The remedy was read as 'cap the allocator', which costs 4.2-9.3 percent on the metadata path (namespace-allocator-arms.json). But the product already contains the mechanism that returns this memory: cirrove_allocator::trim released 454-466 MiB per pass on the namespace fixture. It simply never runs here.",
+  "the_defect": {
+    "where": "crates/cirrove-service/src/filesystem.rs, start_view_reclamation",
+    "condition": "idle >= QUIESCENT_TICKS && high_water > held.saturating_mul(SHED_FACTOR).max(SHED_FLOOR), where held is inner.views.len() and SHED_FLOOR is 1024",
+    "why_it_cannot_fire": "The trigger is entirely a namespace view-count signal: it needs a mount that has held more than 1,024 views and since shed at least half of them. Reading content out of the cache does not change the view count at all, so high_water never exceeds held*2, never exceeds 1024, and the trim never runs.",
+    "why_it_was_written_that_way": "The comment above it explains, and the reasoning is sound: three earlier spellings keyed to the collector's own return value fired once at mount against an empty namespace and never again. The view-count signal was written to catch a traversal shedding its views, and it does. It was never wrong -- it was incomplete.",
+    "how_it_was_found": "Not by reading. The daemon measurement showed memory that never came back, and the trigger explains it. The journal cannot confirm it directly: the trim logs at debug! and the daemon runs at INFO, so zero occurrences in the journal proves nothing, which is recorded here rather than presented as evidence."
+  },
+  "registered_before_run": true,
+  "registered_at": "2026-09-10",
+  "change_under_test": "A second, independent signal beside the view-count one: free bytes held in the allocator's arenas, exposed as cirrove_allocator::free_arena_bytes() from mallinfo2, with the trim firing when the mount is quiet AND either signal says there is something to return. Same idle gate, same blocking worker, same once-per-second tick.",
+  "predictions": [
+    {
+      "id": "P1",
+      "claim": "With the change, a mount that only reads content trims at least once within thirty seconds of going quiet. Without it, never.",
+      "role": "the defect and its fix. If the unchanged code trims here, the diagnosis is wrong."
+    },
+    {
+      "id": "P2",
+      "claim": "The traversal case keeps working: a fixture that holds and sheds views still trims, and the view-count signal is what fires there.",
+      "role": "discriminator -- a change that broke the case the original trigger was written for would be a regression dressed as a fix"
+    },
+    {
+      "id": "P3",
+      "claim": "On a quiet mount doing nothing at all, the trim fires at most once and then stops.",
+      "reasoning": "Trimming takes every arena lock in turn -- 20 to 26 ms median around a gibibyte -- so a trigger that fires every tick would be a throughput defect introduced to fix a memory one. Trimming lowers free_arena_bytes, which is the hysteresis, but only if the floor is above what a settled process holds."
+    },
+    {
+      "id": "P4",
+      "claim": "On the live daemon, reading the same 475 MB out of cache and then going quiet returns memory that the previous build kept: resting RSS after the reads is at least 30 MiB below the unchanged build's."
+    }
+  ],
+  "decision_rule": "P1 and P2 must both hold for the change to be worth making at all. P3 decides the floor rather than the change: if a settled process sits above whatever floor is chosen, the floor is wrong and must come from measurement, not from a round number. P4 is the product claim and is measured on the user's own account with their standing permission for read testing; a smaller effect than predicted is recorded as measured.",
+  "what_this_does_not_settle": "Whether capping arenas is still worth doing. These are different mechanisms -- trimming returns what is already free, capping stops it accumulating in the first place -- and the daemon measurement cannot tell which matters more under a workload that downloads rather than reads from cache. Nothing here speaks to the peak criterion, which docs/benchmarks/namespace-memory-attribution.json shows is live heap and not allocator retention.",
+  "result": {
+    "fixture_free_arena": "A read-only mount fixture holds a FLAT 11.4 MiB free across four rounds of 192 MiB each -- 11.4, 11.4, 11.4, 11.4. It does not accumulate.",
+    "floor": "32 MiB was registered and would never have fired. Replaced with 8 MiB, derived rather than fitted: a trim pass measured 717 microseconds around 50 MiB, so about 14 microseconds per mebibyte, and the quiescent gate -- not the floor -- is what keeps it off a busy mount. Eight mebibytes is roughly a hundred microseconds, once, on a mount that is already idle.",
+    "P1": "HOLDS. With the retention signal the fixture trims within the wait; with it disabled the same test fails with 'a mount that only reads never reclaimed; the allocator held 11.6 MiB free'.",
+    "P2": "HOLDS. The eleven filesystem::capacity::real_ tests, which are where the view-count signal earns its keep, all pass unchanged.",
+    "P3": "NOT MEASURED YET. The fixture never sits idle long enough after trimming for a repeat to be observable, and asserting 'at most once' inside a thirty-second test would be asserting the absence of an event over too short a window to mean anything.",
+    "P4": "NOT MEASURED. Requires installing this build on the live daemon."
+  },
+  "verdict": null,
+  "the_finding_that_matters_more_than_the_fix": "The fixture does NOT reproduce what the live daemon does. The daemon grew 11-20 MiB per pass reading the same 475 MB out of cache and returned none of it, resting at 211.3 MiB against 107.9 with arenas capped. This fixture holds a flat 11.4 MiB free no matter how much it reads. So the two are not the same phenomenon, or not obviously: 11 MiB of free arena cannot explain 100 MiB of retained resident memory. Either the daemon's growth is mostly NOT allocator free-list -- SQLite page caches and index structures on a 560 MB database and 184,000 nodes are live memory that trimming cannot touch -- or it is, and this fixture is too small and too few-threaded to show it. Nothing here settles which. What is certain is that arena capping halved the daemon's resting size, and that is a different mechanism from trimming: capping stops memory accumulating across threads, trimming returns what is already free.",
+  "what_is_and_is_not_claimed": "CLAIMED: the reclamation tick could not fire on a workload that only reads, and now can. That is measured on a fixture and shown to fail without the change. NOT CLAIMED: that this fixes the daemon's 100 MiB. That needs the same before-and-after on the live daemon that produced the original number, with this build installed, and it has not been run. Saying the trigger now reaches reads is not the same as saying it returns what the daemon is holding.",
+  "also_changed": "cirrove status now reports allocator_trims and free_arena_bytes. Their absence is what hid this: the trim logged at debug against a daemon running at info, so 'has it ever fired?' could not be answered from outside a process, and a trigger that could not fire on a read workload went unnoticed until a memory measurement went looking for a cause. The log line is now at info."
+}

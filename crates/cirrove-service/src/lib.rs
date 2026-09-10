@@ -39,6 +39,18 @@ pub struct Status {
     pub active_mounts: u64,
     #[serde(default)]
     pub accounts: Vec<manager::AccountStatus>,
+    /// How many times this process has returned free pages to the kernel, and
+    /// how much the allocator is holding free right now.
+    ///
+    /// Process-wide rather than per account. Reported because their absence is
+    /// what hid a real defect: the reclamation tick logged at debug against a
+    /// daemon running at info, so "has it ever fired?" could not be answered
+    /// from outside, and a trigger that could not fire on a read workload went
+    /// unnoticed until a memory measurement went looking for a cause.
+    #[serde(default)]
+    pub allocator_trims: u64,
+    #[serde(default)]
+    pub free_arena_bytes: u64,
 }
 
 /// A pin request carried over the control socket.
@@ -358,7 +370,7 @@ pub async fn serve_managed(
                         let accounts=match &manager {Some(m)=>m.status.read().await.clone(),None=>vec![]};
                         if manager.is_some() {feeds=accounts.iter().map(|a|a.indexed_feeds).sum();items=accounts.iter().map(|a|a.indexed_items).sum();}
                         let active_mounts=accounts.iter().filter(|a|a.mounted).count() as u64;
-                        let reply=Status{protocol_version:STATUS_PROTOCOL_VERSION,version:env!("CARGO_PKG_VERSION").into(),milestone:"readonly-preview".into(),indexed_feeds:feeds,indexed_items:items,active_mounts,accounts};
+                        let reply=Status{protocol_version:STATUS_PROTOCOL_VERSION,version:env!("CARGO_PKG_VERSION").into(),milestone:"readonly-preview".into(),indexed_feeds:feeds,indexed_items:items,active_mounts,accounts,allocator_trims:crate::filesystem::allocator_trims(),free_arena_bytes:cirrove_allocator::free_arena_bytes()};
                         stream.write_all(&serde_json::to_vec(&reply)?).await?;
                         Ok::<_,anyhow::Error>(())
                     }).await;
