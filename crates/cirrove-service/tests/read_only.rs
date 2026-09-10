@@ -2897,3 +2897,82 @@ async fn a_pin_from_the_command_line_reaches_the_daemon_and_keeps_the_bytes() {
     let _ = tokio::time::timeout(Duration::from_secs(10), worker).await;
     let _ = tokio::time::timeout(Duration::from_secs(5), server).await;
 }
+
+/// Pinned content must read through the kernel with the provider unreachable,
+/// and unpinned content must not.
+///
+/// Every existing pin test runs against `Engine`/`Store` directly. That covers
+/// the durability layer and says nothing about the thing the milestone actually
+/// promises: a file you pinned is there when the network is not. The unpinned
+/// control is what stops a broken offline switch from passing this for the wrong
+/// reason -- without it, a fixture that quietly kept serving would look like a
+/// working pin.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires a working /dev/fuse and fusermount3; run explicitly"]
+async fn real_a_pinned_file_reads_offline_through_the_mount_and_an_unpinned_one_does_not() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let provider = Fixture::new();
+    let mut config = account(mount.clone());
+    // Reservations may not claim the whole budget and the floor is eight blocks,
+    // so the fixture's own 16 MiB cache can pin nothing.
+    config.cache_bytes = 128 * 1024 * 1024;
+    let engine = Engine::new(config.clone(), provider.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+
+    let scope = engine.scope("home");
+    let pinned = engine.node(&scope, "small.txt").await.unwrap();
+    let reserved = cirrove_service::content::stored_bytes(pinned.size);
+    engine
+        .pin(scope.clone(), pinned.id.clone(), false, reserved)
+        .await
+        .unwrap()
+        .expect("the budget holds one small file");
+    let blocks = engine.materialise_pin(&scope, &pinned).await.unwrap();
+    assert!(blocks > 0, "materialising must fetch something");
+
+    // A fresh engine on the same directory: the in-memory block cache is empty,
+    // so anything that reads afterwards can only be coming off disk. Shadowing
+    // does not drop the old binding, and it holds the state directory's lock.
+    engine.stop().await;
+    drop(engine);
+    let engine = Engine::new(config, provider.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    let session = CloudFs::new(engine.clone()).unwrap().mount(&mount).unwrap();
+
+    provider.offline.store(true, Ordering::SeqCst);
+    let before = provider.reads.load(Ordering::SeqCst);
+
+    let path = mount.join("small.txt");
+    let bytes = tokio::task::spawn_blocking(move || std::fs::read(path))
+        .await
+        .unwrap()
+        .expect("a pinned file must read with the provider unreachable");
+    assert_eq!(bytes.len() as u64, pinned.size);
+    assert_bytes(&bytes, 0);
+    assert_eq!(
+        provider.reads.load(Ordering::SeqCst),
+        before,
+        "the bytes came from the provider, so this proves nothing about the pin"
+    );
+
+    // The control. Same mount, same offline provider, a file nobody pinned.
+    let other = mount.join("folder/deep.txt");
+    let refused = tokio::task::spawn_blocking(move || std::fs::read(other))
+        .await
+        .unwrap();
+    assert!(
+        refused.is_err(),
+        "an unpinned file read offline must fail, or the offline switch is not doing anything"
+    );
+
+    session.umount_and_join().unwrap();
+    engine.stop().await;
+}
