@@ -82,9 +82,30 @@ impl From<std::io::Error> for JournalError {
     }
 }
 impl From<rusqlite::Error> for JournalError {
-    fn from(_: rusqlite::Error) -> Self {
-        Self::Storage
+    fn from(error: rusqlite::Error) -> Self {
+        // The journal's metadata is written through SQLite before any payload
+        // byte is, so on a filesystem with no free blocks SQLite is what fails
+        // first and this conversion is where the remedy is kept or lost. It was
+        // lost: a real full disk arrived as Storage, "local upload storage is
+        // unavailable", which reads as a defect in Cirrove rather than as a
+        // disk the user has to make room on. Measured in
+        // docs/benchmarks/full-disk-journal-errors.json.
+        match error {
+            rusqlite::Error::SqliteFailure(error, _) if out_of_space(&error) => Self::DeviceFull,
+            _ => Self::Storage,
+        }
     }
+}
+/// SQLITE_FULL is the unambiguous one. An I/O error carries no errno of its
+/// own, so the write and fsync cases are included: they are the two SQLite
+/// reports for a store that could not take the bytes, and naming a disk the
+/// user can check is a better wrong answer there than naming nothing at all.
+fn out_of_space(error: &rusqlite::ffi::Error) -> bool {
+    matches!(error.code, rusqlite::ffi::ErrorCode::DiskFull)
+        || matches!(
+            error.extended_code,
+            rusqlite::ffi::SQLITE_IOERR_WRITE | rusqlite::ffi::SQLITE_IOERR_FSYNC
+        )
 }
 impl From<serde_json::Error> for JournalError {
     fn from(_: serde_json::Error) -> Self {

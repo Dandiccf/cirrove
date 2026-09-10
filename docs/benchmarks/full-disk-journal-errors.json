@@ -1,0 +1,67 @@
+{
+  "question": "On a genuinely full filesystem, does a failed save reach the application as the full-disk problem with its remedy, or does the failure arrive by a path that loses it?",
+  "why_now": "The acceptance box 'Disk-full recovery preserves edited data and explains required action' is half evidenced. Preservation is covered by truncate_sparse_writes_and_quota_failures_preserve_the_working_copy. The explanation half is asserted by a_full_budget_and_a_full_disk_are_reported_as_different_problems, which builds the error with JournalError::from(io::Error::from_raw_os_error(ENOSPC)). That checks the mapping exists; it cannot check that a real full disk reaches that mapping. Nothing has ever run against a filesystem with no free blocks.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-10",
+  "prediction_provenance": "P3 below is derived from reading journal/working.rs and journal.rs before the run, not from an exploratory run. Stating where a prediction comes from is the difference between a confirmation that is worth something and one that is not.",
+  "workload": "A loop-backed ext4 image, mounted, holding nothing but the journal directory. A working file is created and sealed while the filesystem still has room, so there is a known-good sealed payload to check afterwards. The filesystem is then filled to zero free blocks with a ballast file. With no space left, an ordinary edit is attempted: write, truncate, seal. Every error is recorded by variant and by the message a user would see.",
+  "endpoint": "The JournalError variant of the first failing operation, its Display text, and whether the sealed payload and the dirty working copy are still readable afterwards.",
+  "predictions": [
+    {
+      "id": "P1",
+      "claim": "The filesystem is genuinely out of space: after the ballast is written, an ordinary 64 KiB write to a new file on that mount fails with ENOSPC, checked outside the journal entirely.",
+      "role": "discriminator -- a fixture that merely looks full measures nothing, and every variant below would be unattributable"
+    },
+    {
+      "id": "P2",
+      "claim": "At least one of write_working, truncate_working or seal_working returns an error."
+    },
+    {
+      "id": "P3",
+      "claim": "The first failure is reported as JournalError::Storage, not DeviceFull, so the remedy is lost on exactly the filesystem the DeviceFull variant was added for.",
+      "reasoning": "write_working calls prepare_working_change, which calls save_working before any byte is written. save_working is a rusqlite transaction end to end, and From<rusqlite::Error> maps every SQLite failure -- SQLITE_FULL included -- to Storage. Storage's message is 'local upload storage is unavailable', which names no action at all.",
+      "role": "the informative one. If it holds, the box stays open and this run has found a defect that the constructed-error test could not see. If it fails, the mapping survives a real device and the run confirms rather than discovers."
+    },
+    {
+      "id": "P4",
+      "claim": "The sealed payload written before the disk filled is still readable byte for byte, and the working file is still marked dirty. The preservation half of the box must hold on a real device and not only on a quota refusal."
+    }
+  ],
+  "decision_rule": "The box may be ticked only if P1 and P4 hold AND the message a user would see on a full device names freeing space on the filesystem. If P3 holds as predicted, that condition fails and the box stays open with a named defect, which is a more useful outcome than a tick.",
+  "safety": {
+    "account": "None. No provider, no credentials, no network. The journal is driven directly.",
+    "writes": "Confined to a loop-backed image file under the session scratchpad. Nothing outside the image is written.",
+    "root": "Needed once, to attach a loop device and mount ext4. Requested through pkexec, which the omarchy guidance prescribes for a command launched by an agent.",
+    "teardown": "Unmount, detach the loop device, delete the image. Recorded whether teardown succeeded."
+  },
+  "result": {
+    "filesystem": "ext4 with a journal, reserved blocks 0, on a 64 MiB loop-backed image; 55,991 free 1 KiB blocks at mkfs",
+    "ballast_bytes": 55093248,
+    "probe_errno": 28,
+    "before_the_fix": {
+      "first_failing_step": "write_working",
+      "variant": "Storage",
+      "message": "local upload storage is unavailable",
+      "payload_survived": true,
+      "readable_while_full": true
+    },
+    "after_the_fix": {
+      "first_failing_step": "write_working",
+      "variant": "DeviceFull",
+      "message": "the disk holding Cirrove's local state is full; unsent changes are kept, but nothing can be saved until space is freed on that filesystem",
+      "ballast_bytes": 55105536,
+      "payload_survived": true,
+      "readable_while_full": true
+    },
+    "regression_check": "cargo test -p cirrove-service: 104 unit tests and every integration target pass after the change, including a_full_budget_and_a_full_disk_are_reported_as_different_problems, so a full budget is still Quota and not DeviceFull."
+  },
+  "verdict": {
+    "P1": "HOLDS. The 64 KiB probe outside the journal failed with errno 28, ENOSPC, so the filesystem had no free block left when the journal was driven.",
+    "P2": "HOLDS. write_working, the first operation attempted, failed.",
+    "P3": "HOLDS, as reasoned from the code before the run. The failure arrived as Storage. Its message, 'local upload storage is unavailable', names no action and reads as a defect in Cirrove rather than as a disk the user must make room on. The DeviceFull variant added for exactly this case was unreachable from a real filesystem, because every path to it went through SQLite first and From<rusqlite::Error> discarded the reason.",
+    "P4": "HOLDS, both before and after the fix. The payload sealed before the disk filled read back byte for byte, the working copy was still dirty, and both were readable while the filesystem was still full."
+  },
+  "what_this_changes": "The constructed-error test was not wrong; it tested a mapping that nothing reached. journal.rs now recognises SQLITE_FULL, and the two SQLite I/O reports for a store that could not take the bytes, as DeviceFull. The test that shows it is a_genuinely_full_filesystem_explains_what_to_free, which fails against the previous code with 'it said: local upload storage is unavailable' and passes against the current one. It is #[ignore]d because it consumes every free block of the filesystem it is given, and takes that filesystem from CIRROVE_FULL_DISK_DIR rather than assuming one.",
+  "residual_risk": "SQLITE_IOERR_WRITE and SQLITE_IOERR_FSYNC carry no errno, so a write failure that is not about space -- a failing disk, a revoked mount -- is now also reported as a full disk. That is a deliberate trade: the previous message named nothing at all, and a user sent to check free space on a dying disk finds out more than one told the storage is 'unavailable'. Only SQLITE_FULL is unambiguous, and it was not the code this filesystem produced.",
+  "decision": "The box's explanation clause is now evidenced on a real device rather than on a constructed error, and the preservation clause held on the same device. Ticking it is still not this artifact's to do alone: the run covers the journal's own save path and not the store, the content cache or the daemon's reporting of the condition to a user, which is where the message actually has to arrive. What is closed is that the remedy is no longer discarded at the first layer that sees the failure."
+}

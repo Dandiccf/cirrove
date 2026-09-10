@@ -77,6 +77,18 @@ def boxes() -> list[dict]:
     return found
 
 
+def classification(row: dict) -> str:
+    """A row's blocker as a sortable name.
+
+    A row whose `blocker` is null is already reported as a problem above, but the
+    summary is printed first and `sorted` on a mix of `None` and `str` raises
+    TypeError. The guard then dies with a traceback instead of saying which row
+    is unclassified -- a script that fails illegibly is barely better than one
+    that does not fail, and this one is what CI shows a person first.
+    """
+    return row.get("blocker") or "unclassified"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--sync", action="store_true")
@@ -106,8 +118,8 @@ def main() -> int:
             "boxes": len(rows),
             "ticked": sum(row["done"] for row in rows),
             "by_blocker": {
-                blocker: sum(1 for row in rows if row["blocker"] == blocker)
-                for blocker in sorted({row["blocker"] for row in rows})
+                blocker: sum(1 for row in rows if classification(row) == blocker)
+                for blocker in sorted({classification(row) for row in rows})
             },
         }
         LEDGER.write_text(json.dumps(ledger, indent=2) + "\n")
@@ -154,7 +166,7 @@ def main() -> int:
 
     counts = {}
     for row in ledger["rows"]:
-        counts[row["blocker"]] = counts.get(row["blocker"], 0) + 1
+        counts[classification(row)] = counts.get(classification(row), 0) + 1
     print(
         f"{len(current)} acceptance boxes, {sum(b['done'] for b in current)} ticked; "
         + ", ".join(f"{n} {b}" for b, n in sorted(counts.items()))

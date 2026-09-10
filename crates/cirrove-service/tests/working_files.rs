@@ -327,3 +327,134 @@ fn a_full_budget_and_a_full_disk_are_reported_as_different_problems() {
     assert_eq!(payload(&j, saved.id), b"\0\0\0\0\0a");
     assert!(j.working_file(working.id).unwrap().dirty);
 }
+
+/// A constructed `io::Error` shows the mapping from ENOSPC to `DeviceFull`
+/// exists. It cannot show that a real full filesystem reaches that mapping,
+/// because the path a save actually takes is chosen by the journal and not by
+/// the test. This drives the journal on a filesystem it then fills itself, so
+/// the precondition is asserted here rather than assumed from the environment.
+///
+/// Ignored by default: it needs its own filesystem, since it deliberately
+/// consumes every free block. See docs/benchmarks/full-disk-journal-errors.json.
+#[test]
+#[ignore = "set CIRROVE_FULL_DISK_DIR to a directory on a small, disposable filesystem"]
+fn a_genuinely_full_filesystem_explains_what_to_free() {
+    let Some(root) = std::env::var_os("CIRROVE_FULL_DISK_DIR").map(std::path::PathBuf::from) else {
+        panic!("CIRROVE_FULL_DISK_DIR is required; this test fills the filesystem it names");
+    };
+    let mut report = serde_json::Map::new();
+
+    // A sealed payload made while there is still room, so that the preservation
+    // claim has something concrete to be about.
+    let mut j = open(&root.join("journal"), 1 << 30);
+    let working = j
+        .create_working(scope(), node(8), false, b"original".as_slice())
+        .unwrap();
+    j.write_working(working.id, 0, b"changed!").unwrap();
+    let saved = j.seal_working(working.id).unwrap().unwrap();
+    assert_eq!(payload(&j, saved.id), b"changed!");
+    j.write_working(working.id, 0, b"newer".as_slice()).unwrap();
+
+    // Fill it. Chunks shrink so the last free block is consumed, not merely
+    // most of them: a filesystem with one block left is not the one under test.
+    let ballast = root.join("ballast");
+    let mut sink = std::fs::File::create(&ballast).unwrap();
+    let mut written = 0u64;
+    for chunk in [1 << 20usize, 4096, 512, 1] {
+        let block = vec![0u8; chunk];
+        while std::io::Write::write_all(&mut sink, &block).is_ok() {
+            written += chunk as u64;
+        }
+    }
+    let _ = std::io::Write::flush(&mut sink);
+    let _ = sink.sync_all();
+    drop(sink);
+    report.insert("ballast_bytes".into(), written.into());
+
+    // P1. Checked outside the journal, so a journal error below cannot be the
+    // thing that persuaded us the filesystem was full.
+    let probe = root.join("probe");
+    let refusal = std::fs::File::create(&probe).and_then(|mut file| {
+        std::io::Write::write_all(&mut file, &vec![0u8; 65536])?;
+        file.sync_all()
+    });
+    let errno = refusal.as_ref().err().and_then(|e| e.raw_os_error());
+    report.insert(
+        "probe_errno".into(),
+        errno.map_or(serde_json::Value::Null, |e| e.into()),
+    );
+    let _ = std::fs::remove_file(&probe);
+    assert_eq!(
+        errno,
+        Some(libc::ENOSPC),
+        "the filesystem is not full, so nothing below would be attributable"
+    );
+
+    // The edit that has nowhere to go.
+    let mut first: Option<JournalError> = None;
+    let mut steps = vec![];
+    for (name, outcome) in [
+        (
+            "write_working",
+            j.write_working(working.id, 0, b"after the disk filled")
+                .map(|_| ()),
+        ),
+        (
+            "truncate_working",
+            j.truncate_working(working.id, 4096).map(|_| ()),
+        ),
+        ("seal_working", j.seal_working(working.id).map(|_| ())),
+    ] {
+        match outcome {
+            Ok(()) => steps.push(serde_json::json!({ "step": name, "ok": true })),
+            Err(error) => {
+                steps.push(serde_json::json!({
+                    "step": name,
+                    "variant": format!("{error:?}"),
+                    "message": format!("{error}"),
+                }));
+                if first.is_none() {
+                    first = Some(error);
+                }
+                break;
+            }
+        }
+    }
+    report.insert("steps".into(), steps.into());
+    let first = first.expect("a save on a full filesystem must fail");
+    report.insert("first_variant".into(), format!("{first:?}").into());
+    report.insert("first_message".into(), format!("{first}").into());
+
+    // P4, in two parts. Whether the survivors can be read back while the disk is
+    // still full is its own question, and a failure there is a different fact
+    // from the data not having survived.
+    let while_full = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        (
+            payload(&j, saved.id),
+            j.working_file(working.id).unwrap().dirty,
+        )
+    }));
+    report.insert("readable_while_full".into(), while_full.is_ok().into());
+
+    std::fs::remove_file(&ballast).unwrap();
+    assert_eq!(
+        payload(&j, saved.id),
+        b"changed!",
+        "the sealed payload must survive a full device"
+    );
+    assert!(
+        j.working_file(working.id).unwrap().dirty,
+        "the working copy must still be marked dirty"
+    );
+    report.insert("payload_survived".into(), true.into());
+
+    println!("FULL_DISK_RESULT {}", serde_json::Value::Object(report));
+
+    // The claim the acceptance box actually makes.
+    let message = format!("{first}");
+    assert!(
+        message.contains("freed") || message.contains("free space"),
+        "a save that failed because the disk is full must name freeing space \
+         as the action required; it said: {message}"
+    );
+}
