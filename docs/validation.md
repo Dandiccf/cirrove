@@ -2277,3 +2277,53 @@ established, and a shipped daemon has no loopback server in its address
 space. The mechanism transfers; the numbers do not.
 
 Nothing was changed and the limit was not moved.
+
+## The daemon has it too, and it accumulates
+
+`docs/benchmarks/daemon-allocator-arenas.json`, 2026-09-10, on the user's own
+account with their standing permission for read testing. Four files, 475 MB,
+read through the real mount and served entirely from the on-disk cache —
+zero provider content requests in all six passes.
+
+Both daemons restarted, then an identical unmeasured warm-up, then two
+measured passes each:
+
+| | default arenas | `MALLOC_ARENA_MAX=1` |
+|---|---|---|
+| resting after warm-up | 182.4 MiB | **104.6 MiB** |
+| pass 1: growth / residue | +11.0 / +11.0 | +0.0 / +0.0 |
+| pass 2: growth / residue | +20.4 / +17.8 | +3.3 / +3.3 |
+| resting after both | 211.3 MiB | **107.9 MiB** |
+
+The default daemon grows with read work and **returns essentially none of
+it**. Peak and residue are the same number in almost every pass, which is
+why the prediction that they would differ holds only degenerately: there is
+nothing to separate.
+
+The user's own daemon, running since their restart rather than freshly
+warmed, sat at 288.9 MiB and went to 338.4 on a single pass, keeping all of
+it.
+
+**Both registered magnitudes were wrong.** I predicted a per-pass residue of
+at least 100 MiB in the default arm and a per-pass difference of at least 50
+MiB between arms; the real per-pass figures are 11-20 MiB and 11-15 MiB. The
+effect is cumulative, not per-pass, and describing it that way is both more
+accurate and more concerning: 77.8 MiB apart after a warm-up, 103.4 MiB
+apart two passes later, on a daemon that runs for days.
+
+What this does not settle: every read came from cache, so nothing here
+speaks to memory while downloading. The resting difference after warm-up
+conflates retention with whatever else differs between two fresh daemons;
+only the per-pass growth is a clean paired comparison. And
+`MALLOC_ARENA_MAX=1` is not obviously the right cap — one arena serialises
+allocation across every runtime thread, and no measurement here asked what
+that costs in throughput.
+
+Nothing was changed. The drop-in was removed and the daemon restarted;
+`/proc/<pid>/environ` carries no `MALLOC_*` and the account reports ready,
+mounted, 184,011 items.
+
+The consequence for milestone 3 is not optional: the same daemon doing the
+same work rests at 108 MiB or 211 MiB depending on a setting nobody has
+chosen, so a bounded-memory box cannot be answered without naming the
+allocator.

@@ -72,6 +72,12 @@ jobs:
       - name: Namespace reclamation, deep-alias churn and held file versions
         run: timeout 150s cargo test -p cirrove-service --lib --locked filesystem::capacity::real_ -- --ignored --nocapture --test-threads=1 --skip real_writable_namespace_retires_and_stays_bounded
       - name: Streamed windows, concurrent kernel readers and navigation
+        # Without the cap the RSS assertion measures glibc arena retention
+        # rather than the service and fails about one run in seven. See
+        # docs/benchmarks/rss-allocator-arenas.json; the fixture refuses to run
+        # without it rather than measuring the wrong thing quietly.
+        env:
+          MALLOC_ARENA_MAX: "1"
         run: timeout 90s cargo test -p cirrove-service --lib --locked content::windows::tests::graph::kernel::real_ -- --ignored --nocapture --test-threads=1
       - name: Automatic writable-session uploads and draining
         # Serialized like its neighbours. This was the only kernel-FUSE step
@@ -127,6 +133,6 @@ jobs:
         run: |
           for delay in 0 20; do
             for mode in conservative strong windows; do
-              CIRROVE_FIXTURE_REQUEST_DELAY_MS="$delay" timeout 210s cargo test -p cirrove-service --lib --locked --release "real_mounted_${mode}_read_workload" -- --ignored --nocapture --test-threads=1
+              MALLOC_ARENA_MAX=1 CIRROVE_FIXTURE_REQUEST_DELAY_MS="$delay" timeout 210s cargo test -p cirrove-service --lib --locked --release "real_mounted_${mode}_read_workload" -- --ignored --nocapture --test-threads=1
             done
           done

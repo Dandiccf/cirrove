@@ -67,6 +67,26 @@ fn check_counts(
 }
 
 async fn workload(mode: Mode) -> anyhow::Result<serde_json::Value> {
+    // Refuse to run where the memory assertion below would measure glibc rather
+    // than the service. Uncapped, glibc keeps up to eight arenas per core and a
+    // buffer freed by one thread stays in that thread's arena; the same work
+    // then leaves 133 to 302 MiB resident depending only on how a work-stealing
+    // runtime spread it. Capped at one arena the identical work reports 44.3 to
+    // 47.3 MiB -- a spread of 3.0 MiB instead of 169.2, with every counter
+    // describing what the service did unchanged. Measured in
+    // docs/benchmarks/rss-allocator-arenas.json.
+    //
+    // This is checked rather than set because the workspace forbids unsafe_code,
+    // so mallopt is unavailable, and because glibc reads the variable before
+    // main: setting it from here would be too late and would silently do
+    // nothing, which is worse than refusing.
+    ensure!(
+        std::env::var("MALLOC_ARENA_MAX").is_ok_and(|value| value == "1"),
+        "run this with MALLOC_ARENA_MAX=1. Without it the RSS assertion measures \
+         glibc arena retention, not the service: the same workload reports \
+         anywhere from 133 to 302 MiB and fails about one run in seven for \
+         reasons that have nothing to do with this code."
+    );
     let delay_ms = std::env::var("CIRROVE_FIXTURE_REQUEST_DELAY_MS")
         .unwrap_or_else(|_| "0".into())
         .parse::<u64>()?;
@@ -153,6 +173,7 @@ async fn workload(mode: Mode) -> anyhow::Result<serde_json::Value> {
             "staging":stats,"elapsed_ms":start.elapsed().as_secs_f64()*1000.0,
             "service_and_loopback_sampled_rss_baseline_bytes":baseline,
             "service_and_loopback_sampled_rss_peak_bytes":peak,
+            "malloc_arena_max":std::env::var("MALLOC_ARENA_MAX").ok(),
             "fixture":"separate Python application, actual FUSE, loopback OneDrive adapter, seeded metadata; no real provider/indexing/desktop decoder"
         });
         println!("CIRROVE_MOUNTED_READ_WORKLOAD {report}");
@@ -163,11 +184,20 @@ async fn workload(mode: Mode) -> anyhow::Result<serde_json::Value> {
         // a red run used to say "RSS growth" and nothing else -- neither how far
         // over it went nor whether it was close. A limit without a measurement
         // beside it cannot be argued with, only re-run.
+        // 128 MiB, and the number has a derivation now rather than a round
+        // shape. With arenas capped this workload's growth is 44.3 to 47.3 MiB
+        // over 40 runs, so the bound is the 64 MiB staging budget plus 64 MiB of
+        // working margin -- roughly 2.7x the observed maximum, and still far
+        // below anything that could be called whole-file-sized against a 1 GiB
+        // read. The previous 256 MiB was never reached by the service; it was
+        // reached by the allocator, which is why it fired at random.
+        const RSS_GROWTH_LIMIT: u64 = 128 * 1024 * 1024;
         ensure!(
-            peak.saturating_sub(baseline) < 256 * 1024 * 1024,
-            "whole-file-sized service RSS growth: {:.1} MiB over a {:.1} MiB baseline, limit 256.0 MiB",
+            peak.saturating_sub(baseline) < RSS_GROWTH_LIMIT,
+            "whole-file-sized service RSS growth: {:.1} MiB over a {:.1} MiB baseline, limit {:.1} MiB",
             peak.saturating_sub(baseline) as f64 / (1024.0 * 1024.0),
-            baseline as f64 / (1024.0 * 1024.0)
+            baseline as f64 / (1024.0 * 1024.0),
+            RSS_GROWTH_LIMIT as f64 / (1024.0 * 1024.0)
         );
         ensure!(!matches!(mode, Mode::Conservative) == (stats.validated_windows > 0));
         Ok::<_, anyhow::Error>(report)

@@ -81,7 +81,7 @@
       "done": false,
       "text": "Bounded memory and background work with large libraries and long sessions.",
       "blocker": "needs-machine-window",
-      "evidence": "docs/benchmarks/namespace-trim-closes-g3.json",
+      "evidence": "docs/benchmarks/namespace-trim-closes-g3.json 2026-09-10: this box cannot be answered without naming the allocator. docs/benchmarks/daemon-allocator-arenas.json measured the live daemon reading 475 MB from cache: with default glibc arenas it rests at 211.3 MiB after two passes and returns essentially none of what each pass takes; capped at one arena, 107.9 MiB. The user's long-running daemon was at 338.4 MiB. Any bound stated without fixing that setting is a bound on a coin flip.",
       "asserted_by": "filesystem::capacity::real_combined_namespace_churn (g3_released enforced; peak_resident reporting)"
     },
     {
@@ -525,5 +525,5 @@
       "asserted_by": null
     }
   ],
-  "operator_guide": "docs/authorization-request.md \u2014 the command, blast radius and evidence for every box this file marks as blocked on something an agent cannot supply."
+  "operator_guide": "docs/authorization-request.md — the command, blast radius and evidence for every box this file marks as blocked on something an agent cannot supply."
 }
