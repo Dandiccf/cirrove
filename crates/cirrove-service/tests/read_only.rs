@@ -3298,6 +3298,30 @@ async fn real_reclamation_reaches_a_mount_that_only_reads() {
     let temp = tempfile::tempdir().unwrap();
     let mount = temp.path().join("mount");
     std::fs::create_dir(&mount).unwrap();
+    // This fixture retains a flat 16.5 MiB however much it reads: the baseline
+    // and nothing more. The shipped floor is 64 MiB, derived from a daemon
+    // holding 184,000 nodes and a 560 MB index, and no amount of reading here
+    // reaches it. Lowering it lets this assert the mechanism -- that the
+    // retention signal reaches a mount which only reads -- while leaving the
+    // number measurement chose alone. What this test does NOT show is that the
+    // shipped floor is right; that is in the daemon measurement.
+    // Declared rather than set: the workspace forbids unsafe_code, so a test
+    // cannot call set_var, and glibc would want it before the threads exist
+    // anyway. CI sets it on the step that runs these.
+    let floor: u64 = std::env::var("CIRROVE_RECLAIM_FLOOR_BYTES")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or_else(|| {
+            panic!(
+                "run this with CIRROVE_RECLAIM_FLOOR_BYTES=8388608. The shipped floor \
+                 is 64 MiB and this fixture retains a flat 16.5 MiB however much it \
+                 reads, so it cannot reach it."
+            )
+        });
+    assert!(
+        floor < 32 * 1024 * 1024,
+        "the override has to be below what this fixture can reach, or the test asserts nothing"
+    );
     let provider = Fixture::new();
     let mut config = account(mount.clone());
     config.cache_bytes = 256 * 1024 * 1024;
@@ -3329,7 +3353,8 @@ async fn real_reclamation_reaches_a_mount_that_only_reads() {
                 .await;
         }
         println!(
-            "TRIM_TRIGGER round={round} free_arena_mib={:.1}",
+            "TRIM_TRIGGER round={round} retained_mib={:.1} free_arena_mib={:.1}",
+            cirrove_allocator::retained_bytes() as f64 / (1024.0 * 1024.0),
             cirrove_allocator::free_arena_bytes() as f64 / (1024.0 * 1024.0)
         );
     }
@@ -3346,8 +3371,8 @@ async fn real_reclamation_reaches_a_mount_that_only_reads() {
     .await;
     assert!(
         trimmed.is_ok(),
-        "a mount that only reads never reclaimed; the allocator held {:.1} MiB free",
-        cirrove_allocator::free_arena_bytes() as f64 / (1024.0 * 1024.0)
+        "a mount that only reads never reclaimed; it retained {:.1} MiB",
+        cirrove_allocator::retained_bytes() as f64 / (1024.0 * 1024.0)
     );
 
     session.umount_and_join().unwrap();

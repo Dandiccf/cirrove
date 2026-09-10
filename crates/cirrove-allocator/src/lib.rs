@@ -31,11 +31,13 @@
 
 /// Bytes the allocator holds free across every arena.
 ///
-/// The signal a caller needs to decide whether trimming is worth its cost: this
-/// is what `trim` would be walking the arenas to give back. It is cheap --
-/// `mallinfo2` reads counters glibc already maintains -- and it is the only way
-/// to tell a process that has freed half a gibibyte from one that has freed
-/// nothing, since resident size cannot distinguish them.
+/// Counts free CHUNKS on the arenas' free lists. Reported because it is the
+/// allocator's own view, but it is the wrong signal for deciding to trim, and
+/// this is written down because measuring it was the only way to find out:
+/// `malloc_trim` returns free PAGES to the kernel and leaves the chunks on the
+/// free lists, so this figure does not fall when a trim succeeds. A trigger
+/// keyed to it fires forever -- measured on a live daemon at eight trims in
+/// eight seconds with the figure flat at 104 MiB.
 ///
 /// `mallinfo2` rather than `mallinfo`, whose fields are `int` and wrap silently
 /// above two gibibytes. This service has been measured holding 490 MiB; wrapping
@@ -47,6 +49,38 @@ pub fn free_arena_bytes() -> u64 {
     // memory.
     let info = unsafe { libc::mallinfo2() };
     info.fordblks as u64
+}
+
+/// Resident memory this process holds that is not live heap.
+///
+/// The figure a reclamation decision actually wants: what the kernel counts as
+/// ours minus what the allocator says is in use. That is the memory a trim could
+/// give back, and unlike [`free_arena_bytes`] it FALLS when one succeeds,
+/// because a successful trim lowers resident size. So it provides its own
+/// hysteresis rather than needing one bolted on.
+///
+/// It is an over-estimate: it includes the binary's own mappings, thread stacks
+/// and anything else resident that is not malloc'd heap. On this service that
+/// baseline is tens of mebibytes and roughly constant, which is why a floor
+/// works. Reading `/proc/self/status` costs a small read once a tick.
+///
+/// Zero when the status file cannot be read, so a caller treats an unknown as
+/// "nothing to do" rather than trimming blindly.
+#[must_use]
+pub fn retained_bytes() -> u64 {
+    // SAFETY: as above.
+    let live = unsafe { libc::mallinfo2() }.uordblks as u64;
+    let Ok(status) = std::fs::read_to_string("/proc/self/status") else {
+        return 0;
+    };
+    let resident = status
+        .lines()
+        .find_map(|line| line.strip_prefix("VmRSS:"))
+        .and_then(|value| value.split_whitespace().next())
+        .and_then(|kib| kib.parse::<u64>().ok())
+        .map(|kib| kib * 1024)
+        .unwrap_or(0);
+    resident.saturating_sub(live)
 }
 
 /// Release free pages held by every arena. Returns whether anything was released.

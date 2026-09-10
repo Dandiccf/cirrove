@@ -66,6 +66,12 @@ jobs:
       - name: Build kernel fixtures
         run: cargo test -p cirrove-service --lib --test read_only --test writable_session --locked --no-run
       - name: Filesystem, isolated local writes and mount lifecycle
+        # real_reclamation_reaches_a_mount_that_only_reads needs a floor this
+        # fixture can reach: it retains a flat 16.5 MiB however much it reads,
+        # while the shipped floor is 64 MiB derived from a daemon holding
+        # 184,000 nodes. The other tests in this step do not read the variable.
+        env:
+          CIRROVE_RECLAIM_FLOOR_BYTES: "8388608"
         # Keep independent mounts from competing with latency/memory fixtures.
         # Each fixture still exercises its own concurrent requests/accounts.
         run: timeout 150s cargo test -p cirrove-service --test read_only --locked real_ -- --ignored --nocapture --test-threads=1

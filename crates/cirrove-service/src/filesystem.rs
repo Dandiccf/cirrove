@@ -254,21 +254,47 @@ impl CloudFs {
             //
             // The floor only avoids a pointless walk; it is not what protects
             // throughput. The quiescent gate does that -- the trim cannot fire
-            // while the mount is doing anything -- so the floor can sit where
-            // returning the memory stops being worth the walk rather than where
-            // a busy mount would notice. A pass measured 717 microseconds around
-            // 50 MiB, so roughly 14 microseconds per mebibyte: eight is about a
-            // hundred microseconds, once, on a mount that is already idle.
+            // while the mount is doing anything -- so the floor sits where
+            // returning the memory stops being worth the walk. A pass measured
+            // 717 microseconds around 50 MiB, roughly 14 microseconds per
+            // mebibyte, so eight is about a hundred microseconds.
             //
-            // Measured, not chosen to fit: a read-only mount fixture holds a flat
-            // 11.4 MiB free across four rounds of 192 MiB each. Thirty-two would
-            // never fire there. See docs/benchmarks/trim-trigger-reaches-reads.json,
-            // which also records that this fixture does NOT reproduce the growth
-            // seen on the live daemon.
+            // The floor is measured, not chosen. A settled daemon on this
+            // machine reports 16 to 19 MiB retained -- binary mappings, thread
+            // stacks and whatever else is resident and not malloc'd heap -- and
+            // it is roughly constant. Anything at or below that trims a process
+            // that has nothing to give back, once a second, forever. Sixty-four
+            // sits well clear of it and well below the hundred-odd mebibytes the
+            // same daemon accumulates over a few hundred megabytes of reading.
+            //
+            // The signal is resident memory that is not live heap, and getting
+            // there took two wrong answers that are recorded rather than tidied
+            // away. Free arena bytes fires forever, because `malloc_trim`
+            // returns PAGES while the free CHUNKS stay on the free lists, so the
+            // figure does not fall when a trim succeeds -- eight trims in eight
+            // seconds on a live daemon with it flat at 104 MiB. Bolting an
+            // explicit growth threshold onto that then made things worse than
+            // doing nothing, because trims only fired in the brief idle windows
+            // after activity: 189.6 MiB resting against 151.7 for the version
+            // that trimmed freely.
+            //
+            // Resident minus live is what a reclamation decision actually wants,
+            // and it FALLS when a trim succeeds, so it carries its own
+            // hysteresis. See docs/benchmarks/trim-trigger-reaches-reads.json.
             const QUIESCENT_TICKS: u32 = 5;
             const SHED_FACTOR: usize = 2;
             const SHED_FLOOR: usize = 1024;
-            const RETAINED_FLOOR: u64 = 8 * 1024 * 1024;
+            // Overridable for tests only, in the style of this crate's other
+            // fixture variables. A read-only mount fixture retains a flat 16.5
+            // MiB however much it reads -- the baseline and nothing more -- so it
+            // cannot reach a floor derived from a daemon holding 184,000 nodes
+            // and a 560 MB index. That is a fact about the fixture's size, not
+            // about the trigger, and lowering the floor lets a test assert the
+            // mechanism while the shipped number stays what measurement chose.
+            let floor = std::env::var("CIRROVE_RECLAIM_FLOOR_BYTES")
+                .ok()
+                .and_then(|value| value.parse::<u64>().ok())
+                .unwrap_or(64 * 1024 * 1024);
             let mut idle = 0u32;
             let mut high_water = 0usize;
             loop {
@@ -289,7 +315,8 @@ impl CloudFs {
                         };
                         high_water = high_water.max(held);
                         let shed = high_water > held.saturating_mul(SHED_FACTOR).max(SHED_FLOOR);
-                        let retained = cirrove_allocator::free_arena_bytes() >= RETAINED_FLOOR;
+                        let retained =
+                            cirrove_allocator::retained_bytes() >= floor;
                         if idle >= QUIESCENT_TICKS && (shed || retained) {
                             high_water = held;
                             TRIMS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);

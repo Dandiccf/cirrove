@@ -51,6 +51,10 @@ pub struct Status {
     pub allocator_trims: u64,
     #[serde(default)]
     pub free_arena_bytes: u64,
+    /// Resident memory that is not live heap -- what a trim could return. This
+    /// is what the reclamation trigger reads.
+    #[serde(default)]
+    pub retained_bytes: u64,
 }
 
 /// A pin request carried over the control socket.
@@ -370,7 +374,7 @@ pub async fn serve_managed(
                         let accounts=match &manager {Some(m)=>m.status.read().await.clone(),None=>vec![]};
                         if manager.is_some() {feeds=accounts.iter().map(|a|a.indexed_feeds).sum();items=accounts.iter().map(|a|a.indexed_items).sum();}
                         let active_mounts=accounts.iter().filter(|a|a.mounted).count() as u64;
-                        let reply=Status{protocol_version:STATUS_PROTOCOL_VERSION,version:env!("CARGO_PKG_VERSION").into(),milestone:"readonly-preview".into(),indexed_feeds:feeds,indexed_items:items,active_mounts,accounts,allocator_trims:crate::filesystem::allocator_trims(),free_arena_bytes:cirrove_allocator::free_arena_bytes()};
+                        let reply=Status{protocol_version:STATUS_PROTOCOL_VERSION,version:env!("CARGO_PKG_VERSION").into(),milestone:"readonly-preview".into(),indexed_feeds:feeds,indexed_items:items,active_mounts,accounts,allocator_trims:crate::filesystem::allocator_trims(),free_arena_bytes:cirrove_allocator::free_arena_bytes(),retained_bytes:cirrove_allocator::retained_bytes()};
                         stream.write_all(&serde_json::to_vec(&reply)?).await?;
                         Ok::<_,anyhow::Error>(())
                     }).await;

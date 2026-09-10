@@ -54,6 +54,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
             accounts,
             allocator_trims: 0,
             free_arena_bytes: 0,
+            retained_bytes: 0,
         }),
     })
 }
