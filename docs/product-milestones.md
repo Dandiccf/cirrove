@@ -12,7 +12,7 @@ Private account measurements belong in local records, not the public repository.
 - [ ] Recovery after process failure, suspend/resume and loss of network access.
 - [ ] Real token expiry/refresh and visible reauthentication when consent expires.
 - [ ] Responsive navigation during initial indexing and competing downloads.
-- [ ] Remove Graph metadata checks per cache block from the validated read-session
+- [x] Remove Graph metadata checks per cache block from the validated read-session
       fast path; implement and measure shared session setup, bounded sequential
       windows and safe renewal as specified in [read-session efficiency](adr/0004-read-session-efficiency.md).
 - [ ] Push-triggered metadata updates, reconnection/catch-up and periodic recovery checks, with provider delivery and local reaction latency measured separately.
