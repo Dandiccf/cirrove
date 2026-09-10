@@ -63,5 +63,32 @@
     "P4": "HOLDS. The competing download raised p95 from 317 ms to 435 ms, a factor of 1.37, and the maximum from 523 ms to 834 ms."
   },
   "what_this_changes": "The fixture's claim was never wrong; it was narrow. Cached navigation does stay under 500 ms. A first visit during initial indexing costs about 192 ms at the median and occasionally more than 500 ms, and a competing download makes the tail worse rather than the median. The gap between the fixture's 1.3 ms hot-directory figure and this 192 ms is a factor of 150, and the box's wording -- responsive navigation during initial indexing -- is about the second one.",
-  "decision": "The box stays open, and this run says which clause and by how much. The median is comfortable; the tail is not. One sample in 132 crosses 500 ms during indexing alone and six in 243 with a download, so the failure is an excursion rather than a baseline. Anyone tightening this should be measuring the tail under a competing transfer, not the median."
+  "decision": "The box stays open, and this run says which clause and by how much. The median is comfortable; the tail is not. One sample in 132 crosses 500 ms during indexing alone and six in 243 with a download, so the failure is an excursion rather than a baseline. Anyone tightening this should be measuring the tail under a competing transfer, not the median.",
+  "independent_replication_2026_09_10": {
+    "why": "A second cold mount of the same 184,000-item collection, through a separate validation connection created for the purpose, on a different day and a different daemon build.",
+    "indexing_only": {
+      "samples": 227,
+      "p50_ms": 177.8,
+      "p95_ms": 270.8,
+      "max_ms": 510.5,
+      "over_500ms": 1
+    },
+    "indexing_and_download": {
+      "samples": 428,
+      "p50_ms": 193.7,
+      "p95_ms": 369.2,
+      "max_ms": 1184.9,
+      "over_500ms": 8
+    },
+    "a_third_run_without_the_download": {
+      "samples": 639,
+      "p50_ms": 193.4,
+      "p95_ms": 348.9,
+      "max_ms": 1224.2,
+      "over_500ms": 12
+    },
+    "what_reproduces": "The median and the download's effect on the tail, closely. p50 177.8-193.7 against 192.1-210.5 originally; the download raises p95 by a factor of 1.36 against 1.37 first time. A figure that lands that close on an independent mount, connection and build is a property of the system rather than of one run.",
+    "what_is_worse": "The maximum. 1184.9 and 1224.2 ms against 834.5 first time, and 8 to 12 samples over 500 ms rather than 6. The tail is the clause this box fails on, and it is not getting better.",
+    "verdict_unchanged": "The box stays open for the reason it was already open: the median is comfortable and the tail crosses the threshold the fixture asserts. Two independent runs now say so."
+  }
 }

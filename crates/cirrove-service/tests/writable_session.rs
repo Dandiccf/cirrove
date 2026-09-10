@@ -3335,9 +3335,14 @@ async fn real_a_save_on_a_full_device_is_reported_as_a_device_and_not_a_budget()
     let vault = Arc::new(Vault::default());
     // State and journal on the small filesystem; the mount point itself stays on
     // the ordinary one, because it is the saves that must meet the full device.
-    let state = root.join("state");
+    //
+    // Named for this test rather than `state` and `journal`, because CI hands
+    // the same loop image to the journal-level full-disk test first and a
+    // journal belongs to one account: opening its directory under a different
+    // account id fails with JournalError::Account, which is what happened.
+    let state = root.join("device-state");
     let journal = Arc::new(Mutex::new(
-        UploadJournal::open(&root.join("journal"), &account.id, 1 << 30).unwrap(),
+        UploadJournal::open(&root.join("device-journal"), &account.id, 1 << 30).unwrap(),
     ));
     let engine = Engine::new(account, cloud.clone(), state).await.unwrap();
     let watched = engine.clone();
@@ -3360,8 +3365,10 @@ async fn real_a_save_on_a_full_device_is_reported_as_a_device_and_not_a_budget()
             .expect("a save must be possible before the device is full");
     }
 
-    // Fill it, shrinking the chunk so the last free block goes too.
-    let ballast = root.join("ballast");
+    // Likewise named for this test: the sibling leaves its own ballast path
+    // behind, and two tests racing one filename on one filesystem is not a
+    // thing to leave to ordering.
+    let ballast = root.join("device-ballast");
     let mut sink = std::fs::File::create(&ballast).unwrap();
     for chunk in [1 << 20usize, 4096, 512, 1] {
         let block = vec![0u8; chunk];
@@ -3372,7 +3379,7 @@ async fn real_a_save_on_a_full_device_is_reported_as_a_device_and_not_a_budget()
 
     // Checked outside the filesystem code, so a refusal below cannot be what
     // persuaded us the device was full.
-    let probe = root.join("probe");
+    let probe = root.join("device-probe");
     let refusal = std::fs::File::create(&probe).and_then(|mut file| {
         std::io::Write::write_all(&mut file, &vec![0u8; 65536])?;
         file.sync_all()
