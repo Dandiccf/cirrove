@@ -192,7 +192,7 @@
       "text": "Persistent per-file and recursive-folder pinning with storage reservations.",
       "blocker": "autonomous",
       "evidence": "Scope expanded by the user on 2026-09-09 from milestones 1 and 2 to all six, so this row is no longer out of the agreed frame. IMPLEMENTED 2026-09-09, acceptance evidence still owed. Pins live in the metadata database at schema version 7 and survive restart; a reservation is checked against the cache budget when the pin is made and refused if it does not fit; eviction reads a published view and neither takes protected blocks nor counts reserved bytes as free. Folder pins walk cached directory views and report whether the walk was complete. Asserted by cirrove-store pins::tests (4) and cirrove-service engine::pinning (7) and content::tests (2); each was shown to fail without its subject. NOT YET: a control-socket verb, so this is unreachable from a terminal, and no measured evidence on a real account.",
-      "asserted_by": null
+      "asserted_by": "Persistence: store::pins::tests::a_pin_and_its_protected_blocks_survive_reopening_the_store, and engine::pinning::a_restart_republishes_pins_before_anything_can_evict, which is the stronger of the two because it asserts the ordering rather than only the survival. Recursive folders: engine::pinning::a_folder_pin_covers_every_file_under_it_and_says_what_it_could_not_see and an_unindexed_subtree_is_reported_rather_than_quietly_excluded. Reservations: store::pins::tests::raising_a_pin_counts_only_the_difference_against_the_budget, engine::pinning::a_refused_pin_changes_nothing, content::tests::a_reservation_shrinks_the_budget_the_ordinary_cache_may_fill, and engine::pinning::materialising_a_pin_fetches_its_blocks_and_protects_exactly_those."
     },
     {
       "milestone": 3,
@@ -202,7 +202,7 @@
       "text": "Clear unpin/free-space behavior and accurate availability status.",
       "blocker": "autonomous",
       "evidence": "Scope expanded by the user on 2026-09-09. PART DONE 2026-09-09: availability status separates what a pin reserved from what it has actually kept, counted from files present in the cache directory rather than from the block index, which is derived state and would keep reporting a deleted block as available. Unpin releases both the reservation and the protection and reports whether a pin existed. Asserted by engine::pinning availability tests and pins::tests::unpinning_releases_both. STILL OPEN: free-space behaviour proper -- what happens as the budget fills and how that is explained to the user -- and any of this being reachable from a terminal.",
-      "asserted_by": null
+      "asserted_by": "engine::pinning::unpinning_releases_the_budget_at_the_cache and store::pins::tests::unpinning_releases_both_the_reservation_and_the_protection cover the free-space half; engine::pinning::availability_separates_what_a_pin_reserved_from_what_it_kept covers the status half."
     },
     {
       "milestone": 3,
@@ -212,7 +212,7 @@
       "text": "Offline access and editing of pinned content, including across restart.",
       "blocker": "autonomous",
       "evidence": "Scope expanded by the user on 2026-09-09. DONE at the durability layer 2026-09-09. Reading: a pinned file reads with the provider returning Unavailable and still reads after the engine is rebuilt on the same directory, where the memory cache is empty so the bytes can only come from disk, with the provider's read counter asserted not to move. Editing: a pinned file is edited with the provider unreachable, the edit seals into a pending upload, and after restarting both the engine and the journal the edited bytes are still pending, the working file is still there, the pin's reservation is in force before anything can evict, and the pinned content still reads offline. Asserted by engine::pinning::pinned_content_reads_offline_and_still_does_after_a_restart and a_pinned_file_can_be_edited_offline_and_both_survive_a_restart. The second matters because the cache's view and the journal's are rebuilt by separate paths that do not consult each other, so surviving together is a claim rather than a consequence. STILL OPEN: none of this goes through the kernel mount, whose writable tests need --test-threads=1 and a mounted FUSE session, and nothing has been measured on a real account.",
-      "asserted_by": null
+      "asserted_by": "engine::pinning::pinned_content_reads_offline_and_still_does_after_a_restart and engine::pinning::a_pinned_file_can_be_edited_offline_and_both_survive_a_restart. The second is the load-bearing one: the cache's view and the journal's are rebuilt by separate paths that do not consult each other, so surviving together is a claim rather than a consequence."
     },
     {
       "milestone": 3,
@@ -222,7 +222,7 @@
       "text": "Unsent changes excluded from cache eviction and connection cleanup.",
       "blocker": "autonomous",
       "evidence": "Scope expanded by the user on 2026-09-09. Holds structurally rather than by a rule that could be relaxed: the upload journal is a sibling of the cache directory, and eviction only ever removes files whose names it recognises as its own block keys, plus its own <key>.<uuid>.tmp temporaries. No production path in the tree calls remove_dir_all at all. Asserted by content::tests::eviction_never_reaches_outside_its_own_block_names, which places an unsent journal entry beside the cache and a non-block file inside it, drives both the runtime eviction pass and the mount-time reconcile pass under real pressure, and requires a genuine block to have been removed so that survival of the other two means something. STILL OPEN: the connection-cleanup half. Nothing removes the journal today, but no test pins that down across account disable and removal, and there is no measured evidence on a real account.",
-      "asserted_by": null
+      "asserted_by": "content::tests::eviction_never_reaches_outside_its_own_block_names, which places an unsent journal entry beside the cache and a non-block file inside it, drives both deletion passes -- evict and the reconcile that runs on reopening -- and asserts a real block was removed as well, so a pass that deleted nothing could not satisfy it. content::tests::eviction_leaves_a_protected_block_and_takes_the_next_one_instead and the_reconcile_pass_at_mount_time_also_leaves_protected_blocks_alone cover the same two passes for pinned blocks."
     },
     {
       "milestone": 3,
@@ -282,7 +282,7 @@
       "text": "Remote creates, edits, moves and deletions update mounted views correctly.",
       "blocker": "autonomous",
       "evidence": "MOSTLY DONE 2026-09-09 (docs/validation.md#a-mounted-view-following-remote-creates-moves-and-deletions, and #catch-up-after-a-reconnection-and-the-periodic-recovery-refresh). Through a real read-only mount of an isolated account: a remote folder creation became visible in 5,058 ms, a rename in 4,654 ms and a deletion in 4,254 ms, the rename asserted on both halves so that a view adding the new name while keeping the old one fails. All three land at the five-second activity revalidation interval because the fixture watches that directory; a directory nobody is looking at follows the same changes by reconnection catch-up in 408 ms or by the thirty-second poll in 29,421 ms, each measured with the other disabled. NOT COVERED: edits. A content change to an existing file goes through the upload path rather than a namespace mutation, and nothing here exercises it.",
-      "asserted_by": null
+      "asserted_by": "validation::remote_changes::onedrive_remote_changes, run live against an isolated account and recorded in docs/validation.md; there is no unit-level assertion, and the box's uncovered clause -- a content edit to an existing file -- has no run at all."
     },
     {
       "milestone": 4,
