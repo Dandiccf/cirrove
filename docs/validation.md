@@ -2161,37 +2161,61 @@ filesystem. The device case shares the choke point, the recorder and the
 classification, and `only_the_two_no_space_refusals_are_recorded_and_they_stay_distinct`
 covers the mapping, but the journey is proven for the budget only.
 
-## An acceptance assertion that fails one run in ten
+## An acceptance assertion that fails about one run in eight
 
-`docs/benchmarks/strong-workload-rss-flake.json`, 2026-09-10. Found while
-checking that two branches worked together, not looked for.
+`docs/benchmarks/strong-workload-rss-flake.json` and, superseding most of it,
+`docs/benchmarks/rss-flake-under-load.json`. 2026-09-10. Found while checking
+that two branches worked together, not looked for.
 
 `real_mounted_strong_read_workload` fails intermittently on
 `whole-file-sized service RSS growth`, the assertion that the service's
 resident memory grows by less than 256 MiB across a workload that reads a
-256 MiB file sparsely and 1 GiB sequentially. A passing run grows 133 MiB,
-so a failure is roughly a doubling rather than a drift past the line.
+256 MiB file sparsely and 1 GiB sequentially.
 
-The first question was whether the day's work caused it. It did not: the
-same one-in-ten rate appears on the branch combination, on plain `main`, and
-on the commit before the read-session default flip. Three failures in thirty
-runs, each set of ten on a different commit.
+It is not caused by recent work. The same rate appears on the branch
+combination, on plain `main`, and on the commit before the read-session
+default flip.
 
-Twenty further runs on a quiet machine produced none. That is consistent
-with the assertion being load-sensitive and is not proof of it: a
-one-in-ten event misses twenty draws by chance about twelve percent of the
-time, and load was neither controlled nor measured. It narrows the question
-rather than answering it.
+**The first explanation was wrong, and backwards.** Thirty runs taken while
+the machine was compiling gave three failures; twenty taken while it was idle
+gave none, and load sensitivity went into the record as a suggestion. Ninety
+further runs across three arms say the opposite: sixteen CPU-bound processes
+took the failure rate from 8 in 60 to **0 in 30**, and p95 from 272-289 MiB
+down to 202 MiB. Load suppresses it. The earlier zero needs no explanation
+beyond chance -- twenty draws of a one-in-eight event come up empty about
+seven percent of the time.
 
-Nothing was changed. Raising the limit until it stops failing would remove
-the only thing standing between a real whole-file residency regression and
-nobody noticing, and a test that fails one run in ten already teaches people
-to re-run until green -- which is how the next real regression gets re-run
-away. CI runs this workload six times per build, so the cost of leaving it is
-a real chance of a red build for a reason unrelated to the change under
-review.
+**tmpfs was a real violation and a false lead.** `TMPDIR` was unset and `/tmp`
+here is a 31 GiB tmpfs, which this repository's discipline forbids for exactly
+this kind of measurement; the fixture mounts, caches and stages under its
+tempdir. Predicted before running: tmpfs fails, disk does not. Disk failed
+too, 3 of 30 against 5 of 30, and tmpfs's median was the *lower* of the two.
 
-What is owed is a diagnosis under controlled load, instrumented for what is
-resident rather than how much: allocator arenas holding freed 4 MiB block
-buffers, the 64 MiB staging window coinciding with decode buffers, and a
-sampler catching a transient are all still on the table.
+**What it actually is.** Peak growth over ninety runs spans 127 to 301 MiB
+with a median of 162. The limit sits inside the natural spread of the
+measurement, in its upper tail. This is not an external condition intruding on
+a stable number; the number itself varies by a factor of 2.4.
+
+Two things were fixed along the way, both in the measuring rather than the
+measured. A failing run printed no figures at all, because the report is built
+after the assertions -- so the first distributions described passing runs only,
+and their "nothing reached the limit" line was censoring, not a finding. The
+assertion now states how far over it went, which also means a red CI build
+stops saying `whole-file-sized service RSS growth` and nothing else. And a
+striking gap between the highest pass (255.4 MiB) and the lowest failure
+(261.2 MiB) was nearly written up as bimodality; it is the cutoff itself, since
+every run under 256 is recorded as a pass by definition.
+
+Nothing in the code under test was changed and the limit was deliberately not
+moved. What remains is a choice, and it is not a measurement's to make: treat
+the 2.4-fold variance as the defect and find what holds buffers live, or set
+the limit from the observed distribution with a stated margin. Raising the
+number until the red goes away, without saying which, would be worse than
+either.
+
+A mechanism the data supports without establishing: `peak` is sampled every
+50 ms, so a slower run is sampled *more* and should catch more high moments --
+yet loaded runs peak lower. That points at real memory behaviour rather than
+sampling luck. The concurrent phase opens 32 readers at once, and under
+contention those serialise with fewer 4 MiB buffers live together. Nothing
+here instruments what is resident, so that stays a candidate.

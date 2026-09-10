@@ -35,6 +35,13 @@
     "typical_headroom": "A passing run grows 133 MiB against a 256 MiB limit, so a failure is roughly a doubling rather than a slow drift past the line."
   },
   "what_was_not_done": "No diagnosis of where the extra resident memory comes from. Candidates not separated: allocator arenas retaining freed 4 MiB block buffers, the 64 MiB staging window coinciding with decode buffers, or the sampler catching a transient that a quieter run schedules away. Establishing any of these needs the quiet-machine discipline this repository asks for -- one measurement at a time, nothing compiling -- and instrumentation of what is resident rather than how much.",
-  "decision": "Recorded, not fixed, and deliberately not loosened. Raising the limit until it stops failing would remove the only thing standing between a real whole-file residency regression and nobody noticing. The next step is a diagnosis under controlled load, not a new number.",
-  "cost_if_ignored": "CI runs this workload six times per build, in two jobs that already serialise. At one failure in ten runs, a build has a meaningful chance of going red for a reason unrelated to the change under review."
+  "decision": "Recorded, not fixed, and deliberately not loosened. Raising the limit until it stops failing would remove the only thing standing between a real whole-file residency regression and nobody noticing. The next step is a diagnosis under controlled load, not a new number. SUPERSEDED in part: see correction_2026_09_10 and docs/benchmarks/rss-flake-under-load.json. The diagnosis asked for there was done; it did not find an external condition, it found a limit sitting inside the spread of what it measures.",
+  "cost_if_ignored": "CI runs this workload six times per build, in two jobs that already serialise. At one failure in ten runs, a build has a meaningful chance of going red for a reason unrelated to the change under review.",
+  "correction_2026_09_10": {
+    "why_here": "The claim was made in this file, so the correction belongs in it and not only in the artifact that overturned it.",
+    "what_was_wrong": "This artifact offered load sensitivity as the explanation, on three failures in thirty runs taken while the machine compiled and zero in twenty taken while it was idle. It hedged the claim as SUGGESTED rather than established, which was right, but the direction it suggested is backwards.",
+    "what_the_larger_run_found": "docs/benchmarks/rss-flake-under-load.json, ninety runs across three arms: 0 of 30 failures under sixteen CPU-bound processes against 8 of 60 quiet, with p95 falling from 272-289 MiB to 202 MiB. Load suppresses the failure.",
+    "how_the_zero_is_explained_now": "Without load at all. The quiet rate is about one in eight, and twenty draws of a one-in-eight event come up empty roughly 7 percent of the time. The twenty clean runs recorded here were unremarkable.",
+    "what_survives": "The conclusion that recent work did not cause it, which the larger run reproduces, and the decision not to raise the limit."
+  }
 }

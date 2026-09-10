@@ -1,0 +1,128 @@
+{
+  "question": "Is the intermittent 'whole-file-sized service RSS growth' failure caused by running the fixture on tmpfs, which this repository's own discipline forbids, rather than by machine load?",
+  "why_now": "docs/benchmarks/strong-workload-rss-flake.json recorded three failures in thirty runs while the machine was compiling and none in twenty while it was idle, and said that this SUGGESTS load sensitivity without establishing it. This was registered to settle that with a distribution rather than a rate.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-10",
+  "registration_was_rewritten_before_any_run": {
+    "what_happened": "The first version of this file compared quiet against loaded and nothing else. While checking the environment requirements it had just written down -- TMPDIR must not be tmpfs -- the check failed: TMPDIR is unset, so tempfile::tempdir() lands in /tmp, and /tmp on this machine is a 31 GiB tmpfs. Every failure recorded in the earlier artifact was produced that way.",
+    "why_that_matters_more_than_load": "The fixture mounts, caches and stages under its tempdir. On tmpfs those bytes are resident memory rather than files on a disk, so a memory assertion measured there is measuring a different system than the one the assertion is about. GitHub's RUNNER_TEMP is disk-backed, and no run of this test has ever been observed to fail in CI.",
+    "consequence": "Load is now the second factor rather than the first, and the earlier artifact's twenty quiet runs are reinterpreted: they were quiet AND on tmpfs, so they bear on load and say nothing about this.",
+    "honesty_note": "Nothing had been run when this was rewritten. The rewrite is a change of question before measurement, not a change of question after seeing an answer."
+  },
+  "arms": [
+    {
+      "name": "tmpfs-quiet",
+      "description": "TMPDIR unset, so the fixture lands in /tmp, a tmpfs. Nothing else running. This is the configuration that produced every failure so far."
+    },
+    {
+      "name": "disk-quiet",
+      "description": "TMPDIR pointed at a directory on the btrfs root filesystem. Nothing else running. This is what the repository's discipline asks for and what CI approximates."
+    },
+    {
+      "name": "disk-loaded",
+      "description": "TMPDIR on disk, plus sixteen CPU-bound processes, one per core, started before the arm and killed after it. CPU-bound rather than memory-hungry deliberately: this machine has a memory watchdog that has already killed background work today and left stale FUSE mounts behind, and a fixture that mounts must not be run into it."
+    }
+  ],
+  "workload": "The same ignored test, release profile, thirty runs per arm. Every run reports the service's sampled RSS baseline and peak; the endpoint is peak minus baseline, per run.",
+  "endpoint": "The distribution of RSS growth per run in each arm -- median, p95, maximum -- and the count of runs at or above the 256 MiB assertion limit.",
+  "predictions": [
+    {
+      "id": "P1",
+      "claim": "The disk-quiet arm's median growth is between 100 and 170 MiB.",
+      "role": "discriminator -- one passing run measured 133 MiB, and a median far from it would mean the fixture is not doing the same thing twice and nothing below is interpretable"
+    },
+    {
+      "id": "P2",
+      "claim": "tmpfs-quiet produces at least one run at or above 256 MiB and disk-quiet produces none.",
+      "role": "the direct test. If it holds, the failure is the fixture's filesystem and not the code under test, and the earlier artifact's load story was a coincidence of when the runs were taken."
+    },
+    {
+      "id": "P3",
+      "claim": "disk-loaded produces no run at or above 256 MiB either.",
+      "role": "separates the two explanations. If load alone reproduces the failure on disk, then tmpfs is not the whole story and both matter."
+    },
+    {
+      "id": "P4",
+      "claim": "tmpfs-quiet's median exceeds disk-quiet's median by more than 20 MiB.",
+      "reasoning": "If tmpfs is doing this by making cache and staging bytes resident, it should raise the whole distribution and not only its tail. A tail-only difference would point back at timing instead."
+    }
+  ],
+  "decision_rule": "If P2 holds, the earlier artifact is corrected in place: the failure is an artifact of running a memory assertion on tmpfs, the assertion is sound, and what is owed is a fixture that refuses to run there rather than a larger limit. If P2 fails and P3 fails, load is the cause after all and the earlier artifact stands. If neither arm produces a failure, thirty runs per arm was too few, and that is recorded rather than dressed up.",
+  "environment_requirements": {
+    "no_compilation": "the binary is built with --no-run before any arm; every run passes --locked",
+    "same_binary": "all three arms run the same build; only TMPDIR and load differ",
+    "mounts_checked_after": "stale FUSE mounts are checked for after each arm, because a killed fixture leaves them"
+  },
+  "result": {
+    "arms": {
+      "tmpfs-quiet": {
+        "runs": 30,
+        "failures": 5,
+        "median_mib": 164.8,
+        "p95_mib": 288.7,
+        "min_mib": 127.1,
+        "max_mib": 293.6,
+        "failure_values_mib": [
+          270.3,
+          285.2,
+          286.9,
+          288.7,
+          293.6
+        ]
+      },
+      "disk-quiet": {
+        "runs": 30,
+        "failures": 3,
+        "median_mib": 167.6,
+        "p95_mib": 272.8,
+        "min_mib": 145.8,
+        "max_mib": 300.7,
+        "failure_values_mib": [
+          261.2,
+          272.8,
+          300.7
+        ]
+      },
+      "disk-loaded": {
+        "runs": 30,
+        "failures": 0,
+        "median_mib": 160.6,
+        "p95_mib": 202.2,
+        "min_mib": 143.7,
+        "max_mib": 246.0,
+        "failure_values_mib": []
+      }
+    },
+    "pooled_passing_runs": {
+      "n": 82,
+      "min_mib": 127,
+      "max_mib": 255,
+      "median_mib": 162
+    },
+    "pooled_failures": {
+      "n": 8,
+      "min_mib": 261,
+      "max_mib": 301
+    },
+    "quiet_failure_rate": "8 of 60"
+  },
+  "verdict": {
+    "P1": "HOLDS. disk-quiet median 167.6 MiB, inside the registered 100-170 band, so the fixture is doing the same thing run to run and the comparisons below mean something.",
+    "P2": "FAILS. tmpfs-quiet 5 of 30 and disk-quiet 3 of 30. Both fail, at rates that 30 runs cannot separate. The tmpfs hypothesis is refuted: running the fixture on a forbidden filesystem is a real discipline violation and it is not what causes this.",
+    "P3": "HOLDS, and not for the reason it was registered. It was meant to rule load out once tmpfs was established as the cause. Instead tmpfs was refuted and this became the finding: 0 of 30 under load, with p95 202 MiB against 272-289 MiB quiet and a maximum of 246 MiB that never reaches the limit.",
+    "P4": "FAILS, and in the wrong direction. tmpfs-quiet's median is 164.8 MiB against disk-quiet's 167.6 -- lower, not more than 20 MiB higher."
+  },
+  "harness_defect_found_and_fixed": {
+    "what": "The first pass of this measurement recorded pass/fail plus the growth figure from the run's JSON report. A failing run never prints that report: it is built after the assertions. So the first three distributions described passing runs only, and their 'no run at or above 256 MiB' line was an artifact of censoring rather than a finding.",
+    "fix": "The assertion in workloads.rs now carries its own measurement in its failure text, so a failing run states how far over it went. That also means a red CI build stops saying 'whole-file-sized service RSS growth' and nothing else -- a limit with no number beside it cannot be argued with, only re-run.",
+    "cost": "Every arm was re-run against the new binary. A second parser defect -- the wrong awk field, which captured the string 'MiB' as the value -- cost one further repetition of both quiet arms."
+  },
+  "a_trap_this_run_nearly_fell_into": {
+    "the_apparent_finding": "The highest passing run is 255.4 MiB and the lowest failing one 261.2 MiB, a gap of 5.8 MiB with the 256 MiB limit inside it. Read quickly, that looks like two modes with the limit conveniently between them.",
+    "why_it_is_nothing": "The assertion is the cutoff. Every run below 256 is recorded as a pass and every run above it as a failure, so passes ending just under and failures beginning just over is a definition, not an observation. There is no evidence of bimodality here and the artifact says so rather than keeping a striking sentence."
+  },
+  "what_this_overturns": "Both claims in docs/benchmarks/strong-workload-rss-flake.json that went beyond the raw counts. That artifact recorded three failures in thirty runs under load and none in twenty quiet, and offered load sensitivity as the suggestion. With ten times the data the relationship is the other way round: load suppresses the failure. Sixteen CPU-bound processes took the failure rate from 8 in 60 to 0 in 30 and cut p95 by roughly 80 MiB. The earlier zero is now explicable without load at all -- twenty draws of a one-in-eight event come up empty about 7 percent of the time -- and the three failures were simply the ordinary rate.",
+  "the_actual_shape": "Peak growth over 90 runs spans 127 to 301 MiB with a median of 162. The 256 MiB limit sits inside the natural spread of the measurement, in its upper tail, so about one quiet run in eight exceeds it. This is not an external condition intruding on a stable measurement; the measurement itself varies by a factor of 2.4.",
+  "a_mechanism_the_data_supports_but_does_not_establish": "peak is a sampled maximum, taken every 50 ms during phase navigation. Under load each phase takes longer, so more samples are drawn and the sampler has more chances to catch a high moment -- yet the loaded arm's peaks are lower. That argues the variance is real memory behaviour rather than sampling luck. The workload's concurrent phase opens 32 readers at once; under CPU contention those serialise, and fewer 4 MiB buffers are live at the same time. Consistent with the numbers, and not established by them: nothing here instruments what is resident.",
+  "decision": "Nothing is changed in the code under test and the limit is deliberately not moved. What the run establishes is that this is not a flake in the usual sense -- no external condition to remove -- but a limit set inside the spread of what it measures. That leaves two options and both are the owner's, not this artifact's: treat the 2.4-fold variance as the defect and find what holds buffers live, or set the limit from the observed distribution with a stated margin and accept the variance. Raising the number until the red goes away, without saying which of the two it is, would be the worst of the three."
+}

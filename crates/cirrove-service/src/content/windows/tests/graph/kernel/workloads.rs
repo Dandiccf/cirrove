@@ -141,7 +141,17 @@ async fn workload(mode: Mode) -> anyhow::Result<serde_json::Value> {
         let stats = mounted.engine.cache.window_stats();
         ensure!(stats.staging_reserved_bytes == 0);
         ensure!(stats.staging_peak_bytes <= 64 * 1024 * 1024);
-        ensure!(peak.saturating_sub(baseline) < 256 * 1024 * 1024, "whole-file-sized service RSS growth");
+        // The number belongs in the failure, not only in the report that a
+        // failure never reaches: the report is built below these assertions, so
+        // a red run used to say "RSS growth" and nothing else -- neither how far
+        // over it went nor whether it was close. A limit without a measurement
+        // beside it cannot be argued with, only re-run.
+        ensure!(
+            peak.saturating_sub(baseline) < 256 * 1024 * 1024,
+            "whole-file-sized service RSS growth: {:.1} MiB over a {:.1} MiB baseline, limit 256.0 MiB",
+            peak.saturating_sub(baseline) as f64 / (1024.0 * 1024.0),
+            baseline as f64 / (1024.0 * 1024.0)
+        );
         ensure!(!matches!(mode, Mode::Conservative) == (stats.validated_windows > 0));
         Ok::<_, anyhow::Error>(serde_json::json!({
             "mode":format!("{mode:?}"),"build_profile":build_profile(),"phases":phases,
