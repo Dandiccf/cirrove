@@ -43,8 +43,13 @@ async fn controlled_server(size: u64, control: Arc<Control>) -> Server {
     let origin = format!("http://{}", listener.local_addr().unwrap());
     let provider =
         OneDrive::synthetic_loopback("account".into(), &format!("{origin}/v1.0/")).unwrap();
+    // Both arms name themselves. Taking the adapter unchanged for the
+    // conservative arm made it mean "whatever the default is", and when that
+    // default flipped this fixture went on calling itself conservative while
+    // holding a session -- which real_mounted_conservative_read_workload caught
+    // as a transfer count, several layers away from the cause.
     let provider = if control.conservative {
-        provider
+        provider.without_read_sessions()
     } else {
         provider.with_read_sessions()
     };
