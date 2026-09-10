@@ -400,7 +400,11 @@ impl Engine {
     }
     /// Where published blocks live. Exposed so a caller reasoning about cache
     /// files derives the path from here rather than rebuilding it and drifting.
-    pub(crate) fn cache_path(&self) -> PathBuf {
+    ///
+    /// Public because an acceptance test has to be able to weigh the directory:
+    /// "unpinning frees the bytes" is a claim about a filesystem, and rebuilding
+    /// the path in the test would let the two drift apart silently.
+    pub fn cache_path(&self) -> PathBuf {
         self.db.with_file_name("cache")
     }
     /// Release a pin and the space it held. Reports whether one existed.

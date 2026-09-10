@@ -2976,3 +2976,227 @@ async fn real_a_pinned_file_reads_offline_through_the_mount_and_an_unpinned_one_
     session.umount_and_join().unwrap();
     engine.stop().await;
 }
+
+/// Shared setup for the pin mount tests: an engine with a budget that can hold
+/// something, started and ready, with the state directory returned so a restart
+/// can reuse it.
+async fn pin_fixture(
+    temp: &tempfile::TempDir,
+    mount: &std::path::Path,
+) -> (Arc<Fixture>, Arc<Engine>, Account) {
+    std::fs::create_dir_all(mount).unwrap();
+    let provider = Fixture::new();
+    let mut config = account(mount.to_path_buf());
+    // Reservations may not claim the whole budget and the floor is eight blocks,
+    // so the fixture's own 16 MiB cache can pin nothing at all.
+    config.cache_bytes = 128 * 1024 * 1024;
+    let engine = Engine::new(config.clone(), provider.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    (provider, engine, config)
+}
+
+/// A recursive pin has to keep the files, not the flag.
+///
+/// `--recursive` was recorded in the index and nothing walked the subtree, so a
+/// folder pin kept exactly nothing. This pins a folder through the daemon's own
+/// request path and reads a file inside it offline through the mount.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires a working /dev/fuse and fusermount3; run explicitly"]
+async fn real_a_recursive_pin_keeps_the_files_under_a_folder_readable_offline() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    let (provider, engine, config) = pin_fixture(&temp, &mount).await;
+
+    let reply = engine
+        .apply_pin_request(&cirrove_service::PinRequest {
+            path: Some("folder".into()),
+            recursive: true,
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    assert!(
+        reply.accepted && reply.refusal.is_none(),
+        "the daemon refused an ordinary folder pin: {reply:?}"
+    );
+    assert_eq!(reply.files, 1, "the walk must find the file inside");
+    assert!(reply.complete, "every folder in this fixture is indexed");
+
+    engine.stop().await;
+    drop(engine);
+    let engine = Engine::new(config, provider.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    let session = CloudFs::new(engine.clone()).unwrap().mount(&mount).unwrap();
+
+    provider.offline.store(true, Ordering::SeqCst);
+    let before = provider.reads.load(Ordering::SeqCst);
+    let path = mount.join("folder/deep.txt");
+    let bytes = tokio::task::spawn_blocking(move || std::fs::read(path))
+        .await
+        .unwrap()
+        .expect("a file under a recursively pinned folder must read offline");
+    assert_eq!(bytes.len(), 17);
+    assert_eq!(
+        provider.reads.load(Ordering::SeqCst),
+        before,
+        "the bytes came from the provider, so this proves nothing about the pin"
+    );
+
+    session.umount_and_join().unwrap();
+    engine.stop().await;
+}
+
+/// After an unpin the bytes lose their protection and become ordinary cache.
+///
+/// This started as a test that unpinning deletes bytes, which is wrong and the
+/// artifact records why: releasing a reservation *raises* the ordinary budget,
+/// so eviction is less likely afterwards, not more. What unpinning actually
+/// changes is protection -- the blocks stop being the ones eviction may not
+/// take. That is the property worth pinning down, because losing it would mean
+/// unpinned content occupying the cache forever.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires a working /dev/fuse and fusermount3; run explicitly"]
+async fn real_unpinned_blocks_stop_being_protected_from_eviction() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir_all(&mount).unwrap();
+    let provider = Fixture::new();
+    let mut config = account(mount.clone());
+    // Enough to pin the small file and little else, so one further read has to
+    // evict something to make room.
+    config.cache_bytes = 40 * 1024 * 1024;
+    let engine = Engine::new(config, provider.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+
+    let request = cirrove_service::PinRequest {
+        path: Some("small.txt".into()),
+        ..Default::default()
+    };
+    assert!(
+        engine.apply_pin_request(&request).await.unwrap().accepted,
+        "the budget holds one small file"
+    );
+    let scope = engine.scope("home");
+    let pinned = engine.node(&scope, "small.txt").await.unwrap();
+    let keys = cirrove_service::content::block_keys(&scope, &pinned).unwrap();
+    let cache = engine.cache_path();
+    let present = |keys: &[String]| keys.iter().filter(|k| cache.join(k).exists()).count();
+    assert_eq!(
+        present(&keys),
+        keys.len(),
+        "the pin must be on disk to start"
+    );
+
+    // While pinned, filling the cache must not take it.
+    let big = engine.node(&scope, "large.bin").await.unwrap();
+    for start in 0..12u64 {
+        let _ = engine
+            .cache
+            .read(
+                engine.provider.as_ref(),
+                &scope,
+                &big,
+                start * cirrove_service::content::BLOCK_SIZE as u64,
+                cirrove_service::content::BLOCK_SIZE,
+                &engine.cancel,
+            )
+            .await;
+    }
+    assert_eq!(
+        present(&keys),
+        keys.len(),
+        "a pinned block was evicted while the pin was in force"
+    );
+
+    let reply = engine.apply_unpin_request(&request).await.unwrap();
+    assert!(reply.accepted, "unpin was refused: {reply:?}");
+
+    // Same pressure again. Now nothing protects those blocks.
+    for start in 12..24u64 {
+        let _ = engine
+            .cache
+            .read(
+                engine.provider.as_ref(),
+                &scope,
+                &big,
+                start * cirrove_service::content::BLOCK_SIZE as u64,
+                cirrove_service::content::BLOCK_SIZE,
+                &engine.cancel,
+            )
+            .await;
+    }
+    assert!(
+        present(&keys) < keys.len(),
+        "after unpinning, the blocks must be evictable like any other"
+    );
+    engine.stop().await;
+}
+
+/// A refused pin must say what to do and leave what is already kept alone.
+///
+/// The refusal carries the numbers and the remedy; the accepted-first-pin
+/// assertion is what stops a request path that refuses everything from passing
+/// this test.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires a working /dev/fuse and fusermount3; run explicitly"]
+async fn real_a_refused_pin_names_the_budget_and_leaves_the_kept_one_alone() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    let (provider, engine, _) = pin_fixture(&temp, &mount).await;
+    let small = cirrove_service::PinRequest {
+        path: Some("small.txt".into()),
+        ..Default::default()
+    };
+    assert!(
+        engine.apply_pin_request(&small).await.unwrap().accepted,
+        "a request path that refuses everything would satisfy the rest for the wrong reason"
+    );
+    let reserved_before = engine.pin_status().await.unwrap()[0].reserved;
+
+    // large.bin is three gibibytes against a 128 MiB budget.
+    let refused = engine
+        .apply_pin_request(&cirrove_service::PinRequest {
+            path: Some("large.bin".into()),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    assert!(
+        !refused.accepted,
+        "three gibibytes must not fit: {refused:?}"
+    );
+    let message = refused.refusal.expect("a refusal must carry a reason");
+    assert!(
+        message.contains("unpin") || message.contains("budget"),
+        "a refusal has to name the action that would make room: {message}"
+    );
+
+    let pins = engine.pin_status().await.unwrap();
+    assert_eq!(pins.len(), 1, "the refused pin must not have been recorded");
+    assert_eq!(
+        pins[0].reserved, reserved_before,
+        "a refusal must not disturb what is already reserved"
+    );
+
+    let session = CloudFs::new(engine.clone()).unwrap().mount(&mount).unwrap();
+    provider.offline.store(true, Ordering::SeqCst);
+    let path = mount.join("small.txt");
+    assert!(
+        tokio::task::spawn_blocking(move || std::fs::read(path))
+            .await
+            .unwrap()
+            .is_ok(),
+        "the pin that was accepted must still be readable offline"
+    );
+    session.umount_and_join().unwrap();
+    engine.stop().await;
+}

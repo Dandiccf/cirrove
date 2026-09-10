@@ -39,5 +39,11 @@
     "P4": "HOLDS. Against the previous source the test does not compile: `cannot find function pin in crate cirrove_service` and `cannot find struct PinRequest`. The daemon's socket answers only the seven bytes status\\n, so there is no client verb to call."
   },
   "what_this_does_not_show": "The fixture provider is in-process and the mount is not involved: nothing here reads a pinned file through the kernel with the provider unreachable, which is what the offline boxes actually ask for. That is the next step, not this one.",
-  "decision": "The path exists for the first time. No acceptance box is ticked on this artifact."
+  "decision": "The path exists for the first time. No acceptance box is ticked on this artifact.",
+  "correction_to_my_own_reasoning": {
+    "what_i_claimed": "That ContentCache::evict having one caller meant 'releasing a reservation freed no bytes at all', and that 'an unpin that leaves the disk as full as it was is not what the word means'. That went into a commit message before it was checked.",
+    "why_it_is_wrong": "evict removes blocks only while total exceeds budget, and budget is quota minus what is reserved. Releasing a reservation RAISES the ordinary budget, so after an unpin eviction is less likely, not more. A cache that was within its budget stays exactly as full, and that is correct: the bytes are now ordinary cache, not waste.",
+    "what_unpinning_actually_changes": "Protection. The blocks stop being the ones eviction may not take. Losing that would mean unpinned content occupying the cache forever, which is the property worth asserting.",
+    "consequence": "The test was rewritten from 'unpinning deletes bytes' -- which passes or fails for reasons unrelated to pinning -- to real_unpinned_blocks_stop_being_protected_from_eviction, which applies the same cache pressure twice, once with the pin in force and once after it is released, and asserts the pinned blocks survive the first and not the second. ContentCache::reclaim stays: it makes the cache re-check at a moment when the budget has just changed, which is defensible. It is not what frees the bytes, and the commit that introduced it said otherwise."
+  }
 }
