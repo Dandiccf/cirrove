@@ -69,6 +69,24 @@ jobs:
         # budget matches the read-only step; serialized, the group takes 34 s
         # here.
         run: timeout 150s cargo test -p cirrove-service --test writable_session --locked real_ -- --ignored --nocapture --test-threads=1
+      - name: A save on a filesystem with no free block
+        # The test consumes every free block of the filesystem it is handed, so
+        # it gets one of its own rather than the runner's disk: a loop-backed
+        # ext4 with reserved blocks at zero, which is what lets a non-root user
+        # reach the last block. Root is available here and was the reason this
+        # evidence used to be a manual run.
+        # See docs/benchmarks/full-disk-journal-errors.json.
+        run: |
+          set -euo pipefail
+          image="$RUNNER_TEMP/full-disk.img"
+          mount="$RUNNER_TEMP/full-disk"
+          mkdir -p "$mount"
+          truncate -s 64M "$image"
+          mkfs.ext4 -q -F -m 0 "$image"
+          sudo mount -o loop "$image" "$mount"
+          sudo chown "$(id -u):$(id -g)" "$mount"
+          trap 'sudo umount "$mount" || true' EXIT
+          CIRROVE_FULL_DISK_DIR="$mount" timeout 120s cargo test -p cirrove-service --test working_files --locked a_genuinely_full_filesystem_explains_what_to_free -- --ignored --nocapture
       - run: cargo build --workspace --locked
       - run: python3 scripts/smoke.py
       - run: python3 scripts/test-observe-service.py

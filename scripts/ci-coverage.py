@@ -94,7 +94,12 @@ def ci_filters() -> tuple[list[str], set[str]]:
                 continue
             if token.endswith("s") and token[:-1].isdigit():
                 continue
-            if "::" in token or token.startswith("real_") or "_read_workload" in token:
+            # The three clauses below are shapes CI happened to use. A filter
+            # that is simply a test's full name matched none of them, so a step
+            # that ran a test by name still counted as covering nothing -- the
+            # same silence this script exists to break, one level up.
+            plain_name = re.fullmatch(r"[a-z][a-z0-9_]{6,}", token) is not None
+            if "::" in token or token.startswith("real_") or "_read_workload" in token or plain_name:
                 filters.append(token.replace("${mode}", ""))
                 named = True
         if "--ignored" in line and not named:
