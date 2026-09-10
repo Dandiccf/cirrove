@@ -105,6 +105,14 @@ jobs:
           sudo chown "$(id -u):$(id -g)" "$mount"
           trap 'sudo umount "$mount" || true' EXIT
           CIRROVE_FULL_DISK_DIR="$mount" timeout 120s cargo test -p cirrove-service --test working_files --locked a_genuinely_full_filesystem_explains_what_to_free -- --ignored --nocapture
+          # The same device, now through a writable kernel mount. The journal
+          # test drives the journal directly and the budget test drives a mount;
+          # neither has ever put a mount on a physically full filesystem, which
+          # is why the ledger recorded the device case as a mapping and not a
+          # journey. Without the mapping an application gets EIO here, not
+          # ENOSPC.
+          rm -f "$mount"/ballast
+          CIRROVE_FULL_DISK_DIR="$mount" timeout 120s cargo test -p cirrove-service --test writable_session --locked real_a_save_on_a_full_device_is_reported_as_a_device_and_not_a_budget -- --ignored --nocapture --test-threads=1
       - run: cargo build --workspace --locked
       - run: python3 scripts/smoke.py
       - run: python3 scripts/test-observe-service.py

@@ -3308,3 +3308,123 @@ async fn real_unsent_changes_survive_disabling_and_refuse_removal() {
         "removal must never touch the mount directory itself"
     );
 }
+
+/// A save refused by a physically full filesystem, through the kernel.
+///
+/// `a_genuinely_full_filesystem_explains_what_to_free` drives the journal
+/// directly, and `real_a_refused_save_is_reported_as_a_budget_and_not_only_as_enospc`
+/// drives a mount into its budget. The device case has never been driven through
+/// a mount, which is why the ledger records it as a mapping rather than a
+/// journey. This closes that: a writable mount whose state lives on a filesystem
+/// with no free block.
+///
+/// Ignored and configured by one variable, like its sibling: it consumes every
+/// free block of the filesystem it is given, so it gets one of its own.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "set CIRROVE_FULL_DISK_DIR to a directory on a small, disposable filesystem"]
+async fn real_a_save_on_a_full_device_is_reported_as_a_device_and_not_a_budget() {
+    let Some(root) = std::env::var_os("CIRROVE_FULL_DISK_DIR").map(std::path::PathBuf::from) else {
+        panic!("CIRROVE_FULL_DISK_DIR is required; this test fills the filesystem it names");
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    cloud.stall.store(true, Ordering::SeqCst);
+    let vault = Arc::new(Vault::default());
+    // State and journal on the small filesystem; the mount point itself stays on
+    // the ordinary one, because it is the saves that must meet the full device.
+    let state = root.join("state");
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&root.join("journal"), &account.id, 1 << 30).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), state).await.unwrap();
+    let watched = engine.clone();
+    let session = WritableSession::mount(engine, journal, cloud.clone(), vault)
+        .await
+        .unwrap();
+    assert!(
+        watched.save_refusals.latest().is_none(),
+        "a refusal recorded before the disk is full would make the assertion below meaningless"
+    );
+
+    // One save while there is still room. Without this a mount that refuses
+    // everything -- a broken write path, a mount that never came up -- would
+    // satisfy every assertion below for the wrong reason.
+    {
+        let path = mount.join("accepted-before-the-disk-filled.bin");
+        tokio::task::spawn_blocking(move || std::fs::write(path, vec![b'a'; 64 * 1024]))
+            .await
+            .unwrap()
+            .expect("a save must be possible before the device is full");
+    }
+
+    // Fill it, shrinking the chunk so the last free block goes too.
+    let ballast = root.join("ballast");
+    let mut sink = std::fs::File::create(&ballast).unwrap();
+    for chunk in [1 << 20usize, 4096, 512, 1] {
+        let block = vec![0u8; chunk];
+        while std::io::Write::write_all(&mut sink, &block).is_ok() {}
+    }
+    let _ = sink.sync_all();
+    drop(sink);
+
+    // Checked outside the filesystem code, so a refusal below cannot be what
+    // persuaded us the device was full.
+    let probe = root.join("probe");
+    let refusal = std::fs::File::create(&probe).and_then(|mut file| {
+        std::io::Write::write_all(&mut file, &vec![0u8; 65536])?;
+        file.sync_all()
+    });
+    let errno = refusal.as_ref().err().and_then(|e| e.raw_os_error());
+    let _ = std::fs::remove_file(&probe);
+    assert_eq!(
+        errno,
+        Some(libc::ENOSPC),
+        "the filesystem is not full, so nothing below would be attributable"
+    );
+
+    let mut accepted = 0;
+    let mut refused = None;
+    for index in 0..64u32 {
+        let path = mount.join(format!("save-{index}.bin"));
+        match tokio::task::spawn_blocking(move || std::fs::write(path, vec![b'x'; 256 * 1024]))
+            .await
+            .unwrap()
+        {
+            Ok(()) => accepted += 1,
+            Err(error) => {
+                refused = Some(error);
+                break;
+            }
+        }
+    }
+    let refused = refused.expect("a full device must refuse a save through the mount");
+    assert_eq!(
+        refused.raw_os_error(),
+        Some(libc::ENOSPC),
+        "the kernel must still report ENOSPC, which is what an application acts on: {refused}"
+    );
+
+    let recorded = watched
+        .save_refusals
+        .latest()
+        .expect("a refused save must leave something status can report");
+    assert_eq!(
+        recorded.kind, "device",
+        "the disk is full and the budget is not; reporting `budget` would send a user to \
+         wait for uploads that will never make room: {recorded:?}"
+    );
+    assert!(
+        recorded.message.contains("freed"),
+        "the device message must name the action that is actually required: {}",
+        recorded.message
+    );
+    println!(
+        "FULL_DEVICE_MOUNT accepted={accepted} kind={} readable_after={}",
+        recorded.kind,
+        std::fs::remove_file(&ballast).is_ok()
+    );
+    session.shutdown().await.unwrap();
+}
