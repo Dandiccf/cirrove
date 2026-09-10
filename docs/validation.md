@@ -2160,3 +2160,38 @@ What is not covered: no run has driven a mount on a physically full
 filesystem. The device case shares the choke point, the recorder and the
 classification, and `only_the_two_no_space_refusals_are_recorded_and_they_stay_distinct`
 covers the mapping, but the journey is proven for the budget only.
+
+## An acceptance assertion that fails one run in ten
+
+`docs/benchmarks/strong-workload-rss-flake.json`, 2026-09-10. Found while
+checking that two branches worked together, not looked for.
+
+`real_mounted_strong_read_workload` fails intermittently on
+`whole-file-sized service RSS growth`, the assertion that the service's
+resident memory grows by less than 256 MiB across a workload that reads a
+256 MiB file sparsely and 1 GiB sequentially. A passing run grows 133 MiB,
+so a failure is roughly a doubling rather than a drift past the line.
+
+The first question was whether the day's work caused it. It did not: the
+same one-in-ten rate appears on the branch combination, on plain `main`, and
+on the commit before the read-session default flip. Three failures in thirty
+runs, each set of ten on a different commit.
+
+Twenty further runs on a quiet machine produced none. That is consistent
+with the assertion being load-sensitive and is not proof of it: a
+one-in-ten event misses twenty draws by chance about twelve percent of the
+time, and load was neither controlled nor measured. It narrows the question
+rather than answering it.
+
+Nothing was changed. Raising the limit until it stops failing would remove
+the only thing standing between a real whole-file residency regression and
+nobody noticing, and a test that fails one run in ten already teaches people
+to re-run until green -- which is how the next real regression gets re-run
+away. CI runs this workload six times per build, so the cost of leaving it is
+a real chance of a red build for a reason unrelated to the change under
+review.
+
+What is owed is a diagnosis under controlled load, instrumented for what is
+resident rather than how much: allocator arenas holding freed 4 MiB block
+buffers, the 64 MiB staging window coinciding with decode buffers, and a
+sampler catching a transient are all still on the table.
