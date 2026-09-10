@@ -51,6 +51,13 @@ pub struct AccountStatus {
     /// held offline from content that merely happens to be cached.
     #[serde(default)]
     pub pins: Vec<crate::engine::PinStatus>,
+    /// Why saves were last refused, when they were. The kernel gets `ENOSPC` for
+    /// both a full budget and a full disk because that is what an application
+    /// can act on; it is also all an application learns, and the two remedies
+    /// are opposite. `null` means no save has been refused since this daemon
+    /// started.
+    #[serde(default)]
+    pub save_refusal: Option<crate::journal::SaveRefusal>,
     pub indexed_feeds: u64,
     pub indexed_items: u64,
 }
@@ -230,6 +237,7 @@ impl Manager {
                             feeds: vec![],
                             directory_freshness: crate::DirectoryFreshness::default(),
                             read_path: None,
+                            save_refusal: None,
                             pins: Vec::new(),
                             indexed_feeds: 0,
                             indexed_items: 0,
@@ -310,6 +318,7 @@ impl Manager {
                             // been told was pinned. Five seconds is the cost.
                             let _ = active.engine.refresh_reservations().await;
                             status.pins = active.engine.pin_status().await.unwrap_or_default();
+                            status.save_refusal = active.engine.save_refusals.latest();
                             let db = active.engine.db.clone();
                             if let Ok(Ok((feeds, items))) = tokio::task::spawn_blocking(move || {
                                 cirrove_store::Store::open(db)?.counts()

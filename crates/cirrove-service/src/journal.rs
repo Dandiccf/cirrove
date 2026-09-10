@@ -114,6 +114,51 @@ impl From<serde_json::Error> for JournalError {
 }
 pub type Result<T> = std::result::Result<T, JournalError>;
 
+/// Why saves are currently being refused, kept so that something other than the
+/// kernel can say it.
+///
+/// `writeback::error` maps both no-space refusals to `ENOSPC`, which is what an
+/// application can act on and is also all it learns: "no space left on device"
+/// on a filesystem with gigabytes free reads as a bug in Cirrove, and the two
+/// remedies are opposite -- a full budget clears itself as uploads drain, a full
+/// disk never does. The distinction exists in `JournalError` and used to die
+/// there; a comment in writeback.rs claimed status reported it, and nothing did.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SaveRefusal {
+    pub at_unix: u64,
+    /// `budget` or `device`. Two words rather than a message to match on, because
+    /// a caller deciding what to show should not be parsing prose.
+    pub kind: String,
+    pub message: String,
+}
+/// The most recent refusal, or none since the daemon started.
+///
+/// Only the two no-space refusals are kept. A field that collected every journal
+/// error would answer a different question than the one a user asks when their
+/// saves stop working.
+#[derive(Default)]
+pub struct SaveRefusals(std::sync::Mutex<Option<SaveRefusal>>);
+impl SaveRefusals {
+    pub fn note(&self, error: &JournalError) {
+        let kind = match error {
+            JournalError::Quota => "budget",
+            JournalError::DeviceFull => "device",
+            _ => return,
+        };
+        let refusal = SaveRefusal {
+            at_unix: now_seconds(),
+            kind: kind.into(),
+            message: error.to_string(),
+        };
+        if let Ok(mut slot) = self.0.lock() {
+            *slot = Some(refusal);
+        }
+    }
+    pub fn latest(&self) -> Option<SaveRefusal> {
+        self.0.lock().ok().and_then(|slot| slot.clone())
+    }
+}
+
 pub use cirrove_core::upload::UploadIntent;
 fn resource(intent: &UploadIntent, scope: &Scope) -> Result<String> {
     Ok(match intent {

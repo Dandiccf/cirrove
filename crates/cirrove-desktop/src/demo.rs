@@ -36,6 +36,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
             // The demo snapshot invents no counters. A fabricated read path would
             // look exactly like a measured one in the UI.
             read_path: None,
+            save_refusal: None,
             pins: Vec::new(),
             indexed_feeds: u64::from(a.enabled),
             indexed_items: 1234,

@@ -84,6 +84,10 @@ pub struct Engine {
     discovery_started: AtomicBool,
     discovery_failures: AtomicU64,
     activity: crate::activity::DirectoryActivity,
+    /// Survives a remount, unlike the write workers that record into it: a user
+    /// asking why their saves failed should not have the answer erased by the
+    /// remount that failing saves can themselves provoke.
+    pub save_refusals: Arc<crate::journal::SaveRefusals>,
     /// One connection stays open for the account's lifetime. Without it every
     /// `Store::open` is both the first and the last connection to a WAL
     /// database, so SQLite creates `metadata.db-wal` and `-shm` on open and, on
@@ -143,6 +147,7 @@ impl Engine {
             discovery_started: AtomicBool::new(false),
             discovery_failures: AtomicU64::new(0),
             activity: crate::activity::DirectoryActivity::default(),
+            save_refusals: Arc::new(crate::journal::SaveRefusals::default()),
             _keeper: StdMutex::new(keeper),
             _owner: owner,
         }))
