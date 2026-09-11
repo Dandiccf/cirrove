@@ -60,11 +60,43 @@ it under Xvfb and a private D-Bus session. Local socket fixtures distinguish inv
 responses from timeouts; neither requires a cloud account.
 PNG snapshots capture the actual rendered demo window and also require a display.
 
+## Tray
+
+`./target/debug/cirrove-tray` publishes a status icon as a StatusNotifierItem on
+the session bus and follows the daemon over `subscribe`. It holds no state it was
+not told: the icon, the tooltip and the `Status` property are the daemon's answer
+and nothing inferred from it. Losing the service is rendered rather than hidden,
+because a tray that keeps its last icon after the daemon is gone is reporting
+something it does not know.
+
+```sh
+./target/debug/cirrove-tray                      # the usual socket
+./target/debug/cirrove-tray --socket /abs/control.sock
+```
+
+It needs a tray host implementing `org.kde.StatusNotifierWatcher`. Most Wayland
+shells and panels provide one; GNOME needs an extension, which is why milestone 5
+lists detecting a missing host and keeping every action reachable from the window
+as its own work. Neither is done: without a watcher the item simply fails to
+register, and there is no menu yet, so a left click opens the mount when exactly
+one is mounted and otherwise does nothing. Icons are generic freedesktop names
+until the installed icon set exists.
+
+Against a daemon too old for `subscribe` the tray shows "Cirrove service is not
+reachable" and retries. That is the intended degradation, not a defect: the old
+daemon answers the verb with its ordinary refusal and is otherwise unaffected.
+
 ## Remaining product work
 
 Native browser sign-in, account/library selection, reauthentication, connection
 removal and cleanup are not implemented in this window. Tray actions, Nautilus
 badges, pinning, transfer/conflict views and localization remain separate work.
+
+The daemon can now push changes rather than only answer questions: `capabilities`
+names what it supports and `subscribe` streams account and mount changes over the
+control socket. See [ADR 0007](adr/0007-desktop-event-channel.md). This window
+does not consume it yet; `cirrove-tray` does.
+
 Mount-preference save failures and folder-opening failures still use generic
 messages; account repair, service installation and reauthentication actions are
 not yet provided by these diagnostics.

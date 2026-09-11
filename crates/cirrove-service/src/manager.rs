@@ -17,7 +17,7 @@ use std::{
 };
 use tokio::sync::RwLock;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct AccountStatus {
     /// Stable settings identity for desktop actions. Older daemon responses omit it.
     #[serde(default)]
@@ -72,9 +72,15 @@ pub type ProviderFactory = Arc<dyn Fn(&Account) -> Result<Arc<dyn ReadProvider>>
 /// deterministic providers the tests inject supply reads only. A mount they drive
 /// stays read-only, which is the honest outcome, instead of failing to start.
 pub type WriteFactory = Arc<dyn Fn(&Account) -> Result<Arc<dyn WriteProvider>> + Send + Sync>;
-#[derive(Default)]
 pub struct Manager {
     pub status: RwLock<Vec<AccountStatus>>,
+    /// Changes to `status`, as edges, for desktop clients that cannot poll.
+    ///
+    /// A broadcast sender rather than a list of client channels because the
+    /// daemon must never block on a slow reader: a subscriber that falls behind
+    /// is told so and re-primed, which is the right cure for a level and cheaper
+    /// than the backlog it would otherwise be handed. See `crate::events`.
+    events: tokio::sync::broadcast::Sender<crate::events::Event>,
     /// The engines the run loop is holding, so a control request can reach one.
     ///
     /// `running` is a local in `run()`, which is why `accounts::set_pin` wrote the
@@ -83,7 +89,35 @@ pub struct Manager {
     /// request never reaches an engine whose mount is being torn down.
     engines: RwLock<HashMap<String, Arc<Engine>>>,
 }
+impl Default for Manager {
+    fn default() -> Self {
+        Self {
+            status: RwLock::default(),
+            engines: RwLock::default(),
+            events: tokio::sync::broadcast::channel(crate::events::EVENT_QUEUE_DEPTH).0,
+        }
+    }
+}
 impl Manager {
+    /// A stream of changes, primed by the caller with `events::prime`.
+    ///
+    /// The receiver this returns is the only thing keeping events flowing to a
+    /// client; dropping it unsubscribes. A send with no receivers is not an
+    /// error here, it is the ordinary case of a daemon nobody is watching.
+    pub fn subscribe(&self) -> tokio::sync::broadcast::Receiver<crate::events::Event> {
+        self.events.subscribe()
+    }
+
+    /// Publish one change directly.
+    ///
+    /// Tests only. In a real daemon `run` is the sole publisher, and a test that
+    /// had to start it to see one event would be an integration test of the
+    /// account loop rather than of the channel.
+    #[cfg(test)]
+    pub fn publish_for_test(&self, event: crate::events::Event) {
+        let _ = self.events.send(event);
+    }
+
     /// The running engine for an account label, or for the only account when the
     /// label is empty. `Err` carries a message a user can act on.
     pub async fn engine(&self, label: &str) -> Result<Arc<Engine>> {
@@ -395,7 +429,18 @@ impl Manager {
                         }
                         statuses.push(status);
                     }
+                    // Diff before the write, publish after it, so a client that
+                    // reacts by calling `status` cannot observe the old vector.
+                    // The manager rewrites this every five seconds whether or not
+                    // anything moved; `diff` returning nothing is the common case
+                    // and is exactly the timer-driven wake this channel exists to
+                    // stop forwarding.
+                    let changes =
+                        crate::events::diff(self.status.read().await.as_slice(), &statuses);
                     *self.status.write().await = statuses;
+                    for change in changes {
+                        let _ = self.events.send(change);
+                    }
                 }
                 _ => tracing::warn!(
                     "Cirrove account settings could not be loaded; retaining running accounts"
