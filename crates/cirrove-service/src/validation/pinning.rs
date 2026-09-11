@@ -14,6 +14,7 @@
 use super::*;
 use crate::{engine::Engine, filesystem::CloudFs, writable::WritableSession};
 use cirrove_core::ReadProvider;
+use std::path::PathBuf;
 
 /// Upload one generated file into the fixture folder and return its node.
 async fn place(
@@ -461,6 +462,96 @@ pub async fn onedrive_pinning(state: &Path, label: &str) -> Result<()> {
     engine.stop().await;
     editing?;
     unsent?;
+
+    // Disk-full, on a real account, if the caller supplied a device to fill.
+    // Optional because it needs a filesystem of its own -- the run consumes
+    // every free block of whatever it is given -- and the rest of this check is
+    // useful without it.
+    if let Some(small) = std::env::var_os("CIRROVE_PINNING_FULL_DISK_DIR").map(PathBuf::from) {
+        let mut cramped = config.clone();
+        cramped.mount_path = small.join("mount");
+        crate::private_dir(&cramped.mount_path)?;
+        let engine = Engine::new(cramped, graph.clone(), small.join("engine")).await?;
+        let watched = engine.clone();
+        let journal = Arc::new(std::sync::Mutex::new(UploadJournal::open(
+            &small.join("journal"),
+            &account.id,
+            1 << 30,
+        )?));
+        let session = WritableSession::mount(
+            engine.clone(),
+            journal,
+            graph.clone(),
+            Arc::new(DesktopVault),
+        )
+        .await?;
+        let full = async {
+            anyhow::ensure!(
+                watched.save_refusals.latest().is_none(),
+                "a refusal recorded before the device is full would make the rest meaningless"
+            );
+            // One save while there is room, so a mount that refuses everything
+            // cannot satisfy what follows.
+            let first = engine.account.mount_path.join("before-full.bin");
+            tokio::task::spawn_blocking(move || std::fs::write(first, vec![b'a'; 64 * 1024]))
+                .await??;
+
+            let ballast = small.join("ballast");
+            let mut sink = std::fs::File::create(&ballast)?;
+            for chunk in [1 << 20usize, 4096, 512, 1] {
+                let block = vec![0u8; chunk];
+                while std::io::Write::write_all(&mut sink, &block).is_ok() {}
+            }
+            let _ = sink.sync_all();
+            drop(sink);
+
+            let mut refused = None;
+            for index in 0..64 {
+                let path = engine.account.mount_path.join(format!("save-{index}.bin"));
+                match tokio::task::spawn_blocking(move || {
+                    std::fs::write(path, vec![b'x'; 256 * 1024])
+                })
+                .await?
+                {
+                    Ok(()) => continue,
+                    Err(error) => {
+                        refused = Some(error);
+                        break;
+                    }
+                }
+            }
+            let refused = refused.context("a full device accepted every save")?;
+            anyhow::ensure!(
+                refused.raw_os_error() == Some(libc::ENOSPC),
+                "the kernel must report ENOSPC, which is what an application acts on: {refused}"
+            );
+            let recorded = watched
+                .save_refusals
+                .latest()
+                .context("a refused save left nothing status can report")?;
+            anyhow::ensure!(
+                recorded.kind == "device",
+                "the disk is full and the budget is not; reporting {:?} would send a user to \
+                 wait for uploads that will never make room",
+                recorded.kind
+            );
+            let _ = std::fs::remove_file(&ballast);
+            event(
+                &mut log,
+                serde_json::json!({"stage":"full_device","kind":recorded.kind,
+                    "message":recorded.message}),
+            )?;
+            println!(
+                "Passed on a full device: kernel said ENOSPC, daemon said {:?}.",
+                recorded.kind
+            );
+            Ok::<_, anyhow::Error>(())
+        }
+        .await;
+        let _ = tokio::task::spawn_blocking(move || session.shutdown()).await;
+        engine.stop().await;
+        full?;
+    }
     println!("Fixture folder retained: {name}");
     Ok(())
 }

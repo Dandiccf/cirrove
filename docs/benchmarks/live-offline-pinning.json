@@ -88,5 +88,11 @@
     "why": "The claim holds structurally -- eviction only removes files whose names it recognises as its own block keys -- but structural is what a claim is called before anyone has put it under load on a real drive.",
     "result": "An unsent journal record of 50 bytes is byte-for-byte unchanged after six rounds of cache reads against a real 9 MB file on the same account, with the journal sitting beside the cache throughout.",
     "honest_limit": "Six rounds is pressure, not saturation. It exercises the eviction path repeatedly; it does not prove the journal survives a cache driven far past its budget for hours."
+  },
+  "full_device_2026_09_11": {
+    "why": "The disk-full row had every clause covered by tests and none by a real account. The daemon's own reporting is the half that matters to a person: ENOSPC alone is what an application sees, and on a filesystem with gigabytes free it reads as a defect in Cirrove.",
+    "shape": "The validation account's state, journal and mount live on a 160 MB loop-backed ext4 of their own. One save while there is room -- a mount that refuses everything would otherwise satisfy the rest for the wrong reason -- then the device is filled to its last block, then saves are attempted through the kernel.",
+    "result": "The kernel reported ENOSPC to the application and the daemon recorded kind `device` with a message naming what has to be freed, on the user's real drive.",
+    "honest_limit": "The provider was reachable throughout; this is about local storage, not about the cloud being full."
   }
 }
