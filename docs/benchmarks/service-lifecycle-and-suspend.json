@@ -36,8 +36,12 @@
     }
   ],
   "decision_rule": "P1 decides the recovery row's last clause. P2 and P3 together decide the installable-service row's startup half; its clean-shutdown half is separately covered by tests and scripts/smoke.py. P4 failing on either would be a defect rather than a missing measurement.",
-  "result": null,
-  "verdict": null,
+  "result": "P1, P2, P3 and P4 all hold. The suspend cycle preserved the process; the reboot cycle brought the service back by itself at login with its mount, index, feeds and schema intact, and left no stale mount behind.",
+  "verdict": {
+    "installable_service_row": "CLOSED by this run. Its startup half is decided by P2 and P3, which hold; its clean-shutdown half had tests and scripts/smoke.py and now also a live unmount-on-stop observed during this reboot.",
+    "recovery_row": "NOT closed. P1 holds, but only for a 2-second s2idle cycle, which is the shallow end of the clause and too short to expire a token, tear down a network or lapse a subscription. The process-failure and network-loss clauses remain test-covered rather than measured live.",
+    "what_would_close_the_recovery_row": "A deep (S3) suspend, and a suspend long enough to outlive the access token and the subscription -- the failures a short freeze cannot reach."
+  },
   "suspend_result_2026_09_11": {
     "what_happened": "PM: suspend entry (s2idle) at 06:05:02, PM: suspend exit at 06:05:04.",
     "state_after": "Identical on every field captured before: same MainPID 1514883, same ActiveEnterTimestamp, service active, account ready and mounted, 184,052 items, both feeds ready, schema 7, 28 mount entries, and a read through the mount succeeds.",
@@ -52,5 +56,15 @@
     "what_i_did": "Compared wall-clock elapsed against /proc/uptime growth, expecting the difference to be the time spent asleep.",
     "why_it_is_wrong": "/proc/uptime is CLOCK_BOOTTIME, which INCLUDES suspended time. The difference was zero and I briefly read that as 'the machine never suspended'. The journal settled it -- PM: suspend entry is unambiguous -- but the check itself could not have.",
     "what_would_work": "CLOCK_MONOTONIC against CLOCK_BOOTTIME: monotonic excludes suspend, boottime includes it, and the gap between them is the time asleep."
+  },
+  "reboot_result_2026_09_11": {
+    "what_happened": "Clean stop at 06:08:14 (the unit logged 'Unmounting /home/dandiccf/Cloud/Cirrove-OneDrive', stopped 38 ms later, Result=success), kernel boot at 06:08:29 under a new boot_id 80ca8893, autologin on seat0/tty1 at 06:08:47, and the service active at 06:08:47.49 -- 17.65 s after boot by CLOCK_MONOTONIC, 0.5 s after the user manager.",
+    "started_without_anyone_starting_it": "systemd[1233], the user manager, logged 'Starting Cirrove cloud filesystem service' at 06:08:47.493. No cirrove command was run before that; the first one in this session was a status read at 06:09. Linger=no for this user, so the user manager -- and therefore default.target and this unit -- cannot run at all without a login. The startup is attributable to WantedBy=default.target and to nothing else.",
+    "state_after": "Account ready and mounted, 184,052 indexed items, both feeds ready with notifications connected, schema 7 in both the shared and the per-account database, 28 mount entries, NRestarts=0, and the same binary sha256 595cd9057d21 as before.",
+    "P2": "HOLDS. Fresh login, service up by itself, ready and mounted. Linger=no makes this the login path rather than a boot-time start.",
+    "P3": "HOLDS. schema_version stayed 7 and indexed_items is 184,052 -- identical, not reset and not rebuilt. The 568 MB per-account metadata.db was reopened: the daemon reached ready 80 ms after start, and the Graph counter stood at 4 requests once ready, which is delta and subscription traffic. Reindexing 184,000 items would be neither.",
+    "P4": "HOLDS. Exactly one fuse.cirrove mount, owned by the new daemon: PID 1244 holds /dev/fuse and the abort descriptor for connection 83. The only other FUSE mounts on the host are gvfsd-fuse and portal. The previous daemon unmounted on the way down rather than leaving the mount for the new one to find.",
+    "clean_shutdown_observed_live": "The clean-shutdown half of the installable-service row had test and smoke coverage and no live run. This reboot supplied one: the unit logged the unmount itself, stopped in 38 ms with Result=success, and consumed 3 min 13 s CPU over 17 min 20 s wall, 227 M peak.",
+    "reads_after_the_reboot": "Three files read through the mount returned correct magic bytes -- two ZIP-based Office documents and a JPEG. All three were served from the on-disk cache, which survived the reboot: content_gets stayed 0 throughout. So these reads evidence the mount and the cache, not the content path. The provider path is evidenced separately and unambiguously: Graph requests rose from 4 to 80 during the session, both feeds recorded last_success after the reboot, and the unit logged 'Microsoft authorization refreshed and saved' at 06:10:19."
   }
 }

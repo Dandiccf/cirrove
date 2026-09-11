@@ -190,6 +190,11 @@ identity matches; live mounts and unrelated paths are preserved.
 
 Existing cloud clients, mounts and credentials are not imported or modified.
 The systemd template is supplied separately and is not installed by a build.
+Enabled on a real account, it has been through a reboot: the daemon stopped
+cleanly, unmounting itself, and started again at the next login with its mount,
+index, feeds and schema unchanged. Tests hold the unit to that wiring; only a
+login can exercise it. See
+[the lifecycle measurements](docs/benchmarks/service-lifecycle-and-suspend.json).
 
 ## Architecture and contributing
 

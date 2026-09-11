@@ -8,7 +8,7 @@ Private account measurements belong in local records, not the public repository.
 
 ## 1. Reliable read-only foundation
 
-- [ ] Installable user service, login startup and clean intentional shutdown.
+- [x] Installable user service, login startup and clean intentional shutdown.
 - [ ] Recovery after process failure, suspend/resume and loss of network access.
 - [ ] Real token expiry/refresh and visible reauthentication when consent expires.
 - [ ] Responsive navigation during initial indexing and competing downloads.
@@ -124,6 +124,25 @@ revalidation of recently used directories now has service and actual FUSE fixtur
 plus a limited real business-drive create/rename check through an isolated mount.
 Larger provider scenarios and ordinary desktop freshness still need measurement. See
 [the notification decision](adr/0003-change-notifications.md).
+
+The service lifecycle rows were the two in this milestone with no live evidence at
+all, because neither can be observed from inside: a suspend stops the observer and a
+reboot ends the session that would be watching. Both were run on 2026-09-11 against
+the enabled user service on a real account, with the state before written to disk and
+compared after. A short s2idle cycle left the daemon the same process -- same MainPID,
+same ActiveEnterTimestamp -- still mounted and ready. A reboot stopped it cleanly, the
+unit logging its own unmount and exiting in 38 ms, and it came back at the next login
+without anyone starting it: active 17.65 seconds after boot, ready and mounted 80 ms
+after start, 184,052 indexed items and schema 7 unchanged, both feeds reconnected, one
+FUSE mount owned by the new process. That closes the installable-service row. It does
+not close the recovery row: the suspend was s2idle rather than S3 and lasted two
+seconds, which is long enough to freeze and thaw a process and too short to expire a
+token, tear down a network or lapse a subscription, and the process-failure and
+network-loss clauses remain test-covered rather than measured live. Reads through the
+mount after the reboot were served from the surviving on-disk cache, so they evidence
+the mount rather than the content path; the provider path is evidenced by the Graph
+traffic, the reconnected feeds and a token refresh. See
+[the lifecycle measurements and their limits](benchmarks/service-lifecycle-and-suspend.json).
 
 ## 2. Safe file changes
 

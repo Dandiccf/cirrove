@@ -124,7 +124,32 @@ needs someone at the wall socket, or a machine with a controllable PSU.
 storage layer lies, which is the failure mode the whole local-edit journal exists
 to survive.
 
-## Suspend and resume — ends the session that would observe it
+## Suspend, reboot and login startup — done, 2026-09-11
+
+Both ran, against the enabled user service on the real account. The state before
+each was written to `.local-state/reboot-check/` and compared after, which is the
+only form this evidence can take: a suspend stops the observer and a reboot ends
+the session that would be watching.
+
+- **Suspend/resume.** An s2idle cycle, 06:05:02 to 06:05:04. The daemon came back
+  the same process -- same MainPID, same `ActiveEnterTimestamp` -- still mounted
+  and ready, with its index and both feeds unchanged. Suspend froze it rather
+  than killing it.
+- **Reboot and login startup.** It stopped cleanly, logging its own unmount and
+  exiting in 38 ms, and came back at the next login with nobody starting it:
+  active 17.65 s after boot, ready and mounted 80 ms after start, 184,052 items
+  and schema 7 unchanged, both feeds reconnected, one FUSE mount owned by the new
+  process. `Linger=no` for this user, so the user manager cannot run without a
+  login and the startup is attributable to `WantedBy=default.target` alone.
+
+**This closed the installable-service box. It did not close the recovery box.**
+The suspend was s2idle rather than S3 and lasted two seconds -- long enough to
+freeze and thaw a process, too short to expire a token, tear down a network or
+lapse a subscription, which are the failures that clause is interesting for. A
+longer cycle, and a deep one on hardware that offers S3, is what remains. See
+[the measurements and their limits](benchmarks/service-lifecycle-and-suspend.json).
+
+## Suspend and resume — the original request, kept for reference
 
 One clause of milestone 1's recovery box. A real S3 or S4 cycle suspends the
 machine, so no process running on it can watch itself come back. Its two sibling
@@ -134,8 +159,6 @@ A cgroup-freezer plus a `CLOCK_REALTIME` skew against `CLOCK_MONOTONIC` would ma
 a reasonable regression test and could be written autonomously. It is not the
 evidence the clause asks for, and building it should be a deliberate decision
 rather than a substitution.
-
-## Installable service, login startup, reboot — ends the session
 
 `systemctl --user enable cirroved` changes system state, and verifying login
 startup means logging out and back in. Neither is something to do to a machine
@@ -159,9 +182,10 @@ to change buys nothing.
 
 ## What this list is not
 
-It is not a claim that the remaining work is small. Eleven boxes in milestones 1
-and 2 are still open: six need the live account, two a reboot, two an exclusive
-machine window and one root. The evidence clause of milestone 1 asks for
+It is not a claim that the remaining work is small. Eight boxes in milestones 1
+and 2 are still open: four need the live account, two an exclusive machine window,
+one needs a deeper and longer suspend than the cycle this hardware has produced,
+and one needs a power cut. The evidence clause of milestone 1 asks for
 provider-backed reads and ordinary desktop applications, so even a perfect
 synthetic result leaves its boxes open -- which is why "responsive navigation"
 is on this list rather than closed by its 500 ms assertion. What the list does
