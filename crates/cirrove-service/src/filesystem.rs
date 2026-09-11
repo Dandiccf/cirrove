@@ -7,6 +7,8 @@ mod directories;
 mod invalidation;
 mod lifecycle;
 mod residency;
+#[cfg(test)]
+mod trash;
 /// How many namespace views have been quarantined since start. Re-exported so a
 /// daemon can report it: the flag is set on a reference-count inconsistency,
 /// cleared nowhere, and a quarantined view pins its ancestor chain for the life
@@ -47,6 +49,35 @@ use tokio::{runtime::Handle, sync::Semaphore};
 /// docs/benchmarks/namespace-entry-ttl.json before reaching for this again.
 const TTL: Duration = Duration::from_secs(1);
 const READ_QUEUE_TIMEOUT: Duration = Duration::from_secs(30);
+/// The mount point itself. FUSE fixes it at 1, and `CloudFs::new` builds the root
+/// view with that inode.
+const ROOT_INODE: u64 = 1;
+
+/// The names the freedesktop trash specification puts at the top of a mounted
+/// filesystem: `$topdir/.Trash`, and `$topdir/.Trash-$uid` when the first is
+/// absent or not sticky.
+///
+/// A cloud mount must refuse to hold one. GIO creates it on the first Delete in
+/// a file manager and then *renames* files into it, so a trash here would be a
+/// second wastebasket living inside the user's own drive -- visible on every
+/// other device, syncing its contents, and leaving the provider's recycle bin
+/// empty while the file manager reports the deletion as undoable. The cloud
+/// already has a recycle bin, and `MutationIntent::RemoveFile` already reaches
+/// it, which is what makes the local one redundant rather than merely untidy.
+///
+/// `EOPNOTSUPP` is the refusal because GIO reads it as "this filesystem has no
+/// trash" and falls back to asking about permanent deletion. That prompt is
+/// still not the truth -- the delete underneath goes to the provider's recycle
+/// bin -- and ADR 0008 records why the honest version needs more than a guard.
+///
+/// Only the mount root is refused. A `.Trash-1000` the user keeps somewhere
+/// inside their drive is their folder, and no trash implementation looks there.
+fn is_trash_directory(name: &str) -> bool {
+    name == ".Trash"
+        || name
+            .strip_prefix(".Trash-")
+            .is_some_and(|uid| !uid.is_empty() && uid.bytes().all(|b| b.is_ascii_digit()))
+}
 /// Allocator trims performed since start. Three attempts at the trim condition
 /// failed because whether it fired could only be inferred from the memory it was
 /// supposed to move; this makes it a number a fixture can assert on directly.
@@ -182,8 +213,8 @@ impl CloudFs {
         let root = View {
             residency: Arc::default(),
             _parent_residency: None,
-            inode: 1,
-            parent: 1,
+            inode: ROOT_INODE,
+            parent: ROOT_INODE,
             ancestry: vec![(scope.collection.clone(), root.id.clone())].into(),
             scope: scope.into(),
             node: root.into(),
@@ -782,7 +813,7 @@ impl Inner {
                 .map_err(|_| ProviderError::Unavailable)?;
             return Ok(node);
         }
-        if view.inode == 1 || view.node.kind == NodeKind::File {
+        if view.inode == ROOT_INODE || view.node.kind == NodeKind::File {
             return Ok(view.node.as_ref().clone());
         }
         self.engine.node(&view.scope, &view.node.id).await
@@ -969,6 +1000,10 @@ impl Filesystem for CloudFs {
             reply.error(Errno::EINVAL);
             return;
         };
+        if parent.0 == ROOT_INODE && is_trash_directory(&name) {
+            reply.error(Errno::EOPNOTSUPP);
+            return;
+        }
         let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
             reply.error(Errno::EAGAIN);
             return;

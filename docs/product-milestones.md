@@ -230,7 +230,13 @@ Live mutation fixtures must be isolated from the user's existing documents.
 - [ ] Linked folders, duplicate links, moved/deleted links and folder-only access.
 - [ ] Per-item capabilities, restricted permissions and revoked-access behavior.
 - [ ] Remote creates, edits, moves and deletions update mounted views correctly.
-- [ ] Defined filename, package/notebook, trash and unsupported-operation behavior.
+- [ ] Defined filename, package/notebook and unsupported-operation behavior.
+- [ ] Deletion defined end to end: the provider's recycle bin as the default for
+  every file manager without an extension, no local wastebasket created inside
+  the user's drive, permanent deletion reachable only as an explicit second
+  gesture that the window offers too, and both gated on a per-provider capability
+  so a provider without a recycle bin is never presented as recoverable.
+  See [ADR 0008](adr/0008-deletion-and-the-recycle-bin.md).
 - [ ] Documented compatibility matrix backed by real-account checks.
 
 Full integration means the supported filesystem feature set works consistently;

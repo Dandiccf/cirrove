@@ -2860,6 +2860,78 @@ async fn applied(session: &WritableSession, count: usize) {
     .unwrap();
 }
 
+/// The mount root refuses to become a local wastebasket, and only the root does.
+///
+/// This is not hypothetical. On a writable mount the first Delete in GNOME Files
+/// creates `.Trash-1000/files` and `.Trash-1000/info` at the top of the
+/// filesystem and renames the file into it -- so before this guard, deleting a
+/// file through the file manager put a second wastebasket *inside the user's
+/// cloud drive*, synced to every other device, while the provider's own recycle
+/// bin stayed empty and the file manager reported the deletion as undoable. It
+/// was found as a real directory in a real OneDrive, not by reading the spec.
+///
+/// Removing the `is_trash_directory` check in `mkdir` makes the first assertion
+/// fail with a created directory instead of `Unsupported`.
+///
+/// The second half is the other half of the bug: a guard that refused the name
+/// everywhere would cost the user an ordinary folder name for nothing, because
+/// no trash implementation looks anywhere but the top of the filesystem.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; the mount root refuses a trash directory"]
+async fn real_mount_root_refuses_a_trash_directory_but_a_subdirectory_keeps_the_name() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    namespace_fixture(&cloud);
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session =
+        WritableSession::mount(engine, journal, cloud.clone(), Arc::new(Vault::default()))
+            .await
+            .unwrap();
+
+    let root = mount.clone();
+    tokio::task::spawn_blocking(move || {
+        for name in [".Trash", ".Trash-1000"] {
+            let error = std::fs::create_dir(root.join(name)).unwrap_err();
+            assert_eq!(
+                error.kind(),
+                std::io::ErrorKind::Unsupported,
+                "{name} at the mount root: {error}"
+            );
+            assert!(!root.join(name).exists(), "{name} was created anyway");
+        }
+        // Inside the drive the name is the user's to use.
+        std::fs::create_dir(root.join("folder").join(".Trash-1000")).unwrap();
+    })
+    .await
+    .unwrap();
+
+    // Exactly one namespace change reached the provider: the nested folder. The
+    // refusals must not have queued anything to undo later.
+    applied(&session, 1).await;
+    {
+        let remote = cloud.remote.lock().unwrap();
+        let names: Vec<&str> = remote
+            .files
+            .values()
+            .map(|(node, _)| node.name.as_str())
+            .collect();
+        assert_eq!(
+            names.iter().filter(|n| n.starts_with(".Trash")).count(),
+            1,
+            "remote names: {names:?}"
+        );
+    }
+    session.shutdown().await.unwrap();
+}
+
 /// `rmdir` keeps its POSIX promise: a populated directory is refused, an empty
 /// one is removed, and the removal reaches the provider.
 ///

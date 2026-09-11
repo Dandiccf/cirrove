@@ -536,6 +536,18 @@ alone does not establish deletion: lost deletes and unidentified folder creation
 can enter `NeedsReview`, retaining their request without an automatic retry loop.
 HTTP success is required for a confirmed deletion receipt. File DELETE uses the
 provider's recycle-bin behavior; it is not permanent deletion or local POSIX rmdir.
+Nothing in the tree deletes permanently, and no setting makes the default do so.
+
+The mount root refuses to hold a local wastebasket. The freedesktop trash
+specification points a file manager at `$topdir/.Trash-$uid`, and on a mount
+`$topdir` is the mount point, so the first Delete in GNOME Files created that
+directory inside the user's cloud drive -- a second wastebasket, synced to every
+device, while the provider's own recycle bin stayed empty. `mkdir` now answers
+`EOPNOTSUPP` for `.Trash` and `.Trash-$uid` at the root only. A file manager then
+offers permanent deletion instead, which is safe and still not accurate about
+where the file goes; [ADR 0008](adr/0008-deletion-and-the-recycle-bin.md) records
+that gap, the rename edge it does not close, and why permanent deletion needs a
+control verb rather than a filesystem call.
 
 Experimental writable mounts now connect regular-file rename/move to this worker.
 Experimental FUSE also supports folder creation and dependent child destinations
