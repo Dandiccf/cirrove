@@ -529,6 +529,15 @@ filename equivalence. Receipts and queue completion commit together. Migration
 preserves existing upload sequence numbers, snapshots and pending states. Older
 binaries refuse newer schemas instead of trying to downgrade them.
 
+A namespace change may be queued behind an operation whose receipt has not
+arrived, with the real identity and ETag substituted from that receipt before
+anything is sent. Folder removal was missing from both halves of that machinery,
+so creating a directory and removing it again -- an ordinary change of mind --
+answered `EINVAL` for the second or two the chain was open, telling the caller
+its request was malformed when the only true answer was "not yet". The mount
+still declines an unacknowledged creation with `EBUSY`, because cancelling one is
+a separate operation that is not implemented.
+
 After interruption, a namespace operation requires verification. A matching immutable
 item at the requested new name/parent can complete a lost rename/move response.
 An unchanged original revision permits a new conditional attempt. A missing item

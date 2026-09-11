@@ -2860,6 +2860,91 @@ async fn applied(session: &WritableSession, count: usize) {
     .unwrap();
 }
 
+/// Removing a directory the provider has not acknowledged yet reports that it is
+/// busy, and says so in a word the caller can act on.
+///
+/// `Writeback::rmdir` already refuses this case deliberately: an unacknowledged
+/// directory has no ETag, so no conditional removal can be expressed against it,
+/// and cancelling an in-flight creation is a different operation. The refusal is
+/// right. Which errno carries it is what this pins down -- found on a live mount,
+/// where creating a folder and immediately removing it produced "Invalid
+/// argument", a message that describes nothing the caller did and suggests no
+/// way forward. `EBUSY` says the one true thing: not now, try again.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; an unconfirmed directory refuses removal as busy"]
+async fn real_rmdir_of_an_unconfirmed_directory_reports_busy_rather_than_invalid() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    namespace_fixture(&cloud);
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    // Hold the provider inside the folder creation, so the directory exists
+    // locally and has no remote identity for as long as the test needs.
+    cloud.hold_folder.store(true, Ordering::SeqCst);
+    let session =
+        WritableSession::mount(engine, journal, cloud.clone(), Arc::new(Vault::default()))
+            .await
+            .unwrap();
+
+    let target = mount.join("unconfirmed");
+    let created = target.clone();
+    tokio::task::spawn_blocking(move || std::fs::create_dir(&created).unwrap())
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(5), cloud.folder_entered.notified())
+        .await
+        .expect("the provider never entered the folder creation");
+
+    let pending = target.clone();
+    let error = tokio::task::spawn_blocking(move || std::fs::remove_dir(&pending).unwrap_err())
+        .await
+        .unwrap();
+    assert_eq!(
+        error.raw_os_error(),
+        Some(libc::EBUSY),
+        "an unconfirmed directory must refuse removal as busy, not as a malformed \
+         request the caller cannot act on: {error}"
+    );
+    // The refusal must leave the directory alone rather than half-removing it.
+    assert!(target.is_dir(), "the directory went away on a refusal");
+
+    // Once the provider acknowledges, the same removal succeeds. Without this the
+    // test would pass just as well against a mount that never removes anything.
+    cloud.folder_release.notify_one();
+    mutations_applied(&session, 1).await;
+    let confirmed = target.clone();
+    tokio::task::spawn_blocking(move || {
+        // Every refusal on the way must stay actionable. On a live mount this
+        // band -- after the provider acknowledged, before the local identity had
+        // been swapped for the remote one -- answered EINVAL for about two
+        // seconds, which tells the caller its request was malformed when the only
+        // true answer was "not yet".
+        for _ in 0..50 {
+            match std::fs::remove_dir(&confirmed) {
+                Ok(()) => return,
+                Err(error) => assert_eq!(
+                    error.raw_os_error(),
+                    Some(libc::EBUSY),
+                    "a directory waiting for its remote identity must refuse as \
+                     busy, not as a malformed request: {error}"
+                ),
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        panic!("a confirmed directory never became removable");
+    })
+    .await
+    .unwrap();
+    session.shutdown().await.unwrap();
+}
+
 /// The mount root refuses to become a local wastebasket, and only the root does.
 ///
 /// This is not hypothetical. On a writable mount the first Delete in GNOME Files

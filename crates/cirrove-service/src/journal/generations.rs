@@ -199,13 +199,21 @@ impl UploadJournal {
         if previous.kind().as_ref() != Some(&before.kind) || before.target.is_some() {
             return Err(JournalError::Intent);
         }
-        // A newly created local file does not have an ETag yet. Validate the
-        // local shape/destination, then replace the source from its receipt at claim.
+        // A newly created local file or directory does not have an ETag yet.
+        // Validate the local shape/destination, then replace the source from its
+        // receipt at claim.
+        //
+        // `RemoveFolder` belongs here for the same reason the other two do, and
+        // its absence was not a policy: creating a directory and removing it
+        // again before the provider's receipt arrived answered `EINVAL` for the
+        // second or two the chain was open -- telling the caller its request was
+        // malformed when the only true answer was "not yet". `resolve_mutation`
+        // carries the matching arm; neither is correct alone.
         let mut preview = request.clone();
         let source = match &mut preview.intent {
-            MutationIntent::Relocate { before, .. } | MutationIntent::RemoveFile { before } => {
-                before
-            }
+            MutationIntent::Relocate { before, .. }
+            | MutationIntent::RemoveFile { before }
+            | MutationIntent::RemoveFolder { before } => before,
             _ => return Err(JournalError::Intent),
         };
         source.etag = Some("cirrove-pending-receipt".into());
@@ -310,10 +318,14 @@ impl UploadJournal {
             return self.save_mutation(&record);
         }
         let node = node.ok_or(JournalError::Corrupt)?;
+        // The confirmed node carries the real ETag, replacing the placeholder the
+        // preview validated against. `record.request.validate()` below rejects
+        // anything that did not actually get one, so a placeholder can never
+        // reach the provider.
         match &mut record.request.intent {
-            MutationIntent::Relocate { before, .. } | MutationIntent::RemoveFile { before } => {
-                *before = node
-            }
+            MutationIntent::Relocate { before, .. }
+            | MutationIntent::RemoveFile { before }
+            | MutationIntent::RemoveFolder { before } => *before = node,
             _ => return Err(JournalError::Corrupt),
         }
         if record.request.validate().is_err() {

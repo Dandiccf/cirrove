@@ -451,3 +451,122 @@ fn actual_sigkill_preserves_pending_outcome_and_acknowledged_receipt() {
         assert_eq!(record.receipt.is_some(), phase != "applying");
     }
 }
+
+/// Removing a directory that this journal created is an ordinary chained
+/// mutation, not a malformed request.
+///
+/// Found on a live mount: `mkdir` then `rmdir` a second later answered `EINVAL`
+/// -- "invalid argument" -- for a window of about two seconds, and then worked.
+/// Nothing about the request was invalid. The chaining machinery that lets a
+/// change follow an operation whose receipt has not arrived yet handles
+/// `Relocate` and `RemoveFile` and simply did not list `RemoveFolder`, in two
+/// places: `validate_mutation_base` refused it as `Intent`, and `resolve_mutation`
+/// would have refused it as `Corrupt` had it ever got that far.
+///
+/// The band is narrow and entirely ordinary -- create a folder, change your mind
+/// -- and the error told the caller nothing it could act on. Reverting either
+/// match arm makes this fail: the first as `Intent` here, the second as `Corrupt`
+/// when the base resolves.
+#[test]
+fn a_directory_can_be_removed_while_its_own_creation_is_still_the_latest_change() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut j = journal(&tmp.path().join("journal"));
+    let object = j
+        .create_namespace_directory(scope(), "root".into(), "probe".into())
+        .unwrap();
+    assert!(
+        object.latest.is_some(),
+        "the creation must be the object's latest change for this to be the case under test"
+    );
+
+    // Acknowledge the creation, the way the worker does once the provider
+    // answers. This is what moves the object past the honest EBUSY refusal.
+    let created = j.claim_mutation().unwrap().unwrap();
+    j.acknowledge_mutation(
+        created.id,
+        created.attempt.unwrap(),
+        receipt(&created.request),
+    )
+    .unwrap();
+
+    let object = j.namespace_object(object.id).unwrap();
+    let removed = j
+        .remove_namespace_directory(object.id, object.revision)
+        .unwrap_or_else(|e| {
+            panic!("removing a directory whose creation is still the latest change: {e}")
+        });
+    assert!(removed.object.unlinked, "the object must be released");
+
+    // The queued removal must carry the creation as its base, so that the real
+    // ETag replaces the local placeholder before any provider call.
+    let pending = j.list_mutations(0, 16).unwrap();
+    let removal = pending
+        .iter()
+        .find(|r| matches!(r.request.intent, MutationIntent::RemoveFolder { .. }))
+        .expect("no folder removal was queued");
+    assert_eq!(
+        removal.base.as_ref().map(|b| b.predecessor),
+        Some(created.id),
+        "the removal must be chained to the creation, not sent on its own"
+    );
+}
+
+/// The chained folder removal reaches the provider carrying the ETag from the
+/// creation's receipt, not the placeholder its shape was validated against.
+///
+/// This is the other half of
+/// `a_directory_can_be_removed_while_its_own_creation_is_still_the_latest_change`.
+/// That one covers `validate_mutation_base`, which lets the removal be queued at
+/// all; this covers `resolve_mutation`, which substitutes the real identity once
+/// the creation's receipt arrives. Reverting that arm makes this fail with a
+/// corrupt journal rather than a wrong ETag, which is the failure mode the arm
+/// was written to produce -- but it is still a directory nobody can remove.
+#[tokio::test]
+async fn a_chained_folder_removal_is_rebound_to_the_creation_receipt_before_it_is_sent() {
+    let tmp = tempfile::tempdir().unwrap();
+    let j = Arc::new(Mutex::new(journal(&tmp.path().join("journal"))));
+    let object = j
+        .lock()
+        .unwrap()
+        .create_namespace_directory(scope(), "root".into(), "probe".into())
+        .unwrap();
+    // The local node has no remote identity at all: this is what must be gone
+    // from the request by the time it is sent.
+    assert!(object.node.id.starts_with("local-directory-"));
+    assert!(object.node.etag.is_none());
+    j.lock()
+        .unwrap()
+        .remove_namespace_directory(object.id, object.revision)
+        .unwrap();
+
+    let p = provider("success", &j);
+    let worker = MutationWorker::new(j.clone(), p.clone(), CancellationToken::new());
+    // First the creation, then the removal that was waiting on its receipt.
+    for _ in 0..2 {
+        let result = worker.run_once().await.unwrap().unwrap();
+        assert_eq!(result.state, MutationState::Applied, "{:?}", result.state);
+    }
+    assert_eq!(p.mutations.load(Ordering::SeqCst), 2);
+
+    let removal = j
+        .lock()
+        .unwrap()
+        .list_mutations(0, 16)
+        .unwrap()
+        .into_iter()
+        .find(|r| matches!(r.request.intent, MutationIntent::RemoveFolder { .. }))
+        .expect("no folder removal in the journal");
+    let MutationIntent::RemoveFolder { before } = &removal.request.intent else {
+        unreachable!()
+    };
+    assert_eq!(
+        before.id, "new-folder",
+        "the removal still names the local directory instead of the created one"
+    );
+    assert_eq!(
+        before.etag.as_deref(),
+        Some("original"),
+        "the removal must carry the receipt's ETag, never the validation placeholder"
+    );
+    assert_ne!(before.etag.as_deref(), Some("cirrove-pending-receipt"));
+}
