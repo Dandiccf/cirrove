@@ -2860,6 +2860,114 @@ async fn applied(session: &WritableSession, count: usize) {
     .unwrap();
 }
 
+/// A trash directory that is already in the drive cannot be used as one either.
+///
+/// The `mkdir` guard stops one being created. It does nothing about a drive that
+/// already has one -- left by an earlier Cirrove, or by another tool -- and
+/// trashing is a *rename* into `.Trash-$uid/files/`, not a mkdir. Without this
+/// the guard would hold only for drives that never had a wastebasket, which is
+/// precisely not the drives that need it.
+///
+/// Renaming back out stays allowed. A user whose drive already contains one must
+/// be able to recover what is in it, and a guard that trapped those files would
+/// be worse than the wastebasket.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; an existing trash directory refuses to be filled"]
+async fn real_an_existing_trash_directory_refuses_renames_into_it_but_not_out_of_it() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    namespace_fixture(&cloud);
+    // A wastebasket that is already in the drive, with the layout the trash
+    // specification gives it and a file the user would want back.
+    {
+        let mut remote = cloud.remote.lock().unwrap();
+        for (id, name, parent) in [
+            (".trash", ".Trash-1000", "root"),
+            (".trash-files", "files", ".trash"),
+        ] {
+            let node = Node {
+                id: id.into(),
+                parent_id: Some(parent.into()),
+                name: name.into(),
+                etag: Some(format!("{id}-etag")),
+                ..root()
+            };
+            remote.files.insert(node.id.clone(), (node, vec![]));
+        }
+        let stranded = Node {
+            id: "stranded".into(),
+            parent_id: Some(".trash-files".into()),
+            name: "stranded.txt".into(),
+            kind: NodeKind::File,
+            size: 8,
+            modified_unix: 1,
+            etag: Some("stranded-etag".into()),
+            content_version: Some("stranded-content".into()),
+            target: None,
+        };
+        remote
+            .files
+            .insert(stranded.id.clone(), (stranded, b"recovery".to_vec()));
+    }
+
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session =
+        WritableSession::mount(engine, journal, cloud.clone(), Arc::new(Vault::default()))
+            .await
+            .unwrap();
+
+    let root = mount.clone();
+    tokio::task::spawn_blocking(move || {
+        let trash = root.join(".Trash-1000");
+        // Into the wastebasket, at both depths a file manager uses.
+        for destination in [
+            trash.join("occupied.bin"),
+            trash.join("files").join("occupied.bin"),
+        ] {
+            let error = std::fs::rename(root.join("occupied.bin"), &destination).unwrap_err();
+            assert_eq!(
+                error.raw_os_error(),
+                Some(libc::EOPNOTSUPP),
+                "renaming into {destination:?}: {error}"
+            );
+        }
+        // The file it was supposed to swallow is untouched and still readable.
+        assert_eq!(
+            std::fs::read(root.join("occupied.bin")).unwrap(),
+            b"foreign"
+        );
+        // Out of the wastebasket is how a user recovers, and must keep working.
+        std::fs::rename(
+            trash.join("files").join("stranded.txt"),
+            root.join("stranded.txt"),
+        )
+        .unwrap();
+        assert_eq!(
+            std::fs::read(root.join("stranded.txt")).unwrap(),
+            b"recovery"
+        );
+    })
+    .await
+    .unwrap();
+
+    mutations_applied(&session, 1).await;
+    {
+        let remote = cloud.remote.lock().unwrap();
+        let (node, _) = remote.files.get("stranded").unwrap();
+        assert_eq!(node.parent_id.as_deref(), Some("root"));
+        assert_eq!(node.name, "stranded.txt");
+    }
+    session.shutdown().await.unwrap();
+}
+
 /// Removing a directory the provider has not acknowledged yet reports that it is
 /// busy, and says so in a word the caller can act on.
 ///

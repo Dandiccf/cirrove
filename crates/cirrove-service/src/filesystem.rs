@@ -458,6 +458,34 @@ impl Inner {
             .cloned()
             .ok_or(ProviderError::NotFound)
     }
+    /// Whether this view lies in a trash directory at the mount root.
+    ///
+    /// Refusing to *create* one is not enough on its own. A file manager also
+    /// adopts an existing `$topdir/.Trash-$uid` -- left by an earlier Cirrove, or
+    /// by another tool -- and trashing is a rename into it, not a mkdir. Without
+    /// this the guard in `mkdir` would hold only for drives that never had one.
+    ///
+    /// Only renames *into* it are refused. A user whose drive already contains a
+    /// trash directory must be able to move their files back out of it, and
+    /// refusing that would trap them there.
+    fn inside_root_trash(&self, view: &View) -> bool {
+        let mut current = view.clone();
+        // Bounded rather than `loop`: a damaged parent chain must refuse an
+        // answer, not hang the rename that asked.
+        for _ in 0..256 {
+            if current.inode == ROOT_INODE {
+                return false;
+            }
+            if current.parent == ROOT_INODE {
+                return is_trash_directory(&current.name);
+            }
+            match self.view(current.parent) {
+                Ok(parent) => current = parent,
+                Err(_) => return false,
+            }
+        }
+        false
+    }
     fn project(parent: &View, child: Node) -> Result<View, ProviderError> {
         if child.name.is_empty()
             || child.name == "."
@@ -1226,6 +1254,10 @@ impl Filesystem for CloudFs {
                 if parent.node.kind != NodeKind::Folder || destination.node.kind != NodeKind::Folder
                 {
                     return Err(Errno::ENOTDIR);
+                }
+                // Trashing is a rename. See `inside_root_trash`.
+                if inner.inside_root_trash(&destination) {
+                    return Err(Errno::EOPNOTSUPP);
                 }
                 let nodes = inner.children(&parent).await.map_err(|e| errno(&e))?;
                 let source = nodes

@@ -552,11 +552,14 @@ specification points a file manager at `$topdir/.Trash-$uid`, and on a mount
 `$topdir` is the mount point, so the first Delete in GNOME Files created that
 directory inside the user's cloud drive -- a second wastebasket, synced to every
 device, while the provider's own recycle bin stayed empty. `mkdir` now answers
-`EOPNOTSUPP` for `.Trash` and `.Trash-$uid` at the root only. A file manager then
+`EOPNOTSUPP` for `.Trash` and `.Trash-$uid` at the root only, and `rename`
+refuses a destination inside one, because trashing into a wastebasket that is
+already in the drive is a rename rather than a mkdir. Renames out of one stay
+allowed, so an existing wastebasket can still be emptied. A file manager then
 offers permanent deletion instead, which is safe and still not accurate about
 where the file goes; [ADR 0008](adr/0008-deletion-and-the-recycle-bin.md) records
-that gap, the rename edge it does not close, and why permanent deletion needs a
-control verb rather than a filesystem call.
+that gap and why permanent deletion needs a control verb rather than a filesystem
+call.
 
 Experimental writable mounts now connect regular-file rename/move to this worker.
 Experimental FUSE also supports folder creation and dependent child destinations

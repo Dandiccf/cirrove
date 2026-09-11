@@ -1,8 +1,10 @@
 # 0008: Deletion, the provider's recycle bin, and the local one that must not exist
 
 Status: partially implemented. The mount root now refuses to become a local
-wastebasket (`is_trash_directory`, `filesystem.rs`), held by a test shown to fail
-without it. Everything else here is a decision, not yet code: the honest delete
+wastebasket, in both the ways one can appear: `mkdir` refuses to create it and
+`rename` refuses to fill an existing one (`is_trash_directory` and
+`inside_root_trash`, `filesystem.rs`), each held by a test shown to fail without
+it. Everything else here is a decision, not yet code: the honest delete
 prompt, the second context-menu entry, and the per-provider capability that
 decides whether either may be offered.
 
@@ -50,6 +52,15 @@ created a wastebasket inside the user's cloud drive.
 the root: a `.Trash-1000` the user keeps somewhere inside their drive is their
 folder, and no trash implementation looks there.
 
+Refusing to create one is not sufficient on its own, because a file manager also
+adopts an existing `$topdir/.Trash-$uid`, and trashing is a *rename* into it
+rather than a mkdir. So `rename` refuses a destination inside a root-level trash
+directory as well -- otherwise the guard would hold only for drives that never
+had a wastebasket, which is exactly not the drives that need it. Renames *out of*
+one stay allowed: a user whose drive already contains one has to be able to
+recover what is in it, and a guard that stranded those files would be worse than
+the wastebasket.
+
 The cost is that GIO reads `EOPNOTSUPP` as "no trash here" and offers *permanent*
 deletion instead -- a prompt warning that the file cannot be recovered, in front
 of a delete that goes to the OneDrive recycle bin. Safe, and still not true. It
@@ -91,11 +102,11 @@ ADR exists to prevent, one level up.
 
 ## What is not closed
 
-- **The rename edge.** The guard stops `.Trash-*` being *created* at the root. If
-  one already exists in a user's drive -- put there by an earlier Cirrove, or by
-  another tool -- GIO will find it and use it. Detecting and adopting existing
-  ones belongs with the trash-specification work above, not with a `mkdir` guard,
-  and pretending otherwise would be the same mistake in a smaller font.
+- **Emptying an existing one.** Renames into a root-level trash directory are
+  refused, so an existing wastebasket cannot be filled further. What remains is
+  that it is still *there*, with whatever is already in it. Removing it is the
+  user's call, not something a mount should do on its own, and there is nothing
+  yet that tells them it exists.
 - **The prompt still misstates the outcome**, as described in 1.
 - **Folder deletion keeps its measured hazard.** Graph's `DELETE` on a folder is
   recursive and a folder's eTag does not move when a child is added -- measured,
