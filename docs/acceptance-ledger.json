@@ -170,9 +170,9 @@
       "line": 193,
       "done": false,
       "text": "Crash/fault tests at every durable transition and concurrent remote edits.",
-      "blocker": "needs-root",
-      "evidence": "docs/benchmarks/durable-transition-crash-coverage.json",
-      "asserted_by": "All 31 runtime durable transitions are crossed by a process that then dies, measured rather than read: each site records itself and each crash fixture persists what it reached. 30 are evidenced in a killed child; the preparation recovery in the process that opens the journal afterwards, because that is where recovery runs. See docs/benchmarks/durable-transition-sites.json."
+      "blocker": "autonomous",
+      "evidence": "docs/benchmarks/durable-transition-crash-coverage.json and durable-transition-sites.json for process death: all 31 runtime durable transitions are crossed by a process that then dies, measured rather than read. 2026-09-11, faults below the process: docs/benchmarks/journal-under-io-faults.json. A dm-flakey device switched to error_writes at runtime and back. What was durable before the fault survives it and reads back byte for byte afterwards; new work is refused as JournalError::Storage rather than as corruption -- reporting a refusing device as a corrupt journal would send a user to recovery steps that destroy work the device still holds. A prediction failed usefully: the journal cannot be OPENED on a failing device, because opening opens SQLite and SQLite writes. So its contents are inaccessible during a fault, which is not the same as lost, and the run makes only the second claim. STILL OPEN: a lying fsync and torn writes are separate injections not yet run, and a true power cut cannot be scripted at all -- it needs someone at the wall socket or a machine with a controllable PSU. That clause is why this box is not ticked.",
+      "asserted_by": "All 31 runtime durable transitions are crossed by a process that then dies, measured rather than read: each site records itself and each crash fixture persists what it reached. 30 are evidenced in a killed child; the preparation recovery in the process that opens the journal afterwards, because that is where recovery runs. See docs/benchmarks/durable-transition-sites.json. a_journal_on_a_failing_device_refuses_without_losing_what_was_durable runs in three phases against one dm-flakey device in CI; re-run with the sealed payload deliberately overwritten, its recover phase fails."
     },
     {
       "milestone": 2,

@@ -122,6 +122,49 @@ jobs:
           # ENOSPC.
           rm -f "$mount"/ballast
           CIRROVE_FULL_DISK_DIR="$mount" timeout 120s cargo test -p cirrove-service --test writable_session --locked real_a_save_on_a_full_device_is_reported_as_a_device_and_not_a_budget -- --ignored --nocapture --test-threads=1
+      - name: A journal on a device that starts refusing writes
+        # The process-death half of the crash box is closed: all 31 runtime
+        # durable transitions are crossed by a process that then dies. What is
+        # left is faults below the process, which need dm-flakey and root --
+        # available here, and already used for modprobe and mount.
+        #
+        # Three invocations because the test cannot run dmsetup and the shell
+        # that can has to interleave with it. Unmount before touching the table:
+        # `dmsetup suspend` flushes, which fails once ext4 has entered
+        # emergency_ro, so the obvious order cannot work after a fault. And heal
+        # by unmounting rather than remounting: `mount -o remount,rw` reports
+        # success on an emergency_ro filesystem without clearing it, which is a
+        # silent no-op.
+        #
+        # See docs/benchmarks/journal-under-io-faults.json. A true power cut
+        # stays out of reach and is named there rather than substituted for.
+        run: |
+          set -euo pipefail
+          sudo modprobe dm_flakey
+          image="$RUNNER_TEMP/flaky.img"
+          mount="$RUNNER_TEMP/flaky"
+          sectors=262144
+          mkdir -p "$mount"
+          truncate -s 128M "$image"
+          loop=$(sudo losetup --find --show "$image")
+          table() { sudo dmsetup suspend cirrove-flaky; sudo dmsetup reload cirrove-flaky --table "$1"; sudo dmsetup resume cirrove-flaky; }
+          sudo dmsetup create cirrove-flaky --table "0 $sectors flakey $loop 0 1 0"
+          trap 'sudo umount "$mount" 2>/dev/null || true; sudo dmsetup remove cirrove-flaky 2>/dev/null || true; sudo losetup -d "$loop" 2>/dev/null || true' EXIT
+          sudo mkfs.ext4 -q -F -m 0 /dev/mapper/cirrove-flaky
+          sudo mount /dev/mapper/cirrove-flaky "$mount"
+          sudo chown "$(id -u):$(id -g)" "$mount"
+          only=a_journal_on_a_failing_device_refuses_without_losing_what_was_durable
+          phase() { CIRROVE_FLAKY_DIR="$mount" CIRROVE_FLAKY_PHASE="$1" timeout 120s cargo test -p cirrove-service --test working_files --locked "$only" -- --ignored --nocapture --test-threads=1; }
+          phase seed
+          sync
+          table "0 $sectors flakey $loop 0 0 1 1 error_writes"
+          phase fault
+          sudo umount "$mount" 2>/dev/null || sudo umount -l "$mount"
+          table "0 $sectors flakey $loop 0 1 0"
+          sudo e2fsck -p -f /dev/mapper/cirrove-flaky >/dev/null 2>&1 || true
+          sudo mount /dev/mapper/cirrove-flaky "$mount"
+          sudo chown "$(id -u):$(id -g)" "$mount"
+          phase recover
       - run: cargo build --workspace --locked
       - run: python3 scripts/smoke.py
       - run: python3 scripts/test-observe-service.py

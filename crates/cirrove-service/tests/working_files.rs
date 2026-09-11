@@ -495,3 +495,103 @@ fn only_the_two_no_space_refusals_are_recorded_and_they_stay_distinct() {
     assert_ne!(budget.kind, device.kind);
     assert_ne!(budget.message, device.message);
 }
+
+/// What the journal does when the device beneath it starts refusing writes.
+///
+/// `durable-transition-sites.json` closed the process-death half of the crash
+/// box: all 31 runtime durable transitions are crossed by a process that then
+/// dies. Its own conclusion names what is left -- faults below the process,
+/// which need dm-flakey and root. This is the reachable part of that: a
+/// block-layer write failure switched on at runtime and back off again.
+///
+/// Three invocations against one device, because the test cannot run `dmsetup`
+/// and the shell that can has to interleave with it. `seed` on a healthy device,
+/// then the harness breaks it, then `fault`, then the harness mends it, then
+/// `recover`. The phase is a variable rather than an argument so the harness is
+/// a shell loop and not a protocol.
+#[test]
+#[ignore = "needs a dm-flakey device; set CIRROVE_FLAKY_DIR and CIRROVE_FLAKY_PHASE"]
+fn a_journal_on_a_failing_device_refuses_without_losing_what_was_durable() {
+    let root = std::env::var_os("CIRROVE_FLAKY_DIR")
+        .map(std::path::PathBuf::from)
+        .expect("CIRROVE_FLAKY_DIR must name a directory on a dm-flakey device");
+    let phase = std::env::var("CIRROVE_FLAKY_PHASE")
+        .expect("CIRROVE_FLAKY_PHASE must be seed, fault or recover");
+    let journal = root.join("journal");
+    let marker = root.join("seeded-bytes");
+    let sealed = b"durable before the device failed".to_vec();
+
+    match phase.as_str() {
+        "seed" => {
+            // Seed defines the starting state, so it starts from nothing. Run
+            // twice against one journal it fails with Stale, which is the
+            // journal being right and the harness being wrong.
+            let _ = std::fs::remove_dir_all(&journal);
+            let _ = std::fs::remove_file(&marker);
+            let mut j = open(&journal, 8 * 1024 * 1024);
+            let working = j
+                .create_working(scope(), node(0), true, b"".as_slice())
+                .unwrap();
+            j.write_working(working.id, 0, &sealed).unwrap();
+            let record = j.seal_working(working.id).unwrap().unwrap();
+            assert_eq!(payload(&j, record.id), sealed);
+            std::fs::write(&marker, record.id.to_string()).unwrap();
+        }
+        "fault" => {
+            // Opening may itself fail on a device refusing writes; that is a
+            // clean refusal too, and is what this asserts if it happens.
+            let opened = UploadJournal::open(&journal, &scope().account, 8 * 1024 * 1024);
+            let Ok(mut j) = opened else {
+                let error = opened.err().unwrap();
+                assert!(
+                    !matches!(error, JournalError::Corrupt),
+                    "a device refusing writes is not a corrupted journal: {error:?}"
+                );
+                // Which branch ran is the finding, not a detail: opening the
+                // journal opens SQLite, which writes, so on a failing device the
+                // journal may be unopenable and its contents inaccessible until
+                // the device recovers. Inaccessible is not lost -- `recover`
+                // asserts that -- but the two are different claims and the run
+                // has to say which one it made.
+                println!("FLAKY_FAULT branch=open_refused error={error:?}");
+                return;
+            };
+            println!("FLAKY_FAULT branch=opened");
+            // P2: what reached the platter before the fault is still readable.
+            // dm-flakey's error_writes leaves reads alone, so a journal that
+            // cannot produce these bytes has lost them to its own handling.
+            let id: uuid::Uuid = std::fs::read_to_string(&marker).unwrap().parse().unwrap();
+            assert_eq!(
+                payload(&j, id),
+                sealed,
+                "the journal lost durable bytes the device still holds"
+            );
+            // P1 and P4: new work must be refused, and refused as a storage
+            // problem rather than as corruption -- reporting a refusing device
+            // as a corrupt journal sends a user to recovery steps that destroy
+            // work the device still has.
+            let working = j
+                .create_working(scope(), node(0), true, b"".as_slice())
+                .and_then(|w| j.write_working(w.id, 0, b"written while the device was failing"));
+            let error = working.expect_err("a failing device must not accept new durable work");
+            assert!(
+                matches!(
+                    error,
+                    JournalError::Storage | JournalError::DeviceFull | JournalError::Busy
+                ),
+                "a refusing device must be reported as a storage problem: {error:?}"
+            );
+            println!("FLAKY_FAULT branch=opened_then_refused error={error:?}");
+        }
+        "recover" => {
+            let j = open(&journal, 8 * 1024 * 1024);
+            let id: uuid::Uuid = std::fs::read_to_string(&marker).unwrap().parse().unwrap();
+            assert_eq!(
+                payload(&j, id),
+                sealed,
+                "a device fault took durable work with it"
+            );
+        }
+        other => panic!("unknown phase {other:?}"),
+    }
+}

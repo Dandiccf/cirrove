@@ -1,0 +1,49 @@
+{
+  "question": "When the device beneath the upload journal starts failing writes, does the journal refuse cleanly and does what was already durable survive the fault?",
+  "why_now": "docs/benchmarks/durable-transition-sites.json closed the process-death half of milestone 2's crash box: all 31 runtime durable transitions are crossed by a process that then dies, measured rather than read. Its own conclusion names what is left: 'crash/fault tests includes faults this cannot reach. Process death is covered at every transition; physical power loss, a lying fsync, torn writes and block-layer ENOSPC need dm-flakey or dm-error and root, and a true power cut cannot be scripted at all.' This is the reachable part of that.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-11",
+  "what_is_and_is_not_reachable": {
+    "reachable": "Block-layer write failure, injected at runtime with dm-flakey's error_writes and switched back off. That covers the 'the device said no' family.",
+    "not_reachable_here": "A lying fsync -- dm-flakey's drop_writes acknowledges and discards, which is a different and worse fault -- and torn writes via corrupt_bio_byte. Both are separate runs and are not attempted in this one.",
+    "not_reachable_at_all": "A true power cut. It cannot be scripted and needs someone at the wall socket or a machine with a controllable PSU. It stays named as a gap rather than substituted for."
+  },
+  "shape": "Three invocations against one dm-flakey device, because the test cannot run dmsetup itself and the shell that can must interleave with it. Phase `seed` on a healthy device creates durable journal state. The harness switches the device to error_writes. Phase `fault` attempts further work and asserts it fails rather than corrupting. The harness switches the device back. Phase `recover` reopens and asserts what was durable before the fault is still there, byte for byte.",
+  "predictions": [
+    {
+      "id": "P1",
+      "claim": "In `fault`, sealing new work returns an error rather than succeeding.",
+      "role": "the fault has to reach the journal at all, or the run measures a healthy device"
+    },
+    {
+      "id": "P2",
+      "claim": "In `fault`, the payload sealed during `seed` is still readable.",
+      "reasoning": "dm-flakey's error_writes fails writes and leaves reads alone, so what reached the platter before the fault is still there. A journal that loses it has lost it to its own handling, not to the device."
+    },
+    {
+      "id": "P3",
+      "claim": "In `recover`, with the device healthy again, the journal reopens and the seeded payload reads back byte for byte.",
+      "role": "the claim the box makes -- a fault does not take durable work with it"
+    },
+    {
+      "id": "P4",
+      "claim": "The error surfaced in `fault` is JournalError::DeviceFull or Storage, not Corrupt.",
+      "reasoning": "A device refusing writes is not a corrupted journal, and reporting it as one would send a user to recovery steps that destroy work the device still holds."
+    }
+  ],
+  "decision_rule": "P1 and P3 are the box's substance. P4 failing would be a defect to fix rather than a reason to weaken the assertion. None of this ticks the box on its own: the power-cut clause stays open and is named in the row.",
+  "result": {
+    "seed": "Passed on a healthy device: a working file created, written and sealed, and its payload read back.",
+    "fault": "Passed, on the branch the registration did not predict. The journal could not be OPENED at all: UploadJournal::open returned JournalError::Storage. Opening opens SQLite, which writes, so on a device refusing writes the journal is unopenable and its contents are inaccessible until the device recovers.",
+    "recover": "Passed. With the device healthy again and the filesystem checked, the journal reopened and the seeded payload read back byte for byte."
+  },
+  "verdict": {
+    "P1": "HOLDS in substance and not as written. It predicted that sealing new work would fail; what happens is earlier and more absolute -- the journal cannot be opened. New durable work is refused, which is the claim, but by a route the registration did not anticipate.",
+    "P2": "UNREACHABLE, and that is the finding. The payload sealed before the fault cannot be read DURING it, because reading it requires opening the journal and opening requires writing. Inaccessible is not lost -- `recover` proves that -- but they are different claims and this run makes only the second.",
+    "P3": "HOLDS. The seeded payload survives the fault and reads back byte for byte once the device is healthy.",
+    "P4": "HOLDS. The error is JournalError::Storage, not Corrupt. A device refusing writes reported as a corrupted journal would send a user to recovery steps that destroy work the device still holds."
+  },
+  "shown_to_fail_without_its_subject": "The recover phase was re-run with the sealed payload deliberately overwritten, and it fails. Worth noting what that took: sealed payloads are stored mode 400, so damaging one needed an explicit chmod -- the immutability the journal relies on is a real file permission and not a convention.",
+  "two_things_the_harness_had_to_learn": "ext4 enters emergency_ro after an I/O error, and `mount -o remount,rw` REPORTS SUCCESS without clearing it. A heal step built on remount is a silent no-op, and a fault fixture whose recovery silently does nothing measures nothing. And the device table cannot be switched while the broken filesystem is still mounted: `dmsetup suspend` flushes, which fails on emergency_ro. Unmount first, then switch, then check, then mount.",
+  "what_stays_open": "A lying fsync (dm-flakey drop_writes, which acknowledges and discards) and torn writes (corrupt_bio_byte) are separate runs and are not attempted here. A true power cut cannot be scripted at all. The box is not ticked and the row names the power-cut clause as the reason."
+}
