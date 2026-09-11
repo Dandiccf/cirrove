@@ -592,6 +592,85 @@ fn a_journal_on_a_failing_device_refuses_without_losing_what_was_durable() {
                 "a device fault took durable work with it"
             );
         }
+        // A lying fsync: dm-flakey's drop_writes acknowledges the write and
+        // discards it. Worse than a refusal, because nothing fails at the time.
+        // The journal cannot detect this while it is happening -- no API says
+        // "that write you were told succeeded did not" -- so the claim under
+        // test is about RECOVERY: what comes back afterwards must be either
+        // right or refused, never wrong and confident.
+        "lie" => {
+            let opened = UploadJournal::open(&journal, &scope().account, 8 * 1024 * 1024);
+            if let Ok(mut j) = opened {
+                let working = j
+                    .create_working(scope(), node(0), true, b"".as_slice())
+                    .and_then(|w| j.write_working(w.id, 0, b"written while writes were discarded"))
+                    .and_then(|(_, w)| j.seal_working(w.id));
+                // Either outcome is acceptable here and the run records which.
+                // A discarded write can look like success at the time; that is
+                // what makes it a lying fsync rather than a failure.
+                println!(
+                    "FLAKY_LIE sealed={} ",
+                    match &working {
+                        Ok(_) => "accepted".to_string(),
+                        Err(e) => format!("refused:{e:?}"),
+                    }
+                );
+            } else {
+                println!("FLAKY_LIE open_refused");
+            }
+        }
+        // After a lying fsync, with the device honest again: the payload sealed
+        // before any of it must still be right. Work done DURING the lie may be
+        // gone -- that is what discarding writes means -- but it must not come
+        // back as something else.
+        "after_lie" => {
+            let j = open(&journal, 8 * 1024 * 1024);
+            let id: uuid::Uuid = std::fs::read_to_string(&marker).unwrap().parse().unwrap();
+            assert_eq!(
+                payload(&j, id),
+                sealed,
+                "a lying fsync corrupted work that was durable before it started"
+            );
+        }
+        // Torn writes: dm-flakey flips a byte inside write bios. Unlike a
+        // refusal or a discard, the write lands and is wrong. The journal's
+        // defence here is its checksums, so what this asserts is that damage
+        // surfaces as Corrupt rather than as plausible bytes.
+        "tear" => {
+            let opened = UploadJournal::open(&journal, &scope().account, 8 * 1024 * 1024);
+            match opened {
+                Ok(mut j) => {
+                    let outcome = j
+                        .create_working(scope(), node(0), true, b"".as_slice())
+                        .and_then(|w| j.write_working(w.id, 0, b"written while bytes were flipped"))
+                        .and_then(|(_, w)| j.seal_working(w.id));
+                    println!(
+                        "FLAKY_TEAR sealed={}",
+                        match &outcome {
+                            Ok(_) => "accepted".to_string(),
+                            Err(e) => format!("refused:{e:?}"),
+                        }
+                    );
+                }
+                Err(e) => println!("FLAKY_TEAR open_refused:{e:?}"),
+            }
+        }
+        // After torn writes, with the device honest again. Work from before must
+        // be right, and anything damaged must be reported rather than served.
+        "after_tear" => {
+            let j = open(&journal, 8 * 1024 * 1024);
+            let id: uuid::Uuid = std::fs::read_to_string(&marker).unwrap().parse().unwrap();
+            let recovered =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| payload(&j, id)));
+            match recovered {
+                Ok(bytes) => assert_eq!(
+                    bytes, sealed,
+                    "torn writes produced plausible but wrong bytes for work that was durable \
+                     before them; wrong and confident is the worst outcome available"
+                ),
+                Err(_) => println!("FLAKY_AFTER_TEAR payload_refused"),
+            }
+        }
         other => panic!("unknown phase {other:?}"),
     }
 }

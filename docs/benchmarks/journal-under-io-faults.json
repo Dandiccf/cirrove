@@ -45,5 +45,18 @@
   },
   "shown_to_fail_without_its_subject": "The recover phase was re-run with the sealed payload deliberately overwritten, and it fails. Worth noting what that took: sealed payloads are stored mode 400, so damaging one needed an explicit chmod -- the immutability the journal relies on is a real file permission and not a convention.",
   "two_things_the_harness_had_to_learn": "ext4 enters emergency_ro after an I/O error, and `mount -o remount,rw` REPORTS SUCCESS without clearing it. A heal step built on remount is a silent no-op, and a fault fixture whose recovery silently does nothing measures nothing. And the device table cannot be switched while the broken filesystem is still mounted: `dmsetup suspend` flushes, which fails on emergency_ro. Unmount first, then switch, then check, then mount.",
-  "what_stays_open": "A lying fsync (dm-flakey drop_writes, which acknowledges and discards) and torn writes (corrupt_bio_byte) are separate runs and are not attempted here. A true power cut cannot be scripted at all. The box is not ticked and the row names the power-cut clause as the reason."
+  "what_stays_open": "A lying fsync (dm-flakey drop_writes, which acknowledges and discards) and torn writes (corrupt_bio_byte) are separate runs and are not attempted here. A true power cut cannot be scripted at all. The box is not ticked and the row names the power-cut clause as the reason.",
+  "lying_fsync_2026_09_11": {
+    "injection": "dm-flakey drop_writes: the write is acknowledged and discarded. Worse than a refusal, because nothing fails at the time.",
+    "result": "The journal DETECTED it. Sealing during the lie was refused with JournalError::Stale, because the journal reads back what it wrote and finds the generation unchanged -- the ordering check it keeps for concurrent writers catches a discarded write as a side effect.",
+    "after": "With the device honest again, work that was durable before the lie reads back byte for byte.",
+    "what_this_does_not_claim": "That every discarded write is caught. This one was caught by a generation check on a path that happens to read back; a discard on a path that does not would not be. The claim is that this injection did not produce wrong-and-confident data, not that it cannot."
+  },
+  "torn_writes_attempted_and_inconclusive": {
+    "injection": "dm-flakey corrupt_bio_byte 32 w 1 0 -- flip the 32nd byte of every write bio.",
+    "result": "The phase did not complete within 200 seconds and was killed.",
+    "why_it_says_nothing_about_the_journal": "dm-flakey cannot distinguish the journal's data writes from ext4's metadata writes, so this corrupts the filesystem underneath as readily as the file above it. A hang in that state is a statement about ext4 meeting corrupted metadata, not about how the journal handles a torn payload.",
+    "what_would_work_instead": "Corrupting the journal's own files directly, which the recover-phase discriminator already does -- overwriting a sealed payload makes recovery fail. That is a targeted version of the same question and it is answered. A block-layer injection would need to target only the journal's extents, which dm-flakey cannot express.",
+    "decision": "Not wired into CI. Recorded as attempted rather than quietly dropped, because 'we tried torn writes' and 'torn writes are covered' are different sentences."
+  }
 }
