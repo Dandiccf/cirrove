@@ -101,8 +101,15 @@ described for a while as needing a daemon control verb first, on the grounds tha
 a second writer would race the window over one file. That was wrong: the locks
 were already there and a third caller is serialised by them like any other.
 Acknowledgement is free, because the tray is subscribed and the daemon's mount
-event redraws the row. A failure has nowhere to go but the log, which the window
-does better.
+event redraws the row.
+
+A failure reaches the icon rather than only a log. Everything else the tray shows
+is the daemon's answer and nothing inferred from it; this is the one exception
+and it is not an inference -- the tray asked, the call failed, and the tray is
+the only thing that saw it. The icon goes to `NeedsAttention`, the tooltip leads
+with what to do about it, and the next change the daemon reports clears it,
+because a notice that outlived its cause keeps the icon shouting after the user
+already fixed it somewhere else.
 
 What the menu may hold is constrained by the milestone rather than by taste --
 *"no control or state may be reachable only through a tray or only through one

@@ -63,6 +63,11 @@ pub struct DbusMenu {
     /// which holds the configuration and per-account operation locks -- rather
     /// than through a control verb that does not exist.
     state_dir: std::path::PathBuf,
+    /// Woken when something the tray itself did needs the icon and tooltip
+    /// redrawn. The menu cannot publish a property change on its own -- the
+    /// connection it would use is the one serving it -- so it asks, and `run`
+    /// does it.
+    redraw: Arc<tokio::sync::Notify>,
     /// Bumped whenever the layout changes. A shell caches a layout and refetches
     /// only when this moves, so a menu that never bumps it is a menu that shows
     /// yesterday's accounts.
@@ -77,11 +82,13 @@ impl DbusMenu {
         state: Arc<Mutex<TrayState>>,
         revision: Arc<AtomicU32>,
         state_dir: std::path::PathBuf,
+        redraw: Arc<tokio::sync::Notify>,
     ) -> Self {
         Self {
             state,
             revision,
             state_dir,
+            redraw,
         }
     }
 
@@ -312,15 +319,27 @@ impl DbusMenu {
                 // Blocking filesystem work under two locks; it must not run on
                 // the bus task, which a shell is waiting on for this reply.
                 let state_dir = self.state_dir.clone();
+                let state = self.state.clone();
+                let redraw = self.redraw.clone();
+                let wanted = if mounted { "mount" } else { "unmount" };
                 tokio::task::spawn_blocking(move || {
-                    if let Err(error) =
+                    let Err(error) =
                         cirrove_service::accounts::set_enabled_by_id(&state_dir, &account, mounted)
-                    {
-                        // The window can put this in front of the user and a
-                        // tray cannot; the honest thing is to say so where an
-                        // operator will find it rather than to fail silently.
-                        eprintln!("cirrove-tray: could not change the mount preference: {error:#}");
+                    else {
+                        // Nothing to report: the daemon's mount event is what
+                        // says it worked, and it redraws the row on its own.
+                        return;
+                    };
+                    // The message is about what to do rather than what went
+                    // wrong -- the usual cause is another account operation
+                    // holding the lock, and retrying is the remedy.
+                    eprintln!("cirrove-tray: could not {wanted}: {error:#}");
+                    if let Ok(mut state) = state.lock() {
+                        state.set_notice(format!(
+                            "Could not {wanted}. Another account operation may be running; try again."
+                        ));
                     }
+                    redraw.notify_waiters();
                 });
             }
             Action::Nothing => {}
@@ -380,6 +399,7 @@ mod tests {
             Arc::new(Mutex::new(state)),
             Arc::new(AtomicU32::new(1)),
             std::path::PathBuf::from("/nonexistent"),
+            Arc::new(tokio::sync::Notify::new()),
         )
     }
 

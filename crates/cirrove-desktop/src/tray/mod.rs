@@ -27,6 +27,20 @@ pub struct TrayState {
     /// silently keeps showing its last icon after losing the daemon is telling
     /// the user something it does not know.
     disconnected: bool,
+    /// Something the tray itself tried and could not do.
+    ///
+    /// The rest of this struct holds only what the daemon said, deliberately --
+    /// an icon inferred from anything else reports something nobody knows. This
+    /// is the one exception and it is not an inference: the tray asked for a
+    /// mount change, the call came back an error, and the tray is the only thing
+    /// that saw it. The window can put such a failure in front of the user;
+    /// until this existed the tray could only write it to a log nobody reads,
+    /// and the click looked like it had worked.
+    ///
+    /// Cleared by the next change the daemon reports, because that is the
+    /// evidence the situation moved on -- a notice that outlived its cause would
+    /// keep the icon shouting after the user fixed it.
+    notice: Option<String>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -52,6 +66,17 @@ pub enum Health {
 
 impl TrayState {
     pub fn apply(&mut self, event: Event) {
+        // The daemon reporting a change is the evidence that the situation moved
+        // on, so any notice about a failed action stops being current. Including
+        // re-priming after a reconnection: the state was just re-read from the
+        // daemon, and a local complaint that survived that would be the tray
+        // keeping an icon lit for something it can no longer vouch for.
+        if matches!(
+            event,
+            Event::Account { .. } | Event::Mount { .. } | Event::AccountRemoved { .. }
+        ) {
+            self.notice = None;
+        }
         match event {
             Event::Account {
                 account_id,
@@ -99,11 +124,25 @@ impl TrayState {
         self.disconnected = disconnected;
     }
 
+    /// Record something the tray tried and could not do. See [`TrayState`].
+    pub fn set_notice(&mut self, notice: impl Into<String>) {
+        self.notice = Some(notice.into());
+    }
+
+    pub fn notice(&self) -> Option<&str> {
+        self.notice.as_deref()
+    }
+
     /// Worst-first, because a tray has one icon and the thing a user can act on
     /// has to win. An account needing sign-in is invisible if a second healthy
     /// account is allowed to paint the icon green.
     pub fn health(&self) -> Health {
         if self.disconnected {
+            return Health::NeedsAttention;
+        }
+        // A failed action outranks a healthy account: the accounts really are
+        // fine, and that is exactly why nothing else would ever show this.
+        if self.notice.is_some() {
             return Health::NeedsAttention;
         }
         if self.accounts.is_empty() {
@@ -162,14 +201,22 @@ impl TrayState {
         if self.disconnected {
             return "Cirrove service is not reachable".into();
         }
-        if self.accounts.is_empty() {
-            return "No Cirrove accounts".into();
+        // First, because it is the line the user has to read; the account states
+        // below it are the ones they already expected.
+        let mut lines = Vec::new();
+        if let Some(notice) = &self.notice {
+            lines.push(notice.clone());
         }
-        self.accounts
-            .values()
-            .map(|a| format!("{}: {}", a.label, summary(a)))
-            .collect::<Vec<_>>()
-            .join("\n")
+        if self.accounts.is_empty() {
+            lines.push("No Cirrove accounts".into());
+        } else {
+            lines.extend(
+                self.accounts
+                    .values()
+                    .map(|a| format!("{}: {}", a.label, summary(a))),
+            );
+        }
+        lines.join("\n")
     }
 
     /// Whether the daemon is currently unreachable.
@@ -401,6 +448,7 @@ pub async fn publish(
     state: Arc<Mutex<TrayState>>,
     revision: Arc<std::sync::atomic::AtomicU32>,
     state_dir: PathBuf,
+    redraw: Arc<tokio::sync::Notify>,
 ) -> Result<zbus::Connection> {
     let item = StatusNotifierItem {
         state: state.clone(),
@@ -412,7 +460,7 @@ pub async fn publish(
         // shell that finds nothing there shows an empty menu.
         .serve_at(
             menu::MENU_PATH,
-            menu::DbusMenu::new(state, revision, state_dir),
+            menu::DbusMenu::new(state, revision, state_dir, redraw),
         )?
         .build()
         .await
@@ -439,6 +487,7 @@ pub async fn publish_for_test() -> Result<zbus::Connection> {
         // that does not exist is the safer fixture, because a test that did
         // click would fail rather than touch a real account.
         PathBuf::from("/nonexistent/cirrove-tray-test"),
+        Arc::new(tokio::sync::Notify::new()),
     )
     .await
 }
@@ -573,7 +622,21 @@ async fn announce(connection: &zbus::Connection) {
 pub async fn run(socket: PathBuf, state_dir: PathBuf) -> Result<()> {
     let state = Arc::new(Mutex::new(TrayState::default()));
     let revision = Arc::new(std::sync::atomic::AtomicU32::new(1));
-    let connection = publish(state.clone(), revision.clone(), state_dir).await?;
+    let redraw = Arc::new(tokio::sync::Notify::new());
+    let connection = publish(state.clone(), revision.clone(), state_dir, redraw.clone()).await?;
+
+    // The menu can change what the icon should say -- a mount it could not
+    // change -- and cannot publish that itself. This is the half that can.
+    {
+        let connection = connection.clone();
+        let revision = revision.clone();
+        tokio::spawn(async move {
+            loop {
+                redraw.notified().await;
+                notify(&connection, &revision).await;
+            }
+        });
+    }
 
     if !claim_single_instance(&connection).await? {
         // Not an error: on a machine where two autostart mechanisms both fire,
@@ -660,6 +723,68 @@ async fn notify(connection: &zbus::Connection, revision: &std::sync::atomic::Ato
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A failure the tray itself hit has to reach the icon, not only a log.
+    ///
+    /// Everything else here is the daemon's answer, and this is the one thing
+    /// that is not: the tray asked for a mount change, the call failed, and the
+    /// tray is the only thing that saw it. Before this the click simply looked
+    /// like it had worked.
+    #[test]
+    fn something_the_tray_could_not_do_reaches_the_icon_and_the_tooltip() {
+        let mut state = TrayState::default();
+        state.apply(account("one", "ready", true));
+        assert_eq!(state.health(), Health::Ready, "healthy to begin with");
+
+        state.set_notice("Could not unmount. Try again.");
+        assert_eq!(
+            state.health(),
+            Health::NeedsAttention,
+            "a failed action outranks healthy accounts; nothing else would show it"
+        );
+        assert_eq!(
+            state.sni_status(),
+            "NeedsAttention",
+            "a shell must surface it"
+        );
+        let tooltip = state.tooltip();
+        assert!(
+            tooltip.starts_with("Could not unmount."),
+            "the line the user has to read must come first: {tooltip:?}"
+        );
+        assert!(
+            tooltip.contains("label-one"),
+            "the accounts must still be there: {tooltip:?}"
+        );
+    }
+
+    /// And it has to go away again. A notice that outlived its cause would keep
+    /// the icon shouting after the user fixed the thing elsewhere -- which is
+    /// worse than not having shown it, because the next real one is ignored.
+    #[test]
+    fn a_notice_is_cleared_by_the_daemon_reporting_a_change() {
+        let mut state = TrayState::default();
+        state.apply(account("one", "ready", true));
+        state.set_notice("Could not unmount. Try again.");
+        assert_eq!(state.health(), Health::NeedsAttention);
+
+        // Ready is not evidence of anything moving on: it only marks the end of
+        // priming, and clearing on it would drop a notice raised a moment ago.
+        state.apply(Event::Ready);
+        assert_eq!(
+            state.health(),
+            Health::NeedsAttention,
+            "the priming marker is not news about the account"
+        );
+
+        state.apply(account("one", "ready", false));
+        assert_eq!(
+            state.health(),
+            Health::Working,
+            "the daemon reported a change, so the complaint is no longer current"
+        );
+        assert!(state.notice().is_none());
+    }
 
     #[test]
     fn a_missing_tray_host_is_reported_once_and_its_return_only_after_that() {
