@@ -315,6 +315,45 @@ async fn ready(engine: &Arc<Engine>) {
         "feeds were not ready within three seconds; last observed: {observed:?}"
     );
 }
+/// Reopen an engine that was just dropped, waiting out a lock its predecessor
+/// may not have released yet.
+///
+/// `account_lock` takes `owner.lock` without blocking and reports "Cirrove
+/// account is still stopping". That is deliberate: a daemon that cannot take the
+/// lock must say so rather than hang, and systemd's `RestartSec` covers the
+/// window in production. A test that drops an engine and builds another in the
+/// same microsecond manufactures exactly that window, so it has to wait the
+/// window out rather than assume it is not there.
+///
+/// Seen once on a loaded CI runner and never in forty-five local runs, which is
+/// the shape of a race in the test rather than a defect in the lock. Used only
+/// where an engine is rebuilt immediately after being dropped; a first-time
+/// construction has nothing to wait for and says so by not calling this.
+async fn reopened_engine(
+    account: Account,
+    provider: Arc<dyn cirrove_core::ReadProvider>,
+    state: std::path::PathBuf,
+) -> Arc<Engine> {
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    loop {
+        match Engine::new(account.clone(), provider.clone(), state.clone()).await {
+            Ok(engine) => return engine,
+            Err(error) => {
+                let still_stopping = error.chain().any(|cause| {
+                    cause
+                        .downcast_ref::<std::io::Error>()
+                        .is_some_and(|io| io.kind() == std::io::ErrorKind::WouldBlock)
+                });
+                assert!(
+                    still_stopping && std::time::Instant::now() < deadline,
+                    "could not reopen the engine: {error:#}"
+                );
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        }
+    }
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn coalesced_large_range_reads_survive_restart_and_offline() {
     let temp = tempfile::tempdir().unwrap();
@@ -437,7 +476,7 @@ async fn cached_navigation_survives_stalled_reads_and_metadata_restart() {
         Err(ProviderError::Cancelled)
     ));
     drop(engine);
-    let restarted = Engine::new(config, provider, state).await.unwrap();
+    let restarted = reopened_engine(config, provider, state).await;
     assert_eq!(
         restarted.children(&scope, "folder").await.unwrap()[0].id,
         "deep.txt"
@@ -519,7 +558,7 @@ async fn named_lookup_distinguishes_cold_unknown_from_cached_absence_and_survive
         Err(ProviderError::Cancelled)
     ));
     drop(engine);
-    let restarted = Engine::new(config, provider.clone(), state).await.unwrap();
+    let restarted = reopened_engine(config, provider.clone(), state).await;
     assert_eq!(
         restarted
             .child(&scope, "root", "small.txt")
@@ -2940,9 +2979,7 @@ async fn real_a_pinned_file_reads_offline_through_the_mount_and_an_unpinned_one_
     // does not drop the old binding, and it holds the state directory's lock.
     engine.stop().await;
     drop(engine);
-    let engine = Engine::new(config, provider.clone(), temp.path().join("state"))
-        .await
-        .unwrap();
+    let engine = reopened_engine(config, provider.clone(), temp.path().join("state")).await;
     engine.start().await.unwrap();
     ready(&engine).await;
     let session = CloudFs::new(engine.clone()).unwrap().mount(&mount).unwrap();
@@ -3027,9 +3064,7 @@ async fn real_a_recursive_pin_keeps_the_files_under_a_folder_readable_offline() 
 
     engine.stop().await;
     drop(engine);
-    let engine = Engine::new(config, provider.clone(), temp.path().join("state"))
-        .await
-        .unwrap();
+    let engine = reopened_engine(config, provider.clone(), temp.path().join("state")).await;
     engine.start().await.unwrap();
     ready(&engine).await;
     let session = CloudFs::new(engine.clone()).unwrap().mount(&mount).unwrap();
