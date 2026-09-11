@@ -2327,3 +2327,45 @@ The consequence for milestone 3 is not optional: the same daemon doing the
 same work rests at 108 MiB or 211 MiB depending on a setting nobody has
 chosen, so a bounded-memory box cannot be answered without naming the
 allocator.
+
+## Pinning on a real drive, and a renewal the provider performed
+
+`docs/benchmarks/live-offline-pinning.json`, 2026-09-11, on an isolated
+validation connection to the user's business drive with their permission.
+
+Every pinning test uses a fixture provider, and a fixture cannot produce what
+a real drive does: content revisions that change block keys, a linked
+collection whose scope is not the account's own drive, a size the index and
+the provider disagree about. So the five milestone 3 rows all carried the
+same last clause — no measured evidence on a real account.
+
+One fixture folder, two generated files, one of them pinned through the same
+request path `cirrove pin` uses:
+
+| | |
+|---|---|
+| reserved | 9,000,096 bytes |
+| resident | 9,000,096 bytes |
+| blocks | 3 |
+| provider content requests for the pinned read | **0** |
+| for the unpinned control | **1** |
+
+`reserved` equals `resident` exactly, and both are the file's 9,000,000 bytes
+plus three block digests at 32 each. That is the reservation correction made
+the day before — reservations were made in logical bytes while the cache
+stores a SHA-256 per block — arriving at the right answer on a real drive.
+
+Offline is established by counting rather than by severing the connection: a
+read that makes no provider request cannot depend on one. The unpinned
+control is what makes that mean something; without it a warm cache would look
+identical.
+
+**The subscription renewal, separately.** The notification validator held a
+real Socket.IO subscription for its full lifetime, Microsoft renewed it, and a
+change made afterwards arrived through the renewed connection. That is a
+renewal the provider performed rather than one a fixture simulated, and it is
+what the milestone 1 push row had never had.
+
+What none of this closes: recursive folder pinning is still fixture-only,
+behaviour as the cache budget fills is not built, and the one notification in
+eleven that was never delivered is still unexplained.

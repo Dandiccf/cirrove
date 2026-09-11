@@ -33,6 +33,26 @@
     "writes": "One new folder and one generated file inside it. Nothing pre-existing is read, changed, moved or deleted.",
     "cleanup": "The fixture folder is retained, as every validator here does. Removing it on a real tenant is a human decision."
   },
-  "result": null,
-  "verdict": null
+  "result": {
+    "pinned": {
+      "blocks": 3,
+      "reserved": 9000096,
+      "resident": 9000096,
+      "file_bytes": 9000000
+    },
+    "read": {
+      "bytes": 9000000,
+      "content_gets_for_pinned": 0,
+      "content_gets_for_control": 1
+    },
+    "note": "reserved equals resident exactly: 9,000,000 bytes plus three block digests at 32 bytes each is 9,000,096, which is the accounting correction made earlier the same day arriving at the right answer on a real drive."
+  },
+  "verdict": {
+    "P1": "HOLDS. The pin was accepted and reports 9,000,096 bytes resident across three blocks -- not a reservation with nothing behind it.",
+    "P2": "HOLDS. After the engine was rebuilt on the same directory and mounted, the file read back byte for byte through the kernel.",
+    "P3": "HOLDS. Zero provider content requests during that read. The bytes came from what the pin kept.",
+    "P4": "HOLDS. The unpinned control in the same folder, under the same conditions, needed one provider request. Without that this run could not tell a pin from a warm cache."
+  },
+  "what_this_closes": "The one clause every milestone 3 row still carried: no measured evidence on a real account. Pinning, materialisation, the reservation arithmetic and offline service now have a run against a real business drive, through a kernel mount, with a control that distinguishes the claim from a coincidence.",
+  "what_it_does_not_close": "Each row has clauses this does not reach. Recursive folder pinning is covered only by fixtures. Behaviour as the cache budget fills over time is not built, let alone measured. Editing pinned content offline is covered through a mount but with a fixture provider. And offline here means 'made no provider request', established by counting rather than by severing the connection -- the same claim, but worth saying plainly."
 }
