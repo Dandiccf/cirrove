@@ -48,6 +48,60 @@ pub struct PinStatus {
     /// from "nothing to fetch".
     pub blocks: u64,
 }
+
+/// How much of the cache pinning has claimed, and how close that is to the
+/// point where the next pin is refused.
+///
+/// Reported because "clear free-space behaviour" is a claim about what a user
+/// can find out before they are refused, not only about the refusal. A caller
+/// who can see the budget filling can act; one who learns about it from an
+/// error has already been stopped.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PinBudget {
+    /// The account's whole cache allowance.
+    pub cache_bytes: u64,
+    /// The most pinning may claim of it. Reservations may not take the whole
+    /// budget, because a cache with no unreserved room would evict each block an
+    /// unpinned read had just fetched.
+    pub pinnable_bytes: u64,
+    /// Claimed by pins right now.
+    pub reserved_bytes: u64,
+    /// What a new pin could still take.
+    pub free_bytes: u64,
+}
+impl PinBudget {
+    /// Tenths of a percent, so a caller can compare without floating point.
+    #[must_use]
+    pub fn used_per_mille(&self) -> u64 {
+        if self.pinnable_bytes == 0 {
+            return 1000;
+        }
+        (self.reserved_bytes.saturating_mul(1000) / self.pinnable_bytes).min(1000)
+    }
+    /// A sentence for a person, not a status code.
+    #[must_use]
+    pub fn explain(&self) -> String {
+        let mib = |b: u64| b as f64 / (1024.0 * 1024.0);
+        if self.free_bytes == 0 {
+            return format!(
+                "Pinning has claimed all {:.0} MiB it may use of a {:.0} MiB cache. \
+                 Unpin something, or raise cache_bytes for this account, before pinning more.",
+                mib(self.pinnable_bytes),
+                mib(self.cache_bytes)
+            );
+        }
+        format!(
+            "Pinning holds {:.0} of {:.0} MiB it may use ({}.{}%), leaving {:.0} MiB. \
+             The rest of the {:.0} MiB cache stays available for ordinary reads.",
+            mib(self.reserved_bytes),
+            mib(self.pinnable_bytes),
+            self.used_per_mille() / 10,
+            self.used_per_mille() % 10,
+            mib(self.free_bytes),
+            mib(self.cache_bytes)
+        )
+    }
+}
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FeedHealth {
     pub collection: String,
@@ -314,7 +368,14 @@ impl Engine {
         scope: &Scope,
         root: &Node,
     ) -> Result<std::result::Result<(usize, bool), cirrove_store::pins::PinRefusal>> {
-        let (files, bytes, complete) = self.subtree_files(scope, &root.id).await?;
+        let (files, logical, complete) = self.subtree_files(scope, &root.id).await?;
+        // Same correction as a single file, per file in the walk: the walk sums
+        // logical sizes and the cache stores a digest with every block.
+        let bytes: u64 = files
+            .iter()
+            .map(|f| crate::content::stored_bytes(f.size))
+            .sum::<u64>()
+            .max(logical);
         if let Err(refusal) = self
             .pin(scope.clone(), root.id.clone(), true, bytes)
             .await?
@@ -349,6 +410,19 @@ impl Engine {
             .await??;
         self.refresh_reservations().await?;
         Ok(Ok((files.len(), complete)))
+    }
+    /// What pinning has claimed of the cache and what is left.
+    pub async fn pin_budget(&self) -> Result<PinBudget> {
+        let db = self.db.clone();
+        let reserved =
+            tokio::task::spawn_blocking(move || Store::open(db)?.reserved_bytes()).await??;
+        let pinnable = self.pinnable_budget();
+        Ok(PinBudget {
+            cache_bytes: self.account.cache_bytes,
+            pinnable_bytes: pinnable,
+            reserved_bytes: reserved,
+            free_bytes: pinnable.saturating_sub(reserved),
+        })
     }
     /// What each pin has actually kept, as against what it reserved.
     ///
@@ -393,7 +467,11 @@ impl Engine {
     }
     /// Where published blocks live. Exposed so a caller reasoning about cache
     /// files derives the path from here rather than rebuilding it and drifting.
-    pub(crate) fn cache_path(&self) -> PathBuf {
+    ///
+    /// Public because an acceptance test has to be able to weigh the directory:
+    /// "unpinning frees the bytes" is a claim about a filesystem, and rebuilding
+    /// the path in the test would let the two drift apart silently.
+    pub fn cache_path(&self) -> PathBuf {
         self.db.with_file_name("cache")
     }
     /// Release a pin and the space it held. Reports whether one existed.
@@ -404,6 +482,146 @@ impl Engine {
             tokio::task::spawn_blocking(move || Store::open(db)?.unpin(&key, &item)).await??;
         self.refresh_reservations().await?;
         Ok(removed)
+    }
+    /// Resolve, reserve and materialise a pin asked for over the control socket.
+    ///
+    /// This is the path `materialise_pin` and `pin_folder` never had. The command
+    /// line used to write the reservation into the index itself, which is why a
+    /// pin a user made kept nothing: only the daemon holds an engine, and only an
+    /// engine can fetch.
+    pub async fn apply_pin_request(
+        self: &Arc<Self>,
+        request: &crate::PinRequest,
+    ) -> Result<crate::PinReply> {
+        let (scope, node) = match self.resolve_request(request).await {
+            Ok(resolved) => resolved,
+            Err(error) => {
+                return Ok(crate::PinReply {
+                    refusal: Some(error.to_string()),
+                    ..Default::default()
+                });
+            }
+        };
+        if request.recursive {
+            return Ok(match self.pin_folder(&scope, &node).await? {
+                Ok((files, complete)) => crate::PinReply {
+                    accepted: true,
+                    reserved: self.reserved_for(&node.id).await.unwrap_or(0),
+                    item: node.id,
+                    files: files as u64,
+                    complete,
+                    refusal: None,
+                },
+                Err(refusal) => crate::PinReply {
+                    item: node.id,
+                    refusal: Some(refusal.to_string()),
+                    ..Default::default()
+                },
+            });
+        }
+        // A single file reserves what it will actually occupy: the node's size
+        // plus one digest per block. An explicit --bytes is taken as given.
+        let reserved = request
+            .bytes
+            .unwrap_or_else(|| crate::content::stored_bytes(node.size));
+        match self
+            .pin(scope.clone(), node.id.clone(), false, reserved)
+            .await?
+        {
+            Err(refusal) => Ok(crate::PinReply {
+                item: node.id,
+                refusal: Some(refusal.to_string()),
+                ..Default::default()
+            }),
+            Ok(_) => {
+                let blocks = self.materialise_pin(&scope, &node).await?;
+                Ok(crate::PinReply {
+                    accepted: true,
+                    item: node.id,
+                    reserved,
+                    files: u64::from(blocks > 0),
+                    complete: true,
+                    refusal: None,
+                })
+            }
+        }
+    }
+    /// Release a pin and give the space back, rather than only unreserving it.
+    pub async fn apply_unpin_request(
+        self: &Arc<Self>,
+        request: &crate::PinRequest,
+    ) -> Result<crate::PinReply> {
+        let (scope, node) = match self.resolve_request(request).await {
+            Ok(resolved) => resolved,
+            Err(error) => {
+                return Ok(crate::PinReply {
+                    refusal: Some(error.to_string()),
+                    ..Default::default()
+                });
+            }
+        };
+        let removed = self.unpin(scope, node.id.clone()).await?;
+        if !removed {
+            return Ok(crate::PinReply {
+                item: node.id,
+                refusal: Some("that item is not pinned".into()),
+                ..Default::default()
+            });
+        }
+        // Unreserving is not freeing. Without this the blocks stay on disk until
+        // some unrelated download happens to trigger an eviction pass, which is
+        // not what "unpin frees space" means to anyone who typed it.
+        self.cache.reclaim().await?;
+        Ok(crate::PinReply {
+            accepted: true,
+            item: node.id,
+            complete: true,
+            ..Default::default()
+        })
+    }
+    /// What a pin currently reserves, for reporting back what was accepted.
+    async fn reserved_for(&self, item: &str) -> Option<u64> {
+        self.pin_status()
+            .await
+            .ok()?
+            .into_iter()
+            .find(|p| p.item == item)
+            .map(|p| p.reserved)
+    }
+    /// Turn `--path` or `--item` into a scope and a node.
+    ///
+    /// Path resolution belongs here because only the daemon can list a directory
+    /// the index has not reached yet, and because most of this account's content
+    /// can live in a linked collection whose scope is not the account's own drive
+    /// -- a caller outside the daemon would record the pin under the wrong key.
+    async fn resolve_request(
+        self: &Arc<Self>,
+        request: &crate::PinRequest,
+    ) -> Result<(Scope, Node)> {
+        let scope = self.scope(&self.account.drive.id);
+        if let Some(item) = &request.item {
+            let node = self.node(&scope, item).await?;
+            return Ok((scope, node));
+        }
+        let Some(path) = &request.path else {
+            return Err(anyhow::anyhow!("name an item with --path or --item"));
+        };
+        let mut scope = scope;
+        let mut node = self.node(&scope, &self.account.root_id).await?;
+        for name in path.split('/').filter(|s| !s.is_empty()) {
+            // A shortcut leaves this drive: follow it before descending, or the
+            // rest of the path is looked up in a collection that does not hold it.
+            if let Some(target) = node.target.clone() {
+                scope = self.scope(&target.collection);
+                node = self.node(&scope, &target.item).await?;
+            }
+            node = self.child(&scope, &node.id, name).await?;
+        }
+        if let Some(target) = node.target.clone() {
+            scope = self.scope(&target.collection);
+            node = self.node(&scope, &target.item).await?;
+        }
+        Ok((scope, node))
     }
     pub async fn start(self: &Arc<Self>) -> Result<()> {
         // Before anything can evict, so a restart never spends the window

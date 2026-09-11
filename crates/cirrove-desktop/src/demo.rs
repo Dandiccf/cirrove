@@ -37,6 +37,8 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
             // look exactly like a measured one in the UI.
             read_path: None,
             save_refusal: None,
+            stuck_changes: 0,
+            pin_budget: Default::default(),
             pins: Vec::new(),
             indexed_feeds: u64::from(a.enabled),
             indexed_items: 1234,
@@ -52,6 +54,9 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
             indexed_items: 1234,
             active_mounts: 1,
             accounts,
+            allocator_trims: 0,
+            free_arena_bytes: 0,
+            retained_bytes: 0,
         }),
     })
 }

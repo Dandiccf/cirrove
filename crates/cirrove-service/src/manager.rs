@@ -6,7 +6,7 @@ use crate::{
     engine::{Engine, FeedHealth},
     filesystem::{CloudFs, CloudSession},
 };
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use cirrove_core::{CancellationToken, ReadProvider};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -17,7 +17,7 @@ use std::{
 };
 use tokio::sync::RwLock;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct AccountStatus {
     /// Stable settings identity for desktop actions. Older daemon responses omit it.
     #[serde(default)]
@@ -51,6 +51,10 @@ pub struct AccountStatus {
     /// held offline from content that merely happens to be cached.
     #[serde(default)]
     pub pins: Vec<crate::engine::PinStatus>,
+    /// What pinning has claimed of the cache budget and what is left, so a
+    /// caller can see it filling rather than learning about it from a refusal.
+    #[serde(default)]
+    pub pin_budget: crate::engine::PinBudget,
     /// Why saves were last refused, when they were. The kernel gets `ENOSPC` for
     /// both a full budget and a full disk because that is what an application
     /// can act on; it is also all an application learns, and the two remedies
@@ -58,8 +62,51 @@ pub struct AccountStatus {
     /// started.
     #[serde(default)]
     pub save_refusal: Option<crate::journal::SaveRefusal>,
+    /// Namespace changes the daemon has stopped trying to apply -- a conflict, a
+    /// failure, or one held for review. Each is a change the mount already acted
+    /// on locally that the provider never took, so the two disagree and nothing
+    /// retries. Zero for a read-only mount, which cannot make any.
+    ///
+    /// This reports rather than resolves. It exists because the daemon could
+    /// strand a change in silence: fourteen folder removals ended in `Conflict`
+    /// on a live drive, leaving the directories hidden in the mount and present
+    /// in the account, and no status field said a word. A count names no paths,
+    /// so it costs nothing to carry always.
+    ///
+    /// Added without moving `STATUS_PROTOCOL_VERSION`, which the desktop compares
+    /// for equality: `#[serde(default)]` means an older daemon's reply reads back
+    /// as zero, which is not a lie -- it is the count that daemon can report.
+    #[serde(default)]
+    pub stuck_changes: u64,
     pub indexed_feeds: u64,
     pub indexed_items: u64,
+}
+/// The single state a caller sees, from the feeds behind it.
+///
+/// Extracted from the status loop so it can be asserted. The ordering is the
+/// substance and it is not alphabetical: `sign_in_required` outranks every other
+/// feed state because it is the only one a user can act on, and a second feed
+/// that is merely offline must not hide it. A mount error outranks all of them,
+/// because a mount that is not there is not a connection problem.
+///
+/// This is what `cirrove status`, the window and the tray all read, and the
+/// chain into it -- a provider refusing the grant becoming a feed that says
+/// sign_in_required -- is held by
+/// `read_only::an_expired_grant_is_shown_as_needing_sign_in_and_not_as_being_offline`.
+fn account_state(mount_error: Option<&str>, feeds: &[crate::engine::FeedHealth]) -> String {
+    if let Some(error) = mount_error {
+        return error.to_owned();
+    }
+    if feeds.is_empty() {
+        return "starting".into();
+    }
+    if feeds.iter().any(|f| f.state == "sign_in_required") {
+        return "sign_in_required".into();
+    }
+    if feeds.iter().any(|f| f.state != "ready") {
+        return "updating_or_offline".into();
+    }
+    "ready".into()
 }
 pub type ProviderFactory = Arc<dyn Fn(&Account) -> Result<Arc<dyn ReadProvider>> + Send + Sync>;
 /// Builds the write half of a provider, for accounts that carry a write grant.
@@ -68,9 +115,115 @@ pub type ProviderFactory = Arc<dyn Fn(&Account) -> Result<Arc<dyn ReadProvider>>
 /// deterministic providers the tests inject supply reads only. A mount they drive
 /// stays read-only, which is the honest outcome, instead of failing to start.
 pub type WriteFactory = Arc<dyn Fn(&Account) -> Result<Arc<dyn WriteProvider>> + Send + Sync>;
-#[derive(Default)]
 pub struct Manager {
     pub status: RwLock<Vec<AccountStatus>>,
+    /// Changes to `status`, as edges, for desktop clients that cannot poll.
+    ///
+    /// A broadcast sender rather than a list of client channels because the
+    /// daemon must never block on a slow reader: a subscriber that falls behind
+    /// is told so and re-primed, which is the right cure for a level and cheaper
+    /// than the backlog it would otherwise be handed. See `crate::events`.
+    events: tokio::sync::broadcast::Sender<crate::events::Event>,
+    /// The engines the run loop is holding, so a control request can reach one.
+    ///
+    /// `running` is a local in `run()`, which is why `accounts::set_pin` wrote the
+    /// store out of band: nothing outside that loop had an engine. This is the
+    /// same shape as `status` above and is written at the same two points, so a
+    /// request never reaches an engine whose mount is being torn down.
+    engines: RwLock<HashMap<String, Arc<Engine>>>,
+    /// The write half of a writable mount, registered beside its engine and for
+    /// the same reason: `Running` is a local in `run()`, so a control request
+    /// had no way to reach one. Absent for a read-only mount, which is what a
+    /// caller asking to clear stuck changes on one should be told.
+    writers: RwLock<HashMap<String, crate::filesystem::WriteControl>>,
+}
+impl Default for Manager {
+    fn default() -> Self {
+        Self {
+            status: RwLock::default(),
+            engines: RwLock::default(),
+            writers: RwLock::default(),
+            events: tokio::sync::broadcast::channel(crate::events::EVENT_QUEUE_DEPTH).0,
+        }
+    }
+}
+impl Manager {
+    /// A stream of changes, primed by the caller with `events::prime`.
+    ///
+    /// The receiver this returns is the only thing keeping events flowing to a
+    /// client; dropping it unsubscribes. A send with no receivers is not an
+    /// error here, it is the ordinary case of a daemon nobody is watching.
+    pub fn subscribe(&self) -> tokio::sync::broadcast::Receiver<crate::events::Event> {
+        self.events.subscribe()
+    }
+
+    /// Publish one change directly.
+    ///
+    /// Tests only. In a real daemon `run` is the sole publisher, and a test that
+    /// had to start it to see one event would be an integration test of the
+    /// account loop rather than of the channel.
+    #[cfg(test)]
+    pub fn publish_for_test(&self, event: crate::events::Event) {
+        let _ = self.events.send(event);
+    }
+
+    /// The running engine for an account label, or for the only account when the
+    /// label is empty. `Err` carries a message a user can act on.
+    /// Abandon every stuck removal on one account, and say what is left.
+    ///
+    /// Discarding, never retrying: a conflict means the remote moved under us,
+    /// and re-sending a delete against whatever is there now is how a stale
+    /// intent destroys someone else's change. What this does is drop the local
+    /// intent so the mount shows what the provider actually has; deciding again
+    /// is then an ordinary delete built from current state.
+    pub async fn discard_stuck(&self, label: &str) -> Result<(u64, u64)> {
+        let id = self.account_id(label).await?;
+        let control = self
+            .writers
+            .read()
+            .await
+            .get(&id)
+            .cloned()
+            .context("this account is mounted read-only, so it has no changes to clear")?;
+        let discarded = control.discard_stuck().await?;
+        Ok((discarded, control.stuck_changes().await.unwrap_or(0)))
+    }
+    async fn account_id(&self, label: &str) -> Result<String> {
+        let status = self.status.read().await;
+        let matched: Vec<_> = status
+            .iter()
+            .filter(|a| label.is_empty() || a.label == label)
+            .collect();
+        match matched.as_slice() {
+            [one] => Ok(one.account_id.clone()),
+            [] if label.is_empty() => bail!("no accounts are configured"),
+            [] => bail!("no account is labelled {label:?}"),
+            _ => bail!("more than one account is configured; name one with --label"),
+        }
+    }
+    pub async fn engine(&self, label: &str) -> Result<Arc<Engine>> {
+        let status = self.status.read().await;
+        let matched: Vec<_> = status
+            .iter()
+            .filter(|a| label.is_empty() || a.label == label)
+            .collect();
+        let account = match matched.as_slice() {
+            [one] => *one,
+            [] if label.is_empty() => bail!("no accounts are configured"),
+            [] => bail!("no account is labelled {label:?}"),
+            _ => bail!("more than one account is configured; name one with --label"),
+        };
+        let id = account.account_id.clone();
+        let mounted = account.mounted;
+        drop(status);
+        self.engines.read().await.get(&id).cloned().ok_or_else(|| {
+            if mounted {
+                anyhow::anyhow!("the account is mounted but its engine is not ready yet")
+            } else {
+                anyhow::anyhow!("the account is not running; enable it first")
+            }
+        })
+    }
 }
 struct Running {
     config: Account,
@@ -182,6 +335,12 @@ impl Manager {
                         .collect();
                     for id in remove {
                         if let Some(old) = running.remove(&id) {
+                            // Withdrawn before the engine is stopped, not after:
+                            // a control request that arrived in between would
+                            // otherwise reach an engine whose mount is being
+                            // detached.
+                            self.engines.write().await.remove(&id);
+                            self.writers.write().await.remove(&id);
                             old.stop().await;
                         }
                     }
@@ -202,6 +361,16 @@ impl Manager {
                         .await
                         {
                             Ok(active) => {
+                                self.engines
+                                    .write()
+                                    .await
+                                    .insert(account.id.clone(), active.engine.clone());
+                                if let Some(writers) = &active.writers {
+                                    self.writers
+                                        .write()
+                                        .await
+                                        .insert(account.id.clone(), writers.control());
+                                }
                                 running.insert(account.id.clone(), active);
                             }
                             Err(_) => {
@@ -238,6 +407,8 @@ impl Manager {
                             directory_freshness: crate::DirectoryFreshness::default(),
                             read_path: None,
                             save_refusal: None,
+                            stuck_changes: 0,
+                            pin_budget: Default::default(),
                             pins: Vec::new(),
                             indexed_feeds: 0,
                             indexed_items: 0,
@@ -319,6 +490,12 @@ impl Manager {
                             let _ = active.engine.refresh_reservations().await;
                             status.pins = active.engine.pin_status().await.unwrap_or_default();
                             status.save_refusal = active.engine.save_refusals.latest();
+                            status.stuck_changes = match &active.writers {
+                                Some(writers) => writers.stuck_changes().await,
+                                None => 0,
+                            };
+                            status.pin_budget =
+                                active.engine.pin_budget().await.unwrap_or_default();
                             let db = active.engine.db.clone();
                             if let Ok(Ok((feeds, items))) = tokio::task::spawn_blocking(move || {
                                 cirrove_store::Store::open(db)?.counts()
@@ -329,23 +506,23 @@ impl Manager {
                                 status.indexed_items = items;
                             }
 
-                            status.state = active.mount_error.clone().unwrap_or_else(|| {
-                                if status.feeds.is_empty() {
-                                    "starting"
-                                } else if status.feeds.iter().any(|f| f.state == "sign_in_required")
-                                {
-                                    "sign_in_required"
-                                } else if status.feeds.iter().any(|f| f.state != "ready") {
-                                    "updating_or_offline"
-                                } else {
-                                    "ready"
-                                }
-                                .into()
-                            });
+                            status.state =
+                                account_state(active.mount_error.as_deref(), &status.feeds);
                         }
                         statuses.push(status);
                     }
+                    // Diff before the write, publish after it, so a client that
+                    // reacts by calling `status` cannot observe the old vector.
+                    // The manager rewrites this every five seconds whether or not
+                    // anything moved; `diff` returning nothing is the common case
+                    // and is exactly the timer-driven wake this channel exists to
+                    // stop forwarding.
+                    let changes =
+                        crate::events::diff(self.status.read().await.as_slice(), &statuses);
                     *self.status.write().await = statuses;
+                    for change in changes {
+                        let _ = self.events.send(change);
+                    }
                 }
                 _ => tracing::warn!(
                     "Cirrove account settings could not be loaded; retaining running accounts"
@@ -353,6 +530,9 @@ impl Manager {
             }
             tokio::select! {biased;_=cancel.cancelled()=>break,_=tokio::time::sleep(Duration::from_secs(5))=>()}
         }
+        // Same ordering as a single removal: withdrawn before stopped.
+        self.engines.write().await.clear();
+        self.writers.write().await.clear();
         for (_, active) in running {
             active.stop().await;
         }
@@ -549,6 +729,66 @@ fn mount_record_at<'a>(mounts: &'a str, path: &Path) -> Option<(&'a str, &'a str
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::engine::FeedHealth;
+
+    fn feed(state: &str) -> FeedHealth {
+        FeedHealth {
+            collection: format!("collection-{state}"),
+            state: state.into(),
+            last_success: None,
+            retry_at: None,
+            message: None,
+            notifications: Default::default(),
+        }
+    }
+
+    /// The state a user can act on must not be hidden by a noisier one.
+    ///
+    /// An account with two collections is ordinary -- a personal drive and a
+    /// SharePoint library -- and they fail independently. If the healthy-looking
+    /// summary wins, a lapsed grant on one of them shows as "updating or
+    /// offline" and the user waits for something that will never happen. This
+    /// ordering is the whole of that, and it is the kind of rule that regresses
+    /// silently because every state involved is individually plausible.
+    #[test]
+    fn a_feed_needing_sign_in_is_not_hidden_by_one_that_is_merely_offline() {
+        assert_eq!(
+            account_state(None, &[feed("offline"), feed("sign_in_required")]),
+            "sign_in_required"
+        );
+        assert_eq!(
+            account_state(None, &[feed("sign_in_required"), feed("ready")]),
+            "sign_in_required",
+            "a healthy second collection must not vouch for the one that is not"
+        );
+        assert_eq!(
+            account_state(None, &[feed("ready"), feed("throttled")]),
+            "updating_or_offline"
+        );
+        assert_eq!(
+            account_state(None, &[feed("ready"), feed("ready")]),
+            "ready"
+        );
+    }
+
+    /// No feeds is not the same as healthy feeds, and a mount that is not there
+    /// is not a connection problem.
+    #[test]
+    fn a_mount_error_outranks_the_feeds_and_no_feeds_is_starting() {
+        assert_eq!(account_state(None, &[]), "starting");
+        assert_eq!(
+            account_state(Some("mount point is not empty"), &[feed("ready")]),
+            "mount point is not empty",
+            "a mount that could not be made must say so rather than report the feeds behind it"
+        );
+        assert_eq!(
+            account_state(
+                Some("mount point is not empty"),
+                &[feed("sign_in_required")]
+            ),
+            "mount point is not empty"
+        );
+    }
     #[test]
     fn recognizes_foreign_mounts_and_escaped_paths() {
         let data = "1 0 0:1 / /tmp/Cloud\\040drive rw - fuse.cirrove cirrove:x rw\n2 0 0:2 / /tmp/foreign rw - fuse.rclone rclone rw";

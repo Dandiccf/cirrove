@@ -60,11 +60,119 @@ it under Xvfb and a private D-Bus session. Local socket fixtures distinguish inv
 responses from timeouts; neither requires a cloud account.
 PNG snapshots capture the actual rendered demo window and also require a display.
 
+## Tray
+
+`./target/debug/cirrove-tray` publishes a status icon as a StatusNotifierItem on
+the session bus and follows the daemon over `subscribe`. It holds no state it was
+not told: the icon, the tooltip and the `Status` property are the daemon's answer
+and nothing inferred from it. Losing the service is rendered rather than hidden,
+because a tray that keeps its last icon after the daemon is gone is reporting
+something it does not know.
+
+```sh
+./target/debug/cirrove-tray                      # the usual socket
+./target/debug/cirrove-tray --socket /abs/control.sock
+```
+
+It needs a tray host implementing `org.kde.StatusNotifierWatcher`. Most Wayland
+shells and panels provide one; GNOME needs an extension. A missing host is not a
+failure to start: the tray publishes its item, waits, and registers whenever a
+host appears -- which also covers a panel being restarted, since that takes every
+registration with it and looks the same on the bus. A missing host is said out
+loud once -- naming the interface and the GNOME extension -- because tolerating
+it silently is how a user on stock GNOME ends up with no icon and nothing
+anywhere saying why. Once, not on every change: a flaky panel must not fill a
+journal. Icons are generic freedesktop names until the installed icon set exists.
+
+Only one copy runs. The tray takes the well-known name
+`io.github.Dandiccf.Cirrove.Tray`, and a second copy exits 0 saying so. That is
+what makes shipping two autostart mechanisms safe rather than a double-start bug.
+
+A right click opens a menu, served as `com.canonical.dbusmenu` at `/MenuBar`:
+each account with its state as a submenu holding *Open folder* and
+*Mount*/*Unmount*, then the settings window and quitting the tray. A left click
+opens the mount when exactly one is mounted and otherwise does nothing, which is
+the gesture that worked before the menu existed.
+
+Mounting from the tray changes the saved preference through
+`accounts::set_enabled_by_id` -- the same call the window and the CLI make, which
+holds the configuration lock and the per-account operation lock. This was
+described for a while as needing a daemon control verb first, on the grounds that
+a second writer would race the window over one file. That was wrong: the locks
+were already there and a third caller is serialised by them like any other.
+Acknowledgement is free, because the tray is subscribed and the daemon's mount
+event redraws the row.
+
+A failure reaches the icon rather than only a log. Everything else the tray shows
+is the daemon's answer and nothing inferred from it; this is the one exception
+and it is not an inference -- the tray asked, the call failed, and the tray is
+the only thing that saw it. The icon goes to `NeedsAttention`, the tooltip leads
+with what to do about it, and the next change the daemon reports clears it,
+because a notice that outlived its cause keeps the icon shouting after the user
+already fixed it somewhere else.
+
+What the menu may hold is constrained by the milestone rather than by taste --
+*"no control or state may be reachable only through a tray or only through one
+file manager"* -- because a tray host is absent on stock GNOME and on any bare
+window manager. Every entry is a shortcut to something the window also does, and
+mounting qualifies for exactly that reason.
+
+## Starting it at login
+
+Two mechanisms ship, because neither covers every desktop and a package cannot
+find out which applies. It is installed once, system-wide, before any session
+exists, and the same machine can have several users on different desktops; a
+choice made at install time is wrong at the next login. `docs/distribution.md`
+already forbids package scripts from assuming a desktop, a shell, a home
+directory or a session bus, so the files stay standard and the binary absorbs the
+variation.
+
+- `packaging/desktop/io.github.Dandiccf.Cirrove.Tray.desktop` -- the XDG
+  autostart entry, installed to `~/.config/autostart/` or an
+  `/etc/xdg/autostart/` equivalent. This is the default and the broadest:
+  GNOME, KDE, XFCE, LXQt, Cinnamon and MATE run it, `systemd-xdg-autostart-generator`
+  turns it into a unit where systemd is present, and it works on distributions
+  that have no systemd at all. It names no desktop in `OnlyShowIn`/`NotShowIn`,
+  deliberately.
+- `packaging/systemd/cirrove-tray.service` -- optional, for users who want
+  `systemctl --user` control. It is `WantedBy=graphical-session.target` and
+  `PartOf=` it, which is the correct lifetime and the reason this is a second
+  unit rather than a flag on `cirroved`: the daemon holds a mount and must
+  outlive any session, the tray has nothing to draw on without one. Not enabled
+  by default, because `graphical-session.target` is not reached on every desktop.
+
+Enabling both is harmless; the second copy stands down.
+
+What neither covers is a bare window manager with no session manager -- plain
+Hyprland without uwsm, i3, dwm -- which runs no XDG autostart at all. There the
+user adds the command to their own configuration. That is a documented limit, not
+something the packaging can solve, and milestone 5's session-matrix box exists to
+record which combinations have actually been checked rather than assumed.
+
+Against a daemon too old for `subscribe` the tray shows "Cirrove service is not
+reachable" and retries. That is the intended degradation, not a defect: the old
+daemon answers the verb with its ordinary refusal and is otherwise unaffected.
+
 ## Remaining product work
 
 Native browser sign-in, account/library selection, reauthentication, connection
 removal and cleanup are not implemented in this window. Tray actions, Nautilus
 badges, pinning, transfer/conflict views and localization remain separate work.
+
+The daemon can now push changes rather than only answer questions: `capabilities`
+names what it supports and `subscribe` streams account and mount changes over the
+control socket. An event a client does not recognise is skipped rather than
+ending the stream, so a newer daemon never breaks an older tray and adding an
+event costs no protocol break.
+
+`status` also reports `stuck_changes`: namespace changes the daemon has given up
+on, each one a change the mount already made locally that the provider never
+took. `cirrove discard-stuck` abandons them, so the mount shows what the cloud
+actually has and the user can decide again; it never re-sends anything, because
+the conflict means the remote moved and a stale retry would act on whatever is
+there now. Neither the window nor the tray shows the number yet. See [ADR 0007](adr/0007-desktop-event-channel.md). This window
+does not consume it yet; `cirrove-tray` does.
+
 Mount-preference save failures and folder-opening failures still use generic
 messages; account repair, service installation and reauthentication actions are
 not yet provided by these diagnostics.

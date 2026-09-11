@@ -78,8 +78,16 @@ struct Cloud {
     read_entered: Notify,
     read_release: Notify,
     hold_folder: AtomicBool,
+    /// Refuse folder removal at the provider only, the way a remote that moved
+    /// between the mount's read and the delete does. Changing the stored eTag
+    /// instead would not model it: the fixture's listing hands the mount the new
+    /// value, so the mount builds a removal that matches and nothing conflicts.
+    refuse_folder_removal: AtomicBool,
     folder_entered: Notify,
     folder_release: Notify,
+    /// Refuse every content read, so an offline claim can be tested rather than
+    /// asserted. Nothing else in this fixture can make the provider unreachable.
+    offline: AtomicBool,
 }
 fn root() -> Node {
     Node {
@@ -169,6 +177,9 @@ impl ReadProvider for Cloud {
         _: &CancellationToken,
     ) -> Result<Vec<u8>, ProviderError> {
         self.reads.fetch_add(1, Ordering::SeqCst);
+        if self.offline.load(Ordering::SeqCst) {
+            return Err(ProviderError::Unavailable);
+        }
         if self.hold_read.swap(false, Ordering::SeqCst) {
             self.read_entered.notify_one();
             self.read_release.notified().await;
@@ -377,7 +388,19 @@ impl MutationProvider for Cloud {
                 etag: Some(uuid::Uuid::new_v4().to_string()),
                 ..root()
             };
-            remote.files.insert(node.id.clone(), (node.clone(), vec![]));
+            // The stored folder keeps a *different* eTag from the one the
+            // receipt carries. That is measured OneDrive behaviour, not
+            // pessimism: a folder's eTag in the create response is not the one
+            // the item has a moment later, so anything that conditions a later
+            // change on the create receipt loses its precondition.
+            //
+            // A fixture that echoed the receipt's eTag back would accept exactly
+            // the chained folder removal that a live drive rejects -- which is
+            // how a wrong fix got past this suite and stranded fourteen folders
+            // in a real account.
+            let mut settled = node.clone();
+            settled.etag = Some(format!("settled-{}", uuid::Uuid::new_v4()));
+            remote.files.insert(node.id.clone(), (settled, vec![]));
             return Ok(MutationReceipt::Upsert(node));
         }
         if let MutationIntent::RemoveFile { before } = &request.intent {
@@ -396,6 +419,9 @@ impl MutationProvider for Cloud {
             });
         }
         if let MutationIntent::RemoveFolder { before } = &request.intent {
+            if self.refuse_folder_removal.load(Ordering::SeqCst) {
+                return Err(MutationError::Conflict);
+            }
             let mut remote = self.remote.lock().unwrap();
             let (node, _) = remote
                 .files
@@ -2854,6 +2880,487 @@ async fn applied(session: &WritableSession, count: usize) {
     .unwrap();
 }
 
+/// Creating a directory and removing it again actually removes it from the
+/// provider, rather than reporting success and leaving it there.
+///
+/// This is the outcome, asserted at the provider rather than at the errno, and
+/// it exists because the errno was not enough. A fix that let the removal chain
+/// behind its own creation made `rmdir` return success while the conditional
+/// DELETE lost its precondition and landed in `Conflict` -- fourteen empty
+/// folders left in a real OneDrive, invisible in the mount that had just said
+/// they were gone. Every unit test passed throughout, because the fixture echoed
+/// the create receipt's eTag back and a live drive does not.
+///
+/// So this asserts the thing that was actually wrong: after the dust settles,
+/// the folder is gone from the provider and nothing is sitting in `Conflict`.
+/// Re-chaining folder removals in `validate_mutation_base` makes it fail.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; a created-then-removed directory really leaves the provider"]
+async fn real_a_directory_created_and_removed_again_is_gone_from_the_provider() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    namespace_fixture(&cloud);
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session =
+        WritableSession::mount(engine, journal, cloud.clone(), Arc::new(Vault::default()))
+            .await
+            .unwrap();
+
+    let target = mount.join("made-and-unmade");
+    let path = target.clone();
+    tokio::task::spawn_blocking(move || {
+        std::fs::create_dir(&path).unwrap();
+        // Retrying is the contract: an unsettled creation refuses as EBUSY, and
+        // every refusal on the way must stay that -- never a malformed request.
+        for _ in 0..100 {
+            match std::fs::remove_dir(&path) {
+                Ok(()) => return,
+                Err(error) => assert_eq!(
+                    error.raw_os_error(),
+                    Some(libc::EBUSY),
+                    "a directory waiting for its creation to settle must refuse as busy: {error}"
+                ),
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        panic!("the directory never became removable");
+    })
+    .await
+    .unwrap();
+
+    applied(&session, 2).await;
+    let remote = cloud.remote.lock().unwrap();
+    assert!(
+        !remote
+            .files
+            .values()
+            .any(|(node, _)| node.name == "made-and-unmade"),
+        "rmdir reported success and the folder is still at the provider"
+    );
+}
+
+/// A delete the provider refused leaves the item hidden locally and present in
+/// the account -- and there has to be a way out of that.
+///
+/// This is the shape of the incident that produced it: fourteen folder removals
+/// ended in `Conflict` on a live drive, the mount said they were gone, the
+/// account still had them, and nothing could clear it. `request_mutation_retry`
+/// refuses `Conflict` by design and nothing else touched one.
+///
+/// The way out discards rather than retries. A conflict means the remote moved
+/// under us, so re-sending the delete would act on whatever is there now. This
+/// drops the local intent instead: the item comes back into view, matching what
+/// the provider actually has, and deleting it again is an ordinary `rmdir` built
+/// from current state -- asserted here by doing exactly that and watching it
+/// reach the provider.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; a refused delete can be abandoned and the item returns"]
+async fn real_a_delete_the_provider_refused_can_be_abandoned_and_the_folder_returns() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    namespace_fixture(&cloud);
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session =
+        WritableSession::mount(engine, journal, cloud.clone(), Arc::new(Vault::default()))
+            .await
+            .unwrap();
+
+    // The provider refuses the removal, and the item it refused to remove has
+    // moved on -- which is what "the remote changed under us" means and is the
+    // only honest reason a conditional delete is refused. Both together, because
+    // the second half is what makes the *next* attempt interesting: whatever the
+    // mount held as the item's ETag is now stale.
+    cloud.refuse_folder_removal.store(true, Ordering::SeqCst);
+
+    // Created through the mount, deliberately: the fixture stores a folder with
+    // a different eTag from the one its create receipt carried, which is
+    // measured OneDrive behaviour. So the local copy is stale from the moment it
+    // exists, and a discard that restored it as-is would hand the second
+    // removal the same doomed precondition -- which is what happened on a live
+    // drive to four of fourteen folders.
+    let created = mount.join("made-then-refused");
+    let make = created.clone();
+    tokio::task::spawn_blocking(move || {
+        std::fs::create_dir(&make).unwrap();
+    })
+    .await
+    .unwrap();
+    applied(&session, 1).await;
+
+    let path = created.clone();
+    let target = path.clone();
+    tokio::task::spawn_blocking(move || {
+        // The kernel call succeeds: the local namespace released the name. What
+        // the provider does with it is decided afterwards, which is the whole
+        // hazard this test is about.
+        for _ in 0..100 {
+            if std::fs::remove_dir(&target).is_ok() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        assert!(!target.exists(), "the mount hides it immediately");
+    })
+    .await
+    .unwrap();
+
+    tokio::time::timeout(Duration::from_secs(10), async {
+        while session.stuck_changes().await == 0 {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .expect("the refused delete was never counted as stuck");
+    assert!(
+        cloud
+            .remote
+            .lock()
+            .unwrap()
+            .files
+            .values()
+            .any(|(n, _)| n.name == "made-then-refused"),
+        "the provider still has it, which is why this matters"
+    );
+
+    assert_eq!(session.discard_stuck().await.unwrap(), 1);
+    assert_eq!(session.stuck_changes().await, 0);
+    // Whatever was wrong at the provider is over. What this asserts is that a
+    // restored item is ordinary again -- not that its ETag is fresh, which it
+    // need not be: see `discard_stuck_removal` for what a discard does and does
+    // not fix.
+    cloud.refuse_folder_removal.store(false, Ordering::SeqCst);
+
+    // Back in view, because that is the truth, and removable again for real.
+    let restored = path.clone();
+    tokio::task::spawn_blocking(move || {
+        for _ in 0..100 {
+            if restored.is_dir() {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        panic!("the folder never came back into view");
+    })
+    .await
+    .unwrap();
+
+    // Now that the mount can see it again, an ordinary removal is built from the
+    // eTag it really has and reaches the provider.
+    let again = path.clone();
+    tokio::task::spawn_blocking(move || {
+        for _ in 0..100 {
+            if std::fs::remove_dir(&again).is_ok() {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        panic!("the restored folder never became removable");
+    })
+    .await
+    .unwrap();
+    tokio::time::timeout(Duration::from_secs(10), async {
+        while cloud
+            .remote
+            .lock()
+            .unwrap()
+            .files
+            .values()
+            .any(|(n, _)| n.name == "made-then-refused")
+        {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .expect("the second removal never reached the provider");
+    assert_eq!(
+        session.stuck_changes().await,
+        0,
+        "the second removal must not be stuck in its turn"
+    );
+    session.shutdown().await.unwrap();
+}
+
+/// A trash directory that is already in the drive cannot be used as one either.
+///
+/// The `mkdir` guard stops one being created. It does nothing about a drive that
+/// already has one -- left by an earlier Cirrove, or by another tool -- and
+/// trashing is a *rename* into `.Trash-$uid/files/`, not a mkdir. Without this
+/// the guard would hold only for drives that never had a wastebasket, which is
+/// precisely not the drives that need it.
+///
+/// Renaming back out stays allowed. A user whose drive already contains one must
+/// be able to recover what is in it, and a guard that trapped those files would
+/// be worse than the wastebasket.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; an existing trash directory refuses to be filled"]
+async fn real_an_existing_trash_directory_refuses_renames_into_it_but_not_out_of_it() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    namespace_fixture(&cloud);
+    // A wastebasket that is already in the drive, with the layout the trash
+    // specification gives it and a file the user would want back.
+    {
+        let mut remote = cloud.remote.lock().unwrap();
+        for (id, name, parent) in [
+            (".trash", ".Trash-1000", "root"),
+            (".trash-files", "files", ".trash"),
+        ] {
+            let node = Node {
+                id: id.into(),
+                parent_id: Some(parent.into()),
+                name: name.into(),
+                etag: Some(format!("{id}-etag")),
+                ..root()
+            };
+            remote.files.insert(node.id.clone(), (node, vec![]));
+        }
+        let stranded = Node {
+            id: "stranded".into(),
+            parent_id: Some(".trash-files".into()),
+            name: "stranded.txt".into(),
+            kind: NodeKind::File,
+            size: 8,
+            modified_unix: 1,
+            etag: Some("stranded-etag".into()),
+            content_version: Some("stranded-content".into()),
+            target: None,
+        };
+        remote
+            .files
+            .insert(stranded.id.clone(), (stranded, b"recovery".to_vec()));
+    }
+
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session =
+        WritableSession::mount(engine, journal, cloud.clone(), Arc::new(Vault::default()))
+            .await
+            .unwrap();
+
+    let root = mount.clone();
+    tokio::task::spawn_blocking(move || {
+        let trash = root.join(".Trash-1000");
+        // Into the wastebasket, at both depths a file manager uses.
+        for destination in [
+            trash.join("occupied.bin"),
+            trash.join("files").join("occupied.bin"),
+        ] {
+            let error = std::fs::rename(root.join("occupied.bin"), &destination).unwrap_err();
+            assert_eq!(
+                error.raw_os_error(),
+                Some(libc::EOPNOTSUPP),
+                "renaming into {destination:?}: {error}"
+            );
+        }
+        // The file it was supposed to swallow is untouched and still readable.
+        assert_eq!(
+            std::fs::read(root.join("occupied.bin")).unwrap(),
+            b"foreign"
+        );
+        // Out of the wastebasket is how a user recovers, and must keep working.
+        std::fs::rename(
+            trash.join("files").join("stranded.txt"),
+            root.join("stranded.txt"),
+        )
+        .unwrap();
+        assert_eq!(
+            std::fs::read(root.join("stranded.txt")).unwrap(),
+            b"recovery"
+        );
+    })
+    .await
+    .unwrap();
+
+    mutations_applied(&session, 1).await;
+    {
+        let remote = cloud.remote.lock().unwrap();
+        let (node, _) = remote.files.get("stranded").unwrap();
+        assert_eq!(node.parent_id.as_deref(), Some("root"));
+        assert_eq!(node.name, "stranded.txt");
+    }
+    session.shutdown().await.unwrap();
+}
+
+/// Removing a directory the provider has not acknowledged yet reports that it is
+/// busy, and says so in a word the caller can act on.
+///
+/// `Writeback::rmdir` already refuses this case deliberately: an unacknowledged
+/// directory has no ETag, so no conditional removal can be expressed against it,
+/// and cancelling an in-flight creation is a different operation. The refusal is
+/// right. Which errno carries it is what this pins down -- found on a live mount,
+/// where creating a folder and immediately removing it produced "Invalid
+/// argument", a message that describes nothing the caller did and suggests no
+/// way forward. `EBUSY` says the one true thing: not now, try again.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; an unconfirmed directory refuses removal as busy"]
+async fn real_rmdir_of_an_unconfirmed_directory_reports_busy_rather_than_invalid() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    namespace_fixture(&cloud);
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    // Hold the provider inside the folder creation, so the directory exists
+    // locally and has no remote identity for as long as the test needs.
+    cloud.hold_folder.store(true, Ordering::SeqCst);
+    let session =
+        WritableSession::mount(engine, journal, cloud.clone(), Arc::new(Vault::default()))
+            .await
+            .unwrap();
+
+    let target = mount.join("unconfirmed");
+    let created = target.clone();
+    tokio::task::spawn_blocking(move || std::fs::create_dir(&created).unwrap())
+        .await
+        .unwrap();
+    tokio::time::timeout(Duration::from_secs(5), cloud.folder_entered.notified())
+        .await
+        .expect("the provider never entered the folder creation");
+
+    let pending = target.clone();
+    let error = tokio::task::spawn_blocking(move || std::fs::remove_dir(&pending).unwrap_err())
+        .await
+        .unwrap();
+    assert_eq!(
+        error.raw_os_error(),
+        Some(libc::EBUSY),
+        "an unconfirmed directory must refuse removal as busy, not as a malformed \
+         request the caller cannot act on: {error}"
+    );
+    // The refusal must leave the directory alone rather than half-removing it.
+    assert!(target.is_dir(), "the directory went away on a refusal");
+
+    // Once the provider acknowledges, the same removal succeeds. Without this the
+    // test would pass just as well against a mount that never removes anything.
+    cloud.folder_release.notify_one();
+    mutations_applied(&session, 1).await;
+    let confirmed = target.clone();
+    tokio::task::spawn_blocking(move || {
+        // Every refusal on the way must stay actionable. On a live mount this
+        // band -- after the provider acknowledged, before the creation had
+        // settled -- answered EINVAL for about two seconds, which tells the
+        // caller its request was malformed when the only true answer was "not
+        // yet".
+        for _ in 0..50 {
+            match std::fs::remove_dir(&confirmed) {
+                Ok(()) => return,
+                Err(error) => assert_eq!(
+                    error.raw_os_error(),
+                    Some(libc::EBUSY),
+                    "a directory waiting for its remote identity must refuse as \
+                     busy, not as a malformed request: {error}"
+                ),
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        panic!("a confirmed directory never became removable");
+    })
+    .await
+    .unwrap();
+    session.shutdown().await.unwrap();
+}
+
+/// The mount root refuses to become a local wastebasket, and only the root does.
+///
+/// This is not hypothetical. On a writable mount the first Delete in GNOME Files
+/// creates `.Trash-1000/files` and `.Trash-1000/info` at the top of the
+/// filesystem and renames the file into it -- so before this guard, deleting a
+/// file through the file manager put a second wastebasket *inside the user's
+/// cloud drive*, synced to every other device, while the provider's own recycle
+/// bin stayed empty and the file manager reported the deletion as undoable. It
+/// was found as a real directory in a real OneDrive, not by reading the spec.
+///
+/// Removing the `is_trash_directory` check in `mkdir` makes the first assertion
+/// fail with a created directory instead of `Unsupported`.
+///
+/// The second half is the other half of the bug: a guard that refused the name
+/// everywhere would cost the user an ordinary folder name for nothing, because
+/// no trash implementation looks anywhere but the top of the filesystem.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; the mount root refuses a trash directory"]
+async fn real_mount_root_refuses_a_trash_directory_but_a_subdirectory_keeps_the_name() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    namespace_fixture(&cloud);
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session =
+        WritableSession::mount(engine, journal, cloud.clone(), Arc::new(Vault::default()))
+            .await
+            .unwrap();
+
+    let root = mount.clone();
+    tokio::task::spawn_blocking(move || {
+        for name in [".Trash", ".Trash-1000"] {
+            let error = std::fs::create_dir(root.join(name)).unwrap_err();
+            assert_eq!(
+                error.kind(),
+                std::io::ErrorKind::Unsupported,
+                "{name} at the mount root: {error}"
+            );
+            assert!(!root.join(name).exists(), "{name} was created anyway");
+        }
+        // Inside the drive the name is the user's to use.
+        std::fs::create_dir(root.join("folder").join(".Trash-1000")).unwrap();
+    })
+    .await
+    .unwrap();
+
+    // Exactly one namespace change reached the provider: the nested folder. The
+    // refusals must not have queued anything to undo later.
+    applied(&session, 1).await;
+    {
+        let remote = cloud.remote.lock().unwrap();
+        let names: Vec<&str> = remote
+            .files
+            .values()
+            .map(|(node, _)| node.name.as_str())
+            .collect();
+        assert_eq!(
+            names.iter().filter(|n| n.starts_with(".Trash")).count(),
+            1,
+            "remote names: {names:?}"
+        );
+    }
+    session.shutdown().await.unwrap();
+}
+
 /// `rmdir` keeps its POSIX promise: a populated directory is refused, an empty
 /// one is removed, and the removal reaches the provider.
 ///
@@ -3090,6 +3597,342 @@ async fn real_a_refused_save_is_reported_as_a_budget_and_not_only_as_enospc() {
         refusal.message.contains("cache_bytes"),
         "the budget message has to say what makes room now: {}",
         refusal.message
+    );
+    session.shutdown().await.unwrap();
+}
+
+/// A pinned file edited with the provider unreachable, through the kernel.
+///
+/// `engine::pinning::a_pinned_file_can_be_edited_offline_and_both_survive_a_restart`
+/// makes this claim at the durability layer, and makes it well: the cache's view
+/// and the journal's are rebuilt by separate paths that do not consult each
+/// other, so their surviving together has to be asserted rather than assumed.
+/// What it never touches is the kernel. This does the same thing through a real
+/// writable mount, which is the only place an ordinary application lives.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; a pinned file is edited with the provider unreachable"]
+async fn real_a_pinned_file_is_edited_offline_and_both_survive_through_the_mount() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let mut account = account(&mount);
+    // The pin floor is eight blocks; the fixture's own budget cannot hold one.
+    account.cache_bytes = 64 * 1024 * 1024;
+    let cloud = Arc::new(Cloud::default());
+    let original = b"the bytes that were there before".to_vec();
+    {
+        let node = Node {
+            id: "pinned".into(),
+            parent_id: Some("root".into()),
+            name: "pinned.txt".into(),
+            kind: NodeKind::File,
+            size: original.len() as u64,
+            modified_unix: 1,
+            etag: Some("original-etag".into()),
+            content_version: Some("original-content".into()),
+            target: None,
+        };
+        cloud
+            .remote
+            .lock()
+            .unwrap()
+            .files
+            .insert(node.id.clone(), (node, original.clone()));
+    }
+    let vault = Arc::new(Vault::default());
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 4 * 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account.clone(), cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let pin = cirrove_service::PinRequest {
+        path: Some("pinned.txt".into()),
+        ..Default::default()
+    };
+    assert!(
+        engine.apply_pin_request(&pin).await.unwrap().accepted,
+        "the budget holds one small file"
+    );
+    let session = WritableSession::mount(engine, journal.clone(), cloud.clone(), vault)
+        .await
+        .unwrap();
+
+    // From here the provider answers nothing. Both halves happen offline.
+    cloud.offline.store(true, Ordering::SeqCst);
+    let path = mount.join("pinned.txt");
+    let read_back = {
+        let path = path.clone();
+        tokio::task::spawn_blocking(move || std::fs::read(path))
+            .await
+            .unwrap()
+            .expect("the pinned file must read offline through the mount")
+    };
+    assert_eq!(read_back, original, "offline read returned the wrong bytes");
+
+    let edited = b"the bytes an application wrote while offline".to_vec();
+    {
+        let path = path.clone();
+        let edited = edited.clone();
+        tokio::task::spawn_blocking(move || std::fs::write(path, edited))
+            .await
+            .unwrap()
+            .expect("editing a pinned file offline must be accepted locally");
+    }
+    session.shutdown().await.unwrap();
+
+    // Rebuilt from disk: the cache's registry and the journal's files are
+    // reconstructed by paths that do not consult each other.
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let pins = engine.pin_status().await.unwrap();
+    assert_eq!(pins.len(), 1, "the pin must survive the restart");
+    assert!(
+        pins[0].reserved > 0,
+        "the pin lost its reservation across the restart: {:?}",
+        pins[0]
+    );
+    let unsent = journal.lock().unwrap().list(0, 100).unwrap();
+    assert!(
+        !unsent.is_empty(),
+        "the offline edit must still be waiting to upload after a restart"
+    );
+    engine.stop().await;
+}
+
+/// Unsent changes must survive disabling an account, and removal must refuse
+/// while they exist.
+///
+/// This was the milestone's open clause and it could not be tested, because
+/// there was no removal path: a test would have asserted that a thing which
+/// does not exist does not delete a journal, and would have passed before and
+/// after any change for the same reason. `accounts::forget` exists now, so the
+/// clause has a subject.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; unsent work survives disable and blocks removal"]
+async fn real_unsent_changes_survive_disabling_and_refuse_removal() {
+    use cirrove_service::accounts::{Settings, forget, set_enabled};
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let mut config = account(&mount);
+    config.label = "removable".into();
+    config.enabled = false;
+    std::fs::write(
+        state.join("accounts.json"),
+        serde_json::to_vec(&Settings {
+            version: 1,
+            accounts: vec![config.clone()],
+        })
+        .unwrap(),
+    )
+    .unwrap();
+
+    // Uploads stall, so what the application writes stays unsent.
+    let cloud = Arc::new(Cloud::default());
+    cloud.stall.store(true, Ordering::SeqCst);
+    let vault = Arc::new(Vault::default());
+    let account_dir = state.join("accounts").join(&config.id);
+    cirrove_service::private_dir(&account_dir).unwrap();
+    let journal_dir = account_dir.join("journal");
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&journal_dir, &config.id, 4 * 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(config.clone(), cloud.clone(), account_dir.clone())
+        .await
+        .unwrap();
+    let session = WritableSession::mount(engine, journal.clone(), cloud.clone(), vault)
+        .await
+        .unwrap();
+    let written = b"work that never reached the cloud".to_vec();
+    {
+        let path = mount.join("unsent.txt");
+        let written = written.clone();
+        tokio::task::spawn_blocking(move || std::fs::write(path, written))
+            .await
+            .unwrap()
+            .unwrap();
+    }
+    session.shutdown().await.unwrap();
+    drop(journal);
+
+    // Disabling is a settings flag. Nothing in that path may touch the journal.
+    set_enabled(&state, "removable", false).unwrap();
+    let reopened = UploadJournal::open(&journal_dir, &config.id, 4 * 1024 * 1024).unwrap();
+    let rows = reopened.list(0, 100).unwrap();
+    assert!(
+        !rows.is_empty(),
+        "disabling an account must not discard work that has not been sent"
+    );
+    let mut payload = Vec::new();
+    std::io::Read::read_to_end(&mut reopened.payload(rows[0].id).unwrap(), &mut payload).unwrap();
+    assert_eq!(
+        payload, written,
+        "the unsent bytes changed across a disable"
+    );
+    drop(reopened);
+
+    // Removal must refuse, and say how much is at stake.
+    let refused = forget(&state, "removable", false).expect_err("removal must refuse");
+    let message = refused.to_string();
+    assert!(
+        message.contains("have not reached the cloud") && message.contains("discard-unsent"),
+        "a refusal has to name what is at stake and the way past it: {message}"
+    );
+    assert!(
+        journal_dir.exists(),
+        "a refused removal must leave the journal exactly where it was"
+    );
+
+    // Asked explicitly, it moves the data aside rather than deleting it.
+    let done = forget(&state, "removable", true).expect("explicit discard must be accepted");
+    assert!(done.contains("moved to"), "unexpected report: {done}");
+    assert!(!account_dir.exists(), "the account directory must be gone");
+    let removed: Vec<_> = std::fs::read_dir(state.join("removed"))
+        .unwrap()
+        .filter_map(Result::ok)
+        .collect();
+    assert_eq!(removed.len(), 1, "the data must be kept, not deleted");
+    assert!(
+        removed[0].path().join("journal").exists(),
+        "the journal must be inside what was moved aside"
+    );
+    assert!(
+        Settings::load(&state).unwrap().accounts.is_empty(),
+        "the account must be out of the settings"
+    );
+    assert!(
+        mount.exists(),
+        "removal must never touch the mount directory itself"
+    );
+}
+
+/// A save refused by a physically full filesystem, through the kernel.
+///
+/// `a_genuinely_full_filesystem_explains_what_to_free` drives the journal
+/// directly, and `real_a_refused_save_is_reported_as_a_budget_and_not_only_as_enospc`
+/// drives a mount into its budget. The device case has never been driven through
+/// a mount, which is why the ledger records it as a mapping rather than a
+/// journey. This closes that: a writable mount whose state lives on a filesystem
+/// with no free block.
+///
+/// Ignored and configured by one variable, like its sibling: it consumes every
+/// free block of the filesystem it is given, so it gets one of its own.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "set CIRROVE_FULL_DISK_DIR to a directory on a small, disposable filesystem"]
+async fn real_a_save_on_a_full_device_is_reported_as_a_device_and_not_a_budget() {
+    let Some(root) = std::env::var_os("CIRROVE_FULL_DISK_DIR").map(std::path::PathBuf::from) else {
+        panic!("CIRROVE_FULL_DISK_DIR is required; this test fills the filesystem it names");
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    cloud.stall.store(true, Ordering::SeqCst);
+    let vault = Arc::new(Vault::default());
+    // State and journal on the small filesystem; the mount point itself stays on
+    // the ordinary one, because it is the saves that must meet the full device.
+    //
+    // Named for this test rather than `state` and `journal`, because CI hands
+    // the same loop image to the journal-level full-disk test first and a
+    // journal belongs to one account: opening its directory under a different
+    // account id fails with JournalError::Account, which is what happened.
+    let state = root.join("device-state");
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&root.join("device-journal"), &account.id, 1 << 30).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), state).await.unwrap();
+    let watched = engine.clone();
+    let session = WritableSession::mount(engine, journal, cloud.clone(), vault)
+        .await
+        .unwrap();
+    assert!(
+        watched.save_refusals.latest().is_none(),
+        "a refusal recorded before the disk is full would make the assertion below meaningless"
+    );
+
+    // One save while there is still room. Without this a mount that refuses
+    // everything -- a broken write path, a mount that never came up -- would
+    // satisfy every assertion below for the wrong reason.
+    {
+        let path = mount.join("accepted-before-the-disk-filled.bin");
+        tokio::task::spawn_blocking(move || std::fs::write(path, vec![b'a'; 64 * 1024]))
+            .await
+            .unwrap()
+            .expect("a save must be possible before the device is full");
+    }
+
+    // Likewise named for this test: the sibling leaves its own ballast path
+    // behind, and two tests racing one filename on one filesystem is not a
+    // thing to leave to ordering.
+    let ballast = root.join("device-ballast");
+    let mut sink = std::fs::File::create(&ballast).unwrap();
+    for chunk in [1 << 20usize, 4096, 512, 1] {
+        let block = vec![0u8; chunk];
+        while std::io::Write::write_all(&mut sink, &block).is_ok() {}
+    }
+    let _ = sink.sync_all();
+    drop(sink);
+
+    // Checked outside the filesystem code, so a refusal below cannot be what
+    // persuaded us the device was full.
+    let probe = root.join("device-probe");
+    let refusal = std::fs::File::create(&probe).and_then(|mut file| {
+        std::io::Write::write_all(&mut file, &vec![0u8; 65536])?;
+        file.sync_all()
+    });
+    let errno = refusal.as_ref().err().and_then(|e| e.raw_os_error());
+    let _ = std::fs::remove_file(&probe);
+    assert_eq!(
+        errno,
+        Some(libc::ENOSPC),
+        "the filesystem is not full, so nothing below would be attributable"
+    );
+
+    let mut accepted = 0;
+    let mut refused = None;
+    for index in 0..64u32 {
+        let path = mount.join(format!("save-{index}.bin"));
+        match tokio::task::spawn_blocking(move || std::fs::write(path, vec![b'x'; 256 * 1024]))
+            .await
+            .unwrap()
+        {
+            Ok(()) => accepted += 1,
+            Err(error) => {
+                refused = Some(error);
+                break;
+            }
+        }
+    }
+    let refused = refused.expect("a full device must refuse a save through the mount");
+    assert_eq!(
+        refused.raw_os_error(),
+        Some(libc::ENOSPC),
+        "the kernel must still report ENOSPC, which is what an application acts on: {refused}"
+    );
+
+    let recorded = watched
+        .save_refusals
+        .latest()
+        .expect("a refused save must leave something status can report");
+    assert_eq!(
+        recorded.kind, "device",
+        "the disk is full and the budget is not; reporting `budget` would send a user to \
+         wait for uploads that will never make room: {recorded:?}"
+    );
+    assert!(
+        recorded.message.contains("freed"),
+        "the device message must name the action that is actually required: {}",
+        recorded.message
+    );
+    println!(
+        "FULL_DEVICE_MOUNT accepted={accepted} kind={} readable_after={}",
+        recorded.kind,
+        std::fs::remove_file(&ballast).is_ok()
     );
     session.shutdown().await.unwrap();
 }

@@ -7,6 +7,8 @@ mod directories;
 mod invalidation;
 mod lifecycle;
 mod residency;
+#[cfg(test)]
+mod trash;
 /// How many namespace views have been quarantined since start. Re-exported so a
 /// daemon can report it: the flag is set on a reference-count inconsistency,
 /// cleared nowhere, and a quarantined view pins its ancestor chain for the life
@@ -47,10 +49,49 @@ use tokio::{runtime::Handle, sync::Semaphore};
 /// docs/benchmarks/namespace-entry-ttl.json before reaching for this again.
 const TTL: Duration = Duration::from_secs(1);
 const READ_QUEUE_TIMEOUT: Duration = Duration::from_secs(30);
+/// The mount point itself. FUSE fixes it at 1, and `CloudFs::new` builds the root
+/// view with that inode.
+const ROOT_INODE: u64 = 1;
+
+/// The names the freedesktop trash specification puts at the top of a mounted
+/// filesystem: `$topdir/.Trash`, and `$topdir/.Trash-$uid` when the first is
+/// absent or not sticky.
+///
+/// A cloud mount must refuse to hold one. GIO creates it on the first Delete in
+/// a file manager and then *renames* files into it, so a trash here would be a
+/// second wastebasket living inside the user's own drive -- visible on every
+/// other device, syncing its contents, and leaving the provider's recycle bin
+/// empty while the file manager reports the deletion as undoable. The cloud
+/// already has a recycle bin, and `MutationIntent::RemoveFile` already reaches
+/// it, which is what makes the local one redundant rather than merely untidy.
+///
+/// `EOPNOTSUPP` is the refusal because GIO reads it as "this filesystem has no
+/// trash" and falls back to asking about permanent deletion. That prompt is
+/// still not the truth -- the delete underneath goes to the provider's recycle
+/// bin -- and ADR 0008 records why the honest version needs more than a guard.
+///
+/// Only the mount root is refused. A `.Trash-1000` the user keeps somewhere
+/// inside their drive is their folder, and no trash implementation looks there.
+fn is_trash_directory(name: &str) -> bool {
+    name == ".Trash"
+        || name
+            .strip_prefix(".Trash-")
+            .is_some_and(|uid| !uid.is_empty() && uid.bytes().all(|b| b.is_ascii_digit()))
+}
 /// Allocator trims performed since start. Three attempts at the trim condition
 /// failed because whether it fired could only be inferred from the memory it was
 /// supposed to move; this makes it a number a fixture can assert on directly.
 pub(crate) static TRIMS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// How many times this process has returned free pages to the kernel.
+///
+/// Exposed because the daemon had no way to answer "has the trim ever fired?".
+/// It logged at debug against a daemon running at info, so a real session could
+/// only be inferred from memory that never came back -- which is how a trigger
+/// that could not fire on a read workload went unnoticed.
+pub fn allocator_trims() -> u64 {
+    TRIMS.load(std::sync::atomic::Ordering::Relaxed)
+}
 
 #[derive(Clone)]
 struct View {
@@ -172,8 +213,8 @@ impl CloudFs {
         let root = View {
             residency: Arc::default(),
             _parent_residency: None,
-            inode: 1,
-            parent: 1,
+            inode: ROOT_INODE,
+            parent: ROOT_INODE,
             ancestry: vec![(scope.collection.clone(), root.id.clone())].into(),
             scope: scope.into(),
             node: root.into(),
@@ -228,11 +269,87 @@ impl CloudFs {
             // So: remember the most views held since the last trim, and trim when
             // the mount is quiet and now holds far fewer. That is precisely when
             // there are freed pages worth returning.
+            // The view-count signal above catches a traversal. It cannot catch a
+            // mount that only reads content: reading changes no view count, so
+            // `high_water` never exceeds `held * 2` and never exceeds SHED_FLOOR,
+            // and the trim never runs at all. Measured on a live daemon reading
+            // 475 MB out of cache, peak and residue were the same number in
+            // nearly every pass -- it returned none of what it took.
+            //
+            // So: a second, independent signal. Free bytes across the arenas is
+            // exactly what trimming would give back, and it is the only figure
+            // that separates a process holding half a gibibyte it has already
+            // freed from one that is genuinely using it. Either signal may fire;
+            // both are gated on the same quiet mount and the same blocking
+            // worker.
+            //
+            // The floor only avoids a pointless walk; it is not what protects
+            // throughput. The quiescent gate does that -- the trim cannot fire
+            // while the mount is doing anything -- so the floor sits where
+            // returning the memory stops being worth the walk. A pass measured
+            // 717 microseconds around 50 MiB, roughly 14 microseconds per
+            // mebibyte, so eight is about a hundred microseconds.
+            //
+            // A cadence, not a threshold on a quantity. Three quantities were
+            // tried and all three were wrong, which is recorded in
+            // docs/benchmarks/trim-cadence.json: free arena bytes and
+            // resident-minus-live do not fall when a trim succeeds, so both fire
+            // every tick forever, and resident growth since the last trim cannot
+            // tell a partial reclaim from nothing to do, so it froze the daemon
+            // at 320 MiB for eight and a half hours while an arm that trimmed
+            // freely reached 165 on the same workload.
+            //
+            // Every one of those was a proxy for "is there something to give
+            // back", and none of the available quantities answers it. A cadence
+            // does not need the answer: it pays a known, bounded cost to ask the
+            // allocator, which is the one thing that does know. A pass around
+            // 100 MiB is roughly 1.5 ms, so once a minute is about 0.0025
+            // percent of a core.
+            //
+            // The floor keeps a settled small process from paying even that. A
+            // daemon that has never grown past it has nothing worth a walk.
+            //
+            // Resident size above the floor is a gate on whether a walk is worth
+            // it, NOT the trigger -- the interval is the trigger. That
+            // distinction is the whole of the change: resident-minus-live was
+            // tried as a trigger and is one of the three recorded failures,
+            // because it includes the SQLite page cache over a 560 MB index and
+            // so sits permanently around 90 MiB above any floor.
+            //
+            // What the cadence bought and what it did not, measured over two
+            // hours on the live daemon in docs/benchmarks/trim-cadence.json:
+            // trims fired 118 times at 0.99 a minute against 78 frozen over
+            // eight and a half hours, and the mean came down to 209.1 MiB from
+            // 320.2. But resident size drifted +40.5 MiB between the first hour
+            // and the second while the cadence fired steadily, and the peak
+            // touched 250.3 MiB against a registered ceiling of 250. The run is
+            // recorded as NOT SETTLED: this is better than what it replaces and
+            // is not shown to be bounded, and a longer run is what would tell an
+            // asymptote from a ramp.
             const QUIESCENT_TICKS: u32 = 5;
             const SHED_FACTOR: usize = 2;
             const SHED_FLOOR: usize = 1024;
+            // Both overridable for tests only, in the style of this crate's
+            // other fixture variables. A read-only mount fixture retains a flat 16.5
+            // MiB however much it reads -- the baseline and nothing more -- so it
+            // cannot reach a floor derived from a daemon holding 184,000 nodes
+            // and a 560 MB index. That is a fact about the fixture's size, not
+            // about the trigger, and lowering the floor lets a test assert the
+            // mechanism while the shipped number stays what measurement chose.
+            let floor = std::env::var("CIRROVE_RECLAIM_FLOOR_BYTES")
+                .ok()
+                .and_then(|value| value.parse::<u64>().ok())
+                .unwrap_or(96 * 1024 * 1024);
+            let interval = std::env::var("CIRROVE_RECLAIM_INTERVAL_SECONDS")
+                .ok()
+                .and_then(|value| value.parse::<u64>().ok())
+                .unwrap_or(60);
             let mut idle = 0u32;
             let mut high_water = 0usize;
+            // Far enough in the past that the first pass is not delayed.
+            let mut last_trim = tokio::time::Instant::now()
+                .checked_sub(std::time::Duration::from_secs(interval))
+                .unwrap_or_else(tokio::time::Instant::now);
             loop {
                 tokio::select! { biased;
                     _ = inner.cancel.cancelled() => break,
@@ -250,14 +367,26 @@ impl CloudFs {
                             0
                         };
                         high_water = high_water.max(held);
-                        if idle >= QUIESCENT_TICKS
-                            && high_water > held.saturating_mul(SHED_FACTOR).max(SHED_FLOOR)
-                        {
+                        let shed = high_water > held.saturating_mul(SHED_FACTOR).max(SHED_FLOOR);
+                        let resident = cirrove_allocator::resident_bytes();
+                        let retained = resident >= floor
+                            && last_trim.elapsed() >= std::time::Duration::from_secs(interval);
+                        if idle >= QUIESCENT_TICKS && (shed || retained) {
                             high_water = held;
                             TRIMS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                            tokio::task::spawn_blocking(|| {
+                            last_trim = tokio::time::Instant::now();
+                            tokio::task::spawn_blocking(move || {
                                 let released = cirrove_allocator::trim();
-                                tracing::debug!(released, "returned free pages to the kernel");
+                                // At info, not debug: this was invisible in a
+                                // real session, so "has it ever fired?" could
+                                // not be answered from the journal, only
+                                // inferred from memory that never came back.
+                                tracing::info!(
+                                    released,
+                                    shed,
+                                    retained,
+                                    "returned free pages to the kernel"
+                                );
                             });
                         }
                     }
@@ -328,6 +457,34 @@ impl Inner {
             .get(&inode)
             .cloned()
             .ok_or(ProviderError::NotFound)
+    }
+    /// Whether this view lies in a trash directory at the mount root.
+    ///
+    /// Refusing to *create* one is not enough on its own. A file manager also
+    /// adopts an existing `$topdir/.Trash-$uid` -- left by an earlier Cirrove, or
+    /// by another tool -- and trashing is a rename into it, not a mkdir. Without
+    /// this the guard in `mkdir` would hold only for drives that never had one.
+    ///
+    /// Only renames *into* it are refused. A user whose drive already contains a
+    /// trash directory must be able to move their files back out of it, and
+    /// refusing that would trap them there.
+    fn inside_root_trash(&self, view: &View) -> bool {
+        let mut current = view.clone();
+        // Bounded rather than `loop`: a damaged parent chain must refuse an
+        // answer, not hang the rename that asked.
+        for _ in 0..256 {
+            if current.inode == ROOT_INODE {
+                return false;
+            }
+            if current.parent == ROOT_INODE {
+                return is_trash_directory(&current.name);
+            }
+            match self.view(current.parent) {
+                Ok(parent) => current = parent,
+                Err(_) => return false,
+            }
+        }
+        false
     }
     fn project(parent: &View, child: Node) -> Result<View, ProviderError> {
         if child.name.is_empty()
@@ -684,7 +841,7 @@ impl Inner {
                 .map_err(|_| ProviderError::Unavailable)?;
             return Ok(node);
         }
-        if view.inode == 1 || view.node.kind == NodeKind::File {
+        if view.inode == ROOT_INODE || view.node.kind == NodeKind::File {
             return Ok(view.node.as_ref().clone());
         }
         self.engine.node(&view.scope, &view.node.id).await
@@ -871,6 +1028,10 @@ impl Filesystem for CloudFs {
             reply.error(Errno::EINVAL);
             return;
         };
+        if parent.0 == ROOT_INODE && is_trash_directory(&name) {
+            reply.error(Errno::EOPNOTSUPP);
+            return;
+        }
         let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
             reply.error(Errno::EAGAIN);
             return;
@@ -1093,6 +1254,10 @@ impl Filesystem for CloudFs {
                 if parent.node.kind != NodeKind::Folder || destination.node.kind != NodeKind::Folder
                 {
                     return Err(Errno::ENOTDIR);
+                }
+                // Trashing is a rename. See `inside_root_trash`.
+                if inner.inside_root_trash(&destination) {
+                    return Err(Errno::EOPNOTSUPP);
                 }
                 let nodes = inner.children(&parent).await.map_err(|e| errno(&e))?;
                 let source = nodes

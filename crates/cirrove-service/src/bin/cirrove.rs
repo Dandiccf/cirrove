@@ -1,4 +1,29 @@
 use anyhow::{Context, Result, bail};
+
+/// Print what the daemon did, in a sentence rather than as JSON.
+///
+/// A refusal is an ordinary outcome here, not a crash: the exit status says the
+/// request was not carried out, and the message says why in words the caller can
+/// act on -- free space, unpin something, raise the budget.
+fn report_pin(reply: &cirrove_service::PinReply) -> Result<()> {
+    if let Some(refusal) = &reply.refusal {
+        bail!("{refusal}");
+    }
+    let mut line = format!("pinned {}", reply.item);
+    if reply.files > 1 {
+        line.push_str(&format!(", {} files", reply.files));
+    }
+    if reply.reserved > 0 {
+        line.push_str(&format!(", {} bytes reserved", reply.reserved));
+    }
+    if !reply.complete {
+        line.push_str(
+            "; part of this folder is not indexed yet and will be kept as it is discovered",
+        );
+    }
+    println!("{line}");
+    Ok(())
+}
 use cirrove_core::{
     CancellationToken, Change, ChangePage, Checkpoint, Cursor, Node, NodeKind, Scope,
 };
@@ -101,6 +126,14 @@ enum Command {
         #[arg(long)]
         state_dir: PathBuf,
     },
+    /// Pin a generated file on a real account and read it back through a mount
+    /// without touching the provider, with an unpinned control that must.
+    ValidateOnedrivePinning {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        state_dir: PathBuf,
+    },
     /// Observe catch-up after a reconnection and the periodic recovery refresh,
     /// each with the other mechanism disabled so a discovery is attributable.
     ValidateOnedriveCatchup {
@@ -184,24 +217,54 @@ enum Command {
     },
     /// Keep an item available offline, reserving cache space for it.
     Pin {
+        /// Account label. Omit when only one account is configured.
+        #[arg(default_value = "")]
         label: String,
-        /// Provider item id. Read `cirrove status` to see what is pinned.
+        /// Mount-relative path, for example `Documents/Reports`. The daemon
+        /// resolves it, because only it can list a directory the index has not
+        /// reached and only it knows which linked collection holds the item.
         #[arg(long)]
-        item: String,
+        path: Option<String>,
+        /// Provider item id, when you already have one.
+        #[arg(long)]
+        item: Option<String>,
         /// Pin every file beneath a folder as well.
         #[arg(long)]
         recursive: bool,
-        /// Bytes to reserve. Defaults to the size in the local index.
+        /// Bytes to reserve. Defaults to what the daemon can see, which is the
+        /// figure that agrees with the walk.
         #[arg(long)]
         bytes: Option<u64>,
         #[arg(long)]
-        state_dir: Option<PathBuf>,
+        socket: Option<PathBuf>,
     },
-    /// Release a pin and the cache space it reserved.
-    Unpin {
+    /// Show what is pinned and how much of the cache budget it has claimed.
+    Pins {
+        #[arg(default_value = "")]
         label: String,
         #[arg(long)]
-        item: String,
+        socket: Option<PathBuf>,
+    },
+    /// Release a pin and free the cache space it held.
+    Unpin {
+        #[arg(default_value = "")]
+        label: String,
+        #[arg(long)]
+        path: Option<String>,
+        #[arg(long)]
+        item: Option<String>,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Remove an account and move its local data aside.
+    ///
+    /// Refuses while the account is enabled, and refuses while it still holds
+    /// changes that have not reached the cloud.
+    Forget {
+        label: String,
+        /// Remove the account even though it still holds unsent changes.
+        #[arg(long)]
+        discard_unsent: bool,
         #[arg(long)]
         state_dir: Option<PathBuf>,
     },
@@ -210,6 +273,21 @@ enum Command {
 
     /// Query the local daemon; no cloud requests.
     Status {
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Abandon the changes the daemon gave up on, so the mount shows what the
+    /// cloud actually has.
+    ///
+    /// `status` reports these as `stuck_changes`: a delete the provider refused
+    /// leaves the item hidden locally and present in the account, and nothing
+    /// retries it. This drops the local intent -- it never re-sends anything,
+    /// because the conflict means the remote moved and a stale retry would
+    /// destroy whatever is there now. The item comes back into view and you can
+    /// decide again.
+    DiscardStuck {
+        #[arg(long, default_value = "")]
+        label: String,
         #[arg(long)]
         socket: Option<PathBuf>,
     },
@@ -310,6 +388,9 @@ async fn main() -> Result<()> {
         } => {
             let state = state.map(Ok).unwrap_or_else(state_dir)?;
             cirrove_service::validation::onedrive_read_bytes(&state, &label, &item, drive).await?;
+        }
+        Command::ValidateOnedrivePinning { label, state_dir } => {
+            cirrove_service::validation::onedrive_pinning(&state_dir, &label).await?;
         }
         Command::ValidateOnedriveRemoteChanges { label, state_dir } => {
             cirrove_service::validation::onedrive_remote_changes(&state_dir, &label).await?;
@@ -419,26 +500,88 @@ async fn main() -> Result<()> {
         }
         Command::Pin {
             label,
+            path,
             item,
             recursive,
             bytes,
-            state_dir: state,
+            socket,
         } => {
-            let state = state.map(Ok).unwrap_or_else(state_dir)?;
-            println!(
-                "{}",
-                cirrove_service::accounts::set_pin(&state, &label, &item, recursive, bytes)?
-            );
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            let request = cirrove_service::PinRequest {
+                label,
+                item,
+                path,
+                recursive,
+                bytes,
+            };
+            report_pin(&cirrove_service::pin(&socket, &request).await?)?;
+        }
+        Command::Pins { label, socket } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            let status = status(&socket).await?;
+            let accounts: Vec<_> = status
+                .accounts
+                .iter()
+                .filter(|a| label.is_empty() || a.label == label)
+                .collect();
+            if accounts.is_empty() {
+                bail!("no account matches that label");
+            }
+            for account in accounts {
+                println!("{}", account.label);
+                if account.pins.is_empty() {
+                    println!("  nothing pinned");
+                } else {
+                    for pin in &account.pins {
+                        // resident against reserved is the difference between a
+                        // pin that is keeping content and one that is only an
+                        // accounting entry, so it leads.
+                        println!(
+                            "  {}  {:.0}/{:.0} MiB kept  {} block(s){}",
+                            pin.item,
+                            pin.resident as f64 / (1024.0 * 1024.0),
+                            pin.reserved as f64 / (1024.0 * 1024.0),
+                            pin.blocks,
+                            if pin.recursive { "  recursive" } else { "" }
+                        );
+                    }
+                }
+                println!("  {}", account.pin_budget.explain());
+            }
         }
         Command::Unpin {
             label,
+            path,
             item,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            let request = cirrove_service::PinRequest {
+                label,
+                item,
+                path,
+                ..Default::default()
+            };
+            report_pin(&cirrove_service::unpin(&socket, &request).await?)?;
+        }
+        Command::Forget {
+            label,
+            discard_unsent,
             state_dir: state,
         } => {
             let state = state.map(Ok).unwrap_or_else(state_dir)?;
             println!(
                 "{}",
-                cirrove_service::accounts::clear_pin(&state, &label, &item)?
+                cirrove_service::accounts::forget(&state, &label, discard_unsent)?
             );
         }
         Command::KeyringCheck => cirrove_service::accounts::keyring_check().await?,
@@ -449,6 +592,20 @@ async fn main() -> Result<()> {
                 None => socket_path()?,
             };
             println!("{}", serde_json::to_string_pretty(&status(&socket).await?)?);
+        }
+        Command::DiscardStuck { label, socket } => {
+            let socket = match socket {
+                Some(p) => p,
+                None => socket_path()?,
+            };
+            let reply = cirrove_service::discard_stuck(&socket, &label).await?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            println!(
+                "abandoned {} change(s); {} still stuck",
+                reply.discarded, reply.remaining
+            );
         }
         Command::Demo { state_dir } => {
             private_dir(&state_dir)?;

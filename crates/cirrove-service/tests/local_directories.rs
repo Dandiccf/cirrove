@@ -480,11 +480,14 @@ fn a_directory_is_not_removed_while_a_purely_local_child_still_names_it() {
     ));
 
     // The empty child is refused too, for a different reason worth stating: a
-    // directory whose creation the provider has not acknowledged has no ETag, and
-    // a conditional removal cannot be expressed against it at all. Cancelling an
-    // unconfirmed creation is a different operation from removing a directory,
-    // and it is not implemented. `Writeback::rmdir` reports EBUSY for this rather
-    // than letting it surface as a malformed request.
+    // directory whose creation has not settled cannot carry a conditional
+    // removal. Chaining one behind its own creation was tried and is wrong --
+    // Graph moves a folder's eTag between the create response and a moment
+    // later, so the DELETE loses its precondition and lands in Conflict after
+    // rmdir already reported success. `Writeback::rmdir` refuses the whole
+    // window with EBUSY rather than letting this surface as a malformed request;
+    // `writable_session::real_a_directory_created_and_removed_again_is_gone_from_the_provider`
+    // holds the outcome that made the difference visible.
     assert!(nested.remote.is_none());
     assert!(matches!(
         j.remove_namespace_directory(nested.id, nested.revision),

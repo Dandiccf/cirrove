@@ -398,12 +398,14 @@ dependencies = [
  "cirrove-service",
  "clap",
  "fs2",
+ "futures-util",
  "gtk4",
  "libadwaita",
  "serde",
  "serde_json",
  "tempfile",
  "tokio",
+ "zbus",
 ]
 
 [[package]]

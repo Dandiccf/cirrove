@@ -1,0 +1,75 @@
+{
+  "question": "Does the user service come back by itself after a suspend/resume cycle and after a reboot with a fresh login, with its mount, feeds and index intact?",
+  "why_now": "Two milestone 1 rows have needed this from the start and neither has ever been run. The installable-service row has no evidence at all -- the systemd unit exists and nobody has enabled it and logged out. The recovery row has two of its three clauses covered by tests; the third is suspend/resume, which a process on the machine being suspended structurally cannot observe about itself.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-11",
+  "why_a_person_is_required": "A suspend cycle stops the observer, and a reboot ends the session that would be watching. Neither can be scripted from inside. The state before is therefore captured to a file on disk -- .local-state/reboot-check/before.json -- and compared after, which is the only form this evidence can take.",
+  "before": {
+    "boot_id": "dddeafca-ffc3-4afe-9f28-ba7c48937aa2",
+    "uptime_seconds": 128425,
+    "service": "enabled and active",
+    "account": "ready, mounted, 184,052 items, both feeds ready",
+    "schema_version": 7,
+    "mount_entries": 28,
+    "binary": "595cd9057d21"
+  },
+  "predictions": [
+    {
+      "id": "P1",
+      "claim": "After suspend and resume, the daemon is the SAME process -- unchanged MainPID -- and the mount still lists its 28 entries.",
+      "reasoning": "Suspend freezes rather than kills. A daemon that had to be restarted by systemd would mean something in it did not survive the clock jump, which is the failure this clause is about.",
+      "role": "the suspend clause"
+    },
+    {
+      "id": "P2",
+      "claim": "After a reboot and a fresh login, the service starts without anyone starting it, reaching ready and mounted.",
+      "role": "the installable-service row's login-startup clause, which WantedBy=default.target claims and nothing has tested"
+    },
+    {
+      "id": "P3",
+      "claim": "The index survives both: schema_version stays 7 and indexed_items is at least what it was, never reset to zero.",
+      "reasoning": "A daemon that reindexes 184,000 items on every boot would be working, and would also be quietly wrong in a way a status check would not show."
+    },
+    {
+      "id": "P4",
+      "claim": "Neither cycle leaves a stale FUSE mount behind, and the mount after the reboot is owned by the new daemon rather than a leftover from the old one."
+    }
+  ],
+  "decision_rule": "P1 decides the recovery row's last clause. P2 and P3 together decide the installable-service row's startup half; its clean-shutdown half is separately covered by tests and scripts/smoke.py. P4 failing on either would be a defect rather than a missing measurement.",
+  "result": "P1, P2, P3 and P4 all hold. The suspend cycle preserved the process; the reboot cycle brought the service back by itself at login with its mount, index, feeds and schema intact, and left no stale mount behind.",
+  "verdict": {
+    "installable_service_row": "CLOSED by this run. Its startup half is decided by P2 and P3, which hold; its clean-shutdown half had tests and scripts/smoke.py and now also a live unmount-on-stop observed during this reboot.",
+    "recovery_row": "NOT closed. P1 holds, but only for a 2-second s2idle cycle, which is the shallow end of the clause and too short to expire a token, tear down a network or lapse a subscription. The process-failure and network-loss clauses remain test-covered rather than measured live.",
+    "what_would_close_the_recovery_row": "A deep (S3) suspend, and a suspend long enough to outlive the access token and the subscription -- the failures a short freeze cannot reach."
+  },
+  "suspend_result_2026_09_11": {
+    "what_happened": "PM: suspend entry (s2idle) at 06:05:02, PM: suspend exit at 06:05:04.",
+    "state_after": "Identical on every field captured before: same MainPID 1514883, same ActiveEnterTimestamp, service active, account ready and mounted, 184,052 items, both feeds ready, schema 7, 28 mount entries, and a read through the mount succeeds.",
+    "P1": "HOLDS. The daemon is the same process. Suspend froze it rather than killing it, and nothing in it needed restarting after the clock jump.",
+    "two_limits_worth_naming": {
+      "it_was_s2idle_not_deep": "The kernel logged s2idle, which suspends to idle rather than to RAM. Devices are put in low-power states and the CPU idles, but it is a lighter cycle than S3. A machine that only supports s2idle cannot produce S3, so this is the cycle this hardware does -- but the row's clause says suspend/resume without naming a depth, and this is the shallower end of it.",
+      "it_lasted_two_seconds": "Long enough to freeze and thaw the process, which is what P1 is about. Not long enough to exercise what a long suspend adds: an expired access token, a torn-down network, a subscription that lapsed while asleep. Those are the interesting failures and this run does not reach them."
+    },
+    "honest_verdict": "The clause is evidenced for a short s2idle cycle and not for more. Recorded that way rather than as 'suspend/resume works'."
+  },
+  "a_discriminator_that_was_wrong": {
+    "what_i_did": "Compared wall-clock elapsed against /proc/uptime growth, expecting the difference to be the time spent asleep.",
+    "why_it_is_wrong": "/proc/uptime is CLOCK_BOOTTIME, which INCLUDES suspended time. The difference was zero and I briefly read that as 'the machine never suspended'. The journal settled it -- PM: suspend entry is unambiguous -- but the check itself could not have.",
+    "what_would_work": "CLOCK_MONOTONIC against CLOCK_BOOTTIME: monotonic excludes suspend, boottime includes it, and the gap between them is the time asleep."
+  },
+  "reboot_result_2026_09_11": {
+    "what_happened": "Clean stop at 06:08:14 (the unit logged 'Unmounting /home/dandiccf/Cloud/Cirrove-OneDrive', stopped 38 ms later, Result=success), kernel boot at 06:08:29 under a new boot_id 80ca8893, autologin on seat0/tty1 at 06:08:47, and the service active at 06:08:47.49 -- 17.65 s after boot by CLOCK_MONOTONIC, 0.5 s after the user manager.",
+    "started_without_anyone_starting_it": "systemd[1233], the user manager, logged 'Starting Cirrove cloud filesystem service' at 06:08:47.493. No cirrove command was run before that; the first one in this session was a status read at 06:09. Linger=no for this user, so the user manager -- and therefore default.target and this unit -- cannot run at all without a login. The startup is attributable to WantedBy=default.target and to nothing else.",
+    "state_after": "Account ready and mounted, 184,052 indexed items, both feeds ready with notifications connected, schema 7 in both the shared and the per-account database, 28 mount entries, NRestarts=0, and the same binary sha256 595cd9057d21 as before.",
+    "P2": "HOLDS. Fresh login, service up by itself, ready and mounted. Linger=no makes this the login path rather than a boot-time start.",
+    "P3": "HOLDS. schema_version stayed 7 and indexed_items is 184,052 -- identical, not reset and not rebuilt. The 568 MB per-account metadata.db was reopened: the daemon reached ready 80 ms after start, and the Graph counter stood at 4 requests once ready, which is delta and subscription traffic. Reindexing 184,000 items would be neither.",
+    "P4": "HOLDS. Exactly one fuse.cirrove mount, owned by the new daemon: PID 1244 holds /dev/fuse and the abort descriptor for connection 83. The only other FUSE mounts on the host are gvfsd-fuse and portal. The previous daemon unmounted on the way down rather than leaving the mount for the new one to find.",
+    "clean_shutdown_observed_live": "The clean-shutdown half of the installable-service row had test and smoke coverage and no live run. This reboot supplied one: the unit logged the unmount itself, stopped in 38 ms with Result=success, and consumed 3 min 13 s CPU over 17 min 20 s wall, 227 M peak.",
+    "reads_after_the_reboot": "Three files read through the mount returned correct magic bytes -- two ZIP-based Office documents and a JPEG. All three were served from the on-disk cache, which survived the reboot: content_gets stayed 0 throughout. So these reads evidence the mount and the cache, not the content path. The provider path is evidenced separately and unambiguously: Graph requests rose from 4 to 80 during the session, both feeds recorded last_success after the reboot, and the unit logged 'Microsoft authorization refreshed and saved' at 06:10:19."
+  },
+  "corrected_2026_09_11": {
+    "what_was_wrong": "The suspend limit read 'a machine that only supports s2idle cannot produce S3, so this is the cycle this hardware does'. That inferred the hardware from the kernel's default.",
+    "what_is_true": "/sys/power/mem_sleep on this machine reads '[s2idle] deep'. Deep is supported and simply not selected. The cycle was shallow because of a setting, not a limitation.",
+    "what_follows": "The verdict itself is unaffected -- it already said the recovery row is NOT closed and named a deep, long suspend as what would close it. What changes is that the deep half is reachable on this hardware rather than out of reach, and it is registered in deep-suspend-beyond-token-lifetime.json."
+  }
+}

@@ -495,3 +495,329 @@ fn only_the_two_no_space_refusals_are_recorded_and_they_stay_distinct() {
     assert_ne!(budget.kind, device.kind);
     assert_ne!(budget.message, device.message);
 }
+
+/// What the journal does when the device beneath it starts refusing writes.
+///
+/// `durable-transition-sites.json` closed the process-death half of the crash
+/// box: all 31 runtime durable transitions are crossed by a process that then
+/// dies. Its own conclusion names what is left -- faults below the process,
+/// which need dm-flakey and root. This is the reachable part of that: a
+/// block-layer write failure switched on at runtime and back off again.
+///
+/// Three invocations against one device, because the test cannot run `dmsetup`
+/// and the shell that can has to interleave with it. `seed` on a healthy device,
+/// then the harness breaks it, then `fault`, then the harness mends it, then
+/// `recover`. The phase is a variable rather than an argument so the harness is
+/// a shell loop and not a protocol.
+#[test]
+#[ignore = "needs a dm-flakey device; set CIRROVE_FLAKY_DIR and CIRROVE_FLAKY_PHASE"]
+fn a_journal_on_a_failing_device_refuses_without_losing_what_was_durable() {
+    let root = std::env::var_os("CIRROVE_FLAKY_DIR")
+        .map(std::path::PathBuf::from)
+        .expect("CIRROVE_FLAKY_DIR must name a directory on a dm-flakey device");
+    let phase = std::env::var("CIRROVE_FLAKY_PHASE")
+        .expect("CIRROVE_FLAKY_PHASE must be seed, fault or recover");
+    let journal = root.join("journal");
+    let marker = root.join("seeded-bytes");
+    let sealed = b"durable before the device failed".to_vec();
+
+    match phase.as_str() {
+        "seed" => {
+            // Seed defines the starting state, so it starts from nothing. Run
+            // twice against one journal it fails with Stale, which is the
+            // journal being right and the harness being wrong.
+            let _ = std::fs::remove_dir_all(&journal);
+            let _ = std::fs::remove_file(&marker);
+            let mut j = open(&journal, 8 * 1024 * 1024);
+            let working = j
+                .create_working(scope(), node(0), true, b"".as_slice())
+                .unwrap();
+            j.write_working(working.id, 0, &sealed).unwrap();
+            let record = j.seal_working(working.id).unwrap().unwrap();
+            assert_eq!(payload(&j, record.id), sealed);
+            std::fs::write(&marker, record.id.to_string()).unwrap();
+        }
+        "fault" => {
+            // Opening may itself fail on a device refusing writes; that is a
+            // clean refusal too, and is what this asserts if it happens.
+            let opened = UploadJournal::open(&journal, &scope().account, 8 * 1024 * 1024);
+            let Ok(mut j) = opened else {
+                let error = opened.err().unwrap();
+                assert!(
+                    !matches!(error, JournalError::Corrupt),
+                    "a device refusing writes is not a corrupted journal: {error:?}"
+                );
+                // Which branch ran is the finding, not a detail: opening the
+                // journal opens SQLite, which writes, so on a failing device the
+                // journal may be unopenable and its contents inaccessible until
+                // the device recovers. Inaccessible is not lost -- `recover`
+                // asserts that -- but the two are different claims and the run
+                // has to say which one it made.
+                println!("FLAKY_FAULT branch=open_refused error={error:?}");
+                return;
+            };
+            println!("FLAKY_FAULT branch=opened");
+            // P2: what reached the platter before the fault is still readable.
+            // dm-flakey's error_writes leaves reads alone, so a journal that
+            // cannot produce these bytes has lost them to its own handling.
+            let id: uuid::Uuid = std::fs::read_to_string(&marker).unwrap().parse().unwrap();
+            assert_eq!(
+                payload(&j, id),
+                sealed,
+                "the journal lost durable bytes the device still holds"
+            );
+            // P1 and P4: new work must be refused, and refused as a storage
+            // problem rather than as corruption -- reporting a refusing device
+            // as a corrupt journal sends a user to recovery steps that destroy
+            // work the device still has.
+            let working = j
+                .create_working(scope(), node(0), true, b"".as_slice())
+                .and_then(|w| j.write_working(w.id, 0, b"written while the device was failing"));
+            let error = working.expect_err("a failing device must not accept new durable work");
+            assert!(
+                matches!(
+                    error,
+                    JournalError::Storage | JournalError::DeviceFull | JournalError::Busy
+                ),
+                "a refusing device must be reported as a storage problem: {error:?}"
+            );
+            println!("FLAKY_FAULT branch=opened_then_refused error={error:?}");
+        }
+        "recover" => {
+            let j = open(&journal, 8 * 1024 * 1024);
+            let id: uuid::Uuid = std::fs::read_to_string(&marker).unwrap().parse().unwrap();
+            assert_eq!(
+                payload(&j, id),
+                sealed,
+                "a device fault took durable work with it"
+            );
+        }
+        // A lying fsync: dm-flakey's drop_writes acknowledges the write and
+        // discards it. Worse than a refusal, because nothing fails at the time.
+        // The journal cannot detect this while it is happening -- no API says
+        // "that write you were told succeeded did not" -- so the claim under
+        // test is about RECOVERY: what comes back afterwards must be either
+        // right or refused, never wrong and confident.
+        "lie" => {
+            let opened = UploadJournal::open(&journal, &scope().account, 8 * 1024 * 1024);
+            if let Ok(mut j) = opened {
+                let working = j
+                    .create_working(scope(), node(0), true, b"".as_slice())
+                    .and_then(|w| j.write_working(w.id, 0, b"written while writes were discarded"))
+                    .and_then(|(_, w)| j.seal_working(w.id));
+                // Either outcome is acceptable here and the run records which.
+                // A discarded write can look like success at the time; that is
+                // what makes it a lying fsync rather than a failure.
+                println!(
+                    "FLAKY_LIE sealed={} ",
+                    match &working {
+                        Ok(_) => "accepted".to_string(),
+                        Err(e) => format!("refused:{e:?}"),
+                    }
+                );
+            } else {
+                println!("FLAKY_LIE open_refused");
+            }
+        }
+        // After a lying fsync, with the device honest again: the payload sealed
+        // before any of it must still be right. Work done DURING the lie may be
+        // gone -- that is what discarding writes means -- but it must not come
+        // back as something else.
+        "after_lie" => {
+            let j = open(&journal, 8 * 1024 * 1024);
+            let id: uuid::Uuid = std::fs::read_to_string(&marker).unwrap().parse().unwrap();
+            assert_eq!(
+                payload(&j, id),
+                sealed,
+                "a lying fsync corrupted work that was durable before it started"
+            );
+        }
+        // Torn writes: dm-flakey flips a byte inside write bios. Unlike a
+        // refusal or a discard, the write lands and is wrong. The journal's
+        // defence here is its checksums, so what this asserts is that damage
+        // surfaces as Corrupt rather than as plausible bytes.
+        "tear" => {
+            let opened = UploadJournal::open(&journal, &scope().account, 8 * 1024 * 1024);
+            match opened {
+                Ok(mut j) => {
+                    let outcome = j
+                        .create_working(scope(), node(0), true, b"".as_slice())
+                        .and_then(|w| j.write_working(w.id, 0, b"written while bytes were flipped"))
+                        .and_then(|(_, w)| j.seal_working(w.id));
+                    println!(
+                        "FLAKY_TEAR sealed={}",
+                        match &outcome {
+                            Ok(_) => "accepted".to_string(),
+                            Err(e) => format!("refused:{e:?}"),
+                        }
+                    );
+                }
+                Err(e) => println!("FLAKY_TEAR open_refused:{e:?}"),
+            }
+        }
+        // After torn writes, with the device honest again. Work from before must
+        // be right, and anything damaged must be reported rather than served.
+        "after_tear" => {
+            let j = open(&journal, 8 * 1024 * 1024);
+            let id: uuid::Uuid = std::fs::read_to_string(&marker).unwrap().parse().unwrap();
+            let recovered =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| payload(&j, id)));
+            match recovered {
+                Ok(bytes) => assert_eq!(
+                    bytes, sealed,
+                    "torn writes produced plausible but wrong bytes for work that was durable \
+                     before them; wrong and confident is the worst outcome available"
+                ),
+                Err(_) => println!("FLAKY_AFTER_TEAR payload_refused"),
+            }
+        }
+        other => panic!("unknown phase {other:?}"),
+    }
+}
+
+/// Durably record what the journal has acknowledged, so that a machine losing
+/// power cannot take the record with it.
+///
+/// Written to a temporary name, fsynced, renamed, and then the *directory* is
+/// fsynced. Without the last step the rename itself is only in the page cache,
+/// and after a cut the marker can name a generation the journal never had --
+/// which would make this fixture accuse the journal of losing work it was never
+/// told to keep.
+fn record_durably(marker: &Path, contents: &str) {
+    let staging = marker.with_extension("staging");
+    let mut file = std::fs::File::create(&staging).unwrap();
+    std::io::Write::write_all(&mut file, contents.as_bytes()).unwrap();
+    file.sync_all().unwrap();
+    drop(file);
+    std::fs::rename(&staging, marker).unwrap();
+    let directory = std::fs::File::open(marker.parent().unwrap()).unwrap();
+    directory.sync_all().unwrap();
+}
+
+/// What survives when the machine loses power in the middle of writing.
+///
+/// The last clause of the crash box, and the one thing in it that cannot be
+/// scripted. `durable-transition-sites.json` covers process death at all 31
+/// runtime durable transitions; `journal-under-io-faults.json` covers a device
+/// refusing writes and a lying fsync. All three stop at the same boundary: they
+/// are the kernel and the filesystem behaving, with only the process or the
+/// block layer misbehaving. A real cut takes the page cache, the drive's own
+/// write cache and the filesystem journal with it, and nothing in software can
+/// stand in for that.
+///
+/// Two phases and a person in between. `seed` prepares and then writes without
+/// stopping, printing each generation it has been told is durable, so the cut
+/// lands mid-write rather than on an idle journal -- a cut while nothing is
+/// happening tests nothing. Someone cuts the power. `recover` runs after the
+/// machine is back.
+///
+/// The claim is deliberately one-sided: anything acknowledged durable before the
+/// cut must read back byte for byte afterwards. More than that may survive and
+/// that is fine; the marker is written after the journal's own acknowledgement,
+/// so it can only ever name less than the journal has. What must never happen is
+/// the journal returning different bytes, or claiming a generation it cannot
+/// produce. A journal that cannot open afterwards is a separate outcome and the
+/// run records which one it got rather than treating them as the same.
+///
+/// It refuses to run on tmpfs, which has no power to lose.
+#[test]
+#[ignore = "needs a real power cut; set CIRROVE_POWERCUT_DIR and CIRROVE_POWERCUT_PHASE"]
+fn a_journal_survives_the_machine_losing_power_mid_write() {
+    let root = std::env::var_os("CIRROVE_POWERCUT_DIR")
+        .map(std::path::PathBuf::from)
+        .expect("CIRROVE_POWERCUT_DIR must name a directory on a real block device");
+    let phase = std::env::var("CIRROVE_POWERCUT_PHASE")
+        .expect("CIRROVE_POWERCUT_PHASE must be seed or recover");
+    let filesystem = std::process::Command::new("findmnt")
+        .args(["-n", "-o", "FSTYPE,SOURCE", "-T"])
+        .arg(&root)
+        .output()
+        .expect("findmnt must be available to prove this is not tmpfs");
+    let filesystem = String::from_utf8_lossy(&filesystem.stdout)
+        .trim()
+        .to_string();
+    assert!(
+        !filesystem.starts_with("tmpfs") && !filesystem.starts_with("ramfs"),
+        "a RAM-backed filesystem has no power to lose: {filesystem}"
+    );
+    println!("POWERCUT filesystem={filesystem}");
+
+    let journal = root.join("journal");
+    let marker = root.join("acknowledged-durable");
+
+    match phase.as_str() {
+        "seed" => {
+            let _ = std::fs::remove_dir_all(&journal);
+            let _ = std::fs::remove_file(&marker);
+            let mut j = open(&journal, 64 * 1024 * 1024);
+            println!("POWERCUT seeded; writing continuously. Cut the power at any point.");
+            for generation in 0u64..u64::MAX {
+                let bytes =
+                    format!("generation {generation} was acknowledged durable").into_bytes();
+                // Its own remote identity per generation. Reusing one is
+                // refused as Stale after the first -- correctly, a second
+                // working file for the same item is a conflict -- which would
+                // leave this writing nothing and a cut landing on an idle
+                // journal.
+                let mut item = node(0);
+                item.id = format!("remote-file-{generation}");
+                item.name = format!("generation-{generation}.txt");
+                let working = j
+                    .create_working(scope(), item, true, b"".as_slice())
+                    .unwrap();
+                j.write_working(working.id, 0, &bytes).unwrap();
+                let record = j.seal_working(working.id).unwrap().unwrap();
+                // The journal has acknowledged it. Only now is it safe to claim
+                // so on disk, and the claim has to outlive the cut too.
+                record_durably(&marker, &format!("{generation} {}", record.id));
+                println!("POWERCUT durable generation={generation} id={}", record.id);
+            }
+        }
+        "recover" => {
+            let claimed = std::fs::read_to_string(&marker)
+                .expect("no marker: the seed phase never acknowledged anything");
+            let (generation, id) = claimed.trim().split_once(' ').expect("malformed marker");
+            let id: uuid::Uuid = id.parse().expect("malformed marker id");
+            let expected = format!("generation {generation} was acknowledged durable").into_bytes();
+
+            let opened = UploadJournal::open(&journal, &scope().account, 64 * 1024 * 1024);
+            let Ok(j) = opened else {
+                // Recorded rather than tolerated. An unopenable journal has not
+                // returned wrong bytes, which is the claim under test, but it is
+                // a different outcome from a readable one and the run must say
+                // which it got instead of averaging them into a pass.
+                let error = opened.err().unwrap();
+                println!("POWERCUT branch=open_refused error={error:?}");
+                panic!(
+                    "the journal could not be opened after the cut: {error:?}. \
+                     That is not wrong-and-confident data, but it is not recovery either."
+                );
+            };
+            println!("POWERCUT branch=opened generation={generation}");
+            assert_eq!(
+                payload(&j, id),
+                expected,
+                "the journal acknowledged generation {generation} as durable and cannot produce it"
+            );
+            // And it has to be a journal again, not a museum piece: recovery
+            // that leaves nothing writable is not recovery.
+            let mut j = j;
+            // A remote identity the seed phase cannot have used, so that a
+            // refusal here means the journal will not take new work rather than
+            // that this fixture asked for a duplicate.
+            let mut fresh = node(0);
+            fresh.id = "written-after-the-cut".into();
+            fresh.name = "after-the-cut.txt".into();
+            let working = j
+                .create_working(scope(), fresh, true, b"".as_slice())
+                .expect("the recovered journal refuses new work");
+            j.write_working(working.id, 0, b"written after the cut")
+                .unwrap();
+            j.seal_working(working.id)
+                .expect("the recovered journal cannot seal")
+                .expect("the recovered journal sealed nothing");
+            println!("POWERCUT recovered and writable again");
+        }
+        other => panic!("unknown phase {other:?}"),
+    }
+}

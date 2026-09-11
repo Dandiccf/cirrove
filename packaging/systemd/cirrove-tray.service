@@ -1,0 +1,20 @@
+[Unit]
+Description=Cirrove tray status icon
+Documentation=https://github.com/Dandiccf/cirrove
+# Bound to the graphical session rather than the login: a tray without a session
+# has nothing to draw on, while cirroved must keep the mount alive without one.
+# The two lifecycles differ, which is why this is a second unit and not a flag.
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=exec
+ExecStart=%h/.local/bin/cirrove-tray
+# Exits 0 when another copy already owns the bus name, which is the ordinary
+# outcome if an XDG autostart entry got there first. Restarting that would be a
+# loop, so only genuine failures are retried.
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target

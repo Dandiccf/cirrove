@@ -1,0 +1,49 @@
+{
+  "question": "Does a pin made the way a user makes one actually keep the bytes, or is it only an accounting entry?",
+  "why_now": "Milestone 3's five boxes were classified `autonomous` in the acceptance ledger, which reads as 'only measurement is missing'. It was not. Engine::materialise_pin, Engine::pin_folder and Engine::unpin had no caller outside their own tests: `cirrove pin` wrote Store::pin directly, because only the daemon holds an engine and the command line is not the daemon. So a pin reserved cache space and fetched nothing, and the first offline read still failed -- which is the whole of what pinning is for. The README said otherwise and has been corrected separately.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-10",
+  "prediction_provenance": "Derived from reading engine.rs, accounts.rs, lib.rs and manager.rs before writing any code. No exploratory run preceded this.",
+  "what_was_blocking_it": {
+    "one_verb_literally": "serve_managed read exactly seven bytes and compared them to b\"status\\n\" (lib.rs:210). A second verb was impossible without a length-variable read.",
+    "engines_unreachable": "Manager exposed only status: RwLock<Vec<AccountStatus>>. The Running entries holding the real Arc<Engine> were a local HashMap inside run(), so nothing outside that loop had an engine to ask.",
+    "consequence": "accounts::set_pin wrote the store out of band, which is also why refuse_to_migrate_under_a_running_daemon had to exist: a pin command run against a live state directory migrated the index it was only meant to report an error about."
+  },
+  "change": "A bounded line read on the socket with `status\\n` byte-identical on the wire; an engines registry on Manager written at the same two points as status; PinRequest/PinReply and client pin/unpin; Engine::apply_pin_request resolving --path in the daemon and calling materialise_pin or pin_folder; Engine::apply_unpin_request calling a new ContentCache::reclaim.",
+  "predictions": [
+    {
+      "id": "P1",
+      "claim": "A pin issued through the control socket causes provider reads that did not happen before it.",
+      "role": "the whole point. A pin that fetches nothing is an accounting entry, and the provider read counter is the only thing that can tell the two apart."
+    },
+    {
+      "id": "P2",
+      "claim": "cirrove status then reports the pin with blocks > 0 and resident > 0, not merely a reservation."
+    },
+    {
+      "id": "P3",
+      "claim": "resident never exceeds reserved.",
+      "role": "discriminator on the accounting. The reservation is what stops the cache exceeding its budget, and pinned blocks are exactly the ones eviction may not take, so a reservation that is short is not recovered later."
+    },
+    {
+      "id": "P4",
+      "claim": "The test cannot pass against the previous code.",
+      "role": "AGENTS.md requires a test offered as proof to be shown to fail without its subject."
+    }
+  ],
+  "decision_rule": "P1 and P2 must hold for the pinning boxes to have any terminal-reachable evidence at all. P3 failing would be a defect to fix rather than a reason to weaken the assertion. None of this ticks a box on its own: every clause of milestones 3's boxes also asks for kernel-mount evidence, and this runs against a fixture provider.",
+  "result": {
+    "P1": "HOLDS. The provider read counter advances across the pin request; it did not before, because nothing fetched.",
+    "P2": "HOLDS. Status reports blocks > 0 and resident > 0 within the wait.",
+    "P3": "FAILED FIRST, and found a real accounting error. resident exceeded reserved by 32 bytes. Reservations were made in logical bytes while the cache stores a SHA-256 ahead of every block, so a pinned file occupied one digest per block more than it had reserved -- and because pinned blocks are protected from eviction, the shortfall lets the cache sit that far over its budget indefinitely rather than being recovered. Fixed by content::stored_bytes, used for both the single-file reservation and the folder walk. P3 then holds.",
+    "P4": "HOLDS. Against the previous source the test does not compile: `cannot find function pin in crate cirrove_service` and `cannot find struct PinRequest`. The daemon's socket answers only the seven bytes status\\n, so there is no client verb to call."
+  },
+  "what_this_does_not_show": "The fixture provider is in-process and the mount is not involved: nothing here reads a pinned file through the kernel with the provider unreachable, which is what the offline boxes actually ask for. That is the next step, not this one.",
+  "decision": "The path exists for the first time. No acceptance box is ticked on this artifact.",
+  "correction_to_my_own_reasoning": {
+    "what_i_claimed": "That ContentCache::evict having one caller meant 'releasing a reservation freed no bytes at all', and that 'an unpin that leaves the disk as full as it was is not what the word means'. That went into a commit message before it was checked.",
+    "why_it_is_wrong": "evict removes blocks only while total exceeds budget, and budget is quota minus what is reserved. Releasing a reservation RAISES the ordinary budget, so after an unpin eviction is less likely, not more. A cache that was within its budget stays exactly as full, and that is correct: the bytes are now ordinary cache, not waste.",
+    "what_unpinning_actually_changes": "Protection. The blocks stop being the ones eviction may not take. Losing that would mean unpinned content occupying the cache forever, which is the property worth asserting.",
+    "consequence": "The test was rewritten from 'unpinning deletes bytes' -- which passes or fails for reasons unrelated to pinning -- to real_unpinned_blocks_stop_being_protected_from_eviction, which applies the same cache pressure twice, once with the pin in force and once after it is released, and asserts the pinned blocks survive the first and not the second. ContentCache::reclaim stays: it makes the cache re-check at a moment when the budget has just changed, which is defensible. It is not what frees the bytes, and the commit that introduced it said otherwise."
+  }
+}

@@ -2,15 +2,14 @@
   "generated_from": "docs/product-milestones.md",
   "note": "One row per acceptance box. `blocker` says what stands between the box and being ticked, not how hard the code is. `asserted_by` names the test that would fail if the claim stopped holding; a box may not be ticked while it is null. `candidate_assertions` are tests that look like they might assert the box and have not been read. They deliberately do not satisfy the tick check.",
   "totals": {
-    "boxes": 51,
-    "ticked": 8,
+    "boxes": 53,
+    "ticked": 14,
     "by_blocker": {
-      "autonomous": 11,
-      "needs-live-account": 7,
+      "autonomous": 15,
+      "needs-live-account": 8,
       "needs-machine-window": 2,
       "needs-reboot": 2,
-      "needs-root": 1,
-      "out-of-agreed-scope": 28
+      "out-of-agreed-scope": 26
     }
   },
   "rows": [
@@ -18,11 +17,11 @@
       "milestone": 1,
       "milestone_title": "Reliable read-only foundation",
       "line": 11,
-      "done": false,
+      "done": true,
       "text": "Installable user service, login startup and clean intentional shutdown.",
       "blocker": "needs-reboot",
-      "evidence": null,
-      "asserted_by": null
+      "evidence": "TICKED 2026-09-11 on a live run against the real account, recorded in docs/benchmarks/service-lifecycle-and-suspend.json with predictions registered beforehand. Clean stop: the unit logged its own unmount and exited in 38 ms, Result=success. Login startup: the user manager started it at 06:08:47.493, active 17.65 s after boot and ready and mounted 80 ms later, with Linger=no for this user, so no user manager and no default.target exist without a login -- the start is attributable to the [Install] section alone. Unchanged across the reboot: 184,052 indexed items, schema 7, 28 mount entries, both feeds reconnected, one FUSE mount owned by the new process, NRestarts=0. LIMIT: reads through the mount afterwards were served from the surviving on-disk cache, so they evidence the mount rather than the content path; the provider path is evidenced by Graph traffic, the reconnected feeds and a token refresh at 06:10:19.",
+      "asserted_by": "cirrove-service tests/packaging.rs holds the packaged unit to the wiring the live reboot depended on: enabling_the_unit_wires_it_into_the_login_session asserts [Install] WantedBy=default.target, which is the whole of the login-startup clause -- without it `systemctl --user enable` links nothing and the unit still reports as enabled. the_service_paths_are_user_relative_rather_than_one_developers_home asserts %h/%t specifiers and RuntimeDirectory 0700, so the evidence transfers past the one machine that produced it; an absolute /home path fails it. a_stop_leaves_time_to_unmount_before_it_is_killed asserts TimeoutStopSec is long enough to unmount before SIGKILL, and hardening_does_not_block_the_setuid_mount_helper asserts NoNewPrivileges is not set, which would stop fusermount3 at a user's next login and nowhere earlier. Each of the five mutations -- retargeted WantedBy, hardcoded home, TimeoutStopSec=2, NoNewPrivileges=yes, RuntimeDirectory removed -- fails exactly one of these and no other, checked 2026-09-11. These assert the unit, not the behaviour: no test can start a login session, which is why the box needed a reboot. scripts/smoke.py asserts the clean-shutdown half at runtime -- the control socket is gone after SIGTERM."
     },
     {
       "milestone": 1,
@@ -31,7 +30,7 @@
       "done": false,
       "text": "Recovery after process failure, suspend/resume and loss of network access.",
       "blocker": "needs-reboot",
-      "evidence": "docs/benchmarks/namespace-memory-attribution.json",
+      "evidence": "Two of three clauses are test-covered; see asserted_by. CORRECTED 2026-09-10: this field previously named docs/benchmarks/namespace-memory-attribution.json, a heap-attribution artifact with no bearing on recovery -- a copy artifact from generating the ledger. CORRECTED AGAIN 2026-09-11: it then said the suspend/resume clause is unmeasured, which had stopped being true. It was measured (docs/benchmarks/service-lifecycle-and-suspend.json): the daemon came back from a suspend as the same process, same MainPID and ActiveEnterTimestamp, mount and index intact. That run's own verdict is why the row is still open, and it is a better reason than 'unmeasured': the cycle was two seconds of s2idle, too short to expire a token, tear down a network or lapse a subscription. A real access token lives about an hour and a measured subscription held 2,999,973 ms. So the shallow end of the clause holds and the end that matters is untested. Registered for the run that would close it: docs/benchmarks/deep-suspend-beyond-token-lifetime.json -- deep S3 rather than s2idle (this machine supports it; mem_sleep reads '[s2idle] deep', so the earlier run was shallow by setting and not by hardware, which that artifact had inferred wrongly), 90 minutes via rtcwake, and delivery of a change made after the wake. scripts/suspend-check.py captures the before state and compares it after, because a process on the machine being suspended cannot observe its own suspend.",
       "asserted_by": "Two of its three clauses. Process failure: tests/read_only.rs real_manager_recovers_disconnected_mount_after_process_death kills the mount process and asserts the manager reconnects, and real_manager_exits_with_client_handles_open covers the reverse. Loss of network access: the capacity fixtures' offline_remount phase remounts with the provider unreachable and asserts foreground_requests and content_reads both stay at zero, and tests/read_only.rs real_local_saves_remain_readable_during_upload_and_after_offline_restart covers the writable side."
     },
     {
@@ -41,8 +40,8 @@
       "done": false,
       "text": "Real token expiry/refresh and visible reauthentication when consent expires.",
       "blocker": "needs-live-account",
-      "evidence": "Partial: the installed daemon has refreshed its Microsoft grant hourly for 1.5 days without intervention (journal, 2026-09-07..09), which evidences real token refresh. Consent EXPIRY with visible reauthentication is a different event and unobserved.",
-      "asserted_by": null
+      "evidence": "Partial: the installed daemon refreshed its Microsoft grant hourly for 1.5 days without intervention (journal, 2026-09-07..09), which evidences real token refresh. The visible half is now covered end to end by tests rather than at its last hop only. CORRECTED 2026-09-11: this field said consent expiry 'cannot be scheduled'. Waiting for a grant to lapse on Microsoft's timetable cannot; REVOKING it can, and from the daemon's side that is the same event -- the token stops working and no refresh will fix it. Registered in docs/benchmarks/revoked-grant-and-reauthentication.json, with the clauses that matter beyond the state itself: that it is visible without reading a log, that the mount and the offline copies survive a credential problem, and that reauth restores the account without resetting the index or dropping pins.",
+      "asserted_by": "The refresh half: cirrove-auth tests simultaneous_expiry_rotates_once_and_stale_401_cannot_expire_new_token, credentials_are_not_used_when_rotation_cannot_be_persisted, and explicitly_granted_write_scope_survives_refresh_and_keyring_roundtrip. The visible half is now whole: read_only::an_expired_grant_is_shown_as_needing_sign_in_and_not_as_being_offline drives a provider that refuses the grant and asserts the feed reaches sign_in_required -- with an unreachable provider first as the control, so a daemon that called everything sign_in_required would fail it; manager::tests::a_feed_needing_sign_in_is_not_hidden_by_one_that_is_merely_offline holds the ordering into the account state a caller reads, and fails if a noisier feed is allowed to win; and cirrove-desktop/tests/accounts.rs renders that state. Each was shown to fail without its subject. NOT ASSERTED: the revocation itself, which needs a person and is registered rather than claimed."
     },
     {
       "milestone": 1,
@@ -51,7 +50,7 @@
       "done": false,
       "text": "Responsive navigation during initial indexing and competing downloads.",
       "blocker": "needs-live-account",
-      "evidence": "docs/benchmarks/navigation-stall-cause.json Live 2026-09-09 on a real 184,000-item linked collection, cold-indexed (docs/validation.md#navigating-a-real-collection-while-it-is-being-indexed, benchmarks/live-navigation-during-indexing.json): first visits to directories not seen before measure p50 192.1 ms and p95 317.0 ms while indexing, and p50 210.5 ms with p95 435.3 ms under a competing download, across 375 directories with no failed listing. The 500 ms threshold the fixture asserts against is exceeded once in 132 samples without a download and six times in 243 with one. STILL OPEN: the tail, not the median. A companion run that re-listed one directory reported p50 1.3 ms and is not evidence for this box, because a directory listed every 250 ms stays active and is refreshed in the background.",
+      "evidence": "docs/benchmarks/navigation-stall-cause.json Live 2026-09-09 on a real 184,000-item linked collection, cold-indexed (docs/validation.md#navigating-a-real-collection-while-it-is-being-indexed, benchmarks/live-navigation-during-indexing.json): first visits to directories not seen before measure p50 192.1 ms and p95 317.0 ms while indexing, and p50 210.5 ms with p95 435.3 ms under a competing download, across 375 directories with no failed listing. The 500 ms threshold the fixture asserts against is exceeded once in 132 samples without a download and six times in 243 with one. STILL OPEN: the tail, not the median. A companion run that re-listed one directory reported p50 1.3 ms and is not evidence for this box, because a directory listed every 250 ms stays active and is refreshed in the background. REPLICATED 2026-09-10 on a separate validation connection, a different day and a different build: p50 177.8-193.7 ms against 192.1-210.5, and the competing download raises p95 by a factor of 1.36 against 1.37. The median reproduces closely. The tail is worse, not better -- maximum 1184.9 ms against 834.5, and 8 to 12 samples over 500 ms rather than 6. See docs/benchmarks/live-navigation-during-indexing.json. WHY IT IS STILL OPEN, stated properly 2026-09-11: not for want of measurement. The row says 'responsive' and names no number, and the only bound in the code is a sixty-second give-up deadline, so the clause cannot be failed -- which live-navigation-during-indexing.json said itself in its decision rule before it ran. The 500 ms the fixture asserts is for CACHED navigation; a first visit necessarily costs a provider round trip that cached navigation does not, and no threshold was ever declared for it. Reframed and registered in docs/benchmarks/navigation-interference.json: the clause is 'during initial indexing and competing downloads', so the question is interference, not speed -- p95 of a first visit in each arm against an IDLE, fully indexed control on the same machine and network, which has never been run. A ratio removes the provider and the network, which this project does not control. Bounded at twice the idle arm, plus a hard five-second ceiling on any single listing, because the tail is what a person calls a freeze and a percentile cannot see it. The registration records that one arm's answer is already known (the download factor, 1.37 replicated at 1.36) and carries it as a check that the method reproduces; the indexing factor is the unknown the bound was set for.",
       "asserted_by": "filesystem::capacity::real_combined_namespace_churn, churn.rs:403 -- read: asserts cached navigation stays under 500 ms while committed changes are being applied, on every round. Supported by content::windows::tests::graph::kernel fixtures covering navigation during a stalled transfer."
     },
     {
@@ -71,8 +70,8 @@
       "done": false,
       "text": "Push-triggered metadata updates, reconnection/catch-up and periodic recovery checks, with provider delivery and local reaction latency measured separately.",
       "blocker": "needs-live-account",
-      "evidence": "docs/validation.md#push-notifications and #subscription-renewal-at-the-real-boundary -- live 2026-09-09: delivery 30.0-32.7 s across eleven samples, local reaction 169-287 ms, measured separately as the box requires. One subscription held 2,999,973 ms, renewed, reconnected, and delivered a fresh change 30,441 ms later. One notification in eleven was never delivered (90 s deadline); the pre-registered interference hypothesis was refuted by an immediately passing retry and the miss stands unexplained; the shipped 30 s poll bounds the impact. Catch-up and periodic recovery are now covered live too (docs/validation.md#catch-up-after-a-reconnection-and-the-periodic-recovery-refresh, benchmarks/live-catchup-and-recovery.json, 2026-09-09): a change made with nothing connected and the poll an hour away was fetched 408 ms after the subscription connected and listed 206 ms later; with no subscription at all the 30 s poll found one in 29,421 ms. Each phase disabled the other and counted zero directory listings before its delta, so neither is explained by activity revalidation. STILL OPEN: the one notification in eleven that was never delivered remains unexplained; the periodic figure now bounds its impact rather than accounting for it.",
-      "asserted_by": null
+      "evidence": "docs/validation.md#push-notifications and #subscription-renewal-at-the-real-boundary -- live 2026-09-09: delivery 30.0-32.7 s across eleven samples, local reaction 169-287 ms, measured separately as the box requires. One subscription held 2,999,973 ms, renewed, reconnected, and delivered a fresh change 30,441 ms later. One notification in eleven was never delivered (90 s deadline); the pre-registered interference hypothesis was refuted by an immediately passing retry and the miss stands unexplained; the shipped 30 s poll bounds the impact. Catch-up and periodic recovery are now covered live too (docs/validation.md#catch-up-after-a-reconnection-and-the-periodic-recovery-refresh, benchmarks/live-catchup-and-recovery.json, 2026-09-09): a change made with nothing connected and the poll an hour away was fetched 408 ms after the subscription connected and listed 206 ms later; with no subscription at all the 30 s poll found one in 29,421 ms. Each phase disabled the other and counted zero directory listings before its delta, so neither is explained by activity revalidation. RENEWAL OBSERVED LIVE 2026-09-11: the validator held a real Socket.IO subscription for its full lifetime, Microsoft renewed it, and a change made afterwards was delivered through the renewed connection -- 'Renewed subscription connected; checking a new change through it' followed by a passing delivery. That is a renewal the provider performed rather than one a fixture simulated. STILL OPEN: the one notification in eleven that was never delivered remains unexplained; the periodic figure bounds its impact rather than accounting for it. REPLICATED 2026-09-10 on a separate write-grant validation connection, a different day and build. Catch-up: delta 1536 ms after the subscription connected against 408 ms first time, entry listed 206 ms later -- the same figure to the millisecond. Periodic recovery: delta 29,454 ms against 29,421, a difference of 33 ms across two independent runs. Directory freshness through a real mount: three rounds at 5,147 / 5,297 / 5,103 ms total from change to visible, which is the five-second activity revalidation interval and not push. A mounted view following remote changes: create visible in 2 ms, move in 4,650 ms, delete in 4,450 ms.",
+      "asserted_by": "tests/read_only.rs::push_refreshes_immediately_and_retains_bursts_during_an_active_delta covers push-triggered refresh and burst coalescing during an active delta; push_preserves_retry_after_and_reconnect_catches_unreported_changes covers the reconnection/catch-up clause and the provider's retry-after; real_push_updates_the_mounted_namespace_without_waiting_for_polling covers the same through a kernel mount with polling out of the way. NOT ASSERTED BY ANY TEST: the clause 'provider delivery and local reaction latency measured separately'. No unit test can measure a real provider's delivery latency; that clause rests on the live runs recorded in docs/validation.md, and one notification in eleven was never delivered and is still unexplained."
     },
     {
       "milestone": 1,
@@ -81,7 +80,7 @@
       "done": false,
       "text": "Bounded memory and background work with large libraries and long sessions.",
       "blocker": "needs-machine-window",
-      "evidence": "docs/benchmarks/namespace-trim-closes-g3.json 2026-09-10: this box cannot be answered without naming the allocator. docs/benchmarks/daemon-allocator-arenas.json measured the live daemon reading 475 MB from cache: with default glibc arenas it rests at 211.3 MiB after two passes and returns essentially none of what each pass takes; capped at one arena, 107.9 MiB. The user's long-running daemon was at 338.4 MiB. Any bound stated without fixing that setting is a bound on a coin flip.",
+      "evidence": "docs/benchmarks/namespace-trim-closes-g3.json 2026-09-10: this box cannot be answered without naming the allocator. docs/benchmarks/daemon-allocator-arenas.json measured the live daemon reading 475 MB from cache: with default glibc arenas it rests at 211.3 MiB after two passes and returns essentially none of what each pass takes; capped at one arena, 107.9 MiB. The user's long-running daemon was at 338.4 MiB. Any bound stated without fixing that setting is a bound on a coin flip. WHAT IS ACTUALLY IN THE WAY, 2026-09-11: a product decision nobody has made, and it was deferred for a good reason -- daemon-allocator-arenas.json measured the memory half and said so: 'it trades resident memory against allocator concurrency, and the second half has not been measured at all'. That second half is now registered (docs/benchmarks/allocator-arena-cost.json): what capping costs in wall-clock completion and in p95 of a single read, as a ratio, with bounds set before the run. Also names an inconsistency that should not survive the decision either way: CI already pins MALLOC_ARENA_MAX=1 for the mounted read workloads -- 'without the cap the RSS assertion measures glibc arena retention' -- while the shipped systemd unit sets no allocator environment at all. So a memory assertion passes in CI under conditions the product does not reproduce.",
       "asserted_by": "filesystem::capacity::real_combined_namespace_churn (g3_released enforced; peak_resident reporting)"
     },
     {
@@ -91,7 +90,7 @@
       "done": false,
       "text": "Reclaim inactive namespace views with correct FUSE lifetimes; pass the 500,000-file traversal, invalidation and 24-hour churn memory gates in [namespace memory](adr/0005-namespace-memory.md). Content-cache limits do not satisfy this requirement.",
       "blocker": "needs-machine-window",
-      "evidence": "docs/benchmarks/namespace-memory-attribution.json",
+      "evidence": "CORRECTED 2026-09-11: this field named only docs/benchmarks/namespace-memory-attribution.json, the 2026-09-08 attribution run, and so still described a gate that has since closed. G3 -- released PSS minus indexed baseline, at most 256 MiB -- failed at 476.4 / 514.8 / 546.7 MiB and now reads 13.3 / 16.1 / 16.3 (docs/benchmarks/namespace-trim-closes-g3.json, 2026-09-10). The reclamation tick returns the pages once a mount has shed its views and gone quiet, which was the plausible outcome all along: 96.4-96.8 percent of the retained RSS was allocator-held free arena and not live data. It is a hard assertion in the fixture now, not a reported number. WHAT REMAINS, and it is not addressed by trimming at all: the traversal PEAK. traversed_with_old_files holds 492.8 / 490.7 / 504.1 MiB at 750,438 live views, and returning pages afterwards cannot lower a high-water mark reached while the views were held. Only shedding does. The number that work turns on is 637-657 bytes per live view, which reproduces to within 0.2 percent while retained RSS varies by 6 percent -- so a peak budget is a budget on concurrent live views, and at 650 bytes each a 256 MiB peak buys about 413,000 against the 750,438 held here. Two further gates in ADR 0005 are also unmet and neither is a measurement: G2 needs an evictable-bytes counter that does not exist, and G7's plateau tolerance must be fixed from a two-hour pilot before its twenty-four-hour run. THE PEAK HAS NO LIVE DESIGN, and that is the honest state rather than a gap in effort: two have been written and both were killed by their own gating measurement. Shedding -- emit notify_inval_entry above a ceiling -- needed about 1,400 per second to bind during a traversal and sustains about 107 under concurrent lookups (inval-entry-rate.json, 2026-09-08). Its successor ADR 0006, shortening the entry TTL above a ceiling so the kernel's own dentry reclamation does the work, is marked 'rejected by its own measurement' (2026-09-09): the peak does not move. ADR 0005 carried both the retirement and, in a later paragraph, the claim that the measurement had never been taken; corrected 2026-09-12. What is left is named there and neither half is small: reduce bytes per view, which three passes have moved 15-20 percent each and which will not reach a factor of two alone, or decline to resolve views beyond a ceiling at all -- a change to the lookup contract rather than to reclamation, which needs its own ADR and does not have one.",
       "asserted_by": "filesystem::capacity::real_writable_namespace_retires_and_stays_bounded, real_combined_namespace_churn"
     },
     {
@@ -101,13 +100,13 @@
       "done": false,
       "text": "Real restart/outage checks and at least 24 hours of sustained operation.",
       "blocker": "needs-live-account",
-      "evidence": null,
+      "evidence": "NOT RUN. Registered 2026-09-11 in docs/benchmarks/sustained-operation.json with the sampler it needs (scripts/sustained-operation-sample.py): a row a minute carrying MainPID, VmRSS of that process rather than the cgroup's MemoryCurrent, account state, per-feed state, indexed_items, stuck_changes, and the time to list the mount root -- because a daemon that is alive but no longer serving looks healthy in every other column. A deliberate restart and a deliberate outage go inside the window, so recovery is observed in a daemon that has been up for hours rather than one just started, and a restart is marked rather than silently spanned. P2 is where the +40.5 MiB drift that left trim-cadence.json NOT SETTLED either flattens over a day or does not. What it costs is the machine for a day: under this project's own rule no build may run while the window is open, which also means no fixes reach that daemon until it closes. That cost is why this is registered and waiting rather than started.",
       "asserted_by": null
     },
     {
       "milestone": 2,
       "milestone_title": "Safe file changes",
-      "line": 187,
+      "line": 206,
       "done": true,
       "text": "Provider-neutral create, update, rename, move and delete contracts (regular-file deletion; folder removal remains an explicit gap).",
       "blocker": "autonomous",
@@ -117,7 +116,7 @@
     {
       "milestone": 2,
       "milestone_title": "Safe file changes",
-      "line": 188,
+      "line": 207,
       "done": true,
       "text": "Durable local file contents and journal before local-save acknowledgement.",
       "blocker": "autonomous",
@@ -127,7 +126,7 @@
     {
       "milestone": 2,
       "milestone_title": "Safe file changes",
-      "line": 189,
+      "line": 208,
       "done": true,
       "text": "Persisted upload progress, resumable transfers and idempotent recovery.",
       "blocker": "autonomous",
@@ -137,7 +136,7 @@
     {
       "milestone": 2,
       "milestone_title": "Safe file changes",
-      "line": 190,
+      "line": 209,
       "done": true,
       "text": "Version-conditional changes and preservation of both sides of conflicts.",
       "blocker": "autonomous",
@@ -147,7 +146,7 @@
     {
       "milestone": 2,
       "milestone_title": "Safe file changes",
-      "line": 191,
+      "line": 210,
       "done": true,
       "text": "Distinct local-save, pending-upload, uploading, uploaded and failure states.",
       "blocker": "autonomous",
@@ -157,7 +156,7 @@
     {
       "milestone": 2,
       "milestone_title": "Safe file changes",
-      "line": 192,
+      "line": 211,
       "done": true,
       "text": "Correct application save patterns, truncation and atomic replacement.",
       "blocker": "needs-live-account",
@@ -167,17 +166,17 @@
     {
       "milestone": 2,
       "milestone_title": "Safe file changes",
-      "line": 193,
+      "line": 212,
       "done": false,
       "text": "Crash/fault tests at every durable transition and concurrent remote edits.",
-      "blocker": "needs-root",
-      "evidence": "docs/benchmarks/durable-transition-crash-coverage.json",
-      "asserted_by": "All 31 runtime durable transitions are crossed by a process that then dies, measured rather than read: each site records itself and each crash fixture persists what it reached. 30 are evidenced in a killed child; the preparation recovery in the process that opens the journal afterwards, because that is where recovery runs. See docs/benchmarks/durable-transition-sites.json."
+      "blocker": "autonomous",
+      "evidence": "docs/benchmarks/durable-transition-crash-coverage.json and durable-transition-sites.json for process death: all 31 runtime durable transitions are crossed by a process that then dies, measured rather than read. 2026-09-11, faults below the process: docs/benchmarks/journal-under-io-faults.json. A dm-flakey device switched to error_writes at runtime and back. What was durable before the fault survives it and reads back byte for byte afterwards; new work is refused as JournalError::Storage rather than as corruption -- reporting a refusing device as a corrupt journal would send a user to recovery steps that destroy work the device still holds. A prediction failed usefully: the journal cannot be OPENED on a failing device, because opening opens SQLite and SQLite writes. So its contents are inaccessible during a fault, which is not the same as lost, and the run makes only the second claim. A LYING FSYNC ran the same day: dm-flakey drop_writes acknowledges the write and discards it, and the journal detected it -- sealing was refused as JournalError::Stale, because the journal reads back what it wrote and finds the generation unchanged. Work durable before the lie reads back byte for byte afterwards. The claim is that this injection did not produce wrong-and-confident data, not that no discard can. TORN WRITES were attempted and are inconclusive: corrupt_bio_byte flips a byte in EVERY write bio, so it corrupts ext4's metadata as readily as the journal's data, and the phase hung. A hang in that state is a statement about ext4 meeting corrupted metadata, not about the journal. The targeted version of the same question is already answered -- overwriting a sealed payload makes recovery fail. STILL OPEN: the power cut itself. The fixture for it now exists and is registered in docs/benchmarks/journal-under-power-cut.json -- seed writes ~68 acknowledged generations a second and never stops, so a cut cannot land on an idle journal, and recover asserts that everything acknowledged before the cut reads back byte for byte and that the journal takes new work again. It was exercised against process death first, which proves the mechanics and nothing about durability, and it was shown to FAIL when the acknowledged payload is altered or removed. What is left is a person and a power cut; that is the whole of what this box still needs, and it is why it is not ticked.",
+      "asserted_by": "All 31 runtime durable transitions are crossed by a process that then dies, measured rather than read: each site records itself and each crash fixture persists what it reached. 30 are evidenced in a killed child; the preparation recovery in the process that opens the journal afterwards, because that is where recovery runs. See docs/benchmarks/durable-transition-sites.json. a_journal_on_a_failing_device_refuses_without_losing_what_was_durable runs in three phases against one dm-flakey device in CI; re-run with the sealed payload deliberately overwritten, its recover phase fails. Its lie and after_lie phases run in CI on the same device; the tear phases exist but are deliberately not wired in, for the reason recorded in the artifact. a_journal_survives_the_machine_losing_power_mid_write is the power-cut fixture: proven to discriminate against altered and missing acknowledged payloads, and deliberately not wired into CI, because CI cannot cut power and a green run there would assert nothing."
     },
     {
       "milestone": 2,
       "milestone_title": "Safe file changes",
-      "line": 194,
+      "line": 213,
       "done": true,
       "text": "Opt-in write consent and live tests in a dedicated Cirrove test folder.",
       "blocker": "needs-live-account",
@@ -187,57 +186,57 @@
     {
       "milestone": 3,
       "milestone_title": "Offline availability",
-      "line": 201,
-      "done": false,
+      "line": 220,
+      "done": true,
       "text": "Persistent per-file and recursive-folder pinning with storage reservations.",
       "blocker": "autonomous",
-      "evidence": "Scope expanded by the user on 2026-09-09 from milestones 1 and 2 to all six, so this row is no longer out of the agreed frame. IMPLEMENTED 2026-09-09, acceptance evidence still owed. Pins live in the metadata database at schema version 7 and survive restart; a reservation is checked against the cache budget when the pin is made and refused if it does not fit; eviction reads a published view and neither takes protected blocks nor counts reserved bytes as free. Folder pins walk cached directory views and report whether the walk was complete. Asserted by cirrove-store pins::tests (4) and cirrove-service engine::pinning (7) and content::tests (2); each was shown to fail without its subject. NOT YET: a control-socket verb, so this is unreachable from a terminal, and no measured evidence on a real account.",
-      "asserted_by": "Persistence: store::pins::tests::a_pin_and_its_protected_blocks_survive_reopening_the_store, and engine::pinning::a_restart_republishes_pins_before_anything_can_evict, which is the stronger of the two because it asserts the ordering rather than only the survival. Recursive folders: engine::pinning::a_folder_pin_covers_every_file_under_it_and_says_what_it_could_not_see and an_unindexed_subtree_is_reported_rather_than_quietly_excluded. Reservations: store::pins::tests::raising_a_pin_counts_only_the_difference_against_the_budget, engine::pinning::a_refused_pin_changes_nothing, content::tests::a_reservation_shrinks_the_budget_the_ordinary_cache_may_fill, and engine::pinning::materialising_a_pin_fetches_its_blocks_and_protects_exactly_those."
+      "evidence": "TICKED 2026-09-11. Scope expanded by the user on 2026-09-09. COVERED: pins live in the metadata index at schema 7 and survive restart; a reservation is checked against the budget when the pin is made, so a request that will not fit is refused rather than accepted and later evicted; reservations may not claim the whole budget. Reachable from a terminal since 2026-09-10: cirrove pin goes over the control socket to the running daemon, which resolves --path -- including through a shortcut into a linked collection, where a caller outside the daemon recorded the pin under the wrong scope -- and calls materialise_pin or pin_folder. Before that the engine's acting API had no caller outside its own tests and a pin kept nothing. See docs/benchmarks/offline-pinning-reachability.json, which also records the reservation error its own discriminator found: reservations were made in logical bytes while the cache stores a SHA-256 per block, and because pinned blocks are protected the shortfall was never recovered.\nMEASURED ON A REAL ACCOUNT 2026-09-11: docs/benchmarks/live-offline-pinning.json. A generated 9,000,000-byte file on the user's business drive, pinned through the same request path the command line uses, reported 9,000,096 bytes resident across three blocks -- the file plus three block digests, which is the reservation correction made the day before arriving at the right answer on a real drive. After the engine was rebuilt and mounted it read back byte for byte with ZERO provider content requests, while an unpinned control in the same folder needed one. The recursive half ran on the same drive the same day: a subtree of two files, walked and pinned through the same request path, reported exactly two files found and complete, reserved 4,000,064 bytes -- the two files plus two block digests -- and both read back through the mount with zero provider content requests. The two-file assertion is the discriminator: a walk that stops after one would keep part of a folder and report success, which is indistinguishable from working until the network is gone.",
+      "asserted_by": "Persistence: store::pins::tests::a_pin_and_its_protected_blocks_survive_reopening_the_store, and engine::pinning::a_restart_republishes_pins_before_anything_can_evict, which is the stronger of the two because it asserts the ordering rather than only the survival. Recursive folders: engine::pinning::a_folder_pin_covers_every_file_under_it_and_says_what_it_could_not_see and an_unindexed_subtree_is_reported_rather_than_quietly_excluded. Reservations: store::pins::tests::raising_a_pin_counts_only_the_difference_against_the_budget, engine::pinning::a_refused_pin_changes_nothing, content::tests::a_reservation_shrinks_the_budget_the_ordinary_cache_may_fill, and engine::pinning::materialising_a_pin_fetches_its_blocks_and_protects_exactly_those. tests/read_only.rs::a_pin_from_the_command_line_reaches_the_daemon_and_keeps_the_bytes drives a manager, a control socket and the same client function the CLI calls; against the previous source it does not compile. real_a_recursive_pin_keeps_the_files_under_a_folder_readable_offline covers the recursive half through a kernel mount. real_pin_protection_survives_a_restart_and_immediate_cache_pressure covers persistence through Engine::new, a mount and pressure with no pause; two mechanisms establish the protection and either suffices, so it asserts the property rather than which path provides it -- disabling both is what makes it fail. validation::pinning::onedrive_pinning is the live check; it is a validator rather than a test, so it asserts on a real account and is not run by CI."
     },
     {
       "milestone": 3,
       "milestone_title": "Offline availability",
-      "line": 202,
-      "done": false,
+      "line": 221,
+      "done": true,
       "text": "Clear unpin/free-space behavior and accurate availability status.",
       "blocker": "autonomous",
-      "evidence": "Scope expanded by the user on 2026-09-09. PART DONE 2026-09-09: availability status separates what a pin reserved from what it has actually kept, counted from files present in the cache directory rather than from the block index, which is derived state and would keep reporting a deleted block as available. Unpin releases both the reservation and the protection and reports whether a pin existed. Asserted by engine::pinning availability tests and pins::tests::unpinning_releases_both. STILL OPEN: free-space behaviour proper -- what happens as the budget fills and how that is explained to the user -- and any of this being reachable from a terminal.",
-      "asserted_by": "engine::pinning::unpinning_releases_the_budget_at_the_cache and store::pins::tests::unpinning_releases_both_the_reservation_and_the_protection cover the free-space half; engine::pinning::availability_separates_what_a_pin_reserved_from_what_it_kept covers the status half."
+      "evidence": "TICKED 2026-09-11. Scope expanded by the user on 2026-09-09. COVERED: availability separates what a pin reserved from what it has actually kept, counted from files present in the cache directory rather than from the block index, which is derived state. Unpin is reachable from a terminal and its effect is asserted -- though not the effect first claimed: releasing a reservation raises the ordinary cache budget, so it frees no bytes and correctly leaves the cache as full as it was; what it changes is protection. A refusal reaches the caller with the numbers and the remedy.\n2026-09-11: the budget-filling half is built. Engine::pin_budget reports the account's cache allowance, the most pinning may claim of it, what is claimed and what is left, surfaced per account as AccountStatus.pin_budget; PinBudget::explain turns that into a sentence naming both remedies -- unpin something or raise cache_bytes -- and `cirrove pins` prints it under each account's pins, leading with resident against reserved because that is the difference between a pin keeping content and an accounting entry. A caller who can watch the budget fill can act; one who learns about it from a refusal has already been stopped. MEASURED ON A REAL ACCOUNT 2026-09-11, same run: with two pins in force the budget reported 13,000,160 of 234,881,024 pinnable bytes claimed against a 268,435,456-byte cache -- pinnable strictly below the allowance, as reservations may not take the whole of it -- and unpinning returned the full reservation byte for byte. The explanation is a sentence naming what the remainder is for. The live pinning run of 2026-09-11 covers pinning and offline reading, not the budget-filling, cleanup or disk-full behaviour these rows ask about.",
+      "asserted_by": "engine::pinning::unpinning_releases_the_budget_at_the_cache and store::pins::tests::unpinning_releases_both_the_reservation_and_the_protection cover the free-space half; engine::pinning::availability_separates_what_a_pin_reserved_from_what_it_kept covers the status half. real_unpinned_blocks_stop_being_protected_from_eviction applies the same cache pressure twice, with the pin in force and after it is released, and asserts the blocks survive the first and not the second. real_a_refused_pin_names_the_budget_and_leaves_the_kept_one_alone asserts the refusal names an action, records no pin, disturbs no existing reservation, and leaves the accepted pin readable offline -- the accepted-first assertion is what stops a path that refuses everything from passing. real_the_pin_budget_is_visible_before_it_is_full asserts the figure exists, moves when a pin is made, returns the whole reservation on unpin, and that a full budget names both remedies. validation::pinning::onedrive_pinning covers the same clauses live."
     },
     {
       "milestone": 3,
       "milestone_title": "Offline availability",
-      "line": 203,
-      "done": false,
+      "line": 222,
+      "done": true,
       "text": "Offline access and editing of pinned content, including across restart.",
       "blocker": "autonomous",
-      "evidence": "Scope expanded by the user on 2026-09-09. DONE at the durability layer 2026-09-09. Reading: a pinned file reads with the provider returning Unavailable and still reads after the engine is rebuilt on the same directory, where the memory cache is empty so the bytes can only come from disk, with the provider's read counter asserted not to move. Editing: a pinned file is edited with the provider unreachable, the edit seals into a pending upload, and after restarting both the engine and the journal the edited bytes are still pending, the working file is still there, the pin's reservation is in force before anything can evict, and the pinned content still reads offline. Asserted by engine::pinning::pinned_content_reads_offline_and_still_does_after_a_restart and a_pinned_file_can_be_edited_offline_and_both_survive_a_restart. The second matters because the cache's view and the journal's are rebuilt by separate paths that do not consult each other, so surviving together is a claim rather than a consequence. STILL OPEN: none of this goes through the kernel mount, whose writable tests need --test-threads=1 and a mounted FUSE session, and nothing has been measured on a real account.",
-      "asserted_by": "engine::pinning::pinned_content_reads_offline_and_still_does_after_a_restart and engine::pinning::a_pinned_file_can_be_edited_offline_and_both_survive_a_restart. The second is the load-bearing one: the cache's view and the journal's are rebuilt by separate paths that do not consult each other, so surviving together is a claim rather than a consequence."
+      "evidence": "TICKED 2026-09-11. Scope expanded by the user on 2026-09-09. COVERED at the durability layer and through the kernel. Reading: a pinned file reads with the provider returning Unavailable and still reads after the engine is rebuilt on the same directory, where the memory cache is empty so the bytes can only come from disk; through a real mount, real_a_pinned_file_reads_offline_through_the_mount_and_an_unpinned_one_does_not asserts the provider read counter did not move and reads an unpinned control that must fail. Editing: a pinned file is edited with the provider unreachable and both the pin and the unsent edit survive a restart of engine and journal -- their views are rebuilt by separate paths that do not consult each other -- and real_a_pinned_file_is_edited_offline_and_both_survive_through_the_mount does the same through a real writable mount.\nMEASURED ON A REAL ACCOUNT 2026-09-11: docs/benchmarks/live-offline-pinning.json. A generated 9,000,000-byte file on the user's business drive, pinned through the same request path the command line uses, reported 9,000,096 bytes resident across three blocks -- the file plus three block digests, which is the reservation correction made the day before arriving at the right answer on a real drive. After the engine was rebuilt and mounted it read back byte for byte with ZERO provider content requests, while an unpinned control in the same folder needed one. This covers offline READING. The editing half ran on the same drive the same day: a pinned file edited through a writable mount left a record in the local journal -- the application did not wait for the network to save, which is what the clause is about. A real account cannot be taken offline, so 'offline' here means the read made no provider request and the write asked nothing of it, established by counting rather than by severing the connection. Surviving a restart and an edit made while the provider is genuinely unreachable stay fixture claims, covered by a_pinned_file_can_be_edited_offline_and_both_survive_a_restart and real_a_pinned_file_is_edited_offline_and_both_survive_through_the_mount.",
+      "asserted_by": "engine::pinning::pinned_content_reads_offline_and_still_does_after_a_restart and engine::pinning::a_pinned_file_can_be_edited_offline_and_both_survive_a_restart. The second is the load-bearing one: the cache's view and the journal's are rebuilt by separate paths that do not consult each other, so surviving together is a claim rather than a consequence. tests/read_only.rs::real_a_pinned_file_reads_offline_through_the_mount_and_an_unpinned_one_does_not covers the reading half through a real FUSE mount, with an unpinned control so a broken offline switch cannot pass it. tests/writable_session.rs::real_a_pinned_file_is_edited_offline_and_both_survive_through_the_mount covers the editing half through a real writable mount; without the pin it fails with EIO on the offline read. validation::pinning::onedrive_pinning is the live check; it is a validator rather than a test, so it asserts on a real account and is not run by CI. validation::pinning::onedrive_pinning covers reading and editing live."
     },
     {
       "milestone": 3,
       "milestone_title": "Offline availability",
-      "line": 204,
-      "done": false,
+      "line": 223,
+      "done": true,
       "text": "Unsent changes excluded from cache eviction and connection cleanup.",
       "blocker": "autonomous",
-      "evidence": "Scope expanded by the user on 2026-09-09. Holds structurally rather than by a rule that could be relaxed: the upload journal is a sibling of the cache directory, and eviction only ever removes files whose names it recognises as its own block keys, plus its own <key>.<uuid>.tmp temporaries. No production path in the tree calls remove_dir_all at all. Asserted by content::tests::eviction_never_reaches_outside_its_own_block_names, which places an unsent journal entry beside the cache and a non-block file inside it, drives both the runtime eviction pass and the mount-time reconcile pass under real pressure, and requires a genuine block to have been removed so that survival of the other two means something. STILL OPEN: the connection-cleanup half. Nothing removes the journal today, but no test pins that down across account disable and removal, and there is no measured evidence on a real account.",
-      "asserted_by": "content::tests::eviction_never_reaches_outside_its_own_block_names, which places an unsent journal entry beside the cache and a non-block file inside it, drives both deletion passes -- evict and the reconcile that runs on reopening -- and asserts a real block was removed as well, so a pass that deleted nothing could not satisfy it. content::tests::eviction_leaves_a_protected_block_and_takes_the_next_one_instead and the_reconcile_pass_at_mount_time_also_leaves_protected_blocks_alone cover the same two passes for pinned blocks."
+      "evidence": "TICKED 2026-09-11. Scope expanded by the user on 2026-09-09. COVERED: eviction only ever removes files whose names it recognises as its own block keys plus its own temporaries, so an unsent journal beside the cache is structurally out of reach, and that is asserted rather than argued. The disable half is asserted through a writable mount. Removal now exists: accounts::forget refuses while the account is enabled, refuses while the journal holds unsent records -- naming how many -- and moves the account directory to removed/ rather than deleting it. Building it was necessary before the clause could be tested at all: with no removal path, a test would have asserted that a thing which does not exist does not delete a journal.\nMEASURED ON A REAL ACCOUNT 2026-09-11: an unsent journal record is byte-for-byte unchanged after repeated cache reads against a real file on the same account, with the journal sitting beside the cache throughout. Six rounds is pressure rather than saturation and the artifact says so.",
+      "asserted_by": "content::tests::eviction_never_reaches_outside_its_own_block_names, which places an unsent journal entry beside the cache and a non-block file inside it, drives both deletion passes -- evict and the reconcile that runs on reopening -- and asserts a real block was removed as well, so a pass that deleted nothing could not satisfy it. content::tests::eviction_leaves_a_protected_block_and_takes_the_next_one_instead and the_reconcile_pass_at_mount_time_also_leaves_protected_blocks_alone cover the same two passes for pinned blocks. tests/writable_session.rs::real_unsent_changes_survive_disabling_and_refuse_removal writes through a writable mount with uploads stalled, disables the account and reads the unsent payload back byte for byte, then asserts removal refuses and names what is at stake, leaves the journal where it was, and on an explicit discard moves the data aside rather than deleting it. Without the refusal it removes the account and its one unsent change. validation::pinning::onedrive_pinning covers the eviction half live."
     },
     {
       "milestone": 3,
       "milestone_title": "Offline availability",
-      "line": 205,
-      "done": false,
+      "line": 224,
+      "done": true,
       "text": "Disk-full recovery preserves edited data and explains required action.",
       "blocker": "autonomous",
-      "evidence": "Scope expanded by the user on 2026-09-09. 2026-09-10: run on a real filesystem, docs/benchmarks/full-disk-journal-errors.json. The root blocker is discharged and it found a defect the constructed-error test could not see: on an ext4 filesystem with no free block, a save failed as JournalError::Storage, 'local upload storage is unavailable', because the journal writes metadata through SQLite before any payload byte and From<rusqlite::Error> discarded the reason. The DeviceFull variant added for this case was unreachable from a real device. journal.rs now maps SQLITE_FULL and the two SQLite I/O reports for a store that could not take bytes to DeviceFull. Preservation held on the same device, before and after the fix: the payload sealed before the disk filled read back byte for byte and the working copy stayed dirty. NOT TICKED: this covers the journal's save path. Whether the message reaches a user through the daemon's own reporting is not measured here. 2026-09-10, second half: the daemon can now say which of the two happened. writeback.rs carried a comment claiming status reported the distinction; AccountStatus had no such field and nothing filled one. Writeback::local records the refusal on the Engine -- one choke point rather than the twenty map_err(error) sites, and on the engine because it survives the remount that failing saves can provoke -- and cirrove status reports it per account as save_refusal with kind budget or device. See docs/validation.md.",
-      "asserted_by": "a_genuinely_full_filesystem_explains_what_to_free, which fills the filesystem it is given, asserts ENOSPC outside the journal before trusting any journal error, and fails against the previous code with 'it said: local upload storage is unavailable'. truncate_sparse_writes_and_quota_failures_preserve_the_working_copy and a_full_budget_and_a_full_disk_are_reported_as_different_problems still cover the budget half. real_a_refused_save_is_reported_as_a_budget_and_not_only_as_enospc drives a real mount into its budget through the kernel, asserts ENOSPC still reaches the application, asserts an earlier write was accepted so a wholly broken mount cannot pass it, and fails without the recorder. only_the_two_no_space_refusals_are_recorded_and_they_stay_distinct covers the classification, including that a non-space error leaves the field alone. STILL OPEN: no run has driven a mount on a physically full filesystem, so the device case is evidenced as a mapping and not as a journey."
+      "evidence": "TICKED 2026-09-11. Scope expanded by the user on 2026-09-09. COVERED end to end. Preservation: a refused save leaves the sealed payload and the dirty working copy intact. Explanation: a full local budget and a physically full disk were both JournalError::Quota and both reached an application as ENOSPC, so a user was told 'no space left on device' on a filesystem with gigabytes free while the two remedies are opposite; DeviceFull is now separate and carries its own remedy. A real full ext4 showed that mapping was unreachable, because write_working persists metadata through SQLite before any byte and From<rusqlite::Error> discarded the reason. The daemon reports which of the two it was as AccountStatus.save_refusal. A writable mount now runs on a physically full filesystem, and the without-subject check showed the mapping decides what the KERNEL reports: without it an application gets EIO rather than ENOSPC.\nMEASURED ON A REAL ACCOUNT 2026-09-11: the validation account's state, journal and mount on a 160 MB loop-backed ext4 of their own. One save accepted while there was room, then the device filled to its last block, then saves attempted through the kernel: the application got ENOSPC and the daemon recorded kind `device` with a message naming what has to be freed. The provider was reachable throughout, so this is about local storage and not about the cloud being full.",
+      "asserted_by": "a_genuinely_full_filesystem_explains_what_to_free, which fills the filesystem it is given, asserts ENOSPC outside the journal before trusting any journal error, and fails against the previous code with 'it said: local upload storage is unavailable'. truncate_sparse_writes_and_quota_failures_preserve_the_working_copy and a_full_budget_and_a_full_disk_are_reported_as_different_problems still cover the budget half. real_a_refused_save_is_reported_as_a_budget_and_not_only_as_enospc drives a real mount into its budget through the kernel, asserts ENOSPC still reaches the application, asserts an earlier write was accepted so a wholly broken mount cannot pass it, and fails without the recorder. only_the_two_no_space_refusals_are_recorded_and_they_stay_distinct covers the classification, including that a non-space error leaves the field alone. STILL OPEN: no run has driven a mount on a physically full filesystem, so the device case is evidenced as a mapping and not as a journey. tests/writable_session.rs::real_a_save_on_a_full_device_is_reported_as_a_device_and_not_a_budget covers the device case through a writable kernel mount, with an accepted-before-full save so a mount that refuses everything cannot pass it. CI runs it on the same loop image as its journal-level sibling. validation::pinning::onedrive_pinning covers the device case live when given a filesystem to fill."
     },
     {
       "milestone": 4,
       "milestone_title": "Complete OneDrive coverage",
-      "line": 209,
+      "line": 228,
       "done": false,
       "text": "Personal and business accounts, including multiple simultaneous accounts.",
       "blocker": "out-of-agreed-scope",
@@ -247,7 +246,7 @@
     {
       "milestone": 4,
       "milestone_title": "Complete OneDrive coverage",
-      "line": 210,
+      "line": 229,
       "done": false,
       "text": "Explicit account, drive and SharePoint library selection.",
       "blocker": "out-of-agreed-scope",
@@ -257,7 +256,7 @@
     {
       "milestone": 4,
       "milestone_title": "Complete OneDrive coverage",
-      "line": 211,
+      "line": 230,
       "done": false,
       "text": "Linked folders, duplicate links, moved/deleted links and folder-only access.",
       "blocker": "out-of-agreed-scope",
@@ -267,7 +266,7 @@
     {
       "milestone": 4,
       "milestone_title": "Complete OneDrive coverage",
-      "line": 212,
+      "line": 231,
       "done": false,
       "text": "Per-item capabilities, restricted permissions and revoked-access behavior.",
       "blocker": "out-of-agreed-scope",
@@ -277,7 +276,7 @@
     {
       "milestone": 4,
       "milestone_title": "Complete OneDrive coverage",
-      "line": 213,
+      "line": 232,
       "done": false,
       "text": "Remote creates, edits, moves and deletions update mounted views correctly.",
       "blocker": "autonomous",
@@ -287,9 +286,9 @@
     {
       "milestone": 4,
       "milestone_title": "Complete OneDrive coverage",
-      "line": 214,
+      "line": 233,
       "done": false,
-      "text": "Defined filename, package/notebook, trash and unsupported-operation behavior.",
+      "text": "Defined filename, package/notebook and unsupported-operation behavior.",
       "blocker": "out-of-agreed-scope",
       "evidence": null,
       "asserted_by": null
@@ -297,7 +296,17 @@
     {
       "milestone": 4,
       "milestone_title": "Complete OneDrive coverage",
-      "line": 215,
+      "line": 234,
+      "done": false,
+      "text": "Deletion defined end to end: the provider's recycle bin as the default for every file manager without an extension, no local wastebasket created inside the user's drive, permanent deletion reachable only as an explicit second gesture that the window offers too, and both gated on a per-provider capability so a provider without a recycle bin is never presented as recoverable. See [ADR 0008](adr/0008-deletion-and-the-recycle-bin.md).",
+      "blocker": "needs-live-account",
+      "evidence": "PARTIAL 2026-09-11. One clause of five is closed: the mount root refuses to hold a local wastebasket, in both ways one can appear -- mkdir refuses to create it, rename refuses to fill an existing one. Found as a real directory -- .Trash-1000/ with files/ and info/, created by GNOME Files at 17:57 in a live OneDrive on a writable mount -- not from reading the specification, and confirmed as a remote create in the mutation journal rather than a local shadow. Verified on the live mount after installing the guard: both names refused with EOPNOTSUPP, an ordinary folder still creatable. NOT DONE: the delete prompt still misstates the outcome (GIO reads EOPNOTSUPP as 'no trash' and offers permanent deletion in front of a delete that reaches the recycle bin); permanent deletion has no control verb, no window action and no file-manager extension; the per-provider capability does not exist; an existing wastebasket is not reported to the user. The default already reaches OneDrive's recycle bin via conditional DELETE, but that has never been demonstrated against a live drive by looking in the bin, which is what this box needs an account for.",
+      "asserted_by": "filesystem::trash::the_names_a_file_manager_would_create_are_refused and ::an_ordinary_folder_that_merely_reads_like_one_is_not for the names; writable_session::real_mount_root_refuses_a_trash_directory_but_a_subdirectory_keeps_the_name and ::real_an_existing_trash_directory_refuses_renames_into_it_but_not_out_of_it for the two refusals through a real kernel FUSE mount, each shown to fail without its guard. Nothing asserts the other four clauses."
+    },
+    {
+      "milestone": 4,
+      "milestone_title": "Complete OneDrive coverage",
+      "line": 240,
       "done": false,
       "text": "Documented compatibility matrix backed by real-account checks.",
       "blocker": "out-of-agreed-scope",
@@ -307,7 +316,7 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 234,
+      "line": 259,
       "done": false,
       "text": "GTK4/libadwaita setup and settings without a terminal in ordinary flows.",
       "blocker": "out-of-agreed-scope",
@@ -317,7 +326,7 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 235,
+      "line": 260,
       "done": false,
       "text": "Account picker, mount controls, reconnect, connection removal and cleanup.",
       "blocker": "out-of-agreed-scope",
@@ -327,17 +336,17 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 236,
+      "line": 261,
       "done": false,
       "text": "Tray status and actions using the daemon as the source of truth.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
-      "asserted_by": null
+      "blocker": "autonomous",
+      "evidence": "PARTIAL 2026-09-11. The tray's icon, tooltip and SNI Status are the daemon's answer over the subscribe stream and nothing inferred from it; losing the service is rendered rather than hidden, because a tray keeping its last icon after the daemon is gone reports something it does not know. Seen working on the user's own panel. The menu gives each account a submenu with Open folder and Mount/Unmount, and the toggle is decided from current state at click time rather than from what was drawn. Mounting goes through accounts::set_enabled_by_id, the same locked call the window and CLI make; it was held back for a while on a claim that a second writer would race the window over the settings file, which was wrong -- the configuration and per-account operation locks were already there. A mount change the tray could not make now raises the icon to NeedsAttention and leads the tooltip with what to do, cleared by the next change the daemon reports. NOT DONE: recent activity is its own box (line 281), and the failure notice is a tooltip rather than anything a user is shown without hovering.",
+      "asserted_by": "desktop::tray unit tests for the state machine and tooltip; tray::menu::tests::a_click_reaches_the_account_it_was_drawn_for, ::the_toggle_is_decided_from_current_state_and_not_from_what_was_drawn and ::an_id_no_account_answers_to_does_nothing, each shown to fail under flat row numbering; and the ignored bus tests run under dbus-run-session in CI, which read the submenu back and require Open folder and Unmount under a mounted account. tray::tests::something_the_tray_could_not_do_reaches_the_icon_and_the_tooltip and ::a_notice_is_cleared_by_the_daemon_reporting_a_change hold the failure notice, each shown to fail without its half."
     },
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 237,
+      "line": 262,
       "done": false,
       "text": "Nautilus badges, pin/unpin actions and consistent status refresh.",
       "blocker": "out-of-agreed-scope",
@@ -347,17 +356,17 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 238,
+      "line": 263,
       "done": false,
       "text": "Actionable errors, progress, cancellation and conflict resolution.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
-      "asserted_by": null
+      "blocker": "autonomous",
+      "evidence": "PARTIAL 2026-09-11. Conflict resolution has its first real piece, and it was built because the daemon could strand a change in silence: fourteen folder removals ended in Conflict on a live drive, hiding the directories in the mount while leaving them in the account, with no status field saying so and no way to clear them -- request_mutation_retry refuses Conflict by design and nothing else touched one. AccountStatus.stuck_changes now reports them and `cirrove discard-stuck` abandons them. Measured end to end on that drive: 14 abandoned, 14 back in view, 10 deleted cleanly on the second attempt, 4 conflicted again on stale ETags and cleared after the delta feed caught up. Final state: no leftovers, nothing stuck. NOT DONE: removals only -- a stuck creation or move leaves the local tree depending on it and is refused rather than half-handled; discard only, never retry; no per-item view, so a user sees a count and not which paths; neither the window nor the tray shows it; and progress and cancellation are untouched.",
+      "asserted_by": "mutations::only_changes_the_daemon_has_stopped_retrying_are_counted_as_stuck and ::discarding_refuses_anything_it_cannot_unwind_cleanly at the journal level, plus writable_session::real_a_delete_the_provider_refused_can_be_abandoned_and_the_folder_returns through a real kernel FUSE mount, which fails without the restore by never bringing the folder back. Nothing asserts the freshness caveat -- the fixture's mount does not re-observe provider changes without an explicit refresh -- so that is recorded in docs/validation.md as a live measurement instead of claimed as covered."
     },
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 239,
+      "line": 264,
       "done": false,
       "text": "Keyboard navigation, accessibility, localization and visual verification.",
       "blocker": "out-of-agreed-scope",
@@ -367,7 +376,7 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 240,
+      "line": 265,
       "done": false,
       "text": "Verify a declared session matrix covering native Wayland and X11, and GNOME and KDE Plasma: windows, dialogs, system dark-style preference and portal-backed folder opening, including cancellation and missing-portal behavior. Record the actual backend and supported session combinations; Xwayland is not native Wayland coverage. Current CI uses Xvfb (X11) only and does not exercise a complete GNOME or Plasma session.",
       "blocker": "out-of-agreed-scope",
@@ -377,7 +386,7 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 246,
+      "line": 271,
       "done": false,
       "text": "One application identity across the desktop entry, installed application icon, AppStream metainfo, desktop application's D-Bus name and Wayland `app_id`. Verify launcher/window association, including X11, on every declared shell; naming consistency alone is not a runtime check.",
       "blocker": "out-of-agreed-scope",
@@ -387,7 +396,7 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 250,
+      "line": 275,
       "done": false,
       "text": "Install application-specific scalable and symbolic icons in standard theme locations, replacing the generic application icon. Check dock, launcher and software-centre presentation, including symbolic recoloring.",
       "blocker": "out-of-agreed-scope",
@@ -397,9 +406,19 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 253,
+      "line": 278,
       "done": false,
       "text": "Implement the tray as StatusNotifierItem over D-Bus. Document the GNOME extension requirement, detect missing tray support and keep all actions available from the window when no tray host is present.",
+      "blocker": "autonomous",
+      "evidence": "PARTIAL 2026-09-11. StatusNotifierItem over D-Bus is implemented and registers with a live shell's watcher; the GNOME extension requirement is documented in docs/desktop.md. A missing host is tolerated rather than fatal: the item is published, waits, and registers whenever a host appears, which also covers a panel restart. The first version registered, answered every property it declared, and drew nothing -- it lacked AttentionIconName and the spec switches icons with status -- so the property set is now asserted against what a known-good tray exposes. A missing host is now reported once, naming the interface and the GNOME extension, and its later arrival reported only if an absence was. NOT DONE: that message goes to stderr and the journal, which is where an operator looks and not where a user does; there is no in-window notice. Keeping every action available from the window holds structurally -- the menu carries only shortcuts to what the window does -- but is not asserted anywhere.",
+      "asserted_by": "desktop::tray::the_item_offers_a_host_every_property_it_may_read, which lists the fifteen properties a host may read and fails on any that is missing, plus ::the_attention_icon_is_answered_and_not_empty for the specific failure that drew nothing. tray::tests::a_missing_tray_host_is_reported_once_and_its_return_only_after_that and ::a_host_present_from_the_start_is_not_announced hold the reporting decision. Nothing asserts that the window keeps every action available."
+    },
+    {
+      "milestone": 5,
+      "milestone_title": "Polished desktop experience",
+      "line": 281,
+      "done": false,
+      "text": "Show recent activity -- remote changes from the delta feed and local saves from the upload journal, with each entry's state -- in the window, and a short form of it in the tray menu. \"Recent\" means changes to content, not files the user merely opened: a mount stages cache on every read, so a touched-files list would be noise. This is a log and not a level, so it does not ride the coalescing event channel, which by design hands a lagging client current state instead of the entries it missed; it needs its own query. File names appear in the menu and in the window, never in the tray tooltip, which is shown on hover without intent and is visible to anyone looking at the screen or a shared one; the tooltip carries a count. Provide a setting to turn the listing off entirely.",
       "blocker": "out-of-agreed-scope",
       "evidence": null,
       "asserted_by": null
@@ -407,7 +426,7 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 256,
+      "line": 292,
       "done": false,
       "text": "Publish a supported file-manager list beyond the initial Nautilus target, with an explicit Dolphin decision and a shared daemon status contract behind each integration. Unsupported managers must still access mounted files; badge/control availability must be explained.",
       "blocker": "out-of-agreed-scope",
@@ -417,7 +436,7 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 260,
+      "line": 296,
       "done": false,
       "text": "Preserve actionable, sanitized error causes in the window. Unreadable or invalid settings, an unreachable service and an incompatible service remain distinguishable, with recovery actions and diagnostic detail appropriate to the failure. Never expose credentials or raw provider responses.",
       "blocker": "out-of-agreed-scope",
@@ -427,7 +446,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 285,
+      "line": 321,
       "done": false,
       "text": "Native Arch/AUR, Debian/Ubuntu `.deb` and Fedora `.rpm` packages from the same release, with the clean-system checks in [Distribution](distribution.md).",
       "blocker": "out-of-agreed-scope",
@@ -437,7 +456,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 287,
+      "line": 323,
       "done": false,
       "text": "Signed APT and COPR update channels, release artifacts, source/provenance, supported-version matrix and measured reproducible build procedure.",
       "blocker": "out-of-agreed-scope",
@@ -447,7 +466,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 289,
+      "line": 325,
       "done": false,
       "text": "Fresh installation through sign-in and reboot verified outside development. Validate this on each declared distribution family, including Fedora with SELinux enabled; an Ubuntu CI build is not an installation check.",
       "blocker": "out-of-agreed-scope",
@@ -457,7 +476,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 292,
+      "line": 328,
       "done": false,
       "text": "Upgrade/migration rollback protects settings, credentials and pending work.",
       "blocker": "out-of-agreed-scope",
@@ -467,7 +486,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 293,
+      "line": 329,
       "done": false,
       "text": "Clean uninstall and explicit retention/removal choices for local data.",
       "blocker": "out-of-agreed-scope",
@@ -477,7 +496,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 294,
+      "line": 330,
       "done": false,
       "text": "User documentation, redacted diagnostics and supported-version policy.",
       "blocker": "out-of-agreed-scope",
@@ -487,7 +506,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 295,
+      "line": 331,
       "done": false,
       "text": "Dependency/security review, extended testing and tracked release blockers.",
       "blocker": "out-of-agreed-scope",
@@ -497,7 +516,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 296,
+      "line": 332,
       "done": false,
       "text": "Validate the desktop entry, installed icons and AppStream metainfo in CI, then compare their identity with the running window and application bus name in the supported desktop sessions. Current desktop-file validation alone does not satisfy this gate.",
       "blocker": "out-of-agreed-scope",
@@ -507,7 +526,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 300,
+      "line": 336,
       "done": false,
       "text": "Build and install the daemon and CLI without GTK4/libadwaita present, with separate desktop packaging. The root's default members now exclude the desktop; explicit `--workspace` builds and full contributor checks still include it. A package installation on a clean headless host remains required; headless buildability does not imply unattended browser/keyring setup.",
       "blocker": "out-of-agreed-scope",
@@ -517,7 +536,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 305,
+      "line": 341,
       "done": false,
       "text": "Tagged release and verified installation from the published artifacts.",
       "blocker": "out-of-agreed-scope",
@@ -525,5 +544,5 @@
       "asserted_by": null
     }
   ],
-  "operator_guide": "docs/authorization-request.md — the command, blast radius and evidence for every box this file marks as blocked on something an agent cannot supply."
+  "operator_guide": "docs/authorization-request.md \u2014 the command, blast radius and evidence for every box this file marks as blocked on something an agent cannot supply."
 }

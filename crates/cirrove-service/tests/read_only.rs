@@ -25,6 +25,10 @@ struct Fixture {
     nodes: RwLock<HashMap<(String, String), Node>>,
     reads: AtomicU64,
     offline: AtomicBool,
+    /// The provider refusing the grant rather than being unreachable. Separate
+    /// from `offline` because the two must not produce the same feed state: one
+    /// is waited out and the other needs the user.
+    consent_expired: AtomicBool,
     stall: AtomicBool,
     delay_ms: AtomicU64,
     push: AtomicBool,
@@ -122,6 +126,7 @@ impl Fixture {
             nodes: RwLock::new(nodes),
             reads: AtomicU64::new(0),
             offline: AtomicBool::new(false),
+            consent_expired: AtomicBool::new(false),
             stall: AtomicBool::new(false),
             delay_ms: AtomicU64::new(0),
             push: AtomicBool::new(false),
@@ -142,7 +147,12 @@ impl Fixture {
         })
     }
     fn online(&self) -> Result<(), ProviderError> {
-        if self.offline.load(Ordering::SeqCst) {
+        if self.consent_expired.load(Ordering::SeqCst) {
+            // What Graph answers once a grant is gone, and the reason it is
+            // checked before `offline`: a daemon that read this as merely
+            // unreachable would retry politely forever and never tell anyone.
+            Err(ProviderError::Authentication)
+        } else if self.offline.load(Ordering::SeqCst) {
             Err(ProviderError::Unavailable)
         } else {
             Ok(())
@@ -315,6 +325,45 @@ async fn ready(engine: &Arc<Engine>) {
         "feeds were not ready within three seconds; last observed: {observed:?}"
     );
 }
+/// Reopen an engine that was just dropped, waiting out a lock its predecessor
+/// may not have released yet.
+///
+/// `account_lock` takes `owner.lock` without blocking and reports "Cirrove
+/// account is still stopping". That is deliberate: a daemon that cannot take the
+/// lock must say so rather than hang, and systemd's `RestartSec` covers the
+/// window in production. A test that drops an engine and builds another in the
+/// same microsecond manufactures exactly that window, so it has to wait the
+/// window out rather than assume it is not there.
+///
+/// Seen once on a loaded CI runner and never in forty-five local runs, which is
+/// the shape of a race in the test rather than a defect in the lock. Used only
+/// where an engine is rebuilt immediately after being dropped; a first-time
+/// construction has nothing to wait for and says so by not calling this.
+async fn reopened_engine(
+    account: Account,
+    provider: Arc<dyn cirrove_core::ReadProvider>,
+    state: std::path::PathBuf,
+) -> Arc<Engine> {
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    loop {
+        match Engine::new(account.clone(), provider.clone(), state.clone()).await {
+            Ok(engine) => return engine,
+            Err(error) => {
+                let still_stopping = error.chain().any(|cause| {
+                    cause
+                        .downcast_ref::<std::io::Error>()
+                        .is_some_and(|io| io.kind() == std::io::ErrorKind::WouldBlock)
+                });
+                assert!(
+                    still_stopping && std::time::Instant::now() < deadline,
+                    "could not reopen the engine: {error:#}"
+                );
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        }
+    }
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn coalesced_large_range_reads_survive_restart_and_offline() {
     let temp = tempfile::tempdir().unwrap();
@@ -437,7 +486,7 @@ async fn cached_navigation_survives_stalled_reads_and_metadata_restart() {
         Err(ProviderError::Cancelled)
     ));
     drop(engine);
-    let restarted = Engine::new(config, provider, state).await.unwrap();
+    let restarted = reopened_engine(config, provider, state).await;
     assert_eq!(
         restarted.children(&scope, "folder").await.unwrap()[0].id,
         "deep.txt"
@@ -519,7 +568,7 @@ async fn named_lookup_distinguishes_cold_unknown_from_cached_absence_and_survive
         Err(ProviderError::Cancelled)
     ));
     drop(engine);
-    let restarted = Engine::new(config, provider.clone(), state).await.unwrap();
+    let restarted = reopened_engine(config, provider.clone(), state).await;
     assert_eq!(
         restarted
             .child(&scope, "root", "small.txt")
@@ -2772,4 +2821,734 @@ async fn late_not_found_reply_cannot_hide_a_newer_visible_item() {
             .unwrap(),
         Some(newer)
     );
+}
+
+/// A pin made the way a user makes one must actually keep the bytes.
+///
+/// Until now `cirrove pin` wrote the reservation straight into the index and
+/// stopped: `Engine::materialise_pin` and `Engine::pin_folder` had no caller
+/// outside their own tests, because only the daemon holds an engine and the
+/// command line is not the daemon. So a pin reserved space and kept nothing, and
+/// the first offline read still failed -- which is the whole of what pinning is
+/// for.
+///
+/// This drives the real path: a manager holding a live engine, a control socket
+/// beside it, and the same client function the command line calls. It fails
+/// against a daemon whose socket answers only `status`.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_pin_from_the_command_line_reaches_the_daemon_and_keeps_the_bytes() {
+    use cirrove_service::{accounts::Settings, manager::Manager, private_dir};
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let state = temp.path().join("state");
+    private_dir(&state).unwrap();
+    let mut config = account(mount.clone());
+    // The shared fixture account carries a 16 MiB cache, and reservations may not
+    // claim the whole budget: the floor is eight blocks, which is 32 MiB, so a
+    // 16 MiB cache can pin nothing at all. That refusal is correct and is not
+    // what this test is about.
+    config.cache_bytes = 128 * 1024 * 1024;
+    std::fs::write(
+        state.join("accounts.json"),
+        serde_json::to_vec(&Settings {
+            version: 1,
+            accounts: vec![config],
+        })
+        .unwrap(),
+    )
+    .unwrap();
+
+    let provider = Fixture::new();
+    let reads = provider.clone();
+    let cancel = CancellationToken::new();
+    let factory: cirrove_service::manager::ProviderFactory = {
+        let provider = provider.clone();
+        Arc::new(move |_| Ok(provider.clone()))
+    };
+    let (manager, worker) = Manager::start_with_provider(state.clone(), cancel.clone(), factory);
+    tokio::time::timeout(Duration::from_secs(15), async {
+        loop {
+            if manager
+                .status
+                .read()
+                .await
+                .first()
+                .is_some_and(|s| s.state == "ready")
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("account did not become ready");
+
+    let socket = state.join("control.sock");
+    let server = tokio::spawn(cirrove_service::serve_managed(
+        state.join("metadata.db"),
+        socket.clone(),
+        cancel.clone(),
+        Some(manager.clone()),
+    ));
+    tokio::time::timeout(Duration::from_secs(10), async {
+        while cirrove_service::status(&socket).await.is_err() {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .expect("control socket never answered");
+
+    // Nothing fetched yet, so a later read counter has something to be measured
+    // against.
+    let before = reads.reads.load(Ordering::SeqCst);
+    let reply = cirrove_service::pin(
+        &socket,
+        &cirrove_service::PinRequest {
+            path: Some("small.txt".into()),
+            ..Default::default()
+        },
+    )
+    .await
+    .expect("pin request failed");
+    assert!(
+        reply.accepted && reply.refusal.is_none(),
+        "the daemon refused an ordinary pin: {reply:?}"
+    );
+    assert!(
+        reads.reads.load(Ordering::SeqCst) > before,
+        "a pin that fetches nothing is an accounting entry; the provider was never read"
+    );
+
+    let pinned = tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            let status = cirrove_service::status(&socket).await.unwrap();
+            if let Some(pin) = status.accounts[0].pins.first()
+                && pin.resident > 0
+            {
+                break pin.clone();
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("status never reported resident bytes for the pin");
+    assert!(
+        pinned.blocks > 0 && pinned.resident > 0,
+        "status must report what the pin kept, not only what it reserved: {pinned:?}"
+    );
+    assert!(
+        pinned.reserved >= pinned.resident,
+        "a pin cannot hold more than it reserved: {pinned:?}"
+    );
+
+    cancel.cancel();
+    let _ = tokio::time::timeout(Duration::from_secs(10), worker).await;
+    let _ = tokio::time::timeout(Duration::from_secs(5), server).await;
+}
+
+/// Pinned content must read through the kernel with the provider unreachable,
+/// and unpinned content must not.
+///
+/// Every existing pin test runs against `Engine`/`Store` directly. That covers
+/// the durability layer and says nothing about the thing the milestone actually
+/// promises: a file you pinned is there when the network is not. The unpinned
+/// control is what stops a broken offline switch from passing this for the wrong
+/// reason -- without it, a fixture that quietly kept serving would look like a
+/// working pin.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires a working /dev/fuse and fusermount3; run explicitly"]
+async fn real_a_pinned_file_reads_offline_through_the_mount_and_an_unpinned_one_does_not() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let provider = Fixture::new();
+    let mut config = account(mount.clone());
+    // Reservations may not claim the whole budget and the floor is eight blocks,
+    // so the fixture's own 16 MiB cache can pin nothing.
+    config.cache_bytes = 128 * 1024 * 1024;
+    let engine = Engine::new(config.clone(), provider.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+
+    let scope = engine.scope("home");
+    let pinned = engine.node(&scope, "small.txt").await.unwrap();
+    let reserved = cirrove_service::content::stored_bytes(pinned.size);
+    engine
+        .pin(scope.clone(), pinned.id.clone(), false, reserved)
+        .await
+        .unwrap()
+        .expect("the budget holds one small file");
+    let blocks = engine.materialise_pin(&scope, &pinned).await.unwrap();
+    assert!(blocks > 0, "materialising must fetch something");
+
+    // A fresh engine on the same directory: the in-memory block cache is empty,
+    // so anything that reads afterwards can only be coming off disk. Shadowing
+    // does not drop the old binding, and it holds the state directory's lock.
+    engine.stop().await;
+    drop(engine);
+    let engine = reopened_engine(config, provider.clone(), temp.path().join("state")).await;
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    let session = CloudFs::new(engine.clone()).unwrap().mount(&mount).unwrap();
+
+    provider.offline.store(true, Ordering::SeqCst);
+    let before = provider.reads.load(Ordering::SeqCst);
+
+    let path = mount.join("small.txt");
+    let bytes = tokio::task::spawn_blocking(move || std::fs::read(path))
+        .await
+        .unwrap()
+        .expect("a pinned file must read with the provider unreachable");
+    assert_eq!(bytes.len() as u64, pinned.size);
+    assert_bytes(&bytes, 0);
+    assert_eq!(
+        provider.reads.load(Ordering::SeqCst),
+        before,
+        "the bytes came from the provider, so this proves nothing about the pin"
+    );
+
+    // The control. Same mount, same offline provider, a file nobody pinned.
+    let other = mount.join("folder/deep.txt");
+    let refused = tokio::task::spawn_blocking(move || std::fs::read(other))
+        .await
+        .unwrap();
+    assert!(
+        refused.is_err(),
+        "an unpinned file read offline must fail, or the offline switch is not doing anything"
+    );
+
+    session.umount_and_join().unwrap();
+    engine.stop().await;
+}
+
+/// Shared setup for the pin mount tests: an engine with a budget that can hold
+/// something, started and ready, with the state directory returned so a restart
+/// can reuse it.
+async fn pin_fixture(
+    temp: &tempfile::TempDir,
+    mount: &std::path::Path,
+) -> (Arc<Fixture>, Arc<Engine>, Account) {
+    std::fs::create_dir_all(mount).unwrap();
+    let provider = Fixture::new();
+    let mut config = account(mount.to_path_buf());
+    // Reservations may not claim the whole budget and the floor is eight blocks,
+    // so the fixture's own 16 MiB cache can pin nothing at all.
+    config.cache_bytes = 128 * 1024 * 1024;
+    let engine = Engine::new(config.clone(), provider.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    (provider, engine, config)
+}
+
+/// A recursive pin has to keep the files, not the flag.
+///
+/// `--recursive` was recorded in the index and nothing walked the subtree, so a
+/// folder pin kept exactly nothing. This pins a folder through the daemon's own
+/// request path and reads a file inside it offline through the mount.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires a working /dev/fuse and fusermount3; run explicitly"]
+async fn real_a_recursive_pin_keeps_the_files_under_a_folder_readable_offline() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    let (provider, engine, config) = pin_fixture(&temp, &mount).await;
+
+    let reply = engine
+        .apply_pin_request(&cirrove_service::PinRequest {
+            path: Some("folder".into()),
+            recursive: true,
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    assert!(
+        reply.accepted && reply.refusal.is_none(),
+        "the daemon refused an ordinary folder pin: {reply:?}"
+    );
+    assert_eq!(reply.files, 1, "the walk must find the file inside");
+    assert!(reply.complete, "every folder in this fixture is indexed");
+
+    engine.stop().await;
+    drop(engine);
+    let engine = reopened_engine(config, provider.clone(), temp.path().join("state")).await;
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    let session = CloudFs::new(engine.clone()).unwrap().mount(&mount).unwrap();
+
+    provider.offline.store(true, Ordering::SeqCst);
+    let before = provider.reads.load(Ordering::SeqCst);
+    let path = mount.join("folder/deep.txt");
+    let bytes = tokio::task::spawn_blocking(move || std::fs::read(path))
+        .await
+        .unwrap()
+        .expect("a file under a recursively pinned folder must read offline");
+    assert_eq!(bytes.len(), 17);
+    assert_eq!(
+        provider.reads.load(Ordering::SeqCst),
+        before,
+        "the bytes came from the provider, so this proves nothing about the pin"
+    );
+
+    session.umount_and_join().unwrap();
+    engine.stop().await;
+}
+
+/// After an unpin the bytes lose their protection and become ordinary cache.
+///
+/// This started as a test that unpinning deletes bytes, which is wrong and the
+/// artifact records why: releasing a reservation *raises* the ordinary budget,
+/// so eviction is less likely afterwards, not more. What unpinning actually
+/// changes is protection -- the blocks stop being the ones eviction may not
+/// take. That is the property worth pinning down, because losing it would mean
+/// unpinned content occupying the cache forever.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires a working /dev/fuse and fusermount3; run explicitly"]
+async fn real_unpinned_blocks_stop_being_protected_from_eviction() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir_all(&mount).unwrap();
+    let provider = Fixture::new();
+    let mut config = account(mount.clone());
+    // Enough to pin the small file and little else, so one further read has to
+    // evict something to make room.
+    config.cache_bytes = 40 * 1024 * 1024;
+    let engine = Engine::new(config, provider.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+
+    let request = cirrove_service::PinRequest {
+        path: Some("small.txt".into()),
+        ..Default::default()
+    };
+    assert!(
+        engine.apply_pin_request(&request).await.unwrap().accepted,
+        "the budget holds one small file"
+    );
+    let scope = engine.scope("home");
+    let pinned = engine.node(&scope, "small.txt").await.unwrap();
+    let keys = cirrove_service::content::block_keys(&scope, &pinned).unwrap();
+    let cache = engine.cache_path();
+    let present = |keys: &[String]| keys.iter().filter(|k| cache.join(k).exists()).count();
+    assert_eq!(
+        present(&keys),
+        keys.len(),
+        "the pin must be on disk to start"
+    );
+
+    // While pinned, filling the cache must not take it.
+    let big = engine.node(&scope, "large.bin").await.unwrap();
+    for start in 0..12u64 {
+        let _ = engine
+            .cache
+            .read(
+                engine.provider.as_ref(),
+                &scope,
+                &big,
+                start * cirrove_service::content::BLOCK_SIZE as u64,
+                cirrove_service::content::BLOCK_SIZE,
+                &engine.cancel,
+            )
+            .await;
+    }
+    assert_eq!(
+        present(&keys),
+        keys.len(),
+        "a pinned block was evicted while the pin was in force"
+    );
+
+    let reply = engine.apply_unpin_request(&request).await.unwrap();
+    assert!(reply.accepted, "unpin was refused: {reply:?}");
+
+    // Same pressure again. Now nothing protects those blocks.
+    for start in 12..24u64 {
+        let _ = engine
+            .cache
+            .read(
+                engine.provider.as_ref(),
+                &scope,
+                &big,
+                start * cirrove_service::content::BLOCK_SIZE as u64,
+                cirrove_service::content::BLOCK_SIZE,
+                &engine.cancel,
+            )
+            .await;
+    }
+    assert!(
+        present(&keys) < keys.len(),
+        "after unpinning, the blocks must be evictable like any other"
+    );
+    engine.stop().await;
+}
+
+/// A refused pin must say what to do and leave what is already kept alone.
+///
+/// The refusal carries the numbers and the remedy; the accepted-first-pin
+/// assertion is what stops a request path that refuses everything from passing
+/// this test.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires a working /dev/fuse and fusermount3; run explicitly"]
+async fn real_a_refused_pin_names_the_budget_and_leaves_the_kept_one_alone() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    let (provider, engine, _) = pin_fixture(&temp, &mount).await;
+    let small = cirrove_service::PinRequest {
+        path: Some("small.txt".into()),
+        ..Default::default()
+    };
+    assert!(
+        engine.apply_pin_request(&small).await.unwrap().accepted,
+        "a request path that refuses everything would satisfy the rest for the wrong reason"
+    );
+    let reserved_before = engine.pin_status().await.unwrap()[0].reserved;
+
+    // large.bin is three gibibytes against a 128 MiB budget.
+    let refused = engine
+        .apply_pin_request(&cirrove_service::PinRequest {
+            path: Some("large.bin".into()),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    assert!(
+        !refused.accepted,
+        "three gibibytes must not fit: {refused:?}"
+    );
+    let message = refused.refusal.expect("a refusal must carry a reason");
+    assert!(
+        message.contains("unpin") || message.contains("budget"),
+        "a refusal has to name the action that would make room: {message}"
+    );
+
+    let pins = engine.pin_status().await.unwrap();
+    assert_eq!(pins.len(), 1, "the refused pin must not have been recorded");
+    assert_eq!(
+        pins[0].reserved, reserved_before,
+        "a refusal must not disturb what is already reserved"
+    );
+
+    let session = CloudFs::new(engine.clone()).unwrap().mount(&mount).unwrap();
+    provider.offline.store(true, Ordering::SeqCst);
+    let path = mount.join("small.txt");
+    assert!(
+        tokio::task::spawn_blocking(move || std::fs::read(path))
+            .await
+            .unwrap()
+            .is_ok(),
+        "the pin that was accepted must still be readable offline"
+    );
+    session.umount_and_join().unwrap();
+    engine.stop().await;
+}
+
+/// Pin protection survives a restart and holds against pressure arriving at once.
+///
+/// Two mechanisms establish it and either one suffices: `ContentCache` is built
+/// already knowing what pinning claims, and `Engine::start` republishes the
+/// reservations before anything else runs. Disabling one at a time leaves this
+/// test green; disabling both makes it fail with a pinned block evicted. So it
+/// asserts the property, not which path provides it -- the redundancy is
+/// deliberate and the earlier name for this test claimed more than it measures.
+///
+/// What it adds over `a_restart_republishes_pins_before_anything_can_evict` is
+/// the route a user takes: `Engine::new`, a real mount, and cache pressure with
+/// no pause in between.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires a working /dev/fuse and fusermount3; run explicitly"]
+async fn real_pin_protection_survives_a_restart_and_immediate_cache_pressure() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir_all(&mount).unwrap();
+    let provider = Fixture::new();
+    let mut config = account(mount.clone());
+    config.cache_bytes = 40 * 1024 * 1024;
+    let engine = Engine::new(config.clone(), provider.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    assert!(
+        engine
+            .apply_pin_request(&cirrove_service::PinRequest {
+                path: Some("small.txt".into()),
+                ..Default::default()
+            })
+            .await
+            .unwrap()
+            .accepted
+    );
+    let scope = engine.scope("home");
+    let pinned = engine.node(&scope, "small.txt").await.unwrap();
+    let keys = cirrove_service::content::block_keys(&scope, &pinned).unwrap();
+    let cache = engine.cache_path();
+    engine.stop().await;
+    drop(engine);
+
+    // Rebuilt and put under pressure with no pause in between.
+    let engine = Engine::new(config, provider.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    let session = CloudFs::new(engine.clone()).unwrap().mount(&mount).unwrap();
+    let big = engine.node(&scope, "large.bin").await.unwrap();
+    for start in 0..16u64 {
+        let _ = engine
+            .cache
+            .read(
+                engine.provider.as_ref(),
+                &scope,
+                &big,
+                start * cirrove_service::content::BLOCK_SIZE as u64,
+                cirrove_service::content::BLOCK_SIZE,
+                &engine.cancel,
+            )
+            .await;
+    }
+    assert_eq!(
+        keys.iter().filter(|k| cache.join(k).exists()).count(),
+        keys.len(),
+        "a pinned block was evicted in the window between remounting and the first pin refresh"
+    );
+
+    provider.offline.store(true, Ordering::SeqCst);
+    let path = mount.join("small.txt");
+    let bytes = tokio::task::spawn_blocking(move || std::fs::read(path))
+        .await
+        .unwrap()
+        .expect("the pinned file must still read offline after all that pressure");
+    assert_eq!(bytes.len() as u64, pinned.size);
+    session.umount_and_join().unwrap();
+    engine.stop().await;
+}
+
+/// The reclamation tick must reach a mount that only reads.
+///
+/// Its trigger was a namespace view-count signal: it fires when a mount has held
+/// more than a thousand views and since shed half of them, which is a traversal.
+/// Reading content changes no view count, so on a mount that only reads the
+/// condition is never true and the trim never runs -- which is what a live daemon
+/// measurement showed as peak and residue being the same number, pass after pass.
+///
+/// This reads enough to leave real free memory in the arenas, goes quiet, and
+/// waits. It fails against the previous trigger, which cannot fire here at all.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires a working /dev/fuse and fusermount3; waits out the quiescent ticks"]
+async fn real_reclamation_reaches_a_mount_that_only_reads() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    // This fixture retains a flat 16.5 MiB however much it reads: the baseline
+    // and nothing more. The shipped floor is 96 MiB, derived from a daemon
+    // holding 184,000 nodes and a 560 MB index, and no amount of reading here
+    // reaches it. Lowering it lets this assert the mechanism -- that the
+    // retention signal reaches a mount which only reads -- while leaving the
+    // number measurement chose alone. What this test does NOT show is that the
+    // shipped floor is right; that is in the daemon measurement.
+    // Declared rather than set: the workspace forbids unsafe_code, so a test
+    // cannot call set_var. CI sets both on the step that runs these: the floor
+    // because this fixture retains a flat 16.5 MiB however much it reads and
+    // cannot reach the shipped 96 MiB, and the interval because a sixty-second
+    // cadence does not fit a test.
+    let floor: u64 = std::env::var("CIRROVE_RECLAIM_FLOOR_BYTES")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or_else(|| {
+            panic!(
+                "run this with CIRROVE_RECLAIM_FLOOR_BYTES=8388608. The shipped floor \
+                 is 96 MiB and this fixture retains a flat 16.5 MiB however much it \
+                 reads, so it cannot reach it."
+            )
+        });
+    assert!(
+        floor < 32 * 1024 * 1024,
+        "the override has to be below what this fixture can reach, or the test asserts nothing"
+    );
+    let provider = Fixture::new();
+    let mut config = account(mount.clone());
+    config.cache_bytes = 256 * 1024 * 1024;
+    let engine = Engine::new(config, provider.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    let session = CloudFs::new(engine.clone()).unwrap().mount(&mount).unwrap();
+    let before = cirrove_service::filesystem::allocator_trims();
+
+    // Read enough that the allocator is holding something worth returning. The
+    // view count barely moves: this is one file read repeatedly, which is the
+    // shape the old trigger cannot see.
+    let scope = engine.scope("home");
+    let big = engine.node(&scope, "large.bin").await.unwrap();
+    for round in 0..4u64 {
+        for start in 0..48u64 {
+            let _ = engine
+                .cache
+                .read(
+                    engine.provider.as_ref(),
+                    &scope,
+                    &big,
+                    start * cirrove_service::content::BLOCK_SIZE as u64,
+                    cirrove_service::content::BLOCK_SIZE,
+                    &engine.cancel,
+                )
+                .await;
+        }
+        println!(
+            "TRIM_TRIGGER round={round} retained_mib={:.1} free_arena_mib={:.1}",
+            cirrove_allocator::retained_bytes() as f64 / (1024.0 * 1024.0),
+            cirrove_allocator::free_arena_bytes() as f64 / (1024.0 * 1024.0)
+        );
+    }
+
+    // Quiet, and long enough for the quiescent gate plus a tick or two.
+    let trimmed = tokio::time::timeout(Duration::from_secs(30), async {
+        loop {
+            if cirrove_service::filesystem::allocator_trims() > before {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(200)).await;
+        }
+    })
+    .await;
+    assert!(
+        trimmed.is_ok(),
+        "a mount that only reads never reclaimed; it retained {:.1} MiB",
+        cirrove_allocator::retained_bytes() as f64 / (1024.0 * 1024.0)
+    );
+
+    session.umount_and_join().unwrap();
+    engine.stop().await;
+}
+
+/// A user must be able to watch the pin budget fill, not only be refused by it.
+///
+/// The row asks for "clear unpin/free-space behaviour", and a refusal at the end
+/// is the least useful moment to learn that space was running out. This asserts
+/// the figure exists, moves as pins are made and released, and says something a
+/// person can act on in both states.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires a working /dev/fuse and fusermount3; run explicitly"]
+async fn real_the_pin_budget_is_visible_before_it_is_full() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    let (_provider, engine, _) = pin_fixture(&temp, &mount).await;
+
+    let empty = engine.pin_budget().await.unwrap();
+    assert_eq!(empty.reserved_bytes, 0);
+    assert!(
+        empty.pinnable_bytes > 0 && empty.pinnable_bytes < empty.cache_bytes,
+        "reservations may not claim the whole budget: {empty:?}"
+    );
+    assert_eq!(empty.used_per_mille(), 0);
+    assert!(
+        empty.explain().contains("available for ordinary reads"),
+        "an empty budget must say what the rest of the cache is for: {}",
+        empty.explain()
+    );
+
+    let request = cirrove_service::PinRequest {
+        path: Some("small.txt".into()),
+        ..Default::default()
+    };
+    assert!(engine.apply_pin_request(&request).await.unwrap().accepted);
+    let held = engine.pin_budget().await.unwrap();
+    assert!(
+        held.reserved_bytes > 0 && held.free_bytes < empty.free_bytes,
+        "the budget must move when a pin is made: {held:?}"
+    );
+    assert!(
+        held.used_per_mille() > 0,
+        "a pin that claims nothing measurable is not a pin: {held:?}"
+    );
+
+    // Full is the state the row is really about: the message has to name the two
+    // things that make room, because there is nothing else a user can do.
+    let full = cirrove_service::engine::PinBudget {
+        cache_bytes: 128 * 1024 * 1024,
+        pinnable_bytes: 96 * 1024 * 1024,
+        reserved_bytes: 96 * 1024 * 1024,
+        free_bytes: 0,
+    };
+    let words = full.explain();
+    assert!(
+        words.contains("Unpin") && words.contains("cache_bytes"),
+        "a full budget must name both remedies: {words}"
+    );
+    assert_eq!(full.used_per_mille(), 1000);
+
+    // And releasing gives it back.
+    assert!(engine.apply_unpin_request(&request).await.unwrap().accepted);
+    let released = engine.pin_budget().await.unwrap();
+    assert_eq!(
+        released.free_bytes, empty.free_bytes,
+        "unpinning must return the whole reservation: {released:?}"
+    );
+    engine.stop().await;
+}
+
+/// An expired grant reaches the feed state a user is shown, and does not look
+/// like being offline.
+///
+/// The milestone 1 row asks for "visible reauthentication when consent expires".
+/// Its visible half was asserted at the last hop only: a desktop test checks that
+/// a feed state of sign_in_required renders as SignInRequired. Nothing asserted
+/// how a feed ever comes to say that -- the chain from the provider's refusal
+/// through the feed loop was uncovered, so the two halves could have drifted
+/// apart and both tests would still have passed.
+///
+/// The distinction being asserted is the whole point of the row. Unreachable is
+/// waited out and needs nobody; a refused grant is waited out forever and needs
+/// the user. A daemon that reported the second as the first would retry politely
+/// and tell no one, which is precisely the failure a person notices as "it just
+/// stopped working".
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn an_expired_grant_is_shown_as_needing_sign_in_and_not_as_being_offline() {
+    let temp = tempfile::tempdir().unwrap();
+    let (provider, engine) = push_engine(&temp).await;
+
+    // Unreachable first, as the control. Without it this test would pass against
+    // a daemon that called everything sign_in_required.
+    provider.offline.store(true, Ordering::SeqCst);
+    let hints = provider.hints.read().await["home"].clone();
+    fixture_remote_change(&provider, "while-offline").await;
+    hints.changed();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while !engine.health().await.iter().any(|h| h.state == "offline") {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("an unreachable provider must read as offline");
+    assert!(
+        !engine
+            .health()
+            .await
+            .iter()
+            .any(|h| h.state == "sign_in_required"),
+        "being unreachable must not ask the user to sign in"
+    );
+
+    // Now the grant is gone rather than the network.
+    provider.offline.store(false, Ordering::SeqCst);
+    provider.consent_expired.store(true, Ordering::SeqCst);
+    hints.changed();
+    tokio::time::timeout(Duration::from_secs(10), async {
+        while !engine
+            .health()
+            .await
+            .iter()
+            .any(|h| h.state == "sign_in_required")
+        {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("an expired grant must reach the state the window and tray render");
+    engine.stop().await;
 }

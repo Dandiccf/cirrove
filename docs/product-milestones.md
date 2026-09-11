@@ -8,7 +8,7 @@ Private account measurements belong in local records, not the public repository.
 
 ## 1. Reliable read-only foundation
 
-- [ ] Installable user service, login startup and clean intentional shutdown.
+- [x] Installable user service, login startup and clean intentional shutdown.
 - [ ] Recovery after process failure, suspend/resume and loss of network access.
 - [ ] Real token expiry/refresh and visible reauthentication when consent expires.
 - [ ] Responsive navigation during initial indexing and competing downloads.
@@ -125,6 +125,25 @@ plus a limited real business-drive create/rename check through an isolated mount
 Larger provider scenarios and ordinary desktop freshness still need measurement. See
 [the notification decision](adr/0003-change-notifications.md).
 
+The service lifecycle rows were the two in this milestone with no live evidence at
+all, because neither can be observed from inside: a suspend stops the observer and a
+reboot ends the session that would be watching. Both were run on 2026-09-11 against
+the enabled user service on a real account, with the state before written to disk and
+compared after. A short s2idle cycle left the daemon the same process -- same MainPID,
+same ActiveEnterTimestamp -- still mounted and ready. A reboot stopped it cleanly, the
+unit logging its own unmount and exiting in 38 ms, and it came back at the next login
+without anyone starting it: active 17.65 seconds after boot, ready and mounted 80 ms
+after start, 184,052 indexed items and schema 7 unchanged, both feeds reconnected, one
+FUSE mount owned by the new process. That closes the installable-service row. It does
+not close the recovery row: the suspend was s2idle rather than S3 and lasted two
+seconds, which is long enough to freeze and thaw a process and too short to expire a
+token, tear down a network or lapse a subscription, and the process-failure and
+network-loss clauses remain test-covered rather than measured live. Reads through the
+mount after the reboot were served from the surviving on-disk cache, so they evidence
+the mount rather than the content path; the provider path is evidenced by the Graph
+traffic, the reconnected feeds and a token refresh. See
+[the lifecycle measurements and their limits](benchmarks/service-lifecycle-and-suspend.json).
+
 ## 2. Safe file changes
 
 The [local edit journal](adr/0002-durable-local-edits.md) protects mutable local files
@@ -198,11 +217,11 @@ Live mutation fixtures must be isolated from the user's existing documents.
 
 ## 3. Offline availability
 
-- [ ] Persistent per-file and recursive-folder pinning with storage reservations.
-- [ ] Clear unpin/free-space behavior and accurate availability status.
-- [ ] Offline access and editing of pinned content, including across restart.
-- [ ] Unsent changes excluded from cache eviction and connection cleanup.
-- [ ] Disk-full recovery preserves edited data and explains required action.
+- [x] Persistent per-file and recursive-folder pinning with storage reservations.
+- [x] Clear unpin/free-space behavior and accurate availability status.
+- [x] Offline access and editing of pinned content, including across restart.
+- [x] Unsent changes excluded from cache eviction and connection cleanup.
+- [x] Disk-full recovery preserves edited data and explains required action.
 
 ## 4. Complete OneDrive coverage
 
@@ -211,7 +230,13 @@ Live mutation fixtures must be isolated from the user's existing documents.
 - [ ] Linked folders, duplicate links, moved/deleted links and folder-only access.
 - [ ] Per-item capabilities, restricted permissions and revoked-access behavior.
 - [ ] Remote creates, edits, moves and deletions update mounted views correctly.
-- [ ] Defined filename, package/notebook, trash and unsupported-operation behavior.
+- [ ] Defined filename, package/notebook and unsupported-operation behavior.
+- [ ] Deletion defined end to end: the provider's recycle bin as the default for
+  every file manager without an extension, no local wastebasket created inside
+  the user's drive, permanent deletion reachable only as an explicit second
+  gesture that the window offers too, and both gated on a per-provider capability
+  so a provider without a recycle bin is never presented as recoverable.
+  See [ADR 0008](adr/0008-deletion-and-the-recycle-bin.md).
 - [ ] Documented compatibility matrix backed by real-account checks.
 
 Full integration means the supported filesystem feature set works consistently;
@@ -253,6 +278,17 @@ account repair and the wider recovery flow still need implementation and accepta
 - [ ] Implement the tray as StatusNotifierItem over D-Bus. Document the GNOME
       extension requirement, detect missing tray support and keep all actions
       available from the window when no tray host is present.
+- [ ] Show recent activity -- remote changes from the delta feed and local saves
+      from the upload journal, with each entry's state -- in the window, and a
+      short form of it in the tray menu. "Recent" means changes to content, not
+      files the user merely opened: a mount stages cache on every read, so a
+      touched-files list would be noise. This is a log and not a level, so it
+      does not ride the coalescing event channel, which by design hands a lagging
+      client current state instead of the entries it missed; it needs its own
+      query. File names appear in the menu and in the window, never in the tray
+      tooltip, which is shown on hover without intent and is visible to anyone
+      looking at the screen or a shared one; the tooltip carries a count. Provide
+      a setting to turn the listing off entirely.
 - [ ] Publish a supported file-manager list beyond the initial Nautilus target,
       with an explicit Dolphin decision and a shared daemon status contract
       behind each integration. Unsupported managers must still access mounted

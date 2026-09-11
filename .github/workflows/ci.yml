@@ -57,7 +57,19 @@ jobs:
         run: cargo test -p cirrove-desktop --test window --locked --no-run
       - name: Native desktop with isolated account settings and status service
         run: timeout 30s xvfb-run -a dbus-run-session -- cargo test -p cirrove-desktop --test window --locked -- --ignored --test-threads=1
+      # The tray registered with a watcher, answered every property it declared,
+      # and drew nothing, because the set was incomplete and a host reads the
+      # whole of it. No unit test could see that; this one asks over a bus.
+      - name: Build tray item test
+        run: cargo test -p cirrove-desktop --test tray --locked --no-run
+      - name: Tray item offers a host every property it reads
+        run: timeout 30s dbus-run-session -- cargo test -p cirrove-desktop --test tray --locked -- --ignored --test-threads=1
       - run: desktop-file-validate packaging/desktop/io.github.Dandiccf.Cirrove.desktop
+      - run: desktop-file-validate packaging/desktop/io.github.Dandiccf.Cirrove.Tray.desktop
+      # The autostart entry and the tray unit have to agree with each other and
+      # stay free of any desktop they would have to guess at packaging time.
+      - name: Tray autostart entry and unit
+        run: cargo test -p cirrove-desktop --test packaging --locked
       - name: Verify kernel FUSE access
         run: |
           test -c /dev/fuse || sudo modprobe fuse
@@ -66,6 +78,13 @@ jobs:
       - name: Build kernel fixtures
         run: cargo test -p cirrove-service --lib --test read_only --test writable_session --locked --no-run
       - name: Filesystem, isolated local writes and mount lifecycle
+        # real_reclamation_reaches_a_mount_that_only_reads needs a floor this
+        # fixture can reach: it retains a flat 16.5 MiB however much it reads,
+        # while the shipped floor is 64 MiB derived from a daemon holding
+        # 184,000 nodes. The other tests in this step do not read the variable.
+        env:
+          CIRROVE_RECLAIM_FLOOR_BYTES: "8388608"
+          CIRROVE_RECLAIM_INTERVAL_SECONDS: "1"
         # Keep independent mounts from competing with latency/memory fixtures.
         # Each fixture still exercises its own concurrent requests/accounts.
         run: timeout 150s cargo test -p cirrove-service --test read_only --locked real_ -- --ignored --nocapture --test-threads=1
@@ -86,7 +105,10 @@ jobs:
         # locally standalone nor when the same group is run one at a time. The
         # budget matches the read-only step; serialized, the group takes 34 s
         # here.
-        run: timeout 150s cargo test -p cirrove-service --test writable_session --locked real_ -- --ignored --nocapture --test-threads=1
+        # The full-device test is skipped here and run by the loop-image step
+        # below: this one supplies no filesystem for it to fill, and it refuses
+        # rather than silently measuring the wrong device.
+        run: timeout 150s cargo test -p cirrove-service --test writable_session --locked real_ -- --ignored --nocapture --test-threads=1 --skip real_a_save_on_a_full_device_is_reported_as_a_device_and_not_a_budget
       - name: A save on a filesystem with no free block
         # The test consumes every free block of the filesystem it is handed, so
         # it gets one of its own rather than the runner's disk: a loop-backed
@@ -105,6 +127,72 @@ jobs:
           sudo chown "$(id -u):$(id -g)" "$mount"
           trap 'sudo umount "$mount" || true' EXIT
           CIRROVE_FULL_DISK_DIR="$mount" timeout 120s cargo test -p cirrove-service --test working_files --locked a_genuinely_full_filesystem_explains_what_to_free -- --ignored --nocapture
+          # The same device, now through a writable kernel mount. The journal
+          # test drives the journal directly and the budget test drives a mount;
+          # neither has ever put a mount on a physically full filesystem, which
+          # is why the ledger recorded the device case as a mapping and not a
+          # journey. Without the mapping an application gets EIO here, not
+          # ENOSPC.
+          rm -f "$mount"/ballast
+          CIRROVE_FULL_DISK_DIR="$mount" timeout 120s cargo test -p cirrove-service --test writable_session --locked real_a_save_on_a_full_device_is_reported_as_a_device_and_not_a_budget -- --ignored --nocapture --test-threads=1
+      - name: A journal on a device that starts refusing writes
+        # The process-death half of the crash box is closed: all 31 runtime
+        # durable transitions are crossed by a process that then dies. What is
+        # left is faults below the process, which need dm-flakey and root --
+        # available here, and already used for modprobe and mount.
+        #
+        # Three invocations because the test cannot run dmsetup and the shell
+        # that can has to interleave with it. Unmount before touching the table:
+        # `dmsetup suspend` flushes, which fails once ext4 has entered
+        # emergency_ro, so the obvious order cannot work after a fault. And heal
+        # by unmounting rather than remounting: `mount -o remount,rw` reports
+        # success on an emergency_ro filesystem without clearing it, which is a
+        # silent no-op.
+        #
+        # See docs/benchmarks/journal-under-io-faults.json. A true power cut
+        # stays out of reach and is named there rather than substituted for.
+        run: |
+          set -euo pipefail
+          sudo modprobe dm_flakey
+          image="$RUNNER_TEMP/flaky.img"
+          mount="$RUNNER_TEMP/flaky"
+          sectors=262144
+          mkdir -p "$mount"
+          truncate -s 128M "$image"
+          loop=$(sudo losetup --find --show "$image")
+          table() { sudo dmsetup suspend cirrove-flaky; sudo dmsetup reload cirrove-flaky --table "$1"; sudo dmsetup resume cirrove-flaky; }
+          sudo dmsetup create cirrove-flaky --table "0 $sectors flakey $loop 0 1 0"
+          trap 'sudo umount "$mount" 2>/dev/null || true; sudo dmsetup remove cirrove-flaky 2>/dev/null || true; sudo losetup -d "$loop" 2>/dev/null || true' EXIT
+          sudo mkfs.ext4 -q -F -m 0 /dev/mapper/cirrove-flaky
+          sudo mount /dev/mapper/cirrove-flaky "$mount"
+          sudo chown "$(id -u):$(id -g)" "$mount"
+          only=a_journal_on_a_failing_device_refuses_without_losing_what_was_durable
+          phase() { CIRROVE_FLAKY_DIR="$mount" CIRROVE_FLAKY_PHASE="$1" timeout 120s cargo test -p cirrove-service --test working_files --locked "$only" -- --ignored --nocapture --test-threads=1; }
+          phase seed
+          sync
+          table "0 $sectors flakey $loop 0 0 1 1 error_writes"
+          phase fault
+          sudo umount "$mount" 2>/dev/null || sudo umount -l "$mount"
+          table "0 $sectors flakey $loop 0 1 0"
+          sudo e2fsck -p -f /dev/mapper/cirrove-flaky >/dev/null 2>&1 || true
+          sudo mount /dev/mapper/cirrove-flaky "$mount"
+          sudo chown "$(id -u):$(id -g)" "$mount"
+          phase recover
+          # A lying fsync: the write is acknowledged and discarded. The journal
+          # catches it through a generation check that reads back what it wrote.
+          # Torn writes are deliberately NOT here: corrupt_bio_byte hits ext4's
+          # metadata as readily as the journal's data, so it says nothing about
+          # the journal. See the artifact.
+          phase seed
+          sync
+          table "0 $sectors flakey $loop 0 0 1 1 drop_writes"
+          phase lie
+          sudo umount "$mount" 2>/dev/null || sudo umount -l "$mount"
+          table "0 $sectors flakey $loop 0 1 0"
+          sudo e2fsck -p -f /dev/mapper/cirrove-flaky >/dev/null 2>&1 || true
+          sudo mount /dev/mapper/cirrove-flaky "$mount"
+          sudo chown "$(id -u):$(id -g)" "$mount"
+          phase after_lie
       - run: cargo build --workspace --locked
       - run: python3 scripts/smoke.py
       - run: python3 scripts/test-observe-service.py

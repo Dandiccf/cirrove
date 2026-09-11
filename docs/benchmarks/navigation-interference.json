@@ -1,0 +1,29 @@
+{
+  "question": "Does indexing a collection, or downloading through it, make a first visit to a directory materially slower than the same first visit on a daemon that is idle and fully indexed?",
+  "why_now": "The row says 'responsive navigation during initial indexing and competing downloads' and names no number, and the code's only bound is a sixty-second give-up deadline. So 'responsive' cannot be failed. live-navigation-during-indexing.json measured the case properly and said as much in its own decision rule -- 'the box is not tickable on this evidence whatever the numbers' -- and it was right: it had good figures and nothing to hold them against. What is missing is not another measurement but a question that can come out wrong.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-11",
+  "why_a_ratio_and_not_a_latency": "An absolute bar on a first visit measures the provider and the network, which this project does not control and which differ on every machine. The row is about interference: the clause is 'during initial indexing and competing downloads', and the failure it names is the daemon's own work getting in the way of the user's. A ratio against an idle control on the same machine, the same network and the same collection removes everything that is not that.",
+  "registration_honesty": "One arm's answer is already known and this registration cannot pretend otherwise: the competing-download factor on p95 was measured at 1.37 and replicated at 1.36. The INDEXING factor is unknown, because the idle control has never been run -- every previous run measured during indexing and had nothing to compare against. The bound below is therefore set for a number nobody has seen, and the download arm is carried along as a check that the method reproduces what it already produced.",
+  "arms": {
+    "idle": "The collection fully indexed, nothing downloading, the daemon quiet. First visits to directories not previously listed.",
+    "indexing": "The same, while the collection is being indexed from nothing.",
+    "indexing_and_download": "The same again, with a large file being read through the mount."
+  },
+  "endpoint": "p95 of a first-visit listing in each arm, and the ratio of each to the idle arm. At least 50 previously unvisited directories per arm, on one machine, one network and one collection, within one session.",
+  "predictions": {
+    "P1": "Every arm reaches at least 50 first visits and no listing fails, or the run measures nothing and says so.",
+    "P2": "The indexing arm's p95 is under twice the idle arm's. Two, because that is where the daemon's own work has stopped being a background cost and become half of what the user is waiting for.",
+    "P3": "The download arm's p95 is under twice the idle arm's as well, and its ratio against the indexing arm reproduces the 1.36-1.37 already measured, within the spread of those two runs.",
+    "P4": "No single listing in any arm exceeds five seconds. The tail is what a person calls a freeze, and a percentile cannot see it. Five, because the existing maximum across two runs is 1,184.9 ms and a bound four times that is loose enough to be about freezes rather than about slowness."
+  },
+  "decision_rule": {
+    "P2_and_P4_hold": "The row's clause is met on the reading that can be failed: the daemon's own work is a background cost rather than the thing the user waits for. The row can be ticked, naming this endpoint rather than an absolute latency.",
+    "P2_fails": "Indexing is the cost. That is a real finding and a fixable one -- it is contention inside this project, not the provider -- and the row stays open with a number attached.",
+    "P4_fails": "A freeze happened. That outranks every percentile in this artifact and the row stays open regardless of the ratios.",
+    "P3_fails_alone": "The method did not reproduce a figure it has produced twice. Then the run says nothing about P2 either, and is repeated rather than interpreted."
+  },
+  "what_this_does_not_cover": "One machine, one network, one collection of 184,000 items. A ratio removes the provider from the comparison; it does not make the result portable to a collection ten times the size.",
+  "result": null,
+  "verdict": null
+}

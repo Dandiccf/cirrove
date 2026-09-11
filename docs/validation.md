@@ -2327,3 +2327,144 @@ The consequence for milestone 3 is not optional: the same daemon doing the
 same work rests at 108 MiB or 211 MiB depending on a setting nobody has
 chosen, so a bounded-memory box cannot be answered without naming the
 allocator.
+
+## Pinning on a real drive, and a renewal the provider performed
+
+`docs/benchmarks/live-offline-pinning.json`, 2026-09-11, on an isolated
+validation connection to the user's business drive with their permission.
+
+Every pinning test uses a fixture provider, and a fixture cannot produce what
+a real drive does: content revisions that change block keys, a linked
+collection whose scope is not the account's own drive, a size the index and
+the provider disagree about. So the five milestone 3 rows all carried the
+same last clause — no measured evidence on a real account.
+
+One fixture folder, two generated files, one of them pinned through the same
+request path `cirrove pin` uses:
+
+| | |
+|---|---|
+| reserved | 9,000,096 bytes |
+| resident | 9,000,096 bytes |
+| blocks | 3 |
+| provider content requests for the pinned read | **0** |
+| for the unpinned control | **1** |
+
+`reserved` equals `resident` exactly, and both are the file's 9,000,000 bytes
+plus three block digests at 32 each. That is the reservation correction made
+the day before — reservations were made in logical bytes while the cache
+stores a SHA-256 per block — arriving at the right answer on a real drive.
+
+Offline is established by counting rather than by severing the connection: a
+read that makes no provider request cannot depend on one. The unpinned
+control is what makes that mean something; without it a warm cache would look
+identical.
+
+**The subscription renewal, separately.** The notification validator held a
+real Socket.IO subscription for its full lifetime, Microsoft renewed it, and a
+change made afterwards arrived through the renewed connection. That is a
+renewal the provider performed rather than one a fixture simulated, and it is
+what the milestone 1 push row had never had.
+
+What none of this closes: recursive folder pinning is still fixture-only,
+behaviour as the cache budget fills is not built, and the one notification in
+eleven that was never delivered is still unexplained.
+
+## A CI failure that did not reproduce
+
+`cached_navigation_survives_stalled_reads_and_metadata_restart` failed once in
+CI on 2026-09-11 with `Resource temporarily unavailable` at the point where the
+test drops an engine and rebuilds one on the same state directory — the owner
+lock still held.
+
+It is recorded because a single red run is easy to wave away and this one sat
+on a branch that had changed engine lifetime handling, which is exactly the
+shape of thing that would cause it.
+
+It did not reproduce: 0 of 10 runs of that test alone locally, 0 of 6 runs of
+the whole target in parallel, and 0 occurrences across four subsequent CI runs
+of the same branch. It had never failed on `main` in the preceding eight runs
+either. One occurrence in five is not enough to act on and not enough to
+dismiss, so it is written down rather than decided.
+
+## A folder's eTag moves right after it is created, and a fix relied on it not moving
+
+Found while verifying a fix on the user's live drive, after that fix was committed
+with a green suite and installed on a running daemon. It was wrong, and the way it
+was wrong is the useful part.
+
+The change let a folder removal be queued behind its own creation, with the real
+identity and ETag substituted from the creation's receipt before the DELETE goes
+out. That machinery already existed for file relocation and file removal; folder
+removal had simply never been listed. Adding it made `mkdir` followed quickly by
+`rmdir` stop answering `EINVAL`.
+
+It also stopped the deletions from happening.
+
+**The measurement.** A sweep of create-then-remove at fixed delays through the
+mount, three runs per delay, then the mutation journal read afterwards:
+
+| chained to its own creation | outcome |
+| --- | ---: |
+| yes | 14 of 14 `Conflict` |
+| no | 5 of 5 `Applied` |
+
+Every chained removal lost. `rmdir` had already returned success to the caller, so
+fourteen empty folders stayed in the account while the mount showed them gone.
+
+**The cause, read off the store rather than assumed.** The creation receipt and
+the settled item, same folder:
+
+```
+receipt    "{B229781C-A6AB-467E-B6C9-E7E4778B3B91},1"
+delta feed "{B229781C-A6AB-467E-B6C9-E7E4778B3B91},2"
+```
+
+Same GUID, version bumped. OneDrive moves a folder's eTag immediately after
+creation, so a DELETE conditioned on the create response loses its precondition.
+
+This does not contradict `folder_etag_and_mtime_ignore_their_children`, which
+measured that a folder's eTag does *not* move when a child is added. Both are
+true and they constrain different things: a folder's eTag is useless as a
+precondition against its contents, and stale as a precondition from its creation.
+
+**Why the suite did not catch it.** The synthetic provider echoed the create
+receipt's eTag straight back into its stored node, so it accepted exactly what a
+live drive rejects. It now stores a moved eTag, and the test that would have
+caught this asserts the outcome rather than the errno: after the dust settles the
+folder is gone from the provider and nothing sits in `Conflict`. Re-chaining makes
+it fail on precisely that.
+
+**What shipped instead.** `Writeback::rmdir` refuses the whole unsettled window
+with `EBUSY` -- not now, try again -- and builds the removal from the object's
+current remote node once the creation has settled. `EINVAL` is gone either way; it
+is gone by refusing honestly rather than by succeeding falsely.
+
+**The second finding.** Fourteen namespace changes sat terminally stuck in a live
+journal and no status field said so: a conflict hid the directory locally, left it
+remotely, and reported nothing. `AccountStatus` now carries `stuck_changes`, and
+the daemon on that drive reported `14`.
+
+**And the way out, measured on the same fourteen.** `cirrove discard-stuck`
+abandons a removal the provider never took. It discards rather than retries: a
+conflict means the remote moved, and re-sending a delete against whatever is
+there now is how a stale intent destroys someone else's change. Run against the
+live drive:
+
+| step | result |
+| --- | --- |
+| `discard-stuck` | abandoned 14; `stuck_changes` 14 → 0 |
+| folders back in the mount | 14 of 14 |
+| second `rmdir` | 10 applied, 4 conflicted again |
+| their local ETags | `,1` while the delta feed already held `,2` |
+| `discard-stuck` again, then `rmdir` | 4 of 4 applied |
+
+So a discard restores *visibility*, not *freshness*. The restored object keeps
+the ETag it held when the removal was built, and a second attempt made before the
+delta feed catches up is refused for the original reason -- and is itself
+discardable. Making the discard follow the remote was tried and does not help:
+the node it would follow is the one this journal stored, which is the stale one.
+Refreshing from the provider is the feed's job, and doing it inside a discard
+would be a second, worse copy of it.
+
+Final state of that drive: no leftovers, 192 mutations, all applied.

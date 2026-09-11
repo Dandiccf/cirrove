@@ -516,8 +516,23 @@ fn refuse_to_migrate_under_a_running_daemon(state: &Path, db: &Path) -> Result<(
     if daemon_lock(state).is_ok() {
         return Ok(()); // nothing is running; migrating on open is the normal path
     }
-    let Ok(version) = cirrove_store::schema_version(db) else {
-        return Ok(()); // no database yet, so nothing to migrate
+    let version = match cirrove_store::schema_version(db) {
+        Ok(version) => version,
+        // Absent really is nothing to migrate. Present and unreadable is a
+        // different thing and must not borrow that answer: a daemon is running,
+        // and a guard that opens the gate whenever it cannot see is worse than
+        // no guard, because the caller believes it was checked. SQLite can fail
+        // this read for reasons that pass -- a busy database, a hot journal, no
+        // descriptors left -- and every one of them used to disable the refusal
+        // silently.
+        Err(_) if !db.exists() => return Ok(()),
+        Err(error) => bail!(
+            "a daemon is running and this account's index at {} could not be read \
+             to check its schema ({error}). Refusing rather than guessing: opening \
+             it here may migrate it and stop that daemon reading its own metadata. \
+             Stop cirroved and try again.",
+            db.display()
+        ),
     };
     if version < cirrove_store::SCHEMA_VERSION {
         bail!(
@@ -737,6 +752,91 @@ fn update_enabled(state: &Path, select: impl Fn(&Account) -> bool, enabled: bool
     account.enabled = enabled;
     settings.save(state)
 }
+/// Remove an account, refusing while it still holds work nobody has sent.
+///
+/// Built because milestone 3 asks that unsent changes survive "account disable
+/// and removal" and there was no removal path at all -- so a test of the clause
+/// would have asserted that a thing which does not exist does not delete a
+/// journal, and would have passed before and after any change for the same
+/// reason.
+///
+/// Three deliberate narrownesses. It refuses while the account is enabled, so
+/// removal never races a live mount and reuses machinery that already exists.
+/// It refuses when the journal still holds unsent records, naming how many,
+/// unless the caller says explicitly to discard them -- that refusal is the
+/// clause. And it MOVES the account directory to `removed/` rather than
+/// deleting it, which is what AGENTS.md asks of anything that would otherwise
+/// be a recursive delete near a mount; a human empties that directory.
+///
+/// The mount directory itself is never touched. A stray local file there is
+/// already asserted to survive a remount, and removal must not become the
+/// exception.
+pub fn forget(state: &Path, label: &str, discard_unsent: bool) -> Result<String> {
+    let _lock = config_lock(state)?;
+    let mut settings = Settings::load(state)?;
+    let index = settings
+        .accounts
+        .iter()
+        .position(|a| a.label == label)
+        .context("no account carries that label")?;
+    let account = settings.accounts[index].clone();
+    let _operation = account_operation(state, &account.id)?;
+    if account.enabled {
+        bail!("{label} is still enabled; disable it first so removal cannot race a running mount");
+    }
+    let directory = state.join("accounts").join(&account.id);
+    let unsent = unsent_uploads(&directory, &account.id)?;
+    if unsent > 0 && !discard_unsent {
+        bail!(
+            "{label} still holds {unsent} change(s) that have not reached the cloud. \
+Enable it and let them upload, or pass --discard-unsent to remove them with it."
+        );
+    }
+    let removed = state.join("removed");
+    private_dir(&removed)?;
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let target = removed.join(format!("{}-{stamp}", account.id));
+    if directory.exists() {
+        std::fs::rename(&directory, &target)
+            .with_context(|| format!("could not move {} aside", directory.display()))?;
+    }
+    settings.accounts.remove(index);
+    settings.save(state)?;
+    Ok(format!(
+        "removed {label}; its local data was moved to {} rather than deleted{}",
+        target.display(),
+        if unsent > 0 {
+            format!(", including {unsent} unsent change(s)")
+        } else {
+            String::new()
+        }
+    ))
+}
+/// How many uploads are still waiting, without disturbing them.
+///
+/// Opening the journal takes its lock, so this runs only under
+/// `account_operation` and only for an account nothing is running.
+fn unsent_uploads(directory: &Path, owner: &str) -> Result<usize> {
+    let journal = directory.join("journal");
+    if !journal.exists() {
+        return Ok(0);
+    }
+    let open = crate::journal::UploadJournal::open(&journal, owner, u64::MAX)
+        .context("could not read the account's pending uploads")?;
+    let rows = open.list(0, 10_000)?;
+    Ok(rows
+        .iter()
+        .filter(|r| {
+            !matches!(
+                r.state,
+                crate::journal::UploadState::Uploaded | crate::journal::UploadState::Failed
+            )
+        })
+        .count())
+}
 pub async fn keyring_check() -> Result<()> {
     let key = format!("selftest-{}", uuid::Uuid::new_v4());
     let value = secrecy::SecretString::from("cirrove-synthetic-keyring-check");
@@ -789,6 +889,29 @@ mod tests {
             .expect_err("a running daemon must block the migration");
         let message = format!("{refusal}");
         assert!(message.contains("Install the matching build"), "{message}");
+
+        // An index that is there but cannot be read right now is not the same as
+        // no index, and the guard must not treat it as one. SQLite fails this
+        // read for reasons that pass -- a busy database, a hot journal, no
+        // descriptors left -- and treating any of them as "nothing to migrate"
+        // opens the gate at exactly the moment the guard cannot see.
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(&db).expect("db metadata").permissions();
+        std::fs::set_permissions(&db, std::fs::Permissions::from_mode(0o000))
+            .expect("make the index unreadable");
+        let blind = super::refuse_to_migrate_under_a_running_daemon(&state, &db);
+        std::fs::set_permissions(&db, mode).expect("restore");
+        let blind = format!(
+            "{}",
+            blind.expect_err("an unreadable index under a running daemon must be refused")
+        );
+        assert!(blind.contains("could not be read"), "{blind}");
+
+        // Absent really is nothing to migrate, and must stay allowed -- a guard
+        // that refused a first run would make a new account unusable.
+        std::fs::remove_file(&db).expect("remove the index");
+        super::refuse_to_migrate_under_a_running_daemon(&state, &db)
+            .expect("no index at all is nothing to migrate");
         drop(held);
     }
     #[test]

@@ -46,9 +46,13 @@ async fn main() -> Result<()> {
         tokio::select! {_=tokio::signal::ctrl_c()=>{},_=terminate.recv()=>{}}
         shutdown.cancel();
     });
+    // Not "read-only": `Manager::start` supplies a write factory, so an account
+    // carrying a write grant gets a writable mount. The log said otherwise long
+    // after that stopped being true, and an operator reading it had no way to
+    // tell whether their own mount could be written to.
     tracing::info!(
         version = env!("CARGO_PKG_VERSION"),
-        "starting Cirrove read-only account service"
+        "starting Cirrove account service"
     );
     let (manager, worker) = cirrove_service::manager::Manager::start(state, cancel.clone());
     let result = serve_managed(db, socket, cancel.clone(), Some(manager)).await;

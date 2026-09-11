@@ -451,3 +451,111 @@ fn actual_sigkill_preserves_pending_outcome_and_acknowledged_receipt() {
         assert_eq!(record.receipt.is_some(), phase != "applying");
     }
 }
+
+/// Changes the daemon has given up on are counted, and the ones it is still
+/// working on are not.
+///
+/// A terminal namespace mutation is a disagreement the mount has already acted
+/// on locally and the provider never took. Fourteen of them sat in a live
+/// account's journal while `cirrove status` reported nothing of the kind -- the
+/// directories were hidden in the mount and present in the drive, and no field
+/// anywhere said so. This is the number that says so.
+///
+/// Counting `Pending` or `Applying` would make the figure useless: those are the
+/// ordinary state of a working daemon and it would never read zero.
+#[test]
+fn only_changes_the_daemon_has_stopped_retrying_are_counted_as_stuck() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut j = journal(&tmp.path().join("journal"));
+    assert_eq!(
+        j.stuck_mutations().unwrap(),
+        0,
+        "a fresh journal is stuck on nothing"
+    );
+
+    // Queued and in flight: the daemon is still working, so nothing is stuck.
+    let queued = j.enqueue_mutation(request()).unwrap();
+    assert_eq!(j.stuck_mutations().unwrap(), 0);
+    let active = j.claim_mutation().unwrap().unwrap();
+    assert_eq!(active.id, queued.id);
+    assert_eq!(j.stuck_mutations().unwrap(), 0);
+
+    // Given up on: counted.
+    j.defer_mutation(
+        active.id,
+        active.attempt.unwrap(),
+        MutationState::Conflict,
+        Duration::from_secs(0),
+    )
+    .unwrap();
+    assert_eq!(
+        j.stuck_mutations().unwrap(),
+        1,
+        "a conflicted change is one the provider never took"
+    );
+
+    // Applied: not stuck, and it must not be double-counted against the one
+    // that is. A different item, because a conflict deliberately blocks the
+    // linear chain on the resource it touched -- claiming another change to the
+    // same file is exactly what must not happen.
+    let mut other = request();
+    if let MutationIntent::Relocate { before, name, .. } = &mut other.intent {
+        before.id = "second-file".into();
+        before.name = "second.txt".into();
+        // The destination slot is a resource too, so it has to differ as well.
+        *name = "second-destination.txt".into();
+    }
+    let second = j.enqueue_mutation(other).unwrap();
+    let claimed = j.claim_mutation().unwrap().unwrap();
+    assert_eq!(claimed.id, second.id);
+    j.acknowledge_mutation(
+        claimed.id,
+        claimed.attempt.unwrap(),
+        receipt(&claimed.request),
+    )
+    .unwrap();
+    assert_eq!(
+        j.stuck_mutations().unwrap(),
+        1,
+        "an applied change must not be counted, and must not hide the stuck one"
+    );
+}
+
+/// What it refuses, and why each refusal is the right answer rather than a gap.
+#[test]
+fn discarding_refuses_anything_it_cannot_unwind_cleanly() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut j = journal(&tmp.path().join("journal"));
+
+    // Still being worked on: not stuck, and discarding would race the worker.
+    let live = j.enqueue_mutation(request()).unwrap();
+    assert!(matches!(
+        j.discard_stuck_removal(live.id),
+        Err(JournalError::Stale)
+    ));
+
+    // A stuck creation leaves the local tree depending on it -- children
+    // parented to a folder that was never made -- which is a different problem
+    // from clearing a flag, and is refused rather than half-handled. Its own
+    // journal, so that the claim above cannot pick the wrong pending change.
+    let other = tempfile::tempdir().unwrap();
+    let mut j = journal(&other.path().join("journal"));
+    let object = j
+        .create_namespace_directory(scope(), "root".into(), "never-made".into())
+        .unwrap();
+    let creation = j.claim_mutation().unwrap().unwrap();
+    assert_eq!(creation.id, object.latest.unwrap());
+    j.defer_mutation(
+        creation.id,
+        creation.attempt.unwrap(),
+        MutationState::Conflict,
+        Duration::from_secs(0),
+    )
+    .unwrap();
+    assert!(matches!(
+        j.discard_stuck_removal(creation.id),
+        Err(JournalError::Intent)
+    ));
+    // It stays counted, so refusing to clear it never hides it.
+    assert_eq!(j.stuck_mutations().unwrap(), 1);
+}
