@@ -129,7 +129,8 @@ async fn the_menu_offers_settings_and_quit_beside_the_accounts() {
 
     let labels: Vec<String> = root
         .2
-        .into_iter()
+        .iter()
+        .filter_map(|child| child.try_clone().ok())
         .filter_map(|child| {
             let structure = zbus::zvariant::Structure::try_from(child).ok()?;
             let properties = HashMap::<String, zbus::zvariant::OwnedValue>::try_from(
@@ -144,6 +145,39 @@ async fn the_menu_offers_settings_and_quit_beside_the_accounts() {
     assert!(
         labels.iter().any(|l| l.contains("settings")),
         "no settings entry: {labels:?}"
+    );
+    // The account row is a submenu now, and what is in it is the point: opening
+    // the folder and changing the mount. A flat row would read as an account
+    // with nothing you can do to it.
+    let account_children: Vec<String> = root
+        .2
+        .iter()
+        .filter_map(|child| {
+            let structure = zbus::zvariant::Structure::try_from(child.try_clone().ok()?).ok()?;
+            let nested = Vec::<zbus::zvariant::OwnedValue>::try_from(
+                structure.fields().get(2)?.try_clone().ok()?,
+            )
+            .ok()?;
+            Some(nested)
+        })
+        .flatten()
+        .filter_map(|child| {
+            let structure = zbus::zvariant::Structure::try_from(child).ok()?;
+            let properties = HashMap::<String, zbus::zvariant::OwnedValue>::try_from(
+                structure.fields().get(1)?.try_clone().ok()?,
+            )
+            .ok()?;
+            String::try_from(properties.get("label")?.try_clone().ok()?).ok()
+        })
+        .collect();
+    assert!(
+        account_children.iter().any(|l| l == "Open folder"),
+        "no open entry under the account: {account_children:?}"
+    );
+    // publish_for_test seeds a mounted account, so the offer must be to unmount.
+    assert!(
+        account_children.iter().any(|l| l == "Unmount"),
+        "a mounted account must offer to unmount: {account_children:?}"
     );
     assert!(
         labels.iter().any(|l| l.contains("Quit")),

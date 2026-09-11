@@ -89,18 +89,26 @@ Only one copy runs. The tray takes the well-known name
 what makes shipping two autostart mechanisms safe rather than a double-start bug.
 
 A right click opens a menu, served as `com.canonical.dbusmenu` at `/MenuBar`:
-each account with its state, then the settings window and quitting the tray. A
-left click opens the mount when exactly one is mounted and otherwise does
-nothing, which is the gesture that worked before the menu existed.
+each account with its state as a submenu holding *Open folder* and
+*Mount*/*Unmount*, then the settings window and quitting the tray. A left click
+opens the mount when exactly one is mounted and otherwise does nothing, which is
+the gesture that worked before the menu existed.
+
+Mounting from the tray changes the saved preference through
+`accounts::set_enabled_by_id` -- the same call the window and the CLI make, which
+holds the configuration lock and the per-account operation lock. This was
+described for a while as needing a daemon control verb first, on the grounds that
+a second writer would race the window over one file. That was wrong: the locks
+were already there and a third caller is serialised by them like any other.
+Acknowledgement is free, because the tray is subscribed and the daemon's mount
+event redraws the row. A failure has nowhere to go but the log, which the window
+does better.
 
 What the menu may hold is constrained by the milestone rather than by taste --
 *"no control or state may be reachable only through a tray or only through one
 file manager"* -- because a tray host is absent on stock GNOME and on any bare
-window manager. Every entry is a shortcut to something the window also does.
-Mount and unmount are therefore missing rather than forgotten: the window changes
-them by writing the account settings, and a second process doing the same is a
-race over one file. They belong here once the daemon has a verb for them, which
-is the argument that put pinning behind the control socket.
+window manager. Every entry is a shortcut to something the window also does, and
+mounting qualifies for exactly that reason.
 
 ## Starting it at login
 

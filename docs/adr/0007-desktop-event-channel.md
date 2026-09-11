@@ -19,9 +19,15 @@ act on an account the daemon has since dropped.
 
 Not implemented: `pin` and `transfer` events, and the `paths` batch query
 Nautilus needs. All three reach into the engine, and the argument below is that
-the protocol groundwork should land first. Mount and unmount are not in the menu
-for the same reason: they need a control verb, not a second writer of the
-settings file.
+the protocol groundwork should land first.
+
+Mount and unmount *are* in the menu, and were held back on a claim that did not
+survive being checked. The claim was that they needed a control verb because a
+second writer would race the window over the settings file.
+`accounts::update_enabled` takes the configuration lock and the per-account
+operation lock, and the window and the CLI both go through it, so a third caller
+is serialised by the same two locks and there was never a race. The verb may
+still be worth having one day; it was not what was in the way.
 
 Recent activity -- the thing that would make the menu worth opening -- is now a
 milestone 5 box rather than an idea. It does not fit this channel: everything

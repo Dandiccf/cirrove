@@ -198,6 +198,18 @@ impl TrayState {
         account.mounted.then(|| account.mount_path.clone())
     }
 
+    /// The account id of the nth row, matching `rows`. Needed to act on an
+    /// account rather than only to open it, and read back from state at click
+    /// time so a menu can never act on one the daemon has since dropped.
+    pub fn id_of(&self, index: usize) -> Option<String> {
+        self.accounts.keys().nth(index).cloned()
+    }
+
+    /// Whether the nth row is mounted, matching `rows`.
+    pub fn mounted_at(&self, index: usize) -> Option<bool> {
+        Some(self.accounts.values().nth(index)?.mounted)
+    }
+
     /// The folder a click should open, if exactly one is mounted.
     pub fn single_mount(&self) -> Option<PathBuf> {
         let mut mounted = self.accounts.values().filter(|a| a.mounted);
@@ -388,6 +400,7 @@ fn open_settings() {
 pub async fn publish(
     state: Arc<Mutex<TrayState>>,
     revision: Arc<std::sync::atomic::AtomicU32>,
+    state_dir: PathBuf,
 ) -> Result<zbus::Connection> {
     let item = StatusNotifierItem {
         state: state.clone(),
@@ -397,7 +410,10 @@ pub async fn publish(
         .serve_at("/StatusNotifierItem", item)?
         // The item only names a path; the menu is a second interface, and a
         // shell that finds nothing there shows an empty menu.
-        .serve_at(menu::MENU_PATH, menu::DbusMenu::new(state, revision))?
+        .serve_at(
+            menu::MENU_PATH,
+            menu::DbusMenu::new(state, revision, state_dir),
+        )?
         .build()
         .await
         .context("could not publish the tray item on the session bus")
@@ -419,6 +435,10 @@ pub async fn publish_for_test() -> Result<zbus::Connection> {
     publish(
         Arc::new(Mutex::new(state)),
         Arc::new(std::sync::atomic::AtomicU32::new(1)),
+        // Never written: the bus tests read the layout and do not click. A path
+        // that does not exist is the safer fixture, because a test that did
+        // click would fail rather than touch a real account.
+        PathBuf::from("/nonexistent/cirrove-tray-test"),
     )
     .await
 }
@@ -550,10 +570,10 @@ async fn announce(connection: &zbus::Connection) {
 }
 
 /// Publish the item and keep it in step with the daemon until cancelled.
-pub async fn run(socket: PathBuf) -> Result<()> {
+pub async fn run(socket: PathBuf, state_dir: PathBuf) -> Result<()> {
     let state = Arc::new(Mutex::new(TrayState::default()));
     let revision = Arc::new(std::sync::atomic::AtomicU32::new(1));
-    let connection = publish(state.clone(), revision.clone()).await?;
+    let connection = publish(state.clone(), revision.clone(), state_dir).await?;
 
     if !claim_single_instance(&connection).await? {
         // Not an error: on a machine where two autostart mechanisms both fire,

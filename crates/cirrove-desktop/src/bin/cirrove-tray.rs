@@ -15,6 +15,11 @@ struct Args {
     /// Control socket of the daemon to follow. Defaults to the usual one.
     #[arg(long)]
     socket: Option<PathBuf>,
+    /// Account settings directory. Defaults to the usual one; pass it alongside
+    /// `--socket` when following an isolated development daemon, so that a
+    /// mount action changes that daemon's accounts and not the real ones.
+    #[arg(long)]
+    state_dir: Option<PathBuf>,
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -24,5 +29,9 @@ async fn main() -> Result<()> {
         Some(socket) => socket,
         None => cirrove_service::socket_path()?,
     };
-    cirrove_desktop::tray::run(socket).await
+    let state_dir = match args.state_dir {
+        Some(state_dir) => state_dir,
+        None => cirrove_service::state_dir()?,
+    };
+    cirrove_desktop::tray::run(socket, state_dir).await
 }
