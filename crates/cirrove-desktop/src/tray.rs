@@ -221,6 +221,60 @@ impl StatusNotifierItem {
         self.read().icon_name().to_string()
     }
 
+    /// What a host draws while `Status` is `NeedsAttention`.
+    ///
+    /// The spec switches icons with the status, and leaving this out is why the
+    /// first version of this tray drew nothing at all: it announced
+    /// NeedsAttention and then offered the host only an `IconName`, which the
+    /// host does not use in that state. Passive hid it and NeedsAttention had
+    /// nothing to show, so both states an account-less daemon can produce were
+    /// invisible.
+    #[zbus(property)]
+    fn attention_icon_name(&self) -> String {
+        self.read().icon_name().to_string()
+    }
+
+    /// Empty: the icons are themed names. Present because hosts read the whole
+    /// property set and a missing one is not always treated as "no pixmap".
+    #[zbus(property)]
+    fn icon_pixmap(&self) -> Vec<(i32, i32, Vec<u8>)> {
+        Vec::new()
+    }
+
+    #[zbus(property)]
+    fn attention_icon_pixmap(&self) -> Vec<(i32, i32, Vec<u8>)> {
+        Vec::new()
+    }
+
+    #[zbus(property)]
+    fn overlay_icon_name(&self) -> String {
+        String::new()
+    }
+
+    #[zbus(property)]
+    fn overlay_icon_pixmap(&self) -> Vec<(i32, i32, Vec<u8>)> {
+        Vec::new()
+    }
+
+    #[zbus(property)]
+    fn attention_movie_name(&self) -> String {
+        String::new()
+    }
+
+    /// No window to raise: this is a daemon's indicator, not an application.
+    #[zbus(property)]
+    fn window_id(&self) -> i32 {
+        0
+    }
+
+    /// There is no dbusmenu yet. The path is answered rather than omitted
+    /// because a host that reads the whole set and finds nothing here can drop
+    /// the item; `ItemIsMenu` false is what tells it to activate instead.
+    #[zbus(property)]
+    fn menu(&self) -> zbus::zvariant::OwnedObjectPath {
+        zbus::zvariant::ObjectPath::from_static_str_unchecked("/NoDbusmenu").into()
+    }
+
     /// `(icon name, pixmaps, title, description)`. Pixmaps stay empty: the icon
     /// is themed, and shipping our own would want the installed icon set that
     /// milestone 5 lists as separate work.
@@ -283,18 +337,42 @@ fn tracing_open_window() {
     eprintln!("cirrove-tray: no window action is wired up yet");
 }
 
-/// Publish the item and keep it in step with the daemon until cancelled.
-pub async fn run(socket: PathBuf) -> Result<()> {
-    let state = Arc::new(Mutex::new(TrayState::default()));
-    let item = StatusNotifierItem {
-        state: state.clone(),
-    };
-    let connection = zbus::connection::Builder::session()
+/// Publish the item on the session bus and hand back the connection.
+///
+/// Shared by `run` and by the integration test that checks a host is offered
+/// every property it may read. Exposed rather than duplicated because a test
+/// that builds its own item would assert a second implementation, and the one
+/// that shipped invisible was the real one.
+pub async fn publish(state: Arc<Mutex<TrayState>>) -> Result<zbus::Connection> {
+    let item = StatusNotifierItem { state };
+    zbus::connection::Builder::session()
         .context("no session bus; a tray needs one")?
         .serve_at("/StatusNotifierItem", item)?
         .build()
         .await
-        .context("could not publish the tray item on the session bus")?;
+        .context("could not publish the tray item on the session bus")
+}
+
+/// Publish an item carrying a state a host would have to draw.
+///
+/// Tests only. The state is deliberately not empty: an account-less tray is
+/// Passive, and Passive is the one status a host is allowed to ignore.
+pub async fn publish_for_test() -> Result<zbus::Connection> {
+    let mut state = TrayState::default();
+    state.apply(Event::Account {
+        account_id: "id".into(),
+        label: "test".into(),
+        state: "sign_in_required".into(),
+        enabled: true,
+        mounted: true,
+    });
+    publish(Arc::new(Mutex::new(state))).await
+}
+
+/// Publish the item and keep it in step with the daemon until cancelled.
+pub async fn run(socket: PathBuf) -> Result<()> {
+    let state = Arc::new(Mutex::new(TrayState::default()));
+    let connection = publish(state.clone()).await?;
 
     register_with_watcher(&connection).await?;
 
@@ -356,7 +434,7 @@ fn set_disconnected(state: &Arc<Mutex<TrayState>>, disconnected: bool) {
 /// Tell the shell to re-read. Properties are pull-based in this interface, so
 /// without these signals a shell keeps the first values forever.
 async fn notify(connection: &zbus::Connection) {
-    for signal in ["NewIcon", "NewStatus", "NewToolTip"] {
+    for signal in ["NewIcon", "NewAttentionIcon", "NewStatus", "NewToolTip"] {
         let _ = connection
             .emit_signal(
                 None::<&str>,

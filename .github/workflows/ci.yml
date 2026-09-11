@@ -57,6 +57,13 @@ jobs:
         run: cargo test -p cirrove-desktop --test window --locked --no-run
       - name: Native desktop with isolated account settings and status service
         run: timeout 30s xvfb-run -a dbus-run-session -- cargo test -p cirrove-desktop --test window --locked -- --ignored --test-threads=1
+      # The tray registered with a watcher, answered every property it declared,
+      # and drew nothing, because the set was incomplete and a host reads the
+      # whole of it. No unit test could see that; this one asks over a bus.
+      - name: Build tray item test
+        run: cargo test -p cirrove-desktop --test tray --locked --no-run
+      - name: Tray item offers a host every property it reads
+        run: timeout 30s dbus-run-session -- cargo test -p cirrove-desktop --test tray --locked -- --ignored --test-threads=1
       - run: desktop-file-validate packaging/desktop/io.github.Dandiccf.Cirrove.desktop
       - name: Verify kernel FUSE access
         run: |
