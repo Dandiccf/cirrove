@@ -153,10 +153,19 @@ impl Writeback {
                 return Err(Errno::ESTALE);
             }
             // A directory whose creation the provider has not acknowledged has no
-            // ETag, so no conditional removal can be expressed against it.
-            // Cancelling an in-flight creation is a different operation and is not
-            // implemented; reporting it as busy is honest, where letting it reach
-            // the journal would surface as a malformed request.
+            // ETag of its own yet.
+            //
+            // The journal would accept this: the removal chains behind its own
+            // creation and is rebound to that receipt before it is sent. What it
+            // would not do is cancel anything -- the folder is created in the
+            // cloud, syncs out to every other device, and then goes to the
+            // recycle bin, for a folder the user made and unmade in one breath.
+            // Cancelling an in-flight creation is the operation that avoids that
+            // round trip and it is not implemented, so this waits instead.
+            //
+            // `EBUSY` is the refusal because it is the one true thing to say:
+            // not now, try again. It used to be reached as `EINVAL` through the
+            // journal, which told the caller its request was malformed.
             if object.remote.is_none() {
                 return Err(Errno::EBUSY);
             }
