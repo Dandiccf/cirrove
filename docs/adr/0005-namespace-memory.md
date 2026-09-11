@@ -413,7 +413,26 @@ the largest machine — backwards for a requirement about running on any hardwar
 | G7 sustained plateau | same, sustained mode | over the final twelve hours of a twenty-four hour run, post-settle PSS must not exceed the hour-two sample by more than X percent |
 | Survivability | same, under `MemoryMax` with `MemorySwapMax=0` | no OOM kill; assertions intact |
 
-G3 currently fails at 476.4 / 514.8 / 546.7 MiB, missing by 1.86x to 2.14x.
+G3 failed at 476.4 / 514.8 / 546.7 MiB, missing by 1.86x to 2.14x. **It closed on
+2026-09-10** and reads 13.3 / 16.1 / 16.3 MiB, evidenced in
+`benchmarks/namespace-trim-closes-g3.json`: the reclamation tick returns the
+pages once a mount has shed its views and gone quiet. That was always the
+plausible outcome, because 96.4-96.8 percent of the retained RSS was
+allocator-held free arena rather than live data. It is now a hard assertion in
+the fixture rather than a reported number.
+
+The traversal **peak** is untouched by that and is what remains.
+`traversed_with_old_files` holds 492.8 / 490.7 / 504.1 MiB at 750,438 live views.
+Trimming returns pages after the fact; nothing about it lowers a high-water mark
+reached while the views were held, and whether this runs on modest hardware turns
+on the peak rather than on what is given back afterwards. Only shedding lowers it.
+
+The load-bearing number for that work is 637-657 bytes per live view, which
+reproduces to within 0.2 percent across independent runs while retained RSS
+varies by 6 percent. A peak budget is therefore a budget on concurrent live
+views, and at 650 bytes each, 256 MiB buys roughly 413,000 of them against the
+750,438 this fixture holds. That is the shape of the problem: not quite a factor
+of two.
 
 X in the plateau rule must be fixed from a two-hour pilot on `main` before the
 twenty-four hour run, not chosen by intuition. The only sustained datum that
