@@ -3378,3 +3378,69 @@ async fn real_reclamation_reaches_a_mount_that_only_reads() {
     session.umount_and_join().unwrap();
     engine.stop().await;
 }
+
+/// A user must be able to watch the pin budget fill, not only be refused by it.
+///
+/// The row asks for "clear unpin/free-space behaviour", and a refusal at the end
+/// is the least useful moment to learn that space was running out. This asserts
+/// the figure exists, moves as pins are made and released, and says something a
+/// person can act on in both states.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires a working /dev/fuse and fusermount3; run explicitly"]
+async fn real_the_pin_budget_is_visible_before_it_is_full() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    let (_provider, engine, _) = pin_fixture(&temp, &mount).await;
+
+    let empty = engine.pin_budget().await.unwrap();
+    assert_eq!(empty.reserved_bytes, 0);
+    assert!(
+        empty.pinnable_bytes > 0 && empty.pinnable_bytes < empty.cache_bytes,
+        "reservations may not claim the whole budget: {empty:?}"
+    );
+    assert_eq!(empty.used_per_mille(), 0);
+    assert!(
+        empty.explain().contains("available for ordinary reads"),
+        "an empty budget must say what the rest of the cache is for: {}",
+        empty.explain()
+    );
+
+    let request = cirrove_service::PinRequest {
+        path: Some("small.txt".into()),
+        ..Default::default()
+    };
+    assert!(engine.apply_pin_request(&request).await.unwrap().accepted);
+    let held = engine.pin_budget().await.unwrap();
+    assert!(
+        held.reserved_bytes > 0 && held.free_bytes < empty.free_bytes,
+        "the budget must move when a pin is made: {held:?}"
+    );
+    assert!(
+        held.used_per_mille() > 0,
+        "a pin that claims nothing measurable is not a pin: {held:?}"
+    );
+
+    // Full is the state the row is really about: the message has to name the two
+    // things that make room, because there is nothing else a user can do.
+    let full = cirrove_service::engine::PinBudget {
+        cache_bytes: 128 * 1024 * 1024,
+        pinnable_bytes: 96 * 1024 * 1024,
+        reserved_bytes: 96 * 1024 * 1024,
+        free_bytes: 0,
+    };
+    let words = full.explain();
+    assert!(
+        words.contains("Unpin") && words.contains("cache_bytes"),
+        "a full budget must name both remedies: {words}"
+    );
+    assert_eq!(full.used_per_mille(), 1000);
+
+    // And releasing gives it back.
+    assert!(engine.apply_unpin_request(&request).await.unwrap().accepted);
+    let released = engine.pin_budget().await.unwrap();
+    assert_eq!(
+        released.free_bytes, empty.free_bytes,
+        "unpinning must return the whole reservation: {released:?}"
+    );
+    engine.stop().await;
+}

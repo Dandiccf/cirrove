@@ -238,6 +238,13 @@ enum Command {
         #[arg(long)]
         socket: Option<PathBuf>,
     },
+    /// Show what is pinned and how much of the cache budget it has claimed.
+    Pins {
+        #[arg(default_value = "")]
+        label: String,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
     /// Release a pin and free the cache space it held.
     Unpin {
         #[arg(default_value = "")]
@@ -496,6 +503,42 @@ async fn main() -> Result<()> {
                 bytes,
             };
             report_pin(&cirrove_service::pin(&socket, &request).await?)?;
+        }
+        Command::Pins { label, socket } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            let status = status(&socket).await?;
+            let accounts: Vec<_> = status
+                .accounts
+                .iter()
+                .filter(|a| label.is_empty() || a.label == label)
+                .collect();
+            if accounts.is_empty() {
+                bail!("no account matches that label");
+            }
+            for account in accounts {
+                println!("{}", account.label);
+                if account.pins.is_empty() {
+                    println!("  nothing pinned");
+                } else {
+                    for pin in &account.pins {
+                        // resident against reserved is the difference between a
+                        // pin that is keeping content and one that is only an
+                        // accounting entry, so it leads.
+                        println!(
+                            "  {}  {:.0}/{:.0} MiB kept  {} block(s){}",
+                            pin.item,
+                            pin.resident as f64 / (1024.0 * 1024.0),
+                            pin.reserved as f64 / (1024.0 * 1024.0),
+                            pin.blocks,
+                            if pin.recursive { "  recursive" } else { "" }
+                        );
+                    }
+                }
+                println!("  {}", account.pin_budget.explain());
+            }
         }
         Command::Unpin {
             label,

@@ -48,6 +48,60 @@ pub struct PinStatus {
     /// from "nothing to fetch".
     pub blocks: u64,
 }
+
+/// How much of the cache pinning has claimed, and how close that is to the
+/// point where the next pin is refused.
+///
+/// Reported because "clear free-space behaviour" is a claim about what a user
+/// can find out before they are refused, not only about the refusal. A caller
+/// who can see the budget filling can act; one who learns about it from an
+/// error has already been stopped.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PinBudget {
+    /// The account's whole cache allowance.
+    pub cache_bytes: u64,
+    /// The most pinning may claim of it. Reservations may not take the whole
+    /// budget, because a cache with no unreserved room would evict each block an
+    /// unpinned read had just fetched.
+    pub pinnable_bytes: u64,
+    /// Claimed by pins right now.
+    pub reserved_bytes: u64,
+    /// What a new pin could still take.
+    pub free_bytes: u64,
+}
+impl PinBudget {
+    /// Tenths of a percent, so a caller can compare without floating point.
+    #[must_use]
+    pub fn used_per_mille(&self) -> u64 {
+        if self.pinnable_bytes == 0 {
+            return 1000;
+        }
+        (self.reserved_bytes.saturating_mul(1000) / self.pinnable_bytes).min(1000)
+    }
+    /// A sentence for a person, not a status code.
+    #[must_use]
+    pub fn explain(&self) -> String {
+        let mib = |b: u64| b as f64 / (1024.0 * 1024.0);
+        if self.free_bytes == 0 {
+            return format!(
+                "Pinning has claimed all {:.0} MiB it may use of a {:.0} MiB cache. \
+                 Unpin something, or raise cache_bytes for this account, before pinning more.",
+                mib(self.pinnable_bytes),
+                mib(self.cache_bytes)
+            );
+        }
+        format!(
+            "Pinning holds {:.0} of {:.0} MiB it may use ({}.{}%), leaving {:.0} MiB. \
+             The rest of the {:.0} MiB cache stays available for ordinary reads.",
+            mib(self.reserved_bytes),
+            mib(self.pinnable_bytes),
+            self.used_per_mille() / 10,
+            self.used_per_mille() % 10,
+            mib(self.free_bytes),
+            mib(self.cache_bytes)
+        )
+    }
+}
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FeedHealth {
     pub collection: String,
@@ -356,6 +410,19 @@ impl Engine {
             .await??;
         self.refresh_reservations().await?;
         Ok(Ok((files.len(), complete)))
+    }
+    /// What pinning has claimed of the cache and what is left.
+    pub async fn pin_budget(&self) -> Result<PinBudget> {
+        let db = self.db.clone();
+        let reserved =
+            tokio::task::spawn_blocking(move || Store::open(db)?.reserved_bytes()).await??;
+        let pinnable = self.pinnable_budget();
+        Ok(PinBudget {
+            cache_bytes: self.account.cache_bytes,
+            pinnable_bytes: pinnable,
+            reserved_bytes: reserved,
+            free_bytes: pinnable.saturating_sub(reserved),
+        })
     }
     /// What each pin has actually kept, as against what it reserved.
     ///
