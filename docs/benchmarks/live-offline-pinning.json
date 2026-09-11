@@ -49,10 +49,23 @@
   },
   "verdict": {
     "P1": "HOLDS. The pin was accepted and reports 9,000,096 bytes resident across three blocks -- not a reservation with nothing behind it.",
-    "P2": "HOLDS. After the engine was rebuilt on the same directory and mounted, the file read back byte for byte through the kernel.",
-    "P3": "HOLDS. Zero provider content requests during that read. The bytes came from what the pin kept.",
+    "P2": "HOLDS. After the engine was rebuilt on the same directory and mounted, the file read back byte for byte through the kernel. Extended 2026-09-11 to the recursive half: both files under a pinned folder read back byte for byte.",
+    "P3": "HOLDS. Zero provider content requests during that read. The bytes came from what the pin kept. The recursive read also made zero provider content requests.",
     "P4": "HOLDS. The unpinned control in the same folder, under the same conditions, needed one provider request. Without that this run could not tell a pin from a warm cache."
   },
   "what_this_closes": "The one clause every milestone 3 row still carried: no measured evidence on a real account. Pinning, materialisation, the reservation arithmetic and offline service now have a run against a real business drive, through a kernel mount, with a control that distinguishes the claim from a coincidence.",
-  "what_it_does_not_close": "Each row has clauses this does not reach. Recursive folder pinning is covered only by fixtures. Behaviour as the cache budget fills over time is not built, let alone measured. Editing pinned content offline is covered through a mount but with a fixture provider. And offline here means 'made no provider request', established by counting rather than by severing the connection -- the same claim, but worth saying plainly."
+  "what_it_does_not_close": "Editing pinned content offline is covered through a kernel mount but with a fixture provider. Behaviour as the cache budget fills over time is not built. And offline here means 'made no provider request', established by counting rather than by severing the connection -- the same claim, but worth saying plainly.",
+  "recursive_half_2026_09_11": {
+    "why": "The first run pinned one file, so the row's 'recursive-folder' clause stayed open. A real subtree is where a walk can go wrong in ways a fixture does not produce.",
+    "subtree": {
+      "files_found": 2,
+      "complete": true,
+      "reserved": 4000064,
+      "arithmetic": "2,500,000 + 1,500,000 plus two block digests at 32 each. The reservation correction holds on a walk as well as on a single file."
+    },
+    "read": {
+      "content_gets_for_subtree": 0
+    },
+    "discriminator": "The walk must report exactly two files. One would mean a walk that stops early and calls a partly-kept folder a success, which is indistinguishable from working until the network is gone."
+  }
 }

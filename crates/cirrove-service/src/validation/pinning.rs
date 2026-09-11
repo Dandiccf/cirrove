@@ -111,6 +111,32 @@ pub async fn onedrive_pinning(state: &Path, label: &str) -> Result<()> {
         &cancel,
     )
     .await?;
+    // A subtree for the recursive half. Two files under one folder, so a walk
+    // that finds one of them and calls it done is distinguishable from a walk
+    // that finds both.
+    let subtree = graph
+        .create_folder(&scope, &root.id, "subtree", &cancel)
+        .await?;
+    let deep_a: Vec<u8> = (0..2_500_000u32).map(|i| (i % 239) as u8).collect();
+    let deep_b: Vec<u8> = (0..1_500_000u32).map(|i| (i % 233) as u8).collect();
+    place(
+        &graph,
+        &scope,
+        &subtree.id,
+        "a.bin",
+        deep_a.clone(),
+        &cancel,
+    )
+    .await?;
+    place(
+        &graph,
+        &scope,
+        &subtree.id,
+        "b.bin",
+        deep_b.clone(),
+        &cancel,
+    )
+    .await?;
 
     let mut config = account.clone();
     config.root_id = root.id.clone();
@@ -144,10 +170,34 @@ pub async fn onedrive_pinning(state: &Path, label: &str) -> Result<()> {
         held.resident > 0 && held.blocks > 0,
         "P1 failed: the pin reserved without keeping anything: {held:?}"
     );
+    // The recursive half, through the same request path.
+    let folder = engine
+        .apply_pin_request(&crate::PinRequest {
+            path: Some("subtree".into()),
+            recursive: true,
+            ..Default::default()
+        })
+        .await?;
+    anyhow::ensure!(
+        folder.accepted && folder.refusal.is_none(),
+        "the recursive pin was refused on a real account: {folder:?}"
+    );
+    anyhow::ensure!(
+        folder.files == 2,
+        "the walk found {} files where the subtree holds two; a walk that stops early \
+         would keep part of a folder and report success",
+        folder.files
+    );
+    anyhow::ensure!(
+        folder.complete,
+        "the walk reported the subtree as incomplete on a drive where it is fully indexed"
+    );
     event(
         &mut log,
         serde_json::json!({"stage":"pinned","reserved":held.reserved,
-            "resident":held.resident,"blocks":held.blocks,"folder":name}),
+            "resident":held.resident,"blocks":held.blocks,"folder":name,
+            "recursive_files":folder.files,"recursive_reserved":folder.reserved,
+            "recursive_complete":folder.complete}),
     )?;
     engine.stop().await;
     drop(engine);
@@ -186,6 +236,26 @@ pub async fn onedrive_pinning(state: &Path, label: &str) -> Result<()> {
             after_pinned - before
         );
 
+        // Both files under the recursively pinned folder, same conditions.
+        for (name, expected) in [("a.bin", &deep_a), ("b.bin", &deep_b)] {
+            let path = mount.join("subtree").join(name);
+            let read = tokio::task::spawn_blocking(move || std::fs::read(path)).await??;
+            anyhow::ensure!(
+                &read == expected,
+                "{name} under the recursively pinned folder read back different bytes"
+            );
+        }
+        let after_subtree = graph
+            .read_path_counters()
+            .map(|c| c.content_gets)
+            .unwrap_or(0);
+        anyhow::ensure!(
+            after_subtree == after_pinned,
+            "reading a recursively pinned folder made {} provider content request(s), so the \
+             walk did not keep what it claimed",
+            after_subtree - after_pinned
+        );
+
         // The control. Same mount, same conditions, a file nobody pinned: it
         // must need the provider, or the silence above says nothing.
         let path = mount.join("control.bin");
@@ -195,7 +265,7 @@ pub async fn onedrive_pinning(state: &Path, label: &str) -> Result<()> {
             .map(|c| c.content_gets)
             .unwrap_or(0);
         anyhow::ensure!(
-            after_control > after_pinned,
+            after_control > after_subtree,
             "P4 failed: an unpinned file was served without touching the provider either, so \
              this run cannot tell a pin from a warm cache"
         );
@@ -203,13 +273,14 @@ pub async fn onedrive_pinning(state: &Path, label: &str) -> Result<()> {
             &mut log,
             serde_json::json!({"stage":"read","bytes":read.len(),
                 "content_gets_for_pinned":after_pinned - before,
-                "content_gets_for_control":after_control - after_pinned}),
+                "content_gets_for_subtree":after_subtree - after_pinned,
+                "content_gets_for_control":after_control - after_subtree}),
         )?;
         println!(
             "Passed: {} bytes read through the mount with no provider request; the unpinned \
              control needed {}.",
             read.len(),
-            after_control - after_pinned
+            after_control - after_subtree
         );
         Ok::<_, anyhow::Error>(())
     }
