@@ -457,6 +457,49 @@ pub async fn claim_single_instance(connection: &zbus::Connection) -> Result<bool
 /// yet; and panels get restarted and reloaded, taking every registration with
 /// them. Both cases look the same on the bus -- the name gains an owner -- so
 /// both are handled by watching for that rather than by assuming startup order.
+/// What, if anything, to tell the user about the tray host right now.
+#[derive(Debug, PartialEq, Eq)]
+enum HostNotice {
+    /// No host is running. Say so once, with what to do about it.
+    Missing,
+    /// One appeared after an absence was reported, so the earlier message is
+    /// now stale and the user should know it resolved itself.
+    Appeared,
+    Nothing,
+}
+
+/// A missing tray host is not a failure -- the item is published and waits --
+/// but silence is the wrong way to tolerate it. On stock GNOME, which needs an
+/// extension, the tray simply never appears and nothing anywhere says why.
+///
+/// Said once rather than on every change: a flaky panel that comes and goes
+/// must not fill a journal, and the second message is only worth sending if the
+/// first one was.
+fn host_notice(reported_missing: &mut bool, present: bool) -> HostNotice {
+    match (present, *reported_missing) {
+        (false, false) => {
+            *reported_missing = true;
+            HostNotice::Missing
+        }
+        (true, true) => {
+            *reported_missing = false;
+            HostNotice::Appeared
+        }
+        _ => HostNotice::Nothing,
+    }
+}
+
+fn report(notice: HostNotice) {
+    match notice {
+        HostNotice::Missing => eprintln!(
+            "cirrove-tray: no tray host is running ({WATCHER}); the icon appears as soon as one \
+             does. GNOME needs an AppIndicator extension; most other panels provide a host."
+        ),
+        HostNotice::Appeared => eprintln!("cirrove-tray: a tray host appeared; the icon is live"),
+        HostNotice::Nothing => {}
+    }
+}
+
 async fn follow_watcher(connection: zbus::Connection) {
     use futures_util::stream::StreamExt;
     let dbus = match zbus::fdo::DBusProxy::new(&connection).await {
@@ -469,9 +512,12 @@ async fn follow_watcher(connection: zbus::Connection) {
     let Ok(name) = zbus::names::BusName::try_from(WATCHER) else {
         return;
     };
-    if dbus.name_has_owner(name).await.unwrap_or(false) {
+    let mut reported_missing = false;
+    let present = dbus.name_has_owner(name).await.unwrap_or(false);
+    if present {
         announce(&connection).await;
     }
+    report(host_notice(&mut reported_missing, present));
     let Ok(mut changes) = dbus.receive_name_owner_changed().await else {
         eprintln!("cirrove-tray: cannot follow the tray host; it will not reappear");
         return;
@@ -484,9 +530,11 @@ async fn follow_watcher(connection: zbus::Connection) {
         // A panel started or restarted: re-register, because the old
         // registration died with it. A panel going away needs nothing done --
         // the item stays published and is picked up when one returns.
-        if args.new_owner.is_some() {
+        let present = args.new_owner.is_some();
+        if present {
             announce(&connection).await;
         }
+        report(host_notice(&mut reported_missing, present));
     }
 }
 
@@ -587,6 +635,32 @@ async fn notify(connection: &zbus::Connection, revision: &std::sync::atomic::Ato
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_missing_tray_host_is_reported_once_and_its_return_only_after_that() {
+        let mut reported = false;
+        // Startup with no host: say so.
+        assert_eq!(host_notice(&mut reported, false), HostNotice::Missing);
+        // A panel that keeps failing to start must not fill the journal.
+        assert_eq!(host_notice(&mut reported, false), HostNotice::Nothing);
+        assert_eq!(host_notice(&mut reported, false), HostNotice::Nothing);
+        // It arrived, so the earlier message is stale and worth correcting.
+        assert_eq!(host_notice(&mut reported, true), HostNotice::Appeared);
+        // A panel restarting is the ordinary case and needs no commentary: the
+        // item re-registers and the user sees nothing missing.
+        assert_eq!(host_notice(&mut reported, true), HostNotice::Nothing);
+        assert_eq!(host_notice(&mut reported, false), HostNotice::Missing);
+        assert_eq!(host_notice(&mut reported, true), HostNotice::Appeared);
+    }
+
+    #[test]
+    fn a_host_present_from_the_start_is_not_announced() {
+        // Nothing was wrong, so there is nothing to say. Announcing a working
+        // tray at every start is the noise that makes a real warning invisible.
+        let mut reported = false;
+        assert_eq!(host_notice(&mut reported, true), HostNotice::Nothing);
+        assert!(!reported);
+    }
 
     fn account(id: &str, state: &str, mounted: bool) -> Event {
         Event::Account {

@@ -5,11 +5,11 @@
     "boxes": 53,
     "ticked": 14,
     "by_blocker": {
-      "autonomous": 12,
+      "autonomous": 14,
       "needs-live-account": 8,
       "needs-machine-window": 2,
       "needs-reboot": 2,
-      "out-of-agreed-scope": 29
+      "out-of-agreed-scope": 27
     }
   },
   "rows": [
@@ -339,9 +339,9 @@
       "line": 261,
       "done": false,
       "text": "Tray status and actions using the daemon as the source of truth.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
-      "asserted_by": null
+      "blocker": "autonomous",
+      "evidence": "PARTIAL 2026-09-11. The tray's icon, tooltip and SNI Status are the daemon's answer over the subscribe stream and nothing inferred from it; losing the service is rendered rather than hidden, because a tray keeping its last icon after the daemon is gone reports something it does not know. Seen working on the user's own panel after the property set was completed. A right-click menu lists each account with its state, the settings window and quitting. NOT DONE: mount and unmount are the actions a user would look for here and are deliberately absent -- the window changes them by writing the account settings, and a second process doing the same is a race over one file rather than a feature. They need a daemon control verb, which is the same argument that put pinning behind the control socket. Recent activity is its own box (line 281).",
+      "asserted_by": "desktop::tray unit tests for the state machine and tooltip, and the ignored bus tests desktop::tray::the_item_offers_a_host_every_property_it_may_read, ::the_item_points_at_a_menu_a_shell_can_actually_read and ::the_menu_offers_settings_and_quit_beside_the_accounts, run under dbus-run-session in CI. Nothing asserts mount/unmount from the tray, because neither exists."
     },
     {
       "milestone": 5,
@@ -409,9 +409,9 @@
       "line": 278,
       "done": false,
       "text": "Implement the tray as StatusNotifierItem over D-Bus. Document the GNOME extension requirement, detect missing tray support and keep all actions available from the window when no tray host is present.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
-      "asserted_by": null
+      "blocker": "autonomous",
+      "evidence": "PARTIAL 2026-09-11. StatusNotifierItem over D-Bus is implemented and registers with a live shell's watcher; the GNOME extension requirement is documented in docs/desktop.md. A missing host is tolerated rather than fatal: the item is published, waits, and registers whenever a host appears, which also covers a panel restart. The first version registered, answered every property it declared, and drew nothing -- it lacked AttentionIconName and the spec switches icons with status -- so the property set is now asserted against what a known-good tray exposes. A missing host is now reported once, naming the interface and the GNOME extension, and its later arrival reported only if an absence was. NOT DONE: that message goes to stderr and the journal, which is where an operator looks and not where a user does; there is no in-window notice. Keeping every action available from the window holds structurally -- the menu carries only shortcuts to what the window does -- but is not asserted anywhere.",
+      "asserted_by": "desktop::tray::the_item_offers_a_host_every_property_it_may_read, which lists the fifteen properties a host may read and fails on any that is missing, plus ::the_attention_icon_is_answered_and_not_empty for the specific failure that drew nothing. tray::tests::a_missing_tray_host_is_reported_once_and_its_return_only_after_that and ::a_host_present_from_the_start_is_not_announced hold the reporting decision. Nothing asserts that the window keeps every action available."
     },
     {
       "milestone": 5,

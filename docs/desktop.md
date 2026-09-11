@@ -78,10 +78,11 @@ It needs a tray host implementing `org.kde.StatusNotifierWatcher`. Most Wayland
 shells and panels provide one; GNOME needs an extension. A missing host is not a
 failure to start: the tray publishes its item, waits, and registers whenever a
 host appears -- which also covers a panel being restarted, since that takes every
-registration with it and looks the same on the bus. There is still no menu, so a
-left click opens the mount when exactly one is mounted and otherwise does
-nothing, and icons are generic freedesktop names until the installed icon set
-exists.
+registration with it and looks the same on the bus. A missing host is said out
+loud once -- naming the interface and the GNOME extension -- because tolerating
+it silently is how a user on stock GNOME ends up with no icon and nothing
+anywhere saying why. Once, not on every change: a flaky panel must not fill a
+journal. Icons are generic freedesktop names until the installed icon set exists.
 
 Only one copy runs. The tray takes the well-known name
 `io.github.Dandiccf.Cirrove.Tray`, and a second copy exits 0 saying so. That is
@@ -89,8 +90,8 @@ what makes shipping two autostart mechanisms safe rather than a double-start bug
 
 A right click opens a menu, served as `com.canonical.dbusmenu` at `/MenuBar`:
 each account with its state, then the settings window and quitting the tray. A
-left click still opens the mount directly, so the gesture that worked before
-still does.
+left click opens the mount when exactly one is mounted and otherwise does
+nothing, which is the gesture that worked before the menu existed.
 
 What the menu may hold is constrained by the milestone rather than by taste --
 *"no control or state may be reachable only through a tray or only through one
