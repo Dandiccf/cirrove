@@ -276,12 +276,57 @@ pub async fn onedrive_pinning(state: &Path, label: &str) -> Result<()> {
                 "content_gets_for_subtree":after_subtree - after_pinned,
                 "content_gets_for_control":after_control - after_subtree}),
         )?;
+        // The budget a user can see. The row asks for clear free-space
+        // behaviour, and a refusal at the end is the least useful moment to
+        // learn space was running out.
+        let held_budget = engine.pin_budget().await?;
+        anyhow::ensure!(
+            held_budget.reserved_bytes > 0 && held_budget.free_bytes < held_budget.pinnable_bytes,
+            "the budget did not move with two pins in force: {held_budget:?}"
+        );
+        anyhow::ensure!(
+            held_budget.pinnable_bytes < held_budget.cache_bytes,
+            "reservations may not claim the whole cache: {held_budget:?}"
+        );
+        let sentence = held_budget.explain();
+        anyhow::ensure!(
+            sentence.contains("available for ordinary reads"),
+            "the explanation must say what the rest of the cache is for: {sentence}"
+        );
+
+        // And releasing must give the whole reservation back, on a real drive
+        // and not only in a fixture.
+        let released = engine
+            .apply_unpin_request(&crate::PinRequest {
+                path: Some("pinned.bin".into()),
+                ..Default::default()
+            })
+            .await?;
+        anyhow::ensure!(released.accepted, "unpin was refused: {released:?}");
+        let after_unpin = engine.pin_budget().await?;
+        anyhow::ensure!(
+            after_unpin.free_bytes == held_budget.free_bytes + held.reserved,
+            "unpinning returned {} of the {} bytes it had reserved",
+            after_unpin.free_bytes - held_budget.free_bytes,
+            held.reserved
+        );
+        event(
+            &mut log,
+            serde_json::json!({"stage":"budget",
+                "cache_bytes":held_budget.cache_bytes,
+                "pinnable_bytes":held_budget.pinnable_bytes,
+                "reserved_with_two_pins":held_budget.reserved_bytes,
+                "used_per_mille":held_budget.used_per_mille(),
+                "free_after_unpin":after_unpin.free_bytes,
+                "explanation":sentence}),
+        )?;
         println!(
             "Passed: {} bytes read through the mount with no provider request; the unpinned \
              control needed {}.",
             read.len(),
             after_control - after_subtree
         );
+        println!("Budget: {sentence}");
         Ok::<_, anyhow::Error>(())
     }
     .await;

@@ -67,5 +67,16 @@
       "content_gets_for_subtree": 0
     },
     "discriminator": "The walk must report exactly two files. One would mean a walk that stops early and calls a partly-kept folder a success, which is indistinguishable from working until the network is gone."
+  },
+  "budget_half_2026_09_11": {
+    "why": "The row asks for clear free-space behaviour, which is a claim about what a user can find out BEFORE a refusal, not only about the refusal.",
+    "measured": {
+      "cache_bytes": 268435456,
+      "pinnable_bytes": 234881024,
+      "reserved_with_two_pins": 13000160,
+      "used_per_mille": 55
+    },
+    "checks": "The budget moved with pins in force; pinnable is strictly below the cache allowance, because reservations may not claim the whole of it; the explanation names what the remainder is for; and unpinning returned the full reservation, byte for byte, on a real drive.",
+    "sentence": "Pinning holds 12 of 224 MiB it may use (5.5%), leaving 212 MiB. The rest of the 256 MiB cache stays available for ordinary reads."
   }
 }

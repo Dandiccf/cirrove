@@ -199,7 +199,7 @@ Live mutation fixtures must be isolated from the user's existing documents.
 ## 3. Offline availability
 
 - [x] Persistent per-file and recursive-folder pinning with storage reservations.
-- [ ] Clear unpin/free-space behavior and accurate availability status.
+- [x] Clear unpin/free-space behavior and accurate availability status.
 - [ ] Offline access and editing of pinned content, including across restart.
 - [ ] Unsent changes excluded from cache eviction and connection cleanup.
 - [ ] Disk-full recovery preserves edited data and explains required action.
