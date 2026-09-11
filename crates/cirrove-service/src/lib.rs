@@ -258,10 +258,18 @@ impl Subscription {
         if let Some(event) = self.pending.take() {
             return Ok(Some(event));
         }
-        let Some(line) = self.lines.next_line().await? else {
-            return Ok(None);
-        };
-        Ok(Some(serde_json::from_str(&line)?))
+        // Skip what this build cannot render rather than ending the stream on
+        // it. A newer daemon may send events this client has never heard of, and
+        // the right response to one is to carry on: see `Event::Unknown`.
+        loop {
+            let Some(line) = self.lines.next_line().await? else {
+                return Ok(None);
+            };
+            let event: events::Event = serde_json::from_str(&line)?;
+            if event != events::Event::Unknown {
+                return Ok(Some(event));
+            }
+        }
     }
 }
 
@@ -811,6 +819,63 @@ mod tests {
         assert_eq!(third.account_id(), Some("id-later"));
         cancel.cancel();
         task.await.unwrap().unwrap();
+    }
+
+    /// A newer daemon may send events this client has never heard of, and that
+    /// must not end the subscription.
+    ///
+    /// Without `Event::Unknown` the first new variant breaks every older
+    /// subscriber: serde refuses the tag, `next` returns the parse error, and a
+    /// tray reports the service unreachable because the daemon said something
+    /// newer than it. That would make `transfer`, `pin` and every event after
+    /// them a protocol break instead of an addition. Measured before the arm
+    /// existed: `unknown variant \`transfer\``.
+    ///
+    /// Asserted on the client rather than through the daemon, because the daemon
+    /// cannot yet send an event it does not have -- which is exactly the version
+    /// skew being modelled.
+    #[tokio::test]
+    async fn an_event_from_a_newer_daemon_is_skipped_rather_than_ending_the_stream() {
+        use tokio::io::AsyncWriteExt;
+        let dir = tempfile::tempdir().unwrap();
+        let socket = dir.path().join("control.sock");
+        let listener = tokio::net::UnixListener::bind(&socket).unwrap();
+        let server = tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            // Consume the verb, then answer as a daemon two versions ahead.
+            let mut verb = [0u8; 16];
+            let _ = tokio::io::AsyncReadExt::read(&mut stream, &mut verb).await;
+            for line in [
+                r#"{"event":"ready"}"#,
+                r#"{"event":"transfer","account_id":"id-work","progress":0.5}"#,
+                r#"{"event":"something_else_entirely"}"#,
+                r#"{"event":"account_removed","account_id":"id-work","label":"work"}"#,
+            ] {
+                stream.write_all(line.as_bytes()).await.unwrap();
+                stream.write_all(b"\n").await.unwrap();
+            }
+            stream.flush().await.unwrap();
+            // Hold the connection so the client sees a stream, not a close.
+            tokio::time::sleep(Duration::from_millis(200)).await;
+        });
+
+        let mut subscription = Subscription::open(&socket).await.unwrap();
+        assert_eq!(
+            subscription.next().await.unwrap().unwrap(),
+            events::Event::Ready
+        );
+        // The two it cannot read are stepped over, and the one after them
+        // arrives intact. Without the skip this is a parse error instead.
+        let next = subscription
+            .next()
+            .await
+            .expect("two unreadable events ended the stream")
+            .expect("the stream closed instead of delivering");
+        assert!(
+            matches!(&next, events::Event::AccountRemoved { account_id, .. } if account_id == "id-work"),
+            "expected the event after the unreadable ones, got {next:?}"
+        );
+        server.await.unwrap();
     }
 
     #[tokio::test]

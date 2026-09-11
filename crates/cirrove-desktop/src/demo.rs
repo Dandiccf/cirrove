@@ -37,6 +37,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
             // look exactly like a measured one in the UI.
             read_path: None,
             save_refusal: None,
+            stuck_changes: 0,
             pin_budget: Default::default(),
             pins: Vec::new(),
             indexed_feeds: u64::from(a.enabled),

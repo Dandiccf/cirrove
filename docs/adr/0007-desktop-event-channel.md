@@ -32,6 +32,15 @@ upload journal and the delta feed, and a deliberate privacy line, which the box
 records: names in the menu and the window, never in the tooltip, which appears on
 hover without intent.
 
+The channel is now forward compatible: an event a client has never heard of
+deserialises to `Event::Unknown` and `Subscription::next` steps over it. Before
+that arm existed the first new variant would have broken every older subscriber
+-- serde refuses an unknown tag, `next` returns the parse error, and a tray
+reports the service unreachable because the daemon said something newer than it.
+That would have made `transfer`, `pin` and every event after them a protocol
+break rather than an addition. `EVENT_PROTOCOL_VERSION` stays at 1 and can stay
+there for anything additive.
+
 ## Problem
 
 Three separate milestone 5 boxes -- tray status, Nautilus badges and actionable

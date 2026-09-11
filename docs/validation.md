@@ -2386,3 +2386,62 @@ the whole target in parallel, and 0 occurrences across four subsequent CI runs
 of the same branch. It had never failed on `main` in the preceding eight runs
 either. One occurrence in five is not enough to act on and not enough to
 dismiss, so it is written down rather than decided.
+
+## A folder's eTag moves right after it is created, and a fix relied on it not moving
+
+Found while verifying a fix on the user's live drive, after that fix was committed
+with a green suite and installed on a running daemon. It was wrong, and the way it
+was wrong is the useful part.
+
+The change let a folder removal be queued behind its own creation, with the real
+identity and ETag substituted from the creation's receipt before the DELETE goes
+out. That machinery already existed for file relocation and file removal; folder
+removal had simply never been listed. Adding it made `mkdir` followed quickly by
+`rmdir` stop answering `EINVAL`.
+
+It also stopped the deletions from happening.
+
+**The measurement.** A sweep of create-then-remove at fixed delays through the
+mount, three runs per delay, then the mutation journal read afterwards:
+
+| chained to its own creation | outcome |
+| --- | ---: |
+| yes | 14 of 14 `Conflict` |
+| no | 5 of 5 `Applied` |
+
+Every chained removal lost. `rmdir` had already returned success to the caller, so
+fourteen empty folders stayed in the account while the mount showed them gone.
+
+**The cause, read off the store rather than assumed.** The creation receipt and
+the settled item, same folder:
+
+```
+receipt    "{B229781C-A6AB-467E-B6C9-E7E4778B3B91},1"
+delta feed "{B229781C-A6AB-467E-B6C9-E7E4778B3B91},2"
+```
+
+Same GUID, version bumped. OneDrive moves a folder's eTag immediately after
+creation, so a DELETE conditioned on the create response loses its precondition.
+
+This does not contradict `folder_etag_and_mtime_ignore_their_children`, which
+measured that a folder's eTag does *not* move when a child is added. Both are
+true and they constrain different things: a folder's eTag is useless as a
+precondition against its contents, and stale as a precondition from its creation.
+
+**Why the suite did not catch it.** The synthetic provider echoed the create
+receipt's eTag straight back into its stored node, so it accepted exactly what a
+live drive rejects. It now stores a moved eTag, and the test that would have
+caught this asserts the outcome rather than the errno: after the dust settles the
+folder is gone from the provider and nothing sits in `Conflict`. Re-chaining makes
+it fail on precisely that.
+
+**What shipped instead.** `Writeback::rmdir` refuses the whole unsettled window
+with `EBUSY` -- not now, try again -- and builds the removal from the object's
+current remote node once the creation has settled. `EINVAL` is gone either way; it
+is gone by refusing honestly rather than by succeeding falsely.
+
+**The second finding.** Fourteen namespace changes sat terminally stuck in a live
+journal and no status field said so: a conflict hid the directory locally, left it
+remotely, and reported nothing. `AccountStatus` now carries `stuck_changes`, and
+the daemon on that drive reports `14`. It reports; it does not resolve. There is
+still no way for a user to clear one.

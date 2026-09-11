@@ -286,6 +286,23 @@ impl UploadJournal {
         })?;
         rows.map(|row| Ok(serde_json::from_str(&row?)?)).collect()
     }
+    /// How many namespace changes the daemon has stopped trying to apply.
+    ///
+    /// `Conflict`, `Failed` and `NeedsReview` are terminal: nothing retries them,
+    /// and each one is a change the mount has already acted on locally that the
+    /// provider never took. A folder removal that ends here leaves the directory
+    /// hidden in the mount and present in the account -- which is exactly what
+    /// happened to fourteen of them on a live drive, with nothing anywhere saying
+    /// so. A count is the smallest honest thing status can carry; it names no
+    /// paths, so it costs the user no privacy to have it always on.
+    pub fn stuck_mutations(&self) -> Result<u64> {
+        let count: i64 = self.db.query_row(
+            "SELECT count(*) FROM mutations WHERE state IN ('conflict','failed','needs_review')",
+            [],
+            |r| r.get(0),
+        )?;
+        Ok(count.max(0) as u64)
+    }
     pub(super) fn save_mutation(&mut self, record: &MutationRecord) -> Result<()> {
         let state = serde_json::to_value(record.state)?;
         let tx = self.db.transaction()?;

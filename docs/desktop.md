@@ -146,7 +146,14 @@ badges, pinning, transfer/conflict views and localization remain separate work.
 
 The daemon can now push changes rather than only answer questions: `capabilities`
 names what it supports and `subscribe` streams account and mount changes over the
-control socket. See [ADR 0007](adr/0007-desktop-event-channel.md). This window
+control socket. An event a client does not recognise is skipped rather than
+ending the stream, so a newer daemon never breaks an older tray and adding an
+event costs no protocol break.
+
+`status` also reports `stuck_changes`: namespace changes the daemon has given up
+on, each one a change the mount already made locally that the provider never
+took. It reports rather than resolves -- there is no action yet that clears one,
+and neither the window nor the tray shows the number. See [ADR 0007](adr/0007-desktop-event-channel.md). This window
 does not consume it yet; `cirrove-tray` does.
 
 Mount-preference save failures and folder-opening failures still use generic

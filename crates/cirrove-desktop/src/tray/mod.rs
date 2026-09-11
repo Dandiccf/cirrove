@@ -87,6 +87,11 @@ impl TrayState {
             // not already say; it exists so a client can tell an established
             // subscription from a silent one.
             Event::Ready => {}
+            // A newer daemon said something this build has never heard of.
+            // `Subscription::next` already drops these, so reaching here means a
+            // caller built one directly; either way the answer is the same, and
+            // it must never be to stop rendering what we do understand.
+            Event::Unknown => {}
         }
     }
 

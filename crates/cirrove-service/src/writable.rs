@@ -74,6 +74,9 @@ impl WriteWorkers {
     pub(crate) fn worker_issue(&self) -> Option<String> {
         self.issue.lock().ok().and_then(|issue| issue.clone())
     }
+    pub(crate) async fn stuck_changes(&self) -> u64 {
+        self.control.stuck_changes().await.unwrap_or(0)
+    }
     pub(crate) fn pending_local_requests(&self) -> usize {
         self.control.pending()
     }

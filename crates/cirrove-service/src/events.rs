@@ -81,6 +81,20 @@ pub enum Event {
     /// it saw a jump: silently coalescing a sequence into its endpoint is
     /// correct for a level and wrong for anything that was animating.
     Lagged { dropped: u64 },
+    /// An event this build does not know.
+    ///
+    /// Without this, one new variant breaks every older subscriber: serde
+    /// refuses an unknown tag, `Subscription::next` returns the parse error, and
+    /// a tray reports the service unreachable because the daemon said something
+    /// newer than it. Measured before the arm existed -- a `transfer` event read
+    /// back as `unknown variant \`transfer\``.
+    ///
+    /// So the channel is forward compatible by construction and adding an event
+    /// costs no protocol break. `Subscription::next` drops these rather than
+    /// handing them out: every event here is a coalesced level, and a client that
+    /// cannot render one has nothing to do with it but ignore it.
+    #[serde(other)]
+    Unknown,
 }
 
 impl Event {
@@ -90,7 +104,7 @@ impl Event {
             Self::Account { account_id, .. }
             | Self::Mount { account_id, .. }
             | Self::AccountRemoved { account_id, .. } => Some(account_id),
-            Self::Lagged { .. } | Self::Ready => None,
+            Self::Lagged { .. } | Self::Ready | Self::Unknown => None,
         }
     }
 }

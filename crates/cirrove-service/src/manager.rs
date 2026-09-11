@@ -62,6 +62,22 @@ pub struct AccountStatus {
     /// started.
     #[serde(default)]
     pub save_refusal: Option<crate::journal::SaveRefusal>,
+    /// Namespace changes the daemon has stopped trying to apply -- a conflict, a
+    /// failure, or one held for review. Each is a change the mount already acted
+    /// on locally that the provider never took, so the two disagree and nothing
+    /// retries. Zero for a read-only mount, which cannot make any.
+    ///
+    /// This reports rather than resolves. It exists because the daemon could
+    /// strand a change in silence: fourteen folder removals ended in `Conflict`
+    /// on a live drive, leaving the directories hidden in the mount and present
+    /// in the account, and no status field said a word. A count names no paths,
+    /// so it costs nothing to carry always.
+    ///
+    /// Added without moving `STATUS_PROTOCOL_VERSION`, which the desktop compares
+    /// for equality: `#[serde(default)]` means an older daemon's reply reads back
+    /// as zero, which is not a lie -- it is the count that daemon can report.
+    #[serde(default)]
+    pub stuck_changes: u64,
     pub indexed_feeds: u64,
     pub indexed_items: u64,
 }
@@ -319,6 +335,7 @@ impl Manager {
                             directory_freshness: crate::DirectoryFreshness::default(),
                             read_path: None,
                             save_refusal: None,
+                            stuck_changes: 0,
                             pin_budget: Default::default(),
                             pins: Vec::new(),
                             indexed_feeds: 0,
@@ -401,6 +418,10 @@ impl Manager {
                             let _ = active.engine.refresh_reservations().await;
                             status.pins = active.engine.pin_status().await.unwrap_or_default();
                             status.save_refusal = active.engine.save_refusals.latest();
+                            status.stuck_changes = match &active.writers {
+                                Some(writers) => writers.stuck_changes().await,
+                                None => 0,
+                            };
                             status.pin_budget =
                                 active.engine.pin_budget().await.unwrap_or_default();
                             let db = active.engine.db.clone();

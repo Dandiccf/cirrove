@@ -61,6 +61,12 @@ impl WriteControl {
         self.inner.engine.changed.notify_waiters();
         Ok(())
     }
+    pub async fn stuck_changes(&self) -> std::io::Result<u64> {
+        self.writer
+            .stuck_changes()
+            .await
+            .map_err(|_| std::io::Error::other("local namespace is unavailable"))
+    }
     pub fn conflicts(&self) -> std::io::Result<Vec<crate::journal::NamespaceCollision>> {
         self.writer
             .conflicts()

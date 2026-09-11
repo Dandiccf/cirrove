@@ -5,11 +5,11 @@
     "boxes": 53,
     "ticked": 14,
     "by_blocker": {
-      "autonomous": 14,
+      "autonomous": 15,
       "needs-live-account": 8,
       "needs-machine-window": 2,
       "needs-reboot": 2,
-      "out-of-agreed-scope": 27
+      "out-of-agreed-scope": 26
     }
   },
   "rows": [
@@ -359,9 +359,9 @@
       "line": 263,
       "done": false,
       "text": "Actionable errors, progress, cancellation and conflict resolution.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
-      "asserted_by": null
+      "blocker": "autonomous",
+      "evidence": "PARTIAL 2026-09-11. One clause has a first piece: a change the daemon has given up on is now counted and reported. It exists because the daemon could strand one in silence -- fourteen folder removals ended in Conflict on a live drive, hiding the directories in the mount while leaving them in the account, and no status field said a word. AccountStatus.stuck_changes now carries the count, added without moving STATUS_PROTOCOL_VERSION; the daemon on that drive reports 14. NOT DONE, and the larger half: it reports and does not resolve. There is no action anywhere -- CLI, window or tray -- that clears a stuck change, no way to see which paths are affected, and neither the window nor the tray shows the number at all. Progress and cancellation are untouched.",
+      "asserted_by": "mutations::only_changes_the_daemon_has_stopped_retrying_are_counted_as_stuck, shown to fail when the conflict state is dropped from the query, and verified end to end against a live daemon holding fourteen real conflicts. Nothing asserts the manager's plumbing of the field, and nothing asserts any resolution path, because none exists."
     },
     {
       "milestone": 5,

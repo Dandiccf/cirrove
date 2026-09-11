@@ -315,6 +315,11 @@ impl Writeback {
             .and_then(|id| projection.files.get(&id))
             .cloned())
     }
+    /// Namespace changes the daemon has given up on. See
+    /// `UploadJournal::stuck_mutations` for why this is a count and not a list.
+    pub async fn stuck_changes(&self) -> Result<u64> {
+        self.local(|j| j.stuck_mutations()).await
+    }
     pub fn conflicts(&self) -> Result<Vec<NamespaceCollision>> {
         Ok(self
             .projection
