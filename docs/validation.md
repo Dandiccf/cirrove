@@ -2369,3 +2369,20 @@ what the milestone 1 push row had never had.
 What none of this closes: recursive folder pinning is still fixture-only,
 behaviour as the cache budget fills is not built, and the one notification in
 eleven that was never delivered is still unexplained.
+
+## A CI failure that did not reproduce
+
+`cached_navigation_survives_stalled_reads_and_metadata_restart` failed once in
+CI on 2026-09-11 with `Resource temporarily unavailable` at the point where the
+test drops an engine and rebuilds one on the same state directory — the owner
+lock still held.
+
+It is recorded because a single red run is easy to wave away and this one sat
+on a branch that had changed engine lifetime handling, which is exactly the
+shape of thing that would cause it.
+
+It did not reproduce: 0 of 10 runs of that test alone locally, 0 of 6 runs of
+the whole target in parallel, and 0 occurrences across four subsequent CI runs
+of the same branch. It had never failed on `main` in the preceding eight runs
+either. One occurrence in five is not enough to act on and not enough to
+dismiss, so it is written down rather than decided.

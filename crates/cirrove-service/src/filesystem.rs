@@ -259,17 +259,24 @@ impl CloudFs {
             // 717 microseconds around 50 MiB, roughly 14 microseconds per
             // mebibyte, so eight is about a hundred microseconds.
             //
-            // The floor is growth worth a pass, and it moved twice before it
-            // meant that. Against a level it had to clear a baseline; against
-            // growth since the last trim it only has to be worth the walk, and a
-            // pass costs about 14 microseconds per mebibyte. Thirty-two is under
-            // half a millisecond, once, on an idle mount.
+            // A cadence, not a threshold on a quantity. Three quantities were
+            // tried and all three were wrong, which is recorded in
+            // docs/benchmarks/trim-cadence.json: free arena bytes and
+            // resident-minus-live do not fall when a trim succeeds, so both fire
+            // every tick forever, and resident growth since the last trim cannot
+            // tell a partial reclaim from nothing to do, so it froze the daemon
+            // at 320 MiB for eight and a half hours while an arm that trimmed
+            // freely reached 165 on the same workload.
             //
-            // Sixty-four was tried and is too high for this: a measured read pass
-            // grew resident size by 57.7 MiB and no trim fired, leaving the
-            // daemon 51 MiB up. Recorded in
-            // docs/benchmarks/trim-trigger-reaches-reads.json rather than left as
-            // a number that looks chosen.
+            // Every one of those was a proxy for "is there something to give
+            // back", and none of the available quantities answers it. A cadence
+            // does not need the answer: it pays a known, bounded cost to ask the
+            // allocator, which is the one thing that does know. A pass around
+            // 100 MiB is roughly 1.5 ms, so once a minute is about 0.0025
+            // percent of a core.
+            //
+            // The floor keeps a settled small process from paying even that. A
+            // daemon that has never grown past it has nothing worth a walk.
             //
             // The signal is resident memory that is not live heap, and getting
             // there took two wrong answers that are recorded rather than tidied
@@ -288,8 +295,8 @@ impl CloudFs {
             const QUIESCENT_TICKS: u32 = 5;
             const SHED_FACTOR: usize = 2;
             const SHED_FLOOR: usize = 1024;
-            // Overridable for tests only, in the style of this crate's other
-            // fixture variables. A read-only mount fixture retains a flat 16.5
+            // Both overridable for tests only, in the style of this crate's
+            // other fixture variables. A read-only mount fixture retains a flat 16.5
             // MiB however much it reads -- the baseline and nothing more -- so it
             // cannot reach a floor derived from a daemon holding 184,000 nodes
             // and a 560 MB index. That is a fact about the fixture's size, not
@@ -298,12 +305,17 @@ impl CloudFs {
             let floor = std::env::var("CIRROVE_RECLAIM_FLOOR_BYTES")
                 .ok()
                 .and_then(|value| value.parse::<u64>().ok())
-                .unwrap_or(32 * 1024 * 1024);
+                .unwrap_or(96 * 1024 * 1024);
+            let interval = std::env::var("CIRROVE_RECLAIM_INTERVAL_SECONDS")
+                .ok()
+                .and_then(|value| value.parse::<u64>().ok())
+                .unwrap_or(60);
             let mut idle = 0u32;
             let mut high_water = 0usize;
-            // Resident size as the last trim left it. Zero to start, so the
-            // first pass needs only the floor.
-            let after_trim = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+            // Far enough in the past that the first pass is not delayed.
+            let mut last_trim = tokio::time::Instant::now()
+                .checked_sub(std::time::Duration::from_secs(interval))
+                .unwrap_or_else(tokio::time::Instant::now);
             loop {
                 tokio::select! { biased;
                     _ = inner.cancel.cancelled() => break,
@@ -322,38 +334,15 @@ impl CloudFs {
                         };
                         high_water = high_water.max(held);
                         let shed = high_water > held.saturating_mul(SHED_FACTOR).max(SHED_FLOOR);
-                        // Fire when resident size has grown a floor above where
-                        // the last trim left it. That is a back-off and a
-                        // threshold in one figure: if a trim lowered resident
-                        // size, the next needs real growth before it runs again;
-                        // if a trim changed nothing, resident size does not move
-                        // and this stops firing entirely.
-                        //
-                        // Both earlier attempts lacked exactly this. Free arena
-                        // bytes never fall after a trim, and resident-minus-live
-                        // includes everything resident that is not malloc heap --
-                        // on this daemon the SQLite page cache over a 560 MB
-                        // index -- so it sits permanently above any floor and
-                        // fired every tick just the same. Measured: 12 trims in
-                        // 12 seconds with it flat at 88-95 MiB.
                         let resident = cirrove_allocator::resident_bytes();
-                        let retained = resident
-                            >= after_trim
-                                .load(std::sync::atomic::Ordering::Relaxed)
-                                .saturating_add(floor);
+                        let retained = resident >= floor
+                            && last_trim.elapsed() >= std::time::Duration::from_secs(interval);
                         if idle >= QUIESCENT_TICKS && (shed || retained) {
                             high_water = held;
                             TRIMS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                            let mark = after_trim.clone();
+                            last_trim = tokio::time::Instant::now();
                             tokio::task::spawn_blocking(move || {
                                 let released = cirrove_allocator::trim();
-                                // Recorded after the pass, so the next decision
-                                // is made against what this one achieved rather
-                                // than what it started from.
-                                mark.store(
-                                    cirrove_allocator::resident_bytes(),
-                                    std::sync::atomic::Ordering::Relaxed,
-                                );
                                 // At info, not debug: this was invisible in a
                                 // real session, so "has it ever fired?" could
                                 // not be answered from the journal, only

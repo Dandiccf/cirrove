@@ -72,6 +72,7 @@ jobs:
         # 184,000 nodes. The other tests in this step do not read the variable.
         env:
           CIRROVE_RECLAIM_FLOOR_BYTES: "8388608"
+          CIRROVE_RECLAIM_INTERVAL_SECONDS: "1"
         # Keep independent mounts from competing with latency/memory fixtures.
         # Each fixture still exercises its own concurrent requests/accounts.
         run: timeout 150s cargo test -p cirrove-service --test read_only --locked real_ -- --ignored --nocapture --test-threads=1

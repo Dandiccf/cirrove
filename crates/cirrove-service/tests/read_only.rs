@@ -3306,8 +3306,10 @@ async fn real_reclamation_reaches_a_mount_that_only_reads() {
     // number measurement chose alone. What this test does NOT show is that the
     // shipped floor is right; that is in the daemon measurement.
     // Declared rather than set: the workspace forbids unsafe_code, so a test
-    // cannot call set_var, and glibc would want it before the threads exist
-    // anyway. CI sets it on the step that runs these.
+    // cannot call set_var. CI sets both on the step that runs these: the floor
+    // because this fixture retains a flat 16.5 MiB however much it reads and
+    // cannot reach the shipped 96 MiB, and the interval because a sixty-second
+    // cadence does not fit a test.
     let floor: u64 = std::env::var("CIRROVE_RECLAIM_FLOOR_BYTES")
         .ok()
         .and_then(|v| v.parse().ok())

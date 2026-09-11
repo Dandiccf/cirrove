@@ -1,7 +1,8 @@
 # What is left, and what it needs from you
 
-Everything in milestones 1 and 2 that can be finished without a person at the
-keyboard has been. What remains is not blocked on effort or on understanding; each
+Everything in milestones 1 to 3 that can be finished without a person at the
+keyboard has been. Milestone 3 is complete as of 2026-09-11; milestone 2 has one
+row open and it is open on the one clause no script can reach. What remains is not blocked on effort or on understanding; each
 item needs something an autonomous agent structurally cannot supply. This is that
 list, with the command, the blast radius and the evidence each run would produce,
 so that a session with you present can work through it rather than rediscover it.
@@ -9,7 +10,34 @@ so that a session with you present can work through it rather than rediscover it
 `docs/acceptance-ledger.json` carries the same information per acceptance box,
 with `blocker` naming the class. This document is the operator's version of it.
 
-## Live provider, read only — about 15 minutes plus one wait
+## Live provider — largely done, 2026-09-11
+
+Two isolated validation connections now exist under
+`~/.local/state/cirrove-validation`, both disabled so no daemon mounts them:
+`validation` read-only and `validation-rw` with a write grant. Creating them
+cost two browser consents.
+
+What has since run against the real business drive, all recorded in
+`docs/validation.md` and `docs/benchmarks/`:
+
+- **Pinning, six phases** — per file and recursive, the budget, offline reading,
+  offline editing, unsent work under cache pressure, and a full device. This is
+  what completed milestone 3.
+- **Directory freshness** through a real mount, three rounds at ~5.1 s.
+- **Catch-up and periodic recovery**, reproducing the earlier run to 33 ms.
+- **A real subscription renewal**: Microsoft renewed a subscription held for its
+  full lifetime and a change afterwards arrived through it.
+- **Navigation during indexing**, replicated: median within 1%, and the tail
+  still crossing 500 ms, which is why that box stays open.
+
+### What a live run still cannot reach
+
+An **expired or revoked consent**. It cannot be scheduled; it needs the grant to
+be revoked by hand in the Microsoft portal for this tenant. That is the only
+remaining live-provider gap, and it is one command in a browser rather than a
+session's work.
+
+## Live provider, read only — the original instructions, kept for reference
 
 Six open boxes turn on a real Microsoft account. No *automated test* contacts one:
 every provider in the suites is an in-process fake or a loopback HTTP server the
@@ -64,7 +92,23 @@ reversible by re-running.
 the real Graph API, including an online-only source after a remount, which is the
 one shape synthetic fixtures cannot construct.
 
-## Physical faults — needs root, and one part needs hardware
+## Physical faults — the reachable part is done, 2026-09-11
+
+`dm-flakey` now runs in CI. Block-layer write failures and a lying fsync are
+injected at runtime and switched back off: what was durable before a fault
+survives it, and new work is refused as a storage problem rather than as
+corruption. The journal detected the lying fsync by itself, through a generation
+check that reads back what it wrote.
+
+Torn writes were attempted and are inconclusive, which is recorded rather than
+dropped: `corrupt_bio_byte` hits ext4's metadata as readily as the journal's
+data, so a hang in that state says nothing about the journal.
+
+**What is left needs hardware.** A true power cut cannot be scripted. It needs
+someone at the wall socket, or a machine with a controllable PSU. That single
+clause is why milestone 2 stands at 7 of 8.
+
+## Physical faults — the original request, kept for reference
 
 The crash box now covers process death at all 31 durable transitions, measured.
 What it does not cover is faults below the process:

@@ -1,0 +1,34 @@
+{
+  "question": "What should decide when the reclamation tick runs, given that both a growth threshold and no threshold at all have now been tried and both are wrong?",
+  "why_now": "docs/benchmarks/trim-trigger-reaches-reads.json fixed a trigger that could not fire on a read workload, and its final shape -- resident size grown a floor above where the last trim left it -- has now run on the live daemon for eight and a half hours. Trims froze at 78 and the daemon sits at 320.2 MiB. The back-off suppresses exactly the repetitions that would reclaim the rest.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-11",
+  "three_designs_and_what_each_got_wrong": {
+    "free_arena_level":"Fires every tick forever. malloc_trim returns free PAGES and leaves free CHUNKS on the arenas' lists, so mallinfo2's fordblks does not fall when a trim succeeds. Measured at 8 trims in 8 seconds with the figure flat at 104 MiB.",
+    "resident_minus_live_level":"Same failure, subtler cause. It includes everything resident that is not malloc heap -- on this daemon the SQLite page cache over a 560 MB index -- so it sits permanently around 90 MiB above any floor. 12 trims in 12 seconds.",
+    "resident_growth_since_last_trim":"The opposite failure. A trim that reclaims only part of what is available leaves resident size high, and the next firing then waits for growth that never comes. Frozen at 78 trims over eight and a half hours, daemon at 320.2 MiB. The aggressive version that trimmed every second reached 151-165 MiB on the same workload, so repetition is what does the work and this design forbids it."
+  },
+  "proposed": "A cadence rather than a threshold on a quantity. Trim when the mount is quiet, at most once per interval, while resident size is above a floor. The cost is then bounded by the interval rather than by a signal nobody has found: a pass around 100 MiB is roughly 1.5 milliseconds, so once a minute is about 0.0025 percent of a core. The view-count signal stays exactly as it is, because it is right about traversals.",
+  "why_a_cadence_is_defensible_where_a_threshold_was_not":"Every threshold tried has been a proxy for 'is there something to give back', and none of the three available quantities answers that: two do not move when a trim succeeds, and the third cannot distinguish a partial success from nothing to do. A cadence does not need the answer. It pays a known, tiny, bounded cost to ask the allocator directly, which is the one thing that does know.",
+  "predictions": [
+    {
+      "id": "P1",
+      "claim": "Over a two-hour window with ordinary daemon activity, resident size stays below 250 MiB and does not climb monotonically.",
+      "role": "the product claim. The current build reached 320 MiB and stopped reclaiming; the previous one oscillated 178-210 while trimming freely."
+    },
+    {
+      "id": "P2",
+      "claim": "Trims occur at roughly the cadence and not more: within 20 percent of window_seconds / interval_seconds.",
+      "role": "discriminator -- a cadence that fires every tick anyway is one of the failures above wearing a different name"
+    },
+    {
+      "id": "P3",
+      "claim": "The fixture test still passes and the eleven capacity tests still pass.",
+      "role": "the view-count signal must keep working; it is right about traversals and that is what it was written for"
+    }
+  ],
+  "decision_rule": "P1 and P2 both holding makes the cadence the shipped design. P1 failing means reclamation is not the lever for this daemon's resident size at all, and the honest conclusion would be that the 320 MiB is mostly not reclaimable -- which contradicts the aggressive arm reaching 165 MiB, so that outcome would need explaining rather than accepting.",
+  "measurement_discipline":"Two hours of one arm, sampled, not a single before-and-after. The previous artifact records that single paired runs were what led me to tune a floor against noise: the resting figure after identical restarts ranged over 143.5 to 191.7 MiB.",
+  "result": null,
+  "verdict": null
+}
