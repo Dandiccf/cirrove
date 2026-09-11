@@ -25,6 +25,10 @@ struct Fixture {
     nodes: RwLock<HashMap<(String, String), Node>>,
     reads: AtomicU64,
     offline: AtomicBool,
+    /// The provider refusing the grant rather than being unreachable. Separate
+    /// from `offline` because the two must not produce the same feed state: one
+    /// is waited out and the other needs the user.
+    consent_expired: AtomicBool,
     stall: AtomicBool,
     delay_ms: AtomicU64,
     push: AtomicBool,
@@ -122,6 +126,7 @@ impl Fixture {
             nodes: RwLock::new(nodes),
             reads: AtomicU64::new(0),
             offline: AtomicBool::new(false),
+            consent_expired: AtomicBool::new(false),
             stall: AtomicBool::new(false),
             delay_ms: AtomicU64::new(0),
             push: AtomicBool::new(false),
@@ -142,7 +147,12 @@ impl Fixture {
         })
     }
     fn online(&self) -> Result<(), ProviderError> {
-        if self.offline.load(Ordering::SeqCst) {
+        if self.consent_expired.load(Ordering::SeqCst) {
+            // What Graph answers once a grant is gone, and the reason it is
+            // checked before `offline`: a daemon that read this as merely
+            // unreachable would retry politely forever and never tell anyone.
+            Err(ProviderError::Authentication)
+        } else if self.offline.load(Ordering::SeqCst) {
             Err(ProviderError::Unavailable)
         } else {
             Ok(())
@@ -3479,5 +3489,66 @@ async fn real_the_pin_budget_is_visible_before_it_is_full() {
         released.free_bytes, empty.free_bytes,
         "unpinning must return the whole reservation: {released:?}"
     );
+    engine.stop().await;
+}
+
+/// An expired grant reaches the feed state a user is shown, and does not look
+/// like being offline.
+///
+/// The milestone 1 row asks for "visible reauthentication when consent expires".
+/// Its visible half was asserted at the last hop only: a desktop test checks that
+/// a feed state of sign_in_required renders as SignInRequired. Nothing asserted
+/// how a feed ever comes to say that -- the chain from the provider's refusal
+/// through the feed loop was uncovered, so the two halves could have drifted
+/// apart and both tests would still have passed.
+///
+/// The distinction being asserted is the whole point of the row. Unreachable is
+/// waited out and needs nobody; a refused grant is waited out forever and needs
+/// the user. A daemon that reported the second as the first would retry politely
+/// and tell no one, which is precisely the failure a person notices as "it just
+/// stopped working".
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn an_expired_grant_is_shown_as_needing_sign_in_and_not_as_being_offline() {
+    let temp = tempfile::tempdir().unwrap();
+    let (provider, engine) = push_engine(&temp).await;
+
+    // Unreachable first, as the control. Without it this test would pass against
+    // a daemon that called everything sign_in_required.
+    provider.offline.store(true, Ordering::SeqCst);
+    let hints = provider.hints.read().await["home"].clone();
+    fixture_remote_change(&provider, "while-offline").await;
+    hints.changed();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while !engine.health().await.iter().any(|h| h.state == "offline") {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("an unreachable provider must read as offline");
+    assert!(
+        !engine
+            .health()
+            .await
+            .iter()
+            .any(|h| h.state == "sign_in_required"),
+        "being unreachable must not ask the user to sign in"
+    );
+
+    // Now the grant is gone rather than the network.
+    provider.offline.store(false, Ordering::SeqCst);
+    provider.consent_expired.store(true, Ordering::SeqCst);
+    hints.changed();
+    tokio::time::timeout(Duration::from_secs(10), async {
+        while !engine
+            .health()
+            .await
+            .iter()
+            .any(|h| h.state == "sign_in_required")
+        {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("an expired grant must reach the state the window and tray render");
     engine.stop().await;
 }

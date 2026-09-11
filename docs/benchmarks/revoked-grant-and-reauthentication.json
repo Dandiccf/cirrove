@@ -1,0 +1,29 @@
+{
+  "question": "When the Microsoft grant is revoked rather than merely expired, does the daemon say so where a user will see it, and does signing in again restore the account without losing its index or its pins?",
+  "why_now": "The milestone 1 row asks for 'visible reauthentication when consent expires'. Its refresh half is evidenced -- the installed daemon refreshed hourly for a day and a half unattended. Its visible half was asserted only at the last hop, and the chain into that hop is now covered by tests (read_only::an_expired_grant_is_shown_as_needing_sign_in_and_not_as_being_offline and manager::tests::a_feed_needing_sign_in_is_not_hidden_by_one_that_is_merely_offline). What no test can supply is the event itself.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-11",
+  "why_it_can_be_scheduled_after_all": "The ledger recorded consent expiry as unobservable because it 'cannot be scheduled'. Waiting for a grant to lapse on Microsoft's timetable cannot. Revoking it can: the user removes the application's access from their Microsoft account or their tenant, which invalidates the refresh token at once. That is the same event from the daemon's side -- the token it holds stops working and no refresh will fix it -- and it is the event the row cares about.",
+  "shape": {
+    "before": "Record the account state, indexed_items and the pin list, so that what reauthentication must preserve is written down before it is at risk.",
+    "revoke": "In the Microsoft account's privacy settings or the Entra tenant, remove this application's access.",
+    "observe": "Without touching the daemon: watch for the account state to become sign_in_required, and check that the tray icon goes to NeedsAttention and the window says so. The point is that nobody had to look in a log.",
+    "restore": "cirrove reauth for the same account, then confirm the account returns to ready.",
+    "after": "Compare indexed_items and pins against the before state."
+  },
+  "predictions": {
+    "P1": "The account reaches sign_in_required without intervention, within the feed's retry interval of sixty seconds plus its jitter.",
+    "P2": "It is visible without reading a log: the tray reports NeedsAttention and the window shows the sign-in state.",
+    "P3": "The mount stays present, and listing a cached directory through it still works. Losing the grant is not losing the index, and unmounting on a credential problem would take away the offline copies a user still has.",
+    "P4": "After reauth the account returns to ready, indexed_items is not reset to zero, and the pins are unchanged."
+  },
+  "decision_rule": {
+    "all_hold": "The row's last clause is closed and the row can be ticked, its refresh half already being evidenced.",
+    "P1_fails": "The daemon treats a revoked grant as something to retry. That is the defect this clause exists to catch -- polite, silent, and indefinite.",
+    "P3_fails": "A defect of its own and worse than the row: a credential problem must not cost a user the data they already have offline.",
+    "P4_fails": "Recorded against the reauth path rather than this row. Reauthentication that reindexes 184,000 items is usable; one that drops pins silently is not."
+  },
+  "what_it_costs": "One reauthentication. The account is unusable between the revocation and the sign-in, and the run should not be started while anything is mid-upload -- `cirrove status` must show no pending work first.",
+  "result": null,
+  "verdict": null
+}

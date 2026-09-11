@@ -81,6 +81,33 @@ pub struct AccountStatus {
     pub indexed_feeds: u64,
     pub indexed_items: u64,
 }
+/// The single state a caller sees, from the feeds behind it.
+///
+/// Extracted from the status loop so it can be asserted. The ordering is the
+/// substance and it is not alphabetical: `sign_in_required` outranks every other
+/// feed state because it is the only one a user can act on, and a second feed
+/// that is merely offline must not hide it. A mount error outranks all of them,
+/// because a mount that is not there is not a connection problem.
+///
+/// This is what `cirrove status`, the window and the tray all read, and the
+/// chain into it -- a provider refusing the grant becoming a feed that says
+/// sign_in_required -- is held by
+/// `read_only::an_expired_grant_is_shown_as_needing_sign_in_and_not_as_being_offline`.
+fn account_state(mount_error: Option<&str>, feeds: &[crate::engine::FeedHealth]) -> String {
+    if let Some(error) = mount_error {
+        return error.to_owned();
+    }
+    if feeds.is_empty() {
+        return "starting".into();
+    }
+    if feeds.iter().any(|f| f.state == "sign_in_required") {
+        return "sign_in_required".into();
+    }
+    if feeds.iter().any(|f| f.state != "ready") {
+        return "updating_or_offline".into();
+    }
+    "ready".into()
+}
 pub type ProviderFactory = Arc<dyn Fn(&Account) -> Result<Arc<dyn ReadProvider>> + Send + Sync>;
 /// Builds the write half of a provider, for accounts that carry a write grant.
 ///
@@ -479,19 +506,8 @@ impl Manager {
                                 status.indexed_items = items;
                             }
 
-                            status.state = active.mount_error.clone().unwrap_or_else(|| {
-                                if status.feeds.is_empty() {
-                                    "starting"
-                                } else if status.feeds.iter().any(|f| f.state == "sign_in_required")
-                                {
-                                    "sign_in_required"
-                                } else if status.feeds.iter().any(|f| f.state != "ready") {
-                                    "updating_or_offline"
-                                } else {
-                                    "ready"
-                                }
-                                .into()
-                            });
+                            status.state =
+                                account_state(active.mount_error.as_deref(), &status.feeds);
                         }
                         statuses.push(status);
                     }
@@ -713,6 +729,66 @@ fn mount_record_at<'a>(mounts: &'a str, path: &Path) -> Option<(&'a str, &'a str
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::engine::FeedHealth;
+
+    fn feed(state: &str) -> FeedHealth {
+        FeedHealth {
+            collection: format!("collection-{state}"),
+            state: state.into(),
+            last_success: None,
+            retry_at: None,
+            message: None,
+            notifications: Default::default(),
+        }
+    }
+
+    /// The state a user can act on must not be hidden by a noisier one.
+    ///
+    /// An account with two collections is ordinary -- a personal drive and a
+    /// SharePoint library -- and they fail independently. If the healthy-looking
+    /// summary wins, a lapsed grant on one of them shows as "updating or
+    /// offline" and the user waits for something that will never happen. This
+    /// ordering is the whole of that, and it is the kind of rule that regresses
+    /// silently because every state involved is individually plausible.
+    #[test]
+    fn a_feed_needing_sign_in_is_not_hidden_by_one_that_is_merely_offline() {
+        assert_eq!(
+            account_state(None, &[feed("offline"), feed("sign_in_required")]),
+            "sign_in_required"
+        );
+        assert_eq!(
+            account_state(None, &[feed("sign_in_required"), feed("ready")]),
+            "sign_in_required",
+            "a healthy second collection must not vouch for the one that is not"
+        );
+        assert_eq!(
+            account_state(None, &[feed("ready"), feed("throttled")]),
+            "updating_or_offline"
+        );
+        assert_eq!(
+            account_state(None, &[feed("ready"), feed("ready")]),
+            "ready"
+        );
+    }
+
+    /// No feeds is not the same as healthy feeds, and a mount that is not there
+    /// is not a connection problem.
+    #[test]
+    fn a_mount_error_outranks_the_feeds_and_no_feeds_is_starting() {
+        assert_eq!(account_state(None, &[]), "starting");
+        assert_eq!(
+            account_state(Some("mount point is not empty"), &[feed("ready")]),
+            "mount point is not empty",
+            "a mount that could not be made must say so rather than report the feeds behind it"
+        );
+        assert_eq!(
+            account_state(
+                Some("mount point is not empty"),
+                &[feed("sign_in_required")]
+            ),
+            "mount point is not empty"
+        );
+    }
     #[test]
     fn recognizes_foreign_mounts_and_escaped_paths() {
         let data = "1 0 0:1 / /tmp/Cloud\\040drive rw - fuse.cirrove cirrove:x rw\n2 0 0:2 / /tmp/foreign rw - fuse.rclone rclone rw";
