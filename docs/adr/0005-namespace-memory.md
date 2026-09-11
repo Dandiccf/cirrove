@@ -816,8 +816,24 @@ with 750,438 live views. Trimming returns pages after the fact; it cannot lower 
 high-water mark reached while the views were held. Whether this service runs on a
 machine with a gibibyte of usable memory turns on the peak, not on the residue, so
 the sibling criterion stays open and reporting. Only bounding the resident count
-lowers it, which is what shedding is for — and whether shedding is affordable is
-still gated on a kernel measurement nobody has taken.
+lowers it.
+
+That sentence used to continue "which is what shedding is for — and whether
+shedding is affordable is still gated on a kernel measurement nobody has taken."
+CORRECTED 2026-09-12: the measurement was taken on 2026-09-08 and is in the
+shedding section of this same document. `notify_inval_entry` sustains about 107
+per second under concurrent lookups against a required 1,400
+([inval-entry-rate.json](../benchmarks/inval-entry-rate.json)). Shedding is
+retired, not pending, and this page said both things at once.
+
+Its successor, [ADR 0006](0006-peak-namespace-memory.md), was rejected by its own
+measurement a day later: shortening the entry TTL above a ceiling does not move
+the peak either. So the peak criterion has two designs behind it, both measured
+and both dead, and no third one written down. What is left is named in the
+shedding section and neither half is small — reduce bytes per view, which three
+passes have moved 15 to 20 percent each and which will not reach a factor of two
+on its own, or decline to resolve views beyond a ceiling at all, which is a change
+to the lookup contract rather than to reclamation and needs its own ADR.
 
 It took four attempts to get the trim condition right, and the first three failed
 invisibly: whether it fired could only be inferred from the memory it was supposed
