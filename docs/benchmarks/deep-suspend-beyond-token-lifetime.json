@@ -1,0 +1,41 @@
+{
+  "question": "Does the daemon come back from a deep suspend that lasts longer than its access token and its change subscription -- same process, mount intact, and still receiving changes afterwards?",
+  "why_now": "The recovery row's suspend/resume clause. service-lifecycle-and-suspend.json ran it once and its own verdict says the row is NOT closed: the cycle was two seconds of s2idle, 'too short to expire a token, tear down a network or lapse a subscription'. It named what would close it -- a deep suspend, long enough to outlive both -- and that is this.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-11",
+  "a_correction_to_the_earlier_artifact": "service-lifecycle-and-suspend.json reasoned that 'a machine that only supports s2idle cannot produce S3, so this is the cycle this hardware does'. That inferred the hardware from the default. /sys/power/mem_sleep on this machine reads '[s2idle] deep': deep is supported and merely not selected. The earlier run was shallow because of a setting, not a limitation, and the artifact should not have concluded otherwise from the kernel's choice.",
+  "why_these_durations": {
+    "access_token": "Microsoft access tokens live on the order of an hour, and the daemon's journal shows hourly refreshes. A suspend shorter than that cannot reach the failure where the process wakes holding a token that has expired while it was frozen.",
+    "subscription": "One real subscription was measured holding 2,999,973 ms -- about fifty minutes -- before renewal. A suspend must outlast that for the wake to land on a lapsed subscription rather than a live one.",
+    "chosen": "90 minutes, which clears both with margin and still fits in an evening."
+  },
+  "shape": {
+    "depth": "echo deep > /sys/power/mem_sleep as root, confirmed by reading it back, so the cycle is S3 and not suspend-to-idle.",
+    "duration": "rtcwake -m mem -s 5400, which both suspends and schedules the wake, so the duration is a number in the artifact rather than however long someone was away.",
+    "before": "Capture MainPID, ActiveEnterTimestamp, account state, indexed_items, mount entry count and stuck_changes to a file on disk, because a process on the machine being suspended cannot observe its own suspend.",
+    "after": "Compare every field, then make a remote change and time its delivery -- a daemon that is the same process but no longer hearing anything has not recovered."
+  },
+  "predictions": {
+    "P1": "Same MainPID and ActiveEnterTimestamp: suspend froze the daemon rather than killing it, across a deep cycle and not only a shallow one.",
+    "P2": "The mount is intact and a read through it succeeds without a remount.",
+    "P3": "The access token expired while frozen and is refreshed without intervention; the account reaches ready without a reauthentication prompt.",
+    "P4": "A change made after the wake is delivered. Whether by a renewed subscription or by the thirty-second poll is recorded, not assumed -- both are recovery, and which one carried it is the interesting part.",
+    "P5": "indexed_items does not reset and schema_version does not move."
+  },
+  "decision_rule": {
+    "all_hold": "The recovery row's suspend clause is closed, and the row then rests on its other two clauses being test-covered, which the ledger already records.",
+    "P1_fails": "The daemon was restarted. That is still a form of recovery and the row can say so, but it is a different claim from surviving the freeze and must not be recorded as the same one.",
+    "P3_fails": "A defect, not a limit: a daemon that needs a human after every long sleep is not usable on a laptop.",
+    "P4_fails": "The row stays open. A process that is alive and deaf is the failure this clause exists to catch, and the thirty-second poll makes it easy to miss."
+  },
+  "what_this_does_not_cover": "One cycle on one machine. It says nothing about hibernation (S4), about a suspend that outlives the refresh token rather than the access token, or about waking on a different network.",
+  "operator_runbook": {
+    "1": "Record the before state: scripts/suspend-check.py before",
+    "2": "As root: echo deep > /sys/power/mem_sleep && cat /sys/power/mem_sleep",
+    "3": "As root: rtcwake -m mem -s 5400",
+    "4": "After it wakes: scripts/suspend-check.py after",
+    "note": "Nothing else should be mid-flight on the machine. The daemon and its mount are the subject; a build running into the suspend would perturb what is being measured."
+  },
+  "result": null,
+  "verdict": null
+}

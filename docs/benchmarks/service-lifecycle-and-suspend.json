@@ -66,5 +66,10 @@
     "P4": "HOLDS. Exactly one fuse.cirrove mount, owned by the new daemon: PID 1244 holds /dev/fuse and the abort descriptor for connection 83. The only other FUSE mounts on the host are gvfsd-fuse and portal. The previous daemon unmounted on the way down rather than leaving the mount for the new one to find.",
     "clean_shutdown_observed_live": "The clean-shutdown half of the installable-service row had test and smoke coverage and no live run. This reboot supplied one: the unit logged the unmount itself, stopped in 38 ms with Result=success, and consumed 3 min 13 s CPU over 17 min 20 s wall, 227 M peak.",
     "reads_after_the_reboot": "Three files read through the mount returned correct magic bytes -- two ZIP-based Office documents and a JPEG. All three were served from the on-disk cache, which survived the reboot: content_gets stayed 0 throughout. So these reads evidence the mount and the cache, not the content path. The provider path is evidenced separately and unambiguously: Graph requests rose from 4 to 80 during the session, both feeds recorded last_success after the reboot, and the unit logged 'Microsoft authorization refreshed and saved' at 06:10:19."
+  },
+  "corrected_2026_09_11": {
+    "what_was_wrong": "The suspend limit read 'a machine that only supports s2idle cannot produce S3, so this is the cycle this hardware does'. That inferred the hardware from the kernel's default.",
+    "what_is_true": "/sys/power/mem_sleep on this machine reads '[s2idle] deep'. Deep is supported and simply not selected. The cycle was shallow because of a setting, not a limitation.",
+    "what_follows": "The verdict itself is unaffected -- it already said the recovery row is NOT closed and named a deep, long suspend as what would close it. What changes is that the deep half is reachable on this hardware rather than out of reach, and it is registered in deep-suspend-beyond-token-lifetime.json."
   }
 }
