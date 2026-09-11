@@ -278,20 +278,23 @@ impl CloudFs {
             // The floor keeps a settled small process from paying even that. A
             // daemon that has never grown past it has nothing worth a walk.
             //
-            // The signal is resident memory that is not live heap, and getting
-            // there took two wrong answers that are recorded rather than tidied
-            // away. Free arena bytes fires forever, because `malloc_trim`
-            // returns PAGES while the free CHUNKS stay on the free lists, so the
-            // figure does not fall when a trim succeeds -- eight trims in eight
-            // seconds on a live daemon with it flat at 104 MiB. Bolting an
-            // explicit growth threshold onto that then made things worse than
-            // doing nothing, because trims only fired in the brief idle windows
-            // after activity: 189.6 MiB resting against 151.7 for the version
-            // that trimmed freely.
+            // Resident size above the floor is a gate on whether a walk is worth
+            // it, NOT the trigger -- the interval is the trigger. That
+            // distinction is the whole of the change: resident-minus-live was
+            // tried as a trigger and is one of the three recorded failures,
+            // because it includes the SQLite page cache over a 560 MB index and
+            // so sits permanently around 90 MiB above any floor.
             //
-            // Resident minus live is what a reclamation decision actually wants,
-            // and it FALLS when a trim succeeds, so it carries its own
-            // hysteresis. See docs/benchmarks/trim-trigger-reaches-reads.json.
+            // What the cadence bought and what it did not, measured over two
+            // hours on the live daemon in docs/benchmarks/trim-cadence.json:
+            // trims fired 118 times at 0.99 a minute against 78 frozen over
+            // eight and a half hours, and the mean came down to 209.1 MiB from
+            // 320.2. But resident size drifted +40.5 MiB between the first hour
+            // and the second while the cadence fired steadily, and the peak
+            // touched 250.3 MiB against a registered ceiling of 250. The run is
+            // recorded as NOT SETTLED: this is better than what it replaces and
+            // is not shown to be bounded, and a longer run is what would tell an
+            // asymptote from a ramp.
             const QUIESCENT_TICKS: u32 = 5;
             const SHED_FACTOR: usize = 2;
             const SHED_FLOOR: usize = 1024;

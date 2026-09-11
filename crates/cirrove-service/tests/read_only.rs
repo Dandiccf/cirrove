@@ -3299,7 +3299,7 @@ async fn real_reclamation_reaches_a_mount_that_only_reads() {
     let mount = temp.path().join("mount");
     std::fs::create_dir(&mount).unwrap();
     // This fixture retains a flat 16.5 MiB however much it reads: the baseline
-    // and nothing more. The shipped floor is 64 MiB, derived from a daemon
+    // and nothing more. The shipped floor is 96 MiB, derived from a daemon
     // holding 184,000 nodes and a 560 MB index, and no amount of reading here
     // reaches it. Lowering it lets this assert the mechanism -- that the
     // retention signal reaches a mount which only reads -- while leaving the
@@ -3316,7 +3316,7 @@ async fn real_reclamation_reaches_a_mount_that_only_reads() {
         .unwrap_or_else(|| {
             panic!(
                 "run this with CIRROVE_RECLAIM_FLOOR_BYTES=8388608. The shipped floor \
-                 is 64 MiB and this fixture retains a flat 16.5 MiB however much it \
+                 is 96 MiB and this fixture retains a flat 16.5 MiB however much it \
                  reads, so it cannot reach it."
             )
         });
