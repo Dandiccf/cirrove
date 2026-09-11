@@ -77,6 +77,15 @@ impl WriteWorkers {
     pub(crate) async fn stuck_changes(&self) -> u64 {
         self.control.stuck_changes().await.unwrap_or(0)
     }
+    pub(crate) async fn discard_stuck(&self) -> std::io::Result<u64> {
+        self.control.discard_stuck().await
+    }
+    /// The write half, so the manager can register it next to the engine and a
+    /// control request can reach it. `Running` is a local in `Manager::run`, the
+    /// same reason `engines` exists.
+    pub(crate) fn control(&self) -> crate::filesystem::WriteControl {
+        self.control.clone()
+    }
     pub(crate) fn pending_local_requests(&self) -> usize {
         self.control.pending()
     }
@@ -176,6 +185,18 @@ impl WritableSession {
     }
     pub fn worker_issue(&self) -> Option<String> {
         self.writers.as_ref().and_then(WriteWorkers::worker_issue)
+    }
+    pub async fn stuck_changes(&self) -> u64 {
+        match &self.writers {
+            Some(writers) => writers.stuck_changes().await,
+            None => 0,
+        }
+    }
+    pub async fn discard_stuck(&self) -> io::Result<u64> {
+        match &self.writers {
+            Some(writers) => writers.discard_stuck().await,
+            None => Ok(0),
+        }
     }
     pub fn pending_local_requests(&self) -> usize {
         self.writers

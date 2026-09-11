@@ -78,6 +78,11 @@ struct Cloud {
     read_entered: Notify,
     read_release: Notify,
     hold_folder: AtomicBool,
+    /// Refuse folder removal at the provider only, the way a remote that moved
+    /// between the mount's read and the delete does. Changing the stored eTag
+    /// instead would not model it: the fixture's listing hands the mount the new
+    /// value, so the mount builds a removal that matches and nothing conflicts.
+    refuse_folder_removal: AtomicBool,
     folder_entered: Notify,
     folder_release: Notify,
     /// Refuse every content read, so an offline claim can be tested rather than
@@ -414,6 +419,9 @@ impl MutationProvider for Cloud {
             });
         }
         if let MutationIntent::RemoveFolder { before } = &request.intent {
+            if self.refuse_folder_removal.load(Ordering::SeqCst) {
+                return Err(MutationError::Conflict);
+            }
             let mut remote = self.remote.lock().unwrap();
             let (node, _) = remote
                 .files
@@ -2937,6 +2945,155 @@ async fn real_a_directory_created_and_removed_again_is_gone_from_the_provider() 
             .any(|(node, _)| node.name == "made-and-unmade"),
         "rmdir reported success and the folder is still at the provider"
     );
+}
+
+/// A delete the provider refused leaves the item hidden locally and present in
+/// the account -- and there has to be a way out of that.
+///
+/// This is the shape of the incident that produced it: fourteen folder removals
+/// ended in `Conflict` on a live drive, the mount said they were gone, the
+/// account still had them, and nothing could clear it. `request_mutation_retry`
+/// refuses `Conflict` by design and nothing else touched one.
+///
+/// The way out discards rather than retries. A conflict means the remote moved
+/// under us, so re-sending the delete would act on whatever is there now. This
+/// drops the local intent instead: the item comes back into view, matching what
+/// the provider actually has, and deleting it again is an ordinary `rmdir` built
+/// from current state -- asserted here by doing exactly that and watching it
+/// reach the provider.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; a refused delete can be abandoned and the item returns"]
+async fn real_a_delete_the_provider_refused_can_be_abandoned_and_the_folder_returns() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    namespace_fixture(&cloud);
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session =
+        WritableSession::mount(engine, journal, cloud.clone(), Arc::new(Vault::default()))
+            .await
+            .unwrap();
+
+    // The provider refuses the removal, and the item it refused to remove has
+    // moved on -- which is what "the remote changed under us" means and is the
+    // only honest reason a conditional delete is refused. Both together, because
+    // the second half is what makes the *next* attempt interesting: whatever the
+    // mount held as the item's ETag is now stale.
+    cloud.refuse_folder_removal.store(true, Ordering::SeqCst);
+
+    // Created through the mount, deliberately: the fixture stores a folder with
+    // a different eTag from the one its create receipt carried, which is
+    // measured OneDrive behaviour. So the local copy is stale from the moment it
+    // exists, and a discard that restored it as-is would hand the second
+    // removal the same doomed precondition -- which is what happened on a live
+    // drive to four of fourteen folders.
+    let created = mount.join("made-then-refused");
+    let make = created.clone();
+    tokio::task::spawn_blocking(move || {
+        std::fs::create_dir(&make).unwrap();
+    })
+    .await
+    .unwrap();
+    applied(&session, 1).await;
+
+    let path = created.clone();
+    let target = path.clone();
+    tokio::task::spawn_blocking(move || {
+        // The kernel call succeeds: the local namespace released the name. What
+        // the provider does with it is decided afterwards, which is the whole
+        // hazard this test is about.
+        for _ in 0..100 {
+            if std::fs::remove_dir(&target).is_ok() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        assert!(!target.exists(), "the mount hides it immediately");
+    })
+    .await
+    .unwrap();
+
+    tokio::time::timeout(Duration::from_secs(10), async {
+        while session.stuck_changes().await == 0 {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .expect("the refused delete was never counted as stuck");
+    assert!(
+        cloud
+            .remote
+            .lock()
+            .unwrap()
+            .files
+            .values()
+            .any(|(n, _)| n.name == "made-then-refused"),
+        "the provider still has it, which is why this matters"
+    );
+
+    assert_eq!(session.discard_stuck().await.unwrap(), 1);
+    assert_eq!(session.stuck_changes().await, 0);
+    // Whatever was wrong at the provider is over. What this asserts is that a
+    // restored item is ordinary again -- not that its ETag is fresh, which it
+    // need not be: see `discard_stuck_removal` for what a discard does and does
+    // not fix.
+    cloud.refuse_folder_removal.store(false, Ordering::SeqCst);
+
+    // Back in view, because that is the truth, and removable again for real.
+    let restored = path.clone();
+    tokio::task::spawn_blocking(move || {
+        for _ in 0..100 {
+            if restored.is_dir() {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        panic!("the folder never came back into view");
+    })
+    .await
+    .unwrap();
+
+    // Now that the mount can see it again, an ordinary removal is built from the
+    // eTag it really has and reaches the provider.
+    let again = path.clone();
+    tokio::task::spawn_blocking(move || {
+        for _ in 0..100 {
+            if std::fs::remove_dir(&again).is_ok() {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        panic!("the restored folder never became removable");
+    })
+    .await
+    .unwrap();
+    tokio::time::timeout(Duration::from_secs(10), async {
+        while cloud
+            .remote
+            .lock()
+            .unwrap()
+            .files
+            .values()
+            .any(|(n, _)| n.name == "made-then-refused")
+        {
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .expect("the second removal never reached the provider");
+    assert_eq!(
+        session.stuck_changes().await,
+        0,
+        "the second removal must not be stuck in its turn"
+    );
+    session.shutdown().await.unwrap();
 }
 
 /// A trash directory that is already in the drive cannot be used as one either.

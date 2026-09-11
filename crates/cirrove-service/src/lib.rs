@@ -187,6 +187,43 @@ pub async fn refresh(
     }
 }
 
+/// Ask the daemon to abandon the changes it gave up on for one account.
+///
+/// Discards, never retries. See `Manager::discard_stuck` for why.
+pub async fn discard_stuck(socket: &Path, label: &str) -> Result<DiscardReply> {
+    request(
+        socket,
+        "discard-stuck",
+        Some(DiscardRequest {
+            label: label.to_owned(),
+        }),
+        "Cirrove discard",
+    )
+    .await
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct DiscardRequest {
+    #[serde(default)]
+    pub label: String,
+}
+
+/// What the daemon did about the stuck changes, and what is left.
+///
+/// `remaining` is read back after the discard rather than computed from the
+/// count, because a discard can refuse one it listed -- an object that moved on
+/// in between -- and a caller told "cleared" while the number stayed put would
+/// have to find that out by asking again.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct DiscardReply {
+    #[serde(default)]
+    pub discarded: u64,
+    #[serde(default)]
+    pub remaining: u64,
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+
 pub async fn status(socket: &Path) -> Result<Status> {
     request(socket, "status", None::<()>, "Cirrove status").await
 }
@@ -442,9 +479,14 @@ impl Capabilities {
 
     pub fn current() -> Self {
         Self {
-            capabilities: [("events".to_string(), events::EVENT_PROTOCOL_VERSION)]
-                .into_iter()
-                .collect(),
+            capabilities: [
+                ("events".to_string(), events::EVENT_PROTOCOL_VERSION),
+                // So a client can ask rather than guess. An older daemon omits
+                // the key and its refusal of the verb is the same answer.
+                ("discard-stuck".to_string(), 1),
+            ]
+            .into_iter()
+            .collect(),
         }
     }
 }
@@ -603,6 +645,17 @@ pub async fn serve_managed(
                             // rule a client should use, rather than matching on a
                             // refusal sentence that will be reworded.
                             return write_reply(&mut stream,&Capabilities::current()).await;
+                        }
+                        if verb=="discard-stuck" {
+                            let reply=match (serde_json::from_str::<DiscardRequest>(body),&manager) {
+                                (Ok(r),Some(m))=>match m.discard_stuck(&r.label).await {
+                                    Ok((discarded,remaining))=>DiscardReply{discarded,remaining,refusal:None},
+                                    Err(error)=>DiscardReply{refusal:Some(error.to_string()),..Default::default()},
+                                },
+                                (Ok(_),None)=>DiscardReply{refusal:Some("this service manages no accounts".into()),..Default::default()},
+                                (Err(_),_)=>DiscardReply{refusal:Some("malformed request body".into()),..Default::default()},
+                            };
+                            return write_reply(&mut stream,&reply).await;
                         }
                         if verb!="status" {
                             let reply=handle_control(verb,body,&manager).await?;

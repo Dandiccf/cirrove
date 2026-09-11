@@ -6,7 +6,7 @@ use crate::{
     engine::{Engine, FeedHealth},
     filesystem::{CloudFs, CloudSession},
 };
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use cirrove_core::{CancellationToken, ReadProvider};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -104,12 +104,18 @@ pub struct Manager {
     /// same shape as `status` above and is written at the same two points, so a
     /// request never reaches an engine whose mount is being torn down.
     engines: RwLock<HashMap<String, Arc<Engine>>>,
+    /// The write half of a writable mount, registered beside its engine and for
+    /// the same reason: `Running` is a local in `run()`, so a control request
+    /// had no way to reach one. Absent for a read-only mount, which is what a
+    /// caller asking to clear stuck changes on one should be told.
+    writers: RwLock<HashMap<String, crate::filesystem::WriteControl>>,
 }
 impl Default for Manager {
     fn default() -> Self {
         Self {
             status: RwLock::default(),
             engines: RwLock::default(),
+            writers: RwLock::default(),
             events: tokio::sync::broadcast::channel(crate::events::EVENT_QUEUE_DEPTH).0,
         }
     }
@@ -136,6 +142,38 @@ impl Manager {
 
     /// The running engine for an account label, or for the only account when the
     /// label is empty. `Err` carries a message a user can act on.
+    /// Abandon every stuck removal on one account, and say what is left.
+    ///
+    /// Discarding, never retrying: a conflict means the remote moved under us,
+    /// and re-sending a delete against whatever is there now is how a stale
+    /// intent destroys someone else's change. What this does is drop the local
+    /// intent so the mount shows what the provider actually has; deciding again
+    /// is then an ordinary delete built from current state.
+    pub async fn discard_stuck(&self, label: &str) -> Result<(u64, u64)> {
+        let id = self.account_id(label).await?;
+        let control = self
+            .writers
+            .read()
+            .await
+            .get(&id)
+            .cloned()
+            .context("this account is mounted read-only, so it has no changes to clear")?;
+        let discarded = control.discard_stuck().await?;
+        Ok((discarded, control.stuck_changes().await.unwrap_or(0)))
+    }
+    async fn account_id(&self, label: &str) -> Result<String> {
+        let status = self.status.read().await;
+        let matched: Vec<_> = status
+            .iter()
+            .filter(|a| label.is_empty() || a.label == label)
+            .collect();
+        match matched.as_slice() {
+            [one] => Ok(one.account_id.clone()),
+            [] if label.is_empty() => bail!("no accounts are configured"),
+            [] => bail!("no account is labelled {label:?}"),
+            _ => bail!("more than one account is configured; name one with --label"),
+        }
+    }
     pub async fn engine(&self, label: &str) -> Result<Arc<Engine>> {
         let status = self.status.read().await;
         let matched: Vec<_> = status
@@ -275,6 +313,7 @@ impl Manager {
                             // otherwise reach an engine whose mount is being
                             // detached.
                             self.engines.write().await.remove(&id);
+                            self.writers.write().await.remove(&id);
                             old.stop().await;
                         }
                     }
@@ -299,6 +338,12 @@ impl Manager {
                                     .write()
                                     .await
                                     .insert(account.id.clone(), active.engine.clone());
+                                if let Some(writers) = &active.writers {
+                                    self.writers
+                                        .write()
+                                        .await
+                                        .insert(account.id.clone(), writers.control());
+                                }
                                 running.insert(account.id.clone(), active);
                             }
                             Err(_) => {
@@ -471,6 +516,7 @@ impl Manager {
         }
         // Same ordering as a single removal: withdrawn before stopped.
         self.engines.write().await.clear();
+        self.writers.write().await.clear();
         for (_, active) in running {
             active.stop().await;
         }

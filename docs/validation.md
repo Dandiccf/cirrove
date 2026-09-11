@@ -2443,5 +2443,28 @@ is gone by refusing honestly rather than by succeeding falsely.
 **The second finding.** Fourteen namespace changes sat terminally stuck in a live
 journal and no status field said so: a conflict hid the directory locally, left it
 remotely, and reported nothing. `AccountStatus` now carries `stuck_changes`, and
-the daemon on that drive reports `14`. It reports; it does not resolve. There is
-still no way for a user to clear one.
+the daemon on that drive reported `14`.
+
+**And the way out, measured on the same fourteen.** `cirrove discard-stuck`
+abandons a removal the provider never took. It discards rather than retries: a
+conflict means the remote moved, and re-sending a delete against whatever is
+there now is how a stale intent destroys someone else's change. Run against the
+live drive:
+
+| step | result |
+| --- | --- |
+| `discard-stuck` | abandoned 14; `stuck_changes` 14 → 0 |
+| folders back in the mount | 14 of 14 |
+| second `rmdir` | 10 applied, 4 conflicted again |
+| their local ETags | `,1` while the delta feed already held `,2` |
+| `discard-stuck` again, then `rmdir` | 4 of 4 applied |
+
+So a discard restores *visibility*, not *freshness*. The restored object keeps
+the ETag it held when the removal was built, and a second attempt made before the
+delta feed catches up is refused for the original reason -- and is itself
+discardable. Making the discard follow the remote was tried and does not help:
+the node it would follow is the one this journal stored, which is the stale one.
+Refreshing from the provider is the feed's job, and doing it inside a discard
+would be a second, worse copy of it.
+
+Final state of that drive: no leftovers, 192 mutations, all applied.

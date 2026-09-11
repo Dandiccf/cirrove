@@ -416,6 +416,102 @@ impl UploadJournal {
         record.retry_at = 0;
         self.save_mutation(&record)
     }
+    /// Abandon a removal the provider never took, and let the mount show what is
+    /// really there again.
+    ///
+    /// A terminal mutation is a disagreement nothing retries. For a removal that
+    /// is the worst shape it can have: the object is `unlinked` locally, so the
+    /// mount says the file or folder is gone, and the provider still has it.
+    /// Fourteen of those sat in a live account with no way to clear them --
+    /// `request_mutation_retry` refuses `Conflict` by design, and nothing else
+    /// touched it.
+    ///
+    /// Three deliberate narrownesses, for the same reason `forget` has its own.
+    ///
+    /// It discards rather than retries. A conflict means the remote moved under
+    /// us, and re-sending a delete against whatever is there now is how a stale
+    /// intent destroys someone else's change. Dropping the intent and showing
+    /// reality lets the user look and decide again; the second attempt is then
+    /// an ordinary `rmdir` built from current state.
+    ///
+    /// It takes removals only. A stuck `CreateFolder` or `Relocate` leaves the
+    /// local tree depending on it -- children parented to a folder that was
+    /// never created -- and unwinding that is a different problem from clearing
+    /// a flag. Refused rather than half-handled.
+    ///
+    /// And it takes terminal states only. A change still being worked on is not
+    /// stuck, and discarding one would race the worker holding it.
+    /// Ids of stuck removals, oldest first. Removals only, because they are the
+    /// only ones `discard_stuck_removal` will take.
+    pub fn stuck_removals(&self, limit: u32) -> Result<Vec<Uuid>> {
+        let mut query = self.db.prepare(
+            "SELECT body FROM mutations WHERE state IN ('conflict','failed','needs_review')
+             ORDER BY sequence LIMIT ?1",
+        )?;
+        let rows = query.query_map([limit.clamp(1, 1000)], |r| r.get::<_, String>(0))?;
+        let mut ids = Vec::new();
+        for row in rows {
+            let record: MutationRecord = serde_json::from_str(&row?)?;
+            if matches!(
+                record.request.intent,
+                MutationIntent::RemoveFile { .. } | MutationIntent::RemoveFolder { .. }
+            ) {
+                ids.push(record.id);
+            }
+        }
+        Ok(ids)
+    }
+    pub fn discard_stuck_removal(&mut self, id: Uuid) -> Result<()> {
+        let record = self.mutation(id)?;
+        if !matches!(
+            record.state,
+            MutationState::Conflict | MutationState::Failed | MutationState::NeedsReview
+        ) {
+            return Err(JournalError::Stale);
+        }
+        if !matches!(
+            record.request.intent,
+            MutationIntent::RemoveFile { .. } | MutationIntent::RemoveFolder { .. }
+        ) {
+            return Err(JournalError::Intent);
+        }
+        let mut object = self
+            .namespace_for_operation(id)?
+            .ok_or(JournalError::Missing)?;
+        if !object.unlinked || object.latest != Some(id) {
+            // Something else has happened to this object since. Refusing is the
+            // honest answer: the caller's picture of it is out of date.
+            return Err(JournalError::Stale);
+        }
+        // Visibility only. Freshness is a separate thing and is not this
+        // function's to fix: the restored object still carries whatever ETag it
+        // held when the removal was built, and if the remote moved in the
+        // meantime -- which is what a conflict means -- a second removal
+        // attempted before the delta feed catches up is refused for the original
+        // reason. Measured on a live drive: of fourteen abandoned removals, ten
+        // deleted cleanly on the second attempt and four conflicted again, their
+        // local copies on ",1" while the feed already held ",2". Those four
+        // cleared once the feed caught up.
+        //
+        // Making the object follow the remote here was tried and does not help:
+        // the node it would follow is the one this journal stored, which is the
+        // stale one. Refreshing from the provider is the delta feed's job and
+        // doing it from inside a discard would be a second, worse copy of it.
+        object.unlinked = false;
+        object.latest = None;
+        object.revision = object.revision.checked_add(1).ok_or(JournalError::Quota)?;
+        let tx = self.db.transaction()?;
+        super::namespace::save(&tx, &object)?;
+        tx.execute(
+            "DELETE FROM namespace_operations WHERE operation=?1",
+            [id.to_string()],
+        )?;
+        tx.execute("DELETE FROM mutations WHERE id=?1", [id.to_string()])?;
+        tx.execute("DELETE FROM write_resources WHERE id=?1", [id.to_string()])?;
+        tx.execute("DELETE FROM write_queue WHERE id=?1", [id.to_string()])?;
+        tx.commit()?;
+        Ok(())
+    }
     pub fn request_mutation_retry(&mut self, id: Uuid) -> Result<()> {
         let mut record = self.mutation(id)?;
         if record.base.as_ref().is_some_and(|base| !base.resolved) {

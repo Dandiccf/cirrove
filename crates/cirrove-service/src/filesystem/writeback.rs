@@ -315,6 +315,31 @@ impl Writeback {
             .and_then(|id| projection.files.get(&id))
             .cloned())
     }
+    /// Abandon every stuck removal, and report how many were abandoned.
+    ///
+    /// All of them rather than one: a caller looking at `stuck_changes` has a
+    /// number and no ids, and giving them ids would mean putting paths on the
+    /// control surface for something whose whole purpose is to stop hiding
+    /// things. Discarding is safe to do in bulk precisely because it destroys
+    /// nothing -- it drops a local intent the provider never took and lets the
+    /// mount show what is really there.
+    pub async fn discard_stuck(&self) -> Result<u64> {
+        self.local(|j| {
+            let mut discarded = 0;
+            // One refusal must not abandon the rest. An object that moved on
+            // since it was listed is exactly the case `discard_stuck_removal`
+            // refuses, and it is no reason to leave the other stuck removals in
+            // place; what is left is still counted by `stuck_changes`, so
+            // nothing is hidden by skipping it here.
+            for id in j.stuck_removals(1000)? {
+                if j.discard_stuck_removal(id).is_ok() {
+                    discarded += 1;
+                }
+            }
+            Ok(discarded)
+        })
+        .await
+    }
     /// Namespace changes the daemon has given up on. See
     /// `UploadJournal::stuck_mutations` for why this is a count and not a list.
     pub async fn stuck_changes(&self) -> Result<u64> {

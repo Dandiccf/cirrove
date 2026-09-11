@@ -276,6 +276,21 @@ enum Command {
         #[arg(long)]
         socket: Option<PathBuf>,
     },
+    /// Abandon the changes the daemon gave up on, so the mount shows what the
+    /// cloud actually has.
+    ///
+    /// `status` reports these as `stuck_changes`: a delete the provider refused
+    /// leaves the item hidden locally and present in the account, and nothing
+    /// retries it. This drops the local intent -- it never re-sends anything,
+    /// because the conflict means the remote moved and a stale retry would
+    /// destroy whatever is there now. The item comes back into view and you can
+    /// decide again.
+    DiscardStuck {
+        #[arg(long, default_value = "")]
+        label: String,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
     /// Exercise atomic metadata staging with synthetic data, without cloud access.
     Demo {
         #[arg(long)]
@@ -577,6 +592,20 @@ async fn main() -> Result<()> {
                 None => socket_path()?,
             };
             println!("{}", serde_json::to_string_pretty(&status(&socket).await?)?);
+        }
+        Command::DiscardStuck { label, socket } => {
+            let socket = match socket {
+                Some(p) => p,
+                None => socket_path()?,
+            };
+            let reply = cirrove_service::discard_stuck(&socket, &label).await?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            println!(
+                "abandoned {} change(s); {} still stuck",
+                reply.discarded, reply.remaining
+            );
         }
         Command::Demo { state_dir } => {
             private_dir(&state_dir)?;

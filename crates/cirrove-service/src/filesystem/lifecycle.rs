@@ -61,6 +61,12 @@ impl WriteControl {
         self.inner.engine.changed.notify_waiters();
         Ok(())
     }
+    pub async fn discard_stuck(&self) -> std::io::Result<u64> {
+        self.writer
+            .discard_stuck()
+            .await
+            .map_err(|_| std::io::Error::other("could not discard the stuck changes"))
+    }
     pub async fn stuck_changes(&self) -> std::io::Result<u64> {
         self.writer
             .stuck_changes()

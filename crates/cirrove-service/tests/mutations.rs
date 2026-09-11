@@ -520,3 +520,42 @@ fn only_changes_the_daemon_has_stopped_retrying_are_counted_as_stuck() {
         "an applied change must not be counted, and must not hide the stuck one"
     );
 }
+
+/// What it refuses, and why each refusal is the right answer rather than a gap.
+#[test]
+fn discarding_refuses_anything_it_cannot_unwind_cleanly() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut j = journal(&tmp.path().join("journal"));
+
+    // Still being worked on: not stuck, and discarding would race the worker.
+    let live = j.enqueue_mutation(request()).unwrap();
+    assert!(matches!(
+        j.discard_stuck_removal(live.id),
+        Err(JournalError::Stale)
+    ));
+
+    // A stuck creation leaves the local tree depending on it -- children
+    // parented to a folder that was never made -- which is a different problem
+    // from clearing a flag, and is refused rather than half-handled. Its own
+    // journal, so that the claim above cannot pick the wrong pending change.
+    let other = tempfile::tempdir().unwrap();
+    let mut j = journal(&other.path().join("journal"));
+    let object = j
+        .create_namespace_directory(scope(), "root".into(), "never-made".into())
+        .unwrap();
+    let creation = j.claim_mutation().unwrap().unwrap();
+    assert_eq!(creation.id, object.latest.unwrap());
+    j.defer_mutation(
+        creation.id,
+        creation.attempt.unwrap(),
+        MutationState::Conflict,
+        Duration::from_secs(0),
+    )
+    .unwrap();
+    assert!(matches!(
+        j.discard_stuck_removal(creation.id),
+        Err(JournalError::Intent)
+    ));
+    // It stays counted, so refusing to clear it never hides it.
+    assert_eq!(j.stuck_mutations().unwrap(), 1);
+}

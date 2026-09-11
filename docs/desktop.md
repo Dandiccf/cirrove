@@ -167,8 +167,10 @@ event costs no protocol break.
 
 `status` also reports `stuck_changes`: namespace changes the daemon has given up
 on, each one a change the mount already made locally that the provider never
-took. It reports rather than resolves -- there is no action yet that clears one,
-and neither the window nor the tray shows the number. See [ADR 0007](adr/0007-desktop-event-channel.md). This window
+took. `cirrove discard-stuck` abandons them, so the mount shows what the cloud
+actually has and the user can decide again; it never re-sends anything, because
+the conflict means the remote moved and a stale retry would act on whatever is
+there now. Neither the window nor the tray shows the number yet. See [ADR 0007](adr/0007-desktop-event-channel.md). This window
 does not consume it yet; `cirrove-tray` does.
 
 Mount-preference save failures and folder-opening failures still use generic
