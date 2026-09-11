@@ -15,11 +15,14 @@ exercised Graph operations; sustained operation and wider account/provider cover
 remain under validation. Do not replace a trusted cloud
 client with this preview. Ordinary mounts remain read-only. An isolated experimental
 writable filesystem API and upload worker are undergoing validation. Offline pinning
-exists at the daemon and command line: a pin is durable, reserves cache space that
-eviction may not take, and keeps pinned content readable with the provider
-unreachable across a restart. It is not in any user interface, pinned content is
-not yet fetched automatically in the background, and none of it has been measured
-on a real account. Tray UI and Nautilus badges are not implemented.
+works from the command line: `cirrove pin` reaches the running daemon over the
+control socket, which resolves a mount-relative path, fetches the content and
+protects the blocks it occupies, per file or recursively through a folder.
+`cirrove pins` shows what each pin has kept against what it reserved, and how much
+of the cache budget pinning has claimed. All of it has been measured against a real
+business drive: a pinned file reads through a mount without touching the provider
+while an unpinned control needs it. It is still in no user interface, and pinned
+content is fetched when a pin is made rather than in the background afterwards. Tray UI and Nautilus badges are not implemented.
 
 ## Current implementation
 

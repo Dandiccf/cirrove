@@ -30,7 +30,7 @@
       "done": false,
       "text": "Recovery after process failure, suspend/resume and loss of network access.",
       "blocker": "needs-reboot",
-      "evidence": "docs/benchmarks/namespace-memory-attribution.json",
+      "evidence": "Two of three clauses covered; see asserted_by for the tests. CORRECTED 2026-09-10: this field previously named docs/benchmarks/namespace-memory-attribution.json, a 500k heap-attribution artifact with no bearing on recovery -- a copy artifact from generating the ledger. Its real reasoning was in asserted_by all along. The suspend/resume clause is unmeasured and is structurally unobservable from a process on the machine being suspended; docs/authorization-request.md carries the operator script for it.",
       "asserted_by": "Two of its three clauses. Process failure: tests/read_only.rs real_manager_recovers_disconnected_mount_after_process_death kills the mount process and asserts the manager reconnects, and real_manager_exits_with_client_handles_open covers the reverse. Loss of network access: the capacity fixtures' offline_remount phase remounts with the provider unreachable and asserts foreground_requests and content_reads both stay at zero, and tests/read_only.rs real_local_saves_remain_readable_during_upload_and_after_offline_restart covers the writable side."
     },
     {
@@ -41,7 +41,7 @@
       "text": "Real token expiry/refresh and visible reauthentication when consent expires.",
       "blocker": "needs-live-account",
       "evidence": "Partial: the installed daemon has refreshed its Microsoft grant hourly for 1.5 days without intervention (journal, 2026-09-07..09), which evidences real token refresh. Consent EXPIRY with visible reauthentication is a different event and unobserved.",
-      "asserted_by": null
+      "asserted_by": "The refresh half: cirrove-auth tests simultaneous_expiry_rotates_once_and_stale_401_cannot_expire_new_token, credentials_are_not_used_when_rotation_cannot_be_persisted, and explicitly_granted_write_scope_survives_refresh_and_keyring_roundtrip. The visible half, LAST HOP ONLY: cirrove-desktop/tests/accounts.rs asserts a feed state of sign_in_required renders as ConnectionState::SignInRequired. It does not assert that an expired consent produces that feed state; the chain from ProviderError::Authentication through engine.rs:1102 to the feed string is unasserted end to end. NOT ASSERTED: consent expiry itself, which cannot be scheduled and has never been observed."
     },
     {
       "milestone": 1,
@@ -71,7 +71,7 @@
       "text": "Push-triggered metadata updates, reconnection/catch-up and periodic recovery checks, with provider delivery and local reaction latency measured separately.",
       "blocker": "needs-live-account",
       "evidence": "docs/validation.md#push-notifications and #subscription-renewal-at-the-real-boundary -- live 2026-09-09: delivery 30.0-32.7 s across eleven samples, local reaction 169-287 ms, measured separately as the box requires. One subscription held 2,999,973 ms, renewed, reconnected, and delivered a fresh change 30,441 ms later. One notification in eleven was never delivered (90 s deadline); the pre-registered interference hypothesis was refuted by an immediately passing retry and the miss stands unexplained; the shipped 30 s poll bounds the impact. Catch-up and periodic recovery are now covered live too (docs/validation.md#catch-up-after-a-reconnection-and-the-periodic-recovery-refresh, benchmarks/live-catchup-and-recovery.json, 2026-09-09): a change made with nothing connected and the poll an hour away was fetched 408 ms after the subscription connected and listed 206 ms later; with no subscription at all the 30 s poll found one in 29,421 ms. Each phase disabled the other and counted zero directory listings before its delta, so neither is explained by activity revalidation. RENEWAL OBSERVED LIVE 2026-09-11: the validator held a real Socket.IO subscription for its full lifetime, Microsoft renewed it, and a change made afterwards was delivered through the renewed connection -- 'Renewed subscription connected; checking a new change through it' followed by a passing delivery. That is a renewal the provider performed rather than one a fixture simulated. STILL OPEN: the one notification in eleven that was never delivered remains unexplained; the periodic figure bounds its impact rather than accounting for it. REPLICATED 2026-09-10 on a separate write-grant validation connection, a different day and build. Catch-up: delta 1536 ms after the subscription connected against 408 ms first time, entry listed 206 ms later -- the same figure to the millisecond. Periodic recovery: delta 29,454 ms against 29,421, a difference of 33 ms across two independent runs. Directory freshness through a real mount: three rounds at 5,147 / 5,297 / 5,103 ms total from change to visible, which is the five-second activity revalidation interval and not push. A mounted view following remote changes: create visible in 2 ms, move in 4,650 ms, delete in 4,450 ms.",
-      "asserted_by": null
+      "asserted_by": "tests/read_only.rs::push_refreshes_immediately_and_retains_bursts_during_an_active_delta covers push-triggered refresh and burst coalescing during an active delta; push_preserves_retry_after_and_reconnect_catches_unreported_changes covers the reconnection/catch-up clause and the provider's retry-after; real_push_updates_the_mounted_namespace_without_waiting_for_polling covers the same through a kernel mount with polling out of the way. NOT ASSERTED BY ANY TEST: the clause 'provider delivery and local reaction latency measured separately'. No unit test can measure a real provider's delivery latency; that clause rests on the live runs recorded in docs/validation.md, and one notification in eleven was never delivered and is still unexplained."
     },
     {
       "milestone": 1,
@@ -524,5 +524,5 @@
       "asserted_by": null
     }
   ],
-  "operator_guide": "docs/authorization-request.md \u2014 the command, blast radius and evidence for every box this file marks as blocked on something an agent cannot supply."
+  "operator_guide": "docs/authorization-request.md — the command, blast radius and evidence for every box this file marks as blocked on something an agent cannot supply."
 }
