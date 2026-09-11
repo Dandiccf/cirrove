@@ -83,5 +83,10 @@
     "why": "The row asks for offline access AND editing. A real account cannot be taken offline, so the testable form is that the edit is accepted locally: it lands in the journal as unsent work without the provider being asked to do anything.",
     "result": "A pinned file edited through a writable mount of the same drive left one record in the local journal. The application did not wait for the network to save, which is the property the clause is about.",
     "honest_limit": "This does not show the edit surviving a restart on a real account, which the fixture-level a_pinned_file_can_be_edited_offline_and_both_survive_a_restart does show, nor an edit made while the provider is genuinely unreachable -- that stays a fixture claim."
+  },
+  "unsent_under_pressure_2026_09_11": {
+    "why": "The claim holds structurally -- eviction only removes files whose names it recognises as its own block keys -- but structural is what a claim is called before anyone has put it under load on a real drive.",
+    "result": "An unsent journal record of 50 bytes is byte-for-byte unchanged after six rounds of cache reads against a real 9 MB file on the same account, with the journal sitting beside the cache throughout.",
+    "honest_limit": "Six rounds is pressure, not saturation. It exercises the eviction path repeatedly; it does not prove the journal survives a cache driven far past its budget for hours."
   }
 }

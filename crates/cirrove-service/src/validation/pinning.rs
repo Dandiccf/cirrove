@@ -93,7 +93,7 @@ pub async fn onedrive_pinning(state: &Path, label: &str) -> Result<()> {
     // span several cache blocks so the pin has real work to do.
     let pinned_bytes: Vec<u8> = (0..9_000_000u32).map(|i| (i % 251) as u8).collect();
     let control_bytes: Vec<u8> = (0..3_000_000u32).map(|i| (i % 241) as u8).collect();
-    place(
+    let uploaded = place(
         &graph,
         &scope,
         &root.id,
@@ -391,8 +391,76 @@ pub async fn onedrive_pinning(state: &Path, label: &str) -> Result<()> {
     }
     .await;
     let _ = tokio::task::spawn_blocking(move || session.shutdown()).await;
+
+    // Unsent work must survive cache pressure. The claim holds structurally --
+    // eviction only removes files whose names it recognises as its own block
+    // keys -- but structural is what a claim is called before anyone has put it
+    // under load on a real drive.
+    let unsent = async {
+        let rows = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock"))?
+            .list(0, 100)?;
+        let record = rows.first().context("no unsent record to protect")?.id;
+        let before = {
+            let j = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock"))?;
+            let mut bytes = Vec::new();
+            std::io::Read::read_to_end(&mut j.payload(record)?, &mut bytes)?;
+            bytes
+        };
+        anyhow::ensure!(!before.is_empty(), "the unsent record has no payload");
+
+        // Fill the cache past its budget with real content, so eviction runs
+        // repeatedly while the journal sits beside it.
+        let scope_for_reads = Scope {
+            account: account.id.clone(),
+            provider: "onedrive".into(),
+            collection: account.drive.id.clone(),
+        };
+        let big = engine.node(&scope_for_reads, &uploaded.id).await?;
+        for round in 0..6u64 {
+            let at = (round * 4) * crate::content::BLOCK_SIZE as u64;
+            let _ = engine
+                .cache
+                .read(
+                    engine.provider.as_ref(),
+                    &scope_for_reads,
+                    &big,
+                    at.min(big.size.saturating_sub(1)),
+                    crate::content::BLOCK_SIZE,
+                    &engine.cancel,
+                )
+                .await;
+        }
+        let after = {
+            let j = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock"))?;
+            let mut bytes = Vec::new();
+            std::io::Read::read_to_end(&mut j.payload(record)?, &mut bytes)?;
+            bytes
+        };
+        anyhow::ensure!(
+            after == before,
+            "cache pressure changed an unsent record's bytes on a real drive"
+        );
+        event(
+            &mut log,
+            serde_json::json!({"stage":"unsent_under_pressure","payload_bytes":after.len()}),
+        )?;
+        println!(
+            "Passed: an unsent record of {} bytes is unchanged after cache pressure.",
+            after.len()
+        );
+        Ok::<_, anyhow::Error>(())
+    }
+    .await;
+
     engine.stop().await;
     editing?;
+    unsent?;
     println!("Fixture folder retained: {name}");
     Ok(())
 }

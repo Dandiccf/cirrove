@@ -201,7 +201,7 @@ Live mutation fixtures must be isolated from the user's existing documents.
 - [x] Persistent per-file and recursive-folder pinning with storage reservations.
 - [x] Clear unpin/free-space behavior and accurate availability status.
 - [x] Offline access and editing of pinned content, including across restart.
-- [ ] Unsent changes excluded from cache eviction and connection cleanup.
+- [x] Unsent changes excluded from cache eviction and connection cleanup.
 - [ ] Disk-full recovery preserves edited data and explains required action.
 
 ## 4. Complete OneDrive coverage
