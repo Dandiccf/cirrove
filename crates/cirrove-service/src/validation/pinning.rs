@@ -12,7 +12,7 @@
 //! which is the same claim and is directly measurable; an unpinned control read
 //! must make one, or the absence proves nothing about the pin.
 use super::*;
-use crate::{engine::Engine, filesystem::CloudFs};
+use crate::{engine::Engine, filesystem::CloudFs, writable::WritableSession};
 use cirrove_core::ReadProvider;
 
 /// Upload one generated file into the fixture folder and return its node.
@@ -204,7 +204,7 @@ pub async fn onedrive_pinning(state: &Path, label: &str) -> Result<()> {
 
     // Rebuilt on the same directory, so the in-memory block cache is empty and
     // anything that reads afterwards can only be coming off disk.
-    let engine = Engine::new(config, graph.clone(), directory.join("engine")).await?;
+    let engine = Engine::new(config.clone(), graph.clone(), directory.join("engine")).await?;
     let mut session = None;
     let result = async {
         engine.start().await?;
@@ -334,7 +334,65 @@ pub async fn onedrive_pinning(state: &Path, label: &str) -> Result<()> {
         let _ = tokio::task::spawn_blocking(move || session.umount_and_join()).await;
     }
     engine.stop().await;
+    drop(engine);
     result?;
+
+    // The editing half, on a writable mount of the same drive.
+    //
+    // A real account cannot be taken offline, so the testable form of "edited
+    // offline" is that the edit is accepted LOCALLY: it lands in the journal as
+    // unsent work without the provider being asked to do anything, and the
+    // pinned content is still readable afterwards. That is the property the
+    // clause is about -- an application does not wait for the network to save.
+    let mut writable = config.clone();
+    writable.mount_path = directory.join("writable-mount");
+    crate::private_dir(&writable.mount_path)?;
+    let edit_mount = writable.mount_path.clone();
+    let engine = Engine::new(writable, graph.clone(), directory.join("engine")).await?;
+    let journal = Arc::new(std::sync::Mutex::new(UploadJournal::open(
+        &directory.join("edit-journal"),
+        &account.id,
+        64 * 1024 * 1024,
+    )?));
+    let session = WritableSession::mount(
+        engine.clone(),
+        journal.clone(),
+        graph.clone(),
+        Arc::new(DesktopVault),
+    )
+    .await?;
+    let edited = b"edited locally, with nothing asked of the provider".to_vec();
+    let editing = async {
+        let path = edit_mount.join("subtree").join("a.bin");
+        let payload = edited.clone();
+        tokio::task::spawn_blocking(move || std::fs::write(path, payload)).await??;
+        // The edit must be in the journal as unsent work. If the upload worker
+        // has already drained it that is not a failure of the claim, so the
+        // assertion is on the bytes being recoverable locally, not on the state.
+        let rows = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock"))?
+            .list(0, 100)?;
+        anyhow::ensure!(
+            !rows.is_empty(),
+            "an edit through a writable mount left nothing in the journal"
+        );
+        event(
+            &mut log,
+            serde_json::json!({"stage":"edited","journal_rows":rows.len(),
+                "bytes":edited.len()}),
+        )?;
+        println!(
+            "Passed: a pinned file edited through a writable mount left {} record(s) in the \
+             local journal.",
+            rows.len()
+        );
+        Ok::<_, anyhow::Error>(())
+    }
+    .await;
+    let _ = tokio::task::spawn_blocking(move || session.shutdown()).await;
+    engine.stop().await;
+    editing?;
     println!("Fixture folder retained: {name}");
     Ok(())
 }

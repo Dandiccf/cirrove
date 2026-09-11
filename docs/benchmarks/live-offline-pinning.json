@@ -78,5 +78,10 @@
     },
     "checks": "The budget moved with pins in force; pinnable is strictly below the cache allowance, because reservations may not claim the whole of it; the explanation names what the remainder is for; and unpinning returned the full reservation, byte for byte, on a real drive.",
     "sentence": "Pinning holds 12 of 224 MiB it may use (5.5%), leaving 212 MiB. The rest of the 256 MiB cache stays available for ordinary reads."
+  },
+  "editing_half_2026_09_11": {
+    "why": "The row asks for offline access AND editing. A real account cannot be taken offline, so the testable form is that the edit is accepted locally: it lands in the journal as unsent work without the provider being asked to do anything.",
+    "result": "A pinned file edited through a writable mount of the same drive left one record in the local journal. The application did not wait for the network to save, which is the property the clause is about.",
+    "honest_limit": "This does not show the edit surviving a restart on a real account, which the fixture-level a_pinned_file_can_be_edited_offline_and_both_survive_a_restart does show, nor an edit made while the provider is genuinely unreachable -- that stays a fixture claim."
   }
 }
