@@ -272,6 +272,17 @@ account repair and the wider recovery flow still need implementation and accepta
 - [ ] Implement the tray as StatusNotifierItem over D-Bus. Document the GNOME
       extension requirement, detect missing tray support and keep all actions
       available from the window when no tray host is present.
+- [ ] Show recent activity -- remote changes from the delta feed and local saves
+      from the upload journal, with each entry's state -- in the window, and a
+      short form of it in the tray menu. "Recent" means changes to content, not
+      files the user merely opened: a mount stages cache on every read, so a
+      touched-files list would be noise. This is a log and not a level, so it
+      does not ride the coalescing event channel, which by design hands a lagging
+      client current state instead of the entries it missed; it needs its own
+      query. File names appear in the menu and in the window, never in the tray
+      tooltip, which is shown on hover without intent and is visible to anyone
+      looking at the screen or a shared one; the tooltip carries a count. Provide
+      a setting to turn the listing off entirely.
 - [ ] Publish a supported file-manager list beyond the initial Nautilus target,
       with an explicit Dolphin decision and a shared daemon status contract
       behind each integration. Unsupported managers must still access mounted

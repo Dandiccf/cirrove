@@ -11,6 +11,8 @@
 //! inferred, so a tray that has lost its connection shows the last thing the
 //! daemon actually said rather than a guess that ages silently.
 
+pub mod menu;
+
 use anyhow::{Context, Result};
 use cirrove_service::events::Event;
 use std::collections::BTreeMap;
@@ -160,20 +162,35 @@ impl TrayState {
         }
         self.accounts
             .values()
-            .map(|a| {
-                let state = match (a.state.as_str(), a.mounted) {
-                    ("ready", true) => "ready".to_string(),
-                    ("ready", false) => "not mounted".to_string(),
-                    ("sign_in_required", _) => "sign-in required".to_string(),
-                    ("starting", _) => "starting".to_string(),
-                    ("updating_or_offline", _) => "updating or offline".to_string(),
-                    // A mount error is already a sanitized local message.
-                    (other, _) => other.to_string(),
-                };
-                format!("{}: {state}", a.label)
-            })
+            .map(|a| format!("{}: {}", a.label, summary(a)))
             .collect::<Vec<_>>()
             .join("\n")
+    }
+
+    /// Whether the daemon is currently unreachable.
+    pub fn is_disconnected(&self) -> bool {
+        self.disconnected
+    }
+
+    pub fn account_count(&self) -> usize {
+        self.accounts.len()
+    }
+
+    /// One row per account: label, a short state a person can read, and whether
+    /// it has a folder to open. Ordered by the map, which is by account id, so
+    /// the order a menu renders does not change under the user between redraws.
+    pub fn rows(&self) -> Vec<(String, String, bool)> {
+        self.accounts
+            .values()
+            .map(|a| (a.label.clone(), summary(a), a.mounted))
+            .collect()
+    }
+
+    /// The mount path of the nth row, matching `rows`. Used to turn a click on a
+    /// menu entry back into an account without the menu storing one.
+    pub fn mount_of(&self, index: usize) -> Option<std::path::PathBuf> {
+        let account = self.accounts.values().nth(index)?;
+        account.mounted.then(|| account.mount_path.clone())
     }
 
     /// The folder a click should open, if exactly one is mounted.
@@ -188,6 +205,20 @@ impl TrayState {
 /// name, pixmaps, title, description. Named because the tuple is the wire
 /// shape and spelling it inline twice is how the two copies drift apart.
 type ToolTip = (String, Vec<(i32, i32, Vec<u8>)>, String, String);
+
+/// One account's state in words, shared by the tooltip and the menu so that the
+/// same account cannot be described two ways on one screen.
+fn summary(account: &AccountRow) -> String {
+    match (account.state.as_str(), account.mounted) {
+        ("ready", true) => "ready".into(),
+        ("ready", false) => "not mounted".into(),
+        ("sign_in_required", _) => "sign-in required".into(),
+        ("starting", _) => "starting".into(),
+        ("updating_or_offline", _) => "updating or offline".into(),
+        // A mount error is already a sanitized local message.
+        (other, _) => other.into(),
+    }
+}
 
 /// The D-Bus object a shell reads.
 pub struct StatusNotifierItem {
@@ -267,12 +298,12 @@ impl StatusNotifierItem {
         0
     }
 
-    /// There is no dbusmenu yet. The path is answered rather than omitted
-    /// because a host that reads the whole set and finds nothing here can drop
-    /// the item; `ItemIsMenu` false is what tells it to activate instead.
+    /// Where a shell reads the menu. `ItemIsMenu` stays false so a left click
+    /// still activates -- opening the folder -- and the menu is the right-click
+    /// gesture, which is what a user expects of a status icon.
     #[zbus(property)]
     fn menu(&self) -> zbus::zvariant::OwnedObjectPath {
-        zbus::zvariant::ObjectPath::from_static_str_unchecked("/NoDbusmenu").into()
+        zbus::zvariant::ObjectPath::from_static_str_unchecked(menu::MENU_PATH).into()
     }
 
     /// `(icon name, pixmaps, title, description)`. Pixmaps stay empty: the icon
@@ -303,12 +334,12 @@ impl StatusNotifierItem {
         let path = self.read().single_mount();
         match path {
             Some(path) => open_path(&path),
-            None => tracing_open_window(),
+            None => open_settings(),
         }
     }
 
     fn secondary_activate(&self, _x: i32, _y: i32) {
-        tracing_open_window();
+        open_settings();
     }
 
     fn scroll(&self, _delta: i32, _orientation: &str) {}
@@ -331,10 +362,16 @@ fn open_path(path: &std::path::Path) {
     }
 }
 
-fn tracing_open_window() {
-    // The settings window is a separate binary and launching it is the desktop
-    // milestone's business, not this file's. Saying so beats a silent no-op.
-    eprintln!("cirrove-tray: no window action is wired up yet");
+/// Open the settings window, which is a separate binary.
+///
+/// Spawned off `PATH` rather than an absolute path, for the reason the autostart
+/// entry uses a bare command: this must work wherever a distribution installs
+/// it. A failure is reported and not fatal -- a tray whose settings entry does
+/// nothing is worse than one that says why.
+fn open_settings() {
+    if let Err(error) = std::process::Command::new("cirrove-desktop").spawn() {
+        eprintln!("cirrove-tray: could not open the settings window: {error}");
+    }
 }
 
 /// Publish the item on the session bus and hand back the connection.
@@ -343,11 +380,19 @@ fn tracing_open_window() {
 /// every property it may read. Exposed rather than duplicated because a test
 /// that builds its own item would assert a second implementation, and the one
 /// that shipped invisible was the real one.
-pub async fn publish(state: Arc<Mutex<TrayState>>) -> Result<zbus::Connection> {
-    let item = StatusNotifierItem { state };
+pub async fn publish(
+    state: Arc<Mutex<TrayState>>,
+    revision: Arc<std::sync::atomic::AtomicU32>,
+) -> Result<zbus::Connection> {
+    let item = StatusNotifierItem {
+        state: state.clone(),
+    };
     zbus::connection::Builder::session()
         .context("no session bus; a tray needs one")?
         .serve_at("/StatusNotifierItem", item)?
+        // The item only names a path; the menu is a second interface, and a
+        // shell that finds nothing there shows an empty menu.
+        .serve_at(menu::MENU_PATH, menu::DbusMenu::new(state, revision))?
         .build()
         .await
         .context("could not publish the tray item on the session bus")
@@ -366,7 +411,11 @@ pub async fn publish_for_test() -> Result<zbus::Connection> {
         enabled: true,
         mounted: true,
     });
-    publish(Arc::new(Mutex::new(state))).await
+    publish(
+        Arc::new(Mutex::new(state)),
+        Arc::new(std::sync::atomic::AtomicU32::new(1)),
+    )
+    .await
 }
 
 /// The well-known name this tray owns, and the lock that keeps one of it.
@@ -450,7 +499,8 @@ async fn announce(connection: &zbus::Connection) {
 /// Publish the item and keep it in step with the daemon until cancelled.
 pub async fn run(socket: PathBuf) -> Result<()> {
     let state = Arc::new(Mutex::new(TrayState::default()));
-    let connection = publish(state.clone()).await?;
+    let revision = Arc::new(std::sync::atomic::AtomicU32::new(1));
+    let connection = publish(state.clone(), revision.clone()).await?;
 
     if !claim_single_instance(&connection).await? {
         // Not an error: on a machine where two autostart mechanisms both fire,
@@ -468,10 +518,10 @@ pub async fn run(socket: PathBuf) -> Result<()> {
         match cirrove_service::Subscription::open(&socket).await {
             Ok(mut subscription) => {
                 set_disconnected(&state, false);
-                notify(&connection).await;
+                notify(&connection, &revision).await;
                 while let Some(event) = subscription.next().await? {
                     apply(&state, event);
-                    notify(&connection).await;
+                    notify(&connection, &revision).await;
                 }
             }
             Err(error) => eprintln!("cirrove-tray: {error}"),
@@ -480,7 +530,7 @@ pub async fn run(socket: PathBuf) -> Result<()> {
         // on the last good icon, then retry: a user restarting the service
         // should not also have to restart the tray.
         set_disconnected(&state, true);
-        notify(&connection).await;
+        notify(&connection, &revision).await;
         tokio::time::sleep(std::time::Duration::from_secs(5)).await;
     }
 }
@@ -516,7 +566,11 @@ fn set_disconnected(state: &Arc<Mutex<TrayState>>, disconnected: bool) {
 
 /// Tell the shell to re-read. Properties are pull-based in this interface, so
 /// without these signals a shell keeps the first values forever.
-async fn notify(connection: &zbus::Connection) {
+async fn notify(connection: &zbus::Connection, revision: &std::sync::atomic::AtomicU32) {
+    // The menu renders the same state as the icon, so anything that moves one
+    // moves the other. Emitting only the item's signals would leave a shell
+    // showing a correct icon over a stale account list.
+    menu::announce_change(connection, revision).await;
     for signal in ["NewIcon", "NewAttentionIcon", "NewStatus", "NewToolTip"] {
         let _ = connection
             .emit_signal(

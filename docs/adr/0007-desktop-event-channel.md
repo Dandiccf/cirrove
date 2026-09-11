@@ -12,9 +12,25 @@ which was shown to fail without it -- the subscription is cut at 3.75 s with "th
 stream closed instead of delivering" -- as this project requires of a test
 offered as proof of a fix.
 
+The tray now also carries a menu (`com.canonical.dbusmenu` at `/MenuBar`):
+accounts with their state, the settings window, and quitting. It renders from the
+same `TrayState` the icon does and stores nothing of its own, so a click cannot
+act on an account the daemon has since dropped.
+
 Not implemented: `pin` and `transfer` events, and the `paths` batch query
 Nautilus needs. All three reach into the engine, and the argument below is that
-the protocol groundwork should land first.
+the protocol groundwork should land first. Mount and unmount are not in the menu
+for the same reason: they need a control verb, not a second writer of the
+settings file.
+
+Recent activity -- the thing that would make the menu worth opening -- is now a
+milestone 5 box rather than an idea. It does not fit this channel: everything
+here is a coalesced level, and a lagging subscriber is handed current state
+instead of what it missed, which is exactly right for a mount status and destroys
+a list whose content *is* the entries. It needs its own query verb over the
+upload journal and the delta feed, and a deliberate privacy line, which the box
+records: names in the menu and the window, never in the tooltip, which appears on
+hover without intent.
 
 ## Problem
 

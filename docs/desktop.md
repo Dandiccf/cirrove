@@ -87,6 +87,20 @@ Only one copy runs. The tray takes the well-known name
 `io.github.Dandiccf.Cirrove.Tray`, and a second copy exits 0 saying so. That is
 what makes shipping two autostart mechanisms safe rather than a double-start bug.
 
+A right click opens a menu, served as `com.canonical.dbusmenu` at `/MenuBar`:
+each account with its state, then the settings window and quitting the tray. A
+left click still opens the mount directly, so the gesture that worked before
+still does.
+
+What the menu may hold is constrained by the milestone rather than by taste --
+*"no control or state may be reachable only through a tray or only through one
+file manager"* -- because a tray host is absent on stock GNOME and on any bare
+window manager. Every entry is a shortcut to something the window also does.
+Mount and unmount are therefore missing rather than forgotten: the window changes
+them by writing the account settings, and a second process doing the same is a
+race over one file. They belong here once the daemon has a verb for them, which
+is the argument that put pinning behind the control socket.
+
 ## Starting it at login
 
 Two mechanisms ship, because neither covers every desktop and a package cannot

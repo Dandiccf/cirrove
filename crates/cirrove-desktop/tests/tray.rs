@@ -12,7 +12,7 @@
 //! That is this file.
 
 use cirrove_desktop::tray;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 
 /// Everything a StatusNotifierItem host may read. Taken from the properties a
 /// known-good tray on this desktop exposes, which is a stricter and more useful
@@ -64,6 +64,96 @@ async fn the_item_offers_a_host_every_property_it_may_read() {
     assert!(
         missing.is_empty(),
         "a host would find these missing and may draw nothing: {missing:?}. Offered: {offered:?}"
+    );
+}
+
+#[tokio::test]
+#[ignore = "needs a session bus; CI provides a private one"]
+async fn the_item_points_at_a_menu_a_shell_can_actually_read() {
+    // The item only names an object path. A path with nothing serving
+    // com.canonical.dbusmenu behind it is an empty right-click, which reads as a
+    // broken tray rather than one without a menu -- so the two are checked
+    // together rather than the property alone.
+    let connection = tray::publish_for_test()
+        .await
+        .expect("could not publish the item on the session bus");
+    let unique = connection.unique_name().expect("no unique name").clone();
+    let item = zbus::Proxy::new(
+        &connection,
+        unique.clone(),
+        "/StatusNotifierItem",
+        "org.kde.StatusNotifierItem",
+    )
+    .await
+    .expect("no item proxy");
+    let path: zbus::zvariant::OwnedObjectPath =
+        item.get_property("Menu").await.expect("no Menu property");
+
+    let menu = zbus::Proxy::new(&connection, unique, path.as_str(), "com.canonical.dbusmenu")
+        .await
+        .expect("nothing serves a menu at the path the item advertises");
+    let version: u32 = menu.get_property("Version").await.expect("no Version");
+    assert!(
+        version >= 2,
+        "dbusmenu version {version} is too old to render"
+    );
+}
+
+#[tokio::test]
+#[ignore = "needs a session bus; CI provides a private one"]
+async fn the_menu_offers_settings_and_quit_beside_the_accounts() {
+    // Milestone 5: "no control or state may be reachable only through a tray".
+    // These two are the shortcuts, and a menu that lost them would leave the
+    // tray with one gesture again.
+    let connection = tray::publish_for_test()
+        .await
+        .expect("could not publish the item on the session bus");
+    let menu = zbus::Proxy::new(
+        &connection,
+        connection.unique_name().expect("no unique name").clone(),
+        "/MenuBar",
+        "com.canonical.dbusmenu",
+    )
+    .await
+    .expect("no menu proxy");
+
+    type Layout = (
+        i32,
+        HashMap<String, zbus::zvariant::OwnedValue>,
+        Vec<zbus::zvariant::OwnedValue>,
+    );
+    let (_revision, root): (u32, Layout) = menu
+        .call("GetLayout", &(0i32, -1i32, Vec::<String>::new()))
+        .await
+        .expect("GetLayout failed");
+
+    let labels: Vec<String> = root
+        .2
+        .into_iter()
+        .filter_map(|child| {
+            let structure = zbus::zvariant::Structure::try_from(child).ok()?;
+            let properties = HashMap::<String, zbus::zvariant::OwnedValue>::try_from(
+                structure.fields().get(1)?.try_clone().ok()?,
+            )
+            .ok()?;
+            let label = properties.get("label")?.try_clone().ok()?;
+            String::try_from(label).ok()
+        })
+        .collect();
+
+    assert!(
+        labels.iter().any(|l| l.contains("settings")),
+        "no settings entry: {labels:?}"
+    );
+    assert!(
+        labels.iter().any(|l| l.contains("Quit")),
+        "no quit entry: {labels:?}"
+    );
+    // publish_for_test seeds an account needing sign-in; its row must be there,
+    // because the account list is the reason to open the menu at all.
+    assert!(
+        labels.iter().any(|l| l.contains("test")),
+        "no account row: {labels:?}"
     );
 }
 
