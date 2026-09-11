@@ -1,5 +1,5 @@
 [Unit]
-Description=Cirrove cloud filesystem service (read-only preview)
+Description=Cirrove cloud filesystem service
 Documentation=https://github.com/Dandiccf/cirrove
 StartLimitIntervalSec=60
 StartLimitBurst=5
