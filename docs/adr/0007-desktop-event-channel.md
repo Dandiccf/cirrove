@@ -182,11 +182,53 @@ file names. They stay on a local Unix socket, are never logged, and appear in no
 artifact. This is worth stating because every other payload in this protocol is
 already free of user data and this one is not.
 
+## Starting the tray, and why the packaging stays dumb
+
+Settled after the fact, because "does this have to be started by hand forever"
+has a general answer worth writing down.
+
+No single mechanism starts a tray at login on Linux, and a package cannot pick
+one. It is installed once, system-wide, before any session exists; the same
+machine can carry several users on different desktops; one user can switch
+desktops between logins. Anything decided at install time is wrong at the next
+login. `docs/distribution.md` already says package scripts may not assume a
+desktop, a shell, a home directory or a session bus.
+
+So the variation is absorbed by the binary -- the one artefact identical on every
+distribution -- and two standard files ship unchanged:
+
+- an XDG autostart entry, the broadest mechanism, naming no desktop in
+  `OnlyShowIn`/`NotShowIn`. Where systemd exists,
+  `systemd-xdg-autostart-generator` turns it into a unit. Checked by running that
+  generator against the installed file: it produced
+  `app-io.github.Dandiccf.Cirrove.Tray@autostart.service`, wanted by
+  `xdg-desktop-autostart.target`, carrying `PartOf=` and
+  `After=graphical-session.target`.
+- a systemd user unit with that same lifetime, optional, for `systemctl --user`
+  control where `graphical-session.target` is actually reached.
+
+That systemd derives the same lifecycle from the desktop entry that the
+hand-written unit declares is the argument for the split being right rather than
+a preference. The tray belongs to the graphical session; `cirroved` belongs to
+the login and must outlive any session because it holds a mount. One process
+cannot have both lifetimes, which is why this is a second unit and not a flag on
+the daemon.
+
+Shipping two mechanisms is safe only because the binary refuses to be the second
+copy -- it takes `io.github.Dandiccf.Cirrove.Tray`, and a later copy exits 0 --
+and because a missing tray host is not a failure: the item is published and
+registration happens whenever a `StatusNotifierWatcher` gains an owner, which
+covers both a panel that has not started yet and one that was restarted.
+
+What no packaging covers is a bare window manager with no session manager, which
+runs no XDG autostart at all. That is a documented limit, and the reason
+milestone 5 carries a session-matrix box.
+
 ## What this does not settle
 
-- **Whether the tray needs its own process.** StatusNotifierItem over D-Bus is
-  what milestone 5 asks for, and whether that lives in `cirrove-desktop` or a
-  separate binary is a packaging question this does not answer.
+- **Whether the tray keeps its own crate.** It is its own binary, which the
+  lifetimes settle. Whether it moves out of `cirrove-desktop` once daemon and
+  desktop are packaged separately is a milestone 6 question.
 - **Whether Nautilus integration is a python extension at all.** The batch query
   is what the extension would call; choosing the extension mechanism, and what
   happens on file managers that are not Nautilus, is separate work that milestone

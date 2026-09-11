@@ -369,12 +369,100 @@ pub async fn publish_for_test() -> Result<zbus::Connection> {
     publish(Arc::new(Mutex::new(state))).await
 }
 
+/// The well-known name this tray owns, and the lock that keeps one of it.
+///
+/// Autostart mechanisms overlap: an XDG autostart entry, a systemd user unit and
+/// a window manager's own `exec-once` can all be in play on one machine, and a
+/// package cannot know which. Rather than make the packaging clever -- which
+/// docs/distribution.md forbids anyway, since package scripts may not assume a
+/// desktop or reach a user's session bus -- the binary refuses to be the second
+/// copy. The bus connection it needs regardless is the lock.
+pub const TRAY_BUS_NAME: &str = "io.github.Dandiccf.Cirrove.Tray";
+
+/// The interface a shell must provide before a tray item means anything.
+const WATCHER: &str = "org.kde.StatusNotifierWatcher";
+
+/// Take the name, or report that someone else has it.
+pub async fn claim_single_instance(connection: &zbus::Connection) -> Result<bool> {
+    use zbus::fdo::{RequestNameFlags, RequestNameReply};
+    let reply = connection
+        .request_name_with_flags(
+            zbus::names::WellKnownName::try_from(TRAY_BUS_NAME).context("bad tray bus name")?,
+            // DoNotQueue: a second copy should exit now, not wait for the first
+            // to die and then silently become a tray nobody asked for.
+            RequestNameFlags::DoNotQueue.into(),
+        )
+        .await;
+    match reply {
+        Ok(RequestNameReply::PrimaryOwner) => Ok(true),
+        Ok(_) => Ok(false),
+        Err(zbus::Error::NameTaken) => Ok(false),
+        Err(error) => Err(error).context("could not claim the tray name"),
+    }
+}
+
+/// Register with the shell's watcher every time one appears.
+///
+/// Not once at startup. A tray is started by an autostart mechanism whose
+/// ordering against the panel is not guaranteed, so the watcher may not exist
+/// yet; and panels get restarted and reloaded, taking every registration with
+/// them. Both cases look the same on the bus -- the name gains an owner -- so
+/// both are handled by watching for that rather than by assuming startup order.
+async fn follow_watcher(connection: zbus::Connection) {
+    use futures_util::stream::StreamExt;
+    let dbus = match zbus::fdo::DBusProxy::new(&connection).await {
+        Ok(dbus) => dbus,
+        Err(error) => {
+            eprintln!("cirrove-tray: cannot watch the session bus: {error}");
+            return;
+        }
+    };
+    let Ok(name) = zbus::names::BusName::try_from(WATCHER) else {
+        return;
+    };
+    if dbus.name_has_owner(name).await.unwrap_or(false) {
+        announce(&connection).await;
+    }
+    let Ok(mut changes) = dbus.receive_name_owner_changed().await else {
+        eprintln!("cirrove-tray: cannot follow the tray host; it will not reappear");
+        return;
+    };
+    while let Some(change) = changes.next().await {
+        let Ok(args) = change.args() else { continue };
+        if args.name.as_str() != WATCHER {
+            continue;
+        }
+        // A panel started or restarted: re-register, because the old
+        // registration died with it. A panel going away needs nothing done --
+        // the item stays published and is picked up when one returns.
+        if args.new_owner.is_some() {
+            announce(&connection).await;
+        }
+    }
+}
+
+async fn announce(connection: &zbus::Connection) {
+    if let Err(error) = register_with_watcher(connection).await {
+        eprintln!("cirrove-tray: {error}");
+    }
+}
+
 /// Publish the item and keep it in step with the daemon until cancelled.
 pub async fn run(socket: PathBuf) -> Result<()> {
     let state = Arc::new(Mutex::new(TrayState::default()));
     let connection = publish(state.clone()).await?;
 
-    register_with_watcher(&connection).await?;
+    if !claim_single_instance(&connection).await? {
+        // Not an error: on a machine where two autostart mechanisms both fire,
+        // this is the ordinary outcome and the other copy is doing the job.
+        eprintln!("cirrove-tray: another instance already owns {TRAY_BUS_NAME}; exiting");
+        return Ok(());
+    }
+
+    // No tray host is not a failure to start. A tray that exits because a panel
+    // has not come up yet is a tray that never runs on half the desktops it is
+    // installed on, so it waits instead and registers when one appears.
+    tokio::spawn(follow_watcher(connection.clone()));
 
     loop {
         match cirrove_service::Subscription::open(&socket).await {
@@ -398,14 +486,9 @@ pub async fn run(socket: PathBuf) -> Result<()> {
 }
 
 async fn register_with_watcher(connection: &zbus::Connection) -> Result<()> {
-    let watcher = zbus::Proxy::new(
-        connection,
-        "org.kde.StatusNotifierWatcher",
-        "/StatusNotifierWatcher",
-        "org.kde.StatusNotifierWatcher",
-    )
-    .await
-    .context("no StatusNotifierWatcher on the session bus")?;
+    let watcher = zbus::Proxy::new(connection, WATCHER, "/StatusNotifierWatcher", WATCHER)
+        .await
+        .context("no StatusNotifierWatcher on the session bus")?;
     let name = connection
         .unique_name()
         .context("the session bus gave this connection no name")?

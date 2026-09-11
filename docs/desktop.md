@@ -75,12 +75,49 @@ something it does not know.
 ```
 
 It needs a tray host implementing `org.kde.StatusNotifierWatcher`. Most Wayland
-shells and panels provide one; GNOME needs an extension, which is why milestone 5
-lists detecting a missing host and keeping every action reachable from the window
-as its own work. Neither is done: without a watcher the item simply fails to
-register, and there is no menu yet, so a left click opens the mount when exactly
-one is mounted and otherwise does nothing. Icons are generic freedesktop names
-until the installed icon set exists.
+shells and panels provide one; GNOME needs an extension. A missing host is not a
+failure to start: the tray publishes its item, waits, and registers whenever a
+host appears -- which also covers a panel being restarted, since that takes every
+registration with it and looks the same on the bus. There is still no menu, so a
+left click opens the mount when exactly one is mounted and otherwise does
+nothing, and icons are generic freedesktop names until the installed icon set
+exists.
+
+Only one copy runs. The tray takes the well-known name
+`io.github.Dandiccf.Cirrove.Tray`, and a second copy exits 0 saying so. That is
+what makes shipping two autostart mechanisms safe rather than a double-start bug.
+
+## Starting it at login
+
+Two mechanisms ship, because neither covers every desktop and a package cannot
+find out which applies. It is installed once, system-wide, before any session
+exists, and the same machine can have several users on different desktops; a
+choice made at install time is wrong at the next login. `docs/distribution.md`
+already forbids package scripts from assuming a desktop, a shell, a home
+directory or a session bus, so the files stay standard and the binary absorbs the
+variation.
+
+- `packaging/desktop/io.github.Dandiccf.Cirrove.Tray.desktop` -- the XDG
+  autostart entry, installed to `~/.config/autostart/` or an
+  `/etc/xdg/autostart/` equivalent. This is the default and the broadest:
+  GNOME, KDE, XFCE, LXQt, Cinnamon and MATE run it, `systemd-xdg-autostart-generator`
+  turns it into a unit where systemd is present, and it works on distributions
+  that have no systemd at all. It names no desktop in `OnlyShowIn`/`NotShowIn`,
+  deliberately.
+- `packaging/systemd/cirrove-tray.service` -- optional, for users who want
+  `systemctl --user` control. It is `WantedBy=graphical-session.target` and
+  `PartOf=` it, which is the correct lifetime and the reason this is a second
+  unit rather than a flag on `cirroved`: the daemon holds a mount and must
+  outlive any session, the tray has nothing to draw on without one. Not enabled
+  by default, because `graphical-session.target` is not reached on every desktop.
+
+Enabling both is harmless; the second copy stands down.
+
+What neither covers is a bare window manager with no session manager -- plain
+Hyprland without uwsm, i3, dwm -- which runs no XDG autostart at all. There the
+user adds the command to their own configuration. That is a documented limit, not
+something the packaging can solve, and milestone 5's session-matrix box exists to
+record which combinations have actually been checked rather than assumed.
 
 Against a daemon too old for `subscribe` the tray shows "Cirrove service is not
 reachable" and retries. That is the intended degradation, not a defect: the old

@@ -65,6 +65,11 @@ jobs:
       - name: Tray item offers a host every property it reads
         run: timeout 30s dbus-run-session -- cargo test -p cirrove-desktop --test tray --locked -- --ignored --test-threads=1
       - run: desktop-file-validate packaging/desktop/io.github.Dandiccf.Cirrove.desktop
+      - run: desktop-file-validate packaging/desktop/io.github.Dandiccf.Cirrove.Tray.desktop
+      # The autostart entry and the tray unit have to agree with each other and
+      # stay free of any desktop they would have to guess at packaging time.
+      - name: Tray autostart entry and unit
+        run: cargo test -p cirrove-desktop --test packaging --locked
       - name: Verify kernel FUSE access
         run: |
           test -c /dev/fuse || sudo modprobe fuse

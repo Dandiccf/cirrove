@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Name=Cirrove Tray
+Comment=Show Cirrove connection status in the system tray
+Exec=cirrove-tray
+Icon=folder-remote
+Terminal=false
+Categories=Network;
+# Autostart, not a launcher entry: nobody starts a tray from an application
+# menu, and an entry that appears there is one more thing to explain.
+NoDisplay=true
+# Deliberately no OnlyShowIn or NotShowIn. Which desktops have a tray host is
+# not knowable when this file is installed, and the binary handles its absence:
+# it waits for a host rather than failing, and a second copy exits. Listing
+# desktops here would be a guess that ages badly and excludes the next one.
+X-GNOME-Autostart-enabled=true
