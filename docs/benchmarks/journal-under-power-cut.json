@@ -1,0 +1,44 @@
+{
+  "question": "When the machine loses power in the middle of writing, does the upload journal still produce everything it acknowledged as durable, byte for byte, and is it writable again afterwards?",
+  "why_now": "It is the last clause of the milestone 2 crash box and the only one that cannot be scripted. durable-transition-sites.json covers process death at all 31 runtime durable transitions; journal-under-io-faults.json covers a device refusing writes and a lying fsync (dm-flakey drop_writes). All three share a boundary: the kernel and the filesystem are behaving, and only the process or the block layer misbehaves. A real cut takes the page cache, the drive's own write cache and the filesystem journal with it at once, and no injection stands in for that.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-11",
+  "shape": {
+    "fixture": "working_files::a_journal_survives_the_machine_losing_power_mid_write, phases seed and recover",
+    "seed": "Clears the journal, then writes without stopping: each generation is sealed, and only after the journal acknowledges it is the generation recorded on disk -- written to a staging name, fsynced, renamed, and the directory fsynced. The cut therefore lands mid-write rather than on an idle journal; a cut while nothing is happening tests nothing.",
+    "the_person": "Cuts power at the wall or at the PSU while seed is printing generations. No shutdown, no sync.",
+    "recover": "Runs after the machine is back. Reads the marker, which names the highest generation the journal acknowledged before the cut.",
+    "filesystem": "Asserted with findmnt and printed by the fixture. tmpfs and ramfs are refused outright: a RAM-backed filesystem has no power to lose."
+  },
+  "why_the_claim_is_one_sided": "The marker is written after the journal's own acknowledgement, so it can only ever name less than the journal holds. More surviving than the marker claims is a pass. What must never happen is the journal producing different bytes for a generation it acknowledged, or being unable to produce it at all.",
+  "predictions": {
+    "P1": "The journal opens after the cut.",
+    "P2": "The generation named by the marker reads back byte for byte.",
+    "P3": "The journal accepts and seals new work afterwards -- recovery that leaves nothing writable is not recovery."
+  },
+  "decision_rule": {
+    "P2 fails": "The box is not ticked and this is a defect, not a limit: the journal acknowledged something it cannot produce. Wrong-and-confident data is the one outcome the design forbids.",
+    "P1 fails, P2 untestable": "Recorded as its own outcome, not averaged into a pass. An unopenable journal has not returned wrong bytes, but it has not recovered either. The box stays open and the artifact says which branch ran.",
+    "P3 fails but P1 and P2 hold": "Durability held and usability did not. Worth a separate row rather than a tick, because a user whose journal survives but refuses every save is not served by it."
+  },
+  "what_this_does_not_cover": "One cut is one sample. It cannot bound a rate, and a drive that lies about its write cache may pass this and fail another day. The claim is that this cut did not produce wrong-and-confident data, not that no cut can.",
+  "result": null,
+  "verdict": null,
+  "how_to_run": {
+    "1_prepare": "CIRROVE_POWERCUT_DIR must name a directory on a real block device. The fixture refuses tmpfs and ramfs and prints the filesystem it found.",
+    "2_seed": "CIRROVE_POWERCUT_DIR=$HOME/.cache/cirrove-powercut CIRROVE_POWERCUT_PHASE=seed cargo test -p cirrove-service --test working_files --locked a_journal_survives_the_machine_losing_power -- --ignored --nocapture",
+    "3_wait": "It prints a durable generation roughly 68 times a second and never stops on its own. Let it run for a few seconds so the cut cannot land on an idle journal.",
+    "4_cut": "Cut mains power, or hold the power button until the machine dies. No shutdown, no sync, no unmount.",
+    "5_recover": "After the machine is back: same command with CIRROVE_POWERCUT_PHASE=recover.",
+    "what_it_costs": "A hard cut on a live machine. The mount and the daemon are not involved and the fixture writes only inside its own directory, but the rest of the system takes an unclean shutdown like any other -- filesystem journal replay on the next boot, and whatever was unsaved elsewhere is unsaved."
+  },
+  "harness_proven_before_the_run": {
+    "why": "A fixture that cannot fail would waste the one thing this needs, which is a person and a power cut. So it was exercised against process death first -- which proves the mechanics and nothing about durability, because SIGKILL leaves the page cache intact.",
+    "mechanics": "341 and 679 generations acknowledged across two dry runs; the marker named the last one; recover opened the journal, read it back byte for byte, and sealed new work.",
+    "shown_to_fail": "With the acknowledged payload overwritten with other bytes, recover FAILS on 'acknowledged generation N as durable and cannot produce it'. With the payload removed, it FAILS too. Intact, it passes. So the fixture distinguishes a journal that keeps its word from one that does not.",
+    "two_things_the_harness_had_to_learn": [
+      "Each generation needs its own remote identity. Reusing one is refused as Stale after the first -- correctly; a second working file for the same item is a conflict -- which would have left seed writing nothing and the cut landing on an idle journal.",
+      "Sealed payload files are read-only on disk, so damaging one for the discrimination check needs chmod first. That is the journal protecting what it sealed, and it is worth knowing before assuming a failed write means a failed test."
+    ]
+  }
+}

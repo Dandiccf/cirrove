@@ -674,3 +674,150 @@ fn a_journal_on_a_failing_device_refuses_without_losing_what_was_durable() {
         other => panic!("unknown phase {other:?}"),
     }
 }
+
+/// Durably record what the journal has acknowledged, so that a machine losing
+/// power cannot take the record with it.
+///
+/// Written to a temporary name, fsynced, renamed, and then the *directory* is
+/// fsynced. Without the last step the rename itself is only in the page cache,
+/// and after a cut the marker can name a generation the journal never had --
+/// which would make this fixture accuse the journal of losing work it was never
+/// told to keep.
+fn record_durably(marker: &Path, contents: &str) {
+    let staging = marker.with_extension("staging");
+    let mut file = std::fs::File::create(&staging).unwrap();
+    std::io::Write::write_all(&mut file, contents.as_bytes()).unwrap();
+    file.sync_all().unwrap();
+    drop(file);
+    std::fs::rename(&staging, marker).unwrap();
+    let directory = std::fs::File::open(marker.parent().unwrap()).unwrap();
+    directory.sync_all().unwrap();
+}
+
+/// What survives when the machine loses power in the middle of writing.
+///
+/// The last clause of the crash box, and the one thing in it that cannot be
+/// scripted. `durable-transition-sites.json` covers process death at all 31
+/// runtime durable transitions; `journal-under-io-faults.json` covers a device
+/// refusing writes and a lying fsync. All three stop at the same boundary: they
+/// are the kernel and the filesystem behaving, with only the process or the
+/// block layer misbehaving. A real cut takes the page cache, the drive's own
+/// write cache and the filesystem journal with it, and nothing in software can
+/// stand in for that.
+///
+/// Two phases and a person in between. `seed` prepares and then writes without
+/// stopping, printing each generation it has been told is durable, so the cut
+/// lands mid-write rather than on an idle journal -- a cut while nothing is
+/// happening tests nothing. Someone cuts the power. `recover` runs after the
+/// machine is back.
+///
+/// The claim is deliberately one-sided: anything acknowledged durable before the
+/// cut must read back byte for byte afterwards. More than that may survive and
+/// that is fine; the marker is written after the journal's own acknowledgement,
+/// so it can only ever name less than the journal has. What must never happen is
+/// the journal returning different bytes, or claiming a generation it cannot
+/// produce. A journal that cannot open afterwards is a separate outcome and the
+/// run records which one it got rather than treating them as the same.
+///
+/// It refuses to run on tmpfs, which has no power to lose.
+#[test]
+#[ignore = "needs a real power cut; set CIRROVE_POWERCUT_DIR and CIRROVE_POWERCUT_PHASE"]
+fn a_journal_survives_the_machine_losing_power_mid_write() {
+    let root = std::env::var_os("CIRROVE_POWERCUT_DIR")
+        .map(std::path::PathBuf::from)
+        .expect("CIRROVE_POWERCUT_DIR must name a directory on a real block device");
+    let phase = std::env::var("CIRROVE_POWERCUT_PHASE")
+        .expect("CIRROVE_POWERCUT_PHASE must be seed or recover");
+    let filesystem = std::process::Command::new("findmnt")
+        .args(["-n", "-o", "FSTYPE,SOURCE", "-T"])
+        .arg(&root)
+        .output()
+        .expect("findmnt must be available to prove this is not tmpfs");
+    let filesystem = String::from_utf8_lossy(&filesystem.stdout)
+        .trim()
+        .to_string();
+    assert!(
+        !filesystem.starts_with("tmpfs") && !filesystem.starts_with("ramfs"),
+        "a RAM-backed filesystem has no power to lose: {filesystem}"
+    );
+    println!("POWERCUT filesystem={filesystem}");
+
+    let journal = root.join("journal");
+    let marker = root.join("acknowledged-durable");
+
+    match phase.as_str() {
+        "seed" => {
+            let _ = std::fs::remove_dir_all(&journal);
+            let _ = std::fs::remove_file(&marker);
+            let mut j = open(&journal, 64 * 1024 * 1024);
+            println!("POWERCUT seeded; writing continuously. Cut the power at any point.");
+            for generation in 0u64.. {
+                let bytes =
+                    format!("generation {generation} was acknowledged durable").into_bytes();
+                // Its own remote identity per generation. Reusing one is
+                // refused as Stale after the first -- correctly, a second
+                // working file for the same item is a conflict -- which would
+                // leave this writing nothing and a cut landing on an idle
+                // journal.
+                let mut item = node(0);
+                item.id = format!("remote-file-{generation}");
+                item.name = format!("generation-{generation}.txt");
+                let working = j
+                    .create_working(scope(), item, true, b"".as_slice())
+                    .unwrap();
+                j.write_working(working.id, 0, &bytes).unwrap();
+                let record = j.seal_working(working.id).unwrap().unwrap();
+                // The journal has acknowledged it. Only now is it safe to claim
+                // so on disk, and the claim has to outlive the cut too.
+                record_durably(&marker, &format!("{generation} {}", record.id));
+                println!("POWERCUT durable generation={generation} id={}", record.id);
+            }
+        }
+        "recover" => {
+            let claimed = std::fs::read_to_string(&marker)
+                .expect("no marker: the seed phase never acknowledged anything");
+            let (generation, id) = claimed.trim().split_once(' ').expect("malformed marker");
+            let id: uuid::Uuid = id.parse().expect("malformed marker id");
+            let expected = format!("generation {generation} was acknowledged durable").into_bytes();
+
+            let opened = UploadJournal::open(&journal, &scope().account, 64 * 1024 * 1024);
+            let Ok(j) = opened else {
+                // Recorded rather than tolerated. An unopenable journal has not
+                // returned wrong bytes, which is the claim under test, but it is
+                // a different outcome from a readable one and the run must say
+                // which it got instead of averaging them into a pass.
+                let error = opened.err().unwrap();
+                println!("POWERCUT branch=open_refused error={error:?}");
+                panic!(
+                    "the journal could not be opened after the cut: {error:?}. \
+                     That is not wrong-and-confident data, but it is not recovery either."
+                );
+            };
+            println!("POWERCUT branch=opened generation={generation}");
+            assert_eq!(
+                payload(&j, id),
+                expected,
+                "the journal acknowledged generation {generation} as durable and cannot produce it"
+            );
+            // And it has to be a journal again, not a museum piece: recovery
+            // that leaves nothing writable is not recovery.
+            let mut j = j;
+            // A remote identity the seed phase cannot have used, so that a
+            // refusal here means the journal will not take new work rather than
+            // that this fixture asked for a duplicate.
+            let mut fresh = node(0);
+            fresh.id = "written-after-the-cut".into();
+            fresh.name = "after-the-cut.txt".into();
+            let working = j
+                .create_working(scope(), fresh, true, b"".as_slice())
+                .expect("the recovered journal refuses new work");
+            j.write_working(working.id, 0, b"written after the cut")
+                .unwrap();
+            j.seal_working(working.id)
+                .expect("the recovered journal cannot seal")
+                .expect("the recovered journal sealed nothing");
+            println!("POWERCUT recovered and writable again");
+        }
+        other => panic!("unknown phase {other:?}"),
+    }
+}
