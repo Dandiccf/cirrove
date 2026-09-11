@@ -1,0 +1,34 @@
+{
+  "question": "Does the daemon run for a full day without degrading -- same process, mount still serving, index intact, memory not climbing -- and does it come back from a restart and an outage deliberately induced during that window?",
+  "why_now": "Its acceptance row is the only one in the project with no evidence of any kind, in either field. Not because it is hard but because it is made of elapsed time: nothing about it can be hurried, and every session so far has had something more urgent to do with the machine.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-11",
+  "the_row_has_two_clauses": {
+    "sustained_operation": "Twenty-four hours with the daemon serving throughout.",
+    "restart_and_outage_checks": "Real ones, not test doubles. The recovery row covers process failure and network loss with tests; this row asks for them against the live account, inside the window, so that recovery is observed in a daemon that has been up for hours rather than one just started."
+  },
+  "shape": {
+    "sampler": "scripts/sustained-operation-sample.py, one row a minute: MainPID, VmRSS of that process, account state, mounted, per-feed state, indexed_items, stuck_changes, and the time to list the mount root.",
+    "why_rss_and_not_the_cgroup": "MemoryCurrent includes page cache the daemon never allocated. The prediction is about the process.",
+    "why_listing_latency": "A daemon that is alive but no longer serving looks identical to a healthy one in every other column. Listing the root each minute is the cheapest thing that would notice.",
+    "restart_injection": "At a recorded point inside the window, systemctl --user restart cirroved.service. The sampler writes a # RESTART line rather than spanning it silently -- a sampler that hid it would report a clean twenty-four hours for a daemon that did not have one.",
+    "outage_injection": "At another recorded point, the network is taken down for several minutes and brought back. What is watched is whether the feeds return to ready without intervention and whether a change made afterwards is delivered."
+  },
+  "predictions": {
+    "P1": "The daemon is the same process for the whole window apart from the deliberate restart, and the mount is present in every sample.",
+    "P2": "VmRSS at the end is within 20 percent of its value one hour in, once the index is warm. The trim cadence work measured +40.5 MiB of drift across a two-hour window (trim-cadence.json) and left it NOT SETTLED; a day is where that either flattens or does not, and this is the run that says which.",
+    "P3": "indexed_items never drops to zero: a daemon that reindexes 184,000 items on a restart has not preserved anything.",
+    "P4": "Listing the mount root stays under a second in every sample, including during the outage -- the namespace is local and an unreachable provider must not stall a listing.",
+    "P5": "After the deliberate restart, the account reaches ready and mounted without intervention; after the outage, both feeds return to ready and a change made afterwards is delivered."
+  },
+  "decision_rule": {
+    "all_hold": "The row is closed: a day of sustained operation with a real restart and a real outage inside it.",
+    "P2_fails": "The row stays open and the number is the finding. Unbounded growth over a day is the failure this clause exists to catch, and it belongs with the bounded-memory row rather than being absorbed here.",
+    "P4_fails": "A defect. A listing that stalls because the provider is unreachable is the thing a read-only preview must never do.",
+    "any_unplanned_restart": "The window is void, not dented. Recorded as such and re-run, the way trim-cadence.json was when a reboot took its first attempt seventeen minutes in."
+  },
+  "what_it_costs": "The machine, for a day. Under this project's own rule -- one measurement at a time, with nothing else compiling -- no build may run on it while the window is open, which also means no fixes can be deployed to that daemon until it closes.",
+  "what_this_does_not_cover": "One window on one machine with one account. It says nothing about a week, about several accounts, or about a laptop that suspends during the day; the suspend question is registered separately in deep-suspend-beyond-token-lifetime.json.",
+  "result": null,
+  "verdict": null
+}

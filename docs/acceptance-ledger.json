@@ -100,7 +100,7 @@
       "done": false,
       "text": "Real restart/outage checks and at least 24 hours of sustained operation.",
       "blocker": "needs-live-account",
-      "evidence": null,
+      "evidence": "NOT RUN. Registered 2026-09-11 in docs/benchmarks/sustained-operation.json with the sampler it needs (scripts/sustained-operation-sample.py): a row a minute carrying MainPID, VmRSS of that process rather than the cgroup's MemoryCurrent, account state, per-feed state, indexed_items, stuck_changes, and the time to list the mount root -- because a daemon that is alive but no longer serving looks healthy in every other column. A deliberate restart and a deliberate outage go inside the window, so recovery is observed in a daemon that has been up for hours rather than one just started, and a restart is marked rather than silently spanned. P2 is where the +40.5 MiB drift that left trim-cadence.json NOT SETTLED either flattens over a day or does not. What it costs is the machine for a day: under this project's own rule no build may run while the window is open, which also means no fixes reach that daemon until it closes. That cost is why this is registered and waiting rather than started.",
       "asserted_by": null
     },
     {

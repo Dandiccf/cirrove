@@ -751,7 +751,7 @@ fn a_journal_survives_the_machine_losing_power_mid_write() {
             let _ = std::fs::remove_file(&marker);
             let mut j = open(&journal, 64 * 1024 * 1024);
             println!("POWERCUT seeded; writing continuously. Cut the power at any point.");
-            for generation in 0u64.. {
+            for generation in 0u64..u64::MAX {
                 let bytes =
                     format!("generation {generation} was acknowledged durable").into_bytes();
                 // Its own remote identity per generation. Reusing one is

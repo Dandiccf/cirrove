@@ -516,8 +516,23 @@ fn refuse_to_migrate_under_a_running_daemon(state: &Path, db: &Path) -> Result<(
     if daemon_lock(state).is_ok() {
         return Ok(()); // nothing is running; migrating on open is the normal path
     }
-    let Ok(version) = cirrove_store::schema_version(db) else {
-        return Ok(()); // no database yet, so nothing to migrate
+    let version = match cirrove_store::schema_version(db) {
+        Ok(version) => version,
+        // Absent really is nothing to migrate. Present and unreadable is a
+        // different thing and must not borrow that answer: a daemon is running,
+        // and a guard that opens the gate whenever it cannot see is worse than
+        // no guard, because the caller believes it was checked. SQLite can fail
+        // this read for reasons that pass -- a busy database, a hot journal, no
+        // descriptors left -- and every one of them used to disable the refusal
+        // silently.
+        Err(_) if !db.exists() => return Ok(()),
+        Err(error) => bail!(
+            "a daemon is running and this account's index at {} could not be read \
+             to check its schema ({error}). Refusing rather than guessing: opening \
+             it here may migrate it and stop that daemon reading its own metadata. \
+             Stop cirroved and try again.",
+            db.display()
+        ),
     };
     if version < cirrove_store::SCHEMA_VERSION {
         bail!(
@@ -874,6 +889,29 @@ mod tests {
             .expect_err("a running daemon must block the migration");
         let message = format!("{refusal}");
         assert!(message.contains("Install the matching build"), "{message}");
+
+        // An index that is there but cannot be read right now is not the same as
+        // no index, and the guard must not treat it as one. SQLite fails this
+        // read for reasons that pass -- a busy database, a hot journal, no
+        // descriptors left -- and treating any of them as "nothing to migrate"
+        // opens the gate at exactly the moment the guard cannot see.
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(&db).expect("db metadata").permissions();
+        std::fs::set_permissions(&db, std::fs::Permissions::from_mode(0o000))
+            .expect("make the index unreadable");
+        let blind = super::refuse_to_migrate_under_a_running_daemon(&state, &db);
+        std::fs::set_permissions(&db, mode).expect("restore");
+        let blind = format!(
+            "{}",
+            blind.expect_err("an unreadable index under a running daemon must be refused")
+        );
+        assert!(blind.contains("could not be read"), "{blind}");
+
+        // Absent really is nothing to migrate, and must stay allowed -- a guard
+        // that refused a first run would make a new account unusable.
+        std::fs::remove_file(&db).expect("remove the index");
+        super::refuse_to_migrate_under_a_running_daemon(&state, &db)
+            .expect("no index at all is nothing to migrate");
         drop(held);
     }
     #[test]
