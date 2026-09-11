@@ -1,0 +1,29 @@
+{
+  "question": "What does capping the daemon's malloc arenas cost in throughput and latency on a concurrent read workload, so that the memory it saves can be traded against something rather than taken for free?",
+  "why_now": "daemon-allocator-arenas.json measured the memory half and stopped there on purpose: 'it trades resident memory against allocator concurrency, and the second half has not been measured at all.' It ended 'Recorded, nothing changed'. Nothing has changed since, and the bounded-memory row is still open on the same sentence -- the same daemon doing the same work sits at 108 MiB or 211 MiB depending on a setting nobody has chosen. A decision cannot be made on one half of a trade.",
+  "what_is_already_known": {
+    "memory": "Capped at one arena the daemon rests at 107.9 MiB after two 475 MB passes and returns essentially all of what each pass takes (residue 0.0 then 3.3 MiB). With the default it rests at 211.3 MiB and returns none (11.0 then 17.8 MiB, cumulative). A long-running daemon was at 338.4 MiB.",
+    "an_inconsistency_worth_naming": "CI already pins MALLOC_ARENA_MAX=1 for the mounted read workloads, with the comment that without it 'the RSS assertion measures glibc arena retention'. So the memory fixture depends on a setting the shipped unit does not set. Whatever is decided, those two should agree, and today a measurement passes under conditions the product does not reproduce."
+  },
+  "registered_before_run": true,
+  "registered_at": "2026-09-11",
+  "arms": {
+    "default": "The daemon as shipped, no MALLOC_ARENA_MAX.",
+    "capped": "MALLOC_ARENA_MAX=1, the arm that saves the memory."
+  },
+  "workload": "The mounted read workloads the fixture already drives, at their concurrent settings, plus a directory-listing load running against the same mount so that allocation happens on several threads at once. One process per arm, restarted between them, because an earlier arm's high-water mark contaminates the next -- which is why CI already separates them.",
+  "endpoint": "Wall-clock completion of the workload, and p95 of a single read, in each arm. Reported as the ratio of capped to default, so the figure survives a different machine.",
+  "predictions": {
+    "P1": "Both arms move the same bytes and make the same number of provider requests, or the comparison is not about the allocator and the run says so.",
+    "P2": "Capping costs less than 10 percent on wall-clock completion. Below that it is a straightforward trade -- half the resident memory for a rounding error -- and the product decision is easy.",
+    "P3": "Capping costs less than 25 percent on p95 of a single read. A tail cost matters more than a throughput cost here, because a file manager waits on one read and not on the aggregate."
+  },
+  "decision_rule": {
+    "P2_and_P3_hold": "Cap arenas in the shipped unit, and the bounded-memory row then has an allocator to state a bound against. CI and the product would agree for the first time.",
+    "either_fails": "Do not cap, and the row states its bound for the default allocator instead -- around 211 MiB after two passes, which is a worse number honestly arrived at rather than a better one that nobody runs.",
+    "P1_fails": "The run says nothing and is repeated. Two arms that did different work cannot be compared on memory or on time."
+  },
+  "why_not_just_cap_it": "Because 108 against 211 MiB is an argument for capping and not a reason to skip measuring what it costs. A daemon that is half the size and noticeably slower on every read is not obviously better, and choosing without the second number would be exactly the coin flip that artifact objected to.",
+  "result": null,
+  "verdict": null
+}
