@@ -383,7 +383,19 @@ impl MutationProvider for Cloud {
                 etag: Some(uuid::Uuid::new_v4().to_string()),
                 ..root()
             };
-            remote.files.insert(node.id.clone(), (node.clone(), vec![]));
+            // The stored folder keeps a *different* eTag from the one the
+            // receipt carries. That is measured OneDrive behaviour, not
+            // pessimism: a folder's eTag in the create response is not the one
+            // the item has a moment later, so anything that conditions a later
+            // change on the create receipt loses its precondition.
+            //
+            // A fixture that echoed the receipt's eTag back would accept exactly
+            // the chained folder removal that a live drive rejects -- which is
+            // how a wrong fix got past this suite and stranded fourteen folders
+            // in a real account.
+            let mut settled = node.clone();
+            settled.etag = Some(format!("settled-{}", uuid::Uuid::new_v4()));
+            remote.files.insert(node.id.clone(), (settled, vec![]));
             return Ok(MutationReceipt::Upsert(node));
         }
         if let MutationIntent::RemoveFile { before } = &request.intent {
@@ -2860,6 +2872,73 @@ async fn applied(session: &WritableSession, count: usize) {
     .unwrap();
 }
 
+/// Creating a directory and removing it again actually removes it from the
+/// provider, rather than reporting success and leaving it there.
+///
+/// This is the outcome, asserted at the provider rather than at the errno, and
+/// it exists because the errno was not enough. A fix that let the removal chain
+/// behind its own creation made `rmdir` return success while the conditional
+/// DELETE lost its precondition and landed in `Conflict` -- fourteen empty
+/// folders left in a real OneDrive, invisible in the mount that had just said
+/// they were gone. Every unit test passed throughout, because the fixture echoed
+/// the create receipt's eTag back and a live drive does not.
+///
+/// So this asserts the thing that was actually wrong: after the dust settles,
+/// the folder is gone from the provider and nothing is sitting in `Conflict`.
+/// Re-chaining folder removals in `validate_mutation_base` makes it fail.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; a created-then-removed directory really leaves the provider"]
+async fn real_a_directory_created_and_removed_again_is_gone_from_the_provider() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    namespace_fixture(&cloud);
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session =
+        WritableSession::mount(engine, journal, cloud.clone(), Arc::new(Vault::default()))
+            .await
+            .unwrap();
+
+    let target = mount.join("made-and-unmade");
+    let path = target.clone();
+    tokio::task::spawn_blocking(move || {
+        std::fs::create_dir(&path).unwrap();
+        // Retrying is the contract: an unsettled creation refuses as EBUSY, and
+        // every refusal on the way must stay that -- never a malformed request.
+        for _ in 0..100 {
+            match std::fs::remove_dir(&path) {
+                Ok(()) => return,
+                Err(error) => assert_eq!(
+                    error.raw_os_error(),
+                    Some(libc::EBUSY),
+                    "a directory waiting for its creation to settle must refuse as busy: {error}"
+                ),
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        panic!("the directory never became removable");
+    })
+    .await
+    .unwrap();
+
+    applied(&session, 2).await;
+    let remote = cloud.remote.lock().unwrap();
+    assert!(
+        !remote
+            .files
+            .values()
+            .any(|(node, _)| node.name == "made-and-unmade"),
+        "rmdir reported success and the folder is still at the provider"
+    );
+}
+
 /// A trash directory that is already in the drive cannot be used as one either.
 ///
 /// The `mkdir` guard stops one being created. It does nothing about a drive that
@@ -3030,10 +3109,10 @@ async fn real_rmdir_of_an_unconfirmed_directory_reports_busy_rather_than_invalid
     let confirmed = target.clone();
     tokio::task::spawn_blocking(move || {
         // Every refusal on the way must stay actionable. On a live mount this
-        // band -- after the provider acknowledged, before the local identity had
-        // been swapped for the remote one -- answered EINVAL for about two
-        // seconds, which tells the caller its request was malformed when the only
-        // true answer was "not yet".
+        // band -- after the provider acknowledged, before the creation had
+        // settled -- answered EINVAL for about two seconds, which tells the
+        // caller its request was malformed when the only true answer was "not
+        // yet".
         for _ in 0..50 {
             match std::fs::remove_dir(&confirmed) {
                 Ok(()) => return,

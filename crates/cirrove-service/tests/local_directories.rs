@@ -479,24 +479,20 @@ fn a_directory_is_not_removed_while_a_purely_local_child_still_names_it() {
         Err(JournalError::Intent)
     ));
 
-    // The empty child is a different case and no longer a refusal here. Its
-    // creation has not been acknowledged, so it has no ETag of its own -- but
-    // that is exactly what the chaining machinery is for: the removal is queued
-    // behind its own creation and rebound to that receipt before it is sent. See
-    // `mutations::a_chained_folder_removal_is_rebound_to_the_creation_receipt_before_it_is_sent`.
-    //
-    // This used to be refused as `Intent`, which reached a user as EINVAL --
-    // "invalid argument" for creating a folder and changing their mind. The
-    // mount still declines it, as EBUSY from `Writeback::rmdir`, because
-    // cancelling an in-flight creation is a separate operation that is not
-    // implemented; what changed is that the journal no longer calls a well-formed
-    // request malformed. `writable_session::real_rmdir_of_an_unconfirmed_directory_reports_busy_rather_than_invalid`
-    // holds the mount's half.
+    // The empty child is refused too, for a different reason worth stating: a
+    // directory whose creation has not settled cannot carry a conditional
+    // removal. Chaining one behind its own creation was tried and is wrong --
+    // Graph moves a folder's eTag between the create response and a moment
+    // later, so the DELETE loses its precondition and lands in Conflict after
+    // rmdir already reported success. `Writeback::rmdir` refuses the whole
+    // window with EBUSY rather than letting this surface as a malformed request;
+    // `writable_session::real_a_directory_created_and_removed_again_is_gone_from_the_provider`
+    // holds the outcome that made the difference visible.
     assert!(nested.remote.is_none());
-    let queued = j
-        .remove_namespace_directory(nested.id, nested.revision)
-        .expect("an unconfirmed empty directory must queue behind its own creation");
-    assert!(queued.object.unlinked);
+    assert!(matches!(
+        j.remove_namespace_directory(nested.id, nested.revision),
+        Err(JournalError::Intent)
+    ));
 
     // A pending child file holds it as well.
     child(&mut j, &parent.node.id, "held.txt");

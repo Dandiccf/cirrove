@@ -531,12 +531,19 @@ binaries refuse newer schemas instead of trying to downgrade them.
 
 A namespace change may be queued behind an operation whose receipt has not
 arrived, with the real identity and ETag substituted from that receipt before
-anything is sent. Folder removal was missing from both halves of that machinery,
-so creating a directory and removing it again -- an ordinary change of mind --
-answered `EINVAL` for the second or two the chain was open, telling the caller
-its request was malformed when the only true answer was "not yet". The mount
-still declines an unacknowledged creation with `EBUSY`, because cancelling one is
-a separate operation that is not implemented.
+anything is sent. Folder removal is deliberately excluded, and this was tried:
+Graph moves a folder's eTag between the create response and a moment later, so a
+DELETE conditioned on the creation receipt loses its precondition and lands in
+`Conflict` -- after `rmdir` has already told the caller it succeeded. Measured on
+a live drive: fourteen of fourteen chained folder removals conflicted and five of
+five unchained ones applied, leaving fourteen empty folders in the account and
+nothing in the mount to show for them.
+
+`Writeback::rmdir` therefore refuses the whole unsettled window with `EBUSY` --
+not now, try again -- and the removal is built from the object's current remote
+node once its creation has settled. The refusal used to surface as `EINVAL`
+through the journal, which told a caller its request was malformed for the
+ordinary act of creating a folder and changing their mind.
 
 After interruption, a namespace operation requires verification. A matching immutable
 item at the requested new name/parent can complete a lost rename/move response.

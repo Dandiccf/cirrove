@@ -199,21 +199,24 @@ impl UploadJournal {
         if previous.kind().as_ref() != Some(&before.kind) || before.target.is_some() {
             return Err(JournalError::Intent);
         }
-        // A newly created local file or directory does not have an ETag yet.
-        // Validate the local shape/destination, then replace the source from its
-        // receipt at claim.
+        // A newly created local file does not have an ETag yet. Validate the
+        // local shape/destination, then replace the source from its receipt at claim.
         //
-        // `RemoveFolder` belongs here for the same reason the other two do, and
-        // its absence was not a policy: creating a directory and removing it
-        // again before the provider's receipt arrived answered `EINVAL` for the
-        // second or two the chain was open -- telling the caller its request was
-        // malformed when the only true answer was "not yet". `resolve_mutation`
-        // carries the matching arm; neither is correct alone.
+        // `RemoveFolder` is deliberately absent, and this was tried. Chaining a
+        // folder removal to its own creation receipt fails against Graph: the
+        // eTag a folder carries in its create response is not the one it has a
+        // moment later, so the conditional DELETE loses its precondition and the
+        // removal lands in `Conflict` -- after `rmdir` has already told the
+        // caller it succeeded. Measured on a live drive: fourteen of fourteen
+        // chained folder removals conflicted, five of five unchained ones
+        // applied. `Writeback::rmdir` refuses the window with `EBUSY` instead,
+        // which is the honest answer, and `a_folder_removal_cannot_be_chained_to_its_own_creation`
+        // holds the reason here.
         let mut preview = request.clone();
         let source = match &mut preview.intent {
-            MutationIntent::Relocate { before, .. }
-            | MutationIntent::RemoveFile { before }
-            | MutationIntent::RemoveFolder { before } => before,
+            MutationIntent::Relocate { before, .. } | MutationIntent::RemoveFile { before } => {
+                before
+            }
             _ => return Err(JournalError::Intent),
         };
         source.etag = Some("cirrove-pending-receipt".into());
@@ -321,11 +324,13 @@ impl UploadJournal {
         // The confirmed node carries the real ETag, replacing the placeholder the
         // preview validated against. `record.request.validate()` below rejects
         // anything that did not actually get one, so a placeholder can never
-        // reach the provider.
+        // reach the provider. What it cannot check is whether that ETag is still
+        // current, which is why folder removals are not chained -- see
+        // `validate_mutation_base`.
         match &mut record.request.intent {
-            MutationIntent::Relocate { before, .. }
-            | MutationIntent::RemoveFile { before }
-            | MutationIntent::RemoveFolder { before } => *before = node,
+            MutationIntent::Relocate { before, .. } | MutationIntent::RemoveFile { before } => {
+                *before = node
+            }
             _ => return Err(JournalError::Corrupt),
         }
         if record.request.validate().is_err() {

@@ -152,21 +152,23 @@ impl Writeback {
             if object.node.parent_id.as_ref() != Some(&parent) || object.node.name != name {
                 return Err(Errno::ESTALE);
             }
-            // A directory whose creation the provider has not acknowledged has no
-            // ETag of its own yet.
+            // A directory whose own creation has not settled cannot carry a
+            // conditional removal, and the window is wider than "no ETag yet".
             //
-            // The journal would accept this: the removal chains behind its own
-            // creation and is rebound to that receipt before it is sent. What it
-            // would not do is cancel anything -- the folder is created in the
-            // cloud, syncs out to every other device, and then goes to the
-            // recycle bin, for a folder the user made and unmade in one breath.
-            // Cancelling an in-flight creation is the operation that avoids that
-            // round trip and it is not implemented, so this waits instead.
+            // An acknowledged creation supplies one -- but not a current one.
+            // Graph moves a folder's eTag between the create response and a
+            // moment later, so a DELETE conditioned on the receipt loses its
+            // precondition and lands in `Conflict`, *after* `rmdir` has already
+            // returned success. That is a deletion the user was told happened and
+            // which did not: measured on a live drive as fourteen of fourteen
+            // chained folder removals conflicting while five of five unchained
+            // ones applied. Waiting for `latest` to clear means the removal is
+            // built from the object's current remote node instead.
             //
             // `EBUSY` is the refusal because it is the one true thing to say:
-            // not now, try again. It used to be reached as `EINVAL` through the
+            // not now, try again. It used to surface as `EINVAL` from the
             // journal, which told the caller its request was malformed.
-            if object.remote.is_none() {
+            if object.remote.is_none() || object.latest.is_some() {
                 return Err(Errno::EBUSY);
             }
             Self::publish_locked(&j, &writer.projection)?;
