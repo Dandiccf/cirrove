@@ -8,6 +8,7 @@ publish = false
 
 [dependencies]
 cirrove-service.workspace = true
+cirrove-auth.workspace = true
 anyhow.workspace = true
 clap.workspace = true
 serde.workspace = true
@@ -24,3 +25,10 @@ fs2.workspace = true
 
 [lints]
 workspace = true
+
+# GTK accepts one thread per process and libtest gives every test its own, so
+# the window scenarios run under their own small harness, one after another on
+# the main thread. It understands the libtest flags CI passes.
+[[test]]
+name = "window"
+harness = false

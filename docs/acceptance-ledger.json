@@ -319,9 +319,9 @@
       "line": 259,
       "done": false,
       "text": "GTK4/libadwaita setup and settings without a terminal in ordinary flows.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": "NOT DONE. Named here 2026-09-13 with the clearest example of what the row is about: pinning. Milestone 3 is closed 5/5 -- persistent per-file and recursive pinning, storage reservations, offline access across restarts, all measured against a real account -- and every one of those capabilities is reachable only from a terminal. `cirrove pin`, `cirrove pins`, `cirrove unpin` exist; the window has no pin control, the tray menu has none, and there is no file-manager extension at all. Asked by the first person to use it -- 'how am I supposed to pin anything? that isn't implemented, is it?' -- which is the row failing in the plainest possible way: a whole milestone's worth of working capability that a user cannot find. The file-manager half is line 262 and separate; this row is the one that says ordinary flows must not need a terminal.",
-      "asserted_by": null
+      "blocker": "autonomous",
+      "evidence": "NOT DONE. Named here 2026-09-13 with the clearest example of what the row is about: pinning. Milestone 3 is closed 5/5 -- persistent per-file and recursive pinning, storage reservations, offline access across restarts, all measured against a real account -- and every one of those capabilities is reachable only from a terminal. `cirrove pin`, `cirrove pins`, `cirrove unpin` exist; the window has no pin control, the tray menu has none, and there is no file-manager extension at all. Asked by the first person to use it -- 'how am I supposed to pin anything? that isn't implemented, is it?' -- which is the row failing in the plainest possible way: a whole milestone's worth of working capability that a user cannot find. The file-manager half is line 262 and separate; this row is the one that says ordinary flows must not need a terminal. UPDATE 2026-09-13: the account side of this row is done in the window -- connecting, re-signing, removing and discarding refused changes need no terminal (line 260). What still needs one: creating the app registration (docs/onedrive-setup.md), pinning (milestone 3 via the CLI, until the Nautilus extension), and changing an existing account's read/write consent (cirrove reauth --write-access).",
+      "asserted_by": "The window scenario named on line 260; nothing asserts the pinning half, which is the open one."
     },
     {
       "milestone": 5,
@@ -329,9 +329,9 @@
       "line": 260,
       "done": false,
       "text": "Account picker, mount controls, reconnect, connection removal and cleanup.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
-      "asserted_by": null
+      "blocker": "autonomous",
+      "evidence": "PARTIAL 2026-09-13. The window now carries every account action the CLI has, each offered only where it applies: Connect a drive (name, folder, app registration prefilled from an existing account, read-only or writable; browser sign-in; then a list of the drives the account can see, saved when one is chosen -- accounts::begin_connect and PendingConnection::finish, the CLI's connect split in two so a window can answer what stdin used to); Mount/Unmount as before; Sign in again on an account whose grant stopped working (accounts::reauthenticate); Remove on an unmounted account, with a confirmation that changes when the account still holds changes the cloud never received, naming the count and the alternative (accounts::unsent_changes then accounts::forget). NOT DONE: the browser sign-in and drive choice are exercised by hand only -- a test cannot complete a Microsoft sign-in; the test checks the dialog opens and refuses to sign in with nothing filled in. Cleanup of what forget set aside under state/removed is not offered.",
+      "asserted_by": "desktop::window (its own harness) every_account_action_is_offered_from_the_window_and_only_where_it_applies: against a daemon that is only a socket, Sign in again is present on exactly the account whose feed says sign_in_required, Remove is present on both accounts and sensitive only on the unmounted one, and Connect a drive opens a dialog whose sign-in button is insensitive with nothing filled in. Shown to fail before the window had any of these."
     },
     {
       "milestone": 5,
@@ -360,8 +360,8 @@
       "done": false,
       "text": "Actionable errors, progress, cancellation and conflict resolution.",
       "blocker": "autonomous",
-      "evidence": "PARTIAL 2026-09-11. Conflict resolution has its first real piece, and it was built because the daemon could strand a change in silence: fourteen folder removals ended in Conflict on a live drive, hiding the directories in the mount while leaving them in the account, with no status field saying so and no way to clear them -- request_mutation_retry refuses Conflict by design and nothing else touched one. AccountStatus.stuck_changes now reports them and `cirrove discard-stuck` abandons them. Measured end to end on that drive: 14 abandoned, 14 back in view, 10 deleted cleanly on the second attempt, 4 conflicted again on stale ETags and cleared after the delta feed caught up. Final state: no leftovers, nothing stuck. NOT DONE: removals only -- a stuck creation or move leaves the local tree depending on it and is refused rather than half-handled; discard only, never retry; no per-item view, so a user sees a count and not which paths; neither the window nor the tray shows it; and progress and cancellation are untouched. FIXED 2026-09-13: the count is no longer a number nobody reads. It travels on the event channel (Event::Account gained stuck_changes, serde(default) so an older daemon reads back as zero and an older client ignores the field), and the tray raises the icon to NeedsAttention, names it in the tooltip -- 'ready, 3 changes not applied', the healthy state beside it because that is what makes it surprising -- and offers 'Discard N changes the cloud refused' in the menu, shown only when there is something to discard. The menu entry calls discard-stuck over the control socket, which is allowed because it is a shortcut to a CLI command and not the only way there; leaving a user informed and helpless was the worse failure. NOT DONE still: no per-item view, so a user sees a count and not which paths, and the window shows nothing.",
-      "asserted_by": "mutations::only_changes_the_daemon_has_stopped_retrying_are_counted_as_stuck and ::discarding_refuses_anything_it_cannot_unwind_cleanly at the journal level, plus writable_session::real_a_delete_the_provider_refused_can_be_abandoned_and_the_folder_returns through a real kernel FUSE mount, which fails without the restore by never bringing the folder back. Nothing asserts the freshness caveat -- the fixture's mount does not re-observe provider changes without an explicit refresh -- so that is recorded in docs/validation.md as a live measurement instead of claimed as covered."
+      "evidence": "PARTIAL 2026-09-11. Conflict resolution has its first real piece, and it was built because the daemon could strand a change in silence: fourteen folder removals ended in Conflict on a live drive, hiding the directories in the mount while leaving them in the account, with no status field saying so and no way to clear them -- request_mutation_retry refuses Conflict by design and nothing else touched one. AccountStatus.stuck_changes now reports them and `cirrove discard-stuck` abandons them. Measured end to end on that drive: 14 abandoned, 14 back in view, 10 deleted cleanly on the second attempt, 4 conflicted again on stale ETags and cleared after the delta feed caught up. Final state: no leftovers, nothing stuck. NOT DONE: removals only -- a stuck creation or move leaves the local tree depending on it and is refused rather than half-handled; discard only, never retry; no per-item view, so a user sees a count and not which paths; neither the window nor the tray shows it; and progress and cancellation are untouched. FIXED 2026-09-13: the count is no longer a number nobody reads. It travels on the event channel (Event::Account gained stuck_changes, serde(default) so an older daemon reads back as zero and an older client ignores the field), and the tray raises the icon to NeedsAttention, names it in the tooltip -- 'ready, 3 changes not applied', the healthy state beside it because that is what makes it surprising -- and offers 'Discard N changes the cloud refused' in the menu, shown only when there is something to discard. The menu entry calls discard-stuck over the control socket, which is allowed because it is a shortcut to a CLI command and not the only way there; leaving a user informed and helpless was the worse failure. NOT DONE still: no per-item view, so a user sees a count and not which paths, and the window shows nothing. UPDATE 2026-09-13: the count of refused changes and the Discard action are in the window as well as the tray: a 'Changes the cloud refused' row with the count, shown only while there is something to discard, and a Discard button that asks the daemon and reports what it could unwind. Progress and cancellation of transfers remain NOT DONE.",
+      "asserted_by": "mutations::only_changes_the_daemon_has_stopped_retrying_are_counted_as_stuck and ::discarding_refuses_anything_it_cannot_unwind_cleanly at the journal level, plus writable_session::real_a_delete_the_provider_refused_can_be_abandoned_and_the_folder_returns through a real kernel FUSE mount, which fails without the restore by never bringing the folder back. Nothing asserts the freshness caveat -- the fixture's mount does not re-observe provider changes without an explicit refresh -- so that is recorded in docs/validation.md as a live measurement instead of claimed as covered. desktop::window every_account_action_is_offered_from_the_window_and_only_where_it_applies clicks Discard and requires the discard-stuck request at the fake daemon and the row gone once the daemon reports none remain."
     },
     {
       "milestone": 5,
@@ -449,9 +449,9 @@
       "line": 321,
       "done": false,
       "text": "Native Arch/AUR, Debian/Ubuntu `.deb` and Fedora `.rpm` packages from the same release, with the clean-system checks in [Distribution](distribution.md).",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
-      "asserted_by": null
+      "blocker": "autonomous",
+      "evidence": "PARTIAL 2026-09-13. Arch: packaging/arch/PKGBUILD builds cirrove (daemon, CLI, user unit; no desktop library) and cirrove-desktop (window, tray, entries, icons, metainfo) from one source; scripts/build-arch-package.sh builds HEAD and checks each package's contents. Built on this machine (0.1.0dev.r335.gcffdb58), check() passing. CI's arch-package job builds in an archlinux container as an unprivileged user with the distribution's rust, installs, runs, validates and removes. NOT DONE: install/login/upgrade/removal on this machine (the packages are built, not yet installed here); Debian .deb and Fedora .rpm do not exist; no tag, so no release build.",
+      "asserted_by": "scripts/build-arch-package.sh fails on a missing file in either package or a desktop dependency on the daemon package; package() fails if the unit does not run /usr/bin/cirroved; CI job arch-package installs and removes on a clean system."
     },
     {
       "milestone": 6,
@@ -489,9 +489,9 @@
       "line": 329,
       "done": false,
       "text": "Clean uninstall and explicit retention/removal choices for local data.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
-      "asserted_by": null
+      "blocker": "autonomous",
+      "evidence": "PARTIAL 2026-09-13. Package removal is checked in CI: after pacman -Rns nothing package-owned survives. Retention is by construction -- pacman touches nothing under the home directory, so accounts, credentials and the journal stay -- and the explicit removal choices exist per account: the window's Remove sets an account's data aside and asks separately about changes that never reached the cloud; cirrove forget --discard-unsent is the CLI form. NOT DONE: a whole-installation 'remove my data too' choice, and the check on Debian and Fedora.",
+      "asserted_by": "CI job arch-package (nothing package-owned survives removal); accounts::forget refuses an enabled account and, without --discard-unsent, one holding unsent changes -- held by the desktop window scenario and the forget tests in the service crate."
     },
     {
       "milestone": 6,

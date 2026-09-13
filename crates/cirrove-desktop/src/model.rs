@@ -85,6 +85,8 @@ impl ConnectionState {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AccountCard {
     pub id: String,
+    /// The name the CLI and the daemon know the account by; every verb takes it.
+    pub label: String,
     pub title: String,
     pub username: String,
     pub tenant: String,
@@ -95,6 +97,14 @@ pub struct AccountCard {
     pub state: ConnectionState,
     pub cache_bytes: u64,
     pub library_count: usize,
+    /// Changes the daemon has stopped retrying because the cloud refused them.
+    pub stuck: u64,
+    /// Whether the grant allows changes; a read-only drive shows as such.
+    pub writable: bool,
+    /// The app registration this account signed in through, so connecting a
+    /// second drive can start from it rather than from an empty field.
+    pub client_id: String,
+    pub authority: String,
 }
 impl AccountCard {
     pub fn action_label(&self) -> &'static str {
@@ -190,6 +200,7 @@ impl Overview {
                 };
                 AccountCard {
                     id: account.id.clone(),
+                    label: account.label.clone(),
                     title: format!("OneDrive · {}", account.drive.name),
                     username: account.identity.username.clone(),
                     tenant: account.identity.tenant_id.clone(),
@@ -200,6 +211,10 @@ impl Overview {
                     state,
                     cache_bytes: account.cache_bytes,
                     library_count: status.map_or(0, |s| s.feeds.len()),
+                    stuck: status.map_or(0, |s| s.stuck_changes),
+                    writable: account.access == cirrove_auth::AccessMode::ReadWrite,
+                    client_id: account.registration.client_id.clone(),
+                    authority: account.registration.authority.clone(),
                 }
             })
             .collect();

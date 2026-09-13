@@ -395,6 +395,7 @@ name = "cirrove-desktop"
 version = "0.1.0-dev"
 dependencies = [
  "anyhow",
+ "cirrove-auth",
  "cirrove-service",
  "clap",
  "fs2",

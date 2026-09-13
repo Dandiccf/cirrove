@@ -627,14 +627,87 @@ pub fn clear_pin(state: &Path, label: &str, item: &str) -> Result<String> {
 }
 /// Complete browser sign-in, display verified identity and let the caller choose a
 /// drive. Persistence happens only after the selected drive's root is verified.
-pub async fn connect(
+/// A sign-in that has happened and a drive that has not yet been chosen.
+///
+/// `connect` used to do both in one call and ask for the drive on stdin, which
+/// a window cannot answer. Split, the window shows the drives and finishes with
+/// the one the user picks; the CLI does the same with a prompt. Nothing is saved
+/// until `finish`: dropping this forgets the grant, which is the right outcome
+/// for a sign-in the user walked away from.
+pub struct PendingConnection {
     state: PathBuf,
     label: String,
     app: AppRegistration,
     mount_path: PathBuf,
-    drive_id: Option<String>,
     access: AccessMode,
-) -> Result<()> {
+    id: String,
+    identity: Identity,
+    credentials: cirrove_auth::Credentials,
+    graph: OneDrive,
+    drives: Vec<DriveInfo>,
+}
+impl PendingConnection {
+    /// Who signed in.
+    pub fn identity(&self) -> &Identity {
+        &self.identity
+    }
+    /// The drives this account can mount, the default Documents drive first.
+    pub fn drives(&self) -> &[DriveInfo] {
+        &self.drives
+    }
+    /// Save the account with this drive. A drive not in the list is looked up,
+    /// so a caller who knows an id can name one the listing missed.
+    pub async fn finish(self, drive_id: &str) -> Result<Account> {
+        let cancel = CancellationToken::new();
+        let drive = match self.drives.iter().find(|d| d.id == drive_id) {
+            Some(drive) => drive.clone(),
+            None => self.graph.drive(drive_id, &cancel).await?,
+        };
+        let root = self.graph.root(&drive.id, &cancel).await?;
+        if self.mount_path.exists() && std::fs::read_dir(&self.mount_path)?.next().is_some() {
+            bail!("mount directory must be empty");
+        }
+        let account = Account {
+            id: self.id,
+            label: self.label,
+            registration: self.app,
+            identity: self.identity,
+            credential_id: uuid::Uuid::new_v4().to_string(),
+            access: self.access,
+            drive,
+            root_id: root.id,
+            mount_path: self.mount_path,
+            enabled: self.access == AccessMode::ReadOnly,
+            poll_seconds: 30,
+            cache_bytes: 5 * 1024 * 1024 * 1024,
+        };
+        let _lock = config_lock(&self.state)?;
+        let mut settings = Settings::load(&self.state)?;
+        if settings
+            .accounts
+            .iter()
+            .any(|a| a.label == account.label || a.mount_path == account.mount_path)
+        {
+            bail!("account settings changed during sign-in; try another label or path");
+        }
+        save_credentials(&DesktopVault, &account.credential_id, &self.credentials).await?;
+        settings.accounts.push(account.clone());
+        if let Err(error) = settings.save(&self.state) {
+            let _ = DesktopVault.remove(&account.credential_id).await;
+            return Err(error);
+        }
+        Ok(account)
+    }
+}
+/// Check the label and mount path, sign in through the browser, and list the
+/// drives. The account is not saved until `PendingConnection::finish`.
+pub async fn begin_connect(
+    state: PathBuf,
+    label: String,
+    app: AppRegistration,
+    mount_path: PathBuf,
+    access: AccessMode,
+) -> Result<PendingConnection> {
     if !valid_label(&label) {
         bail!("use a label of 1–48 letters, digits, hyphens or underscores");
     }
@@ -655,77 +728,70 @@ pub async fn connect(
         }
     }
     let (identity, credentials) = browser_login(app.clone(), access).await?;
-    println!(
-        "Signed in: {} ({})\nTenant: {}",
-        identity.display_name, identity.username, identity.tenant_id
-    );
     let id = uuid::Uuid::new_v4().to_string();
     let graph = OneDrive::new(
         id.clone(),
         Arc::new(StaticToken(credentials.access_token())),
     )?;
-    let cancel = CancellationToken::new();
-    let drive = if let Some(drive) = drive_id {
-        graph.drive(&drive, &cancel).await?
-    } else {
-        let drives = graph.drives(&cancel).await?;
-        for (index, drive) in drives.iter().enumerate() {
-            println!(
-                "{}. {} · {}\n   {}",
-                index + 1,
-                drive.name,
-                drive.drive_type,
-                drive.web_url
-            );
-        }
-        let selected = tokio::task::spawn_blocking(move || -> Result<usize> {
-            print!("Drive number to mount (Enter cancels): ");
-            std::io::stdout().flush()?;
-            let mut line = String::new();
-            std::io::stdin().read_line(&mut line)?;
-            line.trim()
-                .parse::<usize>()
-                .context("drive selection cancelled or invalid")
-        })
-        .await??;
-        drives
-            .get(selected.checked_sub(1).context("invalid drive number")?)
-            .context("invalid drive number")?
-            .clone()
-    };
-    let root = graph.root(&drive.id, &cancel).await?;
-    if mount_path.exists() && std::fs::read_dir(&mount_path)?.next().is_some() {
-        bail!("mount directory must be empty");
-    }
-    let account = Account {
-        id,
+    let drives = graph.drives(&CancellationToken::new()).await?;
+    Ok(PendingConnection {
+        state,
         label,
-        registration: app,
-        identity,
-        credential_id: uuid::Uuid::new_v4().to_string(),
-        access,
-        drive,
-        root_id: root.id,
+        app,
         mount_path,
-        enabled: access == AccessMode::ReadOnly,
-        poll_seconds: 30,
-        cache_bytes: 5 * 1024 * 1024 * 1024,
+        access,
+        id,
+        identity,
+        credentials,
+        graph,
+        drives,
+    })
+}
+pub async fn connect(
+    state: PathBuf,
+    label: String,
+    app: AppRegistration,
+    mount_path: PathBuf,
+    drive_id: Option<String>,
+    access: AccessMode,
+) -> Result<()> {
+    let pending = begin_connect(state, label, app, mount_path, access).await?;
+    let identity = pending.identity();
+    println!(
+        "Signed in: {} ({})\nTenant: {}",
+        identity.display_name, identity.username, identity.tenant_id
+    );
+    let drive = match drive_id {
+        Some(drive) => drive,
+        None => {
+            let drives = pending.drives();
+            for (index, drive) in drives.iter().enumerate() {
+                println!(
+                    "{}. {} · {}\n   {}",
+                    index + 1,
+                    drive.name,
+                    drive.drive_type,
+                    drive.web_url
+                );
+            }
+            let selected = tokio::task::spawn_blocking(move || -> Result<usize> {
+                print!("Drive number to mount (Enter cancels): ");
+                std::io::stdout().flush()?;
+                let mut line = String::new();
+                std::io::stdin().read_line(&mut line)?;
+                line.trim()
+                    .parse::<usize>()
+                    .context("drive selection cancelled or invalid")
+            })
+            .await??;
+            drives
+                .get(selected.checked_sub(1).context("invalid drive number")?)
+                .context("invalid drive number")?
+                .id
+                .clone()
+        }
     };
-    let _lock = config_lock(&state)?;
-    let mut settings = Settings::load(&state)?;
-    if settings
-        .accounts
-        .iter()
-        .any(|a| a.label == account.label || a.mount_path == account.mount_path)
-    {
-        bail!("account settings changed during sign-in; try another label or path");
-    }
-    save_credentials(&DesktopVault, &account.credential_id, &credentials).await?;
-    settings.accounts.push(account.clone());
-    if let Err(error) = settings.save(&state) {
-        let _ = DesktopVault.remove(&account.credential_id).await;
-        return Err(error);
-    }
+    let account = pending.finish(&drive).await?;
     println!(
         "Connected {}. Mount location: {}",
         account.label,
@@ -814,6 +880,24 @@ Enable it and let them upload, or pass --discard-unsent to remove them with it."
             String::new()
         }
     ))
+}
+/// How many changes an account still holds that have not reached the cloud.
+///
+/// For a window deciding what to ask before removing an account: with zero the
+/// question is "remove?", with more it is "remove and discard these?". Takes the
+/// same locks `forget` takes and refuses an enabled account for the same reason.
+pub fn unsent_changes(state: &Path, label: &str) -> Result<usize> {
+    let _lock = config_lock(state)?;
+    let account = Settings::load(state)?
+        .accounts
+        .into_iter()
+        .find(|a| a.label == label)
+        .context("no account carries that label")?;
+    let _operation = account_operation(state, &account.id)?;
+    if account.enabled {
+        bail!("{label} is still enabled; disable it first");
+    }
+    unsent_uploads(&state.join("accounts").join(&account.id), &account.id)
 }
 /// How many uploads are still waiting, without disturbing them.
 ///

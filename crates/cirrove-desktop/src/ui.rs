@@ -1,6 +1,7 @@
 //! GTK widgets and asynchronous desktop controller.
 use crate::model::{AccountCard, ConnectionState, Overview};
 use adw::prelude::*;
+use cirrove_service::accounts;
 use gtk::{gio, glib};
 use std::{
     cell::{Cell, RefCell},
@@ -9,6 +10,8 @@ use std::{
     rc::Rc,
     time::{Duration, Instant},
 };
+
+mod connect;
 
 #[derive(Clone)]
 pub enum Backend {
@@ -19,15 +22,26 @@ pub enum Backend {
     },
     Demo,
 }
+/// An account operation in flight. One at a time: each ends in a settings
+/// write or a daemon request, and the row it belongs to says which.
+struct Operation {
+    id: String,
+    text: &'static str,
+}
 struct AccountRow {
     row: adw::ExpanderRow,
     mount: gtk::Button,
     open: gtk::Button,
+    sign_in: gtk::Button,
     spinner: gtk::Spinner,
     status: adw::ActionRow,
     location: adw::ActionRow,
     storage: adw::ActionRow,
     identity: adw::ActionRow,
+    access: adw::ActionRow,
+    refused: adw::ActionRow,
+    discard: gtk::Button,
+    remove: gtk::Button,
 }
 pub struct Window {
     pub window: glib::WeakRef<adw::ApplicationWindow>,
@@ -35,13 +49,15 @@ pub struct Window {
     group: adw::PreferencesGroup,
     empty: adw::StatusPage,
     settings_retry: gtk::Button,
+    empty_connect: gtk::Button,
     banner: adw::Banner,
     refresh_button: gtk::Button,
+    connect_button: gtk::Button,
     toast: adw::ToastOverlay,
     rows: RefCell<HashMap<String, AccountRow>>,
     overview: RefCell<Option<Overview>>,
     refreshing: Cell<bool>,
-    operation: RefCell<Option<String>>,
+    operation: RefCell<Option<Operation>>,
     operation_focus: RefCell<Option<glib::WeakRef<gtk::Widget>>>,
     generation: Cell<u64>,
     waiting: RefCell<HashMap<String, Instant>>,
@@ -58,6 +74,11 @@ impl Window {
         let toolbar = adw::ToolbarView::new();
         let header = adw::HeaderBar::new();
         header.set_title_widget(Some(&adw::WindowTitle::new("Cirrove", "Cloud drives")));
+        let connect_button = gtk::Button::builder()
+            .icon_name("list-add-symbolic")
+            .tooltip_text("Connect a drive")
+            .build();
+        header.pack_start(&connect_button);
         let refresh_button = gtk::Button::builder()
             .icon_name("view-refresh-symbolic")
             .tooltip_text("Refresh connection status")
@@ -94,15 +115,22 @@ impl Window {
         let group = adw::PreferencesGroup::new();
         body.append(&group);
         let empty = adw::StatusPage::builder()
-            .icon_name("folder-remote-symbolic")
+            .icon_name("io.github.Dandiccf.Cirrove-symbolic")
             .title("Loading connections…")
             .description("Reading your saved accounts and service status.")
             .build();
+        let empty_actions = gtk::Box::new(gtk::Orientation::Vertical, 12);
+        empty_actions.set_halign(gtk::Align::Center);
+        let empty_connect = gtk::Button::with_label("Connect a drive");
+        empty_connect.add_css_class("pill");
+        empty_connect.add_css_class("suggested-action");
+        empty_connect.set_visible(false);
+        empty_actions.append(&empty_connect);
         let settings_retry = gtk::Button::with_label("Retry");
-        settings_retry.set_halign(gtk::Align::Center);
         settings_retry.add_css_class("pill");
         settings_retry.set_visible(false);
-        empty.set_child(Some(&settings_retry));
+        empty_actions.append(&settings_retry);
+        empty.set_child(Some(&empty_actions));
         body.append(&empty);
         let help = gtk::LinkButton::with_label(
             "https://github.com/Dandiccf/cirrove/blob/main/docs/onedrive-setup.md",
@@ -117,7 +145,7 @@ impl Window {
             .label(if matches!(backend, Backend::Demo) {
                 "Interface preview · sample accounts"
             } else {
-                "Development preview · mounted files are read-only"
+                "Files download when opened · changes upload in the background"
             })
             .xalign(0.0)
             .wrap(true)
@@ -145,8 +173,10 @@ impl Window {
             group,
             empty,
             settings_retry,
+            empty_connect,
             banner,
             refresh_button,
+            connect_button,
             toast,
             rows: RefCell::new(HashMap::new()),
             overview: RefCell::new(None),
@@ -163,6 +193,14 @@ impl Window {
                 ui.refresh();
             }
         });
+        for button in [&ui.connect_button, &ui.empty_connect] {
+            let weak = Rc::downgrade(&ui);
+            button.connect_clicked(move |_| {
+                if let Some(ui) = weak.upgrade() {
+                    connect::present(&ui);
+                }
+            });
+        }
         let weak = Rc::downgrade(&ui);
         ui.banner.connect_button_clicked(move |_| {
             if let Some(ui) = weak.upgrade() {
@@ -258,12 +296,17 @@ impl Window {
             "Account settings unavailable"
         });
         let description = overview.settings_error.as_ref().map_or_else(
-            || "Use the OneDrive setup guide to connect your first account.".into(),
+            || {
+                "Connect a OneDrive and its files appear in Files, downloaded as you open them."
+                    .into()
+            },
             |error| error.description(),
         );
         self.empty.set_description(Some(&description));
         self.settings_retry
             .set_visible(overview.settings_error.is_some());
+        self.empty_connect
+            .set_visible(overview.settings_error.is_none());
         let mut rows = self.rows.borrow_mut();
         rows.retain(|id, row| {
             let keep = overview.accounts.iter().any(|a| &a.id == id);
@@ -311,7 +354,7 @@ impl Window {
     }
     fn account_row(self: &Rc<Self>, id: &str) -> AccountRow {
         let row = adw::ExpanderRow::builder().use_markup(false).build();
-        let icon = gtk::Image::from_icon_name("folder-remote-symbolic");
+        let icon = gtk::Image::from_icon_name("io.github.Dandiccf.Cirrove-symbolic");
         icon.set_pixel_size(32);
         icon.add_css_class("accent");
         row.add_prefix(&icon);
@@ -324,6 +367,14 @@ impl Window {
             .build();
         open.add_css_class("flat");
         row.add_suffix(&open);
+        // Where the state says sign in, the button to do it is right there.
+        let sign_in = gtk::Button::builder()
+            .label("Sign in again")
+            .valign(gtk::Align::Center)
+            .visible(false)
+            .build();
+        sign_in.add_css_class("suggested-action");
+        row.add_suffix(&sign_in);
         let mount = gtk::Button::builder()
             .label("Mount")
             .valign(gtk::Align::Center)
@@ -346,14 +397,49 @@ impl Window {
             .subtitle_selectable(true)
             .subtitle_lines(2)
             .build();
+        let access = adw::ActionRow::builder()
+            .title("Access")
+            .use_markup(false)
+            .subtitle_lines(0)
+            .build();
         let storage = adw::ActionRow::builder()
             .title("Local cache")
             .use_markup(false)
             .build();
+        // Shown only while there is something to discard. The daemon has
+        // stopped retrying these; the user decides what happens to the copies.
+        let refused = adw::ActionRow::builder()
+            .title("Changes the cloud refused")
+            .use_markup(false)
+            .subtitle_lines(0)
+            .visible(false)
+            .build();
+        refused.add_css_class("warning");
+        let discard = gtk::Button::builder()
+            .label("Discard")
+            .valign(gtk::Align::Center)
+            .build();
+        discard.add_css_class("destructive-action");
+        refused.add_suffix(&discard);
+        let removal = adw::ActionRow::builder()
+            .title("Remove this connection")
+            .subtitle("Its sign-in and local index are set aside; nothing in the cloud is touched.")
+            .use_markup(false)
+            .subtitle_lines(0)
+            .build();
+        let remove = gtk::Button::builder()
+            .label("Remove")
+            .valign(gtk::Align::Center)
+            .build();
+        remove.add_css_class("destructive-action");
+        removal.add_suffix(&remove);
         row.add_row(&status);
         row.add_row(&identity);
+        row.add_row(&access);
         row.add_row(&location);
         row.add_row(&storage);
+        row.add_row(&refused);
+        row.add_row(&removal);
         let weak = Rc::downgrade(self);
         let key = id.to_owned();
         mount.connect_clicked(move |_| {
@@ -368,22 +454,51 @@ impl Window {
                 ui.open(&key);
             }
         });
+        let weak = Rc::downgrade(self);
+        let key = id.to_owned();
+        sign_in.connect_clicked(move |_| {
+            if let Some(ui) = weak.upgrade() {
+                ui.sign_in(&key);
+            }
+        });
+        let weak = Rc::downgrade(self);
+        let key = id.to_owned();
+        discard.connect_clicked(move |_| {
+            if let Some(ui) = weak.upgrade() {
+                ui.discard(&key);
+            }
+        });
+        let weak = Rc::downgrade(self);
+        let key = id.to_owned();
+        remove.connect_clicked(move |_| {
+            if let Some(ui) = weak.upgrade() {
+                ui.remove(&key);
+            }
+        });
         AccountRow {
             row,
             mount,
             open,
+            sign_in,
             spinner,
             status,
             location,
             identity,
+            access,
             storage,
+            refused,
+            discard,
+            remove,
         }
     }
     fn update_row(&self, row: &AccountRow, card: &AccountCard, late: bool) {
         row.row.set_title(&card.title);
-        let writing = self.operation.borrow().as_deref() == Some(&card.id);
-        let state = if writing {
-            "Saving mount preference…"
+        let live = matches!(self.backend, Backend::Live { .. });
+        let operation = self.operation.borrow();
+        let idle = operation.is_none();
+        let writing = operation.as_ref().filter(|op| op.id == card.id);
+        let state = if let Some(operation) = writing {
+            operation.text
         } else if late {
             "Still waiting for service"
         } else {
@@ -398,19 +513,49 @@ impl Window {
             row.status.remove_css_class("warning");
         }
         row.mount.set_label(card.action_label());
-        row.mount
-            .set_sensitive(card.controls_available && self.operation.borrow().is_none());
-        row.open
-            .set_sensitive(card.mounted && matches!(self.backend, Backend::Live { .. }));
-        row.spinner.set_spinning(writing || card.state.busy());
-        row.spinner.set_visible(writing || card.state.busy());
+        row.mount.set_sensitive(card.controls_available && idle);
+        row.open.set_sensitive(card.mounted && live);
+        // Offered wherever the state says so, in the preview too: the preview
+        // shows what the window does, and the actions themselves are what
+        // check for a live service.
+        row.sign_in
+            .set_visible(card.state == ConnectionState::SignInRequired);
+        row.sign_in.set_sensitive(idle);
+        row.spinner
+            .set_spinning(writing.is_some() || card.state.busy());
+        row.spinner
+            .set_visible(writing.is_some() || card.state.busy());
         row.location
             .set_subtitle(&card.mount_path.to_string_lossy());
         row.identity.set_subtitle(&card.username);
+        row.access.set_subtitle(if card.writable {
+            "Changes made in this drive are uploaded to the cloud."
+        } else {
+            "Read-only: files can be opened but not changed."
+        });
         row.storage.set_subtitle(&format!(
             "Up to {:.1} GiB · downloaded as needed",
             card.cache_bytes as f64 / 1024_f64.powi(3)
         ));
+        row.refused.set_visible(card.stuck > 0);
+        row.refused.set_subtitle(&format!(
+            "{} that the cloud would not accept. They will not be retried. Discarding removes the local copies; the cloud keeps its version.",
+            if card.stuck == 1 {
+                "1 change".to_owned()
+            } else {
+                format!("{} changes", card.stuck)
+            }
+        ));
+        row.discard.set_sensitive(idle);
+        // Removal under a running mount would race it; the daemon refuses, and
+        // the button says so before the user gets that far.
+        let removable = !card.enabled && !card.mounted;
+        row.remove.set_sensitive(removable && idle);
+        row.remove.set_tooltip_text(Some(if removable {
+            "Remove this connection"
+        } else {
+            "Unmount before removing"
+        }));
     }
     fn card(&self, id: &str) -> Option<AccountCard> {
         self.overview
@@ -421,12 +566,14 @@ impl Window {
             .find(|a| a.id == id)
             .cloned()
     }
-    pub fn toggle(self: &Rc<Self>, id: &str) {
-        let Some(card) = self.card(id).filter(|a| a.controls_available) else {
-            return;
-        };
+    pub fn current(&self) -> Option<Overview> {
+        self.overview.borrow().clone()
+    }
+    /// Claim the one operation slot and redraw with it. False if another is
+    /// running or the window is closing.
+    fn begin_operation(self: &Rc<Self>, id: &str, text: &'static str) -> bool {
         if self.operation.borrow().is_some() || self.closed.get() {
-            return;
+            return false;
         }
         self.generation.set(self.generation.get().wrapping_add(1));
         *self.operation_focus.borrow_mut() = self
@@ -434,10 +581,25 @@ impl Window {
             .upgrade()
             .and_then(|window| gtk::prelude::RootExt::focus(&window))
             .map(|widget| widget.downgrade());
-        *self.operation.borrow_mut() = Some(id.to_owned());
+        *self.operation.borrow_mut() = Some(Operation {
+            id: id.to_owned(),
+            text,
+        });
         let view = self.overview.borrow().clone();
         if let Some(view) = view {
             self.render(view);
+        }
+        true
+    }
+    fn end_operation(&self) {
+        *self.operation.borrow_mut() = None;
+    }
+    pub fn toggle(self: &Rc<Self>, id: &str) {
+        let Some(card) = self.card(id).filter(|a| a.controls_available) else {
+            return;
+        };
+        if !self.begin_operation(id, "Saving mount preference…") {
+            return;
         }
         let enabled = !card.enabled;
         match &self.backend {
@@ -448,7 +610,7 @@ impl Window {
                     let Some(ui) = weak.upgrade().filter(|ui| !ui.closed.get()) else {
                         return;
                     };
-                    *ui.operation.borrow_mut() = None;
+                    ui.end_operation();
                     let mut view = ui.overview.borrow().clone();
                     if let Some(view) = view.as_mut() {
                         if let Some(card) = view.accounts.iter_mut().find(|a| a.id == id) {
@@ -469,8 +631,7 @@ impl Window {
                 let id = id.to_owned();
                 let (send, receive) = tokio::sync::oneshot::channel();
                 runtime.spawn_blocking(move || {
-                    let result = cirrove_service::accounts::set_enabled_by_id(&state, &id, enabled)
-                        .map_err(|_| ());
+                    let result = accounts::set_enabled_by_id(&state, &id, enabled).map_err(|_| ());
                     let _ = send.send(result);
                 });
                 let weak = Rc::downgrade(self);
@@ -479,7 +640,7 @@ impl Window {
                     let Some(ui) = weak.upgrade().filter(|ui| !ui.closed.get()) else {
                         return;
                     };
-                    *ui.operation.borrow_mut() = None;
+                    ui.end_operation();
                     if !matches!(result, Ok(Ok(()))) {
                         ui.notify("Could not save the mount preference. Another account operation may be running; refresh and try again.");
                     }
@@ -487,6 +648,197 @@ impl Window {
                 });
             }
         }
+    }
+    /// A new grant for an account whose old one stopped working. The browser
+    /// does the asking; the daemon releases the account meanwhile and takes it
+    /// back after, which the row shows as it happens.
+    pub fn sign_in(self: &Rc<Self>, id: &str) {
+        let Some(card) = self.card(id) else {
+            return;
+        };
+        let Backend::Live { runtime, state, .. } = &self.backend else {
+            return;
+        };
+        if !self.begin_operation(id, "Signing in in your browser…") {
+            return;
+        }
+        let state = state.clone();
+        let label = card.label.clone();
+        let (send, receive) = tokio::sync::oneshot::channel();
+        // block_on off the runtime's worker threads: the sign-in holds a
+        // browser callback and the keyring open across awaits, and nothing
+        // about that needs to be Send.
+        runtime.spawn_blocking(move || {
+            let result = tokio::runtime::Handle::current()
+                .block_on(accounts::reauthenticate(state, label, None))
+                .map_err(|error| format!("{error:#}"));
+            let _ = send.send(result);
+        });
+        let weak = Rc::downgrade(self);
+        glib::spawn_future_local(async move {
+            let result = receive.await;
+            let Some(ui) = weak.upgrade().filter(|ui| !ui.closed.get()) else {
+                return;
+            };
+            ui.end_operation();
+            match result {
+                Ok(Ok(())) => ui.notify("Signed in again."),
+                Ok(Err(error)) => ui.notify(&format!("The sign-in did not finish: {error}")),
+                Err(_) => ui.notify("The sign-in did not finish."),
+            }
+            ui.refresh();
+        });
+    }
+    /// Abandon the changes the cloud refused. The daemon does the unwinding
+    /// and says how many it could; the row disappears with the last one.
+    pub fn discard(self: &Rc<Self>, id: &str) {
+        let Some(card) = self.card(id).filter(|c| c.stuck > 0) else {
+            return;
+        };
+        let Backend::Live {
+            runtime, socket, ..
+        } = &self.backend
+        else {
+            return;
+        };
+        if !self.begin_operation(id, "Discarding refused changes…") {
+            return;
+        }
+        let socket = socket.clone();
+        let label = card.label.clone();
+        let (send, receive) = tokio::sync::oneshot::channel();
+        runtime.spawn(async move {
+            let result = cirrove_service::discard_stuck(&socket, &label)
+                .await
+                .map_err(|error| format!("{error:#}"));
+            let _ = send.send(result);
+        });
+        let weak = Rc::downgrade(self);
+        glib::spawn_future_local(async move {
+            let result = receive.await;
+            let Some(ui) = weak.upgrade().filter(|ui| !ui.closed.get()) else {
+                return;
+            };
+            ui.end_operation();
+            match result {
+                Ok(Ok(reply)) => match reply.refusal {
+                    Some(refusal) => ui.notify(&format!("Nothing discarded: {refusal}")),
+                    None if reply.remaining == 0 => {
+                        ui.notify(&format!("Discarded {} change(s).", reply.discarded));
+                    }
+                    None => ui.notify(&format!(
+                        "Discarded {} change(s); {} could not be unwound and remain.",
+                        reply.discarded, reply.remaining
+                    )),
+                },
+                Ok(Err(error)) => ui.notify(&format!("Could not discard: {error}")),
+                Err(_) => ui.notify("Could not discard the refused changes."),
+            }
+            ui.refresh();
+        });
+    }
+    /// Ask before removing, and ask differently when the account still holds
+    /// changes the cloud has not received: those are the user's, and removing
+    /// the connection is the one way to lose them.
+    pub fn remove(self: &Rc<Self>, id: &str) {
+        let Some(card) = self.card(id).filter(|c| !c.enabled && !c.mounted) else {
+            return;
+        };
+        let Backend::Live { runtime, state, .. } = &self.backend else {
+            return;
+        };
+        if self.operation.borrow().is_some() || self.closed.get() {
+            return;
+        }
+        let state = state.clone();
+        let label = card.label.clone();
+        let (send, receive) = tokio::sync::oneshot::channel();
+        runtime.spawn_blocking(move || {
+            let result =
+                accounts::unsent_changes(&state, &label).map_err(|error| format!("{error:#}"));
+            let _ = send.send(result);
+        });
+        let weak = Rc::downgrade(self);
+        let id = id.to_owned();
+        glib::spawn_future_local(async move {
+            let result = receive.await;
+            let Some(ui) = weak.upgrade().filter(|ui| !ui.closed.get()) else {
+                return;
+            };
+            match result {
+                Ok(Ok(unsent)) => ui.confirm_removal(&id, unsent),
+                Ok(Err(error)) => ui.notify(&format!("Could not check this connection: {error}")),
+                Err(_) => ui.notify("Could not check this connection."),
+            }
+        });
+    }
+    fn confirm_removal(self: &Rc<Self>, id: &str, unsent: usize) {
+        let Some(card) = self.card(id) else {
+            return;
+        };
+        let Some(window) = self.window.upgrade() else {
+            return;
+        };
+        let dialog = adw::AlertDialog::new(Some(&format!("Remove {}?", card.title)), None);
+        dialog.add_response("cancel", "Cancel");
+        if unsent > 0 {
+            dialog.set_body(&format!(
+                "{unsent} change(s) made in this drive have not reached the cloud. Removing the connection discards them. To keep them, mount the drive again and let them upload first. Nothing already in the cloud is touched."
+            ));
+            dialog.add_response("remove", "Remove and discard");
+        } else {
+            dialog.set_body(
+                "Its sign-in and local index are set aside rather than deleted, and nothing in the cloud is touched.",
+            );
+            dialog.add_response("remove", "Remove");
+        }
+        dialog.set_response_appearance("remove", adw::ResponseAppearance::Destructive);
+        dialog.set_default_response(Some("cancel"));
+        dialog.set_close_response("cancel");
+        let weak = Rc::downgrade(self);
+        let id = id.to_owned();
+        let discard = unsent > 0;
+        dialog.connect_response(None, move |_, response| {
+            if response == "remove"
+                && let Some(ui) = weak.upgrade()
+            {
+                ui.forget(&id, discard);
+            }
+        });
+        dialog.present(Some(&window));
+    }
+    fn forget(self: &Rc<Self>, id: &str, discard_unsent: bool) {
+        let Some(card) = self.card(id) else {
+            return;
+        };
+        let Backend::Live { runtime, state, .. } = &self.backend else {
+            return;
+        };
+        if !self.begin_operation(id, "Removing…") {
+            return;
+        }
+        let state = state.clone();
+        let label = card.label.clone();
+        let (send, receive) = tokio::sync::oneshot::channel();
+        runtime.spawn_blocking(move || {
+            let result = accounts::forget(&state, &label, discard_unsent)
+                .map_err(|error| format!("{error:#}"));
+            let _ = send.send(result);
+        });
+        let weak = Rc::downgrade(self);
+        glib::spawn_future_local(async move {
+            let result = receive.await;
+            let Some(ui) = weak.upgrade().filter(|ui| !ui.closed.get()) else {
+                return;
+            };
+            ui.end_operation();
+            match result {
+                Ok(Ok(message)) => ui.notify(&message),
+                Ok(Err(error)) => ui.notify(&format!("Could not remove: {error}")),
+                Err(_) => ui.notify("Could not remove the connection."),
+            }
+            ui.refresh();
+        });
     }
     fn open(self: &Rc<Self>, id: &str) {
         if !matches!(self.backend, Backend::Live { .. }) {
@@ -511,8 +863,5 @@ impl Window {
     }
     fn notify(&self, message: &str) {
         self.toast.add_toast(adw::Toast::new(message));
-    }
-    pub fn current(&self) -> Option<Overview> {
-        self.overview.borrow().clone()
     }
 }

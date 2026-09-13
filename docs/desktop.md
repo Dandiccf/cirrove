@@ -1,10 +1,40 @@
-# Desktop preview
+# Desktop
 
-The native GTK4/libadwaita window is an initial account overview for the read-only
-development preview. It shows saved OneDrive accounts, connection status, local
-mount locations and cache limits. Mount/Unmount changes the saved preference; the
-window waits for service acknowledgement before showing the operation as complete.
-Closing the window leaves the daemon running.
+The native GTK4/libadwaita window is where accounts are managed without a
+terminal. It shows each saved OneDrive connection with its state, its Microsoft
+account, whether the grant allows changes, where it appears in Files and its
+cache limit, and it offers every action an account can need, each only where it
+applies:
+
+- **Connect a drive** (the `+` in the header, or the button on the empty page):
+  a name, a folder, the app registration's client id -- prefilled from an
+  existing account, since it is the one thing nobody remembers -- and whether
+  changes are allowed. Sign-in happens in the browser; the window then lists the
+  drives the account can see and saves the connection when one is chosen. It is
+  the CLI's `connect` in two steps, `accounts::begin_connect` and
+  `PendingConnection::finish`, against the same service code; closing the
+  dialog before choosing a drive forgets the grant.
+- **Mount / Unmount** changes the saved preference; the window waits for the
+  service to acknowledge before showing the operation as complete, and says so
+  when the service takes longer than it should.
+- **Sign in again** appears on an account whose grant stopped working and runs
+  `accounts::reauthenticate`: the account is released while the browser asks,
+  and taken back after.
+- **Changes the cloud refused** appears when the daemon has given up on
+  changes the mount made locally that the provider never took, with a count and
+  **Discard**, which asks the daemon (`discard-stuck`) to abandon them so the
+  mount shows what the cloud actually has. Nothing is re-sent: the conflict
+  means the remote moved, and a stale retry would act on whatever is there now.
+- **Remove** takes a connection out of Cirrove. Only an unmounted one: removal
+  under a running mount would race it, and the button says "Unmount before
+  removing" rather than letting the daemon refuse later. The confirmation
+  differs when the account still holds changes that never reached the cloud --
+  those are the user's, and removing the connection is the one way to lose them,
+  so it says how many and what the alternative is. What is removed is set aside
+  under the state directory, not deleted; nothing in the cloud is touched.
+
+Closing the window leaves the daemon running. One operation runs at a time,
+named in the row it belongs to.
 
 The window preserves safe failure causes when loading settings and service status.
 It distinguishes unreadable settings (including denied access), invalid settings
@@ -13,6 +43,13 @@ denied service access, response timeout, malformed response and a protocol-versi
 mismatch. Settings and service failures can appear together. Retry refreshes both;
 a recovered snapshot clears the warnings and restores confirmed controls. Raw
 settings values, error messages and service response bodies are not displayed.
+
+`crates/cirrove-desktop/tests/window.rs` drives the window against a daemon that
+is only a socket: the focus-and-acknowledgement scenario, and one that checks
+each action is offered exactly where it applies and that Discard reaches the
+daemon. GTK binds to the first thread that initialises it and libtest gives
+every test its own, so that file is its own small harness, running the
+scenarios in order on one thread; CI runs it under Xvfb.
 
 ## Run
 
@@ -30,9 +67,11 @@ built with status protocol 1; an older running daemon shows “Service update re
 Building the source alone does not update an installed service.
 
 The default paths are the same as the CLI. The window does not start, install or
-upgrade a daemon, and does not change an account's read/write permission.
-New connections and renewed sign-in still use the [OneDrive setup flow](onedrive-setup.md).
-“Sign in again” currently reports an account state; it is not yet a native sign-in action.
+upgrade a daemon, and does not change an existing account's read/write
+permission -- that is `cirrove reauth --write-access`, which discards nothing
+but is a consent change worth typing. The app registration itself is still
+created by hand, see the [OneDrive setup flow](onedrive-setup.md); the window
+asks for its client id.
 
 ## Synthetic interface preview and tests
 
@@ -200,9 +239,8 @@ daemon answers the verb with its ordinary refusal and is otherwise unaffected.
 
 ## Remaining product work
 
-Native browser sign-in, account/library selection, reauthentication, connection
-removal and cleanup are not implemented in this window. Tray actions, Nautilus
-badges, pinning, transfer/conflict views and localization remain separate work.
+Nautilus badges and pin/unpin from the file manager, a recent-activity view,
+transfer progress with cancellation, and localization remain separate work.
 
 The daemon can now push changes rather than only answer questions: `capabilities`
 names what it supports and `subscribe` streams account and mount changes over the
@@ -215,12 +253,12 @@ on, each one a change the mount already made locally that the provider never
 took. `cirrove discard-stuck` abandons them, so the mount shows what the cloud
 actually has and the user can decide again; it never re-sends anything, because
 the conflict means the remote moved and a stale retry would act on whatever is
-there now. Neither the window nor the tray shows the number yet. See [ADR 0007](adr/0007-desktop-event-channel.md). This window
-does not consume it yet; `cirrove-tray` does.
+there now. The window shows the count with a Discard button; the tray shows it
+in the icon, the tooltip and the menu. See [ADR 0007](adr/0007-desktop-event-channel.md).
+The window polls `status`; `cirrove-tray` consumes the event stream.
 
 Mount-preference save failures and folder-opening failures still use generic
-messages; account repair, service installation and reauthentication actions are
-not yet provided by these diagnostics.
+messages, and service installation is not an action in the window.
 The [desktop milestone](product-milestones.md#5-polished-desktop-experience) remains open.
 
 The desktop entry at `packaging/desktop/io.github.Dandiccf.Cirrove.desktop` is a
