@@ -79,22 +79,33 @@ fn displays_text(widget: &gtk::Widget, text: &str) -> bool {
 /// Every mapped button of ours that shows an icon and no text. GTK's own
 /// window controls -- the close button it draws when there is no compositor
 /// to draw one, as under Xvfb -- are not ours to name and are skipped.
-fn icon_only_buttons(widget: &gtk::Widget) -> Vec<gtk::Button> {
+/// Every mapped control that shows an icon and no words, with the icon it
+/// shows, so a caller can name the ones that carry no name.
+///
+/// GtkButton and GtkMenuButton both, because they are not the same type and a
+/// check that knew only the first quietly stopped covering a control the moment
+/// one became the other.
+fn icon_only_buttons(widget: &gtk::Widget) -> Vec<(gtk::Widget, String)> {
     let mut found = Vec::new();
     if widget.is::<gtk::WindowControls>() {
         return found;
     }
-    if let Some(button) = widget.downcast_ref::<gtk::Button>()
-        && button.is_mapped()
-        && button.icon_name().is_some()
-        && button.label().is_none()
+    let icon_and_label = if let Some(button) = widget.downcast_ref::<gtk::Button>() {
+        Some((button.icon_name(), button.label()))
+    } else {
+        widget
+            .downcast_ref::<gtk::MenuButton>()
+            .map(|button| (button.icon_name(), button.label()))
+    };
+    if let Some((Some(icon), None)) = icon_and_label
+        && widget.is_mapped()
         // libadwaita's header draws the window buttons itself under Xvfb and
         // does not put them in a GtkWindowControls; they carry GTK's
         // `titlebutton` class and a `window-*` icon, and are not ours.
-        && !button.has_css_class("titlebutton")
-        && !button.icon_name().is_some_and(|n| n.starts_with("window-"))
+        && !widget.has_css_class("titlebutton")
+        && !icon.starts_with("window-")
     {
-        found.push(button.clone());
+        found.push((widget.clone(), icon.to_string()));
     }
     let mut child = widget.first_child();
     while let Some(current) = child {
@@ -584,8 +595,8 @@ fn every_account_action_is_offered_from_the_window_and_only_where_it_applies() {
     // shows and, set from the same words, the label a screen reader says.
     let nameless: Vec<String> = icon_only_buttons(window.upcast_ref())
         .into_iter()
-        .filter(|b| b.tooltip_text().is_none_or(|t| t.is_empty()))
-        .map(|b| b.icon_name().map(|n| n.to_string()).unwrap_or_default())
+        .filter(|(w, _)| w.tooltip_text().is_none_or(|t| t.is_empty()))
+        .map(|(_, icon)| icon)
         .collect();
     assert!(
         nameless.is_empty(),

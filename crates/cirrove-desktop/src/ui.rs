@@ -49,7 +49,7 @@ struct AccountRow {
     /// is readable without opening it.
     kept: adw::ExpanderRow,
     kept_rows: RefCell<Vec<adw::ActionRow>>,
-    keep_add: gtk::Button,
+    keep_add: gtk::MenuButton,
 }
 pub struct Window {
     pub window: glib::WeakRef<adw::ApplicationWindow>,
@@ -475,8 +475,36 @@ impl Window {
         // Adding a pin needs a file to point at, and the file chooser is the
         // only honest way to pick one: the daemon takes a mount-relative path,
         // and a text field would invite paths that are not in the drive.
-        let keep_add = icon_button("list-add-symbolic", "Keep a file or folder offline");
+        // Two entries behind one control: a file chooser picks a file or a
+        // folder and never both, and two icon buttons in a row this narrow read
+        // as clutter.
+        let keep_file = gtk::Button::builder()
+            .label("File…")
+            .halign(gtk::Align::Fill)
+            .build();
+        keep_file.add_css_class("flat");
+        let keep_folder = gtk::Button::builder()
+            .label("Folder…")
+            .halign(gtk::Align::Fill)
+            .build();
+        keep_folder.add_css_class("flat");
+        let choices = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        choices.append(&keep_file);
+        choices.append(&keep_folder);
+        let popover = gtk::Popover::builder().child(&choices).build();
+        let keep_add = gtk::MenuButton::builder()
+            .icon_name("list-add-symbolic")
+            // A name from the start. render_kept_offline replaces it with one
+            // that says why it is insensitive when the account is unmounted,
+            // but a control that is only an icon must never exist unnamed.
+            .tooltip_text("Keep a file or folder offline")
+            .valign(gtk::Align::Center)
+            .popover(&popover)
+            .build();
         keep_add.add_css_class("flat");
+        keep_add.update_property(&[gtk::accessible::Property::Label(
+            "Keep a file or folder offline",
+        )]);
         kept.add_suffix(&keep_add);
 
         let removal = adw::ActionRow::builder()
@@ -546,13 +574,17 @@ impl Window {
                 ui.remove(&key);
             }
         });
-        let weak = Rc::downgrade(self);
-        let key = id.to_owned();
-        keep_add.connect_clicked(move |_| {
-            if let Some(ui) = weak.upgrade() {
-                ui.keep_offline(&key);
-            }
-        });
+        for (button, folder) in [(&keep_file, false), (&keep_folder, true)] {
+            let weak = Rc::downgrade(self);
+            let key = id.to_owned();
+            let popover = popover.clone();
+            button.connect_clicked(move |_| {
+                popover.popdown();
+                if let Some(ui) = weak.upgrade() {
+                    ui.keep_offline(&key, folder);
+                }
+            });
+        }
         AccountRow {
             row,
             mount,
@@ -902,7 +934,7 @@ impl Window {
     /// it, because the daemon takes a mount-relative path. Anything outside the
     /// mount is refused here with a sentence rather than sent and refused with
     /// an error, since the user cannot tell from the dialog which is which.
-    pub fn keep_offline(self: &Rc<Self>, id: &str) {
+    pub fn keep_offline(self: &Rc<Self>, id: &str, folder: bool) {
         let Some(card) = self.card(id).filter(|c| c.mounted) else {
             return;
         };
@@ -910,7 +942,11 @@ impl Window {
             return;
         };
         let chooser = gtk::FileDialog::builder()
-            .title("Keep offline")
+            .title(if folder {
+                "Keep a folder offline"
+            } else {
+                "Keep a file offline"
+            })
             .accept_label("Keep offline")
             .initial_folder(&gtk::gio::File::for_path(&card.mount_path))
             .modal(true)
@@ -918,23 +954,27 @@ impl Window {
         let weak = Rc::downgrade(self);
         let key = id.to_owned();
         let window = self.window.upgrade();
-        chooser.open(
-            window.as_ref(),
-            gtk::gio::Cancellable::NONE,
-            move |result| {
-                let Some(ui) = weak.upgrade().filter(|ui| !ui.closed.get()) else {
-                    return;
-                };
-                // A cancelled dialog is not a failure and says nothing.
-                let Ok(file) = result else {
-                    return;
-                };
-                let Some(path) = file.path() else {
-                    return;
-                };
-                ui.keep_path(&key, &path);
-            },
-        );
+        // Two calls, not one dialog: GTK's file chooser picks a file or a
+        // folder, never either. A single "file or folder" button over `open`
+        // would offer folders in its title and refuse to return one.
+        let chosen = move |result: Result<gtk::gio::File, glib::Error>| {
+            let Some(ui) = weak.upgrade().filter(|ui| !ui.closed.get()) else {
+                return;
+            };
+            // A cancelled dialog is not a failure and says nothing.
+            let Ok(file) = result else {
+                return;
+            };
+            let Some(path) = file.path() else {
+                return;
+            };
+            ui.keep_path(&key, &path);
+        };
+        if folder {
+            chooser.select_folder(window.as_ref(), gtk::gio::Cancellable::NONE, chosen);
+        } else {
+            chooser.open(window.as_ref(), gtk::gio::Cancellable::NONE, chosen);
+        }
     }
     /// The half of `keep_offline` that does not need a dialog, so a test can
     /// reach it: turn a filesystem path into a mount-relative one and pin it.
