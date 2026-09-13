@@ -38,9 +38,18 @@ Under `~/Work/cirrove-vms/` (not in the repo -- large disk images):
 ```sh
 scripts/vm/run.sh ubuntu boot          # headless (ssh + vnc)
 CIRROVE_VM_DISPLAY=gtk scripts/vm/run.sh ubuntu boot   # in a window
+scripts/vm/unlock.sh ubuntu            # after every boot, before expecting an account
 scripts/vm/run.sh ubuntu ssh 'cirrove status'
 scripts/vm/run.sh ubuntu stop          # power off cleanly
 ```
+
+`unlock.sh` is the step that is easy to forget and hard to read afterwards: with
+the keyring locked the account sits in `sign_in_required` holding a perfectly
+good token it cannot see, which looks exactly like an expired grant. Note that
+`unlock-keyring.py` runs *inside* the VM -- running it on the host unlocks
+nothing and prints `unlocked [] prompt /` rather than failing. `unlock.sh` does
+the whole dance from the host and says plainly whether the keyring ended up
+unlocked.
 
 Ports: ssh **2222** (ubuntu) / **2223** (fedora); vnc **127.0.0.1:10** / **:11**;
 the installer answer files are served on http **8000** / **8001** during an
