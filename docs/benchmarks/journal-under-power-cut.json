@@ -22,8 +22,19 @@
     "P3 fails but P1 and P2 hold": "Durability held and usability did not. Worth a separate row rather than a tick, because a user whose journal survives but refuses every save is not served by it."
   },
   "what_this_does_not_cover": "One cut is one sample. It cannot bound a rate, and a drive that lies about its write cache may pass this and fail another day. The claim is that this cut did not produce wrong-and-confident data, not that no cut can.",
-  "result": null,
-  "verdict": null,
+  "result": {
+    "when": "2026-09-13, boot 821c999 ended 08:11:27, boot 1928483 began 08:12:16.",
+    "it_was_a_real_power_loss": "Verified rather than assumed. The previous boot's journal ends mid-kernel-message at 08:11:27 with no shutdown sequence -- no Stopping, no Reached target Shutdown, no Power down. A clean reboot leaves those; power removal leaves whatever was flushed before the lights went out. The power button was held, which on this machine drops the rails exactly as pulling the cord would: a mini-PC with no system battery.",
+    "seeded": "585 generations acknowledged durable before the cut, the last at 95c52da3-c04c-4932-8bd7-b70d1419fe27. At about 68 a second that is roughly 8.6 seconds of continuous sealing, so the cut landed mid-write.",
+    "P1": "HOLDS. branch=opened. The journal opened after the cut without recovery tooling.",
+    "P2": "HOLDS. Generation 585 read back byte for byte -- the payload the journal had acknowledged as durable immediately before power was removed.",
+    "P3": "HOLDS. recovered and writable again: it accepted and sealed new work afterwards."
+  },
+  "verdict": {
+    "the_claim": "This cut did not produce wrong-and-confident data. Everything the journal acknowledged before power was removed was still there afterwards, byte for byte, and the journal was usable again without intervention.",
+    "what_it_is_not": "Not a rate and not a guarantee. One cut on one machine with one drive. A drive that lies about FLUSH can pass this and fail another day, and if this SSD has power-loss protection then the hardware may have held rather than the journal having been right to trust it -- see limits.",
+    "why_it_still_settles_the_clause": "The alternative was no evidence at all. Every other fault in this box is injected with the kernel and the filesystem behaving; this is the only interruption that takes the page cache, the drive's cache and the filesystem journal at once, and the milestone asked for it by name."
+  },
   "how_to_run": {
     "1_prepare": "CIRROVE_POWERCUT_DIR must name a directory on a real block device. The fixture refuses tmpfs and ramfs and prints the filesystem it found.",
     "2_seed": "CIRROVE_POWERCUT_DIR=$HOME/.cache/cirrove-powercut CIRROVE_POWERCUT_PHASE=seed cargo test -p cirrove-service --test working_files --locked a_journal_survives_the_machine_losing_power -- --ignored --nocapture",

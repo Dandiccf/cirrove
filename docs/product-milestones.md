@@ -209,7 +209,7 @@ safe-file-changes milestone.
 - [x] Version-conditional changes and preservation of both sides of conflicts.
 - [x] Distinct local-save, pending-upload, uploading, uploaded and failure states.
 - [x] Correct application save patterns, truncation and atomic replacement.
-- [ ] Crash/fault tests at every durable transition and concurrent remote edits.
+- [x] Crash/fault tests at every durable transition and concurrent remote edits.
 - [x] Opt-in write consent and live tests in a dedicated Cirrove test folder.
 
 Writing throughout a work drive is not enabled on the strength of synthetic tests.
