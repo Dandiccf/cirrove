@@ -151,6 +151,26 @@ def main() -> int:
         )
     )
 
+    # Context, not a verdict. An account reads updating_or_offline whenever any
+    # feed is not ready, which includes the periodic recovery refresh
+    # re-indexing a collection -- ordinary operation, and easy to misread as an
+    # outage next to a column of "ready". What separates the two is whether the
+    # mount stayed and the index held, which P1 and P3 answer.
+    from collections import Counter
+
+    states = Counter(r["state"] for r in rows)
+    if len(states) > 1:
+        print("states seen: " + ", ".join(f"{n}x {s}" for s, n in states.most_common()))
+        for state, _ in states.most_common()[1:]:
+            sample = [r for r in rows if r["state"] == state]
+            print(
+                f"  while {state}: mount present in {sum(1 for r in sample if r['mounted'])}"
+                f"/{len(sample)}, indexed items"
+                f" {min(r['items'] for r in sample)}-{max(r['items'] for r in sample)},"
+                f" slowest listing {max(r['listing'] for r in sample)} ms"
+            )
+        print()
+
     for name, ok, detail in verdicts:
         mark = "HOLDS " if ok else ("FAILS " if ok is False else "UNKNOWN")
         print(f"{name} {mark} {detail}")
