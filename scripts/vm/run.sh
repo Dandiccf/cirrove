@@ -38,7 +38,8 @@ case $distro in
     kernel_in_iso=casper/vmlinuz; initrd_in_iso=casper/initrd
     seed="$here/ubuntu"
     # Subiquity looks for user-data and meta-data under the seed URL.
-    append="autoinstall ds=nocloud-net;s=http://10.0.2.2:8000/ console=ttyS0"
+    http_port=8000
+    append="autoinstall ds=nocloud-net;s=http://10.0.2.2:$http_port/ console=ttyS0"
     ssh_port=2222; vnc=10
     ;;
   fedora)
@@ -46,7 +47,8 @@ case $distro in
     kernel_in_iso=images/pxeboot/vmlinuz; initrd_in_iso=images/pxeboot/initrd.img
     seed="$here/fedora"
     label=$(python3 -c "f=open('$iso','rb'); f.seek(32768+40); print(f.read(32).decode().strip())")
-    append="inst.ks=http://10.0.2.2:8000/ks.cfg inst.stage2=hd:LABEL=$label inst.text console=ttyS0"
+    http_port=8001
+    append="inst.ks=http://10.0.2.2:$http_port/ks.cfg inst.stage2=hd:LABEL=$label inst.text console=ttyS0"
     ssh_port=2223; vnc=11
     ;;
   *) echo "unknown distro $distro" >&2; exit 1 ;;
@@ -71,7 +73,8 @@ serve() {
   rm -rf "$root"; mkdir -p "$root"
   cp "$seed"/* "$root/"
   ln -s "$vms/pkgs" "$root/pkgs"
-  (cd "$root" && python3 -m http.server 8000 --bind 127.0.0.1 >"$dir/http.log" 2>&1 &
+  # One port per distro, so both machines can install at once.
+  (cd "$root" && python3 -m http.server "$http_port" --bind 127.0.0.1 >"$dir/http.log" 2>&1 &
    echo $! > "$dir/http.pid")
 }
 unserve() {
@@ -91,7 +94,7 @@ case $action in
     # -no-reboot: the installer's final reboot ends the process, which is how
     # this knows the install is over.
     "${qemu_common[@]}" -cdrom "$iso" \
-      -kernel "$dir/$(basename "$kernel_in_iso")" -initrd "$dir/$(basename "$initrd_in_iso")" \
+      -kernel "$dir/$kernel_in_iso" -initrd "$dir/$initrd_in_iso" \
       -append "$append" -no-reboot
     echo "installer finished; boot it with: $0 $distro boot"
     ;;
