@@ -3,7 +3,7 @@
   "note": "One row per acceptance box. `blocker` says what stands between the box and being ticked, not how hard the code is. `asserted_by` names the test that would fail if the claim stopped holding; a box may not be ticked while it is null. `candidate_assertions` are tests that look like they might assert the box and have not been read. They deliberately do not satisfy the tick check.",
   "totals": {
     "boxes": 53,
-    "ticked": 16,
+    "ticked": 17,
     "by_blocker": {
       "autonomous": 36,
       "needs-live-account": 8,
@@ -527,11 +527,11 @@
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
       "line": 336,
-      "done": false,
+      "done": true,
       "text": "Build and install the daemon and CLI without GTK4/libadwaita present, with separate desktop packaging. The root's default members now exclude the desktop; explicit `--workspace` builds and full contributor checks still include it. A package installation on a clean headless host remains required; headless buildability does not imply unattended browser/keyring setup.",
       "blocker": "autonomous",
-      "evidence": "PARTIAL 2026-09-13. The mounted-read-workloads CI job installs neither libgtk-4-dev nor libadwaita-1-dev, asserts their absence explicitly, builds the daemon and CLI in release, and runs the CLI -- so headless buildability is checked rather than implied by which job lacks a line. NOT DONE: separate desktop packaging and a package installation on a clean headless host; those are the packaging boxes above.",
-      "asserted_by": "The CI step 'Daemon and CLI build with no desktop libraries present' in .github/workflows/ci.yml, which fails if either desktop library is installed on the runner or the build does not produce runnable cirroved and cirrove binaries."
+      "evidence": "DONE 2026-09-13. Headless buildability was already checked: the mounted-read-workloads CI job installs neither libgtk-4-dev nor libadwaita-1-dev, asserts their absence, builds the daemon and CLI in release and runs the CLI. What was missing was the other half -- a package installation on a host that has no desktop -- because the deb and rpm jobs install onto runners where the desktop libraries were installed minutes earlier to build the desktop package, so they could say the Depends field names no desktop library but not that the daemon runs without one. The headless-package-install job now installs the core package alone into a clean ubuntu:24.04 container: it fails first if the container already has libgtk-4 or libadwaita, so the test cannot pass vacuously; installs with --no-install-recommends, because the package recommends gnome-keyring and xdg-utils and pulling them in would test apt's defaults rather than what the daemon requires; asserts afterwards that nothing GTK arrived and that neither binary names one in NEEDED; runs both; then installs the desktop package in the same container and asserts the opposite, that GTK does arrive and cirrove-desktop links it -- so the split is shown in both directions rather than only the direction that is easy to pass; and finally purges and checks nothing survives. Every step green on CI run 34762849239 (2026-09-13). Separate desktop packaging is the cirrove/cirrove-desktop split those jobs install.",
+      "asserted_by": "CI job headless-package-install for the packaged install on a desktop-free host, and mounted-read-workloads for the build; the root's default members exclude the desktop crate, held by the workspace manifest."
     },
     {
       "milestone": 6,

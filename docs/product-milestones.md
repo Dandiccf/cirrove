@@ -333,7 +333,7 @@ be reachable only through a tray or only through one file manager.
       then compare their identity with the running window and application bus
       name in the supported desktop sessions. Current desktop-file validation
       alone does not satisfy this gate.
-- [ ] Build and install the daemon and CLI without GTK4/libadwaita present, with
+- [x] Build and install the daemon and CLI without GTK4/libadwaita present, with
       separate desktop packaging. The root's default members now exclude the
       desktop; explicit `--workspace` builds and full contributor checks still
       include it. A package installation on a clean headless host remains required;
