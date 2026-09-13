@@ -88,6 +88,7 @@ async fn engine(temp: &tempfile::TempDir, budget: u64) -> Arc<Engine> {
     let provider = Arc::new(LinkedLibrary {
         linked: AtomicBool::new(false),
         primary_changes: AtomicU64::new(0),
+        ..Default::default()
     });
     let mut account = fixture_account(temp.path().join("mount"));
     account.cache_bytes = budget;

@@ -21,6 +21,7 @@ async fn cached_reads_never_create_or_unlink_the_write_ahead_log() {
     let provider = Arc::new(LinkedLibrary {
         linked: AtomicBool::new(false),
         primary_changes: AtomicU64::new(0),
+        ..Default::default()
     });
     let engine = Engine::new(
         fixture_account(temp.path().join("mount")),

@@ -88,7 +88,7 @@ check_pin() {
   first=$(vm "ls -p '$m' | grep -v / | head -1")
   say "  pinning '$first'"
   vm "cirrove pin '$l' --path '$first'" | tee -a "$log"
-  vm "cirrove paths '$l' '$first'" | tee -a "$log"
+  vm "cirrove paths --label '$l' '$first'" | tee -a "$log"
   vm "$session systemd-run --user --collect nautilus '$m' >/dev/null 2>&1; sleep 8"
   shot pin-files-badge
   vm "$session gdbus call --session --dest org.gnome.Nautilus --object-path /org/gnome/Nautilus --method org.gtk.Application.Quit >/dev/null 2>&1 || pkill -x nautilus || true"

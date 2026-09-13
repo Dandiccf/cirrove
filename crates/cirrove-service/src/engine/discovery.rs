@@ -9,9 +9,13 @@ use cirrove_core::{
 use cirrove_onedrive::DriveInfo;
 use std::time::Instant;
 
+#[derive(Default)]
 pub(super) struct LinkedLibrary {
     pub(super) linked: AtomicBool,
     pub(super) primary_changes: AtomicU64,
+    /// Deliver the primary drive's baseline in two pages, the way a real
+    /// drive with more items than one delta page holds arrives.
+    pub(super) paged_baseline: AtomicBool,
 }
 impl LinkedLibrary {
     fn folder(id: &str, name: &str) -> Node {
@@ -53,12 +57,35 @@ impl MetadataProvider for LinkedLibrary {
     async fn changes(
         &self,
         scope: &Scope,
-        _: Option<&Cursor>,
+        cursor: Option<&Cursor>,
         _: &CancellationToken,
     ) -> std::result::Result<ChangePage, ProviderError> {
         let changes = match scope.collection.as_str() {
             "primary" => {
                 self.primary_changes.fetch_add(1, Ordering::SeqCst);
+                // A paged baseline: the first call, from no cursor, delivers
+                // the root and says there is more; the call with that cursor
+                // delivers the rest and completes.
+                if self.paged_baseline.load(Ordering::SeqCst) {
+                    match cursor.map(|c| c.0.as_str()) {
+                        None => {
+                            return Ok(ChangePage {
+                                changes: vec![Change::Upsert(Self::folder("root", "Primary"))],
+                                checkpoint: Checkpoint::Continue(Cursor("primary-page-1".into())),
+                            });
+                        }
+                        Some("primary-page-1") => {
+                            return Ok(ChangePage {
+                                changes: vec![Change::Upsert(Self::folder(
+                                    "second",
+                                    "Second page",
+                                ))],
+                                checkpoint: Checkpoint::Complete(Cursor("primary-paged".into())),
+                            });
+                        }
+                        Some(_) => {}
+                    }
+                }
                 let mut changes = vec![Change::Upsert(Self::folder("root", "Primary"))];
                 if self.linked.load(Ordering::SeqCst) {
                     changes.push(Change::Upsert(Self::shortcut()));
@@ -171,6 +198,7 @@ async fn a_failed_discovery_still_subscribes_the_linked_drive_without_another_po
     let provider = Arc::new(LinkedLibrary {
         linked: AtomicBool::new(false),
         primary_changes: AtomicU64::new(0),
+        paged_baseline: AtomicBool::new(false),
     });
     let account = fixture_account(temp.path().join("mount"));
     let engine = Engine::new(account, provider.clone(), temp.path().join("state"))
@@ -253,6 +281,7 @@ async fn recent_changes_are_recorded_from_the_second_delta_on_and_not_on_a_reset
     let provider = Arc::new(LinkedLibrary {
         linked: AtomicBool::new(false),
         primary_changes: AtomicU64::new(0),
+        paged_baseline: AtomicBool::new(false),
     });
     let engine = Engine::new(
         fixture_account(temp.path().join("mount")),
@@ -296,5 +325,55 @@ async fn recent_changes_are_recorded_from_the_second_delta_on_and_not_on_a_reset
     );
     refresh(true).await;
     assert_eq!(engine.recent.len(), 1, "a re-baseline records nothing");
+    engine.stop().await;
+}
+
+/// A baseline that takes two pages is still a baseline: nothing from either
+/// page is activity. The first version recorded the second page of a whole
+/// drive as "changed in the cloud" -- seen live on a fresh account, whose
+/// window listed folders it had only just indexed.
+#[tokio::test]
+async fn a_baseline_of_several_pages_records_nothing_as_activity() {
+    let temp = tempfile::tempdir().unwrap();
+    let provider = Arc::new(LinkedLibrary {
+        paged_baseline: AtomicBool::new(true),
+        ..Default::default()
+    });
+    let engine = Engine::new(
+        fixture_account(temp.path().join("mount")),
+        provider.clone(),
+        temp.path().join("engine"),
+    )
+    .await
+    .unwrap();
+    let scope = engine.scope("primary");
+    let pages = crate::refresh(
+        provider.as_ref(),
+        &scope,
+        &engine.db,
+        false,
+        &engine.cancel,
+        Some(&engine.recent),
+    )
+    .await
+    .unwrap();
+    assert_eq!(pages, 2, "the baseline took two pages");
+    assert!(
+        engine.recent.is_empty(),
+        "neither page of a baseline is activity: {:?}",
+        engine.recent.list(5)
+    );
+    // The next refresh continues from the saved cursor and is activity.
+    crate::refresh(
+        provider.as_ref(),
+        &scope,
+        &engine.db,
+        false,
+        &engine.cancel,
+        Some(&engine.recent),
+    )
+    .await
+    .unwrap();
+    assert!(!engine.recent.is_empty(), "a continuation is recorded");
     engine.stop().await;
 }

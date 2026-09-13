@@ -166,6 +166,11 @@ pub async fn refresh(
     let s = scope.clone();
     let mut cursor =
         tokio::task::spawn_blocking(move || Store::open(path)?.begin(&s, reset)).await??;
+    // Whether this refresh continues from a saved cursor, decided once: a
+    // baseline can run to several pages, and every page after the first
+    // carries a cursor too. The first version looked at the page and recorded
+    // a whole drive's second page as activity.
+    let continuation = cursor.is_some() && !reset;
     let mut pages = 0u64;
     loop {
         let page = provider.changes(scope, cursor.as_ref(), cancel).await?;
@@ -181,7 +186,7 @@ pub async fn refresh(
         // what changed since; the first delta and a re-baseline list the
         // whole drive and would swamp a list meant to answer "what happened
         // while I was looking away".
-        let record = recent.is_some() && expected.is_some() && !reset;
+        let record = recent.is_some() && continuation;
         let recorded = tokio::task::spawn_blocking(move || {
             let mut store = Store::open(path)?;
             let mut out = Vec::new();
