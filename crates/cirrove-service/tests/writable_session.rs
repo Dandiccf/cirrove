@@ -3088,9 +3088,17 @@ async fn real_a_delete_the_provider_refused_can_be_abandoned_and_the_folder_retu
 
     // Now that the mount can see it again, an ordinary removal is built from the
     // eTag it really has and reaches the provider.
+    //
+    // The budgets here are larger than the ten seconds this file uses elsewhere,
+    // and deliberately. Those waits cover one provider round trip; by this point
+    // the test has made four -- create, refused removal, discard, removal -- each
+    // through the maintenance loop's own cadence, and a loaded CI runner ran out
+    // of the shorter budget while the work was still in flight. What catches a
+    // removal that genuinely never arrives is the stuck_changes assertion below,
+    // not the length of this timeout, so lengthening it hides nothing.
     let again = path.clone();
     tokio::task::spawn_blocking(move || {
-        for _ in 0..100 {
+        for _ in 0..300 {
             if std::fs::remove_dir(&again).is_ok() {
                 return;
             }
@@ -3100,7 +3108,7 @@ async fn real_a_delete_the_provider_refused_can_be_abandoned_and_the_folder_retu
     })
     .await
     .unwrap();
-    tokio::time::timeout(Duration::from_secs(10), async {
+    tokio::time::timeout(Duration::from_secs(45), async {
         while cloud
             .remote
             .lock()

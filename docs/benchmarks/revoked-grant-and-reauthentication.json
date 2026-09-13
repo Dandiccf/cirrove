@@ -41,7 +41,16 @@
     },
     "one_feed_recovered_before_the_other": "Observed rather than designed for, and it exercised a rule written the day before: at 09:30:28 one collection read ready and the other still sign_in_required, and the account stayed sign_in_required. That is manager::account_state putting the state a user can act on above a healthy sibling -- the ordering that a_feed_needing_sign_in_is_not_hidden_by_one_that_is_merely_offline holds. It had never been seen happen."
   },
-  "verdict": null,
+  "verdict": {
+    "what_holds": "All four predictions hold on the fields they name. A refused grant is noticed without intervention, made visible without a log, costs the user nothing they already hold, and recovers with the index and the pin intact.",
+    "the_row_is_not_ticked_and_these_are_the_reasons": [
+      "The grant was withdrawn by disabling the enterprise application's sign-in, not by revoking consent. That reaches the same event on the daemon's side and less of the consent cycle. It was chosen because the app has no verified publisher and re-consent could have required an administrator, which is a real risk to take with someone's working account and not one this measurement was worth.",
+      "P4 is written as 'after reauth ...' and no reauthentication was needed: re-enabling was enough. Every field it names is unchanged, and the path it names was never walked. `cirrove reauth` restoring an account remains unexercised."
+    ],
+    "what_the_run_is_worth_anyway": "Before it, the visible half of this row was asserted at its last hop only and consent expiry had never been observed at all. Now the whole chain from a provider refusing the grant to a tray icon a person can see has been walked once against a real account, and the clause nobody had thought to test -- that a credential problem must not cost the data already held -- was measured rather than assumed.",
+    "what_should_happen_next": "Either delete the service principal and run the full consent cycle, accepting that re-consent may need an administrator, or leave the row open and say so. Both are honest; the second is what stands until someone chooses the first.",
+    "a_defect_this_run_found_that_belongs_to_no_prediction": "The daemon wrote nothing to its journal when authorization was refused. Not a line. The state reached the user through the tray and `cirrove status`, which is what the row asks and why P2 holds, but an operator reading the journal saw a healthy daemon for seventeen minutes. Nothing recorded that authorization had been refused, or what the provider said about it. That is worth its own row rather than a footnote here."
+  },
   "corrected_before_the_outcome_was_known": {
     "what_was_wrong": "P1 claimed the account reaches sign_in_required 'within the feed's retry interval of sixty seconds plus its jitter'. That is the interval at which a FAILING feed retries, and it has nothing to do with when a working one starts failing.",
     "why_it_cannot_hold": "The daemon holds an access token. Disabling sign-in, or revoking consent, blocks new tokens and refreshes; it does not recall one already issued, because an access token is a signed assertion validated by expiry rather than by asking. So the daemon keeps working -- correctly, on data it is still entitled to -- until it next needs to refresh.",
