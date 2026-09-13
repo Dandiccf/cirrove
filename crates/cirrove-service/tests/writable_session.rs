@@ -130,6 +130,10 @@ impl MetadataProvider for Cloud {
 }
 #[async_trait]
 impl ReadProvider for Cloud {
+    /// OneDrive's rules, so the mount is tested against the real ones.
+    fn name_problem(&self, name: &str) -> Option<cirrove_core::NameProblem> {
+        cirrove_onedrive::naming::name_problem(name)
+    }
     async fn node(
         &self,
         _: &Scope,
@@ -3967,6 +3971,94 @@ async fn real_a_save_on_a_full_device_is_reported_as_a_device_and_not_a_budget()
         "FULL_DEVICE_MOUNT accepted={accepted} kind={} readable_after={}",
         recorded.kind,
         std::fs::remove_file(&ballast).is_ok()
+    );
+    session.shutdown().await.unwrap();
+}
+
+/// A name the cloud would refuse is refused by the mount at creation, with the
+/// errno a local filesystem gives for a name it cannot hold, and nothing is
+/// journalled for it. Before this, such a name was accepted, uploaded, refused
+/// by the provider and left as a change the daemon had given up on -- long
+/// after the application that chose it had moved on.
+#[tokio::test]
+#[ignore = "mounts a real FUSE filesystem"]
+async fn real_a_name_the_cloud_would_refuse_is_refused_at_the_mount_before_anything_is_written() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    namespace_fixture(&cloud);
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session = WritableSession::mount(
+        engine,
+        journal.clone(),
+        cloud.clone(),
+        Arc::new(Vault::default()),
+    )
+    .await
+    .unwrap();
+
+    let root = mount.clone();
+    let outcomes = tokio::task::spawn_blocking(move || {
+        let errno = |r: std::io::Result<()>| r.err().and_then(|e| e.raw_os_error());
+        (
+            errno(std::fs::write(root.join("bad:name.txt"), b"x")),
+            errno(std::fs::write(root.join("CON"), b"x")),
+            errno(std::fs::write(root.join("x".repeat(300)), b"x")),
+            errno(std::fs::create_dir(root.join("bad|dir"))),
+            errno(std::fs::write(root.join("ok.txt"), b"x")),
+            errno(std::fs::rename(root.join("ok.txt"), root.join("what?"))),
+            root.join("ok.txt").exists(),
+            root.join("what?").exists(),
+            std::fs::read_dir(&root)
+                .unwrap()
+                .filter_map(|e| e.ok())
+                .filter(|e| {
+                    let n = e.file_name();
+                    let n = n.to_string_lossy();
+                    n.contains(':') || n.contains('|') || n == "CON" || n.len() > 255
+                })
+                .count(),
+        )
+    })
+    .await
+    .unwrap();
+    assert_eq!(
+        outcomes.0,
+        Some(libc::EINVAL),
+        "a colon is refused at creation"
+    );
+    assert_eq!(
+        outcomes.1,
+        Some(libc::EINVAL),
+        "a device name is refused at creation"
+    );
+    assert_eq!(outcomes.2, Some(libc::ENAMETOOLONG), "a limit is a limit");
+    assert_eq!(
+        outcomes.3,
+        Some(libc::EINVAL),
+        "a folder name is held to the same rules"
+    );
+    assert_eq!(outcomes.4, None, "an ordinary name is taken");
+    assert_eq!(
+        outcomes.5,
+        Some(libc::EINVAL),
+        "a rename to a refused name is refused"
+    );
+    assert!(
+        outcomes.6,
+        "the refused rename leaves the file where it was"
+    );
+    assert!(!outcomes.7);
+    assert_eq!(
+        outcomes.8, 0,
+        "nothing with a refused name exists in the listing"
     );
     session.shutdown().await.unwrap();
 }

@@ -1,6 +1,7 @@
 //! Microsoft Graph reads and experimental upload adapter. Tokens, cursor
 //! URLs and remote error bodies must never appear in logs.
 mod mutation;
+pub mod naming;
 mod notifications;
 pub mod read_probe;
 mod read_sessions;
@@ -412,6 +413,9 @@ impl MetadataProvider for OneDrive {
 
 #[async_trait]
 impl ReadProvider for OneDrive {
+    fn name_problem(&self, name: &str) -> Option<cirrove_core::NameProblem> {
+        naming::name_problem(name)
+    }
     fn read_path_counters(&self) -> Option<cirrove_core::ReadPathCounters> {
         let counters = self.read_counters();
         Some(cirrove_core::ReadPathCounters {

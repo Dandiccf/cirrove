@@ -72,6 +72,15 @@ const ROOT_INODE: u64 = 1;
 ///
 /// Only the mount root is refused. A `.Trash-1000` the user keeps somewhere
 /// inside their drive is their folder, and no trash implementation looks there.
+/// A name the provider would refuse, as the errno an application can act on:
+/// a limit is `ENAMETOOLONG`, everything else `EINVAL` -- the same answers a
+/// local filesystem gives for a name it cannot hold.
+fn name_errno(problem: cirrove_core::NameProblem) -> Errno {
+    match problem {
+        cirrove_core::NameProblem::TooLong => Errno::ENAMETOOLONG,
+        cirrove_core::NameProblem::Invalid(_) => Errno::EINVAL,
+    }
+}
 fn is_trash_directory(name: &str) -> bool {
     name == ".Trash"
         || name
@@ -1028,6 +1037,10 @@ impl Filesystem for CloudFs {
             reply.error(Errno::EINVAL);
             return;
         };
+        if let Some(problem) = self.inner.engine.provider.name_problem(&name) {
+            reply.error(name_errno(problem));
+            return;
+        }
         if parent.0 == ROOT_INODE && is_trash_directory(&name) {
             reply.error(Errno::EOPNOTSUPP);
             return;
@@ -1110,6 +1123,10 @@ impl Filesystem for CloudFs {
             reply.error(Errno::EINVAL);
             return;
         };
+        if let Some(problem) = self.inner.engine.provider.name_problem(&name) {
+            reply.error(name_errno(problem));
+            return;
+        }
         let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
             reply.error(Errno::EAGAIN);
             return;
@@ -1220,6 +1237,11 @@ impl Filesystem for CloudFs {
             return;
         };
         let (name, newname) = (name.to_owned(), newname.to_owned());
+        // The old name is whatever it is; the new one is the one being chosen.
+        if let Some(problem) = self.inner.engine.provider.name_problem(&newname) {
+            reply.error(name_errno(problem));
+            return;
+        }
         let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
             reply.error(Errno::EAGAIN);
             return;

@@ -69,6 +69,13 @@ as the local write is. `cirrove status` shows how many changes are still on
 their way. Turning the machine off before they are sent does not lose them:
 they are written durably and resume at the next start.
 
+**Names.** OneDrive refuses some names Linux allows -- the characters
+`" * : < > ? \ |`, a trailing space or period, Windows device names such as
+`CON` or `COM1`, a `~$` prefix -- and Cirrove refuses them at the moment you
+choose them ("Invalid argument" in most applications, "File name too long"
+past 255 characters) rather than accepting the file and failing to upload it
+an hour later.
+
 **Renaming, moving, creating and deleting** folders and files works as in any
 folder. Deleting sends the item to the cloud's own recycle bin, not to your
 desktop's wastebasket -- Cirrove refuses a `.Trash` folder in the drive's root

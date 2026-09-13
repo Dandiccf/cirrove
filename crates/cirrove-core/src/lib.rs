@@ -188,9 +188,36 @@ pub struct ReadPathCounters {
     pub content_gets: u64,
 }
 
+/// Why a provider would refuse a name, decided before anything is written.
+///
+/// `TooLong` is a limit and maps to the limit's errno; `Invalid` carries the
+/// offending part in words, for a journal line or a test failure that says
+/// what was wrong rather than only that something was.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NameProblem {
+    TooLong,
+    Invalid(&'static str),
+}
+impl std::fmt::Display for NameProblem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::TooLong => write!(f, "the name is too long"),
+            Self::Invalid(what) => write!(f, "the name contains {what}"),
+        }
+    }
+}
+
 /// Read-only filesystem operations, deliberately separate from change feeds.
 #[async_trait]
 pub trait ReadProvider: MetadataProvider {
+    /// Why this provider would refuse a file or folder name, or `None`. The
+    /// mount asks before creating or renaming, so a name the cloud will not
+    /// take fails at the application that chose it and not an hour later as a
+    /// change the daemon gave up on. The default accepts everything; a
+    /// provider with rules states them.
+    fn name_problem(&self, _name: &str) -> Option<NameProblem> {
+        None
+    }
     /// Read-path counters, for adapters that keep them. `None` means the adapter
     /// does not count, which is not the same as counting zero.
     fn read_path_counters(&self) -> Option<ReadPathCounters> {
