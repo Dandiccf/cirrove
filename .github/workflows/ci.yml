@@ -382,6 +382,76 @@ jobs:
             ! test -e "$f" || { echo "$f survived removal"; exit 1; }
           done
 
+  # Milestone 6, line 336: the daemon and CLI on a machine that has no desktop
+  # at all. The deb and rpm jobs install onto runners where libgtk-4-dev and
+  # libadwaita-dev were installed to build the desktop package, so they cannot
+  # tell whether the core package needs a desktop library or merely found one.
+  # This installs the core package alone into a clean container, asserts before
+  # and after that nothing GTK or libadwaita is present, and then runs the
+  # binaries -- which is the claim, rather than a grep of the Depends field.
+  headless-package-install:
+    runs-on: ubuntu-24.04
+    container: ubuntu:24.04
+    needs: deb-package
+    timeout-minutes: 20
+    steps:
+      - name: A container with a package manager and nothing else
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends ca-certificates
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: deb-packages
+          path: pkgs
+      - name: Nothing desktop is installed to begin with
+        run: |
+          if dpkg -l | grep -E 'libgtk-4|libadwaita'; then
+            echo "the container already has a desktop library; this job proves nothing" >&2
+            exit 1
+          fi
+          echo "clean: no libgtk-4, no libadwaita"
+      - name: Install the core package alone
+        # --no-install-recommends on purpose: the package recommends
+        # gnome-keyring and xdg-utils, which are the conveniences a desktop
+        # wants and a server does not, and pulling them in would be testing
+        # apt's defaults rather than what the daemon requires. The claim under
+        # test is the hard requirement.
+        run: apt-get install -y --no-install-recommends ./pkgs/cirrove_*.deb
+      - name: Still nothing desktop, after installing
+        run: |
+          if dpkg -l | grep -E 'libgtk-4|libadwaita'; then
+            echo "installing the daemon pulled in a desktop library" >&2
+            exit 1
+          fi
+          # The binaries must not merely be installed: they must link.
+          ldd /usr/bin/cirroved | grep -E 'libgtk-4|libadwaita' && {
+            echo "cirroved links a desktop library" >&2; exit 1; } || true
+          ldd /usr/bin/cirrove | grep -E 'libgtk-4|libadwaita' && {
+            echo "cirrove links a desktop library" >&2; exit 1; } || true
+          echo "clean: the daemon and CLI carry no desktop library"
+      - name: They run
+        run: |
+          cirrove --help >/dev/null
+          cirroved --help >/dev/null
+          cirrove --version
+          grep -q '^ExecStart=/usr/bin/cirroved ' /usr/lib/systemd/user/cirroved.service
+      - name: The desktop package is the one that needs a desktop
+        run: |
+          # Installing it here must either pull the libraries in or refuse --
+          # what it must not do is install and leave a binary that cannot run.
+          apt-get install -y ./pkgs/cirrove-desktop_*.deb
+          dpkg -l | grep -qE 'libgtk-4' || {
+            echo "the desktop package installed without a GTK runtime" >&2; exit 1; }
+          ldd /usr/bin/cirrove-desktop | grep -q 'libgtk-4' || {
+            echo "cirrove-desktop does not link GTK, which cannot be right" >&2; exit 1; }
+          echo "the split is real: the daemon needs no desktop, the desktop package brings its own"
+      - name: Remove, and leave nothing behind
+        run: |
+          apt-get purge -y cirrove-desktop cirrove
+          for f in /usr/bin/cirroved /usr/bin/cirrove /usr/bin/cirrove-tray /usr/lib/systemd/user/cirroved.service; do
+            ! test -e "$f" || { echo "$f survived removal"; exit 1; }
+          done
+
   # Milestone 6: the dependency review, run on every push rather than
   # remembered. cargo audit fails on any advisory that .cargo/audit.toml does
   # not ignore with a reason; the licence summary is the same one
