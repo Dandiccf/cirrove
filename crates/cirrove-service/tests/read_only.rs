@@ -339,6 +339,43 @@ async fn ready(engine: &Arc<Engine>) {
 /// the shape of a race in the test rather than a defect in the lock. Used only
 /// where an engine is rebuilt immediately after being dropped; a first-time
 /// construction has nothing to wait for and says so by not calling this.
+/// Hurry the mount into observing what the test changed behind its back.
+///
+/// The engine refreshes the same scope on its own schedule, and a round is
+/// exclusive: if its loop opens and closes one between this call's begin and its
+/// pages, the store answers "no refresh is in progress" and the test blames the
+/// daemon for a race the test started. Retried rather than tolerated -- the
+/// engine's own refresh is doing the same work, so losing the race only means
+/// waiting a moment -- and any other refusal is returned as itself.
+async fn hurry_refresh(
+    provider: &dyn cirrove_core::ReadProvider,
+    engine: &Engine,
+    collection: &str,
+) -> anyhow::Result<()> {
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    loop {
+        match cirrove_service::refresh(
+            provider,
+            &engine.scope(collection),
+            &engine.db,
+            false,
+            &engine.cancel,
+        )
+        .await
+        {
+            Ok(_) => return Ok(()),
+            Err(error) => {
+                if !format!("{error:#}").contains("no refresh is in progress")
+                    || std::time::Instant::now() >= deadline
+                {
+                    return Err(error);
+                }
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        }
+    }
+}
+
 async fn reopened_engine(
     account: Account,
     provider: Arc<dyn cirrove_core::ReadProvider>,
@@ -1625,14 +1662,7 @@ for f in (old,old_alias,new,new_alias):f.close()
             node.content_version = Some("content-2".into());
             node.etag = Some("metadata-2".into());
         }
-        cirrove_service::refresh(
-            provider.as_ref(),
-            &engine.scope("home"),
-            &engine.db,
-            false,
-            &engine.cancel,
-        )
-        .await?;
+        hurry_refresh(provider.as_ref(), &engine, "home").await?;
         engine.changed.notify_waiters();
         stdin.write_all(b"content\n").await?;
         line.clear();
@@ -1648,14 +1678,7 @@ for f in (old,old_alias,new,new_alias):f.close()
             node.name = "renamed.txt".into();
             node.etag = Some("metadata-3".into());
         }
-        cirrove_service::refresh(
-            provider.as_ref(),
-            &engine.scope("home"),
-            &engine.db,
-            false,
-            &engine.cancel,
-        )
-        .await?;
+        hurry_refresh(provider.as_ref(), &engine, "home").await?;
         engine.changed.notify_waiters();
         stdin.write_all(b"rename\n").await?;
         let status = child.wait().await?;

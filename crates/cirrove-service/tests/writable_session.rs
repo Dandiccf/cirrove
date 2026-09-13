@@ -1638,16 +1638,42 @@ async fn wait_for_cleanup(journal: &Arc<Mutex<UploadJournal>>, spool: &Path, wor
         panic!("cleanup did not finish: {objects:?}");
     }
 }
+/// Hurry the mount into observing what the test changed behind its back.
+///
+/// The engine refreshes the same scope on its own schedule, and a round is
+/// exclusive: if its loop opens and closes one between this call's begin and its
+/// pages, the store answers `NoRefresh` -- "no refresh is in progress" -- and the
+/// fixture blames the daemon for a race the fixture started. Seen once on a CI
+/// runner, never in repeated local runs, which is the shape of a race that needs
+/// a loaded machine.
+///
+/// Retried rather than tolerated. The engine's own refresh is doing the same
+/// work, so losing the race is not a failure to observe anything; it only means
+/// waiting a moment. A refusal that is not the race still panics with its own
+/// error, so this covers the one collision it names and nothing else.
 async fn refresh_fixture(engine: &Engine, cloud: &Cloud) {
-    cirrove_service::refresh(
-        cloud,
-        &engine.scope("drive"),
-        &engine.db,
-        false,
-        &engine.cancel,
-    )
-    .await
-    .unwrap();
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    loop {
+        match cirrove_service::refresh(
+            cloud,
+            &engine.scope("drive"),
+            &engine.db,
+            false,
+            &engine.cancel,
+        )
+        .await
+        {
+            Ok(_) => break,
+            Err(error) => {
+                let raced = format!("{error:#}").contains("no refresh is in progress");
+                assert!(
+                    raced && std::time::Instant::now() < deadline,
+                    "fixture refresh failed: {error:#}"
+                );
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        }
+    }
     engine.changed.metadata();
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
