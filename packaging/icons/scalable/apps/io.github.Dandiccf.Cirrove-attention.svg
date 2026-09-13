@@ -1,14 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Attention: an amber cloud with an exclamation: something a person must
-     act on. Amber, not blue, so it stands out from the calm state at a glance. -->
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-  <defs>
-    <linearGradient id="amber" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffcf4a"/>
-      <stop offset="1" stop-color="#f39c12"/>
-    </linearGradient>
-  </defs>
-  <path d="M 4.3,13 H 11.6 A 3,3 0 0 0 12,6.9 A 4,4 0 0 0 4.5,6.05 A 3.4,3.4 0 0 0 4.3,13 Z" fill="url(#amber)"/>
-  <rect x="7.4" y="7.7" width="1.2" height="2.9" rx="0.6" fill="#7a3d00"/>
-  <circle cx="8" cy="11.5" r="0.72" fill="#7a3d00"/>
+  <path d="M 4.3,13 H 11.6 A 3,3 0 0 0 12,6.9 A 4,4 0 0 0 4.5,6.05 A 3.4,3.4 0 0 0 4.3,13 Z" fill="#f0a12e"/>
+  <rect x="7.4" y="7.7" width="1.2" height="2.9" rx="0.6" fill="#5a2e00"/>
+  <circle cx="8" cy="11.5" r="0.72" fill="#5a2e00"/>
 </svg>
