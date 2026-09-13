@@ -35,7 +35,7 @@ tests against a synthetic provider and has never met the real service;
 | | Status | Where |
 | --- | --- | --- |
 | Reading: listing, opening, streaming large files, cache eviction | real | validation.md, benchmarks |
-| Opening a file in an application (read, and LibreOffice which reads the whole document) | real -- gnome-text-editor and a headless LibreOffice conversion both open a mount file in the Ubuntu VM | vm-recovery-and-real-desktop.json |
+| Opening a file in an application | real -- in the Ubuntu VM GNOME session: a text editor and a spreadsheet open a mount file from Files, and a headless LibreOffice conversion opens a .docx; confirmed by the account owner double-clicking in the window | vm-recovery-and-real-desktop.json |
 | Remote creates, edits, moves and deletions reaching the mount | real -- the delta feed on the live account, with notifications | validation.md § change notification |
 | Saving, renaming, moving, creating and deleting from the mount | real -- 192 changes applied on the live account, zero stuck at last count | write-validation.md |
 | Deletion into the provider's recycle bin | real | ADR 0008 |
