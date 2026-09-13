@@ -243,6 +243,13 @@ fn every_icon_the_tray_names_ships_as_a_file() {
     // reads the names out of the tray and checks the promise is kept in
     // packaging, so a renamed icon fails here rather than on someone's panel.
     let tray_rs = repo("crates/cirrove-desktop/src/tray/mod.rs");
+    // Only what the tray itself names. Its own tests write fixture files under
+    // names a previous build used, to prove those are cleared away, and those
+    // are the opposite of a promise that something is installed.
+    let tray_rs = match tray_rs.find("#[cfg(test)]") {
+        Some(end) => tray_rs[..end].to_string(),
+        None => tray_rs,
+    };
     let mut named = Vec::new();
     for line in tray_rs.lines() {
         if let Some(start) = line.find(&format!("\"{APP_ID}-")) {
