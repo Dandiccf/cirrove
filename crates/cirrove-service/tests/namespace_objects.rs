@@ -605,3 +605,69 @@ fn provider_observations_cannot_adopt_an_unrelated_local_identity() {
     );
     assert_eq!(j.read_working(working.id, 0, 100).unwrap(), b"local unsent");
 }
+
+/// A second observation of the same provider item does not carry its new eTag
+/// into an object the journal already owns.
+///
+/// This is the mechanism behind an intermittent failure in
+/// `writable_session::real_a_delete_the_provider_refused_can_be_abandoned_and_the_folder_returns`,
+/// investigated in docs/benchmarks/discard-then-remove-convergence.json. A
+/// removal is built from the journal's copy of the node, and a conditional
+/// removal carries that copy's eTag as its precondition. If the provider has
+/// moved on -- which is what a conflict means -- the removal is refused; and
+/// `discard_stuck_removal` says in as many words that restoring freshness is
+/// the delta feed's job, not the discard's.
+///
+/// This narrows where that refresh can come from. `observe_namespace_file`
+/// updates the stored node only while the object still `follows_remote`, the
+/// placeholder state before the journal owns an identity; afterwards it returns
+/// the stored object and drops the node it was given. So this ingress is not
+/// the one that keeps an owned object current -- measurement says another path
+/// does, and usually before it is needed: in forty runs of the writable-session
+/// scenario the binding carried the provider's settled eTag thirty-nine times
+/// and the create receipt's once.
+///
+/// Asserted as the behaviour that exists, not as the behaviour that is wanted.
+/// Changing it means deciding what may overwrite a locally owned node and when,
+/// which is a design question rather than a one-line fix. The test fails the day
+/// someone answers it, which is the point.
+#[test]
+fn a_second_observation_does_not_refresh_an_owned_objects_etag() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut j = open(&tmp.path().join("journal"), 1024);
+
+    let first = node("cloud-id", "Folder", 0);
+    let owned = j.observe_namespace_file(scope(), first.clone()).unwrap();
+    assert!(
+        !owned.follows_remote,
+        "an observed object is owned, not a placeholder"
+    );
+    assert_eq!(owned.node.etag, first.etag);
+
+    // The provider moved on: same item, new version.
+    let mut moved = first.clone();
+    moved.etag = Some("etag-after-the-provider-moved".into());
+    moved.content_version = Some("content-after".into());
+    let again = j.observe_namespace_file(scope(), moved.clone()).unwrap();
+
+    assert_eq!(
+        again.node.etag, first.etag,
+        "the stored node keeps the eTag it was created with"
+    );
+    assert_ne!(
+        again.node.etag, moved.etag,
+        "and the observation's newer eTag is dropped"
+    );
+    // The remote binding is not refreshed either, so nothing downstream can
+    // notice the difference and repair it.
+    assert_eq!(
+        again.remote.as_ref().and_then(|r| r.etag.as_deref()),
+        first.etag.as_deref(),
+        "the remote binding keeps the old version too"
+    );
+    let reread = j.namespace_by_remote(&scope(), &first.id).unwrap().unwrap();
+    assert_eq!(
+        reread.node.etag, first.etag,
+        "and it is stored that way, not merely returned that way"
+    );
+}
