@@ -1,0 +1,45 @@
+#cloud-config
+# Ubuntu 24.04 Desktop, installed without a hand on it, for the real-desktop
+# checks in docs/distribution.md: the packages CI built, a GNOME session with
+# the tray extension Ubuntu ships, Files, a reboot. Served to the installer by
+# scripts/vm/run.sh over the user-network gateway (10.0.2.2), with the kernel
+# told `autoinstall ds=nocloud-net;s=http://10.0.2.2:8000/`.
+#
+# The account is a test account on a throwaway disk image; its password is
+# the word "cirrove" and appears here so a person can log in at the console
+# when something goes wrong. Nothing about this file is meant for a machine
+# anyone keeps.
+autoinstall:
+  version: 1
+  locale: en_US.UTF-8
+  keyboard:
+    layout: us
+  source:
+    id: ubuntu-desktop
+    search_drivers: false
+  identity:
+    hostname: cirrove-ubuntu
+    username: tester
+    realname: Cirrove Tester
+    # "cirrove": openssl passwd -6 -salt cirrovevmsalt cirrove
+    password: "$6$cirrovevmsalt$k3vOPAV.UIZDSi4XWbOdp3nx7ALftX.roHujQ2G37LcvPNK8EQJombJTCxwFOp3PxFiYNy6NdwFhxQzJV1X5G."
+  ssh:
+    install-server: true
+    allow-pw: true
+  storage:
+    layout:
+      name: direct
+  packages:
+    - fuse3
+    - python3-nautilus
+    - gnome-shell-extension-appindicator
+  late-commands:
+    # Log the test user in at boot: the session is what is under test, and a
+    # login screen is one more thing to drive through a screenshot.
+    - >-
+      printf '[daemon]\nAutomaticLoginEnable=true\nAutomaticLogin=tester\n'
+      > /target/etc/gdm3/custom.conf
+    # No password for sudo on the throwaway machine, so the checks can install
+    # and remove packages over ssh without a terminal.
+    - echo 'tester ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/tester
+    - chmod 440 /target/etc/sudoers.d/tester
