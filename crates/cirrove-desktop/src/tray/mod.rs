@@ -802,6 +802,32 @@ fn report(notice: HostNotice) {
     }
 }
 
+/// Whether the window should tell someone their tray icon will not appear.
+///
+/// Only on a definite no. A bus that could not be asked returns `None`, and
+/// telling someone their tray is broken because a lookup failed is worse than
+/// saying nothing: the icon may be sitting in their panel while the window
+/// claims it cannot be.
+pub fn notice_when(host: Option<bool>) -> bool {
+    host == Some(false)
+}
+
+/// Whether a tray host is on the session bus right now.
+///
+/// `None` when the bus itself could not be asked, because "we could not look"
+/// is not "there is none" and the window must not tell someone their tray is
+/// broken on the strength of a failed lookup.
+///
+/// The tray already says this on its own stderr, which is where an operator
+/// looks and not where a user does: someone whose icon never appears reads the
+/// window, not the journal. This lets the window ask the same question.
+pub async fn host_present() -> Option<bool> {
+    let connection = zbus::Connection::session().await.ok()?;
+    let dbus = zbus::fdo::DBusProxy::new(&connection).await.ok()?;
+    let name = zbus::names::BusName::try_from(WATCHER).ok()?;
+    dbus.name_has_owner(name).await.ok()
+}
+
 async fn follow_watcher(connection: zbus::Connection) {
     use futures_util::stream::StreamExt;
     let dbus = match zbus::fdo::DBusProxy::new(&connection).await {
@@ -1259,5 +1285,21 @@ mod tests {
         assert!(tooltip.contains("label-a"), "{tooltip}");
         assert!(tooltip.contains("sign-in required"), "{tooltip}");
         assert!(!tooltip.contains("Private-Sales"), "{tooltip}");
+    }
+}
+
+#[cfg(test)]
+mod host_notice_rule {
+    use super::notice_when;
+
+    #[test]
+    fn only_a_definite_absence_is_worth_telling_someone_about() {
+        assert!(notice_when(Some(false)), "no host: say so, with the fix");
+        assert!(!notice_when(Some(true)), "a host is there: say nothing");
+        assert!(
+            !notice_when(None),
+            "the bus could not be asked; claiming the tray is broken on that \
+             would contradict an icon sitting in the panel"
+        );
     }
 }

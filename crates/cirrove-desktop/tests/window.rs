@@ -636,6 +636,20 @@ fn every_account_action_is_offered_from_the_window_and_only_where_it_applies() {
         "a refused save is an entry that warns"
     );
 
+    // The tray notice is a definite-absence notice, and this desktop has a tray
+    // host, so it must stay hidden. What it must not do is appear because a
+    // lookup was slow or failed -- someone whose icon is sitting in their panel
+    // being told it cannot be is worse than saying nothing. tray::notice_when
+    // holds that rule; this checks the window obeys it.
+    assert!(
+        !displays_text(
+            window.upcast_ref(),
+            "No tray icon: this desktop has no tray. On GNOME, install the AppIndicator \
+             extension; most other desktops provide one."
+        ),
+        "the tray notice must not appear where a tray host is running"
+    );
+
     // Every button that is only an icon has a name: the tooltip a pointer
     // shows and, set from the same words, the label a screen reader says.
     let nameless: Vec<String> = icon_only_buttons(window.upcast_ref())

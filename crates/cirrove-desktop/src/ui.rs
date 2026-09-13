@@ -63,6 +63,11 @@ pub struct Window {
     settings_retry: gtk::Button,
     empty_connect: gtk::Button,
     banner: adw::Banner,
+    /// Shown only when the session bus says no tray host is running. The
+    /// tray already reports this on its own stderr, which is where an
+    /// operator looks and not where the person whose icon never appeared
+    /// does; they read this window.
+    tray_notice: adw::Banner,
     refresh_button: gtk::Button,
     connect_button: gtk::Button,
     toast: adw::ToastOverlay,
@@ -109,6 +114,14 @@ impl Window {
             .revealed(false)
             .build();
         toolbar.add_top_bar(&banner);
+        let tray_notice = adw::Banner::builder()
+            .title(
+                "No tray icon: this desktop has no tray. On GNOME, install the AppIndicator \
+                 extension; most other desktops provide one.",
+            )
+            .revealed(false)
+            .build();
+        toolbar.add_top_bar(&tray_notice);
         let body = gtk::Box::new(gtk::Orientation::Vertical, 24);
         body.set_margin_top(28);
         body.set_margin_bottom(24);
@@ -203,6 +216,7 @@ impl Window {
             settings_retry,
             empty_connect,
             banner,
+            tray_notice,
             refresh_button,
             connect_button,
             toast,
@@ -260,10 +274,32 @@ impl Window {
         window.present();
         ui
     }
+    /// Ask the session bus whether a tray host is running, and show or hide the
+    /// notice. A bus that cannot be asked says nothing: not knowing is not the
+    /// same as knowing there is none.
+    fn check_tray_host(self: &Rc<Self>) {
+        let Backend::Live { runtime, .. } = &self.backend else {
+            return;
+        };
+        let (send, receive) = tokio::sync::oneshot::channel();
+        runtime.spawn(async move {
+            let _ = send.send(crate::tray::host_present().await);
+        });
+        let weak = Rc::downgrade(self);
+        glib::spawn_future_local(async move {
+            let Ok(answer) = receive.await else { return };
+            let Some(ui) = weak.upgrade().filter(|ui| !ui.closed.get()) else {
+                return;
+            };
+            ui.tray_notice
+                .set_revealed(crate::tray::notice_when(answer));
+        });
+    }
     pub fn refresh(self: &Rc<Self>) {
         if self.closed.get() || self.operation.borrow().is_some() || self.refreshing.replace(true) {
             return;
         }
+        self.check_tray_host();
         match &self.backend {
             Backend::Demo => {
                 let overview = self

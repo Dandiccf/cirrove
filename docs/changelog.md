@@ -5,6 +5,10 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
 
 ## Unreleased
 
+- **The window says when a desktop has no tray**, instead of only writing it to
+  the system log: a line naming what to install, on GNOME the AppIndicator
+  extension. It appears only when the session really has no tray, never because
+  the check itself failed.
 - **A drive's read or write access is changed from the window.** The Access row
   offers the other direction: **Allow changes** where the drive is read-only,
   **Make read-only** where it can write. Microsoft's own consent screen still
