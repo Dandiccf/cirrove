@@ -76,6 +76,23 @@ fn displays_text(widget: &gtk::Widget, text: &str) -> bool {
     }
     false
 }
+/// Every mapped button that shows an icon and no text.
+fn icon_only_buttons(widget: &gtk::Widget) -> Vec<gtk::Button> {
+    let mut found = Vec::new();
+    if let Some(button) = widget.downcast_ref::<gtk::Button>()
+        && button.is_mapped()
+        && button.icon_name().is_some()
+        && button.label().is_none()
+    {
+        found.push(button.clone());
+    }
+    let mut child = widget.first_child();
+    while let Some(current) = child {
+        found.extend(icon_only_buttons(&current));
+        child = current.next_sibling();
+    }
+    found
+}
 /// Rows inside a collapsed expander are not mapped; open every account.
 fn expand_all(widget: &gtk::Widget) {
     if let Some(row) = widget.downcast_ref::<adw::ExpanderRow>() {
@@ -454,6 +471,22 @@ fn every_account_action_is_offered_from_the_window_and_only_where_it_applies() {
         ui.current().is_some_and(|v| v.accounts[0].stuck == 0)
             && !displays_text(window.upcast_ref(), "Changes the cloud refused")
     });
+
+    // Every button that is only an icon has a name: the tooltip a pointer
+    // shows and, set from the same words, the label a screen reader says.
+    let nameless: Vec<String> = icon_only_buttons(window.upcast_ref())
+        .into_iter()
+        .filter(|b| b.tooltip_text().is_none_or(|t| t.is_empty()))
+        .map(|b| b.icon_name().map(|n| n.to_string()).unwrap_or_default())
+        .collect();
+    assert!(
+        nameless.is_empty(),
+        "icon-only buttons without a name: {nameless:?}"
+    );
+    assert!(
+        !icon_only_buttons(window.upcast_ref()).is_empty(),
+        "the check saw the icon buttons at all"
+    );
 
     // A drive can be connected from the window; with nothing filled in there
     // is nothing to sign in with yet.

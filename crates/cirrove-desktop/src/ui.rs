@@ -63,6 +63,18 @@ pub struct Window {
     waiting: RefCell<HashMap<String, Instant>>,
     closed: Cell<bool>,
 }
+/// A button that is only an icon, with the name a screen reader says and the
+/// tooltip a pointer shows: the same words, set once, so neither can lag the
+/// other. GTK does not derive the accessible name from the tooltip.
+fn icon_button(icon: &str, name: &str) -> gtk::Button {
+    let button = gtk::Button::builder()
+        .icon_name(icon)
+        .tooltip_text(name)
+        .valign(gtk::Align::Center)
+        .build();
+    button.update_property(&[gtk::accessible::Property::Label(name)]);
+    button
+}
 impl Window {
     pub fn new(app: &adw::Application, backend: Backend) -> Rc<Self> {
         let window = adw::ApplicationWindow::builder()
@@ -74,15 +86,9 @@ impl Window {
         let toolbar = adw::ToolbarView::new();
         let header = adw::HeaderBar::new();
         header.set_title_widget(Some(&adw::WindowTitle::new("Cirrove", "Cloud drives")));
-        let connect_button = gtk::Button::builder()
-            .icon_name("list-add-symbolic")
-            .tooltip_text("Connect a drive")
-            .build();
+        let connect_button = icon_button("list-add-symbolic", "Connect a drive");
         header.pack_start(&connect_button);
-        let refresh_button = gtk::Button::builder()
-            .icon_name("view-refresh-symbolic")
-            .tooltip_text("Refresh connection status")
-            .build();
+        let refresh_button = icon_button("view-refresh-symbolic", "Refresh connection status");
         header.pack_end(&refresh_button);
         toolbar.add_top_bar(&header);
         let banner = adw::Banner::builder()
@@ -360,11 +366,7 @@ impl Window {
         row.add_prefix(&icon);
         let spinner = gtk::Spinner::new();
         row.add_suffix(&spinner);
-        let open = gtk::Button::builder()
-            .icon_name("folder-open-symbolic")
-            .valign(gtk::Align::Center)
-            .tooltip_text("Open in Files")
-            .build();
+        let open = icon_button("folder-open-symbolic", "Open in Files");
         open.add_css_class("flat");
         row.add_suffix(&open);
         // Where the state says sign in, the button to do it is right there.

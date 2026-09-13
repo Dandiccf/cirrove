@@ -369,9 +369,9 @@
       "line": 264,
       "done": false,
       "text": "Keyboard navigation, accessibility, localization and visual verification.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
-      "asserted_by": null
+      "blocker": "autonomous",
+      "evidence": "PARTIAL 2026-09-13. Keyboard: every control is a GTK button or row and reachable by Tab; focus survives a refresh and a completed operation (held by the window scenario since 2026-09-11). Accessibility: the three icon-only buttons (connect, refresh, open in Files) get an accessible name from the same words as their tooltip, through one helper, so a screen reader says what a pointer shows; the scenario fails on an icon-only button without a name. Visual: demo snapshots and live screenshots of the window, the tray and Files were taken and looked at during this session, by the agent, not by a second person. NOT DONE: localization (every string is English and inline; no gettext, no catalogue); a screen-reader session (Orca) actually driven; high-contrast and large-text checks; a second person's look at the screenshots.",
+      "asserted_by": "desktop::window every_account_action_is_offered_from_the_window_and_only_where_it_applies fails on an icon-only button without a tooltip, which the helper sets together with the accessible label; native_window_keeps_focus_and_waits_for_service_mount_acknowledgement holds focus across refresh and operations."
     },
     {
       "milestone": 5,
