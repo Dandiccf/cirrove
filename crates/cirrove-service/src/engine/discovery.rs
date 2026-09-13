@@ -191,6 +191,7 @@ async fn a_failed_discovery_still_subscribes_the_linked_drive_without_another_po
         &engine.db,
         false,
         &engine.cancel,
+        None,
     )
     .await
     .unwrap();
@@ -238,5 +239,62 @@ async fn a_failed_discovery_still_subscribes_the_linked_drive_without_another_po
         polls,
         "the primary feed polled again and could have notified discovery itself"
     );
+    engine.stop().await;
+}
+
+/// The recent list is activity, not a baseline: the first delta lists the
+/// whole drive and records nothing, a delta continuing from a saved cursor
+/// records what it delivered with names, and a re-baseline records nothing
+/// again. Without the first rule, opening an account would "recently change"
+/// every file it has.
+#[tokio::test]
+async fn recent_changes_are_recorded_from_the_second_delta_on_and_not_on_a_reset() {
+    let temp = tempfile::tempdir().unwrap();
+    let provider = Arc::new(LinkedLibrary {
+        linked: AtomicBool::new(false),
+        primary_changes: AtomicU64::new(0),
+    });
+    let engine = Engine::new(
+        fixture_account(temp.path().join("mount")),
+        provider.clone(),
+        temp.path().join("engine"),
+    )
+    .await
+    .unwrap();
+    let scope = engine.scope("primary");
+    let refresh = |reset: bool| {
+        let (engine, provider, scope) = (engine.clone(), provider.clone(), scope.clone());
+        async move {
+            crate::refresh(
+                provider.as_ref(),
+                &scope,
+                &engine.db,
+                reset,
+                &engine.cancel,
+                Some(&engine.recent),
+            )
+            .await
+            .unwrap();
+        }
+    };
+    refresh(false).await;
+    assert!(engine.recent.is_empty(), "the baseline is not activity");
+    refresh(false).await;
+    let recorded = engine.recent.list(10);
+    assert_eq!(
+        recorded.len(),
+        1,
+        "the continuation delivered the root once"
+    );
+    assert_eq!(
+        (
+            recorded[0].name.as_str(),
+            recorded[0].kind.as_str(),
+            recorded[0].removed
+        ),
+        ("Primary", "folder", false)
+    );
+    refresh(true).await;
+    assert_eq!(engine.recent.len(), 1, "a re-baseline records nothing");
     engine.stop().await;
 }

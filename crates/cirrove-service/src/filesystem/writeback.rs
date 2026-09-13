@@ -345,6 +345,31 @@ impl Writeback {
     pub async fn stuck_changes(&self) -> Result<u64> {
         self.local(|j| j.stuck_mutations()).await
     }
+    /// The latest saves, latest first. A replace names its item, which the
+    /// caller resolves to a name; a create carries the name itself.
+    pub async fn recent_local(&self, limit: usize) -> Result<Vec<crate::recent::LocalChange>> {
+        let records = self.local(|j| j.list(0, 10_000)).await?;
+        Ok(records
+            .into_iter()
+            .rev()
+            .take(limit)
+            .map(|record| {
+                let (name, item) = match &record.intent {
+                    cirrove_core::upload::UploadIntent::Create { name, .. } => (name.clone(), None),
+                    cirrove_core::upload::UploadIntent::Replace { item, .. } => {
+                        (item.clone(), Some(item.clone()))
+                    }
+                };
+                crate::recent::LocalChange {
+                    sequence: record.sequence,
+                    name,
+                    item,
+                    state: format!("{:?}", record.state).to_ascii_lowercase(),
+                    size: record.size,
+                }
+            })
+            .collect())
+    }
     pub fn conflicts(&self) -> Result<Vec<NamespaceCollision>> {
         Ok(self
             .projection

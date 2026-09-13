@@ -47,6 +47,9 @@ pub struct Window {
     pub window: glib::WeakRef<adw::ApplicationWindow>,
     backend: Backend,
     group: adw::PreferencesGroup,
+    /// What changed lately, across accounts; hidden while there is nothing.
+    activity: adw::PreferencesGroup,
+    activity_rows: RefCell<Vec<adw::ActionRow>>,
     empty: adw::StatusPage,
     settings_retry: gtk::Button,
     empty_connect: gtk::Button,
@@ -120,6 +123,14 @@ impl Window {
         body.append(&heading);
         let group = adw::PreferencesGroup::new();
         body.append(&group);
+        // Changes to content, not files merely opened: what arrived, changed
+        // or went away in the cloud, and what was saved here and where it is
+        // on its way. Present only when there is something to say.
+        let activity = adw::PreferencesGroup::builder()
+            .title("Recent activity")
+            .visible(false)
+            .build();
+        body.append(&activity);
         let empty = adw::StatusPage::builder()
             .icon_name("io.github.Dandiccf.Cirrove-symbolic")
             .title("Loading connections…")
@@ -177,6 +188,8 @@ impl Window {
             window: window.downgrade(),
             backend,
             group,
+            activity,
+            activity_rows: RefCell::new(Vec::new()),
             empty,
             settings_retry,
             empty_connect,
@@ -344,6 +357,7 @@ impl Window {
                 self.update_row(row, card, late);
             }
         }
+        self.render_activity(&overview.activity);
         *self.overview.borrow_mut() = Some(overview);
         // Disabling the active button can clear GTK's keyboard focus. Restore
         // it after saving, but preserve any focus the user moved meanwhile.
@@ -357,6 +371,28 @@ impl Window {
         {
             widget.grab_focus();
         }
+    }
+    /// Rebuilt on every render: at most a few rows, and a diff would be more
+    /// code than the rows.
+    fn render_activity(&self, entries: &[crate::model::ActivityEntry]) {
+        let mut rows = self.activity_rows.borrow_mut();
+        for row in rows.drain(..) {
+            self.activity.remove(&row);
+        }
+        for entry in entries.iter().take(12) {
+            let row = adw::ActionRow::builder()
+                .title(&entry.name)
+                .subtitle(format!("{} · {}", entry.account, entry.what))
+                .use_markup(false)
+                .subtitle_lines(1)
+                .build();
+            if entry.warning {
+                row.add_css_class("warning");
+            }
+            self.activity.add(&row);
+            rows.push(row);
+        }
+        self.activity.set_visible(!entries.is_empty());
     }
     fn account_row(self: &Rc<Self>, id: &str) -> AccountRow {
         let row = adw::ExpanderRow::builder().use_markup(false).build();

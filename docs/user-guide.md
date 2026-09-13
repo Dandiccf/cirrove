@@ -107,6 +107,12 @@ changes that never reached the cloud, because removing the connection is the
 one way to lose them. What it removes is set aside under the state directory,
 not deleted, and nothing in the cloud is touched.
 
+**Recent activity** at the bottom of the window lists what changed lately:
+files that arrived, changed or went away in the cloud since the service
+started, and files saved here with where they are -- waiting, uploading, in
+the cloud, or refused. The tray shows the last five under each connection;
+`cirrove recent` prints them.
+
 The tray shows one icon for all connections: a cloud when everything is
 ready, transfer arrows while something is being fetched or sent, an
 exclamation mark when a person must act. Its menu opens each drive's folder,

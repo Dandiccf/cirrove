@@ -306,6 +306,15 @@ enum Command {
         #[arg(long)]
         socket: Option<PathBuf>,
     },
+    /// What changed lately: remote changes from the cloud and local saves.
+    Recent {
+        #[arg(default_value = "")]
+        label: String,
+        #[arg(long, default_value_t = 20)]
+        limit: usize,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
     /// The state of mount-relative paths: kind, pin cover, bytes on disk.
     Paths {
         #[arg(long, default_value = "")]
@@ -701,6 +710,42 @@ async fn main() -> Result<()> {
                 );
             }
         }
+        Command::Recent {
+            label,
+            limit,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(p) => p,
+                None => socket_path()?,
+            };
+            let reply =
+                cirrove_service::recent(&socket, &cirrove_service::RecentRequest { label, limit })
+                    .await?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            println!("From the cloud:");
+            if reply.remote.is_empty() {
+                println!("  nothing since this service started");
+            }
+            for change in reply.remote {
+                println!(
+                    "  {}  {}  {}{}",
+                    change.at_unix,
+                    if change.removed { "removed" } else { "changed" },
+                    change.name,
+                    if change.kind == "folder" { "/" } else { "" }
+                );
+            }
+            println!("Saved here:");
+            if reply.local.is_empty() {
+                println!("  nothing in the journal");
+            }
+            for change in reply.local {
+                println!("  {}  {}  {} bytes", change.state, change.name, change.size);
+            }
+        }
         Command::Paths {
             label,
             paths,
@@ -844,6 +889,7 @@ async fn main() -> Result<()> {
                 &state.join("metadata.db"),
                 reset,
                 &cancel,
+                None,
             )
             .await?;
             println!(

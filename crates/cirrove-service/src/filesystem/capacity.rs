@@ -218,9 +218,16 @@ async fn real_directory_listing_releases_unlooked_up_projections() {
     .await
     .unwrap();
     let scope = engine.scope("capacity-drive");
-    crate::refresh(provider.as_ref(), &scope, &engine.db, false, &engine.cancel)
-        .await
-        .unwrap();
+    crate::refresh(
+        provider.as_ref(),
+        &scope,
+        &engine.db,
+        false,
+        &engine.cancel,
+        None,
+    )
+    .await
+    .unwrap();
     let fs = CloudFs::new(engine.clone()).unwrap();
     let inner = fs.inner.clone();
     let session = fs.mount(&mount).unwrap();
@@ -256,9 +263,16 @@ async fn real_directory_listing_releases_unlooked_up_projections() {
     );
     let original = inner.view(old_inode).unwrap();
     provider.revision.store(2, Ordering::SeqCst);
-    crate::refresh(provider.as_ref(), &scope, &engine.db, false, &engine.cancel)
-        .await
-        .unwrap();
+    crate::refresh(
+        provider.as_ref(),
+        &scope,
+        &engine.db,
+        false,
+        &engine.cancel,
+        None,
+    )
+    .await
+    .unwrap();
     engine.changed.notify_one();
     let path = mount.clone();
     let newest = tokio::task::spawn_blocking(move || {
@@ -328,9 +342,16 @@ async fn real_resolved_file_views_retire_after_kernel_and_open_references() {
     .await
     .unwrap();
     let scope = engine.scope("capacity-drive");
-    crate::refresh(provider.as_ref(), &scope, &engine.db, false, &engine.cancel)
-        .await
-        .unwrap();
+    crate::refresh(
+        provider.as_ref(),
+        &scope,
+        &engine.db,
+        false,
+        &engine.cancel,
+        None,
+    )
+    .await
+    .unwrap();
     let fs = CloudFs::new(engine.clone()).unwrap();
     let inner = fs.inner.clone();
     let session = fs.mount(&mount).unwrap();
@@ -347,9 +368,16 @@ async fn real_resolved_file_views_retire_after_kernel_and_open_references() {
     let old_inode = held.metadata().unwrap().ino();
     assert!(inner.views.lock().unwrap().len() > 250);
     provider.revision.store(2, Ordering::SeqCst);
-    crate::refresh(provider.as_ref(), &scope, &engine.db, false, &engine.cancel)
-        .await
-        .unwrap();
+    crate::refresh(
+        provider.as_ref(),
+        &scope,
+        &engine.db,
+        false,
+        &engine.cancel,
+        None,
+    )
+    .await
+    .unwrap();
     engine.changed.notify_one();
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
@@ -439,9 +467,16 @@ async fn namespace_capacity_baseline() {
     .unwrap();
     let scope = engine.scope("capacity-drive");
     let started = Instant::now();
-    crate::refresh(provider.as_ref(), &scope, &engine.db, false, &engine.cancel)
-        .await
-        .unwrap();
+    crate::refresh(
+        provider.as_ref(),
+        &scope,
+        &engine.db,
+        false,
+        &engine.cancel,
+        None,
+    )
+    .await
+    .unwrap();
     let fs = CloudFs::new(engine.clone()).unwrap();
     let inner = fs.inner.clone();
     let session = fs.mount(&mount).unwrap();
@@ -459,9 +494,16 @@ async fn namespace_capacity_baseline() {
     for pass in 1..=3 {
         if pass > 1 {
             provider.revision.store(pass, Ordering::SeqCst);
-            crate::refresh(provider.as_ref(), &scope, &engine.db, false, &engine.cancel)
-                .await
-                .unwrap();
+            crate::refresh(
+                provider.as_ref(),
+                &scope,
+                &engine.db,
+                false,
+                &engine.cancel,
+                None,
+            )
+            .await
+            .unwrap();
             // Normal invalidation machinery participates, without another background feed.
             engine.changed.notify_one();
         }
@@ -575,9 +617,16 @@ async fn real_indexed_name_lookup_avoids_materializing_the_directory() {
     .await
     .unwrap();
     let scope = engine.scope("capacity-drive");
-    crate::refresh(provider.as_ref(), &scope, &engine.db, false, &engine.cancel)
-        .await
-        .unwrap();
+    crate::refresh(
+        provider.as_ref(),
+        &scope,
+        &engine.db,
+        false,
+        &engine.cancel,
+        None,
+    )
+    .await
+    .unwrap();
     let fs = CloudFs::new(engine.clone()).unwrap();
     let inner = fs.inner.clone();
     let session = fs.mount(&mount).unwrap();
@@ -683,9 +732,16 @@ async fn real_targeted_invalidations_preserve_unrelated_cached_views() {
     .await
     .unwrap();
     let scope = engine.scope("capacity-drive");
-    crate::refresh(provider.as_ref(), &scope, &engine.db, false, &engine.cancel)
-        .await
-        .unwrap();
+    crate::refresh(
+        provider.as_ref(),
+        &scope,
+        &engine.db,
+        false,
+        &engine.cancel,
+        None,
+    )
+    .await
+    .unwrap();
     let fs = CloudFs::new(engine.clone()).unwrap();
     let inner = fs.inner.clone();
     let session = fs.mount(&mount).unwrap();

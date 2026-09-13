@@ -10,6 +10,7 @@ pub mod filesystem;
 pub mod journal;
 pub mod manager;
 pub mod mutations;
+pub mod recent;
 pub mod transfers;
 pub mod validation;
 pub mod writable;
@@ -159,6 +160,7 @@ pub async fn refresh(
     db_path: &Path,
     reset: bool,
     cancel: &CancellationToken,
+    recent: Option<&recent::RecentChanges>,
 ) -> Result<u64> {
     let path = db_path.to_owned();
     let s = scope.clone();
@@ -175,8 +177,67 @@ pub async fn refresh(
         let path = db_path.to_owned();
         let s = scope.clone();
         let expected = cursor.clone();
-        tokio::task::spawn_blocking(move || Store::open(path)?.stage(&s, expected.as_ref(), &page))
-            .await??;
+        // Activity, not baseline: a page continuing from a saved cursor is
+        // what changed since; the first delta and a re-baseline list the
+        // whole drive and would swamp a list meant to answer "what happened
+        // while I was looking away".
+        let record = recent.is_some() && expected.is_some() && !reset;
+        let recorded = tokio::task::spawn_blocking(move || {
+            let mut store = Store::open(path)?;
+            let mut out = Vec::new();
+            if record {
+                for change in &page.changes {
+                    out.push(match change {
+                        cirrove_core::Change::Upsert(node) => recent::RemoteChange {
+                            at_unix: recent::now_unix(),
+                            id: node.id.clone(),
+                            parent_id: node.parent_id.clone(),
+                            name: node.name.clone(),
+                            kind: if node.kind == cirrove_core::NodeKind::Folder {
+                                "folder"
+                            } else {
+                                "file"
+                            }
+                            .into(),
+                            size: node.size,
+                            removed: false,
+                        },
+                        cirrove_core::Change::Delete { id } => {
+                            // The store still holds the item until this page
+                            // publishes, which is the last chance at its name.
+                            let known = store.node(&s, id).ok().flatten();
+                            recent::RemoteChange {
+                                at_unix: recent::now_unix(),
+                                id: id.clone(),
+                                parent_id: known.as_ref().and_then(|n| n.parent_id.clone()),
+                                name: known
+                                    .as_ref()
+                                    .map_or_else(|| id.clone(), |n| n.name.clone()),
+                                kind: if matches!(
+                                    known.as_ref().map(|n| &n.kind),
+                                    Some(cirrove_core::NodeKind::Folder)
+                                ) {
+                                    "folder"
+                                } else {
+                                    "file"
+                                }
+                                .into(),
+                                size: known.as_ref().map_or(0, |n| n.size),
+                                removed: true,
+                            }
+                        }
+                    });
+                }
+            }
+            store.stage(&s, expected.as_ref(), &page)?;
+            Ok::<_, anyhow::Error>(out)
+        })
+        .await??;
+        if let Some(recent) = recent {
+            for change in recorded {
+                recent.record(change);
+            }
+        }
         pages += 1;
         if complete {
             return Ok(pages);
@@ -201,6 +262,28 @@ pub async fn discard_stuck(socket: &Path, label: &str) -> Result<DiscardReply> {
         "Cirrove discard",
     )
     .await
+}
+
+/// What changed lately on one account: remote changes from the delta feed,
+/// local saves from the upload journal, latest first, at most `limit` each.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct RecentRequest {
+    #[serde(default)]
+    pub label: String,
+    #[serde(default)]
+    pub limit: usize,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct RecentReply {
+    #[serde(default)]
+    pub remote: Vec<recent::RemoteChange>,
+    #[serde(default)]
+    pub local: Vec<recent::LocalChange>,
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+pub async fn recent(socket: &Path, request: &RecentRequest) -> Result<RecentReply> {
+    self::request(socket, "recent", Some(request), "Cirrove recent").await
 }
 
 /// What a file manager asks: the state of several paths in one exchange. It
@@ -535,6 +618,7 @@ impl Capabilities {
                 // the key and its refusal of the verb is the same answer.
                 ("discard-stuck".to_string(), 1),
                 ("paths".to_string(), 1),
+                ("recent".to_string(), 1),
             ]
             .into_iter()
             .collect(),
@@ -705,6 +789,17 @@ pub async fn serve_managed(
                                 },
                                 (Ok(_),None)=>DiscardReply{refusal:Some("this service manages no accounts".into()),..Default::default()},
                                 (Err(_),_)=>DiscardReply{refusal:Some("malformed request body".into()),..Default::default()},
+                            };
+                            return write_reply(&mut stream,&reply).await;
+                        }
+                        if verb=="recent" {
+                            let reply=match (serde_json::from_str::<RecentRequest>(body),&manager) {
+                                (Ok(r),Some(m))=>match m.recent(&r.label,if r.limit==0 {20} else {r.limit.min(200)}).await {
+                                    Ok(reply)=>reply,
+                                    Err(error)=>RecentReply{refusal:Some(error.to_string()),..Default::default()},
+                                },
+                                (Ok(_),None)=>RecentReply{refusal:Some("this service manages no accounts".into()),..Default::default()},
+                                (Err(_),_)=>RecentReply{refusal:Some("malformed request body".into()),..Default::default()},
                             };
                             return write_reply(&mut stream,&reply).await;
                         }
@@ -1169,7 +1264,8 @@ mod tests {
                 &scope,
                 &path,
                 false,
-                &CancellationToken::new()
+                &CancellationToken::new(),
+                None,
             )
             .await
             .is_err()

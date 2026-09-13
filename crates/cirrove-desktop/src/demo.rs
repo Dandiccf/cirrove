@@ -45,6 +45,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
         })
         .collect();
     Ok(Snapshot {
+        activity: Vec::new(),
         settings: Ok(settings),
         status: Ok(Status {
             protocol_version: 1,

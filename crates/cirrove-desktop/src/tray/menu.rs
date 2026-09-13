@@ -56,6 +56,10 @@ const PER_ACCOUNT: i32 = 10;
 const OPEN: i32 = 1;
 const TOGGLE: i32 = 2;
 const DISCARD: i32 = 3;
+/// The "Recent activity" submenu under an account, and its first line; the
+/// lines take the rest of the account's ten ids.
+const RECENT: i32 = 4;
+const RECENT_FIRST: i32 = 5;
 
 pub struct DbusMenu {
     state: Arc<Mutex<TrayState>>,
@@ -289,6 +293,29 @@ impl DbusMenu {
                         true,
                     ));
                 }
+                // The short form of what changed lately: a few lines, none of
+                // them clickable, under their own entry so the account's
+                // actions stay where a hand expects them. Absent when there is
+                // nothing, for the same reason as the discard entry.
+                let recent = state.recent_at(index);
+                if !recent.is_empty() {
+                    let mut properties = HashMap::new();
+                    properties.insert("label".to_string(), text("Recent activity"));
+                    properties.insert("children-display".to_string(), text("submenu"));
+                    let lines = recent
+                        .iter()
+                        .take(usize::try_from(PER_ACCOUNT - RECENT_FIRST).unwrap_or(0))
+                        .enumerate()
+                        .map(|(i, line)| {
+                            labelled(
+                                base + RECENT_FIRST + i32::try_from(i).unwrap_or(0),
+                                line,
+                                false,
+                            )
+                        })
+                        .collect();
+                    entries.push(entry(base + RECENT, properties, lines));
+                }
                 children.push(entry(base, properties, entries));
             }
         }
@@ -494,6 +521,30 @@ mod tests {
         assert!(matches!(
             stuck_menu(&[("only", true)], 4).action(FIRST_ACCOUNT + DISCARD),
             Action::DiscardStuck { ref label, count: 4 } if label == "label-only"
+        ));
+    }
+
+    /// The recent lines are under their own entry, only when there are any,
+    /// and clicking one does nothing: they are information, and a line that
+    /// acted would be an action nobody named.
+    #[test]
+    fn recent_lines_appear_under_their_own_entry_only_when_there_are_any_and_do_nothing() {
+        let menu = menu(&[("only", true)]);
+        let drawn = format!("{:?}", menu.get_layout(ROOT, -1, Vec::new()));
+        assert!(!drawn.contains("Recent activity"), "nothing to show yet");
+        if let Ok(mut state) = menu.state.lock() {
+            state.set_recent("only", vec!["Report.docx · changed in the cloud".into()]);
+        }
+        let drawn = format!("{:?}", menu.get_layout(ROOT, -1, Vec::new()));
+        assert!(drawn.contains("Recent activity"));
+        assert!(drawn.contains("Report.docx · changed in the cloud"));
+        assert!(matches!(
+            menu.action(FIRST_ACCOUNT + RECENT),
+            Action::Nothing
+        ));
+        assert!(matches!(
+            menu.action(FIRST_ACCOUNT + RECENT_FIRST),
+            Action::Nothing
         ));
     }
 

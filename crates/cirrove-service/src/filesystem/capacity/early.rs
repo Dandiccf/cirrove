@@ -21,9 +21,16 @@ pub(super) async fn run(close_early: bool) {
     .await
     .unwrap();
     let scope = engine.scope("capacity-drive");
-    crate::refresh(provider.as_ref(), &scope, &engine.db, false, &engine.cancel)
-        .await
-        .unwrap();
+    crate::refresh(
+        provider.as_ref(),
+        &scope,
+        &engine.db,
+        false,
+        &engine.cancel,
+        None,
+    )
+    .await
+    .unwrap();
     let fs = CloudFs::new(engine.clone()).unwrap();
     let inner = fs.inner.clone();
     let session = fs.mount(&mount).unwrap();

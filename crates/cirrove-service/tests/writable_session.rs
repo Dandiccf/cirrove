@@ -1664,6 +1664,7 @@ async fn refresh_fixture(engine: &Engine, cloud: &Cloud) {
             &engine.db,
             false,
             &engine.cancel,
+            None,
         )
         .await
         {

@@ -180,6 +180,8 @@ pub struct Engine {
     /// asking why their saves failed should not have the answer erased by the
     /// remount that failing saves can themselves provoke.
     pub save_refusals: Arc<crate::journal::SaveRefusals>,
+    /// What the delta feed delivered lately, for a window and a tray.
+    pub recent: crate::recent::RecentChanges,
     /// One connection stays open for the account's lifetime. Without it every
     /// `Store::open` is both the first and the last connection to a WAL
     /// database, so SQLite creates `metadata.db-wal` and `-shm` on open and, on
@@ -240,6 +242,7 @@ impl Engine {
             discovery_failures: AtomicU64::new(0),
             activity: crate::activity::DirectoryActivity::default(),
             save_refusals: Arc::new(crate::journal::SaveRefusals::default()),
+            recent: crate::recent::RecentChanges::default(),
             _keeper: StdMutex::new(keeper),
             _owner: owner,
         }))
@@ -935,7 +938,15 @@ impl Engine {
             health.state = "indexing".into();
             health.retry_at = None;
             self.set_health(&scope, &health).await;
-            let result = refresh(self.provider.as_ref(), &scope, &self.db, reset, &cancel).await;
+            let result = refresh(
+                self.provider.as_ref(),
+                &scope,
+                &self.db,
+                reset,
+                &cancel,
+                Some(&self.recent),
+            )
+            .await;
             let was = health.state.clone();
             match result {
                 Ok(_) => {

@@ -121,10 +121,64 @@ impl AccountCard {
 pub struct Snapshot {
     pub settings: Result<Settings, SettingsFailure>,
     pub status: Result<Status, ServiceFailure>,
+    /// What changed lately, per account label, latest first. Empty when the
+    /// daemon does not answer `recent` (an older one) or has nothing.
+    pub activity: Vec<(String, cirrove_service::RecentReply)>,
+}
+/// One line of recent activity, ready to show.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ActivityEntry {
+    /// The account's label.
+    pub account: String,
+    /// The file or folder's name.
+    pub name: String,
+    /// What happened, in words: "changed in the cloud", "removed in the
+    /// cloud", "saved here · uploading", ...
+    pub what: String,
+    /// True for a local save the cloud refused, so a row can warn.
+    pub warning: bool,
+}
+impl ActivityEntry {
+    /// The lines for one account's answer, cloud changes first, latest first.
+    pub fn from_reply(account: &str, reply: &cirrove_service::RecentReply) -> Vec<Self> {
+        let remote = reply.remote.iter().map(|change| Self {
+            account: account.to_owned(),
+            name: if change.kind == "folder" {
+                format!("{}/", change.name)
+            } else {
+                change.name.clone()
+            },
+            what: if change.removed {
+                "removed in the cloud".to_owned()
+            } else {
+                "changed in the cloud".to_owned()
+            },
+            warning: false,
+        });
+        let local = reply.local.iter().map(|change| {
+            let (what, warning) = match change.state.as_str() {
+                "uploaded" => ("saved here · in the cloud", false),
+                "pending" | "preparing" => ("saved here · waiting to upload", false),
+                "uploading" | "verifying" | "verifyrequired" => ("saved here · uploading", false),
+                "conflict" => ("saved here · the cloud refused it", true),
+                "failed" => ("saved here · upload failed", true),
+                other => (other, false),
+            };
+            Self {
+                account: account.to_owned(),
+                name: change.name.clone(),
+                what: what.to_owned(),
+                warning,
+            }
+        });
+        remote.chain(local).collect()
+    }
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Overview {
     pub accounts: Vec<AccountCard>,
+    /// Recent activity across accounts, latest first within each account.
+    pub activity: Vec<ActivityEntry>,
     pub service_reachable: bool,
     pub settings_available: bool,
     pub settings_error: Option<SettingsFailure>,
@@ -150,6 +204,7 @@ impl Overview {
             Err(error) => {
                 return Self {
                     accounts: vec![],
+                    activity: vec![],
                     service_reachable: reachable,
                     settings_available: false,
                     settings_error: Some(error),
@@ -218,8 +273,14 @@ impl Overview {
                 }
             })
             .collect();
+        let activity = snapshot
+            .activity
+            .iter()
+            .flat_map(|(label, reply)| ActivityEntry::from_reply(label, reply))
+            .collect();
         Self {
             accounts,
+            activity,
             service_reachable: reachable,
             settings_available: true,
             settings_error: None,
@@ -253,11 +314,29 @@ pub async fn snapshot(state: PathBuf, socket: PathBuf) -> Snapshot {
     let settings = tokio::task::spawn_blocking(move || Settings::load(&state));
     let status = cirrove_service::status(&socket);
     let (settings, status) = tokio::join!(settings, status);
+    // One `recent` per mounted account. An older daemon answers with a
+    // refusal, which is an empty list here, not an error: activity is an
+    // extra, and a window must not go blank for want of it.
+    let mut activity = Vec::new();
+    if let Ok(status) = &status {
+        for account in status.accounts.iter().filter(|a| a.mounted) {
+            let request = cirrove_service::RecentRequest {
+                label: account.label.clone(),
+                limit: 8,
+            };
+            if let Ok(reply) = cirrove_service::recent(&socket, &request).await
+                && reply.refusal.is_none()
+            {
+                activity.push((account.label.clone(), reply));
+            }
+        }
+    }
     Snapshot {
         settings: match settings {
             Ok(result) => result.map_err(SettingsFailure::from_error),
             Err(_) => Err(SettingsFailure::WorkerUnavailable),
         },
         status: status.map_err(ServiceFailure::from_error),
+        activity,
     }
 }

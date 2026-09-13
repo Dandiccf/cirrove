@@ -50,9 +50,16 @@ pub(super) async fn run() {
     .await
     .unwrap();
     let scope = engine.scope("capacity-drive");
-    crate::refresh(provider.as_ref(), &scope, &engine.db, false, &engine.cancel)
-        .await
-        .unwrap();
+    crate::refresh(
+        provider.as_ref(),
+        &scope,
+        &engine.db,
+        false,
+        &engine.cancel,
+        None,
+    )
+    .await
+    .unwrap();
     let journal = Arc::new(Mutex::new(
         UploadJournal::open(
             &temp.path().join("journal"),

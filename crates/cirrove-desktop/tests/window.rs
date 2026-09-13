@@ -156,6 +156,34 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                             // A slow service must not block native GTK events.
                             tokio::time::sleep(Duration::from_millis(200)).await;
                             serde_json::to_vec(&*replies.lock().unwrap()).unwrap()
+                        } else if line.starts_with("recent ") {
+                            seen.lock().unwrap().push(line.trim_end().to_owned());
+                            // One thing from the cloud and one saved here,
+                            // for the "work" account only.
+                            let reply = if line.contains("\"work\"") {
+                                cirrove_service::RecentReply {
+                                    remote: vec![cirrove_service::recent::RemoteChange {
+                                        at_unix: 1,
+                                        id: "r1".into(),
+                                        parent_id: None,
+                                        name: "Quarterly report.docx".into(),
+                                        kind: "file".into(),
+                                        size: 10,
+                                        removed: false,
+                                    }],
+                                    local: vec![cirrove_service::recent::LocalChange {
+                                        sequence: 1,
+                                        name: "Notes.txt".into(),
+                                        item: None,
+                                        state: "conflict".into(),
+                                        size: 3,
+                                    }],
+                                    refusal: None,
+                                }
+                            } else {
+                                cirrove_service::RecentReply::default()
+                            };
+                            serde_json::to_vec(&reply).unwrap()
                         } else {
                             seen.lock().unwrap().push(line.trim_end().to_owned());
                             let mut status = replies.lock().unwrap();
@@ -471,6 +499,23 @@ fn every_account_action_is_offered_from_the_window_and_only_where_it_applies() {
         ui.current().is_some_and(|v| v.accounts[0].stuck == 0)
             && !displays_text(window.upcast_ref(), "Changes the cloud refused")
     });
+
+    // What changed lately is shown: the cloud's change and the local save,
+    // the refused one marked.
+    pump_until("recent activity rendered", || {
+        displays_text(window.upcast_ref(), "Quarterly report.docx")
+            && displays_text(
+                window.upcast_ref(),
+                "work · saved here · the cloud refused it",
+            )
+    });
+    assert!(
+        ui.current().is_some_and(|v| v
+            .activity
+            .iter()
+            .any(|e| e.name == "Notes.txt" && e.warning)),
+        "a refused save is an entry that warns"
+    );
 
     // Every button that is only an icon has a name: the tooltip a pointer
     // shows and, set from the same words, the label a screen reader says.

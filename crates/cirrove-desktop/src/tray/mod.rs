@@ -49,6 +49,9 @@ struct AccountRow {
     state: String,
     mounted: bool,
     mount_path: PathBuf,
+    /// The short form of what changed lately: a handful of lines the menu
+    /// shows under the account, fetched after each account event.
+    recent: Vec<String>,
     /// Changes the daemon gave up on for this account. Each one is something the
     /// mount did locally that the cloud never took, so the two disagree until
     /// somebody clears it -- and before this it was a number in `cirrove status`
@@ -283,6 +286,23 @@ impl TrayState {
     /// on rather than acting on whatever is nearest.
     pub fn label_at(&self, index: usize) -> Option<String> {
         Some(self.accounts.values().nth(index)?.label.clone())
+    }
+
+    /// What changed lately on the nth row, latest first, already worded.
+    pub fn recent_at(&self, index: usize) -> Vec<String> {
+        self.accounts
+            .values()
+            .nth(index)
+            .map(|a| a.recent.clone())
+            .unwrap_or_default()
+    }
+
+    /// Replace an account's recent lines. Unknown accounts are ignored: the
+    /// fetch that produced the lines raced an account's removal.
+    pub fn set_recent(&mut self, account_id: &str, lines: Vec<String>) {
+        if let Some(row) = self.accounts.get_mut(account_id) {
+            row.recent = lines;
+        }
     }
 
     /// The folder a click should open, if exactly one is mounted.
@@ -775,7 +795,26 @@ pub async fn run(socket: PathBuf, state_dir: PathBuf) -> Result<()> {
                 set_disconnected(&state, false);
                 notify(&connection, &revision).await;
                 while let Some(event) = subscription.next().await? {
+                    // The menu's short form of recent activity: asked for
+                    // after every account event, because an account event
+                    // is when something happened. Five lines is a menu's
+                    // worth; the window shows more.
+                    let ask = match &event {
+                        Event::Account {
+                            account_id,
+                            label,
+                            mounted: true,
+                            ..
+                        } => Some((account_id.clone(), label.clone())),
+                        _ => None,
+                    };
                     apply(&state, event);
+                    if let Some((account_id, label)) = ask {
+                        let lines = recent_lines(&socket, &label).await;
+                        if let Ok(mut state) = state.lock() {
+                            state.set_recent(&account_id, lines);
+                        }
+                    }
                     notify(&connection, &revision).await;
                 }
             }
@@ -803,6 +842,46 @@ async fn register_with_watcher(connection: &zbus::Connection) -> Result<()> {
         .await
         .context("the shell refused to register the tray item")?;
     Ok(())
+}
+
+/// The menu's lines for one account, or none: an older daemon without the
+/// verb, or one with nothing to say, both mean an entry that is not there.
+async fn recent_lines(socket: &std::path::Path, label: &str) -> Vec<String> {
+    let request = cirrove_service::RecentRequest {
+        label: label.to_owned(),
+        limit: 5,
+    };
+    let Ok(reply) = cirrove_service::recent(socket, &request).await else {
+        return Vec::new();
+    };
+    if reply.refusal.is_some() {
+        return Vec::new();
+    }
+    let remote = reply.remote.iter().map(|change| {
+        format!(
+            "{}{} · {}",
+            change.name,
+            if change.kind == "folder" { "/" } else { "" },
+            if change.removed {
+                "removed in the cloud"
+            } else {
+                "changed in the cloud"
+            }
+        )
+    });
+    let local = reply.local.iter().map(|change| {
+        format!(
+            "{} · {}",
+            change.name,
+            match change.state.as_str() {
+                "uploaded" => "saved, in the cloud",
+                "conflict" => "saved, the cloud refused it",
+                "failed" => "saved, upload failed",
+                _ => "saved, uploading",
+            }
+        )
+    });
+    remote.chain(local).take(5).collect()
 }
 
 fn apply(state: &Arc<Mutex<TrayState>>, event: Event) {

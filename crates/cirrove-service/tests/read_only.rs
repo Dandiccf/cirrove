@@ -360,6 +360,7 @@ async fn hurry_refresh(
             &engine.db,
             false,
             &engine.cancel,
+            None,
         )
         .await
         {

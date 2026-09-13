@@ -33,6 +33,17 @@ applies:
   so it says how many and what the alternative is. What is removed is set aside
   under the state directory, not deleted; nothing in the cloud is touched.
 
+- **Recent activity**, at the bottom, when there is any: what arrived,
+  changed or went away in the cloud since the service started, and what was
+  saved here with where it is on its way -- waiting, uploading, in the cloud,
+  or refused, the refused ones marked. Changes to content, not files merely
+  opened. The daemon answers `recent` per account (the delta feed's
+  deliveries from the second delta on, so opening an account does not
+  "recently change" every file it has, and the journal's latest saves); the
+  window asks with every refresh, the tray asks after every account event and
+  shows five lines under the account's entry, and `cirrove recent` prints the
+  same on the command line.
+
 Closing the window leaves the daemon running. One operation runs at a time,
 named in the row it belongs to.
 
@@ -290,8 +301,8 @@ daemon answers the verb with its ordinary refusal and is otherwise unaffected.
 
 ## Remaining product work
 
-A recent-activity view, transfer progress with cancellation, Dolphin, and
-localization remain separate work.
+Transfer progress with cancellation, Dolphin, and localization remain
+separate work.
 
 The daemon can now push changes rather than only answer questions: `capabilities`
 names what it supports and `subscribe` streams account and mount changes over the

@@ -188,6 +188,33 @@ impl Manager {
         let discarded = control.discard_stuck().await?;
         Ok((discarded, control.stuck_changes().await.unwrap_or(0)))
     }
+    /// What changed lately on one account: the delta feed's recent deliveries
+    /// and the journal's latest saves, latest first, `limit` of each. Names for
+    /// replaced items come from the index, which has them because a save
+    /// needs an indexed file to replace.
+    pub async fn recent(&self, label: &str, limit: usize) -> Result<crate::RecentReply> {
+        let engine = self.engine(label).await?;
+        let remote = engine.recent.list(limit);
+        let id = self.account_id(label).await?;
+        let control = self.writers.read().await.get(&id).cloned();
+        let mut local = match control {
+            Some(control) => control.recent_local(limit).await.unwrap_or_default(),
+            None => Vec::new(),
+        };
+        let scope = engine.scope(&engine.account.drive.id);
+        for change in &mut local {
+            if let Some(item) = &change.item
+                && let Ok(node) = engine.node(&scope, item).await
+            {
+                change.name = node.name;
+            }
+        }
+        Ok(crate::RecentReply {
+            remote,
+            local,
+            refusal: None,
+        })
+    }
     async fn account_id(&self, label: &str) -> Result<String> {
         let status = self.status.read().await;
         let matched: Vec<_> = status

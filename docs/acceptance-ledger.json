@@ -419,9 +419,9 @@
       "line": 281,
       "done": false,
       "text": "Show recent activity -- remote changes from the delta feed and local saves from the upload journal, with each entry's state -- in the window, and a short form of it in the tray menu. \"Recent\" means changes to content, not files the user merely opened: a mount stages cache on every read, so a touched-files list would be noise. This is a log and not a level, so it does not ride the coalescing event channel, which by design hands a lagging client current state instead of the entries it missed; it needs its own query. File names appear in the menu and in the window, never in the tray tooltip, which is shown on hover without intent and is visible to anyone looking at the screen or a shared one; the tooltip carries a count. Provide a setting to turn the listing off entirely.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
-      "asserted_by": null
+      "blocker": "autonomous",
+      "evidence": "PARTIAL 2026-09-13. The daemon records what the delta feed delivers from the second delta on -- the first lists the whole drive and a re-baseline does the same, and neither is activity -- in a bounded in-memory ring per account, with names (a deletion's name read from the index before the page publishes), and answers `recent` with those and the journal's latest saves, states included, item ids resolved to names through the index. The window shows a Recent activity group when there is anything, cloud changes first, the refused saves marked; the tray shows five lines under each account's entry, fetched after each account event; `cirrove recent` prints both. Seen live: a fresh daemon lists its journal's recent uploads. NOT DONE: the ring forgets on restart (by design, but the window then shows only the journal side until the feed moves); no times shown for local saves (the journal has none); nothing distinguishes added from changed, because the feed does not.",
+      "asserted_by": "service::recent::tests::the_ring_keeps_the_latest_and_lists_them_latest_first; engine::discovery::recent_changes_are_recorded_from_the_second_delta_on_and_not_on_a_reset (baseline records nothing, a continuation records the delivered folder with its name, a reset records nothing); desktop::window every_account_action_is_offered_from_the_window_and_only_where_it_applies renders the cloud change and the refused save from a fake daemon's `recent` answer; tray::menu::tests::recent_lines_appear_under_their_own_entry_only_when_there_are_any_and_do_nothing."
     },
     {
       "milestone": 5,

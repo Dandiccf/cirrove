@@ -22,6 +22,14 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
   Fedora `.rpm`, each built and installed on a clean system by CI on every
   push and downloadable from the run. No release yet; see
   [distribution](distribution.md).
+- **Recent activity.** The window lists what changed lately -- in the cloud,
+  and saved here with where it is on its way -- the tray shows the last five
+  under each connection, and `cirrove recent` prints them.
+- **`cirrove diagnose`** writes a diagnostics file with account names,
+  folders, file names, addresses, ids and the machine's name replaced, for
+  sharing.
+- Names OneDrive refuses (a colon, a trailing period, `CON`, ...) are refused
+  when you choose them rather than failing to upload later.
 - **`cirrove paths`** shows, for any paths in a drive, what they are, which
   pin covers them and how much of their content is on disk.
 - Pinning a folder without `--recursive` is now refused in words instead of

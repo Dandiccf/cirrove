@@ -73,6 +73,15 @@ impl WriteControl {
             .await
             .map_err(|_| std::io::Error::other("local namespace is unavailable"))
     }
+    pub async fn recent_local(
+        &self,
+        limit: usize,
+    ) -> std::io::Result<Vec<crate::recent::LocalChange>> {
+        self.writer
+            .recent_local(limit)
+            .await
+            .map_err(|_| std::io::Error::other("local namespace is unavailable"))
+    }
     pub fn conflicts(&self) -> std::io::Result<Vec<crate::journal::NamespaceCollision>> {
         self.writer
             .conflicts()
