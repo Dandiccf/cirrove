@@ -67,6 +67,35 @@ pub struct Status {
 /// tests: a process that is not the daemon has no engine to reach. Routing the
 /// request to the daemon puts the budget rule, the scope resolution and the
 /// fetching in the one place that owns them.
+/// A byte count in the largest unit that keeps it readable.
+///
+/// Fixed units do not survive the range this project actually reports: a cache
+/// budget is gigabytes and a pinned spreadsheet is tens of kilobytes, and
+/// printing both in MiB showed a real 66 KB pin as "0/0 MiB kept". One decimal
+/// below 10 of a unit, none above, because "4.6 GB" and "907 MB" are both what
+/// a person would say out loud.
+pub fn human_bytes(bytes: u64) -> String {
+    const UNITS: [(&str, f64); 4] = [
+        ("GB", 1024.0 * 1024.0 * 1024.0),
+        ("MB", 1024.0 * 1024.0),
+        ("KB", 1024.0),
+        ("bytes", 1.0),
+    ];
+    for (unit, scale) in UNITS {
+        if bytes as f64 >= scale {
+            let value = bytes as f64 / scale;
+            return if *unit == *"bytes" {
+                format!("{bytes} bytes")
+            } else if value < 10.0 {
+                format!("{value:.1} {unit}")
+            } else {
+                format!("{value:.0} {unit}")
+            };
+        }
+    }
+    "0 bytes".to_owned()
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct PinRequest {
     /// Account label. Empty means the only account, and is an error when there
@@ -1281,5 +1310,34 @@ mod tests {
             store.begin(&scope, false).unwrap(),
             Some(cirrove_core::Cursor("resume-here".into()))
         );
+    }
+}
+
+#[cfg(test)]
+mod readable_sizes {
+    use super::human_bytes;
+
+    #[test]
+    fn a_size_is_shown_in_a_unit_that_does_not_round_it_away() {
+        // The case that prompted this: a 66 KB pin printed as "0 MiB".
+        assert_eq!(human_bytes(67_826), "66 KB");
+        assert_eq!(human_bytes(0), "0 bytes");
+        assert_eq!(human_bytes(1), "1 bytes");
+        assert_eq!(human_bytes(1023), "1023 bytes");
+        assert_eq!(human_bytes(1024), "1.0 KB");
+        assert_eq!(human_bytes(5 * 1024 * 1024), "5.0 MB");
+        assert_eq!(human_bytes(66 * 1024 * 1024), "66 MB");
+        assert_eq!(human_bytes(5 * 1024 * 1024 * 1024), "5.0 GB");
+    }
+
+    #[test]
+    fn nothing_a_daemon_can_report_is_shown_as_zero_unless_it_is_zero() {
+        for bytes in [1_u64, 999, 1024, 100_000, 1_048_576, 1 << 30, u64::MAX] {
+            let shown = human_bytes(bytes);
+            assert!(
+                !shown.starts_with("0 ") && !shown.starts_with("0."),
+                "{bytes} bytes reads as {shown}, which says there is nothing there"
+            );
+        }
     }
 }

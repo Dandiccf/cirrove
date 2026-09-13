@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A Files emblem: kept offline, content still arriving. A down arrow, because
+     what is happening is content coming to this computer. The tray's up arrow
+     means the opposite, a save on its way to the cloud. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <g transform="translate(8,8.5) scale(1.2) translate(-8,-9.5)">
+    <path d="M 4.3,13 H 11.6 A 3,3 0 0 0 12,6.9 A 4,4 0 0 0 4.5,6.05 A 3.4,3.4 0 0 0 4.3,13 Z"
+          fill="#2b7fd4" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M 8,7.8 V 11.6 M 6.2,10.0 8,11.8 9.8,10.0" stroke="#ffffff" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </g>
+</svg>

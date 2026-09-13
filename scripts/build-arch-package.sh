@@ -74,6 +74,8 @@ expect "$desktop" \
   "usr/share/icons/hicolor/scalable/apps/$id-ready.svg" \
   "usr/share/icons/hicolor/scalable/apps/$id-working.svg" \
   "usr/share/icons/hicolor/scalable/apps/$id-attention.svg" \
+  "usr/share/icons/hicolor/scalable/apps/$id-kept.svg" \
+  "usr/share/icons/hicolor/scalable/apps/$id-fetching.svg" \
   "usr/share/icons/hicolor/symbolic/apps/$id-symbolic.svg" \
   "usr/share/metainfo/$id.metainfo.xml" \
   usr/share/nautilus-python/extensions/cirrove.py \

@@ -586,10 +586,13 @@ async fn main() -> Result<()> {
                         // pin that is keeping content and one that is only an
                         // accounting entry, so it leads.
                         println!(
-                            "  {}  {:.0}/{:.0} MiB kept  {} block(s){}",
-                            pin.item,
-                            pin.resident as f64 / (1024.0 * 1024.0),
-                            pin.reserved as f64 / (1024.0 * 1024.0),
+                            "  {}  {} of {} kept  {} block(s){}",
+                            // The path when the index can give one, the id when
+                            // it cannot; an id is unreadable but it is at least
+                            // the thing `cirrove unpin --item` takes.
+                            pin.path.as_deref().unwrap_or(&pin.item),
+                            cirrove_service::human_bytes(pin.resident),
+                            cirrove_service::human_bytes(pin.reserved),
                             pin.blocks,
                             if pin.recursive { "  recursive" } else { "" }
                         );

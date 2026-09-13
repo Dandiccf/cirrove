@@ -194,6 +194,44 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                                 cirrove_service::RecentReply::default()
                             };
                             serde_json::to_vec(&reply).unwrap()
+                        } else if line.starts_with("unpin ") || line.starts_with("pin ") {
+                            seen.lock().unwrap().push(line.trim_end().to_owned());
+                            let body: cirrove_service::PinRequest =
+                                serde_json::from_str(line.split_once(' ').unwrap().1).unwrap();
+                            let mut status = replies.lock().unwrap();
+                            let mut accepted = false;
+                            for account in &mut status.accounts {
+                                if !body.label.is_empty() && account.label != body.label {
+                                    continue;
+                                }
+                                if line.starts_with("unpin ") {
+                                    let before = account.pins.len();
+                                    account
+                                        .pins
+                                        .retain(|p| Some(&p.item) != body.item.as_ref());
+                                    accepted = account.pins.len() < before;
+                                } else {
+                                    let path = body.path.clone().unwrap_or_default();
+                                    account.pins.push(cirrove_service::engine::PinStatus {
+                                        item: format!("id-of-{path}"),
+                                        path: Some(path),
+                                        recursive: body.recursive,
+                                        reserved: 4096,
+                                        resident: 4096,
+                                        blocks: 1,
+                                    });
+                                    accepted = true;
+                                }
+                            }
+                            serde_json::to_vec(&cirrove_service::PinReply {
+                                accepted,
+                                item: body.item.unwrap_or_default(),
+                                reserved: 4096,
+                                files: 0,
+                                complete: true,
+                                refusal: None,
+                            })
+                            .unwrap()
                         } else {
                             seen.lock().unwrap().push(line.trim_end().to_owned());
                             let mut status = replies.lock().unwrap();
@@ -578,6 +616,152 @@ fn every_account_action_is_offered_from_the_window_and_only_where_it_applies() {
     runtime.shutdown_timeout(Duration::from_secs(1));
 }
 
+/// What an account keeps offline, in the window, and taking one back.
+///
+/// Pinning existed only in the CLI and the Files context menu, so the question
+/// "what is my cache actually spent on" had no answer anywhere a person looks.
+/// The row has to name the file rather than the provider id it is keyed on --
+/// a list of 016WYNLZ... is a list nobody can act on -- and it has to separate
+/// what a pin reserved from what is really on disk, because a pin that fetched
+/// nothing keeps nothing.
+fn the_window_shows_what_is_kept_offline_and_can_release_it() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let sample = demo::snapshot().unwrap();
+    let settings = sample.settings.unwrap();
+    write_settings(&state, &settings);
+
+    let mut status = sample.status.unwrap();
+    {
+        let work = &mut status.accounts[0];
+        work.pins = vec![
+            cirrove_service::engine::PinStatus {
+                item: "016WYNLZUU5GZ4UDRX2JFJDE3W7US5P7FK".into(),
+                path: Some("Dokumente/Report.docx".into()),
+                recursive: false,
+                reserved: 67_826,
+                resident: 67_826,
+                blocks: 1,
+            },
+            // Reserved and never fetched: the row must not claim it is here.
+            cirrove_service::engine::PinStatus {
+                item: "016WYNLZQGNQJQG5PLTRB2AKFOQ55TUAMV".into(),
+                path: Some("Anlagen".into()),
+                recursive: true,
+                reserved: 5 * 1024 * 1024,
+                resident: 0,
+                blocks: 0,
+            },
+            // No path: the index cannot place it, so the id is all there is.
+            cirrove_service::engine::PinStatus {
+                item: "016WYNLZORPHANORPHANORPHANORPHAN".into(),
+                path: None,
+                recursive: false,
+                reserved: 1024,
+                resident: 1024,
+                blocks: 1,
+            },
+        ];
+        work.pin_budget = cirrove_service::engine::PinBudget {
+            cache_bytes: 5 * 1024 * 1024 * 1024,
+            pinnable_bytes: 4 * 1024 * 1024 * 1024,
+            reserved_bytes: 5 * 1024 * 1024 + 68_850,
+            free_bytes: 4 * 1024 * 1024 * 1024 - (5 * 1024 * 1024 + 68_850),
+        };
+    }
+    let service = fake_service(&runtime, temp.path(), status);
+    let app = application("KeptOffline");
+    let ui = Window::new(
+        &app,
+        Backend::Live {
+            runtime: runtime.handle().clone(),
+            state: state.clone(),
+            socket: service.socket.clone(),
+        },
+    );
+    pump_until("initial snapshot", || {
+        ui.current()
+            .is_some_and(|view| view.accounts[0].kept_offline.len() == 3)
+    });
+    let window = ui.window.upgrade().unwrap();
+    expand_all(window.upcast_ref());
+    pump_until("the kept-offline section is open", || {
+        displays_text(window.upcast_ref(), "Kept offline")
+    });
+
+    // Named by path, not by provider id.
+    assert!(
+        displays_text(window.upcast_ref(), "Dokumente/Report.docx"),
+        "a pin is named by where it is"
+    );
+    // What is really on disk, separately from what was reserved.
+    assert!(
+        displays_text(window.upcast_ref(), "66 KB on this computer"),
+        "a fetched pin says how much is here"
+    );
+    assert!(
+        displays_text(
+            window.upcast_ref(),
+            "5.0 MB reserved, nothing fetched yet · everything inside it"
+        ),
+        "a folder pin that fetched nothing must not claim the space is filled"
+    );
+    // And where there is no path, the id, because half a path would name a
+    // different file.
+    assert!(
+        displays_text(window.upcast_ref(), "016WYNLZORPHANORPHANORPHANORPHAN"),
+        "a pin the index cannot place still appears"
+    );
+
+    // Releasing one goes to the daemon by item id, and the row goes away.
+    let release = buttons(window.upcast_ref(), "Stop keeping");
+    assert_eq!(release.len(), 3, "every kept item can be released");
+    release[0].emit_clicked();
+    pump_until("the release reached the daemon", || {
+        service.requests.lock().unwrap().iter().any(|line| {
+            line.starts_with("unpin ") && line.contains("016WYNLZUU5GZ4UDRX2JFJDE3W7US5P7FK")
+        })
+    });
+    pump_until("the released item left the window", || {
+        ui.current()
+            .is_some_and(|v| v.accounts[0].kept_offline.len() == 2)
+            && !displays_text(window.upcast_ref(), "Dokumente/Report.docx")
+    });
+
+    // Keeping something new: a path inside the mount is sent mount-relative.
+    let mount = ui.current().unwrap().accounts[0].mount_path.clone();
+    ui.keep_path(
+        &ui.current().unwrap().accounts[0].id.clone(),
+        &mount.join("Anlagen/Neu.txt"),
+    );
+    pump_until("the pin reached the daemon, mount-relative", || {
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.starts_with("pin ") && line.contains("\"Anlagen/Neu.txt\""))
+    });
+
+    // A path outside the drive is refused here rather than sent.
+    let before = service.requests.lock().unwrap().len();
+    ui.keep_path(
+        &ui.current().unwrap().accounts[0].id.clone(),
+        std::path::Path::new("/etc/hosts"),
+    );
+    assert_eq!(
+        service.requests.lock().unwrap().len(),
+        before,
+        "a path outside the drive must not be sent to the daemon"
+    );
+
+    window.close();
+    service.task.abort();
+    runtime.shutdown_timeout(Duration::from_secs(1));
+}
+
 const SCENARIOS: &[(&str, fn())] = &[
     (
         "native_window_keeps_focus_and_waits_for_service_mount_acknowledgement",
@@ -586,6 +770,10 @@ const SCENARIOS: &[(&str, fn())] = &[
     (
         "every_account_action_is_offered_from_the_window_and_only_where_it_applies",
         every_account_action_is_offered_from_the_window_and_only_where_it_applies,
+    ),
+    (
+        "the_window_shows_what_is_kept_offline_and_can_release_it",
+        the_window_shows_what_is_kept_offline_and_can_release_it,
     ),
 ];
 const NEEDS: &str = "requires a graphical display; synthetic local socket/accounts only";

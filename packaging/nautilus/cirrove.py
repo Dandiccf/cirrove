@@ -35,6 +35,17 @@ SOCKET = os.path.join(
     "control.sock",
 )
 TIMEOUT = 3.0
+APP_ID = "io.github.Dandiccf.Cirrove"
+# Where an icon theme puts a scalable application icon. Checked on disk rather
+# than asked of GtkIconTheme: this runs at import, before Files has a display,
+# and a theme lookup there is both unavailable and slower than a stat.
+ICON_SEARCH = [
+    os.path.join(
+        os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share"), "icons"
+    ),
+    "/usr/local/share/icons",
+    "/usr/share/icons",
+]
 # How long a status answer is trusted for the mount list. Mounts change when
 # a person clicks Mount, which is not often; asking on every listing would be
 # one more round trip in front of each.
@@ -92,7 +103,29 @@ def locate(accounts, path):
     return None if best is None else (best[1], best[2])
 
 
-def emblem_for(state):
+def emblem_names(search=None):
+    """Which icon names the badges use.
+
+    Cirrove's own where they are installed: they match the tray, they say
+    "cloud" where a bare tick says nothing, and they carry a rim so they read
+    over a thumbnail of any colour. The freedesktop ones where they are not,
+    because Files draws nothing at all for an icon name no theme provides --
+    the badge would silently vanish rather than look generic. That happens on a
+    machine with only the daemon package, whose icons ship beside the desktop.
+    """
+    for base in search if search is not None else ICON_SEARCH:
+        apps = os.path.join(str(base), "hicolor", "scalable", "apps")
+        if os.path.isfile(os.path.join(apps, f"{APP_ID}-kept.svg")) and os.path.isfile(
+            os.path.join(apps, f"{APP_ID}-fetching.svg")
+        ):
+            return {"kept": f"{APP_ID}-kept", "fetching": f"{APP_ID}-fetching"}
+    return {"kept": "emblem-ok-symbolic", "fetching": "emblem-synchronizing-symbolic"}
+
+
+EMBLEMS = emblem_names()
+
+
+def emblem_for(state, names=None):
     """The badge a state earns, or None for the ordinary on-demand file.
 
     Most files in a cloud drive are on demand; badging them all would say
@@ -101,13 +134,14 @@ def emblem_for(state):
     keeps nothing, and a badge that called that "available" would be a lie the
     user finds out about on the train.
     """
+    names = names if names is not None else EMBLEMS
     if state.get("refusal") or not state.get("pinned"):
         return None
     if state.get("kind") == "folder":
-        return "emblem-ok-symbolic"
+        return names["kept"]
     if state.get("resident", 0) >= state.get("size", 0):
-        return "emblem-ok-symbolic"
-    return "emblem-synchronizing-symbolic"
+        return names["kept"]
+    return names["fetching"]
 
 
 def describe(state):

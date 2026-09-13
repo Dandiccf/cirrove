@@ -772,3 +772,70 @@ async fn a_folder_pin_without_recursive_is_refused_in_words_not_dropped() {
     let pins = engine.pin_status().await.unwrap();
     assert!(pins.is_empty(), "nothing was recorded for the refused pin");
 }
+
+#[tokio::test]
+async fn a_pin_says_where_the_item_is_and_not_only_its_provider_id() {
+    // Status is what the window and the tray read, and a list of pins that can
+    // only say 016WYNLZUU5GZ4UDRX2JFJDE3W7US5P7FK is a list nobody can act on:
+    // the whole point of showing what is kept offline is deciding what to stop
+    // keeping.
+    let temp = tempfile::tempdir().unwrap();
+    let engine = engine(&temp, 64 * 1024 * 1024).await;
+
+    let dokumente = folder("Dokumente");
+    let report = file("Report.docx", "Dokumente", 4096);
+    seed_directory(&engine, "root", std::slice::from_ref(&dokumente)).await;
+    seed_directory(&engine, "Dokumente", std::slice::from_ref(&report)).await;
+
+    engine
+        .pin(scope(), report.id.clone(), false, report.size)
+        .await
+        .unwrap()
+        .expect("fits");
+    engine
+        .pin(scope(), dokumente.id.clone(), true, 0)
+        .await
+        .unwrap()
+        .expect("fits");
+
+    let pins = engine.pin_status().await.unwrap();
+    let at = |item: &str| {
+        pins.iter()
+            .find(|p| p.item == item)
+            .unwrap_or_else(|| panic!("{item} is pinned"))
+            .path
+            .clone()
+    };
+    assert_eq!(
+        at("Report.docx"),
+        Some("Dokumente/Report.docx".to_owned()),
+        "a file's path is walked up through its folders"
+    );
+    assert_eq!(
+        at("Dokumente"),
+        Some("Dokumente".to_owned()),
+        "a folder directly under the root is its own name"
+    );
+}
+
+#[tokio::test]
+async fn a_pin_whose_parents_are_not_indexed_has_no_path_rather_than_half_of_one() {
+    // The item is indexed; the folder above it is not, so the chain never
+    // reaches the root. "orphan" as a path would name a file in the drive root
+    // that is a different file, and a caller shown that would unpin the wrong
+    // thing. No path at all is the honest answer, and the caller falls back to
+    // the id.
+    let temp = tempfile::tempdir().unwrap();
+    let engine = engine(&temp, 64 * 1024 * 1024).await;
+    let orphan = file("orphan", "a-folder-nobody-listed", 4096);
+    seed_directory(&engine, "a-folder-nobody-listed", std::slice::from_ref(&orphan)).await;
+    engine
+        .pin(scope(), orphan.id.clone(), false, orphan.size)
+        .await
+        .unwrap()
+        .expect("fits");
+
+    let pins = engine.pin_status().await.unwrap();
+    assert_eq!(pins.len(), 1);
+    assert_eq!(pins[0].path, None);
+}

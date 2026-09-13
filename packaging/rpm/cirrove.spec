@@ -86,11 +86,12 @@ install -Dm644 packaging/nautilus/cirrove.py -t %{buildroot}%{_datadir}/nautilus
 %{_bindir}/cirrove-tray
 %{_datadir}/applications/%{app_id}.desktop
 %config %{_sysconfdir}/xdg/autostart/%{app_id}.Tray.desktop
-%{_datadir}/icons/hicolor/scalable/apps/%{app_id}.svg
-%{_datadir}/icons/hicolor/scalable/apps/%{app_id}-ready.svg
-%{_datadir}/icons/hicolor/scalable/apps/%{app_id}-working.svg
-%{_datadir}/icons/hicolor/scalable/apps/%{app_id}-attention.svg
-%{_datadir}/icons/hicolor/symbolic/apps/%{app_id}-symbolic.svg
+# Globbed to match the install above. Enumerating them meant that adding an
+# icon failed the build with "installed but unpackaged", which is a true
+# statement about the spec and a confusing one about the change. What each
+# package must actually contain is asserted by scripts/build-rpm-package.sh.
+%{_datadir}/icons/hicolor/scalable/apps/%{app_id}*.svg
+%{_datadir}/icons/hicolor/symbolic/apps/%{app_id}*.svg
 %{_metainfodir}/%{app_id}.metainfo.xml
 %{_datadir}/nautilus-python/extensions/cirrove.py
 

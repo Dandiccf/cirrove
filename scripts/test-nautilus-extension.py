@@ -106,16 +106,26 @@ class Locating(unittest.TestCase):
 
 
 class Badges(unittest.TestCase):
+    """Which state earns a badge, independent of which icons are installed.
+
+    The name set is passed in on purpose. Reading the module's own would make
+    these pass or fail by whether the machine running them happens to have
+    Cirrove's icons in its home, which is a fact about the machine and not
+    about the mapping under test. `Emblems` covers the choice between sets.
+    """
+
+    GENERIC = {"kept": "emblem-ok-symbolic", "fetching": "emblem-synchronizing-symbolic"}
+
     def test_on_demand_files_get_no_badge_and_say_so_in_the_column(self):
         state = {"kind": "file", "pinned": None, "size": 10, "resident": 0}
-        self.assertIsNone(ext.emblem_for(state))
+        self.assertIsNone(ext.emblem_for(state, self.GENERIC))
         self.assertEqual(ext.describe(state), "On demand")
 
     def test_a_pin_that_is_fetched_is_ok_and_one_still_fetching_is_synchronizing(self):
         kept = {"kind": "file", "pinned": "direct", "size": 10, "resident": 10}
         fetching = {"kind": "file", "pinned": "direct", "size": 10, "resident": 4}
-        self.assertEqual(ext.emblem_for(kept), "emblem-ok-symbolic")
-        self.assertEqual(ext.emblem_for(fetching), "emblem-synchronizing-symbolic")
+        self.assertEqual(ext.emblem_for(kept, self.GENERIC), "emblem-ok-symbolic")
+        self.assertEqual(ext.emblem_for(fetching, self.GENERIC), "emblem-synchronizing-symbolic")
         self.assertEqual(ext.describe(kept), "Kept offline")
         self.assertEqual(ext.describe(fetching), "Kept offline · fetching 40%")
 
@@ -123,13 +133,60 @@ class Badges(unittest.TestCase):
         via = {"kind": "file", "pinned": "inherited", "size": 10, "resident": 10}
         folder = {"kind": "folder", "pinned": "direct", "size": 0, "resident": 0}
         self.assertEqual(ext.describe(via), "Kept offline (folder)")
-        self.assertEqual(ext.emblem_for(folder), "emblem-ok-symbolic")
+        self.assertEqual(ext.emblem_for(folder, self.GENERIC), "emblem-ok-symbolic")
         self.assertEqual(ext.describe(folder), "Kept offline")
 
     def test_a_refusal_draws_nothing_and_says_nothing(self):
         state = {"path": "x", "refusal": "no such path"}
-        self.assertIsNone(ext.emblem_for(state))
+        self.assertIsNone(ext.emblem_for(state, self.GENERIC))
         self.assertEqual(ext.describe(state), "")
+
+
+class Emblems(unittest.TestCase):
+    """Which icon names the badges use, and what happens when ours are absent."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.theme = pathlib.Path(self.temp.name) / "icons/hicolor/scalable/apps"
+        self.theme.mkdir(parents=True)
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def install_ours(self):
+        for name in ("kept", "fetching"):
+            (self.theme / f"{ext.APP_ID}-{name}.svg").write_text("<svg/>")
+
+    def test_cirroves_own_emblems_are_used_when_they_are_installed(self):
+        self.install_ours()
+        names = ext.emblem_names([self.theme.parent.parent.parent])
+        self.assertEqual(names["kept"], f"{ext.APP_ID}-kept")
+        self.assertEqual(names["fetching"], f"{ext.APP_ID}-fetching")
+
+    def test_the_freedesktop_ones_are_used_when_ours_are_not_installed(self):
+        # An icon name nothing provides draws nothing at all, so the badge would
+        # simply vanish. A generic tick is worse than ours and far better than
+        # no badge.
+        names = ext.emblem_names([self.theme.parent.parent.parent])
+        self.assertEqual(names["kept"], "emblem-ok-symbolic")
+        self.assertEqual(names["fetching"], "emblem-synchronizing-symbolic")
+
+    def test_a_kept_file_that_is_here_and_one_still_arriving_get_different_badges(self):
+        self.install_ours()
+        names = ext.emblem_names([self.theme.parent.parent.parent])
+        here = {"kind": "file", "pinned": "direct", "size": 10, "resident": 10}
+        arriving = {"kind": "file", "pinned": "direct", "size": 10, "resident": 4}
+        folder = {"kind": "folder", "pinned": "direct", "size": 0, "resident": 0}
+        self.assertEqual(ext.emblem_for(here, names), f"{ext.APP_ID}-kept")
+        self.assertEqual(ext.emblem_for(arriving, names), f"{ext.APP_ID}-fetching")
+        self.assertEqual(ext.emblem_for(folder, names), f"{ext.APP_ID}-kept")
+        self.assertIsNone(ext.emblem_for({"kind": "file", "pinned": None}, names))
+
+    def test_the_icons_this_names_are_the_ones_the_tree_ships(self):
+        # The names and the files must agree, or the badge is silently absent.
+        for name in ("kept", "fetching"):
+            shipped = ROOT / f"packaging/icons/scalable/apps/{ext.APP_ID}-{name}.svg"
+            self.assertTrue(shipped.is_file(), f"{shipped} is named but not shipped")
 
 
 class Menu(unittest.TestCase):

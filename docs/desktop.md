@@ -263,6 +263,8 @@ Nemo and Caja take nautilus-python-style extensions with older APIs and are not
 targeted; the daemon contract is the same for all of them, so none of this is a
 daemon decision.
 
+The badges are Cirrove's own icons (`io.github.Dandiccf.Cirrove-kept` and `-fetching`) when they are installed, and the freedesktop `emblem-ok-symbolic` and `emblem-synchronizing-symbolic` when they are not: Files draws nothing at all for an icon name no theme provides, so a missing branded icon would remove the badge rather than make it look generic. `emblem_names` decides once, at import, by looking on disk -- there is no display yet to ask a theme.
+
 The package installs it under `/usr/share/nautilus-python/extensions/`; for
 development, copy it to `~/.local/share/nautilus-python/extensions/` and
 restart Files with `nautilus -q`. `scripts/test-nautilus-extension.py` drives

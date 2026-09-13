@@ -5,6 +5,22 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
 
 ## Unreleased
 
+- **What you keep offline is in the window.** Each connection lists what it
+  keeps, named by where it is in the drive rather than by a provider id, with
+  how much of it is really on this computer and how much of the cache pinning
+  has claimed. **Stop keeping** releases one. **Keep a file or folder offline**
+  opens a chooser in the drive. Until now this existed only on the command line
+  and in the Files context menu, so there was nowhere to see what the cache was
+  spent on.
+- **A pin that reserved space but has not downloaded yet says so** rather than
+  reporting the space as filled. It is the difference between a file that will
+  open on a train and one that will not.
+- **The badges in Files are Cirrove's own.** A blue cloud with a check for kept
+  and here, a cloud with a down arrow while the content arrives, both with a rim
+  so they read over a thumbnail of any colour. They were the desktop's generic
+  tick and circular arrow, which said nothing about a cloud and did not match
+  the tray. Where the icons are not installed the generic ones are still used,
+  because a name no theme provides draws nothing at all.
 - **A file that is on this computer but not kept offline says so.** The
   properties dialog used to read "Availability: On demand" beside "On this
   computer: all 66.2 KB", which says nothing about whether the copy will still

@@ -55,6 +55,8 @@ expect "$desktop" \
   "/etc/xdg/autostart/$id.Tray.desktop" \
   "/usr/share/icons/hicolor/scalable/apps/$id.svg" \
   "/usr/share/icons/hicolor/scalable/apps/$id-attention.svg" \
+  "/usr/share/icons/hicolor/scalable/apps/$id-kept.svg" \
+  "/usr/share/icons/hicolor/scalable/apps/$id-fetching.svg" \
   "/usr/share/metainfo/$id.metainfo.xml" \
   /usr/share/nautilus-python/extensions/cirrove.py
 # The daemon package must not pull a desktop library in through the back door.

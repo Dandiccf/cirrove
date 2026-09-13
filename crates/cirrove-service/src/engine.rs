@@ -2,6 +2,35 @@
 //! share a provider client but never hold SQLite locks across network awaits.
 mod changes;
 
+/// An item's mount-relative path, by walking parents up to the drive root.
+///
+/// `None` rather than a partial answer: an item whose chain of parents is not
+/// fully indexed, or which belongs to a collection this account does not root,
+/// has no honest mount-relative path, and half a path points at a real file
+/// that is not the one in question. The depth bound is a guard against a cycle
+/// in the parent chain, which no correct index has and which would otherwise
+/// hang the status call that every client polls.
+fn relative_path(
+    store: &Store,
+    scope: &cirrove_core::Scope,
+    root: &str,
+    item: &str,
+) -> Option<String> {
+    const DEEPER_THAN_ANY_REAL_DRIVE: usize = 128;
+    let mut parts: Vec<String> = Vec::new();
+    let mut id = item.to_string();
+    for _ in 0..DEEPER_THAN_ANY_REAL_DRIVE {
+        if id == root {
+            parts.reverse();
+            return Some(parts.join("/"));
+        }
+        let node = store.node(scope, &id).ok().flatten()?;
+        parts.push(node.name);
+        id = node.parent_id?;
+    }
+    None
+}
+
 #[cfg(test)]
 mod deadlines;
 #[cfg(test)]
@@ -40,6 +69,13 @@ const DISCOVERY_RETRY_LIMIT: Duration = Duration::from_secs(60);
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PinStatus {
     pub item: String,
+    /// Where the item is in the drive, mount-relative, so a person can be shown
+    /// what is kept instead of a provider id. `None` when the chain of parents
+    /// is not fully indexed or does not reach this account's root -- a path that
+    /// cannot be completed would be a wrong path, not a shorter one, and the
+    /// caller should fall back to the id rather than print half of one.
+    #[serde(default)]
+    pub path: Option<String>,
     pub recursive: bool,
     /// Claimed from the cache budget when the pin was made.
     pub reserved: u64,
@@ -475,6 +511,7 @@ impl Engine {
         let db = self.db.clone();
         let blocks = self.blocks_path();
         let cache = self.cache_path();
+        let root = self.account.root_id.clone();
         tokio::task::spawn_blocking(move || -> anyhow::Result<Vec<PinStatus>> {
             let store = Store::open(db)?;
             let index = cirrove_store::BlockIndex::open(&blocks)?;
@@ -491,8 +528,12 @@ impl Engine {
                     .filter(|key| cache.join(key).exists())
                     .filter_map(|key| sizes.get(key))
                     .sum();
+                let path = serde_json::from_str::<cirrove_core::Scope>(&pin.scope)
+                    .ok()
+                    .and_then(|scope| relative_path(&store, &scope, &root, &pin.item));
                 out.push(PinStatus {
                     item: pin.item,
+                    path,
                     recursive: pin.recursive,
                     reserved: pin.reserved,
                     resident,
@@ -506,6 +547,7 @@ impl Engine {
     pub(crate) fn blocks_path(&self) -> PathBuf {
         self.db.with_file_name("blocks.db")
     }
+
     /// Where published blocks live. Exposed so a caller reasoning about cache
     /// files derives the path from here rather than rebuilding it and drifting.
     ///

@@ -108,6 +108,58 @@ pub struct AccountCard {
     /// second drive can start from it rather than from an empty field.
     pub client_id: String,
     pub authority: String,
+    /// What this account keeps offline, ready to show.
+    pub kept_offline: Vec<KeptOffline>,
+    /// One sentence about how much of the cache pinning has claimed, or `None`
+    /// when the daemon did not say (an older one, or an account not running).
+    pub pin_budget: Option<String>,
+}
+
+/// One pinned item, in the words the window shows.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct KeptOffline {
+    /// The provider item id. Not shown; it is what `unpin` takes, and it is the
+    /// only handle that stays right when a file is renamed in the cloud.
+    pub item: String,
+    /// What to show: the item's path in the drive, or the id when the daemon
+    /// could not resolve one. An id is unreadable, but it is honest, and it is
+    /// still the thing the button acts on.
+    pub name: String,
+    /// How much of it is actually on this computer, in words.
+    pub detail: String,
+    /// A folder pinned with everything under it.
+    pub recursive: bool,
+}
+impl KeptOffline {
+    pub fn from_status(pin: &cirrove_service::engine::PinStatus) -> Self {
+        // Reserved and resident are different questions and the row answers the
+        // one a person is asking: is it here? A pin that reserved space and
+        // fetched nothing keeps nothing, and saying "66 KB" of it would promise
+        // an offline read that cannot be served.
+        let detail = if pin.blocks == 0 || pin.resident == 0 {
+            format!(
+                "{} reserved, nothing fetched yet",
+                cirrove_service::human_bytes(pin.reserved)
+            )
+        } else if pin.resident >= pin.reserved {
+            format!(
+                "{} on this computer",
+                cirrove_service::human_bytes(pin.resident)
+            )
+        } else {
+            format!(
+                "{} of {} on this computer",
+                cirrove_service::human_bytes(pin.resident),
+                cirrove_service::human_bytes(pin.reserved)
+            )
+        };
+        Self {
+            item: pin.item.clone(),
+            name: pin.path.clone().unwrap_or_else(|| pin.item.clone()),
+            detail,
+            recursive: pin.recursive,
+        }
+    }
 }
 impl AccountCard {
     pub fn action_label(&self) -> &'static str {
@@ -274,6 +326,10 @@ impl Overview {
                     writable: account.access == cirrove_auth::AccessMode::ReadWrite,
                     client_id: account.registration.client_id.clone(),
                     authority: account.registration.authority.clone(),
+                    kept_offline: status
+                        .map(|s| s.pins.iter().map(KeptOffline::from_status).collect())
+                        .unwrap_or_default(),
+                    pin_budget: status.map(|s| s.pin_budget.explain()),
                 }
             })
             .collect();

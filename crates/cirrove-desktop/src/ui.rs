@@ -43,6 +43,13 @@ struct AccountRow {
     discard: gtk::Button,
     unsent: adw::ActionRow,
     remove: gtk::Button,
+    /// What this account keeps offline. An expander rather than a flat list
+    /// because it grows without bound and is not what most people open the
+    /// window for; its subtitle carries the budget, so the size of the answer
+    /// is readable without opening it.
+    kept: adw::ExpanderRow,
+    kept_rows: RefCell<Vec<adw::ActionRow>>,
+    keep_add: gtk::Button,
 }
 pub struct Window {
     pub window: glib::WeakRef<adw::ApplicationWindow>,
@@ -460,6 +467,18 @@ impl Window {
             .build();
         discard.add_css_class("destructive-action");
         refused.add_suffix(&discard);
+        let kept = adw::ExpanderRow::builder()
+            .title("Kept offline")
+            .use_markup(false)
+            .subtitle_lines(0)
+            .build();
+        // Adding a pin needs a file to point at, and the file chooser is the
+        // only honest way to pick one: the daemon takes a mount-relative path,
+        // and a text field would invite paths that are not in the drive.
+        let keep_add = icon_button("list-add-symbolic", "Keep a file or folder offline");
+        keep_add.add_css_class("flat");
+        kept.add_suffix(&keep_add);
+
         let removal = adw::ActionRow::builder()
             .title("Remove this connection")
             .subtitle("Its sign-in and local index are set aside; nothing in the cloud is touched.")
@@ -477,6 +496,7 @@ impl Window {
         row.add_row(&access);
         row.add_row(&location);
         row.add_row(&storage);
+        row.add_row(&kept);
         // Distinct from the refused row above: those are changes to the
         // namespace the cloud would not take; this is a file's content that
         // did not reach the cloud. Its remedy is different too -- open the
@@ -526,6 +546,13 @@ impl Window {
                 ui.remove(&key);
             }
         });
+        let weak = Rc::downgrade(self);
+        let key = id.to_owned();
+        keep_add.connect_clicked(move |_| {
+            if let Some(ui) = weak.upgrade() {
+                ui.keep_offline(&key);
+            }
+        });
         AccountRow {
             row,
             mount,
@@ -541,9 +568,12 @@ impl Window {
             discard,
             unsent,
             remove,
+            kept,
+            kept_rows: RefCell::new(Vec::new()),
+            keep_add,
         }
     }
-    fn update_row(&self, row: &AccountRow, card: &AccountCard, late: bool) {
+    fn update_row(self: &Rc<Self>, row: &AccountRow, card: &AccountCard, late: bool) {
         row.row.set_title(&card.title);
         let live = matches!(self.backend, Backend::Live { .. });
         let operation = self.operation.borrow();
@@ -608,6 +638,7 @@ impl Window {
                 format!("{} saves", card.failed_uploads)
             },
         ));
+        self.render_kept_offline(row, card, idle);
         // Removal under a running mount would race it; the daemon refuses, and
         // the button says so before the user gets that far.
         let removable = !card.enabled && !card.mounted;
@@ -616,6 +647,64 @@ impl Window {
             "Remove this connection"
         } else {
             "Unmount before removing"
+        }));
+    }
+    /// Rebuild one account's list of kept-offline items.
+    ///
+    /// Rebuilt rather than diffed: the list is short, it changes only when
+    /// someone pins or unpins, and a diff would have to key on an item id that
+    /// is also the thing whose row moved. The rows are tracked so they can be
+    /// removed again; an ExpanderRow has no way to ask what is in it.
+    fn render_kept_offline(self: &Rc<Self>, row: &AccountRow, card: &AccountCard, idle: bool) {
+        let mut rows = row.kept_rows.borrow_mut();
+        for old in rows.drain(..) {
+            row.kept.remove(&old);
+        }
+        for pin in &card.kept_offline {
+            let entry = adw::ActionRow::builder()
+                .title(&pin.name)
+                .subtitle(if pin.recursive {
+                    format!("{} · everything inside it", pin.detail)
+                } else {
+                    pin.detail.clone()
+                })
+                .use_markup(false)
+                .subtitle_lines(0)
+                .build();
+            let stop = gtk::Button::builder()
+                .label("Stop keeping")
+                .valign(gtk::Align::Center)
+                .sensitive(idle && card.controls_available)
+                .build();
+            stop.add_css_class("flat");
+            let weak = Rc::downgrade(self);
+            let key = card.id.clone();
+            let item = pin.item.clone();
+            let name = pin.name.clone();
+            stop.connect_clicked(move |_| {
+                if let Some(ui) = weak.upgrade() {
+                    ui.stop_keeping(&key, &item, &name);
+                }
+            });
+            entry.add_suffix(&stop);
+            row.kept.add_row(&entry);
+            rows.push(entry);
+        }
+        row.kept
+            .set_subtitle(&match (&card.pin_budget, card.kept_offline.len()) {
+                // The budget sentence is the useful one, because the question a
+                // person opens this for is how much room is left.
+                (Some(budget), _) => budget.clone(),
+                (None, 0) => "Nothing is kept offline yet.".to_owned(),
+                (None, 1) => "1 item kept offline.".to_owned(),
+                (None, n) => format!("{n} items kept offline."),
+            });
+        row.keep_add
+            .set_sensitive(idle && card.controls_available && card.mounted);
+        row.keep_add.set_tooltip_text(Some(if card.mounted {
+            "Keep a file or folder offline"
+        } else {
+            "Mount this connection to choose a file"
         }));
     }
     fn card(&self, id: &str) -> Option<AccountCard> {
@@ -752,6 +841,173 @@ impl Window {
     }
     /// Abandon the changes the cloud refused. The daemon does the unwinding
     /// and says how many it could; the row disappears with the last one.
+    /// Release one pin. Named by the path so the message is readable, acted on
+    /// by the item id so a file renamed in the cloud since the list was drawn
+    /// still unpins the right thing.
+    pub fn stop_keeping(self: &Rc<Self>, id: &str, item: &str, name: &str) {
+        let Some(card) = self.card(id) else {
+            return;
+        };
+        let Backend::Live {
+            runtime, socket, ..
+        } = &self.backend
+        else {
+            return;
+        };
+        if !self.begin_operation(id, "Releasing…") {
+            return;
+        }
+        let socket = socket.clone();
+        let request = cirrove_service::PinRequest {
+            label: card.label.clone(),
+            item: Some(item.to_owned()),
+            path: None,
+            recursive: false,
+            bytes: None,
+        };
+        let shown = name.to_owned();
+        let (send, receive) = tokio::sync::oneshot::channel();
+        runtime.spawn(async move {
+            let result = cirrove_service::unpin(&socket, &request)
+                .await
+                .map_err(|error| format!("{error:#}"));
+            let _ = send.send(result);
+        });
+        let weak = Rc::downgrade(self);
+        glib::spawn_future_local(async move {
+            let result = receive.await;
+            let Some(ui) = weak.upgrade().filter(|ui| !ui.closed.get()) else {
+                return;
+            };
+            ui.end_operation();
+            match result {
+                Ok(Ok(reply)) => match reply.refusal {
+                    Some(refusal) => {
+                        ui.notify(&format!("{shown} is still kept offline: {refusal}"))
+                    }
+                    None if reply.accepted => {
+                        ui.notify(&format!("{shown} is no longer kept offline."));
+                    }
+                    None => ui.notify(&format!("{shown} was not kept offline.")),
+                },
+                Ok(Err(error)) => ui.notify(&format!("Could not release {shown}: {error}")),
+                Err(_) => ui.notify("The service did not answer."),
+            }
+            ui.refresh();
+        });
+    }
+    /// Choose a file or folder in this account's mount and keep it offline.
+    ///
+    /// The chooser starts at the mount and the chosen path is made relative to
+    /// it, because the daemon takes a mount-relative path. Anything outside the
+    /// mount is refused here with a sentence rather than sent and refused with
+    /// an error, since the user cannot tell from the dialog which is which.
+    pub fn keep_offline(self: &Rc<Self>, id: &str) {
+        let Some(card) = self.card(id).filter(|c| c.mounted) else {
+            return;
+        };
+        let Backend::Live { .. } = &self.backend else {
+            return;
+        };
+        let chooser = gtk::FileDialog::builder()
+            .title("Keep offline")
+            .accept_label("Keep offline")
+            .initial_folder(&gtk::gio::File::for_path(&card.mount_path))
+            .modal(true)
+            .build();
+        let weak = Rc::downgrade(self);
+        let key = id.to_owned();
+        let window = self.window.upgrade();
+        chooser.open(
+            window.as_ref(),
+            gtk::gio::Cancellable::NONE,
+            move |result| {
+                let Some(ui) = weak.upgrade().filter(|ui| !ui.closed.get()) else {
+                    return;
+                };
+                // A cancelled dialog is not a failure and says nothing.
+                let Ok(file) = result else {
+                    return;
+                };
+                let Some(path) = file.path() else {
+                    return;
+                };
+                ui.keep_path(&key, &path);
+            },
+        );
+    }
+    /// The half of `keep_offline` that does not need a dialog, so a test can
+    /// reach it: turn a filesystem path into a mount-relative one and pin it.
+    pub fn keep_path(self: &Rc<Self>, id: &str, path: &std::path::Path) {
+        let Some(card) = self.card(id) else {
+            return;
+        };
+        let Backend::Live {
+            runtime, socket, ..
+        } = &self.backend
+        else {
+            return;
+        };
+        let Ok(relative) = path.strip_prefix(&card.mount_path) else {
+            self.notify("Choose a file inside this drive's folder.");
+            return;
+        };
+        let relative = relative.to_string_lossy().into_owned();
+        if relative.is_empty() {
+            self.notify(
+                "Keeping the whole drive offline is not offered; choose a folder inside it.",
+            );
+            return;
+        }
+        let recursive = path.is_dir();
+        if !self.begin_operation(id, "Keeping offline…") {
+            return;
+        }
+        let socket = socket.clone();
+        let request = cirrove_service::PinRequest {
+            label: card.label.clone(),
+            item: None,
+            path: Some(relative.clone()),
+            recursive,
+            bytes: None,
+        };
+        let (send, receive) = tokio::sync::oneshot::channel();
+        runtime.spawn(async move {
+            let result = cirrove_service::pin(&socket, &request)
+                .await
+                .map_err(|error| format!("{error:#}"));
+            let _ = send.send(result);
+        });
+        let weak = Rc::downgrade(self);
+        glib::spawn_future_local(async move {
+            let result = receive.await;
+            let Some(ui) = weak.upgrade().filter(|ui| !ui.closed.get()) else {
+                return;
+            };
+            ui.end_operation();
+            match result {
+                Ok(Ok(reply)) => match reply.refusal {
+                    Some(refusal) => ui.notify(&refusal),
+                    None if !reply.accepted => ui.notify(&format!("{relative} was not kept offline.")),
+                    // An incomplete walk is not an error: the pin is recorded
+                    // and honoured for what is indexed, and fills in as the
+                    // index does. Saying so beats silence when the number of
+                    // files looks too small.
+                    None if recursive && !reply.complete => ui.notify(&format!(
+                        "Keeping {relative} offline. {} file(s) so far; the rest follow as Cirrove finishes listing the folder.",
+                        reply.files
+                    )),
+                    None => ui.notify(&format!(
+                        "Keeping {relative} offline, {}.",
+                        cirrove_service::human_bytes(reply.reserved)
+                    )),
+                },
+                Ok(Err(error)) => ui.notify(&format!("Could not keep {relative} offline: {error}")),
+                Err(_) => ui.notify("The service did not answer."),
+            }
+            ui.refresh();
+        });
+    }
     pub fn discard(self: &Rc<Self>, id: &str) {
         let Some(card) = self.card(id).filter(|c| c.stuck > 0) else {
             return;
