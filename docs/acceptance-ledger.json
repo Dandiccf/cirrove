@@ -277,11 +277,11 @@
       "milestone": 4,
       "milestone_title": "Complete OneDrive coverage",
       "line": 232,
-      "done": false,
+      "done": true,
       "text": "Remote creates, edits, moves and deletions update mounted views correctly.",
       "blocker": "autonomous",
-      "evidence": "MOSTLY DONE 2026-09-09 (docs/validation.md#a-mounted-view-following-remote-creates-moves-and-deletions, and #catch-up-after-a-reconnection-and-the-periodic-recovery-refresh). Through a real read-only mount of an isolated account: a remote folder creation became visible in 5,058 ms, a rename in 4,654 ms and a deletion in 4,254 ms, the rename asserted on both halves so that a view adding the new name while keeping the old one fails. All three land at the five-second activity revalidation interval because the fixture watches that directory; a directory nobody is looking at follows the same changes by reconnection catch-up in 408 ms or by the thirty-second poll in 29,421 ms, each measured with the other disabled. NOT COVERED: edits. A content change to an existing file goes through the upload path rather than a namespace mutation, and nothing here exercises it.",
-      "asserted_by": "validation::remote_changes::onedrive_remote_changes, run live against an isolated account and recorded in docs/validation.md; there is no unit-level assertion, and the box's uncovered clause -- a content edit to an existing file -- has no run at all."
+      "evidence": "DONE 2026-09-13 (docs/benchmarks/remote-change-propagation.json). The clause this row was short of was edits: a content change to an existing file had never been run, because it goes through the upload path rather than a namespace mutation. It has now been run against the machine owner's live business drive, with every change made server-side through Microsoft Graph rather than by Cirrove -- the case the delta feed exists for. Folder create visible through the mount in 4 s, file create in 6 s, a 31 -> 111 byte edit in 16.4 s, rename and delete in under 2 s, move in 16 s. The edit was watched for the failure that would matter: at every sample the size reported by stat equalled the number of bytes a read returned, 31/31 then 111/111, so no stale page survived beside a fresh size or the reverse. Rename and move each left exactly one entry, at the new name or parent, so the feed follows the item id rather than reading a move as create plus delete. A read of a deleted path returned ENOENT at once. Everything created was removed; the provider's delete is a recycle-bin delete, so it is recoverable rather than destroyed.",
+      "asserted_by": "validation::remote_changes::onedrive_remote_changes for the read-only fixture, plus the live run recorded in docs/benchmarks/remote-change-propagation.json, whose predictions were registered before it ran."
     },
     {
       "milestone": 4,
@@ -544,5 +544,5 @@
       "asserted_by": "Nothing yet; the procedure is text until its first run."
     }
   ],
-  "operator_guide": "docs/authorization-request.md — the command, blast radius and evidence for every box this file marks as blocked on something an agent cannot supply."
+  "operator_guide": "docs/authorization-request.md \u2014 the command, blast radius and evidence for every box this file marks as blocked on something an agent cannot supply."
 }
