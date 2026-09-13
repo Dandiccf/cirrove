@@ -145,6 +145,8 @@ These are implementation capabilities, not a production-readiness claim. See the
 
 ## Build and try
 
+Using it, rather than building it, is in the [user guide](docs/user-guide.md).
+
 Requires Linux, Rust 1.98.1 (pinned), a C/C++ build toolchain, CMake and pkg-config.
 Rustup installs the toolchain if necessary. SQLite is bundled; HTTPS uses Rustls.
 Mounting additionally needs `/dev/fuse`, `fusermount3` (`fuse3` on Arch), and a kernel

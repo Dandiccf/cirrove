@@ -100,6 +100,47 @@ survived. A container has no login session: it shows the packages are correct,
 not that the service starts at login. The AUR recipe and `.SRCINFO` follow the
 first tag.
 
+## Dependency and security review
+
+What is reviewed, and where the review is repeated so it does not go stale:
+
+- **Advisories.** `cargo audit` against the RustSec database, in CI on every
+  push (`dependency-audit`). One advisory is passed over, with its reason in
+  `.cargo/audit.toml`: RUSTSEC-2023-0071, a timing side channel in RSA
+  private-key operations in the `rsa` crate, which reaches the tree through
+  `openidconnect` for verifying ID-token signatures -- public-key operations;
+  Cirrove holds no RSA private key. No fixed release exists yet.
+- **Licences.** 416 crates outside the workspace, every one under a licence
+  the binaries may be distributed under (MIT, Apache-2.0, BSD, ISC, Zlib,
+  Unicode-3.0, CDLA-Permissive-2.0 and their combinations; the single crate
+  that offers LGPL offers it as one alternative among MIT and Apache-2.0).
+  `scripts/licence-check.py` evaluates each crate's SPDX expression against
+  the permissive list and fails CI on anything else, so a copyleft dependency
+  arriving through a transitive bump is a failure and not a surprise at
+  release time.
+- **Unsafe code.** `unsafe_code = "forbid"` across the workspace; the FUSE,
+  SQLite and TLS surfaces are reached through crates that carry their own
+  unsafe, not through any of ours.
+- **What the binaries touch.** Tokens live only in the desktop keyring
+  (Secret Service); the control socket is under `$XDG_RUNTIME_DIR` with mode
+  0700 on its directory; the state directory is 0700; the mount is
+  user-private FUSE. The daemon runs as the user, never as root, and the
+  package installs no setuid binary of its own (`fusermount3` is the
+  distribution's).
+
+Not done: a review of the update channels' signing (there are none yet), and
+a third party's reading of any of this.
+
+## Supported versions
+
+There is no release yet. Until there is, what is supported is the current
+build of the main branch on Arch, on the machine it is developed on. From the
+first release on: the latest release and the one before it, for the length of
+one release cycle; the distribution floor is Ubuntu 24.04 (GTK 4.14,
+libadwaita 1.5), current Fedora and current Arch, x86_64 only. Anything older
+or elsewhere may work and is not claimed. The same policy, for users, is in
+the [user guide](user-guide.md#supported-versions).
+
 ## Milestone-6 acceptance gates
 
 - [ ] Build native packages from the same release tag and locked source/dependency

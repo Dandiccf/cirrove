@@ -1,0 +1,11 @@
+# What `cargo audit` may pass over, each with the reason. An entry without a
+# reason is an entry nobody can revisit.
+[advisories]
+ignore = [
+    # rsa 0.9: Marvin attack, a timing side channel in RSA *private-key*
+    # operations. It reaches the tree through openidconnect, which uses it to
+    # verify the RSA signatures on ID tokens -- public-key operations only.
+    # Cirrove holds no RSA private key anywhere. No fixed release exists;
+    # revisit when openidconnect moves to one.
+    "RUSTSEC-2023-0071",
+]

@@ -357,3 +357,24 @@ jobs:
           for f in /usr/bin/cirroved /usr/bin/cirrove /usr/bin/cirrove-tray /usr/lib/systemd/user/cirroved.service /etc/xdg/autostart/io.github.Dandiccf.Cirrove.Tray.desktop; do
             ! test -e "$f" || { echo "$f survived removal"; exit 1; }
           done
+
+  # Milestone 6: the dependency review, run on every push rather than
+  # remembered. cargo audit fails on any advisory that .cargo/audit.toml does
+  # not ignore with a reason; the licence summary is the same one
+  # docs/distribution.md reports, and fails on a licence outside the list of
+  # permissive ones the binaries are distributed under.
+  dependency-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install pinned toolchain
+        run: rustup toolchain install 1.98.1 --profile minimal
+      - name: Advisories
+        run: |
+          cargo install cargo-audit --locked
+          cargo audit
+      - name: Licences
+        run: python3 scripts/licence-check.py
