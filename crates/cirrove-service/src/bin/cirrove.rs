@@ -290,6 +290,22 @@ enum Command {
     /// because the conflict means the remote moved and a stale retry would
     /// destroy whatever is there now. The item comes back into view and you can
     /// decide again.
+    /// Write a diagnostics bundle -- versions, status, the service's journal --
+    /// with account names, folders, file names and ids replaced, for sharing.
+    Diagnose {
+        /// Where to write it. Default: cirrove-diagnostics-<time>.txt in the
+        /// current directory.
+        #[arg(long)]
+        out: Option<PathBuf>,
+        /// How far back the journal excerpt reaches, in journalctl's words.
+        #[arg(long, default_value = "2h")]
+        since: String,
+        /// Print to standard output instead of a file.
+        #[arg(long)]
+        stdout: bool,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
     /// The state of mount-relative paths: kind, pin cover, bytes on disk.
     Paths {
         #[arg(long, default_value = "")]
@@ -609,6 +625,81 @@ async fn main() -> Result<()> {
                 None => socket_path()?,
             };
             println!("{}", serde_json::to_string_pretty(&status(&socket).await?)?);
+        }
+        Command::Diagnose {
+            out,
+            since,
+            stdout,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(p) => p,
+                None => socket_path()?,
+            };
+            let (status_value, status_error) = match status(&socket).await {
+                Ok(status) => (Some(serde_json::to_value(&status)?), None),
+                Err(error) => (None, Some(format!("{error:#}"))),
+            };
+            let kernel = std::process::Command::new("uname")
+                .arg("-r")
+                .output()
+                .ok()
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_owned())
+                .unwrap_or_else(|| "?".into());
+            let journal = std::process::Command::new("journalctl")
+                .args([
+                    "--user",
+                    "-u",
+                    "cirroved.service",
+                    "--no-pager",
+                    "-o",
+                    "short-iso",
+                    "--since",
+                    &format!("-{since}"),
+                ])
+                .output()
+                .ok()
+                .filter(|o| o.status.success())
+                .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+                .unwrap_or_default();
+            let hostname = std::process::Command::new("uname")
+                .arg("-n")
+                .output()
+                .ok()
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_owned())
+                .unwrap_or_default();
+            let text = cirrove_service::diagnostics::bundle(
+                env!("CARGO_PKG_VERSION"),
+                &kernel,
+                &hostname,
+                status_value.as_ref(),
+                status_error.as_deref(),
+                &journal,
+                &since,
+            );
+            if stdout {
+                print!("{text}");
+            } else {
+                let path = out.unwrap_or_else(|| {
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0);
+                    PathBuf::from(format!("cirrove-diagnostics-{now}.txt"))
+                });
+                use std::os::unix::fs::OpenOptionsExt;
+                let mut file = std::fs::OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .mode(0o600)
+                    .open(&path)
+                    .with_context(|| format!("cannot write {}", path.display()))?;
+                std::io::Write::write_all(&mut file, text.as_bytes())?;
+                println!(
+                    "wrote {}; read it before sharing it -- names and paths are replaced, but the replacement works on shapes, not meaning",
+                    path.display()
+                );
+            }
         }
         Command::Paths {
             label,

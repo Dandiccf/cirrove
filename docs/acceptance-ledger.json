@@ -500,8 +500,8 @@
       "done": false,
       "text": "User documentation, redacted diagnostics and supported-version policy.",
       "blocker": "autonomous",
-      "evidence": "PARTIAL 2026-09-13. User documentation exists: docs/user-guide.md -- installing, connecting a drive, what happens to files, keeping files offline with the badges, the window and tray, refused changes, a missing service, diagnostics with what they contain, removal and what it keeps, supported versions. The supported-version policy is stated there and in docs/distribution.md. Diagnostics: the guide says what `cirrove status` and the journal contain and what to read before pasting. NOT DONE: a redacting diagnostics command (there is nothing that produces a bundle with names and paths removed); the guide is unreviewed by a second reader.",
-      "asserted_by": "Nothing asserts documentation; the policy and the diagnostics section are text."
+      "evidence": "PARTIAL 2026-09-13. User documentation exists: docs/user-guide.md -- installing, connecting a drive, what happens to files, keeping files offline with the badges, the window and tray, refused changes, a missing service, diagnostics with what they contain, removal and what it keeps, supported versions. The supported-version policy is stated there and in docs/distribution.md. Diagnostics: the guide says what `cirrove status` and the journal contain and what to read before pasting. `cirrove diagnose` writes the bundle: versions, status and the journal excerpt with account names, tenants, folders, file names, addresses, URLs, GUIDs and provider item ids replaced by stable tokens; labels kept; the bundle opens with the instruction to read it first, because the replacement works on shapes. NOT DONE: the guide is unreviewed by a second reader.",
+      "asserted_by": "service::diagnostics::tests -- free_text_loses_every_shape_that_carries_identity_and_keeps_the_rest, a_status_keeps_its_shape_states_and_labels_and_loses_its_identities, the_bundle_says_to_read_it_first_and_survives_a_missing_daemon."
     },
     {
       "milestone": 6,

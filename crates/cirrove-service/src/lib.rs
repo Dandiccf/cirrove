@@ -3,6 +3,7 @@ pub mod accounts;
 mod activity;
 pub use activity::DirectoryFreshness;
 pub mod content;
+pub mod diagnostics;
 pub mod engine;
 pub mod events;
 pub mod filesystem;

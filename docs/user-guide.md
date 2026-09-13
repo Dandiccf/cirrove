@@ -125,15 +125,18 @@ is older than itself ("Service update required").
 
 ## Diagnostics
 
-`cirrove status` prints everything the service knows about its state, as
-JSON: connections, mounts, feeds, cache figures, changes on their way and
-changes refused. `journalctl --user -u cirroved --since -1h` is the service's
-own account of what it did.
+`cirrove diagnose` writes one file with the versions, the service's status
+and the last two hours of its journal, with your account name, tenant,
+folders, file names, addresses and provider ids replaced by tokens -- the
+same value gives the same token, so the bundle still reads, but the values
+are not in it. The labels you chose for your connections are kept. The
+replacement works on the shapes of things, not their meaning, so read the
+file before sharing it; a file named after an ordinary word is not caught.
 
-Neither contains your sign-in tokens, and the journal never prints file
-contents. Both contain file names and the paths of your folders, and the
-status contains your account name and tenant id. Read them before pasting
-them anywhere.
+The unredacted versions, for your own eyes: `cirrove status` prints
+everything the service knows about its state, as JSON; `journalctl --user -u
+cirroved --since -1h` is the service's own account of what it did. Neither
+contains your sign-in tokens, and the journal never prints file contents.
 
 ## Removing Cirrove
 
