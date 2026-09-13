@@ -103,6 +103,19 @@ fn the_autostart_entry_is_an_autostart_and_not_a_launcher_item() {
 fn the_autostart_entry_runs_the_tray_off_the_path() {
     // An absolute path would bake in one prefix and break every distribution
     // that installs somewhere else. distribution.md requires standard locations.
+    //
+    // What this buys and what it costs, learned from a login that produced no
+    // tray: `systemd-xdg-autostart-generator` resolves `Exec=` against its own
+    // PATH, which at session start does not include ~/.local/bin. A bare name is
+    // therefore right for a packaged install in /usr/bin -- limine-restore-notify
+    // sits in the same directory with a bare Exec and generates its unit fine --
+    // and silently wrong for a user-local one: the generator logs "executable
+    // specified in Exec= does not exist" and writes no unit at all. No error
+    // reaches the user; the tray simply never appears.
+    //
+    // So this assertion is about the packaged file and stays. The gap it leaves
+    // belongs to installation, and docs/desktop.md now says a user-local install
+    // must rewrite Exec= to an absolute path.
     let parsed = autostart();
     let exec = value(&parsed, "Desktop Entry", "Exec").expect("no Exec");
     assert_eq!(exec, "cirrove-tray", "Exec must not carry a prefix: {exec}");

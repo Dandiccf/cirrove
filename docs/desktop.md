@@ -117,6 +117,26 @@ file manager"* -- because a tray host is absent on stock GNOME and on any bare
 window manager. Every entry is a shortcut to something the window also does, and
 mounting qualifies for exactly that reason.
 
+## Ejecting the mount
+
+A user cannot eject it from a file manager while the daemon is running. Both
+`fusermount3 -u` and `gio mount -u` -- which is what a file manager's Eject
+calls -- refuse with "target is busy", and no user process holds it: `fuser -mv`
+reports only the kernel mount.
+
+That is the daemon doing its job rather than a defect. It is the FUSE server; a
+mount yanked out from under it would leave it serving something detached. The
+supported way is to change the desired state -- `cirrove disable`, the window's
+Mount toggle, or Unmount in the tray menu -- and the daemon then unmounts
+cleanly, measured at about two seconds from the command to `fuser::mnt:
+Unmounting` in its log.
+
+What is a defect is what the user sees. "Target is busy" names nothing they can
+act on and no process they could close, so the reasonable conclusion is that the
+eject silently failed or that the drive re-mounted itself immediately. Both were
+reported by the first person to try it. Nothing in the product says where the
+Unmount that works actually lives.
+
 ## Starting it at login
 
 Two mechanisms ship, because neither covers every desktop and a package cannot
@@ -129,7 +149,13 @@ variation.
 
 - `packaging/desktop/io.github.Dandiccf.Cirrove.Tray.desktop` -- the XDG
   autostart entry, installed to `~/.config/autostart/` or an
-  `/etc/xdg/autostart/` equivalent. This is the default and the broadest:
+  `/etc/xdg/autostart/` equivalent. **A user-local install must rewrite `Exec=`
+  to an absolute path.** The file ships `Exec=cirrove-tray`, which is right for a
+  package that puts the binary in `/usr/bin`, and silently wrong for one in
+  `~/.local/bin`: `systemd-xdg-autostart-generator` resolves `Exec=` against its
+  own PATH at session start, does not find it, logs "executable specified in
+  Exec= does not exist", and writes no unit. Nothing reaches the user and the
+  tray simply never appears. Measured on a real login, not inferred. This is the default and the broadest:
   GNOME, KDE, XFCE, LXQt, Cinnamon and MATE run it, `systemd-xdg-autostart-generator`
   turns it into a unit where systemd is present, and it works on distributions
   that have no systemd at all. It names no desktop in `OnlyShowIn`/`NotShowIn`,
