@@ -349,9 +349,9 @@
       "line": 262,
       "done": false,
       "text": "Nautilus badges, pin/unpin actions and consistent status refresh.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
-      "asserted_by": null
+      "blocker": "autonomous",
+      "evidence": "PARTIAL 2026-09-13. The daemon answers a new `paths` verb -- up to 200 mount-relative paths per request, each with kind, pin cover (direct / inherited from a recursive folder pin / none) and bytes on disk -- so a file manager asks once per listing. packaging/nautilus/cirrove.py (nautilus-python) draws a badge on pinned items (check when the content is on disk, synchronising while fetching, none on the on-demand majority), adds a Cirrove column with the words, and offers Keep offline / Stop keeping offline on selections and folder backgrounds, recursive for folders; after an action it invalidates the item so Files asks again. Every call is off the UI thread with a 3 s timeout; no daemon or an older one draws nothing. Seen in a real Files window on this machine against the live daemon (Nautilus 50, nautilus-python 4.1): a check on a recursively pinned folder in both grid and list view, none on its on-demand neighbours, the pinned file at the mount root likewise; Files asks one entry at a time and the answers arrive within the same second for a seven-entry folder. Two wrong turns on the way, both recorded in docs/desktop.md#files: Python threads stand still inside Files, and the completion must name the provider Files passed in. NOT DONE: a refresh when a pin changes behind Files (the extension re-asks when Files re-lists or after its own actions, not on a daemon event), and the menu action exercised by hand.",
+      "asserted_by": "engine::pinning::path_states_tell_a_direct_pin_from_an_inherited_one_and_from_none and ::what_is_on_disk_is_counted_from_the_block_files for the daemon's answers; scripts/test-nautilus-extension.py for the extension: mount lookup (longest mount wins), badge and column words per state, menu wording, batching at the daemon's ceiling against a fake socket, and no-daemon / refusing-daemon drawing nothing."
     },
     {
       "milestone": 5,
@@ -429,9 +429,9 @@
       "line": 292,
       "done": false,
       "text": "Publish a supported file-manager list beyond the initial Nautilus target, with an explicit Dolphin decision and a shared daemon status contract behind each integration. Unsupported managers must still access mounted files; badge/control availability must be explained.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
-      "asserted_by": null
+      "blocker": "autonomous",
+      "evidence": "PARTIAL 2026-09-13. The shared status contract a file manager needs now exists: `status` for mounts and `paths` for per-item state, documented in docs/desktop.md#files, spoken by the Nautilus extension and by `cirrove paths`. The list is published there too: Files (Nautilus 43+, nautilus-python 4) supported; Dolphin decided -- a KIO plugin on the same two verbs, when a KDE session is in the declared matrix; Nemo/Caja not targeted. NOT DONE: the Dolphin plugin itself, and the KDE session it needs.",
+      "asserted_by": "The engine tests and extension tests named on line 262 hold the contract; the list is a documented decision, which nothing asserts."
     },
     {
       "milestone": 5,
@@ -450,7 +450,7 @@
       "done": false,
       "text": "Native Arch/AUR, Debian/Ubuntu `.deb` and Fedora `.rpm` packages from the same release, with the clean-system checks in [Distribution](distribution.md).",
       "blocker": "autonomous",
-      "evidence": "PARTIAL 2026-09-13. Arch: packaging/arch/PKGBUILD builds cirrove (daemon, CLI, user unit; no desktop library) and cirrove-desktop (window, tray, entries, icons, metainfo) from one source; scripts/build-arch-package.sh builds HEAD and checks each package's contents. Built on this machine (0.1.0dev.r335.gcffdb58), check() passing. CI's arch-package job builds in an archlinux container as an unprivileged user with the distribution's rust, installs, runs, validates and removes. NOT DONE: install/login/upgrade/removal on this machine (the packages are built, not yet installed here); Debian .deb and Fedora .rpm do not exist; no tag, so no release build.",
+      "evidence": "PARTIAL 2026-09-13. Arch: packaging/arch/PKGBUILD builds cirrove (daemon, CLI, user unit; no desktop library) and cirrove-desktop (window, tray, entries, icons, metainfo) from one source; scripts/build-arch-package.sh builds HEAD and checks each package's contents. Built on this machine (0.1.0dev.r335.gcffdb58), check() passing. CI's arch-package job builds in an archlinux container as an unprivileged user with the distribution's rust, installs, runs, validates and removes. Seen green on CI run 34748863610 (2026-09-13, 27 minutes including check()). NOT DONE: install/login/upgrade/removal on this machine (the packages are built, not yet installed here); Debian .deb and Fedora .rpm do not exist; no tag, so no release build.",
       "asserted_by": "scripts/build-arch-package.sh fails on a missing file in either package or a desktop dependency on the daemon package; package() fails if the unit does not run /usr/bin/cirroved; CI job arch-package installs and removes on a clean system."
     },
     {
@@ -490,7 +490,7 @@
       "done": false,
       "text": "Clean uninstall and explicit retention/removal choices for local data.",
       "blocker": "autonomous",
-      "evidence": "PARTIAL 2026-09-13. Package removal is checked in CI: after pacman -Rns nothing package-owned survives. Retention is by construction -- pacman touches nothing under the home directory, so accounts, credentials and the journal stay -- and the explicit removal choices exist per account: the window's Remove sets an account's data aside and asks separately about changes that never reached the cloud; cirrove forget --discard-unsent is the CLI form. NOT DONE: a whole-installation 'remove my data too' choice, and the check on Debian and Fedora.",
+      "evidence": "PARTIAL 2026-09-13. Package removal is checked in CI: after pacman -Rns nothing package-owned survives. Seen green on CI run 34748863610 (2026-09-13). Retention is by construction -- pacman touches nothing under the home directory, so accounts, credentials and the journal stay -- and the explicit removal choices exist per account: the window's Remove sets an account's data aside and asks separately about changes that never reached the cloud; cirrove forget --discard-unsent is the CLI form. NOT DONE: a whole-installation 'remove my data too' choice, and the check on Debian and Fedora.",
       "asserted_by": "CI job arch-package (nothing package-owned survives removal); accounts::forget refuses an enabled account and, without --discard-unsent, one holding unsent changes -- held by the desktop window scenario and the forget tests in the service crate."
     },
     {

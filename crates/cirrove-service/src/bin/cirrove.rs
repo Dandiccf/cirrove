@@ -6,10 +6,15 @@ use anyhow::{Context, Result, bail};
 /// request was not carried out, and the message says why in words the caller can
 /// act on -- free space, unpin something, raise the budget.
 fn report_pin(reply: &cirrove_service::PinReply) -> Result<()> {
+    report_pin_change("pinned", reply)
+}
+/// `unpin` used to report through `report_pin` and say "pinned", which is the
+/// one word an unpin must not say.
+fn report_pin_change(verb: &str, reply: &cirrove_service::PinReply) -> Result<()> {
     if let Some(refusal) = &reply.refusal {
         bail!("{refusal}");
     }
-    let mut line = format!("pinned {}", reply.item);
+    let mut line = format!("{verb} {}", reply.item);
     if reply.files > 1 {
         line.push_str(&format!(", {} files", reply.files));
     }
@@ -285,6 +290,15 @@ enum Command {
     /// because the conflict means the remote moved and a stale retry would
     /// destroy whatever is there now. The item comes back into view and you can
     /// decide again.
+    /// The state of mount-relative paths: kind, pin cover, bytes on disk.
+    Paths {
+        #[arg(long, default_value = "")]
+        label: String,
+        #[arg(required = true)]
+        paths: Vec<String>,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
     DiscardStuck {
         #[arg(long, default_value = "")]
         label: String,
@@ -571,7 +585,10 @@ async fn main() -> Result<()> {
                 path,
                 ..Default::default()
             };
-            report_pin(&cirrove_service::unpin(&socket, &request).await?)?;
+            report_pin_change(
+                "unpinned",
+                &cirrove_service::unpin(&socket, &request).await?,
+            )?;
         }
         Command::Forget {
             label,
@@ -592,6 +609,39 @@ async fn main() -> Result<()> {
                 None => socket_path()?,
             };
             println!("{}", serde_json::to_string_pretty(&status(&socket).await?)?);
+        }
+        Command::Paths {
+            label,
+            paths,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(p) => p,
+                None => socket_path()?,
+            };
+            let reply =
+                cirrove_service::paths(&socket, &cirrove_service::PathsRequest { label, paths })
+                    .await?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            for state in reply.states {
+                let cover = match state.pinned.as_deref() {
+                    Some("direct") => "pinned",
+                    Some("inherited") => "pinned via folder",
+                    _ => "not pinned",
+                };
+                match (state.refusal, state.kind.as_str()) {
+                    (Some(refusal), _) => println!("{}  --  {refusal}", state.path),
+                    // A folder's size is its subtree's, and nothing of a folder
+                    // is "on disk"; the number would only invite the comparison.
+                    (None, "folder") => println!("{}  folder  {cover}", state.path),
+                    (None, _) => println!(
+                        "{}  file  {cover}  {}/{} bytes on disk",
+                        state.path, state.resident, state.size
+                    ),
+                }
+            }
         }
         Command::DiscardStuck { label, socket } => {
             let socket = match socket {

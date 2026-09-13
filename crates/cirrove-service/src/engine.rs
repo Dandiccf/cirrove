@@ -1,6 +1,7 @@
 //! Per-account metadata service. Change feeds and foreground directory requests
 //! share a provider client but never hold SQLite locks across network awaits.
 mod changes;
+
 #[cfg(test)]
 mod deadlines;
 #[cfg(test)]
@@ -511,6 +512,84 @@ impl Engine {
     pub fn cache_path(&self) -> PathBuf {
         self.db.with_file_name("cache")
     }
+    /// The state of mount-relative paths, for a file manager drawing badges:
+    /// what each is, whether a pin covers it -- its own, or a recursive one on
+    /// a folder above -- and how much of a file's content is on disk. One
+    /// exchange for a whole listing; the pins are read once for all of them.
+    /// A path that does not resolve gets a refusal of its own rather than
+    /// failing the rest: a listing with one broken entry is still a listing.
+    pub async fn path_states(self: &Arc<Self>, paths: &[String]) -> Result<Vec<crate::PathState>> {
+        let db = self.db.clone();
+        let pins = tokio::task::spawn_blocking(move || Store::open(db)?.pins()).await??;
+        let cache = self.cache_path();
+        let mut states = Vec::with_capacity(paths.len());
+        for path in paths {
+            let request = crate::PinRequest {
+                path: Some(path.clone()),
+                ..Default::default()
+            };
+            let (scope, node) = match self.resolve_request(&request).await {
+                Ok(resolved) => resolved,
+                Err(error) => {
+                    states.push(crate::PathState {
+                        path: path.clone(),
+                        refusal: Some(error.to_string()),
+                        ..Default::default()
+                    });
+                    continue;
+                }
+            };
+            let folder = node.kind == cirrove_core::NodeKind::Folder;
+            let pinned = self.pin_covering(&scope, &node, &pins).await;
+            let resident = if folder {
+                0
+            } else {
+                resident_bytes(&cache, &scope, &node)
+            };
+            states.push(crate::PathState {
+                path: path.clone(),
+                item: node.id.clone(),
+                kind: if folder { "folder" } else { "file" }.into(),
+                pinned,
+                size: node.size,
+                resident,
+                refusal: None,
+            });
+        }
+        Ok(states)
+    }
+    /// "direct" for the item's own pin, "inherited" for a recursive pin on a
+    /// folder above it, nothing otherwise. Walks up through the index only when
+    /// a recursive pin exists to be found.
+    async fn pin_covering(
+        &self,
+        scope: &Scope,
+        node: &Node,
+        pins: &[cirrove_store::pins::Pin],
+    ) -> Option<String> {
+        let key = serde_json::to_string(scope).unwrap_or_default();
+        if pins.iter().any(|p| p.scope == key && p.item == node.id) {
+            return Some("direct".into());
+        }
+        let recursive: Vec<&str> = pins
+            .iter()
+            .filter(|p| p.scope == key && p.recursive)
+            .map(|p| p.item.as_str())
+            .collect();
+        if recursive.is_empty() {
+            return None;
+        }
+        let mut parent = node.parent_id.clone();
+        // Bounded: a cycle in the index must not hang a badge.
+        for _ in 0..256 {
+            let id = parent?;
+            if recursive.contains(&id.as_str()) {
+                return Some("inherited".into());
+            }
+            parent = self.node(scope, &id).await.ok()?.parent_id;
+        }
+        None
+    }
     /// Release a pin and the space it held. Reports whether one existed.
     pub async fn unpin(&self, scope: Scope, item: String) -> Result<bool> {
         let db = self.db.clone();
@@ -554,6 +633,22 @@ impl Engine {
                     refusal: Some(refusal.to_string()),
                     ..Default::default()
                 },
+            });
+        }
+        // A folder has no content of its own to keep; what a pin on it can mean
+        // is everything beneath it, and that is a choice the caller makes with
+        // `recursive`, not one to make for them by charging their budget for a
+        // subtree they did not ask about. Refused in words: the first version
+        // fell through to materialising a folder, which has no blocks, and the
+        // error dropped the connection with no reply at all.
+        if node.kind == cirrove_core::NodeKind::Folder {
+            return Ok(crate::PinReply {
+                item: node.id,
+                refusal: Some(
+                    "that is a folder; pin it with --recursive to keep every file beneath it"
+                        .into(),
+                ),
+                ..Default::default()
             });
         }
         // A single file reserves what it will actually occupy: the node's size
@@ -1389,6 +1484,22 @@ async fn watch_changes(
         };
         tokio::select! {biased; _=cancel.cancelled()=>return, _=tokio::time::sleep(delay)=>()}
     }
+}
+
+/// Bytes of a file's content present on disk: the block files that exist,
+/// less the digest each carries ahead of its data. Metadata, not the index --
+/// between a block being forgotten and the index rebuilt, the index would
+/// still count it.
+fn resident_bytes(cache: &std::path::Path, scope: &Scope, node: &Node) -> u64 {
+    let Some(keys) = crate::content::block_keys(scope, node) else {
+        return 0;
+    };
+    let present: u64 = keys
+        .iter()
+        .filter_map(|key| std::fs::metadata(cache.join(key)).ok())
+        .map(|meta| meta.len().saturating_sub(crate::content::BLOCK_DIGEST))
+        .sum();
+    present.min(node.size)
 }
 
 #[cfg(test)]

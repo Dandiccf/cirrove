@@ -619,3 +619,155 @@ async fn a_pinned_file_can_be_edited_offline_and_both_survive_a_restart() {
     assert_eq!(read, expected);
     engine.stop().await;
 }
+
+/// What a file manager gets for a listing: each path's own pin, a recursive pin
+/// on a folder above it, or nothing -- and a path that does not exist answered
+/// with its own refusal while the rest of the listing still comes back.
+#[tokio::test]
+async fn path_states_tell_a_direct_pin_from_an_inherited_one_and_from_none() {
+    let temp = tempfile::tempdir().unwrap();
+    let engine = engine(&temp, 64 * 1024 * 1024).await;
+    // Paths resolve in the account's own scope -- its id, its provider, its
+    // drive -- which is what a request from a file manager names. The
+    // fixture's `scope()` is a different one, and rows seeded under it would
+    // be invisible to a path lookup.
+    let drive = engine.scope(&engine.account.drive.id);
+    let mut sub = folder("sub");
+    sub.parent_id = Some("top".into());
+    for (parent, children) in [
+        ("root", vec![folder("top")]),
+        (
+            "top",
+            vec![
+                sub.clone(),
+                file("f0", "top", 1024),
+                file("f1", "top", 2048),
+            ],
+        ),
+        ("sub", vec![file("deep", "sub", 4096)]),
+    ] {
+        let (db, scope) = (engine.db.clone(), drive.clone());
+        tokio::task::spawn_blocking(move || {
+            cirrove_store::Store::open(db)
+                .unwrap()
+                .observe_directory(&scope, parent, &children)
+                .unwrap();
+        })
+        .await
+        .unwrap();
+    }
+    engine
+        .pin(drive.clone(), "f0".into(), false, 1024)
+        .await
+        .unwrap()
+        .expect("fits");
+    // The recursive pin as a record, not materialised: this provider serves
+    // no content, and what is under test is which pin covers which path.
+    engine
+        .pin(drive.clone(), "sub".into(), true, 4096)
+        .await
+        .unwrap()
+        .expect("fits");
+
+    let states = engine
+        .path_states(&[
+            "top/f0".into(),
+            "top/f1".into(),
+            "top/sub/deep".into(),
+            "top/sub".into(),
+            "top/missing".into(),
+        ])
+        .await
+        .unwrap();
+    let by_path: std::collections::HashMap<_, _> =
+        states.into_iter().map(|s| (s.path.clone(), s)).collect();
+
+    let f0 = &by_path["top/f0"];
+    assert_eq!(f0.pinned.as_deref(), Some("direct"), "{f0:?}");
+    assert_eq!(
+        (f0.kind.as_str(), f0.item.as_str(), f0.size),
+        ("file", "f0", 1024)
+    );
+    assert_eq!(f0.resident, 0, "pinned but never fetched keeps nothing");
+    assert_eq!(by_path["top/f1"].pinned, None, "a sibling is not covered");
+    assert_eq!(
+        by_path["top/sub/deep"].pinned.as_deref(),
+        Some("inherited"),
+        "a recursive pin on the folder above covers the file"
+    );
+    let sub = &by_path["top/sub"];
+    assert_eq!(
+        (sub.kind.as_str(), sub.pinned.as_deref()),
+        ("folder", Some("direct"))
+    );
+    assert!(
+        by_path["top/missing"].refusal.is_some(),
+        "a path that does not exist is refused on its own, not with the listing"
+    );
+}
+
+/// Residency is read from the block files, not the index, for the same reason
+/// pin_status does: between a block being lost and the index rebuilt, the index
+/// still lists it.
+#[tokio::test]
+async fn what_is_on_disk_is_counted_from_the_block_files() {
+    let temp = tempfile::tempdir().unwrap();
+    let provider = Arc::new(OneFile::default());
+    let mut account = fixture_account(temp.path().join("mount"));
+    account.cache_bytes = 64 * 1024 * 1024;
+    let node = OneFile::node(crate::content::BLOCK_SIZE as u64 + 4096);
+    let engine = Engine::new(account, provider, temp.path().join("engine"))
+        .await
+        .unwrap();
+    assert_eq!(
+        super::resident_bytes(&engine.cache_path(), &scope(), &node),
+        0,
+        "nothing fetched, nothing resident"
+    );
+    engine
+        .pin(scope(), node.id.clone(), false, node.size)
+        .await
+        .unwrap()
+        .expect("fits");
+    engine.materialise_pin(&scope(), &node).await.unwrap();
+    assert_eq!(
+        super::resident_bytes(&engine.cache_path(), &scope(), &node),
+        node.size,
+        "both blocks fetched: the whole file, digests not counted"
+    );
+    let key = crate::content::block_key(&scope(), &node, 0).expect("key");
+    std::fs::remove_file(engine.cache_path().join(&key)).unwrap();
+    let resident = super::resident_bytes(&engine.cache_path(), &scope(), &node);
+    assert!(
+        0 < resident && resident < node.size,
+        "one block gone: part of the file, not all and not none ({resident})"
+    );
+}
+
+/// A folder pinned without `recursive` is answered in words. It used to fall
+/// through to materialising the folder's blocks -- it has none -- and the error
+/// closed the connection with no reply, which the CLI reported as "EOF while
+/// parsing a value".
+#[tokio::test]
+async fn a_folder_pin_without_recursive_is_refused_in_words_not_dropped() {
+    let temp = tempfile::tempdir().unwrap();
+    let engine = engine(&temp, 64 * 1024 * 1024).await;
+    let reply = engine
+        .apply_pin_request(&crate::PinRequest {
+            item: Some("root".into()),
+            ..Default::default()
+        })
+        .await
+        .expect("a refusal is a reply, not an error");
+    assert!(!reply.accepted);
+    assert!(
+        reply
+            .refusal
+            .as_deref()
+            .is_some_and(|r| r.contains("--recursive")),
+        "the refusal names the way to do it: {:?}",
+        reply.refusal
+    );
+    let pins = engine.pin_status().await.unwrap();
+    assert!(pins.is_empty(), "nothing was recorded for the refused pin");
+}

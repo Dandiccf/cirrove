@@ -169,6 +169,57 @@ file manager"* -- because a tray host is absent on stock GNOME and on any bare
 window manager. Every entry is a shortcut to something the window also does, and
 mounting qualifies for exactly that reason.
 
+## Files
+
+`packaging/nautilus/cirrove.py` is a nautilus-python extension. With it, Files
+shows what Cirrove keeps offline and offers to change it:
+
+- a badge on every pinned file and folder -- a check when the content is on
+  disk, the synchronising emblem while a pin is still being fetched -- and none
+  on the ordinary on-demand file, because badging every file in a cloud drive
+  would say nothing;
+- a "Cirrove" column (View → Visible Columns) with the words: On demand, Kept
+  offline, Kept offline (folder) for a pin inherited from a folder above, or
+  the fetch percentage;
+- **Keep offline** / **Stop keeping offline** in the context menu of a
+  selection or a folder background, recursive for folders. Un-keeping is
+  offered only when every selected item is pinned in its own right: an
+  inherited pin belongs to the folder above, which the user did not select.
+
+It speaks to the daemon the way the CLI does: `status` for the mounts (trusted
+for five seconds), `paths` for each entry's kind, pin cover and bytes on disk
+-- the daemon answers up to 200 paths at once, and the menu asks that way; the
+badges go one at a time because Files asks about a listing's entries one at a
+time and waits for each -- and `pin`/`unpin` for the menu. Every call has a
+three-second timeout; a daemon that is not there, or an older one without
+`paths`, draws nothing rather than stalling Files. `cirrove paths <account>
+<paths...>` shows the same answers on the command line.
+
+Two things about Files that the first version of this got wrong, kept here
+because the second version of any extension will meet them again. The badge
+work must go through GLib's asynchronous socket I/O, not Python threads: the
+interpreter inside Files only runs while the main thread is in a Python
+callback, so a thread started there runs for a moment and then stands still,
+reply in hand. And the completion must name the provider object Files handed
+to `update_file_info_full`, not the Python `self` -- they wrap the same
+object, and a completion under the wrong one leaves the listing waiting on its
+first file forever, which looks exactly like an extension that was never
+called.
+
+**Supported file managers.** Files (Nautilus 43 and later, through
+nautilus-python 4) is the supported one. Dolphin is decided, not done: it gets
+the same two verbs through a KIO/Dolphin plugin when a KDE session is in the
+declared session matrix, and not before -- a plugin nobody runs a session for
+is a plugin nobody has seen. Nemo and Caja take nautilus-python-style
+extensions with older APIs and are not targeted; the daemon contract is the
+same for all of them, so none of this is a daemon decision.
+
+The package installs it under `/usr/share/nautilus-python/extensions/`; for
+development, copy it to `~/.local/share/nautilus-python/extensions/` and
+restart Files with `nautilus -q`. `scripts/test-nautilus-extension.py` drives
+its functions against a daemon that is only a socket; the classes Files calls
+are the thin part on top.
+
 ## Ejecting the mount
 
 A user cannot eject it from a file manager while the daemon is running. Both
@@ -239,8 +290,8 @@ daemon answers the verb with its ordinary refusal and is otherwise unaffected.
 
 ## Remaining product work
 
-Nautilus badges and pin/unpin from the file manager, a recent-activity view,
-transfer progress with cancellation, and localization remain separate work.
+A recent-activity view, transfer progress with cancellation, Dolphin, and
+localization remain separate work.
 
 The daemon can now push changes rather than only answer questions: `capabilities`
 names what it supports and `subscribe` streams account and mount changes over the

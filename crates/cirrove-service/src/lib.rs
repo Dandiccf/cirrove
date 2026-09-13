@@ -202,6 +202,55 @@ pub async fn discard_stuck(socket: &Path, label: &str) -> Result<DiscardReply> {
     .await
 }
 
+/// What a file manager asks: the state of several paths in one exchange. It
+/// asks about every file it shows, and a round trip per file would be the
+/// slowest thing on the screen.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct PathsRequest {
+    /// Account label. Empty means the only account.
+    #[serde(default)]
+    pub label: String,
+    /// Mount-relative paths, at most `PATHS_PER_REQUEST`.
+    #[serde(default)]
+    pub paths: Vec<String>,
+}
+/// A directory listing's worth. More is a client that should batch.
+pub const PATHS_PER_REQUEST: usize = 200;
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PathState {
+    pub path: String,
+    #[serde(default)]
+    pub item: String,
+    /// "file" or "folder".
+    #[serde(default)]
+    pub kind: String,
+    /// "direct" when the item itself is pinned, "inherited" when a folder above
+    /// it is pinned recursively, absent when no pin covers it.
+    #[serde(default)]
+    pub pinned: Option<String>,
+    #[serde(default)]
+    pub size: u64,
+    /// Bytes of this file's content on disk right now, so a badge can tell
+    /// "kept" from "reserved and not fetched yet". Zero for a folder.
+    #[serde(default)]
+    pub resident: u64,
+    /// Why there is no state: the path does not exist, or is not indexed and
+    /// the provider could not be asked.
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct PathsReply {
+    #[serde(default)]
+    pub states: Vec<PathState>,
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+/// The state of several mount-relative paths of one account.
+pub async fn paths(socket: &Path, request: &PathsRequest) -> Result<PathsReply> {
+    self::request(socket, "paths", Some(request), "Cirrove paths").await
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct DiscardRequest {
     #[serde(default)]
@@ -484,6 +533,7 @@ impl Capabilities {
                 // So a client can ask rather than guess. An older daemon omits
                 // the key and its refusal of the verb is the same answer.
                 ("discard-stuck".to_string(), 1),
+                ("paths".to_string(), 1),
             ]
             .into_iter()
             .collect(),
@@ -657,8 +707,29 @@ pub async fn serve_managed(
                             };
                             return write_reply(&mut stream,&reply).await;
                         }
+                        if verb=="paths" {
+                            let reply=match (serde_json::from_str::<PathsRequest>(body),&manager) {
+                                (Ok(r),_) if r.paths.len()>PATHS_PER_REQUEST=>PathsReply{refusal:Some(format!("at most {PATHS_PER_REQUEST} paths per request")),..Default::default()},
+                                (Ok(r),Some(m))=>match m.engine(&r.label).await {
+                                    Ok(engine)=>match engine.path_states(&r.paths).await {
+                                        Ok(states)=>PathsReply{states,refusal:None},
+                                        Err(error)=>PathsReply{refusal:Some(error.to_string()),..Default::default()},
+                                    },
+                                    Err(error)=>PathsReply{refusal:Some(error.to_string()),..Default::default()},
+                                },
+                                (Ok(_),None)=>PathsReply{refusal:Some("this service manages no accounts".into()),..Default::default()},
+                                (Err(_),_)=>PathsReply{refusal:Some("malformed request body".into()),..Default::default()},
+                            };
+                            return write_reply(&mut stream,&reply).await;
+                        }
                         if verb!="status" {
-                            let reply=handle_control(verb,body,&manager).await?;
+                            // An error here used to end the exchange with no
+                            // reply, which a client reads as a parse failure on
+                            // nothing. The error is the reply.
+                            let reply=match handle_control(verb,body,&manager).await {
+                                Ok(reply)=>reply,
+                                Err(error)=>PinReply{refusal:Some(error.to_string()),..Default::default()},
+                            };
                             return write_reply(&mut stream,&reply).await;
                         }
                         let (mut feeds,mut items)=tokio::task::spawn_blocking(move || Store::open(path)?.counts()).await??;

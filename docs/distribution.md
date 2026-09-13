@@ -57,7 +57,7 @@ headless host should be able to install the daemon without a desktop library:
 | Package | Contents | Depends on |
 | --- | --- | --- |
 | `cirrove` | `/usr/bin/cirroved`, `/usr/bin/cirrove`, `/usr/lib/systemd/user/cirroved.service`, licence | `fuse3` (for `fusermount3`); optionally a Secret Service keyring and `xdg-utils` |
-| `cirrove-desktop` | `/usr/bin/cirrove-desktop`, `/usr/bin/cirrove-tray`, the desktop entry, the tray's `/etc/xdg/autostart` entry, the hicolor icons, the AppStream metainfo, licence | `cirrove`, `gtk4`, `libadwaita`; optionally the GNOME AppIndicator extension |
+| `cirrove-desktop` | `/usr/bin/cirrove-desktop`, `/usr/bin/cirrove-tray`, the desktop entry, the tray's `/etc/xdg/autostart` entry, the hicolor icons, the AppStream metainfo, the Files extension under `/usr/share/nautilus-python/extensions/`, licence | `cirrove`, `gtk4`, `libadwaita`; optionally the GNOME AppIndicator extension and `nautilus-python` for the Files badges and menu |
 
 The PKGBUILD is written for a tagged release and downloads the tarball by
 version. There is no tag yet, so `scripts/build-arch-package.sh` builds HEAD: it

@@ -76,6 +76,7 @@ expect "$desktop" \
   "usr/share/icons/hicolor/symbolic/apps/$id-working-symbolic.svg" \
   "usr/share/icons/hicolor/symbolic/apps/$id-attention-symbolic.svg" \
   "usr/share/metainfo/$id.metainfo.xml" \
+  usr/share/nautilus-python/extensions/cirrove.py \
   usr/share/licenses/cirrove-desktop/LICENSE
 # The daemon package must not pull a desktop library in through the back door.
 if tar -xOf "$core" .PKGINFO | grep -E '^depend = (gtk4|libadwaita)'; then

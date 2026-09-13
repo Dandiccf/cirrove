@@ -95,6 +95,7 @@ package_cirrove-desktop() {
   depends=(cirrove gtk4 libadwaita)
   optdepends=(
     'gnome-shell-extension-appindicator: show the tray icon on GNOME'
+    'nautilus-python: badges and Keep offline in Files'
   )
 
   cd "$pkgbase-$pkgver"
@@ -110,6 +111,9 @@ package_cirrove-desktop() {
   install -Dm644 "packaging/icons/scalable/apps/$id.svg" -t "$pkgdir/usr/share/icons/hicolor/scalable/apps/"
   install -Dm644 packaging/icons/symbolic/apps/*.svg -t "$pkgdir/usr/share/icons/hicolor/symbolic/apps/"
   install -Dm644 "packaging/metainfo/$id.metainfo.xml" -t "$pkgdir/usr/share/metainfo/"
+  # Files loads every extension it finds here when nautilus-python is present;
+  # without it the file is inert.
+  install -Dm644 packaging/nautilus/cirrove.py -t "$pkgdir/usr/share/nautilus-python/extensions/"
 
   install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
 }

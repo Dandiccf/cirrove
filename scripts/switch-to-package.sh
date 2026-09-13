@@ -38,6 +38,13 @@ if [[ -f $autostart ]]; then
   echo "removing $autostart (the package provides the /etc/xdg/autostart entry)"
   rm -f "$autostart"
 fi
+extension="$HOME/.local/share/nautilus-python/extensions/cirrove.py"
+if [[ -f $extension ]]; then
+  # Files loads both copies otherwise, and every menu item and badge appears twice.
+  echo "removing $extension (the package provides the one under /usr/share)"
+  rm -f "$extension"
+  nautilus -q 2>/dev/null || true
+fi
 pkill -x cirrove-tray || true
 
 systemctl --user daemon-reload
