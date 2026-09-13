@@ -48,5 +48,25 @@
     "what_this_costs_the_result": "The host is free to build while the window runs, so host CPU is no longer quiet. This weakens nothing the predictions ask: P1 P3 P5 are about identity and recovery, P2 is about the daemon's own RSS, and P4's ceiling is a second -- a thousand times any scheduling noise a parallel build adds to a listing served from a local namespace. If P4 fails it will be re-run quiet before being called a defect.",
     "what_stays_the_same": "The question, all five predictions and the decision rule are unchanged.",
     "registered_before_run": true
+  },
+  "attempt_2": {
+    "opened": "2026-09-13T15:56+02:00",
+    "closes": "2026-09-14T15:56+02:00",
+    "where": "the Ubuntu VM, packages 0.1.0~dev.r370.g46de988, the owner's OneDrive signed in",
+    "sampler": "python3 ~/sustained-operation-sample.py --out ~/window/samples.tsv --mount /home/tester/OneDrive --hours 24 --interval 60, detached in the VM",
+    "injections": {
+      "by": "scripts/vm/window-injections.sh ubuntu 1789307766, detached on the host, so it survives the session that started it",
+      "restart": "2026-09-13T19:56+02:00, four hours in",
+      "outage": "2026-09-13T23:56+02:00, eight hours in, the link down for five minutes",
+      "log": "~/window/injections.log in the VM, separate from the samples because the sampler holds that file open"
+    },
+    "one_unplanned_event_recorded": "A roughly fifteen second link outage at about 16:12, caused by verifying that QMP link off/on works before trusting it to the unattended run. The daemon was not restarted and the samples show no change -- the feed poll is longer than the outage was -- and it is written into the injection log so it is not later mistaken for a provider failure.",
+    "how_to_collect": [
+      "scripts/vm/run.sh ubuntu get '~/window/samples.tsv' docs/benchmarks/sustained-operation.attempt2.tsv",
+      "scripts/vm/run.sh ubuntu get '~/window/injections.log' /tmp/",
+      "scripts/sustained-operation-report.py docs/benchmarks/sustained-operation.attempt2.tsv --injections /tmp/injections.log",
+      "The report answers each of the five predictions from the file and refuses a file carrying a void or probe-lost marker. Read its answer against decision_rule above before ticking anything."
+    ],
+    "if_the_machine_reboots_first": "The window is void, per the decision rule's any_unplanned_restart clause. Record it as attempt 2 void and open attempt 3; do not report partial hours as a result."
   }
 }
