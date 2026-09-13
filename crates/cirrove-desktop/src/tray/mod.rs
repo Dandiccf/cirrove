@@ -57,6 +57,9 @@ struct AccountRow {
     /// somebody clears it -- and before this it was a number in `cirrove status`
     /// that nobody was going to read.
     stuck: u64,
+    /// Saves that did not reach the cloud. Like `stuck`, a number that must
+    /// reach a person; unlike it, the remedy is re-saving, not discarding.
+    failed: u64,
 }
 
 /// What the icon is trying to say, in priority order.
@@ -92,6 +95,7 @@ impl TrayState {
                 state,
                 mounted,
                 stuck_changes,
+                failed_uploads,
                 ..
             } => {
                 let row = self.accounts.entry(account_id).or_default();
@@ -99,6 +103,7 @@ impl TrayState {
                 row.state = state;
                 row.mounted = mounted;
                 row.stuck = stuck_changes;
+                row.failed = failed_uploads;
             }
             Event::Mount {
                 account_id,
@@ -169,7 +174,7 @@ impl TrayState {
         // about something, and only a person can decide what to do about it. It
         // ranks here rather than lower because every other state it could hide
         // behind -- updating, offline -- resolves itself, and this one does not.
-        if self.accounts.values().any(|a| a.stuck > 0) {
+        if self.accounts.values().any(|a| a.stuck > 0 || a.failed > 0) {
             return Health::NeedsAttention;
         }
         if self
@@ -334,11 +339,17 @@ fn summary(account: &AccountRow) -> String {
     // and the connection being fine is exactly what makes the other surprising.
     // No path or name: a tooltip appears on hover without intent and is visible
     // to anyone looking at the screen, which is the rule the activity box sets.
-    match account.stuck {
+    let mut summary = match account.stuck {
         0 => state,
         1 => format!("{state}, 1 change not applied"),
         n => format!("{state}, {n} changes not applied"),
+    };
+    match account.failed {
+        0 => {}
+        1 => summary.push_str(", 1 save did not reach the cloud"),
+        n => summary.push_str(&format!(", {n} saves did not reach the cloud")),
     }
+    summary
 }
 
 /// The tray's icons, embedded, so a host can draw them whether or not a package
@@ -610,6 +621,7 @@ pub async fn publish_for_test() -> Result<zbus::Connection> {
         enabled: true,
         mounted: true,
         stuck_changes: 0,
+        failed_uploads: 0,
     });
     publish(
         Arc::new(Mutex::new(state)),
@@ -1062,6 +1074,7 @@ mod tests {
             enabled: true,
             mounted,
             stuck_changes: 0,
+            failed_uploads: 0,
         }
     }
 
@@ -1073,6 +1086,7 @@ mod tests {
             enabled: true,
             mounted: true,
             stuck_changes,
+            failed_uploads: 0,
         }
     }
 

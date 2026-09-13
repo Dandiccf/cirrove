@@ -78,6 +78,10 @@ pub struct AccountStatus {
     /// as zero, which is not a lie -- it is the count that daemon can report.
     #[serde(default)]
     pub stuck_changes: u64,
+    /// Saves that did not reach the cloud -- uploads the provider refused or
+    /// that failed. Zero for a read-only mount. Older daemon responses omit it.
+    #[serde(default)]
+    pub failed_uploads: u64,
     pub indexed_feeds: u64,
     pub indexed_items: u64,
 }
@@ -435,6 +439,7 @@ impl Manager {
                             read_path: None,
                             save_refusal: None,
                             stuck_changes: 0,
+                            failed_uploads: 0,
                             pin_budget: Default::default(),
                             pins: Vec::new(),
                             indexed_feeds: 0,
@@ -519,6 +524,10 @@ impl Manager {
                             status.save_refusal = active.engine.save_refusals.latest();
                             status.stuck_changes = match &active.writers {
                                 Some(writers) => writers.stuck_changes().await,
+                                None => 0,
+                            };
+                            status.failed_uploads = match &active.writers {
+                                Some(writers) => writers.failed_uploads().await,
                                 None => 0,
                             };
                             status.pin_budget =

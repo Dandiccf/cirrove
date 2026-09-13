@@ -77,6 +77,9 @@ impl WriteWorkers {
     pub(crate) async fn stuck_changes(&self) -> u64 {
         self.control.stuck_changes().await.unwrap_or(0)
     }
+    pub(crate) async fn failed_uploads(&self) -> u64 {
+        self.control.failed_uploads().await.unwrap_or(0)
+    }
     pub(crate) async fn recent_local(&self, limit: usize) -> Vec<crate::recent::LocalChange> {
         self.control.recent_local(limit).await.unwrap_or_default()
     }
@@ -192,6 +195,12 @@ impl WritableSession {
     pub async fn stuck_changes(&self) -> u64 {
         match &self.writers {
             Some(writers) => writers.stuck_changes().await,
+            None => 0,
+        }
+    }
+    pub async fn failed_uploads(&self) -> u64 {
+        match &self.writers {
+            Some(writers) => writers.failed_uploads().await,
             None => 0,
         }
     }

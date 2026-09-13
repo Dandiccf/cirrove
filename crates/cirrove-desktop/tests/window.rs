@@ -449,6 +449,7 @@ fn every_account_action_is_offered_from_the_window_and_only_where_it_applies() {
         let work = &mut status.accounts[0];
         work.feeds[0].state = "sign_in_required".into();
         work.stuck_changes = 2;
+        work.failed_uploads = 1;
     }
     let service = fake_service(&runtime, temp.path(), status);
     let app = application("Actions");
@@ -484,6 +485,20 @@ fn every_account_action_is_offered_from_the_window_and_only_where_it_applies() {
         "a mounted account must not be removable under a running mount"
     );
     assert!(remove[1].is_sensitive());
+
+    // A save that did not reach the cloud is shown as its own warning,
+    // distinct from a refused namespace change, and without a discard button:
+    // its remedy is re-saving. This is the surfacing a power cut's failed save
+    // was missing.
+    assert!(displays_text(
+        window.upcast_ref(),
+        "Saves that did not reach the cloud"
+    ));
+    assert!(
+        ui.current()
+            .is_some_and(|v| v.accounts[0].failed_uploads == 1),
+        "the failed save reached the window"
+    );
 
     // Refused changes are shown, and discarding them goes to the daemon.
     assert!(displays_text(

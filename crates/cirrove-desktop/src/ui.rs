@@ -41,6 +41,7 @@ struct AccountRow {
     access: adw::ActionRow,
     refused: adw::ActionRow,
     discard: gtk::Button,
+    unsent: adw::ActionRow,
     remove: gtk::Button,
 }
 pub struct Window {
@@ -476,7 +477,19 @@ impl Window {
         row.add_row(&access);
         row.add_row(&location);
         row.add_row(&storage);
+        // Distinct from the refused row above: those are changes to the
+        // namespace the cloud would not take; this is a file's content that
+        // did not reach the cloud. Its remedy is different too -- open the
+        // file and save it again -- so it carries no discard button.
+        let unsent = adw::ActionRow::builder()
+            .title("Saves that did not reach the cloud")
+            .use_markup(false)
+            .subtitle_lines(0)
+            .visible(false)
+            .build();
+        unsent.add_css_class("warning");
         row.add_row(&refused);
+        row.add_row(&unsent);
         row.add_row(&removal);
         let weak = Rc::downgrade(self);
         let key = id.to_owned();
@@ -526,6 +539,7 @@ impl Window {
             storage,
             refused,
             discard,
+            unsent,
             remove,
         }
     }
@@ -585,6 +599,15 @@ impl Window {
             }
         ));
         row.discard.set_sensitive(idle);
+        row.unsent.set_visible(card.failed_uploads > 0);
+        row.unsent.set_subtitle(&format!(
+            "{} did not reach the cloud. The file is on this computer; the cloud has an older version or none. Open the file and save it again to try once more.",
+            if card.failed_uploads == 1 {
+                "1 save".to_owned()
+            } else {
+                format!("{} saves", card.failed_uploads)
+            },
+        ));
         // Removal under a running mount would race it; the daemon refuses, and
         // the button says so before the user gets that far.
         let removable = !card.enabled && !card.mounted;

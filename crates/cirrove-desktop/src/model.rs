@@ -99,6 +99,9 @@ pub struct AccountCard {
     pub library_count: usize,
     /// Changes the daemon has stopped retrying because the cloud refused them.
     pub stuck: u64,
+    /// Saves that did not reach the cloud -- uploads the provider refused or
+    /// that failed. The file is here; the cloud has an older version or none.
+    pub failed_uploads: u64,
     /// Whether the grant allows changes; a read-only drive shows as such.
     pub writable: bool,
     /// The app registration this account signed in through, so connecting a
@@ -267,6 +270,7 @@ impl Overview {
                     cache_bytes: account.cache_bytes,
                     library_count: status.map_or(0, |s| s.feeds.len()),
                     stuck: status.map_or(0, |s| s.stuck_changes),
+                    failed_uploads: status.map_or(0, |s| s.failed_uploads),
                     writable: account.access == cirrove_auth::AccessMode::ReadWrite,
                     client_id: account.registration.client_id.clone(),
                     authority: account.registration.authority.clone(),

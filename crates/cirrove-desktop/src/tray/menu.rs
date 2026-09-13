@@ -495,6 +495,7 @@ mod tests {
                 enabled: true,
                 mounted: *mounted,
                 stuck_changes,
+                failed_uploads: 0,
             });
         }
         DbusMenu::new(

@@ -20,6 +20,13 @@ applies:
 - **Sign in again** appears on an account whose grant stopped working and runs
   `accounts::reauthenticate`: the account is released while the browser asks,
   and taken back after.
+- **Saves that did not reach the cloud** appears when a file's content could
+  not be uploaded -- the provider refused it, or it failed (a quota, a
+  permission, or a power cut that lost the not-yet-durable bytes). The file is
+  on the computer; the cloud has an older version or none. Its remedy is to
+  open the file and save it again, so it carries no discard button, and it is
+  counted apart from the refused-changes row because that is a namespace
+  change and this is content. The tray icon and tooltip reflect it too.
 - **Changes the cloud refused** appears when the daemon has given up on
   changes the mount made locally that the provider never took, with a count and
   **Discard**, which asks the daemon (`discard-stuck`) to abandon them so the

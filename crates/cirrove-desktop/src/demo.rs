@@ -38,6 +38,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
             read_path: None,
             save_refusal: None,
             stuck_changes: 0,
+            failed_uploads: 0,
             pin_budget: Default::default(),
             pins: Vec::new(),
             indexed_feeds: u64::from(a.enabled),

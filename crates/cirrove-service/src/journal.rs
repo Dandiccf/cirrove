@@ -521,6 +521,20 @@ impl UploadJournal {
             .ok_or(JournalError::Missing)?;
         Ok(serde_json::from_str(&body)?)
     }
+    /// Saves that will not reach the cloud without help: uploads the provider
+    /// refused (conflict) or that ended in failure. Distinct from
+    /// `stuck_mutations`, which counts namespace operations; a file's content
+    /// lives in this table, not that one, so a failed save shows here or
+    /// nowhere. In flight (pending, uploading, verifying, verify_required) is
+    /// not counted: those still move on their own.
+    pub fn failed_uploads(&self) -> Result<u64> {
+        let count: i64 = self.db.query_row(
+            "SELECT count(*) FROM uploads WHERE state IN ('failed','conflict')",
+            [],
+            |r| r.get(0),
+        )?;
+        Ok(count.max(0) as u64)
+    }
     pub fn list(&self, after: u64, limit: u32) -> Result<Vec<UploadRecord>> {
         let Ok(after) = i64::try_from(after) else {
             return Ok(Vec::new());

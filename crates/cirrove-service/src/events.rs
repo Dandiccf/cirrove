@@ -59,6 +59,13 @@ pub enum Event {
         /// field is ignored by an older client rather than breaking its stream.
         #[serde(default)]
         stuck_changes: u64,
+        /// Saves that did not reach the cloud -- uploads the provider refused
+        /// or that failed. On this channel for the same reason as
+        /// `stuck_changes`: a save that silently does not reach the cloud is
+        /// the one thing a person must be told. `#[serde(default)]` for the
+        /// same forward-compatibility reason.
+        #[serde(default)]
+        failed_uploads: u64,
     },
     /// A mount appeared or went away. Separate from `Account` because a file
     /// manager cares about exactly this and nothing else about the account, and
@@ -165,6 +172,7 @@ pub fn diff(previous: &[AccountStatus], current: &[AccountStatus]) -> Vec<Event>
                     || before.enabled != status.enabled
                     || before.mounted != status.mounted
                     || before.stuck_changes != status.stuck_changes
+                    || before.failed_uploads != status.failed_uploads
                 {
                     events.push(account_event(status));
                 }
@@ -193,6 +201,7 @@ fn account_event(status: &AccountStatus) -> Event {
         enabled: status.enabled,
         mounted: status.mounted,
         stuck_changes: status.stuck_changes,
+        failed_uploads: status.failed_uploads,
     }
 }
 
@@ -243,6 +252,7 @@ mod tests {
                 enabled: true,
                 mounted: true,
                 stuck_changes: 0,
+                failed_uploads: 0,
             }]
         );
     }
@@ -269,12 +279,39 @@ mod tests {
                 enabled: true,
                 mounted: true,
                 stuck_changes: 3,
+                failed_uploads: 0,
             }],
             "the account is unchanged in every other field and this still has to be news"
         );
         // And clearing them is news too, or an icon stays lit after the cause is
         // gone -- which teaches a user to ignore the next one.
         assert_eq!(diff(&[later], &before).len(), 1);
+    }
+
+    /// A save that did not reach the cloud travels the same way, and for the
+    /// same reason: it is the one thing a person must be told, and until it
+    /// reaches the tray it sits only in `cirrove status`. Found on a real
+    /// desktop when a power cut left a save `failed` and nothing lit up.
+    #[test]
+    fn a_save_that_did_not_reach_the_cloud_travels_even_when_nothing_else_moved() {
+        let before = vec![status("work", "ready", true)];
+        let mut later = status("work", "ready", true);
+        later.failed_uploads = 2;
+        let events = diff(&before, &[later.clone()]);
+        assert_eq!(events.len(), 1, "a failed save is news on its own");
+        assert!(
+            matches!(
+                &events[0],
+                Event::Account {
+                    failed_uploads: 2,
+                    stuck_changes: 0,
+                    ..
+                }
+            ),
+            "it carries the count and disturbs nothing else: {:?}",
+            events[0]
+        );
+        assert_eq!(diff(&[later], &before).len(), 1, "clearing it is news too");
     }
 
     #[test]

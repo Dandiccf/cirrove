@@ -125,6 +125,15 @@ ready, transfer arrows while something is being fetched or sent, an
 exclamation mark when a person must act. Its menu opens each drive's folder,
 mounts and unmounts, and opens the window.
 
+## When a save does not reach the cloud
+
+A file you saved can fail to upload -- the cloud was out of space, the grant
+lost permission, or the power went before the bytes were durable. The file
+stays on your computer; the cloud has an older version or none. The window
+shows **Saves that did not reach the cloud** with a count, and the tray marks
+it. To try again, open the file and save it once more. `cirrove recent` lists
+these as "saved here · upload failed".
+
 ## When the cloud refuses a change
 
 Sometimes a change made locally cannot be applied: the file was changed or

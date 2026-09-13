@@ -821,3 +821,49 @@ fn a_journal_survives_the_machine_losing_power_mid_write() {
         other => panic!("unknown phase {other:?}"),
     }
 }
+
+/// A save that ends failed or in conflict is counted, so the tray and the
+/// window can show it. In flight is not: those still move on their own. This
+/// count is what a power cut leaving a save `failed` was invisible to.
+#[test]
+fn failed_and_conflicted_saves_are_counted_and_the_in_flight_ones_are_not() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut j = open(&temp.path().join("journal"), 1024 * 1024);
+    assert_eq!(j.failed_uploads().unwrap(), 0);
+
+    let file = |id: &str| Node {
+        id: id.into(),
+        parent_id: Some("root".into()),
+        name: format!("{id}.txt"),
+        kind: NodeKind::File,
+        size: 3,
+        modified_unix: 1,
+        etag: Some("original".into()),
+        content_version: Some(format!("v-{id}")),
+        target: None,
+    };
+    // Three distinct files sealed and claimed; one fails, one conflicts, and
+    // the third stays in flight.
+    for id in ["file-a", "file-b", "file-c"] {
+        let working = j
+            .create_working(scope(), file(id), false, b"abc".as_slice())
+            .unwrap();
+        j.write_working(working.id, 0, b"abc").unwrap();
+        j.seal_working(working.id).unwrap().unwrap();
+    }
+    let a = j.claim_next().unwrap().unwrap();
+    j.stop_attempt(a.id, a.attempt.unwrap(), UploadState::Failed)
+        .unwrap();
+    assert_eq!(j.failed_uploads().unwrap(), 1, "the failed save counts");
+    let b = j.claim_next().unwrap().unwrap();
+    j.stop_attempt(b.id, b.attempt.unwrap(), UploadState::Conflict)
+        .unwrap();
+    assert_eq!(j.failed_uploads().unwrap(), 2, "a conflict counts too");
+    let c = j.claim_next().unwrap().unwrap();
+    assert_eq!(
+        j.failed_uploads().unwrap(),
+        2,
+        "the third is uploading, in flight, and is not counted: {:?}",
+        c.state
+    );
+}

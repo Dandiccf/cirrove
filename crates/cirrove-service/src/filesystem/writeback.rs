@@ -345,6 +345,11 @@ impl Writeback {
     pub async fn stuck_changes(&self) -> Result<u64> {
         self.local(|j| j.stuck_mutations()).await
     }
+    /// Saves that did not reach the cloud, from the upload journal. See
+    /// `UploadJournal::failed_uploads`.
+    pub async fn failed_uploads(&self) -> Result<u64> {
+        self.local(|j| j.failed_uploads()).await
+    }
     /// The latest saves, latest first. A replace names its item, which the
     /// caller resolves to a name; a create carries the name itself.
     pub async fn recent_local(&self, limit: usize) -> Result<Vec<crate::recent::LocalChange>> {

@@ -73,6 +73,12 @@ impl WriteControl {
             .await
             .map_err(|_| std::io::Error::other("local namespace is unavailable"))
     }
+    pub async fn failed_uploads(&self) -> std::io::Result<u64> {
+        self.writer
+            .failed_uploads()
+            .await
+            .map_err(|_| std::io::Error::other("local namespace is unavailable"))
+    }
     pub async fn recent_local(
         &self,
         limit: usize,
