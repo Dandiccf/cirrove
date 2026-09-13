@@ -17,8 +17,10 @@ removes and repairs accounts without a terminal; the tray and the Files
 extension show what the daemon knows. Arch, Ubuntu 24.04 and Fedora packages
 are built and installed on clean systems by CI on every push; there is no
 tagged release yet, and [what blocks one](docs/distribution.md#what-blocks-the-first-release-and-what-does-not)
-is written down. Do not yet replace a trusted cloud client with it for data
-you have nowhere else. The [user guide](docs/user-guide.md) is where to start.
+is written down, as is [what has been checked against a real account and
+what has not](docs/compatibility.md). Do not yet replace a trusted cloud
+client with it for data you have nowhere else. The
+[user guide](docs/user-guide.md) is where to start.
 `cirrove pins` shows what each pin has kept against what it reserved, and how much
 of the cache budget pinning has claimed. All of it has been measured against a real
 business drive: a pinned file reads through a mount without touching the provider

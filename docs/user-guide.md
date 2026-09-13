@@ -7,8 +7,9 @@ What you want with you when there is no network, you mark once, and Cirrove
 keeps it. OneDrive is the first provider.
 
 This is the guide for using it. Building it is in the [README](../README.md);
-what is finished and what is not is in the
-[milestones](product-milestones.md).
+what is finished and what is not is in the [milestones](product-milestones.md),
+and what has been checked against a real account, and what has not, in
+[compatibility](compatibility.md).
 
 ## Installing
 

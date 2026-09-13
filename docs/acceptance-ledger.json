@@ -290,7 +290,7 @@
       "done": false,
       "text": "Defined filename, package/notebook and unsupported-operation behavior.",
       "blocker": "autonomous",
-      "evidence": "PARTIAL 2026-09-13. Filename behaviour is defined and enforced at the mount: the provider states its rules (ReadProvider::name_problem; OneDrive's in cirrove_onedrive::naming -- the forbidden characters, leading/trailing spaces, a trailing period, device names with or without extension, ~$, _vti_, .lock, desktop.ini, 255 characters) and mkdir, create and rename answer EINVAL or ENAMETOOLONG before anything is journalled, where before such a name was accepted, uploaded, refused by Graph and left as a stuck change. Documented for users in docs/user-guide.md. NOT DONE: package/notebook behaviour (OneNote sections and .one packages are folders to Graph and files to a person) and the list of unsupported operations with their errnos (hard links, special files, xattrs) -- each returns something today, but nothing states what.",
+      "evidence": "PARTIAL 2026-09-13. Filename behaviour is defined and enforced at the mount: the provider states its rules (ReadProvider::name_problem; OneDrive's in cirrove_onedrive::naming -- the forbidden characters, leading/trailing spaces, a trailing period, device names with or without extension, ~$, _vti_, .lock, desktop.ini, 255 characters) and mkdir, create and rename answer EINVAL or ENAMETOOLONG before anything is journalled, where before such a name was accepted, uploaded, refused by Graph and left as a stuck change. Documented for users in docs/user-guide.md. The unsupported operations and their errnos are stated in docs/compatibility.md (links and special files ENOSYS, xattr reads ENODATA and an empty list, xattr writes ENOSYS, mode/owner changes EOPNOTSUPP, non-regular creates EOPNOTSUPP, .Trash EOPNOTSUPP, rename flags EOPNOTSUPP). NOT DONE: package/notebook behaviour -- OneNote sections and .one packages are folders to Graph and files to a person, and nothing yet decides what the mount shows.",
       "asserted_by": "onedrive::naming::tests::ordinary_names_pass_including_the_awkward_but_legal_ones and ::every_rule_names_what_it_refuses for the rules; writable_session::real_a_name_the_cloud_would_refuse_is_refused_at_the_mount_before_anything_is_written for the mount: a colon, a device name, a 300-character name, a folder with a bar and a rename to a question mark refused with the right errno, an ordinary name taken, the refused rename leaving the file where it was, nothing with a refused name in the listing."
     },
     {
@@ -309,9 +309,9 @@
       "line": 240,
       "done": false,
       "text": "Documented compatibility matrix backed by real-account checks.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
-      "asserted_by": null
+      "blocker": "autonomous",
+      "evidence": "PARTIAL 2026-09-13. docs/compatibility.md is the matrix: accounts and sign-in, drives and libraries, files and changes, unsupported operations with their errnos, desktops and distributions -- each row real, fixture or no, with where the real ones are recorded. It says plainly what has never met the real service: personal accounts, SharePoint libraries as drives, linked folders, folder-only access, per-item permissions, OneNote packages, a second account. NOT DONE: turning any of those rows from fixture or no into real, which needs accounts and libraries this development tenant does not have.",
+      "asserted_by": "Nothing asserts a table; the rows point at the validation records and benchmarks that hold each real claim."
     },
     {
       "milestone": 5,
