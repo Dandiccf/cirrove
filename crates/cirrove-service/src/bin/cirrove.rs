@@ -209,12 +209,16 @@ enum Command {
         #[arg(long)]
         state_dir: Option<PathBuf>,
     },
-    /// Reversibly enable or disable the desired mount state.
+    /// Mount this account again, and keep mounting it at every start.
     Enable {
         label: String,
         #[arg(long)]
         state_dir: Option<PathBuf>,
     },
+    /// Unmount this account and stop mounting it, without removing anything.
+    ///
+    /// The account, its credentials, its index and its cache all stay. `enable`
+    /// brings it back.
     Disable {
         label: String,
         #[arg(long)]
@@ -281,15 +285,6 @@ enum Command {
         #[arg(long)]
         socket: Option<PathBuf>,
     },
-    /// Abandon the changes the daemon gave up on, so the mount shows what the
-    /// cloud actually has.
-    ///
-    /// `status` reports these as `stuck_changes`: a delete the provider refused
-    /// leaves the item hidden locally and present in the account, and nothing
-    /// retries it. This drops the local intent -- it never re-sends anything,
-    /// because the conflict means the remote moved and a stale retry would
-    /// destroy whatever is there now. The item comes back into view and you can
-    /// decide again.
     /// Write a diagnostics bundle -- versions, status, the service's journal --
     /// with account names, folders, file names and ids replaced, for sharing.
     Diagnose {
@@ -324,6 +319,15 @@ enum Command {
         #[arg(long)]
         socket: Option<PathBuf>,
     },
+    /// Abandon the changes the daemon gave up on, so the mount shows what the
+    /// cloud actually has.
+    ///
+    /// `status` reports these as `stuck_changes`: a delete the provider refused
+    /// leaves the item hidden locally and present in the account, and nothing
+    /// retries it. This drops the local intent -- it never re-sends anything,
+    /// because the conflict means the remote moved and a stale retry would
+    /// destroy whatever is there now. The item comes back into view and you can
+    /// decide again.
     DiscardStuck {
         #[arg(long, default_value = "")]
         label: String,
