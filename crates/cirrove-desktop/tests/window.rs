@@ -76,9 +76,14 @@ fn displays_text(widget: &gtk::Widget, text: &str) -> bool {
     }
     false
 }
-/// Every mapped button that shows an icon and no text.
+/// Every mapped button of ours that shows an icon and no text. GTK's own
+/// window controls -- the close button it draws when there is no compositor
+/// to draw one, as under Xvfb -- are not ours to name and are skipped.
 fn icon_only_buttons(widget: &gtk::Widget) -> Vec<gtk::Button> {
     let mut found = Vec::new();
+    if widget.is::<gtk::WindowControls>() {
+        return found;
+    }
     if let Some(button) = widget.downcast_ref::<gtk::Button>()
         && button.is_mapped()
         && button.icon_name().is_some()
