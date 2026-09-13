@@ -68,6 +68,17 @@ file changed under an unchanged name needs a shell reload before anyone sees it.
 ## Local checks
 
 ```sh
+scripts/check.sh          # all of the below, in one command
+scripts/check.sh --fast   # without the workspace test run
+```
+
+Run it before committing. The list below is what it does, and running it by hand
+goes wrong the same way every time: format, make one more edit, commit, and find
+out from CI twenty minutes later. The script formats rather than only checking,
+because a formatting difference is never a decision, and then checks, so a file
+that could not be formatted still fails locally.
+
+```sh
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked

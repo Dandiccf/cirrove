@@ -828,7 +828,12 @@ async fn a_pin_whose_parents_are_not_indexed_has_no_path_rather_than_half_of_one
     let temp = tempfile::tempdir().unwrap();
     let engine = engine(&temp, 64 * 1024 * 1024).await;
     let orphan = file("orphan", "a-folder-nobody-listed", 4096);
-    seed_directory(&engine, "a-folder-nobody-listed", std::slice::from_ref(&orphan)).await;
+    seed_directory(
+        &engine,
+        "a-folder-nobody-listed",
+        std::slice::from_ref(&orphan),
+    )
+    .await;
     engine
         .pin(scope(), orphan.id.clone(), false, orphan.size)
         .await

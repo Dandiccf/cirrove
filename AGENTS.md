@@ -11,7 +11,10 @@
 - Keep network awaits outside SQLite transactions and shared filesystem locks.
 - Preserve visible metadata and completed cursors together across interrupted refreshes.
 - Use synthetic fixtures by default. Cloud mutations require explicit task authorization.
-- Run formatting, clippy, workspace tests and the smoke test for relevant changes.
+- Run `scripts/check.sh` before committing: formatting, clippy, the workspace
+  tests, the script tests and the ledger, in one command. One command cannot be
+  half-run, which is how formatting kept reaching CI. `--fast` skips the
+  workspace tests. The window scenarios need a display and are not in it.
 - A merge and a green CI run are not an installed daemon. On a machine that runs
   Cirrove, deliver a change with `scripts/install-developer.sh` and then check it:
   see [the two ways to have Cirrove installed](docs/development.md#the-two-ways-to-have-cirrove-installed).

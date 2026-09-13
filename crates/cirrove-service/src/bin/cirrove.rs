@@ -288,7 +288,7 @@ enum Command {
     /// Write a diagnostics bundle -- versions, status, the service's journal --
     /// with account names, folders, file names and ids replaced, for sharing.
     Diagnose {
-        /// Where to write it. Default: cirrove-diagnostics-<time>.txt in the
+        /// Where to write it. Default: `cirrove-diagnostics-<time>.txt` in the
         /// current directory.
         #[arg(long)]
         out: Option<PathBuf>,
