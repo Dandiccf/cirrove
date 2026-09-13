@@ -286,3 +286,74 @@ jobs:
           for f in /usr/bin/cirroved /usr/bin/cirrove /usr/bin/cirrove-tray /usr/lib/systemd/user/cirroved.service /etc/xdg/autostart/io.github.Dandiccf.Cirrove.Tray.desktop; do
             ! test -e "$f" || { echo "$f survived removal"; exit 1; }
           done
+
+  # Milestone 6, the Debian half: the packages built on the distribution CI
+  # already runs on, installed, run, validated and removed. Ubuntu 24.04 is
+  # the declared floor (GTK 4.14, libadwaita 1.5); Debian stable is older
+  # than that for the desktop package and is not claimed.
+  deb-package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The package version carries the commit count.
+          fetch-depth: 0
+      - name: Packaging tools, and the desktop libraries the desktop package builds against
+        run: sudo apt-get update && sudo apt-get install -y build-essential debhelper dpkg-dev cmake pkg-config libgtk-4-dev libadwaita-1-dev fuse3 desktop-file-utils appstream
+      - name: Install pinned toolchain
+        run: rustup toolchain install 1.98.1 --profile minimal
+      - name: Build both packages from HEAD
+        run: scripts/build-deb-package.sh
+      - name: Install, run, validate what a desktop would read, and remove
+        run: |
+          sudo apt-get install -y ./target/deb/cirrove_*.deb ./target/deb/cirrove-desktop_*.deb
+          cirrove --help >/dev/null
+          cirroved --help >/dev/null
+          grep -q '^ExecStart=/usr/bin/cirroved ' /usr/lib/systemd/user/cirroved.service
+          desktop-file-validate /usr/share/applications/io.github.Dandiccf.Cirrove.desktop
+          desktop-file-validate /etc/xdg/autostart/io.github.Dandiccf.Cirrove.Tray.desktop
+          appstreamcli validate /usr/share/metainfo/io.github.Dandiccf.Cirrove.metainfo.xml
+          test -f /usr/share/nautilus-python/extensions/cirrove.py
+          sudo apt-get remove -y cirrove-desktop cirrove
+          for f in /usr/bin/cirroved /usr/bin/cirrove /usr/bin/cirrove-tray /usr/lib/systemd/user/cirroved.service /etc/xdg/autostart/io.github.Dandiccf.Cirrove.Tray.desktop; do
+            ! test -e "$f" || { echo "$f survived removal"; exit 1; }
+          done
+
+  # Milestone 6, the Fedora half, in a container: built as root, which rpmbuild
+  # allows, with a rustup toolchain because the crates need a newer rust than
+  # the distribution ships. Installed, run, validated, removed.
+  rpm-package:
+    runs-on: ubuntu-24.04
+    container: fedora:42
+    timeout-minutes: 40
+    steps:
+      - name: Packaging tools, and the desktop libraries the desktop package builds against
+        run: dnf install -y git rpm-build gcc cmake pkgconf-pkg-config gtk4-devel libadwaita-devel fuse3 desktop-file-utils appstream curl tar gzip
+      - name: Install pinned toolchain
+        run: |
+          curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.98.1
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Build both packages from HEAD
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          scripts/build-rpm-package.sh
+      - name: Install, run, validate what a desktop would read, and remove
+        run: |
+          dnf install -y target/rpm/*.rpm
+          cirrove --help >/dev/null
+          cirroved --help >/dev/null
+          grep -q '^ExecStart=/usr/bin/cirroved ' /usr/lib/systemd/user/cirroved.service
+          desktop-file-validate /usr/share/applications/io.github.Dandiccf.Cirrove.desktop
+          desktop-file-validate /etc/xdg/autostart/io.github.Dandiccf.Cirrove.Tray.desktop
+          appstreamcli validate /usr/share/metainfo/io.github.Dandiccf.Cirrove.metainfo.xml
+          test -f /usr/share/nautilus-python/extensions/cirrove.py
+          dnf remove -y cirrove-desktop cirrove
+          for f in /usr/bin/cirroved /usr/bin/cirrove /usr/bin/cirrove-tray /usr/lib/systemd/user/cirroved.service /etc/xdg/autostart/io.github.Dandiccf.Cirrove.Tray.desktop; do
+            ! test -e "$f" || { echo "$f survived removal"; exit 1; }
+          done

@@ -1,0 +1,46 @@
+#!/usr/bin/make -f
+# Two packages from one build, the same split as packaging/arch/PKGBUILD:
+# cirrove (daemon, CLI, user unit) and cirrove-desktop (window, tray, entries,
+# icons, metainfo, Files extension).
+export DH_VERBOSE = 1
+ID = io.github.Dandiccf.Cirrove
+CORE = debian/cirrove
+DESKTOP = debian/cirrove-desktop
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	# --workspace: the root's default members exclude the desktop so that a
+	# plain build needs no GTK; the package builds both halves.
+	cargo build --locked --release --workspace
+
+override_dh_auto_test:
+	# The tests run in CI on the same commit; a package build proves the
+	# build, the install and the removal.
+
+override_dh_auto_install:
+	install -Dm755 target/release/cirroved $(CORE)/usr/bin/cirroved
+	install -Dm755 target/release/cirrove $(CORE)/usr/bin/cirrove
+	# The unit in the tree runs %h/.local/bin/cirroved for a developer
+	# install; a package puts the binary in /usr/bin and the unit must say so.
+	mkdir -p $(CORE)/usr/lib/systemd/user
+	sed 's|%h/.local/bin/cirroved|/usr/bin/cirroved|' packaging/systemd/cirroved.service \
+	  > $(CORE)/usr/lib/systemd/user/cirroved.service
+	grep -q '^ExecStart=/usr/bin/cirroved ' $(CORE)/usr/lib/systemd/user/cirroved.service
+	install -Dm755 target/release/cirrove-desktop $(DESKTOP)/usr/bin/cirrove-desktop
+	install -Dm755 target/release/cirrove-tray $(DESKTOP)/usr/bin/cirrove-tray
+	install -Dm644 packaging/desktop/$(ID).desktop -t $(DESKTOP)/usr/share/applications/
+	install -Dm644 packaging/desktop/$(ID).Tray.desktop -t $(DESKTOP)/etc/xdg/autostart/
+	install -Dm644 packaging/icons/scalable/apps/$(ID).svg -t $(DESKTOP)/usr/share/icons/hicolor/scalable/apps/
+	install -Dm644 packaging/icons/symbolic/apps/*.svg -t $(DESKTOP)/usr/share/icons/hicolor/symbolic/apps/
+	install -Dm644 packaging/metainfo/$(ID).metainfo.xml -t $(DESKTOP)/usr/share/metainfo/
+	install -Dm644 packaging/nautilus/cirrove.py -t $(DESKTOP)/usr/share/nautilus-python/extensions/
+
+override_dh_installsystemduser:
+	# Present, not enabled: a user enables the service when they connect a
+	# drive; the package does not decide that for every account on the host.
+	dh_installsystemduser --no-enable
+
+override_dh_dwz:
+	# Rust binaries carry DWARF that dwz does not improve and sometimes rejects.
