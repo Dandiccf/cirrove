@@ -96,19 +96,42 @@ def main() -> int:
         )
     )
 
-    # P2: the end within 20 percent of the value an hour in.
-    warm = [r for r in rows if r["uptime"] >= WARM_AFTER_S]
-    if warm:
-        base, end = warm[0]["rss"], rows[-1]["rss"]
+    # P2: the end within 20 percent of the value an hour in -- per continuous
+    # run, because a deliberate restart is part of the plan and a fresh process
+    # starts small. Comparing a post-restart process against the previous one's
+    # warm baseline measures the restart, not a leak: it read -28.7 percent the
+    # first time, which is the daemon working exactly as intended.
+    runs, current = [], []
+    for row in rows:
+        if current and row["pid"] != current[-1]["pid"]:
+            runs.append(current)
+            current = []
+        current.append(row)
+    if current:
+        runs.append(current)
+
+    judged, notes = [], []
+    for run in runs:
+        start = run[0]["unix"]
+        warm = [r for r in run if r["unix"] - start >= WARM_AFTER_S]
+        if not warm:
+            notes.append(
+                f"pid {run[0]['pid']}: {(run[-1]['unix'] - start) / 60:.0f} min, too short to judge"
+            )
+            continue
+        base, end = warm[0]["rss"], run[-1]["rss"]
         drift = (end - base) / base if base else 0.0
-        p2 = abs(drift) <= DRIFT_ALLOWED
-        detail = (
-            f"{base / 1024:.0f} MiB at one hour, {end / 1024:.0f} MiB at the end, "
-            f"{drift * 100:+.1f} percent (allowed +/-{DRIFT_ALLOWED * 100:.0f}); "
-            f"peak {max(r['rss'] for r in rows) / 1024:.0f} MiB"
+        judged.append(abs(drift) <= DRIFT_ALLOWED)
+        notes.append(
+            f"pid {run[0]['pid']}: {base / 1024:.0f} -> {end / 1024:.0f} MiB, "
+            f"{drift * 100:+.1f} percent"
         )
-    else:
-        p2, detail = None, "the window did not reach one hour, so there is no warm baseline"
+    p2 = all(judged) if judged else None
+    detail = "; ".join(notes) + (
+        f"; peak {max(r['rss'] for r in rows) / 1024:.0f} MiB overall"
+        if rows
+        else ""
+    )
     verdicts.append(("P2", p2, detail))
 
     # P3: the index never emptied.
@@ -133,16 +156,26 @@ def main() -> int:
 
     # P5 is about what happened around the injections, which the injection log
     # records in words; this reports what the samples can corroborate.
+    # Matched on the process the restart produced, not on a timestamp. The
+    # sampler writes the marker and that minute's row together, so they carry
+    # the same second and a strictly-later comparison missed the only row there
+    # was -- reporting a recovery that had already happened as never happening.
     after_restart = None
     if restarts:
-        at = int(restarts[-1].split("at=")[-1].split()[0])
-        later = [r for r in rows if r["unix"] > at]
+        marker = restarts[-1]
+        at = int(marker.split("at=")[-1].split()[0])
+        new_pid = marker.split("now=")[-1].split()[0]
+        later = [r for r in rows if r["pid"] == new_pid]
         recovered = next((r for r in later if r["state"] == "ready" and r["mounted"]), None)
-        after_restart = (
-            f"ready and mounted again {(recovered['unix'] - at) // 60} min after the restart"
-            if recovered
-            else "never returned to ready and mounted in the samples after the restart"
-        )
+        if recovered:
+            minutes = max(recovered["unix"] - at, 0) // 60
+            after_restart = (
+                f"pid {new_pid} was ready and mounted "
+                + ("in the first sample after the restart" if minutes == 0 else f"{minutes} min after it")
+                + f"; {len(later)} sample(s) since"
+            )
+        else:
+            after_restart = f"pid {new_pid} never reached ready and mounted in {len(later)} sample(s)"
     verdicts.append(
         (
             "P5",
