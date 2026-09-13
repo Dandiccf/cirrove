@@ -35,7 +35,10 @@ import sys
 import time
 from pathlib import Path
 
-MOUNT = Path.home() / "Cloud" / "Cirrove-OneDrive"
+# The mount to time a listing of. A default rather than a constant, because
+# the window now runs wherever the machine is free -- the host mounts under
+# ~/Cloud/Cirrove-OneDrive, the Ubuntu VM under ~/OneDrive.
+DEFAULT_MOUNT = Path.home() / "Cloud" / "Cirrove-OneDrive"
 
 
 def main_pid(unit: str) -> int:
@@ -90,10 +93,10 @@ def account(binary: str) -> dict:
         return {"state": "unreachable", "mounted": 0, "feeds": "-", "items": -1, "stuck": -1}
 
 
-def listing_ms() -> int:
+def listing_ms(mount: Path) -> int:
     start = time.monotonic()
     try:
-        list(MOUNT.iterdir())
+        list(mount.iterdir())
     except OSError:
         return -1
     return int((time.monotonic() - start) * 1000)
@@ -106,6 +109,7 @@ def main() -> int:
     parser.add_argument("--binary", default="cirrove")
     parser.add_argument("--hours", type=float, default=24.0)
     parser.add_argument("--interval", type=int, default=60)
+    parser.add_argument("--mount", type=Path, default=DEFAULT_MOUNT)
     args = parser.parse_args()
 
     started = time.monotonic()
@@ -122,12 +126,14 @@ def main() -> int:
     )
     if not resolved:
         raise SystemExit(f"{args.binary} is not on PATH; the window would be blind from the start")
+    if not args.mount.is_dir():
+        raise SystemExit(f"{args.mount} is not a directory; there is no mount to watch")
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     with args.out.open("w", buffering=1) as sink:
         sink.write(
             f"# started pid={first_pid} hours={args.hours} "
-            f"interval={args.interval} probe={resolved}\n"
+            f"interval={args.interval} probe={resolved} mount={args.mount}\n"
         )
         sink.write("unix\tuptime_s\tpid\trss_kib\tstate\tmounted\tfeeds\titems\tstuck\tlisting_ms\n")
         while time.monotonic() < deadline:
@@ -149,7 +155,7 @@ def main() -> int:
             sink.write(
                 f"{int(time.time())}\t{int(time.monotonic() - started)}\t{pid}\t{rss_kib(pid)}\t"
                 f"{a['state']}\t{a['mounted']}\t{a['feeds']}\t{a['items']}\t{a['stuck']}\t"
-                f"{listing_ms()}\n"
+                f"{listing_ms(args.mount)}\n"
             )
             time.sleep(args.interval)
     sink_path = args.out

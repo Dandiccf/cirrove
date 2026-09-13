@@ -129,6 +129,24 @@ case $action in
       -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
       -o LogLevel=ERROR -o ConnectTimeout=10 tester@127.0.0.1 "$@"
     ;;
+  put)
+    # Copy files into the machine: run.sh <distro> put FILE... DEST
+    # Packages to install, a sampler to run, a script to drive -- all of it had
+    # been going through `ssh 'cat > path'`, which silently mangles anything
+    # that is not text.
+    dest=${!#}; args=("${@:1:$#-1}")
+    exec scp -P "$ssh_port" -i "$vms/id_ed25519" -o IdentitiesOnly=yes -o BatchMode=yes \
+      -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+      -o LogLevel=ERROR -o ConnectTimeout=10 -- "${args[@]}" "tester@127.0.0.1:$dest"
+    ;;
+  get)
+    # And back out: run.sh <distro> get REMOTE... LOCALDIR
+    dest=${!#}; args=("${@:1:$#-1}")
+    remotes=(); for a in "${args[@]}"; do remotes+=("tester@127.0.0.1:$a"); done
+    exec scp -P "$ssh_port" -i "$vms/id_ed25519" -o IdentitiesOnly=yes -o BatchMode=yes \
+      -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+      -o LogLevel=ERROR -o ConnectTimeout=10 -- "${remotes[@]}" "$dest"
+    ;;
   key)
     # Put the host's key into the machine once, using the test account's
     # password through ssh's askpass hook -- no terminal, no sshpass.
