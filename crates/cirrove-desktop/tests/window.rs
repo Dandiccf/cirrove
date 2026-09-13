@@ -636,18 +636,23 @@ fn every_account_action_is_offered_from_the_window_and_only_where_it_applies() {
         "a refused save is an entry that warns"
     );
 
-    // The tray notice is a definite-absence notice, and this desktop has a tray
-    // host, so it must stay hidden. What it must not do is appear because a
-    // lookup was slow or failed -- someone whose icon is sitting in their panel
-    // being told it cannot be is worse than saying nothing. tray::notice_when
-    // holds that rule; this checks the window obeys it.
-    assert!(
-        !displays_text(
-            window.upcast_ref(),
-            "No tray icon: this desktop has no tray. On GNOME, install the AppIndicator \
-             extension; most other desktops provide one."
-        ),
-        "the tray notice must not appear where a tray host is running"
+    // The tray notice must match what the session bus actually says, not what
+    // the machine running the test happens to have. A developer's desktop has a
+    // tray host and CI's bare X server does not, and asserting either one made
+    // this a test of the environment: written assuming a host, it failed on CI
+    // for being right. So the expectation is asked for rather than assumed, the
+    // same way the window asks.
+    const NOTICE: &str = "No tray icon: this desktop has no tray. On GNOME, install the \
+                          AppIndicator extension; most other desktops provide one.";
+    let host = runtime.block_on(cirrove_desktop::tray::host_present());
+    let expected = cirrove_desktop::tray::notice_when(host);
+    pump_until("the tray notice settles", || {
+        displays_text(window.upcast_ref(), NOTICE) == expected
+    });
+    assert_eq!(
+        displays_text(window.upcast_ref(), NOTICE),
+        expected,
+        "the bus says host_present={host:?}, so the notice should be shown={expected}"
     );
 
     // Every button that is only an icon has a name: the tooltip a pointer
