@@ -320,7 +320,7 @@
       "done": false,
       "text": "GTK4/libadwaita setup and settings without a terminal in ordinary flows.",
       "blocker": "out-of-agreed-scope",
-      "evidence": null,
+      "evidence": "NOT DONE. Named here 2026-09-13 with the clearest example of what the row is about: pinning. Milestone 3 is closed 5/5 -- persistent per-file and recursive pinning, storage reservations, offline access across restarts, all measured against a real account -- and every one of those capabilities is reachable only from a terminal. `cirrove pin`, `cirrove pins`, `cirrove unpin` exist; the window has no pin control, the tray menu has none, and there is no file-manager extension at all. Asked by the first person to use it -- 'how am I supposed to pin anything? that isn't implemented, is it?' -- which is the row failing in the plainest possible way: a whole milestone's worth of working capability that a user cannot find. The file-manager half is line 262 and separate; this row is the one that says ordinary flows must not need a terminal.",
       "asserted_by": null
     },
     {
