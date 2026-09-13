@@ -91,7 +91,11 @@ scheduler: wait for the stated cooldown before retrying a throttled request.
 
 ## Optional user-service installation (after development testing)
 
-The repository does not install or enable anything automatically.
+The repository does not install or enable anything automatically. On Arch the
+packages are the better route -- `scripts/build-arch-package.sh`, then
+`pacman -U`, see [Distribution](distribution.md#arch) -- and the two must not be
+mixed: the user-local files below shadow a package's. What follows is the
+package-free install.
 
 ```sh
 cargo build --release --locked

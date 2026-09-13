@@ -241,3 +241,40 @@ jobs:
               MALLOC_ARENA_MAX=1 CIRROVE_FIXTURE_REQUEST_DELAY_MS="$delay" timeout 210s cargo test -p cirrove-service --lib --locked --release "real_mounted_${mode}_read_workload" -- --ignored --nocapture --test-threads=1
             done
           done
+
+  # Milestone 6: the Arch packages, built the way a user's machine would build
+  # them -- from the committed tree, as an unprivileged user, with the
+  # distribution's rust -- then installed, run, and removed on a clean system.
+  # A container is a clean build root, not a desktop: this shows the packages
+  # are correct and install cleanly, not that a login starts the service.
+  arch-package:
+    runs-on: ubuntu-24.04
+    container: archlinux:base-devel
+    timeout-minutes: 40
+    steps:
+      - name: Build tools, and the desktop libraries the desktop package builds against
+        run: pacman -Syu --noconfirm --needed git rust cmake pkgconf gtk4 libadwaita fuse3 desktop-file-utils appstream
+      - uses: actions/checkout@v4
+        with:
+          # The package version carries the commit count.
+          fetch-depth: 0
+      - name: Build both packages from HEAD as an unprivileged user
+        run: |
+          useradd -m builder
+          git config --system --add safe.directory "$GITHUB_WORKSPACE"
+          chown -R builder "$GITHUB_WORKSPACE"
+          runuser -u builder -- scripts/build-arch-package.sh
+      - name: Install, run, validate what a desktop would read, and remove
+        run: |
+          pacman -U --noconfirm $(ls target/arch/*.pkg.tar.zst | grep -v -- '-debug-')
+          cirrove --help >/dev/null
+          cirroved --help >/dev/null
+          grep -q '^ExecStart=/usr/bin/cirroved ' /usr/lib/systemd/user/cirroved.service
+          desktop-file-validate /usr/share/applications/io.github.Dandiccf.Cirrove.desktop
+          desktop-file-validate /etc/xdg/autostart/io.github.Dandiccf.Cirrove.Tray.desktop
+          appstreamcli validate /usr/share/metainfo/io.github.Dandiccf.Cirrove.metainfo.xml
+          test -f /usr/share/icons/hicolor/symbolic/apps/io.github.Dandiccf.Cirrove-attention-symbolic.svg
+          pacman -Rns --noconfirm cirrove-desktop cirrove
+          for f in /usr/bin/cirroved /usr/bin/cirrove /usr/bin/cirrove-tray /usr/lib/systemd/user/cirroved.service /etc/xdg/autostart/io.github.Dandiccf.Cirrove.Tray.desktop; do
+            ! test -e "$f" || { echo "$f survived removal"; exit 1; }
+          done

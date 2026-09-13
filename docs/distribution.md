@@ -1,6 +1,8 @@
 # Distribution and installation plan
 
-Status: planned; no installable OneDrive 1.0 release is available.
+Status: no tagged release. The Arch packages build from the committed tree
+(see [Arch](#arch) below) and CI installs and removes them on a clean Arch
+container on every push; Debian and Fedora packages do not exist yet.
 
 Cirrove is a Linux application, not an Omarchy-specific service. The current
 development machine uses Arch and CI uses Ubuntu 24.04. Building on Ubuntu is not
@@ -46,6 +48,57 @@ Fedora's official package repositories. The comparison motivating this work is
 supported by [onedriver's installation documentation](https://github.com/jstaf/onedriver#quick-start),
 which describes COPR and Debian/Ubuntu package-manager installation through OBS.
 Its documentation alone does not verify every listed distribution's current builds.
+
+## Arch
+
+`packaging/arch/PKGBUILD` builds two packages from one source, because a
+headless host should be able to install the daemon without a desktop library:
+
+| Package | Contents | Depends on |
+| --- | --- | --- |
+| `cirrove` | `/usr/bin/cirroved`, `/usr/bin/cirrove`, `/usr/lib/systemd/user/cirroved.service`, licence | `fuse3` (for `fusermount3`); optionally a Secret Service keyring and `xdg-utils` |
+| `cirrove-desktop` | `/usr/bin/cirrove-desktop`, `/usr/bin/cirrove-tray`, the desktop entry, the tray's `/etc/xdg/autostart` entry, the hicolor icons, the AppStream metainfo, licence | `cirrove`, `gtk4`, `libadwaita`; optionally the GNOME AppIndicator extension |
+
+The PKGBUILD is written for a tagged release and downloads the tarball by
+version. There is no tag yet, so `scripts/build-arch-package.sh` builds HEAD: it
+archives the commit under the name the source line expects, sets `pkgver` to
+`0.1.0dev.r<commits>.g<hash>` (which sorts before `0.1.0` for pacman and
+upgrades from one dev build to the next), and points makepkg at the archive.
+It then lists each package and fails if a file is missing or the daemon package
+has acquired a desktop dependency. It builds the commit, not the working copy;
+uncommitted edits are not in the package, and it says so.
+
+```sh
+scripts/build-arch-package.sh
+sudo pacman -U target/arch/cirrove-*.pkg.tar.zst   # the two it names, not the -debug ones
+systemctl --user enable --now cirroved.service
+cirrove status
+```
+
+The packaged unit runs `/usr/bin/cirroved`; the template in `packaging/systemd/`
+runs `%h/.local/bin/cirroved` for a developer install, and `package()` rewrites
+the path and checks the rewrite took. **Moving from a developer install to the
+package**: the user-local files shadow the packaged ones, so remove them first --
+`~/.config/systemd/user/cirroved.service` (after `systemctl --user disable --now
+cirroved`), the binaries in `~/.local/bin/`, and
+`~/.config/autostart/io.github.Dandiccf.Cirrove.Tray.desktop`
+(`scripts/install-tray-autostart.py --remove`) -- then `systemctl --user
+daemon-reload` and enable the packaged unit. Accounts, credentials and the
+journal under `~/.local/state/cirrove` are not touched by any of this.
+
+`pacman -R cirrove-desktop cirrove` removes only package-owned files. The state
+directory, the keyring entries and any unsent bytes in the journal stay, which
+is the retention the milestone asks for; removing them is a separate, explicit
+step (`cirrove forget` per account, or deleting the state directory) and never
+happens through a mounted path.
+
+CI's `arch-package` job does the build in an `archlinux:base-devel` container as
+an unprivileged user with the distribution's rust, installs both packages,
+runs the binaries, validates the desktop entries and metainfo from their
+installed locations, removes the packages, and checks nothing package-owned
+survived. A container has no login session: it shows the packages are correct,
+not that the service starts at login. The AUR recipe and `.SRCINFO` follow the
+first tag.
 
 ## Milestone-6 acceptance gates
 

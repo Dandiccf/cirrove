@@ -190,6 +190,8 @@ identity matches; live mounts and unrelated paths are preserved.
 
 Existing cloud clients, mounts and credentials are not imported or modified.
 The systemd template is supplied separately and is not installed by a build.
+On Arch, `scripts/build-arch-package.sh` builds installable packages from the
+committed tree -- see [Distribution](docs/distribution.md#arch).
 Enabled on a real account, it has been through a reboot: the daemon stopped
 cleanly, unmounting itself, and started again at the next login with its mount,
 index, feeds and schema unchanged. Tests hold the unit to that wiring; only a

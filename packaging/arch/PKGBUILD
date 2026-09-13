@@ -1,0 +1,115 @@
+# Maintainer: Christian Dandachi <dandiccf@users.noreply.github.com>
+#
+# Two packages from one source: `cirrove` is the daemon and CLI and needs no
+# desktop library on the machine; `cirrove-desktop` is the settings window, the
+# tray, and the files a desktop reads -- entries, icons, metainfo. A headless
+# host installs the first alone.
+#
+# This file is written for a tagged release. Until one exists,
+# scripts/build-arch-package.sh builds from the checked-in tree: it archives
+# HEAD under the name the source line expects, rewrites pkgver to carry the
+# commit, and points makepkg at the archive so nothing is downloaded. The
+# checksum stays SKIP until the first tag, when `updpkgsums` fills it in.
+
+pkgbase=cirrove
+pkgname=(cirrove cirrove-desktop)
+pkgver=0.1.0dev
+pkgrel=1
+pkgdesc="Cloud drive filesystem that keeps the cloud where it is: OneDrive mounted on demand, without syncing everything"
+arch=(x86_64)
+url="https://github.com/Dandiccf/cirrove"
+license=(Apache-2.0)
+# gtk4 and libadwaita are here for the desktop package's build; the daemon
+# package's own dependencies are declared on it alone below.
+makedepends=(cargo cmake pkgconf gtk4 libadwaita)
+# Not makepkg's LTO: it puts -flto into the C flags, the bundled TLS library's
+# C objects come out as GCC bitcode, and rust-lld cannot read those -- the
+# link fails on hundreds of undefined aws_lc symbols. Rust does its own LTO
+# from Cargo.toml; the C side is a few objects that gain nothing from it.
+options=(!lto)
+source=("$pkgbase-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+prepare() {
+  cd "$pkgbase-$pkgver"
+  # The repository pins a toolchain in rust-toolchain.toml for contributors; a
+  # package builds with the distribution's rust, and a rustup on the builder
+  # must not download a second one.
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "$pkgbase-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  # --workspace: the root's default members exclude the desktop on purpose, so
+  # that a plain build needs no GTK. The package builds both halves.
+  cargo build --frozen --release --workspace
+}
+
+check() {
+  cd "$pkgbase-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  # The unit tests, and the tests that read the packaged files and hold them to
+  # the shape the install below relies on. Not the mounted-filesystem suites:
+  # those need /dev/fuse and a session bus, which a clean build root does not
+  # have, and a check that fails for want of a device proves nothing about the
+  # package.
+  cargo test --frozen --release --workspace --lib
+  cargo test --frozen --release -p cirrove-service --test packaging
+  cargo test --frozen --release -p cirrove-desktop --test packaging
+}
+
+package_cirrove() {
+  pkgdesc+=" (service and command line)"
+  # fuse3 for fusermount3, which the daemon runs to mount; everything else the
+  # binaries need is linked in.
+  depends=(fuse3 gcc-libs glibc)
+  optdepends=(
+    'gnome-keyring: keep sign-in grants in a desktop keyring (or any Secret Service)'
+    'xdg-utils: open the browser for sign-in from the command line'
+    'cirrove-desktop: settings window, tray, and desktop integration'
+  )
+
+  cd "$pkgbase-$pkgver"
+  install -Dm755 target/release/cirroved "$pkgdir/usr/bin/cirroved"
+  install -Dm755 target/release/cirrove "$pkgdir/usr/bin/cirrove"
+
+  # The unit in the tree is the template a developer installs into their own
+  # home, so it runs %h/.local/bin/cirroved; a package puts the binary in
+  # /usr/bin and the unit must say so. The path is checked after the edit
+  # because a sed that matched nothing installs a unit that starts nothing.
+  local unit="$pkgdir/usr/lib/systemd/user/cirroved.service"
+  sed 's|%h/.local/bin/cirroved|/usr/bin/cirroved|' packaging/systemd/cirroved.service \
+    | install -Dm644 /dev/stdin "$unit"
+  grep -q '^ExecStart=/usr/bin/cirroved ' "$unit" \
+    || { echo "the packaged unit does not run /usr/bin/cirroved" >&2; return 1; }
+
+  install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
+}
+
+package_cirrove-desktop() {
+  pkgdesc+=" (settings window, tray and desktop integration)"
+  depends=(cirrove gtk4 libadwaita)
+  optdepends=(
+    'gnome-shell-extension-appindicator: show the tray icon on GNOME'
+  )
+
+  cd "$pkgbase-$pkgver"
+  install -Dm755 target/release/cirrove-desktop "$pkgdir/usr/bin/cirrove-desktop"
+  install -Dm755 target/release/cirrove-tray "$pkgdir/usr/bin/cirrove-tray"
+
+  local id=io.github.Dandiccf.Cirrove
+  install -Dm644 "packaging/desktop/$id.desktop" -t "$pkgdir/usr/share/applications/"
+  # The tray starts with the session, from the system autostart directory. Its
+  # Exec= is the bare name, which is right here and only here: /usr/bin is on
+  # every generator's PATH, where ~/.local/bin is not.
+  install -Dm644 "packaging/desktop/$id.Tray.desktop" -t "$pkgdir/etc/xdg/autostart/"
+  install -Dm644 "packaging/icons/scalable/apps/$id.svg" -t "$pkgdir/usr/share/icons/hicolor/scalable/apps/"
+  install -Dm644 packaging/icons/symbolic/apps/*.svg -t "$pkgdir/usr/share/icons/hicolor/symbolic/apps/"
+  install -Dm644 "packaging/metainfo/$id.metainfo.xml" -t "$pkgdir/usr/share/metainfo/"
+
+  install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
+}
