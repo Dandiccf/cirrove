@@ -1005,6 +1005,12 @@ must consume the service's state rather than maintain their own sync logic.
 Google Drive will implement provider contracts around its native changes and content
 APIs, including shared drives and explicit document export. iCloud must stay isolated
 behind a compatibility adapter with visible authentication/API limitations.
+[ADR 0009](adr/0009-a-second-provider.md) surveys what a second provider would
+actually cost here: the core traits and the store's key space already carry it,
+while the account record, the auth crate and the status wire format assume
+Microsoft, and the write contract requires an ETag precondition that Drive does
+not offer. It records the order those must change in, and that the precondition
+becomes a stated capability rather than a requirement.
 
 ## References
 
