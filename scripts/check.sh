@@ -10,6 +10,11 @@
 # a decision -- then it checks, so a file that could not be formatted still
 # fails here rather than on CI.
 #
+# Use --fast while a measurement VM is running: the workspace test run spawns
+# many test binaries at once, and together with a 5 GB virtual machine it was
+# enough for this machine to start reclaiming memory and for background tasks to
+# be culled. Nothing was lost, but the full run is not free company.
+#
 # Usage: scripts/check.sh [--fast]      --fast skips the workspace test run
 set -euo pipefail
 
