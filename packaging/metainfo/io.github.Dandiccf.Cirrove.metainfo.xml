@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.Dandiccf.Cirrove</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>Apache-2.0</project_license>
+  <name>Cirrove</name>
+  <summary>Your clouds, one filesystem</summary>
+  <description>
+    <p>
+      Cirrove mounts cloud drives as ordinary folders. Files stay in the cloud and
+      arrive when they are opened; the ones you pin stay available offline. It
+      does not mirror your whole drive to disk, by design.
+    </p>
+    <p>
+      The first provider is Microsoft OneDrive, with Google Drive and iCloud Drive
+      planned. Cirrove is an early preview: read-only mounts are the default, and
+      writing is an explicit opt-in per account.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.Dandiccf.Cirrove.desktop</launchable>
+  <provides>
+    <binary>cirrove-desktop</binary>
+    <binary>cirrove-tray</binary>
+    <binary>cirrove</binary>
+    <binary>cirroved</binary>
+    <dbus type="session">io.github.Dandiccf.Cirrove.Tray</dbus>
+  </provides>
+  <url type="homepage">https://github.com/Dandiccf/cirrove</url>
+  <url type="bugtracker">https://github.com/Dandiccf/cirrove/issues</url>
+  <url type="vcs-browser">https://github.com/Dandiccf/cirrove</url>
+  <developer id="io.github.dandiccf">
+    <name>Dandiccf</name>
+  </developer>
+  <content_rating type="oars-1.1"/>
+  <categories>
+    <category>Network</category>
+    <category>FileTools</category>
+  </categories>
+  <keywords>
+    <keyword>cloud</keyword>
+    <keyword>OneDrive</keyword>
+    <keyword>FUSE</keyword>
+    <keyword>mount</keyword>
+  </keywords>
+  <requires>
+    <display_length compare="ge">360</display_length>
+  </requires>
+  <supports>
+    <control>keyboard</control>
+    <control>pointing</control>
+  </supports>
+  <releases>
+    <release version="0.1.0" date="2026-09-13" type="development">
+      <description>
+        <p>Development preview. Not yet released as a package.</p>
+      </description>
+    </release>
+  </releases>
+</component>

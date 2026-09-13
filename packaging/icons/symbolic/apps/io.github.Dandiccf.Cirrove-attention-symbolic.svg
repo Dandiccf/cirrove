@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <path fill="#2e3436" d="M 4.5,13 H 12 A 3,3 0 0 0 12.4,7.03 A 4,4 0 0 0 4.7,6.2 A 3.5,3.5 0 0 0 4.5,13 Z"/>
+  <!-- Ausrufezeichen: der Zustand, den ein Mensch beheben muss -->
+  <rect x="7.25" y="6.7" width="1.5" height="3.6" rx="0.75" fill="#ffffff"/>
+  <circle cx="8" cy="11.6" r="0.9" fill="#ffffff"/>
+</svg>

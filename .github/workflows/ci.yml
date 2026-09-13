@@ -29,7 +29,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install build dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config fuse3 libgtk-4-dev libadwaita-1-dev xvfb desktop-file-utils gnome-keyring
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config fuse3 libgtk-4-dev libadwaita-1-dev xvfb desktop-file-utils gnome-keyring appstream
       - name: Install pinned toolchain
         run: rustup toolchain install 1.98.1 --profile minimal --component rustfmt --component clippy
       - run: cargo fmt --all -- --check
@@ -65,7 +65,13 @@ jobs:
       - name: Tray item offers a host every property it reads
         run: timeout 30s dbus-run-session -- cargo test -p cirrove-desktop --test tray --locked -- --ignored --test-threads=1
       - run: desktop-file-validate packaging/desktop/io.github.Dandiccf.Cirrove.desktop
-      - run: desktop-file-validate packaging/desktop/io.github.Dandiccf.Cirrove.Tray.desktop
+      # One application identity: both entries, the AppStream metainfo, and the
+      # test below that ties them to the app id the window and tray register.
+      - name: Desktop entries and AppStream metainfo are valid
+        run: |
+          desktop-file-validate packaging/desktop/io.github.Dandiccf.Cirrove.desktop
+          desktop-file-validate packaging/desktop/io.github.Dandiccf.Cirrove.Tray.desktop
+          appstreamcli validate packaging/metainfo/io.github.Dandiccf.Cirrove.metainfo.xml
       # The autostart entry and the tray unit have to agree with each other and
       # stay free of any desktop they would have to guess at packaging time.
       - name: Tray autostart entry and unit
@@ -209,6 +215,16 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config fuse3
       - name: Install pinned toolchain
         run: rustup toolchain install 1.98.1 --profile minimal
+      # Milestone 6: the daemon and CLI must build and run without GTK4 or
+      # libadwaita on the machine. This job installs neither, and this step
+      # asserts that rather than leaving it to the absence of a line above.
+      - name: Daemon and CLI build with no desktop libraries present
+        run: |
+          ! dpkg -s libgtk-4-dev >/dev/null 2>&1 || { echo "libgtk-4-dev is installed; this job no longer proves a headless build"; exit 1; }
+          ! dpkg -s libadwaita-1-dev >/dev/null 2>&1 || { echo "libadwaita-1-dev is installed; this job no longer proves a headless build"; exit 1; }
+          cargo build --locked --release
+          test -x target/release/cirroved && test -x target/release/cirrove
+          ./target/release/cirrove --help >/dev/null
       - name: Build optimized workload fixtures
         run: cargo test -p cirrove-service --lib --locked --release --no-run
       - name: Verify kernel FUSE access

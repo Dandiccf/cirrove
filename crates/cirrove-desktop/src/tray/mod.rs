@@ -179,18 +179,21 @@ impl TrayState {
         Health::Working
     }
 
-    /// A themed icon name.
+    /// The icon for the current state, one of Cirrove's own.
     ///
-    /// Generic names on purpose: Cirrove has no installed icon yet -- that is
-    /// its own milestone 5 box -- and inventing a name now would show a blank
-    /// square on every theme until that box is done. These exist in Adwaita and
-    /// in every icon theme that follows the freedesktop naming spec.
+    /// Three distinct icons rather than one icon with overlays, because not
+    /// every host draws overlays and a state a host cannot draw is a state the
+    /// user does not see. The names are promises that files exist under them:
+    /// `packaging::every_icon_the_tray_names_ships_as_a_file` reads them out of
+    /// this function and checks. And the tray does not rely on those files being
+    /// installed -- it stages its own copies at start and hands the host the
+    /// path, see `stage_icons`, so it draws correctly from a bare build too.
     pub fn icon_name(&self) -> &'static str {
         match self.health() {
-            Health::NeedsAttention => "dialog-warning-symbolic",
-            Health::Ready => "folder-remote-symbolic",
-            Health::Working => "emblem-synchronizing-symbolic",
-            Health::Idle => "folder-remote-symbolic",
+            Health::NeedsAttention => "io.github.Dandiccf.Cirrove-attention-symbolic",
+            Health::Ready => "io.github.Dandiccf.Cirrove-ready-symbolic",
+            Health::Working => "io.github.Dandiccf.Cirrove-working-symbolic",
+            Health::Idle => "io.github.Dandiccf.Cirrove-ready-symbolic",
         }
     }
 
@@ -318,9 +321,70 @@ fn summary(account: &AccountRow) -> String {
     }
 }
 
+/// The tray's icons, embedded, so a host can draw them whether or not a package
+/// has installed the icon set.
+///
+/// The first tray registered, declared everything, reported NeedsAttention and
+/// drew nothing, because the icon it named was not there to draw. Naming a
+/// themed icon is a bet that the theme has it. These remove the bet: at start
+/// the tray writes its own icons under the runtime directory and offers that
+/// path as `IconThemePath`, which StatusNotifierItem hosts add to their search
+/// path. A packaged install has the same files in the system theme and the host
+/// finds them either way.
+const EMBEDDED_ICONS: &[(&str, &str)] = &[
+    (
+        "io.github.Dandiccf.Cirrove-ready-symbolic",
+        include_str!(
+            "../../../../packaging/icons/symbolic/apps/io.github.Dandiccf.Cirrove-ready-symbolic.svg"
+        ),
+    ),
+    (
+        "io.github.Dandiccf.Cirrove-working-symbolic",
+        include_str!(
+            "../../../../packaging/icons/symbolic/apps/io.github.Dandiccf.Cirrove-working-symbolic.svg"
+        ),
+    ),
+    (
+        "io.github.Dandiccf.Cirrove-attention-symbolic",
+        include_str!(
+            "../../../../packaging/icons/symbolic/apps/io.github.Dandiccf.Cirrove-attention-symbolic.svg"
+        ),
+    ),
+];
+
+/// Write the embedded icons where a host can find them, and return the theme
+/// root to advertise. `None` when the runtime directory cannot be written, in
+/// which case the host falls back to installed themes, which is the packaged
+/// case working as intended rather than a failure.
+fn stage_icons() -> Option<PathBuf> {
+    let base = std::env::var_os("XDG_RUNTIME_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir)
+        .join("cirrove-tray")
+        .join("icons");
+    // Three layouts, because hosts disagree on what the path is. Qt-based hosts
+    // (Plasma, Quickshell) treat it as a flat fallback directory and look for
+    // `<path>/<name>.svg`; GTK-based hosts (the GNOME AppIndicator extension)
+    // add it as a theme search path and find both flat files and the hicolor
+    // layout; and within hicolor they differ on whether an SVG lives under
+    // scalable or symbolic. A file in the wrong place is an icon not drawn, and
+    // three copies of a 300-byte SVG cost nothing.
+    for subdir in ["", "hicolor/scalable/apps", "hicolor/symbolic/apps"] {
+        let dir = base.join(subdir);
+        std::fs::create_dir_all(&dir).ok()?;
+        for (name, svg) in EMBEDDED_ICONS {
+            std::fs::write(dir.join(format!("{name}.svg")), svg).ok()?;
+        }
+    }
+    Some(base)
+}
+
 /// The D-Bus object a shell reads.
 pub struct StatusNotifierItem {
     state: Arc<Mutex<TrayState>>,
+    /// Where the tray staged its own icons, or empty if it could not. See
+    /// `stage_icons`.
+    icon_theme_path: String,
 }
 
 #[zbus::interface(name = "org.kde.StatusNotifierItem")]
@@ -348,6 +412,14 @@ impl StatusNotifierItem {
     #[zbus(property)]
     fn icon_name(&self) -> String {
         self.read().icon_name().to_string()
+    }
+
+    /// An extra theme root the host should search, holding the tray's own
+    /// icons. Empty means "use the installed themes", which is what a packaged
+    /// install relies on and what an unwritable runtime directory falls back to.
+    #[zbus(property)]
+    fn icon_theme_path(&self) -> String {
+        self.icon_theme_path.clone()
     }
 
     /// What a host draws while `Status` is `NeedsAttention`.
@@ -487,6 +559,9 @@ pub async fn publish(
 ) -> Result<zbus::Connection> {
     let item = StatusNotifierItem {
         state: state.clone(),
+        icon_theme_path: stage_icons()
+            .map(|p| p.to_string_lossy().into_owned())
+            .unwrap_or_default(),
     };
     zbus::connection::Builder::session()
         .context("no session bus; a tray needs one")?
@@ -947,7 +1022,10 @@ mod tests {
         state.apply(account("b", "sign_in_required", true));
         assert_eq!(state.health(), Health::NeedsAttention);
         assert_eq!(state.sni_status(), "NeedsAttention");
-        assert_eq!(state.icon_name(), "dialog-warning-symbolic");
+        assert_eq!(
+            state.icon_name(),
+            "io.github.Dandiccf.Cirrove-attention-symbolic"
+        );
     }
 
     #[test]

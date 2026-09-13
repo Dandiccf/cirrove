@@ -176,3 +176,94 @@ fn both_mechanisms_start_the_same_command() {
         "autostart runs {exec:?} but the unit runs {unit_exec:?}"
     );
 }
+
+/// The application id the window registers, and everything that must agree
+/// with it.
+const APP_ID: &str = "io.github.Dandiccf.Cirrove";
+
+fn metainfo() -> String {
+    repo("packaging/metainfo/io.github.Dandiccf.Cirrove.metainfo.xml")
+}
+
+/// One value inside an XML element, by naive scan. Enough for a metainfo file
+/// this project writes itself; a real parser would be a dependency for a test.
+fn element(xml: &str, name: &str) -> Option<String> {
+    let open = format!("<{name}");
+    let start = xml.find(&open)?;
+    let after = xml[start..].find('>')? + start + 1;
+    let end = xml[after..].find(&format!("</{name}>"))? + after;
+    Some(xml[after..end].trim().to_string())
+}
+
+#[test]
+fn the_desktop_entry_icon_and_metainfo_share_one_application_identity() {
+    // Milestone 5: one identity across the desktop entry, the installed icon,
+    // the AppStream metainfo, the D-Bus name and the Wayland app_id. This holds
+    // the static half -- the files agree with the id the code registers. The
+    // runtime half, that a shell associates the window with its launcher, needs
+    // a session and is the session-matrix row.
+    let parsed = autostart_main();
+    assert_eq!(
+        value(&parsed, "Desktop Entry", "Icon").as_deref(),
+        Some(APP_ID),
+        "the launcher icon must be the application, not a generic folder"
+    );
+    let xml = metainfo();
+    assert_eq!(element(&xml, "id").as_deref(), Some(APP_ID));
+    assert_eq!(
+        element(&xml, "launchable").as_deref(),
+        Some("io.github.Dandiccf.Cirrove.desktop"),
+        "AppStream must point at the desktop entry it describes"
+    );
+    // The source of truth for the id is the window's registration and the
+    // tray's bus name, read from the code rather than restated here.
+    let main_rs = repo("crates/cirrove-desktop/src/main.rs");
+    assert!(
+        main_rs.contains(&format!("application_id(\"{APP_ID}\")")),
+        "main.rs registers a different application id"
+    );
+    let tray_rs = repo("crates/cirrove-desktop/src/tray/mod.rs");
+    assert!(
+        tray_rs.contains(&format!("\"{APP_ID}.Tray\"")),
+        "the tray's bus name must be under the application id"
+    );
+}
+
+fn autostart_main() -> HashMap<String, Vec<(String, String)>> {
+    sections(&repo(
+        "packaging/desktop/io.github.Dandiccf.Cirrove.desktop",
+    ))
+}
+
+#[test]
+fn every_icon_the_tray_names_ships_as_a_file() {
+    // The first tray registered, declared its properties, reported
+    // NeedsAttention, and drew nothing, because the icon it named did not exist.
+    // Naming an icon is a promise that a file is installed under that name; this
+    // reads the names out of the tray and checks the promise is kept in
+    // packaging, so a renamed icon fails here rather than on someone's panel.
+    let tray_rs = repo("crates/cirrove-desktop/src/tray/mod.rs");
+    let mut named = Vec::new();
+    for line in tray_rs.lines() {
+        if let Some(start) = line.find(&format!("\"{APP_ID}-")) {
+            let rest = &line[start + 1..];
+            if let Some(end) = rest.find('"') {
+                named.push(rest[..end].to_string());
+            }
+        }
+    }
+    assert!(
+        !named.is_empty(),
+        "the tray names no branded icons; it is still on generic freedesktop names"
+    );
+    for name in named {
+        let path = format!("packaging/icons/symbolic/apps/{name}.svg");
+        assert!(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../..")
+                .join(&path)
+                .exists(),
+            "the tray names {name} and nothing ships it at {path}"
+        );
+    }
+}

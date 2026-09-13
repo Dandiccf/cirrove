@@ -82,7 +82,20 @@ registration with it and looks the same on the bus. A missing host is said out
 loud once -- naming the interface and the GNOME extension -- because tolerating
 it silently is how a user on stock GNOME ends up with no icon and nothing
 anywhere saying why. Once, not on every change: a flaky panel must not fill a
-journal. Icons are generic freedesktop names until the installed icon set exists.
+journal.
+
+The icons are Cirrove's own: a cloud for ready, a cloud with transfer arrows for
+working, a cloud with an exclamation mark for anything a person must act on.
+Three icons rather than overlays, because not every host draws overlays. They
+ship in `packaging/icons/` for a package to install into the hicolor theme, and
+the tray does not depend on that having happened: it embeds the same files,
+writes them under `$XDG_RUNTIME_DIR/cirrove-tray/icons` at start, and advertises
+that directory as `IconThemePath`, so a tray run from a bare build draws
+correctly too. The first tray in this project registered, declared every
+property, and drew nothing because the icon it named did not exist; this is the
+version of that lesson that survives a rename, and
+`packaging::every_icon_the_tray_names_ships_as_a_file` reads the names out of
+the code and checks a file exists for each.
 
 Only one copy runs. The tray takes the well-known name
 `io.github.Dandiccf.Cirrove.Tray`, and a second copy exits 0 saying so. That is

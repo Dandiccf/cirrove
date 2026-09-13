@@ -24,6 +24,7 @@ const REQUIRED: &[&str] = &[
     "Category",
     "IconName",
     "IconPixmap",
+    "IconThemePath",
     "Id",
     "ItemIsMenu",
     "Menu",

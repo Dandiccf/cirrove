@@ -3,7 +3,7 @@ Type=Application
 Name=Cirrove Tray
 Comment=Show Cirrove connection status in the system tray
 Exec=cirrove-tray
-Icon=folder-remote
+Icon=io.github.Dandiccf.Cirrove
 Terminal=false
 Categories=Network;
 # Autostart, not a launcher entry: nobody starts a tray from an application

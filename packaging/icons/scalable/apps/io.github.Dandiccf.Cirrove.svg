@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#62c6ff"/>
+      <stop offset="1" stop-color="#1e6fd9"/>
+    </linearGradient>
+    <linearGradient id="drive" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#dbeeff" stop-opacity="0.9"/>
+    </linearGradient>
+  </defs>
+  <!-- Schatten -->
+  <path d="M 34,102 H 96 A 22,22 0 0 0 98.5,58 A 30,30 0 0 0 40.5,52 A 25,25 0 0 0 34,102 Z" fill="#000" opacity="0.18" transform="translate(0,3)"/>
+  <!-- Wolke -->
+  <path d="M 34,100 H 96 A 22,22 0 0 0 98.5,56 A 30,30 0 0 0 40.5,50 A 25,25 0 0 0 34,100 Z" fill="url(#sky)"/>
+  <!-- Laufwerk in der Wolke: das Dateisystem, nicht nur der Himmel -->
+  <rect x="42" y="74" width="46" height="14" rx="4" fill="url(#drive)"/>
+  <circle cx="80" cy="81" r="2.6" fill="#1e6fd9"/>
+  <rect x="47" y="79.5" width="22" height="3" rx="1.5" fill="#1e6fd9" opacity="0.55"/>
+</svg>
