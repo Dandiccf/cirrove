@@ -31,8 +31,21 @@ say() { echo "== $(date +%H:%M:%S) $*" | tee -a "$log"; }
 session='XDG_RUNTIME_DIR=/run/user/$(id -u) DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus WAYLAND_DISPLAY=wayland-0 DISPLAY=:0'
 
 wait_ssh() {
-  for _ in $(seq 1 120); do vm true 2>/dev/null && return 0; sleep 5; done
+  for _ in $(seq 1 120); do vm true 2>/dev/null && { unlock_keyring; return 0; }; sleep 5; done
   echo "the VM did not answer on ssh" >&2; return 1
+}
+# The test account logs in automatically, so nothing unlocks its keyring and
+# the daemon cannot read the grant. After every boot this asks the session's
+# Secret Service to unlock it -- which puts the session's own password prompt
+# on the screen -- and types the password into that prompt through the
+# monitor: the machine's equivalent of a person at the login screen. See
+# scripts/vm/unlock-keyring.py for why it is done this way.
+unlock_keyring() {
+  vm 'cat > /tmp/unlock-keyring.py' < "$here/unlock-keyring.py"
+  vm 'export XDG_RUNTIME_DIR=/run/user/$(id -u) DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus; for _ in 1 2 3 4 5 6; do busctl --user status org.freedesktop.secrets >/dev/null 2>&1 && break; sleep 5; done; nohup setsid python3 /tmp/unlock-keyring.py >/tmp/unlock-keyring.out 2>&1 </dev/null & sleep 4' || true
+  for k in c i r r o v e ret; do python3 "$here/qmp.py" "$dir/qmp.sock" keys "$k" >/dev/null 2>&1 || true; done
+  sleep 3
+  vm 'export XDG_RUNTIME_DIR=/run/user/$(id -u) DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus; busctl --user introspect org.freedesktop.secrets /org/freedesktop/secrets/collection/login 2>/dev/null | grep -q "\.Locked.*false" && echo "  keyring unlocked" || echo "  keyring still locked"' | tee -a "$log"
 }
 # The account's label, state, mount flag and feed states, and the time to
 # list the mount root -- the sampler's row, by hand.
