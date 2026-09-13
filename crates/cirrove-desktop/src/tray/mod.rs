@@ -49,6 +49,11 @@ struct AccountRow {
     state: String,
     mounted: bool,
     mount_path: PathBuf,
+    /// Changes the daemon gave up on for this account. Each one is something the
+    /// mount did locally that the cloud never took, so the two disagree until
+    /// somebody clears it -- and before this it was a number in `cirrove status`
+    /// that nobody was going to read.
+    stuck: u64,
 }
 
 /// What the icon is trying to say, in priority order.
@@ -83,12 +88,14 @@ impl TrayState {
                 label,
                 state,
                 mounted,
+                stuck_changes,
                 ..
             } => {
                 let row = self.accounts.entry(account_id).or_default();
                 row.label = label;
                 row.state = state;
                 row.mounted = mounted;
+                row.stuck = stuck_changes;
             }
             Event::Mount {
                 account_id,
@@ -153,6 +160,13 @@ impl TrayState {
             .values()
             .any(|a| a.state == "sign_in_required")
         {
+            return Health::NeedsAttention;
+        }
+        // A change the daemon gave up on means the mount and the cloud disagree
+        // about something, and only a person can decide what to do about it. It
+        // ranks here rather than lower because every other state it could hide
+        // behind -- updating, offline -- resolves itself, and this one does not.
+        if self.accounts.values().any(|a| a.stuck > 0) {
             return Health::NeedsAttention;
         }
         if self
@@ -257,6 +271,17 @@ impl TrayState {
         Some(self.accounts.values().nth(index)?.mounted)
     }
 
+    /// Changes the nth row has given up on, matching `rows`.
+    pub fn stuck_at(&self, index: usize) -> u64 {
+        self.accounts.values().nth(index).map_or(0, |a| a.stuck)
+    }
+
+    /// The label of the nth row, for a menu entry that has to name what it acts
+    /// on rather than acting on whatever is nearest.
+    pub fn label_at(&self, index: usize) -> Option<String> {
+        Some(self.accounts.values().nth(index)?.label.clone())
+    }
+
     /// The folder a click should open, if exactly one is mounted.
     pub fn single_mount(&self) -> Option<PathBuf> {
         let mut mounted = self.accounts.values().filter(|a| a.mounted);
@@ -273,7 +298,7 @@ type ToolTip = (String, Vec<(i32, i32, Vec<u8>)>, String, String);
 /// One account's state in words, shared by the tooltip and the menu so that the
 /// same account cannot be described two ways on one screen.
 fn summary(account: &AccountRow) -> String {
-    match (account.state.as_str(), account.mounted) {
+    let state: String = match (account.state.as_str(), account.mounted) {
         ("ready", true) => "ready".into(),
         ("ready", false) => "not mounted".into(),
         ("sign_in_required", _) => "sign-in required".into(),
@@ -281,6 +306,15 @@ fn summary(account: &AccountRow) -> String {
         ("updating_or_offline", _) => "updating or offline".into(),
         // A mount error is already a sanitized local message.
         (other, _) => other.into(),
+    };
+    // Appended rather than replacing the state, because both are true at once
+    // and the connection being fine is exactly what makes the other surprising.
+    // No path or name: a tooltip appears on hover without intent and is visible
+    // to anyone looking at the screen, which is the rule the activity box sets.
+    match account.stuck {
+        0 => state,
+        1 => format!("{state}, 1 change not applied"),
+        n => format!("{state}, {n} changes not applied"),
     }
 }
 
@@ -448,6 +482,7 @@ pub async fn publish(
     state: Arc<Mutex<TrayState>>,
     revision: Arc<std::sync::atomic::AtomicU32>,
     state_dir: PathBuf,
+    socket: PathBuf,
     redraw: Arc<tokio::sync::Notify>,
 ) -> Result<zbus::Connection> {
     let item = StatusNotifierItem {
@@ -460,7 +495,7 @@ pub async fn publish(
         // shell that finds nothing there shows an empty menu.
         .serve_at(
             menu::MENU_PATH,
-            menu::DbusMenu::new(state, revision, state_dir, redraw),
+            menu::DbusMenu::new(state, revision, state_dir, socket, redraw),
         )?
         .build()
         .await
@@ -479,6 +514,7 @@ pub async fn publish_for_test() -> Result<zbus::Connection> {
         state: "sign_in_required".into(),
         enabled: true,
         mounted: true,
+        stuck_changes: 0,
     });
     publish(
         Arc::new(Mutex::new(state)),
@@ -487,6 +523,7 @@ pub async fn publish_for_test() -> Result<zbus::Connection> {
         // that does not exist is the safer fixture, because a test that did
         // click would fail rather than touch a real account.
         PathBuf::from("/nonexistent/cirrove-tray-test"),
+        PathBuf::from("/nonexistent/cirrove-tray-test.sock"),
         Arc::new(tokio::sync::Notify::new()),
     )
     .await
@@ -623,7 +660,14 @@ pub async fn run(socket: PathBuf, state_dir: PathBuf) -> Result<()> {
     let state = Arc::new(Mutex::new(TrayState::default()));
     let revision = Arc::new(std::sync::atomic::AtomicU32::new(1));
     let redraw = Arc::new(tokio::sync::Notify::new());
-    let connection = publish(state.clone(), revision.clone(), state_dir, redraw.clone()).await?;
+    let connection = publish(
+        state.clone(),
+        revision.clone(),
+        state_dir,
+        socket.clone(),
+        redraw.clone(),
+    )
+    .await?;
 
     // The menu can change what the icon should say -- a mount it could not
     // change -- and cannot publish that itself. This is the half that can.
@@ -730,6 +774,50 @@ mod tests {
     /// that is not: the tray asked for a mount change, the call failed, and the
     /// tray is the only thing that saw it. Before this the click simply looked
     /// like it had worked.
+    /// A change the cloud refused reaches the icon, because nothing else would
+    /// ever show it.
+    ///
+    /// This is the shape of the incident that produced it: fourteen folder
+    /// removals ended in Conflict on a live drive, the mount said they were
+    /// gone, the account still had them, and the only trace was a number in
+    /// `cirrove status` that nobody was going to read. The account itself is
+    /// healthy throughout, which is exactly why no other state can carry this.
+    #[test]
+    fn a_change_the_cloud_refused_is_not_hidden_by_a_healthy_account() {
+        let mut state = TrayState::default();
+        state.apply(stuck("one", 0));
+        assert_eq!(state.health(), Health::Ready, "healthy to begin with");
+
+        state.apply(stuck("one", 3));
+        assert_eq!(
+            state.health(),
+            Health::NeedsAttention,
+            "the account is ready and the data still disagrees; nothing else would say so"
+        );
+        assert_eq!(state.sni_status(), "NeedsAttention");
+        let tooltip = state.tooltip();
+        assert!(
+            tooltip.contains("3 changes not applied"),
+            "the count has to be in the words, not only in the colour: {tooltip:?}"
+        );
+        assert!(
+            tooltip.contains("ready"),
+            "and the connection being fine is what makes it surprising: {tooltip:?}"
+        );
+
+        // One reads as one, because "1 changes" is how a user learns the text is
+        // generated and stops reading it.
+        state.apply(stuck("one", 1));
+        assert!(state.tooltip().contains("1 change not applied"));
+
+        state.apply(stuck("one", 0));
+        assert_eq!(
+            state.health(),
+            Health::Ready,
+            "cleared means cleared; an icon that stays lit is one nobody looks at"
+        );
+    }
+
     #[test]
     fn something_the_tray_could_not_do_reaches_the_icon_and_the_tooltip() {
         let mut state = TrayState::default();
@@ -819,6 +907,18 @@ mod tests {
             state: state.into(),
             enabled: true,
             mounted,
+            stuck_changes: 0,
+        }
+    }
+
+    fn stuck(id: &str, stuck_changes: u64) -> Event {
+        Event::Account {
+            account_id: id.into(),
+            label: format!("label-{id}"),
+            state: "ready".into(),
+            enabled: true,
+            mounted: true,
+            stuck_changes,
         }
     }
 

@@ -196,6 +196,7 @@ jobs:
       - run: cargo build --workspace --locked
       - run: python3 scripts/smoke.py
       - run: python3 scripts/test-observe-service.py
+      - run: python3 scripts/test-install-tray-autostart.py
       - run: cargo doc --workspace --no-deps --locked
   mounted-read-workloads:
     runs-on: ubuntu-24.04

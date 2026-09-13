@@ -55,6 +55,7 @@ const FIRST_ACCOUNT: i32 = 100;
 const PER_ACCOUNT: i32 = 10;
 const OPEN: i32 = 1;
 const TOGGLE: i32 = 2;
+const DISCARD: i32 = 3;
 
 pub struct DbusMenu {
     state: Arc<Mutex<TrayState>>,
@@ -63,6 +64,9 @@ pub struct DbusMenu {
     /// which holds the configuration and per-account operation locks -- rather
     /// than through a control verb that does not exist.
     state_dir: std::path::PathBuf,
+    /// The daemon's control socket, for the actions that go through it rather
+    /// than through the settings file.
+    socket: std::path::PathBuf,
     /// Woken when something the tray itself did needs the icon and tooltip
     /// redrawn. The menu cannot publish a property change on its own -- the
     /// connection it would use is the one serving it -- so it asks, and `run`
@@ -82,12 +86,14 @@ impl DbusMenu {
         state: Arc<Mutex<TrayState>>,
         revision: Arc<AtomicU32>,
         state_dir: std::path::PathBuf,
+        socket: std::path::PathBuf,
         redraw: Arc<tokio::sync::Notify>,
     ) -> Self {
         Self {
             state,
             revision,
             state_dir,
+            socket,
             redraw,
         }
     }
@@ -123,6 +129,12 @@ impl DbusMenu {
                     // Read the account and its current state at click time, not
                     // at draw time: a menu left open while the daemon changed
                     // its mind must not send the stale half of a toggle.
+                    DISCARD => match (state.label_at(index), state.stuck_at(index)) {
+                        // Read at click time, so a menu a shell cached cannot
+                        // abandon changes that have since been cleared.
+                        (Some(label), count) if count > 0 => Action::DiscardStuck { label, count },
+                        _ => Action::Nothing,
+                    },
                     TOGGLE => match (state.id_of(index), state.mounted_at(index)) {
                         (Some(account), Some(mounted)) => Action::SetMounted {
                             account,
@@ -139,6 +151,17 @@ impl DbusMenu {
 
 enum Action {
     OpenFolder(std::path::PathBuf),
+    /// Abandon the changes the daemon gave up on for one account.
+    ///
+    /// It is a shortcut to `cirrove discard-stuck`, which is what makes it
+    /// allowed here: milestone 5 forbids a control reachable ONLY through a
+    /// tray. Leaving a user informed and helpless -- an icon saying something
+    /// is wrong and no way to act on it anywhere they can see -- is the worse
+    /// failure, and this is no more consequential than the unmount beside it.
+    DiscardStuck {
+        label: String,
+        count: u64,
+    },
     /// Change the account's desired mount state. The daemon observes the
     /// settings and answers on the event stream, which is what redraws the row;
     /// nothing here waits for it.
@@ -237,22 +260,36 @@ impl DbusMenu {
                 let mut properties = HashMap::new();
                 properties.insert("label".to_string(), text(&format!("{label} — {summary}")));
                 properties.insert("children-display".to_string(), text("submenu"));
-                children.push(entry(
-                    base,
-                    properties,
-                    vec![
-                        // Only a mounted account has a folder to open. The entry
-                        // stays visible when it is not, because its absence
-                        // would read as the account having fewer capabilities
-                        // rather than as it being unmounted right now.
-                        labelled(base + OPEN, "Open folder", mounted),
-                        labelled(
-                            base + TOGGLE,
-                            if mounted { "Unmount" } else { "Mount" },
-                            true,
-                        ),
-                    ],
-                ));
+                let mut entries = vec![
+                    // Only a mounted account has a folder to open. The entry
+                    // stays visible when it is not, because its absence would
+                    // read as the account having fewer capabilities rather than
+                    // as it being unmounted right now.
+                    labelled(base + OPEN, "Open folder", mounted),
+                    labelled(
+                        base + TOGGLE,
+                        if mounted { "Unmount" } else { "Mount" },
+                        true,
+                    ),
+                ];
+                // Shown only when there is something to discard, unlike the two
+                // above. Those describe what an account can always do; this one
+                // describes a situation, and an entry offering to clear nothing
+                // would teach a user to ignore it for the time it means
+                // something.
+                let stuck = state.stuck_at(index);
+                if stuck > 0 {
+                    entries.push(labelled(
+                        base + DISCARD,
+                        &if stuck == 1 {
+                            "Discard 1 change the cloud refused".to_string()
+                        } else {
+                            format!("Discard {stuck} changes the cloud refused")
+                        },
+                        true,
+                    ));
+                }
+                children.push(entry(base, properties, entries));
             }
         }
 
@@ -342,6 +379,39 @@ impl DbusMenu {
                     redraw.notify_waiters();
                 });
             }
+            Action::DiscardStuck { label, count } => {
+                let socket = self.socket.clone();
+                let state = self.state.clone();
+                let redraw = self.redraw.clone();
+                tokio::spawn(async move {
+                    match cirrove_service::discard_stuck(&socket, &label).await {
+                        Ok(reply) if reply.refusal.is_none() => {
+                            // The daemon's next status pass publishes the new
+                            // count, so nothing is set here: a tray that wrote
+                            // its own number would be reporting an outcome it
+                            // only asked for.
+                            eprintln!(
+                                "cirrove-tray: abandoned {} of {count} change(s); {} still stuck",
+                                reply.discarded, reply.remaining
+                            );
+                        }
+                        other => {
+                            let why = match other {
+                                Ok(reply) => reply.refusal.unwrap_or_default(),
+                                Err(error) => format!("{error:#}"),
+                            };
+                            eprintln!("cirrove-tray: could not discard: {why}");
+                            if let Ok(mut state) = state.lock() {
+                                state.set_notice(
+                                    "Could not clear the refused changes. Try again, or run \
+                                     cirrove discard-stuck.",
+                                );
+                            }
+                            redraw.notify_waiters();
+                        }
+                    }
+                });
+            }
             Action::Nothing => {}
         }
     }
@@ -385,6 +455,10 @@ mod tests {
     use cirrove_service::events::Event;
 
     fn menu(rows: &[(&str, bool)]) -> DbusMenu {
+        stuck_menu(rows, 0)
+    }
+
+    fn stuck_menu(rows: &[(&str, bool)], stuck_changes: u64) -> DbusMenu {
         let mut state = TrayState::default();
         for (id, mounted) in rows {
             state.apply(Event::Account {
@@ -393,14 +467,34 @@ mod tests {
                 state: "ready".into(),
                 enabled: true,
                 mounted: *mounted,
+                stuck_changes,
             });
         }
         DbusMenu::new(
             Arc::new(Mutex::new(state)),
             Arc::new(AtomicU32::new(1)),
             std::path::PathBuf::from("/nonexistent"),
+            std::path::PathBuf::from("/nonexistent.sock"),
             Arc::new(tokio::sync::Notify::new()),
         )
+    }
+
+    /// The entry appears only when there is something to clear, and it acts on
+    /// the account it names.
+    ///
+    /// An entry offering to discard nothing would teach a user to ignore it in
+    /// the time it means something, which is the failure mode of every warning
+    /// that is always present.
+    #[test]
+    fn the_discard_entry_exists_only_when_there_is_something_to_discard() {
+        assert!(matches!(
+            menu(&[("only", true)]).action(FIRST_ACCOUNT + DISCARD),
+            Action::Nothing
+        ));
+        assert!(matches!(
+            stuck_menu(&[("only", true)], 4).action(FIRST_ACCOUNT + DISCARD),
+            Action::DiscardStuck { ref label, count: 4 } if label == "label-only"
+        ));
     }
 
     /// A click has to reach the account it was drawn for. Ids are the only thing

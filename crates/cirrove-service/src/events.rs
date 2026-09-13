@@ -48,6 +48,17 @@ pub enum Event {
         state: String,
         enabled: bool,
         mounted: bool,
+        /// Namespace changes the daemon has given up on. A level, like every
+        /// other field here, and the reason it belongs on this channel rather
+        /// than in a query: it is a number that must reach a person, because
+        /// each one is a change the mount made locally that the cloud never
+        /// took, and until now it existed only in `cirrove status`.
+        ///
+        /// `#[serde(default)]` so an older daemon's event reads back as zero --
+        /// which is the count that daemon can report -- and a newer one's extra
+        /// field is ignored by an older client rather than breaking its stream.
+        #[serde(default)]
+        stuck_changes: u64,
     },
     /// A mount appeared or went away. Separate from `Account` because a file
     /// manager cares about exactly this and nothing else about the account, and
@@ -153,6 +164,7 @@ pub fn diff(previous: &[AccountStatus], current: &[AccountStatus]) -> Vec<Event>
                 if before.state != status.state
                     || before.enabled != status.enabled
                     || before.mounted != status.mounted
+                    || before.stuck_changes != status.stuck_changes
                 {
                     events.push(account_event(status));
                 }
@@ -180,6 +192,7 @@ fn account_event(status: &AccountStatus) -> Event {
         state: status.state.clone(),
         enabled: status.enabled,
         mounted: status.mounted,
+        stuck_changes: status.stuck_changes,
     }
 }
 
@@ -229,8 +242,39 @@ mod tests {
                 state: "sign_in_required".into(),
                 enabled: true,
                 mounted: true,
+                stuck_changes: 0,
             }]
         );
+    }
+
+    /// A change the cloud refused has to travel, or the tray cannot show it.
+    ///
+    /// Everything else on this channel moves when a connection does. This one
+    /// moves while the account stays exactly as healthy as it was, which is why
+    /// the diff has to name it explicitly: without that clause the count reaches
+    /// `cirrove status` and nothing else, which is where it sat while fourteen
+    /// folder removals were stranded on a live drive.
+    #[test]
+    fn a_change_the_cloud_refused_travels_even_when_nothing_else_moved() {
+        let before = vec![status("work", "ready", true)];
+        let mut later = status("work", "ready", true);
+        later.stuck_changes = 3;
+        let events = diff(&before, &[later.clone()]);
+        assert_eq!(
+            events,
+            vec![Event::Account {
+                account_id: "id-work".into(),
+                label: "work".into(),
+                state: "ready".into(),
+                enabled: true,
+                mounted: true,
+                stuck_changes: 3,
+            }],
+            "the account is unchanged in every other field and this still has to be news"
+        );
+        // And clearing them is news too, or an icon stays lit after the cause is
+        // gone -- which teaches a user to ignore the next one.
+        assert_eq!(diff(&[later], &before).len(), 1);
     }
 
     #[test]

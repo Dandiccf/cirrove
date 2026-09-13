@@ -155,7 +155,13 @@ variation.
   `~/.local/bin`: `systemd-xdg-autostart-generator` resolves `Exec=` against its
   own PATH at session start, does not find it, logs "executable specified in
   Exec= does not exist", and writes no unit. Nothing reaches the user and the
-  tray simply never appears. Measured on a real login, not inferred. This is the default and the broadest:
+  tray simply never appears. Measured on a real login, not inferred.
+
+  `scripts/install-tray-autostart.py` does this correctly: it resolves the binary
+  against the generator's own PATH rather than the shell's, writes a bare name
+  when that resolves and an absolute path when it does not, and then runs the
+  generator to confirm a unit comes out rather than assuming one will. `--check`
+  reports without changing anything and `--remove` undoes it. This is the default and the broadest:
   GNOME, KDE, XFCE, LXQt, Cinnamon and MATE run it, `systemd-xdg-autostart-generator`
   turns it into a unit where systemd is present, and it works on distributions
   that have no systemd at all. It names no desktop in `OnlyShowIn`/`NotShowIn`,
