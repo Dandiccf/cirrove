@@ -88,6 +88,11 @@ fn icon_only_buttons(widget: &gtk::Widget) -> Vec<gtk::Button> {
         && button.is_mapped()
         && button.icon_name().is_some()
         && button.label().is_none()
+        // libadwaita's header draws the window buttons itself under Xvfb and
+        // does not put them in a GtkWindowControls; they carry GTK's
+        // `titlebutton` class and a `window-*` icon, and are not ours.
+        && !button.has_css_class("titlebutton")
+        && !button.icon_name().is_some_and(|n| n.starts_with("window-"))
     {
         found.push(button.clone());
     }
