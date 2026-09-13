@@ -151,6 +151,39 @@ class Menu(unittest.TestCase):
         )
 
 
+class Properties(unittest.TestCase):
+    def test_a_kept_file_lists_availability_where_it_is_and_the_pin(self):
+        state = {"kind": "file", "pinned": "direct", "size": 2048, "resident": 2048, "item": "01ABC"}
+        pairs = dict(ext.properties(state, "Dokumente/Report.docx"))
+        self.assertEqual(pairs["Availability"], "Kept offline")
+        self.assertEqual(pairs["On this computer"], "all 2.0 KB")
+        self.assertEqual(pairs["Kept offline"], "yes")
+        self.assertEqual(pairs["Cloud location"], "/Dokumente/Report.docx")
+        self.assertEqual(pairs["Provider item"], "01ABC")
+
+    def test_an_on_demand_file_says_not_downloaded_and_not_pinned(self):
+        state = {"kind": "file", "pinned": None, "size": 1000, "resident": 0}
+        pairs = dict(ext.properties(state, "a.txt"))
+        self.assertEqual(pairs["Availability"], "On demand")
+        self.assertEqual(pairs["On this computer"], "not downloaded yet")
+        self.assertEqual(pairs["Kept offline"], "no")
+
+    def test_a_partly_fetched_file_shows_how_much(self):
+        state = {"kind": "file", "pinned": "direct", "size": 4096, "resident": 1024}
+        pairs = dict(ext.properties(state, "x"))
+        self.assertEqual(pairs["On this computer"], "1.0 KB of 4.0 KB")
+
+    def test_a_folder_omits_on_this_computer_and_an_inherited_pin_says_via_folder(self):
+        state = {"kind": "folder", "pinned": "inherited", "size": 0, "resident": 0}
+        pairs = dict(ext.properties(state, "Dokumente"))
+        self.assertNotIn("On this computer", pairs)
+        self.assertEqual(pairs["Kept offline"], "yes, through a folder above")
+
+    def test_a_refused_or_missing_state_shows_no_section(self):
+        self.assertEqual(ext.properties({"refusal": "no such path"}, "x"), [])
+        self.assertEqual(ext.properties({}, "x"), [])
+
+
 class AgainstADaemon(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()

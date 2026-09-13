@@ -97,6 +97,10 @@ content is here; the synchronising emblem means it is still arriving. The
 keeping offline** releases it. Kept content counts against the cache limit,
 and the window shows how much of the limit pinning has claimed.
 
+**Alt+Enter** on a file opens its properties; a **Cirrove** section there shows
+whether it is kept offline, how much of it is on this computer, and where it is
+in the cloud.
+
 The same from the command line: `cirrove pin <name> --path Documents/Reports
 --recursive`, `cirrove unpin`, `cirrove pins`, and `cirrove paths <name>
 <path...>` for the state of any path.

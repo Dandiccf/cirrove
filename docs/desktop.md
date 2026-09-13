@@ -202,6 +202,9 @@ shows what Cirrove keeps offline and offers to change it:
   disk, the synchronising emblem while a pin is still being fetched -- and none
   on the ordinary on-demand file, because badging every file in a cloud drive
   would say nothing;
+- a "Cirrove" section in the file properties dialog (Alt+Enter on one file):
+  its availability, how much of it is on this computer, whether a pin keeps it,
+  its location in the cloud, and the provider's item id;
 - a "Cirrove" column (View → Visible Columns) with the words: On demand, Kept
   offline, Kept offline (folder) for a pin inherited from a folder above, or
   the fetch percentage;

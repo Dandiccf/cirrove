@@ -5,6 +5,8 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
 
 ## Unreleased
 
+- **File properties in Files** (Alt+Enter) gain a Cirrove section: availability,
+  how much is on this computer, the pin, and the cloud location.
 - **Files shows what is kept offline.** A check on pinned files and folders
   whose content is on disk, the synchronising emblem while it arrives, a
   "Cirrove" column with the words, and **Keep offline** / **Stop keeping

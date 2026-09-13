@@ -127,6 +127,46 @@ def describe(state):
     return f"Kept offline{via} · fetching {100 * fetched // total}%"
 
 
+def human_bytes(n):
+    """A short human size, so a property reads like the rest of the dialog."""
+    n = float(n)
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if n < 1024 or unit == "TB":
+            return f"{int(n)} {unit}" if unit == "B" else f"{n:.1f} {unit}"
+        n /= 1024
+
+
+def properties(state, relative):
+    """The Cirrove properties for one file, as ``(label, value)`` pairs, for the
+    Alt+Enter dialog. Empty when the daemon could not answer (no section shown).
+
+    The dialog already shows name, type, size and times; these are the things
+    only Cirrove knows: whether the file is here or on demand, how much of it is
+    on this computer, whether a pin keeps it, and where it is in the cloud.
+    """
+    if not state or state.get("refusal"):
+        return []
+    folder = state.get("kind") == "folder"
+    pairs = [("Availability", describe(state) or "On demand")]
+    if not folder:
+        size = state.get("size", 0)
+        resident = state.get("resident", 0)
+        if resident >= size and size > 0:
+            pairs.append(("On this computer", f"all {human_bytes(size)}"))
+        elif resident > 0:
+            pairs.append(("On this computer", f"{human_bytes(resident)} of {human_bytes(size)}"))
+        else:
+            pairs.append(("On this computer", "not downloaded yet"))
+    pairs.append((
+        "Kept offline",
+        {"direct": "yes", "inherited": "yes, through a folder above"}.get(state.get("pinned"), "no"),
+    ))
+    pairs.append(("Cloud location", "/" + relative if relative else "/"))
+    if state.get("item"):
+        pairs.append(("Provider item", state["item"]))
+    return pairs
+
+
 def group_by_label(entries):
     """``[(label, relative, token)]`` -> ``{label: [(relative, token)]}``."""
     groups = {}
@@ -272,6 +312,7 @@ if Nautilus is not None:
         Nautilus.InfoProvider,
         Nautilus.ColumnProvider,
         Nautilus.MenuProvider,
+        Nautilus.PropertiesModelProvider,
     ):
         def __init__(self):
             super().__init__()
@@ -386,6 +427,32 @@ if Nautilus is not None:
                     description="Whether the file is kept offline",
                 )
             ]
+
+        # -- the Alt+Enter properties -------------------------------------
+
+        def get_models(self, files):
+            """A "Cirrove" section in the properties dialog for one of our files.
+
+            Synchronous, like every properties provider: the dialog waits for
+            it. One file at a time -- the dialog for a multi-file selection has
+            no place for per-file cloud state -- and only for a file on a
+            mount, asked with one `paths` request (3 s cap, like the rest).
+            """
+            if len(files) != 1:
+                return []
+            located = self._located(files)
+            if not located:
+                return []
+            _file, label, relative, is_dir = located[0]
+            del is_dir
+            states = states_for(label, [(relative, None)])
+            pairs = properties(states.get(relative, {}), relative)
+            if not pairs:
+                return []
+            items = Gio.ListStore.new(Nautilus.PropertiesItem)
+            for name, value in pairs:
+                items.append(Nautilus.PropertiesItem(name=name, value=value))
+            return [Nautilus.PropertiesModel(title="Cirrove", model=items)]
 
         # -- the menu -------------------------------------------------------
 
