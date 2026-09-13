@@ -12,6 +12,14 @@
 - Preserve visible metadata and completed cursors together across interrupted refreshes.
 - Use synthetic fixtures by default. Cloud mutations require explicit task authorization.
 - Run formatting, clippy, workspace tests and the smoke test for relevant changes.
+- A merge and a green CI run are not an installed daemon. On a machine that runs
+  Cirrove, deliver a change with `scripts/install-developer.sh` and then check it:
+  see [the two ways to have Cirrove installed](docs/development.md#the-two-ways-to-have-cirrove-installed).
+  Never have the packages and a developer install at once -- the home copy shadows
+  the packaged one and every badge, menu item and properties section appears twice.
+- A long measurement window forbids restarting the daemon it watches. Before a reboot,
+  a package change or anything that restarts `cirroved`, check whether one is open:
+  a window in flight is recorded in its own `docs/benchmarks/*.json`.
 - Use a separate Cargo target directory for each worktree. Sharing incremental
   artifacts across checkouts can reuse a test executable from another source tree;
   verify that filtered test commands actually execute the expected tests.

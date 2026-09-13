@@ -42,6 +42,29 @@ Neither script touches `~/.local/state/cirrove`. Accounts, credentials, the
 index, the cache and bytes that have not reached the cloud stay where they are
 through any number of installs in either direction.
 
+Check the install rather than assuming it:
+
+```sh
+cirrove status | head -20         # the account: ready, mounted, how many items
+systemctl --user show cirroved.service -p FragmentPath -p ExecStart -p ActiveState
+busctl --user get-property io.github.Dandiccf.Cirrove.Tray \
+  /StatusNotifierItem org.kde.StatusNotifierItem IconName
+find ~/.local/share/nautilus-python /usr/share/nautilus-python -name 'cirrove*.py'
+```
+
+The last one must print exactly one path, and nothing Cirrove may remain under
+`/usr`. Two extensions is the failure that is easiest to cause and hardest to
+recognise, because the symptom is every badge, menu item and properties section
+appearing twice rather than anything failing.
+
+Two traps worth knowing on a machine with a version manager. If `python3` on
+your PATH is not the distribution's, it will not have PyGObject, and Files
+launched from that shell fails with `No module named 'gi'` and silently loads no
+extension -- nautilus-python's embedded interpreter takes its prefix from the
+`python3` it finds on PATH. Use `/usr/bin/python3` for anything importing `gi`.
+And a panel generally reads its icon theme once at startup, so an icon whose
+file changed under an unchanged name needs a shell reload before anyone sees it.
+
 ## Local checks
 
 ```sh
