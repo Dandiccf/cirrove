@@ -3,13 +3,13 @@
   "note": "One row per acceptance box. `blocker` says what stands between the box and being ticked, not how hard the code is. `asserted_by` names the test that would fail if the claim stopped holding; a box may not be ticked while it is null. `candidate_assertions` are tests that look like they might assert the box and have not been read. They deliberately do not satisfy the tick check.",
   "totals": {
     "boxes": 53,
-    "ticked": 15,
+    "ticked": 16,
     "by_blocker": {
-      "autonomous": 15,
+      "autonomous": 36,
       "needs-live-account": 8,
       "needs-machine-window": 2,
       "needs-reboot": 2,
-      "out-of-agreed-scope": 26
+      "out-of-agreed-scope": 5
     }
   },
   "rows": [
