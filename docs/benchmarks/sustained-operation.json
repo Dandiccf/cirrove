@@ -30,5 +30,23 @@
   "what_it_costs": "The machine, for a day. Under this project's own rule -- one measurement at a time, with nothing else compiling -- no build may run on it while the window is open, which also means no fixes can be deployed to that daemon until it closes.",
   "what_this_does_not_cover": "One window on one machine with one account. It says nothing about a week, about several accounts, or about a laptop that suspends during the day; the suspend question is registered separately in deep-suspend-beyond-token-lifetime.json.",
   "result": null,
-  "verdict": null
+  "verdict": null,
+  "attempts": [
+    {
+      "attempt": 1,
+      "started": "2026-09-13T12:39+02:00",
+      "ended": "2026-09-13T15:38+02:00",
+      "ran": "2h56m of 24h",
+      "verdict": "VOID",
+      "why": "Not a restart and not a result: the window went blind. The machine was moved off the Cirrove packages back to a developer install, which took /usr/bin/cirrove with it, and the sampler probes the daemon through that CLI. The last four rows read unreachable/mounted=0/items=-1 while the daemon was untouched -- same pid 368874, mount still served. Rows written blind are indistinguishable afterwards from a real provider outage, so nothing is claimed from the 177 samples. They are kept, annotated, in sustained-operation.samples.jsonl.",
+      "fixed_so_it_cannot_recur": "The sampler resolves its probe to an absolute path before opening the window, refuses to start without one, and on losing it mid-window writes a PROBE-LOST marker and stops instead of filling the file with rows it cannot see. Demonstrated both ways against a stand-in CLI."
+    }
+  ],
+  "amendment_2026_09_13": {
+    "what_changed": "Attempt 2 runs in the Ubuntu VM, not on the host.",
+    "why": "The clause 'no build may run on the machine while the window is open' costs a day of every other kind of progress, and the machine owner has already asked for exactly these checks to move into a VM: 'Kannst du die ganzen Tests (reboot, Network-Outage,...) dann nicht auch in einer VM machen (simulieren), das waere doch viel einfacher wie jetzt hier am host?'. The VM has the owner's own OneDrive signed in, so the account is real rather than a double, and QMP gives the two injections cleanly: `link off/on` is a truer outage than anything that can be done to a daemon on the host without cutting the session it runs in.",
+    "what_this_costs_the_result": "The host is free to build while the window runs, so host CPU is no longer quiet. This weakens nothing the predictions ask: P1 P3 P5 are about identity and recovery, P2 is about the daemon's own RSS, and P4's ceiling is a second -- a thousand times any scheduling noise a parallel build adds to a listing served from a local namespace. If P4 fails it will be re-run quiet before being called a defect.",
+    "what_stays_the_same": "The question, all five predictions and the decision rule are unchanged.",
+    "registered_before_run": true
+  }
 }
