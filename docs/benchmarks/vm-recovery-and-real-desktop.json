@@ -1,0 +1,24 @@
+{
+  "question": "On a real Linux desktop (a VM) with a signed-in account, do the recovery paths the milestone rows name -- reboot, network outage, process crash, power cut -- each leave the daemon serving again on its own, and does a save caught in flight by a power cut end in a state the user can see?",
+  "why_now": "CI's containers prove the packages install; they have no session, no account, no way to pull a plug. A throwaway VM with a signed-in OneDrive can be rebooted, cut off, killed and unplugged without anyone's work on it.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-13",
+  "setup": "Ubuntu 24.04.4 Desktop in QEMU/KVM, the CI-built .deb packages, the account signed in by hand in the VM window, indexed to 184,052 items and ready. scripts/vm/exercise.sh drives each check and asks the daemon for the account's state and a mount-root listing after each -- the sampler's row, which is the cheapest thing that notices a daemon alive and no longer serving.",
+  "predictions": {
+    "P1_reboot": "The service and the tray come back at the next login and the mount with them, ready without intervention.",
+    "P2_outage": "The cable pulled for three minutes turns the feeds offline; when it returns they reach ready again on their own, and the journal names the stop and the return.",
+    "P3_crash": "The daemon killed with SIGKILL is restarted by systemd and the mount returns ready.",
+    "P4_powercut": "The plug pulled mid-write leaves a journal that opens and remounts ready; a save whose bytes were durable arrives, and one whose bytes were not is not invented.",
+    "P5_visible": "A save that does not reach the cloud is visible to the user, not silently gone."
+  },
+  "result": {
+    "when": "2026-09-13, Ubuntu 24.04.4 VM, packages 0.1.0~dev.r351.ge9a91a4",
+    "P1_reboot": "HOLDS. After systemctl reboot the service was active and cirrove-tray running at the auto-login, the account ready and mounted, root listing under a millisecond.",
+    "P2_outage": "HOLDS. set_link n0 off for 180s -> both feeds offline, mount still listing locally; set_link on -> ready again 116s later without intervention. The journal logged 'a collection stopped updating ... state=offline reason=temporary provider failure' repeatedly and the mount never stalled a listing.",
+    "P3_crash": "HOLDS. kill -9 of the MainPID -> systemd restart (NRestarts 1), ready 13s later.",
+    "P4_powercut": "PARTIAL. The plug was pulled (QMP quit) one second after 'echo > file; sync' on the mount. The journal opened and remounted ready in ~80s. The empty file's create had already uploaded (seq 1, state uploaded); the 58-byte content replace (seq 2) ended state=failed, because its payload spool file was not durable when the power went -- claim_next marks an upload whose payload is missing as failed rather than inventing bytes. Within the durability contract: a FUSE write returns before the upload is sealed, so a file written under a second before power loss was never 'acknowledged durable'. The local mount still reads the 58 bytes; the cloud has the 0-byte create.",
+    "P5_visible": "FAILS. The failed upload is not counted by stuck_changes (which counts only namespace mutations -- conflict/failed/needs_review in the mutations table -- and this is an uploads-table record with no mutations row), so status shows stuck 0 and refusal None, and neither the window's 'Changes the cloud refused' nor the tray icon flags it. It appears only in Recent activity as 'upload failed'. This is not specific to power cuts: any upload that ends failed -- quota, permission -- is equally invisible to the attention machinery, and there is no user-facing way to retry one whose cause has passed."
+  },
+  "verdict": "The four recovery paths each recover on their own (P1-P4 hold, P4 within the durability contract). P5 is a real finding: a save that fails to reach the cloud is surfaced only in Recent activity, not in the attention count or the tray, and cannot be retried from the UI. Tracked for a focused fix.",
+  "what_this_does_not_cover": "One run of each. A VM's virtio disk is not the mini-PC's NVMe; the power-cut durability boundary is the same in kind but not the same drive. The account is one business OneDrive."
+}
