@@ -35,6 +35,7 @@ tests against a synthetic provider and has never met the real service;
 | | Status | Where |
 | --- | --- | --- |
 | Reading: listing, opening, streaming large files, cache eviction | real | validation.md, benchmarks |
+| Opening a file in an application (read, and LibreOffice which reads the whole document) | real -- gnome-text-editor and a headless LibreOffice conversion both open a mount file in the Ubuntu VM | vm-recovery-and-real-desktop.json |
 | Remote creates, edits, moves and deletions reaching the mount | real -- the delta feed on the live account, with notifications | validation.md § change notification |
 | Saving, renaming, moving, creating and deleting from the mount | real -- 192 changes applied on the live account, zero stuck at last count | write-validation.md |
 | Deletion into the provider's recycle bin | real | ADR 0008 |
@@ -63,6 +64,7 @@ filesystem gives in the same situation.
 | A `.Trash` folder in the drive's root, or moving into one | `EOPNOTSUPP` (the provider's recycle bin is the wastebasket) |
 | A name the provider would refuse | `EINVAL`; `ENAMETOOLONG` past the limit |
 | Renaming with flags other than `RENAME_NOREPLACE` | `EOPNOTSUPP` |
+| Shared, writable memory mapping (`mmap` `MAP_SHARED`) | `ENODEV`: files open with `FOPEN_DIRECT_IO`, and the kernel permits only private (`MAP_PRIVATE`) mappings on a direct-I/O file even with `FUSE_DIRECT_IO_ALLOW_MMAP`. Read and private mmap work, so ordinary applications -- text editors, LibreOffice -- open files; a program that requires a shared mapping does not. |
 
 ## Desktops and distributions
 
