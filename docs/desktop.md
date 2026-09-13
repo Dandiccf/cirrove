@@ -235,11 +235,33 @@ called.
 
 **Supported file managers.** Files (Nautilus 43 and later, through
 nautilus-python 4) is the supported one. Dolphin is decided, not done: it gets
-the same two verbs through a KIO/Dolphin plugin when a KDE session is in the
-declared session matrix, and not before -- a plugin nobody runs a session for
-is a plugin nobody has seen. Nemo and Caja take nautilus-python-style
-extensions with older APIs and are not targeted; the daemon contract is the
-same for all of them, so none of this is a daemon decision.
+the same two verbs through a KIO/Dolphin plugin. The first half of the
+condition on that -- a KDE session in the declared matrix -- was met on
+2026-09-13, and the plugin is now the only thing outstanding.
+
+It has to be a plugin, and the cheap alternative was checked rather than
+assumed. Dolphin reads service menus from `/usr/share/kio/servicemenus/`, which
+are plain `.desktop` files: no compiled code, no build dependency, and they
+would carry `Keep offline` and `Stop keeping offline` perfectly well. What they
+cannot do is appear only inside a Cirrove mount. The condition keys KIO
+actually supports, read out of the installed KF6 libraries, are
+`X-KDE-Protocol(s)`, `X-KDE-Submenu`, `X-KDE-Priority`, `X-KDE-AuthorizeAction`
+and the URL-count limits -- there is nothing that tests a path, and nothing that
+asks a running service. A service menu would therefore put `Keep offline` in
+the context menu of every file on the machine, including the ones Cirrove has
+never heard of, which is a worse desktop than no integration at all.
+
+A `KFileItemActionPlugin` is given the selection and returns the actions it
+wants, so it can be silent everywhere else; badges need a `KOverlayIconPlugin`,
+and a column needs a KFileMetaData extractor. All three are compiled against
+KF6, which is a C++ build dependency, a second packaging target and an ABI to
+follow. KIO's own Google Drive integration
+(`kf6/kfileitemaction/gdrivecontextmenuaction.so`) is built the same way, which
+is some comfort that the cost is the going rate rather than a mistake.
+
+Nemo and Caja take nautilus-python-style extensions with older APIs and are not
+targeted; the daemon contract is the same for all of them, so none of this is a
+daemon decision.
 
 The package installs it under `/usr/share/nautilus-python/extensions/`; for
 development, copy it to `~/.local/share/nautilus-python/extensions/` and
