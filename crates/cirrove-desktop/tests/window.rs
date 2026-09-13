@@ -489,7 +489,10 @@ fn every_account_action_is_offered_from_the_window_and_only_where_it_applies() {
     let state = temp.path().join("state");
     cirrove_service::private_dir(&state).unwrap();
     let sample = demo::snapshot().unwrap();
-    let settings = sample.settings.unwrap();
+    let mut settings = sample.settings.unwrap();
+    // One of each access level, so the consent button can be seen to offer the
+    // other direction rather than one fixed word.
+    settings.accounts[0].access = cirrove_auth::AccessMode::ReadWrite;
     write_settings(&state, &settings);
     // The mounted account has lost its grant and holds two refused changes; the
     // second account is saved but unmounted.
@@ -547,6 +550,38 @@ fn every_account_action_is_offered_from_the_window_and_only_where_it_applies() {
         ui.current()
             .is_some_and(|v| v.accounts[0].failed_uploads == 1),
         "the failed save reached the window"
+    );
+
+    // Consent is changed from the window, in whichever direction the account is
+    // not already in. This was the last ordinary flow that needed a terminal.
+    // The click is deliberately not exercised: it opens the provider's sign-in
+    // in a browser, which is the point -- the consent screen is what grants
+    // anything, not this button.
+    let allow = buttons(window.upcast_ref(), "Allow changes");
+    let restrict = buttons(window.upcast_ref(), "Make read-only");
+    assert_eq!(
+        allow.len(),
+        1,
+        "the read-only account offers to allow changes"
+    );
+    assert_eq!(
+        restrict.len(),
+        1,
+        "the writable account offers to go back to read-only"
+    );
+    assert!(
+        restrict[0]
+            .tooltip_text()
+            .is_some_and(|t| t.contains("only to read")),
+        "the button says what the sign-in will ask for"
+    );
+    assert!(
+        allow[0].has_css_class("suggested-action"),
+        "asking for write is the direction that grants something"
+    );
+    assert!(
+        !restrict[0].has_css_class("suggested-action"),
+        "asking to read less is ordinary"
     );
 
     // Refused changes are shown, and discarding them goes to the daemon.

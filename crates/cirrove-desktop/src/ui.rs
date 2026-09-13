@@ -39,6 +39,7 @@ struct AccountRow {
     storage: adw::ActionRow,
     identity: adw::ActionRow,
     access: adw::ActionRow,
+    consent: gtk::Button,
     refused: adw::ActionRow,
     discard: gtk::Button,
     unsent: adw::ActionRow,
@@ -448,6 +449,15 @@ impl Window {
             .use_markup(false)
             .subtitle_lines(0)
             .build();
+        // Changing an account's consent was the last ordinary flow that needed a
+        // terminal (`cirrove reauth --write-access`). It is a re-sign-in either
+        // way, so the provider's own consent screen is what actually grants or
+        // narrows the access; this button only asks for it.
+        let consent = gtk::Button::builder()
+            .label("Allow changes")
+            .valign(gtk::Align::Center)
+            .build();
+        access.add_suffix(&consent);
         let storage = adw::ActionRow::builder()
             .title("Local cache")
             .use_markup(false)
@@ -574,6 +584,13 @@ impl Window {
                 ui.remove(&key);
             }
         });
+        let weak = Rc::downgrade(self);
+        let key = id.to_owned();
+        consent.connect_clicked(move |_| {
+            if let Some(ui) = weak.upgrade() {
+                ui.change_access(&key);
+            }
+        });
         for (button, folder) in [(&keep_file, false), (&keep_folder, true)] {
             let weak = Rc::downgrade(self);
             let key = id.to_owned();
@@ -595,6 +612,7 @@ impl Window {
             location,
             identity,
             access,
+            consent,
             storage,
             refused,
             discard,
@@ -647,6 +665,24 @@ impl Window {
         } else {
             "Read-only: files can be opened but not changed."
         });
+        row.consent.set_label(if card.writable {
+            "Make read-only"
+        } else {
+            "Allow changes"
+        });
+        row.consent.set_tooltip_text(Some(if card.writable {
+            "Sign in again asking only to read, so this drive stops accepting changes"
+        } else {
+            "Sign in again asking to make changes, so files in this drive can be saved"
+        }));
+        // Asking to write is the direction that grants something, so it is the
+        // one marked; asking to read less is ordinary.
+        if card.writable {
+            row.consent.remove_css_class("suggested-action");
+        } else {
+            row.consent.add_css_class("suggested-action");
+        }
+        row.consent.set_sensitive(idle && card.controls_available);
         row.storage.set_subtitle(&format!(
             "Up to {:.1} GiB · downloaded as needed",
             card.cache_bytes as f64 / 1024_f64.powi(3)
@@ -831,10 +867,35 @@ impl Window {
             }
         }
     }
+    /// Ask the provider for the other access level: write where the account is
+    /// read-only, read-only where it can write.
+    ///
+    /// The same re-sign-in as `sign_in`, with a level asked for rather than the
+    /// current one kept. It is the provider's consent screen that actually
+    /// grants or narrows anything -- this only asks -- which is why no
+    /// confirmation is put in front of it: the browser already shows exactly
+    /// what is being granted, and a dialog here would be a second, vaguer copy
+    /// of that.
+    pub fn change_access(self: &Rc<Self>, id: &str) {
+        let Some(card) = self.card(id) else {
+            return;
+        };
+        let wanted = if card.writable {
+            cirrove_auth::AccessMode::ReadOnly
+        } else {
+            cirrove_auth::AccessMode::ReadWrite
+        };
+        self.reauthenticate(id, Some(wanted));
+    }
     /// A new grant for an account whose old one stopped working. The browser
     /// does the asking; the daemon releases the account meanwhile and takes it
     /// back after, which the row shows as it happens.
     pub fn sign_in(self: &Rc<Self>, id: &str) {
+        self.reauthenticate(id, None);
+    }
+    /// The sign-in both of the above are: `access` of `None` keeps whatever the
+    /// account has.
+    fn reauthenticate(self: &Rc<Self>, id: &str, access: Option<cirrove_auth::AccessMode>) {
         let Some(card) = self.card(id) else {
             return;
         };
@@ -852,7 +913,7 @@ impl Window {
         // about that needs to be Send.
         runtime.spawn_blocking(move || {
             let result = tokio::runtime::Handle::current()
-                .block_on(accounts::reauthenticate(state, label, None))
+                .block_on(accounts::reauthenticate(state, label, access))
                 .map_err(|error| format!("{error:#}"));
             let _ = send.send(result);
         });
@@ -864,15 +925,21 @@ impl Window {
             };
             ui.end_operation();
             match result {
-                Ok(Ok(())) => ui.notify("Signed in again."),
+                Ok(Ok(())) => ui.notify(match access {
+                    Some(cirrove_auth::AccessMode::ReadWrite) => {
+                        "Signed in. Changes in this drive are uploaded to the cloud."
+                    }
+                    Some(cirrove_auth::AccessMode::ReadOnly) => {
+                        "Signed in. This drive is read-only again."
+                    }
+                    None => "Signed in again.",
+                }),
                 Ok(Err(error)) => ui.notify(&format!("The sign-in did not finish: {error}")),
                 Err(_) => ui.notify("The sign-in did not finish."),
             }
             ui.refresh();
         });
     }
-    /// Abandon the changes the cloud refused. The daemon does the unwinding
-    /// and says how many it could; the row disappears with the last one.
     /// Release one pin. Named by the path so the message is readable, acted on
     /// by the item id so a file renamed in the cloud since the list was drawn
     /// still unpins the right thing.
@@ -1048,6 +1115,8 @@ impl Window {
             ui.refresh();
         });
     }
+    /// Abandon the changes the cloud refused. The daemon does the unwinding
+    /// and says how many it could; the row disappears with the last one.
     pub fn discard(self: &Rc<Self>, id: &str) {
         let Some(card) = self.card(id).filter(|c| c.stuck > 0) else {
             return;
