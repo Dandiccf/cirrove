@@ -28,7 +28,7 @@
     "1_prepare": "CIRROVE_POWERCUT_DIR must name a directory on a real block device. The fixture refuses tmpfs and ramfs and prints the filesystem it found.",
     "2_seed": "CIRROVE_POWERCUT_DIR=$HOME/.cache/cirrove-powercut CIRROVE_POWERCUT_PHASE=seed cargo test -p cirrove-service --test working_files --locked a_journal_survives_the_machine_losing_power -- --ignored --nocapture",
     "3_wait": "It prints a durable generation roughly 68 times a second and never stops on its own. Let it run for a few seconds so the cut cannot land on an idle journal.",
-    "4_cut": "Cut mains power, or hold the power button until the machine dies. No shutdown, no sync, no unmount.",
+    "4_cut": "Remove power. Holding the power button until the machine dies is equivalent to pulling the cord: both drop the rails and the drive loses power with them. Do NOT use a reset button or a reset key combination -- see which_interruptions_count.",
     "5_recover": "After the machine is back: same command with CIRROVE_POWERCUT_PHASE=recover.",
     "what_it_costs": "A hard cut on a live machine. The mount and the daemon are not involved and the fixture writes only inside its own directory, but the rest of the system takes an unclean shutdown like any other -- filesystem journal replay on the next boot, and whatever was unsaved elsewhere is unsaved."
   },
@@ -40,5 +40,16 @@
       "Each generation needs its own remote identity. Reusing one is refused as Stale after the first -- correctly; a second working file for the same item is a conflict -- which would have left seed writing nothing and the cut landing on an idle journal.",
       "Sealed payload files are read-only on disk, so damaging one for the discrimination check needs chmod first. That is the journal protecting what it sealed, and it is worth knowing before assuming a failed write means a failed test."
     ]
-  }
+  },
+  "which_interruptions_count": {
+    "the_thing_under_test": "fsync claims the bytes are on stable storage. The kernel reports this drive as write-back caching (/sys/block/nvme0n1/queue/write_cache), so that claim passes through a FLUSH to a device with a volatile cache, and whether it is true depends on the drive honouring it. Removing power is the only interruption that reaches that layer.",
+    "power_removed": "Pulling the cord, or holding the power button until it dies. Equivalent on this machine: it is a mini-PC with no system battery, so both drop the rails and the NVMe loses its cache with them.",
+    "reset_does_not_count": "A reset button asserts the system reset line. The CPU restarts; the drive never loses power, keeps its write cache and flushes it. Anything it had acknowledged but not yet committed still lands, so a reset would pass this fixture without testing what it is for -- and process death is already covered at all 31 durable transitions, so it would add nothing either.",
+    "kexec_and_sysrq_b_do_not_count": "Same reason. Both restart the kernel with the drive powered."
+  },
+  "limits": [
+    "One cut on one machine. It cannot bound a rate.",
+    "It is a statement about THIS drive as much as about the journal. If the SSD has power-loss protection -- capacitors that let it commit its cache after power is gone -- then a pass says the hardware held, not that the journal would survive a drive without it. The model is recorded so the claim can be read at the right scope: PASCARI A3102K0F853GE101T020H, whose power-loss behaviour has not been established here.",
+    "A drive that lies about FLUSH can pass this and fail another day. The claim is that this cut did not produce wrong-and-confident data, not that no cut can."
+  ]
 }
