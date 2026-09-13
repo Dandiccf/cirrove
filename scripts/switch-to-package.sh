@@ -45,6 +45,31 @@ if [[ -f $extension ]]; then
   rm -f "$extension"
   nautilus -q 2>/dev/null || true
 fi
+
+# The rest of what a developer install writes into the home. These are not
+# programs and nothing breaks loudly when they are left, which is why they were
+# missed: a home icon simply shadows the packaged one, so the panel keeps
+# drawing a version that is no longer installed, and the desktop entry and
+# metainfo describe a build that is gone. scripts/test-install-scripts.py holds
+# this list to whatever install-developer.sh writes.
+id=io.github.Dandiccf.Cirrove
+for stale in \
+  "$HOME/.local/share/applications/$id.desktop" \
+  "$HOME/.local/share/metainfo/$id.metainfo.xml"; do
+  if [[ -e $stale ]]; then
+    echo "removing $stale (the package provides the one under /usr/share)"
+    rm -f "$stale"
+  fi
+done
+icons="$HOME/.local/share/icons/hicolor"
+shopt -s nullglob
+stale_icons=("$icons"/scalable/apps/$id*.svg "$icons"/symbolic/apps/$id*.svg)
+shopt -u nullglob
+if (( ${#stale_icons[@]} )); then
+  echo "removing ${#stale_icons[@]} icon(s) under $icons (the package provides them)"
+  rm -f "${stale_icons[@]}"
+  gtk-update-icon-cache -f "$icons" >/dev/null 2>&1 || true
+fi
 pkill -x cirrove-tray || true
 
 systemctl --user daemon-reload

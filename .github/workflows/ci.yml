@@ -203,6 +203,7 @@ jobs:
       - run: python3 scripts/smoke.py
       - run: python3 scripts/test-observe-service.py
       - run: python3 scripts/test-install-tray-autostart.py
+      - run: python3 scripts/test-install-scripts.py
       - name: The Files extension holds to what it promises, against a daemon that is only a socket
         run: python3 scripts/test-nautilus-extension.py
       - run: cargo doc --workspace --no-deps --locked
