@@ -263,6 +263,13 @@ Nemo and Caja take nautilus-python-style extensions with older APIs and are not
 targeted; the daemon contract is the same for all of them, so none of this is a
 daemon decision.
 
+A shell matches a window to an application entry by app id on Wayland and by
+WM_CLASS on X11, and a window that does not match gets a generic dock icon, no
+launcher grouping and a pin that points nowhere. CI checks the names in the
+files; only a running shell can be asked about the association it actually
+makes, so `scripts/check-app-identity.sh` asks it and says whether they match.
+Confirmed on Arch/Hyprland: `io.github.Dandiccf.Cirrove`, native Wayland.
+
 The badges are Cirrove's own icons (`io.github.Dandiccf.Cirrove-kept` and `-fetching`) when they are installed, and the freedesktop `emblem-ok-symbolic` and `emblem-synchronizing-symbolic` when they are not: Files draws nothing at all for an icon name no theme provides, so a missing branded icon would remove the badge rather than make it look generic. `emblem_names` decides once, at import, by looking on disk -- there is no display yet to ask a theme.
 
 The package installs it under `/usr/share/nautilus-python/extensions/`; for
