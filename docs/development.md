@@ -11,6 +11,37 @@ A GitHub merge or local build does not replace an installed daemon. Installation
 and service restart are a separate step. Keep the running build and the tested
 source revision in local development records, especially during long observations.
 
+## The two ways to have Cirrove installed
+
+A machine that follows this tree wants a **developer install**; a machine
+checking what a release delivers wants the **packages**. Never both: a file in
+the home shadows the packaged file of the same name, so Files loads two copies
+of the extension and shows every badge and menu item twice, and a home icon
+hides the packaged one so the panel keeps drawing a build that is no longer
+installed.
+
+```sh
+scripts/install-developer.sh            # build and install into ~, no root
+scripts/install-developer.sh --no-build # install what is already in target/release
+scripts/switch-to-package.sh            # after pacman -U, move off the developer install
+```
+
+`install-developer.sh` puts the binaries in `~/.local/bin`, the unit in
+`~/.config/systemd/user`, the tray's autostart entry in `~/.config/autostart`,
+and the icons, desktop entry, metainfo and Files extension under
+`~/.local/share`. It then restarts the service and the tray, so the build you
+just made is the one running -- the point of the developer install is that a new
+version needs no password and no step from the person using the machine.
+
+It refuses to run while the Cirrove packages are installed and says how to
+remove them. `switch-to-package.sh` is its inverse and removes everything it
+wrote. `scripts/test-install-scripts.py` holds the two to each other, so a new
+file added to one without the other fails in CI rather than on a desktop.
+
+Neither script touches `~/.local/state/cirrove`. Accounts, credentials, the
+index, the cache and bytes that have not reached the cloud stay where they are
+through any number of installs in either direction.
+
 ## Local checks
 
 ```sh
