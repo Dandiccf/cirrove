@@ -5,6 +5,22 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
 
 ## Unreleased
 
+- **A file that is on this computer but not kept offline says so.** The
+  properties dialog used to read "Availability: On demand" beside "On this
+  computer: all 66.2 KB", which says nothing about whether the copy will still
+  be there tomorrow. It now reads "all 66.2 KB, until the space is needed". A
+  pinned file still says "all 66.2 KB", because there the promise is real.
+- **`cirrove --help` names the right command.** `diagnose` described itself as
+  the way to abandon changes the cloud refused, which is `discard-stuck` --
+  and `discard-stuck` had no description at all, so the one command that fixes
+  a stuck change was the one the help would not explain. `enable` and
+  `disable` now say what they do too.
+- **The diagnostics file no longer carries the drive's id.** It was replaced
+  everywhere the daemon reports it as a field, but a log line naming it in
+  passing got through.
+- **Cirrove works on KDE Plasma as well as GNOME.** The tray appears there with
+  nothing installed alongside it, where GNOME needs an extension, and the window
+  follows the system's dark style.
 - **File properties in Files** (Alt+Enter) gain a Cirrove section: availability,
   how much is on this computer, the pin, and the cloud location.
 - **Files shows what is kept offline.** A check on pinned files and folders
@@ -17,10 +33,12 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
   where it applies, and removal asks differently when changes never reached
   the cloud.
 - **Cirrove has an icon.** A cloud over a drive in launchers; in the tray, a
-  colored cloud -- blue when ready, blue with transfer arrows while working,
-  amber with an exclamation when something needs a person -- so it reads on any
-  panel, including shells that do not recolor symbolic icons. The tray draws it
-  whether or not the icon set is installed.
+  colored cloud -- blue with a check when everything is up to date, blue with an
+  up arrow while a save is on its way, amber with an exclamation when something
+  needs a person -- so it reads on any panel, including shells that do not
+  recolor symbolic icons, and the three tell each other apart at the size a
+  panel actually draws them. The tray draws it whether or not the icon set is
+  installed.
 - **Packages.** Arch (`cirrove`, `cirrove-desktop`), Ubuntu 24.04 `.deb` and
   Fedora `.rpm`, each built and installed on a clean system by CI on every
   push and downloadable from the run. No release yet; see
