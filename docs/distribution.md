@@ -100,6 +100,54 @@ survived. A container has no login session: it shows the packages are correct,
 not that the service starts at login. The AUR recipe and `.SRCINFO` follow the
 first tag.
 
+## Real desktops, in virtual machines
+
+CI's containers prove the packages; they have no login session, no display
+manager, no shell to show a tray in. For that there are throwaway desktop
+machines on the development host, installed without a hand on them and
+checked by a script, so the run is the same each time and a person's
+attention goes to the screenshots rather than the clicking.
+
+- `scripts/vm/run.sh <ubuntu|fedora> install` installs Ubuntu 24.04 Desktop
+  (Subiquity autoinstall) or Fedora Workstation (anaconda kickstart) into a
+  QEMU/KVM machine: nothing needs root, the installer's answers are served
+  over HTTP on the address the guest sees as its gateway, the kernel and
+  initrd come out of the ISO with `bsdtar` so no boot menu is ever driven.
+  The test account logs in automatically and can sudo without a password;
+  the machine is not meant to be kept.
+- `scripts/vm/check.sh <distro>` boots it, installs the packages CI built,
+  starts the service as the user, starts the tray the way the autostart
+  entry will and reads it back from the shell's StatusNotifierWatcher, opens
+  Files with the extension, reboots and looks again, removes the packages and
+  checks nothing package-owned survived -- a screenshot at each stage,
+  under `~/Work/cirrove-vms/<distro>/checks/`.
+- `scripts/vm/qmp.py` is the hand on the machine: a screenshot, a key, a
+  click, the power button, through QEMU's monitor socket.
+
+What the checks cannot do is sign in: that is a person's browser and
+credentials. Run the machine with a window (`CIRROVE_VM_DISPLAY=gtk
+scripts/vm/run.sh <distro> boot`), sign in there, and the tray -- Passive
+without an account, which a shell hides -- gets its icon.
+
+**Fedora 44 Workstation, 2026-09-13:** everything above passed on a clean
+machine: the fc42-built rpms install on 44, the service runs as the user,
+the tray registers with GNOME's watcher through the AppIndicator extension
+(installed by the package's recommendation, enabled by the user -- or here,
+by the check in the user's place), Files loads the extension, the tray comes
+back after a reboot from the packaged autostart entry, `dnf remove` leaves
+the state directory and nothing else. Not seen: an icon in the top bar,
+for want of an account. Fedora 44 is what "current Fedora" meant on the day;
+CI's container is 42, and the packages built there installed on 44 without
+complaint.
+
+**Ubuntu 24.04.4 Desktop, 2026-09-13:** the same, on a clean machine
+installed by autoinstall: the CI-built debs install with apt, the service
+runs as the user, the tray registers with the watcher Ubuntu's own
+AppIndicator extension provides (enabled in the Ubuntu session by default,
+so nothing to enable), Files loads the extension, the tray comes back after
+a reboot, `apt purge` leaves the state directory and nothing else. The tray
+was Passive throughout, again for want of an account.
+
 ## Dependency and security review
 
 What is reviewed, and where the review is repeated so it does not go stale:

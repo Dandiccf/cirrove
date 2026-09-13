@@ -14,9 +14,13 @@
 #   scripts/vm/run.sh ubuntu install   # unattended install; exits when done
 #   scripts/vm/run.sh ubuntu boot      # boot the installed disk (background)
 #   scripts/vm/run.sh ubuntu stop      # power it off
+#   scripts/vm/run.sh ubuntu key       # put the host's ssh key into it (once)
 #   scripts/vm/run.sh ubuntu ssh CMD   # run a command in it
 #   scripts/vm/run.sh ubuntu shot X    # screenshot to X.png via QMP
 #   (fedora likewise)
+#
+# CIRROVE_VM_DISPLAY=gtk opens a window on the machine instead of running it
+# headless (it always also listens on vnc 127.0.0.1:10/:11).
 #
 # Layout under $CIRROVE_VMS (default ~/Work/cirrove-vms):
 #   iso/            the installer images
@@ -60,7 +64,9 @@ qemu_common=(
   -netdev "user,id=n0,hostfwd=tcp:127.0.0.1:$ssh_port-:22"
   -device virtio-net-pci,netdev=n0
   -device virtio-vga
-  -display none -vnc "127.0.0.1:$vnc"
+  # Headless by default, a window on request: CIRROVE_VM_DISPLAY=gtk is how a
+  # person signs in at the machine, which no script can do for them.
+  -display "${CIRROVE_VM_DISPLAY:-none}" -vnc "127.0.0.1:$vnc"
   -qmp "unix:$dir/qmp.sock,server,nowait"
   -serial "file:$dir/serial.log"
   -pidfile "$dir/qemu.pid"
@@ -100,6 +106,10 @@ case $action in
     ;;
   boot)
     [[ -f $dir/disk.qcow2 ]] || { echo "no installed disk; run install first" >&2; exit 1; }
+    if kill -0 "$(cat "$dir/qemu.pid" 2>/dev/null)" 2>/dev/null; then
+      echo "$distro is already running"
+      exit 0
+    fi
     serve
     "${qemu_common[@]}" -daemonize
     echo "$distro booting; ssh -p $ssh_port tester@127.0.0.1, vnc 127.0.0.1:$vnc"
@@ -115,8 +125,22 @@ case $action in
     echo "$distro stopped"
     ;;
   ssh)
-    exec ssh -p "$ssh_port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+    exec ssh -p "$ssh_port" -i "$vms/id_ed25519" -o IdentitiesOnly=yes -o BatchMode=yes \
+      -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
       -o LogLevel=ERROR -o ConnectTimeout=10 tester@127.0.0.1 "$@"
+    ;;
+  key)
+    # Put the host's key into the machine once, using the test account's
+    # password through ssh's askpass hook -- no terminal, no sshpass.
+    [[ -f $vms/id_ed25519 ]] || ssh-keygen -q -t ed25519 -N "" -f "$vms/id_ed25519" -C cirrove-vm
+    askpass=$(mktemp); printf '#!/bin/sh\necho cirrove\n' > "$askpass"; chmod 700 "$askpass"
+    SSH_ASKPASS="$askpass" SSH_ASKPASS_REQUIRE=force DISPLAY=none \
+      ssh -p "$ssh_port" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        -o LogLevel=ERROR -o PubkeyAuthentication=no tester@127.0.0.1 \
+        "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys" \
+        < "$vms/id_ed25519.pub"
+    rm -f "$askpass"
+    echo "key installed in $distro"
     ;;
   shot)
     out=${1:?output path without extension}

@@ -69,8 +69,8 @@ filesystem gives in the same situation.
 | | Status |
 | --- | --- |
 | Arch, Hyprland (Omarchy), Quickshell tray, Nautilus 50 | real -- the development machine |
-| GNOME session (Wayland), AppIndicator tray, Files | no -- CI has Xvfb only; a VM is the plan |
+| GNOME session (Wayland), AppIndicator tray, Files | real -- Fedora 44 and Ubuntu 24.04 in VMs: the tray registers with the shell and survives a reboot, Files loads the extension; no icon drawn, for want of an account (see distribution.md) |
 | KDE Plasma | no |
-| Ubuntu 24.04 packages installed on a clean system | real, in a CI container -- no login session |
-| Fedora 42 packages installed on a clean system | real, in a CI container -- no login session |
+| Ubuntu 24.04 packages installed on a clean system | real -- CI runner and an Ubuntu 24.04.4 Desktop VM through a reboot and purge |
+| Fedora packages installed on a clean system | real -- CI container (42) and a Fedora 44 Workstation VM through a reboot and removal |
 | Debian stable | not claimed: older than the desktop floor |
