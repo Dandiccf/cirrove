@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Working: the blue cloud with transfer arrows: content moving to or from
+     the cloud. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#62c6ff"/>
+      <stop offset="1" stop-color="#1e6fd9"/>
+    </linearGradient>
+  </defs>
+  <path d="M 4.3,13 H 11.6 A 3,3 0 0 0 12,6.9 A 4,4 0 0 0 4.5,6.05 A 3.4,3.4 0 0 0 4.3,13 Z" fill="url(#sky)"/>
+  <path d="M 6.6,11.2 V 8.4 M 6.6,8.4 5.7,9.3 M 6.6,8.4 7.5,9.3" stroke="#ffffff" stroke-width="0.95" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M 9.4,8.6 V 11.4 M 9.4,11.4 8.5,10.5 M 9.4,11.4 10.3,10.5" stroke="#ffffff" stroke-width="0.95" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

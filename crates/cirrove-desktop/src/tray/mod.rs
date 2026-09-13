@@ -189,6 +189,13 @@ impl TrayState {
 
     /// The icon for the current state, one of Cirrove's own.
     ///
+    /// Colored, not symbolic: a symbolic icon expects the host to recolor it to
+    /// the panel foreground, and a host that does not (Quickshell on Omarchy
+    /// resolves the icon to a file path and never sees the `-symbolic` suffix
+    /// its recolor keys on) draws the raw GNOME grey, invisible on a dark bar.
+    /// A colored cloud reads on any panel and needs no host cooperation, which
+    /// is what the other icons in such a bar already do.
+    ///
     /// Three distinct icons rather than one icon with overlays, because not
     /// every host draws overlays and a state a host cannot draw is a state the
     /// user does not see. The names are promises that files exist under them:
@@ -198,10 +205,10 @@ impl TrayState {
     /// path, see `stage_icons`, so it draws correctly from a bare build too.
     pub fn icon_name(&self) -> &'static str {
         match self.health() {
-            Health::NeedsAttention => "io.github.Dandiccf.Cirrove-attention-symbolic",
-            Health::Ready => "io.github.Dandiccf.Cirrove-ready-symbolic",
-            Health::Working => "io.github.Dandiccf.Cirrove-working-symbolic",
-            Health::Idle => "io.github.Dandiccf.Cirrove-ready-symbolic",
+            Health::NeedsAttention => "io.github.Dandiccf.Cirrove-attention",
+            Health::Ready => "io.github.Dandiccf.Cirrove-ready",
+            Health::Working => "io.github.Dandiccf.Cirrove-working",
+            Health::Idle => "io.github.Dandiccf.Cirrove-ready",
         }
     }
 
@@ -364,21 +371,21 @@ fn summary(account: &AccountRow) -> String {
 /// finds them either way.
 const EMBEDDED_ICONS: &[(&str, &str)] = &[
     (
-        "io.github.Dandiccf.Cirrove-ready-symbolic",
+        "io.github.Dandiccf.Cirrove-ready",
         include_str!(
-            "../../../../packaging/icons/symbolic/apps/io.github.Dandiccf.Cirrove-ready-symbolic.svg"
+            "../../../../packaging/icons/scalable/apps/io.github.Dandiccf.Cirrove-ready.svg"
         ),
     ),
     (
-        "io.github.Dandiccf.Cirrove-working-symbolic",
+        "io.github.Dandiccf.Cirrove-working",
         include_str!(
-            "../../../../packaging/icons/symbolic/apps/io.github.Dandiccf.Cirrove-working-symbolic.svg"
+            "../../../../packaging/icons/scalable/apps/io.github.Dandiccf.Cirrove-working.svg"
         ),
     ),
     (
-        "io.github.Dandiccf.Cirrove-attention-symbolic",
+        "io.github.Dandiccf.Cirrove-attention",
         include_str!(
-            "../../../../packaging/icons/symbolic/apps/io.github.Dandiccf.Cirrove-attention-symbolic.svg"
+            "../../../../packaging/icons/scalable/apps/io.github.Dandiccf.Cirrove-attention.svg"
         ),
     ),
 ];
@@ -393,14 +400,13 @@ fn stage_icons() -> Option<PathBuf> {
         .unwrap_or_else(std::env::temp_dir)
         .join("cirrove-tray")
         .join("icons");
-    // Three layouts, because hosts disagree on what the path is. Qt-based hosts
+    // Two layouts, because hosts disagree on what the path is. Qt-based hosts
     // (Plasma, Quickshell) treat it as a flat fallback directory and look for
     // `<path>/<name>.svg`; GTK-based hosts (the GNOME AppIndicator extension)
-    // add it as a theme search path and find both flat files and the hicolor
-    // layout; and within hicolor they differ on whether an SVG lives under
-    // scalable or symbolic. A file in the wrong place is an icon not drawn, and
-    // three copies of a 300-byte SVG cost nothing.
-    for subdir in ["", "hicolor/scalable/apps", "hicolor/symbolic/apps"] {
+    // add it as a theme search path and find the hicolor layout. The icons are
+    // colored (scalable), not symbolic, so a scalable copy and a flat copy
+    // cover both, and two copies of a small SVG cost nothing.
+    for subdir in ["", "hicolor/scalable/apps"] {
         let dir = base.join(subdir);
         std::fs::create_dir_all(&dir).ok()?;
         for (name, svg) in EMBEDDED_ICONS {
@@ -1115,10 +1121,7 @@ mod tests {
         state.apply(account("b", "sign_in_required", true));
         assert_eq!(state.health(), Health::NeedsAttention);
         assert_eq!(state.sni_status(), "NeedsAttention");
-        assert_eq!(
-            state.icon_name(),
-            "io.github.Dandiccf.Cirrove-attention-symbolic"
-        );
+        assert_eq!(state.icon_name(), "io.github.Dandiccf.Cirrove-attention");
     }
 
     #[test]

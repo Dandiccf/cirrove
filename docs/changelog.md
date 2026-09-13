@@ -15,9 +15,10 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
   where it applies, and removal asks differently when changes never reached
   the cloud.
 - **Cirrove has an icon.** A cloud over a drive in launchers; in the tray, a
-  cloud when ready, transfer arrows while working, an exclamation mark when
-  something needs a person. The tray draws it whether or not the icon set is
-  installed.
+  colored cloud -- blue when ready, blue with transfer arrows while working,
+  amber with an exclamation when something needs a person -- so it reads on any
+  panel, including shells that do not recolor symbolic icons. The tray draws it
+  whether or not the icon set is installed.
 - **Packages.** Arch (`cirrove`, `cirrove-desktop`), Ubuntu 24.04 `.deb` and
   Fedora `.rpm`, each built and installed on a clean system by CI on every
   push and downloadable from the run. No release yet; see

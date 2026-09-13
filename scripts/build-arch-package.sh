@@ -71,10 +71,10 @@ expect "$desktop" \
   "usr/share/applications/$id.desktop" \
   "etc/xdg/autostart/$id.Tray.desktop" \
   "usr/share/icons/hicolor/scalable/apps/$id.svg" \
+  "usr/share/icons/hicolor/scalable/apps/$id-ready.svg" \
+  "usr/share/icons/hicolor/scalable/apps/$id-working.svg" \
+  "usr/share/icons/hicolor/scalable/apps/$id-attention.svg" \
   "usr/share/icons/hicolor/symbolic/apps/$id-symbolic.svg" \
-  "usr/share/icons/hicolor/symbolic/apps/$id-ready-symbolic.svg" \
-  "usr/share/icons/hicolor/symbolic/apps/$id-working-symbolic.svg" \
-  "usr/share/icons/hicolor/symbolic/apps/$id-attention-symbolic.svg" \
   "usr/share/metainfo/$id.metainfo.xml" \
   usr/share/nautilus-python/extensions/cirrove.py \
   usr/share/licenses/cirrove-desktop/LICENSE

@@ -69,7 +69,7 @@ install -Dm755 target/release/cirrove-desktop %{buildroot}%{_bindir}/cirrove-des
 install -Dm755 target/release/cirrove-tray %{buildroot}%{_bindir}/cirrove-tray
 install -Dm644 packaging/desktop/%{app_id}.desktop -t %{buildroot}%{_datadir}/applications/
 install -Dm644 packaging/desktop/%{app_id}.Tray.desktop -t %{buildroot}%{_sysconfdir}/xdg/autostart/
-install -Dm644 packaging/icons/scalable/apps/%{app_id}.svg -t %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/
+install -Dm644 packaging/icons/scalable/apps/*.svg -t %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/
 install -Dm644 packaging/icons/symbolic/apps/*.svg -t %{buildroot}%{_datadir}/icons/hicolor/symbolic/apps/
 install -Dm644 packaging/metainfo/%{app_id}.metainfo.xml -t %{buildroot}%{_metainfodir}/
 install -Dm644 packaging/nautilus/cirrove.py -t %{buildroot}%{_datadir}/nautilus-python/extensions/
@@ -87,10 +87,10 @@ install -Dm644 packaging/nautilus/cirrove.py -t %{buildroot}%{_datadir}/nautilus
 %{_datadir}/applications/%{app_id}.desktop
 %config %{_sysconfdir}/xdg/autostart/%{app_id}.Tray.desktop
 %{_datadir}/icons/hicolor/scalable/apps/%{app_id}.svg
+%{_datadir}/icons/hicolor/scalable/apps/%{app_id}-ready.svg
+%{_datadir}/icons/hicolor/scalable/apps/%{app_id}-working.svg
+%{_datadir}/icons/hicolor/scalable/apps/%{app_id}-attention.svg
 %{_datadir}/icons/hicolor/symbolic/apps/%{app_id}-symbolic.svg
-%{_datadir}/icons/hicolor/symbolic/apps/%{app_id}-ready-symbolic.svg
-%{_datadir}/icons/hicolor/symbolic/apps/%{app_id}-working-symbolic.svg
-%{_datadir}/icons/hicolor/symbolic/apps/%{app_id}-attention-symbolic.svg
 %{_metainfodir}/%{app_id}.metainfo.xml
 %{_datadir}/nautilus-python/extensions/cirrove.py
 

@@ -287,7 +287,7 @@ jobs:
           desktop-file-validate /usr/share/applications/io.github.Dandiccf.Cirrove.desktop
           desktop-file-validate /etc/xdg/autostart/io.github.Dandiccf.Cirrove.Tray.desktop
           appstreamcli validate /usr/share/metainfo/io.github.Dandiccf.Cirrove.metainfo.xml
-          test -f /usr/share/icons/hicolor/symbolic/apps/io.github.Dandiccf.Cirrove-attention-symbolic.svg
+          test -f /usr/share/icons/hicolor/scalable/apps/io.github.Dandiccf.Cirrove-attention.svg
           test -f /usr/share/nautilus-python/extensions/cirrove.py
           pacman -Rns --noconfirm cirrove-desktop cirrove
           for f in /usr/bin/cirroved /usr/bin/cirrove /usr/bin/cirrove-tray /usr/lib/systemd/user/cirroved.service /etc/xdg/autostart/io.github.Dandiccf.Cirrove.Tray.desktop; do

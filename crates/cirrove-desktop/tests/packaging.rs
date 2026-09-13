@@ -256,14 +256,16 @@ fn every_icon_the_tray_names_ships_as_a_file() {
         !named.is_empty(),
         "the tray names no branded icons; it is still on generic freedesktop names"
     );
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     for name in named {
-        let path = format!("packaging/icons/symbolic/apps/{name}.svg");
+        // A colored icon ships under scalable/apps, a symbolic one under
+        // symbolic/apps; the tray's are colored, but accept either so the
+        // check is about the promise being kept, not where.
+        let scalable = format!("packaging/icons/scalable/apps/{name}.svg");
+        let symbolic = format!("packaging/icons/symbolic/apps/{name}.svg");
         assert!(
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("../..")
-                .join(&path)
-                .exists(),
-            "the tray names {name} and nothing ships it at {path}"
+            root.join(&scalable).exists() || root.join(&symbolic).exists(),
+            "the tray names {name} and nothing ships it at {scalable} or {symbolic}"
         );
     }
 }

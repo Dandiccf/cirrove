@@ -141,10 +141,16 @@ it silently is how a user on stock GNOME ends up with no icon and nothing
 anywhere saying why. Once, not on every change: a flaky panel must not fill a
 journal.
 
-The icons are Cirrove's own: a cloud for ready, a cloud with transfer arrows for
-working, a cloud with an exclamation mark for anything a person must act on.
-Three icons rather than overlays, because not every host draws overlays. They
-ship in `packaging/icons/` for a package to install into the hicolor theme, and
+The tray icons are Cirrove's own and colored, not symbolic: a blue cloud for
+ready, a blue cloud with transfer arrows for working, an amber cloud with an
+exclamation mark for anything a person must act on. Three icons rather than
+overlays, because not every host draws overlays -- and colored rather than
+symbolic because a symbolic icon expects the panel to recolor it, and a panel
+that does not (Quickshell on Omarchy resolves the icon to a file path and never
+sees the `-symbolic` suffix its recolor keys on) draws the raw GNOME grey,
+invisible on a dark bar. A colored cloud reads on any panel, like the other
+icons already in such a bar. They ship in `packaging/icons/scalable/apps/` for
+a package to install into the hicolor theme, and
 the tray does not depend on that having happened: it embeds the same files,
 writes them under `$XDG_RUNTIME_DIR/cirrove-tray/icons` at start, and advertises
 that directory as `IconThemePath`, so a tray run from a bare build draws
