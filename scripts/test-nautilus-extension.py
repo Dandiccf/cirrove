@@ -168,6 +168,24 @@ class Properties(unittest.TestCase):
         self.assertEqual(pairs["On this computer"], "not downloaded yet")
         self.assertEqual(pairs["Kept offline"], "no")
 
+    def test_a_cached_but_unpinned_file_says_the_copy_is_not_guaranteed(self):
+        # The contradiction this guards: "Availability: On demand" beside
+        # "On this computer: all 66.2 KB" tells the reader nothing about
+        # whether the copy will still be there tomorrow. Without a pin it can
+        # be reclaimed, and the dialog has to say so.
+        state = {"kind": "file", "pinned": None, "size": 67789, "resident": 67789}
+        pairs = dict(ext.properties(state, "deck.pptx"))
+        self.assertEqual(pairs["Availability"], "On demand")
+        self.assertEqual(
+            pairs["On this computer"], "all 66.2 KB, until the space is needed"
+        )
+
+    def test_a_pinned_file_that_is_here_does_not_hedge(self):
+        # A pin is the promise; nothing may suggest it could go away.
+        state = {"kind": "file", "pinned": "direct", "size": 67789, "resident": 67789}
+        pairs = dict(ext.properties(state, "deck.pptx"))
+        self.assertEqual(pairs["On this computer"], "all 66.2 KB")
+
     def test_a_partly_fetched_file_shows_how_much(self):
         state = {"kind": "file", "pinned": "direct", "size": 4096, "resident": 1024}
         pairs = dict(ext.properties(state, "x"))

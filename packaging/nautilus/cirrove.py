@@ -152,7 +152,11 @@ def properties(state, relative):
         size = state.get("size", 0)
         resident = state.get("resident", 0)
         if resident >= size and size > 0:
-            pairs.append(("On this computer", f"all {human_bytes(size)}"))
+            # A cached copy without a pin is here now and may be reclaimed;
+            # saying only "all 66.2 KB" beside "Availability: On demand" reads
+            # as a contradiction and promises something nothing guarantees.
+            kept = " " if state.get("pinned") else ", until the space is needed"
+            pairs.append(("On this computer", f"all {human_bytes(size)}{kept}".rstrip()))
         elif resident > 0:
             pairs.append(("On this computer", f"{human_bytes(resident)} of {human_bytes(size)}"))
         else:

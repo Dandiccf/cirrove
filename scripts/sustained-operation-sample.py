@@ -29,7 +29,9 @@ column is what makes that visible, and `# RESTART` marks it in the file.
 
 import argparse
 import json
+import shutil
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -54,6 +56,18 @@ def rss_kib(pid: int) -> int:
     return -1
 
 
+class ProbeLost(Exception):
+    """The CLI the sampler measures through is gone, so nothing can be read.
+
+    Distinct from a daemon that will not answer, and the distinction is the
+    whole point: a window on 2026-09-13 wrote four rows reading
+    unreachable/mounted=0/items=-1 while the daemon was untouched and serving,
+    because the packaged /usr/bin/cirrove had been removed under it. Those rows
+    are indistinguishable from a real outage after the fact. A sampler that
+    cannot see must say it cannot see, and stop.
+    """
+
+
 def account(binary: str) -> dict:
     try:
         out = subprocess.run(
@@ -68,6 +82,8 @@ def account(binary: str) -> dict:
             "items": first.get("indexed_items", -1),
             "stuck": first.get("stuck_changes", -1),
         }
+    except (FileNotFoundError, PermissionError) as exc:
+        raise ProbeLost(f"{binary}: {exc}") from exc
     except Exception:
         # A daemon that cannot answer is the finding. Recorded, never retried
         # into looking healthy.
@@ -98,16 +114,38 @@ def main() -> int:
     if first_pid <= 0:
         raise SystemExit(f"{args.unit} is not running; there is nothing to sustain")
 
+    # Resolve the probe to an absolute path once, so a later PATH change cannot
+    # silently point the sampler at a different binary, and refuse to open a
+    # window that has nothing to measure through.
+    resolved = shutil.which(args.binary) or (
+        args.binary if Path(args.binary).is_absolute() and Path(args.binary).exists() else None
+    )
+    if not resolved:
+        raise SystemExit(f"{args.binary} is not on PATH; the window would be blind from the start")
+
     args.out.parent.mkdir(parents=True, exist_ok=True)
     with args.out.open("w", buffering=1) as sink:
-        sink.write(f"# started pid={first_pid} hours={args.hours} interval={args.interval}\n")
+        sink.write(
+            f"# started pid={first_pid} hours={args.hours} "
+            f"interval={args.interval} probe={resolved}\n"
+        )
         sink.write("unix\tuptime_s\tpid\trss_kib\tstate\tmounted\tfeeds\titems\tstuck\tlisting_ms\n")
         while time.monotonic() < deadline:
             pid = main_pid(args.unit)
             if pid != first_pid:
                 sink.write(f"# RESTART was={first_pid} now={pid} at={int(time.time())}\n")
                 first_pid = pid
-            a = account(args.binary)
+            try:
+                a = account(resolved)
+            except ProbeLost as lost:
+                sink.write(f"# PROBE-LOST at={int(time.time())} {lost}\n")
+                sink.write(
+                    "# The window is void from here: the sampler can no longer read the\n"
+                    "# daemon, and rows written blind would be indistinguishable from an\n"
+                    "# outage. Stopping rather than filling the file with false evidence.\n"
+                )
+                print(f"probe lost: {lost}", file=sys.stderr)
+                return 2
             sink.write(
                 f"{int(time.time())}\t{int(time.monotonic() - started)}\t{pid}\t{rss_kib(pid)}\t"
                 f"{a['state']}\t{a['mounted']}\t{a['feeds']}\t{a['items']}\t{a['stuck']}\t"

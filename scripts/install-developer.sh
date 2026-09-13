@@ -55,13 +55,27 @@ install -Dm644 "$repo/packaging/nautilus/cirrove.py" -t "$ext/"
 python3 "$repo/scripts/install-tray-autostart.py"
 
 systemctl --user daemon-reload
-systemctl --user enable --now cirroved.service
+systemctl --user enable cirroved.service
+# restart, not `enable --now`: --now does nothing to an already-running daemon,
+# so a second developer install would leave the previous binary serving the
+# mount and report success. Every install must put the binary it just built in
+# front of the user. The unit unmounts on stop and remounts on start; the state
+# directory is untouched, so the account and index survive.
+systemctl --user restart cirroved.service
+
 # Replace a running tray with the one just installed, and reload Files so it
 # picks up the extension.
 pkill -x cirrove-tray 2>/dev/null || true
 sleep 1
 (setsid nohup "$bin/cirrove-tray" >/dev/null 2>&1 &)
 nautilus -q 2>/dev/null || true
+
+# Wait for the mount to be served again before reporting, so the line below is
+# the truth and not a hope.
+for _ in $(seq 40); do
+  "$bin/cirrove" status >/dev/null 2>&1 && break
+  sleep 1
+done
 
 echo
 echo "installed from $(cd "$repo" && git rev-parse --short HEAD):"

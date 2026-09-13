@@ -154,3 +154,35 @@ unix	uptime_s	pid	rss_kib	state	mounted	feeds	items	stuck	listing_ms
 1789305145	9062	368874	170188	ready	1	rr	184053	0	2
 1789305205	9122	368874	170996	ready	1	rr	184053	0	1
 1789305265	9182	368874	171700	ready	1	rr	184053	0	1
+1789305325	9242	368874	170948	ready	1	rr	184053	0	2
+1789305385	9302	368874	170524	ready	1	rr	184053	0	1
+1789305445	9362	368874	171776	ready	1	rr	184053	0	1
+1789305505	9422	368874	170156	ready	1	rr	184053	0	1
+1789305565	9483	368874	170096	ready	1	rr	184053	0	1
+1789305625	9543	368874	170956	ready	1	rr	184053	0	1
+1789305685	9603	368874	169924	ready	1	rr	184053	0	2
+1789305745	9663	368874	169732	ready	1	rr	184053	0	5
+1789305805	9723	368874	171792	ready	1	rr	184053	0	5
+1789305865	9783	368874	171892	ready	1	rr	184053	0	2
+1789305925	9843	368874	170240	ready	1	rr	184053	0	1
+1789305985	9903	368874	169820	ready	1	rr	184053	0	1
+1789306045	9963	368874	170036	ready	1	rr	184053	0	1
+1789306105	10023	368874	169652	ready	1	rr	184053	0	1
+1789306165	10083	368874	170964	ready	1	rr	184053	0	1
+1789306225	10143	368874	169812	ready	1	rr	184053	0	1
+1789306285	10203	368874	171360	ready	1	rr	184053	0	1
+1789306345	10263	368874	171008	ready	1	rr	184053	0	1
+1789306405	10323	368874	171168	ready	1	rr	184053	0	1
+1789306465	10383	368874	170292	unreachable	0	-	-1	-1	2
+1789306525	10443	368874	170312	unreachable	0	-	-1	-1	2
+1789306585	10503	368874	169272	unreachable	0	-	-1	-1	2
+1789306645	10563	368874	169376	unreachable	0	-	-1	-1	1
+# void 2026-09-13T15:38+02:00 reason=probe-binary-removed-mid-window
+# The window ran 2h56m of its 24h. It is void, not a result. At 15:34 the
+# packaged /usr/bin/cirrove was removed (the machine was moved off the packages
+# and back to a developer install), and the sampler probes the daemon through
+# that CLI: the last four rows read unreachable/mounted=0/items=-1 while the
+# daemon itself was untouched -- same pid 368874, mount still served. A window
+# that cannot see what it measures reports nothing, so nothing is claimed from
+# these 177 samples. Kept as the record of the void, per the decision rule's
+# any_unplanned_restart clause. Re-run from the developer install.
