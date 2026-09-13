@@ -234,10 +234,11 @@ async fn write_desktop_secret(key: &str, value: &SecretString) -> Result<()> {
     let ss = SecretService::connect(EncryptionType::Dh)
         .await
         .context("desktop Secret Service unavailable")?;
-    let collection = ss
-        .get_default_collection()
-        .await
-        .context("no default desktop keyring")?;
+    let collection = ss.get_default_collection().await.context(
+        "no default desktop keyring to keep the sign-in in. A machine that logs you in \
+             automatically unlocks none; open Passwords and Keys and create the Login keyring \
+             once, or log in with your password once",
+    )?;
     if collection.is_locked().await? {
         collection
             .unlock()

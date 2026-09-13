@@ -31,6 +31,12 @@ drive from the window, or with `systemctl --user enable --now cirroved`. The
 tray starts with your next login (it is an autostart entry); to have it now,
 run `cirrove-tray`.
 
+Sign-in grants are kept in your desktop keyring, so there has to be one that
+is unlocked. A machine that logs you in automatically has none: nobody typed a
+password to unlock it. Open *Passwords and Keys* and create the default
+("Login") keyring once, or log in with your password once, and connecting
+works from then on. Cirrove says this in its own words when it happens.
+
 The tray icon needs a panel that shows StatusNotifierItems. GNOME needs the
 [AppIndicator extension](https://extensions.gnome.org/extension/615/appindicator-support/)
 for that; KDE Plasma and most other desktops have it built in. Without a

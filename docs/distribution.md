@@ -127,7 +127,12 @@ attention goes to the screenshots rather than the clicking.
 What the checks cannot do is sign in: that is a person's browser and
 credentials. Run the machine with a window (`CIRROVE_VM_DISPLAY=gtk
 scripts/vm/run.sh <distro> boot`), sign in there, and the tray -- Passive
-without an account, which a shell hides -- gets its icon.
+without an account, which a shell hides -- gets its icon. One thing the
+first attempt found: the test account logs in automatically, so no keyring
+is ever unlocked and there is no default one to keep the grant in --
+`echo -n cirrove | gnome-keyring-daemon --unlock` in the session creates it,
+and the same is true of any real machine with automatic login, which the
+user guide now says.
 
 **Fedora 44 Workstation, 2026-09-13:** everything above passed on a clean
 machine: the fc42-built rpms install on 44, the service runs as the user,

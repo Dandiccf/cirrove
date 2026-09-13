@@ -5,6 +5,9 @@
     qmp.py SOCK system_powerdown       press the power button
     qmp.py SOCK keys ctrl-alt-t        send a key combination
     qmp.py SOCK click X Y              move the pointer to X,Y (0..0x7fff) and click
+    qmp.py SOCK link n0 off|on         unplug or replug the network cable
+    qmp.py SOCK wakeup                 wake a suspended guest
+    qmp.py SOCK quit                   pull the plug: the machine stops mid-everything
 
 Enough for the real-desktop checks: look, press, click, turn off.
 """
@@ -55,6 +58,14 @@ def main():
             {"execute": "input-send-event", "arguments": {"events": press}},
             {"execute": "input-send-event", "arguments": {"events": release}},
         ]
+    elif verb == "link":
+        commands = [
+            {"execute": "set_link", "arguments": {"name": args[0], "up": args[1] == "on"}}
+        ]
+    elif verb == "wakeup":
+        commands = [{"execute": "system_wakeup"}]
+    elif verb == "quit":
+        commands = [{"execute": "quit"}]
     else:
         print(__doc__, file=sys.stderr)
         return 2
