@@ -1,0 +1,26 @@
+{
+  "question": "Does Cirrove work in a KDE Plasma session on native Wayland -- the tray, the settings window, the application's identity and the system dark-style preference -- given that every real-desktop check so far has been GNOME?",
+  "why_now": "M5 line 265 asks for a declared session matrix covering native Wayland and X11 and both GNOME and Plasma, and says plainly that Xwayland is not native Wayland coverage. Plasma had none of any kind. It also matters more than its share of the matrix suggests: the tray is a StatusNotifierItem, which is KDE's own protocol, so Plasma is the one desktop where it should work with nothing installed alongside it -- and that had never been seen.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-13",
+  "how": "The Fedora 44 VM, which was GNOME-only, had the Plasma desktop group installed, its autologin session switched to plasma via AccountsService, and was rebooted. The Cirrove packages were installed from the rpm the Fedora CI job builds. Everything below was observed through QEMU's monitor -- screenshots and clicks -- and over the session bus.",
+  "predictions": {
+    "P1": "The packaged autostart entry under /etc/xdg/autostart starts the tray in a Plasma session, as it does in GNOME.",
+    "P2": "The tray registers with KDE's own org.kde.StatusNotifierWatcher and appears in Plasma's tray, with no extension installed -- GNOME needs AppIndicator, Plasma should need nothing.",
+    "P3": "The settings window renders correctly as a native Wayland client under KWin, with the application's own icon in the task bar rather than a generic one.",
+    "P4": "The window follows the system dark-style preference: switching Plasma to Breeze Dark changes what the portal reports, and the window is dark the next time it opens."
+  },
+  "run": {
+    "when": "2026-09-13T16:25-16:35+02:00",
+    "where": "Fedora 44 VM, Plasma 6 on Wayland (KWin), packages 0.1.0~dev.r351.ge9a91a4",
+    "observed": {
+      "P1": "HOLDS -- cirrove-tray was running after the reboot without being started by hand, from the packaged /etc/xdg/autostart entry, and cirroved.service was active.",
+      "P2": "HOLDS -- org.kde.StatusNotifierWatcher (kded6) and org.kde.StatusNotifierHost (plasmashell) were both present, the watcher listed two registered items and Cirrove was one of them, and the item appears in Plasma's tray drawer by name and icon beside Notifications, Vaults, Disks & Devices and KDE Connect. Nothing was installed to make that happen. Its status is Passive, because this VM has no account signed in, which is why it sits in the drawer rather than the visible row.",
+      "P3": "HOLDS -- the window renders correctly under KWin with WAYLAND_DISPLAY set and no DISPLAY, so not through Xwayland. The empty state reads as intended, the header bar and its buttons are drawn by the application rather than doubled by KWin, and the task bar shows the Cirrove cloud rather than a generic application icon.",
+      "P4": "HOLDS -- before: the portal reported color-scheme 2 (light). After plasma-apply-lookandfeel org.kde.breezedark.desktop it reported 1 (dark), and the window opened dark, with the accent button and the link still legible against it."
+    },
+    "also_noticed": "Fedora installs xdg-desktop-portal-kde, but the running implementation for a GTK client is xdg-desktop-portal-gtk. That is normal -- the GTK backend serves GTK apps -- and it is what actually answers a folder-open request in this session, so the Plasma portal path is the GTK backend's path.",
+    "not_covered": "Portal-backed folder opening and its cancellation, and the missing-portal behaviour. Both are reached from an account's Open folder action, and this VM has no account: the owner's OneDrive is signed into the Ubuntu VM, and a second copy of a real credential is not worth a test. X11 is also still uncovered -- Fedora 44 ships no X11 session for Plasma or GNOME by default."
+  },
+  "conclusion": "Four of line 265's clauses are now evidenced in a Plasma session on native Wayland: the autostart, the tray on KDE's own protocol with nothing installed alongside it, the window and application identity, and the system dark-style preference. The row stays open for portal folder opening, its cancellation, the missing-portal case and X11."
+}

@@ -36,7 +36,7 @@ tests against a synthetic provider and has never met the real service;
 | --- | --- | --- |
 | Reading: listing, opening, streaming large files, cache eviction | real | validation.md, benchmarks |
 | Opening a file in an application | real -- in the Ubuntu VM GNOME session: a text editor and a spreadsheet open a mount file from Files, and a headless LibreOffice conversion opens a .docx; confirmed by the account owner double-clicking in the window | vm-recovery-and-real-desktop.json |
-| Remote creates, edits, moves and deletions reaching the mount | real -- the delta feed on the live account, with notifications | validation.md § change notification |
+| Remote creates, edits, moves and deletions reaching the mount | real -- and now also driven server-side through Graph rather than by Cirrove: folder create visible in 4 s, file create 6 s, a 31 to 111 byte edit 16.4 s with stat's size and the bytes read agreeing at every sample, rename and delete under 2 s, move 16 s | validation.md § change notification, benchmarks/remote-change-propagation.json |
 | Saving, renaming, moving, creating and deleting from the mount | real -- 192 changes applied on the live account, zero stuck at last count | write-validation.md |
 | Deletion into the provider's recycle bin | real | ADR 0008 |
 | Permanent deletion as a second gesture | no -- ADR 0008 names it; nothing implements it yet | -- |
@@ -46,7 +46,7 @@ tests against a synthetic provider and has never met the real service;
 | Offline pinning, per file and per folder, reads with the network gone | real | benchmarks/live-offline-pinning.json, benchmarks/offline-pinning-reachability.json |
 | Power loss mid-write | real -- the plug pulled, the journal recovered | benchmarks/journal-under-power-cut.json |
 | Deep suspend past the token lifetime | no -- registered, not run | benchmarks/deep-suspend-beyond-token-lifetime.json |
-| 24 hours of operation | no -- registered, not run | benchmarks/sustained-operation.json |
+| 24 hours of operation | running -- attempt 1 on the host was void when its probe binary was removed under it; attempt 2 opened in the Ubuntu VM on 2026-09-13 at 15:56, with a restart at four hours and a five-minute outage at eight | benchmarks/sustained-operation.json |
 
 ## Unsupported operations
 
@@ -71,8 +71,9 @@ filesystem gives in the same situation.
 | | Status |
 | --- | --- |
 | Arch, Hyprland (Omarchy), Quickshell tray, Nautilus 50 | real -- the development machine |
-| GNOME session (Wayland), AppIndicator tray, Files | real -- Fedora 44 and Ubuntu 24.04 in VMs: the tray registers with the shell and survives a reboot, Files loads the extension; no icon drawn, for want of an account (see distribution.md) |
-| KDE Plasma | no |
+| GNOME session (Wayland), AppIndicator tray, Files | real -- Fedora 44 and Ubuntu 24.04 in VMs: the tray registers with the shell and survives a reboot, Files loads the extension, and with an account signed in the icon is drawn in the top bar (2026-09-13) |
+| KDE Plasma 6 session (Wayland), tray, window | real -- Fedora 44 VM, 2026-09-13: the packaged autostart starts the tray, it registers with KDE's own StatusNotifierWatcher and appears in the tray with nothing installed alongside it, the window renders under KWin as a native Wayland client with its own icon in the task bar, and it follows the system dark-style preference. Portal folder opening is untested here for want of an account. See [the record](benchmarks/plasma-session-coverage.json) |
+| X11 session, either desktop | no -- Fedora 44 ships no X11 session for GNOME or Plasma by default |
 | Ubuntu 24.04 packages installed on a clean system | real -- CI runner and an Ubuntu 24.04.4 Desktop VM through a reboot and purge |
 | Fedora packages installed on a clean system | real -- CI container (42) and a Fedora 44 Workstation VM through a reboot and removal |
 | Debian stable | not claimed: older than the desktop floor |
