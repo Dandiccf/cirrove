@@ -1246,6 +1246,25 @@ mod tests {
         }
     }
 
+    /// An older package over a newer settings file must stop, not read what it
+    /// does not understand: the version guard is what a rollback relies on.
+    #[test]
+    fn a_settings_file_from_a_newer_version_is_refused_rather_than_read() {
+        let temp = tempfile::tempdir().unwrap();
+        let state = temp.path().join("state");
+        crate::private_dir(&state).unwrap();
+        std::fs::write(
+            state.join("accounts.json"),
+            br#"{"version":2,"accounts":[]}"#,
+        )
+        .unwrap();
+        let error = Settings::load(&state).unwrap_err().to_string();
+        assert!(
+            error.contains("unsupported account settings version"),
+            "a newer settings file must be refused by name: {error}"
+        );
+    }
+
     fn fixture_account(access: AccessMode) -> Account {
         Account {
             id: "00000000-0000-4000-8000-000000000007".into(),

@@ -479,9 +479,9 @@
       "line": 328,
       "done": false,
       "text": "Upgrade/migration rollback protects settings, credentials and pending work.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
-      "asserted_by": null
+      "blocker": "autonomous",
+      "evidence": "PARTIAL 2026-09-13. The data side is guarded and tested: the metadata store and the upload journal each carry a schema version, migrate forward inside one transaction that publishes the steps and the version together, and refuse a database newer than the build -- so an older package installed over a newer state stops with 'unsupported database schema version' rather than reading what it does not understand; migrations six, seven, eight and thirteen each keep pending work and are held to it; and a migration under a running daemon is refused (accounts::refuse_to_migrate_under_a_running_daemon, fail-closed on an unreadable file). Credentials live in the keyring under ids the settings file names and are touched by no migration. NOT DONE: the package-level run -- install version N over N-1 on a machine with pending uploads, confirm they finish, roll back to N-1 and confirm it refuses cleanly rather than half-works; the settings file's version guard is held by accounts::tests::a_settings_file_from_a_newer_version_is_refused_rather_than_read.",
+      "asserted_by": "clean_handoff::schema_seven_migration_preserves_pending_work_and_refuses_future_schema, unlinked_files::schema_eight_migration_keeps_pending_streams_and_newer_schema_is_refused, local_directories::schema_thirteen_migrates_and_missing_or_future_destination_state_fails_closed, namespace_objects::schema_six_working_files_keep_confirmed_remote_bindings_and_pending_bytes, and the store's own tests of user_version handling; accounts.rs holds the running-daemon refusal. accounts::tests::a_settings_file_from_a_newer_version_is_refused_rather_than_read for the settings file."
     },
     {
       "milestone": 6,

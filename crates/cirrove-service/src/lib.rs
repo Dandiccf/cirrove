@@ -737,7 +737,7 @@ pub async fn serve_managed(
                         let accounts=match &manager {Some(m)=>m.status.read().await.clone(),None=>vec![]};
                         if manager.is_some() {feeds=accounts.iter().map(|a|a.indexed_feeds).sum();items=accounts.iter().map(|a|a.indexed_items).sum();}
                         let active_mounts=accounts.iter().filter(|a|a.mounted).count() as u64;
-                        let reply=Status{protocol_version:STATUS_PROTOCOL_VERSION,version:env!("CARGO_PKG_VERSION").into(),milestone:"readonly-preview".into(),indexed_feeds:feeds,indexed_items:items,active_mounts,accounts,allocator_trims:crate::filesystem::allocator_trims(),free_arena_bytes:cirrove_allocator::free_arena_bytes(),retained_bytes:cirrove_allocator::retained_bytes()};
+                        let reply=Status{protocol_version:STATUS_PROTOCOL_VERSION,version:env!("CARGO_PKG_VERSION").into(),milestone:"writable-preview".into(),indexed_feeds:feeds,indexed_items:items,active_mounts,accounts,allocator_trims:crate::filesystem::allocator_trims(),free_arena_bytes:cirrove_allocator::free_arena_bytes(),retained_bytes:cirrove_allocator::retained_bytes()};
                         write_reply(&mut stream,&reply).await
                     }.await;
                     if result.is_err() {tracing::debug!("control request did not complete");}

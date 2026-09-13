@@ -49,7 +49,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
         status: Ok(Status {
             protocol_version: 1,
             version: env!("CARGO_PKG_VERSION").into(),
-            milestone: "readonly-preview".into(),
+            milestone: "writable-preview".into(),
             indexed_feeds: 1,
             indexed_items: 1234,
             active_mounts: 1,
