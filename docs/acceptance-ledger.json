@@ -539,9 +539,9 @@
       "line": 341,
       "done": false,
       "text": "Tagged release and verified installation from the published artifacts.",
-      "blocker": "out-of-agreed-scope",
-      "evidence": null,
-      "asserted_by": null
+      "blocker": "autonomous",
+      "evidence": "NOT DONE 2026-09-13, but no longer undefined: docs/release-procedure.md says what a release is -- the blockers closed, CI green, versions agreeing across Cargo.toml and the three packaging sources, a tag, the PKGBUILD checksum from the tag, packages from a clean chroot and from the tag's CI artefacts, SHA256SUMS signed, installation on a clean machine per family through a reboot, a second build compared for reproducibility, a GitHub release. docs/changelog.md holds the Unreleased entry. What blocks the first tag is listed in docs/distribution.md. NOT DONE: every step of it, and the release key decision.",
+      "asserted_by": "Nothing yet; the procedure is text until its first run."
     }
   ],
   "operator_guide": "docs/authorization-request.md — the command, blast radius and evidence for every box this file marks as blocked on something an agent cannot supply."

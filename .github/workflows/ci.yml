@@ -271,6 +271,13 @@ jobs:
           # and the removal; a developer's scripts/build-arch-package.sh run
           # still checks.
           runuser -u builder -- scripts/build-arch-package.sh -- --nocheck
+      # The packages are the artefact a release takes and a VM installs; every
+      # push leaves a set to download.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: arch-packages
+          path: target/arch/*.pkg.tar.zst
+          if-no-files-found: error
       - name: Install, run, validate what a desktop would read, and remove
         run: |
           pacman -U --noconfirm $(ls target/arch/*.pkg.tar.zst | grep -v -- '-debug-')
@@ -306,6 +313,13 @@ jobs:
         run: rustup toolchain install 1.98.1 --profile minimal
       - name: Build both packages from HEAD
         run: scripts/build-deb-package.sh
+      # The packages are the artefact a release takes and a VM installs; every
+      # push leaves a set to download.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: deb-packages
+          path: target/deb/*.deb
+          if-no-files-found: error
       - name: Install, run, validate what a desktop would read, and remove
         run: |
           sudo apt-get install -y ./target/deb/cirrove_*.deb ./target/deb/cirrove-desktop_*.deb
@@ -343,6 +357,13 @@ jobs:
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           scripts/build-rpm-package.sh
+      # The packages are the artefact a release takes and a VM installs; every
+      # push leaves a set to download.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: rpm-packages
+          path: target/rpm/*.rpm
+          if-no-files-found: error
       - name: Install, run, validate what a desktop would read, and remove
         run: |
           dnf install -y target/rpm/*.rpm

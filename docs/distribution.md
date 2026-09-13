@@ -131,6 +131,42 @@ What is reviewed, and where the review is repeated so it does not go stale:
 Not done: a review of the update channels' signing (there are none yet), and
 a third party's reading of any of this.
 
+## What blocks the first release, and what does not
+
+The [acceptance ledger](acceptance-ledger.json) tracks every box; this is the
+decision of which open ones stand between the tree and a tagged 0.1.0, so
+that "is it ready" has one answer rather than fifty-three. Revisit it when a
+row closes or a new one opens.
+
+**Blocking:**
+
+- Milestone 1's two remaining measurements: deep suspend beyond the token
+  lifetime, and the 24-hour sustained run (registered in `docs/benchmarks/`,
+  waiting on machine time).
+- The package installation seen on a real desktop of each declared family,
+  through sign-in and a reboot: Arch (this machine, moving from the developer
+  install to the packages), Ubuntu 24.04 and Fedora (a VM each). CI's
+  container runs prove the packages, not the login.
+- One complete GNOME session in the matrix -- Wayland, the AppIndicator
+  extension for the tray, Files with the extension -- because GNOME is the
+  desktop most of the declared distributions ship. KDE Plasma follows and
+  does not block.
+- The tray seen starting at login from the packaged autostart entry.
+- A tag, a changelog, checksums, and the build procedure written down well
+  enough that the packages come out the same from it twice.
+
+**Not blocking:**
+
+- Dolphin, Nemo, Caja.
+- The recent-activity view, transfer progress and cancellation.
+- Localization.
+- Debian stable (older than the desktop floor); it is not claimed.
+- Signed APT and COPR channels -- a release can be a set of packages on the
+  release page before it is a repository.
+- A redacting diagnostics command.
+- The migration of an existing account's read/write consent from the window
+  (it is a CLI verb and a consent change).
+
 ## Supported versions
 
 There is no release yet. Until there is, what is supported is the current
