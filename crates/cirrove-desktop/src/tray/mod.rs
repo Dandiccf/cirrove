@@ -400,12 +400,25 @@ fn stage_icons() -> Option<PathBuf> {
         .unwrap_or_else(std::env::temp_dir)
         .join("cirrove-tray")
         .join("icons");
+    stage_icons_into(base)
+}
+
+/// The staging itself, given where to put it, so it can be tested without
+/// reaching into the process's environment.
+fn stage_icons_into(base: PathBuf) -> Option<PathBuf> {
     // Two layouts, because hosts disagree on what the path is. Qt-based hosts
     // (Plasma, Quickshell) treat it as a flat fallback directory and look for
     // `<path>/<name>.svg`; GTK-based hosts (the GNOME AppIndicator extension)
     // add it as a theme search path and find the hicolor layout. The icons are
     // colored (scalable), not symbolic, so a scalable copy and a flat copy
     // cover both, and two copies of a small SVG cost nothing.
+    // Start from nothing, so the directory holds exactly what this build
+    // advertises. An upgraded package leaves the previous tray running until
+    // the session ends, and the version after it inherited that version's
+    // staging directory: on one machine the leftovers were the symbolic icons
+    // of a build whose names this one no longer uses. They drew nothing, but
+    // reading the directory told you about a tray that was no longer there.
+    std::fs::remove_dir_all(&base).ok();
     for subdir in ["", "hicolor/scalable/apps"] {
         let dir = base.join(subdir);
         std::fs::create_dir_all(&dir).ok()?;
@@ -414,6 +427,71 @@ fn stage_icons() -> Option<PathBuf> {
         }
     }
     Some(base)
+}
+
+#[cfg(test)]
+mod staging {
+    fn stage(dir: &std::path::Path) -> std::path::PathBuf {
+        super::stage_icons_into(dir.join("cirrove-tray").join("icons"))
+            .expect("icons stage into a writable directory")
+    }
+
+    #[test]
+    fn staging_leaves_only_what_this_build_advertises() {
+        let home = tempfile::tempdir().expect("a temporary directory");
+        let staged = stage(home.path());
+
+        // What a previous version left behind, in both layouts.
+        let stale = staged.join("hicolor/symbolic/apps");
+        std::fs::create_dir_all(&stale).expect("create the old layout");
+        std::fs::write(
+            stale.join("io.github.Dandiccf.Cirrove-ready-symbolic.svg"),
+            "<svg/>",
+        )
+        .expect("write a stale icon");
+        std::fs::write(staged.join("some-old-name.svg"), "<svg/>").expect("write a stale icon");
+
+        let staged = stage(home.path());
+
+        let mut left: Vec<String> = Vec::new();
+        let mut stack = vec![staged.clone()];
+        while let Some(dir) = stack.pop() {
+            for entry in std::fs::read_dir(&dir)
+                .expect("read the staging directory")
+                .flatten()
+            {
+                let path = entry.path();
+                if path.is_dir() {
+                    stack.push(path);
+                } else {
+                    left.push(
+                        path.file_name()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .into_owned(),
+                    );
+                }
+            }
+        }
+        assert!(
+            !left.iter().any(|n| n == "some-old-name.svg"
+                || n == "io.github.Dandiccf.Cirrove-ready-symbolic.svg"),
+            "a previous build's icons survived the restage: {left:?}"
+        );
+        for (name, _) in super::EMBEDDED_ICONS {
+            assert!(
+                staged.join(format!("{name}.svg")).is_file(),
+                "{name} is staged flat for Qt hosts"
+            );
+            assert!(
+                staged
+                    .join("hicolor/scalable/apps")
+                    .join(format!("{name}.svg"))
+                    .is_file(),
+                "{name} is staged in the hicolor layout for GTK hosts"
+            );
+        }
+    }
 }
 
 /// The D-Bus object a shell reads.
