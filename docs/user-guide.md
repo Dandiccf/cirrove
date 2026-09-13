@@ -150,6 +150,9 @@ contains your sign-in tokens, and the journal never prints file contents.
 Removing the packages removes what they installed and nothing else: your
 connections, their sign-in grants in the desktop keyring, the local index and
 cache, and any changes still on their way stay under `~/.local/state/cirrove`.
+On Debian and Ubuntu, `apt remove` keeps the tray's autostart entry under
+`/etc/xdg/autostart` the way it keeps every configuration file; `apt purge
+cirrove-desktop cirrove` removes that too.
 To remove a connection and its data, use **Remove** in the window (or
 `cirrove forget <name>`) first, which sets its data aside under
 `~/.local/state/cirrove/removed/`; delete that directory when you are sure.
