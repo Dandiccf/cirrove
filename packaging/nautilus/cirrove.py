@@ -438,21 +438,28 @@ if Nautilus is not None:
             no place for per-file cloud state -- and only for a file on a
             mount, asked with one `paths` request (3 s cap, like the rest).
             """
-            if len(files) != 1:
+            try:
+                if len(files) != 1:
+                    return []
+                located = self._located(files)
+                if DEBUG:
+                    print(f"cirrove: get_models for {len(files)} file(s), located={bool(located)}", file=sys.stderr)
+                if not located:
+                    return []
+                _file, label, relative, _is_dir = located[0]
+                states = states_for(label, [(relative, None)])
+                pairs = properties(states.get(relative, {}), relative)
+                if DEBUG:
+                    print(f"cirrove: get_models pairs={pairs}", file=sys.stderr)
+                if not pairs:
+                    return []
+                items = Gio.ListStore.new(Nautilus.PropertiesItem)
+                for name, value in pairs:
+                    items.append(Nautilus.PropertiesItem(name=name, value=value))
+                return [Nautilus.PropertiesModel(title="Cirrove", model=items)]
+            except Exception:  # noqa: BLE001 - a properties provider must not crash the dialog
+                traceback.print_exc(file=sys.stderr)
                 return []
-            located = self._located(files)
-            if not located:
-                return []
-            _file, label, relative, is_dir = located[0]
-            del is_dir
-            states = states_for(label, [(relative, None)])
-            pairs = properties(states.get(relative, {}), relative)
-            if not pairs:
-                return []
-            items = Gio.ListStore.new(Nautilus.PropertiesItem)
-            for name, value in pairs:
-                items.append(Nautilus.PropertiesItem(name=name, value=value))
-            return [Nautilus.PropertiesModel(title="Cirrove", model=items)]
 
         # -- the menu -------------------------------------------------------
 
