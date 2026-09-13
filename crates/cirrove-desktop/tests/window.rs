@@ -575,6 +575,16 @@ fn every_account_action_is_offered_from_the_window_and_only_where_it_applies() {
             .is_some_and(|t| t.contains("only to read")),
         "the button says what the sign-in will ask for"
     );
+    // And does not overstate it. Asking for the narrower scope stops Cirrove
+    // writing; it does not take the permission away, which only the person can
+    // do in their Microsoft account. A tooltip promising the latter would be a
+    // promise this button cannot keep.
+    assert!(
+        restrict[0]
+            .tooltip_text()
+            .is_some_and(|t| t.contains("Microsoft account")),
+        "the read-only button must say where the permission itself is withdrawn"
+    );
     assert!(
         allow[0].has_css_class("suggested-action"),
         "asking for write is the direction that grants something"

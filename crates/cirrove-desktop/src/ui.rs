@@ -671,7 +671,13 @@ impl Window {
             "Allow changes"
         });
         row.consent.set_tooltip_text(Some(if card.writable {
-            "Sign in again asking only to read, so this drive stops accepting changes"
+            // Deliberately about what Cirrove will do, not about what the token
+            // can do. Asking for the narrower scope does not take the wider one
+            // away: where the account has already consented to it, the provider
+            // may return it again, and only the person can withdraw it in their
+            // Microsoft account. Saying "Cirrove can no longer write to your
+            // OneDrive" would be a stronger promise than this button keeps.
+            "Sign in again asking only to read. Cirrove stops making changes; the permission itself is withdrawn in your Microsoft account"
         } else {
             "Sign in again asking to make changes, so files in this drive can be saved"
         }));
@@ -930,7 +936,7 @@ impl Window {
                         "Signed in. Changes in this drive are uploaded to the cloud."
                     }
                     Some(cirrove_auth::AccessMode::ReadOnly) => {
-                        "Signed in. This drive is read-only again."
+                        "Signed in. Cirrove will not change anything in this drive. To withdraw the permission itself, remove Cirrove's access in your Microsoft account."
                     }
                     None => "Signed in again.",
                 }),

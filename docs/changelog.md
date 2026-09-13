@@ -9,7 +9,9 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
   offers the other direction: **Allow changes** where the drive is read-only,
   **Make read-only** where it can write. Microsoft's own consent screen still
   does the granting. This was the last thing an ordinary user had to open a
-  terminal for.
+  terminal for. Making a drive read-only stops Cirrove changing anything in it;
+  withdrawing the permission itself is done in your Microsoft account, and the
+  window says so rather than implying the button does it.
 - **What you keep offline is in the window.** Each connection lists what it
   keeps, named by where it is in the drive rather than by a provider id, with
   how much of it is really on this computer and how much of the cache pinning

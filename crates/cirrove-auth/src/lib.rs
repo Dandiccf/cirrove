@@ -47,6 +47,16 @@ impl AccessMode {
             Self::ReadWrite => WRITE_SCOPES,
         }
     }
+    /// Whether a token response carries at least what this mode needs.
+    ///
+    /// A read-only request is satisfied by a write grant, and that is not an
+    /// oversight: where the account has already consented to the wider scope
+    /// the provider may hand it back whatever is asked for, and refusing it
+    /// would make an account that once allowed writes impossible to move back.
+    /// What `ReadOnly` then means is that Cirrove will not write -- the mount
+    /// refuses changes and no upload is attempted -- not that the token could
+    /// not. Only the person can withdraw the permission, in their Microsoft
+    /// account, and the window says so rather than implying this button does it.
     fn validate_grant(self, granted: Option<&str>) -> Result<()> {
         // OAuth may omit scope when it equals the requested scope. Never inspect
         // opaque access tokens to infer permissions; use the token response.
