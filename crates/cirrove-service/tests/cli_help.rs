@@ -43,8 +43,9 @@ fn commands(text: &str) -> Vec<(String, String)> {
         let mut parts = trimmed.splitn(2, char::is_whitespace);
         let first = parts.next().unwrap_or_default();
         let rest = parts.next().unwrap_or_default().trim().to_string();
-        let looks_like_a_command =
-            indent <= 4 && !first.is_empty() && first.chars().all(|c| c.is_ascii_lowercase() || c == '-');
+        let looks_like_a_command = indent <= 4
+            && !first.is_empty()
+            && first.chars().all(|c| c.is_ascii_lowercase() || c == '-');
         if looks_like_a_command {
             found.push((first.to_string(), rest));
         } else if let Some(last) = found.last_mut() {
