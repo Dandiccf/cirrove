@@ -3575,3 +3575,55 @@ async fn an_expired_grant_is_shown_as_needing_sign_in_and_not_as_being_offline()
     .expect("an expired grant must reach the state the window and tray render");
     engine.stop().await;
 }
+
+/// A collection that stops updating says so where an operator looks.
+///
+/// Found by withdrawing a real grant and watching the journal: the daemon moved
+/// both feeds to sign_in_required, the tray showed it, `cirrove status` showed
+/// it, and the journal said nothing for the seventeen minutes it lasted. The one
+/// place a person looks when something is wrong was the one place that stayed
+/// silent, and nothing recorded what the provider had refused.
+///
+/// Asserted through the health state rather than by capturing log output,
+/// because what regresses is the decision -- `feed_notice` -- and that is
+/// covered by its own tests. What this holds is the other half: that the
+/// decision is reached at all, with a message to put in the line. A daemon that
+/// set the state and left `message` empty would pass those unit tests and log
+/// "unknown".
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_refused_collection_carries_a_reason_worth_logging() {
+    let temp = tempfile::tempdir().unwrap();
+    let (provider, engine) = push_engine(&temp).await;
+    provider.consent_expired.store(true, Ordering::SeqCst);
+    let hints = provider.hints.read().await["home"].clone();
+    hints.changed();
+
+    let message = tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            if let Some(feed) = engine
+                .health()
+                .await
+                .into_iter()
+                .find(|h| h.state == "sign_in_required")
+            {
+                return feed.message;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("the refusal never reached the feed");
+
+    let message = message.expect("a refused collection must carry a reason, not an empty message");
+    // Compared against the typed error rather than against prose, so rewording
+    // the message does not fail this and replacing it with the generic fallback
+    // does. The fallback is what the daemon logs when it has nothing better --
+    // "local metadata operation failed" -- and a line that says that about a
+    // refused grant is not worth writing.
+    assert_eq!(
+        message,
+        ProviderError::Authentication.to_string(),
+        "the reason must be the provider's own refusal, since it is what the log line carries"
+    );
+    engine.stop().await;
+}

@@ -102,6 +102,43 @@ impl PinBudget {
         )
     }
 }
+/// Whether a feed changing state is worth a line in the log, and which line.
+///
+/// The daemon used to write nothing at all when a provider refused its
+/// authorization. The state reached a user through the tray and `cirrove
+/// status`, which is what the acceptance row asks for -- and an operator reading
+/// the journal saw a healthy daemon for the seventeen minutes a real grant was
+/// withdrawn, with nothing saying what had been refused or why. The one place a
+/// person looks when something is wrong was the one place that stayed silent.
+///
+/// On transitions only. A refused feed retries every sixty seconds, and a line
+/// per retry would bury the one that matters under the ones that do not.
+/// `indexing` is the state a feed starts in, so reaching it first is not a
+/// failure to announce.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum FeedNotice {
+    /// It stopped working, and this is the first tick that says so.
+    Failed,
+    /// It works again after having stopped.
+    Recovered,
+    Nothing,
+}
+
+pub(crate) fn feed_notice(before: &str, after: &str) -> FeedNotice {
+    if before == after {
+        return FeedNotice::Nothing;
+    }
+    match (before, after) {
+        (_, "ready") if before != "indexing" => FeedNotice::Recovered,
+        (_, "ready") => FeedNotice::Nothing,
+        // Indexing is work in progress rather than a fault, and a feed passes
+        // through it on every reset. Announcing it would make the log noisy in
+        // exactly the situation where it needs to be readable.
+        (_, "indexing") => FeedNotice::Nothing,
+        _ => FeedNotice::Failed,
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FeedHealth {
     pub collection: String,
@@ -804,6 +841,7 @@ impl Engine {
             health.retry_at = None;
             self.set_health(&scope, &health).await;
             let result = refresh(self.provider.as_ref(), &scope, &self.db, reset, &cancel).await;
+            let was = health.state.clone();
             match result {
                 Ok(_) => {
                     reset = false;
@@ -852,6 +890,24 @@ impl Engine {
                 }
             }
             health.retry_at = Some(now() + delay.as_secs());
+            // Say it once, where an operator looks. `health.message` is built
+            // from typed provider errors only -- the branch above is explicit
+            // that database and network detail may carry paths -- so it is safe
+            // to write down.
+            match feed_notice(&was, &health.state) {
+                FeedNotice::Failed => tracing::warn!(
+                    collection = %scope.collection,
+                    state = %health.state,
+                    reason = health.message.as_deref().unwrap_or("unknown"),
+                    "a collection stopped updating"
+                ),
+                FeedNotice::Recovered => tracing::info!(
+                    collection = %scope.collection,
+                    was = %was,
+                    "a collection is updating again"
+                ),
+                FeedNotice::Nothing => {}
+            }
             self.set_health(&scope, &health).await;
         }
     }
@@ -1332,5 +1388,63 @@ async fn watch_changes(
             }
         };
         tokio::select! {biased; _=cancel.cancelled()=>return, _=tokio::time::sleep(delay)=>()}
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::{FeedNotice, feed_notice};
+
+    /// A refused collection is announced once, not once a minute.
+    ///
+    /// The daemon wrote nothing at all when a real grant was withdrawn, and an
+    /// operator reading the journal saw a healthy daemon for seventeen minutes.
+    /// The cure has to avoid the opposite failure: a feed in this state retries
+    /// every sixty seconds, and a line per retry would bury the one line that
+    /// matters under the ones that do not.
+    #[test]
+    fn a_collection_that_stopped_is_announced_once_and_its_return_once() {
+        assert_eq!(feed_notice("ready", "sign_in_required"), FeedNotice::Failed);
+        for _ in 0..5 {
+            assert_eq!(
+                feed_notice("sign_in_required", "sign_in_required"),
+                FeedNotice::Nothing,
+                "a retry is not news"
+            );
+        }
+        assert_eq!(
+            feed_notice("sign_in_required", "ready"),
+            FeedNotice::Recovered
+        );
+        assert_eq!(feed_notice("ready", "ready"), FeedNotice::Nothing);
+    }
+
+    /// One failure replacing another is still worth a line, because the remedy
+    /// changes with it: waiting out a throttle and signing in again are not the
+    /// same instruction to a person.
+    #[test]
+    fn a_different_failure_is_not_the_same_failure() {
+        assert_eq!(
+            feed_notice("offline", "sign_in_required"),
+            FeedNotice::Failed
+        );
+        assert_eq!(feed_notice("throttled", "offline"), FeedNotice::Failed);
+    }
+
+    /// Starting up is not a fault. A feed begins in `indexing` and passes
+    /// through it again on every reset, so announcing it would make the log
+    /// noisy in exactly the situation where it needs to be readable.
+    #[test]
+    fn indexing_is_work_rather_than_a_fault() {
+        assert_eq!(feed_notice("indexing", "ready"), FeedNotice::Nothing);
+        assert_eq!(feed_notice("ready", "indexing"), FeedNotice::Nothing);
+        assert_eq!(
+            feed_notice("rebuilding", "indexing"),
+            FeedNotice::Nothing,
+            "a reset passes through indexing and is not a new fault"
+        );
+        // But a real failure after indexing still speaks.
+        assert_eq!(feed_notice("indexing", "offline"), FeedNotice::Failed);
     }
 }
