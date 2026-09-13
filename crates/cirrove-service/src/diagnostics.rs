@@ -161,15 +161,48 @@ fn is_guid(word: &str) -> bool {
             .all(|(len, part)| part.len() == *len && part.chars().all(|c| c.is_ascii_hexdigit()))
 }
 
-/// OneDrive item ids: long runs of upper-case letters and digits, sometimes
-/// with a `!` in the personal form. Nothing in ordinary prose looks like one.
+/// The opaque identifiers a provider hands out: item ids, and the id of the
+/// drive itself.
+///
+/// Two shapes, because they do not look alike. An item id is a long run of
+/// upper-case letters and digits, sometimes with a `!`. A drive id is a longer
+/// base64-ish run, mixed case, with `-` and `_` and a leading `b!` -- so the
+/// upper-case test walked straight past it, and the id of the drive a person
+/// signed into reached a bundle meant for pasting into a support thread. It
+/// arrives through free text, in journal lines like `collection=b!...`; the
+/// status document was never affected, because there it is a named key.
+///
+/// The second shape is deliberately narrow: at least 32 characters, only
+/// base64url characters, and all three of upper case, lower case and a digit.
+/// No word of any language reaches that, and neither do the state names,
+/// module paths and version strings a bundle is read for.
 fn is_item_id(word: &str) -> bool {
+    is_upper_case_item_id(word) || is_opaque_drive_id(word)
+}
+
+fn is_upper_case_item_id(word: &str) -> bool {
     word.len() >= 24
         && word
             .chars()
             .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '!')
         && word.chars().any(|c| c.is_ascii_digit())
         && word.chars().any(|c| c.is_ascii_uppercase())
+}
+
+fn is_opaque_drive_id(word: &str) -> bool {
+    // A `b!` prefix is Microsoft's; strip any short prefix ending in `!` so the
+    // run itself is what is measured.
+    let core = match word.split_once('!') {
+        Some((prefix, rest)) if prefix.len() <= 2 => rest,
+        _ => word,
+    };
+    core.len() >= 32
+        && core
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        && core.chars().any(|c| c.is_ascii_uppercase())
+        && core.chars().any(|c| c.is_ascii_lowercase())
+        && core.chars().any(|c| c.is_ascii_digit())
 }
 
 /// The bundle's text.
@@ -366,6 +399,51 @@ mod tests {
         assert!(text.contains("cirroved: not reachable"));
         assert!(text.contains("not available: Cirrove service is not reachable"));
         assert!(text.contains("(nothing, or journalctl is not available)"));
+    }
+
+    #[test]
+    fn a_drive_id_in_a_journal_line_does_not_reach_the_bundle() {
+        // The exact shape the engine logs when a collection stops updating.
+        // A drive id is not an item id: it is mixed case with `-` and `_`, so
+        // the upper-case-and-digits test that catches item ids walks past it,
+        // and the id of the drive a person signed into went into a bundle
+        // meant for pasting into a support thread.
+        let drive = "b!xyhYD-ysPUSe1frzb1g0BEulqeqG8e9FlOQCLouOohVALpTibMRRQ53REotC5rqV";
+        let journal = format!(
+            "2026-09-13T13:44:44 host cirroved[1029]: WARN cirrove_service::engine: \
+             a collection stopped updating collection={drive} state=sign_in_required\n"
+        );
+        let text = bundle("0.1.0", "6.1", "host", None, None, &journal, "2h");
+        assert!(
+            !text.contains(drive),
+            "the drive id survived into the bundle:\n{text}"
+        );
+        // What the line is about must still read.
+        assert!(text.contains("a collection stopped updating"));
+        assert!(text.contains("state=sign_in_required"));
+        assert!(text.contains("collection=<item:"));
+    }
+
+    #[test]
+    fn ordinary_words_and_the_things_a_bundle_is_for_are_not_redacted() {
+        // The shape test must not eat the vocabulary a reader needs.
+        for keep in [
+            "sign_in_required",
+            "VerifyRequired",
+            "cirrove_service::engine",
+            "writable-preview",
+            "0.1.0-dev",
+            "quickXorHash",
+            "unsupported database schema version",
+            "stuck_changes=0",
+            "internationalization",
+        ] {
+            assert_eq!(
+                redact_text(keep),
+                keep,
+                "{keep:?} is vocabulary a bundle needs and must survive"
+            );
+        }
     }
 
     #[test]

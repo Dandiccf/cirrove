@@ -570,7 +570,7 @@ pub fn set_pin(
     let directory = state.join("accounts").join(&account.id);
     let scope = cirrove_core::Scope {
         account: account.id.clone(),
-        provider: "onedrive".into(),
+        provider: cirrove_onedrive::PROVIDER_ID.into(),
         collection: account.drive.id.clone(),
     };
     let key = serde_json::to_string(&scope)?;
@@ -612,7 +612,7 @@ pub fn clear_pin(state: &Path, label: &str, item: &str) -> Result<String> {
     let _operation = account_operation(state, &account.id)?;
     let scope = cirrove_core::Scope {
         account: account.id.clone(),
-        provider: "onedrive".into(),
+        provider: cirrove_onedrive::PROVIDER_ID.into(),
         collection: account.drive.id.clone(),
     };
     let key = serde_json::to_string(&scope)?;

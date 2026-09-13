@@ -384,10 +384,20 @@ impl OneDrive {
         })
     }
 }
+/// What this provider calls itself in a [`Scope`], and therefore part of every
+/// key the metadata store is written under.
+///
+/// A constant rather than a literal repeated at each site: the engine derives
+/// the scope from `provider_id()` while the pin and unpin paths built it by
+/// hand, and the two spellings agreeing was a convention rather than a fact. A
+/// divergence would not fail anywhere -- it would write pins under a key the
+/// engine never reads, so pinning would quietly do nothing.
+pub const PROVIDER_ID: &str = "onedrive";
+
 #[async_trait]
 impl MetadataProvider for OneDrive {
     fn provider_id(&self) -> &'static str {
-        "onedrive"
+        PROVIDER_ID
     }
     async fn watch_changes(
         &self,

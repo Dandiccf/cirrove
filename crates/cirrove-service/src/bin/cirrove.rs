@@ -383,7 +383,7 @@ async fn main() -> Result<()> {
             let provider = cirrove_service::accounts::provider(account)?;
             let scope = cirrove_core::Scope {
                 account: account.id.clone(),
-                provider: "onedrive".into(),
+                provider: cirrove_onedrive::PROVIDER_ID.into(),
                 collection: drive.unwrap_or_else(|| account.drive.id.clone()),
             };
             let cancel = CancellationToken::new();
@@ -878,7 +878,7 @@ async fn main() -> Result<()> {
             private_dir(&state)?;
             let scope = Scope {
                 account,
-                provider: "onedrive".into(),
+                provider: cirrove_onedrive::PROVIDER_ID.into(),
                 collection: drive,
             };
             let cancel = CancellationToken::new();
