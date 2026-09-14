@@ -57,7 +57,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
                 .map(|d| d.as_secs())
                 .unwrap_or(0);
             vec![(
-                "work-onedrive".to_owned(),
+                "work".to_owned(),
                 cirrove_service::RecentReply {
                     remote: vec![cirrove_service::recent::RemoteChange {
                         at_unix: now.saturating_sub(90),
@@ -94,6 +94,14 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
                             saved_at: None,
                         },
                     ],
+                    // One refused change, so the demo shows the named list
+                    // rather than only the count it used to be.
+                    stuck: vec![cirrove_service::recent::StuckChange {
+                        what: "delete folder".into(),
+                        name: "Old invoices".into(),
+                        path: Some("Accounts/2024/Old invoices".into()),
+                        state: "conflict".into(),
+                    }],
                     refusal: None,
                 },
             )]

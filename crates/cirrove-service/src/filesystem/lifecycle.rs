@@ -79,6 +79,15 @@ impl WriteControl {
             .await
             .map_err(|_| std::io::Error::other("local namespace is unavailable"))
     }
+    pub async fn stuck_changes_named(
+        &self,
+        limit: usize,
+    ) -> std::io::Result<Vec<crate::recent::StuckChange>> {
+        self.writer
+            .stuck_changes_named(limit)
+            .await
+            .map_err(|_| std::io::Error::other("local namespace is unavailable"))
+    }
     pub async fn recent_local(
         &self,
         limit: usize,

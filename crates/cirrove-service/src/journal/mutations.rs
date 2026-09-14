@@ -303,6 +303,25 @@ impl UploadJournal {
         )?;
         Ok(count.max(0) as u64)
     }
+    /// The stuck ones, with what they were trying to do and to what.
+    ///
+    /// The count above is the smallest honest thing status can carry and it
+    /// names no paths, which is right for something always on. But a person
+    /// told that two changes were refused and not which ones cannot act: the
+    /// fourteen folder removals that went missing on a live drive were a
+    /// number on a screen and nothing else. This is the list behind the
+    /// number, asked for rather than pushed, so the privacy argument for the
+    /// count still holds.
+    pub fn stuck_mutation_list(&self, limit: usize) -> Result<Vec<MutationRecord>> {
+        let mut query = self.db.prepare(
+            "SELECT body FROM mutations WHERE state IN ('conflict','failed','needs_review')
+             ORDER BY sequence DESC LIMIT ?1",
+        )?;
+        let rows = query.query_map(params![limit.clamp(1, 1000) as i64], |r| {
+            r.get::<_, String>(0)
+        })?;
+        rows.map(|row| Ok(serde_json::from_str(&row?)?)).collect()
+    }
     pub(super) fn save_mutation(&mut self, record: &MutationRecord) -> Result<()> {
         let state = serde_json::to_value(record.state)?;
         let tx = self.db.transaction()?;

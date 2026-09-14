@@ -814,6 +814,20 @@ async fn main() -> Result<()> {
             for change in reply.local {
                 println!("  {}  {}  {} bytes", change.state, change.name, change.size);
             }
+            // The count in `status` says how many were refused; this says
+            // which, which is the difference between knowing and being able to
+            // act. `discard-stuck` is the verb that clears them.
+            if !reply.stuck.is_empty() {
+                println!("Given up on:");
+                for change in reply.stuck {
+                    println!(
+                        "  {}  {}  {}",
+                        change.state,
+                        change.what,
+                        change.path.as_deref().unwrap_or(&change.name)
+                    );
+                }
+            }
         }
         Command::Paths {
             label,

@@ -204,6 +204,15 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                                         // than as 1970.
                                         saved_at: None,
                                     }],
+                                    // Named, so the window scenario exercises
+                                    // the path a person actually reads rather
+                                    // than only the count.
+                                    stuck: vec![cirrove_service::recent::StuckChange {
+                                        what: "delete folder".into(),
+                                        name: "Old invoices".into(),
+                                        path: Some("Accounts/Old invoices".into()),
+                                        state: "conflict".into(),
+                                    }],
                                     refusal: None,
                                 }
                             } else {

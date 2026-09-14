@@ -507,6 +507,25 @@ impl Engine {
     /// content was never fetched reserves space and keeps nothing, and a status
     /// that showed only the reservation would report content as available that
     /// no offline read could produce.
+    /// Where an item sits in the drive, as a mount-relative path.
+    ///
+    /// The same walk the pin listing does, exposed because the stuck-change
+    /// listing needs it too: the writeback layer knows an item id and nothing
+    /// else, and this is the only place with an index to turn one into a path
+    /// a person recognises.
+    pub async fn relative_path_of(&self, scope: &Scope, item: &str) -> Option<String> {
+        let db = self.db.clone();
+        let root = self.account.root_id.clone();
+        let scope = scope.clone();
+        let item = item.to_owned();
+        tokio::task::spawn_blocking(move || {
+            let store = Store::open(db).ok()?;
+            relative_path(&store, &scope, &root, &item)
+        })
+        .await
+        .ok()
+        .flatten()
+    }
     pub async fn pin_status(&self) -> Result<Vec<PinStatus>> {
         let db = self.db.clone();
         let blocks = self.blocks_path();

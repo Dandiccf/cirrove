@@ -100,6 +100,10 @@ pub struct AccountCard {
     pub library_count: usize,
     /// Changes the daemon has stopped retrying because the cloud refused them.
     pub stuck: u64,
+    /// Which ones, where the daemon can name them. A count tells a person
+    /// something is wrong and not what; these are the paths behind it, so the
+    /// row can say "Old invoices" instead of "1 change".
+    pub refused_paths: Vec<String>,
     /// Saves that did not reach the cloud -- uploads the provider refused or
     /// that failed. The file is here; the cloud has an older version or none.
     pub failed_uploads: u64,
@@ -369,6 +373,20 @@ impl Overview {
                     cache_bytes: account.cache_bytes,
                     library_count: status.map_or(0, |s| s.feeds.len()),
                     stuck: status.map_or(0, |s| s.stuck_changes),
+                    refused_paths: snapshot
+                        .activity
+                        .iter()
+                        .find(|(label, _)| label == &account.label)
+                        .map(|(_, reply)| {
+                            reply
+                                .stuck
+                                .iter()
+                                .map(|change| {
+                                    change.path.clone().unwrap_or_else(|| change.name.clone())
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default(),
                     failed_uploads: status.map_or(0, |s| s.failed_uploads),
                     writable: account.access == cirrove_auth::AccessMode::ReadWrite,
                     client_id: account.registration.client_id.clone(),

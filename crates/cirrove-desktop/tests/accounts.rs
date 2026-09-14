@@ -337,3 +337,26 @@ fn how_long_ago_is_coarse_and_never_reads_the_future_as_the_past() {
     // future, must not come out as a very long time ago.
     assert_eq!(how_long_ago(now, now + 10), None);
 }
+
+/// A count says something is wrong; it does not say what. Fourteen folder
+/// removals went missing on a live drive and the only trace was the number 14,
+/// which nobody could act on. The window now names them.
+#[test]
+fn refused_changes_are_named_and_not_only_counted() {
+    let snapshot = demo::snapshot().unwrap();
+    let card = &Overview::from_snapshot(snapshot).accounts[0];
+    assert_eq!(
+        card.refused_paths,
+        vec!["Accounts/2024/Old invoices".to_owned()],
+        "the refused change should arrive with the path the daemon resolved"
+    );
+
+    // A daemon too old to name them leaves the list empty, and the count must
+    // still stand on its own rather than the row going blank.
+    let mut snapshot = demo::snapshot().unwrap();
+    for (_, reply) in snapshot.activity.iter_mut() {
+        reply.stuck.clear();
+    }
+    let card = &Overview::from_snapshot(snapshot).accounts[0];
+    assert!(card.refused_paths.is_empty());
+}

@@ -352,6 +352,47 @@ impl Writeback {
     }
     /// The latest saves, latest first. A replace names its item, which the
     /// caller resolves to a name; a create carries the name itself.
+    /// The changes the daemon has given up on, named.
+    ///
+    /// A create names itself; everything else names the node it was acting on.
+    /// The path is filled in by the caller, which is the only place that has an
+    /// index to resolve it against.
+    pub async fn stuck_changes_named(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<crate::recent::StuckChange>> {
+        use cirrove_core::mutation::MutationIntent;
+        let records = self.local(move |j| j.stuck_mutation_list(limit)).await?;
+        Ok(records
+            .into_iter()
+            .map(|record| {
+                let (what, name, id) = match &record.request.intent {
+                    MutationIntent::CreateFolder { name, .. } => {
+                        ("create folder", name.clone(), None)
+                    }
+                    MutationIntent::Relocate { before, name, .. } => {
+                        ("move", name.clone(), Some(before.id.clone()))
+                    }
+                    MutationIntent::RemoveFile { before } => {
+                        ("delete file", before.name.clone(), Some(before.id.clone()))
+                    }
+                    MutationIntent::RemoveFolder { before } => (
+                        "delete folder",
+                        before.name.clone(),
+                        Some(before.id.clone()),
+                    ),
+                };
+                crate::recent::StuckChange {
+                    what: what.to_owned(),
+                    name,
+                    // The caller resolves this against the index; the id is
+                    // carried in `path` only so it has something to resolve.
+                    path: id,
+                    state: format!("{:?}", record.state).to_ascii_lowercase(),
+                }
+            })
+            .collect())
+    }
     pub async fn recent_local(&self, limit: usize) -> Result<Vec<crate::recent::LocalChange>> {
         let records = self.local(|j| j.list(0, 10_000)).await?;
         Ok(records

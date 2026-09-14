@@ -61,6 +61,29 @@ pub struct LocalChange {
     pub saved_at: Option<u64>,
 }
 
+/// One change the daemon has given up on, named.
+///
+/// `stuck_changes` in status is a count, and a count is the smallest honest
+/// thing a status can carry always -- it names no paths, so it costs no
+/// privacy. But a person told that two changes were refused, and not which,
+/// can do nothing about either. This is what stands behind the number, asked
+/// for rather than pushed.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StuckChange {
+    /// What it was trying to do: "create folder", "move", "delete file",
+    /// "delete folder".
+    pub what: String,
+    /// The name the change concerns.
+    pub name: String,
+    /// Where it is in the drive, when the index still knows; the name alone
+    /// otherwise. A removal that succeeded locally may have taken its own
+    /// path with it.
+    #[serde(default)]
+    pub path: Option<String>,
+    /// The journal's word: conflict, failed, needs_review.
+    pub state: String,
+}
+
 #[derive(Default)]
 pub struct RecentChanges(Mutex<VecDeque<RemoteChange>>);
 impl RecentChanges {

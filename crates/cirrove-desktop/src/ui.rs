@@ -781,7 +781,11 @@ impl Window {
             )],
         ));
         row.refused.set_visible(card.stuck > 0);
-        row.refused.set_subtitle(&fill(
+        // The count, then which ones. A person told that two changes were
+        // refused and not which cannot do anything about either -- the fourteen
+        // folder removals that went missing on a live drive were a number on a
+        // screen and nothing else.
+        let mut refused = fill(
             &gettext(
                 "{} that the cloud would not accept. They will not be retried. Discarding removes the local copies; the cloud keeps its version.",
             ),
@@ -790,7 +794,27 @@ impl Window {
             } else {
                 fill(&gettext("{} changes"), &[&card.stuck.to_string()])
             }],
-        ));
+        );
+        if !card.refused_paths.is_empty() {
+            let shown: Vec<&str> = card
+                .refused_paths
+                .iter()
+                .take(3)
+                .map(String::as_str)
+                .collect();
+            refused.push('\n');
+            refused.push_str(&shown.join(", "));
+            // An older daemon names none of them, and a very long list would
+            // push the row off the window; either way the count above still
+            // says how many there are.
+            if card.refused_paths.len() > shown.len() {
+                refused.push_str(&fill(
+                    &gettext(", and {} more"),
+                    &[&(card.refused_paths.len() - shown.len()).to_string()],
+                ));
+            }
+        }
+        row.refused.set_subtitle(&refused);
         row.discard.set_sensitive(idle);
         row.unsent.set_visible(card.failed_uploads > 0);
         row.unsent.set_subtitle(&fill(

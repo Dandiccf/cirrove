@@ -201,7 +201,7 @@ impl Manager {
         let remote = engine.recent.list(limit);
         let id = self.account_id(label).await?;
         let control = self.writers.read().await.get(&id).cloned();
-        let mut local = match control {
+        let mut local = match &control {
             Some(control) => control.recent_local(limit).await.unwrap_or_default(),
             None => Vec::new(),
         };
@@ -213,9 +213,22 @@ impl Manager {
                 change.name = node.name;
             }
         }
+        // The named stuck changes, with their ids turned into drive paths. The
+        // writeback layer puts the item id in `path` because it is the only
+        // thing it has; the engine is where an index lives to resolve it.
+        let mut stuck = match &control {
+            Some(control) => control.stuck_changes_named(limit).await.unwrap_or_default(),
+            None => Vec::new(),
+        };
+        for change in &mut stuck {
+            if let Some(id) = change.path.take() {
+                change.path = engine.relative_path_of(&scope, &id).await;
+            }
+        }
         Ok(crate::RecentReply {
             remote,
             local,
+            stuck,
             refusal: None,
         })
     }

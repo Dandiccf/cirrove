@@ -350,6 +350,11 @@ pub struct RecentReply {
     pub remote: Vec<recent::RemoteChange>,
     #[serde(default)]
     pub local: Vec<recent::LocalChange>,
+    /// The changes the daemon has given up on, named rather than counted.
+    /// `#[serde(default)]` so an older daemon reads back as none, which is the
+    /// list that daemon can produce.
+    #[serde(default)]
+    pub stuck: Vec<recent::StuckChange>,
     #[serde(default)]
     pub refusal: Option<String>,
 }
