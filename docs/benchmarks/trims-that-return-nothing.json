@@ -15,5 +15,11 @@
   },
   "how": "Not decided yet. It needs the allocator's own accounting rather than RSS, and a run that indexes deliberately rather than by accident.",
   "result": null,
-  "verdict": null
+  "verdict": "WITHDRAWN. Registered on a misreading of a designed cadence as a malfunction; see withdrawn above.",
+  "withdrawn": {
+    "when": "2026-09-14, within the hour it was registered",
+    "why": "The premise was wrong. 412 trims in five hours, and 708 on the development machine over twelve, is not a tick firing on a figure it cannot act on -- it is the cadence, once a minute, working exactly as designed. The reclamation trigger was deliberately changed from a threshold to a cadence precisely because free arena bytes and resident-minus-live do not fall when a trim succeeds and so fire forever; all three threshold attempts are recorded as failures in trim-cadence.json. free_arena_bytes exceeding RSS is likewise a known property of mallinfo2's fordblks, which counts free space in the heap and not resident pages, and is exactly why it is not the trigger.",
+    "what_I_should_have_done": "Read trim-cadence.json before writing three hypotheses about a mechanism it already explains. The comment above the trigger says all of this in the source.",
+    "what_survives": "Nothing as a defect. The five-hour series does answer a question that was genuinely open, and it is recorded in trim-cadence.json where it belongs rather than here."
+  }
 }
