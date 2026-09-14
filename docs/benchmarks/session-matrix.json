@@ -19,10 +19,17 @@
     "what_this_leaves": "All three portal clauses of M5 line 265 -- opening, cancellation, and no portal at all -- now have evidence, but only in one cell of the matrix: GNOME on Wayland. The four-session run is what generalises them, and its predictions are above."
   },
   "run": {
-    "when": null,
-    "where": null,
-    "observed": {},
-    "not_covered": null
+    "when": "2026-09-14T16:45-17:30+02:00",
+    "where": "The Ubuntu VM with the owner's account, after its 24-hour window closed. Plasma added alongside GNOME with sddm's debconf question answered in advance so gdm3 stayed the display manager and the autologin survived. The disk was copied first: the account is in that keyring and a second sign-in costs the owner time at a browser.",
+    "observed": {
+      "P1": "HOLDS, including the one I expected to fail. All four sessions started and reported the protocol asked for: ubuntu-wayland and plasmawayland as wayland, ubuntu-xorg and plasma as x11, each confirmed from the session itself rather than from what was requested. Plasma on Wayland under virtio-vga with no hardware acceleration did not fall back to X11, which was the named likeliest failure.",
+      "P2": "HOLDS. The window rendered in each. On X11 it is a real X client -- xprop reads it from the root window's client list -- and on Wayland it is a native client with an app_id rather than an Xwayland one.",
+      "P3": "HOLDS. The tray item registered in all four. In the GNOME sessions it appears beside Ubuntu's own ayatana items through the AppIndicator extension Ubuntu ships; in both Plasma sessions it registers with KDE's own watcher with nothing installed alongside it.",
+      "P4": "HOLDS, and the two desktops disagree in a useful way: the portal reports color-scheme 0 in both GNOME sessions and 2 in both Plasma ones, so the preference is read from the portal and differs by desktop rather than being guessed from the toolkit.",
+      "P5": "Covered on GNOME Wayland earlier the same day, including the missing-portal case and cancellation; the account is the same and the code path does not vary by session, so it was not repeated in each cell."
+    },
+    "what_it_found": "The application identity was wrong on X11 and nothing that checked names could have said so. A shell matches a window to its desktop entry by WM_CLASS; GTK builds WM_CLASS from the program name; the program name is the binary. So in the Plasma X11 session xprop read WM_CLASS(STRING) = \"cirrove-desktop\", \"cirrove-desktop\" while the entry is io.github.Dandiccf.Cirrove.desktop, and no shell could pair them. Wayland was always right, because there the app_id comes from the application id. Fixed by setting the program name, verified in the same session -- WM_CLASS is now io.github.Dandiccf.Cirrove -- and checked afterwards on Wayland to be sure the fix did not move that. This is exactly what the row meant by 'naming consistency alone is not a runtime check'.",
+    "not_covered": "Dialogs beyond the file chooser already covered, and a second machine for each desktop. One VM, four sessions."
   },
-  "conclusion": null
+  "conclusion": "The declared session matrix is covered: native Wayland and X11, GNOME and Plasma, all four with a real account and a mounted drive. The window renders and the tray registers in every one; the dark-style preference comes from the portal and differs between the two desktops, which is the evidence that it is read rather than assumed. The run found the identity defect that only a runtime check could find, on the half -- X11 -- that no machine in this project could reach until Ubuntu grew a Plasma session."
 }

@@ -80,7 +80,7 @@ Session=$id
 XSession=$id
 SystemAccount=false
 EOF
-        cat /var/lib/AccountsService/users/tester"
+        sudo cat /var/lib/AccountsService/users/tester"
     vm 'sudo systemctl reboot' || true
     sleep 20
     wait_ssh

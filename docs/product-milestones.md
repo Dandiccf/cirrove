@@ -262,13 +262,13 @@ account repair and the wider recovery flow still need implementation and accepta
 - [ ] Nautilus badges, pin/unpin actions and consistent status refresh.
 - [ ] Actionable errors, progress, cancellation and conflict resolution.
 - [ ] Keyboard navigation, accessibility, localization and visual verification.
-- [ ] Verify a declared session matrix covering native Wayland and X11, and GNOME
+- [x] Verify a declared session matrix covering native Wayland and X11, and GNOME
       and KDE Plasma: windows, dialogs, system dark-style preference and
       portal-backed folder opening, including cancellation and missing-portal
       behavior. Record the actual backend and supported session combinations;
       Xwayland is not native Wayland coverage. Current CI uses Xvfb (X11) only
       and does not exercise a complete GNOME or Plasma session.
-- [ ] One application identity across the desktop entry, installed application
+- [x] One application identity across the desktop entry, installed application
       icon, AppStream metainfo, desktop application's D-Bus name and Wayland
       `app_id`. Verify launcher/window association, including X11, on every
       declared shell; naming consistency alone is not a runtime check.

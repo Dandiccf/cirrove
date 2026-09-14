@@ -80,6 +80,14 @@ fn main() -> Result<()> {
     // Isolated developer paths/demos must not activate a production instance.
     let isolated = args.demo
         || matches!(&backend,Backend::Live{state,..} if cirrove_service::state_dir().ok().as_ref()!=Some(state));
+    // On X11 a shell matches a window to its desktop entry by WM_CLASS, and GTK
+    // builds WM_CLASS from the program name -- which is the binary, so the
+    // window announced itself as "cirrove-desktop" while the entry is
+    // io.github.Dandiccf.Cirrove.desktop and nothing could pair them. Found in a
+    // Plasma X11 session, where xprop read WM_CLASS(STRING) =
+    // "cirrove-desktop", "cirrove-desktop". Wayland was already right, because
+    // there the app_id comes from the application id above; X11 needed telling.
+    glib::set_prgname(Some("io.github.Dandiccf.Cirrove"));
     let app = adw::Application::builder()
         .application_id("io.github.Dandiccf.Cirrove")
         .flags(if isolated {

@@ -227,6 +227,19 @@ fn the_desktop_entry_icon_and_metainfo_share_one_application_identity() {
         tray_rs.contains(&format!("\"{APP_ID}.Tray\"")),
         "the tray's bus name must be under the application id"
     );
+    // X11 is the half that was wrong, and naming consistency everywhere else
+    // did not reveal it: a shell matches a window to its entry by WM_CLASS,
+    // GTK builds WM_CLASS from the program name, and the program name is the
+    // binary -- so the window announced itself as "cirrove-desktop" while the
+    // entry is io.github.Dandiccf.Cirrove.desktop, and nothing could pair
+    // them. Seen in a Plasma X11 session with xprop, fixed by setting the
+    // program name, and checked there afterwards. Wayland takes its app_id
+    // from the registration above and was always right.
+    assert!(
+        main_rs.contains(&format!("set_prgname(Some(\"{APP_ID}\"))")),
+        "without this the X11 WM_CLASS is the binary name and no shell can match \
+         the window to its desktop entry"
+    );
 }
 
 fn autostart_main() -> HashMap<String, Vec<(String, String)>> {
