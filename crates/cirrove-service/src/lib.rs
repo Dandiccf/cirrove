@@ -58,6 +58,43 @@ pub struct Status {
     /// is what the reclamation trigger reads.
     #[serde(default)]
     pub retained_bytes: u64,
+    /// True when this daemon's own executable has been replaced on disk since
+    /// it started -- a package upgrade happened and this process is still the
+    /// old version.
+    ///
+    /// Reported because the upgrade says nothing and neither did we. Measured
+    /// on Fedora 44 on 2026-09-14: after `dnf upgrade` the daemon's pid was
+    /// unchanged and `/proc/<pid>/exe` read `/usr/bin/cirroved (deleted)`, so
+    /// the person went on running the version they had just replaced, with no
+    /// indication anywhere. The visible symptom was mild and misleading -- the
+    /// upgrade's new tray icon simply never appeared.
+    ///
+    /// `#[serde(default)]` for the usual reason: an older daemon's reply reads
+    /// back as false, which is the only answer it can give.
+    #[serde(default)]
+    pub restart_required: bool,
+}
+
+/// Whether the running program's own executable has been replaced on disk.
+///
+/// A package manager unlinks the old file and writes a new one. Linux keeps the
+/// running process on the old inode and marks the fact by appending
+/// `" (deleted)"` to `/proc/self/exe`, which is the only signal there is.
+pub fn binary_replaced_on_disk() -> bool {
+    std::fs::read_link("/proc/self/exe")
+        .map(|target| exe_link_says_replaced(&target.to_string_lossy()))
+        .unwrap_or(false)
+}
+
+/// The decision on its own, so it can be tested without replacing a binary.
+///
+/// A real path could in principle end in those characters, which would read as
+/// a pending restart forever. The consequence is a banner suggesting a restart
+/// that is not needed, which is the harmless direction to be wrong in; the
+/// alternative -- comparing inodes with the path -- is wrong in the other
+/// direction whenever the daemon runs from a build directory.
+pub fn exe_link_says_replaced(target: &str) -> bool {
+    target.ends_with(" (deleted)")
 }
 
 /// A pin request carried over the control socket.
@@ -866,7 +903,7 @@ pub async fn serve_managed(
                         let accounts=match &manager {Some(m)=>m.status.read().await.clone(),None=>vec![]};
                         if manager.is_some() {feeds=accounts.iter().map(|a|a.indexed_feeds).sum();items=accounts.iter().map(|a|a.indexed_items).sum();}
                         let active_mounts=accounts.iter().filter(|a|a.mounted).count() as u64;
-                        let reply=Status{protocol_version:STATUS_PROTOCOL_VERSION,version:env!("CARGO_PKG_VERSION").into(),milestone:"writable-preview".into(),indexed_feeds:feeds,indexed_items:items,active_mounts,accounts,allocator_trims:crate::filesystem::allocator_trims(),free_arena_bytes:cirrove_allocator::free_arena_bytes(),retained_bytes:cirrove_allocator::retained_bytes()};
+                        let reply=Status{protocol_version:STATUS_PROTOCOL_VERSION,version:env!("CARGO_PKG_VERSION").into(),milestone:"writable-preview".into(),indexed_feeds:feeds,indexed_items:items,active_mounts,accounts,allocator_trims:crate::filesystem::allocator_trims(),free_arena_bytes:cirrove_allocator::free_arena_bytes(),retained_bytes:cirrove_allocator::retained_bytes(),restart_required:crate::binary_replaced_on_disk()};
                         write_reply(&mut stream,&reply).await
                     }.await;
                     if result.is_err() {tracing::debug!("control request did not complete");}
@@ -1310,6 +1347,34 @@ mod tests {
             store.begin(&scope, false).unwrap(),
             Some(cirrove_core::Cursor("resume-here".into()))
         );
+    }
+}
+
+#[cfg(test)]
+mod a_replaced_binary {
+    use super::exe_link_says_replaced;
+
+    #[test]
+    fn the_kernels_marker_is_what_says_an_upgrade_happened_underneath_us() {
+        // This exact string is what /proc/<pid>/exe read on Fedora 44 after
+        // dnf upgrade, with the daemon still serving from the old inode.
+        assert!(exe_link_says_replaced("/usr/bin/cirroved (deleted)"));
+    }
+
+    #[test]
+    fn an_ordinary_running_binary_is_not_a_pending_restart() {
+        assert!(!exe_link_says_replaced("/usr/bin/cirroved"));
+        assert!(!exe_link_says_replaced(
+            "/home/someone/Work/cirrove/target/release/cirroved"
+        ));
+    }
+
+    #[test]
+    fn the_marker_counts_only_at_the_end_where_the_kernel_puts_it() {
+        // A directory that merely contains the word must not read as an
+        // upgrade: the kernel appends the marker, it does not embed it.
+        assert!(!exe_link_says_replaced("/opt/ (deleted)/cirroved"));
+        assert!(!exe_link_says_replaced("/usr/bin/cirroved (deleted) "));
     }
 }
 

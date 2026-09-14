@@ -5,6 +5,12 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
 
 ## Unreleased
 
+- **Cirrove tells you when an update has been installed but is not running
+  yet.** Upgrading the package replaces the files, but Linux leaves the running
+  program on the old ones, so until you log out you are still using the version
+  you just replaced -- and nothing said so. The clearest way to notice used to
+  be that the update appeared to change nothing at all. The window now says it
+  plainly, with what to do about it.
 - **Cirrove has its own mark, and it is not a cloud.** A ring broken at the
   upper right, with what is happening in the middle: a dot when everything is
   quiet, an arrow while something is moving, an exclamation when you have to

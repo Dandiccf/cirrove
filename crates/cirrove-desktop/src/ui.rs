@@ -68,6 +68,7 @@ pub struct Window {
     /// operator looks and not where the person whose icon never appeared
     /// does; they read this window.
     tray_notice: adw::Banner,
+    restart_notice: adw::Banner,
     refresh_button: gtk::Button,
     connect_button: gtk::Button,
     toast: adw::ToastOverlay,
@@ -122,6 +123,21 @@ impl Window {
             .revealed(false)
             .build();
         toolbar.add_top_bar(&tray_notice);
+        // An upgrade replaces the files and leaves the running processes on the
+        // old ones, so a person can sit on a version they have already replaced
+        // with nothing anywhere saying so. Measured on Fedora: after dnf
+        // upgrade the daemon's pid was unchanged and its /proc/<pid>/exe read
+        // "(deleted)". No button, because restarting the service from inside
+        // the thing that would be restarted is a trick, and logging out is the
+        // instruction that always works.
+        let restart_notice = adw::Banner::builder()
+            .title(
+                "A newer version of Cirrove is installed. Log out and back in, or restart \
+                 the Cirrove service, to start using it.",
+            )
+            .revealed(false)
+            .build();
+        toolbar.add_top_bar(&restart_notice);
         let body = gtk::Box::new(gtk::Orientation::Vertical, 24);
         body.set_margin_top(28);
         body.set_margin_bottom(24);
@@ -217,6 +233,7 @@ impl Window {
             empty_connect,
             banner,
             tray_notice,
+            restart_notice,
             refresh_button,
             connect_button,
             toast,
@@ -346,6 +363,7 @@ impl Window {
         }
     }
     pub fn render(self: &Rc<Self>, overview: Overview) {
+        self.restart_notice.set_revealed(overview.restart_required);
         self.banner.set_revealed(overview.service_error.is_some());
         if let Some(error) = &overview.service_error {
             self.banner.set_title(error.description());

@@ -260,3 +260,44 @@ async fn snapshot_reads_local_socket_and_settings_without_a_cloud_provider() {
     assert!(!view.service_reachable);
     assert_eq!(view.accounts.len(), 2);
 }
+
+/// An upgrade replaces the daemon's binary and leaves the old process running,
+/// so the person keeps using the version they just replaced with nothing
+/// saying so. Measured on Fedora 44: after `dnf upgrade` the pid was unchanged
+/// and `/proc/<pid>/exe` read `/usr/bin/cirroved (deleted)`. The window is
+/// where that has to surface, because the tray is one of the stale processes.
+#[test]
+fn a_daemon_running_a_replaced_binary_asks_for_a_restart_in_the_window() {
+    let snapshot = demo::snapshot().unwrap();
+    assert!(
+        !Overview::from_snapshot(snapshot).restart_required,
+        "nothing should ask for a restart when no upgrade has happened"
+    );
+
+    let mut snapshot = demo::snapshot().unwrap();
+    snapshot.status.as_mut().unwrap().restart_required = true;
+    assert!(
+        Overview::from_snapshot(snapshot).restart_required,
+        "a daemon whose binary was replaced must reach the window"
+    );
+}
+
+/// An older daemon has no such field and deserializes it as false, which is
+/// the only answer it can give. Taking that as "no upgrade pending" from a
+/// daemon we cannot otherwise talk to would be reading meaning into a default.
+#[test]
+fn an_incompatible_daemon_is_never_read_as_saying_no_restart_is_needed() {
+    let mut snapshot = demo::snapshot().unwrap();
+    let status = snapshot.status.as_mut().unwrap();
+    status.restart_required = true;
+    status.protocol_version = cirrove_service::STATUS_PROTOCOL_VERSION + 1;
+    let overview = Overview::from_snapshot(snapshot);
+    assert!(
+        !overview.restart_required,
+        "a daemon we cannot read must not drive this banner"
+    );
+    assert!(
+        overview.service_error.is_some(),
+        "and it must still be reported as incompatible, which is the louder problem"
+    );
+}

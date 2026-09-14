@@ -238,6 +238,11 @@ pub struct Overview {
     pub settings_available: bool,
     pub settings_error: Option<SettingsFailure>,
     pub service_error: Option<ServiceFailure>,
+    /// The daemon is running a version that is no longer the one on disk,
+    /// because a package upgrade replaced its binary underneath it. Nothing
+    /// else tells the person, and the symptom is subtle -- the upgrade appears
+    /// to have done nothing at all.
+    pub restart_required: bool,
 }
 impl Overview {
     pub fn from_snapshot(snapshot: Snapshot) -> Self {
@@ -246,6 +251,12 @@ impl Overview {
             .status
             .as_ref()
             .is_ok_and(|s| s.protocol_version == cirrove_service::STATUS_PROTOCOL_VERSION);
+        // Only from a compatible daemon: an older one always answers false,
+        // which would be indistinguishable from "no upgrade is pending".
+        let restart_required = snapshot
+            .status
+            .as_ref()
+            .is_ok_and(|s| compatible && s.restart_required);
         let service_error = match &snapshot.status {
             Err(error) => Some(error.clone()),
             Ok(status) if !compatible => Some(ServiceFailure::Incompatible {
@@ -264,6 +275,7 @@ impl Overview {
                     settings_available: false,
                     settings_error: Some(error),
                     service_error,
+                    restart_required,
                 };
             }
         };
@@ -345,6 +357,7 @@ impl Overview {
             settings_available: true,
             settings_error: None,
             service_error,
+            restart_required,
         }
     }
 }

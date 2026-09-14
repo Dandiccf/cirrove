@@ -13,10 +13,17 @@
     "P6": "The downgrade is the one most likely to be wrong. An older binary meeting a state directory a newer one has written should refuse to read it and say so, not silently reinterpret it -- cirrove-service already refuses a settings file from a newer version in its unit tests, and this is that path meeting a real rollback. If it instead starts and reports no accounts, that is a person's drive apparently vanishing after a rollback."
   },
   "run": {
-    "when": null,
-    "where": null,
-    "observed": {},
-    "not_covered": null
+    "when": "2026-09-14T07:25-07:30+02:00",
+    "where": "Fedora 44 VM, GNOME Wayland, SELinux enforcing. From 0.1.0~dev.r409.ge24da99 to r418.gfb24186 and back, both rpms built by CI, with the owner's OneDrive connected read-only and one 66 KB file pinned. No sign-in at any point.",
+    "observed": {
+      "P1": "HOLDS. Both packages upgraded, the account is still there, still mounted, still ready with all 184053 items, and nothing asked for a sign-in.",
+      "P2": "HOLDS. The pin survived with its 66 KB still resident, and the credential id in accounts.json is byte-for-byte the one from before (ec68eb67). The credential is in the keyring, which no package owns.",
+      "P3": "HOLDS. Exactly one copy of the Files extension afterwards.",
+      "P4": "FAILS, and this is the finding. The daemon's pid was 3372 before the upgrade and 3372 after it, with /proc/3372/exe pointing at '/usr/bin/cirroved (deleted)'. The tray likewise. An rpm upgrade replaces the files and leaves the old processes running from the unlinked inodes, so a person who upgrades keeps running the old version indefinitely -- until they log out, reboot, or restart the unit by hand. Nothing tells them. The mount stayed healthy throughout, so nothing is broken; what is wrong is that the upgrade did not take effect and said nothing about it.",
+      "P5": "HOLDS, once the services are restarted. After restarting the daemon and the tray, the redrawn mark is in Fedora's top bar, white and monochrome beside the network, volume and power icons -- which is the desktop and the exact complaint that prompted the redraw. Before the restart the old tray was still advertising the old icon, which is P4 seen from the user's side: you upgrade and the new icon does not appear.",
+      "P6": "The bad outcome did not happen, but the guard was not exercised either. dnf downgrade to r409 succeeded, the older daemon started, found its account, mounted, reported all 184053 items and still knew the pin. Nothing was refused because nothing needed to be: r409 and r418 write the same state format, so this rollback never met a newer schema. The refusal path -- cirrove-service refuses a settings file from a newer version, which its unit tests cover -- remains untested against a real rollback, and will stay that way until a release actually changes the format. Recorded as not proven rather than as proven."
+    },
+    "not_covered": "Pending work. The account here is read-only, so there were no queued uploads to protect across the upgrade, and 'protects pending work' is the third of the row's three nouns. That needs a write-consented account with something deliberately stuck in the journal, which the Ubuntu VM could do after its measurement window closes."
   },
-  "conclusion": null
+  "conclusion": "An upgrade under a live account keeps the settings, the credential and the pinned content, and a rollback keeps them too. One real defect: the upgrade does not restart the daemon or the tray, so both keep running from deleted binaries and the person stays on the old version without being told -- visible as the new icon simply not appearing. Two things are recorded as unproven rather than passed: the newer-state refusal, because these two builds share a format, and pending work, because this account is read-only."
 }
