@@ -49,7 +49,29 @@ pub struct Node {
     /// A link across drives must retain the target identity, never just a path.
     // Keep the uncommon cross-drive target out of every ordinary node allocation.
     pub target: Option<Box<RemoteRef>>,
+    /// A provider package: one thing to a person, a folder to the provider.
+    ///
+    /// A OneNote notebook is the case that forced this. Graph gives it a folder
+    /// facet and a package facet, and beneath it are section files that only
+    /// OneNote knows how to write. A filesystem that lets someone edit or
+    /// rename one of those is offering to corrupt a notebook, so the mount
+    /// shows the contents and refuses to change them.
+    ///
+    /// `#[serde(default)]` so a node written before this field reads back as
+    /// false, which is what every node in an index written then was -- and
+    /// skipped on the way out when it is false, so the stored form of every
+    /// ordinary node is byte-for-byte what it was. An index holding 184,000
+    /// nodes should not be rewritten, or grow, to record that almost none of
+    /// them are notebooks.
+    #[serde(default, skip_serializing_if = "not")]
+    pub package: bool,
 }
+/// `skip_serializing_if` wants a predicate on a reference, which `bool` has no
+/// inherent method for.
+fn not(value: &bool) -> bool {
+    !*value
+}
+
 impl Node {
     /// Retain the tag namespace: a content tag must not collide with an ETag.
     pub fn content_revision(&self) -> Option<(&'static str, &str)> {

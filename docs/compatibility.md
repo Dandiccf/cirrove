@@ -43,7 +43,7 @@ tests against a synthetic provider and has never met the real service;
 | Permanent deletion as a second gesture | no -- ADR 0008 names it; nothing implements it yet | -- |
 | Conflict: a change the cloud refused, discarded from the window or CLI | real -- fourteen folder removals stranded by a chaining fault, cleared with `discard-stuck` | ADR 0005 correction, mutations tests |
 | Names the provider refuses (`:`, trailing `.`, `CON`, `~$`, 256 characters) | fixture -- the rules are Microsoft's published ones, enforced at the mount and tested there; no live attempt recorded | onedrive naming tests, writable_session |
-| OneNote notebooks and other packages | fixture -- mapped as folders from a fixture body; never opened on the real account | onedrive lib tests |
+| OneNote notebooks and other packages | decided and enforced -- a package is shown as a folder so its contents can be listed and copied, and every change inside it is refused with `EOPNOTSUPP` at the mount, at any depth: a section file is written by OneNote alone, and letting a text editor save over one offers to corrupt a notebook. Refused before anything is journalled, so it cannot become a stuck change. Fixture-tested end to end through a real mount | writable_session a_package_is_readable_and_refuses_every_change_inside_it |
 | Offline pinning, per file and per folder, reads with the network gone | real | benchmarks/live-offline-pinning.json, benchmarks/offline-pinning-reachability.json |
 | Power loss mid-write | real -- the plug pulled, the journal recovered | benchmarks/journal-under-power-cut.json |
 | Deep suspend past the token lifetime | real -- 90 minutes of S3 on the Fedora VM, 2026-09-14: the same process comes back with its mount intact, refreshes its Microsoft grant unprompted, renews both lapsed subscriptions, and receives a change made afterwards in 6 s | benchmarks/deep-suspend-beyond-token-lifetime.json |
@@ -65,6 +65,7 @@ filesystem gives in the same situation.
 | A `.Trash` folder in the drive's root, or moving into one | `EOPNOTSUPP` (the provider's recycle bin is the wastebasket) |
 | A name the provider would refuse | `EINVAL`; `ENAMETOOLONG` past the limit |
 | Renaming with flags other than `RENAME_NOREPLACE` | `EOPNOTSUPP` |
+| Any change inside a provider package (a OneNote notebook and what is under it) | `EOPNOTSUPP`: the contents are readable and copyable, and only the application that writes that format can change them safely |
 | Shared, writable memory mapping (`mmap` `MAP_SHARED`) | `ENODEV`: files open with `FOPEN_DIRECT_IO`, and the kernel permits only private (`MAP_PRIVATE`) mappings on a direct-I/O file even with `FUSE_DIRECT_IO_ALLOW_MMAP`. Read and private mmap work, so ordinary applications -- text editors, LibreOffice -- open files; a program that requires a shared mapping does not. |
 
 ## Desktops and distributions

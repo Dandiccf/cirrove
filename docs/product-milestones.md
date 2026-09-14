@@ -230,7 +230,7 @@ Live mutation fixtures must be isolated from the user's existing documents.
 - [ ] Linked folders, duplicate links, moved/deleted links and folder-only access.
 - [ ] Per-item capabilities, restricted permissions and revoked-access behavior.
 - [x] Remote creates, edits, moves and deletions update mounted views correctly.
-- [ ] Defined filename, package/notebook and unsupported-operation behavior.
+- [x] Defined filename, package/notebook and unsupported-operation behavior.
 - [ ] Deletion defined end to end: the provider's recycle bin as the default for
   every file manager without an extension, no local wastebasket created inside
   the user's drive, permanent deletion reachable only as an explicit second

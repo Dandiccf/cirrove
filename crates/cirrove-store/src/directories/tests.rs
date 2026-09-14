@@ -15,6 +15,7 @@ fn scope() -> Scope {
 }
 fn node(n: usize) -> Node {
     Node {
+        package: false,
         id: format!("item-{n:06}"),
         parent_id: Some("root".into()),
         name: format!("{}-{}", ["Äpfel", "a", "ä", "ß", "Z"][n % 5], n % 37),

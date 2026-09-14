@@ -69,6 +69,7 @@ impl ReadProvider for CountingProvider {
 
 fn node(size: u64) -> Node {
     Node {
+        package: false,
         id: "block-file".into(),
         parent_id: Some("root".into()),
         name: "block-file.bin".into(),

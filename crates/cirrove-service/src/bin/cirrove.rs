@@ -887,6 +887,7 @@ async fn main() -> Result<()> {
             };
             store.begin(&scope, true)?;
             let node = Node {
+                package: false,
                 id: "sample-file".into(),
                 parent_id: None,
                 name: "Welcome.txt".into(),

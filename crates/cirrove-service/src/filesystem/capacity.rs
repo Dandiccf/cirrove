@@ -43,6 +43,7 @@ impl GeneratedLibrary {
             )
         };
         Node {
+            package: false,
             id,
             parent_id: parent,
             name,

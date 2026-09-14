@@ -8,6 +8,7 @@ const LEAVES: usize = 2_000;
 
 fn tree(root: &str) -> Vec<Node> {
     let make = |id: String, parent: Option<String>, name: String, kind| Node {
+        package: false,
         id,
         parent_id: parent,
         name,

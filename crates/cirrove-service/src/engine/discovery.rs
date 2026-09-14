@@ -20,6 +20,7 @@ pub(super) struct LinkedLibrary {
 impl LinkedLibrary {
     fn folder(id: &str, name: &str) -> Node {
         Node {
+            package: false,
             id: id.into(),
             parent_id: None,
             name: name.into(),
@@ -33,6 +34,7 @@ impl LinkedLibrary {
     }
     fn shortcut() -> Node {
         Node {
+            package: false,
             id: "shared-library".into(),
             parent_id: Some("root".into()),
             name: "Shared library".into(),

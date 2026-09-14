@@ -91,6 +91,7 @@ struct Cloud {
 }
 fn root() -> Node {
     Node {
+        package: false,
         id: "root".into(),
         parent_id: None,
         name: "root".into(),
@@ -323,6 +324,7 @@ impl UploadProvider for Cloud {
         assert_eq!(hex::encode(Sha256::digest(&bytes)), request.sha256);
         let tag = format!("version-{}", remote.history.len());
         let node = Node {
+            package: false,
             id: id.clone(),
             parent_id: Some(parent),
             name,
@@ -954,6 +956,7 @@ async fn real_shutdown_reports_insufficient_snapshot_space_and_retains_the_dirty
 
 fn namespace_fixture(cloud: &Cloud) {
     let huge = Node {
+        package: false,
         id: "online".into(),
         parent_id: Some("root".into()),
         name: "online.bin".into(),
@@ -1013,6 +1016,7 @@ fn replacement_fixture(cloud: &Cloud) {
         ("target", "document.txt", b"old"),
     ] {
         let node = Node {
+            package: false,
             id: id.into(),
             name: name.into(),
             parent_id: Some("root".into()),
@@ -3227,6 +3231,7 @@ async fn real_an_existing_trash_directory_refuses_renames_into_it_but_not_out_of
             remote.files.insert(node.id.clone(), (node, vec![]));
         }
         let stranded = Node {
+            package: false,
             id: "stranded".into(),
             parent_id: Some(".trash-files".into()),
             name: "stranded.txt".into(),
@@ -3474,6 +3479,7 @@ async fn real_rmdir_refuses_a_populated_directory_and_removes_an_empty_one() {
     namespace_fixture(&cloud);
     {
         let inside = Node {
+            package: false,
             id: "inside".into(),
             parent_id: Some("folder".into()),
             name: "inside.txt".into(),
@@ -3715,6 +3721,7 @@ async fn real_a_pinned_file_is_edited_offline_and_both_survive_through_the_mount
     let original = b"the bytes that were there before".to_vec();
     {
         let node = Node {
+            package: false,
             id: "pinned".into(),
             parent_id: Some("root".into()),
             name: "pinned.txt".into(),
@@ -4115,5 +4122,129 @@ async fn real_a_name_the_cloud_would_refuse_is_refused_at_the_mount_before_anyth
         outcomes.8, 0,
         "nothing with a refused name exists in the listing"
     );
+    session.shutdown().await.unwrap();
+}
+
+/// A OneNote notebook is a folder to Graph and one thing to a person, and
+/// beneath it are section files that only OneNote knows how to write. Showing
+/// the contents is right -- a person should be able to see and copy them. A
+/// filesystem that lets an ordinary text editor save over one is offering to
+/// corrupt a notebook, so the mount reads and refuses to change.
+///
+/// Refused at the mount rather than after journalling: the provider would
+/// refuse it anyway, and a change that gets that far ends up stuck with the
+/// mount already showing it as done, which is the failure mode this project
+/// has already met once with fourteen folder removals.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE"]
+async fn a_package_is_readable_and_refuses_every_change_inside_it() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let state = temp.path().join("state");
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    let vault = Arc::new(Vault::default());
+
+    // A notebook, a section group inside it, and a section file inside that --
+    // the shape that matters, because a section's immediate parent is the group
+    // and not the package.
+    {
+        let mut remote = cloud.remote.lock().unwrap();
+        let mut node = |id: &str, parent: &str, name: &str, kind, package| {
+            remote.files.insert(
+                id.to_owned(),
+                (
+                    Node {
+                        package,
+                        id: id.into(),
+                        parent_id: Some(parent.into()),
+                        name: name.into(),
+                        kind,
+                        size: 0,
+                        modified_unix: 1,
+                        etag: Some(format!("{id}-etag")),
+                        content_version: None,
+                        target: None,
+                    },
+                    Vec::new(),
+                ),
+            );
+        };
+        node("notebook", "root", "Team notes", NodeKind::Folder, true);
+        node("group", "notebook", "Meetings", NodeKind::Folder, false);
+        node("section", "group", "September.one", NodeKind::File, false);
+    }
+
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account.clone(), cloud.clone(), state.clone())
+        .await
+        .unwrap();
+    let session = WritableSession::mount(engine, journal, cloud.clone(), vault)
+        .await
+        .unwrap();
+
+    let notebook = mount.join("Team notes");
+    let group = notebook.join("Meetings");
+    let readable = tokio::task::spawn_blocking({
+        let group = group.clone();
+        move || {
+            // Reading is the half that must keep working.
+            let names: Vec<String> = std::fs::read_dir(&group)
+                .unwrap()
+                .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+                .collect();
+            names
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(
+        readable,
+        vec!["September.one".to_owned()],
+        "a package's contents must still be listed"
+    );
+
+    let refusals = tokio::task::spawn_blocking({
+        let notebook = notebook.clone();
+        let group = group.clone();
+        move || {
+            let section = group.join("September.one");
+            vec![
+                (
+                    "mkdir in the package",
+                    std::fs::create_dir(notebook.join("New section")).err(),
+                ),
+                (
+                    "mkdir below the package",
+                    std::fs::create_dir(group.join("Deeper")).err(),
+                ),
+                (
+                    "create a file below it",
+                    std::fs::write(group.join("notes.txt"), b"x").err(),
+                ),
+                ("overwrite a section", std::fs::write(&section, b"x").err()),
+                (
+                    "rename a section",
+                    std::fs::rename(&section, group.join("Other.one")).err(),
+                ),
+                ("delete a section", std::fs::remove_file(&section).err()),
+                ("remove the package", std::fs::remove_dir(&notebook).err()),
+            ]
+        }
+    })
+    .await
+    .unwrap();
+
+    for (what, error) in refusals {
+        let error = error.unwrap_or_else(|| panic!("{what} was allowed inside a package"));
+        assert_eq!(
+            error.raw_os_error(),
+            Some(libc::EOPNOTSUPP),
+            "{what} should be refused as unsupported, got {error}"
+        );
+    }
     session.shutdown().await.unwrap();
 }

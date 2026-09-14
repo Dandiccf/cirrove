@@ -208,6 +208,7 @@ impl CloudFs {
     pub fn new(engine: Arc<Engine>) -> std::io::Result<Self> {
         let owner = std::fs::metadata("/proc/self")?;
         let root = Node {
+            package: false,
             id: engine.account.root_id.clone(),
             parent_id: None,
             name: engine.account.label.clone(),
@@ -1078,6 +1079,7 @@ impl Filesystem for CloudFs {
                 {
                     return Err(Errno::EEXIST);
                 }
+                inner.refuse_within_package(&parent)?;
                 inner.capture_ancestors(&parent).await?;
                 let node = writer
                     .create_directory(parent.scope.as_ref().clone(), parent.node.id.clone(), name)
@@ -1156,6 +1158,7 @@ impl Filesystem for CloudFs {
                     return Err(Errno::EEXIST);
                 }
                 let node = Node {
+                    package: false,
                     id: String::new(),
                     parent_id: Some(parent.node.id.clone()),
                     name,
@@ -1166,6 +1169,7 @@ impl Filesystem for CloudFs {
                     content_version: None,
                     target: None,
                 };
+                inner.refuse_within_package(&parent)?;
                 inner.capture_ancestors(&parent).await?;
                 let record = writer
                     .create(parent.scope.as_ref().clone(), node)
@@ -1300,7 +1304,9 @@ impl Filesystem for CloudFs {
                         Ok(())
                     };
                 }
+                inner.refuse_within_package(&parent)?;
                 inner.capture_ancestors(&parent).await?;
+                inner.refuse_within_package(&destination)?;
                 inner.capture_ancestors(&destination).await?;
                 let occupants = if parent.inode == destination.inode {
                     nodes
@@ -1416,6 +1422,7 @@ impl Filesystem for CloudFs {
                     return Err(Errno::EOPNOTSUPP);
                 }
                 let view = inner.insert(&parent, source).await.map_err(|e| errno(&e))?;
+                inner.refuse_within_package(&view)?;
                 if !inner
                     .children(&view)
                     .await
@@ -1480,6 +1487,9 @@ impl Filesystem for CloudFs {
                     return Err(Errno::EOPNOTSUPP);
                 }
                 let view = inner.insert(&parent, source).await.map_err(|e| errno(&e))?;
+                // unlink and rmdir never walk their ancestors, so neither was
+                // covered by the guard that sits beside capture_ancestors.
+                inner.refuse_within_package(&view)?;
                 writer.unlink(&inner, view).await
             }
             .await;
@@ -1644,6 +1654,7 @@ impl Filesystem for CloudFs {
                     .await?;
                 let mut view = view;
                 view.node = inner.node(&view).await.map_err(|e| errno(&e))?.into();
+                inner.refuse_within_package(&view)?;
                 inner.capture_ancestors(&view).await?;
                 let working = writer
                     .prepare(&inner.engine, &view, size == 0, &inner.cancel)
@@ -1775,6 +1786,7 @@ impl Filesystem for CloudFs {
                 if flags.0 & libc::O_ACCMODE != libc::O_RDONLY {
                     let writer = inner.writeback.as_ref().ok_or(Errno::EROFS)?;
                     view.node = node.clone().into();
+                    inner.refuse_within_package(&view)?;
                     inner.capture_ancestors(&view).await?;
                     writer
                         .prepare(

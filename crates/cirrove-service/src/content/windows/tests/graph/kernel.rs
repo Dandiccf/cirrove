@@ -101,6 +101,7 @@ impl Mounted {
             )
             .map(|(id, parent, kind, size)| {
                 Change::Upsert(Node {
+                    package: false,
                     id: id.into(),
                     name: id.into(),
                     parent_id: parent.map(str::to_owned),

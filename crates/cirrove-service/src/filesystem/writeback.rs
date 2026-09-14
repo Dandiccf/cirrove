@@ -670,6 +670,7 @@ mod tests {
         let mut journal = UploadJournal::open(&temp.path().join("journal"), &scope.account, 1024)
             .expect("journal");
         let node = Node {
+            package: false,
             id: String::new(),
             name: "original".into(),
             parent_id: Some("root".into()),
@@ -745,6 +746,7 @@ mod tests {
         let mut journal = UploadJournal::open(&temp.path().join("journal"), &scope.account, 4096)
             .expect("journal");
         let node = Node {
+            package: false,
             id: String::new(),
             name: "old".into(),
             parent_id: Some("root".into()),

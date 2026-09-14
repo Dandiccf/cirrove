@@ -51,6 +51,7 @@ fn create(j: &mut UploadJournal, name: &str) -> Uuid {
 }
 fn node(id: &str, name: &str, etag: &str, size: u64) -> Node {
     Node {
+        package: false,
         id: id.into(),
         name: name.into(),
         parent_id: Some("root".into()),

@@ -313,6 +313,7 @@ mod tests {
             }
             .into(),
             node: Node {
+                package: false,
                 id: format!("item-{inode}"),
                 parent_id: Some("root".into()),
                 name: format!("item-{inode}"),
@@ -379,6 +380,15 @@ mod tests {
         let node: Node = serde_json::from_str(encoded).unwrap();
         assert_eq!(serde_json::to_string(&node).unwrap(), encoded);
         assert_eq!(node.target.as_ref().unwrap().item, "target");
+
+        // A package says so and an ordinary node says nothing, which is what
+        // keeps an index of 184,000 nodes from being rewritten to record that
+        // almost none of them are notebooks. This test caught the first
+        // attempt, which wrote "package":false into every one of them.
+        let notebook = r#"{"id":"nb","parent_id":"root","name":"Notes","kind":"folder","size":0,"modified_unix":0,"etag":null,"content_version":null,"target":null,"package":true}"#;
+        let node: Node = serde_json::from_str(notebook).unwrap();
+        assert!(node.package);
+        assert_eq!(serde_json::to_string(&node).unwrap(), notebook);
     }
 
     #[test]

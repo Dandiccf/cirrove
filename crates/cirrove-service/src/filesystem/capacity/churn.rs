@@ -29,6 +29,7 @@ impl Tree {
     }
     fn file(self, file: usize, round: usize) -> Node {
         Node {
+            package: false,
             id: format!("file-{file:08}"),
             parent_id: Some(format!("group-{:06}", file / self.per_directory)),
             name: Self::name(file, round),

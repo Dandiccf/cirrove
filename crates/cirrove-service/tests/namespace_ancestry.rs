@@ -14,6 +14,7 @@ fn scope() -> Scope {
 }
 fn folder(id: &str, parent: &str, name: &str) -> Node {
     Node {
+        package: false,
         id: id.into(),
         parent_id: Some(parent.into()),
         name: name.into(),

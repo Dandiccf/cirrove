@@ -118,6 +118,7 @@ mod tests {
     }
     fn node(id: &str, name: &str, tag: &str) -> Node {
         Node {
+            package: false,
             id: id.into(),
             parent_id: Some("root".into()),
             name: name.into(),

@@ -692,6 +692,13 @@ fn map_item(item: DriveItem) -> Result<Change, ProviderError> {
             }))
         })
         .transpose()?;
+    // A package carries a folder facet too, and is mapped as a folder because
+    // that is what its contents are. The fact that it is a package is carried
+    // separately rather than folded into the kind: the mount needs to show it
+    // as a folder and refuse to change anything inside it, and a fourth
+    // NodeKind would make every match on kind answer a question it does not
+    // care about.
+    let package = item.package.is_some();
     let kind = if target.is_some() {
         NodeKind::Shortcut
     } else if item.folder.is_some() || item.package.is_some() {
@@ -702,6 +709,7 @@ fn map_item(item: DriveItem) -> Result<Change, ProviderError> {
         return Err(ProviderError::Protocol("unsupported item facet"));
     };
     Ok(Change::Upsert(Node {
+        package,
         id: item.id,
         parent_id: item.parent_reference.and_then(|p| p.id),
         name: item
@@ -977,6 +985,7 @@ mod tests {
     }
     fn download_node() -> Node {
         Node {
+            package: false,
             id: "file".into(),
             name: "file".into(),
             parent_id: None,
@@ -1055,6 +1064,15 @@ mod tests {
             panic!("missing notebook")
         };
         assert_eq!(notebook.kind, NodeKind::Folder);
+        // A folder to the provider and one thing to a person: the kind says the
+        // first so its contents can be listed, and this says the second so the
+        // mount can refuse to change them. A fourth NodeKind would make every
+        // match on kind answer a question it does not care about.
+        assert!(notebook.package, "a notebook must be marked as a package");
+        let Change::Upsert(ordinary) = &page.changes[1] else {
+            panic!("missing ordinary file")
+        };
+        assert!(!ordinary.package, "an ordinary file is not a package");
         let Change::Upsert(link) = &page.changes[2] else {
             panic!("missing linked notebook")
         };

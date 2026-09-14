@@ -22,6 +22,7 @@ fn scope() -> Scope {
 }
 fn before() -> Node {
     Node {
+        package: false,
         id: "file".into(),
         parent_id: Some("source".into()),
         name: "old.txt".into(),

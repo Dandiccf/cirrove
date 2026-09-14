@@ -16,6 +16,7 @@ struct OneFile {
 impl OneFile {
     fn node(size: u64) -> Node {
         Node {
+            package: false,
             id: "pinned-file".into(),
             parent_id: Some("root".into()),
             name: "pinned".into(),
@@ -98,6 +99,7 @@ async fn engine(temp: &tempfile::TempDir, budget: u64) -> Arc<Engine> {
 }
 fn folder(id: &str) -> Node {
     Node {
+        package: false,
         id: id.into(),
         parent_id: Some("root".into()),
         name: id.into(),
@@ -111,6 +113,7 @@ fn folder(id: &str) -> Node {
 }
 fn file(id: &str, parent: &str, size: u64) -> Node {
     Node {
+        package: false,
         id: id.into(),
         parent_id: Some(parent.into()),
         name: id.into(),

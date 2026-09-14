@@ -107,6 +107,12 @@ the state badges, the Cirrove column, the properties section and the
 right-click **Keep offline**. If you use something else, everything those do
 is in the Cirrove window and in the `cirrove` command, described below.
 
+**OneNote notebooks are read-only.** A notebook is a folder in OneDrive, and
+what is inside it are section files that only OneNote knows how to write. You
+can open the folder, read the sections and copy them out. Changing anything
+inside a notebook is refused, because a file manager or a text editor saving
+over a section would damage the notebook rather than edit it.
+
 **Renaming, moving, creating and deleting** folders and files works as in any
 folder. Deleting sends the item to the cloud's own recycle bin, not to your
 desktop's wastebasket -- Cirrove refuses a `.Trash` folder in the drive's root

@@ -242,6 +242,7 @@ async fn graph_gibibyte_through_shared_disk_cache_uses_forty_metadata_requests()
         collection: "drive".into(),
     };
     let node = Node {
+        package: false,
         id: "file".into(),
         name: "synthetic".into(),
         parent_id: None,

@@ -49,6 +49,7 @@ struct Fixture {
 }
 fn file(id: &str, parent: Option<&str>, kind: NodeKind, size: u64) -> Node {
     Node {
+        package: false,
         id: id.into(),
         name: id.into(),
         parent_id: parent.map(str::to_owned),
@@ -2190,6 +2191,7 @@ async fn real_local_saves_remain_readable_during_upload_and_after_offline_restar
                 .unwrap();
             assert_eq!(bytes, b"first");
             let receipt = Node {
+                package: false,
                 id: "created-remote-id".into(),
                 parent_id: Some("root".into()),
                 name: "Grüße & Kärnten.txt".into(),

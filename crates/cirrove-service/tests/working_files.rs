@@ -20,6 +20,7 @@ fn scope() -> Scope {
 }
 fn node(size: u64) -> Node {
     Node {
+        package: false,
         id: "remote-file".into(),
         parent_id: Some("root".into()),
         name: "Kärnten & Grüße.txt".into(),
@@ -832,6 +833,7 @@ fn failed_and_conflicted_saves_are_counted_and_the_in_flight_ones_are_not() {
     assert_eq!(j.failed_uploads().unwrap(), 0);
 
     let file = |id: &str| Node {
+        package: false,
         id: id.into(),
         parent_id: Some("root".into()),
         name: format!("{id}.txt"),
