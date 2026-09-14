@@ -29,7 +29,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install build dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config fuse3 libgtk-4-dev libadwaita-1-dev xvfb desktop-file-utils gnome-keyring appstream
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config fuse3 libgtk-4-dev libadwaita-1-dev xvfb x11-utils desktop-file-utils gnome-keyring appstream
       - name: Install pinned toolchain
         run: rustup toolchain install 1.98.1 --profile minimal --component rustfmt --component clippy
       - run: cargo fmt --all -- --check

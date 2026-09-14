@@ -103,7 +103,27 @@ fn icon_button(icon: &str, name: &str) -> gtk::Button {
     button
 }
 impl Window {
+    /// The identity a shell pairs the window with, set here rather than at any
+    /// one entry point.
+    ///
+    /// On X11 a shell matches a window to its desktop entry by WM_CLASS, GTK
+    /// builds WM_CLASS from the program name, and the program name defaults to
+    /// the binary -- so the window announced itself as "cirrove-desktop"
+    /// against an entry named io.github.Dandiccf.Cirrove.desktop, and nothing
+    /// could pair them. Found by hand in a Plasma X11 session.
+    ///
+    /// It sat in main.rs first, which was wrong in a way the test caught
+    /// immediately: anything that builds the window another way -- a test, a
+    /// future entry point -- got the binary's name, and under the harness the
+    /// class came out empty. An identity that depends on which function started
+    /// the process is not the application's identity.
+    pub const APP_ID: &'static str = "io.github.Dandiccf.Cirrove";
+
     pub fn new(app: &adw::Application, backend: Backend) -> Rc<Self> {
+        // Before any surface is realized: GTK reads the program name when it
+        // creates the first one, and setting it afterwards would silently do
+        // nothing.
+        glib::set_prgname(Some(Self::APP_ID));
         let window = adw::ApplicationWindow::builder()
             .application(app)
             .title(gettext("Cirrove"))

@@ -353,7 +353,7 @@ be reachable only through a tray or only through one file manager.
       aside, which nothing had ever listed again.
 - [ ] User documentation, redacted diagnostics and supported-version policy.
 - [ ] Dependency/security review, extended testing and tracked release blockers.
-- [ ] Validate the desktop entry, installed icons and AppStream metainfo in CI,
+- [x] Validate the desktop entry, installed icons and AppStream metainfo in CI,
       then compare their identity with the running window and application bus
       name in the supported desktop sessions. Current desktop-file validation
       alone does not satisfy this gate.

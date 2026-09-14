@@ -235,10 +235,15 @@ fn the_desktop_entry_icon_and_metainfo_share_one_application_identity() {
     // them. Seen in a Plasma X11 session with xprop, fixed by setting the
     // program name, and checked there afterwards. Wayland takes its app_id
     // from the registration above and was always right.
-    assert!(
-        main_rs.contains(&format!("set_prgname(Some(\"{APP_ID}\"))")),
-        "without this the X11 WM_CLASS is the binary name and no shell can match \
-         the window to its desktop entry"
+    // It lives with the window rather than in main.rs, so every path that builds
+    // one gets it. The runtime check is the window scenario
+    // the_x11_window_class_is_the_application_id_a_shell_looks_for, which reads
+    // the property off a running window with xprop the way a shell would; this
+    // only holds the constant those two share.
+    assert_eq!(
+        cirrove_desktop::ui::Window::APP_ID,
+        APP_ID,
+        "the window announces a different identity than the entry names"
     );
 }
 

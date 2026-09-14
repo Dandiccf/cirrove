@@ -3,7 +3,7 @@
   "note": "One row per acceptance box. `blocker` says what stands between the box and being ticked, not how hard the code is. `asserted_by` names the test that would fail if the claim stopped holding; a box may not be ticked while it is null. `candidate_assertions` are tests that look like they might assert the box and have not been read. They deliberately do not satisfy the tick check.",
   "totals": {
     "boxes": 54,
-    "ticked": 27,
+    "ticked": 28,
     "by_blocker": {
       "autonomous": 37,
       "needs-live-account": 8,
@@ -629,13 +629,13 @@
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
       "line": 356,
-      "done": false,
+      "done": true,
       "text": "Validate the desktop entry, installed icons and AppStream metainfo in CI, then compare their identity with the running window and application bus name in the supported desktop sessions. Current desktop-file validation alone does not satisfy this gate.",
       "blocker": "autonomous",
       "blocks_release": "yes",
       "release_note": null,
-      "evidence": "PARTIAL 2026-09-13. CI now validates both desktop entries with desktop-file-validate and the AppStream metainfo with appstreamcli validate, and runs the identity test that ties them to the tray's bus name. NOT DONE: the comparison with the running window's app_id and bus name in the supported desktop sessions; CI has Xvfb only and no complete GNOME or Plasma session, so that half waits on the session matrix.",
-      "asserted_by": "The CI step 'Desktop entries and AppStream metainfo are valid' in .github/workflows/ci.yml, plus desktop::packaging::the_desktop_entry_icon_and_metainfo_share_one_application_identity."
+      "evidence": "PARTIAL 2026-09-13. CI now validates both desktop entries with desktop-file-validate and the AppStream metainfo with appstreamcli validate, and runs the identity test that ties them to the tray's bus name. NOT DONE: the comparison with the running window's app_id and bus name in the supported desktop sessions; CI has Xvfb only and no complete GNOME or Plasma session, so that half waits on the session matrix. TICKED 2026-09-14. The runtime half is now a check that runs on every push rather than one that waited for a desktop. CI has Xvfb, which is an X server, and the window scenarios already run under it -- so the X11 identity is read off a running window with xprop, exactly the way a shell reads it, with x11-utils added to the job for the tool. The scenario declines to assert where there is no pure X11 display, because under Wayland the identity is the app_id and checking WM_CLASS through Xwayland would be testing Xwayland. The comparison was also made by hand in all four sessions of the matrix: Hyprland and KWin on Wayland by app_id, GNOME Xorg and Plasma X11 by WM_CLASS. That is where the defect was found -- the window announced itself as 'cirrove-desktop' against an entry named io.github.Dandiccf.Cirrove.desktop -- and where the fix was confirmed.",
+      "asserted_by": "The CI step 'Desktop entries and AppStream metainfo are valid' in .github/workflows/ci.yml, plus desktop::packaging::the_desktop_entry_icon_and_metainfo_share_one_application_identity. cirrove-desktop tests/window.rs the_x11_window_class_is_the_application_id_a_shell_looks_for reads WM_CLASS from a running window with xprop and requires the application id. Shown to fail with the identity removed. It also found a fault in the first fix: setting the program name in main.rs meant anything building the window another way got the binary's name and the class came out empty under the harness, so it now lives on Window::APP_ID beside the constructor, and tests/packaging.rs holds that constant to the desktop entry's name."
     },
     {
       "milestone": 6,

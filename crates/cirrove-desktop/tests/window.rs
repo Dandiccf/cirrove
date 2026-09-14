@@ -488,6 +488,67 @@ fn native_window_keeps_focus_and_waits_for_service_mount_acknowledgement() {
     runtime.shutdown_timeout(Duration::from_secs(1));
 }
 
+/// On X11 the window must announce the identity its desktop entry carries.
+///
+/// A shell pairs a window with its entry by WM_CLASS, GTK builds WM_CLASS from
+/// the program name, and the program name defaults to the binary -- so the
+/// window announced itself as "cirrove-desktop" against an entry named
+/// io.github.Dandiccf.Cirrove.desktop, and no shell could pair them. Every name
+/// in the tree agreed with every other while that was true, which is why the
+/// row this serves says in as many words that naming consistency is not a
+/// runtime check.
+///
+/// It was found by hand in a Plasma X11 session on 2026-09-14. CI has Xvfb,
+/// which is an X server, so the same question can be asked on every push
+/// without a desktop: read the property off the running window with xprop, the
+/// way a shell would.
+///
+/// Asserted only where there is a real X server and no Wayland display. Under
+/// Wayland the identity is the app_id, which comes from the application id and
+/// was never wrong; checking WM_CLASS through Xwayland would test Xwayland.
+fn the_x11_window_class_is_the_application_id_a_shell_looks_for() {
+    const APP_ID: &str = "io.github.Dandiccf.Cirrove";
+    if std::env::var_os("WAYLAND_DISPLAY").is_some() || std::env::var_os("DISPLAY").is_none() {
+        println!("  (not a pure X11 display; the app_id is what identifies the window there)");
+        return;
+    }
+    if std::process::Command::new("xprop")
+        .arg("-version")
+        .output()
+        .is_err()
+    {
+        println!("  (xprop is not installed, so the property cannot be read)");
+        return;
+    }
+
+    let app = application("x11 identity");
+    let ui = Window::new(&app, Backend::Demo);
+    let window = ui.window.upgrade().unwrap();
+    window.present();
+
+    // Looked up by the window's title rather than through _NET_CLIENT_LIST,
+    // which not every compositor's X server maintains -- Hyprland's does not,
+    // and the first version of this found nothing on a machine where the
+    // property was perfectly correct.
+    let mut class = String::new();
+    pump_until("the window's X11 class", || {
+        let Ok(out) = std::process::Command::new("xprop")
+            .args(["-name", "Cirrove", "WM_CLASS"])
+            .output()
+        else {
+            return false;
+        };
+        class = String::from_utf8_lossy(&out.stdout).trim().to_owned();
+        class.contains("WM_CLASS")
+    });
+    assert!(
+        class.contains(APP_ID),
+        "the X11 window class must be the application id a shell looks for, or the \
+         window cannot be matched to its desktop entry: {class}"
+    );
+    window.close();
+}
+
 /// Every failure kind reaches the rendered window with its own words.
 ///
 /// Two of them were driven through the window before -- an incompatible service
@@ -947,6 +1008,10 @@ fn the_window_shows_what_is_kept_offline_and_can_release_it() {
 }
 
 const SCENARIOS: &[(&str, fn())] = &[
+    (
+        "the_x11_window_class_is_the_application_id_a_shell_looks_for",
+        the_x11_window_class_is_the_application_id_a_shell_looks_for,
+    ),
     (
         "every_failure_kind_reaches_the_window_with_its_own_words",
         every_failure_kind_reaches_the_window_with_its_own_words,
