@@ -235,9 +235,9 @@ impl ActivityEntry {
                 change.name.clone()
             },
             what: if change.removed {
-                "removed in the cloud".to_owned()
+                n("removed in the cloud").to_owned()
             } else {
-                "changed in the cloud".to_owned()
+                n("changed in the cloud").to_owned()
             },
             warning: false,
             at_unix: Some(change.at_unix),

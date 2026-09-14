@@ -46,7 +46,58 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
         })
         .collect();
     Ok(Snapshot {
-        activity: Vec::new(),
+        // The demo showed an empty activity list, which is the one thing the
+        // window does that a demo screenshot could not show. Times are
+        // relative to now, so it reads the same whenever it is opened, and the
+        // last entry deliberately has none: a save from a journal written
+        // before saves carried a time must render without one.
+        activity: {
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            vec![(
+                "work-onedrive".to_owned(),
+                cirrove_service::RecentReply {
+                    remote: vec![cirrove_service::recent::RemoteChange {
+                        at_unix: now.saturating_sub(90),
+                        id: "demo-1".into(),
+                        parent_id: None,
+                        name: "Quarterly report.docx".into(),
+                        kind: "file".into(),
+                        size: 24_576,
+                        removed: false,
+                    }],
+                    local: vec![
+                        cirrove_service::recent::LocalChange {
+                            sequence: 3,
+                            name: "Notes.txt".into(),
+                            item: None,
+                            state: "uploaded".into(),
+                            size: 1_024,
+                            saved_at: Some(now.saturating_sub(45 * 60)),
+                        },
+                        cirrove_service::recent::LocalChange {
+                            sequence: 2,
+                            name: "Budget.xlsx".into(),
+                            item: None,
+                            state: "failed".into(),
+                            size: 8_192,
+                            saved_at: Some(now.saturating_sub(30 * 3600)),
+                        },
+                        cirrove_service::recent::LocalChange {
+                            sequence: 1,
+                            name: "Old draft.md".into(),
+                            item: None,
+                            state: "uploaded".into(),
+                            size: 512,
+                            saved_at: None,
+                        },
+                    ],
+                    refusal: None,
+                },
+            )]
+        },
         settings: Ok(settings),
         status: Ok(Status {
             protocol_version: 1,

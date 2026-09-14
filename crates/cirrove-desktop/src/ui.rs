@@ -209,11 +209,11 @@ impl Window {
         }
         body.append(&help);
         let footer = gtk::Label::builder()
-            .label(if matches!(backend, Backend::Demo) {
-                "Interface preview · sample accounts"
+            .label(gettext(if matches!(backend, Backend::Demo) {
+                n("Interface preview · sample accounts")
             } else {
-                "Files download when opened · changes upload in the background"
-            })
+                n("Files download when opened · changes upload in the background")
+            }))
             .xalign(0.0)
             .wrap(true)
             .build();
