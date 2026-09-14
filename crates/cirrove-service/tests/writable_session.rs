@@ -4137,7 +4137,7 @@ async fn real_a_name_the_cloud_would_refuse_is_refused_at_the_mount_before_anyth
 /// has already met once with fourteen folder removals.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires synthetic kernel FUSE"]
-async fn a_package_is_readable_and_refuses_every_change_inside_it() {
+async fn real_a_package_is_readable_and_refuses_every_change_inside_it() {
     let temp = tempfile::tempdir().unwrap();
     let mount = temp.path().join("mount");
     std::fs::create_dir(&mount).unwrap();
