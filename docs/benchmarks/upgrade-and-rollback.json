@@ -1,0 +1,22 @@
+{
+  "question": "Does upgrading the installed packages under a live account keep the settings, the credential and the work in progress -- and does going back to the older version refuse cleanly rather than damage what the newer one wrote?",
+  "why_now": "M6 line 328 asks exactly this and has never been testable: it needs a machine with a real account and credentials in a keyring, installed from packages rather than from a developer build. The Fedora VM became that machine on 2026-09-14. A package upgrade that quietly loses a credential costs the person a browser sign-in; one that loses pending work costs them a file.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-14",
+  "how": "The Fedora VM currently runs 0.1.0~dev.r409.ge24da99 installed from rpm, with the owner's OneDrive connected read-only, one pinned file resident, and the credential in an unlocked login keyring. It is upgraded with dnf to the rpm CI builds for the current tree, then rolled back to r409 with dnf downgrade. Nothing is signed in again at any point; needing to would itself be the failure.",
+  "predictions": {
+    "P1": "The upgrade replaces both packages and the account is still there afterwards, mounted, with no sign-in required. The credential is in the keyring, not in the package, so nothing the package manager does should reach it.",
+    "P2": "The pin survives with its bytes still resident, because pins live in the state directory under ~/.local/state/cirrove, which no package owns.",
+    "P3": "Exactly one copy of the Files extension exists afterwards. This is the failure that has actually happened on this project before -- a home-installed copy beside a packaged one made Files load both and show every badge and menu item twice.",
+    "P4": "The running daemon is restarted by the upgrade or keeps running on the old binary until it is; either is acceptable, but it must not end up serving a mount from a deleted binary, and the mount must not be left behind after the daemon goes.",
+    "P5": "The new tray mark is in place and the tray advertises it, since this upgrade is also the first packaged build carrying the redrawn icons.",
+    "P6": "The downgrade is the one most likely to be wrong. An older binary meeting a state directory a newer one has written should refuse to read it and say so, not silently reinterpret it -- cirrove-service already refuses a settings file from a newer version in its unit tests, and this is that path meeting a real rollback. If it instead starts and reports no accounts, that is a person's drive apparently vanishing after a rollback."
+  },
+  "run": {
+    "when": null,
+    "where": null,
+    "observed": {},
+    "not_covered": null
+  },
+  "conclusion": null
+}
