@@ -17,7 +17,7 @@ tests against a synthetic provider and has never met the real service;
 | Browser sign-in with PKCE, token refresh at the token's lifetime | real | validation.md |
 | Consent disabled and re-enabled by an administrator | real -- shown as sign-in required, not as offline; recovery on re-enable | benchmarks/revoked-grant-and-reauthentication.json |
 | Sign-in again (reauthentication) from the CLI and the window | fixture -- the flow runs; nobody has completed a live re-sign-in through the window | window scenario; accounts tests |
-| Keyring locked at daemon start | fixture | auth vault tests |
+| Keyring locked at daemon start | real -- a fresh Fedora 44 that logs in automatically had no keyring at all (the directory empty, only a transient session collection), so a sign-in would have failed at the moment it stored the token; logging in once with a password created and unlocked it, which is what the user guide prescribes | benchmarks/fresh-fedora-installation.json |
 
 ## Drives and libraries
 
@@ -71,9 +71,9 @@ filesystem gives in the same situation.
 | | Status |
 | --- | --- |
 | Arch, Hyprland (Omarchy), Quickshell tray, Nautilus 50 | real -- the development machine |
-| GNOME session (Wayland), AppIndicator tray, Files | real -- Fedora 44 and Ubuntu 24.04 in VMs: the tray registers with the shell and survives a reboot, Files loads the extension, and with an account signed in the icon is drawn in the top bar (2026-09-13) |
+| GNOME session (Wayland), AppIndicator tray, Files | real -- Fedora 44 and Ubuntu 24.04 in VMs: the tray registers with the shell and survives a reboot, Files loads the extension, and with an account signed in the icon is drawn in the top bar (Ubuntu 2026-09-13, Fedora 2026-09-14 -- the latter also showing the mount in the Files sidebar and the kept-offline badge on a pinned file) |
 | KDE Plasma 6 session (Wayland), tray, window | real -- Fedora 44 VM, 2026-09-13: the packaged autostart starts the tray, it registers with KDE's own StatusNotifierWatcher and appears in the tray with nothing installed alongside it, the window renders under KWin as a native Wayland client with its own icon in the task bar, and it follows the system dark-style preference. Portal folder opening is untested here for want of an account. See [the record](benchmarks/plasma-session-coverage.json) |
 | X11 session, either desktop | no -- Fedora 44 ships no X11 session for GNOME or Plasma by default |
 | Ubuntu 24.04 packages installed on a clean system | real -- CI runner and an Ubuntu 24.04.4 Desktop VM through a reboot and purge |
-| Fedora packages installed on a clean system | real -- CI container (42), and a Fedora 44 Workstation VM reinstalled 2026-09-14 with nothing Cirrove needs pre-installed: the two rpms alone pulled in nautilus-python and the GNOME appindicator extension, SELinux stayed enforcing with no denial, the tray and Files came back after a reboot from the packaged autostart, and removal left no file named cirrove under /usr or /etc. Sign-in, and so a mount under SELinux, is still untested. See [the record](benchmarks/fresh-fedora-installation.json) |
+| Fedora packages installed on a clean system | real -- CI container (42), and a Fedora 44 Workstation VM reinstalled 2026-09-14 with nothing Cirrove needs pre-installed: the two rpms alone pulled in nautilus-python and the GNOME appindicator extension, SELinux stayed enforcing with no denial, the tray and Files came back after a reboot from the packaged autostart, and removal left no file named cirrove under /usr or /etc. A sign-in the same morning closed the rest: the drive mounts under SELinux enforcing with zero AVC denials of any kind, a 67 KB file reads end to end through FUSE, the tray goes Active and the shell draws it, Files shows the mount and the branded badge, and all of it survives a reboot with nothing started by hand. See [the record](benchmarks/fresh-fedora-installation.json) |
 | Debian stable | not claimed: older than the desktop floor |

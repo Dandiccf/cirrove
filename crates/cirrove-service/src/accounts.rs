@@ -774,14 +774,20 @@ pub async fn connect(
                     drive.web_url
                 );
             }
+            // The ids, for an error that can actually be acted on. By the time
+            // this question is asked the browser half has already succeeded, so
+            // failing here throws away a sign-in the person has just done.
+            let listing = drives
+                .iter()
+                .map(|drive| format!("  --drive-id {}   ({})", drive.id, drive.name))
+                .collect::<Vec<_>>()
+                .join("\n");
             let selected = tokio::task::spawn_blocking(move || -> Result<usize> {
                 print!("Drive number to mount (Enter cancels): ");
                 std::io::stdout().flush()?;
                 let mut line = String::new();
-                std::io::stdin().read_line(&mut line)?;
-                line.trim()
-                    .parse::<usize>()
-                    .context("drive selection cancelled or invalid")
+                let read = std::io::stdin().read_line(&mut line)?;
+                drive_choice(read, &line, &listing)
             })
             .await??;
             drives
@@ -935,10 +941,79 @@ pub async fn keyring_check() -> Result<()> {
     println!("Desktop keyring write/read/removal passed using a synthetic Cirrove credential.");
     Ok(())
 }
+/// Which drive the person picked, or an error that says what to do instead.
+///
+/// `read` is what `read_line` returned: zero means end of input, which is what
+/// a command with nothing connected to its input sees. That is not the same as
+/// someone pressing Enter to cancel, and it is the case that matters -- a
+/// desktop sign-in reaches `connect` with no terminal, gets all the way through
+/// the browser, and would otherwise be told that an empty string is not an
+/// integer. The grant is already spent by then, so the message has to name the
+/// flag that avoids the question rather than describe a parse failure.
+fn drive_choice(read: usize, line: &str, listing: &str) -> Result<usize> {
+    let answer = line.trim();
+    if read == 0 {
+        bail!(
+            "no drive was chosen: this command asks which drive to mount and \
+             nothing is connected to its input. The sign-in itself succeeded. \
+             Run it again naming the drive, which skips the question:\n{listing}"
+        );
+    }
+    if answer.is_empty() {
+        bail!("cancelled: no drive was chosen. To connect without being asked:\n{listing}");
+    }
+    answer
+        .parse::<usize>()
+        .with_context(|| format!("{answer:?} is not a drive number"))
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    const DRIVE_LISTING: &str = "  --drive-id b!abc   (Dokumente)";
+
+    #[test]
+    fn no_terminal_names_the_flag_rather_than_blaming_a_parse() {
+        // read_line returning zero is end of input: a sign-in driven from a
+        // desktop, a script or a service reaches the question this way, after
+        // the browser half has already succeeded.
+        let error = format!("{:#}", drive_choice(0, "", DRIVE_LISTING).unwrap_err());
+        assert!(
+            error.contains("--drive-id b!abc"),
+            "must name the flag and the id: {error}"
+        );
+        assert!(
+            error.contains("sign-in itself succeeded"),
+            "must say the sign-in was not wasted: {error}"
+        );
+        assert!(
+            !error.contains("parse"),
+            "must not blame an integer parse: {error}"
+        );
+    }
+
+    #[test]
+    fn pressing_enter_is_a_cancellation_and_not_an_absent_terminal() {
+        let error = format!("{:#}", drive_choice(1, "\n", DRIVE_LISTING).unwrap_err());
+        assert!(error.contains("cancelled"), "{error}");
+        assert!(error.contains("--drive-id b!abc"), "{error}");
+    }
+
+    #[test]
+    fn a_number_is_the_number() {
+        assert_eq!(drive_choice(2, "2\n", DRIVE_LISTING).expect("a number"), 2);
+    }
+
+    #[test]
+    fn a_word_is_reported_as_the_word_it_was() {
+        let error = format!("{:#}", drive_choice(5, "two\n", DRIVE_LISTING).unwrap_err());
+        assert!(
+            error.contains("\"two\""),
+            "must quote what was typed: {error}"
+        );
+    }
     #[test]
     fn a_pin_will_not_migrate_an_index_a_running_daemon_is_reading() {
         let temp = tempfile::tempdir().expect("fixture");

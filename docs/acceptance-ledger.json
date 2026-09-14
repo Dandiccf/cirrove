@@ -2,10 +2,10 @@
   "generated_from": "docs/product-milestones.md",
   "note": "One row per acceptance box. `blocker` says what stands between the box and being ticked, not how hard the code is. `asserted_by` names the test that would fail if the claim stopped holding; a box may not be ticked while it is null. `candidate_assertions` are tests that look like they might assert the box and have not been read. They deliberately do not satisfy the tick check.",
   "totals": {
-    "boxes": 53,
+    "boxes": 54,
     "ticked": 18,
     "by_blocker": {
-      "autonomous": 35,
+      "autonomous": 36,
       "needs-live-account": 8,
       "needs-machine-window": 2,
       "needs-reboot": 2,
@@ -409,6 +409,16 @@
       "milestone_title": "Polished desktop experience",
       "line": 278,
       "done": false,
+      "text": "Redraw the mark itself, on three counts the current one fails. **Size:** the cloud occupies 50% of its canvas by 39%, centred 11px below the canvas centre, so every launcher and panel scales mostly empty space and the icon reads small wherever it appears. A mark should fill its frame. **Monochrome:** a panel draws the application icon, and a full-colour cloud on a dark shell top bar is the wrong register; there must be a single-colour form that is white on dark and dark on light, and the tray must use it. Seen on Fedora 44's top bar, 2026-09-14. **The cloud itself:** it is the most used shape in the category and says nothing about what this program does differently. The mark should be its own, and should carry the idea that the whole drive is visible while almost none of it is on the computer.",
+      "blocker": "autonomous",
+      "evidence": "OPEN, raised by the account owner on 2026-09-14 after seeing the icon in Fedora 44's GNOME top bar: \"the size of our icon is always too small\", a monochrome white-on-dark form is wanted, and \"a more creative logo than a cloud that is already used a million times\". The size complaint is measurable rather than a matter of taste: in the 128x128 canvas the cloud spans x 34 to 98.5 and y 50 to 100, so 50% of the width by 39% of the height, with its centre at y=75 against a canvas centre of 64. Launchers scale the canvas, so the mark renders at about half size and sits low. Three candidates drawn and rendered at 128, 48, 24 and 16 white-on-dark; awaiting the owner's choice before anything is replaced, because it is their brand.",
+      "asserted_by": "NOT YET ASSERTED. The size half is testable and should be: a check that every shipped icon's drawn extent fills an agreed fraction of its viewBox and is centred in it would have caught this before a person had to notice it on a panel."
+    },
+    {
+      "milestone": 5,
+      "milestone_title": "Polished desktop experience",
+      "line": 290,
+      "done": false,
       "text": "Implement the tray as StatusNotifierItem over D-Bus. Document the GNOME extension requirement, detect missing tray support and keep all actions available from the window when no tray host is present.",
       "blocker": "autonomous",
       "evidence": "PARTIAL 2026-09-11. StatusNotifierItem over D-Bus is implemented and registers with a live shell's watcher; the GNOME extension requirement is documented in docs/desktop.md. A missing host is tolerated rather than fatal: the item is published, waits, and registers whenever a host appears, which also covers a panel restart. The first version registered, answered every property it declared, and drew nothing -- it lacked AttentionIconName and the spec switches icons with status -- so the property set is now asserted against what a known-good tray exposes. A missing host is now reported once, naming the interface and the GNOME extension, and its later arrival reported only if an absence was. NOT DONE: that message goes to stderr and the journal, which is where an operator looks and not where a user does; there is no in-window notice. Keeping every action available from the window holds structurally -- the menu carries only shortcuts to what the window does -- but is not asserted anywhere. UPDATE 2026-09-13: the item now names Cirrove's own icons rather than generic ones and stages them itself, see line 275; IconThemePath is among the properties the bus test requires. UPDATE 2026-09-13 (an in-window notice): the clause about the message going only to stderr and the journal is answered. Someone whose tray icon never appears reads the window, not the journal, so the window asks the session bus the same question the tray asks -- is a StatusNotifierWatcher running -- and shows a banner naming the fix when the answer is no. Only on a definite no: a bus that could not be asked says nothing, because telling someone their tray is broken on a failed lookup would contradict an icon sitting in their panel. tray::notice_when holds that rule over all three answers, and the window scenario asserts the banner stays hidden on a desktop that has a host, shown to fail when the answer is forced to no.",
@@ -417,7 +427,7 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 281,
+      "line": 293,
       "done": false,
       "text": "Show recent activity -- remote changes from the delta feed and local saves from the upload journal, with each entry's state -- in the window, and a short form of it in the tray menu. \"Recent\" means changes to content, not files the user merely opened: a mount stages cache on every read, so a touched-files list would be noise. This is a log and not a level, so it does not ride the coalescing event channel, which by design hands a lagging client current state instead of the entries it missed; it needs its own query. File names appear in the menu and in the window, never in the tray tooltip, which is shown on hover without intent and is visible to anyone looking at the screen or a shared one; the tooltip carries a count. Provide a setting to turn the listing off entirely.",
       "blocker": "autonomous",
@@ -427,7 +437,7 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 292,
+      "line": 304,
       "done": true,
       "text": "Publish a supported file-manager list beyond the initial Nautilus target, with an explicit Dolphin decision and a shared daemon status contract behind each integration. Unsupported managers must still access mounted files; badge/control availability must be explained. The decision is that **Dolphin has no plugin in 1.0** ([ADR 0010](adr/0010-file-managers-and-dolphin.md)), with three named conditions for revisiting; the list, the access guarantee and the availability explanation are in [Desktop](desktop.md) and the [user guide](user-guide.md).",
       "blocker": "autonomous",
@@ -437,7 +447,7 @@
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 300,
+      "line": 312,
       "done": false,
       "text": "Preserve actionable, sanitized error causes in the window. Unreadable or invalid settings, an unreachable service and an incompatible service remain distinguishable, with recovery actions and diagnostic detail appropriate to the failure. Never expose credentials or raw provider responses.",
       "blocker": "autonomous",
@@ -447,7 +457,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 325,
+      "line": 337,
       "done": false,
       "text": "Native Arch/AUR, Debian/Ubuntu `.deb` and Fedora `.rpm` packages from the same release, with the clean-system checks in [Distribution](distribution.md).",
       "blocker": "autonomous",
@@ -457,7 +467,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 327,
+      "line": 339,
       "done": false,
       "text": "Signed APT and COPR update channels, release artifacts, source/provenance, supported-version matrix and measured reproducible build procedure.",
       "blocker": "out-of-agreed-scope",
@@ -467,7 +477,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 329,
+      "line": 341,
       "done": false,
       "text": "Fresh installation through sign-in and reboot verified outside development. Validate this on each declared distribution family, including Fedora with SELinux enabled; an Ubuntu CI build is not an installation check.",
       "blocker": "autonomous",
@@ -477,7 +487,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 332,
+      "line": 344,
       "done": false,
       "text": "Upgrade/migration rollback protects settings, credentials and pending work.",
       "blocker": "autonomous",
@@ -487,7 +497,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 333,
+      "line": 345,
       "done": false,
       "text": "Clean uninstall and explicit retention/removal choices for local data.",
       "blocker": "autonomous",
@@ -497,7 +507,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 334,
+      "line": 346,
       "done": false,
       "text": "User documentation, redacted diagnostics and supported-version policy.",
       "blocker": "autonomous",
@@ -507,7 +517,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 335,
+      "line": 347,
       "done": false,
       "text": "Dependency/security review, extended testing and tracked release blockers.",
       "blocker": "autonomous",
@@ -517,7 +527,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 336,
+      "line": 348,
       "done": false,
       "text": "Validate the desktop entry, installed icons and AppStream metainfo in CI, then compare their identity with the running window and application bus name in the supported desktop sessions. Current desktop-file validation alone does not satisfy this gate.",
       "blocker": "autonomous",
@@ -527,7 +537,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 340,
+      "line": 352,
       "done": true,
       "text": "Build and install the daemon and CLI without GTK4/libadwaita present, with separate desktop packaging. The root's default members now exclude the desktop; explicit `--workspace` builds and full contributor checks still include it. A package installation on a clean headless host remains required; headless buildability does not imply unattended browser/keyring setup.",
       "blocker": "autonomous",
@@ -537,7 +547,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 345,
+      "line": 357,
       "done": false,
       "text": "Tagged release and verified installation from the published artifacts.",
       "blocker": "autonomous",

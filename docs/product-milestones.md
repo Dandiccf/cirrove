@@ -275,6 +275,18 @@ account repair and the wider recovery flow still need implementation and accepta
 - [ ] Install application-specific scalable and symbolic icons in standard theme
       locations, replacing the generic application icon. Check dock, launcher
       and software-centre presentation, including symbolic recoloring.
+- [ ] Redraw the mark itself, on three counts the current one fails. **Size:**
+      the cloud occupies 50% of its canvas by 39%, centred 11px below the
+      canvas centre, so every launcher and panel scales mostly empty space and
+      the icon reads small wherever it appears. A mark should fill its frame.
+      **Monochrome:** a panel draws the application icon, and a full-colour
+      cloud on a dark shell top bar is the wrong register; there must be a
+      single-colour form that is white on dark and dark on light, and the tray
+      must use it. Seen on Fedora 44's top bar, 2026-09-14. **The cloud
+      itself:** it is the most used shape in the category and says nothing
+      about what this program does differently. The mark should be its own,
+      and should carry the idea that the whole drive is visible while almost
+      none of it is on the computer.
 - [ ] Implement the tray as StatusNotifierItem over D-Bus. Document the GNOME
       extension requirement, detect missing tray support and keep all actions
       available from the window when no tray host is present.
