@@ -24,6 +24,174 @@
     "P1_fails": "The run says nothing and is repeated. Two arms that did different work cannot be compared on memory or on time."
   },
   "why_not_just_cap_it": "Because 108 against 211 MiB is an argument for capping and not a reason to skip measuring what it costs. A daemon that is half the size and noticeably slower on every read is not obviously better, and choosing without the second number would be exactly the coin flip that artifact objected to.",
-  "result": null,
-  "verdict": null
+  "result": {
+    "when": "2026-09-14T11:40-11:55+02:00",
+    "where": "The development machine, 16 cores, the workload pinned to cores 8-15 so the measurement VM running elsewhere kept its own. Release build, one process per run, six workload and latency combinations per arm: conservative, strong and windows, at 0 ms and 20 ms of synthetic request delay.",
+    "a_thing_that_had_to_be_fixed_first": "The default arm could not be run at all. The fixture refuses to start without MALLOC_ARENA_MAX=1, because its RSS assertion is meaningless without it -- so the workload that this trade is about would not execute in the arm the trade is measured against. That is the inconsistency this artifact named, and sharper than it was recorded: not merely that CI pins the setting, but that the fixture enforces it. CIRROVE_FIXTURE_ALLOW_DEFAULT_ARENAS=1 now runs the workload and skips the memory assertion rather than weakening it -- a timing arm has no business claiming a memory result.",
+    "table": [
+      {
+        "arm": "default",
+        "delay": 0,
+        "mode": "conservative",
+        "elapsed": 1630.6523379999999,
+        "read_p95": 5.203302993322723,
+        "phases_with_reads": 3,
+        "graph": 524,
+        "content": 262,
+        "bytes": 1096719040,
+        "arena": null,
+        "rss": 107991040
+      },
+      {
+        "arm": "default",
+        "delay": 0,
+        "mode": "strong",
+        "elapsed": 2821.9753130000004,
+        "read_p95": 5.572392008616589,
+        "phases_with_reads": 3,
+        "graph": 8,
+        "content": 26,
+        "bytes": 1096719040,
+        "arena": null,
+        "rss": 165797888
+      },
+      {
+        "arm": "default",
+        "delay": 0,
+        "mode": "windows",
+        "elapsed": 2789.268348,
+        "read_p95": 5.7179650029866025,
+        "phases_with_reads": 3,
+        "graph": 52,
+        "content": 26,
+        "bytes": 1096719040,
+        "arena": null,
+        "rss": 121462784
+      },
+      {
+        "arm": "default",
+        "delay": 20,
+        "mode": "conservative",
+        "elapsed": 18578.851701,
+        "read_p95": 69.8733040044317,
+        "phases_with_reads": 3,
+        "graph": 524,
+        "content": 262,
+        "bytes": 1096719040,
+        "arena": null,
+        "rss": 110731264
+      },
+      {
+        "arm": "default",
+        "delay": 20,
+        "mode": "strong",
+        "elapsed": 3540.489415,
+        "read_p95": 27.979129998129793,
+        "phases_with_reads": 3,
+        "graph": 8,
+        "content": 26,
+        "bytes": 1096719040,
+        "arena": null,
+        "rss": 163545088
+      },
+      {
+        "arm": "default",
+        "delay": 20,
+        "mode": "windows",
+        "elapsed": 4493.015209,
+        "read_p95": 68.971035987488,
+        "phases_with_reads": 3,
+        "graph": 52,
+        "content": 26,
+        "bytes": 1096719040,
+        "arena": null,
+        "rss": 133521408
+      },
+      {
+        "arm": "capped",
+        "delay": 0,
+        "mode": "conservative",
+        "elapsed": 1664.9638499999999,
+        "read_p95": 5.071210005553439,
+        "phases_with_reads": 3,
+        "graph": 524,
+        "content": 262,
+        "bytes": 1096719040,
+        "arena": "1",
+        "rss": 46723072
+      },
+      {
+        "arm": "capped",
+        "delay": 0,
+        "mode": "strong",
+        "elapsed": 2767.373491,
+        "read_p95": 5.752148004830815,
+        "phases_with_reads": 3,
+        "graph": 8,
+        "content": 26,
+        "bytes": 1096719040,
+        "arena": "1",
+        "rss": 46071808
+      },
+      {
+        "arm": "capped",
+        "delay": 0,
+        "mode": "windows",
+        "elapsed": 2807.321934,
+        "read_p95": 5.796088997158222,
+        "phases_with_reads": 3,
+        "graph": 52,
+        "content": 26,
+        "bytes": 1096719040,
+        "arena": "1",
+        "rss": 46723072
+      },
+      {
+        "arm": "capped",
+        "delay": 20,
+        "mode": "conservative",
+        "elapsed": 18572.653259,
+        "read_p95": 69.60150500526652,
+        "phases_with_reads": 3,
+        "graph": 524,
+        "content": 262,
+        "bytes": 1096719040,
+        "arena": "1",
+        "rss": 46415872
+      },
+      {
+        "arm": "capped",
+        "delay": 20,
+        "mode": "strong",
+        "elapsed": 3521.144576,
+        "read_p95": 27.27850199153181,
+        "phases_with_reads": 3,
+        "graph": 8,
+        "content": 26,
+        "bytes": 1096719040,
+        "arena": "1",
+        "rss": 46481408
+      },
+      {
+        "arm": "capped",
+        "delay": 20,
+        "mode": "windows",
+        "elapsed": 4448.684703,
+        "read_p95": 69.38737600285094,
+        "phases_with_reads": 3,
+        "graph": 52,
+        "content": 26,
+        "bytes": 1096719040,
+        "arena": "1",
+        "rss": 46055424
+      }
+    ],
+    "observed": {
+      "P1": "HOLDS. Every pair moved identical bytes and made identical graph and content requests. The comparison is about the allocator.",
+      "P2": "HOLDS, with room to spare. Worst wall-clock ratio 1.021 against a limit of 1.10, and three of the six combinations were faster capped than default: 1.021, 0.981, 1.006, 1.000, 0.995, 0.990.",
+      "P3": "HOLDS. Worst read p95 ratio 1.032 against a limit of 1.25: 0.975, 1.032, 1.014, 0.996, 0.975, 1.006. The tail cost that mattered most here is not there.",
+      "memory_for_the_record": "Capped, growth was 43.9 to 44.6 MiB across all six -- a spread of 0.7 MiB. Default, 103.0 to 158.1 MiB, a spread of 55.1. The interesting number is not the halving but the spread: with the default the answer depends on how a work-stealing runtime happened to spread the allocation, which is the coin flip daemon-allocator-arenas.json objected to."
+    }
+  },
+  "verdict": "P1, P2 and P3 all hold, so the decision rule says cap, and the shipped unit now does: Environment=MALLOC_ARENA_MAX=1 in packaging/systemd/cirroved.service, asserted by cirrove-service tests/packaging.rs. Half the resident memory for 2.1% of wall-clock and 3.2% of a read's p95, on a workload where both arms did provably identical work. CI and the product agree for the first time: the memory fixture no longer passes under conditions the shipped daemon does not reproduce. The bounded-memory row now has an allocator to state a bound against."
 }

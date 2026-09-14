@@ -143,3 +143,32 @@ fn hardening_does_not_block_the_setuid_mount_helper() {
         "NoNewPrivileges={setting:?} prevents fusermount3 from mounting for an unprivileged user"
     );
 }
+
+/// The shipped unit caps malloc arenas, and the memory fixture depends on it.
+///
+/// Both halves of the trade were measured before this was chosen
+/// (docs/benchmarks/allocator-arena-cost.json): capped, the same workload grows
+/// 43.9 to 44.6 MiB against 103.0 to 158.1 MiB with the default, and the spread
+/// falls from 55.1 MiB to 0.7 -- the figure stops depending on how a
+/// work-stealing runtime happened to spread the allocation. It costs at worst
+/// 2.1% of wall-clock and 3.2% of a single read's p95.
+///
+/// This is asserted because of the inconsistency it resolves: CI already pinned
+/// MALLOC_ARENA_MAX=1 for the mounted read workloads, so a memory measurement
+/// was passing under conditions the product did not reproduce. If the unit ever
+/// loses this line, that gap opens again silently and the fixture keeps passing.
+#[test]
+fn the_shipped_unit_caps_malloc_arenas_that_the_memory_fixture_assumes() {
+    let unit = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../..")
+            .join(UNIT),
+    )
+    .expect("the unit");
+    assert!(
+        unit.lines()
+            .any(|line| line.trim() == "Environment=MALLOC_ARENA_MAX=1"),
+        "the shipped unit must cap malloc arenas; the memory fixture measures a \
+         daemon that has them capped and would otherwise be measuring glibc"
+    );
+}
