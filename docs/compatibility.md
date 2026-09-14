@@ -46,7 +46,7 @@ tests against a synthetic provider and has never met the real service;
 | OneNote notebooks and other packages | fixture -- mapped as folders from a fixture body; never opened on the real account | onedrive lib tests |
 | Offline pinning, per file and per folder, reads with the network gone | real | benchmarks/live-offline-pinning.json, benchmarks/offline-pinning-reachability.json |
 | Power loss mid-write | real -- the plug pulled, the journal recovered | benchmarks/journal-under-power-cut.json |
-| Deep suspend past the token lifetime | no -- registered, not run | benchmarks/deep-suspend-beyond-token-lifetime.json |
+| Deep suspend past the token lifetime | real -- 90 minutes of S3 on the Fedora VM, 2026-09-14: the same process comes back with its mount intact, refreshes its Microsoft grant unprompted, renews both lapsed subscriptions, and receives a change made afterwards in 6 s | benchmarks/deep-suspend-beyond-token-lifetime.json |
 | 24 hours of operation | running -- attempt 1 on the host was void when its probe binary was removed under it; attempt 2 opened in the Ubuntu VM on 2026-09-13 at 15:56, with a restart at four hours and a five-minute outage at eight | benchmarks/sustained-operation.json |
 
 ## Unsupported operations

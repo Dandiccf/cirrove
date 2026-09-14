@@ -9,7 +9,7 @@ Private account measurements belong in local records, not the public repository.
 ## 1. Reliable read-only foundation
 
 - [x] Installable user service, login startup and clean intentional shutdown.
-- [ ] Recovery after process failure, suspend/resume and loss of network access.
+- [x] Recovery after process failure, suspend/resume and loss of network access.
 - [ ] Real token expiry/refresh and visible reauthentication when consent expires.
 - [ ] Responsive navigation during initial indexing and competing downloads.
 - [x] Remove Graph metadata checks per cache block from the validated read-session

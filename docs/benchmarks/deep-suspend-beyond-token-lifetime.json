@@ -36,6 +36,19 @@
     "4": "After it wakes: scripts/suspend-check.py after",
     "note": "Nothing else should be mid-flight on the machine. The daemon and its mount are the subject; a build running into the suspend would perturb what is being measured."
   },
-  "result": null,
-  "verdict": null
+  "result": {
+    "when": "2026-09-14T09:54:57-11:25:04+02:00, ninety minutes",
+    "where": "The Fedora 44 VM rather than the owner's machine. That is what made it possible to run at all: registered 2026-09-11 and never done, because ninety minutes of the development machine is a morning. A VM with a read-only account costs nobody anything, and M1 is the read-only foundation, so a read-only account is the right one.",
+    "depth": "/sys/power/mem_sleep read 's2idle [deep]' -- deep selected, confirmed by reading it back -- and rtcwake -m mem -s 5400 both suspended and scheduled the wake, so the duration is a number and not however long someone was away.",
+    "really_asleep": "CLOCK_BOOTTIME minus CLOCK_MONOTONIC moved 5400.1 seconds. The machine was frozen for the whole ninety minutes rather than idling through them.",
+    "observed": {
+      "P1": "HOLDS. MainPID 6697 before and after, ActiveEnterTimestamp unchanged at 05:57:17 UTC, and the same boot id. The daemon was frozen across a deep cycle, not restarted and not rebooted.",
+      "P2": "HOLDS. The mount is the same fuse.cirrove mount, still serving 26 entries, and a read through it returns the correct PK zip magic from a real file with no remount.",
+      "P3": "HOLDS, and the journal names the moment: at 09:24:59 UTC, five seconds before the wake completed, 'Microsoft authorization refreshed and saved'. No prompt, no reauthentication, and the account never left ready. One collection reported 'temporary provider failure' in the same second and recovered on its own -- the network coming back, not a grant problem.",
+      "P4": "HOLDS, and by the interesting route. The subscriptions lapsed across the sleep as expected: immediately after the wake one read 'connecting' and the other 'connected', and within a minute both were connected again. Then a file created on a second machine's mount of the same drive appeared on the woken machine in 6 seconds -- far inside the thirty-second poll, so it was the renewed subscription that carried it and not the fallback. Its removal propagated too. The daemon came back hearing, which is what this clause exists to catch.",
+      "P5": "HOLDS. indexed_items 184053 before and after, stuck_changes 0, both feeds ready."
+    },
+    "also_noticed": "scripts/suspend-check.py counted the mount's entries by listing ~/Cloud/Cirrove-OneDrive, the author's own mount path. On any other machine that counted zero before and zero after, so the check that the mount was still serving what it had been compared nothing with nothing and passed. Fixed before the run: the path now comes from the account, and the figures above are 26 against 26 rather than 0 against 0."
+  },
+  "verdict": "All five hold. The suspend/resume clause of the recovery row is closed: a daemon frozen for ninety minutes -- longer than its access token and longer than its change subscription -- comes back as the same process, with its mount intact, refreshes its own grant without anyone being asked, renews its subscriptions, and receives a change made afterwards in six seconds. The row's other two clauses are already test-covered, so the row closes with it."
 }
