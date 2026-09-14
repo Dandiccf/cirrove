@@ -128,10 +128,11 @@ impl Window {
             .build();
         toolbar.add_top_bar(&banner);
         let tray_notice = adw::Banner::builder()
-            .title(
-                "No tray icon: this desktop has no tray. On GNOME, install the AppIndicator \
-                 extension; most other desktops provide one.",
-            )
+            // One line, no `\` continuation: Rust strips the newline and the
+            // indentation, C does not, so xgettext would extract a message id
+            // with eighteen spaces in it that the running program never looks
+            // up. scripts/test-translations.py refuses that now.
+            .title(gettext("No tray icon: this desktop has no tray. On GNOME, install the AppIndicator extension; most other desktops provide one."))
             .revealed(false)
             .build();
         toolbar.add_top_bar(&tray_notice);
@@ -143,10 +144,7 @@ impl Window {
         // the thing that would be restarted is a trick, and logging out is the
         // instruction that always works.
         let restart_notice = adw::Banner::builder()
-            .title(
-                "A newer version of Cirrove is installed. Log out and back in, or restart \
-                 the Cirrove service, to start using it.",
-            )
+            .title(gettext("A newer version of Cirrove is installed. Log out and back in, or restart the Cirrove service, to start using it."))
             .revealed(false)
             .build();
         toolbar.add_top_bar(&restart_notice);
@@ -384,11 +382,12 @@ impl Window {
             .set_visible(!overview.settings_available || overview.accounts.is_empty());
         self.group
             .set_visible(overview.settings_available && !overview.accounts.is_empty());
-        self.empty.set_title(if overview.settings_available {
-            "No drives connected"
-        } else {
-            "Account settings unavailable"
-        });
+        self.empty
+            .set_title(&gettext(if overview.settings_available {
+                n("No drives connected")
+            } else {
+                n("Account settings unavailable")
+            }));
         let description = overview.settings_error.as_ref().map_or_else(
             || gettext("Connect a OneDrive and its files appear in Files, downloaded as you open them."),
             |error| gettext(error.description()),

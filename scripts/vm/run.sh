@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # A throwaway desktop VM for the real-desktop checks in docs/distribution.md:
-# Ubuntu 24.04 or Fedora, installed without a hand on it, then booted from its
+# Ubuntu 24.04, Fedora or Arch, installed without a hand on it, then booted from its
 # own disk so the packages CI built can be installed, the session looked at,
 # and the machine rebooted.
 #
@@ -17,7 +17,7 @@
 #   scripts/vm/run.sh ubuntu key       # put the host's ssh key into it (once)
 #   scripts/vm/run.sh ubuntu ssh CMD   # run a command in it
 #   scripts/vm/run.sh ubuntu shot X    # screenshot to X.png via QMP
-#   (fedora likewise)
+#   (fedora and arch likewise)
 #
 # CIRROVE_VM_DISPLAY=gtk opens a window on the machine instead of running it
 # headless (it always also listens on vnc 127.0.0.1:10/:11).
@@ -54,6 +54,19 @@ case $distro in
     http_port=8001
     append="inst.ks=http://10.0.2.2:$http_port/ks.cfg inst.stage2=hd:LABEL=$label inst.text console=ttyS0"
     ssh_port=2223; vnc=11
+    ;;
+  arch)
+    iso=$(ls "$vms"/iso/archlinux-*-x86_64.iso 2>/dev/null | tail -1)
+    kernel_in_iso=arch/boot/x86_64/vmlinuz-linux
+    initrd_in_iso=arch/boot/x86_64/initramfs-linux.img
+    seed="$here/arch"
+    label=$(python3 -c "f=open('$iso','rb'); f.seek(32768+40); print(f.read(32).decode().strip())")
+    http_port=8002
+    # archiso has no kickstart and no autoinstall; `script=` is the hook that
+    # makes an unattended install possible at all, and it is why this works.
+    # copytoram keeps the ISO off the disk being partitioned underneath it.
+    append="archisobasedir=arch archisolabel=$label copytoram=y script=http://10.0.2.2:$http_port/install.sh console=ttyS0"
+    ssh_port=2224; vnc=12
     ;;
   *) echo "unknown distro $distro" >&2; exit 1 ;;
 esac

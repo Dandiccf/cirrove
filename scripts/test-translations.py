@@ -85,6 +85,29 @@ class TranslationsAreCompleteAndKeepTheirValues(unittest.TestCase):
                 f"{po.name} loses or invents a value placeholder:\n  " + "\n  ".join(mangled),
             )
 
+    def test_no_message_id_carries_the_wreckage_of_a_line_continuation(self):
+        """A `\\` continuation in a Rust literal does not survive extraction.
+
+        Rust strips the newline *and* the next line's indentation; xgettext
+        reads the file as C, which keeps the indentation. So a string written
+        across two lines with a backslash is extracted with a run of spaces in
+        the middle that the running program never looks up -- the entry sits in
+        the catalogue, translated, and can never match. Two banner strings were
+        exactly this, and nothing would have said so: the tests passed, the
+        catalogue was complete, and the window stayed English.
+
+        A run of three or more spaces inside a message id is the signature.
+        """
+        suspicious = [
+            msgid for msgid in entries(ROOT / "po/cirrove.pot") if "   " in msgid
+        ]
+        self.assertEqual(
+            suspicious, [],
+            "these message ids contain a run of spaces, which almost always means a `\\` "
+            "line continuation in the source that xgettext kept and Rust did not -- put "
+            "the string on one line:\n  " + "\n  ".join(repr(m) for m in suspicious),
+        )
+
     def test_no_catalogue_carries_a_fuzzy_guess(self):
         # A fuzzy entry is gettext's way of saying "this was matched to a
         # changed string and nobody has looked". It is shown to the user anyway.

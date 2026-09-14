@@ -42,6 +42,15 @@ The tray icon needs a panel that shows StatusNotifierItems. GNOME needs the
 for that; KDE Plasma and most other desktops have it built in. Without a
 panel that can show it, everything the tray does is also in the window.
 
+**On Arch, install the two extras yourself.** `cirrove-desktop` lists
+`nautilus-python` (the badges and **Keep offline** in Files) and
+`gnome-shell-extension-appindicator` (the tray icon on GNOME) as *optional*
+dependencies, and pacman does not install optional dependencies -- that is how
+Arch works. Fedora and Ubuntu pull both in for you. So on Arch:
+`sudo pacman -S nautilus-python gnome-shell-extension-appindicator`. Without
+them the drive works completely; what you lose is the badges and the tray icon,
+and Cirrove says so in its own window rather than leaving you to wonder.
+
 On GNOME, the extension only counts from your next login. Installing
 `cirrove-desktop` brings the extension in with it, but a running GNOME Shell
 looks for extensions when it starts and not afterwards -- and on Wayland it
