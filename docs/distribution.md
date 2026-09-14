@@ -186,39 +186,30 @@ a third party's reading of any of this.
 
 ## What blocks the first release, and what does not
 
-The [acceptance ledger](acceptance-ledger.json) tracks every box; this is the
-decision of which open ones stand between the tree and a tagged 0.1.0, so
-that "is it ready" has one answer rather than fifty-three. Revisit it when a
-row closes or a new one opens.
+Every open row in the [acceptance ledger](acceptance-ledger.json) carries a
+decision -- `blocks_release` is `yes` or `no`, and a `no` carries its reason --
+so "is it ready" has one answer rather than fifty-four, and the answer cannot
+go stale. `scripts/acceptance-ledger.py --blockers` prints both lists, and the
+script refuses an open row with no decision and a `no` with no reason. This
+paragraph used to be the list itself, written by hand, and it had already
+drifted: it named localization and the recent-activity view as not blocking
+after both were done.
 
-**Blocking:**
+**The test is not "is this unfinished"** -- everything open is -- **but "would
+a person reasonably say you shipped 1.0 with this broken".** A row blocks when
+the core job needs a capability that is not there: connecting a drive, seeing
+and opening files, keeping some offline, being told the truth about what has
+and has not reached the cloud, installing and removing cleanly on a declared
+platform. A row does not block when the capability exists and is asserted and
+only an outside verification is missing, when it is breadth beyond the agreed
+scope, or when its absence is honestly written down where a user will meet it.
 
-- Milestone 1's two remaining measurements: deep suspend beyond the token
-  lifetime, and the 24-hour sustained run (registered in `docs/benchmarks/`,
-  waiting on machine time).
-- The package installation seen on a real desktop of each declared family,
-  through sign-in and a reboot: Arch (this machine, moving from the developer
-  install to the packages), Ubuntu 24.04 and Fedora (a VM each). CI's
-  container runs prove the packages, not the login.
-- One complete GNOME session in the matrix -- Wayland, the AppIndicator
-  extension for the tray, Files with the extension -- because GNOME is the
-  desktop most of the declared distributions ship. KDE Plasma follows and
-  does not block.
-- The tray seen starting at login from the packaged autostart entry.
-- A tag, a changelog, checksums, and the build procedure written down well
-  enough that the packages come out the same from it twice.
-
-**Not blocking:**
-
-- Dolphin, Nemo, Caja.
-- The recent-activity view, transfer progress and cancellation.
-- Localization.
-- Debian stable (older than the desktop floor); it is not claimed.
-- Signed APT and COPR channels -- a release can be a set of packages on the
-  release page before it is a repository.
-- A redacting diagnostics command.
-- The migration of an existing account's read/write consent from the window
-  (it is a CLI verb and a consent change).
+As of 2026-09-14 that is 22 blocking and 12 not, against 20 rows closed. The
+shape of it: all seven of milestone 1, because a filesystem that has not been
+run for a day and through a suspend is not a thing to hand people; three of
+milestone 4, deletion and the compatibility matrix among them; seven of
+milestone 5, the session matrix and actionable errors among them; and five of
+milestone 6, ending with the tag itself.
 
 ## Supported versions
 
