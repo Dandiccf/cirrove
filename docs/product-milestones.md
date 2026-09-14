@@ -310,7 +310,7 @@ account repair and the wider recovery flow still need implementation and accepta
       with three named conditions for revisiting; the list, the access
       guarantee and the availability explanation are in [Desktop](desktop.md)
       and the [user guide](user-guide.md).
-- [ ] Preserve actionable, sanitized error causes in the window. Unreadable or
+- [x] Preserve actionable, sanitized error causes in the window. Unreadable or
       invalid settings, an unreachable service and an incompatible service remain
       distinguishable, with recovery actions and diagnostic detail appropriate
       to the failure. Never expose credentials or raw provider responses.

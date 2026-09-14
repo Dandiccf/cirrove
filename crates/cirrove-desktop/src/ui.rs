@@ -946,8 +946,7 @@ impl Window {
                 let id = id.to_owned();
                 let (send, receive) = tokio::sync::oneshot::channel();
                 runtime.spawn_blocking(move || {
-                    let result = accounts::set_enabled_by_id(&state, &id, enabled).map_err(|_| ());
-                    let _ = send.send(result);
+                    let _ = send.send(accounts::set_enabled_by_id(&state, &id, enabled));
                 });
                 let weak = Rc::downgrade(self);
                 glib::spawn_future_local(async move {
@@ -956,8 +955,30 @@ impl Window {
                         return;
                     };
                     ui.end_operation();
-                    if !matches!(result, Ok(Ok(()))) {
-                        ui.notify(&gettext("Could not save the mount preference. Another account operation may be running; refresh and try again."));
+                    // Four causes with four remedies, where there used to be
+                    // one sentence guessing at the least likely of them.
+                    match result {
+                        Ok(Ok(())) => {}
+                        Ok(Err(refusal)) => ui.notify(&gettext(match refusal {
+                            accounts::PreferenceRefusal::Busy => n(
+                                "Cirrove is busy with this drive. Wait a moment and try again.",
+                            ),
+                            accounts::PreferenceRefusal::NotConfigured => n(
+                                "This connection is no longer configured. It may have been removed in another window.",
+                            ),
+                            accounts::PreferenceRefusal::Unreadable => n(
+                                "Your saved connections could not be read, so the change was not made. Check the settings location, then try again.",
+                            ),
+                            accounts::PreferenceRefusal::Unwritable => n(
+                                "The change could not be saved. Check that the settings location is writable and has space, then try again.",
+                            ),
+                        })),
+                        // The worker died before answering: not a refusal, and
+                        // saying it was would send someone looking in the wrong
+                        // place.
+                        Err(_) => ui.notify(&gettext(
+                            "The task saving this change stopped unexpectedly. Retry or reopen Cirrove.",
+                        )),
                     }
                     ui.refresh();
                 });
@@ -1381,13 +1402,22 @@ impl Window {
         let launcher = gtk::FileLauncher::new(Some(&file));
         let weak = Rc::downgrade(self);
         glib::spawn_future_local(async move {
-            if launcher.launch_future(Some(&window)).await.is_err()
-                && let Some(ui) = weak.upgrade()
-            {
-                ui.notify(&gettext(
-                    "Files could not open this mount. Check the connection and try again.",
-                ));
+            let Err(error) = launcher.launch_future(Some(&window)).await else {
+                return;
+            };
+            let Some(ui) = weak.upgrade() else { return };
+            // A person dismissing the application chooser is not a failure and
+            // must not be reported as one; it was, until now. The other two
+            // cases have different remedies, and "check the connection" was
+            // the wrong advice for both -- the mount is local.
+            if error.matches(gtk::gio::IOErrorEnum::Cancelled) {
+                return;
             }
+            ui.notify(&gettext(if error.matches(gtk::gio::IOErrorEnum::NotFound) {
+                n("This drive's folder is not there. It may have been unmounted; refresh and try again.")
+            } else {
+                n("No application is set up to open a folder on this desktop. Install a file manager, or open the folder path yourself.")
+            }));
         });
     }
     fn notify(&self, message: &str) {

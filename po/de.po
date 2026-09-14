@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cirrove\n"
 "Report-Msgid-Bugs-To: https://github.com/Dandiccf/cirrove/issues\n"
-"POT-Creation-Date: 2026-09-14 09:27+0200\n"
+"POT-Creation-Date: 2026-09-14 09:36+0200\n"
 "PO-Revision-Date: 2026-09-14 09:00+0200\n"
 "Last-Translator: Cirrove contributors\n"
 "Language-Team: German\n"
@@ -125,7 +125,7 @@ msgid "Provider is limiting requests"
 msgstr "Der Anbieter drosselt die Anfragen"
 
 #: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/model.rs:27
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:494
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:495
 msgid "Sign in again"
 msgstr "Erneut anmelden"
 
@@ -227,7 +227,7 @@ msgstr ""
 "übernimmt."
 
 #: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/model.rs:168
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:501
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:502
 msgid "Mount"
 msgstr "Einhängen"
 
@@ -345,7 +345,7 @@ msgid "Tenant"
 msgstr "Mandant"
 
 #: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui/connect.rs:131
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:532
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:533
 msgid "Allow changes"
 msgstr "Änderungen erlauben"
 
@@ -384,13 +384,18 @@ msgstr "Erneut versuchen"
 msgid ""
 "No tray icon: this desktop has no tray. On GNOME, install the AppIndicator "
 "extension; most other desktops provide one."
-msgstr "Kein Symbol im Ablagebereich: dieser Desktop hat keinen. Auf GNOME installieren Sie die AppIndicator-Erweiterung; die meisten anderen Desktops bringen einen mit."
+msgstr ""
+"Kein Symbol im Ablagebereich: dieser Desktop hat keinen. Auf GNOME "
+"installieren Sie die AppIndicator-Erweiterung; die meisten anderen Desktops "
+"bringen einen mit."
 
 #: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:147
 msgid ""
 "A newer version of Cirrove is installed. Log out and back in, or restart the "
 "Cirrove service, to start using it."
-msgstr "Eine neuere Fassung von Cirrove ist installiert. Melden Sie sich ab und wieder an, oder starten Sie den Cirrove-Dienst neu, um sie zu benutzen."
+msgstr ""
+"Eine neuere Fassung von Cirrove ist installiert. Melden Sie sich ab und "
+"wieder an, oder starten Sie den Cirrove-Dienst neu, um sie zu benutzen."
 
 #: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:158
 msgid "Your clouds, in Files"
@@ -432,15 +437,15 @@ msgstr ""
 "Der Zustand der Verbindung konnte nicht gelesen werden. Versuchen Sie es "
 "erneut."
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:386
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:387
 msgid "No drives connected"
 msgstr "Keine Laufwerke verbunden"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:388
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:389
 msgid "Account settings unavailable"
 msgstr "Kontoeinstellungen nicht verfügbar"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:391
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:392
 msgid ""
 "Connect a OneDrive and its files appear in Files, downloaded as you open "
 "them."
@@ -448,83 +453,83 @@ msgstr ""
 "Verbinden Sie ein OneDrive, und seine Dateien erscheinen in Dateien – "
 "heruntergeladen, sobald Sie sie öffnen."
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:461
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:462
 msgid "{} · {} · {}"
 msgstr "{} · {} · {}"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:465
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:717
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:466
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:718
 msgid "{} · {}"
 msgstr "{} · {}"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:506
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:507
 msgid "Connection status"
 msgstr "Zustand der Verbindung"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:511
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:512
 msgid "Location in Files"
 msgstr "Ort in Dateien"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:517
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:518
 msgid "Microsoft account"
 msgstr "Microsoft-Konto"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:523
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:524
 msgid "Access"
 msgstr "Zugriff"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:537
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:538
 msgid "Local cache"
 msgstr "Lokaler Zwischenspeicher"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:543
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:544
 msgid "Changes the cloud refused"
 msgstr "Von der Cloud abgelehnte Änderungen"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:550
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:551
 msgid "Discard"
 msgstr "Verwerfen"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:556
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:557
 msgid "Kept offline"
 msgstr "Offline behalten"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:567
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:568
 msgid "File…"
 msgstr "Datei …"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:572
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:573
 msgid "Folder…"
 msgstr "Ordner …"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:585
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:586
 msgid "Keep a file or folder offline"
 msgstr "Eine Datei oder einen Ordner offline behalten"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:596
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:597
 msgid "Remove this connection"
 msgstr "Diese Verbindung entfernen"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:598
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:599
 msgid ""
 "Its sign-in and local index are set aside; nothing in the cloud is touched."
 msgstr ""
 "Ihre Anmeldung und der lokale Index werden beiseitegelegt; in der Cloud wird "
 "nichts angerührt."
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:604
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:605
 msgid "Remove"
 msgstr "Entfernen"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:620
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:621
 msgid "Saves that did not reach the cloud"
 msgstr "Speicherungen, die die Cloud nicht erreicht haben"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:712
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:713
 msgid "Still waiting for service"
 msgstr "Warte weiterhin auf den Dienst"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:720
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:721
 msgid ""
 "The request is saved, but the service has not confirmed it. You can change "
 "the mount preference or check the service."
@@ -532,11 +537,11 @@ msgstr ""
 "Die Anfrage ist gespeichert, aber der Dienst hat sie noch nicht bestätigt. "
 "Sie können die Einhänge-Einstellung ändern oder den Dienst prüfen."
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:776
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:777
 msgid "Up to {} GiB · downloaded as needed"
 msgstr "Bis zu {} GiB · wird bei Bedarf heruntergeladen"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:785
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:786
 msgid ""
 "{} that the cloud would not accept. They will not be retried. Discarding "
 "removes the local copies; the cloud keeps its version."
@@ -544,15 +549,15 @@ msgstr ""
 "{}, die die Cloud nicht angenommen hat. Sie werden nicht erneut versucht. "
 "Verwerfen entfernt die lokalen Kopien; die Cloud behält ihre Fassung."
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:788
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:789
 msgid "1 change"
 msgstr "1 Änderung"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:790
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:791
 msgid "{} changes"
 msgstr "{} Änderungen"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:797
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:798
 msgid ""
 "{} did not reach the cloud. The file is on this computer; the cloud has an "
 "older version or none. Open the file and save it again to try once more."
@@ -561,107 +566,144 @@ msgstr ""
 "Cloud hat eine ältere Fassung oder keine. Öffnen Sie die Datei und speichern "
 "Sie sie erneut, um es noch einmal zu versuchen."
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:800
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:801
 msgid "1 save"
 msgstr "1 Speicherung"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:802
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:803
 msgid "{} saves"
 msgstr "{} Speicherungen"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:831
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:832
 msgid "{} · everything inside it"
 msgstr "{} · mit allem darin"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:839
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:840
 msgid "Stop keeping"
 msgstr "Nicht mehr behalten"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:864
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:865
 msgid "{} items kept offline."
 msgstr "{} Einträge werden offline behalten."
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:915
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:916
 msgid "Saving mount preference…"
 msgstr "Einhänge-Einstellung wird gespeichert …"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:959
-msgid ""
-"Could not save the mount preference. Another account operation may be "
-"running; refresh and try again."
-msgstr ""
-"Die Einhänge-Einstellung konnte nicht gespeichert werden. Möglicherweise "
-"läuft ein anderer Kontovorgang; aktualisieren Sie und versuchen Sie es "
-"erneut."
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:964
+msgid "Cirrove is busy with this drive. Wait a moment and try again."
+msgstr "Cirrove ist mit diesem Laufwerk beschäftigt. Warten Sie einen Moment und versuchen Sie es erneut."
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1001
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:967
+msgid ""
+"This connection is no longer configured. It may have been removed in another "
+"window."
+msgstr "Diese Verbindung ist nicht mehr eingerichtet. Möglicherweise wurde sie in einem anderen Fenster entfernt."
+
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:970
+msgid ""
+"Your saved connections could not be read, so the change was not made. Check "
+"the settings location, then try again."
+msgstr "Ihre gespeicherten Verbindungen konnten nicht gelesen werden, die Änderung wurde nicht vorgenommen. Prüfen Sie den Speicherort der Einstellungen und versuchen Sie es erneut."
+
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:973
+msgid ""
+"The change could not be saved. Check that the settings location is writable "
+"and has space, then try again."
+msgstr "Die Änderung konnte nicht gespeichert werden. Prüfen Sie, ob der Speicherort beschreibbar ist und Platz hat, und versuchen Sie es erneut."
+
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:980
+msgid ""
+"The task saving this change stopped unexpectedly. Retry or reopen Cirrove."
+msgstr "Der Vorgang, der diese Änderung speichert, wurde unerwartet beendet. Versuchen Sie es erneut oder öffnen Sie Cirrove neu."
+
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1023
 msgid "Signing in in your browser…"
 msgstr "Anmeldung läuft in Ihrem Browser …"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1033
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1055
 msgid "The sign-in did not finish: {}"
 msgstr "Die Anmeldung wurde nicht abgeschlossen: {}"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1034
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1056
 msgid "The sign-in did not finish."
 msgstr "Die Anmeldung wurde nicht abgeschlossen."
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1052
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1074
 msgid "Releasing…"
 msgstr "Wird freigegeben …"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1081
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1103
 msgid "{} is still kept offline: {}"
 msgstr "{} wird weiterhin offline behalten: {}"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1085
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1107
 msgid "{} is no longer kept offline."
 msgstr "{} wird nicht mehr offline behalten."
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1087
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1198
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1109
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1220
 msgid "{} was not kept offline."
 msgstr "{} wurde nicht offline behalten."
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1090
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1112
 msgid "Could not release {}: {}"
 msgstr "{} konnte nicht freigegeben werden: {}"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1093
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1213
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1115
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1235
 msgid "The service did not answer."
 msgstr "Der Dienst hat nicht geantwortet."
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1159
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1181
 msgid "Choose a file inside this drive's folder."
 msgstr "Wählen Sie eine Datei innerhalb des Ordners dieses Laufwerks."
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1170
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1192
 msgid "Keeping offline…"
 msgstr "Wird offline behalten …"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1230
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1252
 msgid "Discarding refused changes…"
 msgstr "Abgelehnte Änderungen werden verworfen …"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1261
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1283
 msgid "Could not discard the refused changes."
 msgstr "Die abgelehnten Änderungen konnten nicht verworfen werden."
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1297
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1319
 msgid "Could not check this connection."
 msgstr "Diese Verbindung konnte nicht geprüft werden."
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1343
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1365
 msgid "Removing…"
 msgstr "Wird entfernt …"
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1364
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1386
 msgid "Could not remove the connection."
 msgstr "Die Verbindung konnte nicht entfernt werden."
 
-#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1387
-msgid "Files could not open this mount. Check the connection and try again."
-msgstr ""
-"Dateien konnte diese Einhängung nicht öffnen. Prüfen Sie die Verbindung und "
-"versuchen Sie es erneut."
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1417
+msgid ""
+"This drive's folder is not there. It may have been unmounted; refresh and "
+"try again."
+msgstr "Der Ordner dieses Laufwerks ist nicht da. Möglicherweise wurde es ausgehängt; aktualisieren Sie und versuchen Sie es erneut."
+
+#: /home/dandiccf/Work/cirrove/crates/cirrove-desktop/src/ui.rs:1419
+msgid ""
+"No application is set up to open a folder on this desktop. Install a file "
+"manager, or open the folder path yourself."
+msgstr "Auf diesem Desktop ist keine Anwendung zum Öffnen eines Ordners eingerichtet. Installieren Sie eine Dateiverwaltung oder öffnen Sie den Pfad selbst."
+
+#~ msgid ""
+#~ "Could not save the mount preference. Another account operation may be "
+#~ "running; refresh and try again."
+#~ msgstr ""
+#~ "Die Einhänge-Einstellung konnte nicht gespeichert werden. Möglicherweise "
+#~ "läuft ein anderer Kontovorgang; aktualisieren Sie und versuchen Sie es "
+#~ "erneut."
+
+#~ msgid "Files could not open this mount. Check the connection and try again."
+#~ msgstr ""
+#~ "Dateien konnte diese Einhängung nicht öffnen. Prüfen Sie die Verbindung "
+#~ "und versuchen Sie es erneut."

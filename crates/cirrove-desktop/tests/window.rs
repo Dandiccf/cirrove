@@ -479,6 +479,101 @@ fn native_window_keeps_focus_and_waits_for_service_mount_acknowledgement() {
     runtime.shutdown_timeout(Duration::from_secs(1));
 }
 
+/// Every failure kind reaches the rendered window with its own words.
+///
+/// Two of them were driven through the window before -- an incompatible service
+/// and an invalid settings file -- and the other seven were asserted only as
+/// strings on the model, where a wrong widget, a hidden banner or a truncated
+/// label would not have shown. Rendering each one and reading the text back out
+/// of the widget tree is the difference between "the sentence exists" and "a
+/// person sees it".
+///
+/// It also holds them apart. A failure that shares another's words sends
+/// someone to the wrong remedy, and these differ: a settings file that cannot
+/// be read is a permissions problem, one that is invalid is a restore, an
+/// unreachable service is a start, and an incompatible one is an update.
+fn every_failure_kind_reaches_the_window_with_its_own_words() {
+    use cirrove_desktop::model::{Overview, ServiceFailure, SettingsFailure};
+    use std::io::ErrorKind;
+
+    let app = application("failure kinds");
+    let ui = Window::new(&app, Backend::Demo);
+    let window = ui.window.upgrade().unwrap();
+    window.present();
+
+    let settings = [
+        SettingsFailure::Read(ErrorKind::PermissionDenied),
+        SettingsFailure::Read(ErrorKind::IsADirectory),
+        SettingsFailure::Read(ErrorKind::Other),
+        SettingsFailure::InvalidFormat {
+            line: 3,
+            column: 11,
+        },
+        SettingsFailure::InvalidConfiguration,
+        SettingsFailure::WorkerUnavailable,
+    ];
+    let service = [
+        ServiceFailure::Io(ErrorKind::NotFound),
+        ServiceFailure::Io(ErrorKind::PermissionDenied),
+        ServiceFailure::Io(ErrorKind::ConnectionRefused),
+        ServiceFailure::TimedOut,
+        ServiceFailure::InvalidResponse,
+        ServiceFailure::Incompatible {
+            expected: 1,
+            actual: 0,
+        },
+    ];
+
+    // Variant label -> the sentence the window actually displayed.
+    let mut words: Vec<(String, String)> = Vec::new();
+    for failure in &settings {
+        let mut view = Overview::from_snapshot(demo::snapshot().unwrap());
+        view.settings_available = false;
+        view.settings_error = Some(failure.clone());
+        view.accounts.clear();
+        ui.render(view);
+        let text = failure.description();
+        pump_until(&format!("settings failure rendered: {text}"), || {
+            displays_text(window.upcast_ref(), &text)
+        });
+        words.push((format!("{failure:?}"), text));
+    }
+    for failure in &service {
+        let mut view = Overview::from_snapshot(demo::snapshot().unwrap());
+        view.service_error = Some(failure.clone());
+        ui.render(view);
+        let text = failure.description().to_owned();
+        pump_until(&format!("service failure rendered: {text}"), || {
+            displays_text(window.upcast_ref(), &text)
+        });
+        words.push((format!("{failure:?}"), text));
+    }
+
+    assert_eq!(words.len(), 12, "every variant must have been rendered");
+
+    // Sharing words is allowed only where two variants are the same problem
+    // with the same remedy. There is exactly one such pair: a socket that is
+    // not there and one that refuses both mean no daemon is listening, and the
+    // answer to both is to start it. Anything else sharing words would send
+    // someone to the wrong remedy, so the grouping is stated here rather than
+    // left for a count to imply.
+    let mut grouped: std::collections::BTreeMap<&str, Vec<&str>> = Default::default();
+    for (variant, sentence) in &words {
+        grouped.entry(sentence).or_default().push(variant);
+    }
+    let shared: Vec<Vec<&str>> = grouped
+        .values()
+        .filter(|variants| variants.len() > 1)
+        .cloned()
+        .collect();
+    assert_eq!(
+        shared,
+        vec![vec!["Io(NotFound)", "Io(ConnectionRefused)"]],
+        "the only failures allowed to share words are the two that mean no daemon is listening"
+    );
+    window.close();
+}
+
 /// The actions a terminal used to be needed for -- connecting a drive, signing
 /// in again, discarding changes the cloud refused, removing a connection -- are
 /// in the window, and each is offered exactly where it applies: sign-in on the
@@ -843,6 +938,10 @@ fn the_window_shows_what_is_kept_offline_and_can_release_it() {
 }
 
 const SCENARIOS: &[(&str, fn())] = &[
+    (
+        "every_failure_kind_reaches_the_window_with_its_own_words",
+        every_failure_kind_reaches_the_window_with_its_own_words,
+    ),
     (
         "native_window_keeps_focus_and_waits_for_service_mount_acknowledgement",
         native_window_keeps_focus_and_waits_for_service_mount_acknowledgement,

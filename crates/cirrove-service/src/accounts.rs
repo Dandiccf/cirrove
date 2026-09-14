@@ -806,23 +806,73 @@ pub async fn connect(
     Ok(())
 }
 pub fn set_enabled(state: &Path, label: &str, enabled: bool) -> Result<()> {
-    update_enabled(state, |account| account.label == label, enabled)
+    // The command line wants a sentence; the window wants the kind, and gets it
+    // from set_enabled_by_id. PreferenceRefusal implements Error, so `?` here
+    // turns the kind into that sentence without either side losing anything.
+    Ok(update_enabled(
+        state,
+        |account| account.label == label,
+        enabled,
+    )?)
 }
 /// Desktop actions address the persisted account identity, never a reusable label.
-pub fn set_enabled_by_id(state: &Path, id: &str, enabled: bool) -> Result<()> {
+/// Why a mount-preference change did not happen.
+///
+/// A kind rather than a message. The window has to say something different for
+/// each of these -- they have different remedies -- and it must not show a raw
+/// error. Until now all four collapsed into one sentence guessing that another
+/// operation might be running, which was the wrong guess three times in four.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PreferenceRefusal {
+    /// Another window, the tray or the command line holds the settings lock,
+    /// or this account already has an operation in flight.
+    Busy,
+    /// The account is not in the settings any more: removed somewhere else
+    /// while this window was showing it.
+    NotConfigured,
+    /// The settings could not be read.
+    Unreadable,
+    /// The settings could not be written back.
+    Unwritable,
+}
+
+impl std::fmt::Display for PreferenceRefusal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Busy => "another Cirrove operation is running; try again in a moment",
+            Self::NotConfigured => "that connection is no longer configured",
+            Self::Unreadable => "the saved connections could not be read",
+            Self::Unwritable => "the saved connections could not be written",
+        })
+    }
+}
+impl std::error::Error for PreferenceRefusal {}
+
+pub fn set_enabled_by_id(
+    state: &Path,
+    id: &str,
+    enabled: bool,
+) -> std::result::Result<(), PreferenceRefusal> {
     update_enabled(state, |account| account.id == id, enabled)
 }
-fn update_enabled(state: &Path, select: impl Fn(&Account) -> bool, enabled: bool) -> Result<()> {
-    let _lock = config_lock(state)?;
-    let mut settings = Settings::load(state)?;
+fn update_enabled(
+    state: &Path,
+    select: impl Fn(&Account) -> bool,
+    enabled: bool,
+) -> std::result::Result<(), PreferenceRefusal> {
+    let _lock = config_lock(state).map_err(|_| PreferenceRefusal::Busy)?;
+    let mut settings = Settings::load(state).map_err(|_| PreferenceRefusal::Unreadable)?;
     let account = settings
         .accounts
         .iter_mut()
         .find(|a| select(a))
-        .context("account is no longer configured")?;
-    let _operation = account_operation(state, &account.id)?;
+        .ok_or(PreferenceRefusal::NotConfigured)?;
+    // Held per account, so this is "this drive is busy" and not "Cirrove is".
+    let _operation = account_operation(state, &account.id).map_err(|_| PreferenceRefusal::Busy)?;
     account.enabled = enabled;
-    settings.save(state)
+    settings
+        .save(state)
+        .map_err(|_| PreferenceRefusal::Unwritable)
 }
 /// Remove an account, refusing while it still holds work nobody has sent.
 ///
