@@ -42,6 +42,14 @@ The tray icon needs a panel that shows StatusNotifierItems. GNOME needs the
 for that; KDE Plasma and most other desktops have it built in. Without a
 panel that can show it, everything the tray does is also in the window.
 
+On GNOME, the extension only counts from your next login. Installing
+`cirrove-desktop` brings the extension in with it, but a running GNOME Shell
+looks for extensions when it starts and not afterwards -- and on Wayland it
+cannot be restarted without ending the session. So right after installing,
+the top bar shows nothing and `gnome-extensions` will say the extension does
+not exist. Log out and back in, and the icon is there. Nothing is broken in
+between, and the window works the whole time.
+
 ## Connecting a drive
 
 Open **Cirrove** from your application menu and press **+** (or **Connect a
