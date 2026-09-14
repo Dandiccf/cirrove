@@ -1,0 +1,19 @@
+{
+  "question": "The daemon's reclamation tick fired 412 times in five hours and 81 MiB is still sitting free inside the allocator. Why does a trim that runs return nothing, and is the tick measuring the wrong thing or asking the wrong allocator?",
+  "why_now": "Found by bounded-memory-long-session.json on 2026-09-14, which set out to state a bound and found that it could not say which half of the number belongs to the service and which to glibc. A daemon resting at 129 MiB of which 78 is allocator-held is not the same claim as one resting at 129 MiB, and a bound that does not distinguish them is the coin flip this project has already objected to once.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-14",
+  "what_is_known": {
+    "capped_and_busy": "Fedora, MALLOC_ARENA_MAX=1, after re-indexing 184,000 items: RSS 129 MiB, 412 trims, free_arena 81.2 MiB, retained 77.9 MiB. Plateaued -- the second half of a five-hour run subtracted 3.7 MiB.",
+    "uncapped_and_idle": "Ubuntu, no cap, a day of a listing a minute and no indexing: RSS 42 MiB, 0 trims, free_arena 25.3 MiB, retained 27.2 MiB. It never had a high-water mark to return.",
+    "what_capping_did_do": "Removed the variance: 0.7 MiB of spread across six concurrent read workloads against 55.1 uncapped. That was measured before the shipped unit was changed and stands."
+  },
+  "hypotheses": {
+    "H1": "malloc_trim returns only what is at the top of the heap, and the free space is fragmented below a live allocation, so there is nothing contiguous to give back. Distinguishable by looking at where the free space sits rather than how much there is.",
+    "H2": "The pages are returned and taken again immediately, so RSS never falls -- 412 trims in 300 minutes is more than one a minute, which is a suspicious cadence for something that is supposed to fire on a threshold.",
+    "H3": "The tick reads a figure that is not the one it can act on, so it fires on a number that trimming cannot move. daemon-allocator-arenas.json warned about exactly this shape once before: a trigger that could not fire went unnoticed until a measurement went looking."
+  },
+  "how": "Not decided yet. It needs the allocator's own accounting rather than RSS, and a run that indexes deliberately rather than by accident.",
+  "result": null,
+  "verdict": null
+}
