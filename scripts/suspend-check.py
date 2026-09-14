@@ -18,6 +18,7 @@ suspend and says nothing -- a discriminator that was tried and did not work.
 
 import json
 import pathlib
+import shlex
 import subprocess
 import sys
 import time
@@ -51,7 +52,17 @@ def snapshot() -> dict:
     except Exception as error:
         account = {"unreadable": str(error), "raw_prefix": status[:120]}
     mount = run("findmnt", "-n", "-o", "TARGET,FSTYPE", "-t", "fuse.cirrove")
-    entries = run("bash", "-lc", "ls -1 ~/Cloud/Cirrove-OneDrive 2>/dev/null | wc -l")
+    # The mount path comes from the account, not from a constant. It was
+    # ~/Cloud/Cirrove-OneDrive here, which is where the author mounts it and
+    # nowhere else -- on any other machine this counted zero entries and the
+    # before/after comparison of "is the mount still serving" compared nothing
+    # with nothing and passed.
+    target = mount.split()[0] if mount and not mount.startswith("(") else ""
+    entries = (
+        run("bash", "-lc", f"ls -1 {shlex.quote(target)} 2>/dev/null | wc -l")
+        if target
+        else "(no cirrove mount)"
+    )
     return {
         "wall_clock": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "slept_seconds_since_boot": round(slept_seconds(), 1),
