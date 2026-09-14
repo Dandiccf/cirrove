@@ -91,6 +91,13 @@ choose them ("Invalid argument" in most applications, "File name too long"
 past 255 characters) rather than accepting the file and failing to upload it
 an hour later.
 
+**Any file manager works.** The drive is a folder on your computer, so
+Dolphin, Konqueror, Thunar, a terminal or any program's Open dialog use it
+exactly like any other folder. What only GNOME Files has is the extra layer:
+the state badges, the Cirrove column, the properties section and the
+right-click **Keep offline**. If you use something else, everything those do
+is in the Cirrove window and in the `cirrove` command, described below.
+
 **Renaming, moving, creating and deleting** folders and files works as in any
 folder. Deleting sends the item to the cloud's own recycle bin, not to your
 desktop's wastebasket -- Cirrove refuses a `.Trash` folder in the drive's root

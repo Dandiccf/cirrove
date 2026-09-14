@@ -3,13 +3,14 @@
   "note": "One row per acceptance box. `blocker` says what stands between the box and being ticked, not how hard the code is. `asserted_by` names the test that would fail if the claim stopped holding; a box may not be ticked while it is null. `candidate_assertions` are tests that look like they might assert the box and have not been read. They deliberately do not satisfy the tick check.",
   "totals": {
     "boxes": 53,
-    "ticked": 17,
+    "ticked": 18,
     "by_blocker": {
-      "autonomous": 36,
+      "autonomous": 35,
       "needs-live-account": 8,
       "needs-machine-window": 2,
       "needs-reboot": 2,
-      "out-of-agreed-scope": 5
+      "out-of-agreed-scope": 5,
+      "unclassified": 1
     }
   },
   "rows": [
@@ -427,16 +428,16 @@
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
       "line": 292,
-      "done": false,
-      "text": "Publish a supported file-manager list beyond the initial Nautilus target, with an explicit Dolphin decision and a shared daemon status contract behind each integration. Unsupported managers must still access mounted files; badge/control availability must be explained.",
+      "done": true,
+      "text": "Publish a supported file-manager list beyond the initial Nautilus target, with an explicit Dolphin decision and a shared daemon status contract behind each integration. Unsupported managers must still access mounted files; badge/control availability must be explained. The decision is that **Dolphin has no plugin in 1.0** ([ADR 0010](adr/0010-file-managers-and-dolphin.md)), with three named conditions for revisiting; the list, the access guarantee and the availability explanation are in [Desktop](desktop.md) and the [user guide](user-guide.md).",
       "blocker": "autonomous",
-      "evidence": "PARTIAL 2026-09-13. The shared status contract a file manager needs now exists: `status` for mounts and `paths` for per-item state, documented in docs/desktop.md#files, spoken by the Nautilus extension and by `cirrove paths`. The list is published there too: Files (Nautilus 43+, nautilus-python 4) supported; Nemo/Caja not targeted. The Dolphin decision is now argued rather than asserted, and the KDE session it waited for exists (docs/benchmarks/plasma-session-coverage.json). The cheap alternative was checked and rejected on evidence: Dolphin reads service menus from /usr/share/kio/servicemenus as plain .desktop files, needing no compiled code, but the condition keys KF6's KIO actually supports -- read out of the installed libraries -- are X-KDE-Protocol(s), X-KDE-Submenu, X-KDE-Priority, X-KDE-AuthorizeAction and URL-count limits. None tests a path and none asks a running service, so a service menu would put 'Keep offline' in the context menu of every file on the machine. A KFileItemActionPlugin is handed the selection and can stay silent elsewhere; badges need a KOverlayIconPlugin and a column a KFileMetaData extractor, all compiled against KF6. KIO's own Google Drive context actions are built the same way. NOT DONE: the plugin itself, and with it Dolphin badges and column.",
-      "asserted_by": "The engine tests and extension tests named on line 262 hold the contract; the list is a documented decision, which nothing asserts."
+      "evidence": "TICKED 2026-09-14. The row asks for a published list, an explicit Dolphin decision, a shared status contract, an access guarantee and an explanation of what is missing where -- not for a second integration, which it explicitly contemplates being absent. All five now exist. ADR 0010 decides that Dolphin has no plugin in 1.0 and names three conditions for revisiting it: 1.0 released so the ADR 0009 reshaping is not concurrent, evidence of Plasma users rather than an assumption of them, and someone to own a C++ target across a KDE major bump. The mechanism analysis it rests on was already done and is kept in docs/desktop.md -- service menus cannot filter on a path, so both badges and per-item actions need compiled KF6 plugins. What ADR 0010 adds is the scope call and the maintenance evidence behind it: Nextcloud's Dolphin overlays stopped rendering under Plasma 6/KF6, and Insync needed a separate repository for Plasma 6. docs/desktop.md now states that every file manager can use the mount because it is a filesystem, and the user guide says the same in a user's words. The shared contract was already true and is now asserted: the Nautilus extension is a client of the same one-line-JSON control socket the CLI and window speak. NOT a claim that Dolphin badges exist -- they do not, deliberately.",
+      "asserted_by": "scripts/test-file-manager-docs.py asserts the rule with teeth rather than the prose: every daemon verb the Nautilus extension speaks must also be a CLI subcommand, so a Files-only control cannot be introduced without failing. Shown to fail: renaming one extension call site's verb to one the CLI lacks makes it report that verb as reachable from Files but not the command line. Two lighter checks keep the decision findable -- ADR 0010 exists and docs/desktop.md links it, and the access-guarantee sentence is still there. Wired into scripts/check.sh and CI."
     },
     {
       "milestone": 5,
       "milestone_title": "Polished desktop experience",
-      "line": 296,
+      "line": 300,
       "done": false,
       "text": "Preserve actionable, sanitized error causes in the window. Unreadable or invalid settings, an unreachable service and an incompatible service remain distinguishable, with recovery actions and diagnostic detail appropriate to the failure. Never expose credentials or raw provider responses.",
       "blocker": "autonomous",
@@ -446,7 +447,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 321,
+      "line": 325,
       "done": false,
       "text": "Native Arch/AUR, Debian/Ubuntu `.deb` and Fedora `.rpm` packages from the same release, with the clean-system checks in [Distribution](distribution.md).",
       "blocker": "autonomous",
@@ -456,7 +457,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 323,
+      "line": 327,
       "done": false,
       "text": "Signed APT and COPR update channels, release artifacts, source/provenance, supported-version matrix and measured reproducible build procedure.",
       "blocker": "out-of-agreed-scope",
@@ -466,7 +467,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 325,
+      "line": 329,
       "done": false,
       "text": "Fresh installation through sign-in and reboot verified outside development. Validate this on each declared distribution family, including Fedora with SELinux enabled; an Ubuntu CI build is not an installation check.",
       "blocker": "autonomous",
@@ -476,7 +477,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 328,
+      "line": 332,
       "done": false,
       "text": "Upgrade/migration rollback protects settings, credentials and pending work.",
       "blocker": "autonomous",
@@ -486,7 +487,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 329,
+      "line": 333,
       "done": false,
       "text": "Clean uninstall and explicit retention/removal choices for local data.",
       "blocker": "autonomous",
@@ -496,7 +497,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 330,
+      "line": 334,
       "done": false,
       "text": "User documentation, redacted diagnostics and supported-version policy.",
       "blocker": "autonomous",
@@ -506,7 +507,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 331,
+      "line": 335,
       "done": false,
       "text": "Dependency/security review, extended testing and tracked release blockers.",
       "blocker": "autonomous",
@@ -516,7 +517,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 332,
+      "line": 336,
       "done": false,
       "text": "Validate the desktop entry, installed icons and AppStream metainfo in CI, then compare their identity with the running window and application bus name in the supported desktop sessions. Current desktop-file validation alone does not satisfy this gate.",
       "blocker": "autonomous",
@@ -526,7 +527,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 336,
+      "line": 340,
       "done": true,
       "text": "Build and install the daemon and CLI without GTK4/libadwaita present, with separate desktop packaging. The root's default members now exclude the desktop; explicit `--workspace` builds and full contributor checks still include it. A package installation on a clean headless host remains required; headless buildability does not imply unattended browser/keyring setup.",
       "blocker": "autonomous",
@@ -536,7 +537,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 341,
+      "line": 345,
       "done": false,
       "text": "Tagged release and verified installation from the published artifacts.",
       "blocker": "autonomous",

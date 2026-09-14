@@ -206,6 +206,8 @@ jobs:
       - run: python3 scripts/test-install-scripts.py
       - name: The Files extension holds to what it promises, against a daemon that is only a socket
         run: python3 scripts/test-nautilus-extension.py
+      - name: Nothing is reachable only through one file manager
+        run: python3 scripts/test-file-manager-docs.py
       - run: cargo doc --workspace --no-deps --locked
   mounted-read-workloads:
     runs-on: ubuntu-24.04

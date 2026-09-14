@@ -233,11 +233,26 @@ object, and a completion under the wrong one leaves the listing waiting on its
 first file forever, which looks exactly like an extension that was never
 called.
 
+**Every file manager can use the mount.** It is a filesystem: Dolphin,
+Konqueror, Krusader, Thunar, PCManFM, a terminal and any application's open
+dialog read, write, rename, move and delete exactly as in any other folder,
+with nothing installed and nothing configured. No file and no operation is
+gated behind a file manager. Everything below is about the extras layered on
+top of that, never about access.
+
 **Supported file managers.** Files (Nautilus 43 and later, through
-nautilus-python 4) is the supported one. Dolphin is decided, not done: it gets
-the same two verbs through a KIO/Dolphin plugin. The first half of the
-condition on that -- a KDE session in the declared matrix -- was met on
-2026-09-13, and the plugin is now the only thing outstanding.
+nautilus-python 4) is the supported one, and the only one with badges, the
+Cirrove column, the properties section and the context-menu pin. **Dolphin has
+no plugin in 1.0** -- see [ADR 0010](adr/0010-file-managers-and-dolphin.md),
+which decides the scope and names the three conditions for revisiting it. The
+mechanism question was settled first, and the rest of this section is that
+working.
+
+A Dolphin user loses the badge and the right-click pin, and nothing else: both
+are in the Cirrove window and in `cirrove pin`, `unpin`, `pins` and `paths`,
+for every file on every desktop. That is the standing rule -- no control and no
+state may be reachable only through one file manager -- and it is what makes
+the deferral affordable.
 
 It has to be a plugin, and the cheap alternative was checked rather than
 assumed. Dolphin reads service menus from `/usr/share/kio/servicemenus/`, which
