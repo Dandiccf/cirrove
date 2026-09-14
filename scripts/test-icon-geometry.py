@@ -16,6 +16,7 @@ on; it skips rather than fails if they are missing, so a machine without them
 is not blocked.
 """
 
+import re
 import shutil
 import subprocess
 import sys
@@ -58,6 +59,9 @@ def extent(svg):
             (x + w / 2) / RENDER, (y + h / 2) / RENDER)
 
 
+SYMBOLIC = sorted((ROOT / "packaging/icons/symbolic").rglob("*.svg"))
+
+
 @unittest.skipUnless(
     shutil.which("rsvg-convert") and IMAGEMAGICK,
     "needs rsvg-convert and ImageMagick",
@@ -77,6 +81,39 @@ class IconsFillTheirCanvas(unittest.TestCase):
                                     "launcher and panel draws them small:\n  " + "\n  ".join(small))
         self.assertEqual(offset, [], "these icons do not sit in the middle of their canvas:\n  "
                                      + "\n  ".join(offset))
+
+
+class SymbolicIconsAreFilledPaths(unittest.TestCase):
+    """A symbolic icon must be filled paths, never strokes.
+
+    GTK recolours symbolic icons through its own pipeline, and a stroke does
+    not survive it. The Cirrove mark was first drawn as a stroked ring with a
+    filled centre dot; it rendered perfectly with rsvg at every size and came
+    out in the settings window as one solid blue disc, the ring having closed
+    over its own hole. Every Adwaita symbolic icon is filled paths, which is
+    the convention this follows rather than discovers.
+
+    Scoped to the symbolic directory on purpose: the tray and application icons
+    are drawn by a shell as ordinary icons, strokes and all, and are verified
+    working that way in GNOME and in Quickshell.
+    """
+
+    def test_no_symbolic_icon_relies_on_a_stroke(self):
+        self.assertTrue(SYMBOLIC, "no symbolic icons found; the path has moved")
+        stroked = []
+        for svg in SYMBOLIC:
+            text = svg.read_text()
+            # stroke="none" is the harmless form that says "fill only".
+            for match in re.findall(r'stroke\s*=\s*"([^"]*)"', text):
+                if match.strip().lower() not in ("none", ""):
+                    stroked.append(f"{svg.relative_to(ROOT)}: stroke=\"{match}\"")
+            if re.search(r'stroke-width\s*=', text):
+                stroked.append(f"{svg.relative_to(ROOT)}: has stroke-width")
+        self.assertEqual(
+            stroked, [],
+            "GTK flattens a stroked symbolic icon when it recolours it -- draw the "
+            "shape as a filled path instead:\n  " + "\n  ".join(stroked),
+        )
 
 
 if __name__ == "__main__":

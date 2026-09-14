@@ -160,7 +160,17 @@ register beside a shell's own monochrome icons, and it drew as a smudge at
 eleven pixels below the middle -- launchers and panels scale the canvas, so
 there was no setting that could have fixed it.
 `scripts/test-icon-geometry.py` now measures the drawn extent of every shipped
-icon against its viewBox, so that particular mistake cannot come back quietly. They ship in `packaging/icons/scalable/apps/` for
+icon against its viewBox, so that particular mistake cannot come back quietly.
+
+The symbolic icon is filled paths rather than strokes, and that is not a style
+choice. GTK recolours a symbolic icon through its own pipeline and a stroke
+does not survive it: the mark was first drawn as a stroked ring with a filled
+centre dot, rendered perfectly by rsvg at 16, 32 and 48 px, and appeared in the
+settings window at 32 px as one solid blue disc with the ring closed over its
+own hole. Every Adwaita symbolic icon is filled paths for this reason. The same
+test enforces it, and only for the symbolic directory -- the tray and
+application icons are drawn by a shell as ordinary icons, strokes and all, and
+are verified working that way in GNOME's top bar and in Quickshell. They ship in `packaging/icons/scalable/apps/` for
 a package to install into the hicolor theme, and
 the tray does not depend on that having happened: it embeds the same files,
 writes them under `$XDG_RUNTIME_DIR/cirrove-tray/icons` at start, and advertises
