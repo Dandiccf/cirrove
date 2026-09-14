@@ -55,6 +55,10 @@ pub struct LocalChange {
     pub state: String,
     #[serde(default)]
     pub size: u64,
+    /// When it was saved, in unix seconds; `None` when the journal predates
+    /// the field and genuinely does not know.
+    #[serde(default)]
+    pub saved_at: Option<u64>,
 }
 
 #[derive(Default)]

@@ -301,3 +301,39 @@ fn an_incompatible_daemon_is_never_read_as_saying_no_restart_is_needed() {
         "and it must still be reported as incompatible, which is the louder problem"
     );
 }
+
+/// The activity list had names and states but never times, so after a restart
+/// -- when the remote ring is empty by design -- it was a column of saves
+/// against nothing, with no way to tell this morning's from last week's.
+#[test]
+fn how_long_ago_is_coarse_and_never_reads_the_future_as_the_past() {
+    use cirrove_desktop::model::how_long_ago;
+    let now = 1_000_000_000;
+    assert_eq!(how_long_ago(now, now).as_deref(), Some("just now"));
+    assert_eq!(how_long_ago(now, now - 59).as_deref(), Some("just now"));
+    assert_eq!(how_long_ago(now, now - 60).as_deref(), Some("1 minute ago"));
+    assert_eq!(
+        how_long_ago(now, now - 25 * 60).as_deref(),
+        Some("25 minutes ago")
+    );
+    assert_eq!(how_long_ago(now, now - 3600).as_deref(), Some("1 hour ago"));
+    assert_eq!(
+        how_long_ago(now, now - 5 * 3600).as_deref(),
+        Some("5 hours ago")
+    );
+    assert_eq!(
+        how_long_ago(now, now - 26 * 3600).as_deref(),
+        Some("yesterday")
+    );
+    assert_eq!(
+        how_long_ago(now, now - 3 * 86400).as_deref(),
+        Some("3 days ago")
+    );
+    assert_eq!(
+        how_long_ago(now, now - 30 * 86400).as_deref(),
+        Some("more than a week ago")
+    );
+    // A clock that went backwards, or a record written a moment into the
+    // future, must not come out as a very long time ago.
+    assert_eq!(how_long_ago(now, now + 10), None);
+}

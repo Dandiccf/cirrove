@@ -371,6 +371,9 @@ impl Writeback {
                     item,
                     state: format!("{:?}", record.state).to_ascii_lowercase(),
                     size: record.size,
+                    // Zero is a record from before the journal had a time, and
+                    // that is not the same as having been saved in 1970.
+                    saved_at: (record.saved_at > 0).then_some(record.saved_at),
                 }
             })
             .collect())

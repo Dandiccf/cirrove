@@ -211,6 +211,15 @@ pub struct UploadRecord {
     pub retry_at: u64,
     #[serde(default)]
     pub failed_attempts: u32,
+    /// When the save was made, in unix seconds.
+    ///
+    /// The journal had no time at all, so the window could list what a person
+    /// saved but never when -- and after a restart the remote side of the
+    /// activity list is empty by design, leaving a column of saves with no
+    /// times against nothing. Zero means a record written before this field
+    /// existed, which reads as "no time known" rather than as 1970.
+    #[serde(default)]
+    pub saved_at: u64,
 }
 impl std::fmt::Debug for UploadRecord {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -452,6 +461,7 @@ impl UploadJournal {
             session_key: None,
             transferred_bytes: 0,
             retry_at: 0,
+            saved_at: now_seconds(),
             failed_attempts: 0,
         };
         temporary

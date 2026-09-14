@@ -5,6 +5,11 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
 
 ## Unreleased
 
+- **Recent activity says when.** Every line now carries how long ago it
+  happened -- just now, 25 minutes ago, yesterday. Saves had no time recorded
+  at all, so the list could tell you what you had saved and never when, which
+  mattered most right after a restart: the cloud side of the list starts empty
+  by design, leaving a column of saves against nothing.
 - **Cirrove speaks German.** The window, its dialogs, the connection states and
   the activity list are translated; anything not translated stays in English
   rather than going blank, so a language with no catalogue loses nothing. It

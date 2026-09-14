@@ -193,6 +193,36 @@ pub struct ActivityEntry {
     pub what: String,
     /// True for a local save the cloud refused, so a row can warn.
     pub warning: bool,
+    /// When it happened, unix seconds. `None` for a save from a journal
+    /// written before saves carried a time.
+    pub at_unix: Option<u64>,
+}
+
+/// How long ago, in words, or `None` when the time is unknown or in the future.
+///
+/// A list of what happened is much less useful without when: after a restart
+/// the remote side of the activity list is empty by design, so the window
+/// showed a column of saves against nothing, with no way to tell this
+/// morning's from last week's.
+///
+/// Deliberately coarse. A save is not a stopwatch, and "3 minutes ago" that
+/// updates every second would be a reason to redraw the window forever.
+pub fn how_long_ago(now: u64, then: u64) -> Option<String> {
+    use crate::i18n::{fill, gettext};
+    let seconds = now.checked_sub(then)?;
+    let minutes = seconds / 60;
+    let hours = minutes / 60;
+    let days = hours / 24;
+    Some(match (minutes, hours, days) {
+        (0, _, _) => gettext("just now"),
+        (1, _, _) => gettext("1 minute ago"),
+        (m, 0, _) => fill(&gettext("{} minutes ago"), &[&m.to_string()]),
+        (_, 1, _) => gettext("1 hour ago"),
+        (_, h, 0) => fill(&gettext("{} hours ago"), &[&h.to_string()]),
+        (_, _, 1) => gettext("yesterday"),
+        (_, _, d) if d < 7 => fill(&gettext("{} days ago"), &[&d.to_string()]),
+        _ => gettext("more than a week ago"),
+    })
 }
 impl ActivityEntry {
     /// The lines for one account's answer, cloud changes first, latest first.
@@ -210,6 +240,7 @@ impl ActivityEntry {
                 "changed in the cloud".to_owned()
             },
             warning: false,
+            at_unix: Some(change.at_unix),
         });
         let local = reply.local.iter().map(|change| {
             let (what, warning) = match change.state.as_str() {
@@ -227,6 +258,7 @@ impl ActivityEntry {
                 name: change.name.clone(),
                 what: what.to_owned(),
                 warning,
+                at_unix: change.saved_at,
             }
         });
         remote.chain(local).collect()

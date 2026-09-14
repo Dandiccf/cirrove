@@ -198,6 +198,11 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                                         item: None,
                                         state: "conflict".into(),
                                         size: 3,
+                                        // None on purpose: a journal written
+                                        // before saves carried a time, which
+                                        // must render without a time rather
+                                        // than as 1970.
+                                        saved_at: None,
                                     }],
                                     refusal: None,
                                 }

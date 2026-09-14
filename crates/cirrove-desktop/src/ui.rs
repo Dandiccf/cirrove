@@ -82,6 +82,14 @@ pub struct Window {
     waiting: RefCell<HashMap<String, Instant>>,
     closed: Cell<bool>,
 }
+/// Now, in unix seconds, for the relative times in the activity list.
+fn now_unix() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
 /// A button that is only an icon, with the name a screen reader says and the
 /// tooltip a pointer shows: the same words, set once, so neither can lag the
 /// other. GTK does not derive the accessible name from the tooltip.
@@ -446,10 +454,21 @@ impl Window {
         for entry in entries.iter().take(12) {
             let row = adw::ActionRow::builder()
                 .title(&entry.name)
-                .subtitle(fill(
-                    &gettext("{} · {}"),
-                    &[&entry.account, &gettext(&entry.what)],
-                ))
+                .subtitle(
+                    match entry
+                        .at_unix
+                        .and_then(|at| crate::model::how_long_ago(now_unix(), at))
+                    {
+                        Some(when) => fill(
+                            &gettext("{} · {} · {}"),
+                            &[&entry.account, &gettext(&entry.what), &when],
+                        ),
+                        None => fill(
+                            &gettext("{} · {}"),
+                            &[&entry.account, &gettext(&entry.what)],
+                        ),
+                    },
+                )
                 .use_markup(false)
                 .subtitle_lines(1)
                 .build();
