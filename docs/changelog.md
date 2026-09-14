@@ -5,6 +5,20 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
 
 ## Unreleased
 
+- **A diagnostics bundle can no longer carry a token.** The bundle is made to
+  be sent to someone else, and its redaction replaced account names, folders,
+  file names and ids but went straight past anything shaped like a credential:
+  a JSON Web Token passed through untouched. It now removes tokens and long
+  opaque secrets, and still leaves the things a bundle is for -- versions,
+  states, counts, error codes -- exactly as they were.
+- **You can see what Cirrove keeps on this computer, and get some of it back.**
+  `cirrove local-data` lists each connection's cache and index, anything an
+  earlier removal set aside, and the total. Removing a connection has always
+  moved its data aside rather than deleting it, which is right -- but nothing
+  ever listed it again, so it sat there for good, and the only documented way
+  to reclaim it was to delete a directory by hand. `cirrove local-data
+  --discard-removed` does it properly and says how much it freed. It cannot
+  touch a drive you are still using.
 - **Cirrove tells you when an update has been installed but is not running
   yet.** Upgrading the package replaces the files, but Linux leaves the running
   program on the old ones, so until you log out you are still using the version

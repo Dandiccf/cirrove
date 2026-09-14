@@ -3,7 +3,7 @@
   "note": "One row per acceptance box. `blocker` says what stands between the box and being ticked, not how hard the code is. `asserted_by` names the test that would fail if the claim stopped holding; a box may not be ticked while it is null. `candidate_assertions` are tests that look like they might assert the box and have not been read. They deliberately do not satisfy the tick check.",
   "totals": {
     "boxes": 54,
-    "ticked": 19,
+    "ticked": 20,
     "by_blocker": {
       "autonomous": 36,
       "needs-live-account": 8,
@@ -498,16 +498,16 @@
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
       "line": 346,
-      "done": false,
-      "text": "Clean uninstall and explicit retention/removal choices for local data.",
+      "done": true,
+      "text": "Clean uninstall and explicit retention/removal choices for local data. Measured on a machine with a live account and 2.6 GB of state ([the record](benchmarks/clean-uninstall.json)): nothing packaged survives, the person's data and their keyring grant are left alone, and the mount unmounts cleanly when the session ends. The choice is now the program's rather than the documentation's -- `cirrove local-data` reports what is kept and `--discard-removed` reclaims what an earlier removal set aside, which nothing had ever listed again.",
       "blocker": "autonomous",
-      "evidence": "PARTIAL 2026-09-13. Package removal is checked in CI: after pacman -Rns nothing package-owned survives. Seen green on CI run 34748863610 (2026-09-13). Retention is by construction -- pacman touches nothing under the home directory, so accounts, credentials and the journal stay -- and the explicit removal choices exist per account: the window's Remove sets an account's data aside and asks separately about changes that never reached the cloud; cirrove forget --discard-unsent is the CLI form. NOT DONE: a whole-installation 'remove my data too' choice, and the check on Debian and Fedora.",
-      "asserted_by": "CI job arch-package (nothing package-owned survives removal); accounts::forget refuses an enabled account and, without --discard-unsent, one holding unsent changes -- held by the desktop window scenario and the forget tests in the service crate."
+      "evidence": "TICKED 2026-09-14 on a Fedora 44 VM with the owner's account mounted, one file pinned, a credential in an unlocked keyring and 2.6 GB of state; the packages were removed with all of it running, which is the honest case because nobody unmounts first. Clean: a find over /usr and /etc for anything named cirrove returned nothing, the state directory was untouched, the keyring grant survived labelled 'Cirrove Microsoft account' so a person can find it, and stopping the service -- what logging out does -- unmounted cleanly with no stale handle. One oddity recorded rather than fixed: the removal leaves the daemon running from a deleted binary still serving the mount until the session ends, which is untidy but not dangerous, and the window's new restart banner is the nearest thing that speaks to it. The retention/removal choice was the real gap and is now closed: `cirrove forget` has always set a removed connection's data aside instead of deleting it, and nothing ever listed it again, so an uninstall left gigabytes the person believed they had removed. `cirrove local-data` reports each connection, anything set aside, and the total; `--discard-removed` deletes only the set-aside part and says how much it freed.",
+      "asserted_by": "cirrove-service tests/accounts_local_data.rs: set-aside data is reported with its size and the timestamp parsed from its directory name and counts as the reclaimable total while a live account's does not; discard_set_aside removes it and leaves a live account's cache file present, which is the safety property the whole feature turns on; and an empty removed/ deletes nothing and does not fail. The dangerous version of this command is one that could be talked into deleting a drive still in use, and it is not reachable from any argument."
     },
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 347,
+      "line": 354,
       "done": false,
       "text": "User documentation, redacted diagnostics and supported-version policy.",
       "blocker": "autonomous",
@@ -517,7 +517,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 348,
+      "line": 355,
       "done": false,
       "text": "Dependency/security review, extended testing and tracked release blockers.",
       "blocker": "autonomous",
@@ -527,7 +527,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 349,
+      "line": 356,
       "done": false,
       "text": "Validate the desktop entry, installed icons and AppStream metainfo in CI, then compare their identity with the running window and application bus name in the supported desktop sessions. Current desktop-file validation alone does not satisfy this gate.",
       "blocker": "autonomous",
@@ -537,7 +537,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 353,
+      "line": 360,
       "done": true,
       "text": "Build and install the daemon and CLI without GTK4/libadwaita present, with separate desktop packaging. The root's default members now exclude the desktop; explicit `--workspace` builds and full contributor checks still include it. A package installation on a clean headless host remains required; headless buildability does not imply unattended browser/keyring setup.",
       "blocker": "autonomous",
@@ -547,7 +547,7 @@
     {
       "milestone": 6,
       "milestone_title": "Installable OneDrive 1.0",
-      "line": 358,
+      "line": 365,
       "done": false,
       "text": "Tagged release and verified installation from the published artifacts.",
       "blocker": "autonomous",

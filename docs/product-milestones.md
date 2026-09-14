@@ -343,7 +343,14 @@ be reachable only through a tray or only through one file manager.
       Validate this on each declared distribution family, including Fedora with
       SELinux enabled; an Ubuntu CI build is not an installation check.
 - [ ] Upgrade/migration rollback protects settings, credentials and pending work.
-- [ ] Clean uninstall and explicit retention/removal choices for local data.
+- [x] Clean uninstall and explicit retention/removal choices for local data.
+      Measured on a machine with a live account and 2.6 GB of state
+      ([the record](benchmarks/clean-uninstall.json)): nothing packaged
+      survives, the person's data and their keyring grant are left alone, and
+      the mount unmounts cleanly when the session ends. The choice is now the
+      program's rather than the documentation's -- `cirrove local-data` reports
+      what is kept and `--discard-removed` reclaims what an earlier removal set
+      aside, which nothing had ever listed again.
 - [ ] User documentation, redacted diagnostics and supported-version policy.
 - [ ] Dependency/security review, extended testing and tracked release blockers.
 - [ ] Validate the desktop entry, installed icons and AppStream metainfo in CI,

@@ -132,6 +132,8 @@ fn redact_word(word: &str) -> String {
         Some(token("id", core))
     } else if is_item_id(core) {
         Some(token("item", core))
+    } else if looks_like_a_secret(core) {
+        Some("<secret>".to_owned())
     } else {
         None
     };
@@ -139,6 +141,39 @@ fn redact_word(word: &str) -> String {
         Some(text) => format!("{lead}{text}{tail}"),
         None => word.to_owned(),
     }
+}
+
+/// A bearer token or anything else shaped like one.
+///
+/// The bundle exists to be sent to someone else, so the redaction is the last
+/// thing standing between a journal line and a stranger. It was not catching
+/// tokens at all: a JWT went through `redact_text` unchanged, which was found
+/// by asking rather than by reading, after a real access and refresh token were
+/// printed to a terminal by a command that helpfully includes secrets.
+///
+/// Two shapes. A JWT is three base64url runs separated by dots and begins
+/// `eyJ`, which is `{"` encoded -- that is unmistakable and cheap to spot. And
+/// a long unbroken base64url run with no structure is a refresh token, a client
+/// secret or a session id; nothing a person needs to read in a diagnostics
+/// bundle looks like that. Item ids are caught earlier and by name, so they
+/// keep their stable pseudonym rather than becoming `<secret>`.
+fn looks_like_a_secret(word: &str) -> bool {
+    let base64url = |s: &str| {
+        !s.is_empty()
+            && s.chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '=')
+    };
+    let parts: Vec<&str> = word.split('.').collect();
+    if parts.len() == 3 && parts[0].starts_with("eyJ") && parts.iter().all(|p| base64url(p)) {
+        return true;
+    }
+    // Long enough that no ordinary word, path fragment or version reaches it,
+    // and mixed enough that a run of hex or a hostname does not.
+    word.len() >= 40
+        && base64url(word)
+        && word.chars().any(|c| c.is_ascii_uppercase())
+        && word.chars().any(|c| c.is_ascii_lowercase())
+        && word.chars().any(|c| c.is_ascii_digit())
 }
 
 fn is_mail_address(word: &str) -> bool {
@@ -422,6 +457,42 @@ mod tests {
         assert!(text.contains("a collection stopped updating"));
         assert!(text.contains("state=sign_in_required"));
         assert!(text.contains("collection=<item:"));
+    }
+
+    /// The bundle is made to be sent to someone else, so this is the last
+    /// thing between a journal line and a stranger -- and it was not catching
+    /// tokens at all. Found by asking rather than by reading.
+    #[test]
+    fn a_token_does_not_survive_redaction() {
+        let jwt = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiJodHRwczovL2dyYXBoLm1pY3Jvc29mdC5jb20ifQ.SGVsbG9fdGhlcmVfZnJpZW5k";
+        let out = super::redact_text(&format!("token was {jwt} in a log line"));
+        assert!(!out.contains(jwt), "a JWT must not reach a bundle: {out}");
+        assert!(
+            out.contains("<secret>"),
+            "and it must be visibly removed: {out}"
+        );
+
+        // A refresh token has no structure at all: one long opaque run.
+        let refresh = "1AYEAhiBgzo1x8U2blpU4Fh7cBOhsw6zlzBMlK3brKwFMu0AAFOBAAbQABAwEAAAADAOzf";
+        let out = super::redact_text(&format!("refresh_token={refresh}"));
+        assert!(
+            !out.contains(refresh),
+            "an opaque secret must not reach a bundle: {out}"
+        );
+
+        // And the redaction must not eat the things a bundle is for.
+        let kept = super::redact_text(
+            "cirroved 0.1.0-dev state=ready feeds=2 stuck_changes=0 ENOSPC writable-preview",
+        );
+        for word in [
+            "0.1.0-dev",
+            "state=ready",
+            "feeds=2",
+            "ENOSPC",
+            "writable-preview",
+        ] {
+            assert!(kept.contains(word), "{word} should survive: {kept}");
+        }
     }
 
     #[test]

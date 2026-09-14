@@ -194,9 +194,17 @@ cache, and any changes still on their way stay under `~/.local/state/cirrove`.
 On Debian and Ubuntu, `apt remove` keeps the tray's autostart entry under
 `/etc/xdg/autostart` the way it keeps every configuration file; `apt purge
 cirrove-desktop cirrove` removes that too.
+`cirrove local-data` says what all that costs -- each connection, anything set
+aside by an earlier removal, and the total. On a machine with one drive
+connected it is usually most of a cache's worth of gigabytes.
+
 To remove a connection and its data, use **Remove** in the window (or
-`cirrove forget <name>`) first, which sets its data aside under
-`~/.local/state/cirrove/removed/`; delete that directory when you are sure.
+`cirrove forget <name>`) first. That sets its data aside under
+`~/.local/state/cirrove/removed/` rather than deleting it, so a removal you
+regret within the hour is recoverable. When you are sure, `cirrove local-data
+--discard-removed` deletes it and says how much it freed. That command can only
+ever delete the data of connections you have already removed; a drive you are
+still using is not reachable from it.
 Grants in the keyring are labelled Cirrove; remove them from the keyring, or
 revoke the application's consent in your Microsoft account settings.
 

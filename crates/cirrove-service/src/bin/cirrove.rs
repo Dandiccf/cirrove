@@ -277,6 +277,20 @@ enum Command {
         #[arg(long)]
         state_dir: Option<PathBuf>,
     },
+    /// What Cirrove keeps on this computer, and what of it you can get back.
+    ///
+    /// Removing the packages deliberately leaves your connections, index and
+    /// cache alone. This says what that costs, and offers the one deletion that
+    /// is always safe: the data of connections you have already removed, which
+    /// `forget` sets aside rather than deletes and which nothing else ever
+    /// looks at again.
+    LocalData {
+        /// Delete the set-aside data of connections you already removed.
+        #[arg(long)]
+        discard_removed: bool,
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
+    },
     /// Verify desktop credential storage using an isolated synthetic entry.
     KeyringCheck,
 
@@ -632,6 +646,54 @@ async fn main() -> Result<()> {
                 "{}",
                 cirrove_service::accounts::forget(&state, &label, discard_unsent)?
             );
+        }
+        Command::LocalData {
+            discard_removed,
+            state_dir: state,
+        } => {
+            let state = state.map(Ok).unwrap_or_else(state_dir)?;
+            if discard_removed {
+                let (count, bytes) = cirrove_service::accounts::discard_set_aside(&state)?;
+                if count == 0 {
+                    println!("Nothing set aside; nothing to delete.");
+                } else {
+                    println!(
+                        "Deleted {count} removed connection(s), freeing {}.",
+                        cirrove_service::human_bytes(bytes)
+                    );
+                }
+            }
+            let data = cirrove_service::accounts::local_data(&state)?;
+            println!("{}", data.state_dir.display());
+            for (label, bytes) in &data.live {
+                println!("  {label}  {}", cirrove_service::human_bytes(*bytes));
+            }
+            if !data.set_aside.is_empty() {
+                println!("  set aside by an earlier removal, kept in case you want it back:");
+                for aside in &data.set_aside {
+                    println!(
+                        "    {}  {}",
+                        aside.name,
+                        cirrove_service::human_bytes(aside.bytes)
+                    );
+                }
+            }
+            println!(
+                "  settings, locks and shared index  {}",
+                cirrove_service::human_bytes(data.other_bytes)
+            );
+            println!(
+                "  total  {}",
+                cirrove_service::human_bytes(data.total_bytes())
+            );
+            let reclaimable = data.reclaimable_bytes();
+            if reclaimable > 0 {
+                println!(
+                    "\n{} belongs to connections you already removed. \
+                     `cirrove local-data --discard-removed` deletes it; nothing in the cloud is touched.",
+                    cirrove_service::human_bytes(reclaimable)
+                );
+            }
         }
         Command::KeyringCheck => cirrove_service::accounts::keyring_check().await?,
 

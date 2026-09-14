@@ -887,6 +887,144 @@ Enable it and let them upload, or pass --discard-unsent to remove them with it."
         }
     ))
 }
+/// One connection's data, set aside by `forget` and still on the disk.
+#[derive(Clone, Debug)]
+pub struct SetAside {
+    /// The directory name under `removed/`: the account id and when it went.
+    pub name: String,
+    pub bytes: u64,
+    pub removed_at: u64,
+}
+
+/// What Cirrove is keeping on this computer, and which of it can be reclaimed.
+#[derive(Clone, Debug)]
+pub struct LocalData {
+    pub state_dir: PathBuf,
+    /// Connections that still exist, with what each one's cache and index cost.
+    pub live: Vec<(String, u64)>,
+    /// Connections already removed, whose data `forget` moved aside rather than
+    /// deleted. Nothing else ever looks at these, so without this they sit
+    /// there for good -- which is how an uninstall leaves gigabytes behind that
+    /// the person believed they had removed.
+    pub set_aside: Vec<SetAside>,
+    /// Everything else under the state directory: the settings file, locks,
+    /// the shared index.
+    pub other_bytes: u64,
+}
+
+impl LocalData {
+    pub fn total_bytes(&self) -> u64 {
+        self.live.iter().map(|(_, b)| b).sum::<u64>()
+            + self.set_aside.iter().map(|a| a.bytes).sum::<u64>()
+            + self.other_bytes
+    }
+    pub fn reclaimable_bytes(&self) -> u64 {
+        self.set_aside.iter().map(|a| a.bytes).sum()
+    }
+}
+
+/// Bytes under a directory, following nothing and failing on nothing.
+///
+/// A size that cannot be read is reported as zero rather than as an error: this
+/// exists to tell a person roughly what their disk is being used for, and one
+/// unreadable file is not a reason to refuse to answer at all.
+fn directory_bytes(path: &Path) -> u64 {
+    let Ok(entries) = std::fs::read_dir(path) else {
+        return 0;
+    };
+    entries
+        .flatten()
+        .map(|entry| match entry.file_type() {
+            Ok(kind) if kind.is_dir() => directory_bytes(&entry.path()),
+            Ok(kind) if kind.is_file() => entry.metadata().map(|m| m.len()).unwrap_or(0),
+            _ => 0,
+        })
+        .sum()
+}
+
+/// Report what is on the disk, so the choice to keep or remove it can be made
+/// on numbers rather than on a path from the documentation.
+pub fn local_data(state: &Path) -> Result<LocalData> {
+    let settings = Settings::load(state).unwrap_or_default();
+    let live: Vec<(String, u64)> = settings
+        .accounts
+        .iter()
+        .map(|account| {
+            (
+                account.label.clone(),
+                directory_bytes(&state.join("accounts").join(&account.id)),
+            )
+        })
+        .collect();
+    let mut set_aside = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(state.join("removed")) {
+        for entry in entries.flatten() {
+            if !entry.file_type().map(|k| k.is_dir()).unwrap_or(false) {
+                continue;
+            }
+            let name = entry.file_name().to_string_lossy().into_owned();
+            // forget names these "<account id>-<unix seconds>".
+            let removed_at = name
+                .rsplit('-')
+                .next()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0);
+            set_aside.push(SetAside {
+                bytes: directory_bytes(&entry.path()),
+                name,
+                removed_at,
+            });
+        }
+    }
+    set_aside.sort_by_key(|a| a.removed_at);
+    let accounts_total = directory_bytes(&state.join("accounts"));
+    let live_total: u64 = live.iter().map(|(_, b)| *b).sum();
+    Ok(LocalData {
+        state_dir: state.to_path_buf(),
+        live,
+        set_aside,
+        // Everything under the state directory that is neither a live account
+        // nor a set-aside one.
+        other_bytes: directory_bytes(state)
+            .saturating_sub(accounts_total)
+            .saturating_sub(directory_bytes(&state.join("removed")))
+            .saturating_add(accounts_total.saturating_sub(live_total)),
+    })
+}
+
+/// Delete the data of connections that were already removed.
+///
+/// Touches `removed/` and nothing else, ever. A live account's data is not
+/// reachable from here by any argument, which is the point: the dangerous
+/// version of this command would be one that could be talked into deleting a
+/// drive someone is still using.
+pub fn discard_set_aside(state: &Path) -> Result<(usize, u64)> {
+    let _lock = config_lock(state)?;
+    let removed = state.join("removed");
+    let mut count = 0;
+    let mut bytes = 0;
+    let Ok(entries) = std::fs::read_dir(&removed) else {
+        return Ok((0, 0));
+    };
+    for entry in entries.flatten() {
+        if !entry.file_type().map(|k| k.is_dir()).unwrap_or(false) {
+            continue;
+        }
+        let path = entry.path();
+        // Refuse anything that is not directly inside removed/, which a
+        // symlink or a crafted name could otherwise make it follow.
+        if path.parent() != Some(removed.as_path()) {
+            continue;
+        }
+        let size = directory_bytes(&path);
+        std::fs::remove_dir_all(&path)
+            .with_context(|| format!("could not delete {}", path.display()))?;
+        count += 1;
+        bytes += size;
+    }
+    Ok((count, bytes))
+}
+
 /// How many changes an account still holds that have not reached the cloud.
 ///
 /// For a window deciding what to ask before removing an account: with zero the
