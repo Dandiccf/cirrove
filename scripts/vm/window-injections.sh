@@ -8,6 +8,24 @@
 # ~/window/injections.log inside the VM -- a separate file from the samples,
 # because the sampler holds that one open and two writers would interleave.
 #
+# Run it INSIDE the machine under measurement, not from the host:
+#
+#     scripts/vm/run.sh ubuntu put scripts/vm/window-injections.sh /home/tester/
+#     scripts/vm/run.sh ubuntu ssh 'nohup setsid ~/window-injections.sh local <start> \
+#         >~/window/injections.out 2>&1 </dev/null & sleep 1'
+#
+# The first run of this was started from the host with setsid and did not
+# survive it. It performed the restart four hours in and was gone before the
+# outage four hours later -- most likely culled along with two other background
+# tasks while the host was reclaiming memory. The outage then had to be done by
+# hand, eight hours late. A scheduler that outlives the thing it is measuring
+# has to live on that thing; the host is the machine most likely to be busy.
+#
+# `local` as the distro runs the VM-side half: it waits and performs the
+# restart and the link changes it can do from inside. A link change needs the
+# host's monitor, so the host half stays for that -- which is why the outage
+# step still prints what to run if it cannot reach QMP.
+#
 # Usage: scripts/vm/window-injections.sh <distro> <window-start-unix>
 set -euo pipefail
 

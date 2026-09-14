@@ -67,6 +67,18 @@
       "scripts/sustained-operation-report.py docs/benchmarks/sustained-operation.attempt2.tsv --injections /tmp/injections.log",
       "The report answers each of the five predictions from the file and refuses a file carrying a void or probe-lost marker. Read its answer against decision_rule above before ticking anything."
     ],
-    "if_the_machine_reboots_first": "The window is void, per the decision rule's any_unplanned_restart clause. Record it as attempt 2 void and open attempt 3; do not report partial hours as a result."
+    "if_the_machine_reboots_first": "The window is void, per the decision rule's any_unplanned_restart clause. Record it as attempt 2 void and open attempt 3; do not report partial hours as a result.",
+    "injections_as_they_happened": {
+      "restart": {
+        "when": "2026-09-13T19:56 local, four hours in, as planned",
+        "result": "Recovered unattended in 10 s. The sampler recorded the new process, and it was ready and mounted in the very first sample after it."
+      },
+      "outage": {
+        "when": "2026-09-14T05:39 local, not the planned 23:56",
+        "why_late": "The detached scheduler performed the 19:56 restart and then died some time before 23:56. It was started with setsid from a tool call on the host; two of this session's background tasks were culled around 19:45 while /tmp -- a RAM filesystem -- was 19 GB full of another project's build output, and the scheduler most likely went with them. Run by hand instead, with the daemon up 9h42m since the restart, which is what the row actually asks for: recovery observed in a daemon that has been up for hours.",
+        "result": "Link down five minutes. Both feeds reported offline for seven consecutive samples and returned to ready 95 s after the link came back, with nothing done to them. The mount was present in every sample throughout and a listing of the root took 1 ms in every one of them -- which is P4's whole point, that an unreachable provider must not stall a listing served from a local namespace. The indexed count did not move during the outage and rose by one afterwards, which is the file below. A file written after the outage was uploaded in 10 s and confirmed present in the cloud through Graph independently of Cirrove, then removed to the recycle bin."
+      },
+      "lesson_for_the_tooling": "Injections scheduled from the host did not survive the host. The next window should run them from inside the VM, where nothing culls them and where the machine under measurement is the one keeping them alive."
+    }
   }
 }
