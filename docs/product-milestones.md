@@ -342,7 +342,7 @@ be reachable only through a tray or only through one file manager.
 - [ ] Fresh installation through sign-in and reboot verified outside development.
       Validate this on each declared distribution family, including Fedora with
       SELinux enabled; an Ubuntu CI build is not an installation check.
-- [ ] Upgrade/migration rollback protects settings, credentials and pending work.
+- [x] Upgrade/migration rollback protects settings, credentials and pending work.
 - [x] Clean uninstall and explicit retention/removal choices for local data.
       Measured on a machine with a live account and 2.6 GB of state
       ([the record](benchmarks/clean-uninstall.json)): nothing packaged

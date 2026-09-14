@@ -25,5 +25,28 @@
     },
     "not_covered": "Pending work. The account here is read-only, so there were no queued uploads to protect across the upgrade, and 'protects pending work' is the third of the row's three nouns. That needs a write-consented account with something deliberately stuck in the journal, which the Ubuntu VM could do after its measurement window closes."
   },
-  "conclusion": "An upgrade under a live account keeps the settings, the credential and the pinned content, and a rollback keeps them too. One real defect: the upgrade does not restart the daemon or the tray, so both keep running from deleted binaries and the person stays on the old version without being told -- visible as the new icon simply not appearing. Two things are recorded as unproven rather than passed: the newer-state refusal, because these two builds share a format, and pending work, because this account is read-only."
+  "conclusion": "An upgrade under a live account keeps the settings, the credential and the pinned content, and a rollback keeps them too. One real defect: the upgrade does not restart the daemon or the tray, so both keep running from deleted binaries and the person stays on the old version without being told -- visible as the new icon simply not appearing. Two things are recorded as unproven rather than passed: the newer-state refusal, because these two builds share a format, and pending work, because this account is read-only. UPDATE 2026-09-14: pending work is now covered too, on the Ubuntu VM with write consent. Three uploads queued against an unreachable provider survived the package upgrade, survived a restart onto the new binary, finished 52 seconds after the provider returned with nobody retrying them, and were read back through a different machine's mount of the same drive. stuck_changes stayed zero throughout, which is the distinction that matters: waiting is not stuck. All three nouns of the row -- settings, credentials and pending work -- are now measured rather than assumed.",
+  "second_run_pending_work": {
+    "question": "Does an upgrade protect work that has not reached the cloud yet -- the third noun in the row, and the one the first run could not touch because its account was read-only?",
+    "registered_before_run": true,
+    "registered_at": "2026-09-14",
+    "how": "The Ubuntu VM, whose account has write consent. The link is pulled with QMP so the provider is unreachable, files are written into the mount so they queue in the upload journal, and the packages are upgraded from r370 to a current build while those uploads are still queued. Then the link is restored and the queue is watched. Every file is named as a Cirrove upgrade check and removed to the recycle bin afterwards.",
+    "predictions": {
+      "Q1": "The queued uploads survive the upgrade. They are in the journal under ~/.local/state/cirrove, which no package owns, so nothing dpkg does should reach them -- but the row exists because that is the assumption worth testing rather than asserting.",
+      "Q2": "They finish once the link returns, without anyone retrying them by hand, and the files are really in the cloud rather than merely marked done. Confirmed by reading them back through a second machine's mount of the same drive, not through the daemon that uploaded them.",
+      "Q3": "stuck_changes stays zero throughout. An upload waiting for a provider is pending, not stuck, and reporting it as stuck would send someone to discard work that was about to succeed.",
+      "Q4": "The upgrade does not restart the daemon -- already measured on Fedora -- so the queue is carried by the same process. The interesting case would be the queue surviving a restart as well, which the journal is designed for and which this run also exercises by restarting onto the new binary while items are still queued."
+    },
+    "result": {
+      "when": "2026-09-14T17:19-17:23+02:00, the Ubuntu VM, r370 to r409 with the account's write consent",
+      "how_the_provider_was_made_unreachable": "Not by pulling the virtual cable, which was tried first and cut ssh with it -- the machine's only channel runs over the same user-mode network. Blocking outbound tcp/443 from inside does the job instead: the provider becomes unreachable while the machine stays drivable, because ssh arrives from the gateway rather than leaving for it.",
+      "observed": {
+        "Q1": "HOLDS. Three files written with the provider unreachable queued as pending and verifyrequired, and all six journal entries naming them were still there after apt-get install replaced both packages.",
+        "Q2": "HOLDS, and by the stronger route. 52 seconds after tcp/443 was restored all three read uploaded, with nobody retrying them. They were then read back through a second machine's mount of the same drive -- the Fedora VM, not the daemon that uploaded them -- and all three carried their exact contents. A file the uploading daemon calls done is not evidence; a file another machine can read is.",
+        "Q3": "HOLDS. stuck_changes stayed 0 from the moment the files were written to the moment they finished. The one failed upload throughout is the pre-existing power-cut file from 2026-09-13, unrelated. An upload waiting for a provider is pending, not stuck, and reporting it as stuck would send someone to discard work that was about to succeed.",
+        "Q4": "HOLDS, both halves. The upgrade left the daemon on pid 2491, so the queue was carried by the same process -- the restart_required behaviour measured on Fedora, seen again here. Then the daemon was deliberately restarted onto the new binary while the three were still queued: new pid 5316, and all six journal entries still present. The queue survives both a package upgrade and the process restart the upgrade implies."
+      },
+      "cleanup": "All three check files were removed to the provider's recycle bin afterwards; none is left on the drive."
+    }
+  }
 }
