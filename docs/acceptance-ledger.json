@@ -3,7 +3,7 @@
   "note": "One row per acceptance box. `blocker` says what stands between the box and being ticked, not how hard the code is. `asserted_by` names the test that would fail if the claim stopped holding; a box may not be ticked while it is null. `candidate_assertions` are tests that look like they might assert the box and have not been read. They deliberately do not satisfy the tick check.",
   "totals": {
     "boxes": 54,
-    "ticked": 23,
+    "ticked": 24,
     "by_blocker": {
       "autonomous": 37,
       "needs-live-account": 8,
@@ -113,13 +113,13 @@
       "milestone": 1,
       "milestone_title": "Reliable read-only foundation",
       "line": 24,
-      "done": false,
+      "done": true,
       "text": "Real restart/outage checks and at least 24 hours of sustained operation.",
       "blocker": "needs-live-account",
       "blocks_release": "yes",
       "release_note": null,
-      "evidence": "NOT RUN. Registered 2026-09-11 in docs/benchmarks/sustained-operation.json with the sampler it needs (scripts/sustained-operation-sample.py): a row a minute carrying MainPID, VmRSS of that process rather than the cgroup's MemoryCurrent, account state, per-feed state, indexed_items, stuck_changes, and the time to list the mount root -- because a daemon that is alive but no longer serving looks healthy in every other column. A deliberate restart and a deliberate outage go inside the window, so recovery is observed in a daemon that has been up for hours rather than one just started, and a restart is marked rather than silently spanned. P2 is where the +40.5 MiB drift that left trim-cadence.json NOT SETTLED either flattens over a day or does not. What it costs is the machine for a day: under this project's own rule no build may run while the window is open, which also means no fixes reach that daemon until it closes. That cost is why this is registered and waiting rather than started.",
-      "asserted_by": null
+      "evidence": "TICKED 2026-09-14. Attempt 2 ran the full 24.0 hours in the Ubuntu VM -- 1440 samples, no void or probe-lost marker -- and all five registered predictions hold. The mount was present in every one of the 1440 samples. Memory stayed flat, 42 to 43 MiB on the first run and 40 to 42 on the second, peak 43 MiB, segmented by pid because comparing across a restart reports the restart as growth. The index held between 184,053 and 184,054, the extra one being the file written after the outage. The slowest root listing of the entire day was 7 ms against a ceiling of 1000 and the mean was 1.0 ms -- including all twenty-five samples where the account read updating_or_offline, where the mount was present every time and the slowest listing was 1 ms, which is the clause's whole point: a listing served from the local namespace does not wait on the provider. Both injections recovered unattended: the restart at four hours in 10 s, and a five-minute link outage with both feeds back to ready 95 s after the cable returned, a file written afterwards uploaded in 10 s and confirmed in the cloud through Graph. Attempt 1 on the owner's machine was void when removing the packages took /usr/bin/cirrove with it; that is why the sampler now refuses to start blind. See docs/benchmarks/sustained-operation.json and the samples beside it.",
+      "asserted_by": "scripts/sustained-operation-report.py answers each of the five registered predictions from the sample file and refuses a file carrying a void or probe-lost marker, so the artifact cannot be read as a result if the window was compromised. It segments by pid for the memory question and matches recovery on the new pid rather than on a timestamp -- both were bugs in it that called a healthy restart a failure, found because the report was run minutes after the injection rather than a day later."
     },
     {
       "milestone": 2,

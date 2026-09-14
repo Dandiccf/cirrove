@@ -21,7 +21,7 @@ Private account measurements belong in local records, not the public repository.
       500,000-file traversal, invalidation and 24-hour churn memory gates in
       [namespace memory](adr/0005-namespace-memory.md). Content-cache limits do not
       satisfy this requirement.
-- [ ] Real restart/outage checks and at least 24 hours of sustained operation.
+- [x] Real restart/outage checks and at least 24 hours of sustained operation.
 
 Evidence must include actual kernel mounts, provider-backed reads and ordinary
 desktop applications, in addition to deterministic transport/recovery fixtures.

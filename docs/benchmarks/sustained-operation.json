@@ -29,8 +29,20 @@
   },
   "what_it_costs": "The machine, for a day. Under this project's own rule -- one measurement at a time, with nothing else compiling -- no build may run on it while the window is open, which also means no fixes can be deployed to that daemon until it closes.",
   "what_this_does_not_cover": "One window on one machine with one account. It says nothing about a week, about several accounts, or about a laptop that suspends during the day; the suspend question is registered separately in deep-suspend-beyond-token-lifetime.json.",
-  "result": null,
-  "verdict": null,
+  "result": {
+    "when": "2026-09-13T15:56 to 2026-09-14T15:55 +02:00, 24.0 hours, 1440 samples, no void or probe-lost marker",
+    "where": "the Ubuntu VM, packages 0.1.0~dev.r370.g46de988, the owner's OneDrive signed in, 184,053 indexed items",
+    "observed": {
+      "P1": "HOLDS. Two process ids across the day and exactly one recorded restart -- the deliberate one at four hours. Not one sample in 1440 found the mount absent.",
+      "P2": "HOLDS. Resident memory 42 to 43 MiB over the first run and 40 to 42 MiB over the second, +3.0 and +5.7 percent, peak 43 MiB. Segmented by pid, because comparing across a restart would report the restart as growth -- which an earlier version of the report script did.",
+      "P3": "HOLDS. Indexed items stayed between 184,053 and 184,054 for the whole day; the extra one is the file written after the outage and removed again.",
+      "P4": "HOLDS, and by a wide margin. The slowest root listing in the entire day was 7 ms against a ceiling of 1000, and the mean was 1.0 ms. Including the twenty-five samples where the account read updating_or_offline: the mount was present in all twenty-five and the slowest listing among them was 1 ms. A listing served from the local namespace does not wait on the provider, which is the whole point of the clause.",
+      "P5": "HOLDS. The daemon was ready and mounted in the very first sample after the deliberate restart, and stayed so for the 1199 samples that followed."
+    },
+    "injections_as_run": "A deliberate restart at four hours, recovered unattended in 10 s. A five-minute link outage, run by hand at 05:39 rather than the planned 23:56 because the detached scheduler died after performing the restart -- with the daemon then up 9h42m, which is what the row asks for. Both feeds returned to ready 95 s after the link came back with nothing done to them, a file written afterwards uploaded in 10 s and was confirmed in the cloud through Graph independently of Cirrove. One unplanned 15 s outage at 16:12 on the first evening, caused by verifying QMP link off/on before trusting it unattended, is in the log so it cannot later be mistaken for a provider failure.",
+    "what_it_does_not_cover": "One machine, one account, a light workload -- a listing a minute plus the injections. It says the daemon runs for a day without drifting, not that it does so under load; the concurrent read workloads are where load is measured."
+  },
+  "verdict": "All five hold. Attempt 2 stands: 24.0 hours unattended, the mount present in every one of 1440 samples, memory flat at 43 MiB peak, the index steady, the slowest listing of the day 7 ms, and recovery from both a restart and a five-minute outage without anyone touching it. The row's two clauses -- real restart and outage checks, and at least 24 hours of sustained operation -- are both met.",
   "attempts": [
     {
       "attempt": 1,
