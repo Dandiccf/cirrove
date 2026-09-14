@@ -25,9 +25,26 @@ shot() { run shot "$out/$1" >/dev/null; echo "  screenshot $1.png"; }
 say() { echo "== $*" | tee -a "$log"; }
 
 case $distro in
-  ubuntu) http_port=8000; pkgdir=pkgs/deb; ssh_port=2222 ;;
-  fedora) http_port=8001; pkgdir=pkgs/rpm; ssh_port=2223 ;;
+  ubuntu) http_port=8000; pkgdir=pkgs/deb; ssh_port=2222
+          # What the packages declare, so the check can ask whether declaring
+          # it was enough: fuse3 is a hard Depends, the other two Recommends.
+          deps='fuse3 python3-nautilus gnome-shell-extension-appindicator'
+          # dpkg-query -W with no format prints name and version, which is
+          # all this needs and survives the trip through two shells; a -f
+          # format string would not.
+          installed='dpkg-query -W' ;;
+  fedora) http_port=8001; pkgdir=pkgs/rpm; ssh_port=2223
+          deps='fuse3 nautilus-python gnome-shell-extension-appindicator'
+          installed='rpm -q' ;;
 esac
+
+# Whether each declared dependency is on the machine right now, one line each.
+depstate() { vm "for p in $deps; do printf '  %-38s %s\n' \"\$p\" \"\$($installed \$p 2>&1 | head -1)\"; done"; }
+# SELinux is a named requirement of M6 line 321 on Fedora. On Ubuntu this
+# reports AppArmor's state instead, which is the same question asked of the
+# mandatory access control that distribution actually ships.
+enforcement() { vm 'getenforce 2>/dev/null || aa-enabled 2>/dev/null || echo "no MAC tool"'; }
+denials() { vm 'sudo journalctl --since -10min --no-pager 2>/dev/null | grep -iE "avc: *denied|apparmor=\"DENIED\"" | grep -i cirrove | tail -5 || true'; }
 
 # Wait for sshd, then make sure the host's key is in: the first boot after an
 # install has only the password, and the checks run without a terminal.
@@ -51,6 +68,9 @@ say "boot"
 run boot >/dev/null
 wait_ssh
 say "installed: $(vm 'cat /etc/os-release | grep PRETTY_NAME')"
+say "mandatory access control: $(enforcement)"
+say "what the packages declare, before installing anything -- absent is the point"
+depstate | tee -a "$log"
 sleep 20
 shot 01-fresh-session
 
@@ -64,6 +84,8 @@ case $distro in
   ubuntu) vm "sudo apt-get install -y ./pkgs/*.deb" | tail -3 ;;
   fedora) vm "sudo dnf install -y ./pkgs/*.rpm" | tail -3 ;;
 esac
+say "the same dependencies afterwards -- brought in by the packages, not by hand"
+depstate | tee -a "$log"
 say "files the packages installed"
 vm 'ls -la /usr/bin/cirrove /usr/bin/cirroved /usr/bin/cirrove-tray /usr/bin/cirrove-desktop /usr/lib/systemd/user/cirroved.service /etc/xdg/autostart/io.github.Dandiccf.Cirrove.Tray.desktop /usr/share/nautilus-python/extensions/cirrove.py /usr/share/applications/io.github.Dandiccf.Cirrove.desktop /usr/share/metainfo/io.github.Dandiccf.Cirrove.metainfo.xml' | awk '{print "  "$5, $9}'
 say "the desktop entries and metainfo, from where they are installed"
@@ -82,6 +104,8 @@ sleep 3
 say "start the tray the way the autostart entry will, and see the shell take it"
 vm "$session_env systemd-run --user --collect /usr/bin/cirrove-tray >/dev/null 2>&1; sleep 4; pgrep -a cirrove-tray | cut -c1-60; $session_env busctl --user get-property org.kde.StatusNotifierWatcher /StatusNotifierWatcher org.kde.StatusNotifierWatcher RegisteredStatusNotifierItems 2>&1 | tail -1; $session_env busctl --user get-property io.github.Dandiccf.Cirrove.Tray /StatusNotifierItem org.kde.StatusNotifierItem IconName 2>&1 | tail -1; echo \"status: \$($session_env busctl --user get-property io.github.Dandiccf.Cirrove.Tray /StatusNotifierItem org.kde.StatusNotifierItem Status 2>&1 | tail -1) -- Passive with no accounts, which a shell hides; the icon appears once an account is connected\"; $session_env gnome-extensions list --enabled 2>/dev/null | grep -i indicator || echo '  (no appindicator extension enabled)'"
 sleep 3
+say "denials while starting the service and the tray: $(denials | sed 's/^/    /' | head -5)"
+say "  (empty above means none mentioning cirrove in the last ten minutes)"
 shot 02-tray-in-session
 
 say "Files with the extension"
@@ -94,6 +118,7 @@ sleep 15
 wait_ssh
 sleep 25
 vm "pgrep -a cirrove-tray | cut -c1-60 || echo '  tray not running after login'; $session_env systemctl --user is-active cirroved.service || true; $session_env busctl --user get-property io.github.Dandiccf.Cirrove.Tray /StatusNotifierItem org.kde.StatusNotifierItem IconName 2>&1 | tail -1"
+say "denials since the reboot: $(denials | sed 's/^/    /' | head -5)"
 shot 04-after-reboot
 
 say "remove the packages and check nothing package-owned survived"
@@ -101,7 +126,11 @@ case $distro in
   ubuntu) vm 'sudo apt-get purge -y cirrove-desktop cirrove' | tail -2 ;;
   fedora) vm 'sudo dnf remove -y cirrove-desktop cirrove' | tail -2 ;;
 esac
-vm 'for f in /usr/bin/cirroved /usr/bin/cirrove /usr/bin/cirrove-tray /usr/bin/cirrove-desktop /usr/lib/systemd/user/cirroved.service /etc/xdg/autostart/io.github.Dandiccf.Cirrove.Tray.desktop /usr/share/nautilus-python/extensions/cirrove.py; do test -e "$f" && echo "  SURVIVED: $f"; done; echo "  state directory kept: $(test -d ~/.local/state/cirrove && echo yes || echo "none existed")"'
+# Naming the files to look for is how the switch-to-package script came to
+# leave eight icons, a desktop entry and a metainfo file behind: a list you
+# write by hand only finds what you remembered to write down. Ask the
+# filesystem instead, and let it name anything it still has.
+vm 'find /usr /etc -iname "*cirrove*" -not -path "*/nautilus-python/__pycache__/*" 2>/dev/null | sed "s/^/  SURVIVED: /"; echo "  state directory kept: $(test -d ~/.local/state/cirrove && echo yes || echo "none existed")"'
 
 say "done; screenshots and log in $out"
 run stop >/dev/null

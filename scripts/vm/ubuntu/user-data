@@ -29,10 +29,14 @@ autoinstall:
   storage:
     layout:
       name: direct
-  packages:
-    - fuse3
-    - python3-nautilus
-    - gnome-shell-extension-appindicator
+  # Nothing Cirrove needs is listed here on purpose -- fuse3 is a Depends of
+  # the core package and python3-nautilus and gnome-shell-extension-appindicator
+  # are Recommends of the desktop one, so a machine that already has them
+  # cannot show whether installing the package brings them. The VM in use
+  # today was installed before this changed and still has all three; its
+  # check log says so, and the clean-machine version of this question is
+  # answered by the headless-package-install job in CI.
+  packages: []
   late-commands:
     # Log the test user in at boot: the session is what is under test, and a
     # login screen is one more thing to drive through a screenshot.

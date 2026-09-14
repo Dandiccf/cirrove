@@ -436,6 +436,14 @@ jobs:
           cirroved --help >/dev/null
           cirrove --version
           grep -q '^ExecStart=/usr/bin/cirroved ' /usr/lib/systemd/user/cirroved.service
+      - name: The hard dependency came in by being declared
+        # fuse3 is not in the base container and nothing here names it, so if
+        # it is present now, the Depends is what brought it. A mount without
+        # fusermount3 fails at the moment a person first tries to use the
+        # thing, which is the worst moment to discover a missing dependency.
+        run: |
+          dpkg-query -W fuse3 || { echo "fuse3 is not installed: the Depends did not bring it" >&2; exit 1; }
+          command -v fusermount3 >/dev/null || { echo "fuse3 is installed but fusermount3 is not on PATH" >&2; exit 1; }
       - name: The desktop package is the one that needs a desktop
         run: |
           # Installing it here must either pull the libraries in or refuse --
@@ -446,12 +454,28 @@ jobs:
           ldd /usr/bin/cirrove-desktop | grep -q 'libgtk-4' || {
             echo "cirrove-desktop does not link GTK, which cannot be right" >&2; exit 1; }
           echo "the split is real: the daemon needs no desktop, the desktop package brings its own"
+      - name: The desktop integration arrives with it
+        # Recommends, not Depends, so this install (without
+        # --no-install-recommends) is the one that should bring them. Files
+        # badges and the tray are the two things a person notices missing, and
+        # both come from a package the desktop package only recommends.
+        run: |
+          for p in python3-nautilus gnome-shell-extension-appindicator; do
+            dpkg-query -W "$p" || { echo "$p is absent: the Recommends did not bring it" >&2; exit 1; }
+          done
+          test -e /usr/share/nautilus-python/extensions/cirrove.py
       - name: Remove, and leave nothing behind
+        # Ask the filesystem rather than a list written by hand: the list is
+        # how switch-to-package.sh came to leave eight icons, a desktop entry
+        # and a metainfo file behind, because it only found what someone
+        # remembered to write down.
         run: |
           apt-get purge -y cirrove-desktop cirrove
-          for f in /usr/bin/cirroved /usr/bin/cirrove /usr/bin/cirrove-tray /usr/lib/systemd/user/cirroved.service; do
-            ! test -e "$f" || { echo "$f survived removal"; exit 1; }
-          done
+          left=$(find /usr /etc -iname '*cirrove*' -not -path '*/__pycache__/*' 2>/dev/null)
+          if [ -n "$left" ]; then
+            echo "these survived removal:" >&2; echo "$left" >&2; exit 1
+          fi
+          echo "nothing package-owned survived"
 
   # Milestone 6: the dependency review, run on every push rather than
   # remembered. cargo audit fails on any advisory that .cargo/audit.toml does

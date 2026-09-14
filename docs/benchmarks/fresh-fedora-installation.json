@@ -1,0 +1,22 @@
+{
+  "question": "On a Fedora Workstation that has never seen a developer install, with SELinux enforcing and none of Cirrove's dependencies present beforehand, does installing the packages alone produce a working daemon, mount, tray and Files integration -- and does removing them leave nothing behind?",
+  "why_now": "M6 line 321 asks for a fresh installation verified outside development on each declared distribution family, and names Fedora with SELinux enabled specifically. The Fedora VM has been checked before, but its kickstart listed fuse3, nautilus-python and gnome-shell-extension-appindicator in %packages -- exactly what the spec declares as Requires and Recommends. The machine already had everything the package was meant to ask for, so the check could not fail. The kickstart no longer lists them, which is what makes this run evidence rather than ceremony.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-14",
+  "how": "The Fedora 44 VM is reinstalled from the netinst image with the corrected kickstart (nothing Cirrove needs in %packages), then the two rpm packages CI built for the current tree are installed with dnf from a local file, so the dependency solver has to find everything else itself. The machine is driven over ssh and QEMU's monitor; the session is a real GNOME Wayland session with the test user logged in automatically. The previous disk is kept as disk-plasma-coverage-2026-09-13.qcow2, because it carries the Plasma evidence.",
+  "predictions": {
+    "P1": "Installing cirrove pulls in fuse3 through its Requires, and installing cirrove-desktop pulls in nautilus-python and gnome-shell-extension-appindicator through its Recommends, with no package named by hand beyond the two rpms. This is the clause the old kickstart made unfalsifiable, so it is the one most likely to be wrong.",
+    "P2": "SELinux is enforcing, and the daemon starts, mounts and serves reads with no AVC denial mentioning cirrove. FUSE in a user unit under a confined-by-default policy is the plausible failure here; unconfined_t for user processes is the reason it may pass.",
+    "P3": "After a reboot, with nothing started by hand, cirroved.service is active and the tray item is registered on the session bus and drawn in the GNOME top bar, and Files loads the extension from /usr/share/nautilus-python without a second copy anywhere.",
+    "P4": "With no account signed in, the service reports zero accounts and no mount, and says so as a plain fresh state rather than as an error or a failure to start.",
+    "P5": "Removing both packages leaves nothing package-owned on the machine: no binaries, no unit, no autostart entry, no Files extension, no icons, no desktop entry, no metainfo.",
+    "P6": "The rpms are built as .fc42 and this is Fedora 44; they install and run anyway, because nothing in them links against a library whose soname moved between the two."
+  },
+  "run": {
+    "when": null,
+    "where": null,
+    "observed": {},
+    "not_covered": "Sign-in. A Microsoft sign-in is the machine owner's browser and credentials, and they are not written down anywhere for a script to use. The sign-in-and-reboot half of M6 line 321 stays open until the owner spends two minutes at this VM's console; everything above is what can be established without them."
+  },
+  "conclusion": null
+}
