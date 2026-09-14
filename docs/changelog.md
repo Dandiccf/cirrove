@@ -5,6 +5,14 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
 
 ## Unreleased
 
+- **Cirrove speaks German.** The window, its dialogs, the connection states and
+  the activity list are translated; anything not translated stays in English
+  rather than going blank, so a language with no catalogue loses nothing. It
+  follows the language your desktop is already set to, with no setting of its
+  own -- an Austrian or Swiss desktop gets the German catalogue too. A check
+  now refuses a release where a string in the program has no entry to
+  translate, or where a translation has dropped one of the values its sentence
+  was built to carry.
 - **A diagnostics bundle can no longer carry a token.** The bundle is made to
   be sent to someone else, and its redaction replaced account names, folders,
   file names and ids but went straight past anything shaped like a credential:

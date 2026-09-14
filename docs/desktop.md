@@ -382,10 +382,48 @@ Against a daemon too old for `subscribe` the tray shows "Cirrove service is not
 reachable" and retries. That is the intended degradation, not a defect: the old
 daemon answers the verb with its ordinary refusal and is otherwise unaffected.
 
+## Languages
+
+Every user-visible string in the window and the tray goes through `gettext`,
+which returns the string unchanged when no catalogue matches -- so an
+untranslated build, a language with no catalogue and the test harness all see
+the English in the source. That property is what made it safe to introduce
+across the whole program at once: nothing can regress into a blank label.
+
+Strings in static tables -- a `description()` or `label()` returning
+`&'static str` for each state -- are marked with `i18n::n`, the usual `N_()`
+idiom, and translated where they are shown. Translating them at the point of
+definition would mean returning `String` and rippling through every caller and
+test for no gain.
+
+Sentences with values in them cannot use `format!`, which needs a literal and
+would defeat extraction. They use `i18n::fill`, which substitutes into the
+translated template at runtime, so a translator may put `{0}` and `{1}` in
+whatever order their language wants.
+
+The catalogue is bound relative to the running binary, so `/usr/bin/cirrove-desktop`
+finds `/usr/share/locale` and `~/.local/bin/cirrove-desktop` finds
+`~/.local/share/locale`, neither having to be told. `CIRROVE_LOCALE_DIR`
+overrides for a build that has not been installed. `i18n::init` runs on the
+application's startup signal because GTK is what sets the locale from the
+environment, and gettext-rs marks `setlocale` unsafe while the workspace
+forbids `unsafe_code`.
+
+`scripts/build-translations.sh` regenerates `po/cirrove.pot` from the source
+and compiles every catalogue; `scripts/test-translations.py` fails if a string
+in the program has no template entry, if a catalogue leaves one untranslated,
+if a translation loses or invents a `{}`, or if any entry is still fuzzy. The
+template is regenerated in the test rather than trusted, because a stale
+template is exactly how a missing string hides.
+
 ## Remaining product work
 
-Transfer progress with cancellation, Dolphin, and localization remain
-separate work.
+Transfer progress with cancellation remains separate work. Dolphin is decided
+rather than pending -- it has no plugin in 1.0, see
+[ADR 0010](adr/0010-file-managers-and-dolphin.md). Localization is done for the
+window, its dialogs and the tray, in German; see [Languages](#languages) above.
+What is still English is everything outside the desktop: the command line, the
+Files extension, and the service's journal.
 
 The daemon can now push changes rather than only answer questions: `capabilities`
 names what it supports and `subscribe` streams account and mount changes over the

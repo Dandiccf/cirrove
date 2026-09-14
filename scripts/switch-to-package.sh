@@ -70,6 +70,15 @@ if (( ${#stale_icons[@]} )); then
   rm -f "${stale_icons[@]}"
   gtk-update-icon-cache -f "$icons" >/dev/null 2>&1 || true
 fi
+# Translations, the same reasoning as the icons: a home copy would shadow the
+# packaged one and could be from a different build.
+shopt -s nullglob
+stale_catalogues=("$HOME/.local/share/locale"/*/LC_MESSAGES/cirrove.mo)
+shopt -u nullglob
+if (( ${#stale_catalogues[@]} )); then
+  echo "removing ${#stale_catalogues[@]} translation catalogue(s) (the package provides them)"
+  rm -f "${stale_catalogues[@]}"
+fi
 pkill -x cirrove-tray || true
 
 systemctl --user daemon-reload

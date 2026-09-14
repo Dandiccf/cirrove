@@ -7,6 +7,7 @@
 //! a list. Nothing is saved until a drive is chosen; closing the dialog before
 //! that forgets the grant.
 use super::{Backend, Window};
+use crate::i18n::gettext;
 use adw::prelude::*;
 use cirrove_auth::{AccessMode, AppRegistration};
 use cirrove_service::accounts::{self, PendingConnection};
@@ -84,7 +85,7 @@ pub(super) fn present(ui: &Rc<Window>) {
         .unwrap_or_else(|| (String::new(), "common".to_owned()));
 
     let dialog = adw::Dialog::builder()
-        .title("Connect a drive")
+        .title(gettext("Connect a drive"))
         .content_width(480)
         .build();
     let toolbar = adw::ToolbarView::new();
@@ -99,13 +100,15 @@ pub(super) fn present(ui: &Rc<Window>) {
     // Page one: the form.
     let page = adw::PreferencesPage::new();
     let drive = adw::PreferencesGroup::builder()
-        .title("Drive")
-        .description("A name for this connection, and the folder its files appear in.")
+        .title(gettext("Drive"))
+        .description(gettext(
+            "A name for this connection, and the folder its files appear in.",
+        ))
         .build();
-    let name = adw::EntryRow::builder().title("Name").build();
+    let name = adw::EntryRow::builder().title(gettext("Name")).build();
     let folder = adw::ActionRow::builder()
-        .title("Folder in Files")
-        .subtitle("Choose an empty folder")
+        .title(gettext("Folder in Files"))
+        .subtitle(gettext("Choose an empty folder"))
         .activatable(true)
         .build();
     folder.add_suffix(&gtk::Image::from_icon_name("folder-open-symbolic"));
@@ -113,20 +116,22 @@ pub(super) fn present(ui: &Rc<Window>) {
     drive.add(&folder);
     page.add(&drive);
     let sign = adw::PreferencesGroup::builder()
-        .title("Microsoft sign-in")
-        .description("The application (client) ID of your app registration; the OneDrive setup guide explains where it comes from.")
+        .title(gettext("Microsoft sign-in"))
+        .description(gettext("The application (client) ID of your app registration; the OneDrive setup guide explains where it comes from."))
         .build();
     let client = adw::EntryRow::builder()
-        .title("Application (client) ID")
+        .title(gettext("Application (client) ID"))
         .text(&client_id)
         .build();
     let tenant = adw::EntryRow::builder()
-        .title("Tenant")
+        .title(gettext("Tenant"))
         .text(&authority)
         .build();
     let writable = adw::SwitchRow::builder()
-        .title("Allow changes")
-        .subtitle("Files saved in this drive are uploaded. Off, the drive is read-only.")
+        .title(gettext("Allow changes"))
+        .subtitle(gettext(
+            "Files saved in this drive are uploaded. Off, the drive is read-only.",
+        ))
         .build();
     sign.add(&client);
     sign.add(&tenant);
@@ -158,7 +163,7 @@ pub(super) fn present(ui: &Rc<Window>) {
     // Page two: the drives, once the account is known.
     let drives_page = adw::PreferencesPage::new();
     let drives_group = adw::PreferencesGroup::builder()
-        .title("Choose a drive")
+        .title(gettext("Choose a drive"))
         .description(
             "The drives this account can see. Files from the one you choose appear in the folder.",
         )
@@ -197,7 +202,7 @@ pub(super) fn present(ui: &Rc<Window>) {
         let window = window.clone();
         form.folder.clone().connect_activated(move |_| {
             let chooser = gtk::FileDialog::builder()
-                .title("Folder for this drive")
+                .title(gettext("Folder for this drive"))
                 .modal(true)
                 .build();
             let form = form.clone();

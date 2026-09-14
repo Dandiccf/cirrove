@@ -88,6 +88,9 @@ fn main() -> Result<()> {
             gio::ApplicationFlags::FLAGS_NONE
         })
         .build();
+    // After the application exists, because GTK is what sets the locale from
+    // the environment and gettext-rs marks setlocale unsafe.
+    app.connect_startup(|_| cirrove_desktop::i18n::init());
     let current = Rc::new(RefCell::new(None::<Rc<Window>>));
     let owner = current.clone();
     let failed = Rc::new(Cell::new(false));

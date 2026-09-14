@@ -45,6 +45,19 @@ install -Dm644 "$repo/packaging/systemd/cirroved.service" "$unit"
 
 install -Dm644 "$repo/packaging/desktop/$id.desktop" -t "$HOME/.local/share/applications/"
 install -Dm644 "$repo/packaging/metainfo/$id.metainfo.xml" -t "$HOME/.local/share/metainfo/"
+
+# Translations. The window looks for its catalogue beside its own binary, so
+# ~/.local/bin/cirrove-desktop finds ~/.local/share/locale with nothing set.
+if command -v msgfmt >/dev/null; then
+  for po in "$repo"/po/*.po; do
+    lang=$(basename "$po" .po)
+    install -d "$HOME/.local/share/locale/$lang/LC_MESSAGES"
+    msgfmt --check -o "$HOME/.local/share/locale/$lang/LC_MESSAGES/cirrove.mo" "$po"
+  done
+  echo "installed translations: $(ls "$repo"/po/*.po | wc -l) language(s)"
+else
+  echo "note: msgfmt is not installed, so the window stays English" >&2
+fi
 install -Dm644 "$repo"/packaging/icons/scalable/apps/*.svg -t "$icons/scalable/apps/"
 install -Dm644 "$repo"/packaging/icons/symbolic/apps/*.svg -t "$icons/symbolic/apps/"
 gtk-update-icon-cache -f "$icons" >/dev/null 2>&1 || true

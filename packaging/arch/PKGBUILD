@@ -21,7 +21,7 @@ url="https://github.com/Dandiccf/cirrove"
 license=(Apache-2.0)
 # gtk4 and libadwaita are here for the desktop package's build; the daemon
 # package's own dependencies are declared on it alone below.
-makedepends=(cargo cmake pkgconf gtk4 libadwaita)
+makedepends=(cargo cmake pkgconf gtk4 libadwaita gettext)
 # Not makepkg's LTO: it puts -flto into the C flags, the bundled TLS library's
 # C objects come out as GCC bitcode, and rust-lld cannot read those -- the
 # link fails on hundreds of undefined aws_lc symbols. Rust does its own LTO
@@ -114,6 +114,14 @@ package_cirrove-desktop() {
   # Files loads every extension it finds here when nautilus-python is present;
   # without it the file is inert.
   install -Dm644 packaging/nautilus/cirrove.py -t "$pkgdir/usr/share/nautilus-python/extensions/"
+  # Translations. The window binds its catalogue relative to its own binary, so
+  # /usr/bin/cirrove-desktop finds /usr/share/locale without being told.
+  for po in po/*.po; do
+    local lang
+    lang=$(basename "$po" .po)
+    install -d "$pkgdir/usr/share/locale/$lang/LC_MESSAGES"
+    msgfmt --check -o "$pkgdir/usr/share/locale/$lang/LC_MESSAGES/cirrove.mo" "$po"
+  done
 
   install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
 }

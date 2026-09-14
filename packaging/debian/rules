@@ -36,6 +36,13 @@ override_dh_auto_install:
 	install -Dm644 packaging/icons/symbolic/apps/*.svg -t $(DESKTOP)/usr/share/icons/hicolor/symbolic/apps/
 	install -Dm644 packaging/metainfo/$(ID).metainfo.xml -t $(DESKTOP)/usr/share/metainfo/
 	install -Dm644 packaging/nautilus/cirrove.py -t $(DESKTOP)/usr/share/nautilus-python/extensions/
+# Translations. The window binds its catalogue relative to its own binary, so
+# /usr/bin/cirrove-desktop finds /usr/share/locale without being told.
+	for po in po/*.po; do \
+	  lang=$$(basename $$po .po); \
+	  install -d $(DESKTOP)/usr/share/locale/$$lang/LC_MESSAGES; \
+	  msgfmt --check -o $(DESKTOP)/usr/share/locale/$$lang/LC_MESSAGES/cirrove.mo $$po; \
+	done
 
 override_dh_installsystemduser:
 	# Present, not enabled: a user enables the service when they connect a

@@ -1,3 +1,4 @@
+use crate::i18n::n;
 use cirrove_service::{Status, accounts::Settings, manager::AccountStatus};
 use std::path::PathBuf;
 mod failures;
@@ -20,47 +21,47 @@ pub enum ConnectionState {
 impl ConnectionState {
     pub fn label(&self) -> &'static str {
         match self {
-            Self::Connected => "Connected",
-            Self::Updating => "Updating or offline",
-            Self::Limited => "Provider is limiting requests",
-            Self::SignInRequired => "Sign in again",
-            Self::Mounting => "Mounting…",
-            Self::Unmounting => "Unmounting…",
-            Self::Unmounted => "Unmounted",
-            Self::Unavailable => "Connection needs attention",
-            Self::ServiceUnavailable => "Service unavailable",
-            Self::IncompatibleService => "Service update required",
-            Self::WaitingForService => "Waiting for service",
+            Self::Connected => n("Connected"),
+            Self::Updating => n("Updating or offline"),
+            Self::Limited => n("Provider is limiting requests"),
+            Self::SignInRequired => n("Sign in again"),
+            Self::Mounting => n("Mounting…"),
+            Self::Unmounting => n("Unmounting…"),
+            Self::Unmounted => n("Unmounted"),
+            Self::Unavailable => n("Connection needs attention"),
+            Self::ServiceUnavailable => n("Service unavailable"),
+            Self::IncompatibleService => n("Service update required"),
+            Self::WaitingForService => n("Waiting for service"),
         }
     }
     pub fn description(&self) -> &'static str {
         match self {
-            Self::Connected => {
-                "File contents download when opened. Cirrove checks for folder changes in the background."
-            }
+            Self::Connected => n(
+                "File contents download when opened. Cirrove checks for folder changes in the background.",
+            ),
             Self::Updating => {
-                "Cirrove is checking for changes. Previously listed files may be out of date."
+                n("Cirrove is checking for changes. Previously listed files may be out of date.")
             }
             Self::Limited => {
-                "The cloud provider has asked Cirrove to wait. It will retry automatically."
+                n("The cloud provider has asked Cirrove to wait. It will retry automatically.")
             }
             Self::SignInRequired => {
-                "This account needs a new sign-in before cloud access can resume."
+                n("This account needs a new sign-in before cloud access can resume.")
             }
-            Self::Mounting => "Waiting for the service to confirm the mount.",
-            Self::Unmounting => "Waiting for the service to release this mount.",
-            Self::Unmounted => "This connection is saved and can be mounted again.",
-            Self::Unavailable => {
-                "The mount or a cloud library is unavailable. Check the connection and mount location."
-            }
-            Self::ServiceUnavailable => {
-                "The Cirrove service could not be reached. This is saved configuration, not a current mount status."
-            }
-            Self::IncompatibleService => {
-                "The running service cannot confirm this account's identity. Update the service before using mount controls."
-            }
+            Self::Mounting => n("Waiting for the service to confirm the mount."),
+            Self::Unmounting => n("Waiting for the service to release this mount."),
+            Self::Unmounted => n("This connection is saved and can be mounted again."),
+            Self::Unavailable => n(
+                "The mount or a cloud library is unavailable. Check the connection and mount location.",
+            ),
+            Self::ServiceUnavailable => n(
+                "The Cirrove service could not be reached. This is saved configuration, not a current mount status.",
+            ),
+            Self::IncompatibleService => n(
+                "The running service cannot confirm this account's identity. Update the service before using mount controls.",
+            ),
             Self::WaitingForService => {
-                "Waiting for the service to observe the saved account settings."
+                n("Waiting for the service to observe the saved account settings.")
             }
         }
     }
@@ -164,11 +165,11 @@ impl KeptOffline {
 impl AccountCard {
     pub fn action_label(&self) -> &'static str {
         if !self.enabled {
-            "Mount"
+            n("Mount")
         } else if self.mounted {
-            "Unmount"
+            n("Unmount")
         } else {
-            "Cancel mount"
+            n("Cancel mount")
         }
     }
 }
@@ -212,11 +213,13 @@ impl ActivityEntry {
         });
         let local = reply.local.iter().map(|change| {
             let (what, warning) = match change.state.as_str() {
-                "uploaded" => ("saved here · in the cloud", false),
-                "pending" | "preparing" => ("saved here · waiting to upload", false),
-                "uploading" | "verifying" | "verifyrequired" => ("saved here · uploading", false),
-                "conflict" => ("saved here · the cloud refused it", true),
-                "failed" => ("saved here · upload failed", true),
+                "uploaded" => (n("saved here · in the cloud"), false),
+                "pending" | "preparing" => (n("saved here · waiting to upload"), false),
+                "uploading" | "verifying" | "verifyrequired" => {
+                    (n("saved here · uploading"), false)
+                }
+                "conflict" => (n("saved here · the cloud refused it"), true),
+                "failed" => (n("saved here · upload failed"), true),
                 other => (other, false),
             };
             Self {

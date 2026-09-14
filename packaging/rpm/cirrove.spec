@@ -24,6 +24,7 @@ BuildRequires:  cmake
 BuildRequires:  pkgconf-pkg-config
 BuildRequires:  gtk4-devel >= 4.14
 BuildRequires:  libadwaita-devel >= 1.5
+BuildRequires:  gettext
 Requires:       fuse3
 Recommends:     gnome-keyring
 Recommends:     xdg-utils
@@ -73,6 +74,13 @@ install -Dm644 packaging/icons/scalable/apps/*.svg -t %{buildroot}%{_datadir}/ic
 install -Dm644 packaging/icons/symbolic/apps/*.svg -t %{buildroot}%{_datadir}/icons/hicolor/symbolic/apps/
 install -Dm644 packaging/metainfo/%{app_id}.metainfo.xml -t %{buildroot}%{_metainfodir}/
 install -Dm644 packaging/nautilus/cirrove.py -t %{buildroot}%{_datadir}/nautilus-python/extensions/
+# Translations. The window binds its catalogue relative to its own binary, so
+# /usr/bin/cirrove-desktop finds /usr/share/locale without being told.
+for po in po/*.po; do
+  lang=$(basename "$po" .po)
+  install -d %{buildroot}%{_datadir}/locale/$lang/LC_MESSAGES
+  msgfmt --check -o %{buildroot}%{_datadir}/locale/$lang/LC_MESSAGES/cirrove.mo "$po"
+done
 
 %files
 %license LICENSE
@@ -94,6 +102,7 @@ install -Dm644 packaging/nautilus/cirrove.py -t %{buildroot}%{_datadir}/nautilus
 %{_datadir}/icons/hicolor/symbolic/apps/%{app_id}*.svg
 %{_metainfodir}/%{app_id}.metainfo.xml
 %{_datadir}/nautilus-python/extensions/cirrove.py
+%{_datadir}/locale/*/LC_MESSAGES/cirrove.mo
 
 %changelog
 * Sat Sep 13 2026 Christian Dandachi <dandiccf@users.noreply.github.com> - 0.1.0~dev-1

@@ -1,4 +1,5 @@
 //! GTK widgets and asynchronous desktop controller.
+use crate::i18n::{fill, gettext, n};
 use crate::model::{AccountCard, ConnectionState, Overview};
 use adw::prelude::*;
 use cirrove_service::accounts;
@@ -97,21 +98,24 @@ impl Window {
     pub fn new(app: &adw::Application, backend: Backend) -> Rc<Self> {
         let window = adw::ApplicationWindow::builder()
             .application(app)
-            .title("Cirrove")
+            .title(gettext("Cirrove"))
             .default_width(660)
             .default_height(620)
             .build();
         let toolbar = adw::ToolbarView::new();
         let header = adw::HeaderBar::new();
-        header.set_title_widget(Some(&adw::WindowTitle::new("Cirrove", "Cloud drives")));
+        header.set_title_widget(Some(&adw::WindowTitle::new(
+            &gettext("Cirrove"),
+            &gettext("Cloud drives"),
+        )));
         let connect_button = icon_button("list-add-symbolic", "Connect a drive");
         header.pack_start(&connect_button);
         let refresh_button = icon_button("view-refresh-symbolic", "Refresh connection status");
         header.pack_end(&refresh_button);
         toolbar.add_top_bar(&header);
         let banner = adw::Banner::builder()
-            .title("Cirrove service is unavailable")
-            .button_label("Retry")
+            .title(gettext("Cirrove service is unavailable"))
+            .button_label(gettext("Retry"))
             .revealed(false)
             .build();
         toolbar.add_top_bar(&banner);
@@ -145,13 +149,13 @@ impl Window {
         body.set_margin_end(24);
         let heading = gtk::Box::new(gtk::Orientation::Vertical, 8);
         let title = gtk::Label::builder()
-            .label("Your clouds, in Files")
+            .label(gettext("Your clouds, in Files"))
             .xalign(0.0)
             .wrap(true)
             .build();
         title.add_css_class("title-1");
         let description = gtk::Label::builder()
-            .label("Manage your saved cloud connections.")
+            .label(gettext("Manage your saved cloud connections."))
             .xalign(0.0)
             .wrap(true)
             .build();
@@ -165,14 +169,14 @@ impl Window {
         // or went away in the cloud, and what was saved here and where it is
         // on its way. Present only when there is something to say.
         let activity = adw::PreferencesGroup::builder()
-            .title("Recent activity")
+            .title(gettext("Recent activity"))
             .visible(false)
             .build();
         body.append(&activity);
         let empty = adw::StatusPage::builder()
             .icon_name("io.github.Dandiccf.Cirrove-symbolic")
-            .title("Loading connections…")
-            .description("Reading your saved accounts and service status.")
+            .title(gettext("Loading connections…"))
+            .description(gettext("Reading your saved accounts and service status."))
             .build();
         let empty_actions = gtk::Box::new(gtk::Orientation::Vertical, 12);
         empty_actions.set_halign(gtk::Align::Center);
@@ -189,7 +193,7 @@ impl Window {
         body.append(&empty);
         let help = gtk::LinkButton::with_label(
             "https://github.com/Dandiccf/cirrove/blob/main/docs/onedrive-setup.md",
-            "OneDrive setup guide",
+            &gettext("OneDrive setup guide"),
         );
         help.set_halign(gtk::Align::Start);
         if matches!(backend, Backend::Demo) {
@@ -356,7 +360,7 @@ impl Window {
                     if let Ok(overview) = result {
                         ui.render(overview);
                     } else {
-                        ui.notify("Could not read connection status. Try again.");
+                        ui.notify(&gettext("Could not read connection status. Try again."));
                     }
                 });
             }
@@ -366,7 +370,7 @@ impl Window {
         self.restart_notice.set_revealed(overview.restart_required);
         self.banner.set_revealed(overview.service_error.is_some());
         if let Some(error) = &overview.service_error {
-            self.banner.set_title(error.description());
+            self.banner.set_title(&gettext(error.description()));
         }
         self.empty
             .set_visible(!overview.settings_available || overview.accounts.is_empty());
@@ -378,11 +382,8 @@ impl Window {
             "Account settings unavailable"
         });
         let description = overview.settings_error.as_ref().map_or_else(
-            || {
-                "Connect a OneDrive and its files appear in Files, downloaded as you open them."
-                    .into()
-            },
-            |error| error.description(),
+            || gettext("Connect a OneDrive and its files appear in Files, downloaded as you open them."),
+            |error| gettext(error.description()),
         );
         self.empty.set_description(Some(&description));
         self.settings_retry
@@ -445,7 +446,10 @@ impl Window {
         for entry in entries.iter().take(12) {
             let row = adw::ActionRow::builder()
                 .title(&entry.name)
-                .subtitle(format!("{} · {}", entry.account, entry.what))
+                .subtitle(fill(
+                    &gettext("{} · {}"),
+                    &[&entry.account, &gettext(&entry.what)],
+                ))
                 .use_markup(false)
                 .subtitle_lines(1)
                 .build();
@@ -470,36 +474,36 @@ impl Window {
         row.add_suffix(&open);
         // Where the state says sign in, the button to do it is right there.
         let sign_in = gtk::Button::builder()
-            .label("Sign in again")
+            .label(gettext("Sign in again"))
             .valign(gtk::Align::Center)
             .visible(false)
             .build();
         sign_in.add_css_class("suggested-action");
         row.add_suffix(&sign_in);
         let mount = gtk::Button::builder()
-            .label("Mount")
+            .label(gettext("Mount"))
             .valign(gtk::Align::Center)
             .build();
         row.add_suffix(&mount);
         let status = adw::ActionRow::builder()
-            .title("Connection status")
+            .title(gettext("Connection status"))
             .use_markup(false)
             .subtitle_lines(0)
             .build();
         let location = adw::ActionRow::builder()
-            .title("Location in Files")
+            .title(gettext("Location in Files"))
             .use_markup(false)
             .subtitle_selectable(true)
             .subtitle_lines(2)
             .build();
         let identity = adw::ActionRow::builder()
-            .title("Microsoft account")
+            .title(gettext("Microsoft account"))
             .use_markup(false)
             .subtitle_selectable(true)
             .subtitle_lines(2)
             .build();
         let access = adw::ActionRow::builder()
-            .title("Access")
+            .title(gettext("Access"))
             .use_markup(false)
             .subtitle_lines(0)
             .build();
@@ -508,31 +512,31 @@ impl Window {
         // way, so the provider's own consent screen is what actually grants or
         // narrows the access; this button only asks for it.
         let consent = gtk::Button::builder()
-            .label("Allow changes")
+            .label(gettext("Allow changes"))
             .valign(gtk::Align::Center)
             .build();
         access.add_suffix(&consent);
         let storage = adw::ActionRow::builder()
-            .title("Local cache")
+            .title(gettext("Local cache"))
             .use_markup(false)
             .build();
         // Shown only while there is something to discard. The daemon has
         // stopped retrying these; the user decides what happens to the copies.
         let refused = adw::ActionRow::builder()
-            .title("Changes the cloud refused")
+            .title(gettext("Changes the cloud refused"))
             .use_markup(false)
             .subtitle_lines(0)
             .visible(false)
             .build();
         refused.add_css_class("warning");
         let discard = gtk::Button::builder()
-            .label("Discard")
+            .label(gettext("Discard"))
             .valign(gtk::Align::Center)
             .build();
         discard.add_css_class("destructive-action");
         refused.add_suffix(&discard);
         let kept = adw::ExpanderRow::builder()
-            .title("Kept offline")
+            .title(gettext("Kept offline"))
             .use_markup(false)
             .subtitle_lines(0)
             .build();
@@ -543,12 +547,12 @@ impl Window {
         // folder and never both, and two icon buttons in a row this narrow read
         // as clutter.
         let keep_file = gtk::Button::builder()
-            .label("File…")
+            .label(gettext("File…"))
             .halign(gtk::Align::Fill)
             .build();
         keep_file.add_css_class("flat");
         let keep_folder = gtk::Button::builder()
-            .label("Folder…")
+            .label(gettext("Folder…"))
             .halign(gtk::Align::Fill)
             .build();
         keep_folder.add_css_class("flat");
@@ -561,7 +565,7 @@ impl Window {
             // A name from the start. render_kept_offline replaces it with one
             // that says why it is insensitive when the account is unmounted,
             // but a control that is only an icon must never exist unnamed.
-            .tooltip_text("Keep a file or folder offline")
+            .tooltip_text(gettext("Keep a file or folder offline"))
             .valign(gtk::Align::Center)
             .popover(&popover)
             .build();
@@ -572,13 +576,15 @@ impl Window {
         kept.add_suffix(&keep_add);
 
         let removal = adw::ActionRow::builder()
-            .title("Remove this connection")
-            .subtitle("Its sign-in and local index are set aside; nothing in the cloud is touched.")
+            .title(gettext("Remove this connection"))
+            .subtitle(gettext(
+                "Its sign-in and local index are set aside; nothing in the cloud is touched.",
+            ))
             .use_markup(false)
             .subtitle_lines(0)
             .build();
         let remove = gtk::Button::builder()
-            .label("Remove")
+            .label(gettext("Remove"))
             .valign(gtk::Align::Center)
             .build();
         remove.add_css_class("destructive-action");
@@ -594,7 +600,7 @@ impl Window {
         // did not reach the cloud. Its remedy is different too -- open the
         // file and save it again -- so it carries no discard button.
         let unsent = adw::ActionRow::builder()
-            .title("Saves that did not reach the cloud")
+            .title(gettext("Saves that did not reach the cloud"))
             .use_markup(false)
             .subtitle_lines(0)
             .visible(false)
@@ -683,22 +689,28 @@ impl Window {
         let operation = self.operation.borrow();
         let idle = operation.is_none();
         let writing = operation.as_ref().filter(|op| op.id == card.id);
-        let state = if let Some(operation) = writing {
+        let state = gettext(if let Some(operation) = writing {
             operation.text
         } else if late {
-            "Still waiting for service"
+            n("Still waiting for service")
         } else {
             card.state.label()
-        };
+        });
         row.row
-            .set_subtitle(&format!("{} · {state}", card.username));
-        row.status.set_subtitle(if late { "The request is saved, but the service has not confirmed it. You can change the mount preference or check the service." } else { card.state.description() });
+            .set_subtitle(&fill(&gettext("{} · {}"), &[&card.username, &state]));
+        row.status.set_subtitle(&if late {
+            gettext(
+                "The request is saved, but the service has not confirmed it. You can change the mount preference or check the service.",
+            )
+        } else {
+            gettext(card.state.description())
+        });
         if card.state.warning() || late {
             row.status.add_css_class("warning");
         } else {
             row.status.remove_css_class("warning");
         }
-        row.mount.set_label(card.action_label());
+        row.mount.set_label(&gettext(card.action_label()));
         row.mount.set_sensitive(card.controls_available && idle);
         row.open.set_sensitive(card.mounted && live);
         // Offered wherever the state says so, in the preview too: the preview
@@ -743,28 +755,35 @@ impl Window {
             row.consent.add_css_class("suggested-action");
         }
         row.consent.set_sensitive(idle && card.controls_available);
-        row.storage.set_subtitle(&format!(
-            "Up to {:.1} GiB · downloaded as needed",
-            card.cache_bytes as f64 / 1024_f64.powi(3)
+        row.storage.set_subtitle(&fill(
+            &gettext("Up to {} GiB · downloaded as needed"),
+            &[&format!(
+                "{:.1}",
+                card.cache_bytes as f64 / 1024_f64.powi(3)
+            )],
         ));
         row.refused.set_visible(card.stuck > 0);
-        row.refused.set_subtitle(&format!(
-            "{} that the cloud would not accept. They will not be retried. Discarding removes the local copies; the cloud keeps its version.",
-            if card.stuck == 1 {
-                "1 change".to_owned()
+        row.refused.set_subtitle(&fill(
+            &gettext(
+                "{} that the cloud would not accept. They will not be retried. Discarding removes the local copies; the cloud keeps its version.",
+            ),
+            &[&if card.stuck == 1 {
+                gettext("1 change")
             } else {
-                format!("{} changes", card.stuck)
-            }
+                fill(&gettext("{} changes"), &[&card.stuck.to_string()])
+            }],
         ));
         row.discard.set_sensitive(idle);
         row.unsent.set_visible(card.failed_uploads > 0);
-        row.unsent.set_subtitle(&format!(
-            "{} did not reach the cloud. The file is on this computer; the cloud has an older version or none. Open the file and save it again to try once more.",
-            if card.failed_uploads == 1 {
-                "1 save".to_owned()
+        row.unsent.set_subtitle(&fill(
+            &gettext(
+                "{} did not reach the cloud. The file is on this computer; the cloud has an older version or none. Open the file and save it again to try once more.",
+            ),
+            &[&if card.failed_uploads == 1 {
+                gettext("1 save")
             } else {
-                format!("{} saves", card.failed_uploads)
-            },
+                fill(&gettext("{} saves"), &[&card.failed_uploads.to_string()])
+            }],
         ));
         self.render_kept_offline(row, card, idle);
         // Removal under a running mount would race it; the daemon refuses, and
@@ -792,7 +811,7 @@ impl Window {
             let entry = adw::ActionRow::builder()
                 .title(&pin.name)
                 .subtitle(if pin.recursive {
-                    format!("{} · everything inside it", pin.detail)
+                    fill(&gettext("{} · everything inside it"), &[&pin.detail])
                 } else {
                     pin.detail.clone()
                 })
@@ -800,7 +819,7 @@ impl Window {
                 .subtitle_lines(0)
                 .build();
             let stop = gtk::Button::builder()
-                .label("Stop keeping")
+                .label(gettext("Stop keeping"))
                 .valign(gtk::Align::Center)
                 .sensitive(idle && card.controls_available)
                 .build();
@@ -825,7 +844,7 @@ impl Window {
                 (Some(budget), _) => budget.clone(),
                 (None, 0) => "Nothing is kept offline yet.".to_owned(),
                 (None, 1) => "1 item kept offline.".to_owned(),
-                (None, n) => format!("{n} items kept offline."),
+                (None, n) => fill(&gettext("{} items kept offline."), &[&n.to_string()]),
             });
         row.keep_add
             .set_sensitive(idle && card.controls_available && card.mounted);
@@ -876,7 +895,7 @@ impl Window {
         let Some(card) = self.card(id).filter(|a| a.controls_available) else {
             return;
         };
-        if !self.begin_operation(id, "Saving mount preference…") {
+        if !self.begin_operation(id, n("Saving mount preference…")) {
             return;
         }
         let enabled = !card.enabled;
@@ -920,7 +939,7 @@ impl Window {
                     };
                     ui.end_operation();
                     if !matches!(result, Ok(Ok(()))) {
-                        ui.notify("Could not save the mount preference. Another account operation may be running; refresh and try again.");
+                        ui.notify(&gettext("Could not save the mount preference. Another account operation may be running; refresh and try again."));
                     }
                     ui.refresh();
                 });
@@ -962,7 +981,7 @@ impl Window {
         let Backend::Live { runtime, state, .. } = &self.backend else {
             return;
         };
-        if !self.begin_operation(id, "Signing in in your browser…") {
+        if !self.begin_operation(id, n("Signing in in your browser…")) {
             return;
         }
         let state = state.clone();
@@ -994,8 +1013,8 @@ impl Window {
                     }
                     None => "Signed in again.",
                 }),
-                Ok(Err(error)) => ui.notify(&format!("The sign-in did not finish: {error}")),
-                Err(_) => ui.notify("The sign-in did not finish."),
+                Ok(Err(error)) => ui.notify(&fill(&gettext("The sign-in did not finish: {}"), &[&error.to_string()])),
+                Err(_) => ui.notify(&gettext("The sign-in did not finish.")),
             }
             ui.refresh();
         });
@@ -1013,7 +1032,7 @@ impl Window {
         else {
             return;
         };
-        if !self.begin_operation(id, "Releasing…") {
+        if !self.begin_operation(id, n("Releasing…")) {
             return;
         }
         let socket = socket.clone();
@@ -1041,16 +1060,20 @@ impl Window {
             ui.end_operation();
             match result {
                 Ok(Ok(reply)) => match reply.refusal {
-                    Some(refusal) => {
-                        ui.notify(&format!("{shown} is still kept offline: {refusal}"))
-                    }
+                    Some(refusal) => ui.notify(&fill(
+                        &gettext("{} is still kept offline: {}"),
+                        &[&shown, &refusal],
+                    )),
                     None if reply.accepted => {
-                        ui.notify(&format!("{shown} is no longer kept offline."));
+                        ui.notify(&fill(&gettext("{} is no longer kept offline."), &[&shown]));
                     }
-                    None => ui.notify(&format!("{shown} was not kept offline.")),
+                    None => ui.notify(&fill(&gettext("{} was not kept offline."), &[&shown])),
                 },
-                Ok(Err(error)) => ui.notify(&format!("Could not release {shown}: {error}")),
-                Err(_) => ui.notify("The service did not answer."),
+                Ok(Err(error)) => ui.notify(&fill(
+                    &gettext("Could not release {}: {}"),
+                    &[&shown, &error.to_string()],
+                )),
+                Err(_) => ui.notify(&gettext("The service did not answer.")),
             }
             ui.refresh();
         });
@@ -1116,7 +1139,7 @@ impl Window {
             return;
         };
         let Ok(relative) = path.strip_prefix(&card.mount_path) else {
-            self.notify("Choose a file inside this drive's folder.");
+            self.notify(&gettext("Choose a file inside this drive's folder."));
             return;
         };
         let relative = relative.to_string_lossy().into_owned();
@@ -1127,7 +1150,7 @@ impl Window {
             return;
         }
         let recursive = path.is_dir();
-        if !self.begin_operation(id, "Keeping offline…") {
+        if !self.begin_operation(id, n("Keeping offline…")) {
             return;
         }
         let socket = socket.clone();
@@ -1155,7 +1178,7 @@ impl Window {
             match result {
                 Ok(Ok(reply)) => match reply.refusal {
                     Some(refusal) => ui.notify(&refusal),
-                    None if !reply.accepted => ui.notify(&format!("{relative} was not kept offline.")),
+                    None if !reply.accepted => ui.notify(&fill(&gettext("{} was not kept offline."), &[&relative])),
                     // An incomplete walk is not an error: the pin is recorded
                     // and honoured for what is indexed, and fills in as the
                     // index does. Saying so beats silence when the number of
@@ -1170,7 +1193,7 @@ impl Window {
                     )),
                 },
                 Ok(Err(error)) => ui.notify(&format!("Could not keep {relative} offline: {error}")),
-                Err(_) => ui.notify("The service did not answer."),
+                Err(_) => ui.notify(&gettext("The service did not answer.")),
             }
             ui.refresh();
         });
@@ -1187,7 +1210,7 @@ impl Window {
         else {
             return;
         };
-        if !self.begin_operation(id, "Discarding refused changes…") {
+        if !self.begin_operation(id, n("Discarding refused changes…")) {
             return;
         }
         let socket = socket.clone();
@@ -1218,7 +1241,7 @@ impl Window {
                     )),
                 },
                 Ok(Err(error)) => ui.notify(&format!("Could not discard: {error}")),
-                Err(_) => ui.notify("Could not discard the refused changes."),
+                Err(_) => ui.notify(&gettext("Could not discard the refused changes.")),
             }
             ui.refresh();
         });
@@ -1254,7 +1277,7 @@ impl Window {
             match result {
                 Ok(Ok(unsent)) => ui.confirm_removal(&id, unsent),
                 Ok(Err(error)) => ui.notify(&format!("Could not check this connection: {error}")),
-                Err(_) => ui.notify("Could not check this connection."),
+                Err(_) => ui.notify(&gettext("Could not check this connection.")),
             }
         });
     }
@@ -1300,7 +1323,7 @@ impl Window {
         let Backend::Live { runtime, state, .. } = &self.backend else {
             return;
         };
-        if !self.begin_operation(id, "Removing…") {
+        if !self.begin_operation(id, n("Removing…")) {
             return;
         }
         let state = state.clone();
@@ -1321,7 +1344,7 @@ impl Window {
             match result {
                 Ok(Ok(message)) => ui.notify(&message),
                 Ok(Err(error)) => ui.notify(&format!("Could not remove: {error}")),
-                Err(_) => ui.notify("Could not remove the connection."),
+                Err(_) => ui.notify(&gettext("Could not remove the connection.")),
             }
             ui.refresh();
         });
@@ -1343,7 +1366,9 @@ impl Window {
             if launcher.launch_future(Some(&window)).await.is_err()
                 && let Some(ui) = weak.upgrade()
             {
-                ui.notify("Files could not open this mount. Check the connection and try again.");
+                ui.notify(&gettext(
+                    "Files could not open this mount. Check the connection and try again.",
+                ));
             }
         });
     }
