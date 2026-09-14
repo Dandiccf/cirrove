@@ -208,6 +208,15 @@ jobs:
         run: python3 scripts/test-nautilus-extension.py
       - name: Nothing is reachable only through one file manager
         run: python3 scripts/test-file-manager-docs.py
+      - name: Every icon fills its own canvas
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq librsvg2-bin imagemagick
+          # A skip here would read exactly like a pass, so insist the tools are
+          # really present before trusting the result.
+          command -v rsvg-convert
+          command -v magick || command -v convert
+          python3 scripts/test-icon-geometry.py
       - run: cargo doc --workspace --no-deps --locked
   mounted-read-workloads:
     runs-on: ubuntu-24.04

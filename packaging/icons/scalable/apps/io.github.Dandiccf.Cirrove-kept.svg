@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- A Files emblem: kept offline, and the content is here. Drawn over a file's
-     thumbnail, which can be any colour, so the cloud carries a white rim. -->
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-  <g transform="translate(8,8.5) scale(1.2) translate(-8,-9.5)">
-    <path d="M 4.3,13 H 11.6 A 3,3 0 0 0 12,6.9 A 4,4 0 0 0 4.5,6.05 A 3.4,3.4 0 0 0 4.3,13 Z"
-          fill="#2b7fd4" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"/>
-    <path d="M 5.9,9.9 7.4,11.3 10.2,8.3" stroke="#ffffff" stroke-width="1.8"
-          stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <title>Cirrove: kept</title>
+  <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 11.88,3.04 A 6.3,6.3 0 1 0 13.72,10.0" stroke-width="4.5"/>
   </g>
+  <path d="M 5.8,8.05 L 7.25,9.5 L 10.2,6.4" fill="none" stroke="#ffffff" stroke-width="4.0" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="none" stroke="#1b6ef3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 11.88,3.04 A 6.3,6.3 0 1 0 13.72,10.0" stroke-width="2.3"/>
+  </g>
+  <path d="M 5.8,8.05 L 7.25,9.5 L 10.2,6.4" fill="none" stroke="#1b6ef3" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

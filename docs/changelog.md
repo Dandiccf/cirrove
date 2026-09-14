@@ -5,6 +5,16 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
 
 ## Unreleased
 
+- **Cirrove has its own mark, and it is not a cloud.** A ring broken at the
+  upper right, with what is happening in the middle: a dot when everything is
+  quiet, an arrow while something is moving, an exclamation when you have to
+  act. In the panel it is white with a dark rim, so it belongs beside the
+  shell's own icons instead of shouting in colour, and it still reads on a
+  light panel. The old blue cloud was the most used shape in the category, and
+  it drew as a smudge at tray size because the drawing filled only 39% of its
+  canvas and sat low in it -- panels scale the canvas, so no setting could have
+  made it bigger. The new one fills its frame at every size, and a check now
+  measures that for every icon so it cannot quietly shrink again.
 - **The window says when a desktop has no tray**, instead of only writing it to
   the system log: a line naming what to install, on GNOME the AppIndicator
   extension. It appears only when the session really has no tray, never because

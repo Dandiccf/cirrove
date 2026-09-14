@@ -141,15 +141,26 @@ it silently is how a user on stock GNOME ends up with no icon and nothing
 anywhere saying why. Once, not on every change: a flaky panel must not fill a
 journal.
 
-The tray icons are Cirrove's own and colored, not symbolic: a blue cloud for
-ready, a blue cloud with transfer arrows for working, an amber cloud with an
-exclamation mark for anything a person must act on. Three icons rather than
-overlays, because not every host draws overlays -- and colored rather than
-symbolic because a symbolic icon expects the panel to recolor it, and a panel
-that does not (Quickshell on Omarchy resolves the icon to a file path and never
-sees the `-symbolic` suffix its recolor keys on) draws the raw GNOME grey,
-invisible on a dark bar. A colored cloud reads on any panel, like the other
-icons already in such a bar. They ship in `packaging/icons/scalable/apps/` for
+The tray icons are Cirrove's own: the ring broken at the upper right that is
+the Cirrove mark, with the state in its middle -- a dot for ready, an up arrow
+for working, an exclamation for anything a person must act on. Three icons
+rather than overlays, because not every host draws overlays.
+
+They are white with a dark rim, and deliberately still not symbolic. A symbolic
+icon expects the panel to recolor it, and a panel that does not (Quickshell on
+Omarchy resolves the icon to a file path and never sees the `-symbolic` suffix
+its recolor keys on) draws the raw GNOME grey, invisible on a dark bar. White
+needs no cooperation from anyone on the dark panels these actually sit in, and
+the rim underneath -- black at 72%, a little wider than the stroke -- keeps the
+shape legible on a light one. Both cases, nothing asked of the host.
+
+This replaced a colored cloud. It read on any panel, but it was the wrong
+register beside a shell's own monochrome icons, and it drew as a smudge at
+16 px because the drawing filled only 39% of its canvas vertically and sat
+eleven pixels below the middle -- launchers and panels scale the canvas, so
+there was no setting that could have fixed it.
+`scripts/test-icon-geometry.py` now measures the drawn extent of every shipped
+icon against its viewBox, so that particular mistake cannot come back quietly. They ship in `packaging/icons/scalable/apps/` for
 a package to install into the hicolor theme, and
 the tray does not depend on that having happened: it embeds the same files,
 writes them under `$XDG_RUNTIME_DIR/cirrove-tray/icons` at start, and advertises

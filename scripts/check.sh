@@ -45,6 +45,7 @@ python=$(command -v /usr/bin/python3 || command -v python3)
 "$python" scripts/test-install-scripts.py
 "$python" scripts/test-nautilus-extension.py
 "$python" scripts/test-file-manager-docs.py
+"$python" scripts/test-icon-geometry.py
 "$python" scripts/acceptance-ledger.py
 
 step "docs"

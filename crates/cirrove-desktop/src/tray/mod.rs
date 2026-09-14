@@ -189,12 +189,20 @@ impl TrayState {
 
     /// The icon for the current state, one of Cirrove's own.
     ///
-    /// Colored, not symbolic: a symbolic icon expects the host to recolor it to
-    /// the panel foreground, and a host that does not (Quickshell on Omarchy
-    /// resolves the icon to a file path and never sees the `-symbolic` suffix
-    /// its recolor keys on) draws the raw GNOME grey, invisible on a dark bar.
-    /// A colored cloud reads on any panel and needs no host cooperation, which
-    /// is what the other icons in such a bar already do.
+    /// White with a dark rim, and deliberately not a symbolic icon. A symbolic
+    /// expects the host to recolor it to the panel foreground, and a host that
+    /// does not (Quickshell on Omarchy resolves the icon to a file path and
+    /// never sees the `-symbolic` suffix its recolor keys on) draws the raw
+    /// GNOME grey, invisible on a dark bar. White needs no cooperation from
+    /// anyone on the dark panels these actually sit in, and the rim underneath
+    /// it -- black at 72%, a little wider than the stroke -- is what keeps the
+    /// shape legible on a light one. That covers both without asking the host
+    /// for anything.
+    ///
+    /// It replaced a colored cloud, which read on any panel but was the wrong
+    /// register beside a shell's own monochrome icons, and drew as a smudge at
+    /// 16 px because it filled 39% of its canvas vertically.
+    /// `scripts/test-icon-geometry.py` now measures that for every icon.
     ///
     /// Three distinct icons rather than one icon with overlays, because not
     /// every host draws overlays and a state a host cannot draw is a state the
