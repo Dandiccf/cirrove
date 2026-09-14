@@ -1,0 +1,26 @@
+{
+  "question": "Over a long session against a large library, with malloc arenas capped as the shipped unit now caps them, does the daemon's resident memory reach a plateau and stay there -- and what is the number the bounded-memory row should state?",
+  "why_now": "The bounded-memory row has been open since 2026-09-10 on a product decision, not a measurement: the same daemon sat at 108 or 211 MiB depending on a setting nobody had chosen. That decision was made on 2026-09-14 with both halves of the trade measured (allocator-arena-cost.json), and the shipped unit now caps arenas. What is left is the bound itself, which is now a measurement with no decision in front of it.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-14",
+  "honesty_note": "The sampler was started a few minutes before this file was written, at 11:58. No sample had been read when these predictions were set down, and none is read until the run ends. Saying so is better than backdating.",
+  "how": "The Fedora VM, the owner's account with 184,054 indexed items, the daemon restarted with MALLOC_ARENA_MAX=1 through a systemd drop-in and confirmed set in /proc/<pid>/environ. scripts/sustained-operation-sample.py writes a row a minute for five hours: rss, state, mounted, feeds, items, stuck, and the time a root listing takes.",
+  "what_is_already_known": {
+    "uncapped_over_a_day": "The Ubuntu window running concurrently, on the same drive and the same 184,053 items but without the cap, shows a plateau rather than a climb: 29.9 MiB rising to 42.3 over 17.6 hours, of which the second half contributed 1.0 MiB. An earlier 4-hour run on the same machine had the same shape, +8.7 MiB total and +0.4 in its second half. That workload is mostly idle -- a listing a minute -- which is why its numbers are far below the 103 to 158 MiB growth the concurrent read fixture produces uncapped.",
+    "capped_under_load": "43.9 to 44.6 MiB of growth across six concurrent read workloads, spread 0.7 MiB."
+  },
+  "predictions": {
+    "P1": "Resident memory reaches a plateau within the first two hours and the second half of the run adds less than 5 MiB. The uncapped run shows this shape already; capping should not change whether it plateaus, only where.",
+    "P2": "The plateau is at or below the uncapped machine's, and probably a little under it. This workload is light, so the arena effect should be smaller here than under the concurrent read fixture -- if capping made this workload's resting memory noticeably worse, that would be worth knowing and would not be expected.",
+    "P3": "A root listing stays at a millisecond or two throughout, as it does on the uncapped machine. Memory that is bounded by refusing to serve is not bounded.",
+    "P4": "The account stays ready and mounted for the whole run with no restart, and indexed_items does not drift. Anything else and this is measuring a different event."
+  },
+  "decision_rule": {
+    "all_hold": "The bounded-memory row states its bound against the capped allocator, with this number and the uncapped day beside it, and closes.",
+    "P1_fails": "There is a leak and the row stays open with a number nobody should ship.",
+    "P3_fails": "The row stays open: a listing that slows as memory settles is the trade this row exists to refuse."
+  },
+  "what_this_does_not_cover": "Five hours, not a day, and one machine. The day belongs to the Ubuntu window, which is uncapped; running a capped day is the obvious follow-on and is not this.",
+  "result": null,
+  "verdict": null
+}
