@@ -35,6 +35,7 @@ tests against a synthetic provider and has never met the real service;
 | | Status | Where |
 | --- | --- | --- |
 | Reading: listing, opening, streaming large files, cache eviction | real | validation.md, benchmarks |
+| Opening the mount folder from the window | real -- Fedora 44 GNOME Wayland with the account signed in, 2026-09-14: the Open in Files button opens Files at the mount, and with xdg-desktop-portal, -gnome and -gtk all stopped and masked it still does, through GTK's fallback. Cancellation is not reached: this flow presents no chooser when the desktop has a default handler | benchmarks/session-matrix.json |
 | Opening a file in an application | real -- in the Ubuntu VM GNOME session: a text editor and a spreadsheet open a mount file from Files, and a headless LibreOffice conversion opens a .docx; confirmed by the account owner double-clicking in the window | vm-recovery-and-real-desktop.json |
 | Remote creates, edits, moves and deletions reaching the mount | real -- and now also driven server-side through Graph rather than by Cirrove: folder create visible in 4 s, file create 6 s, a 31 to 111 byte edit 16.4 s with stat's size and the bytes read agreeing at every sample, rename and delete under 2 s, move 16 s | validation.md § change notification, benchmarks/remote-change-propagation.json |
 | Saving, renaming, moving, creating and deleting from the mount | real -- 192 changes applied on the live account, zero stuck at last count | write-validation.md |

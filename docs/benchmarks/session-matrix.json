@@ -1,0 +1,27 @@
+{
+  "question": "Does Cirrove behave correctly across the session matrix M5 line 265 declares -- native Wayland and X11, GNOME and Plasma -- for the window, the system dark-style preference, and portal-backed folder opening including the case where there is no portal at all?",
+  "why_now": "The row has been open since it was written because no machine could answer it. Plasma on Wayland was covered on 2026-09-13 but without an account, so the portal clause stayed untested; Fedora 44 ships no X11 session for either desktop, so X11 was unreachable there entirely. The Ubuntu VM changes both: it has the owner's account signed in, and it ships ubuntu-wayland and ubuntu-xorg, so all four combinations can be reached on one machine without a second sign-in.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-14",
+  "how": "scripts/vm/session-matrix.sh switches the autologin session through AccountsService and reboots, then probes what actually came up rather than what was asked for -- a compositor that fails to start falls back, and an unnoticed fallback turns a Wayland row into an X11 row without saying so. Plasma is added with sddm's debconf question answered in advance, so gdm3 stays the display manager and the autologin every check depends on survives. The disk is copied first: the account is in that keyring and a second sign-in costs the owner time at a browser.",
+  "predictions": {
+    "P1": "All four sessions start and report the protocol asked for: ubuntu-wayland and plasma as wayland, ubuntu-xorg and the Plasma X11 session as x11. The likeliest failure is Plasma on Wayland under QEMU's virtio-vga without hardware acceleration falling back to X11 silently.",
+    "P2": "The window renders correctly in each, and on Wayland it is a native client rather than an Xwayland one. Launching it with DISPLAY unset is what makes that airtight: a client that runs at all with no X display cannot be going through Xwayland.",
+    "P3": "The tray item registers in all four. GNOME needs the AppIndicator extension in every session type; Plasma needs nothing, because StatusNotifierItem is KDE's own protocol and independent of the display protocol.",
+    "P4": "The window follows the system dark-style preference in each session, and the preference is read from the portal rather than guessed from the toolkit.",
+    "P5": "Portal-backed folder opening works in all four with an account present, and opens the mount itself rather than the home directory."
+  },
+  "already_observed": {
+    "where": "Fedora 44, GNOME on Wayland, with the owner's account signed in, 2026-09-14. Not part of the matrix run and not pre-registered -- this followed on from the sign-in, and is recorded because it answers two clauses that had no evidence anywhere.",
+    "portal_folder_opening": "Works. The Open in Files button opens Files at the mount path, showing the drive's real contents and the kept-offline badge on the pinned file. The window uses gtk::FileLauncher, which goes through org.freedesktop.portal.OpenURI when a portal is present.",
+    "missing_portal": "Degrades silently and correctly. With xdg-desktop-portal, -gnome and -gtk all stopped and masked -- confirmed by the bus refusing to activate the portal, 'unit is masked' -- the same button still opened Files at the same mount. GTK falls back to GAppInfo activation, and the toast the code shows on failure was never needed.",
+    "cancellation": "Not reached. FileLauncher presents no chooser when the desktop has a default handler for a directory, so there was nothing to cancel. Whether this clause is meaningful for this flow, as opposed to for the file chooser used by Keep offline, needs deciding before it can be called covered."
+  },
+  "run": {
+    "when": null,
+    "where": null,
+    "observed": {},
+    "not_covered": null
+  },
+  "conclusion": null
+}
