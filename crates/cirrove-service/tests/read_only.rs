@@ -3061,6 +3061,27 @@ async fn real_a_pinned_file_reads_offline_through_the_mount_and_an_unpinned_one_
 /// Shared setup for the pin mount tests: an engine with a budget that can hold
 /// something, started and ready, with the state directory returned so a restart
 /// can reuse it.
+/// Pin, and wait for the fetch the reply names.
+///
+/// Since 2026-09-15 keeping something offline answers before it has fetched
+/// anything: the reservation is the request and the fetching is a job, because
+/// a fetch outlives the three-second control exchange. A test that looks at
+/// what is on disk has to wait for that job; one that looks at the reservation
+/// does not, and three of these looked at the disk.
+async fn keep_offline(
+    engine: &Arc<Engine>,
+    request: &cirrove_service::PinRequest,
+) -> cirrove_service::PinReply {
+    let reply = engine.apply_pin_request(request).await.unwrap();
+    if let Some(job) = &reply.job {
+        let ended = tokio::time::timeout(Duration::from_secs(60), engine.jobs.wait(job))
+            .await
+            .expect("the fetch finished within a minute");
+        assert!(ended.is_none(), "keeping offline did not finish: {ended:?}");
+    }
+    reply
+}
+
 async fn pin_fixture(
     temp: &tempfile::TempDir,
     mount: &std::path::Path,
@@ -3091,14 +3112,15 @@ async fn real_a_recursive_pin_keeps_the_files_under_a_folder_readable_offline() 
     let mount = temp.path().join("mount");
     let (provider, engine, config) = pin_fixture(&temp, &mount).await;
 
-    let reply = engine
-        .apply_pin_request(&cirrove_service::PinRequest {
+    let reply = keep_offline(
+        &engine,
+        &cirrove_service::PinRequest {
             path: Some("folder".into()),
             recursive: true,
             ..Default::default()
-        })
-        .await
-        .unwrap();
+        },
+    )
+    .await;
     assert!(
         reply.accepted && reply.refusal.is_none(),
         "the daemon refused an ordinary folder pin: {reply:?}"
@@ -3161,7 +3183,7 @@ async fn real_unpinned_blocks_stop_being_protected_from_eviction() {
         ..Default::default()
     };
     assert!(
-        engine.apply_pin_request(&request).await.unwrap().accepted,
+        keep_offline(&engine, &request).await.accepted,
         "the budget holds one small file"
     );
     let scope = engine.scope("home");
@@ -3307,14 +3329,15 @@ async fn real_pin_protection_survives_a_restart_and_immediate_cache_pressure() {
     engine.start().await.unwrap();
     ready(&engine).await;
     assert!(
-        engine
-            .apply_pin_request(&cirrove_service::PinRequest {
+        keep_offline(
+            &engine,
+            &cirrove_service::PinRequest {
                 path: Some("small.txt".into()),
                 ..Default::default()
-            })
-            .await
-            .unwrap()
-            .accepted
+            }
+        )
+        .await
+        .accepted
     );
     let scope = engine.scope("home");
     let pinned = engine.node(&scope, "small.txt").await.unwrap();
