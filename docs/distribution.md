@@ -153,6 +153,14 @@ for want of an account. Fedora 44 is what "current Fedora" meant on the day;
 CI's container is 42, and the packages built there installed on 44 without
 complaint.
 
+**What the Arch machine itself lacked, 2026-09-15:** applications. It was
+pacstrapped with a shell, a file manager and a terminal, which is enough to
+install a package and read a tray icon and not enough to use a drive: the owner
+signed in, reached a mounted OneDrive and could not open a text file. A cloud
+filesystem is judged by what opens out of it, so the fixture now installs a text
+editor, an image and a document viewer and LibreOffice. Not xdg-utils, which the
+package under test must bring itself.
+
 **What the Arch sign-in found, 2026-09-15:** `xdg-utils` was an `optdepends`
 here and a `Recommends` on the other two, described as being "for the command
 line". It is neither optional nor only for the command line: connecting an

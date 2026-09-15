@@ -36,8 +36,14 @@ echo 'Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch' > /etc/pacman.d/m
 # turned out, a packaging one as well. wl-clipboard so a long client id can be
 # pasted rather than typed. Deliberately NOT xdg-utils: the package under test
 # requires it now, and installing it here would hide that the next time.
+# Applications, because a machine that can mount a drive and open nothing in it
+# cannot show the product working. The first sign-in here reached a mounted
+# OneDrive and then could not open a text file: "I cannot open anything, not
+# even a txt file because no single App seems to be installed". A cloud
+# filesystem is judged by what opens out of it.
 pacstrap -K /mnt base linux linux-firmware grub \
   gnome-shell gdm nautilus gnome-console firefox wl-clipboard \
+  gnome-text-editor loupe papers libreoffice-still \
   networkmanager openssh sudo python
 
 genfstab -U /mnt >> /mnt/etc/fstab
