@@ -29,9 +29,15 @@ applies:
   change and this is content. The tray icon and tooltip reflect it too.
 - **Changes the cloud refused** appears when the daemon has given up on
   changes the mount made locally that the provider never took, with a count and
-  **Discard**, which asks the daemon (`discard-stuck`) to abandon them so the
-  mount shows what the cloud actually has. Nothing is re-sent: the conflict
-  means the remote moved, and a stale retry would act on whatever is there now.
+  two answers, because there are two kinds of refusal behind that one number.
+  A change that **failed** -- a quota, a permission, a connection that went
+  away -- is one the cloud never decided about: **Try again** (`retry-stuck`)
+  sends those once more. A change in **conflict** is one the cloud did decide
+  about, and is never re-sent: the remote moved, and a stale retry would act on
+  whatever is there now. **Discard** (`discard-stuck`) abandons those so the
+  mount shows what the cloud actually has. The row says how many are worth
+  trying again and Try again is insensitive when none are, rather than lying
+  about what pressing it would do.
 - **Remove** takes a connection out of Cirrove. Only an unmounted one: removal
   under a running mount would race it, and the button says "Unmount before
   removing" rather than letting the daemon refuse later. The confirmation
@@ -447,11 +453,12 @@ event costs no protocol break.
 
 `status` also reports `stuck_changes`: namespace changes the daemon has given up
 on, each one a change the mount already made locally that the provider never
-took. `cirrove discard-stuck` abandons them, so the mount shows what the cloud
-actually has and the user can decide again; it never re-sends anything, because
-the conflict means the remote moved and a stale retry would act on whatever is
-there now. The window shows the count with a Discard button; the tray shows it
-in the icon, the tooltip and the menu. See [ADR 0007](adr/0007-desktop-event-channel.md).
+took. `cirrove retry-stuck` queues again the ones the cloud never decided about -- a
+quota, a permission, a connection that went away -- and counts the ones it did,
+which are never re-sent because a stale retry would act on whatever is at that
+path now. `cirrove discard-stuck` abandons those, so the mount shows what the
+cloud actually has and the user can decide again. The window shows the count
+with both buttons; the tray shows it in the icon, the tooltip and the menu. See [ADR 0007](adr/0007-desktop-event-channel.md).
 The window polls `status`; `cirrove-tray` consumes the event stream.
 
 Mount-preference save failures and folder-opening failures still use generic

@@ -180,14 +180,25 @@ these as "saved here · upload failed".
 
 ## When the cloud refuses a change
 
-Sometimes a change made locally cannot be applied: the file was changed or
-removed on the cloud side in the meantime, or the provider rejected it.
-Cirrove stops retrying, because a stale retry would act on whatever is there
-now. The window shows **Changes the cloud refused** with the count, and the
-tray icon shows the exclamation mark. **Discard** abandons those changes:
-the local copies go, the cloud keeps its version, and the drive shows what the
-cloud actually has. Nothing is re-sent. From the command line:
+Sometimes a change made locally cannot be applied. There are two reasons, and
+Cirrove now tells them apart, because the right answer is different for each.
+
+A change can simply have **failed** -- the drive was full, the permission was
+not there, the connection went away. The cloud never decided anything about it.
+**Try again** sends those once more; `cirrove retry-stuck <name>` does the same.
+
+Or the cloud can have **decided**: the file was changed, moved or removed on the
+cloud side in the meantime, so what you asked for no longer describes what is
+there. Cirrove does not re-send those, because a stale retry would act on
+whatever is at that path now -- renaming something you never renamed, or
+deleting a version you never saw. **Discard** abandons them: the local copies
+go, the cloud keeps its version, and the drive shows what the cloud actually
+has, so you can decide again. From the command line:
 `cirrove discard-stuck <name>`.
+
+The window shows **Changes the cloud refused** with the count and says how many
+of them are worth another try; **Try again** is greyed out when none are. The
+tray icon shows the exclamation mark either way.
 
 ## When the service is not there
 
