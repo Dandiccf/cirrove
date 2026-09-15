@@ -294,3 +294,64 @@ fn every_icon_the_tray_names_ships_as_a_file() {
         );
     }
 }
+
+/// Every packaging source must require xdg-utils, not recommend it.
+///
+/// Connecting an account opens the provider's sign-in in a browser, and
+/// `xdg-open` is how both the window and the command line do that. There is no
+/// second way and no graceful degradation: without it, a fresh install cannot
+/// connect an account, which is the one thing it exists to do.
+///
+/// It was an `optdepends` on Arch and a `Recommends` on the other two,
+/// described as "for the command line". On Fedora and Debian a desktop pulls it
+/// in and nothing ever noticed; on Arch, which installs what is declared and
+/// nothing else, the account owner pressed Sign in with Microsoft on 2026-09-15
+/// and was told "could not start the browser: No such file or directory".
+///
+/// This is a test of a declaration because a declaration is what failed. It
+/// cannot be a test of a machine: any desktop application drags xdg-utils in --
+/// LibreOffice depends on it -- so a VM with applications on it can never
+/// witness the absence again.
+#[test]
+fn every_package_requires_xdg_utils_rather_than_recommending_it() {
+    let pkgbuild = repo("packaging/arch/PKGBUILD");
+    let depends = pkgbuild
+        .lines()
+        .find(|line| line.trim_start().starts_with("depends=(fuse3"))
+        .unwrap_or_else(|| panic!("the cirrove package's depends= line moved"));
+    assert!(
+        depends.contains("xdg-utils"),
+        "Arch must depend on xdg-utils, not merely suggest it: {depends}"
+    );
+    assert!(
+        !pkgbuild.contains("'xdg-utils:"),
+        "xdg-utils must not also be an optdepends; that is where it was when it was missing"
+    );
+
+    let control = repo("packaging/debian/control");
+    let depends = control
+        .lines()
+        .find(|line| line.starts_with("Depends:") && line.contains("fuse3"))
+        .unwrap_or_else(|| panic!("the cirrove package's Depends line moved"));
+    assert!(
+        depends.contains("xdg-utils"),
+        "Debian must depend on xdg-utils: {depends}"
+    );
+    assert!(
+        !control.contains("Recommends: gnome-keyring, xdg-utils"),
+        "xdg-utils must not be back in Recommends, where a minimal install skips it"
+    );
+
+    let spec = repo("packaging/rpm/cirrove.spec");
+    assert!(
+        spec.lines()
+            .any(|line| line.starts_with("Requires:") && line.contains("xdg-utils")),
+        "Fedora must Require xdg-utils"
+    );
+    assert!(
+        !spec
+            .lines()
+            .any(|line| line.starts_with("Recommends:") && line.contains("xdg-utils")),
+        "xdg-utils must not be a Recommends as well"
+    );
+}

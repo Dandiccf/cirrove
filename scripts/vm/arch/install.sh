@@ -41,6 +41,13 @@ echo 'Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch' > /etc/pacman.d/m
 # OneDrive and then could not open a text file: "I cannot open anything, not
 # even a txt file because no single App seems to be installed". A cloud
 # filesystem is judged by what opens out of it.
+#
+# This costs something and it is worth saying which: LibreOffice depends on
+# xdg-utils, so from now on this machine always has xdg-open and can never again
+# witness its absence -- which is how the sign-in button came to be unable to
+# open a browser at all. That guard moved to where the failure actually was, a
+# declaration: cirrove-desktop tests/packaging.rs asserts all three packaging
+# sources require xdg-utils rather than recommending it.
 pacstrap -K /mnt base linux linux-firmware grub \
   gnome-shell gdm nautilus gnome-console firefox wl-clipboard \
   gnome-text-editor loupe papers libreoffice-still \
