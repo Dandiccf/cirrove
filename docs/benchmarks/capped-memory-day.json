@@ -1,0 +1,44 @@
+{
+  "question": "Over a day on a large library, with the allocator capped the way the shipped unit caps it and the index already warm, where does the daemon's memory settle -- and how much of that figure is live heap rather than memory an allocator is holding?",
+  "why_now": "The bounded-memory row has one clause left and it is a number, not a decision. bounded-memory-long-session.json measured five capped hours and closed nothing: it settled at 129 MiB of which 78 was resident-minus-live, and its own verdict said the number was not answered because the run could not say how much of that any allocator would return. It also failed a prediction for a reason worth not repeating -- it compared a daemon that had just re-indexed 184,000 items against one that had idled for a day, which was never like-for-like. This run makes the comparison the last one could not: the same machine shape, the same library, the same light workload and a warm index, with the cap on, for a day, recording what the resident figure is made of rather than only its size.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-15",
+  "how": "The Ubuntu VM, the owner's account with about 184,000 indexed items already in the store, the daemon from the packages CI built for this branch so the shipped unit's Environment=MALLOC_ARENA_MAX=1 is the setting under test rather than a drop-in someone added for the occasion. Confirmed in /proc/<pid>/environ before the window opens. scripts/sustained-operation-sample.py writes a row a minute for 24 hours; it now records free_arena_kib, retained_kib and trims beside rss_kib, which is the addition that makes this run able to answer what the last one could not.",
+  "endpoint": "Resident memory, live heap (resident minus retained), what the allocator holds free, the number of trims, and the time a root listing takes -- each as a series over 24 hours, compared between the first and second halves.",
+  "predictions": [
+    {
+      "id": "P1",
+      "claim": "Resident memory reaches a plateau within the first two hours, and the second half of the window adds less than 5 MiB to it.",
+      "role": "the row's actual claim: bounded, not merely slow to grow"
+    },
+    {
+      "id": "P2",
+      "claim": "Live heap -- resident minus what the daemon reports as retained -- also plateaus, and its second half adds less than 5 MiB.",
+      "role": "discriminator. Resident can sit still while live heap climbs under it, and the reverse: a plateau in resident alone would not tell a bounded daemon from an allocator holding a growing heap's peak."
+    },
+    {
+      "id": "P3",
+      "claim": "A root listing stays under 50 ms throughout, mean under 5 ms.",
+      "role": "memory bounded by refusing to serve is not bounded memory. The uncapped day on this machine had a mean of 1.0 ms and a worst of 7 ms."
+    },
+    {
+      "id": "P4",
+      "claim": "The plateau is within a factor of two of the uncapped day measured on this same VM and library, which settled at 42 MiB.",
+      "role": "the like-for-like the five-hour run could not make, and the reason its P2 failed. Both arms now start from a warm index and run the same light workload, so a large difference would be the cap and nothing else."
+    }
+  ],
+  "decision_rule": {
+    "all_hold": "The bounded-memory row states its bound with this number, names live heap and retained separately, and closes.",
+    "P1_or_P2_fails": "There is growth, and the row stays open with the series that shows it. A failure of P2 alone is the more interesting one: it would mean the allocator has been hiding a climb.",
+    "P3_fails": "The row stays open regardless of the memory figures. A daemon that keeps its memory down by answering slowly has not met this clause.",
+    "P4_fails": "Recorded, and it decides nothing on its own: the cap was chosen on a measured trade (allocator-arena-cost.json) and this is not that decision again. It would say the cap costs more at rest on this workload than the concurrent-read fixture suggested."
+  },
+  "safety": {
+    "account": "The Ubuntu VM's own connection to the owner's drive, read-write, in a throwaway machine.",
+    "writes": "None. A directory listing a minute.",
+    "note": "A reboot or an unplanned restart voids the window; the sampler records the process id every minute so a restart cannot be mistaken for continuity."
+  },
+  "what_this_does_not_cover": "One machine, one library of 184,000 items, and a workload that lists a directory a minute. It is a resting bound over a long session, not a bound under sustained concurrent reading -- that is allocator-arena-cost.json's fixture, which measured growth of 43.9 to 44.6 MiB capped.",
+  "result": null,
+  "verdict": null
+}

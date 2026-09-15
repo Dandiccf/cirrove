@@ -163,6 +163,12 @@ enum Command {
         /// ratio of.
         #[arg(long, default_value = "0")]
         idle_seconds: u64,
+        /// Samples per arm. A budget rather than a duration, because the three
+        /// arms share one directory tree: the first three-arm run consumed all
+        /// 1,548 directories in the collection in its two busy arms and left the
+        /// control two samples, which is not a control.
+        #[arg(long, default_value = "60")]
+        per_arm: usize,
         /// A large file to download against the navigation loop.
         #[arg(long)]
         item: Option<String>,
@@ -508,6 +514,7 @@ async fn main() -> Result<()> {
             drive,
             seconds,
             idle_seconds,
+            per_arm,
             item,
             root,
             state_dir: state,
@@ -519,6 +526,7 @@ async fn main() -> Result<()> {
                 drive,
                 seconds,
                 idle_seconds,
+                per_arm,
                 item,
                 root,
             )

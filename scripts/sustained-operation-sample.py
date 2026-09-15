@@ -20,6 +20,13 @@ What it records, every interval, one row per sample:
     stuck         stuck_changes
     listing_ms    time to list the mount root, so a daemon that is alive but no
                   longer serving shows up as latency rather than as nothing
+    free_arena_kib  what the allocator is holding free right now
+    retained_kib  resident memory that is not live heap -- what a trim could
+                  return. Recorded because a plateau in VmRSS alone cannot say
+                  what the bound is made of: the five-hour capped run settled at
+                  129 MiB of which 78 was resident-minus-live, and could not say
+                  how much of that any allocator would give back.
+    trims         how many times this process has returned pages to the kernel
 
 A restart is recorded rather than hidden. The row asks for sustained operation,
 and a daemon that was restarted halfway has not sustained anything -- but a
@@ -76,7 +83,8 @@ def account(binary: str) -> dict:
         out = subprocess.run(
             [binary, "status"], capture_output=True, text=True, timeout=30, check=True
         ).stdout
-        first = (json.loads(out).get("accounts") or [{}])[0]
+        status = json.loads(out)
+        first = (status.get("accounts") or [{}])[0]
         feeds = "".join((f.get("state") or "?")[0] for f in first.get("feeds") or [])
         return {
             "state": first.get("state", "?"),
@@ -84,13 +92,25 @@ def account(binary: str) -> dict:
             "feeds": feeds or "-",
             "items": first.get("indexed_items", -1),
             "stuck": first.get("stuck_changes", -1),
+            "free_arena": status.get("free_arena_bytes", -1024) // 1024,
+            "retained": status.get("retained_bytes", -1024) // 1024,
+            "trims": status.get("allocator_trims", -1),
         }
     except (FileNotFoundError, PermissionError) as exc:
         raise ProbeLost(f"{binary}: {exc}") from exc
     except Exception:
         # A daemon that cannot answer is the finding. Recorded, never retried
         # into looking healthy.
-        return {"state": "unreachable", "mounted": 0, "feeds": "-", "items": -1, "stuck": -1}
+        return {
+            "state": "unreachable",
+            "mounted": 0,
+            "feeds": "-",
+            "items": -1,
+            "stuck": -1,
+            "free_arena": -1,
+            "retained": -1,
+            "trims": -1,
+        }
 
 
 def listing_ms(mount: Path) -> int:
@@ -135,7 +155,10 @@ def main() -> int:
             f"# started pid={first_pid} hours={args.hours} "
             f"interval={args.interval} probe={resolved} mount={args.mount}\n"
         )
-        sink.write("unix\tuptime_s\tpid\trss_kib\tstate\tmounted\tfeeds\titems\tstuck\tlisting_ms\n")
+        sink.write(
+            "unix\tuptime_s\tpid\trss_kib\tstate\tmounted\tfeeds\titems\tstuck\tlisting_ms"
+            "\tfree_arena_kib\tretained_kib\ttrims\n"
+        )
         while time.monotonic() < deadline:
             pid = main_pid(args.unit)
             if pid != first_pid:
@@ -155,7 +178,7 @@ def main() -> int:
             sink.write(
                 f"{int(time.time())}\t{int(time.monotonic() - started)}\t{pid}\t{rss_kib(pid)}\t"
                 f"{a['state']}\t{a['mounted']}\t{a['feeds']}\t{a['items']}\t{a['stuck']}\t"
-                f"{listing_ms(args.mount)}\n"
+                f"{listing_ms(args.mount)}\t{a['free_arena']}\t{a['retained']}\t{a['trims']}\n"
             )
             time.sleep(args.interval)
     sink_path = args.out

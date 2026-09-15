@@ -43,12 +43,87 @@ impl Samples {
         })
     }
 }
+/// One arm: take `budget` first-visit samples, walking into directories this
+/// mount has never listed.
+///
+/// A budget rather than a duration, because the arms share one tree. The first
+/// run of the three-arm shape consumed all 1,548 directories in the collection
+/// in its two busy arms and left the control arm two samples, which is not a
+/// control. Each arm now takes what it needs and leaves the rest.
+#[allow(clippy::too_many_arguments)]
+async fn take_arm(
+    engine: &Arc<Engine>,
+    mount: &Path,
+    known: &mut Vec<PathBuf>,
+    unvisited: &mut Vec<PathBuf>,
+    samples: &mut Samples,
+    budget: usize,
+    deadline: tokio::time::Instant,
+) -> Result<()> {
+    while samples.latencies_us.len() + samples.errors < budget {
+        if tokio::time::Instant::now() >= deadline {
+            return Ok(());
+        }
+        // Only directories never listed here. Re-listing a visited one measures
+        // the directory cache, which is the mistake the first exploratory run
+        // of this made.
+        let Some(target) = unvisited.pop() else {
+            return Ok(());
+        };
+        let indexing = engine
+            .health()
+            .await
+            .iter()
+            .any(|h| h.state == "indexing" || h.state == "updating_or_offline");
+        let listing = target.clone();
+        let at = std::time::Instant::now();
+        let entries = tokio::task::spawn_blocking(move || -> std::io::Result<Vec<PathBuf>> {
+            let mut directories = Vec::new();
+            for entry in std::fs::read_dir(&listing)? {
+                let entry = entry?;
+                if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                    directories.push(entry.path());
+                }
+            }
+            Ok(directories)
+        })
+        .await?;
+        let took = at.elapsed().as_micros();
+        if let Ok(found) = &entries {
+            for directory in found {
+                if !known.contains(directory) {
+                    known.push(directory.clone());
+                    unvisited.push(directory.clone());
+                }
+            }
+        }
+        // A listing that fails is a navigation failure, not a reason to stop
+        // measuring. Recording it keeps a run that could not navigate at all
+        // from looking like one with excellent latency.
+        match entries {
+            Ok(_) => {
+                samples.latencies_us.push(took);
+                samples.visited += 1;
+            }
+            Err(_) => samples.errors += 1,
+        }
+        if indexing {
+            samples.while_indexing += 1;
+        }
+        let _ = mount;
+        tokio::time::sleep(Duration::from_millis(250)).await;
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
 pub async fn onedrive_navigation(
     state: &Path,
     label: &str,
     drive: Option<String>,
     seconds: u64,
     idle_seconds: u64,
+    per_arm: usize,
     item: Option<String>,
     root_id: Option<String>,
 ) -> Result<()> {
@@ -104,19 +179,6 @@ pub async fn onedrive_navigation(
         let at = mount.clone();
         session = Some(tokio::task::spawn_blocking(move || fs.mount(&at)).await??);
         let started = tokio::time::Instant::now();
-        let competing_at = Duration::from_secs(seconds / 3);
-        let mut alone = Samples {
-            latencies_us: Vec::new(),
-            while_indexing: 0,
-            errors: 0,
-            visited: 0,
-        };
-        let mut competing = Samples {
-            latencies_us: Vec::new(),
-            while_indexing: 0,
-            errors: 0,
-            visited: 0,
-        };
         // A cold mount is not listable the instant it is mounted. How long that
         // takes is worth a number of its own, and sampling before it would
         // measure mount setup rather than navigation.
@@ -141,115 +203,64 @@ pub async fn onedrive_navigation(
             &mut log,
             serde_json::json!({"stage":"first_listing","after_mount_ms":first_listing.as_millis()}),
         )?;
-        let mut download: Option<tokio::task::JoinHandle<()>> = None;
         let mut known: Vec<PathBuf> = vec![mount.clone()];
         let mut unvisited: Vec<PathBuf> = vec![mount.clone()];
-        let mut downloaded_bytes = 0u64;
-        while started.elapsed() < Duration::from_secs(seconds) {
-            if download.is_none()
-                && started.elapsed() >= competing_at
-                && let Some(id) = item.clone()
-            {
-                {
-                    let graph = graph.clone();
-                    let scope = scope.clone();
-                    let cancel = cancel.clone();
-                    event(
-                        &mut log,
-                        serde_json::json!({"stage":"competing_download_started"}),
-                    )?;
-                    download = Some(tokio::spawn(async move {
-                        // Round and round until the arm ends. A file that is
-                        // read once and finishes leaves the rest of the arm
-                        // measuring a daemon with nothing competing, which is
-                        // the control arm wearing the label of this one.
-                        while let Ok(node) = graph.node(&scope, &id, &cancel).await {
-                            let mut offset = 0u64;
-                            while offset < node.size {
-                                match graph
-                                    .read_range(&scope, &node, offset, 1 << 20, &cancel)
-                                    .await
-                                {
-                                    Ok(bytes) if !bytes.is_empty() => offset += bytes.len() as u64,
-                                    _ => return,
-                                }
-                            }
-                            if cancel.is_cancelled() {
-                                return;
-                            }
+        let mut alone = Samples::default();
+        let mut competing = Samples::default();
+        let mut idle = Samples::default();
+        let ceiling = tokio::time::Instant::now() + Duration::from_secs(seconds.max(60));
+
+        // Arm one: indexing, nothing else.
+        take_arm(
+            &engine, &mount, &mut known, &mut unvisited, &mut alone, per_arm, ceiling,
+        )
+        .await?;
+
+        // Arm two: the same, with a transfer competing for the connection.
+        let mut download: Option<tokio::task::JoinHandle<()>> = None;
+        if let Some(id) = item.clone() {
+            let graph = graph.clone();
+            let scope = scope.clone();
+            let cancel = cancel.clone();
+            event(
+                &mut log,
+                serde_json::json!({"stage":"competing_download_started"}),
+            )?;
+            download = Some(tokio::spawn(async move {
+                // Round and round until the arm ends. A file that is read once
+                // and finishes leaves the rest of the arm measuring a daemon
+                // with nothing competing, which is the control arm wearing the
+                // label of this one.
+                while let Ok(node) = graph.node(&scope, &id, &cancel).await {
+                    let mut offset = 0u64;
+                    while offset < node.size {
+                        match graph
+                            .read_range(&scope, &node, offset, 1 << 20, &cancel)
+                            .await
+                        {
+                            Ok(bytes) if !bytes.is_empty() => offset += bytes.len() as u64,
+                            _ => return,
                         }
-                    }));
-                    downloaded_bytes = 1;
-                }
-            }
-            let indexing = engine
-                .health()
-                .await
-                .iter()
-                .any(|h| h.state == "indexing" || h.state == "updating_or_offline");
-            // Walk into directories rather than re-listing the root. A root that
-            // is listed every 250 ms stays active and therefore warm, which would
-            // measure a hot directory rather than navigation. Each sample takes a
-            // directory discovered so far, preferring ones not visited yet.
-            let target = match unvisited.pop() {
-                Some(next) => next,
-                None => {
-                    known.rotate_left(1);
-                    known.first().cloned().unwrap_or_else(|| mount.clone())
-                }
-            };
-            let listing = target.clone();
-            let at = std::time::Instant::now();
-            let entries = tokio::task::spawn_blocking(move || -> std::io::Result<Vec<PathBuf>> {
-                let mut directories = Vec::new();
-                for entry in std::fs::read_dir(&listing)? {
-                    let entry = entry?;
-                    if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
-                        directories.push(entry.path());
+                    }
+                    if cancel.is_cancelled() {
+                        return;
                     }
                 }
-                Ok(directories)
-            })
-            .await?;
-            let took = at.elapsed().as_micros();
-            if let Ok(found) = &entries {
-                for directory in found {
-                    if !known.contains(directory) {
-                        known.push(directory.clone());
-                        unvisited.push(directory.clone());
-                    }
-                }
-            }
-            let bucket = if download.is_some() {
-                &mut competing
-            } else {
-                &mut alone
-            };
-            // A listing that fails is a navigation failure, not a reason to stop
-            // measuring. Recording it keeps a run that could not navigate at all
-            // from looking like one with excellent latency.
-            match entries {
-                Ok(_) => {
-                    bucket.latencies_us.push(took);
-                    bucket.visited += 1;
-                }
-                Err(_) => bucket.errors += 1,
-            }
-            if indexing {
-                bucket.while_indexing += 1;
-            }
-            tokio::time::sleep(Duration::from_millis(250)).await;
+            }));
         }
+        take_arm(
+            &engine, &mount, &mut known, &mut unvisited, &mut competing, per_arm, ceiling,
+        )
+        .await?;
         if let Some(handle) = download {
             handle.abort();
         }
-        let _ = downloaded_bytes;
-        // The control arm. Everything above measures a daemon doing its own
-        // work; without a quiet, fully indexed arm on the same machine, the
+
+        // Arm three: the control. Everything above measures a daemon doing its
+        // own work; without a quiet, fully indexed arm on the same machine, the
         // same network and the same collection, those numbers have nothing to
         // be a ratio of -- which is what left this row open with good figures
         // and no way to fail them.
-        let mut idle = Samples::default();
         let mut settled_after = None;
         if idle_seconds > 0 {
             let waiting_from = tokio::time::Instant::now();
@@ -274,54 +285,16 @@ pub async fn onedrive_navigation(
                 &mut log,
                 serde_json::json!({"stage":"settled","waited_ms":settled_after.map(|d|d.as_millis())}),
             )?;
-            let started_idle = tokio::time::Instant::now();
-            while started_idle.elapsed() < Duration::from_secs(idle_seconds) {
-                // Only directories this mount has never listed. Re-listing a
-                // visited one would measure the directory cache, which is the
-                // mistake the first exploratory run of this made.
-                let Some(target) = unvisited.pop() else {
-                    break;
-                };
-                let indexing = engine
-                    .health()
-                    .await
-                    .iter()
-                    .any(|h| h.state == "indexing" || h.state == "updating_or_offline");
-                let listing = target.clone();
-                let at = std::time::Instant::now();
-                let entries =
-                    tokio::task::spawn_blocking(move || -> std::io::Result<Vec<PathBuf>> {
-                        let mut directories = Vec::new();
-                        for entry in std::fs::read_dir(&listing)? {
-                            let entry = entry?;
-                            if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
-                                directories.push(entry.path());
-                            }
-                        }
-                        Ok(directories)
-                    })
-                    .await?;
-                let took = at.elapsed().as_micros();
-                if let Ok(found) = &entries {
-                    for directory in found {
-                        if !known.contains(directory) {
-                            known.push(directory.clone());
-                            unvisited.push(directory.clone());
-                        }
-                    }
-                }
-                match entries {
-                    Ok(_) => {
-                        idle.latencies_us.push(took);
-                        idle.visited += 1;
-                    }
-                    Err(_) => idle.errors += 1,
-                }
-                if indexing {
-                    idle.while_indexing += 1;
-                }
-                tokio::time::sleep(Duration::from_millis(250)).await;
-            }
+            take_arm(
+                &engine,
+                &mount,
+                &mut known,
+                &mut unvisited,
+                &mut idle,
+                per_arm,
+                tokio::time::Instant::now() + Duration::from_secs(idle_seconds),
+            )
+            .await?;
         }
         Ok::<(Samples, Samples, Samples, Option<Duration>), anyhow::Error>((
             alone,

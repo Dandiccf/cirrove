@@ -2941,9 +2941,13 @@ async fn a_pin_from_the_command_line_reaches_the_daemon_and_keeps_the_bytes() {
         reply.accepted && reply.refusal.is_none(),
         "the daemon refused an ordinary pin: {reply:?}"
     );
+    // The reservation is what the request makes; the fetching is a job it
+    // names. Before 2026-09-15 the fetch ran inside the request, and the
+    // provider had therefore been read by the time it returned -- which is why
+    // this assertion used to sit here, and why it now waits for the job.
     assert!(
-        reads.reads.load(Ordering::SeqCst) > before,
-        "a pin that fetches nothing is an accounting entry; the provider was never read"
+        reply.job.is_some(),
+        "an accepted pin must name the fetch a caller can watch: {reply:?}"
     );
 
     let pinned = tokio::time::timeout(Duration::from_secs(10), async {
@@ -2966,6 +2970,10 @@ async fn a_pin_from_the_command_line_reaches_the_daemon_and_keeps_the_bytes() {
     assert!(
         pinned.reserved >= pinned.resident,
         "a pin cannot hold more than it reserved: {pinned:?}"
+    );
+    assert!(
+        reads.reads.load(Ordering::SeqCst) > before,
+        "a pin that fetches nothing is an accounting entry; the provider was never read"
     );
 
     cancel.cancel();

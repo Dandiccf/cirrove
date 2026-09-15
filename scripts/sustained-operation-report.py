@@ -25,34 +25,39 @@ WARM_AFTER_S = 3600
 LISTING_CEILING_MS = 1000
 
 
+# The columns every window has had, in order. A file written by a later sampler
+# carries more; it is read by its own header rather than by this count, so an
+# artifact from either side stays readable. A row shorter than this is a row
+# written by something that was not this sampler.
+BASE = ["unix", "uptime_s", "pid", "rss_kib", "state", "mounted", "feeds",
+        "items", "stuck", "listing_ms"]
+NAMES = {"uptime_s": "uptime", "rss_kib": "rss", "listing_ms": "listing",
+         "free_arena_kib": "free_arena", "retained_kib": "retained"}
+NUMBERS = {"unix", "uptime", "rss", "items", "stuck", "listing",
+           "free_arena", "retained", "trims"}
+
+
 def read(path: pathlib.Path):
-    rows, markers = [], []
+    rows, markers, columns = [], [], list(BASE)
     for line in path.read_text().splitlines():
         if line.startswith("#"):
             markers.append(line)
             continue
         if line.startswith("unix\t"):
+            columns = line.split("\t")
             continue
         if not line.strip():
             continue
         parts = line.split("\t")
-        if len(parts) != 10:
+        if len(parts) != len(columns):
             markers.append(f"# MALFORMED ROW: {line!r}")
             continue
-        rows.append(
-            {
-                "unix": int(parts[0]),
-                "uptime": int(parts[1]),
-                "pid": parts[2],
-                "rss": int(parts[3]),
-                "state": parts[4],
-                "mounted": parts[5] == "1",
-                "feeds": parts[6],
-                "items": int(parts[7]),
-                "stuck": int(parts[8]),
-                "listing": int(parts[9]),
-            }
-        )
+        row = {}
+        for column, value in zip(columns, parts):
+            key = NAMES.get(column, column)
+            row[key] = int(value) if key in NUMBERS else value
+        row["mounted"] = row["mounted"] == "1"
+        rows.append(row)
     return rows, markers
 
 
@@ -133,6 +138,28 @@ def main() -> int:
         else ""
     )
     verdicts.append(("P2", p2, detail))
+
+    # What the resident figure is made of, where the sampler recorded it. A
+    # plateau in VmRSS alone cannot say what the bound is: the five-hour capped
+    # run settled at 129 MiB of which 78 was resident-minus-live, and nothing in
+    # that file could say how much of it any allocator would give back.
+    allocator = [r for r in rows if r.get("retained", -1) >= 0]
+    if allocator:
+        live = [r["rss"] - r["retained"] for r in allocator]
+        print(
+            "\nwhat the memory is made of (from the daemon's own counters):\n"
+            f"  resident   {allocator[0]['rss'] / 1024:.0f} -> "
+            f"{allocator[-1]['rss'] / 1024:.0f} MiB, peak "
+            f"{max(r['rss'] for r in allocator) / 1024:.0f}\n"
+            f"  live heap  {live[0] / 1024:.0f} -> {live[-1] / 1024:.0f} MiB, peak "
+            f"{max(live) / 1024:.0f}\n"
+            f"  retained   {allocator[0]['retained'] / 1024:.0f} -> "
+            f"{allocator[-1]['retained'] / 1024:.0f} MiB, peak "
+            f"{max(r['retained'] for r in allocator) / 1024:.0f}"
+            "   (resident that is not live heap)\n"
+            f"  free arena {allocator[-1].get('free_arena', -1) / 1024:.0f} MiB at the end, "
+            f"{allocator[-1].get('trims', -1)} trim(s) over the window"
+        )
 
     # P3: the index never emptied.
     counted = [r["items"] for r in rows if r["items"] >= 0]
