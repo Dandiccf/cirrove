@@ -1,12 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-  <title>Cirrove: fetching</title>
-  <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M 11.88,3.04 A 6.3,6.3 0 1 0 13.72,10.0" stroke-width="4.5"/>
-  </g>
-  <path d="M 8,5.6 V 10.1 M 6.25,8.45 L 8,10.2 L 9.75,8.45" fill="none" stroke="#ffffff" stroke-width="3.9" stroke-linecap="round" stroke-linejoin="round"/>
-  <g fill="none" stroke="#1b6ef3" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M 11.88,3.04 A 6.3,6.3 0 1 0 13.72,10.0" stroke-width="2.3"/>
-  </g>
-  <path d="M 8,5.6 V 10.1 M 6.25,8.45 L 8,10.2 L 9.75,8.45" fill="none" stroke="#1b6ef3" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+  <title>Cirrove: arriving</title>
+  <!-- The same disc as "kept", a different mark: down, because that is the
+       direction. The tray's upward arrow means a save on its way out. -->
+  <circle cx="8" cy="8" r="7.9" fill="#ffffff" fill-opacity="0.92"/>
+  <circle cx="8" cy="8" r="6.8" fill="#26282b"/>
+  <path d="M 8,4.5 V 10.6 M 5.2,8.0 L 8,10.8 L 10.8,8.0" fill="none" stroke="#ffffff"
+        stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

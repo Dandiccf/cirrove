@@ -114,9 +114,11 @@ def locate(accounts, path):
 def emblem_names(search=None):
     """Which icon names the badges use.
 
-    Cirrove's own where they are installed: they match the tray, they say
-    "cloud" where a bare tick says nothing, and they carry a rim so they read
-    over a thumbnail of any colour. The freedesktop ones where they are not,
+    Cirrove's own where they are installed: flat and monochrome, a white mark
+    on a dark disc with a light rim, so they read over a thumbnail of any
+    colour and carry no brand colour into somebody's file list. The generic
+    ones resolved here to a thin grey tick and a circular arrow that said
+    nothing at all. The freedesktop ones where ours are not installed,
     because Files draws nothing at all for an icon name no theme provides --
     the badge would silently vanish rather than look generic. That happens on a
     machine with only the daemon package, whose icons ship beside the desktop.

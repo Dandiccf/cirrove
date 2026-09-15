@@ -5,6 +5,30 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
 
 ## Unreleased
 
+- **Keeping a folder offline no longer reports failure for work that
+  succeeded.** It used to run inside the request the command line and the
+  window make, and both give up after three seconds -- so any folder worth
+  keeping said "Cirrove pin timed out" while Cirrove went on keeping every file
+  of it. It now answers at once and reports its progress: the connection's
+  **Kept offline** section shows what is arriving, how many files and how much
+  of it, and a **Stop** button. Stopping releases the pin -- you asked for the
+  folder, not for part of it -- and a download that fails keeps what it managed
+  and says why. `cirrove pin` still waits and prints how far it has got;
+  `cirrove jobs` and `cirrove stop` are there for the same thing.
+- **Badges in Files stay right.** Files asks about a file once and keeps the
+  answer, so keeping something offline from the Cirrove window left an open
+  Files window showing "On demand" for a file that was already on the computer,
+  until something made it re-list. It now refreshes itself.
+- **The badges in Files are flat and monochrome.** A white mark on a dark disc
+  with a light rim -- no brand colour in your file list, and still readable
+  over a thumbnail of any colour.
+- **A save on its way up says how far it has got.** "Uploading" on its own
+  cannot tell a transfer that is moving from one that is stuck; the number was
+  recorded all along and never shown.
+- **Releasing a pin works everywhere.** Files kept offline from a SharePoint
+  library could not be released from the window at all -- the button reported
+  that the item did not exist. What is kept is a local record, and releasing it
+  no longer asks the cloud for permission.
 - **Recent activity says when.** Every line now carries how long ago it
   happened -- just now, 25 minutes ago, yesterday. Saves had no time recorded
   at all, so the list could tell you what you had saved and never when, which
@@ -69,11 +93,10 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
 - **A pin that reserved space but has not downloaded yet says so** rather than
   reporting the space as filled. It is the difference between a file that will
   open on a train and one that will not.
-- **The badges in Files are Cirrove's own.** A blue cloud with a check for kept
-  and here, a cloud with a down arrow while the content arrives, both with a rim
-  so they read over a thumbnail of any colour. They were the desktop's generic
-  tick and circular arrow, which said nothing about a cloud and did not match
-  the tray. Where the icons are not installed the generic ones are still used,
+- **The badges in Files are Cirrove's own.** A check for kept and here, a down
+  arrow while the content arrives, both on a disc with a rim so they read over a
+  thumbnail of any colour. They were the desktop's generic tick and circular
+  arrow, which said nothing and did not match anything else. Where the icons are not installed the generic ones are still used,
   because a name no theme provides draws nothing at all.
 - **A file that is on this computer but not kept offline says so.** The
   properties dialog used to read "Availability: On demand" beside "On this
