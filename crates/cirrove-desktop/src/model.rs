@@ -1,4 +1,4 @@
-use crate::i18n::n;
+use crate::i18n::{fill, gettext, n};
 use cirrove_service::{Status, accounts::Settings, manager::AccountStatus};
 use std::path::PathBuf;
 mod failures;
@@ -115,9 +115,81 @@ pub struct AccountCard {
     pub authority: String,
     /// What this account keeps offline, ready to show.
     pub kept_offline: Vec<KeptOffline>,
+    /// Long work in flight -- fetching what a pin covers -- and the last few
+    /// that ended badly. Empty on an older daemon, which ran the fetch inside
+    /// the request and had nothing to report.
+    pub running: Vec<RunningJob>,
     /// One sentence about how much of the cache pinning has claimed, or `None`
     /// when the daemon did not say (an older one, or an account not running).
     pub pin_budget: Option<String>,
+}
+
+/// One piece of long work, in the words the window shows.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RunningJob {
+    /// What `stop` takes. Not shown.
+    pub id: String,
+    /// What is being kept, as a path in the drive.
+    pub name: String,
+    /// One line: how far it has got, or why it stopped.
+    pub detail: String,
+    /// Where the bar stands, as a percentage. `None` when the total is not
+    /// known, which a bar must show as moving rather than as empty.
+    ///
+    /// Whole percent rather than a fraction so a card can be compared for
+    /// equality: a diff keyed on a float is a diff that is never equal.
+    pub percent: Option<u8>,
+    /// Still moving. False for one that was stopped or gave up, whose row stays
+    /// a while so a person sees what happened to it.
+    pub running: bool,
+    /// It ended badly, so the row warns rather than just reporting.
+    pub failed: bool,
+}
+impl RunningJob {
+    pub fn from_job(job: &cirrove_service::jobs::Job) -> Self {
+        use cirrove_service::human_bytes;
+        use cirrove_service::jobs::JobState;
+        let counted = fill(
+            &gettext("{} of {} files · {} of {}"),
+            &[
+                &job.files_done.to_string(),
+                &job.files_total.to_string(),
+                &human_bytes(job.bytes_done),
+                &human_bytes(job.bytes_total),
+            ],
+        );
+        let detail = match (job.state, &job.issue) {
+            (JobState::Running, _) => counted,
+            (JobState::Stopping, _) => gettext("Stopping…"),
+            (JobState::Stopped, _) => fill(
+                &gettext("Stopped after {} of {} files. Nothing is kept offline for it."),
+                &[&job.files_done.to_string(), &job.files_total.to_string()],
+            ),
+            (_, Some(issue)) => fill(
+                &gettext("Kept {} of {} files, then stopped: {}"),
+                &[
+                    &job.files_done.to_string(),
+                    &job.files_total.to_string(),
+                    issue,
+                ],
+            ),
+            (_, None) => counted,
+        };
+        Self {
+            id: job.id.clone(),
+            name: job.name.clone(),
+            detail,
+            // Files, not bytes: a folder of many small files moves in file
+            // counts, and the byte total is a walk's estimate of stored size
+            // that a bar would overshoot.
+            percent: (job.files_total > 0).then(|| {
+                let done = job.files_done.min(job.files_total);
+                ((done * 100) / job.files_total.max(1)) as u8
+            }),
+            running: job.running(),
+            failed: matches!(job.state, JobState::Failed),
+        }
+    }
 }
 
 /// One pinned item, in the words the window shows.
@@ -253,14 +325,33 @@ impl ActivityEntry {
                 "uploading" | "verifying" | "verifyrequired" => {
                     (n("saved here · uploading"), false)
                 }
+                // A word with no number cannot tell a save that is moving from
+                // one that is stuck; the journal has always known how much of it
+                // the cloud has taken.
                 "conflict" => (n("saved here · the cloud refused it"), true),
                 "failed" => (n("saved here · upload failed"), true),
                 other => (other, false),
             };
+            let moving = matches!(
+                change.state.as_str(),
+                "uploading" | "verifying" | "verifyrequired"
+            );
+            let what = if moving && change.transferred > 0 && change.size > 0 {
+                fill(
+                    &gettext("{} · {} of {}"),
+                    &[
+                        &gettext(what),
+                        &cirrove_service::human_bytes(change.transferred),
+                        &cirrove_service::human_bytes(change.size),
+                    ],
+                )
+            } else {
+                gettext(what)
+            };
             Self {
                 account: account.to_owned(),
                 name: change.name.clone(),
-                what: what.to_owned(),
+                what,
                 warning,
                 at_unix: change.saved_at,
             }
@@ -393,6 +484,9 @@ impl Overview {
                     authority: account.registration.authority.clone(),
                     kept_offline: status
                         .map(|s| s.pins.iter().map(KeptOffline::from_status).collect())
+                        .unwrap_or_default(),
+                    running: status
+                        .map(|s| s.jobs.iter().map(RunningJob::from_job).collect())
                         .unwrap_or_default(),
                     pin_budget: status.map(|s| s.pin_budget.explain()),
                 }

@@ -1,0 +1,75 @@
+{
+  "question": "On the owner's real account, does keeping a folder offline answer at once, say how far it has got while it fetches, and stop when asked -- and did the version before this one really report failure for work that succeeded?",
+  "why_now": "Reading the code for the milestone 5 row 'actionable errors, progress, cancellation and conflict resolution' turned up a defect rather than a gap. `cirrove pin --recursive` runs the whole fetch inside the control request, and the client half of every control verb gives up after three seconds (`request` in cirrove-service/src/lib.rs). Any folder that takes longer than that -- which is every real one -- tells the person who asked 'Cirrove pin timed out' while the daemon goes on keeping every file. The window's Keep offline button uses the same call and holds its single operation slot for the duration, with a spinner and no way to stop. The fix makes the fetch a job; this run is whether the defect is real on a live account and whether the fix behaves.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-15",
+  "workload": "The owner's real business drive, mounted by the developer install. The folder is one of the Cirrove-Pinning-Validation-* fixtures this project created on 2026-09-11: four files, about 16 MB, none of it the owner's own data. It is pinned recursively with the installed binary as it stands, then unpinned; then the new build is installed and the same folder is pinned again. A second run of the new build is stopped part way.",
+  "endpoint": "Wall-clock time to the reply, what the command printed, what `cirrove pins` says afterwards, and what `cirrove jobs` reports while the fetch is in flight.",
+  "predictions": [
+    {
+      "id": "P1",
+      "claim": "With the installed (old) binary, the recursive pin takes longer than the three-second client deadline and the command reports a timeout.",
+      "role": "the defect, on a live account"
+    },
+    {
+      "id": "P2",
+      "claim": "The daemon nevertheless completes that pin: `cirrove pins` afterwards shows the folder with resident bytes greater than zero.",
+      "role": "discriminator -- a timeout on work that also failed would be a misleading message and nothing worse; this is what makes it a wrong answer"
+    },
+    {
+      "id": "P3",
+      "claim": "With the new build, the same request answers in under a second, naming a job.",
+      "role": "the fix"
+    },
+    {
+      "id": "P4",
+      "claim": "While the fetch runs, `cirrove jobs` reports a rising count of files and bytes against a known total, and the pin ends resident.",
+      "role": "progress is reported, not merely promised"
+    },
+    {
+      "id": "P5",
+      "claim": "A fetch stopped part way ends promptly, and the pin it was filling is released -- `cirrove pins` shows nothing for that folder afterwards.",
+      "role": "cancellation, including the part a user cannot see"
+    }
+  ],
+  "decision_rule": "P1 and P2 together are what make the old behaviour a defect rather than a rough edge; if either fails, the row keeps the honest smaller claim that progress was missing. P3 through P5 are the fix. P4 failing while P3 holds would mean the work was moved off the request and made invisible, which is not an improvement.",
+  "safety": {
+    "account": "The owner's working account, mounted read-write by the developer install. Pinning reads; it writes nothing to the cloud.",
+    "writes": "None. The folder is an existing fixture created by an earlier validation run.",
+    "cleanup": "Every pin this run makes is released again, and the cache space with it."
+  },
+  "result": {
+    "old_binary": {
+      "folder": "Dokumente/Projekte/726-Kärnten Werbung, 69 files, 399 MB",
+      "wall_to_the_message": "3.00 s",
+      "exit_status": 1,
+      "message": "Error: Cirrove pin timed out / Caused by: deadline has elapsed",
+      "what_the_daemon_did": "kept all 69 files: `cirrove pins` afterwards read `399 MB of 399 MB kept  152 block(s)  recursive`"
+    },
+    "new_build": {
+      "folder": "Dokumente/Projekte/737 Stadt Feldkirch, 25 files, 51 MB, none of it cached",
+      "reply": "0.01 s to the first progress line, which is printed as soon as the request returns",
+      "fetch": "9.66 s, so the old build would have reported a timeout on this folder too",
+      "samples": "15 readings of `cirrove jobs` while it ran, rising from `3 of 25 files, 713 KB of 51 MB` to `24 of 25 files, 42 MB of 51 MB`",
+      "outcome": "pinned 01YQR2QYJECE3RK33RVFGYKYAHTZ42RMQ5, 25 files, 53258933 bytes reserved"
+    },
+    "stopped": {
+      "folder": "Dokumente/Projekte/744 Alpbachtal, 40 files, 70 MB",
+      "at": "stopped 2.51 s in, with 3 of 40 files and 17 MB of 70 MB fetched",
+      "daemon_answer": "asked it to stop",
+      "command": "returned 0.01 s later: `Error: stopped keeping 744 Alpbachtal offline after 3 of 40 files`",
+      "pin": "released by the first poll after the command returned; `cirrove pins` read `nothing pinned` and the budget was back to 0 of 4608 MiB",
+      "record": "`cirrove jobs` kept the stopped job visible with how far it had got, until `cirrove stop --id` cleared it"
+    },
+    "note": "A second, unplanned finding came out of the same run and is fixed here too: `cirrove unpin --item` answered \"remote item not found\" for a folder inside a linked SharePoint library, because it resolved the id in the account's own drive. The window's Stop keeping button acts by id, so such a pin could not be released from the window at all, and the same lookup would have failed with the network down. Releasing now reads the local pin registry first."
+  },
+  "verdict": {
+    "P1": "HOLDS. 3.00 s to `Cirrove pin timed out`, exit status 1, on a 69-file folder of the owner's real drive.",
+    "P2": "HOLDS. The daemon kept all 69 files -- 399 MB, 152 blocks -- after the command had reported failure. The message was wrong about work that succeeded, which is what makes this a defect rather than a rough edge.",
+    "P3": "HOLDS. 0.01 s to the reply on a fetch that then ran 9.66 s.",
+    "P4": "HOLDS. Fifteen samples, files 3 -> 24 of 25 and bytes 713 KB -> 42 MB of 51 MB, read through `cirrove jobs` while it ran. The same numbers reach the window through `status`.",
+    "P5": "HOLDS. Stopped 2.51 s in; the command returned 0.01 s later naming how far it got; the pin and its reservation were released."
+  },
+  "what_this_closes": "The progress and cancellation clauses of the milestone 5 row 'actionable errors, progress, cancellation and conflict resolution', on a real account: long work now answers at once, reports files and bytes against a known total while it runs, and stops when asked, releasing what it was holding.",
+  "what_it_does_not_close": "Conflict resolution, which is the row's fourth word and is still only 'discard, never retry'. Uploads report how many bytes the cloud has taken but cannot be cancelled -- deliberately: the bytes are already on the person's disk and the only thing a cancel could mean is throwing their save away, which `discard-stuck` already does with a confirmation that names the count. The window's rendering of all this is asserted by the scenario a_fetch_in_flight_shows_its_progress_and_can_be_stopped, which fails without the change; it was not also photographed on the live account."
+}

@@ -59,6 +59,16 @@ pub struct LocalChange {
     /// the field and genuinely does not know.
     #[serde(default)]
     pub saved_at: Option<u64>,
+    /// Bytes the cloud has acknowledged of this save, of `size`.
+    ///
+    /// The journal has always recorded it -- an upload session resumes from it
+    /// after a restart -- and nothing ever showed it, so a person saving a large
+    /// file saw the word "uploading" for ten minutes with no way to tell a
+    /// transfer that was moving from one that was stuck. Zero for a save that
+    /// has not started and for one that went up in a single request, which is
+    /// every small file.
+    #[serde(default)]
+    pub transferred: u64,
 }
 
 /// One change the daemon has given up on, named.

@@ -415,6 +415,7 @@ impl Writeback {
                     // Zero is a record from before the journal had a time, and
                     // that is not the same as having been saved in 1970.
                     saved_at: (record.saved_at > 0).then_some(record.saved_at),
+                    transferred: record.transferred_bytes,
                 }
             })
             .collect())

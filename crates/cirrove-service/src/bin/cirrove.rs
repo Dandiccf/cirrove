@@ -8,6 +8,62 @@ use anyhow::{Context, Result, bail};
 fn report_pin(reply: &cirrove_service::PinReply) -> Result<()> {
     report_pin_change("pinned", reply)
 }
+/// Watch a job to its end, saying where it has got to while it runs.
+///
+/// `cirrove pin` answers a question whose answer is "it is kept offline now", so
+/// the command waits even though the daemon no longer does. The waiting is the
+/// caller's to skip -- Ctrl-C leaves the daemon keeping the folder, which is
+/// what someone who walked away wanted.
+///
+/// Progress goes to standard error so a script reading standard output sees the
+/// one sentence it always saw.
+async fn follow_job(socket: &std::path::Path, label: &str, id: &str) -> Result<Option<String>> {
+    let mut last = String::new();
+    loop {
+        let status = cirrove_service::status(socket).await?;
+        let job = status
+            .accounts
+            .iter()
+            .filter(|account| label.is_empty() || account.label == label)
+            .flat_map(|account| account.jobs.iter())
+            .find(|job| job.id == id)
+            .cloned();
+        let Some(job) = job else {
+            // Gone from the register is the daemon saying it did what it was
+            // asked: a job that ended badly stays there carrying why.
+            return Ok(None);
+        };
+        if !job.running() {
+            return Ok(Some(match (&job.state, &job.issue) {
+                (cirrove_service::jobs::JobState::Stopped, _) => format!(
+                    "stopped keeping {} offline after {} of {} files",
+                    job.name, job.files_done, job.files_total
+                ),
+                (_, Some(issue)) => format!(
+                    "kept {} of {} files of {} offline, then gave up: {issue}",
+                    job.files_done, job.files_total, job.name
+                ),
+                (_, None) => format!(
+                    "kept {} of {} files of {} offline",
+                    job.files_done, job.files_total, job.name
+                ),
+            }));
+        }
+        let line = format!(
+            "  keeping {} offline: {} of {} files, {} of {}",
+            job.name,
+            job.files_done,
+            job.files_total,
+            cirrove_service::human_bytes(job.bytes_done),
+            cirrove_service::human_bytes(job.bytes_total)
+        );
+        if line != last {
+            eprintln!("{line}");
+            last = line;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    }
+}
 /// `unpin` used to report through `report_pin` and say "pinned", which is the
 /// one word an unpin must not say.
 fn report_pin_change(verb: &str, reply: &cirrove_service::PinReply) -> Result<()> {
@@ -244,6 +300,24 @@ enum Command {
         /// figure that agrees with the walk.
         #[arg(long)]
         bytes: Option<u64>,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Show long work that is running -- keeping a folder offline -- and how far
+    /// it has got.
+    Jobs {
+        #[arg(default_value = "")]
+        label: String,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Stop a running job, or clear the record of one that ended. See `jobs`.
+    Stop {
+        #[arg(default_value = "")]
+        label: String,
+        /// The job id, as `cirrove jobs` prints it.
+        #[arg(long)]
+        id: String,
         #[arg(long)]
         socket: Option<PathBuf>,
     },
@@ -574,7 +648,92 @@ async fn main() -> Result<()> {
                 recursive,
                 bytes,
             };
-            report_pin(&cirrove_service::pin(&socket, &request).await?)?;
+            let label = request.label.clone();
+            let reply = cirrove_service::pin(&socket, &request).await?;
+            if let Some(refusal) = &reply.refusal {
+                bail!("{refusal}");
+            }
+            // The reservation is made; the fetching is a job, and this command
+            // means "it is kept offline now" -- so it waits for one, and says
+            // where the fetch has got to while it does.
+            if let Some(job) = &reply.job
+                && let Some(ended) = follow_job(&socket, &label, job).await?
+            {
+                bail!("{ended}");
+            }
+            report_pin(&reply)?;
+        }
+        Command::Jobs { label, socket } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            let status = status(&socket).await?;
+            let accounts: Vec<_> = status
+                .accounts
+                .iter()
+                .filter(|account| label.is_empty() || account.label == label)
+                .collect();
+            if accounts.is_empty() {
+                bail!("no account matches");
+            }
+            for account in accounts {
+                println!("{}", account.label);
+                if account.jobs.is_empty() {
+                    println!("  nothing is running");
+                }
+                for job in &account.jobs {
+                    let state = match job.state {
+                        cirrove_service::jobs::JobState::Running => "keeping offline".to_owned(),
+                        cirrove_service::jobs::JobState::Stopping => "stopping".to_owned(),
+                        cirrove_service::jobs::JobState::Stopped => "stopped".to_owned(),
+                        cirrove_service::jobs::JobState::Failed => {
+                            format!(
+                                "gave up: {}",
+                                job.issue.as_deref().unwrap_or("no reason given")
+                            )
+                        }
+                        cirrove_service::jobs::JobState::Unknown => "unknown".to_owned(),
+                    };
+                    println!(
+                        "  {}  {} of {} files, {} of {}  {state}  [{}]",
+                        job.name,
+                        job.files_done,
+                        job.files_total,
+                        cirrove_service::human_bytes(job.bytes_done),
+                        cirrove_service::human_bytes(job.bytes_total),
+                        job.id
+                    );
+                }
+            }
+        }
+        Command::Stop { label, id, socket } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            let reply = cirrove_service::stop_job(
+                &socket,
+                &cirrove_service::StopJobRequest {
+                    label,
+                    id: id.clone(),
+                },
+            )
+            .await?;
+            if let Some(refusal) = &reply.refusal {
+                bail!("{refusal}");
+            }
+            // Not finding it is not a failure: a person acting on a list they
+            // read a moment ago is racing work that finished in between, and the
+            // outcome they wanted -- it is not running -- is the one they have.
+            println!(
+                "{}",
+                match (reply.stopped, reply.already_ended) {
+                    (true, true) => "that had already ended; cleared it",
+                    (true, false) => "asked it to stop",
+                    (false, _) => "nothing by that name is running",
+                }
+            );
         }
         Command::Pins { label, socket } => {
             let socket = match socket {

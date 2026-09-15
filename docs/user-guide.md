@@ -131,9 +131,19 @@ and the window shows how much of the limit pinning has claimed.
 whether it is kept offline, how much of it is on this computer, and where it is
 in the cloud.
 
+**While it is downloading.** Keeping a folder offline can take minutes, so
+Cirrove treats it as work in progress rather than as a button that hangs. The
+connection's **Kept offline** section says what is arriving and how far it has
+got -- files and bytes against the total -- and **Stop** ends it. Stopping
+releases the pin: you asked for the folder, not for part of it, so nothing is
+kept for it afterwards. A download that fails instead keeps what it managed and
+says why, and its row stays until you dismiss it.
+
 The same from the command line: `cirrove pin <name> --path Documents/Reports
 --recursive`, `cirrove unpin`, `cirrove pins`, and `cirrove paths <name>
-<path...>` for the state of any path.
+<path...>` for the state of any path. `cirrove pin` waits for the download and
+prints where it has got to; Ctrl-C stops waiting and leaves Cirrove downloading.
+`cirrove jobs` lists what is running, and `cirrove stop --id <id>` ends one.
 
 ## The window and the tray
 

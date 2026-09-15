@@ -5,6 +5,7 @@
 #![allow(clippy::unwrap_used)]
 use super::discovery::{LinkedLibrary, fixture_account};
 use super::*;
+use crate::jobs::Job;
 
 /// Serves deterministic bytes for one file, so a materialised pin can be checked
 /// against blocks that actually exist rather than against an empty cache.
@@ -846,4 +847,353 @@ async fn a_pin_whose_parents_are_not_indexed_has_no_path_rather_than_half_of_one
     let pins = engine.pin_status().await.unwrap();
     assert_eq!(pins.len(), 1);
     assert_eq!(pins[0].path, None);
+}
+
+/// Serves content only when the test lets it, so a fetch can be caught in the
+/// act rather than inferred from its result.
+#[derive(Default)]
+struct Gated {
+    open: AtomicBool,
+    opened: Notify,
+    reads: AtomicU64,
+    /// Read number from which every read fails, counting from one. Zero never
+    /// fails, which is what `Default` gives.
+    fail_from: AtomicU64,
+}
+impl Gated {
+    fn release(&self) {
+        self.open.store(true, Ordering::SeqCst);
+        self.opened.notify_waiters();
+    }
+    async fn wait_open(&self) {
+        loop {
+            let waiting = self.opened.notified();
+            tokio::pin!(waiting);
+            // Registered before the check, so a release between the two is not
+            // a test that hangs once in a hundred runs.
+            waiting.as_mut().enable();
+            if self.open.load(Ordering::SeqCst) {
+                return;
+            }
+            waiting.await;
+        }
+    }
+}
+#[async_trait::async_trait]
+impl cirrove_core::MetadataProvider for Gated {
+    fn provider_id(&self) -> &'static str {
+        "fixture"
+    }
+    async fn changes(
+        &self,
+        _: &Scope,
+        _: Option<&cirrove_core::Cursor>,
+        _: &CancellationToken,
+    ) -> std::result::Result<cirrove_core::ChangePage, ProviderError> {
+        Ok(cirrove_core::ChangePage {
+            changes: vec![],
+            checkpoint: cirrove_core::Checkpoint::Complete(cirrove_core::Cursor("done".into())),
+        })
+    }
+}
+#[async_trait::async_trait]
+impl ReadProvider for Gated {
+    async fn node(
+        &self,
+        _: &Scope,
+        id: &str,
+        _: &CancellationToken,
+    ) -> std::result::Result<Node, ProviderError> {
+        match id {
+            "root" => Ok(folder("root")),
+            "top" => Ok(folder("top")),
+            other if other.starts_with('f') => Ok(file(other, "top", GATED_FILE)),
+            _ => Err(ProviderError::NotFound),
+        }
+    }
+    async fn children(
+        &self,
+        _: &Scope,
+        _: &str,
+        _: Option<&cirrove_core::Cursor>,
+        _: &CancellationToken,
+    ) -> std::result::Result<cirrove_core::DirectoryPage, ProviderError> {
+        Err(ProviderError::NotFound)
+    }
+    async fn read_range(
+        &self,
+        _: &Scope,
+        node: &Node,
+        offset: u64,
+        length: u32,
+        cancel: &CancellationToken,
+    ) -> std::result::Result<Vec<u8>, ProviderError> {
+        tokio::select! {
+            biased;
+            _ = cancel.cancelled() => return Err(ProviderError::Unavailable),
+            () = self.wait_open() => {}
+        }
+        let read = self.reads.fetch_add(1, Ordering::SeqCst) + 1;
+        let fail_from = self.fail_from.load(Ordering::SeqCst);
+        if fail_from > 0 && read >= fail_from {
+            return Err(ProviderError::Unavailable);
+        }
+        let end = (offset + length as u64).min(node.size);
+        Ok((offset..end).map(|i| (i % 251) as u8).collect())
+    }
+}
+/// One block each, so a file is one read and a count of reads is a count of
+/// files.
+const GATED_FILE: u64 = 4096;
+
+/// The scope the engine builds for itself, which is what a test going through
+/// the request path must seed under. `scope()` above names "onedrive" while
+/// these fixtures identify as "fixture"; the tests that call `pin_folder`
+/// directly are self-consistent because they hand it in, and this one cannot be.
+fn engine_scope(engine: &Engine) -> Scope {
+    engine.scope(&engine.account.drive.id)
+}
+async fn seed_directory_in(engine: &Arc<Engine>, scope: &Scope, parent: &str, children: &[Node]) {
+    let db = engine.db.clone();
+    let (scope, parent, children) = (scope.clone(), parent.to_string(), children.to_vec());
+    tokio::task::spawn_blocking(move || {
+        let mut store = cirrove_store::Store::open(db).unwrap();
+        store.observe_directory(&scope, &parent, &children).unwrap();
+    })
+    .await
+    .unwrap();
+}
+
+/// Three files under one folder, indexed, with a gated provider behind them.
+async fn gated_folder(temp: &tempfile::TempDir) -> (Arc<Engine>, Arc<Gated>) {
+    let provider = Arc::new(Gated::default());
+    let mut account = fixture_account(temp.path().join("mount"));
+    account.cache_bytes = 64 * 1024 * 1024;
+    let engine = Engine::new(account, provider.clone(), temp.path().join("engine"))
+        .await
+        .unwrap();
+    let files: Vec<Node> = (0..3)
+        .map(|i| file(&format!("f{i}"), "top", GATED_FILE))
+        .collect();
+    let scope = engine_scope(&engine);
+    seed_directory_in(&engine, &scope, "root", &[folder("top")]).await;
+    seed_directory_in(&engine, &scope, "top", &files).await;
+    (engine, provider)
+}
+fn keep(item: &str, recursive: bool) -> crate::PinRequest {
+    crate::PinRequest {
+        item: Some(item.into()),
+        recursive,
+        ..Default::default()
+    }
+}
+
+#[tokio::test]
+async fn keeping_a_folder_offline_answers_before_the_first_byte_arrives() {
+    // The request used to fetch every file before replying, and the client half
+    // gives up after three seconds -- so anything that took longer than that
+    // told the person who asked "Cirrove pin timed out" while the daemon went on
+    // keeping the folder. Nothing here has been fetched when the answer arrives.
+    let temp = tempfile::tempdir().unwrap();
+    let (engine, provider) = gated_folder(&temp).await;
+    let reply = tokio::time::timeout(
+        Duration::from_secs(2),
+        engine.apply_pin_request(&keep("top", true)),
+    )
+    .await
+    .expect("the request answers without waiting for the fetch")
+    .unwrap();
+    assert!(reply.accepted, "{reply:?}");
+    assert_eq!(reply.files, 3, "{reply:?}");
+    let job = reply
+        .job
+        .clone()
+        .expect("the fetch is named so it can be watched");
+    assert_eq!(
+        provider.reads.load(Ordering::SeqCst),
+        0,
+        "nothing fetched yet"
+    );
+
+    let listed = engine.jobs.list();
+    assert_eq!(listed.len(), 1, "{listed:?}");
+    assert_eq!(listed[0].id, job);
+    assert_eq!(listed[0].name, "top", "named where it sits, not by item id");
+    assert_eq!(listed[0].files_total, 3);
+    assert_eq!(listed[0].files_done, 0);
+    assert!(listed[0].bytes_total >= 3 * GATED_FILE);
+
+    provider.release();
+    assert!(
+        tokio::time::timeout(Duration::from_secs(10), engine.jobs.wait(&job))
+            .await
+            .expect("the fetch finishes")
+            .is_none(),
+        "a job that did what it was asked leaves no progress bar behind"
+    );
+    let pins = engine.pin_status().await.unwrap();
+    assert_eq!(pins.len(), 1);
+    assert!(pins[0].resident > 0, "the content is really here: {pins:?}");
+}
+
+#[tokio::test]
+async fn a_job_reports_how_far_it_has_got() {
+    let temp = tempfile::tempdir().unwrap();
+    let (engine, provider) = gated_folder(&temp).await;
+    let reply = engine.apply_pin_request(&keep("top", true)).await.unwrap();
+    let job = reply.job.clone().unwrap();
+    provider.release();
+    // Watch it move rather than assert one instant: three files is a short race
+    // and the point is that the number is not stuck at zero.
+    let moved = tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            if let Some(seen) = engine.jobs.find(&job)
+                && seen.files_done > 0
+            {
+                return seen;
+            }
+            if engine.jobs.find(&job).is_none() {
+                return Job::default();
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("progress is reported while the fetch runs");
+    assert!(
+        moved.files_done > 0 || moved == Job::default(),
+        "either it was caught moving, or it was over before it could be"
+    );
+    tokio::time::timeout(Duration::from_secs(10), engine.jobs.wait(&job))
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+async fn stopping_a_fetch_releases_the_pin_it_was_filling() {
+    let temp = tempfile::tempdir().unwrap();
+    let (engine, provider) = gated_folder(&temp).await;
+    let reply = engine.apply_pin_request(&keep("top", true)).await.unwrap();
+    let job = reply.job.clone().unwrap();
+    assert_eq!(
+        engine.pin_status().await.unwrap().len(),
+        1,
+        "the reservation is made before the fetch, which is why it can be refused at once"
+    );
+    assert_eq!(engine.jobs.stop(&job), crate::jobs::Stopped::Asked);
+    provider.release();
+    let ended = tokio::time::timeout(Duration::from_secs(10), engine.jobs.wait(&job))
+        .await
+        .expect("a stopped fetch ends promptly");
+    assert_eq!(
+        ended.map(|job| job.state),
+        Some(crate::jobs::JobState::Stopped),
+        "the record says it was stopped, rather than vanishing"
+    );
+    assert!(
+        engine.pin_status().await.unwrap().is_empty(),
+        "a person who stopped a fetch did not ask to keep part of a folder"
+    );
+    assert!(
+        !engine.cancel.is_cancelled(),
+        "stopping a job must not stop the account"
+    );
+}
+
+#[tokio::test]
+async fn a_fetch_that_fails_keeps_what_it_got_and_says_why() {
+    let temp = tempfile::tempdir().unwrap();
+    let (engine, provider) = gated_folder(&temp).await;
+    // The first file arrives; the rest do not.
+    provider.fail_from.store(2, Ordering::SeqCst);
+    let reply = engine.apply_pin_request(&keep("top", true)).await.unwrap();
+    let job = reply.job.clone().unwrap();
+    provider.release();
+    let ended = tokio::time::timeout(Duration::from_secs(10), engine.jobs.wait(&job))
+        .await
+        .expect("a failing fetch ends")
+        .expect("a failure stays visible");
+    assert_eq!(ended.state, crate::jobs::JobState::Failed);
+    assert!(
+        ended.issue.is_some(),
+        "a progress bar that vanishes tells nobody anything"
+    );
+    assert_eq!(ended.files_done, 1, "how far it got is the useful part");
+    let pins = engine.pin_status().await.unwrap();
+    assert_eq!(pins.len(), 1, "the pin stays; it is what a retry would use");
+    assert!(
+        pins[0].resident > 0,
+        "one file of three is one file a person can open on a train: {pins:?}"
+    );
+}
+
+#[tokio::test]
+async fn a_single_file_is_a_job_too() {
+    // Most are small enough that nobody sees the job, but "most" is not a size
+    // limit: one file can be a four-gigabyte recording.
+    let temp = tempfile::tempdir().unwrap();
+    let (engine, provider) = gated_folder(&temp).await;
+    let reply = tokio::time::timeout(
+        Duration::from_secs(2),
+        engine.apply_pin_request(&keep("f0", false)),
+    )
+    .await
+    .expect("answers without waiting for the file")
+    .unwrap();
+    assert!(reply.accepted, "{reply:?}");
+    let job = reply.job.clone().expect("named so it can be watched");
+    assert_eq!(engine.jobs.find(&job).map(|j| j.files_total), Some(1));
+    provider.release();
+    tokio::time::timeout(Duration::from_secs(10), engine.jobs.wait(&job))
+        .await
+        .unwrap();
+    let pins = engine.pin_status().await.unwrap();
+    assert!(pins[0].resident > 0, "{pins:?}");
+}
+
+#[tokio::test]
+async fn a_pin_can_be_released_by_id_even_where_the_provider_cannot_resolve_it() {
+    // Found on a real drive: a folder inside a linked SharePoint library is
+    // pinned under that library's scope, and unpinning by id looked the id up
+    // in the account's own drive -- "remote item not found". The window's Stop
+    // keeping button acts by id, so such a pin could not be released at all,
+    // and the same lookup would fail with the network down, which is when
+    // someone most wants the space back.
+    let temp = tempfile::tempdir().unwrap();
+    let (engine, _provider) = gated_folder(&temp).await;
+    // A pin recorded in a collection this provider knows nothing about, which
+    // is what a linked library looks like from here.
+    let elsewhere = Scope {
+        collection: "a-linked-library".into(),
+        ..engine_scope(&engine)
+    };
+    engine
+        .pin(
+            elsewhere,
+            "item-the-provider-cannot-resolve".into(),
+            true,
+            4096,
+        )
+        .await
+        .unwrap()
+        .expect("fits");
+    assert_eq!(engine.pin_status().await.unwrap().len(), 1);
+    let reply = engine
+        .apply_unpin_request(&keep("item-the-provider-cannot-resolve", false))
+        .await
+        .unwrap();
+    assert!(reply.accepted, "{reply:?}");
+    assert!(reply.refusal.is_none(), "{reply:?}");
+    assert!(
+        engine.pin_status().await.unwrap().is_empty(),
+        "the record is gone and the budget with it"
+    );
+    // And an id that names nothing pinned is still told so, rather than being
+    // reported as released.
+    let missing = engine
+        .apply_unpin_request(&keep("never-pinned", false))
+        .await
+        .unwrap();
+    assert!(!missing.accepted, "{missing:?}");
+    assert!(missing.refusal.is_some(), "{missing:?}");
 }

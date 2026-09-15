@@ -869,6 +869,59 @@ impl Window {
         for old in rows.drain(..) {
             row.kept.remove(&old);
         }
+        // What is arriving comes before what has arrived: it is the part that
+        // is still happening, and the part with a button that means something.
+        for job in &card.running {
+            let entry = adw::ActionRow::builder()
+                .title(&job.name)
+                .subtitle(&job.detail)
+                .use_markup(false)
+                .subtitle_lines(0)
+                .build();
+            if job.failed {
+                entry.add_css_class("warning");
+            }
+            if job.running {
+                let bar = gtk::ProgressBar::builder()
+                    .valign(gtk::Align::Center)
+                    .width_request(120)
+                    .show_text(false)
+                    .build();
+                match job.percent {
+                    Some(percent) => bar.set_fraction(f64::from(percent) / 100.0),
+                    // A total nobody knows is a bar that must move rather than
+                    // sit at zero, which reads as "nothing is happening".
+                    None => bar.pulse(),
+                }
+                bar.update_property(&[gtk::accessible::Property::Label(&job.detail)]);
+                entry.add_suffix(&bar);
+            }
+            let stop = gtk::Button::builder()
+                // The same button whether the work is running or over: one asks
+                // it to stop, the other clears a record nobody needs any more.
+                .label(if job.running {
+                    gettext("Stop")
+                } else {
+                    gettext("Dismiss")
+                })
+                .valign(gtk::Align::Center)
+                .sensitive(idle)
+                .build();
+            stop.add_css_class("flat");
+            let weak = Rc::downgrade(self);
+            let key = card.id.clone();
+            let id = job.id.clone();
+            let name = job.name.clone();
+            let running = job.running;
+            stop.connect_clicked(move |_| {
+                if let Some(ui) = weak.upgrade() {
+                    ui.stop_job(&key, &id, &name, running);
+                }
+            });
+            entry.add_suffix(&stop);
+            row.kept.add_row(&entry);
+            rows.push(entry);
+        }
         for pin in &card.kept_offline {
             let entry = adw::ActionRow::builder()
                 .title(&pin.name)
@@ -899,15 +952,24 @@ impl Window {
             row.kept.add_row(&entry);
             rows.push(entry);
         }
-        row.kept
-            .set_subtitle(&match (&card.pin_budget, card.kept_offline.len()) {
+        // The summary of what is running belongs where it can be read without
+        // opening anything: a progress bar inside a collapsed expander is a
+        // progress bar nobody sees.
+        let summary = match card.running.iter().find(|job| job.running) {
+            Some(job) => fill(
+                &gettext("Keeping {} offline · {}"),
+                &[&job.name, &job.detail],
+            ),
+            None => match (&card.pin_budget, card.kept_offline.len()) {
                 // The budget sentence is the useful one, because the question a
                 // person opens this for is how much room is left.
                 (Some(budget), _) => budget.clone(),
                 (None, 0) => "Nothing is kept offline yet.".to_owned(),
                 (None, 1) => "1 item kept offline.".to_owned(),
                 (None, n) => fill(&gettext("{} items kept offline."), &[&n.to_string()]),
-            });
+            },
+        };
+        row.kept.set_subtitle(&summary);
         row.keep_add
             .set_sensitive(idle && card.controls_available && card.mounted);
         row.keep_add.set_tooltip_text(Some(if card.mounted {
@@ -1236,6 +1298,7 @@ impl Window {
         if !self.begin_operation(id, n("Keeping offline…")) {
             return;
         }
+        let key = id.to_owned();
         let socket = socket.clone();
         let request = cirrove_service::PinRequest {
             label: card.label.clone(),
@@ -1276,6 +1339,72 @@ impl Window {
                     )),
                 },
                 Ok(Err(error)) => ui.notify(&format!("Could not keep {relative} offline: {error}")),
+                Err(_) => ui.notify(&gettext("The service did not answer.")),
+            }
+            // Open the section the fetch will report into. Expanding a section
+            // on a timer would fight whoever collapsed it; this is the one
+            // moment it is the person's own doing.
+            if let Some(row) = ui.rows.borrow().get(&key) {
+                row.kept.set_expanded(true);
+            }
+            ui.refresh();
+        });
+    }
+    /// Stop work that is running, or clear the record of work that ended.
+    ///
+    /// Stopping a fetch releases the pin it was filling: someone who stopped it
+    /// did not ask to keep part of a folder, and a pin reserving the whole of
+    /// one while holding part misreports both. The daemon does that; this says
+    /// so, because a button whose effect is larger than its label is a trap.
+    pub fn stop_job(self: &Rc<Self>, id: &str, job: &str, name: &str, running: bool) {
+        let Some(card) = self.card(id) else {
+            return;
+        };
+        let Backend::Live {
+            runtime, socket, ..
+        } = &self.backend
+        else {
+            return;
+        };
+        if !self.begin_operation(id, n("Stopping…")) {
+            return;
+        }
+        let socket = socket.clone();
+        let request = cirrove_service::StopJobRequest {
+            label: card.label.clone(),
+            id: job.to_owned(),
+        };
+        let shown = name.to_owned();
+        let (send, receive) = tokio::sync::oneshot::channel();
+        runtime.spawn(async move {
+            let result = cirrove_service::stop_job(&socket, &request)
+                .await
+                .map_err(|error| format!("{error:#}"));
+            let _ = send.send(result);
+        });
+        let weak = Rc::downgrade(self);
+        glib::spawn_future_local(async move {
+            let result = receive.await;
+            let Some(ui) = weak.upgrade().filter(|ui| !ui.closed.get()) else {
+                return;
+            };
+            ui.end_operation();
+            match result {
+                Ok(Ok(reply)) => match (&reply.refusal, reply.stopped, running) {
+                    (Some(refusal), _, _) => ui.notify(refusal),
+                    (None, true, true) => ui.notify(&fill(
+                        &gettext("Stopping. {} will not be kept offline."),
+                        &[&shown],
+                    )),
+                    // Not finding it is the outcome the person wanted: it is not
+                    // running. Saying "nothing by that name" would read as a
+                    // failure of the button rather than as work that finished.
+                    (None, _, _) => ui.refresh(),
+                },
+                Ok(Err(error)) => ui.notify(&fill(
+                    &gettext("Could not stop {}: {}"),
+                    &[&shown, &error.to_string()],
+                )),
                 Err(_) => ui.notify(&gettext("The service did not answer.")),
             }
             ui.refresh();

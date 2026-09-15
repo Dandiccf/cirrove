@@ -41,6 +41,25 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
             failed_uploads: 0,
             pin_budget: Default::default(),
             pins: Vec::new(),
+            // One running job on the connected account, so the demo shows the
+            // progress row and its Stop button rather than only the still
+            // states around it.
+            jobs: if a.enabled {
+                vec![cirrove_service::jobs::Job {
+                    id: "demo-job".into(),
+                    kind: cirrove_service::jobs::JobKind::KeepOffline,
+                    name: "Projects/Photos".into(),
+                    files_total: 340,
+                    files_done: 112,
+                    bytes_total: 4_294_967_296,
+                    bytes_done: 1_395_864_371,
+                    started_at: 0,
+                    state: cirrove_service::jobs::JobState::Running,
+                    issue: None,
+                }]
+            } else {
+                Vec::new()
+            },
             indexed_feeds: u64::from(a.enabled),
             indexed_items: 1234,
         })
@@ -69,6 +88,18 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
                         removed: false,
                     }],
                     local: vec![
+                        // A save still on its way, with how much of it has
+                        // arrived: the state word alone cannot tell a transfer
+                        // that is moving from one that is stuck.
+                        cirrove_service::recent::LocalChange {
+                            sequence: 4,
+                            name: "Presentation.key".into(),
+                            item: None,
+                            state: "uploading".into(),
+                            size: 148_000_000,
+                            saved_at: Some(now.saturating_sub(70)),
+                            transferred: 61_000_000,
+                        },
                         cirrove_service::recent::LocalChange {
                             sequence: 3,
                             name: "Notes.txt".into(),
@@ -76,6 +107,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
                             state: "uploaded".into(),
                             size: 1_024,
                             saved_at: Some(now.saturating_sub(45 * 60)),
+                            transferred: 0,
                         },
                         cirrove_service::recent::LocalChange {
                             sequence: 2,
@@ -84,6 +116,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
                             state: "failed".into(),
                             size: 8_192,
                             saved_at: Some(now.saturating_sub(30 * 3600)),
+                            transferred: 0,
                         },
                         cirrove_service::recent::LocalChange {
                             sequence: 1,
@@ -92,6 +125,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
                             state: "uploaded".into(),
                             size: 512,
                             saved_at: None,
+                            transferred: 0,
                         },
                     ],
                     // One refused change, so the demo shows the named list

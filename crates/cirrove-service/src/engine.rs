@@ -196,6 +196,17 @@ fn now() -> u64 {
         .unwrap_or_default()
         .as_secs()
 }
+/// A folder pin that has been walked and reserved, with the fetching left.
+struct PlannedPin {
+    files: Vec<Node>,
+    bytes: u64,
+    complete: bool,
+}
+/// What a fetch managed to keep, and whether it was stopped rather than done.
+struct KeptOffline {
+    blocks: usize,
+    stopped: bool,
+}
 pub struct Engine {
     pub account: Account,
     pub db: PathBuf,
@@ -218,6 +229,8 @@ pub struct Engine {
     pub save_refusals: Arc<crate::journal::SaveRefusals>,
     /// What the delta feed delivered lately, for a window and a tray.
     pub recent: crate::recent::RecentChanges,
+    /// Long work somebody asked for and can watch or stop. See [`crate::jobs`].
+    pub jobs: Arc<crate::jobs::Jobs>,
     /// One connection stays open for the account's lifetime. Without it every
     /// `Store::open` is both the first and the last connection to a WAL
     /// database, so SQLite creates `metadata.db-wal` and `-shm` on open and, on
@@ -279,6 +292,7 @@ impl Engine {
             activity: crate::activity::DirectoryActivity::default(),
             save_refusals: Arc::new(crate::journal::SaveRefusals::default()),
             recent: crate::recent::RecentChanges::default(),
+            jobs: Arc::new(crate::jobs::Jobs::default()),
             _keeper: StdMutex::new(keeper),
             _owner: owner,
         }))
@@ -359,37 +373,156 @@ impl Engine {
     /// Content revisions change block keys, so this is also what a pin needs
     /// after the file changes remotely.
     pub async fn materialise_pin(&self, scope: &Scope, node: &Node) -> Result<usize> {
-        let keys = anyhow::Context::context(
+        // A file with no content version has no block keys to bind to, and a
+        // pin bound to nothing looks exactly like one that works.
+        anyhow::Context::context(
             crate::content::block_keys(scope, node),
             "pinned file has no content version to bind its blocks to",
         )?;
-        let mut start = 0;
-        while start < node.size {
-            let length = (node.size - start).min(crate::content::BLOCK_SIZE as u64) as u32;
-            self.cache
-                .read(
-                    self.provider.as_ref(),
-                    scope,
-                    node,
-                    start,
-                    length,
-                    &self.cancel,
-                )
-                .await?;
-            start += crate::content::BLOCK_SIZE as u64;
+        Ok(self
+            .keep_files_offline(scope, &node.id, std::slice::from_ref(node), None)
+            .await?
+            .blocks)
+    }
+    /// Fetch every block of every file listed, and protect what was kept.
+    ///
+    /// The one place content is fetched because somebody asked for it rather
+    /// than because something read it, and therefore the one place with progress
+    /// worth reporting: `progress` is the job a person is watching, when there
+    /// is one. It ends early when that job is stopped.
+    ///
+    /// A fetch that fails part way still protects what it managed to keep. Three
+    /// hundred files of three hundred and forty are three hundred files a person
+    /// can open on a train, and blocks nothing protects are blocks eviction
+    /// takes at the next download.
+    async fn keep_files_offline(
+        &self,
+        scope: &Scope,
+        item: &str,
+        files: &[Node],
+        progress: Option<&crate::jobs::JobHandle>,
+    ) -> Result<KeptOffline> {
+        let cancel = progress.map_or(&self.cancel, |job| &job.cancel);
+        let mut keys: Vec<String> = Vec::new();
+        let (mut files_done, mut bytes_done) = (0u64, 0u64);
+        let mut failure = None;
+        'files: for file in files {
+            let mut start = 0;
+            while start < file.size {
+                if cancel.is_cancelled() {
+                    break 'files;
+                }
+                let length = (file.size - start).min(crate::content::BLOCK_SIZE as u64) as u32;
+                if let Err(error) = self
+                    .cache
+                    .read(self.provider.as_ref(), scope, file, start, length, cancel)
+                    .await
+                {
+                    failure = Some(error);
+                    break 'files;
+                }
+                start += crate::content::BLOCK_SIZE as u64;
+                bytes_done += u64::from(length);
+                if let Some(job) = progress {
+                    job.advance(files_done, bytes_done);
+                }
+            }
+            files_done += 1;
+            if let Some(file_keys) = crate::content::block_keys(scope, file) {
+                keys.extend(file_keys);
+            }
+            if let Some(job) = progress {
+                job.advance(files_done, bytes_done);
+            }
+        }
+        // Stopping means the pin goes with the job, so there is nothing to
+        // protect and nothing to publish: the caller releases it.
+        let stopped = cancel.is_cancelled();
+        if stopped {
+            return Ok(KeptOffline {
+                blocks: keys.len(),
+                stopped,
+            });
         }
         let db = self.db.clone();
         let key = serde_json::to_string(scope).unwrap_or_default();
-        let item = node.id.clone();
-        let count = keys.len();
         let owned = keys.clone();
+        let item = item.to_owned();
         tokio::task::spawn_blocking(move || Store::open(db)?.protect_blocks(&key, &item, &owned))
             .await??;
         // Published only after the blocks exist. Protecting keys before their
         // content is fetched would shrink what eviction may take while the cache
         // still has to make room for the fetch itself.
         self.refresh_reservations().await?;
-        Ok(count)
+        match failure {
+            Some(error) => Err(error.into()),
+            None => Ok(KeptOffline {
+                blocks: keys.len(),
+                stopped,
+            }),
+        }
+    }
+    /// Start keeping files offline as a job, and hand back its id.
+    ///
+    /// The fetching half of a pin. It is spawned rather than awaited because a
+    /// control request answers in one exchange and the client half gives up
+    /// after three seconds: a folder that took longer than that used to report
+    /// `Cirrove pin timed out` to the person who asked for it while the daemon
+    /// went on keeping every file, which is a wrong answer about work that
+    /// succeeded.
+    async fn keep_offline_job(
+        self: &Arc<Self>,
+        scope: &Scope,
+        root: &Node,
+        files: Vec<Node>,
+        bytes: u64,
+    ) -> String {
+        // Named by where it sits in the drive. The item id is what the daemon
+        // acts on and it is not something a person can recognise.
+        let name = self
+            .relative_path_of(scope, &root.id)
+            .await
+            .unwrap_or_else(|| root.name.clone());
+        let handle = self.jobs.start(
+            crate::jobs::JobKind::KeepOffline,
+            name,
+            files.len() as u64,
+            bytes,
+            &self.cancel,
+        );
+        let id = handle.id().to_owned();
+        let engine = self.clone();
+        let scope = scope.clone();
+        let item = root.id.clone();
+        self.tasks.spawn(async move {
+            let outcome = engine
+                .keep_files_offline(&scope, &item, &files, Some(&handle))
+                .await;
+            match outcome {
+                Ok(kept) if kept.stopped => {
+                    // Only a stop somebody asked for releases the pin. The same
+                    // token is cancelled when the account stops, and unpinning
+                    // there would quietly throw away what a user chose to keep
+                    // every time their machine shut down.
+                    if !handle.asked_to_stop() {
+                        return;
+                    }
+                    // A person who stopped a fetch did not ask to keep half a
+                    // folder, and a pin reserving the whole of it while holding
+                    // part of it misreports both.
+                    if let Err(error) = engine.unpin(scope, item).await {
+                        tracing::warn!("stopped keeping offline, but the pin remains: {error}");
+                    }
+                    let _ = engine.cache.reclaim().await;
+                    handle.failed(crate::jobs::JobState::Stopped, None);
+                }
+                Ok(_) => handle.finished(),
+                Err(error) => {
+                    handle.failed(crate::jobs::JobState::Failed, Some(error.to_string()));
+                }
+            }
+        });
+        id
     }
     /// Every file at or below `root`, with the total bytes they occupy.
     ///
@@ -445,6 +578,25 @@ impl Engine {
         scope: &Scope,
         root: &Node,
     ) -> Result<std::result::Result<(usize, bool), cirrove_store::pins::PinRefusal>> {
+        let planned = match self.plan_folder_pin(scope, root).await? {
+            Ok(planned) => planned,
+            Err(refusal) => return Ok(Err(refusal)),
+        };
+        self.keep_files_offline(scope, &root.id, &planned.files, None)
+            .await?;
+        Ok(Ok((planned.files.len(), planned.complete)))
+    }
+    /// Walk the subtree and reserve what it needs, without fetching anything.
+    ///
+    /// The half of a folder pin that belongs inside a request: it reads the
+    /// local index and writes one row, so it answers in milliseconds and it is
+    /// where every refusal a caller can act on comes from. The fetching half is
+    /// minutes of network and belongs to a job.
+    async fn plan_folder_pin(
+        &self,
+        scope: &Scope,
+        root: &Node,
+    ) -> Result<std::result::Result<PlannedPin, cirrove_store::pins::PinRefusal>> {
         let (files, logical, complete) = self.subtree_files(scope, &root.id).await?;
         // Same correction as a single file, per file in the walk: the walk sums
         // logical sizes and the cache stores a digest with every block.
@@ -459,34 +611,11 @@ impl Engine {
         {
             return Ok(Err(refusal));
         }
-        let key = serde_json::to_string(scope).unwrap_or_default();
-        let mut keys = Vec::new();
-        for file in &files {
-            let mut start = 0;
-            while start < file.size {
-                let length = (file.size - start).min(crate::content::BLOCK_SIZE as u64) as u32;
-                self.cache
-                    .read(
-                        self.provider.as_ref(),
-                        scope,
-                        file,
-                        start,
-                        length,
-                        &self.cancel,
-                    )
-                    .await?;
-                start += crate::content::BLOCK_SIZE as u64;
-            }
-            if let Some(file_keys) = crate::content::block_keys(scope, file) {
-                keys.extend(file_keys);
-            }
-        }
-        let db = self.db.clone();
-        let item = root.id.clone();
-        tokio::task::spawn_blocking(move || Store::open(db)?.protect_blocks(&key, &item, &keys))
-            .await??;
-        self.refresh_reservations().await?;
-        Ok(Ok((files.len(), complete)))
+        Ok(Ok(PlannedPin {
+            files,
+            bytes,
+            complete,
+        }))
     }
     /// What pinning has claimed of the cache and what is left.
     pub async fn pin_budget(&self) -> Result<PinBudget> {
@@ -683,15 +812,23 @@ impl Engine {
             }
         };
         if request.recursive {
-            return Ok(match self.pin_folder(&scope, &node).await? {
-                Ok((files, complete)) => crate::PinReply {
-                    accepted: true,
-                    reserved: self.reserved_for(&node.id).await.unwrap_or(0),
-                    item: node.id,
-                    files: files as u64,
-                    complete,
-                    refusal: None,
-                },
+            return Ok(match self.plan_folder_pin(&scope, &node).await? {
+                Ok(planned) => {
+                    let files = planned.files.len() as u64;
+                    let complete = planned.complete;
+                    let job = self
+                        .keep_offline_job(&scope, &node, planned.files, planned.bytes)
+                        .await;
+                    crate::PinReply {
+                        accepted: true,
+                        reserved: self.reserved_for(&node.id).await.unwrap_or(0),
+                        item: node.id,
+                        files,
+                        complete,
+                        job: Some(job),
+                        refusal: None,
+                    }
+                }
                 Err(refusal) => crate::PinReply {
                     item: node.id,
                     refusal: Some(refusal.to_string()),
@@ -730,23 +867,83 @@ impl Engine {
                 ..Default::default()
             }),
             Ok(_) => {
-                let blocks = self.materialise_pin(&scope, &node).await?;
+                // A single file is a job too. Most are small and the job is over
+                // before anyone looks, but "most" is not a size limit: one file
+                // can be a four-gigabyte recording, and the request that keeps it
+                // must answer in the same breath as the one that keeps a folder.
+                let size = node.size;
+                let job = self
+                    .keep_offline_job(&scope, &node, vec![node.clone()], size)
+                    .await;
                 Ok(crate::PinReply {
                     accepted: true,
                     item: node.id,
                     reserved,
-                    files: u64::from(blocks > 0),
+                    files: 1,
                     complete: true,
+                    job: Some(job),
                     refusal: None,
                 })
             }
         }
+    }
+    /// Release a pin named by item id, from the local registry alone.
+    ///
+    /// A pin is a local record and releasing one must not depend on the
+    /// provider being able to resolve its id. Measured on a real account on
+    /// 2026-09-15: a folder inside a linked SharePoint library is pinned under
+    /// that library's scope, and unpinning by id looked the id up in the
+    /// account's own drive and answered "remote item not found" -- so the
+    /// window's Stop keeping button, which acts by id because that is the
+    /// handle that survives a rename, could not release such a pin at all. The
+    /// same lookup would have failed with the network down, which is exactly
+    /// when someone wants their disk space back.
+    ///
+    /// Returns how many records were released, which is zero when the id names
+    /// nothing pinned -- that case still goes through resolution, so the caller
+    /// can be told whether the item exists at all.
+    async fn release_recorded_pin(&self, item: &str) -> Result<usize> {
+        let db = self.db.clone();
+        let item = item.to_owned();
+        let released = tokio::task::spawn_blocking(move || -> cirrove_store::Result<usize> {
+            let mut store = Store::open(db)?;
+            let scopes: Vec<String> = store
+                .pins()?
+                .into_iter()
+                .filter(|pin| pin.item == item)
+                .map(|pin| pin.scope)
+                .collect();
+            let mut released = 0;
+            for scope in scopes {
+                if store.unpin(&scope, &item)? {
+                    released += 1;
+                }
+            }
+            Ok(released)
+        })
+        .await??;
+        if released > 0 {
+            self.refresh_reservations().await?;
+        }
+        Ok(released)
     }
     /// Release a pin and give the space back, rather than only unreserving it.
     pub async fn apply_unpin_request(
         self: &Arc<Self>,
         request: &crate::PinRequest,
     ) -> Result<crate::PinReply> {
+        if let Some(item) = &request.item
+            && self.release_recorded_pin(item).await? > 0
+        {
+            // Unreserving is not freeing; the same reclaim the resolved path does.
+            self.cache.reclaim().await?;
+            return Ok(crate::PinReply {
+                accepted: true,
+                item: item.clone(),
+                complete: true,
+                ..Default::default()
+            });
+        }
         let (scope, node) = match self.resolve_request(request).await {
             Ok(resolved) => resolved,
             Err(error) => {

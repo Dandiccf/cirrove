@@ -203,6 +203,7 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                                         // must render without a time rather
                                         // than as 1970.
                                         saved_at: None,
+                                        transferred: 0,
                                     }],
                                     // Named, so the window scenario exercises
                                     // the path a person actually reads rather
@@ -239,11 +240,26 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                                     let path = body.path.clone().unwrap_or_default();
                                     account.pins.push(cirrove_service::engine::PinStatus {
                                         item: format!("id-of-{path}"),
-                                        path: Some(path),
+                                        path: Some(path.clone()),
                                         recursive: body.recursive,
                                         reserved: 4096,
                                         resident: 4096,
                                         blocks: 1,
+                                    });
+                                    // A real daemon answers before it has
+                                    // fetched anything and reports the fetch as
+                                    // a job. The window must draw that.
+                                    account.jobs.push(cirrove_service::jobs::Job {
+                                        id: "job-1".into(),
+                                        kind: cirrove_service::jobs::JobKind::KeepOffline,
+                                        name: path,
+                                        files_total: 4,
+                                        files_done: 1,
+                                        bytes_total: 4096,
+                                        bytes_done: 1024,
+                                        started_at: 0,
+                                        state: cirrove_service::jobs::JobState::Running,
+                                        issue: None,
                                     });
                                     accepted = true;
                                 }
@@ -254,6 +270,31 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                                 reserved: 4096,
                                 files: 0,
                                 complete: true,
+                                job: accepted.then(|| "job-1".to_owned()),
+                                refusal: None,
+                            })
+                            .unwrap()
+                        } else if line.starts_with("stop-job ") {
+                            seen.lock().unwrap().push(line.trim_end().to_owned());
+                            let body: cirrove_service::StopJobRequest =
+                                serde_json::from_str(line.split_once(' ').unwrap().1).unwrap();
+                            let mut status = replies.lock().unwrap();
+                            let mut stopped = false;
+                            for account in &mut status.accounts {
+                                let before = account.jobs.len();
+                                account.jobs.retain(|job| job.id != body.id);
+                                // The daemon releases the pin the fetch was
+                                // filling; the fake does the same, or the window
+                                // would be tested against a kinder service than
+                                // the one it talks to.
+                                if account.jobs.len() < before {
+                                    account.pins.clear();
+                                    stopped = true;
+                                }
+                            }
+                            serde_json::to_vec(&cirrove_service::StopJobReply {
+                                stopped,
+                                already_ended: false,
                                 refusal: None,
                             })
                             .unwrap()
@@ -1007,6 +1048,130 @@ fn the_window_shows_what_is_kept_offline_and_can_release_it() {
     runtime.shutdown_timeout(Duration::from_secs(1));
 }
 
+/// A fetch in flight: what it is doing, how far it has got, and stopping it.
+///
+/// Keeping a folder offline used to run inside the control request, and the
+/// client half gives up after three seconds -- so anything real reported
+/// "Cirrove pin timed out" to the person who asked while the daemon went on
+/// fetching. There was no progress anywhere and no way to stop it. The window is
+/// where both belong.
+fn a_fetch_in_flight_shows_its_progress_and_can_be_stopped() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let sample = demo::snapshot().unwrap();
+    let settings = sample.settings.unwrap();
+    write_settings(&state, &settings);
+
+    let mut status = sample.status.unwrap();
+    {
+        let work = &mut status.accounts[0];
+        work.pins = Vec::new();
+        work.jobs = vec![
+            cirrove_service::jobs::Job {
+                id: "job-running".into(),
+                kind: cirrove_service::jobs::JobKind::KeepOffline,
+                name: "Anlagen".into(),
+                files_total: 4,
+                files_done: 1,
+                bytes_total: 4096,
+                bytes_done: 1024,
+                started_at: 0,
+                state: cirrove_service::jobs::JobState::Running,
+                issue: None,
+            },
+            // One that gave up. Its row stays until somebody has seen it: a
+            // progress bar that simply vanishes tells nobody anything.
+            cirrove_service::jobs::Job {
+                id: "job-failed".into(),
+                kind: cirrove_service::jobs::JobKind::KeepOffline,
+                name: "Fotos".into(),
+                files_total: 9,
+                files_done: 4,
+                bytes_total: 900,
+                bytes_done: 400,
+                started_at: 0,
+                state: cirrove_service::jobs::JobState::Failed,
+                issue: Some("the cloud was unreachable".into()),
+            },
+        ];
+    }
+    let service = fake_service(&runtime, temp.path(), status);
+    let app = application("FetchInFlight");
+    let ui = Window::new(
+        &app,
+        Backend::Live {
+            runtime: runtime.handle().clone(),
+            state: state.clone(),
+            socket: service.socket.clone(),
+        },
+    );
+    pump_until("initial snapshot", || {
+        ui.current()
+            .is_some_and(|view| view.accounts[0].running.len() == 2)
+    });
+    let window = ui.window.upgrade().unwrap();
+    expand_all(window.upcast_ref());
+    pump_until("the kept-offline section is open", || {
+        displays_text(window.upcast_ref(), "Kept offline")
+    });
+
+    // How far it has got, in files and in bytes. Not a spinner: a spinner and a
+    // stuck transfer look the same.
+    assert!(
+        displays_text(window.upcast_ref(), "1 of 4 files · 1.0 KB of 4.0 KB"),
+        "a fetch in flight says how far it has got"
+    );
+    // And visible without opening anything, because that is where a person
+    // looks first.
+    assert!(
+        displays_text(
+            window.upcast_ref(),
+            "Keeping Anlagen offline · 1 of 4 files · 1.0 KB of 4.0 KB"
+        ),
+        "the section says what is running while it is closed"
+    );
+    // A fetch that gave up says why, and how much it managed.
+    assert!(
+        displays_text(
+            window.upcast_ref(),
+            "Kept 4 of 9 files, then stopped: the cloud was unreachable"
+        ),
+        "a failure names its reason"
+    );
+
+    // Stopping goes to the daemon by job id.
+    let stop = buttons(window.upcast_ref(), "Stop");
+    assert_eq!(stop.len(), 1, "only work that is running can be stopped");
+    assert_eq!(
+        buttons(window.upcast_ref(), "Dismiss").len(),
+        1,
+        "work that is over offers to clear its record instead"
+    );
+    stop[0].emit_clicked();
+    pump_until("the stop reached the daemon", || {
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.starts_with("stop-job ") && line.contains("job-running"))
+    });
+    pump_until("the stopped fetch left the window", || {
+        ui.current().is_some_and(|v| {
+            v.accounts[0]
+                .running
+                .iter()
+                .all(|job| job.id != "job-running")
+        })
+    });
+
+    window.close();
+    service.task.abort();
+    runtime.shutdown_timeout(Duration::from_secs(1));
+}
+
 const SCENARIOS: &[(&str, fn())] = &[
     (
         "the_x11_window_class_is_the_application_id_a_shell_looks_for",
@@ -1023,6 +1188,10 @@ const SCENARIOS: &[(&str, fn())] = &[
     (
         "every_account_action_is_offered_from_the_window_and_only_where_it_applies",
         every_account_action_is_offered_from_the_window_and_only_where_it_applies,
+    ),
+    (
+        "a_fetch_in_flight_shows_its_progress_and_can_be_stopped",
+        a_fetch_in_flight_shows_its_progress_and_can_be_stopped,
     ),
     (
         "the_window_shows_what_is_kept_offline_and_can_release_it",

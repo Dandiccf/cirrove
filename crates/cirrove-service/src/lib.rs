@@ -7,6 +7,7 @@ pub mod diagnostics;
 pub mod engine;
 pub mod events;
 pub mod filesystem;
+pub mod jobs;
 pub mod journal;
 pub mod manager;
 pub mod mutations;
@@ -170,6 +171,36 @@ pub struct PinReply {
     pub complete: bool,
     /// Present when the request was refused, carrying the reason a user can act
     /// on rather than a status code.
+    #[serde(default)]
+    pub refusal: Option<String>,
+    /// The job now fetching what the pin covers, when one was started.
+    ///
+    /// An accepted pin is a reservation, which is instant, and a fetch, which is
+    /// not: the reply says the first happened and names the second so a caller
+    /// can watch it, stop it, or wait for it. `None` from a daemon that fetched
+    /// inside the request, and from an unpin, which has nothing to wait for.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub job: Option<String>,
+}
+
+/// Ask the daemon to stop a running job, or to forget one that already ended.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct StopJobRequest {
+    #[serde(default)]
+    pub label: String,
+    pub id: String,
+}
+/// What the daemon did about it.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct StopJobReply {
+    /// True when a running job was asked to stop, or a finished record cleared.
+    /// False means there was no such job, which is not an error: a client acting
+    /// on a list it read a second ago races a job that ended in between.
+    #[serde(default)]
+    pub stopped: bool,
+    /// The work was already over; the record was cleared instead.
+    #[serde(default)]
+    pub already_ended: bool,
     #[serde(default)]
     pub refusal: Option<String>,
 }
@@ -519,6 +550,10 @@ impl Subscription {
     }
 }
 
+/// Stop a running job, or clear the record of one that ended. See [`jobs`].
+pub async fn stop_job(socket: &Path, body: &StopJobRequest) -> Result<StopJobReply> {
+    request(socket, "stop-job", Some(body), "Cirrove stop").await
+}
 /// Ask the daemon to pin an item. See [`PinRequest`].
 pub async fn pin(socket: &Path, body: &PinRequest) -> Result<PinReply> {
     request(socket, "pin", Some(body), "Cirrove pin").await
@@ -695,6 +730,7 @@ impl Capabilities {
                 ("discard-stuck".to_string(), 1),
                 ("paths".to_string(), 1),
                 ("recent".to_string(), 1),
+                ("stop-job".to_string(), 1),
             ]
             .into_iter()
             .collect(),
@@ -894,6 +930,21 @@ pub async fn serve_managed(
                             };
                             return write_reply(&mut stream,&reply).await;
                         }
+                        if verb=="stop-job" {
+                            let reply=match (serde_json::from_str::<StopJobRequest>(body),&manager) {
+                                (Ok(r),Some(m))=>match m.stop_job(&r.label,&r.id).await {
+                                    Ok(outcome)=>StopJobReply{
+                                        stopped:!matches!(outcome,jobs::Stopped::Unknown),
+                                        already_ended:matches!(outcome,jobs::Stopped::Dismissed),
+                                        refusal:None,
+                                    },
+                                    Err(error)=>StopJobReply{refusal:Some(error.to_string()),..Default::default()},
+                                },
+                                (Ok(_),None)=>StopJobReply{refusal:Some("this service manages no accounts".into()),..Default::default()},
+                                (Err(_),_)=>StopJobReply{refusal:Some("malformed request body".into()),..Default::default()},
+                            };
+                            return write_reply(&mut stream,&reply).await;
+                        }
                         if verb!="status" {
                             // An error here used to end the exchange with no
                             // reply, which a client reads as a parse failure on
@@ -905,7 +956,16 @@ pub async fn serve_managed(
                             return write_reply(&mut stream,&reply).await;
                         }
                         let (mut feeds,mut items)=tokio::task::spawn_blocking(move || Store::open(path)?.counts()).await??;
-                        let accounts=match &manager {Some(m)=>m.status.read().await.clone(),None=>vec![]};
+                        let mut accounts=match &manager {Some(m)=>m.status.read().await.clone(),None=>vec![]};
+                        // Progress is read here rather than taken from the
+                        // five-second status loop: a bar that moved five seconds
+                        // ago is a spinner with extra steps.
+                        if let Some(m)=&manager {
+                            let mut running=m.jobs().await;
+                            for account in &mut accounts {
+                                if let Some(jobs)=running.remove(&account.account_id) {account.jobs=jobs;}
+                            }
+                        }
                         if manager.is_some() {feeds=accounts.iter().map(|a|a.indexed_feeds).sum();items=accounts.iter().map(|a|a.indexed_items).sum();}
                         let active_mounts=accounts.iter().filter(|a|a.mounted).count() as u64;
                         let reply=Status{protocol_version:STATUS_PROTOCOL_VERSION,version:env!("CARGO_PKG_VERSION").into(),milestone:"writable-preview".into(),indexed_feeds:feeds,indexed_items:items,active_mounts,accounts,allocator_trims:crate::filesystem::allocator_trims(),free_arena_bytes:cirrove_allocator::free_arena_bytes(),retained_bytes:cirrove_allocator::retained_bytes(),restart_required:crate::binary_replaced_on_disk()};

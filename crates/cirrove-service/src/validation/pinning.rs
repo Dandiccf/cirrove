@@ -162,6 +162,13 @@ pub async fn onedrive_pinning(state: &Path, label: &str) -> Result<()> {
         reply.accepted && reply.refusal.is_none(),
         "the pin was refused on a real account: {reply:?}"
     );
+    // Accepting is the reservation; keeping is a job. What this checks next is
+    // what is resident, so it has to wait for the fetch the reply named.
+    if let Some(job) = &reply.job
+        && let Some(ended) = engine.jobs.wait(job).await
+    {
+        anyhow::bail!("keeping the file offline did not finish: {ended:?}");
+    }
     let status = engine.pin_status().await?;
     let held = status
         .first()
@@ -183,6 +190,11 @@ pub async fn onedrive_pinning(state: &Path, label: &str) -> Result<()> {
         folder.accepted && folder.refusal.is_none(),
         "the recursive pin was refused on a real account: {folder:?}"
     );
+    if let Some(job) = &folder.job
+        && let Some(ended) = engine.jobs.wait(job).await
+    {
+        anyhow::bail!("keeping the folder offline did not finish: {ended:?}");
+    }
     anyhow::ensure!(
         folder.files == 2,
         "the walk found {} files where the subtree holds two; a walk that stops early \

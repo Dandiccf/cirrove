@@ -82,6 +82,14 @@ pub struct AccountStatus {
     /// that failed. Zero for a read-only mount. Older daemon responses omit it.
     #[serde(default)]
     pub failed_uploads: u64,
+    /// Long work somebody asked for that is still going -- keeping a folder
+    /// offline is the only kind so far -- and the last few that ended badly.
+    ///
+    /// Filled when the status is answered rather than by the five-second loop
+    /// that rebuilds everything else here: this is a progress bar, and one that
+    /// moved five seconds ago is a spinner with extra steps. See [`crate::jobs`].
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub jobs: Vec<crate::jobs::Job>,
     pub indexed_feeds: u64,
     pub indexed_items: u64,
 }
@@ -244,6 +252,24 @@ impl Manager {
             [] => bail!("no account is labelled {label:?}"),
             _ => bail!("more than one account is configured; name one with --label"),
         }
+    }
+    /// What every running account is working on right now, by account id.
+    ///
+    /// Read from the engines rather than from the cached status vector, so a
+    /// client polling at its own rate sees its own progress and not a snapshot
+    /// the manager happens to have rebuilt.
+    pub async fn jobs(&self) -> HashMap<String, Vec<crate::jobs::Job>> {
+        self.engines
+            .read()
+            .await
+            .iter()
+            .map(|(id, engine)| (id.clone(), engine.jobs.list()))
+            .filter(|(_, jobs)| !jobs.is_empty())
+            .collect()
+    }
+    /// Stop one running job, or clear the record of one that ended.
+    pub async fn stop_job(&self, label: &str, id: &str) -> Result<crate::jobs::Stopped> {
+        Ok(self.engine(label).await?.jobs.stop(id))
     }
     pub async fn engine(&self, label: &str) -> Result<Arc<Engine>> {
         let status = self.status.read().await;
@@ -455,6 +481,9 @@ impl Manager {
                             failed_uploads: 0,
                             pin_budget: Default::default(),
                             pins: Vec::new(),
+                            // Filled when a status is answered, not here: see
+                            // the field.
+                            jobs: Vec::new(),
                             indexed_feeds: 0,
                             indexed_items: 0,
                         };

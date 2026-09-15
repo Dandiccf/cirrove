@@ -40,10 +40,23 @@ applies:
   so it says how many and what the alternative is. What is removed is set aside
   under the state directory, not deleted; nothing in the cloud is touched.
 
+- **Kept offline** lists what this connection holds on the computer and what is
+  arriving. A download in flight gets a row with a bar, its count of files and
+  bytes against the total, and **Stop**; the section's own subtitle repeats it,
+  so the progress is readable without opening anything. **Stop** releases the
+  pin the download was filling -- someone who stopped it did not ask to keep
+  part of a folder -- and the button says so before it is pressed. A download
+  that failed keeps what it managed, says why, and stays until **Dismiss**.
+  Behind it: keeping something offline is a job rather than a request, because
+  a fetch outlives the three-second control exchange; see
+  [ADR 0011](adr/0011-long-work-is-a-job.md).
 - **Recent activity**, at the bottom, when there is any: what arrived,
   changed or went away in the cloud since the service started, and what was
   saved here with where it is on its way -- waiting, uploading, in the cloud,
-  or refused, the refused ones marked. Changes to content, not files merely
+  or refused, the refused ones marked. A save still going up carries how much of
+  it the cloud has taken, which the upload journal has always recorded and
+  nothing ever showed: the word "uploading" alone cannot tell a transfer that is
+  moving from one that is stuck. Changes to content, not files merely
   opened. The daemon answers `recent` per account (the delta feed's
   deliveries from the second delta on, so opening an account does not
   "recently change" every file it has, and the journal's latest saves); the
@@ -65,7 +78,8 @@ settings values, error messages and service response bodies are not displayed.
 `crates/cirrove-desktop/tests/window.rs` drives the window against a daemon that
 is only a socket: the focus-and-acknowledgement scenario, and one that checks
 each action is offered exactly where it applies and that Discard reaches the
-daemon. GTK binds to the first thread that initialises it and libtest gives
+daemon, one that reads what is kept offline and releases it, and one that finds
+a download in flight, reads its progress off the row and stops it. GTK binds to the first thread that initialises it and libtest gives
 every test its own, so that file is its own small harness, running the
 scenarios in order on one thread; CI runs it under Xvfb.
 
