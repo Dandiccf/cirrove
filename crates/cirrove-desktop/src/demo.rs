@@ -37,7 +37,10 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
             // look exactly like a measured one in the UI.
             read_path: None,
             save_refusal: None,
-            stuck_changes: 0,
+            // Two, matching the two the activity reply below names: the count
+            // and the list must agree or the demo shows a window that could
+            // not exist.
+            stuck_changes: if a.enabled { 2 } else { 0 },
             failed_uploads: 0,
             pin_budget: Default::default(),
             pins: Vec::new(),
@@ -129,14 +132,26 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
                             transferred: 0,
                         },
                     ],
-                    // One refused change, so the demo shows the named list
-                    // rather than only the count it used to be.
-                    stuck: vec![cirrove_service::recent::StuckChange {
-                        what: "delete folder".into(),
-                        name: "Old invoices".into(),
-                        path: Some("Accounts/2024/Old invoices".into()),
-                        state: "conflict".into(),
-                    }],
+                    // Two refused changes, one of each kind, so the demo shows
+                    // the state the window has something to say about: a
+                    // conflict the cloud decided about and a failure worth
+                    // trying again. One of each is also what makes the Try
+                    // again button sensitive and its sentence the interesting
+                    // one.
+                    stuck: vec![
+                        cirrove_service::recent::StuckChange {
+                            what: "delete folder".into(),
+                            name: "Old invoices".into(),
+                            path: Some("Accounts/2024/Old invoices".into()),
+                            state: "conflict".into(),
+                        },
+                        cirrove_service::recent::StuckChange {
+                            what: "create folder".into(),
+                            name: "Q3 drafts".into(),
+                            path: Some("Projects/Q3 drafts".into()),
+                            state: "failed".into(),
+                        },
+                    ],
                     refusal: None,
                 },
             )]
