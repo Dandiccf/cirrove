@@ -56,7 +56,7 @@ headless host should be able to install the daemon without a desktop library:
 
 | Package | Contents | Depends on |
 | --- | --- | --- |
-| `cirrove` | `/usr/bin/cirroved`, `/usr/bin/cirrove`, `/usr/lib/systemd/user/cirroved.service`, licence | `fuse3` (for `fusermount3`); optionally a Secret Service keyring and `xdg-utils` |
+| `cirrove` | `/usr/bin/cirroved`, `/usr/bin/cirrove`, `/usr/lib/systemd/user/cirroved.service`, licence | `fuse3` (for `fusermount3`) and `xdg-utils` (for `xdg-open`, which is how signing in opens a browser); optionally a Secret Service keyring |
 | `cirrove-desktop` | `/usr/bin/cirrove-desktop`, `/usr/bin/cirrove-tray`, the desktop entry, the tray's `/etc/xdg/autostart` entry, the hicolor icons, the AppStream metainfo, the Files extension under `/usr/share/nautilus-python/extensions/`, licence | `cirrove`, `gtk4`, `libadwaita`; optionally the GNOME AppIndicator extension and `nautilus-python` for the Files badges and menu |
 
 The PKGBUILD is written for a tagged release and downloads the tarball by
@@ -152,6 +152,20 @@ the state directory and nothing else. Not seen: an icon in the top bar,
 for want of an account. Fedora 44 is what "current Fedora" meant on the day;
 CI's container is 42, and the packages built there installed on 44 without
 complaint.
+
+**What the Arch sign-in found, 2026-09-15:** `xdg-utils` was an `optdepends`
+here and a `Recommends` on the other two, described as being "for the command
+line". It is neither optional nor only for the command line: connecting an
+account opens the provider's sign-in in a browser, and `xdg-open` is how both
+the window and the CLI do that. On Arch, which does not install optional
+dependencies, that made a fresh install unable to connect an account at all --
+the window's Sign in with Microsoft button answered "could not start the
+browser: No such file or directory (os error 2)", which names neither the
+program nor the package. It is a hard dependency in all three families now, and
+the message names `xdg-utils`. Fedora and Debian pull it in with any desktop,
+which is why two clean-machine runs and a year of development never showed it:
+the one distribution that does not install what it merely recommends is the one
+that found it, in the hands of a person pressing a button.
 
 **Arch, 2026-09-15:** the same again on a clean Arch machine, this time from a
 script rather than by hand: the CI-built packages install with pacman, both

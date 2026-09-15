@@ -30,8 +30,14 @@ echo 'Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch' > /etc/pacman.d/m
 # in from. gnome-shell-extension-appindicator is NOT installed -- the package
 # must bring its own desktop integration, the same rule the Fedora kickstart
 # now follows. Nor is fuse3, which the package declares.
+# A browser, because a sign-in needs one and this machine exists to be signed
+# in to: on 2026-09-15 the owner reached the Sign in with Microsoft button on a
+# machine with neither a browser nor xdg-open, which is a fixture gap and, as it
+# turned out, a packaging one as well. wl-clipboard so a long client id can be
+# pasted rather than typed. Deliberately NOT xdg-utils: the package under test
+# requires it now, and installing it here would hide that the next time.
 pacstrap -K /mnt base linux linux-firmware grub \
-  gnome-shell gdm nautilus gnome-console \
+  gnome-shell gdm nautilus gnome-console firefox wl-clipboard \
   networkmanager openssh sudo python
 
 genfstab -U /mnt >> /mnt/etc/fstab

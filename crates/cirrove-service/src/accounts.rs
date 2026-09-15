@@ -178,6 +178,24 @@ pub(crate) fn account_operation(state: &Path, id: &str) -> Result<File> {
         .context("another operation is changing this account")?;
     Ok(file)
 }
+/// Why the browser did not start, in words the reader can act on.
+///
+/// "could not start the browser: No such file or directory (os error 2)" is
+/// what a person saw on a fresh Arch install when they pressed Sign in with
+/// Microsoft, and it names neither the program nor the package. `xdg-open` is
+/// the only way this opens a browser; on Fedora and Debian a desktop pulls it
+/// in and it was never missing, which is why the message had never been read by
+/// anyone who needed it.
+fn browser_failure(error: std::io::Error) -> anyhow::Error {
+    if error.kind() == std::io::ErrorKind::NotFound {
+        return anyhow::anyhow!(
+            "could not open a browser: xdg-open is not installed. It is in the xdg-utils \
+             package on every distribution Cirrove ships for, and signing in needs it."
+        );
+    }
+    anyhow::Error::new(error).context("could not start the browser")
+}
+
 async fn browser_login(
     app: AppRegistration,
     access: AccessMode,
@@ -200,7 +218,7 @@ async fn browser_login(
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .spawn()
-        .context("could not start the browser")?;
+        .map_err(browser_failure)?;
     // Some launchers remain alive as long as a newly started browser. Receiving
     // the callback must not depend on the launcher exiting, or close that browser.
     await_browser_login(&mut child, pending.finish()).await
@@ -213,7 +231,10 @@ async fn await_browser_login<T>(
     tokio::select! {biased;
         result=&mut login=>result,
         status=child.wait()=>{
-            if !status.context("browser launcher failed")?.success(){bail!("browser could not be opened; check xdg-open");}
+            // xdg-open ran and gave up. On a desktop with no browser installed
+            // at all -- which a minimal Arch is -- that is the whole story, and
+            // "check xdg-open" sent the reader to the one thing that was fine.
+            if !status.context("browser launcher failed")?.success(){bail!("xdg-open could not open a browser. Check that a web browser is installed and is the default for http and https.");}
             login.await
         }
     }
@@ -1314,6 +1335,28 @@ mod tests {
         }
         assert!(valid_label("work-onedrive"));
     }
+    /// A message that names the package, rather than the errno.
+    ///
+    /// "could not start the browser: No such file or directory (os error 2)" is
+    /// what a person saw on a fresh Arch install, and it named neither the
+    /// program nor the package. Every distribution Cirrove ships for calls it
+    /// xdg-utils, so the message can say so.
+    #[test]
+    fn a_missing_xdg_open_names_the_package_and_not_the_errno() {
+        let said = browser_failure(std::io::Error::from(std::io::ErrorKind::NotFound)).to_string();
+        assert!(said.contains("xdg-open"), "{said}");
+        assert!(said.contains("xdg-utils"), "{said}");
+        assert!(
+            !said.contains("os error"),
+            "an errno is not something a person can act on: {said}"
+        );
+        // Anything else keeps the context it had; only the missing-program case
+        // has a remedy worth naming.
+        let other =
+            browser_failure(std::io::Error::from(std::io::ErrorKind::PermissionDenied)).to_string();
+        assert!(other.contains("could not start the browser"), "{other}");
+    }
+
     #[tokio::test]
     async fn login_completion_does_not_wait_for_or_kill_the_browser_launcher() {
         let mut child = tokio::process::Command::new("sleep")

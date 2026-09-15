@@ -26,8 +26,12 @@ BuildRequires:  gtk4-devel >= 4.14
 BuildRequires:  libadwaita-devel >= 1.5
 BuildRequires:  gettext
 Requires:       fuse3
+# Not a Recommends: connecting an account opens a browser and xdg-open is how,
+# so without it a fresh install cannot connect an account at all. Arch showed
+# this -- there it was an optdepend, so it was simply absent, and the sign-in
+# button reported "could not start the browser".
+Requires:       xdg-utils
 Recommends:     gnome-keyring
-Recommends:     xdg-utils
 Suggests:       %{name}-desktop
 
 %description

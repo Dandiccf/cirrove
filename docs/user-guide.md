@@ -200,6 +200,10 @@ The window shows **Changes the cloud refused** with the count and says how many
 of them are worth another try; **Try again** is greyed out when none are. The
 tray icon shows the exclamation mark either way.
 
+If signing in says it could not open a browser, `xdg-open` is missing: install
+`xdg-utils`, which every distribution has under that name. Cirrove's packages
+require it, so this only happens to a build installed by hand.
+
 ## When the service is not there
 
 The window says so in a banner and keeps showing your saved connections; the

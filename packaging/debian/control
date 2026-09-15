@@ -13,8 +13,8 @@ Rules-Requires-Root: no
 
 Package: cirrove
 Architecture: amd64
-Depends: ${shlibs:Depends}, ${misc:Depends}, fuse3
-Recommends: gnome-keyring, xdg-utils
+Depends: ${shlibs:Depends}, ${misc:Depends}, fuse3, xdg-utils
+Recommends: gnome-keyring
 Suggests: cirrove-desktop
 Description: cloud drive filesystem that keeps the cloud where it is (service and CLI)
  Cirrove mounts a cloud drive -- OneDrive first -- as a filesystem that

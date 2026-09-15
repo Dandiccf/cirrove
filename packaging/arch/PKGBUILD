@@ -66,10 +66,17 @@ package_cirrove() {
   pkgdesc+=" (service and command line)"
   # fuse3 for fusermount3, which the daemon runs to mount; everything else the
   # binaries need is linked in.
-  depends=(fuse3 gcc-libs glibc)
+  # xdg-utils is not optional and was, until 2026-09-15, listed as though it
+  # were "for the command line". Connecting an account opens the provider's
+  # sign-in in a browser, and `xdg-open` is how both the command line and the
+  # window do that -- so without it a fresh install cannot connect an account at
+  # all, which is the one thing it exists to do. Found on the Arch VM by a
+  # person pressing Sign in with Microsoft and being told "could not start the
+  # browser: No such file or directory". Fedora and Debian pull it in with a
+  # desktop and so never showed it.
+  depends=(fuse3 gcc-libs glibc xdg-utils)
   optdepends=(
     'gnome-keyring: keep sign-in grants in a desktop keyring (or any Secret Service)'
-    'xdg-utils: open the browser for sign-in from the command line'
     'cirrove-desktop: settings window, tray, and desktop integration'
   )
 

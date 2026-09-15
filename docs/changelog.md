@@ -5,6 +5,14 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
 
 ## Unreleased
 
+- **Signing in works on a machine without a desktop's extras.** `xdg-utils` was
+  an optional dependency described as being for the command line. It is neither:
+  connecting an account opens your browser through `xdg-open`, from the window
+  as much as from the terminal, so on a distribution that does not install
+  optional dependencies a fresh install could not connect an account at all --
+  the Sign in button said "could not start the browser: No such file or
+  directory". It is required now, and if it is ever missing the message names
+  the package.
 - **Keeping a folder offline no longer reports failure for work that
   succeeded.** It used to run inside the request the command line and the
   window make, and both give up after three seconds -- so any folder worth
