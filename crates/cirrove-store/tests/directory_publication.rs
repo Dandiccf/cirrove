@@ -19,6 +19,7 @@ fn scope() -> Scope {
 }
 fn node(id: &str, parent: &str, version: u64) -> Node {
     Node {
+        package: false,
         id: id.into(),
         parent_id: Some(parent.into()),
         name: format!("name-{id}"),

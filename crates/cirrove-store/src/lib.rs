@@ -623,6 +623,7 @@ mod tests {
     }
     fn node(id: &str) -> Change {
         Change::Upsert(Node {
+            package: false,
             id: id.into(),
             parent_id: None,
             name: id.into(),

@@ -30,6 +30,7 @@ fn open(path: &Path) -> UploadJournal {
 }
 fn node() -> Node {
     Node {
+        package: false,
         id: "local-file".into(),
         parent_id: Some("root".into()),
         name: "draft.txt".into(),

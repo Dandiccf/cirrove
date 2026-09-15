@@ -294,6 +294,7 @@ mod tests {
     fn nodes(count: usize) -> Vec<Node> {
         (0..count)
             .map(|i| Node {
+                package: false,
                 id: format!("{i:08}"),
                 parent_id: Some("root".into()),
                 name: "x".repeat(1024),
@@ -431,6 +432,7 @@ mod tests {
             for page in 0..500 {
                 let nodes = (page * 1000..(page + 1) * 1000)
                     .map(|i| Node {
+                        package: false,
                         id: format!("file-{i:08}"),
                         parent_id: Some("root".into()),
                         name: format!("filename-{i:08}"),

@@ -96,7 +96,12 @@ command is killed during sign-in, use `enable` to restore the desired mount stat
 An unlocked desktop keyring is needed for sign-in and credential refresh.
 
 The unit template in `packaging/systemd/cirroved.service` supports login startup;
-it is not installed by building the project. Keep service installation for an
-explicitly configured preview. Its daemon and FUSE sessions must remain in the
-same user's desktop session. Pins, uploads, tray UI and Nautilus badges are still
-planned; a read-only mount does not claim those capabilities.
+it is not installed by building the project. Enabled on a real account it has been
+verified across a reboot -- clean unmount on stop, and back by itself at the next
+login with its index and mount intact -- and across a short suspend/resume, which
+left the daemon the same process. A longer and deeper suspend has not been run; see
+[the measurements and their limits](benchmarks/service-lifecycle-and-suspend.json).
+Keep service installation for an explicitly configured preview. Its daemon and
+FUSE sessions must remain in the same user's desktop session. Pins, uploads, tray
+UI and Nautilus badges are still planned; a read-only mount does not claim those
+capabilities.

@@ -174,6 +174,7 @@ fn scope() -> Scope {
 }
 fn node() -> Node {
     Node {
+        package: false,
         id: "file".into(),
         parent_id: None,
         name: "name".into(),

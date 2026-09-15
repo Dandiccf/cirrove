@@ -78,6 +78,7 @@ async fn fixture(size: u64) -> Fixture {
         entered,
         task,
         node: Node {
+            package: false,
             id: "file".into(),
             name: "private-name".into(),
             parent_id: None,

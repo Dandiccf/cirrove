@@ -8,13 +8,17 @@ publish = false
 
 [dependencies]
 cirrove-service.workspace = true
+cirrove-auth.workspace = true
 anyhow.workspace = true
 clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
+futures-util.workspace = true
+zbus.workspace = true
 gtk = { package = "gtk4", version = "0.11", features = ["v4_14"] }
 adw = { package = "libadwaita", version = "0.9", features = ["v1_5"] }
+gettext-rs = { version = "0.8.0", default-features = false, features = ["gettext-system"] }
 
 [dev-dependencies]
 tempfile.workspace = true
@@ -22,3 +26,10 @@ fs2.workspace = true
 
 [lints]
 workspace = true
+
+# GTK accepts one thread per process and libtest gives every test its own, so
+# the window scenarios run under their own small harness, one after another on
+# the main thread. It understands the libtest flags CI passes.
+[[test]]
+name = "window"
+harness = false

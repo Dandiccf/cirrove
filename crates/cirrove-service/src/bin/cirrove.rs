@@ -1,4 +1,90 @@
 use anyhow::{Context, Result, bail};
+
+/// Print what the daemon did, in a sentence rather than as JSON.
+///
+/// A refusal is an ordinary outcome here, not a crash: the exit status says the
+/// request was not carried out, and the message says why in words the caller can
+/// act on -- free space, unpin something, raise the budget.
+fn report_pin(reply: &cirrove_service::PinReply) -> Result<()> {
+    report_pin_change("pinned", reply)
+}
+/// Watch a job to its end, saying where it has got to while it runs.
+///
+/// `cirrove pin` answers a question whose answer is "it is kept offline now", so
+/// the command waits even though the daemon no longer does. The waiting is the
+/// caller's to skip -- Ctrl-C leaves the daemon keeping the folder, which is
+/// what someone who walked away wanted.
+///
+/// Progress goes to standard error so a script reading standard output sees the
+/// one sentence it always saw.
+async fn follow_job(socket: &std::path::Path, label: &str, id: &str) -> Result<Option<String>> {
+    let mut last = String::new();
+    loop {
+        let status = cirrove_service::status(socket).await?;
+        let job = status
+            .accounts
+            .iter()
+            .filter(|account| label.is_empty() || account.label == label)
+            .flat_map(|account| account.jobs.iter())
+            .find(|job| job.id == id)
+            .cloned();
+        let Some(job) = job else {
+            // Gone from the register is the daemon saying it did what it was
+            // asked: a job that ended badly stays there carrying why.
+            return Ok(None);
+        };
+        if !job.running() {
+            return Ok(Some(match (&job.state, &job.issue) {
+                (cirrove_service::jobs::JobState::Stopped, _) => format!(
+                    "stopped keeping {} offline after {} of {} files",
+                    job.name, job.files_done, job.files_total
+                ),
+                (_, Some(issue)) => format!(
+                    "kept {} of {} files of {} offline, then gave up: {issue}",
+                    job.files_done, job.files_total, job.name
+                ),
+                (_, None) => format!(
+                    "kept {} of {} files of {} offline",
+                    job.files_done, job.files_total, job.name
+                ),
+            }));
+        }
+        let line = format!(
+            "  keeping {} offline: {} of {} files, {} of {}",
+            job.name,
+            job.files_done,
+            job.files_total,
+            cirrove_service::human_bytes(job.bytes_done),
+            cirrove_service::human_bytes(job.bytes_total)
+        );
+        if line != last {
+            eprintln!("{line}");
+            last = line;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    }
+}
+/// `unpin` used to report through `report_pin` and say "pinned", which is the
+/// one word an unpin must not say.
+fn report_pin_change(verb: &str, reply: &cirrove_service::PinReply) -> Result<()> {
+    if let Some(refusal) = &reply.refusal {
+        bail!("{refusal}");
+    }
+    let mut line = format!("{verb} {}", reply.item);
+    if reply.files > 1 {
+        line.push_str(&format!(", {} files", reply.files));
+    }
+    if reply.reserved > 0 {
+        line.push_str(&format!(", {} bytes reserved", reply.reserved));
+    }
+    if !reply.complete {
+        line.push_str(
+            "; part of this folder is not indexed yet and will be kept as it is discovered",
+        );
+    }
+    println!("{line}");
+    Ok(())
+}
 use cirrove_core::{
     CancellationToken, Change, ChangePage, Checkpoint, Cursor, Node, NodeKind, Scope,
 };
@@ -71,6 +157,24 @@ enum Command {
         /// How long to sample. The competing download starts after a third of it.
         #[arg(long, default_value = "300")]
         seconds: u64,
+        /// How long to sample the quiet, fully indexed control arm, after the
+        /// collection has finished indexing. Zero skips it, which is what every
+        /// run before 2026-09-15 did -- and why its figures had nothing to be a
+        /// ratio of.
+        #[arg(long, default_value = "0")]
+        idle_seconds: u64,
+        /// Samples per arm. A budget rather than a duration, because the three
+        /// arms share one directory tree: the first three-arm run consumed all
+        /// 1,548 directories in the collection in its two busy arms and left the
+        /// control two samples, which is not a control.
+        #[arg(long, default_value = "60")]
+        per_arm: usize,
+        /// How many readers pull that file at once. One stream moved 1.75 MiB/s
+        /// through the VM's user-mode network, which did not reproduce the
+        /// interference two host runs measured twice: contention needs a
+        /// saturated resource, and one connection through a NAT is not one.
+        #[arg(long, default_value = "1")]
+        streams: usize,
         /// A large file to download against the navigation loop.
         #[arg(long)]
         item: Option<String>,
@@ -96,6 +200,14 @@ enum Command {
     },
     /// Watch a mounted view follow remote creates, moves and deletions.
     ValidateOnedriveRemoteChanges {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        state_dir: PathBuf,
+    },
+    /// Pin a generated file on a real account and read it back through a mount
+    /// without touching the provider, with an unpinned control that must.
+    ValidateOnedrivePinning {
         #[arg(long)]
         label: String,
         #[arg(long)]
@@ -171,12 +283,16 @@ enum Command {
         #[arg(long)]
         state_dir: Option<PathBuf>,
     },
-    /// Reversibly enable or disable the desired mount state.
+    /// Mount this account again, and keep mounting it at every start.
     Enable {
         label: String,
         #[arg(long)]
         state_dir: Option<PathBuf>,
     },
+    /// Unmount this account and stop mounting it, without removing anything.
+    ///
+    /// The account, its credentials, its index and its cache all stay. `enable`
+    /// brings it back.
     Disable {
         label: String,
         #[arg(long)]
@@ -184,24 +300,86 @@ enum Command {
     },
     /// Keep an item available offline, reserving cache space for it.
     Pin {
+        /// Account label. Omit when only one account is configured.
+        #[arg(default_value = "")]
         label: String,
-        /// Provider item id. Read `cirrove status` to see what is pinned.
+        /// Mount-relative path, for example `Documents/Reports`. The daemon
+        /// resolves it, because only it can list a directory the index has not
+        /// reached and only it knows which linked collection holds the item.
         #[arg(long)]
-        item: String,
+        path: Option<String>,
+        /// Provider item id, when you already have one.
+        #[arg(long)]
+        item: Option<String>,
         /// Pin every file beneath a folder as well.
         #[arg(long)]
         recursive: bool,
-        /// Bytes to reserve. Defaults to the size in the local index.
+        /// Bytes to reserve. Defaults to what the daemon can see, which is the
+        /// figure that agrees with the walk.
         #[arg(long)]
         bytes: Option<u64>,
         #[arg(long)]
-        state_dir: Option<PathBuf>,
+        socket: Option<PathBuf>,
     },
-    /// Release a pin and the cache space it reserved.
-    Unpin {
+    /// Show long work that is running -- keeping a folder offline -- and how far
+    /// it has got.
+    Jobs {
+        #[arg(default_value = "")]
         label: String,
         #[arg(long)]
-        item: String,
+        socket: Option<PathBuf>,
+    },
+    /// Stop a running job, or clear the record of one that ended. See `jobs`.
+    Stop {
+        #[arg(default_value = "")]
+        label: String,
+        /// The job id, as `cirrove jobs` prints it.
+        #[arg(long)]
+        id: String,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Show what is pinned and how much of the cache budget it has claimed.
+    Pins {
+        #[arg(default_value = "")]
+        label: String,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Release a pin and free the cache space it held.
+    Unpin {
+        #[arg(default_value = "")]
+        label: String,
+        #[arg(long)]
+        path: Option<String>,
+        #[arg(long)]
+        item: Option<String>,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Remove an account and move its local data aside.
+    ///
+    /// Refuses while the account is enabled, and refuses while it still holds
+    /// changes that have not reached the cloud.
+    Forget {
+        label: String,
+        /// Remove the account even though it still holds unsent changes.
+        #[arg(long)]
+        discard_unsent: bool,
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
+    },
+    /// What Cirrove keeps on this computer, and what of it you can get back.
+    ///
+    /// Removing the packages deliberately leaves your connections, index and
+    /// cache alone. This says what that costs, and offers the one deletion that
+    /// is always safe: the data of connections you have already removed, which
+    /// `forget` sets aside rather than deletes and which nothing else ever
+    /// looks at again.
+    LocalData {
+        /// Delete the set-aside data of connections you already removed.
+        #[arg(long)]
+        discard_removed: bool,
         #[arg(long)]
         state_dir: Option<PathBuf>,
     },
@@ -210,6 +388,70 @@ enum Command {
 
     /// Query the local daemon; no cloud requests.
     Status {
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Write a diagnostics bundle -- versions, status, the service's journal --
+    /// with account names, folders, file names and ids replaced, for sharing.
+    Diagnose {
+        /// Where to write it. Default: `cirrove-diagnostics-<time>.txt` in the
+        /// current directory.
+        #[arg(long)]
+        out: Option<PathBuf>,
+        /// How far back the journal excerpt reaches, in journalctl's words.
+        #[arg(long, default_value = "2h")]
+        since: String,
+        /// Print to standard output instead of a file.
+        #[arg(long)]
+        stdout: bool,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// What changed lately: remote changes from the cloud and local saves.
+    Recent {
+        #[arg(default_value = "")]
+        label: String,
+        #[arg(long, default_value_t = 20)]
+        limit: usize,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// The state of mount-relative paths: kind, pin cover, bytes on disk.
+    Paths {
+        #[arg(long, default_value = "")]
+        label: String,
+        #[arg(required = true)]
+        paths: Vec<String>,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Try the stuck changes again, where trying again is a sensible thing to do.
+    ///
+    /// Not all of them, and the difference is the whole of it. A change that
+    /// FAILED -- a quota, a permission, a connection that went away -- is one
+    /// the cloud never decided about, and trying it again is ordinary. A change
+    /// in CONFLICT is one the cloud did decide about: the remote moved, and
+    /// re-sending would act on whatever is there now, which is how a rename
+    /// nobody made or a deletion of a version nobody saw happens. Those are
+    /// counted and left alone; `discard-stuck` is what abandons them.
+    RetryStuck {
+        #[arg(long, default_value = "")]
+        label: String,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Abandon the changes the daemon gave up on, so the mount shows what the
+    /// cloud actually has.
+    ///
+    /// `status` reports these as `stuck_changes`: a delete the provider refused
+    /// leaves the item hidden locally and present in the account, and nothing
+    /// retries it. This drops the local intent -- it never re-sends anything,
+    /// because the conflict means the remote moved and a stale retry would
+    /// destroy whatever is there now. The item comes back into view and you can
+    /// decide again.
+    DiscardStuck {
+        #[arg(long, default_value = "")]
+        label: String,
         #[arg(long)]
         socket: Option<PathBuf>,
     },
@@ -262,7 +504,7 @@ async fn main() -> Result<()> {
             let provider = cirrove_service::accounts::provider(account)?;
             let scope = cirrove_core::Scope {
                 account: account.id.clone(),
-                provider: "onedrive".into(),
+                provider: cirrove_onedrive::PROVIDER_ID.into(),
                 collection: drive.unwrap_or_else(|| account.drive.id.clone()),
             };
             let cancel = CancellationToken::new();
@@ -292,13 +534,24 @@ async fn main() -> Result<()> {
             label,
             drive,
             seconds,
+            idle_seconds,
+            per_arm,
+            streams,
             item,
             root,
             state_dir: state,
         } => {
             let state = state.map(Ok).unwrap_or_else(state_dir)?;
             cirrove_service::validation::onedrive_navigation(
-                &state, &label, drive, seconds, item, root,
+                &state,
+                &label,
+                drive,
+                seconds,
+                idle_seconds,
+                per_arm,
+                streams,
+                item,
+                root,
             )
             .await?;
         }
@@ -310,6 +563,9 @@ async fn main() -> Result<()> {
         } => {
             let state = state.map(Ok).unwrap_or_else(state_dir)?;
             cirrove_service::validation::onedrive_read_bytes(&state, &label, &item, drive).await?;
+        }
+        Command::ValidateOnedrivePinning { label, state_dir } => {
+            cirrove_service::validation::onedrive_pinning(&state_dir, &label).await?;
         }
         Command::ValidateOnedriveRemoteChanges { label, state_dir } => {
             cirrove_service::validation::onedrive_remote_changes(&state_dir, &label).await?;
@@ -419,27 +675,228 @@ async fn main() -> Result<()> {
         }
         Command::Pin {
             label,
+            path,
             item,
             recursive,
             bytes,
-            state_dir: state,
+            socket,
         } => {
-            let state = state.map(Ok).unwrap_or_else(state_dir)?;
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            let request = cirrove_service::PinRequest {
+                label,
+                item,
+                path,
+                recursive,
+                bytes,
+            };
+            let label = request.label.clone();
+            let reply = cirrove_service::pin(&socket, &request).await?;
+            if let Some(refusal) = &reply.refusal {
+                bail!("{refusal}");
+            }
+            // The reservation is made; the fetching is a job, and this command
+            // means "it is kept offline now" -- so it waits for one, and says
+            // where the fetch has got to while it does.
+            if let Some(job) = &reply.job
+                && let Some(ended) = follow_job(&socket, &label, job).await?
+            {
+                bail!("{ended}");
+            }
+            report_pin(&reply)?;
+        }
+        Command::Jobs { label, socket } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            let status = status(&socket).await?;
+            let accounts: Vec<_> = status
+                .accounts
+                .iter()
+                .filter(|account| label.is_empty() || account.label == label)
+                .collect();
+            if accounts.is_empty() {
+                bail!("no account matches");
+            }
+            for account in accounts {
+                println!("{}", account.label);
+                if account.jobs.is_empty() {
+                    println!("  nothing is running");
+                }
+                for job in &account.jobs {
+                    let state = match job.state {
+                        cirrove_service::jobs::JobState::Running => "keeping offline".to_owned(),
+                        cirrove_service::jobs::JobState::Stopping => "stopping".to_owned(),
+                        cirrove_service::jobs::JobState::Stopped => "stopped".to_owned(),
+                        cirrove_service::jobs::JobState::Failed => {
+                            format!(
+                                "gave up: {}",
+                                job.issue.as_deref().unwrap_or("no reason given")
+                            )
+                        }
+                        cirrove_service::jobs::JobState::Unknown => "unknown".to_owned(),
+                    };
+                    println!(
+                        "  {}  {} of {} files, {} of {}  {state}  [{}]",
+                        job.name,
+                        job.files_done,
+                        job.files_total,
+                        cirrove_service::human_bytes(job.bytes_done),
+                        cirrove_service::human_bytes(job.bytes_total),
+                        job.id
+                    );
+                }
+            }
+        }
+        Command::Stop { label, id, socket } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            let reply = cirrove_service::stop_job(
+                &socket,
+                &cirrove_service::StopJobRequest {
+                    label,
+                    id: id.clone(),
+                },
+            )
+            .await?;
+            if let Some(refusal) = &reply.refusal {
+                bail!("{refusal}");
+            }
+            // Not finding it is not a failure: a person acting on a list they
+            // read a moment ago is racing work that finished in between, and the
+            // outcome they wanted -- it is not running -- is the one they have.
             println!(
                 "{}",
-                cirrove_service::accounts::set_pin(&state, &label, &item, recursive, bytes)?
+                match (reply.stopped, reply.already_ended) {
+                    (true, true) => "that had already ended; cleared it",
+                    (true, false) => "asked it to stop",
+                    (false, _) => "nothing by that name is running",
+                }
             );
+        }
+        Command::Pins { label, socket } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            let status = status(&socket).await?;
+            let accounts: Vec<_> = status
+                .accounts
+                .iter()
+                .filter(|a| label.is_empty() || a.label == label)
+                .collect();
+            if accounts.is_empty() {
+                bail!("no account matches that label");
+            }
+            for account in accounts {
+                println!("{}", account.label);
+                if account.pins.is_empty() {
+                    println!("  nothing pinned");
+                } else {
+                    for pin in &account.pins {
+                        // resident against reserved is the difference between a
+                        // pin that is keeping content and one that is only an
+                        // accounting entry, so it leads.
+                        println!(
+                            "  {}  {} of {} kept  {} block(s){}",
+                            // The path when the index can give one, the id when
+                            // it cannot; an id is unreadable but it is at least
+                            // the thing `cirrove unpin --item` takes.
+                            pin.path.as_deref().unwrap_or(&pin.item),
+                            cirrove_service::human_bytes(pin.resident),
+                            cirrove_service::human_bytes(pin.reserved),
+                            pin.blocks,
+                            if pin.recursive { "  recursive" } else { "" }
+                        );
+                    }
+                }
+                println!("  {}", account.pin_budget.explain());
+            }
         }
         Command::Unpin {
             label,
+            path,
             item,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(path) => path,
+                None => socket_path()?,
+            };
+            let request = cirrove_service::PinRequest {
+                label,
+                item,
+                path,
+                ..Default::default()
+            };
+            report_pin_change(
+                "unpinned",
+                &cirrove_service::unpin(&socket, &request).await?,
+            )?;
+        }
+        Command::Forget {
+            label,
+            discard_unsent,
             state_dir: state,
         } => {
             let state = state.map(Ok).unwrap_or_else(state_dir)?;
             println!(
                 "{}",
-                cirrove_service::accounts::clear_pin(&state, &label, &item)?
+                cirrove_service::accounts::forget(&state, &label, discard_unsent)?
             );
+        }
+        Command::LocalData {
+            discard_removed,
+            state_dir: state,
+        } => {
+            let state = state.map(Ok).unwrap_or_else(state_dir)?;
+            if discard_removed {
+                let (count, bytes) = cirrove_service::accounts::discard_set_aside(&state)?;
+                if count == 0 {
+                    println!("Nothing set aside; nothing to delete.");
+                } else {
+                    println!(
+                        "Deleted {count} removed connection(s), freeing {}.",
+                        cirrove_service::human_bytes(bytes)
+                    );
+                }
+            }
+            let data = cirrove_service::accounts::local_data(&state)?;
+            println!("{}", data.state_dir.display());
+            for (label, bytes) in &data.live {
+                println!("  {label}  {}", cirrove_service::human_bytes(*bytes));
+            }
+            if !data.set_aside.is_empty() {
+                println!("  set aside by an earlier removal, kept in case you want it back:");
+                for aside in &data.set_aside {
+                    println!(
+                        "    {}  {}",
+                        aside.name,
+                        cirrove_service::human_bytes(aside.bytes)
+                    );
+                }
+            }
+            println!(
+                "  settings, locks and shared index  {}",
+                cirrove_service::human_bytes(data.other_bytes)
+            );
+            println!(
+                "  total  {}",
+                cirrove_service::human_bytes(data.total_bytes())
+            );
+            let reclaimable = data.reclaimable_bytes();
+            if reclaimable > 0 {
+                println!(
+                    "\n{} belongs to connections you already removed. \
+                     `cirrove local-data --discard-removed` deletes it; nothing in the cloud is touched.",
+                    cirrove_service::human_bytes(reclaimable)
+                );
+            }
         }
         Command::KeyringCheck => cirrove_service::accounts::keyring_check().await?,
 
@@ -449,6 +906,202 @@ async fn main() -> Result<()> {
                 None => socket_path()?,
             };
             println!("{}", serde_json::to_string_pretty(&status(&socket).await?)?);
+        }
+        Command::Diagnose {
+            out,
+            since,
+            stdout,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(p) => p,
+                None => socket_path()?,
+            };
+            let (status_value, status_error) = match status(&socket).await {
+                Ok(status) => (Some(serde_json::to_value(&status)?), None),
+                Err(error) => (None, Some(format!("{error:#}"))),
+            };
+            let kernel = std::process::Command::new("uname")
+                .arg("-r")
+                .output()
+                .ok()
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_owned())
+                .unwrap_or_else(|| "?".into());
+            let journal = std::process::Command::new("journalctl")
+                .args([
+                    "--user",
+                    "-u",
+                    "cirroved.service",
+                    "--no-pager",
+                    "-o",
+                    "short-iso",
+                    "--since",
+                    &format!("-{since}"),
+                ])
+                .output()
+                .ok()
+                .filter(|o| o.status.success())
+                .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+                .unwrap_or_default();
+            let hostname = std::process::Command::new("uname")
+                .arg("-n")
+                .output()
+                .ok()
+                .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_owned())
+                .unwrap_or_default();
+            let text = cirrove_service::diagnostics::bundle(
+                env!("CARGO_PKG_VERSION"),
+                &kernel,
+                &hostname,
+                status_value.as_ref(),
+                status_error.as_deref(),
+                &journal,
+                &since,
+            );
+            if stdout {
+                print!("{text}");
+            } else {
+                let path = out.unwrap_or_else(|| {
+                    let now = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0);
+                    PathBuf::from(format!("cirrove-diagnostics-{now}.txt"))
+                });
+                use std::os::unix::fs::OpenOptionsExt;
+                let mut file = std::fs::OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .mode(0o600)
+                    .open(&path)
+                    .with_context(|| format!("cannot write {}", path.display()))?;
+                std::io::Write::write_all(&mut file, text.as_bytes())?;
+                println!(
+                    "wrote {}; read it before sharing it -- names and paths are replaced, but the replacement works on shapes, not meaning",
+                    path.display()
+                );
+            }
+        }
+        Command::Recent {
+            label,
+            limit,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(p) => p,
+                None => socket_path()?,
+            };
+            let reply =
+                cirrove_service::recent(&socket, &cirrove_service::RecentRequest { label, limit })
+                    .await?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            println!("From the cloud:");
+            if reply.remote.is_empty() {
+                println!("  nothing since this service started");
+            }
+            for change in reply.remote {
+                println!(
+                    "  {}  {}  {}{}",
+                    change.at_unix,
+                    if change.removed { "removed" } else { "changed" },
+                    change.name,
+                    if change.kind == "folder" { "/" } else { "" }
+                );
+            }
+            println!("Saved here:");
+            if reply.local.is_empty() {
+                println!("  nothing in the journal");
+            }
+            for change in reply.local {
+                println!("  {}  {}  {} bytes", change.state, change.name, change.size);
+            }
+            // The count in `status` says how many were refused; this says
+            // which, which is the difference between knowing and being able to
+            // act. `discard-stuck` is the verb that clears them.
+            if !reply.stuck.is_empty() {
+                println!("Given up on:");
+                for change in reply.stuck {
+                    println!(
+                        "  {}  {}  {}",
+                        change.state,
+                        change.what,
+                        change.path.as_deref().unwrap_or(&change.name)
+                    );
+                }
+            }
+        }
+        Command::Paths {
+            label,
+            paths,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(p) => p,
+                None => socket_path()?,
+            };
+            let reply =
+                cirrove_service::paths(&socket, &cirrove_service::PathsRequest { label, paths })
+                    .await?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            for state in reply.states {
+                let cover = match state.pinned.as_deref() {
+                    Some("direct") => "pinned",
+                    Some("inherited") => "pinned via folder",
+                    _ => "not pinned",
+                };
+                match (state.refusal, state.kind.as_str()) {
+                    (Some(refusal), _) => println!("{}  --  {refusal}", state.path),
+                    // A folder's size is its subtree's, and nothing of a folder
+                    // is "on disk"; the number would only invite the comparison.
+                    (None, "folder") => println!("{}  folder  {cover}", state.path),
+                    (None, _) => println!(
+                        "{}  file  {cover}  {}/{} bytes on disk",
+                        state.path, state.resident, state.size
+                    ),
+                }
+            }
+        }
+        Command::RetryStuck { label, socket } => {
+            let socket = match socket {
+                Some(p) => p,
+                None => socket_path()?,
+            };
+            let reply = cirrove_service::retry_stuck(&socket, &label).await?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            println!(
+                "{} change(s) will be tried again{}",
+                reply.queued,
+                match reply.conflicts {
+                    0 => String::new(),
+                    1 => "; 1 is a conflict the cloud already decided about and is not re-sent \
+                          (discard-stuck abandons it)"
+                        .to_owned(),
+                    n => format!(
+                        "; {n} are conflicts the cloud already decided about and are not re-sent \
+                         (discard-stuck abandons them)"
+                    ),
+                }
+            );
+        }
+        Command::DiscardStuck { label, socket } => {
+            let socket = match socket {
+                Some(p) => p,
+                None => socket_path()?,
+            };
+            let reply = cirrove_service::discard_stuck(&socket, &label).await?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            println!(
+                "abandoned {} change(s); {} still stuck",
+                reply.discarded, reply.remaining
+            );
         }
         Command::Demo { state_dir } => {
             private_dir(&state_dir)?;
@@ -461,6 +1114,7 @@ async fn main() -> Result<()> {
             };
             store.begin(&scope, true)?;
             let node = Node {
+                package: false,
                 id: "sample-file".into(),
                 parent_id: None,
                 name: "Welcome.txt".into(),
@@ -531,7 +1185,7 @@ async fn main() -> Result<()> {
             private_dir(&state)?;
             let scope = Scope {
                 account,
-                provider: "onedrive".into(),
+                provider: cirrove_onedrive::PROVIDER_ID.into(),
                 collection: drive,
             };
             let cancel = CancellationToken::new();
@@ -546,6 +1200,7 @@ async fn main() -> Result<()> {
                 &state.join("metadata.db"),
                 reset,
                 &cancel,
+                None,
             )
             .await?;
             println!(

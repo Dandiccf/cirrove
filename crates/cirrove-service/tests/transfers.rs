@@ -129,6 +129,7 @@ impl Provider {
             UploadIntent::Replace { item, .. } => (item.clone(), "root".into(), "Saved.txt".into()),
         };
         Node {
+            package: false,
             id,
             parent_id: Some(parent),
             name,
@@ -560,6 +561,7 @@ async fn saving_again_during_a_transfer_preserves_both_generations_through_recov
     let working = {
         let mut j = j.lock().unwrap();
         let node = Node {
+            package: false,
             id: String::new(),
             parent_id: Some("root".into()),
             name: "Saved.txt".into(),

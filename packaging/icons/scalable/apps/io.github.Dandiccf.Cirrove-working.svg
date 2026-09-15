@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <title>Cirrove: working</title>
+  <g fill="none" stroke="#000000b8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 11.88,3.04 A 6.3,6.3 0 1 0 13.72,10.0" stroke-width="4.3"/>
+  </g>
+  <path d="M 8,10.4 V 5.9 M 6.25,7.55 L 8,5.8 L 9.75,7.55" fill="none" stroke="#000000b8" stroke-width="3.7" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 11.88,3.04 A 6.3,6.3 0 1 0 13.72,10.0" stroke-width="2.3"/>
+  </g>
+  <path d="M 8,10.4 V 5.9 M 6.25,7.55 L 8,5.8 L 9.75,7.55" fill="none" stroke="#ffffff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

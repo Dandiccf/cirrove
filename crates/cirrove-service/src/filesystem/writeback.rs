@@ -315,6 +315,147 @@ impl Writeback {
             .and_then(|id| projection.files.get(&id))
             .cloned())
     }
+    /// Abandon every stuck removal, and report how many were abandoned.
+    ///
+    /// All of them rather than one: a caller looking at `stuck_changes` has a
+    /// number and no ids, and giving them ids would mean putting paths on the
+    /// control surface for something whose whole purpose is to stop hiding
+    /// things. Discarding is safe to do in bulk precisely because it destroys
+    /// nothing -- it drops a local intent the provider never took and lets the
+    /// mount show what is really there.
+    pub async fn discard_stuck(&self) -> Result<u64> {
+        self.local(|j| {
+            let mut discarded = 0;
+            // One refusal must not abandon the rest. An object that moved on
+            // since it was listed is exactly the case `discard_stuck_removal`
+            // refuses, and it is no reason to leave the other stuck removals in
+            // place; what is left is still counted by `stuck_changes`, so
+            // nothing is hidden by skipping it here.
+            for id in j.stuck_removals(1000)? {
+                if j.discard_stuck_removal(id).is_ok() {
+                    discarded += 1;
+                }
+            }
+            Ok(discarded)
+        })
+        .await
+    }
+    /// Ask the daemon to try the stuck changes again.
+    ///
+    /// Not all of them, and the difference is the whole point. A change that
+    /// **failed** -- a quota, a permission, a connection that went away -- is
+    /// one the provider never decided about, and trying it again is ordinary.
+    /// A change in **conflict** is one the provider decided about: the remote
+    /// moved, and re-sending would act on whatever is there now, which is how
+    /// a rename nobody made or a deletion of a version nobody saw happens.
+    /// `request_mutation_retry` has refused `Conflict` since it was written;
+    /// this reports how many it refused rather than hiding them.
+    ///
+    /// Returns (queued, conflicts): what is going to be tried again, and what
+    /// will not be until somebody decides.
+    pub async fn retry_stuck(&self) -> Result<(u64, u64)> {
+        let outcome = self
+            .local(|j| {
+                let (mut queued, mut conflicts) = (0u64, 0u64);
+                for record in j.stuck_mutation_list(1000)? {
+                    if record.state == crate::journal::MutationState::Conflict {
+                        conflicts += 1;
+                        continue;
+                    }
+                    // One refusal must not abandon the rest: a record that moved
+                    // on since it was listed is no reason to leave the others.
+                    if j.request_mutation_retry(record.id).is_ok() {
+                        queued += 1;
+                    }
+                }
+                Ok((queued, conflicts))
+            })
+            .await?;
+        // The worker sleeps between passes; a person who pressed a button
+        // should not wait out its timer.
+        self.wake.notify_waiters();
+        Ok(outcome)
+    }
+    /// Namespace changes the daemon has given up on. See
+    /// `UploadJournal::stuck_mutations` for why this is a count and not a list.
+    pub async fn stuck_changes(&self) -> Result<u64> {
+        self.local(|j| j.stuck_mutations()).await
+    }
+    /// Saves that did not reach the cloud, from the upload journal. See
+    /// `UploadJournal::failed_uploads`.
+    pub async fn failed_uploads(&self) -> Result<u64> {
+        self.local(|j| j.failed_uploads()).await
+    }
+    /// The latest saves, latest first. A replace names its item, which the
+    /// caller resolves to a name; a create carries the name itself.
+    /// The changes the daemon has given up on, named.
+    ///
+    /// A create names itself; everything else names the node it was acting on.
+    /// The path is filled in by the caller, which is the only place that has an
+    /// index to resolve it against.
+    pub async fn stuck_changes_named(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<crate::recent::StuckChange>> {
+        use cirrove_core::mutation::MutationIntent;
+        let records = self.local(move |j| j.stuck_mutation_list(limit)).await?;
+        Ok(records
+            .into_iter()
+            .map(|record| {
+                let (what, name, id) = match &record.request.intent {
+                    MutationIntent::CreateFolder { name, .. } => {
+                        ("create folder", name.clone(), None)
+                    }
+                    MutationIntent::Relocate { before, name, .. } => {
+                        ("move", name.clone(), Some(before.id.clone()))
+                    }
+                    MutationIntent::RemoveFile { before } => {
+                        ("delete file", before.name.clone(), Some(before.id.clone()))
+                    }
+                    MutationIntent::RemoveFolder { before } => (
+                        "delete folder",
+                        before.name.clone(),
+                        Some(before.id.clone()),
+                    ),
+                };
+                crate::recent::StuckChange {
+                    what: what.to_owned(),
+                    name,
+                    // The caller resolves this against the index; the id is
+                    // carried in `path` only so it has something to resolve.
+                    path: id,
+                    state: format!("{:?}", record.state).to_ascii_lowercase(),
+                }
+            })
+            .collect())
+    }
+    pub async fn recent_local(&self, limit: usize) -> Result<Vec<crate::recent::LocalChange>> {
+        let records = self.local(|j| j.list(0, 10_000)).await?;
+        Ok(records
+            .into_iter()
+            .rev()
+            .take(limit)
+            .map(|record| {
+                let (name, item) = match &record.intent {
+                    cirrove_core::upload::UploadIntent::Create { name, .. } => (name.clone(), None),
+                    cirrove_core::upload::UploadIntent::Replace { item, .. } => {
+                        (item.clone(), Some(item.clone()))
+                    }
+                };
+                crate::recent::LocalChange {
+                    sequence: record.sequence,
+                    name,
+                    item,
+                    state: format!("{:?}", record.state).to_ascii_lowercase(),
+                    size: record.size,
+                    // Zero is a record from before the journal had a time, and
+                    // that is not the same as having been saved in 1970.
+                    saved_at: (record.saved_at > 0).then_some(record.saved_at),
+                    transferred: record.transferred_bytes,
+                }
+            })
+            .collect())
+    }
     pub fn conflicts(&self) -> Result<Vec<NamespaceCollision>> {
         Ok(self
             .projection
@@ -566,6 +707,7 @@ mod tests {
         let mut journal = UploadJournal::open(&temp.path().join("journal"), &scope.account, 1024)
             .expect("journal");
         let node = Node {
+            package: false,
             id: String::new(),
             name: "original".into(),
             parent_id: Some("root".into()),
@@ -641,6 +783,7 @@ mod tests {
         let mut journal = UploadJournal::open(&temp.path().join("journal"), &scope.account, 4096)
             .expect("journal");
         let node = Node {
+            package: false,
             id: String::new(),
             name: "old".into(),
             parent_id: Some("root".into()),

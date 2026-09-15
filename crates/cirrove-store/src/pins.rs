@@ -144,12 +144,33 @@ impl Store {
             .collect::<std::result::Result<Vec<_>, _>>()?)
     }
     /// Record the cache blocks a pinned item owns, so eviction can skip them.
-    pub fn protect_blocks(&mut self, scope: &str, item: &str, keys: &[String]) -> Result<()> {
+    /// Protect the blocks a pin keeps. Writes nothing for an item that is not
+    /// pinned, and reports which it did.
+    ///
+    /// The guard is not theoretical. Since keeping something offline became a
+    /// job (2026-09-15), the fetch outlives the request that started it: a
+    /// second request for the same item, or a stop that releases the pin while
+    /// the first fetch is still running, would otherwise have the finishing job
+    /// write protection rows for a pin that no longer exists. Nothing would ever
+    /// look at them again and eviction would never take those blocks -- cache
+    /// capacity leaking away with no field anywhere that would show it.
+    pub fn protect_blocks(&mut self, scope: &str, item: &str, keys: &[String]) -> Result<bool> {
         let tx = self.db.transaction()?;
+        let pinned: i64 = tx.query_row(
+            "SELECT count(*) FROM pins WHERE scope=?1 AND item=?2",
+            params![scope, item],
+            |r| r.get(0),
+        )?;
         tx.execute(
             "DELETE FROM pin_blocks WHERE scope=?1 AND item=?2",
             params![scope, item],
         )?;
+        if pinned == 0 {
+            // The stale rows above still go: an item that is not pinned must
+            // not keep protection from a pin that was released.
+            tx.commit()?;
+            return Ok(false);
+        }
         {
             let mut insert =
                 tx.prepare("INSERT OR REPLACE INTO pin_blocks(key,scope,item) VALUES(?1,?2,?3)")?;
@@ -158,7 +179,7 @@ impl Store {
             }
         }
         tx.commit()?;
-        Ok(())
+        Ok(true)
     }
     /// The blocks one pin owns.
     pub fn blocks_of(&self, scope: &str, item: &str) -> Result<Vec<String>> {

@@ -27,6 +27,11 @@ ROOT = Path(__file__).resolve().parent.parent
 MILESTONES = ROOT / "docs/product-milestones.md"
 LEDGER = ROOT / "docs/acceptance-ledger.json"
 
+# Whether an open row stands between the project and a 1.0 release. The
+# criteria are in docs/release-procedure.md; "no" always carries a reason,
+# because a "no" without one is how a release quietly shrinks its own scope.
+RELEASE = {"yes", "no"}
+
 BLOCKERS = {
     "autonomous",
     "needs-live-account",
@@ -92,6 +97,11 @@ def classification(row: dict) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--sync", action="store_true")
+    parser.add_argument(
+        "--blockers",
+        action="store_true",
+        help="list the open rows that block a 1.0 release, and those that do not",
+    )
     args = parser.parse_args()
 
     current = boxes()
@@ -109,6 +119,8 @@ def main() -> int:
                 {
                     **box,
                     "blocker": row.get("blocker", "unclassified"),
+                    "blocks_release": row.get("blocks_release"),
+                    "release_note": row.get("release_note"),
                     "evidence": row.get("evidence"),
                     "asserted_by": row.get("asserted_by"),
                 }
@@ -147,6 +159,19 @@ def main() -> int:
             )
         if row.get("blocker") not in BLOCKERS:
             problems.append(f"unknown blocker {row.get('blocker')!r}: {box['text'][:60]}")
+        # Only open rows can block; a ticked one is already out of the way.
+        if not box["done"]:
+            decision = row.get("blocks_release")
+            if decision not in RELEASE:
+                problems.append(
+                    f"no release decision on an open row: {box['text'][:70]}\n"
+                    "    Set blocks_release to \"yes\" or \"no\"; a \"no\" needs a release_note."
+                )
+            elif decision == "no" and not row.get("release_note"):
+                problems.append(
+                    f"said not to block a release without saying why: {box['text'][:70]}\n"
+                    "    A \"no\" with no reason is how a release loses scope without anyone choosing to."
+                )
 
     # The totals block is written only by --sync, and nothing used to check it, so
     # ticking a box left the summary behind. Anyone reading the JSON rather than
@@ -171,6 +196,20 @@ def main() -> int:
         f"{len(current)} acceptance boxes, {sum(b['done'] for b in current)} ticked; "
         + ", ".join(f"{n} {b}" for b, n in sorted(counts.items()))
     )
+    blocking = [r for r in ledger["rows"] if not r["done"] and r.get("blocks_release") == "yes"]
+    waived = [r for r in ledger["rows"] if not r["done"] and r.get("blocks_release") == "no"]
+    print(
+        f"{len(blocking)} open row(s) block a 1.0 release, {len(waived)} do not "
+        "(scripts/acceptance-ledger.py --blockers lists them)"
+    )
+    if args.blockers:
+        print("\nWhat stands between this and a 1.0 release:")
+        for row in sorted(blocking, key=lambda r: (r["milestone"], r["line"])):
+            print(f"  M{row['milestone']}  {row['text'][:96]}")
+        print("\nOpen, and deliberately not blocking:")
+        for row in sorted(waived, key=lambda r: (r["milestone"], r["line"])):
+            print(f"  M{row['milestone']}  {row['text'][:70]}")
+            print(f"        {row.get('release_note', '')[:150]}")
     if problems:
         print("\n" + "\n".join(f"  {p}" for p in problems))
         print(

@@ -34,6 +34,9 @@ tokio-tungstenite = { version = "0.30", default-features = false, features = ["c
 chrono = "0.4"
 openidconnect = { version = "4.0", default-features = false }
 secret-service = { version = "5.2", features = ["rt-tokio-crypto-rust"] }
+# Already in the tree under secret-service; declared directly for the tray,
+# which speaks StatusNotifierItem over D-Bus and has no other way to.
+zbus = { version = "5.19", default-features = false, features = ["tokio"] }
 base64 = "0.23"
 sha2 = "0.11"
 hex = "0.4"

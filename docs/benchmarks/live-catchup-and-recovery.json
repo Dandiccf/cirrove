@@ -74,5 +74,18 @@
     "consequence": "The run now waits for directory_freshness().active to reach zero before making the change, and attributes discovery to the provider call that produced it -- a delta -- rather than to visibility, which any of the three mechanisms can produce.",
     "practical_note": "For a directory a person is looking at, activity revalidation finds a remote change within about five seconds, long before catch-up or the poll would matter. That is a property of the product rather than an artefact of this fixture, and it is the reason both of the above happened."
   },
-  "decision": "The two clauses that docs/validation.md recorded as not covered live -- catch-up of changes made while disconnected, and periodic recovery checks -- now have live evidence, each attributed to the mechanism that produced it. The box is not ticked here. Its push clause still carries one notification in eleven that was never delivered and stands unexplained; what this run adds is a measured bound on that miss, since the periodic refresh found an untold change in 29.4 s without any subscription at all."
+  "decision": "The two clauses that docs/validation.md recorded as not covered live -- catch-up of changes made while disconnected, and periodic recovery checks -- now have live evidence, each attributed to the mechanism that produced it. The box is not ticked here. Its push clause still carries one notification in eleven that was never delivered and stands unexplained; what this run adds is a measured bound on that miss, since the periodic refresh found an untold change in 29.4 s without any subscription at all.",
+  "independent_replication_2026_09_10": {
+    "why": "A separate validation connection created for the purpose, on a different day, a different build and a different state directory.",
+    "reconnect": {
+      "delta_after_connect_ms": 1536,
+      "entry_listed_after_delta_ms": 206
+    },
+    "periodic": {
+      "delta_after_change_ms": 29454,
+      "entry_listed_after_delta_ms": 208
+    },
+    "what_it_says": "The periodic figure reproduces to 33 milliseconds -- 29,454 against 29,421 -- which for a thirty-second poll is the poll itself and not a coincidence. The listing delay reproduces exactly at 206 ms. The reconnect delta is 1,536 ms against 408: both are far below the provider's own 30-second push delivery, and the original run's claim was that catch-up is a request a reconnection triggers rather than a wait for a delivery. Two runs a factor of four apart both support that and neither pins the number down.",
+    "still_open": "The one notification in eleven that was never delivered, from the original run. Nothing here addresses it."
+  }
 }

@@ -50,6 +50,7 @@ fn remote(record: &UploadRecord) -> Node {
         UploadIntent::Replace { item, .. } => (item.clone(), "Existing.txt".into()),
     };
     Node {
+        package: false,
         id,
         name,
         parent_id: Some("root".into()),

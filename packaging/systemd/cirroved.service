@@ -1,5 +1,5 @@
 [Unit]
-Description=Cirrove cloud filesystem service (read-only preview)
+Description=Cirrove cloud filesystem service
 Documentation=https://github.com/Dandiccf/cirrove
 StartLimitIntervalSec=60
 StartLimitBurst=5
@@ -7,6 +7,19 @@ StartLimitBurst=5
 [Service]
 Type=exec
 ExecStart=%h/.local/bin/cirroved --state-dir %h/.local/state/cirrove --socket %t/cirrove/control.sock
+# One malloc arena. Measured both halves of the trade before choosing, in
+# docs/benchmarks/allocator-arena-cost.json: the same workload rests at 43.9 to
+# 44.6 MiB of growth capped against 103.0 to 158.1 MiB with the default -- and
+# with a spread of 0.7 MiB instead of 55.1, so the figure stops depending on how
+# a work-stealing runtime happened to spread the allocation. It costs 2.1% of
+# wall-clock at worst and 3.2% of a single read's p95 at worst, across six
+# workload and latency combinations that each moved identical bytes and made
+# identical provider requests.
+#
+# Set here rather than in the program because glibc reads this before main;
+# calling mallopt from inside would be too late, and the workspace forbids the
+# unsafe needed to try.
+Environment=MALLOC_ARENA_MAX=1
 RuntimeDirectory=cirrove
 RuntimeDirectoryMode=0700
 UMask=0077

@@ -11,7 +11,72 @@ A GitHub merge or local build does not replace an installed daemon. Installation
 and service restart are a separate step. Keep the running build and the tested
 source revision in local development records, especially during long observations.
 
+## The two ways to have Cirrove installed
+
+A machine that follows this tree wants a **developer install**; a machine
+checking what a release delivers wants the **packages**. Never both: a file in
+the home shadows the packaged file of the same name, so Files loads two copies
+of the extension and shows every badge and menu item twice, and a home icon
+hides the packaged one so the panel keeps drawing a build that is no longer
+installed.
+
+```sh
+scripts/install-developer.sh            # build and install into ~, no root
+scripts/install-developer.sh --no-build # install what is already in target/release
+scripts/switch-to-package.sh            # after pacman -U, move off the developer install
+```
+
+`install-developer.sh` puts the binaries in `~/.local/bin`, the unit in
+`~/.config/systemd/user`, the tray's autostart entry in `~/.config/autostart`,
+and the icons, desktop entry, metainfo and Files extension under
+`~/.local/share`. It then restarts the service and the tray, so the build you
+just made is the one running -- the point of the developer install is that a new
+version needs no password and no step from the person using the machine.
+
+It refuses to run while the Cirrove packages are installed and says how to
+remove them. `switch-to-package.sh` is its inverse and removes everything it
+wrote. `scripts/test-install-scripts.py` holds the two to each other, so a new
+file added to one without the other fails in CI rather than on a desktop.
+
+Neither script touches `~/.local/state/cirrove`. Accounts, credentials, the
+index, the cache and bytes that have not reached the cloud stay where they are
+through any number of installs in either direction.
+
+Check the install rather than assuming it:
+
+```sh
+cirrove status | head -20         # the account: ready, mounted, how many items
+systemctl --user show cirroved.service -p FragmentPath -p ExecStart -p ActiveState
+busctl --user get-property io.github.Dandiccf.Cirrove.Tray \
+  /StatusNotifierItem org.kde.StatusNotifierItem IconName
+find ~/.local/share/nautilus-python /usr/share/nautilus-python -name 'cirrove*.py'
+```
+
+The last one must print exactly one path, and nothing Cirrove may remain under
+`/usr`. Two extensions is the failure that is easiest to cause and hardest to
+recognise, because the symptom is every badge, menu item and properties section
+appearing twice rather than anything failing.
+
+Two traps worth knowing on a machine with a version manager. If `python3` on
+your PATH is not the distribution's, it will not have PyGObject, and Files
+launched from that shell fails with `No module named 'gi'` and silently loads no
+extension -- nautilus-python's embedded interpreter takes its prefix from the
+`python3` it finds on PATH. Use `/usr/bin/python3` for anything importing `gi`.
+And a panel generally reads its icon theme once at startup, so an icon whose
+file changed under an unchanged name needs a shell reload before anyone sees it.
+
 ## Local checks
+
+```sh
+scripts/check.sh          # all of the below, in one command
+scripts/check.sh --fast   # without the workspace test run
+```
+
+Run it before committing. The list below is what it does, and running it by hand
+goes wrong the same way every time: format, make one more edit, commit, and find
+out from CI twenty minutes later. The script formats rather than only checking,
+because a formatting difference is never a decision, and then checks, so a file
+that could not be formatted still fails locally.
 
 ```sh
 cargo fmt --all -- --check
@@ -91,7 +156,11 @@ scheduler: wait for the stated cooldown before retrying a throttled request.
 
 ## Optional user-service installation (after development testing)
 
-The repository does not install or enable anything automatically.
+The repository does not install or enable anything automatically. On Arch the
+packages are the better route -- `scripts/build-arch-package.sh`, then
+`pacman -U`, see [Distribution](distribution.md#arch) -- and the two must not be
+mixed: the user-local files below shadow a package's. What follows is the
+package-free install.
 
 ```sh
 cargo build --release --locked

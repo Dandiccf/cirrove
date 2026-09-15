@@ -1,0 +1,71 @@
+{
+  "question": "Do remote creates, edits, renames, moves and deletions -- made server-side, by something that is not Cirrove -- reach a mounted view, and how long do they take?",
+  "why_now": "M4's line 232 has never had evidence from a real provider. Every test of the delta feed so far has driven it through Cirrove's own writes, which is the one case where the daemon already knows what changed. A change made by another client is the case the feed exists for, and nothing had ever made one.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-13",
+  "how": "The Microsoft Graph connector makes the changes directly against the live business drive, the way a phone or the OneDrive web client would. A watcher polls the mount and records when each change becomes visible through the filesystem -- readdir for names, read for content, stat for size.",
+  "scope": "One folder created for this at the drive root, everything inside it, removed at the end. Nothing outside that folder is touched, and no delete goes through the mount.",
+  "predictions": {
+    "P1": "Every one of the five kinds becomes visible through the mount without restarting the daemon or touching the account.",
+    "P2": "A create is visible within 60 s. The feed polls rather than holding a socket open, so this is bounded by the poll interval and not by Graph.",
+    "P3": "An edit made remotely changes both the size reported by stat and the bytes a read returns. The risk is a cached page or a stale size surviving the update -- content that does not match its own size is worse than content that is late.",
+    "P4": "A rename and a move appear as the item arriving at its new name or parent and leaving the old one, with no duplicate left behind. The provider keeps the item id across both, so a feed keyed on id must not treat them as create-plus-delete.",
+    "P5": "A remote deletion removes the name from the mounted view, and a read of the old path fails cleanly with ENOENT rather than hanging or serving a cached copy."
+  },
+  "decision_rule": {
+    "all_hold": "Line 232 is evidenced for creates, edits, renames, moves and deletions against a real account.",
+    "P3_fails": "A defect, and the most serious one available here: a view that reports a size it cannot serve.",
+    "P2_fails_only": "Not a defect by itself; recorded as the observed latency, with the poll interval named."
+  },
+  "run": {
+    "when": "2026-09-13T15:55-16:05+02:00",
+    "where": "host, live business drive, daemon 0.1.0-dev at 993603c",
+    "driver": "Microsoft Graph, server-side, not through Cirrove",
+    "observed": [
+      {
+        "change": "folder create",
+        "visible_after_s": 4,
+        "notes": "appeared in the mount root"
+      },
+      {
+        "change": "file create",
+        "visible_after_s": 6,
+        "notes": "31 bytes; stat size and read length agreed on first sight"
+      },
+      {
+        "change": "file edit",
+        "visible_after_s": 16.4,
+        "notes": "31 -> 111 bytes; every observation had stat size equal to bytes read, never one without the other"
+      },
+      {
+        "change": "rename",
+        "visible_after_s": "<2",
+        "notes": "old name gone, one entry in the folder, content intact"
+      },
+      {
+        "change": "move",
+        "visible_after_s": 16,
+        "notes": "arrived in the subfolder, left the old parent, content intact"
+      },
+      {
+        "change": "delete",
+        "visible_after_s": "<2",
+        "notes": "name gone; a read of the old path returned ENOENT immediately"
+      },
+      {
+        "change": "folder delete",
+        "visible_after_s": 14,
+        "notes": "cleanup; nothing left behind in the mount"
+      }
+    ],
+    "verdict": {
+      "P1": "HOLDS -- all five kinds reached the mount with no restart and nothing touched on the account.",
+      "P2": "HOLDS -- 4 s and 6 s for the two creates, far inside the 60 s bound.",
+      "P3": "HOLDS -- and this was the one worth watching. Across the edit the size reported by stat and the number of bytes a read returned were equal at every sample: 31/31 before, 111/111 after, never 111/31 or 31/111. No stale page and no stale size.",
+      "P4": "HOLDS -- rename and move each left exactly one entry, at the new name or parent. The feed follows the item id rather than reading a move as a create plus a delete.",
+      "P5": "HOLDS -- the name disappeared and the old path gave ENOENT at once, with no hang and no cached copy served."
+    },
+    "conclusion": "Line 232 is evidenced against a real account for creates, edits, renames, moves and deletions made by a client that is not Cirrove. Latencies sat between under 2 s and 17 s.",
+    "housekeeping": "Everything this created was removed. The provider's delete is a recycle-bin delete (ADR 0008), so the test folder is recoverable for 93 days rather than destroyed. Nothing outside the test folder was touched and no delete went through the mount."
+  }
+}

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Filled paths, not strokes, and that is not a style choice. GTK recolours a
+     symbolic icon through its own pipeline, and a stroked ring does not survive
+     it: at 32 px in the settings window the ring and its centre dot came out as
+     one solid blue disc, while the stroked file rendered perfectly on its own
+     with rsvg. Every Adwaita symbolic icon is filled paths for this reason.
+     scripts/test-icon-geometry.py holds the rule. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <title>Cirrove</title>
+  <path d="M 12.59,2.13 A 7.45,7.45 0 1 0 15.09,10.30 A 1.15,1.15 0 0 0 12.90,9.59 A 5.15,5.15 0 1 1 11.17,3.94 A 1.15,1.15 0 0 0 12.59,2.13 Z" fill="#2e3436"/>
+  <circle cx="8" cy="8" r="2.05" fill="#2e3436"/>
+</svg>

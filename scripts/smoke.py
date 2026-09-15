@@ -32,7 +32,7 @@ with tempfile.TemporaryDirectory(prefix="cirrove-smoke-") as directory:
 
         try:
             reply = start()
-            assert reply["milestone"] == "readonly-preview", reply
+            assert reply["milestone"] == "writable-preview", reply
             assert reply["active_mounts"] == 0, reply
             other = subprocess.run(command, stdout=log, stderr=log, timeout=5)
             assert other.returncode != 0, "second daemon acquired the same account state"

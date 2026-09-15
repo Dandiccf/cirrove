@@ -311,6 +311,7 @@ mod tests {
                 cache_bytes: 8 * 1024 * 1024,
             };
             let node = Node {
+                package: false,
                 id: "remote".into(),
                 parent_id: Some("root".into()),
                 name: "file.txt".into(),

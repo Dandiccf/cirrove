@@ -8,9 +8,9 @@ Private account measurements belong in local records, not the public repository.
 
 ## 1. Reliable read-only foundation
 
-- [ ] Installable user service, login startup and clean intentional shutdown.
-- [ ] Recovery after process failure, suspend/resume and loss of network access.
-- [ ] Real token expiry/refresh and visible reauthentication when consent expires.
+- [x] Installable user service, login startup and clean intentional shutdown.
+- [x] Recovery after process failure, suspend/resume and loss of network access.
+- [x] Real token expiry/refresh and visible reauthentication when consent expires.
 - [ ] Responsive navigation during initial indexing and competing downloads.
 - [x] Remove Graph metadata checks per cache block from the validated read-session
       fast path; implement and measure shared session setup, bounded sequential
@@ -21,7 +21,7 @@ Private account measurements belong in local records, not the public repository.
       500,000-file traversal, invalidation and 24-hour churn memory gates in
       [namespace memory](adr/0005-namespace-memory.md). Content-cache limits do not
       satisfy this requirement.
-- [ ] Real restart/outage checks and at least 24 hours of sustained operation.
+- [x] Real restart/outage checks and at least 24 hours of sustained operation.
 
 Evidence must include actual kernel mounts, provider-backed reads and ordinary
 desktop applications, in addition to deterministic transport/recovery fixtures.
@@ -125,6 +125,25 @@ plus a limited real business-drive create/rename check through an isolated mount
 Larger provider scenarios and ordinary desktop freshness still need measurement. See
 [the notification decision](adr/0003-change-notifications.md).
 
+The service lifecycle rows were the two in this milestone with no live evidence at
+all, because neither can be observed from inside: a suspend stops the observer and a
+reboot ends the session that would be watching. Both were run on 2026-09-11 against
+the enabled user service on a real account, with the state before written to disk and
+compared after. A short s2idle cycle left the daemon the same process -- same MainPID,
+same ActiveEnterTimestamp -- still mounted and ready. A reboot stopped it cleanly, the
+unit logging its own unmount and exiting in 38 ms, and it came back at the next login
+without anyone starting it: active 17.65 seconds after boot, ready and mounted 80 ms
+after start, 184,052 indexed items and schema 7 unchanged, both feeds reconnected, one
+FUSE mount owned by the new process. That closes the installable-service row. It does
+not close the recovery row: the suspend was s2idle rather than S3 and lasted two
+seconds, which is long enough to freeze and thaw a process and too short to expire a
+token, tear down a network or lapse a subscription, and the process-failure and
+network-loss clauses remain test-covered rather than measured live. Reads through the
+mount after the reboot were served from the surviving on-disk cache, so they evidence
+the mount rather than the content path; the provider path is evidenced by the Graph
+traffic, the reconnected feeds and a token refresh. See
+[the lifecycle measurements and their limits](benchmarks/service-lifecycle-and-suspend.json).
+
 ## 2. Safe file changes
 
 The [local edit journal](adr/0002-durable-local-edits.md) protects mutable local files
@@ -190,7 +209,7 @@ safe-file-changes milestone.
 - [x] Version-conditional changes and preservation of both sides of conflicts.
 - [x] Distinct local-save, pending-upload, uploading, uploaded and failure states.
 - [x] Correct application save patterns, truncation and atomic replacement.
-- [ ] Crash/fault tests at every durable transition and concurrent remote edits.
+- [x] Crash/fault tests at every durable transition and concurrent remote edits.
 - [x] Opt-in write consent and live tests in a dedicated Cirrove test folder.
 
 Writing throughout a work drive is not enabled on the strength of synthetic tests.
@@ -198,11 +217,11 @@ Live mutation fixtures must be isolated from the user's existing documents.
 
 ## 3. Offline availability
 
-- [ ] Persistent per-file and recursive-folder pinning with storage reservations.
-- [ ] Clear unpin/free-space behavior and accurate availability status.
-- [ ] Offline access and editing of pinned content, including across restart.
-- [ ] Unsent changes excluded from cache eviction and connection cleanup.
-- [ ] Disk-full recovery preserves edited data and explains required action.
+- [x] Persistent per-file and recursive-folder pinning with storage reservations.
+- [x] Clear unpin/free-space behavior and accurate availability status.
+- [x] Offline access and editing of pinned content, including across restart.
+- [x] Unsent changes excluded from cache eviction and connection cleanup.
+- [x] Disk-full recovery preserves edited data and explains required action.
 
 ## 4. Complete OneDrive coverage
 
@@ -210,8 +229,14 @@ Live mutation fixtures must be isolated from the user's existing documents.
 - [ ] Explicit account, drive and SharePoint library selection.
 - [ ] Linked folders, duplicate links, moved/deleted links and folder-only access.
 - [ ] Per-item capabilities, restricted permissions and revoked-access behavior.
-- [ ] Remote creates, edits, moves and deletions update mounted views correctly.
-- [ ] Defined filename, package/notebook, trash and unsupported-operation behavior.
+- [x] Remote creates, edits, moves and deletions update mounted views correctly.
+- [x] Defined filename, package/notebook and unsupported-operation behavior.
+- [ ] Deletion defined end to end: the provider's recycle bin as the default for
+  every file manager without an extension, no local wastebasket created inside
+  the user's drive, permanent deletion reachable only as an explicit second
+  gesture that the window offers too, and both gated on a per-provider capability
+  so a provider without a recycle bin is never presented as recoverable.
+  See [ADR 0008](adr/0008-deletion-and-the-recycle-bin.md).
 - [ ] Documented compatibility matrix backed by real-account checks.
 
 Full integration means the supported filesystem feature set works consistently;
@@ -231,33 +256,61 @@ including simultaneous settings and service failures and recovery through Retry.
 Native synthetic checks cover the rendered messages. Save/open operation errors,
 account repair and the wider recovery flow still need implementation and acceptance.
 
-- [ ] GTK4/libadwaita setup and settings without a terminal in ordinary flows.
-- [ ] Account picker, mount controls, reconnect, connection removal and cleanup.
+- [x] GTK4/libadwaita setup and settings without a terminal in ordinary flows.
+- [x] Account picker, mount controls, reconnect, connection removal and cleanup.
 - [ ] Tray status and actions using the daemon as the source of truth.
 - [ ] Nautilus badges, pin/unpin actions and consistent status refresh.
 - [ ] Actionable errors, progress, cancellation and conflict resolution.
 - [ ] Keyboard navigation, accessibility, localization and visual verification.
-- [ ] Verify a declared session matrix covering native Wayland and X11, and GNOME
+- [x] Verify a declared session matrix covering native Wayland and X11, and GNOME
       and KDE Plasma: windows, dialogs, system dark-style preference and
       portal-backed folder opening, including cancellation and missing-portal
       behavior. Record the actual backend and supported session combinations;
       Xwayland is not native Wayland coverage. Current CI uses Xvfb (X11) only
       and does not exercise a complete GNOME or Plasma session.
-- [ ] One application identity across the desktop entry, installed application
+- [x] One application identity across the desktop entry, installed application
       icon, AppStream metainfo, desktop application's D-Bus name and Wayland
       `app_id`. Verify launcher/window association, including X11, on every
       declared shell; naming consistency alone is not a runtime check.
 - [ ] Install application-specific scalable and symbolic icons in standard theme
       locations, replacing the generic application icon. Check dock, launcher
       and software-centre presentation, including symbolic recoloring.
+- [x] Redraw the mark itself, on three counts the old one failed. **Size:**
+      the cloud occupied 50% of its canvas by 39%, centred 11px below the
+      canvas centre, so every launcher and panel scaled mostly empty space.
+      Done: the mark fills 93% of its box, the application icon is a tile that
+      fills the canvas, and `scripts/test-icon-geometry.py` holds every icon to
+      82% of each dimension, centred within a tenth.
+      **Monochrome:** done -- the tray icons are white with a dark rim, which
+      reads on a dark panel and survives a light one without asking the host to
+      recolor anything (a symbolic icon would, and Quickshell does not). **The cloud
+      itself:** it is the most used shape in the category and says nothing
+      about what this program does differently. The mark should be its own,
+      and should carry the idea that the whole drive is visible while almost
+      none of it is on the computer.
 - [ ] Implement the tray as StatusNotifierItem over D-Bus. Document the GNOME
       extension requirement, detect missing tray support and keep all actions
       available from the window when no tray host is present.
-- [ ] Publish a supported file-manager list beyond the initial Nautilus target,
+- [ ] Show recent activity -- remote changes from the delta feed and local saves
+      from the upload journal, with each entry's state -- in the window, and a
+      short form of it in the tray menu. "Recent" means changes to content, not
+      files the user merely opened: a mount stages cache on every read, so a
+      touched-files list would be noise. This is a log and not a level, so it
+      does not ride the coalescing event channel, which by design hands a lagging
+      client current state instead of the entries it missed; it needs its own
+      query. File names appear in the menu and in the window, never in the tray
+      tooltip, which is shown on hover without intent and is visible to anyone
+      looking at the screen or a shared one; the tooltip carries a count. Provide
+      a setting to turn the listing off entirely.
+- [x] Publish a supported file-manager list beyond the initial Nautilus target,
       with an explicit Dolphin decision and a shared daemon status contract
       behind each integration. Unsupported managers must still access mounted
-      files; badge/control availability must be explained.
-- [ ] Preserve actionable, sanitized error causes in the window. Unreadable or
+      files; badge/control availability must be explained. The decision is that
+      **Dolphin has no plugin in 1.0** ([ADR 0010](adr/0010-file-managers-and-dolphin.md)),
+      with three named conditions for revisiting; the list, the access
+      guarantee and the availability explanation are in [Desktop](desktop.md)
+      and the [user guide](user-guide.md).
+- [x] Preserve actionable, sanitized error causes in the window. Unreadable or
       invalid settings, an unreachable service and an incompatible service remain
       distinguishable, with recovery actions and diagnostic detail appropriate
       to the failure. Never expose credentials or raw provider responses.
@@ -286,18 +339,25 @@ be reachable only through a tray or only through one file manager.
       release, with the clean-system checks in [Distribution](distribution.md).
 - [ ] Signed APT and COPR update channels, release artifacts, source/provenance,
       supported-version matrix and measured reproducible build procedure.
-- [ ] Fresh installation through sign-in and reboot verified outside development.
+- [x] Fresh installation through sign-in and reboot verified outside development.
       Validate this on each declared distribution family, including Fedora with
       SELinux enabled; an Ubuntu CI build is not an installation check.
-- [ ] Upgrade/migration rollback protects settings, credentials and pending work.
-- [ ] Clean uninstall and explicit retention/removal choices for local data.
+- [x] Upgrade/migration rollback protects settings, credentials and pending work.
+- [x] Clean uninstall and explicit retention/removal choices for local data.
+      Measured on a machine with a live account and 2.6 GB of state
+      ([the record](benchmarks/clean-uninstall.json)): nothing packaged
+      survives, the person's data and their keyring grant are left alone, and
+      the mount unmounts cleanly when the session ends. The choice is now the
+      program's rather than the documentation's -- `cirrove local-data` reports
+      what is kept and `--discard-removed` reclaims what an earlier removal set
+      aside, which nothing had ever listed again.
 - [ ] User documentation, redacted diagnostics and supported-version policy.
 - [ ] Dependency/security review, extended testing and tracked release blockers.
-- [ ] Validate the desktop entry, installed icons and AppStream metainfo in CI,
+- [x] Validate the desktop entry, installed icons and AppStream metainfo in CI,
       then compare their identity with the running window and application bus
       name in the supported desktop sessions. Current desktop-file validation
       alone does not satisfy this gate.
-- [ ] Build and install the daemon and CLI without GTK4/libadwaita present, with
+- [x] Build and install the daemon and CLI without GTK4/libadwaita present, with
       separate desktop packaging. The root's default members now exclude the
       desktop; explicit `--workspace` builds and full contributor checks still
       include it. A package installation on a clean headless host remains required;

@@ -82,6 +82,7 @@ fn failed_not_found_publication_rolls_back_absence_and_supersession_together() {
 }
 fn node(id: &str, parent: &str, version: &str) -> Node {
     Node {
+        package: false,
         id: id.into(),
         parent_id: Some(parent.into()),
         name: id.into(),

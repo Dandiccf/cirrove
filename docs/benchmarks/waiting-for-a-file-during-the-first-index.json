@@ -1,0 +1,44 @@
+{
+  "question": "While a collection is being indexed for the first time, how long does an application wait for a file it has been asked to open -- and what does the desktop show the person during that wait?",
+  "why_now": "Observed by the account owner on the Arch VM on 2026-09-15, minutes after signing in and while the linked SharePoint library was still on its first index pass. They opened a 25 MB text file from the mount in GNOME Text Editor, typed nothing, closed it, and were asked \"Save Changes? Open documents contain unsaved changes. Changes which are not saved will be permanently lost.\"",
+  "what_it_turned_out_to_be": {
+    "not_the_bytes": "Read twice in full through the mount the file gives the same SHA-256 (42dd1fe1...), 25,332,920 bytes, UTF-8, LF only, no NUL bytes, ending in a newline; a copy on local disk hashes identically. Nothing was corrupted and nothing could have been lost by discarding.",
+    "not_the_metadata": "gio info on the mounted file and on a local copy agree on content type, size, mode and writability; stat twenty-five seconds apart gives identical size, mtime and ctime. The first guess here -- that the mount changed a file's observable metadata when its index caught up -- was wrong and is recorded as wrong.",
+    "the_editor": "The owner identified it: 'der Punkt kommt sofort und verschwindet nach Sekunden-Minuten wenn alles geladen ist'. GNOME Text Editor marks a document modified while it is still loading and clears the marker when the load finishes. Closing inside that window raises a dialog that says unsaved changes will be permanently lost, about a document nobody touched. That is the editor's behaviour on any filesystem.",
+    "our_part": "How long that window stays open. On a local disk 25 MB loads instantly and nobody can close inside it. On a cloud filesystem the bytes have to arrive first, and while the library is being indexed for the first time the daemon is using the same connection hard."
+  },
+  "measured_2026_09_15": {
+    "cold_sequential_read": "45.6 MB in 3.4 s through the mount, 13.4 MB/s, on the Arch VM with both feeds ready",
+    "warm_read_of_the_same_file": "0.1 s, 884 MB/s, from the content cache",
+    "so_a_25_mb_file": "about two seconds when the daemon is idle -- which is the window the editor's marker is visible in, and short enough that reaching it takes a deliberately quick close",
+    "during_the_first_index": "not measured. The owner's run took long enough to close inside comfortably, which is the observation this question exists to turn into a number."
+  },
+  "registered_before_run": true,
+  "registered_at": "2026-09-15",
+  "how_to_test": "On a VM with an account, stop the daemon, move the account's metadata.db aside and start it again so the collection indexes from nothing. During the first pass, time a cold sequential read of a file of about 25 MB through the mount, and repeat it every minute until the feeds report ready. Compare with the same read on the settled daemon, on the same machine and the same file, cache cleared between runs.",
+  "predictions": [
+    {
+      "id": "P1",
+      "claim": "A cold read of a 25 MB file during the first index pass takes more than three times as long as the same read on a settled daemon.",
+      "role": "the claim the owner's experience implies. Under three would mean the wait they saw came from something else."
+    },
+    {
+      "id": "P2",
+      "claim": "The read never fails and never returns short: every run reads exactly the file's size and hashes identically to the settled run.",
+      "role": "discriminator. Slow is a cost; wrong is a defect, and this separates them."
+    },
+    {
+      "id": "P3",
+      "claim": "The ratio falls as the index pass completes, rather than staying flat until it ends.",
+      "role": "tells a connection shared with a finite amount of indexing from one blocked behind it"
+    }
+  ],
+  "decision_rule": {
+    "P1_and_P3_hold": "Indexing and a person's own read share a connection and the person loses. That is a fixable thing inside this project -- a read somebody is waiting for should outrank a background pass -- and the number says how much there is to win.",
+    "P1_fails": "The first index is not what made the wait, and the observation goes back to being unexplained with one occurrence.",
+    "P2_fails": "Everything above stops mattering until that is understood."
+  },
+  "what_this_does_not_cover": "The dialog itself. No filesystem can stop an editor from marking a loading document modified; what a filesystem can do is make the loading short enough that nobody is inside that window when they press the close button.",
+  "result": null,
+  "verdict": null
+}
