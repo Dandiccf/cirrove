@@ -347,8 +347,18 @@ fn refused_changes_are_named_and_not_only_counted() {
     let card = &Overview::from_snapshot(snapshot).accounts[0];
     assert_eq!(
         card.refused_paths,
-        vec!["Accounts/2024/Old invoices".to_owned()],
-        "the refused change should arrive with the path the daemon resolved"
+        vec![
+            "Accounts/2024/Old invoices".to_owned(),
+            "Projects/Q3 drafts".to_owned()
+        ],
+        "the refused changes should arrive with the paths the daemon resolved"
+    );
+    // And the two kinds are told apart, because the answer differs: the folder
+    // removal is a conflict the cloud decided about, the folder creation merely
+    // failed. Only the second is offered a second try.
+    assert_eq!(
+        card.retryable, 1,
+        "a conflict and a failure must not be counted as the same thing"
     );
 
     // A daemon too old to name them leaves the list empty, and the count must
