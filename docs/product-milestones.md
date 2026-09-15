@@ -339,7 +339,7 @@ be reachable only through a tray or only through one file manager.
       release, with the clean-system checks in [Distribution](distribution.md).
 - [ ] Signed APT and COPR update channels, release artifacts, source/provenance,
       supported-version matrix and measured reproducible build procedure.
-- [ ] Fresh installation through sign-in and reboot verified outside development.
+- [x] Fresh installation through sign-in and reboot verified outside development.
       Validate this on each declared distribution family, including Fedora with
       SELinux enabled; an Ubuntu CI build is not an installation check.
 - [x] Upgrade/migration rollback protects settings, credentials and pending work.
