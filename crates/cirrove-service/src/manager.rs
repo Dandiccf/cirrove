@@ -205,6 +205,19 @@ impl Manager {
         let discarded = control.discard_stuck().await?;
         Ok((discarded, control.stuck_changes().await.unwrap_or(0)))
     }
+    /// Queue the stuck changes that can sensibly be tried again, and say how
+    /// many will not be. See [`crate::filesystem::writeback::Writeback::retry_stuck`].
+    pub async fn retry_stuck(&self, label: &str) -> Result<(u64, u64)> {
+        let id = self.account_id(label).await?;
+        let control = self
+            .writers
+            .read()
+            .await
+            .get(&id)
+            .cloned()
+            .context("this account is mounted read-only, so it has no changes to try again")?;
+        Ok(control.retry_stuck().await?)
+    }
     /// What changed lately on one account: the delta feed's recent deliveries
     /// and the journal's latest saves, latest first, `limit` of each. Names for
     /// replaced items come from the index, which has them because a save

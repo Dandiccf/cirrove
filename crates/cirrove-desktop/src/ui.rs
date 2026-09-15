@@ -43,6 +43,10 @@ struct AccountRow {
     consent: gtk::Button,
     refused: adw::ActionRow,
     discard: gtk::Button,
+    /// Offered beside Discard, and insensitive when every refusal is a conflict:
+    /// those are the ones the cloud already decided about, and re-sending one
+    /// would act on whatever is there now.
+    retry: gtk::Button,
     unsent: adw::ActionRow,
     remove: gtk::Button,
     /// What this account keeps offline. An expander rather than a flat list
@@ -567,11 +571,19 @@ impl Window {
             .visible(false)
             .build();
         refused.add_css_class("warning");
+        // Two answers to a refused change, and they are not the same answer.
+        // Trying again is what a failure deserves; discarding is what a
+        // conflict leaves. The order puts the recoverable one first.
+        let retry = gtk::Button::builder()
+            .label(gettext("Try again"))
+            .valign(gtk::Align::Center)
+            .build();
         let discard = gtk::Button::builder()
             .label(gettext("Discard"))
             .valign(gtk::Align::Center)
             .build();
         discard.add_css_class("destructive-action");
+        refused.add_suffix(&retry);
         refused.add_suffix(&discard);
         let kept = adw::ExpanderRow::builder()
             .title(gettext("Kept offline"))
@@ -677,6 +689,13 @@ impl Window {
         });
         let weak = Rc::downgrade(self);
         let key = id.to_owned();
+        retry.connect_clicked(move |_| {
+            if let Some(ui) = weak.upgrade() {
+                ui.retry_refused(&key);
+            }
+        });
+        let weak = Rc::downgrade(self);
+        let key = id.to_owned();
         remove.connect_clicked(move |_| {
             if let Some(ui) = weak.upgrade() {
                 ui.remove(&key);
@@ -714,6 +733,7 @@ impl Window {
             storage,
             refused,
             discard,
+            retry,
             unsent,
             remove,
             kept,
@@ -805,16 +825,35 @@ impl Window {
         // refused and not which cannot do anything about either -- the fourteen
         // folder removals that went missing on a live drive were a number on a
         // screen and nothing else.
-        let mut refused = fill(
-            &gettext(
-                "{} that the cloud would not accept. They will not be retried. Discarding removes the local copies; the cloud keeps its version.",
-            ),
-            &[&if card.stuck == 1 {
-                gettext("1 change")
-            } else {
-                fill(&gettext("{} changes"), &[&card.stuck.to_string()])
-            }],
-        );
+        let counted = if card.stuck == 1 {
+            gettext("1 change")
+        } else {
+            fill(&gettext("{} changes"), &[&card.stuck.to_string()])
+        };
+        // "They will not be retried" was true of all of them and is now true of
+        // only some: a change that failed is one the cloud never decided about.
+        let mut refused = if card.retryable == 0 {
+            fill(
+                &gettext(
+                    "{} that the cloud would not accept. The cloud has decided about these, so they are not re-sent; discarding removes the local copies and the cloud keeps its version.",
+                ),
+                &[&counted],
+            )
+        } else if card.retryable == card.stuck {
+            fill(
+                &gettext(
+                    "{} that did not reach the cloud. Try again sends them once more; discarding removes the local copies and the cloud keeps its version.",
+                ),
+                &[&counted],
+            )
+        } else {
+            fill(
+                &gettext(
+                    "{} that the cloud would not accept, {} of which are worth trying again. The rest the cloud has decided about and are not re-sent; discarding removes the local copies and the cloud keeps its version.",
+                ),
+                &[&counted, &card.retryable.to_string()],
+            )
+        };
         if !card.refused_paths.is_empty() {
             let shown: Vec<&str> = card
                 .refused_paths
@@ -836,6 +875,12 @@ impl Window {
         }
         row.refused.set_subtitle(&refused);
         row.discard.set_sensitive(idle);
+        row.retry.set_sensitive(idle && card.retryable > 0);
+        row.retry.set_tooltip_text(Some(if card.retryable > 0 {
+            "Send these to the cloud again"
+        } else {
+            "The cloud has decided about these; sending them again would act on what is there now"
+        }));
         row.unsent.set_visible(card.failed_uploads > 0);
         row.unsent.set_subtitle(&fill(
             &gettext(
@@ -1454,6 +1499,67 @@ impl Window {
                 },
                 Ok(Err(error)) => ui.notify(&format!("Could not discard: {error}")),
                 Err(_) => ui.notify(&gettext("Could not discard the refused changes.")),
+            }
+            ui.refresh();
+        });
+    }
+    /// Ask the daemon to try the refused changes again.
+    ///
+    /// Only the ones worth trying: a change that failed is one the cloud never
+    /// decided about, and a change in conflict is one it did. The button is
+    /// insensitive when every refusal is the second kind, and the answer says
+    /// how many were left alone, because a person who pressed "Try again" and
+    /// saw nothing move deserves to know why.
+    pub fn retry_refused(self: &Rc<Self>, id: &str) {
+        let Some(card) = self.card(id).filter(|c| c.retryable > 0) else {
+            return;
+        };
+        let Backend::Live {
+            runtime, socket, ..
+        } = &self.backend
+        else {
+            return;
+        };
+        if !self.begin_operation(id, n("Trying the refused changes again…")) {
+            return;
+        }
+        let socket = socket.clone();
+        let label = card.label.clone();
+        let (send, receive) = tokio::sync::oneshot::channel();
+        runtime.spawn(async move {
+            let result = cirrove_service::retry_stuck(&socket, &label)
+                .await
+                .map_err(|error| format!("{error:#}"));
+            let _ = send.send(result);
+        });
+        let weak = Rc::downgrade(self);
+        glib::spawn_future_local(async move {
+            let result = receive.await;
+            let Some(ui) = weak.upgrade().filter(|ui| !ui.closed.get()) else {
+                return;
+            };
+            ui.end_operation();
+            match result {
+                Ok(Ok(reply)) => match (&reply.refusal, reply.queued, reply.conflicts) {
+                    (Some(refusal), _, _) => ui.notify(refusal),
+                    (None, queued, 0) => ui.notify(&fill(
+                        &gettext("Trying {} change(s) again."),
+                        &[&queued.to_string()],
+                    )),
+                    // One line, no `\` continuation: xgettext reads these as C,
+                    // where a spliced line keeps the indentation that follows it,
+                    // and the message id would carry eighteen spaces no
+                    // translation could ever match.
+                    (None, queued, conflicts) => ui.notify(&fill(
+                        &gettext("Trying {} change(s) again. {} the cloud already decided about; those are not re-sent, because the file has moved on since. Discard them to let the drive show what the cloud has."),
+                        &[&queued.to_string(), &conflicts.to_string()],
+                    )),
+                },
+                Ok(Err(error)) => ui.notify(&fill(
+                    &gettext("Could not try again: {}"),
+                    &[&error.to_string()],
+                )),
+                Err(_) => ui.notify(&gettext("The service did not answer.")),
             }
             ui.refresh();
         });

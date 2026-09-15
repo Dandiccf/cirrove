@@ -560,3 +560,68 @@ fn discarding_refuses_anything_it_cannot_unwind_cleanly() {
     // It stays counted, so refusing to clear it never hides it.
     assert_eq!(j.stuck_mutations().unwrap(), 1);
 }
+
+/// A change that failed is one the cloud never decided about; a change in
+/// conflict is one it did.
+///
+/// Until 2026-09-15 the only thing a person could do with either was discard
+/// it, which throws away work for the first kind and is the right answer only
+/// for the second. `request_mutation_retry` has refused `Conflict` since it was
+/// written and nothing outside the journal ever called it, so the distinction
+/// existed in the code and nowhere a user could reach.
+#[test]
+fn a_failed_change_can_be_tried_again_and_a_conflicted_one_cannot() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut j = journal(&tmp.path().join("journal"));
+
+    // The conflict first, and on its own item: a conflict deliberately blocks
+    // the linear chain on the resource it touched.
+    let mut other = request();
+    if let MutationIntent::Relocate { before, name, .. } = &mut other.intent {
+        before.id = "another-item".into();
+        before.name = "another.txt".into();
+        // The destination slot is a resource too, so it has to differ as well.
+        *name = "another-destination.txt".into();
+    }
+    let conflicted = j.enqueue_mutation(other).unwrap();
+    let active = j.claim_mutation().unwrap().unwrap();
+    assert_eq!(active.id, conflicted.id);
+    j.defer_mutation(
+        active.id,
+        active.attempt.unwrap(),
+        MutationState::Conflict,
+        Duration::from_secs(0),
+    )
+    .unwrap();
+    assert!(
+        j.request_mutation_retry(conflicted.id).is_err(),
+        "re-sending a conflict would act on whatever is at that path now"
+    );
+
+    let failed = j.enqueue_mutation(request()).unwrap();
+    let active = j.claim_mutation().unwrap().unwrap();
+    assert_eq!(active.id, failed.id);
+    j.defer_mutation(
+        active.id,
+        active.attempt.unwrap(),
+        MutationState::Failed,
+        Duration::from_secs(0),
+    )
+    .unwrap();
+    assert_eq!(
+        j.stuck_mutations().unwrap(),
+        2,
+        "both kinds are changes the daemon has stopped retrying"
+    );
+    j.request_mutation_retry(failed.id)
+        .expect("a failure is worth another try");
+    assert_eq!(
+        j.stuck_mutations().unwrap(),
+        1,
+        "the failure is queued again; the conflict stays stuck until somebody decides"
+    );
+    // And it is the conflict that is left, not the other way round.
+    let left = j.stuck_mutation_list(10).unwrap();
+    assert_eq!(left.len(), 1);
+    assert_eq!(left[0].id, conflicted.id);
+}

@@ -354,6 +354,20 @@ pub async fn refresh(
 /// Ask the daemon to abandon the changes it gave up on for one account.
 ///
 /// Discards, never retries. See `Manager::discard_stuck` for why.
+/// Ask the daemon to try the stuck changes again, where that is sensible.
+///
+/// See [`RetryReply`] for why "where that is sensible" is the whole of it.
+pub async fn retry_stuck(socket: &Path, label: &str) -> Result<RetryReply> {
+    request(
+        socket,
+        "retry-stuck",
+        Some(DiscardRequest {
+            label: label.to_owned(),
+        }),
+        "Cirrove retry",
+    )
+    .await
+}
 pub async fn discard_stuck(socket: &Path, label: &str) -> Result<DiscardReply> {
     request(
         socket,
@@ -460,6 +474,27 @@ pub struct DiscardReply {
     pub discarded: u64,
     #[serde(default)]
     pub remaining: u64,
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+
+/// What the daemon will try again, and what it will not.
+///
+/// The two numbers are different kinds of thing and the difference is the point.
+/// A change that **failed** -- a quota, a permission, a connection that went
+/// away -- is one the provider never decided about, and trying it again is
+/// ordinary. A change in **conflict** is one the provider decided about: the
+/// remote moved, and re-sending it would act on whatever is there now, which is
+/// how a rename nobody made or a deletion of a version nobody saw happens. Those
+/// are counted, not queued, and the person decides.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct RetryReply {
+    /// Changes queued to be tried again.
+    #[serde(default)]
+    pub queued: u64,
+    /// Changes the cloud already decided about, which are not re-sent.
+    #[serde(default)]
+    pub conflicts: u64,
     #[serde(default)]
     pub refusal: Option<String>,
 }
@@ -730,6 +765,7 @@ impl Capabilities {
                 ("discard-stuck".to_string(), 1),
                 ("paths".to_string(), 1),
                 ("recent".to_string(), 1),
+                ("retry-stuck".to_string(), 1),
                 ("stop-job".to_string(), 1),
             ]
             .into_iter()
@@ -901,6 +937,17 @@ pub async fn serve_managed(
                                 },
                                 (Ok(_),None)=>DiscardReply{refusal:Some("this service manages no accounts".into()),..Default::default()},
                                 (Err(_),_)=>DiscardReply{refusal:Some("malformed request body".into()),..Default::default()},
+                            };
+                            return write_reply(&mut stream,&reply).await;
+                        }
+                        if verb=="retry-stuck" {
+                            let reply=match (serde_json::from_str::<DiscardRequest>(body),&manager) {
+                                (Ok(r),Some(m))=>match m.retry_stuck(&r.label).await {
+                                    Ok((queued,conflicts))=>RetryReply{queued,conflicts,refusal:None},
+                                    Err(error)=>RetryReply{refusal:Some(error.to_string()),..Default::default()},
+                                },
+                                (Ok(_),None)=>RetryReply{refusal:Some("this service manages no accounts".into()),..Default::default()},
+                                (Err(_),_)=>RetryReply{refusal:Some("malformed request body".into()),..Default::default()},
                             };
                             return write_reply(&mut stream,&reply).await;
                         }

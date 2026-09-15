@@ -15,6 +15,13 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
   folder, not for part of it -- and a download that fails keeps what it managed
   and says why. `cirrove pin` still waits and prints how far it has got;
   `cirrove jobs` and `cirrove stop` are there for the same thing.
+- **Changes the cloud refused can be tried again.** Until now the only thing
+  you could do with one was discard it, which is right for a change the cloud
+  decided about and throws away work for one that merely failed -- a quota, a
+  permission, a connection that went away. The window tells the two apart and
+  offers **Try again** beside **Discard**, greyed out when every refusal is the
+  kind that would act on whatever is in the cloud now. `cirrove retry-stuck`
+  does the same from the command line.
 - **Badges in Files stay right.** Files asks about a file once and keeps the
   answer, so keeping something offline from the Cirrove window left an open
   Files window showing "On demand" for a file that was already on the computer,

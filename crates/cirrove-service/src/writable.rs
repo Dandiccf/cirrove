@@ -95,6 +95,9 @@ impl WriteWorkers {
     pub(crate) async fn discard_stuck(&self) -> std::io::Result<u64> {
         self.control.discard_stuck().await
     }
+    pub(crate) async fn retry_stuck(&self) -> std::io::Result<(u64, u64)> {
+        self.control.retry_stuck().await
+    }
     /// The write half, so the manager can register it next to the engine and a
     /// control request can reach it. `Running` is a local in `Manager::run`, the
     /// same reason `engines` exists.
@@ -229,6 +232,12 @@ impl WritableSession {
         match &self.writers {
             Some(writers) => writers.discard_stuck().await,
             None => Ok(0),
+        }
+    }
+    pub async fn retry_stuck(&self) -> io::Result<(u64, u64)> {
+        match &self.writers {
+            Some(writers) => writers.retry_stuck().await,
+            None => Ok((0, 0)),
         }
     }
     pub fn pending_local_requests(&self) -> usize {

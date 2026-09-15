@@ -169,6 +169,12 @@ enum Command {
         /// control two samples, which is not a control.
         #[arg(long, default_value = "60")]
         per_arm: usize,
+        /// How many readers pull that file at once. One stream moved 1.75 MiB/s
+        /// through the VM's user-mode network, which did not reproduce the
+        /// interference two host runs measured twice: contention needs a
+        /// saturated resource, and one connection through a NAT is not one.
+        #[arg(long, default_value = "1")]
+        streams: usize,
         /// A large file to download against the navigation loop.
         #[arg(long)]
         item: Option<String>,
@@ -419,6 +425,21 @@ enum Command {
         #[arg(long)]
         socket: Option<PathBuf>,
     },
+    /// Try the stuck changes again, where trying again is a sensible thing to do.
+    ///
+    /// Not all of them, and the difference is the whole of it. A change that
+    /// FAILED -- a quota, a permission, a connection that went away -- is one
+    /// the cloud never decided about, and trying it again is ordinary. A change
+    /// in CONFLICT is one the cloud did decide about: the remote moved, and
+    /// re-sending would act on whatever is there now, which is how a rename
+    /// nobody made or a deletion of a version nobody saw happens. Those are
+    /// counted and left alone; `discard-stuck` is what abandons them.
+    RetryStuck {
+        #[arg(long, default_value = "")]
+        label: String,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
     /// Abandon the changes the daemon gave up on, so the mount shows what the
     /// cloud actually has.
     ///
@@ -515,6 +536,7 @@ async fn main() -> Result<()> {
             seconds,
             idle_seconds,
             per_arm,
+            streams,
             item,
             root,
             state_dir: state,
@@ -527,6 +549,7 @@ async fn main() -> Result<()> {
                 seconds,
                 idle_seconds,
                 per_arm,
+                streams,
                 item,
                 root,
             )
@@ -1041,6 +1064,30 @@ async fn main() -> Result<()> {
                     ),
                 }
             }
+        }
+        Command::RetryStuck { label, socket } => {
+            let socket = match socket {
+                Some(p) => p,
+                None => socket_path()?,
+            };
+            let reply = cirrove_service::retry_stuck(&socket, &label).await?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            println!(
+                "{} change(s) will be tried again{}",
+                reply.queued,
+                match reply.conflicts {
+                    0 => String::new(),
+                    1 => "; 1 is a conflict the cloud already decided about and is not re-sent \
+                          (discard-stuck abandons it)"
+                        .to_owned(),
+                    n => format!(
+                        "; {n} are conflicts the cloud already decided about and are not re-sent \
+                         (discard-stuck abandons them)"
+                    ),
+                }
+            );
         }
         Command::DiscardStuck { label, socket } => {
             let socket = match socket {

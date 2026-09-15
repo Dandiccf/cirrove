@@ -340,6 +340,42 @@ impl Writeback {
         })
         .await
     }
+    /// Ask the daemon to try the stuck changes again.
+    ///
+    /// Not all of them, and the difference is the whole point. A change that
+    /// **failed** -- a quota, a permission, a connection that went away -- is
+    /// one the provider never decided about, and trying it again is ordinary.
+    /// A change in **conflict** is one the provider decided about: the remote
+    /// moved, and re-sending would act on whatever is there now, which is how
+    /// a rename nobody made or a deletion of a version nobody saw happens.
+    /// `request_mutation_retry` has refused `Conflict` since it was written;
+    /// this reports how many it refused rather than hiding them.
+    ///
+    /// Returns (queued, conflicts): what is going to be tried again, and what
+    /// will not be until somebody decides.
+    pub async fn retry_stuck(&self) -> Result<(u64, u64)> {
+        let outcome = self
+            .local(|j| {
+                let (mut queued, mut conflicts) = (0u64, 0u64);
+                for record in j.stuck_mutation_list(1000)? {
+                    if record.state == crate::journal::MutationState::Conflict {
+                        conflicts += 1;
+                        continue;
+                    }
+                    // One refusal must not abandon the rest: a record that moved
+                    // on since it was listed is no reason to leave the others.
+                    if j.request_mutation_retry(record.id).is_ok() {
+                        queued += 1;
+                    }
+                }
+                Ok((queued, conflicts))
+            })
+            .await?;
+        // The worker sleeps between passes; a person who pressed a button
+        // should not wait out its timer.
+        self.wake.notify_waiters();
+        Ok(outcome)
+    }
     /// Namespace changes the daemon has given up on. See
     /// `UploadJournal::stuck_mutations` for why this is a count and not a list.
     pub async fn stuck_changes(&self) -> Result<u64> {

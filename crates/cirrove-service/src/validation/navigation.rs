@@ -124,6 +124,7 @@ pub async fn onedrive_navigation(
     seconds: u64,
     idle_seconds: u64,
     per_arm: usize,
+    streams: usize,
     item: Option<String>,
     root_id: Option<String>,
 ) -> Result<()> {
@@ -217,7 +218,7 @@ pub async fn onedrive_navigation(
         .await?;
 
         // Arm two: the same, with a transfer competing for the connection.
-        let mut download: Option<tokio::task::JoinHandle<()>> = None;
+        let mut downloads: Vec<tokio::task::JoinHandle<()>> = Vec::new();
         // What the competing transfer actually moved. "competing_download_started"
         // is not evidence that anything competed: the first three-arm run
         // reported a ratio of 1.02 against 1.36 and 1.37 from two earlier runs,
@@ -226,15 +227,17 @@ pub async fn onedrive_navigation(
         let moved = Arc::new(std::sync::atomic::AtomicU64::new(0));
         let arm_started = tokio::time::Instant::now();
         if let Some(id) = item.clone() {
+            event(
+                &mut log,
+                serde_json::json!({"stage":"competing_download_started","streams":streams}),
+            )?;
+            for _ in 0..streams.max(1) {
+            let id = id.clone();
             let graph = graph.clone();
             let scope = scope.clone();
             let cancel = cancel.clone();
             let moved = moved.clone();
-            event(
-                &mut log,
-                serde_json::json!({"stage":"competing_download_started"}),
-            )?;
-            download = Some(tokio::spawn(async move {
+            downloads.push(tokio::spawn(async move {
                 // Round and round until the arm ends. A file that is read once
                 // and finishes leaves the rest of the arm measuring a daemon
                 // with nothing competing, which is the control arm wearing the
@@ -261,6 +264,7 @@ pub async fn onedrive_navigation(
                     }
                 }
             }));
+            }
         }
         take_arm(
             &engine, &mount, &mut known, &mut unvisited, &mut competing, per_arm, ceiling,
@@ -268,7 +272,7 @@ pub async fn onedrive_navigation(
         .await?;
         let competed_for = arm_started.elapsed();
         let competed_bytes = moved.load(std::sync::atomic::Ordering::Relaxed);
-        if let Some(handle) = download {
+        for handle in downloads {
             handle.abort();
         }
         event(
@@ -276,6 +280,7 @@ pub async fn onedrive_navigation(
             serde_json::json!({"stage":"competing_download_finished",
                 "bytes": competed_bytes,
                 "seconds": competed_for.as_secs_f64(),
+                "streams": streams,
                 "mib_per_s": competed_bytes as f64 / 1024.0 / 1024.0 / competed_for.as_secs_f64().max(0.001)}),
         )?;
 
@@ -339,6 +344,21 @@ pub async fn onedrive_navigation(
     if let Some(object) = competing_report.as_object_mut() {
         // Without this the arm's only claim to be competing is its name.
         object.insert("download_bytes".into(), serde_json::json!(competed_bytes));
+        object.insert("download_streams".into(), serde_json::json!(streams));
+        // The interference measure, and the one two earlier runs produced at
+        // 1.36 and 1.37: both arms are provider-bound first visits and differ
+        // only in whether something else is pulling bytes. The ratio against
+        // the idle arm answers a different question -- where the answer comes
+        // from -- because a settled daemon serves a first visit from its own
+        // index and never asks the provider at all.
+        let (mut theirs, mut ours) = (competing.latencies_us.clone(), alone.latencies_us.clone());
+        theirs.sort_unstable();
+        ours.sort_unstable();
+        let base = percentile(&ours, 0.95) as f64;
+        object.insert(
+            "download_p95_over_indexing".into(),
+            serde_json::json!((base > 0.0).then(|| percentile(&theirs, 0.95) as f64 / base)),
+        );
         object.insert(
             "download_mib_per_s".into(),
             serde_json::json!(

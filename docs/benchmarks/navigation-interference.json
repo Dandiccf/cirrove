@@ -24,6 +24,60 @@
     "P3_fails_alone": "The method did not reproduce a figure it has produced twice. Then the run says nothing about P2 either, and is repeated rather than interpreted."
   },
   "what_this_does_not_cover": "One machine, one network, one collection of 184,000 items. A ratio removes the provider from the comparison; it does not make the result portable to a collection ten times the size.",
-  "result": null,
-  "verdict": null
+  "result": {
+    "where": "The Fedora VM, the owner's real drive, 184,076 items, a cold engine of the validator's own beside the machine's running daemon. scripts/vm/run.sh fedora; cirrove validate-onedrive-navigation --per-arm 60 --idle-seconds 600.",
+    "when": "2026-09-15",
+    "three_runs_and_two_fixture_defects": [
+      "First attempt: the three arms shared one directory tree and the first two ate it -- 406 samples indexing, 1,142 with a download, and the collection's 1,548 directories were gone, leaving the control arm two samples. Indexing also finished part way through the second arm, so 292 of its samples were served from the index (p50 4.4 ms against 205 ms for the arm before it), which is a different measurement wearing the same label. VOID. Each arm now takes a budget of samples rather than a slice of time.",
+      "Second attempt, one download stream: all three arms clean at 60 samples, and the download arm's p95 came out BELOW the indexing arm's -- 264 ms against 315, a factor of 0.84 where two earlier runs had measured 1.36 and 1.37. The arm's only claim to be competing was its name. The validator now counts the bytes the competing transfer moves: 50.2 MB at 1.75 MiB/s. A transfer at a sixth of the bandwidth the host runs had is not the same condition.",
+      "Third attempt, six streams: 220.0 MB at 7.79 MiB/s, and the interference came back -- p95 274.1 ms alone against 335.8 ms competing, a factor of 1.23."
+    ],
+    "arms": {
+      "indexing": {
+        "samples": 60,
+        "while_indexing": 60,
+        "p50_ms": 178.7,
+        "p95_ms": 274.148,
+        "max_ms": 485.608,
+        "over_500ms": 0,
+        "failed": 0
+      },
+      "indexing_and_download": {
+        "samples": 60,
+        "while_indexing": 60,
+        "p50_ms": 175.419,
+        "p95_ms": 335.82,
+        "max_ms": 443.857,
+        "over_500ms": 0,
+        "failed": 0,
+        "download_bytes": 220020096,
+        "download_mib_per_s": 7.785,
+        "streams": 6
+      },
+      "idle": {
+        "samples": 60,
+        "while_indexing": 0,
+        "p50_ms": 5.4,
+        "p95_ms": 8.372,
+        "max_ms": 10.077,
+        "over_500ms": 0,
+        "failed": 0,
+        "settled_after_ms": 385092
+      }
+    },
+    "ratios": {
+      "indexing_p95_over_idle": 32.75,
+      "indexing_and_download_p95_over_idle": 40.11,
+      "download_p95_over_indexing": 1.225,
+      "the_same_ratio_at_1_75_mib_s": 0.84
+    }
+  },
+  "verdict": {
+    "P1": "HOLDS. Sixty first visits in each of the three arms, no listing failed, and the indexing arms were entirely inside the index build.",
+    "P2": "FAILS as written, by a factor of sixteen -- and the prediction was the thing at fault. I asked for the indexing arm's p95 to be under twice the idle arm's. They are 274 ms and 8.4 ms, and they are not two measurements of one thing: during the index build a first visit is a provider round trip, and once the build is done the same visit is a read of the local index and never reaches the provider at all. The ratio is a statement about where the answer comes from, not about the daemon's own work getting in the way. It should never have been the bound.",
+    "P3": "FAILS, and the failure is about the method rather than the daemon. The download arm's p95 is 40 times the idle arm's, for the same reason P2 fails. Its ratio against the INDEXING arm -- both provider-bound, differing only in whether something else is pulling bytes, which is the comparison the clause is actually about -- is 1.23 against the 1.36 and 1.37 measured twice before. Close, same direction, outside the stated spread. The cause is measured: at one stream the competing transfer moved 1.75 MiB/s and the factor was 0.84, at six it moved 7.79 MiB/s and the factor was 1.23. Interference scales with what the transfer actually takes, and no earlier run recorded that -- so 1.36 and 1.37 were never reproducible figures, because the condition they were measured under was not written down.",
+    "P4": "HOLDS. The slowest listing in any arm was 486 ms, against a ceiling of five seconds, and nothing exceeded 500 ms in either indexing arm."
+  },
+  "decision": "The row stays open, by this artifact's own rule: P3 did not reproduce, so the run is repeated rather than interpreted, and two of the three runs here were the repeats. What it has produced is worth more than a tick. The clause now has a control arm for the first time -- a settled daemon answers a first visit in 5.4 ms at the median, a building one in 179 ms, and the difference is the index, not contention. It has an interference figure with the condition recorded beside it. And it has the reason the earlier figures could not be reproduced: nobody had written down what the competing transfer was moving.",
+  "what_would_close_it": "A registration whose bounds can fail for the right reason: an absolute ceiling on a first visit during the index build (p95 under 500 ms, no listing over five seconds, no failures), and an interference factor measured against a competing transfer whose rate is declared in advance and recorded in the result. Both are met by the numbers here; neither was what this artifact asked for, and rewriting the question after seeing the answer is the one thing a registration exists to prevent."
 }

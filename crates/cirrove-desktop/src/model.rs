@@ -104,6 +104,15 @@ pub struct AccountCard {
     /// something is wrong and not what; these are the paths behind it, so the
     /// row can say "Old invoices" instead of "1 change".
     pub refused_paths: Vec<String>,
+    /// How many of those are worth trying again.
+    ///
+    /// A change that failed -- a quota, a permission, a connection that went
+    /// away -- is one the cloud never decided about. A change in conflict is
+    /// one it did decide about, and re-sending would act on whatever is there
+    /// now. Only the first kind is offered a second try, so the button is
+    /// insensitive when every refusal is a conflict rather than lying about
+    /// what pressing it would do.
+    pub retryable: u64,
     /// Saves that did not reach the cloud -- uploads the provider refused or
     /// that failed. The file is here; the cloud has an older version or none.
     pub failed_uploads: u64,
@@ -476,6 +485,18 @@ impl Overview {
                                     change.path.clone().unwrap_or_else(|| change.name.clone())
                                 })
                                 .collect()
+                        })
+                        .unwrap_or_default(),
+                    retryable: snapshot
+                        .activity
+                        .iter()
+                        .find(|(label, _)| label == &account.label)
+                        .map(|(_, reply)| {
+                            reply
+                                .stuck
+                                .iter()
+                                .filter(|change| change.state != "conflict")
+                                .count() as u64
                         })
                         .unwrap_or_default(),
                     failed_uploads: status.map_or(0, |s| s.failed_uploads),

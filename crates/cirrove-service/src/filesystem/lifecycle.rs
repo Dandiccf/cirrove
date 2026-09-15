@@ -61,6 +61,14 @@ impl WriteControl {
         self.inner.engine.changed.notify_waiters();
         Ok(())
     }
+    /// Try the stuck changes again, where trying again is a sensible thing to
+    /// do. See [`super::writeback::Writeback::retry_stuck`].
+    pub async fn retry_stuck(&self) -> std::io::Result<(u64, u64)> {
+        self.writer
+            .retry_stuck()
+            .await
+            .map_err(|_| std::io::Error::other("the stuck changes could not be queued again"))
+    }
     pub async fn discard_stuck(&self) -> std::io::Result<u64> {
         self.writer
             .discard_stuck()
