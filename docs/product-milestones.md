@@ -256,8 +256,8 @@ including simultaneous settings and service failures and recovery through Retry.
 Native synthetic checks cover the rendered messages. Save/open operation errors,
 account repair and the wider recovery flow still need implementation and acceptance.
 
-- [ ] GTK4/libadwaita setup and settings without a terminal in ordinary flows.
-- [ ] Account picker, mount controls, reconnect, connection removal and cleanup.
+- [x] GTK4/libadwaita setup and settings without a terminal in ordinary flows.
+- [x] Account picker, mount controls, reconnect, connection removal and cleanup.
 - [ ] Tray status and actions using the daemon as the source of truth.
 - [ ] Nautilus badges, pin/unpin actions and consistent status refresh.
 - [ ] Actionable errors, progress, cancellation and conflict resolution.
