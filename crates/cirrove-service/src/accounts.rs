@@ -456,6 +456,10 @@ pub async fn reauthenticate(
         })
         .await
         .context("account did not stop; close files in this mount and try again")?;
+        // The same question as `begin_connect`, for the same reason: a
+        // re-sign-in is a person's minutes too, and a keyring that cannot take
+        // the grant afterwards has wasted all of them.
+        DesktopVault::reachable().await?;
         let (identity, credentials) =
             browser_login(original.registration.clone(), requested).await?;
         if identity.tenant_id != original.identity.tenant_id
@@ -748,6 +752,11 @@ pub async fn begin_connect(
             bail!("this label or mount path is already configured");
         }
     }
+    // Before the browser, not after. A sign-in is minutes of a person's
+    // attention and it cannot be handed back: discovering afterwards that there
+    // is nowhere to keep the grant throws all of it away, which is what
+    // happened on a clean Arch machine on 2026-09-15.
+    DesktopVault::reachable().await?;
     let (identity, credentials) = browser_login(app.clone(), access).await?;
     let id = uuid::Uuid::new_v4().to_string();
     let graph = OneDrive::new(

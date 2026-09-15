@@ -5,6 +5,12 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
 
 ## Unreleased
 
+- **A sign-in is no longer thrown away at the end.** Cirrove keeps your grant in
+  the desktop's keyring, and it used to discover that there was no keyring --
+  or that it was locked -- only after you had signed in with Microsoft and
+  chosen a drive. Minutes of your attention, gone, with an error about D-Bus.
+  It now asks before opening the browser, offers a locked keyring to the desktop
+  to unlock, and says which package to install when there is none.
 - **Signing in works on a machine without a desktop's extras.** `xdg-utils` was
   an optional dependency described as being for the command line. It is neither:
   connecting an account opens your browser through `xdg-open`, from the window
