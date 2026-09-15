@@ -5,6 +5,12 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
 
 ## Unreleased
 
+- **Taking away Cirrove's access now has a measured answer.** Revoke the app's
+  consent in your directory and Cirrove keeps working for up to an hour -- the
+  pass it holds has its own expiry and Microsoft does not re-check consent on
+  every request -- then says **Sign in again**. Measured end to end on a real
+  tenant: 66 minutes to notice, and signing in again restored the connection
+  with its whole index intact, 184,080 items, no reindex.
 - **A sign-in is no longer thrown away at the end.** Cirrove keeps your grant in
   the desktop's keyring, and it used to discover that there was no keyring --
   or that it was locked -- only after you had signed in with Microsoft and

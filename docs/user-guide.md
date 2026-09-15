@@ -210,6 +210,15 @@ If signing in says it could not open a browser, `xdg-open` is missing: install
 `xdg-utils`, which every distribution has under that name. Cirrove's packages
 require it, so this only happens to a build installed by hand.
 
+**If you take away Cirrove's access** -- revoking the app's consent in your
+Microsoft account or your organisation's directory -- it keeps working for up to
+an hour, and then stops. That is not a delay we chose: the access token it
+already holds is a signed pass with its own expiry, and Microsoft does not check
+consent on every request. Measured on a real tenant: 66 minutes from the
+revocation to Cirrove noticing. After that it says **Sign in again**, and until
+you do, your drive still lists and anything already downloaded still opens --
+losing access is not losing what you have.
+
 ## When the service is not there
 
 The window says so in a banner and keeps showing your saved connections; the

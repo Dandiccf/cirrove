@@ -63,5 +63,26 @@
     "the_daemon_logs_nothing": "It changed both feeds to sign_in_required and wrote no journal entry at all -- only its ordinary reclamation lines. The state reaches the user through the tray and `cirrove status`, which is what the row asks for, but an operator reading the journal sees a healthy daemon. Nothing records that authorization was refused or what the provider said about it, so the one place a person looks when something is wrong is the one place that does not say.",
     "an_unpinned_file_is_not_a_negative_control_here": "Unpinned files in subdirectories also read fine, because this cache has held them for days. The counters show why -- no provider request was made for any of them -- so this run cannot demonstrate that uncached content becomes unavailable, only that cached and pinned content stays available. Finding uncached content would mean walking the user's drive, which is not worth the clause.",
     "a_stale_reference": "WRONG, corrected 2026-09-13. I recorded that the before snapshot predated the pin and could not serve as a reference for P4. It was retaken at 08:43:17, after the pin, exactly as the runbook asked. I had read my own 08:39 trial run as the reference and did not check the file before saying so. The comparison is valid and the pin line in it is real."
+  },
+  "the_real_consent_cycle_2026_09_15": {
+    "why_it_was_done_again": "The first run withdrew the grant by turning off the enterprise application's sign-in, and said so: that reaches the same event on the daemon's side and less of the consent cycle. It also never reached `reauth`, because the account recovered by itself when the toggle went back. Both gaps kept the row open. This run closes them: the account owner revoked the consent itself, all six delegated permissions under admin consent for the tenant, and signed in again through the window's own button.",
+    "timeline": {
+      "20:09:01": "the daemon refreshed its authorization and saved it -- two minutes before the revocation, which is the worst case for noticing",
+      "20:11:22": "all six delegated permissions revoked in Entra (openid, profile, offline_access, User.Read, Files.Read.All, Files.ReadWrite.All)",
+      "20:11 to 21:17": "the daemon keeps working, correctly. Both feeds report successful delta calls every few seconds throughout. An access token is a signed assertion validated by its expiry, not by asking whether consent still stands, so a revocation does not recall one already issued.",
+      "21:17:37": "both feeds move to sign_in_required, each with a journal warning naming the collection, the state and the reason",
+      "21:19": "the owner presses Sign in again in the window and completes the Microsoft sign-in in the browser",
+      "21:20:01": "the mount is taken down deliberately -- reauthentication disables the account so its workers release the old credential",
+      "21:20:56": "the mount is back",
+      "21:21:22": "ready, both feeds succeeding, 184,080 items"
+    },
+    "the_number_this_row_was_missing": "66 minutes from the revocation to the daemon noticing, and 68.5 minutes from the issue of the token it was holding. That is the worst case and it is not ours to shorten: it is one access-token lifetime. Shortening it would mean asking the provider on every call whether consent still stands.",
+    "verdict": {
+      "P1": "HOLDS on the corrected reading the first run established: the account reaches sign_in_required without intervention, one access-token lifetime after the withdrawal rather than within a retry interval. Measured at 66 minutes.",
+      "P2": "HOLDS, and more strongly than in the first run. The window shows 'Erneut anmelden' under the account, the tray item is Active, and -- unlike 2026-09-11, when the daemon changed state and wrote nothing -- the journal now carries a warning per collection naming the state and the reason. That gap was closed in between and this run is the evidence.",
+      "P3": "HOLDS. The mount stayed present throughout the hour without a grant; directories listed from the index and cached content read.",
+      "P4": "HOLDS on the index: 184,080 items before the revocation and 184,080 after the reauthentication, with no reindex. NOT TESTED on pins: this account had none at the time, because the day's pinning work had released them all. The first run covered the pin half and holds there."
+    },
+    "what_this_closes": "Both reasons the first run gave for not ticking the row. The grant was withdrawn by revoking consent, through the whole consent cycle including re-consent at the sign-in; and reauthentication was actually exercised, from the window's button rather than the command line, and restored the account with its index intact."
   }
 }

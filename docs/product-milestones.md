@@ -10,7 +10,7 @@ Private account measurements belong in local records, not the public repository.
 
 - [x] Installable user service, login startup and clean intentional shutdown.
 - [x] Recovery after process failure, suspend/resume and loss of network access.
-- [ ] Real token expiry/refresh and visible reauthentication when consent expires.
+- [x] Real token expiry/refresh and visible reauthentication when consent expires.
 - [ ] Responsive navigation during initial indexing and competing downloads.
 - [x] Remove Graph metadata checks per cache block from the validated read-session
       fast path; implement and measure shared session setup, bounded sequential
