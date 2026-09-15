@@ -338,9 +338,25 @@ fn write_settings(state: &Path, settings: &cirrove_service::accounts::Settings) 
 }
 /// One application per scenario, each under its own id: GApplication refuses
 /// to register the same id twice in one process, and the scenarios share one.
+///
+/// The id is checked here rather than left to GLib. An invalid one -- a space
+/// in the scenario name was enough -- does not fail: GApplication logs a
+/// critical nobody reads, keeps the id NULL, and registers anonymously at
+/// /org/gtk/Application/anonymous. The first scenario to do that works and the
+/// second dies with "an object is already exported", which is a message about
+/// the wrong thing entirely, in a scenario that has nothing to do with the one
+/// that broke it. That cost a red CI run on 2026-09-15, and it only showed
+/// there: the scenario with the invalid id declines to assert under Wayland
+/// and so never got as far as registering on the development machine.
 fn application(scenario: &str) -> adw::Application {
+    let id = format!("io.github.Dandiccf.Cirrove.Test.{scenario}");
+    assert!(
+        gio::Application::id_is_valid(&id),
+        "{id:?} is not a valid application id; GLib would register this anonymously \
+         and take the next scenario down with it"
+    );
     let app = adw::Application::builder()
-        .application_id(format!("io.github.Dandiccf.Cirrove.Test.{scenario}"))
+        .application_id(&id)
         .flags(gio::ApplicationFlags::NON_UNIQUE)
         .build();
     app.register(None::<&gio::Cancellable>).unwrap();
@@ -549,6 +565,25 @@ fn native_window_keeps_focus_and_waits_for_service_mount_acknowledgement() {
 /// was never wrong; checking WM_CLASS through Xwayland would test Xwayland.
 fn the_x11_window_class_is_the_application_id_a_shell_looks_for() {
     const APP_ID: &str = "io.github.Dandiccf.Cirrove";
+    // Every scenario's id, checked here rather than where it is used. The one
+    // scenario that declines to run is the one whose id was invalid, so nothing
+    // on a Wayland machine ever built it -- and the collision it caused landed
+    // on a different scenario entirely, on CI, where X11 is real.
+    for scenario in [
+        "Focus",
+        "X11Identity",
+        "FailureKinds",
+        "Actions",
+        "KeptOffline",
+        "FetchInFlight",
+    ] {
+        let id = format!("io.github.Dandiccf.Cirrove.Test.{scenario}");
+        assert!(
+            gio::Application::id_is_valid(&id),
+            "{id:?} is not a valid application id; GLib would log a critical, keep the id \
+             NULL, register anonymously, and take the next scenario down with it"
+        );
+    }
     if std::env::var_os("WAYLAND_DISPLAY").is_some() || std::env::var_os("DISPLAY").is_none() {
         println!("  (not a pure X11 display; the app_id is what identifies the window there)");
         return;
@@ -562,7 +597,7 @@ fn the_x11_window_class_is_the_application_id_a_shell_looks_for() {
         return;
     }
 
-    let app = application("x11 identity");
+    let app = application("X11Identity");
     let ui = Window::new(&app, Backend::Demo);
     let window = ui.window.upgrade().unwrap();
     window.present();
@@ -607,7 +642,7 @@ fn every_failure_kind_reaches_the_window_with_its_own_words() {
     use cirrove_desktop::model::{Overview, ServiceFailure, SettingsFailure};
     use std::io::ErrorKind;
 
-    let app = application("failure kinds");
+    let app = application("FailureKinds");
     let ui = Window::new(&app, Backend::Demo);
     let window = ui.window.upgrade().unwrap();
     window.present();
