@@ -259,6 +259,105 @@ class Properties(unittest.TestCase):
         self.assertEqual(ext.properties({}, "x"), [])
 
 
+class StayingCurrent(unittest.TestCase):
+    """What the daemon's event stream makes Files ask again about.
+
+    The defect this answers: Files keeps the answer it got when it listed a
+    directory, so a pin made in the Cirrove window left an open Files window
+    showing the opposite of the truth for as long as it was left open.
+    """
+
+    @staticmethod
+    def account(label, kept, state="ready"):
+        return {
+            "event": "account",
+            "account_id": f"id-{label}",
+            "label": label,
+            "state": state,
+            "enabled": True,
+            "mounted": True,
+            "kept_generation": kept,
+        }
+
+    def primed(self, *accounts):
+        watch = ext.Refreshes()
+        for account in accounts:
+            self.assertEqual(watch.observe(account), set())
+        self.assertEqual(watch.observe({"event": "ready"}), set())
+        return watch
+
+    def test_priming_is_not_a_change(self):
+        # A subscription opens with current state. A client that treated those
+        # as changes would refresh every open window every time it reconnected.
+        watch = self.primed(self.account("work", 7), self.account("home", 2))
+        self.assertEqual(watch.observe({"event": "ready"}), set())
+
+    def test_what_is_kept_changing_asks_only_that_accounts_entries_again(self):
+        watch = self.primed(self.account("work", 7), self.account("home", 2))
+        self.assertEqual(watch.observe(self.account("work", 8)), {"work"})
+        self.assertEqual(watch.observe(self.account("home", 2)), set())
+
+    def test_an_account_change_that_keeps_nothing_new_asks_nothing(self):
+        # The account event travels for several reasons -- a state change, a
+        # refused save. Only what is kept offline changes a badge.
+        watch = self.primed(self.account("work", 7))
+        self.assertEqual(
+            watch.observe(self.account("work", 7, state="sign_in_required")), set()
+        )
+
+    def test_an_older_daemon_that_does_not_count_asks_nothing(self):
+        # No kept_generation reads back as zero, which never moves. An older
+        # daemon leaves the extension exactly as it was, rather than refreshing
+        # every listing on every event.
+        watch = self.primed({"event": "account", "label": "work", "state": "ready"})
+        self.assertEqual(
+            watch.observe({"event": "account", "label": "work", "state": "ready"}), set()
+        )
+
+    def test_a_lagged_stream_treats_everything_as_stale_once(self):
+        # Intermediate states were dropped, so nothing held is known to be
+        # current; the re-priming that follows is a record, not a change.
+        watch = self.primed(self.account("work", 7), self.account("home", 2))
+        self.assertEqual(watch.observe({"event": "lagged", "dropped": 9}), {"work", "home"})
+        self.assertEqual(watch.observe(self.account("work", 40)), set())
+        self.assertEqual(watch.observe({"event": "ready"}), set())
+        self.assertEqual(watch.observe(self.account("work", 41)), {"work"})
+
+    def test_an_event_this_build_does_not_know_is_ignored(self):
+        watch = self.primed(self.account("work", 7))
+        self.assertEqual(watch.observe({"event": "something-newer"}), set())
+        self.assertEqual(watch.observe({}), set())
+
+
+class Remembering(unittest.TestCase):
+    """What the extension holds on to so it can refresh it."""
+
+    def test_only_the_named_accounts_entries_come_back(self):
+        shown = ext.Shown()
+        shown.remember("work", "a.txt", "A")
+        shown.remember("home", "b.txt", "B")
+        self.assertEqual(shown.under("work"), ["A"])
+        self.assertEqual(shown.under("home"), ["B"])
+        self.assertEqual(shown.under("nothing"), [])
+
+    def test_a_file_seen_again_is_held_once_with_the_newer_handle(self):
+        shown = ext.Shown()
+        shown.remember("work", "a.txt", "first")
+        shown.remember("work", "a.txt", "second")
+        self.assertEqual(shown.under("work"), ["second"])
+        self.assertEqual(len(shown), 1)
+
+    def test_the_registry_is_bounded_and_drops_the_oldest(self):
+        # Files never says a file has gone, so an unbounded registry in a
+        # process that lives as long as a login session is a leak with a
+        # schedule.
+        shown = ext.Shown(limit=3)
+        for i in range(5):
+            shown.remember("work", f"f{i}", i)
+        self.assertEqual(len(shown), 3)
+        self.assertEqual(shown.under("work"), [2, 3, 4])
+
+
 class AgainstADaemon(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()

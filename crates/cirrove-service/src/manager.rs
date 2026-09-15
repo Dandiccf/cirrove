@@ -82,6 +82,11 @@ pub struct AccountStatus {
     /// that failed. Zero for a read-only mount. Older daemon responses omit it.
     #[serde(default)]
     pub failed_uploads: u64,
+    /// Changes whenever what this account keeps offline changes: a pin made or
+    /// released, or one of its files arriving. The file manager watches it to
+    /// know when to ask again; see [`crate::engine::Engine::kept_generation`].
+    #[serde(default)]
+    pub kept_generation: u64,
     /// Long work somebody asked for that is still going -- keeping a folder
     /// offline is the only kind so far -- and the last few that ended badly.
     ///
@@ -481,6 +486,7 @@ impl Manager {
                             failed_uploads: 0,
                             pin_budget: Default::default(),
                             pins: Vec::new(),
+                            kept_generation: 0,
                             // Filled when a status is answered, not here: see
                             // the field.
                             jobs: Vec::new(),
@@ -563,6 +569,7 @@ impl Manager {
                             // been told was pinned. Five seconds is the cost.
                             let _ = active.engine.refresh_reservations().await;
                             status.pins = active.engine.pin_status().await.unwrap_or_default();
+                            status.kept_generation = active.engine.kept_generation();
                             status.save_refusal = active.engine.save_refusals.latest();
                             status.stuck_changes = match &active.writers {
                                 Some(writers) => writers.stuck_changes().await,

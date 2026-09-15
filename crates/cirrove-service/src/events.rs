@@ -66,6 +66,17 @@ pub enum Event {
         /// same forward-compatibility reason.
         #[serde(default)]
         failed_uploads: u64,
+        /// Changes when what the account keeps offline changes -- a pin made or
+        /// released, or one of its files arriving.
+        ///
+        /// A number and nothing else, because the thing that changed is a path
+        /// and this channel carries none: a file manager that sees it move asks
+        /// the daemon again about the entries it is showing. Without it, a pin
+        /// made in the window left a stale badge in an open Files window until
+        /// something unrelated made it re-list. `#[serde(default)]` so an older
+        /// daemon reads back as zero, which never moves and asks nothing.
+        #[serde(default)]
+        kept_generation: u64,
     },
     /// A mount appeared or went away. Separate from `Account` because a file
     /// manager cares about exactly this and nothing else about the account, and
@@ -173,6 +184,7 @@ pub fn diff(previous: &[AccountStatus], current: &[AccountStatus]) -> Vec<Event>
                     || before.mounted != status.mounted
                     || before.stuck_changes != status.stuck_changes
                     || before.failed_uploads != status.failed_uploads
+                    || before.kept_generation != status.kept_generation
                 {
                     events.push(account_event(status));
                 }
@@ -202,6 +214,7 @@ fn account_event(status: &AccountStatus) -> Event {
         mounted: status.mounted,
         stuck_changes: status.stuck_changes,
         failed_uploads: status.failed_uploads,
+        kept_generation: status.kept_generation,
     }
 }
 
@@ -253,6 +266,32 @@ mod tests {
                 mounted: true,
                 stuck_changes: 0,
                 failed_uploads: 0,
+                kept_generation: 0,
+            }]
+        );
+    }
+
+    #[test]
+    fn what_is_kept_offline_changing_is_reported_so_a_file_manager_can_ask_again() {
+        // Files keeps the answer it got when it listed a directory. Without
+        // this, a pin made in the window left a stale badge in an open window
+        // until something unrelated made Files re-list -- which is the shape of
+        // the defect, not a delay.
+        let before = vec![status("work", "ready", true)];
+        let mut after = before.clone();
+        after[0].kept_generation = 1;
+        let events = diff(&before, &after);
+        assert_eq!(
+            events,
+            vec![Event::Account {
+                account_id: "id-work".into(),
+                label: "work".into(),
+                state: "ready".into(),
+                enabled: true,
+                mounted: true,
+                stuck_changes: 0,
+                failed_uploads: 0,
+                kept_generation: 1,
             }]
         );
     }
@@ -280,6 +319,7 @@ mod tests {
                 mounted: true,
                 stuck_changes: 3,
                 failed_uploads: 0,
+                kept_generation: 0,
             }],
             "the account is unchanged in every other field and this still has to be news"
         );
@@ -304,6 +344,7 @@ mod tests {
                 &events[0],
                 Event::Account {
                     failed_uploads: 2,
+                    kept_generation: 0,
                     stuck_changes: 0,
                     ..
                 }

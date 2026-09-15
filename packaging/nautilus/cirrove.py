@@ -56,6 +56,14 @@ ICON = "io.github.Dandiccf.Cirrove-symbolic"
 # One line per listing to stderr when set; off by default because a line per
 # directory opened is noise in a journal that is read for other reasons.
 DEBUG = bool(os.environ.get("CIRROVE_NAUTILUS_DEBUG"))
+# How many files the extension remembers so it can refresh them when what is
+# kept offline changes behind Files. A window shows tens; this covers several,
+# and the entries are small. Bounded because Files never says a file is gone.
+REMEMBERED = 512
+# How long to wait before opening the event subscription again. A daemon that
+# is not running is the ordinary case at login, and a file manager must not
+# spend a socket connect a second on it forever.
+RECONNECT = [2.0, 5.0, 15.0, 60.0]
 
 
 def request(verb, body=None, path=None):
@@ -253,6 +261,82 @@ def menu_label(states, folders):
     return "Keep offline"
 
 
+class Refreshes:
+    """Decides, from the daemon's event stream, when Files must ask again.
+
+    Files asks about a path when it lists a directory and then keeps the
+    answer. So a pin made anywhere else -- the Cirrove window, the command
+    line, another session -- left a stale badge sitting in an open Files window
+    until something unrelated made it re-list. That is not a delay; it is a
+    window that says the opposite of the truth for as long as it is left open.
+
+    The daemon's account event carries ``kept_generation``, a number that moves
+    when what the account keeps offline changes: a pin made or released, or one
+    of its files arriving. A number rather than a path, because the event
+    channel carries no paths -- which is the right decision for a channel a
+    tray also reads -- so this says only "ask again about what you are showing".
+
+    Priming is not a change. A subscription opens with current state, and a
+    client that treated those as changes would refresh every open window every
+    time it reconnected.
+    """
+
+    def __init__(self):
+        self._kept = {}
+        self._priming = True
+
+    def observe(self, event):
+        """The account labels whose entries are now stale. Possibly empty."""
+        kind = (event or {}).get("event")
+        if kind == "ready":
+            self._priming = False
+            return set()
+        if kind == "lagged":
+            # Intermediate states were dropped, so nothing held here is known to
+            # be current. Everything is stale, and the re-priming that follows
+            # is a record rather than a change.
+            self._priming = True
+            return {label for label, _ in self._kept.values()}
+        if kind != "account":
+            return set()
+        label = event.get("label") or ""
+        key = event.get("account_id") or label
+        before = self._kept.get(key)
+        now = event.get("kept_generation", 0)
+        self._kept[key] = (label, now)
+        if self._priming or before is None or before[1] == now:
+            return set()
+        return {label}
+
+
+class Shown:
+    """What has been badged, so it can be badged again when the answer changes.
+
+    Bounded, because Files never says a file has gone: an unbounded registry in
+    a process that runs for the length of a login session is a leak with a
+    schedule. The oldest entry goes, which is the one least likely still to be
+    on screen.
+    """
+
+    def __init__(self, limit=None):
+        self._limit = REMEMBERED if limit is None else limit
+        self._files = {}
+
+    def remember(self, label, relative, file):
+        key = (label, relative)
+        if key not in self._files and len(self._files) >= self._limit:
+            self._files.pop(next(iter(self._files)))
+        self._files.pop(key, None)
+        self._files[key] = file
+
+    def under(self, label):
+        """Everything remembered from one account, newest last."""
+        return [file for (shown, _), file in self._files.items() if shown == label]
+
+    def __len__(self):
+        return len(self._files)
+
+
 class Mounts:
     """The daemon's mount list, trusted for ``STATUS_TTL`` after each answer."""
 
@@ -345,6 +429,55 @@ if Nautilus is not None:
 
         client.connect_async(Gio.UnixSocketAddress.new(path or SOCKET), None, connected)
 
+    def subscribe_async(on_event, on_end, path=None):
+        """Open the daemon's event stream and call ``on_event(dict)`` per line.
+
+        ``on_end()`` when the stream ends, for a caller that reconnects. Over
+        GLib's asynchronous I/O for the same reason everything else here is: a
+        Python thread inside Files runs only while the main thread is executing
+        Python, which it does only inside a callback.
+        """
+        client = Gio.SocketClient.new()
+        ended = [False]
+
+        def end():
+            if ended[0]:
+                return
+            ended[0] = True
+            try:
+                on_end()
+            except Exception:  # noqa: BLE001 - a callback must not take Files down
+                traceback.print_exc(file=sys.stderr)
+
+        def read_line(stream, result, connection):
+            try:
+                line, _ = stream.read_line_finish_utf8(result)
+            except GLib.Error:
+                end()
+                return
+            if line is None:
+                end()
+                return
+            try:
+                on_event(json.loads(line))
+            except ValueError:
+                pass
+            except Exception:  # noqa: BLE001
+                traceback.print_exc(file=sys.stderr)
+            stream.read_line_async(GLib.PRIORITY_DEFAULT, None, read_line, connection)
+
+        def connected(client, result):
+            try:
+                connection = client.connect_finish(result)
+                connection.get_output_stream().write_all(b"subscribe\n", None)
+            except GLib.Error:
+                end()
+                return
+            stream = Gio.DataInputStream.new(connection.get_input_stream())
+            stream.read_line_async(GLib.PRIORITY_DEFAULT, None, read_line, connection)
+
+        client.connect_async(Gio.UnixSocketAddress.new(path or SOCKET), None, connected)
+
     class CirroveExtension(
         GObject.GObject,
         Nautilus.InfoProvider,
@@ -361,6 +494,49 @@ if Nautilus is not None:
             self._pending = []
             self._flush_scheduled = False
             self._cancelled = set()
+            self._shown = Shown()
+            self._refreshes = Refreshes()
+            self._reconnects = 0
+            self._watch()
+
+        # -- staying current ------------------------------------------------
+
+        def _watch(self):
+            """Follow the daemon's event stream, reopening it when it ends."""
+
+            def event(payload):
+                self._reconnects = 0
+                for label in self._refreshes.observe(payload):
+                    self._refresh(label)
+
+            def ended():
+                # A daemon that restarted, or one that was never there. Back
+                # off rather than spin: at login this runs before the service.
+                delay = RECONNECT[min(self._reconnects, len(RECONNECT) - 1)]
+                self._reconnects += 1
+                GLib.timeout_add_seconds(int(delay), self._reopen)
+
+            subscribe_async(event, ended)
+
+        def _reopen(self):
+            self._watch()
+            return False
+
+        def _refresh(self, label):
+            """Ask Files to come back for everything shown from this account."""
+            stale = self._shown.under(label)
+            if DEBUG:
+                print(
+                    f"cirrove: {label}: what is kept changed, refreshing {len(stale)} entries",
+                    file=sys.stderr,
+                )
+            for file in stale:
+                try:
+                    file.invalidate_extension_info()
+                except Exception:  # noqa: BLE001
+                    traceback.print_exc(file=sys.stderr)
+
+
 
         # -- badges ---------------------------------------------------------
 
@@ -414,6 +590,7 @@ if Nautilus is not None:
                     self._complete(token, {})
                     continue
                 label, relative = located
+                self._shown.remember(label, relative, token[0])
                 per_label.setdefault(label, []).append((relative, token))
             for label, entries in per_label.items():
                 for chunk in chunked(entries, PATHS_PER_REQUEST):

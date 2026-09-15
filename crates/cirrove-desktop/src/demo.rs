@@ -41,6 +41,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
             failed_uploads: 0,
             pin_budget: Default::default(),
             pins: Vec::new(),
+            kept_generation: 0,
             // One running job on the connected account, so the demo shows the
             // progress row and its Stop button rather than only the still
             // states around it.

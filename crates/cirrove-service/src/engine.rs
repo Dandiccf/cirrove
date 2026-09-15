@@ -231,6 +231,21 @@ pub struct Engine {
     pub recent: crate::recent::RecentChanges,
     /// Long work somebody asked for and can watch or stop. See [`crate::jobs`].
     pub jobs: Arc<crate::jobs::Jobs>,
+    /// Bumped whenever what this account keeps offline changes: a pin made or
+    /// released, or a file of one arriving.
+    ///
+    /// A level, not a log, and it exists for the file manager. Files asks the
+    /// daemon about a path when it lists a directory and then keeps the answer,
+    /// so a pin made in the window left a stale badge sitting in an open window
+    /// until something else made Files re-list. A counter on the event channel
+    /// is the smallest thing that can say "ask again" without saying what
+    /// changed -- which would be a path, on a channel that carries none.
+    ///
+    /// Bumped per file rather than per job on purpose: the status vector is
+    /// rebuilt every five seconds, so a fetch of three hundred files produces
+    /// one event per sample rather than three hundred. That coalescing is the
+    /// channel's whole design (ADR 0007).
+    kept_generation: AtomicU64,
     /// One connection stays open for the account's lifetime. Without it every
     /// `Store::open` is both the first and the last connection to a WAL
     /// database, so SQLite creates `metadata.db-wal` and `-shm` on open and, on
@@ -293,9 +308,17 @@ impl Engine {
             save_refusals: Arc::new(crate::journal::SaveRefusals::default()),
             recent: crate::recent::RecentChanges::default(),
             jobs: Arc::new(crate::jobs::Jobs::default()),
+            kept_generation: AtomicU64::new(0),
             _keeper: StdMutex::new(keeper),
             _owner: owner,
         }))
+    }
+    /// What is kept offline, as a number that changes when it does.
+    pub fn kept_generation(&self) -> u64 {
+        self.kept_generation.load(Ordering::Relaxed)
+    }
+    fn kept_changed(&self) {
+        self.kept_generation.fetch_add(1, Ordering::Relaxed);
     }
     pub fn scope(&self, collection: &str) -> Scope {
         Scope {
@@ -359,6 +382,7 @@ impl Engine {
         .await??;
         if outcome.is_ok() {
             self.refresh_reservations().await?;
+            self.kept_changed();
         }
         Ok(outcome)
     }
@@ -434,6 +458,10 @@ impl Engine {
             if let Some(job) = progress {
                 job.advance(files_done, bytes_done);
             }
+            // A file that has arrived is a badge that has changed. Coalesced by
+            // the status loop, so a folder of three hundred costs one event per
+            // sample rather than three hundred.
+            self.kept_changed();
         }
         // Stopping means the pin goes with the job, so there is nothing to
         // protect and nothing to publish: the caller releases it.
@@ -790,6 +818,9 @@ impl Engine {
         let removed =
             tokio::task::spawn_blocking(move || Store::open(db)?.unpin(&key, &item)).await??;
         self.refresh_reservations().await?;
+        if removed {
+            self.kept_changed();
+        }
         Ok(removed)
     }
     /// Resolve, reserve and materialise a pin asked for over the control socket.
@@ -924,6 +955,7 @@ impl Engine {
         .await??;
         if released > 0 {
             self.refresh_reservations().await?;
+            self.kept_changed();
         }
         Ok(released)
     }

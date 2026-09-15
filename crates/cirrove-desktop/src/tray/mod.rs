@@ -714,6 +714,7 @@ pub async fn publish_for_test() -> Result<zbus::Connection> {
         mounted: true,
         stuck_changes: 0,
         failed_uploads: 0,
+        kept_generation: 0,
     });
     publish(
         Arc::new(Mutex::new(state)),
@@ -1193,6 +1194,7 @@ mod tests {
             mounted,
             stuck_changes: 0,
             failed_uploads: 0,
+            kept_generation: 0,
         }
     }
 
@@ -1205,6 +1207,7 @@ mod tests {
             mounted: true,
             stuck_changes,
             failed_uploads: 0,
+            kept_generation: 0,
         }
     }
 
