@@ -53,5 +53,12 @@ step "docs"
 cargo doc --workspace --no-deps --locked >/dev/null
 
 printf '\n\033[1mall checks passed\033[0m\n'
+if [[ $fast == --fast ]]; then
+  # Said loudly, because it has already cost a red CI run: on 2026-09-15 a day
+  # of --fast let a test that knew pinning was synchronous reach CI, and this
+  # line is the only place that could have caught it before the push.
+  printf '\033[1mNOT RUN: the workspace test suite.\033[0m --fast skipped it.\n'
+  echo "  Run scripts/check.sh with no arguments before pushing."
+fi
 echo "Not covered here: the window scenarios, which need a display --"
 echo "  cargo test -p cirrove-desktop --test window --locked -- --ignored --test-threads=1"
