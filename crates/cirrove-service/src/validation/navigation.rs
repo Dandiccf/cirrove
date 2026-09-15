@@ -19,6 +19,7 @@ fn percentile(sorted: &[u128], p: f64) -> u128 {
     let rank = ((sorted.len() as f64 - 1.0) * p).round() as usize;
     sorted[rank]
 }
+#[derive(Default)]
 struct Samples {
     latencies_us: Vec<u128>,
     while_indexing: usize,
@@ -47,6 +48,7 @@ pub async fn onedrive_navigation(
     label: &str,
     drive: Option<String>,
     seconds: u64,
+    idle_seconds: u64,
     item: Option<String>,
     root_id: Option<String>,
 ) -> Result<()> {
@@ -157,7 +159,11 @@ pub async fn onedrive_navigation(
                         serde_json::json!({"stage":"competing_download_started"}),
                     )?;
                     download = Some(tokio::spawn(async move {
-                        if let Ok(node) = graph.node(&scope, &id, &cancel).await {
+                        // Round and round until the arm ends. A file that is
+                        // read once and finishes leaves the rest of the arm
+                        // measuring a daemon with nothing competing, which is
+                        // the control arm wearing the label of this one.
+                        while let Ok(node) = graph.node(&scope, &id, &cancel).await {
                             let mut offset = 0u64;
                             while offset < node.size {
                                 match graph
@@ -165,8 +171,11 @@ pub async fn onedrive_navigation(
                                     .await
                                 {
                                     Ok(bytes) if !bytes.is_empty() => offset += bytes.len() as u64,
-                                    _ => break,
+                                    _ => return,
                                 }
+                            }
+                            if cancel.is_cancelled() {
+                                return;
                             }
                         }
                     }));
@@ -235,20 +244,139 @@ pub async fn onedrive_navigation(
             handle.abort();
         }
         let _ = downloaded_bytes;
-        Ok::<(Samples, Samples), anyhow::Error>((alone, competing))
+        // The control arm. Everything above measures a daemon doing its own
+        // work; without a quiet, fully indexed arm on the same machine, the
+        // same network and the same collection, those numbers have nothing to
+        // be a ratio of -- which is what left this row open with good figures
+        // and no way to fail them.
+        let mut idle = Samples::default();
+        let mut settled_after = None;
+        if idle_seconds > 0 {
+            let waiting_from = tokio::time::Instant::now();
+            let deadline = waiting_from + Duration::from_secs(2 * 60 * 60);
+            loop {
+                let busy = engine
+                    .health()
+                    .await
+                    .iter()
+                    .any(|h| h.state == "indexing" || h.state == "updating_or_offline");
+                if !busy {
+                    settled_after = Some(waiting_from.elapsed());
+                    break;
+                }
+                anyhow::ensure!(
+                    tokio::time::Instant::now() < deadline,
+                    "the collection never finished indexing, so there is no idle arm to compare against"
+                );
+                tokio::time::sleep(Duration::from_secs(5)).await;
+            }
+            event(
+                &mut log,
+                serde_json::json!({"stage":"settled","waited_ms":settled_after.map(|d|d.as_millis())}),
+            )?;
+            let started_idle = tokio::time::Instant::now();
+            while started_idle.elapsed() < Duration::from_secs(idle_seconds) {
+                // Only directories this mount has never listed. Re-listing a
+                // visited one would measure the directory cache, which is the
+                // mistake the first exploratory run of this made.
+                let Some(target) = unvisited.pop() else {
+                    break;
+                };
+                let indexing = engine
+                    .health()
+                    .await
+                    .iter()
+                    .any(|h| h.state == "indexing" || h.state == "updating_or_offline");
+                let listing = target.clone();
+                let at = std::time::Instant::now();
+                let entries =
+                    tokio::task::spawn_blocking(move || -> std::io::Result<Vec<PathBuf>> {
+                        let mut directories = Vec::new();
+                        for entry in std::fs::read_dir(&listing)? {
+                            let entry = entry?;
+                            if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                                directories.push(entry.path());
+                            }
+                        }
+                        Ok(directories)
+                    })
+                    .await?;
+                let took = at.elapsed().as_micros();
+                if let Ok(found) = &entries {
+                    for directory in found {
+                        if !known.contains(directory) {
+                            known.push(directory.clone());
+                            unvisited.push(directory.clone());
+                        }
+                    }
+                }
+                match entries {
+                    Ok(_) => {
+                        idle.latencies_us.push(took);
+                        idle.visited += 1;
+                    }
+                    Err(_) => idle.errors += 1,
+                }
+                if indexing {
+                    idle.while_indexing += 1;
+                }
+                tokio::time::sleep(Duration::from_millis(250)).await;
+            }
+        }
+        Ok::<(Samples, Samples, Samples, Option<Duration>), anyhow::Error>((
+            alone,
+            competing,
+            idle,
+            settled_after,
+        ))
     }
     .await;
     engine.stop().await;
     if let Some(session) = session {
         tokio::task::spawn_blocking(move || session.umount_and_join()).await??;
     }
-    let (alone, competing) = result?;
+    let (alone, competing, idle, settled_after) = result?;
     let alone_report = alone.report("indexing_only");
     let competing_report = competing.report("indexing_and_download");
     event(&mut log, alone_report.clone())?;
     event(&mut log, competing_report.clone())?;
     println!("{}", serde_json::to_string_pretty(&alone_report)?);
     println!("{}", serde_json::to_string_pretty(&competing_report)?);
+    if idle_seconds > 0 {
+        let mut idle_report = idle.report("idle");
+        if let Some(object) = idle_report.as_object_mut() {
+            object.insert(
+                "settled_after_ms".into(),
+                serde_json::json!(settled_after.map(|d| d.as_millis())),
+            );
+            // The ratios the row is about, computed here rather than by hand
+            // afterwards: interference is what the clause names, and a ratio
+            // removes the provider and the network, which this project does
+            // not control.
+            let ratio = |busy: &Samples| -> Option<f64> {
+                let mut theirs = busy.latencies_us.clone();
+                let mut ours = idle.latencies_us.clone();
+                theirs.sort_unstable();
+                ours.sort_unstable();
+                let base = percentile(&ours, 0.95) as f64;
+                (base > 0.0).then(|| percentile(&theirs, 0.95) as f64 / base)
+            };
+            object.insert(
+                "indexing_p95_over_idle".into(),
+                serde_json::json!(ratio(&alone)),
+            );
+            object.insert(
+                "indexing_and_download_p95_over_idle".into(),
+                serde_json::json!(ratio(&competing)),
+            );
+        }
+        event(&mut log, idle_report.clone())?;
+        println!("{}", serde_json::to_string_pretty(&idle_report)?);
+        anyhow::ensure!(
+            idle.while_indexing == 0,
+            "the idle arm sampled while the collection was still indexing; it is not a control"
+        );
+    }
     anyhow::ensure!(
         alone.while_indexing > 0,
         "no sample was taken while the collection was still indexing; \

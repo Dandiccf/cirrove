@@ -157,6 +157,12 @@ enum Command {
         /// How long to sample. The competing download starts after a third of it.
         #[arg(long, default_value = "300")]
         seconds: u64,
+        /// How long to sample the quiet, fully indexed control arm, after the
+        /// collection has finished indexing. Zero skips it, which is what every
+        /// run before 2026-09-15 did -- and why its figures had nothing to be a
+        /// ratio of.
+        #[arg(long, default_value = "0")]
+        idle_seconds: u64,
         /// A large file to download against the navigation loop.
         #[arg(long)]
         item: Option<String>,
@@ -501,13 +507,20 @@ async fn main() -> Result<()> {
             label,
             drive,
             seconds,
+            idle_seconds,
             item,
             root,
             state_dir: state,
         } => {
             let state = state.map(Ok).unwrap_or_else(state_dir)?;
             cirrove_service::validation::onedrive_navigation(
-                &state, &label, drive, seconds, item, root,
+                &state,
+                &label,
+                drive,
+                seconds,
+                idle_seconds,
+                item,
+                root,
             )
             .await?;
         }
