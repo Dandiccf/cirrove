@@ -108,19 +108,27 @@ machines on the development host, installed without a hand on them and
 checked by a script, so the run is the same each time and a person's
 attention goes to the screenshots rather than the clicking.
 
-- `scripts/vm/run.sh <ubuntu|fedora> install` installs Ubuntu 24.04 Desktop
+- `scripts/vm/run.sh <ubuntu|fedora|arch> install` installs Ubuntu 24.04 Desktop
   (Subiquity autoinstall) or Fedora Workstation (anaconda kickstart) into a
   QEMU/KVM machine: nothing needs root, the installer's answers are served
   over HTTP on the address the guest sees as its gateway, the kernel and
   initrd come out of the ISO with `bsdtar` so no boot menu is ever driven.
   The test account logs in automatically and can sudo without a password;
-  the machine is not meant to be kept.
-- `scripts/vm/check.sh <distro>` boots it, installs the packages CI built,
+  the machine is not meant to be kept. Arch is the third, and the odd one:
+  archiso has no kickstart and no autoinstall, and its `script=` boot
+  parameter is the only unattended hook there is -- `scripts/vm/arch/install.sh`
+  is what it runs.
+- `scripts/vm/check.sh <ubuntu|fedora|arch>` boots it, installs the packages CI
+  built,
   starts the service as the user, starts the tray the way the autostart
   entry will and reads it back from the shell's StatusNotifierWatcher, opens
   Files with the extension, reboots and looks again, removes the packages and
   checks nothing package-owned survived -- a screenshot at each stage,
-  under `~/Work/cirrove-vms/<distro>/checks/`.
+  under `~/Work/cirrove-vms/<distro>/checks/`. It clears the machine's package
+  directory before downloading, because one checked before still holds the
+  previous run's packages: `pacman -U ./pkgs/*` refuses the lot as duplicate
+  targets, and apt and dnf would silently install the newest rather than what
+  was just fetched.
 - `scripts/vm/qmp.py` is the hand on the machine: a screenshot, a key, a
   click, the power button, through QEMU's monitor socket.
 
@@ -144,6 +152,16 @@ the state directory and nothing else. Not seen: an icon in the top bar,
 for want of an account. Fedora 44 is what "current Fedora" meant on the day;
 CI's container is 42, and the packages built there installed on 44 without
 complaint.
+
+**Arch, 2026-09-15:** the same again on a clean Arch machine, this time from a
+script rather than by hand: the CI-built packages install with pacman, both
+desktop entries and the metainfo validate, the service runs as the user, the
+tray names its own icon, all of it is back after a reboot from the packaged
+autostart alone, and `pacman -Rns` leaves nothing named cirrove under `/usr` or
+`/etc`. The two desktop dependencies are `optdepends` here and are absent before
+and after, which is the distribution's convention -- pacman prints them at
+install time -- and is now visible in every run rather than in one person's
+notes.
 
 **Ubuntu 24.04.4 Desktop, 2026-09-13:** the same, on a clean machine
 installed by autoinstall: the CI-built debs install with apt, the service
