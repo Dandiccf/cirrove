@@ -218,10 +218,18 @@ pub async fn onedrive_navigation(
 
         // Arm two: the same, with a transfer competing for the connection.
         let mut download: Option<tokio::task::JoinHandle<()>> = None;
+        // What the competing transfer actually moved. "competing_download_started"
+        // is not evidence that anything competed: the first three-arm run
+        // reported a ratio of 1.02 against 1.36 and 1.37 from two earlier runs,
+        // and nothing in the record could say whether the transfer had stalled
+        // or the interference had genuinely gone.
+        let moved = Arc::new(std::sync::atomic::AtomicU64::new(0));
+        let arm_started = tokio::time::Instant::now();
         if let Some(id) = item.clone() {
             let graph = graph.clone();
             let scope = scope.clone();
             let cancel = cancel.clone();
+            let moved = moved.clone();
             event(
                 &mut log,
                 serde_json::json!({"stage":"competing_download_started"}),
@@ -238,7 +246,13 @@ pub async fn onedrive_navigation(
                             .read_range(&scope, &node, offset, 1 << 20, &cancel)
                             .await
                         {
-                            Ok(bytes) if !bytes.is_empty() => offset += bytes.len() as u64,
+                            Ok(bytes) if !bytes.is_empty() => {
+                                offset += bytes.len() as u64;
+                                moved.fetch_add(
+                                    bytes.len() as u64,
+                                    std::sync::atomic::Ordering::Relaxed,
+                                );
+                            }
                             _ => return,
                         }
                     }
@@ -252,9 +266,18 @@ pub async fn onedrive_navigation(
             &engine, &mount, &mut known, &mut unvisited, &mut competing, per_arm, ceiling,
         )
         .await?;
+        let competed_for = arm_started.elapsed();
+        let competed_bytes = moved.load(std::sync::atomic::Ordering::Relaxed);
         if let Some(handle) = download {
             handle.abort();
         }
+        event(
+            &mut log,
+            serde_json::json!({"stage":"competing_download_finished",
+                "bytes": competed_bytes,
+                "seconds": competed_for.as_secs_f64(),
+                "mib_per_s": competed_bytes as f64 / 1024.0 / 1024.0 / competed_for.as_secs_f64().max(0.001)}),
+        )?;
 
         // Arm three: the control. Everything above measures a daemon doing its
         // own work; without a quiet, fully indexed arm on the same machine, the
@@ -296,11 +319,13 @@ pub async fn onedrive_navigation(
             )
             .await?;
         }
-        Ok::<(Samples, Samples, Samples, Option<Duration>), anyhow::Error>((
+        Ok::<(Samples, Samples, Samples, Option<Duration>, u64, f64), anyhow::Error>((
             alone,
             competing,
             idle,
             settled_after,
+            competed_bytes,
+            competed_for.as_secs_f64(),
         ))
     }
     .await;
@@ -308,9 +333,19 @@ pub async fn onedrive_navigation(
     if let Some(session) = session {
         tokio::task::spawn_blocking(move || session.umount_and_join()).await??;
     }
-    let (alone, competing, idle, settled_after) = result?;
+    let (alone, competing, idle, settled_after, competed_bytes, competed_seconds) = result?;
     let alone_report = alone.report("indexing_only");
-    let competing_report = competing.report("indexing_and_download");
+    let mut competing_report = competing.report("indexing_and_download");
+    if let Some(object) = competing_report.as_object_mut() {
+        // Without this the arm's only claim to be competing is its name.
+        object.insert("download_bytes".into(), serde_json::json!(competed_bytes));
+        object.insert(
+            "download_mib_per_s".into(),
+            serde_json::json!(
+                competed_bytes as f64 / 1024.0 / 1024.0 / competed_seconds.max(0.001)
+            ),
+        );
+    }
     event(&mut log, alone_report.clone())?;
     event(&mut log, competing_report.clone())?;
     println!("{}", serde_json::to_string_pretty(&alone_report)?);
@@ -345,9 +380,15 @@ pub async fn onedrive_navigation(
         }
         event(&mut log, idle_report.clone())?;
         println!("{}", serde_json::to_string_pretty(&idle_report)?);
+        // Not "while_indexing == 0". A settled daemon still polls: its feed
+        // flips to updating_or_offline for the length of every delta request,
+        // and that is the ordinary life of a quiet daemon rather than an index
+        // still being built. What makes this a control is that the first full
+        // pass completed, which `settled_after_ms` records. A majority of the
+        // arm caught mid-poll would be something else and is refused.
         anyhow::ensure!(
-            idle.while_indexing == 0,
-            "the idle arm sampled while the collection was still indexing; it is not a control"
+            settled_after.is_some() && idle.while_indexing * 2 < idle.latencies_us.len().max(1),
+            "the idle arm spent most of itself with a feed still working; it is not a control"
         );
     }
     anyhow::ensure!(

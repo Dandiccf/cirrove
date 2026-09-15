@@ -40,5 +40,13 @@
   },
   "what_this_does_not_cover": "One machine, one library of 184,000 items, and a workload that lists a directory a minute. It is a resting bound over a long session, not a bound under sustained concurrent reading -- that is allocator-arena-cost.json's fixture, which measured growth of 43.9 to 44.6 MiB capped.",
   "result": null,
-  "verdict": null
+  "verdict": null,
+  "window_in_flight": {
+    "opened": "2026-09-15T16:30+02:00, closing 2026-09-16T16:30",
+    "where": "Ubuntu VM, package 0.1.0~dev.r447.g0055cab from this branch's CI, daemon pid 50734",
+    "cap": "Environment=MALLOC_ARENA_MAX=1 is in the shipped unit at /usr/lib/systemd/user/cirroved.service line 22 and confirmed in /proc/50734/environ -- not a drop-in added for the occasion",
+    "first_sample": "rss 22,748 KiB, free arena 2,193 KiB, retained 3,785 KiB, 0 trims, root listing 1 ms, 184,076 items",
+    "collect": "scripts/vm/run.sh ubuntu get /home/tester/capped-day/samples.tsv <local>; scripts/sustained-operation-report.py <local>",
+    "voids_it": "a reboot of the VM, a daemon restart that is not recorded, or removing /usr/bin/cirrove under the sampler"
+  }
 }

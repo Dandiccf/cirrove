@@ -11,11 +11,11 @@
 # and the check reports the service as having no accounts, which is the
 # truthful state of a fresh install.
 #
-# Usage: scripts/vm/check.sh ubuntu|fedora [output-dir]
+# Usage: scripts/vm/check.sh ubuntu|fedora|arch [output-dir]
 set -euo pipefail
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-distro=${1:?ubuntu or fedora}
+distro=${1:?ubuntu, fedora or arch}
 out=${2:-$HOME/Work/cirrove-vms/$distro/checks}
 mkdir -p "$out"
 log="$out/check.log"
@@ -36,6 +36,16 @@ case $distro in
   fedora) http_port=8001; pkgdir=pkgs/rpm; ssh_port=2223
           deps='fuse3 nautilus-python gnome-shell-extension-appindicator'
           installed='rpm -q' ;;
+  # Arch was checked by hand once, on 2026-09-14, which is how a difference
+  # between the families came to be found and then had nowhere to live. It is
+  # the family where the two desktop dependencies are optdepends and therefore
+  # are NOT installed -- so the badges in Files and the tray on GNOME arrive on
+  # the other two and do not arrive here. That is the distribution's convention
+  # and pacman prints it at install time; the check exists to keep it visible
+  # rather than to make it go away.
+  arch)   http_port=8002; pkgdir=pkgs/arch; ssh_port=2224
+          deps='fuse3 nautilus-python gnome-shell-extension-appindicator'
+          installed='pacman -Q' ;;
 esac
 
 # Whether each declared dependency is on the machine right now, one line each.
@@ -79,17 +89,25 @@ say "install the packages"
 fetch="python3 -c 'import sys,urllib.request; sys.stdout.write(urllib.request.urlopen(sys.argv[1]).read().decode())'"
 names=$(vm "$fetch http://10.0.2.2:$http_port/$pkgdir/ | grep -oE 'href=\"[^\"]+\"' | sed 's/href=\"//;s/\"//' | grep -v debug")
 echo "$names" | sed 's/^/  /'
-vm "mkdir -p pkgs && cd pkgs && for f in $(echo $names | tr '\n' ' '); do python3 -c 'import sys,urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])' http://10.0.2.2:$http_port/$pkgdir/\$f \$f; done && ls -la"
+# Cleared first: a machine that has been checked before still has the previous
+# run's packages, and `pacman -U ./pkgs/*` then sees two versions of each and
+# refuses the lot as duplicate targets. dnf and apt would take the newest
+# silently, which is worse -- the check would install something other than what
+# it just downloaded.
+vm "rm -rf pkgs && mkdir -p pkgs && cd pkgs && for f in $(echo $names | tr '\n' ' '); do python3 -c 'import sys,urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])' http://10.0.2.2:$http_port/$pkgdir/\$f \$f; done && ls -la"
 case $distro in
   ubuntu) vm "sudo apt-get install -y ./pkgs/*.deb" | tail -3 ;;
   fedora) vm "sudo dnf install -y ./pkgs/*.rpm" | tail -3 ;;
+  arch)   vm "sudo pacman -U --noconfirm ./pkgs/*.pkg.tar.zst" | tail -3 ;;
 esac
 say "the same dependencies afterwards -- brought in by the packages, not by hand"
 depstate | tee -a "$log"
 say "files the packages installed"
 vm 'ls -la /usr/bin/cirrove /usr/bin/cirroved /usr/bin/cirrove-tray /usr/bin/cirrove-desktop /usr/lib/systemd/user/cirroved.service /etc/xdg/autostart/io.github.Dandiccf.Cirrove.Tray.desktop /usr/share/nautilus-python/extensions/cirrove.py /usr/share/applications/io.github.Dandiccf.Cirrove.desktop /usr/share/metainfo/io.github.Dandiccf.Cirrove.metainfo.xml' | awk '{print "  "$5, $9}'
 say "the desktop entries and metainfo, from where they are installed"
-vm 'desktop-file-validate /usr/share/applications/io.github.Dandiccf.Cirrove.desktop && desktop-file-validate /etc/xdg/autostart/io.github.Dandiccf.Cirrove.Tray.desktop && (appstreamcli validate /usr/share/metainfo/io.github.Dandiccf.Cirrove.metainfo.xml 2>&1 | tail -1 || true)'
+# Said rather than assumed: a machine without the validator reports that it
+# has none, which is a different answer from a file that failed validation.
+vm 'if command -v desktop-file-validate >/dev/null; then desktop-file-validate /usr/share/applications/io.github.Dandiccf.Cirrove.desktop && desktop-file-validate /etc/xdg/autostart/io.github.Dandiccf.Cirrove.Tray.desktop && echo "  both desktop entries validate"; else echo "  desktop-file-validate is not on this machine"; fi; if command -v appstreamcli >/dev/null; then appstreamcli validate /usr/share/metainfo/io.github.Dandiccf.Cirrove.metainfo.xml 2>&1 | tail -1; else echo "  appstreamcli is not on this machine"; fi'
 
 say "start the service as the user"
 vm "$session_env systemctl --user enable --now cirroved.service && sleep 3 && $session_env systemctl --user is-active cirroved.service && cirrove status | head -c 400"
@@ -125,6 +143,7 @@ say "remove the packages and check nothing package-owned survived"
 case $distro in
   ubuntu) vm 'sudo apt-get purge -y cirrove-desktop cirrove' | tail -2 ;;
   fedora) vm 'sudo dnf remove -y cirrove-desktop cirrove' | tail -2 ;;
+  arch)   vm 'sudo pacman -Rns --noconfirm cirrove-desktop cirrove' | tail -2 ;;
 esac
 # Naming the files to look for is how the switch-to-package script came to
 # leave eight icons, a desktop entry and a metainfo file behind: a list you
