@@ -4,11 +4,12 @@ use cirrove_core::Scope;
 use cirrove_store::{MetadataChange, MetadataChangeKind};
 use std::{collections::BTreeSet, ops::Bound};
 // Ordering is by provider identity and inode, never allocation address. The
-// index shares each view's scope instead of duplicating its three strings.
+// index shares each view's scope instead of duplicating its three strings, and
+// its item is the view's own `Arc<str>` rather than a second copy of the id.
 #[derive(Clone, PartialEq, Eq)]
 struct Key {
     scope: Arc<Scope>,
-    item: Box<str>,
+    item: Arc<str>,
     inode: u64,
 }
 impl Key {
@@ -55,7 +56,7 @@ pub(in crate::filesystem) struct InvalidationBatch {
     pub next: InvalidationCursor,
     pub complete: bool,
 }
-fn key(scope: Arc<Scope>, item: &str, inode: u64) -> Key {
+fn key(scope: Arc<Scope>, item: impl Into<Arc<str>>, inode: u64) -> Key {
     Key {
         scope,
         item: item.into(),
@@ -63,12 +64,12 @@ fn key(scope: Arc<Scope>, item: &str, inode: u64) -> Key {
     }
 }
 fn keys(view: &View) -> impl Iterator<Item = Key> {
-    let primary = key(view.scope.clone(), &view.id, view.inode);
+    let primary = key(view.scope.clone(), view.id.clone(), view.inode);
     let source = view.entry.as_ref().and_then(|entry| {
         view.alias.last().map(|(collection, _)| {
             let mut scope = view.scope.as_ref().clone();
             scope.collection = collection.clone();
-            key(scope.into(), &entry.id, view.inode)
+            key(scope.into(), entry.id.as_str(), view.inode)
         })
     });
     std::iter::once(primary).chain(source)
