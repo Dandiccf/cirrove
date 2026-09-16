@@ -92,3 +92,28 @@ fn a_lookup_in_a_store_larger_than_the_page_cache_costs_no_read_syscall() {
         bytes / 1024 / 1024
     );
 }
+
+/// Connections are pooled per database file, and an in-memory database has no
+/// file: every `:memory:` open is a separate database. Pooling one would hand a
+/// caller somebody else's rows, and much of this project's test suite opens
+/// `:memory:` expecting a clean sheet.
+#[test]
+fn two_in_memory_stores_never_share_a_connection() {
+    let mut first = Store::open(":memory:").unwrap();
+    let drive = scope("isolation");
+    let parent = "root".to_string();
+    let children = vec![node(1, &parent)];
+    let planted = children[0].id.clone();
+    first.observe_directory(&drive, &parent, &children).unwrap();
+    assert!(first.children(&drive, &parent).unwrap().is_some());
+
+    let second = Store::open(":memory:").unwrap();
+    assert!(
+        second.children(&drive, &parent).unwrap().is_none(),
+        "a second in-memory store saw the first one's directory {planted}: an \
+         in-memory database is not a file and must never be pooled"
+    );
+    drop(first);
+    let third = Store::open(":memory:").unwrap();
+    assert!(third.children(&drive, &parent).unwrap().is_none());
+}

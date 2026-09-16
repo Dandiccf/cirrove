@@ -117,11 +117,9 @@ statement costs 0.10 ms where the same statement on a warm connection costs
 again.
 
 This is the other half of the sentence ADR 0006 wrote and nobody acted on: "A
-pooled read connection is a prerequisite, not an optimisation." The `EAGAIN`
-half is fixed above. The pool is not, and it wants its own record, because a
-pooled connection must not carry a transaction between users and must not
-sidestep the write gate. `Store::open`'s own comment already states the intent
--- "one connection per worker" -- and the code does not do it.
+pooled read connection is a prerequisite, not an optimisation." Both halves are
+fixed now; the pool is ADR 0013, which measures the same walk at 0.32 ms per
+entry and a daemon start settling in 57 seconds rather than 16 to 25 minutes.
 
 Measured and ruled out on the way, so that nobody pays for them twice:
 `Engine::refresh_active_directories` holds at most 32 directories two seconds
