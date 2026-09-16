@@ -58,5 +58,10 @@
     "name_45_to_84_bytes": "658 -> 696, so +38 for +39. Stored once. A guess that the name was held twice -- once in Node.name and once as View.name -- is wrong, and was worth ten minutes to find out rather than to assume."
   },
   "what_this_does_not_do": "It does not touch the 256 MiB peak gate, which still needs the full 500,000-file run and the machine to itself. What it buys is the ability to iterate on ADR 0014 tonight and measure the gate once, rather than measuring the gate to learn whether iterating is worth it.",
+  "where_the_structure_is": {
+    "the_second_copy_of_the_id": "`Key { scope: Arc<Scope>, item: Box<str>, inode: u64 }`. The `item` is a second copy of the node's id, which is what the 1.3 slope measured. Sharing it would mean `Node.id` becoming an `Arc<str>`, which is a bounded change worth perhaps 30 to 50 bytes per view -- the same size as the three passes already recorded as having moved 15 to 20 percent each.",
+    "two_maps_per_view": "`NamespaceViews.entries` is a BTreeMap<u64, Entry> where Entry is the View plus a generation and a flag -- about 104 bytes inline, plus whatever a B-tree node leaves unfilled. `ProjectionIndex.identities` is a BTreeSet<Key> with one Key per view.",
+    "what_this_means": "No single structure holds the 498 bytes. They are spread across the view, two B-tree maps and their slack, and the Arc allocations. That is why three passes each moved 15 to 20 percent and why a factor of two has not arrived: there is no one thing to remove. Anything that claims to reach the gate has to say which several things it removes, and this record is where the candidates are now written down."
+  },
   "why_small_scale_is_legitimate": "docs/benchmarks/namespace-memory-attribution.json records that bytes per live view reproduces to within 0.2 percent across rounds while retained RSS varies by about 6 percent. A per-view figure is a property of the structure, not of the traversal's size. The 256 MiB peak gate still needs the full 500,000-file run and is not claimed here."
 }
