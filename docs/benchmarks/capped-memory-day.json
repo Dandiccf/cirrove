@@ -61,6 +61,7 @@
     "first_sample": "rss 24,800 KiB, free arena 492 KiB, retained 2,988 KiB, 0 trims, root listing 0 ms, 184,151 items, both feeds ready.",
     "opened": "2026-09-16 18:35 +02:00, closing 2026-09-17 18:35",
     "started_at_unix": 1789576500,
+    "the_map_is_in_these_numbers": "This build reads the store through a memory map (ADR 0012), so RSS now includes mapped file pages that earlier attempts at this window did not have. Four and a half hours in: 36,112 KiB of RSS, of which 19,308 is anonymous and 16,804 is file-backed. On an idle daemon the map stays modest. Under a traversal that touches the whole store it does not -- traversal-peak-gate.json records RSS reaching 1,839 MiB at 500,000 files while the live heap did not move -- so this window's figure must be read as RSS of a daemon at rest, and the anonymous column is the one that compares with the earlier attempts.",
     "tmpdir": "ext4, asserted with findmnt. A tmpfs TMPDIR would move bytes out of process RSS without reducing host memory and flatter the result.",
     "voids_it": "a reboot of the VM or of this host, a daemon restart that is not recorded, replacing the installed cirrove package, or killing the QEMU process. The host must not be rebooted before 2026-09-17 evening.",
     "where": "Ubuntu VM, packages cirrove and cirrove-desktop 0.1.0~dev.r474.g35d0dd7-1 from this branch's CI run 35070813025, daemon pid 4548, sampler pid 4791.",
