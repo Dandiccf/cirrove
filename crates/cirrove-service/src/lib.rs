@@ -400,6 +400,14 @@ pub struct RecentReply {
     /// list that daemon can produce.
     #[serde(default)]
     pub stuck: Vec<recent::StuckChange>,
+    /// The saves the daemon has given up on, named rather than counted.
+    /// `failed_uploads` counted these from the day it was written and nothing
+    /// ever named them, so a person met a warning triangle and a number with no
+    /// way to learn which file it meant. Kept apart from `stuck` because the
+    /// actions differ: discarding a refused folder removal loses nothing, and
+    /// discarding a failed save loses what the person wrote.
+    #[serde(default)]
+    pub failed: Vec<recent::StuckChange>,
     #[serde(default)]
     pub refusal: Option<String>,
 }

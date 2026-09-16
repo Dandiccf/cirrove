@@ -96,6 +96,15 @@ impl WriteControl {
             .await
             .map_err(|_| std::io::Error::other("local namespace is unavailable"))
     }
+    pub async fn failed_uploads_named(
+        &self,
+        limit: usize,
+    ) -> std::io::Result<Vec<crate::recent::StuckChange>> {
+        self.writer
+            .failed_uploads_named(limit)
+            .await
+            .map_err(|_| std::io::Error::other("local namespace is unavailable"))
+    }
     pub async fn recent_local(
         &self,
         limit: usize,

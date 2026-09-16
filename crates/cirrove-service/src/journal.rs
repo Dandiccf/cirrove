@@ -545,6 +545,23 @@ impl UploadJournal {
         )?;
         Ok(count.max(0) as u64)
     }
+    /// The saves the daemon has given up on, newest first.
+    ///
+    /// `failed_uploads` has counted these since it was written and nothing ever
+    /// named them, so a person met a warning triangle and a number and had no
+    /// way to learn which file it was about. The owner found exactly that on
+    /// 2026-09-16 and asked what the triangle meant; answering it took copying
+    /// the journal off the machine and resolving an item id by hand.
+    pub fn failed_upload_list(&self, limit: usize) -> Result<Vec<UploadRecord>> {
+        let mut query = self.db.prepare(
+            "SELECT body FROM uploads WHERE state IN ('failed','conflict')
+             ORDER BY sequence DESC LIMIT ?1",
+        )?;
+        let rows = query.query_map(params![limit.clamp(1, 1000) as i64], |r| {
+            r.get::<_, String>(0)
+        })?;
+        rows.map(|row| Ok(serde_json::from_str(&row?)?)).collect()
+    }
     pub fn list(&self, after: u64, limit: u32) -> Result<Vec<UploadRecord>> {
         let Ok(after) = i64::try_from(after) else {
             return Ok(Vec::new());

@@ -251,10 +251,31 @@ impl Manager {
                 change.path = engine.relative_path_of(&scope, &id).await;
             }
         }
+        // The same treatment for saves that failed. A create carries its own
+        // name and no path; a replace carries only the item id, so it needs
+        // both resolved before a person can act on it.
+        let mut failed = match &control {
+            Some(control) => control
+                .failed_uploads_named(limit)
+                .await
+                .unwrap_or_default(),
+            None => Vec::new(),
+        };
+        for change in &mut failed {
+            if let Some(id) = change.path.take() {
+                if change.name.is_empty()
+                    && let Ok(node) = engine.node(&scope, &id).await
+                {
+                    change.name = node.name;
+                }
+                change.path = engine.relative_path_of(&scope, &id).await;
+            }
+        }
         Ok(crate::RecentReply {
             remote,
             local,
             stuck,
+            failed,
             refusal: None,
         })
     }

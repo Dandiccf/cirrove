@@ -882,7 +882,7 @@ impl Window {
             "The cloud has decided about these; sending them again would act on what is there now"
         }));
         row.unsent.set_visible(card.failed_uploads > 0);
-        row.unsent.set_subtitle(&fill(
+        let mut unsent = fill(
             &gettext(
                 "{} did not reach the cloud. The file is on this computer; the cloud has an older version or none. Open the file and save it again to try once more.",
             ),
@@ -891,7 +891,28 @@ impl Window {
             } else {
                 fill(&gettext("{} saves"), &[&card.failed_uploads.to_string()])
             }],
-        ));
+        );
+        // Which file, not just how many. Without this the row is a warning sign
+        // a person cannot act on: the owner met exactly that on 2026-09-16 and
+        // asked what the triangle meant, and answering it needed the journal
+        // copied off the machine and an item id resolved by hand.
+        if !card.failed_paths.is_empty() {
+            let shown: Vec<&str> = card
+                .failed_paths
+                .iter()
+                .take(3)
+                .map(String::as_str)
+                .collect();
+            unsent.push('\n');
+            unsent.push_str(&shown.join(", "));
+            if card.failed_paths.len() > shown.len() {
+                unsent.push_str(&fill(
+                    &gettext(", and {} more"),
+                    &[&(card.failed_paths.len() - shown.len()).to_string()],
+                ));
+            }
+        }
+        row.unsent.set_subtitle(&unsent);
         self.render_kept_offline(row, card, idle);
         // Removal under a running mount would race it; the daemon refuses, and
         // the button says so before the user gets that far.

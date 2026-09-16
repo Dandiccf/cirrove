@@ -104,6 +104,10 @@ pub struct AccountCard {
     /// something is wrong and not what; these are the paths behind it, so the
     /// row can say "Old invoices" instead of "1 change".
     pub refused_paths: Vec<String>,
+    /// The saves that never reached the cloud, by path. The count beside them
+    /// existed from the first day and the names did not, so a warning sign said
+    /// that something was wrong and never which file.
+    pub failed_paths: Vec<String>,
     /// How many of those are worth trying again.
     ///
     /// A change that failed -- a quota, a permission, a connection that went
@@ -480,6 +484,20 @@ impl Overview {
                         .map(|(_, reply)| {
                             reply
                                 .stuck
+                                .iter()
+                                .map(|change| {
+                                    change.path.clone().unwrap_or_else(|| change.name.clone())
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default(),
+                    failed_paths: snapshot
+                        .activity
+                        .iter()
+                        .find(|(label, _)| label == &account.label)
+                        .map(|(_, reply)| {
+                            reply
+                                .failed
                                 .iter()
                                 .map(|change| {
                                     change.path.clone().unwrap_or_else(|| change.name.clone())

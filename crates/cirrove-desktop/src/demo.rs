@@ -152,6 +152,12 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
                             state: "failed".into(),
                         },
                     ],
+                    failed: vec![cirrove_service::recent::StuckChange {
+                        what: "save".into(),
+                        name: "Quarterly report.odt".into(),
+                        path: Some("Projects/Quarterly report.odt".into()),
+                        state: "failed".into(),
+                    }],
                     refusal: None,
                 },
             )]

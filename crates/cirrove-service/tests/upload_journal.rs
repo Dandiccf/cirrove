@@ -694,3 +694,51 @@ fn journal_crash_fixture() {
         std::thread::park();
     }
 }
+
+/// A save the daemon has given up on must be nameable, not only countable.
+///
+/// `failed_uploads` counted these from the day it was written and nothing ever
+/// named them. The owner met the result on 2026-09-16: a warning triangle in
+/// the window beside a drive that otherwise read "Connected", a count of one,
+/// and no way at all to learn which file it was about. Answering the question
+/// took copying this journal off the machine and resolving an item id by hand
+/// against the metadata store.
+#[test]
+fn a_save_the_daemon_gave_up_on_can_be_named_and_not_only_counted() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let mut journal = open(&root);
+    assert!(journal.failed_upload_list(10).unwrap().is_empty());
+
+    let doomed = journal
+        .enqueue(scope(), create("Quarterly report.odt"), BYTES)
+        .unwrap();
+    let healthy = journal
+        .enqueue(scope(), create("Untouched.txt"), BYTES)
+        .unwrap();
+    // Corrupting the sealed payload is the shortest route to a save the daemon
+    // will not try again; how it got there is not what this asserts.
+    let path = root.join("objects").join(doomed.id.to_string());
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+    std::fs::write(&path, vec![0; BYTES.len()]).unwrap();
+    assert!(matches!(journal.claim_next(), Err(JournalError::Corrupt)));
+    assert_eq!(journal.get(doomed.id).unwrap().state, UploadState::Failed);
+
+    assert_eq!(
+        journal.failed_uploads().unwrap(),
+        1,
+        "the count still works"
+    );
+    let named = journal.failed_upload_list(10).unwrap();
+    assert_eq!(
+        named.len(),
+        1,
+        "the count says one; the list must say which one"
+    );
+    assert_eq!(named[0].id, doomed.id);
+    assert_ne!(named[0].id, healthy.id, "a queued save is not a failed one");
+    match &named[0].intent {
+        UploadIntent::Create { name, .. } => assert_eq!(name, "Quarterly report.odt"),
+        other => panic!("a create must carry the name it was saving: {other:?}"),
+    }
+}

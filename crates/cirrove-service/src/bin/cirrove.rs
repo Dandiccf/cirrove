@@ -1045,6 +1045,20 @@ async fn main() -> Result<()> {
                     );
                 }
             }
+            // `status` reports these as `failed_uploads`, a number beside a
+            // warning sign. Which file it was about could not be learned from
+            // this program at all until now.
+            if !reply.failed.is_empty() {
+                println!("Saves that never reached the cloud:");
+                for change in reply.failed {
+                    println!(
+                        "  {}  {}  {}",
+                        change.state,
+                        change.what,
+                        change.path.as_deref().unwrap_or(&change.name)
+                    );
+                }
+            }
         }
         Command::Paths {
             label,

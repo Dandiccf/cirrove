@@ -89,6 +89,15 @@ impl WriteWorkers {
             .await
             .unwrap_or_default()
     }
+    pub(crate) async fn failed_uploads_named(
+        &self,
+        limit: usize,
+    ) -> Vec<crate::recent::StuckChange> {
+        self.control
+            .failed_uploads_named(limit)
+            .await
+            .unwrap_or_default()
+    }
     pub(crate) async fn recent_local(&self, limit: usize) -> Vec<crate::recent::LocalChange> {
         self.control.recent_local(limit).await.unwrap_or_default()
     }
@@ -219,6 +228,12 @@ impl WritableSession {
     pub async fn stuck_changes_named(&self, limit: usize) -> Vec<crate::recent::StuckChange> {
         match &self.writers {
             Some(writers) => writers.stuck_changes_named(limit).await,
+            None => Vec::new(),
+        }
+    }
+    pub async fn failed_uploads_named(&self, limit: usize) -> Vec<crate::recent::StuckChange> {
+        match &self.writers {
+            Some(writers) => writers.failed_uploads_named(limit).await,
             None => Vec::new(),
         }
     }

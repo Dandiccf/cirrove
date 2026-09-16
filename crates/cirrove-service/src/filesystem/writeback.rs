@@ -429,6 +429,37 @@ impl Writeback {
             })
             .collect())
     }
+    /// The saves the daemon has given up on, named.
+    ///
+    /// A create carries its own name; a replace names only the item it was
+    /// acting on, so the caller resolves that against the index exactly as it
+    /// does for a stuck mutation. These are kept apart from stuck mutations on
+    /// purpose: discarding a refused folder removal loses nothing, and
+    /// discarding a failed save loses what the person wrote.
+    pub async fn failed_uploads_named(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<crate::recent::StuckChange>> {
+        use cirrove_core::upload::UploadIntent;
+        let records = self.local(move |j| j.failed_upload_list(limit)).await?;
+        Ok(records
+            .into_iter()
+            .map(|record| {
+                let (what, name, id) = match &record.intent {
+                    UploadIntent::Create { name, .. } => ("save new file", name.clone(), None),
+                    UploadIntent::Replace { item, .. } => {
+                        ("save", String::new(), Some(item.clone()))
+                    }
+                };
+                crate::recent::StuckChange {
+                    what: what.to_owned(),
+                    name,
+                    path: id,
+                    state: format!("{:?}", record.state).to_ascii_lowercase(),
+                }
+            })
+            .collect())
+    }
     pub async fn recent_local(&self, limit: usize) -> Result<Vec<crate::recent::LocalChange>> {
         let records = self.local(|j| j.list(0, 10_000)).await?;
         Ok(records
