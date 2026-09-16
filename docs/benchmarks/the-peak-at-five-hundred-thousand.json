@@ -1,0 +1,16 @@
+{
+ "question": "ADR 0014 is implemented and measured at 40,000 files: 492 to 520 bytes per live view, from 650 to 664. Its own gate is peak RSS at or below 256 MiB over three rounds at 500,000 files. Does it pass, and if not, by how much -- measured rather than extrapolated?",
+ "registered": "2026-09-17",
+ "registered_before_the_run": true,
+ "prediction": {
+  "verdict": "fails",
+  "peak": "385 to 400 MiB anonymous PSS at traversed_with_old_files, against a 256 MiB gate and against 492.8 / 490.7 / 504.1 MiB recorded at 650 bytes per view on 2026-09-08.",
+  "bytes_per_live_view": "495 to 525, matching the 40,000-file figure, because bytes per live view is scale-free -- that is what bytes-per-live-view.json established and this run also tests it at the other end.",
+  "arithmetic": "750,438 live views at about 510 bytes is 382.7 MB live. The recorded runs put peak RSS about 30 MB above live bytes, so about 413 MB, or 394 MiB. The gate needs 268 MB, which at 750,438 views is about 318 bytes each.",
+  "so_what_would_close_it": "a further 38 percent off a figure that four passes have now moved 15 to 20 percent each. Saying that before the run rather than after it is the point of writing this down.",
+  "i_may_be_wrong_about": "the 30 MB constant between live heap and RSS. It was read off runs with a different allocation mix -- an Arc<Node> per view produced many more small chunks than the slim view does -- so fragmentation could be lower now and the peak could come in under 385. It cannot plausibly come in under 256: that would need live bytes to be wrong by a factor of 1.5, and the 40,000-file figure reproduces to within 6 percent across three rounds.",
+  "written_before_the_run": true
+ },
+ "safety": "The capped-memory window is open in the Ubuntu VM on this host until 2026-09-17 18:35. The host has 45 GB available and this traversal peaks near 0.5 GB, so it does not endanger the window. The claim that it could not run beside the window was wrong once already and is recorded as such in the memory notes.",
+ "result": null
+}
