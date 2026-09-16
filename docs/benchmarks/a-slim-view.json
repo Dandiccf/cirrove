@@ -1,4 +1,5 @@
 {
+  "a_constraint_found_while_stopping": "`unlink` must not fetch a fresh node, and realising why changes the arithmetic again. The delete carries an eTag precondition (ADR 0008), and the version that precondition names has to be the version the caller looked at. Fetching the current node at unlink time would delete a version the person never saw -- the exact hazard that record exists to prevent. So a slim view on a writable mount has to keep the eTag, which is another per-view string and perhaps 40 bytes back. On a read-only mount it does not. Whether the traversal gate is measured writable decides whether that matters to the number, and that is the first thing to check next time rather than the last.",
   "attempted": {
     "how_far": "The View was changed, 85 compile errors fell to 38 through mechanical replacement plus three designed changes: `project` returns the node beside the view instead of swallowing it, `inode_key` takes the node its callers already hold, and `View::remember` keeps the slim fields in step when a node is refreshed. Then reverted, leaving the tree green.",
     "when": "2026-09-17, 00:20 to 00:50",
