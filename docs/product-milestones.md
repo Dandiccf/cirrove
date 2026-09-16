@@ -15,7 +15,7 @@ Private account measurements belong in local records, not the public repository.
 - [x] Remove Graph metadata checks per cache block from the validated read-session
       fast path; implement and measure shared session setup, bounded sequential
       windows and safe renewal as specified in [read-session efficiency](adr/0004-read-session-efficiency.md).
-- [ ] Push-triggered metadata updates, reconnection/catch-up and periodic recovery checks, with provider delivery and local reaction latency measured separately.
+- [x] Push-triggered metadata updates, reconnection/catch-up and periodic recovery checks, with provider delivery and local reaction latency measured separately.
 - [ ] Bounded memory and background work with large libraries and long sessions.
 - [ ] Reclaim inactive namespace views with correct FUSE lifetimes; pass the
       500,000-file traversal, invalidation and 24-hour churn memory gates in

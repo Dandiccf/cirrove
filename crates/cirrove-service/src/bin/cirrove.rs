@@ -240,6 +240,10 @@ enum Command {
         /// Also wait for the real 50-minute renewal and verify a fresh notification.
         #[arg(long)]
         check_renewal: bool,
+        /// Leave the fixture folder in the drive after a passing run. A failing
+        /// run keeps it either way; this is for inspecting one that worked.
+        #[arg(long)]
+        keep_fixture: bool,
     },
     /// Developer-only rename, move and file deletion inside a new synthetic folder.
     ValidateOnedriveMutations {
@@ -629,9 +633,15 @@ async fn main() -> Result<()> {
             label,
             state_dir,
             check_renewal,
+            keep_fixture,
         } => {
-            cirrove_service::validation::onedrive_notifications(&state_dir, &label, check_renewal)
-                .await?;
+            cirrove_service::validation::onedrive_notifications(
+                &state_dir,
+                &label,
+                check_renewal,
+                keep_fixture,
+            )
+            .await?;
         }
         Command::ValidateOnedriveMutations { label, state_dir } => {
             cirrove_service::validation::onedrive_mutations(&state_dir, &label).await?;
