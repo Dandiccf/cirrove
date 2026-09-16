@@ -1,0 +1,61 @@
+{
+  "endpoint": "peak_rss_kib and live bytes per view at the traversed_with_old_files phase, three rounds, measured with the repository's own heap probe.",
+  "measured": {
+    "bytes_per_live_view": [
+      662,
+      649
+    ],
+    "fixture": "filesystem::capacity::real_combined_namespace_churn, CIRROVE_CHURN_FILES=500000, 750,438 live views, this build, host with 62 GiB and 44 GiB free.",
+    "released_phase_round_2": {
+      "anonymous_pss_mib": 20.5,
+      "note": "705 MiB of resident file pages with the views gone and the heap back to 19 MB.",
+      "rss_mib": 725.6
+    },
+    "rounds": [
+      {
+        "anonymous_pss_mib": 483.2,
+        "live_mb": 515.4,
+        "peak_rss_mib": 516.5,
+        "round": 1,
+        "rss_mib": 516.5
+      },
+      {
+        "anonymous_pss_mib": 476.4,
+        "live_mb": 505.8,
+        "peak_rss_mib": 1181.5,
+        "round": 2,
+        "rss_mib": 1181.5
+      },
+      {
+        "anonymous_pss_mib": 491.3,
+        "live_mb": 517.6,
+        "peak_rss_mib": 1839.4,
+        "round": 3,
+        "rss_mib": 1839.4
+      }
+    ]
+  },
+  "prediction": {
+    "bytes_per_view": "637 to 664, matching both the 2026-09-08 run at this scale and tonight's 60,093-view run.",
+    "gate": "fails, at roughly twice the 256 MiB bound. Nothing has been built to change that; this run establishes what today's number is so that the next design has a baseline measured on this build rather than one from eight days ago.",
+    "peak": "492.8 to 504.1 MiB, as recorded on 2026-09-08, give or take the 6 percent that retained RSS varies by. Today's changes -- a memory map over the store and pooled connections -- should not move it: neither touches a view, and mapped pages are file-backed rather than heap. If the peak has MOVED, that is a finding in itself and the map is the first suspect, because it puts reclaimable file pages in RSS.",
+    "written_before_the_run": true
+  },
+  "question": "ADR 0005's peak gate: at 500,000 files, does traversed_with_old_files hold at most 256 MiB, and what is it today on this machine with this build?",
+  "registered": "2026-09-16",
+  "registered_before_the_run": true,
+  "result": "The gate fails, as predicted, but not only for the predicted reason. Bytes per live view is 649-662, unchanged from the 637-657 recorded on 2026-09-08 and matching tonight's small-scale run, so the live cost of a view has not moved. Peak RSS has: 516 MiB in round one, 1,182 in round two, 1,839 in round three.",
+  "source_base": "d5681b989c84f4f34caf9cfd4543d214d3ccfa64",
+  "source_sha256": {
+    "crates/cirrove-service/src/filesystem.rs": "6d07717a2cc297440c97714e35021bfb768ebb5a6b93d08a1f6fa708fff11757",
+    "crates/cirrove-service/src/filesystem/residency.rs": "f49c46814ba3caf30964035fe64b3b63e3d4db2c802e4e8a69af5bfd56335ed2"
+  },
+  "the_prediction_that_mattered": "It said: 'If the peak has MOVED, that is a finding in itself and the map is the first suspect, because it puts reclaimable file pages in RSS.' It has, and it is. Anonymous PSS stays at 476-491 MiB across all three rounds while RSS climbs by about 660 MiB per round, and the released phase of round two holds 725.6 MiB of RSS against 20.5 MiB of anonymous PSS. What grows is the store's mapped pages becoming resident, round after round.",
+  "this_is_a_regression_i_introduced": "ADR 0012 set PRAGMA mmap_size to 2 GiB to stop the daemon fetching pages it already had, one syscall at a time. It measured resident memory afterwards on an idle daemon -- 87 MB to 150 MB, reclaimed to 69 MB -- and concluded the cost was bounded and reclaimable. It never measured it under a traversal that touches the whole store, and under one the whole store becomes resident. Two gates in this project measure RSS. The pages are file-backed and the kernel reclaims them under pressure, so this is not a leak; but a bound that reads RSS cannot tell the difference, and neither can a person looking at their process list.",
+  "what_has_to_be_decided_next": [
+    "Bound the map: at 256 MiB the same owner's store still fell only to 391,989 reads per second from 875,000, so this trades most of the fix away and needs its own measurement rather than a guess.",
+    "Or measure what the gate means: anonymous PSS held flat at 476-491 MiB through all three rounds and is the number that tracks what the daemon actually holds. Changing a gate's metric to pass it is moving the goalposts, and doing it because the metric stopped measuring the thing is not -- but the difference has to be argued in ADR 0005, not asserted here.",
+    "Either way the peak gate fails today on live data alone: 750,438 views at 650 bytes is 488 MB of heap against a 256 MiB bound, and no map is involved in that number."
+  ],
+  "why_now": "I said earlier this evening that it could not be run beside the open capped-memory window. That was wrong and I checked instead of repeating it: the host has 62 GiB with 44 GiB available, and the traversal peaks near 500 MB. The incident the caution came from was the measurement VM plus the whole test suite spawning many test binaries at once, not one fixture."
+}

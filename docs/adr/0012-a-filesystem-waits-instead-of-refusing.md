@@ -63,6 +63,22 @@ were 18.7 MB against a 256 MiB map.
 
 ## Cost
 
+**Corrected 2026-09-16, the same day, by the gate it did not think to run.** This
+section measured resident memory on an idle daemon -- 87 MB to 150 MB, reclaimed
+to 69 MB -- and concluded the map's cost was bounded. Under a traversal that
+touches the whole store, the whole store becomes resident. At 500,000 files the
+peak went 516 MiB, then 1,182, then 1,839 across three rounds, while anonymous
+PSS stayed at 476 to 491 MiB and the live heap did not move at all; the released
+phase of round two held 725.6 MiB of RSS against 20.5 MiB of anonymous PSS.
+
+The pages are file-backed and the kernel reclaims them under pressure, so this
+is not a leak. But **two gates in this project measure RSS**, and a bound that
+reads RSS cannot tell a mapped page from a held one. Neither can a person
+looking at their process list, and this owner has already asked once why the
+daemon was using what it was using. `traversal-peak-gate.json` carries the
+numbers and the two ways out, neither of which should be chosen without its own
+measurement.
+
 **An I/O error on a mapped page arrives as SIGBUS, not as an error return.** A
 failing disk takes the mount down instead of reporting a fault. This is the
 real price and it is why this is a decision record rather than a commit. It is
