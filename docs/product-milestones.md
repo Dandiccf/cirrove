@@ -259,7 +259,7 @@ account repair and the wider recovery flow still need implementation and accepta
 - [x] GTK4/libadwaita setup and settings without a terminal in ordinary flows.
 - [x] Account picker, mount controls, reconnect, connection removal and cleanup.
 - [ ] Tray status and actions using the daemon as the source of truth.
-- [ ] Nautilus badges, pin/unpin actions and consistent status refresh.
+- [x] Nautilus badges, pin/unpin actions and consistent status refresh.
 - [ ] Actionable errors, progress, cancellation and conflict resolution.
 - [ ] Keyboard navigation, accessibility, localization and visual verification.
 - [x] Verify a declared session matrix covering native Wayland and X11, and GNOME
