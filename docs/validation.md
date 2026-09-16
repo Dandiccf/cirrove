@@ -2504,19 +2504,41 @@ say what became real and what broke on the way.
 target moves, a link whose target is deleted, folder-only access, and per-item
 permissions. One linked folder that works is not the row.
 
-## One mounted test failed once in five, and then would not do it again
+## A pin that said "database is locked", and the lock upgrade behind it
 
 **2026-09-16.** `real_a_recursive_pin_keeps_the_files_under_a_folder_readable_offline`
-failed inside a full `scripts/check.sh`, and passed on every attempt to make it
-do so again: alone, and four times in the group under the environment
-`check.sh` gives it (`CIRROVE_RECLAIM_FLOOR_BYTES=8388608`,
-`CIRROVE_RECLAIM_INTERVAL_SECONDS=1`, `--test-threads=1`). A second full
-`check.sh` was green.
+failed inside a full `scripts/check.sh`, twice in five runs, and would not fail
+on demand: not alone, and not four times in its group under the environment
+`check.sh` gives it. It was tempting to record it as a one-in-five and move on.
 
-Written down rather than re-run past, because this project has done the other
-thing before and paid for it. One in five is not a number to act on and not a
-number to forget: the next time it appears, this is the second sighting rather
-than the first.
+**The error said nothing, and that was the first thing to fix.** The job read
+`issue: Some("metadata database error")`, because `StoreError::Database` threw
+SQLite's own words away. With those words restored the second sighting read
+`database is locked`, and the hunt took minutes instead of runs.
+
+**The cause is a lock upgrade, and connection pooling only changed the timing.**
+`Pins::protect_blocks` opened a DEFERRED transaction, read the pin, and then
+deleted its rows. A deferred transaction that reads first holds a read lock and
+must upgrade to write, and SQLite answers an upgrade that collides with another
+writer by returning `SQLITE_BUSY` **immediately, bypassing the busy handler** --
+the same behaviour `initial_wal` has documented in this file for journal-mode
+changes since it was written. So a writer that should have waited its three
+seconds failed at once, and a person keeping a folder offline was told the
+database was locked halfway through the fetch.
+
+It is now IMMEDIATE, which takes the write lock up front so the handler applies,
+and so is `unpin` -- which writes first and was safe, but is one statement away
+from not being. `protecting_blocks_waits_for_a_writer_instead_of_failing_at_once`
+reproduces the old failure deterministically: without the change it panics with
+`DatabaseBusy, "database is locked"`, the same words the intermittent run gave.
+
+**The pool was suspected and cleared.** Two full checks with pooling disabled
+were green, which was consistent with the pool being at fault and would have
+been enough to blame it. The four other deferred transactions in the store were
+then read rather than guessed at: `children`, `child`, `with_children`,
+`visit_children` and `metadata_changes` write nothing, and the directory
+staging transaction writes only temp tables. None of them needs IMMEDIATE, and
+giving it to a reader would take write locks for reads.
 
 Two other failures seen the same evening were **not** this, and are recorded so
 nobody chases them twice. Running the group by hand fails

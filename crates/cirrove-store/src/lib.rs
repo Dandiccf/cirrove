@@ -287,7 +287,13 @@ fn hold(gate: &Arc<Mutex<()>>) -> MutexGuard<'_, ()> {
 
 #[derive(Debug, thiserror::Error)]
 pub enum StoreError {
-    #[error("metadata database error")]
+    /// Carries SQLite's own words. Without them this read "metadata database
+    /// error" and nothing else, which is what a person saw when a pin failed
+    /// and what a developer saw when trying to find out why -- an intermittent
+    /// failure on 2026-09-16 cost two full check runs to narrow down because
+    /// the one line that knew what happened did not say it. SQLite's messages
+    /// describe states ("database is locked", "disk I/O error"), not paths.
+    #[error("metadata database error: {0}")]
     Database(#[from] rusqlite::Error),
     #[error("invalid stored metadata")]
     Encoding(#[from] serde_json::Error),
@@ -990,6 +996,57 @@ mod tests {
         assert!(db.node(&scope, "item").unwrap().is_none());
         assert!(db.children(&scope, "root").unwrap().unwrap().is_empty());
     }
+    #[test]
+    fn protecting_blocks_waits_for_a_writer_instead_of_failing_at_once() {
+        // `protect_blocks` reads the pin and then deletes its rows. A DEFERRED
+        // transaction that reads first takes a read lock and has to upgrade to
+        // write, and SQLite answers an upgrade that collides with another
+        // writer by returning BUSY **immediately**, bypassing the busy handler
+        // -- the same behaviour `initial_wal` documents for journal-mode
+        // changes. So this failed instantly rather than waiting its three
+        // seconds, and a pin fetch reported "database is locked" to the person
+        // halfway through. Seen twice in full check runs on 2026-09-16, made
+        // frequent by connection pooling, which changed the timing rather than
+        // the fault.
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("db");
+        // The pin exists before anything holds the lock, so the measurement
+        // below is about `protect_blocks` and not about getting there.
+        let mut waiting = Store::open(&path).unwrap();
+        assert!(
+            waiting
+                .pin("account", "item", false, 10, 1_000_000)
+                .expect("the pin itself must be taken")
+                .is_ok(),
+            "the budget must accept this pin, or the lock below is never reached"
+        );
+        let (release, released) = std::sync::mpsc::channel();
+        let (entered, holding) = std::sync::mpsc::channel();
+        std::thread::scope(|threads| {
+            let blocking = path.clone();
+            threads.spawn(move || {
+                let mut blocker = Store::open(&blocking).unwrap();
+                entered.send(()).unwrap();
+                blocker.write_and_block(&released).unwrap();
+            });
+            holding.recv().unwrap();
+            std::thread::sleep(std::time::Duration::from_millis(200));
+            let releasing = std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(600));
+                release.send(()).unwrap();
+            });
+            let started = std::time::Instant::now();
+            waiting
+                .protect_blocks("account", "item", &["block-key".to_owned()])
+                .expect("protecting blocks must wait for the writer, not fail at once");
+            assert!(
+                started.elapsed() >= std::time::Duration::from_millis(400),
+                "it did not wait at all, so it never met the lock this asserts about"
+            );
+            releasing.join().unwrap();
+        });
+    }
+
     #[test]
     fn a_writer_blocked_past_the_busy_timeout_waits_instead_of_failing() {
         // The recorded CI failure was a writer that exhausted SQLite's busy
