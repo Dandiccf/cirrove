@@ -1,0 +1,17 @@
+{
+ "question": "inval-entry-rate.json retired shedding: 107 invalidations per second under concurrent lookups, against the 1,400 a resident ceiling needs during a traversal. Its own limits section says 'One parent directory. Invalidations spread across many parents would contend less.' A resident ceiling sheds the OLDEST views, which are by construction in directories the traversal has already left. Does the rate survive when the invalidation and the lookups are in different parents?",
+ "why_this_is_worth_re-opening": "The mechanism that record identified is `fuse_reverse_inval_entry` taking the parent's `i_rwsem` exclusively while `lookup_slow` holds the same lock shared for a whole round trip. That lock is per-inode. If it is the only mechanism, then invalidating in a directory nobody is looking at should cost nothing, and the measured 107 is the worst case rather than the traversal case. The measurement was never taken because the instrument has one parent.",
+ "registered": "2026-09-17",
+ "registered_before_the_run": true,
+ "prediction": {
+  "disjoint": "1,300 to 1,400 per second at a 1 ms server delay -- that is, the requested rate, matching the no-worker control which reached 1,400 with a slowest invalidation of 74 microseconds. The i_rwsem is per-inode and nothing else in the path is per-connection except the notification channel itself.",
+  "same": "about 429 per second with eight workers spread over eight directories, because the recorded control shows one worker per parent giving 429 and eight giving 108. If `same` does not reproduce roughly that, the instrument's new layout has changed something else and neither arm may be believed.",
+  "the_ceiling": "a 4,000-requested arm in disjoint mode finds where it actually stops. I do not have a number for that and am not going to invent one.",
+  "i_may_be_wrong_about": "head-of-line blocking on the single /dev/fuse notification channel. Every notification is a write to one fd, processed by the kernel synchronously, so one invalidation that blocks on a contended parent blocks every later one whatever parent it names. In disjoint mode nothing should block -- but if the channel serialises more than I think, disjoint will read far below 1,400 and the whole idea dies here.",
+  "what_it_would_mean_if_it_holds": "not that shedding closes the row. It would mean shedding was retired on a worst case that a real ceiling does not meet, and that ADR 0005's first way out deserves re-reading before its second is designed. The claim would still have to be made against Cirrove's own handler rather than this instrument's injected delay.",
+  "written_before_the_run": true
+ },
+ "instrument": "benchmarks/inval-entry, extended with multiple parent directories and a mode choosing whether invalidations land where the stat workers are or elsewhere. Deliberately outside the workspace, as before.",
+ "the_bar": "about 1,400 sheds per second. A 500,000-file traversal resolves 750,438 views; this build does it in 96 seconds per round, not the 530 the original bar was set from, which makes the bar HARDER, not easier: 750,438 in 96 seconds is 7,800 per second.",
+ "result": null
+}
