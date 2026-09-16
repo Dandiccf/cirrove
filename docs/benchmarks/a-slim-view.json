@@ -20,6 +20,7 @@
   "source_sha256": {
     "crates/cirrove-service/src/filesystem.rs": "6d07717a2cc297440c97714e35021bfb768ebb5a6b93d08a1f6fa708fff11757"
   },
+  "the_fact_that_settles_it": "The gate fixture mounts with `CloudFs::new`, not `new_experimental_writable`. It is **read-only**. So neither of the two functions that stopped the refactor is reachable while the gate is being measured: `writeback::unlink` and `writeback::ancestry` both live behind a writeback that is `None` there. The eTag constraint that seemed to sink the design applies to writable mounts, which this gate does not measure. The resolution for writable mounts costs the gate nothing: carry `etag` and `parent_id` as `Option<Arc<str>>`, populated only where a writeback exists. On the read-only mount the gate measures they are `None` -- eight bytes each and no allocation. On a writable mount they cost what they cost, and correctness comes first there.",
   "what_the_attempt_established": [
     "The design is sound and needs no store lookup in any FUSE callback. The 22 sync sites that made ADR 0014 expensive do not arise, because the view keeps `id`, `kind`, `size` and `modified_unix` inline and that is what they read.",
     "`inode_key` was the one worry and it is not one: both real callers hold a node already, and `snapshot_batch` can keep its nodes for the life of a 128-entry batch rather than the life of the views.",
@@ -37,5 +38,11 @@
     "size": 1,
     "target": 1,
     "whole node (all of them assignments, none a read)": 9
-  }
+  },
+  "what_the_next_session_should_do": [
+    "Start from this: the design is viable, the gate is read-only, and the two writeback functions need the optional fields rather than a fetch.",
+    "Redo the mechanical pass -- it took minutes and got 85 errors to 38 -- then restructure `ancestry` to collect ids under the views mutex and resolve after it, and give `unlink` the optional etag and parent id rather than a fresh node.",
+    "Measure at 40,000 files first: three minutes, and bytes per live view is scale-free (bytes-per-live-view.json). Only then spend half an hour on the 500,000 gate.",
+    "And ask ADR 0005 the question this turned up: a peak gate measured read-only says nothing about a writable mount, where a view has to carry more. That may be the right scope, but it is currently an accident of the fixture rather than a decision."
+  ]
 }
