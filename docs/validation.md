@@ -2468,3 +2468,38 @@ Refreshing from the provider is the feed's job, and doing it inside a discard
 would be a second, worse copy of it.
 
 Final state of that drive: no leftovers, 192 mutations, all applied.
+
+## A linked folder into a second drive, on the real account
+
+**2026-09-16, the owner's account, developer install on Arch.** This was never
+arranged: the account's `Dokumente` folder turned out to be a `shortcut` node
+whose target is a second collection's root, so every day's work has been going
+through a linked folder into another drive without anybody writing it down. The
+matrix called that row *fixture*.
+
+Checked through the link, with the owner at the machine:
+
+- **Traversal and read.** `Dokumente/Unternehmen/Umlaufbeschlüsse/20220408
+  Umlaufbeschluss goodguys.pdf` reads back `%PDF-`, 139,703 bytes, in a file
+  manager and from the shell.
+- **Keeping offline.** Kept from the Files context menu; the daemon recorded one
+  pin of 139,735 reserved bytes and `kept_generation` moved to 2. The badge
+  appeared and the menu switched to its un-keep wording.
+- **Write.** A 48-byte throwaway file created inside the linked folder was
+  uploaded, and the provider reported it back through the delta feed.
+- **Delete.** Removed through the link; gone from the mount, no failed uploads
+  and nothing stuck. Nothing of the owner's own data was touched.
+
+**It found a defect, which is the reason to write this down rather than tick a
+box.** `relative_path` walked a node's ancestors until it reached the account's
+configured root, and this account has two. Every item in the linked drive walked
+up to a parentless node that did not match and resolved to no path at all, so
+`cirrove pins` named the file `01YQR2QYPXJNXJZ7LXENA2KXH77S2VBEFB`, and refused
+changes and failed saves in that drive would have been just as nameless. A node
+without a parent is a drive root, whichever drive it is; fixed with four tests,
+two of which fail without it. Recorded because a row that reads *real* should
+say what became real and what broke on the way.
+
+**Still fixture, and not claimed:** duplicate links to one target, a link whose
+target moves, a link whose target is deleted, folder-only access, and per-item
+permissions. One linked folder that works is not the row.
