@@ -63,7 +63,7 @@ fn key(scope: Arc<Scope>, item: &str, inode: u64) -> Key {
     }
 }
 fn keys(view: &View) -> impl Iterator<Item = Key> {
-    let primary = key(view.scope.clone(), &view.node.id, view.inode);
+    let primary = key(view.scope.clone(), &view.id, view.inode);
     let source = view.entry.as_ref().and_then(|entry| {
         view.alias.last().map(|(collection, _)| {
             let mut scope = view.scope.as_ref().clone();
@@ -123,7 +123,7 @@ impl NamespaceViews {
                 return true;
             };
             if change.is_some_and(|c| c.kind == MetadataChangeKind::Directory)
-                && view.node.kind != NodeKind::Folder
+                && view.kind != NodeKind::Folder
             {
                 return true;
             }
@@ -135,7 +135,7 @@ impl NamespaceViews {
                 inode,
                 parent: view.parent,
                 name: view.name.clone(),
-                directory: view.node.kind == NodeKind::Folder,
+                directory: view.kind == NodeKind::Folder,
                 entry: !change.is_some_and(|c| c.kind == MetadataChangeKind::Directory),
             });
             true
@@ -200,7 +200,7 @@ mod tests {
         MetadataChange {
             scope: view.scope.as_ref().clone(),
             kind,
-            identity: view.node.id.clone(),
+            identity: view.id.to_string(),
         }
     }
     fn selected(cache: &NamespaceViews, change: Option<&MetadataChange>) -> Vec<u64> {
@@ -221,19 +221,22 @@ mod tests {
     fn identity_selection_preserves_aliases_versions_and_account_boundaries() {
         let mut cache = cache();
         let mut first = view(2, NodeKind::File);
-        Arc::make_mut(&mut first.node).id = "target".into();
+        // The index keys on the view's own identity now, and a writable view
+        // still carries the node; keep the two saying the same thing.
+        first.id = "target".into();
+        Arc::make_mut(first.node.as_mut().unwrap()).id = "target".into();
         let target = change(&first, MetadataChangeKind::Item);
         let held = cache.insert(first.clone()).unwrap();
         let mut version = first.clone();
         version.inode = 3;
         version.residency = Arc::default();
-        Arc::make_mut(&mut version.node).etag = Some("new".into());
+        Arc::make_mut(version.node.as_mut().unwrap()).etag = Some("new".into());
         let held_version = cache.insert(version).unwrap();
         let mut link = first.clone();
         link.inode = 4;
         link.residency = Arc::default();
         link.alias = vec![("source-drive".into(), "shortcut".into())].into();
-        let mut entry = link.node.clone();
+        let mut entry = link.node.clone().unwrap();
         Arc::make_mut(&mut entry).id = "shortcut".into();
         link.entry = Some(entry);
         let held_link = cache.insert(link).unwrap();

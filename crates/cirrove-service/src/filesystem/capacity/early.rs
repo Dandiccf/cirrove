@@ -42,8 +42,8 @@ pub(super) async fn run(close_early: bool) {
     let parent = inner.view(inode).unwrap();
     let keys = (0..128)
         .map(|index| {
-            let view = Inner::project(&parent, provider.node_at(index + 2)).unwrap();
-            Inner::inode_key(&view, false).unwrap()
+            let (view, node) = Inner::project(&parent, provider.node_at(index + 2), false).unwrap();
+            Inner::inode_key(&view, &node, false).unwrap()
         })
         .collect::<Vec<_>>();
     drop(parent);

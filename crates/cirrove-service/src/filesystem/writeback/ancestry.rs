@@ -55,7 +55,7 @@ impl Inner {
         let mut current = view.clone();
         let mut visited = std::collections::HashSet::new();
         loop {
-            if current.node.package {
+            if current.package {
                 return Err(Errno::EOPNOTSUPP);
             }
             if current.inode == 1 {
@@ -83,12 +83,12 @@ impl Inner {
                 let parent = views.get(&current.parent).ok_or(Errno::ESTALE)?;
                 if let Some(entry) = &current.entry {
                     let mut node = entry.as_ref().clone();
-                    node.parent_id = Some(parent.node.id.clone());
+                    node.parent_id = Some(parent.id.to_string());
                     entries.push((parent.scope.as_ref().clone(), node));
-                } else if current.node.kind == NodeKind::Folder {
+                } else if current.kind == NodeKind::Folder {
                     entries.push((
                         current.scope.as_ref().clone(),
-                        current.node.as_ref().clone(),
+                        current.node.as_ref().ok_or(Errno::EINVAL)?.as_ref().clone(),
                     ));
                 }
                 current = parent.clone();

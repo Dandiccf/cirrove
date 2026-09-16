@@ -121,7 +121,7 @@ impl NamespaceViews {
         // metadata can reuse an already live projection, without an intern cache.
         let shared = self
             .invalidation
-            .matches(&view.scope, &view.node.id)
+            .matches(&view.scope, &view.id)
             .find_map(|candidate| {
                 let existing = &self.entries.get(&candidate)?.view;
                 (existing.scope == view.scope && existing.node == view.node).then(|| {
@@ -168,7 +168,7 @@ impl NamespaceViews {
             return Err(ProviderError::Protocol("reserved namespace inode"));
         }
         let entry = self.entries.get(&parent).ok_or(ProviderError::NotFound)?;
-        if entry.view.node.kind != NodeKind::Folder {
+        if entry.view.kind != NodeKind::Folder {
             return Err(ProviderError::Protocol(
                 "namespace parent is not a directory",
             ));
@@ -300,8 +300,24 @@ mod tests {
     use super::*;
     use cirrove_core::{Node, Scope};
 
+    pub(super) fn node(inode: u64, kind: NodeKind) -> Node {
+        Node {
+            package: false,
+            id: format!("item-{inode}"),
+            parent_id: Some("root".into()),
+            name: format!("item-{inode}"),
+            kind,
+            size: 0,
+            modified_unix: 0,
+            etag: Some("version".into()),
+            content_version: None,
+            target: None,
+        }
+    }
+    /// A fixture view keeps its node, which is what a writable mount does.
+    /// Tests that care about the read-only shape say so themselves.
     pub(super) fn view(inode: u64, kind: NodeKind) -> View {
-        View {
+        let mut view = View {
             residency: Arc::default(),
             _parent_residency: None,
             inode,
@@ -312,24 +328,31 @@ mod tests {
                 collection: "drive".into(),
             }
             .into(),
-            node: Node {
-                package: false,
-                id: format!("item-{inode}"),
-                parent_id: Some("root".into()),
-                name: format!("item-{inode}"),
-                kind,
-                size: 0,
-                modified_unix: 0,
-                etag: Some("version".into()),
-                content_version: None,
-                target: None,
-            }
-            .into(),
+            id: Arc::from(""),
+            kind: NodeKind::Folder,
+            size: 0,
+            modified_unix: 0,
+            package: false,
+            node: None,
             name: format!("item-{inode}").into(),
             alias: vec![].into(),
             reference: false,
             entry: None,
             ancestry: vec![].into(),
+        };
+        view.remember(&node(inode, kind), true);
+        view
+    }
+    /// The node a writable fixture view kept.
+    pub(super) fn held(view: &View) -> &Node {
+        view.node.as_deref().unwrap()
+    }
+    /// Two views sharing one allocation, which is what interning produces and
+    /// what a read-only view (holding no node at all) never does.
+    pub(super) fn shares_node(left: &View, right: &View) -> bool {
+        match (&left.node, &right.node) {
+            (Some(left), Some(right)) => Arc::ptr_eq(left, right),
+            _ => false,
         }
     }
     pub(super) fn cache() -> NamespaceViews {
@@ -343,32 +366,32 @@ mod tests {
         let mut alias = first.clone();
         alias.inode = 3;
         alias.residency = Arc::default();
-        alias.node = Arc::new(first.node.as_ref().clone());
+        alias.node = Some(Arc::new(held(&first).clone()));
         alias.name = first.name.as_ref().into();
         alias.alias = vec![("drive".into(), "second-link".into())].into();
-        assert!(!Arc::ptr_eq(&first.node, &alias.node));
+        assert!(!shares_node(&first, &alias));
         let alias = cache.insert(alias).unwrap();
-        assert!(Arc::ptr_eq(&first.node, &alias.node));
+        assert!(shares_node(&first, &alias));
         assert!(Arc::ptr_eq(&first.name, &alias.name));
         assert!(!Arc::ptr_eq(&first.residency, &alias.residency));
         assert_ne!(
-            super::super::Inner::inode_key(&first, false).unwrap(),
-            super::super::Inner::inode_key(&alias, false).unwrap()
+            super::super::Inner::inode_key(&first, held(&first), false).unwrap(),
+            super::super::Inner::inode_key(&alias, held(&alias), false).unwrap()
         );
         let mut changed = alias.clone();
         changed.inode = 4;
         changed.residency = Arc::default();
-        Arc::make_mut(&mut changed.node).etag = Some("new-version".into());
+        Arc::make_mut(changed.node.as_mut().unwrap()).etag = Some("new-version".into());
         let changed = cache.insert(changed).unwrap();
-        assert!(!Arc::ptr_eq(&first.node, &changed.node));
-        assert_eq!(first.node.etag.as_deref(), Some("version"));
+        assert!(!shares_node(&first, &changed));
+        assert_eq!(held(&first).etag.as_deref(), Some("version"));
         let mut other = first.clone();
         other.inode = 5;
         other.residency = Arc::default();
-        other.node = Arc::new(first.node.as_ref().clone());
+        other.node = Some(Arc::new(held(&first).clone()));
         Arc::make_mut(&mut other.scope).account = "other-account".into();
         let other = cache.insert(other).unwrap();
-        assert!(!Arc::ptr_eq(&first.node, &other.node));
+        assert!(!shares_node(&first, &other));
         drop((first, alias, changed, other));
         cache.collect(128);
         assert_eq!(cache.len(), 1);
@@ -568,57 +591,71 @@ mod tests {
     fn shared_projection_metadata_preserves_inode_encoding_and_detaches_edits() {
         use super::super::Inner;
         let parent = view(1, NodeKind::Folder);
-        let first = Inner::project(&parent, view(3, NodeKind::File).node.as_ref().clone()).unwrap();
-        let sibling =
-            Inner::project(&parent, view(4, NodeKind::File).node.as_ref().clone()).unwrap();
+        let (first, first_node) = Inner::project(&parent, node(3, NodeKind::File), true).unwrap();
+        let (sibling, _) = Inner::project(&parent, node(4, NodeKind::File), true).unwrap();
         assert!(Arc::ptr_eq(&first.scope, &sibling.scope));
         assert!(Arc::ptr_eq(&first.alias, &sibling.alias));
         assert!(Arc::ptr_eq(&first.ancestry, &sibling.ancestry));
         // Persistent inode keys must remain byte-for-byte compatible with owned metadata.
         assert_eq!(
-            Inner::inode_key(&first, false).unwrap(),
+            Inner::inode_key(&first, &first_node, false).unwrap(),
             r#"["content-inode-v1",["account",[],"drive","item-3"],["etag","version"],0]"#
         );
         assert_eq!(
-            Inner::inode_key(&first, true).unwrap(),
+            Inner::inode_key(&first, &first_node, true).unwrap(),
             r#"["account",[],"drive","item-3"]"#
         );
-        let mut changed = first.clone();
-        assert!(Arc::ptr_eq(&first.node, &changed.node));
-        Arc::make_mut(&mut changed.node).etag = Some("replacement".into());
-        assert_eq!(first.node.etag.as_deref(), Some("version"));
+        // A read-only projection keeps no node and still keys identically: the
+        // key reads the node its caller holds, not one the view stores.
+        let (lean, lean_node) = Inner::project(&parent, node(3, NodeKind::File), false).unwrap();
+        assert!(lean.node.is_none());
+        assert!(first.node.is_some());
+        assert_eq!(
+            Inner::inode_key(&lean, &lean_node, false).unwrap(),
+            Inner::inode_key(&first, &first_node, false).unwrap()
+        );
+        let mut changed = first_node.clone();
+        changed.etag = Some("replacement".into());
+        assert_eq!(first_node.etag.as_deref(), Some("version"));
         assert_ne!(
-            Inner::inode_key(&first, false).unwrap(),
-            Inner::inode_key(&changed, false).unwrap()
+            Inner::inode_key(&first, &first_node, false).unwrap(),
+            Inner::inode_key(&first, &changed, false).unwrap()
         );
         assert_eq!(
-            Inner::inode_key(&first, true).unwrap(),
-            Inner::inode_key(&changed, true).unwrap()
+            Inner::inode_key(&first, &first_node, true).unwrap(),
+            Inner::inode_key(&first, &changed, true).unwrap()
         );
+        // Where a writable mount does keep the node, a clone shares it until
+        // one of the two writes, and then the other keeps what it read.
+        let held = first.node.clone().unwrap();
+        let mut copy = first.clone();
+        assert!(Arc::ptr_eq(&held, copy.node.as_ref().unwrap()));
+        Arc::make_mut(copy.node.as_mut().unwrap()).etag = Some("replacement".into());
+        assert_eq!(held.etag.as_deref(), Some("version"));
 
-        let mut node = view(5, NodeKind::Shortcut).node.as_ref().clone();
+        let mut node = node(5, NodeKind::Shortcut);
         node.target = Some(Box::new(cirrove_core::RemoteRef {
             collection: "shared".into(),
             item: "target".into(),
             kind: Some(NodeKind::Folder),
         }));
-        let link = Inner::project(&parent, node.clone()).unwrap();
+        let (link, link_node) = Inner::project(&parent, node.clone(), true).unwrap();
         assert_eq!(link.entry.as_deref(), Some(&node));
-        assert!(link.node.target.is_none());
-        assert_eq!(link.node.id, "target");
+        assert!(link_node.target.is_none());
+        assert_eq!(&*link.id, "target");
         assert_eq!(parent.scope.collection, "drive");
         assert!(parent.alias.is_empty());
         assert!(parent.ancestry.is_empty());
         assert_eq!(
-            Inner::inode_key(&link, false).unwrap(),
+            Inner::inode_key(&link, &link_node, false).unwrap(),
             r#"["account",[["drive","item-5"]],"shared","target"]"#
         );
         let mut another = node;
         another.id = "another-shortcut".into();
-        let another = Inner::project(&parent, another).unwrap();
+        let (another, another_node) = Inner::project(&parent, another, true).unwrap();
         assert_ne!(
-            Inner::inode_key(&link, false).unwrap(),
-            Inner::inode_key(&another, false).unwrap()
+            Inner::inode_key(&link, &link_node, false).unwrap(),
+            Inner::inode_key(&another, &another_node, false).unwrap()
         );
         // Appending a linked folder route cannot change its siblings or parent.
         assert_eq!(
@@ -635,9 +672,8 @@ mod tests {
     fn listing_only_projection_protects_parent_without_acquiring_kernel_references() {
         let mut cache = cache();
         let parent = child(&mut cache, 2, 1, NodeKind::Folder);
-        let projected =
-            super::super::Inner::project(&parent, view(3, NodeKind::File).node.as_ref().clone())
-                .unwrap();
+        let (projected, _) =
+            super::super::Inner::project(&parent, node(3, NodeKind::File), false).unwrap();
         drop(parent);
         assert_eq!(cache.collect(100), 0);
         assert_eq!(cache.len(), 2);

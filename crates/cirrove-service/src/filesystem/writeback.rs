@@ -641,7 +641,7 @@ impl Writeback {
         truncate: bool,
         cancel: &CancellationToken,
     ) -> Result<WorkingFile> {
-        let identity = key(&view.scope, &view.node.id);
+        let identity = key(&view.scope, &view.id);
         let gate = {
             let mut gates = self.hydrating.lock().map_err(|_| Errno::EIO)?;
             gates.retain(|_, v| v.strong_count() > 0);
@@ -659,17 +659,19 @@ impl Writeback {
             _ = cancel.cancelled() => return Err(Errno::ENODEV),
             guard = gate.lock() => guard,
         };
-        let working = match self.working(&view.scope, &view.node.id)? {
+        let working = match self.working(&view.scope, &view.id)? {
             Some(working) => working,
             None => {
                 // A link is resolved at lookup to its target scope and local
                 // owner. Only target file metadata may become a working copy;
                 // the source-side shortcut itself is never mutated here.
-                if view.node.kind != NodeKind::File || view.node.target.is_some() {
+                if view.kind != NodeKind::File
+                    || view.node.as_ref().is_some_and(|n| n.target.is_some())
+                {
                     return Err(Errno::EOPNOTSUPP);
                 }
                 let scope = view.scope.as_ref().clone();
-                let node = view.node.as_ref().clone();
+                let node = view.node.as_ref().ok_or(Errno::EINVAL)?.as_ref().clone();
                 let object = self
                     .local(move |j| Self::materialize(j, scope, node))
                     .await?;

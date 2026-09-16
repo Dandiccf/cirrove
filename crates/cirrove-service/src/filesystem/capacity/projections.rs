@@ -15,7 +15,11 @@ fn shared_projection_payload_baseline() {
         foreground_requests: AtomicU64::new(0),
     };
     let node = generator.node_at(0);
-    let root = View {
+    // Which mount this measures used to be decided by whichever constructor the
+    // fixture happened to call, and it happened to call the read-only one. The
+    // two now cost different amounts (ADR 0014), so the gate says which it means.
+    let writable = std::env::var("CIRROVE_PROJECTION_WRITABLE").is_ok_and(|v| v == "1");
+    let mut root = View {
         residency: Arc::default(),
         _parent_residency: None,
         inode: 1,
@@ -27,12 +31,18 @@ fn shared_projection_payload_baseline() {
         }
         .into(),
         ancestry: vec![("primary-synthetic-collection".into(), "root".into())].into(),
-        node: node.into(),
+        id: Arc::from(""),
+        kind: NodeKind::Folder,
+        size: 0,
+        modified_unix: 0,
+        package: false,
+        node: None,
         name: "root".into(),
         alias: vec![].into(),
         reference: false,
         entry: None,
     };
+    root.remember(&node, writable);
     let before = process_memory();
     let start = Instant::now();
     let mut views = NamespaceViews::new(root.clone());
@@ -51,7 +61,7 @@ fn shared_projection_payload_baseline() {
                 item: "shared-root".into(),
                 kind: Some(NodeKind::Folder),
             }));
-            let mut view = Inner::project(&parent, link).unwrap();
+            let (mut view, _) = Inner::project(&parent, link, writable).unwrap();
             view.inode = inode;
             inode += 1;
             parent = views.insert(view).unwrap();
@@ -60,8 +70,8 @@ fn shared_projection_payload_baseline() {
             let mut node = generator.node_at(0);
             node.id = format!("directory-with-a-stable-identity-{depth}");
             node.name = format!("directory-{depth}");
-            node.parent_id = Some(parent.node.id.clone());
-            let mut view = Inner::project(&parent, node).unwrap();
+            node.parent_id = Some(parent.id.to_string());
+            let (mut view, _) = Inner::project(&parent, node, writable).unwrap();
             view.inode = inode;
             inode += 1;
             parent = views.insert(view).unwrap();
@@ -74,11 +84,11 @@ fn shared_projection_payload_baseline() {
     for file in 0..files {
         let parent = &parents[file % 3];
         let mut node = generator.node_at(generator.directories() + 1 + file / 3);
-        node.parent_id = Some(parent.node.id.clone());
-        let mut view = Inner::project(parent, node).unwrap();
+        node.parent_id = Some(parent.id.to_string());
+        let (mut view, node) = Inner::project(parent, node, writable).unwrap();
         view.inode = inode;
         if file < 3 {
-            keys.push(Inner::inode_key(&view, false).unwrap());
+            keys.push(Inner::inode_key(&view, &node, writable).unwrap());
         }
         inode += 1;
         let view = views.insert(view).unwrap();
@@ -109,6 +119,7 @@ fn shared_projection_payload_baseline() {
         "CIRROVE_PROJECTION_PAYLOAD {}",
         serde_json::json!({
             "files":files,"routes":3,"directory_depth":12,"held_clones":32,
+            "mount":if writable {"writable"} else {"read-only"},
             "view_inline_bytes":std::mem::size_of::<View>(),"node_inline_bytes":std::mem::size_of::<Node>(),"before":before,
             "populated":populated,"after_retirement":process_memory(),
             "retained_views":views.len(),"populate_ms":elapsed_ms,

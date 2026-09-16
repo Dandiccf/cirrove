@@ -116,12 +116,52 @@ struct View {
     // Immutable metadata is shared by operations/open handles. Sibling files
     // also share their unchanged scope, alias route and ancestry.
     scope: Arc<Scope>,
-    node: Arc<Node>,
+    // What a live view remembers of its item, instead of a whole `Node`.
+    //
+    // Counted before this changed: of 74 reads of the node, 41 wanted `id` and
+    // 14 wanted `kind`; the nine uses of the whole node were all assignments.
+    // A `Node` per live view is five heap strings kept in case somebody asks,
+    // and at 750,438 views during a traversal that is the larger half of the
+    // 650 bytes each one costs.
+    //
+    // The id is an `Arc<str>` so the invalidation index can share it rather
+    // than keeping the separate `Box<str>` copy measurement found it holding.
+    id: Arc<str>,
+    kind: NodeKind,
+    size: u64,
+    modified_unix: u64,
+    package: bool,
+    // The whole node, and only where a writeback exists.
+    //
+    // The write path needs all of it: `materialize` puts the node into the
+    // journal's namespace, and `unlink` must name the version the caller looked
+    // at rather than a fresh one -- fetching would delete a version nobody saw,
+    // which is what ADR 0008 exists to prevent. So a writable mount keeps what
+    // it kept before.
+    //
+    // A read-only mount needs none of it, and that is where a traversal of
+    // 750,000 files happens. `None` is eight bytes; the `Arc<Node>` it replaces
+    // was about 336 with its allocation and its five heap strings.
+    node: Option<Arc<Node>>,
     name: Arc<str>,
     alias: Arc<Vec<(String, String)>>,
     reference: bool,
     entry: Option<Arc<Node>>,
     ancestry: Arc<Vec<(String, String)>>,
+}
+impl View {
+    /// Take from a node exactly what a live view keeps. Everything else stays
+    /// in the store, which is where it already is.
+    fn remember(&mut self, node: &Node, writable: bool) {
+        self.id = node.id.as_str().into();
+        self.kind = node.kind.clone();
+        self.size = node.size;
+        self.modified_unix = node.modified_unix;
+        self.package = node.package;
+        if writable {
+            self.node = Some(Arc::new(node.clone()));
+        }
+    }
 }
 #[derive(Clone)]
 struct OpenFile {
@@ -182,7 +222,7 @@ impl CloudFs {
         self.inner.runtime.spawn(async move {
             let _admission = admission;
             if let Some(writer) = &inner.writeback {
-                match writer.working(&file.view.scope, &file.view.node.id) {
+                match writer.working(&file.view.scope, &file.view.id) {
                     Ok(Some(record)) => match writer.seal(record.id).await {
                         Ok(()) => reply.ok(),
                         Err(e) => reply.error(e),
@@ -223,19 +263,30 @@ impl CloudFs {
             target: None,
         };
         let scope = engine.scope(&engine.account.drive.id);
-        let root = View {
+        let mut view = View {
             residency: Arc::default(),
             _parent_residency: None,
             inode: ROOT_INODE,
             parent: ROOT_INODE,
             ancestry: vec![(scope.collection.clone(), root.id.clone())].into(),
             scope: scope.into(),
-            node: root.into(),
+            id: Arc::from(""),
+            kind: NodeKind::Folder,
+            size: 0,
+            modified_unix: 0,
+            package: false,
+            node: None,
             name: engine.account.label.as_str().into(),
             alias: vec![].into(),
             reference: false,
             entry: None,
         };
+        // The root's node is synthesised, not stored: its name is the account
+        // label, which no row carries. So this one view keeps it -- one
+        // allocation for the life of the mount -- and `remember` is asked for
+        // the writable shape whatever the mount, for that reason alone.
+        view.remember(&root, true);
+        let root = view;
         Ok(Self {
             inner: Arc::new(Inner {
                 cancel: engine.cancel.child_token(),
@@ -499,7 +550,10 @@ impl Inner {
         }
         false
     }
-    fn project(parent: &View, child: Node) -> Result<View, ProviderError> {
+    /// Returns the node beside the view rather than inside it: the caller
+    /// wants it for the inode key and for attributes, and a view that keeps it
+    /// for its whole life is what costs 650 bytes each during a traversal.
+    fn project(parent: &View, child: Node, writable: bool) -> Result<(View, Node), ProviderError> {
         if child.name.is_empty()
             || child.name == "."
             || child.name == ".."
@@ -539,30 +593,41 @@ impl Inner {
             inode: 0,
             parent: parent.inode,
             scope,
-            node: node.into(),
+            id: node.id.as_str().into(),
+            kind: node.kind.clone(),
+            size: node.size,
+            modified_unix: node.modified_unix,
+            package: node.package,
+            node: writable.then(|| Arc::new(node.clone())),
             name,
             alias,
             reference: entry.is_some(),
             entry,
             ancestry,
         };
-        Ok(view)
+        // The node goes back to the caller rather than into the view: it is
+        // wanted for the inode key and for attributes, both while the caller
+        // still holds it. Keeping it for the life of the view is the cost.
+        Ok((view, node))
     }
-    fn inode_key(view: &View, writable: bool) -> Result<String, ProviderError> {
+    /// The node is passed rather than read off the view: a view carries its
+    /// identity, and the content revision belongs to the metadata, which every
+    /// caller of this holds already.
+    fn inode_key(view: &View, node: &Node, writable: bool) -> Result<String, ProviderError> {
         let identity = (
             &view.scope.account,
             view.alias.as_ref(),
             &view.scope.collection,
-            &view.node.id,
+            &*view.id,
         );
         // Regular-file revisions have independent kernel page caches. Stable
         // provider identity remains account/drive/item; names never enter the key.
-        if view.node.kind == NodeKind::File && !writable {
+        if view.kind == NodeKind::File && !writable {
             serde_json::to_string(&(
                 "content-inode-v1",
                 identity,
-                view.node.content_revision(),
-                view.node.size,
+                node.content_revision(),
+                node.size,
             ))
         } else {
             serde_json::to_string(&identity)
@@ -570,31 +635,33 @@ impl Inner {
         .map_err(|_| ProviderError::Unavailable)
     }
     async fn insert(&self, parent: &View, child: Node) -> Result<View, ProviderError> {
-        let mut view = Self::project(parent, child)?;
+        let writable = self.writeback.is_some();
+        // The node lives as long as this call, not as long as the view.
+        let (mut view, mut node) = Self::project(parent, child, writable)?;
         if view.reference {
             let (local, retained) = match &self.writeback {
-                Some(writer) => writer
-                    .reference_view(&view.scope, &view.node.id)
-                    .map_err(|e| {
-                        if e == Errno::ENOENT {
-                            ProviderError::NotFound
-                        } else {
-                            ProviderError::Unavailable
-                        }
-                    })?,
+                Some(writer) => writer.reference_view(&view.scope, &view.id).map_err(|e| {
+                    if e == Errno::ENOENT {
+                        ProviderError::NotFound
+                    } else {
+                        ProviderError::Unavailable
+                    }
+                })?,
                 None => (None, false),
             };
             if let Some(local) = local {
-                Arc::make_mut(&mut view.node).id = local;
-                view.node = self.node(&view).await?.into();
-            } else if view.node.kind == NodeKind::Folder && retained {
+                view.id = local.as_str().into();
+                node = self.node(&view).await?;
+                view.remember(&node, writable);
+            } else if view.kind == NodeKind::Folder && retained {
                 // A retained shortcut is the local route to an absent target
                 // root. Its directory view remains traversable without metadata.
             } else {
-                view.node = self.engine.node(&view.scope, &view.node.id).await?.into();
+                node = self.engine.node(&view.scope, &view.id).await?;
+                view.remember(&node, writable);
             }
         }
-        let key = Self::inode_key(&view, self.writeback.is_some())?;
+        let key = Self::inode_key(&view, &node, writable)?;
         let db = self.engine.db.clone();
         view.inode = tokio::task::spawn_blocking(move || Store::open(db)?.inode(&key))
             .await
@@ -636,11 +703,7 @@ impl Inner {
             self.directory_budget.clone(),
             self.cancel.clone(),
         );
-        let (scope, item, db) = (
-            parent.scope.clone(),
-            parent.node.id.clone(),
-            engine.db.clone(),
-        );
+        let (scope, item, db) = (parent.scope.clone(), parent.id.clone(), engine.db.clone());
         let (send, receive) = tokio::sync::oneshot::channel();
         let worker = self.runtime.spawn(async move {
             let mut send = Some(send);
@@ -737,7 +800,7 @@ impl Inner {
                 if cancel.is_cancelled() || snapshot.cancelled() {
                     return Err(Errno::ENODEV);
                 }
-                match Self::project(&route[0], node.map_err(|_| Errno::EIO)?) {
+                match Self::project(&route[0], node.map_err(|_| Errno::EIO)?, writable) {
                     Ok(view) => projected.push(view),
                     Err(ProviderError::Protocol(_)) => {
                         tracing::warn!(
@@ -760,41 +823,42 @@ impl Inner {
         result.inspect_err(|error: &Errno| snapshot.fail(error.code()))?;
         Ok(snapshot)
     }
+    /// The nodes travel with their views through the batch and are dropped with
+    /// it. A batch is 128 entries; a view outlives the listing that made it.
     fn snapshot_batch(
         store: &mut Store,
-        projected: &mut Vec<View>,
+        projected: &mut Vec<(View, Node)>,
         writable: bool,
         snapshot: &mut directories::Builder,
     ) -> Result<(), Errno> {
-        for view in projected.iter_mut() {
+        for (view, node) in projected.iter_mut() {
             // A cold link stays provisional until LOOKUP resolves its target;
             // listing only uses cached target metadata, never provider I/O.
             if view.reference
-                && let Some(node) = store
-                    .node(&view.scope, &view.node.id)
-                    .map_err(|_| Errno::EIO)?
+                && let Some(fresh) = store.node(&view.scope, &view.id).map_err(|_| Errno::EIO)?
             {
-                view.node = node.into();
+                view.remember(&fresh, writable);
+                *node = fresh;
             }
         }
         let keys = projected
             .iter()
-            .map(|view| Self::inode_key(view, writable).map_err(|e| errno(&e)))
+            .map(|(view, node)| Self::inode_key(view, node, writable).map_err(|e| errno(&e)))
             .collect::<Result<Vec<_>, _>>()?;
         let inodes = store.inodes(&keys).map_err(|_| Errno::EIO)?;
-        for (view, inode) in projected.drain(..).zip(inodes) {
+        for ((view, _node), inode) in projected.drain(..).zip(inodes) {
             // READDIR does not create kernel lookup references. Only the parent
             // route is retained by the snapshot, not every projected child.
-            snapshot.push(inode, view.node.kind == NodeKind::Folder, &view.name)?;
+            snapshot.push(inode, view.kind == NodeKind::Folder, &view.name)?;
         }
         Ok(())
     }
     async fn children(&self, parent: &View) -> Result<Vec<Node>, ProviderError> {
         let identity = match &self.writeback {
             Some(writer) => writer
-                .directory_identity(&parent.scope, &parent.node.id)
+                .directory_identity(&parent.scope, &parent.id)
                 .map_err(|_| ProviderError::Unavailable)?,
-            None => Some(parent.node.id.clone()),
+            None => Some(parent.id.to_string()),
         };
         let nodes = match identity {
             Some(item) => match self.engine.children(&parent.scope, &item).await {
@@ -802,7 +866,7 @@ impl Inner {
                 Err(ProviderError::NotFound) => {
                     let retained = match &self.writeback {
                         Some(w) => w
-                            .retains_directory(&parent.scope, &parent.node.id)
+                            .retains_directory(&parent.scope, &parent.id)
                             .map_err(|_| ProviderError::Unavailable)?,
                         None => false,
                     };
@@ -817,7 +881,7 @@ impl Inner {
         };
         match &self.writeback {
             Some(writer) => writer
-                .overlay(&parent.scope, &parent.node.id, nodes)
+                .overlay(&parent.scope, &parent.id, nodes)
                 .map_err(|_| ProviderError::Unavailable),
             None => Ok(nodes),
         }
@@ -825,47 +889,83 @@ impl Inner {
     async fn node(&self, view: &View) -> Result<Node, ProviderError> {
         if let Some(writer) = &self.writeback
             && let Some(node) = writer
-                .node(&view.scope, &view.node.id)
+                .node(&view.scope, &view.id)
                 .map_err(|_| ProviderError::Unavailable)?
         {
             return Ok(node);
         }
         if let Some(writer) = &self.writeback
-            && view.node.kind == NodeKind::Folder
+            && view.kind == NodeKind::Folder
             && writer
-                .retains_directory(&view.scope, &view.node.id)
+                .retains_directory(&view.scope, &view.id)
                 .map_err(|_| ProviderError::Unavailable)?
         {
-            return Ok(view.node.as_ref().clone());
+            return Ok(view
+                .node
+                .as_ref()
+                .ok_or(ProviderError::Unavailable)?
+                .as_ref()
+                .clone());
         }
         if let Some(writer) = &self.writeback
             && writer
-                .follows_remote(&view.scope, &view.node.id)
+                .follows_remote(&view.scope, &view.id)
                 .map_err(|_| ProviderError::Unavailable)?
         {
             let item = writer
-                .remote_identity(&view.scope, &view.node.id)
+                .remote_identity(&view.scope, &view.id)
                 .map_err(|_| ProviderError::Unavailable)?
                 .ok_or(ProviderError::Unavailable)?;
             let mut node = self.engine.node(&view.scope, &item).await?;
-            node.id = view.node.id.clone();
+            node.id = view.id.to_string();
             writer
                 .localize_parent(&view.scope, &mut node)
                 .map_err(|_| ProviderError::Unavailable)?;
             return Ok(node);
         }
-        if view.inode == ROOT_INODE || view.node.kind == NodeKind::File {
-            return Ok(view.node.as_ref().clone());
+        // A writable mount keeps the node and must answer with the version the
+        // caller looked at rather than the current one (ADR 0008). A read-only
+        // view keeps none; the callers that still need a whole node there --
+        // `open`, and the content path behind it -- pay a store read for it,
+        // which an attribute no longer does.
+        if (view.inode == ROOT_INODE || view.kind == NodeKind::File)
+            && let Some(node) = &view.node
+        {
+            return Ok(node.as_ref().clone());
         }
-        self.engine.node(&view.scope, &view.node.id).await
+        self.engine.node(&view.scope, &view.id).await
     }
+    /// The attributes of a view, and nothing else read to find them.
+    ///
+    /// A live view keeps exactly what a `getattr` answers with -- kind, size
+    /// and modified time -- so a read-only mount answers one from the view
+    /// alone: no node held for its lifetime, and no store read per call.
+    async fn attributes_of(&self, view: &View) -> Result<FileAttr, ProviderError> {
+        match &self.writeback {
+            None => Ok(self.attr_of(view)),
+            // A working copy, an overlay or a retained recovery route can each
+            // make the view stale, so a writable mount asks, as it always has.
+            Some(_) => {
+                let node = self.node(view).await?;
+                Ok(self.attr(view, &node))
+            }
+        }
+    }
+    fn attr_of(&self, view: &View) -> FileAttr {
+        self.attributes(view, view.kind.clone(), view.size, view.modified_unix)
+    }
+    /// Attributes from a node the caller holds, which may be newer than the
+    /// view: a truncate answers with the size it has just written.
     fn attr(&self, view: &View, node: &Node) -> FileAttr {
-        let directory = node.kind == NodeKind::Folder;
-        let time = UNIX_EPOCH + Duration::from_secs(node.modified_unix);
+        self.attributes(view, node.kind.clone(), node.size, node.modified_unix)
+    }
+    fn attributes(&self, view: &View, kind: NodeKind, size: u64, modified_unix: u64) -> FileAttr {
+        let directory = kind == NodeKind::Folder;
+        let time = UNIX_EPOCH + Duration::from_secs(modified_unix);
         FileAttr {
             ino: INodeNo(view.inode),
-            size: node.size,
-            blocks: node.size.div_ceil(512),
+            size,
+            blocks: size.div_ceil(512),
             atime: time,
             mtime: time,
             ctime: time,
@@ -887,7 +987,7 @@ impl Inner {
             } else if self
                 .writeback
                 .as_ref()
-                .is_some_and(|w| w.is_unlinked(&view.scope, &view.node.id).unwrap_or(false))
+                .is_some_and(|w| w.is_unlinked(&view.scope, &view.id).unwrap_or(false))
             {
                 0
             } else {
@@ -995,10 +1095,7 @@ impl Filesystem for CloudFs {
             let result = async {
                 let node = if inner.writeback.is_none() {
                     let name = name.to_str().ok_or(ProviderError::NotFound)?;
-                    inner
-                        .engine
-                        .child(&parent.scope, &parent.node.id, name)
-                        .await?
+                    inner.engine.child(&parent.scope, &parent.id, name).await?
                 } else {
                     // Pending local edits, aliases and retained recovery routes
                     // must participate in the writable namespace lookup.
@@ -1010,13 +1107,13 @@ impl Filesystem for CloudFs {
                         .ok_or(ProviderError::NotFound)?
                 };
                 let view = inner.insert(&parent, node).await?;
-                let node = inner.node(&view).await?;
-                Ok::<_, ProviderError>((view, node))
+                let attr = inner.attributes_of(&view).await?;
+                Ok::<_, ProviderError>((view, attr))
             }
             .await;
             match result {
-                Ok((view, node)) => match inner.acquire_lookup(view.inode) {
-                    Ok(()) => reply.entry(&TTL, &inner.attr(&view, &node), Generation(0)),
+                Ok((view, attr)) => match inner.acquire_lookup(view.inode) {
+                    Ok(()) => reply.entry(&TTL, &attr, Generation(0)),
                     Err(error) => reply.error(errno(&error)),
                 },
                 Err(e) => reply.error(errno(&e)),
@@ -1038,13 +1135,9 @@ impl Filesystem for CloudFs {
                 reply.error(Errno::ENODEV);
                 return;
             };
-            let result = async {
-                let node = inner.node(&view).await?;
-                Ok::<_, ProviderError>((view, node))
-            }
-            .await;
+            let result = inner.attributes_of(&view).await;
             match result {
-                Ok((view, node)) => reply.attr(&TTL, &inner.attr(&view, &node)),
+                Ok(attr) => reply.attr(&TTL, &attr),
                 Err(e) => reply.error(errno(&e)),
             }
         });
@@ -1095,7 +1188,7 @@ impl Filesystem for CloudFs {
             };
             let _admission = admission;
             let result = async {
-                if parent.node.kind != NodeKind::Folder {
+                if parent.kind != NodeKind::Folder {
                     return Err(Errno::ENOTDIR);
                 }
                 if inner
@@ -1110,7 +1203,7 @@ impl Filesystem for CloudFs {
                 inner.refuse_within_package(&parent)?;
                 inner.capture_ancestors(&parent).await?;
                 let node = writer
-                    .create_directory(parent.scope.as_ref().clone(), parent.node.id.clone(), name)
+                    .create_directory(parent.scope.as_ref().clone(), parent.id.to_string(), name)
                     .await
                     .map_err(|e| if e == Errno::ESTALE { Errno::EEXIST } else { e })?;
                 let view = inner
@@ -1188,7 +1281,7 @@ impl Filesystem for CloudFs {
                 let node = Node {
                     package: false,
                     id: String::new(),
-                    parent_id: Some(parent.node.id.clone()),
+                    parent_id: Some(parent.id.to_string()),
                     name,
                     kind: NodeKind::File,
                     size: 0,
@@ -1305,8 +1398,7 @@ impl Filesystem for CloudFs {
                 if parent.scope != destination.scope || parent.alias != destination.alias {
                     return Err(Errno::EXDEV);
                 }
-                if parent.node.kind != NodeKind::Folder || destination.node.kind != NodeKind::Folder
-                {
+                if parent.kind != NodeKind::Folder || destination.kind != NodeKind::Folder {
                     return Err(Errno::ENOTDIR);
                 }
                 // Trashing is a rename. See `inside_root_trash`.
@@ -1325,7 +1417,7 @@ impl Filesystem for CloudFs {
                 let _lease = writer
                     .lease(&parent.scope, &source.id, &inner.cancel)
                     .await?;
-                if parent.node.id == destination.node.id && name == newname {
+                if parent.id == destination.id && name == newname {
                     return if flags.contains(RenameFlags::RENAME_NOREPLACE) {
                         Err(Errno::EEXIST)
                     } else {
@@ -1372,9 +1464,9 @@ impl Filesystem for CloudFs {
                     .relocate(
                         parent.scope.as_ref().clone(),
                         source,
-                        parent.node.id.clone(),
+                        parent.id.to_string(),
                         name,
-                        destination.node.id.clone(),
+                        destination.id.to_string(),
                         newname,
                     )
                     .await?;
@@ -1431,7 +1523,7 @@ impl Filesystem for CloudFs {
             };
             let _admission = admission;
             let result = async {
-                if parent.node.kind != NodeKind::Folder {
+                if parent.kind != NodeKind::Folder {
                     return Err(Errno::ENOTDIR);
                 }
                 let source = inner
@@ -1498,7 +1590,7 @@ impl Filesystem for CloudFs {
             };
             let _admission = admission;
             let result = async {
-                if parent.node.kind != NodeKind::Folder {
+                if parent.kind != NodeKind::Folder {
                     return Err(Errno::ENOTDIR);
                 }
                 let source = inner
@@ -1572,7 +1664,7 @@ impl Filesystem for CloudFs {
                     return Err(Errno::EBADF);
                 }
                 let working = writer
-                    .working(&file.view.scope, &file.view.node.id)?
+                    .working(&file.view.scope, &file.view.id)?
                     .ok_or(Errno::EIO)?;
                 let count = writer
                     .write(working.id, offset, bytes, file.flags & libc::O_APPEND != 0)
@@ -1668,20 +1760,18 @@ impl Filesystem for CloudFs {
                         return Err(Errno::EBADF);
                     }
                     let working = writer
-                        .working(&file.view.scope, &file.view.node.id)?
+                        .working(&file.view.scope, &file.view.id)?
                         .ok_or(Errno::EIO)?;
                     let record = writer.truncate(working.id, size).await?;
                     return Ok(inner.attr(&file.view, &record.node));
                 }
                 let view = path_view.ok_or(Errno::EIO)?;
-                if writer.is_unlinked(&view.scope, &view.node.id)? {
+                if writer.is_unlinked(&view.scope, &view.id)? {
                     return Err(Errno::ENOENT);
                 }
-                let _lease = writer
-                    .lease(&view.scope, &view.node.id, &inner.cancel)
-                    .await?;
+                let _lease = writer.lease(&view.scope, &view.id, &inner.cancel).await?;
                 let mut view = view;
-                view.node = inner.node(&view).await.map_err(|e| errno(&e))?.into();
+                view.node = Some(Arc::new(inner.node(&view).await.map_err(|e| errno(&e))?));
                 inner.refuse_within_package(&view)?;
                 inner.capture_ancestors(&view).await?;
                 let working = writer
@@ -1783,11 +1873,7 @@ impl Filesystem for CloudFs {
             let _admission = admission;
             let result = async {
                 let lease = match &inner.writeback {
-                    Some(writer) => Some(
-                        writer
-                            .lease(&view.scope, &view.node.id, &inner.cancel)
-                            .await?,
-                    ),
+                    Some(writer) => Some(writer.lease(&view.scope, &view.id, &inner.cancel).await?),
                     None => None,
                 };
                 let node = inner.node(&view).await.map_err(|e| errno(&e))?;
@@ -1795,7 +1881,7 @@ impl Filesystem for CloudFs {
                     return Err(Errno::EISDIR);
                 }
                 if let Some(writer) = &inner.writeback
-                    && writer.is_unlinked(&view.scope, &view.node.id)?
+                    && writer.is_unlinked(&view.scope, &view.id)?
                 {
                     return Err(Errno::ENOENT);
                 }
@@ -1813,7 +1899,7 @@ impl Filesystem for CloudFs {
                 };
                 if flags.0 & libc::O_ACCMODE != libc::O_RDONLY {
                     let writer = inner.writeback.as_ref().ok_or(Errno::EROFS)?;
-                    view.node = node.clone().into();
+                    view.node = Some(Arc::new(node.clone()));
                     inner.refuse_within_package(&view)?;
                     inner.capture_ancestors(&view).await?;
                     writer
