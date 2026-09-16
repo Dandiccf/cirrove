@@ -84,6 +84,32 @@ This record therefore proposes something necessary and not sufficient. The 498
 bytes it does not touch are now the larger half of the problem, and whatever
 comes next has to say what it does about them.
 
+### The route that the measurements now allow
+
+Three things together, none of them sufficient alone, all of them measured
+rather than estimated:
+
+1. **Drop the node from the view.** 650 to about 354 bytes, as above. 266 MB at
+   750,438 views.
+2. **Stop keeping a second copy of the item id.** The invalidation index's
+   `Key { scope: Arc<Scope>, item: Box<str>, inode: u64 }` holds one per live
+   view, which is what the 1.3 slope measured. Sharing it means `Node.id`
+   becoming an `Arc<str>`; worth 30 to 50 bytes. **About 310 to 324 bytes, or
+   233 to 243 MB** -- under the 256 MiB bound for the first time, with the
+   margin a bound needs.
+3. **Bound the map, or the gate reads the wrong thing anyway.** The 500,000-file
+   run holds 1,839 MiB of RSS against 491 MiB of anonymous PSS, because the
+   store's mapped pages become resident (`traversal-peak-gate.json`). A live
+   heap of 233 MB does not pass a gate that reads RSS while a 2 GiB map is
+   underneath it. Whichever way that is settled -- a smaller map, or ADR 0005
+   arguing that the gate should read what the daemon holds -- it has to be
+   settled before the other two can be demonstrated.
+
+That is a route rather than a plan: none of it is implemented, and the second
+item alone is the size of the three passes already recorded as having moved 15
+to 20 percent each. What has changed tonight is that the arithmetic is measured
+end to end, so the next person is not starting from an estimate.
+
 **G-peak: `traversed_with_old_files` peak RSS at 500,000 files, three rounds, at
 most 256 MiB, with bytes per live view reported beside it.** Registered before
 the run. If the peak lands above 256 MiB, or if bytes per view do not fall by at
