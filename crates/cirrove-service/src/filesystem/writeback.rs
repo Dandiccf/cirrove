@@ -368,6 +368,25 @@ impl Writeback {
                         queued += 1;
                     }
                 }
+                // Saves the daemon gave up on, under the same rule and for the
+                // same reason. A save that FAILED is one the cloud never
+                // decided about -- a quota, a permission, a connection that
+                // went away -- and sending it again is ordinary. A save in
+                // CONFLICT is one the cloud did decide about, and re-sending
+                // would overwrite whatever is there now. `request_retry` has
+                // refused Conflict since it was written; until now nothing
+                // outside the journal called it at all, so a stranded save
+                // could be counted and never acted on. The owner had one
+                // sitting on a machine for days.
+                for record in j.failed_upload_list(1000)? {
+                    if record.state == crate::journal::UploadState::Conflict {
+                        conflicts += 1;
+                        continue;
+                    }
+                    if j.request_retry(record.id).is_ok() {
+                        queued += 1;
+                    }
+                }
                 Ok((queued, conflicts))
             })
             .await?;

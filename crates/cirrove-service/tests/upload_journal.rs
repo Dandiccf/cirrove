@@ -742,3 +742,64 @@ fn a_save_the_daemon_gave_up_on_can_be_named_and_not_only_counted() {
         other => panic!("a create must carry the name it was saving: {other:?}"),
     }
 }
+
+/// The rule `retry_stuck` applies to saves, asserted where it is decided.
+///
+/// A save that FAILED is one the cloud never decided about -- a quota, a
+/// permission, a connection that went away -- and sending it again is ordinary.
+/// A save in CONFLICT is one the cloud did decide about: the remote moved, and
+/// re-sending would act on whatever is there now. `request_retry` has enforced
+/// that since it was written, and until 2026-09-16 nothing outside the journal
+/// ever called it, so a stranded save was counted forever and could not be
+/// acted on. `failed_upload_list` is what lets the caller walk them.
+#[test]
+fn a_failed_save_can_be_sent_again_and_a_conflicted_one_cannot() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let mut journal = open(&root);
+
+    let failed = journal
+        .enqueue(scope(), create("Retry me.txt"), BYTES)
+        .unwrap();
+    let claimed = journal.claim_next().unwrap().unwrap();
+    assert_eq!(claimed.id, failed.id);
+    journal
+        .stop_attempt(failed.id, claimed.attempt.unwrap(), UploadState::Failed)
+        .unwrap();
+
+    let conflicted = journal
+        .enqueue(scope(), create("Leave me alone.txt"), BYTES)
+        .unwrap();
+    let claimed = journal.claim_next().unwrap().unwrap();
+    assert_eq!(claimed.id, conflicted.id);
+    journal
+        .stop_attempt(
+            conflicted.id,
+            claimed.attempt.unwrap(),
+            UploadState::Conflict,
+        )
+        .unwrap();
+
+    // Both are given up on, so both are listed: a caller has to see the
+    // conflicted one to be able to say why it is not being retried.
+    let listed = journal.failed_upload_list(10).unwrap();
+    assert_eq!(listed.len(), 2);
+
+    assert!(
+        journal.request_retry(failed.id).is_ok(),
+        "a save the cloud never decided about is ordinary to send again"
+    );
+    assert_eq!(
+        journal.get(failed.id).unwrap().state,
+        UploadState::VerifyRequired
+    );
+    assert!(
+        journal.request_retry(conflicted.id).is_err(),
+        "a save the cloud decided about must not be re-sent over whatever is there now"
+    );
+    assert_eq!(
+        journal.get(conflicted.id).unwrap().state,
+        UploadState::Conflict,
+        "a refused retry must leave the record exactly as it was"
+    );
+}

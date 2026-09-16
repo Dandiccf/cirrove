@@ -353,20 +353,30 @@ fn refused_changes_are_named_and_not_only_counted() {
         ],
         "the refused changes should arrive with the paths the daemon resolved"
     );
-    // And the two kinds are told apart, because the answer differs: the folder
-    // removal is a conflict the cloud decided about, the folder creation merely
-    // failed. Only the second is offered a second try.
+    // Saves that never reached the cloud are a separate list, because the
+    // remedies differ: discarding a folder removal the cloud refused loses
+    // nothing, and discarding a failed save loses what the person wrote.
     assert_eq!(
-        card.retryable, 1,
-        "a conflict and a failure must not be counted as the same thing"
+        card.failed_paths,
+        vec!["Projects/Quarterly report.odt".to_owned()],
+        "a save that failed must arrive with its path, not only with a count"
+    );
+    // And the two kinds are told apart, because the answer differs: the folder
+    // removal is a conflict the cloud decided about; the folder creation and
+    // the save merely failed. Only those two are offered a second try.
+    assert_eq!(
+        card.retryable, 2,
+        "a conflict and a failure must not be counted as the same thing, and a          failed save is a failure like any other"
     );
 
-    // A daemon too old to name them leaves the list empty, and the count must
-    // still stand on its own rather than the row going blank.
+    // A daemon too old to name them leaves the lists empty, and the counts must
+    // still stand on their own rather than the rows going blank.
     let mut snapshot = demo::snapshot().unwrap();
     for (_, reply) in snapshot.activity.iter_mut() {
         reply.stuck.clear();
+        reply.failed.clear();
     }
     let card = &Overview::from_snapshot(snapshot).accounts[0];
     assert!(card.refused_paths.is_empty());
+    assert!(card.failed_paths.is_empty());
 }

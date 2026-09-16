@@ -510,9 +510,13 @@ impl Overview {
                         .iter()
                         .find(|(label, _)| label == &account.label)
                         .map(|(_, reply)| {
+                            // Saves count too: Try again reaches them now, and a
+                            // button that says how many are worth trying must not
+                            // leave half of them out.
                             reply
                                 .stuck
                                 .iter()
+                                .chain(reply.failed.iter())
                                 .filter(|change| change.state != "conflict")
                                 .count() as u64
                         })
