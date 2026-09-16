@@ -507,6 +507,58 @@ pub struct RetryReply {
     pub refusal: Option<String>,
 }
 
+/// What happened to one path asked to be deleted permanently.
+///
+/// Every path gets an answer, including the refused ones. A person destroying
+/// things without recovery is owed a line per thing, not a count.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct PermanentDeletion {
+    pub path: String,
+    #[serde(default)]
+    pub removed: bool,
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct PermanentDeleteRequest {
+    #[serde(default)]
+    pub label: String,
+    pub paths: Vec<String>,
+    /// Sent by a caller that has told the person this cannot be undone and has
+    /// had them say yes. The daemon refuses without it, so a client cannot make
+    /// this happen quietly by forgetting to ask.
+    #[serde(default)]
+    pub confirmed: bool,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct PermanentDeleteReply {
+    #[serde(default)]
+    pub deletions: Vec<PermanentDeletion>,
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+
+/// Remove these paths without the provider's recycle bin. See ADR 0008.
+pub async fn delete_permanently(
+    socket: &Path,
+    label: &str,
+    paths: Vec<String>,
+) -> Result<PermanentDeleteReply> {
+    request(
+        socket,
+        "delete-permanently",
+        Some(PermanentDeleteRequest {
+            label: label.to_owned(),
+            paths,
+            confirmed: true,
+        }),
+        "Cirrove delete-permanently",
+    )
+    .await
+}
+
 /// What keeping both copies did.
 ///
 /// `considered` is every save the cloud refused; `kept` is how many now have a
@@ -806,6 +858,7 @@ impl Capabilities {
                 ("recent".to_string(), 1),
                 ("retry-stuck".to_string(), 1),
                 ("keep-both".to_string(), 1),
+                ("delete-permanently".to_string(), 1),
                 ("stop-job".to_string(), 1),
             ]
             .into_iter()
@@ -988,6 +1041,18 @@ pub async fn serve_managed(
                                 },
                                 (Ok(_),None)=>RetryReply{refusal:Some("this service manages no accounts".into()),..Default::default()},
                                 (Err(_),_)=>RetryReply{refusal:Some("malformed request body".into()),..Default::default()},
+                            };
+                            return write_reply(&mut stream,&reply).await;
+                        }
+                        if verb=="delete-permanently" {
+                            let reply=match (serde_json::from_str::<PermanentDeleteRequest>(body),&manager) {
+                                (Ok(r),_) if r.paths.len()>PATHS_PER_REQUEST=>PermanentDeleteReply{refusal:Some(format!("at most {PATHS_PER_REQUEST} paths per request")),..Default::default()},
+                                (Ok(r),Some(m))=>match m.delete_permanently(&r.label,&r.paths,r.confirmed).await {
+                                    Ok(deletions)=>PermanentDeleteReply{deletions,refusal:None},
+                                    Err(error)=>PermanentDeleteReply{refusal:Some(error.to_string()),..Default::default()},
+                                },
+                                (Ok(_),None)=>PermanentDeleteReply{refusal:Some("this service manages no accounts".into()),..Default::default()},
+                                (Err(_),_)=>PermanentDeleteReply{refusal:Some("malformed request body".into()),..Default::default()},
                             };
                             return write_reply(&mut stream,&reply).await;
                         }

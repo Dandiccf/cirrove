@@ -435,6 +435,29 @@ enum Command {
         #[arg(long)]
         socket: Option<PathBuf>,
     },
+    /// Remove files without the recycle bin. This cannot be undone.
+    ///
+    /// An ordinary delete -- in any file manager, on any desktop -- puts the
+    /// file in the drive's recycle bin, and nothing configures that away. This
+    /// is the second gesture, and it exists because POSIX has one `unlink` with
+    /// no flag in which "and skip the recycle bin" could live (ADR 0008).
+    ///
+    /// Folders are refused. The provider's delete on a folder is recursive, and
+    /// nothing available can tell whether a child arrived a moment ago; the
+    /// recycle bin is the only recovery from that, and this is the one
+    /// operation that removes it.
+    DeletePermanently {
+        #[arg(long, default_value = "")]
+        label: String,
+        /// Mount-relative paths, as `paths` and `pin` take them.
+        #[arg(required = true)]
+        paths: Vec<String>,
+        /// Skip the question. For scripts that have already asked.
+        #[arg(long)]
+        yes: bool,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
     /// Keep both copies of every save the cloud refused.
     ///
     /// A conflict means the cloud decided about the file while the person was
@@ -1137,6 +1160,55 @@ async fn main() -> Result<()> {
                     ),
                 }
             );
+        }
+        Command::DeletePermanently {
+            label,
+            paths,
+            yes,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(p) => p,
+                None => socket_path()?,
+            };
+            if !yes {
+                // Asked here, in the program the person typed into, because the
+                // daemon cannot see a dialogue and will not act without being
+                // told this happened.
+                println!(
+                    "This removes {} file(s) without the recycle bin.",
+                    paths.len()
+                );
+                for path in &paths {
+                    println!("  {path}");
+                }
+                print!("There is no way back. Type yes to continue: ");
+                use std::io::Write as _;
+                std::io::stdout().flush().ok();
+                let mut answer = String::new();
+                std::io::stdin().read_line(&mut answer)?;
+                if answer.trim() != "yes" {
+                    println!("Nothing was removed.");
+                    return Ok(());
+                }
+            }
+            let reply = cirrove_service::delete_permanently(&socket, &label, paths).await?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            let mut refused = 0;
+            for deletion in &reply.deletions {
+                match &deletion.refusal {
+                    Some(why) => {
+                        refused += 1;
+                        println!("{}  --  {why}", deletion.path);
+                    }
+                    None => println!("{}  removed permanently", deletion.path),
+                }
+            }
+            if refused > 0 {
+                bail!("{refused} of {} were not removed", reply.deletions.len());
+            }
         }
         Command::KeepBoth { label, socket } => {
             let socket = match socket {

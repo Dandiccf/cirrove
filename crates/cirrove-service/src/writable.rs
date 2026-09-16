@@ -55,7 +55,7 @@ impl WriteWorkers {
                 issue.clone(),
             ));
         }
-        let mutations = MutationWorker::new(journal.clone(), provider, cancel.clone());
+        let mutations = MutationWorker::new(journal.clone(), provider.clone(), cancel.clone());
         workers.spawn(pump(
             WriteWorker::Mutation(mutations),
             control.clone(),
@@ -65,7 +65,7 @@ impl WriteWorkers {
         workers.spawn(maintain(control.clone(), cancel.clone(), issue.clone()));
         workers.close();
         Self {
-            control,
+            control: control.with_provider(provider.clone()),
             cancel,
             workers,
             issue,

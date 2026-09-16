@@ -31,6 +31,54 @@ impl OneDrive {
 }
 #[async_trait]
 impl MutationProvider for OneDrive {
+    /// OneDrive answers yes to both. An ordinary `DELETE` puts the item in the
+    /// drive's recycle bin, which was demonstrated on a live account on
+    /// 2026-09-16 by deleting a file through the mount and finding it there;
+    /// and Graph has a `permanentDelete` action for the second gesture.
+    fn deletion(&self) -> cirrove_core::mutation::DeletionSupport {
+        cirrove_core::mutation::DeletionSupport {
+            recycle_bin: true,
+            permanent: true,
+        }
+    }
+
+    async fn delete_permanently(
+        &self,
+        scope: &cirrove_core::Scope,
+        item: &str,
+        etag: Option<&str>,
+        cancel: &CancellationToken,
+    ) -> Result<()> {
+        if cancel.is_cancelled() {
+            return Err(MutationError::Uncertain);
+        }
+        let url = self.resource_url(&[
+            "drives",
+            &scope.collection,
+            "items",
+            item,
+            "permanentDelete",
+        ])?;
+        // The eTag goes with it for the same reason it goes with every other
+        // mutation: what is destroyed must be what was looked at. Without it a
+        // person could ask to destroy the version they read and destroy one
+        // they never saw.
+        let response = self
+            .authorized_upload(Method::POST, url, None, etag)
+            .await
+            .map_err(error)?;
+        match response.status() {
+            StatusCode::NO_CONTENT | StatusCode::OK => Ok(()),
+            StatusCode::NOT_FOUND => Ok(()),
+            StatusCode::PRECONDITION_FAILED | StatusCode::CONFLICT => Err(MutationError::Conflict),
+            StatusCode::LOCKED => Err(MutationError::Locked),
+            StatusCode::FORBIDDEN | StatusCode::UNAUTHORIZED => {
+                Err(MutationError::Provider(ProviderError::Permission))
+            }
+            _ => Err(MutationError::Uncertain),
+        }
+    }
+
     async fn mutate(
         &self,
         request: &MutationRequest,

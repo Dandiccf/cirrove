@@ -32,6 +32,25 @@ impl EditAdmission {
 pub(crate) struct WriteControl {
     inner: Arc<Inner>,
     writer: Arc<super::writeback::Writeback>,
+    /// Set once the writers exist, for the one operation that is not queued
+    /// work: permanent deletion (ADR 0008). Everything else here drains a
+    /// journal, because a save or a rename must survive a restart. A permanent
+    /// delete must not survive anything: it is a person at the machine saying
+    /// "destroy this one, now", and a durable queue for destruction would retry
+    /// it after the item had moved.
+    provider: Option<Arc<dyn cirrove_core::mutation::MutationProvider>>,
+}
+impl WriteControl {
+    pub(crate) fn with_provider(
+        mut self,
+        provider: Arc<dyn cirrove_core::mutation::MutationProvider>,
+    ) -> Self {
+        self.provider = Some(provider);
+        self
+    }
+    pub(crate) fn provider(&self) -> Option<Arc<dyn cirrove_core::mutation::MutationProvider>> {
+        self.provider.clone()
+    }
 }
 impl CloudFs {
     pub(crate) fn write_control(&self) -> std::io::Result<WriteControl> {
@@ -43,6 +62,7 @@ impl CloudFs {
         Ok(WriteControl {
             inner: self.inner.clone(),
             writer,
+            provider: None,
         })
     }
 }

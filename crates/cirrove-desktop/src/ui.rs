@@ -48,6 +48,8 @@ struct AccountRow {
     /// would act on whatever is there now.
     retry: gtk::Button,
     keep_both: gtk::Button,
+    destroy: gtk::Button,
+    wastebasket: adw::ActionRow,
     unsent: adw::ActionRow,
     remove: gtk::Button,
     /// What this account keeps offline. An expander rather than a flat list
@@ -626,6 +628,32 @@ impl Window {
         )]);
         kept.add_suffix(&keep_add);
 
+        // Not a warning and not an offer to fix it. A folder in somebody's drive
+        // is theirs; the mount stopped anything being put in this one and will
+        // not take it away. Saying it is there is what was missing.
+        let wastebasket = adw::ActionRow::builder()
+            .title(gettext("A wastebasket folder is in this drive"))
+            .use_markup(false)
+            .subtitle_lines(0)
+            .visible(false)
+            .build();
+        // Deliberately not beside "Keep offline": a surface that puts keeping
+        // and destroying next to each other invites the wrong click. It sits
+        // with the other destructive thing instead, and asks twice.
+        let destruction = adw::ActionRow::builder()
+            .title(gettext("Delete a file permanently"))
+            .subtitle(gettext(
+                "Skips the drive's recycle bin, so there is no way back. An ordinary delete in any file manager is recoverable and stays that way.",
+            ))
+            .use_markup(false)
+            .subtitle_lines(0)
+            .build();
+        let destroy = gtk::Button::builder()
+            .label(gettext("Choose a file…"))
+            .valign(gtk::Align::Center)
+            .build();
+        destroy.add_css_class("destructive-action");
+        destruction.add_suffix(&destroy);
         let removal = adw::ActionRow::builder()
             .title(gettext("Remove this connection"))
             .subtitle(gettext(
@@ -666,6 +694,8 @@ impl Window {
         unsent.add_suffix(&keep_both);
         row.add_row(&refused);
         row.add_row(&unsent);
+        row.add_row(&wastebasket);
+        row.add_row(&destruction);
         row.add_row(&removal);
         let weak = Rc::downgrade(self);
         let key = id.to_owned();
@@ -711,6 +741,13 @@ impl Window {
         });
         let weak = Rc::downgrade(self);
         let key = id.to_owned();
+        destroy.connect_clicked(move |_| {
+            if let Some(ui) = weak.upgrade() {
+                ui.choose_file_to_destroy(&key);
+            }
+        });
+        let weak = Rc::downgrade(self);
+        let key = id.to_owned();
         remove.connect_clicked(move |_| {
             if let Some(ui) = weak.upgrade() {
                 ui.remove(&key);
@@ -751,6 +788,8 @@ impl Window {
             retry,
             unsent,
             keep_both,
+            destroy,
+            wastebasket,
             remove,
             kept,
             kept_rows: RefCell::new(Vec::new()),
@@ -929,6 +968,17 @@ impl Window {
             }
         }
         row.unsent.set_subtitle(&unsent);
+        row.wastebasket.set_visible(card.wastebasket.is_some());
+        if let Some(name) = &card.wastebasket {
+            row.wastebasket.set_subtitle(&fill(
+                &gettext(
+                    "{} was made by a file manager before Cirrove refused to hold one, and whatever is in it is still in your cloud drive. Nothing can be added to it now. Removing it is yours to decide; Cirrove will not.",
+                ),
+                &[name],
+            ));
+        }
+        row.destroy
+            .set_sensitive(idle && card.mounted && card.writable);
         row.keep_both.set_sensitive(idle && card.failed_uploads > 0);
         row.keep_both.set_tooltip_text(Some(&gettext(
             "Put your version beside the cloud's, under a new name, instead of losing one of them",
@@ -1315,6 +1365,141 @@ impl Window {
     /// it, because the daemon takes a mount-relative path. Anything outside the
     /// mount is refused here with a sentence rather than sent and refused with
     /// an error, since the user cannot tell from the dialog which is which.
+    /// Pick a file to remove without the recycle bin, then ask again (ADR 0008).
+    ///
+    /// Files only. The daemon refuses a folder, and offering a folder chooser
+    /// here would be an invitation to be told no.
+    pub fn choose_file_to_destroy(self: &Rc<Self>, id: &str) {
+        let Some(card) = self.card(id).filter(|c| c.mounted && c.writable) else {
+            return;
+        };
+        let Backend::Live { .. } = &self.backend else {
+            return;
+        };
+        let chooser = gtk::FileDialog::builder()
+            .title(gettext("Delete a file permanently"))
+            .accept_label(gettext("Choose"))
+            .initial_folder(&gtk::gio::File::for_path(&card.mount_path))
+            .modal(true)
+            .build();
+        let weak = Rc::downgrade(self);
+        let key = id.to_owned();
+        let window = self.window.upgrade();
+        chooser.open(
+            window.as_ref(),
+            gtk::gio::Cancellable::NONE,
+            move |result| {
+                let Some(ui) = weak.upgrade().filter(|ui| !ui.closed.get()) else {
+                    return;
+                };
+                // A cancelled dialog is not a failure and says nothing.
+                let Ok(file) = result else {
+                    return;
+                };
+                let Some(path) = file.path() else {
+                    return;
+                };
+                ui.confirm_destruction(&key, &path);
+            },
+        );
+    }
+
+    /// The second question. Choosing a file in a chooser is not consent to
+    /// destroy it, and the daemon will not act until a client says it asked.
+    fn confirm_destruction(self: &Rc<Self>, id: &str, path: &std::path::Path) {
+        let Some(card) = self.card(id) else {
+            return;
+        };
+        let Some(window) = self.window.upgrade() else {
+            return;
+        };
+        if path.is_dir() {
+            self.notify(&gettext(
+                "A folder cannot be deleted permanently: the cloud's delete is recursive and nothing can tell whether a file arrived in it a moment ago.",
+            ));
+            return;
+        }
+        let Ok(relative) = path.strip_prefix(&card.mount_path) else {
+            self.notify(&gettext("Choose a file inside this drive's folder."));
+            return;
+        };
+        let relative = relative.to_string_lossy().into_owned();
+        let dialog = adw::AlertDialog::new(
+            Some(&fill(&gettext("Delete {} permanently?"), &[&relative])),
+            Some(&gettext(
+                "It does not go to the drive's recycle bin, and it cannot be recovered from this computer or from the cloud. Deleting it the ordinary way would be recoverable.",
+            )),
+        );
+        dialog.add_response("cancel", &gettext("Cancel"));
+        dialog.add_response("delete", &gettext("Delete permanently"));
+        dialog.set_response_appearance("delete", adw::ResponseAppearance::Destructive);
+        dialog.set_default_response(Some("cancel"));
+        dialog.set_close_response("cancel");
+        let weak = Rc::downgrade(self);
+        let key = id.to_owned();
+        dialog.choose(Some(&window), gtk::gio::Cancellable::NONE, move |answer| {
+            if answer != "delete" {
+                return;
+            }
+            if let Some(ui) = weak.upgrade() {
+                ui.destroy_path(&key, &relative);
+            }
+        });
+    }
+
+    /// The half that needs no dialogue, so a test can reach it.
+    pub fn destroy_path(self: &Rc<Self>, id: &str, relative: &str) {
+        let Some(card) = self.card(id) else {
+            return;
+        };
+        let Backend::Live {
+            runtime, socket, ..
+        } = &self.backend
+        else {
+            return;
+        };
+        if !self.begin_operation(id, n("Deleting permanently…")) {
+            return;
+        }
+        let socket = socket.clone();
+        let label = card.label.clone();
+        let paths = vec![relative.to_owned()];
+        let (send, receive) = tokio::sync::oneshot::channel();
+        runtime.spawn(async move {
+            let result = cirrove_service::delete_permanently(&socket, &label, paths)
+                .await
+                .map_err(|error| format!("{error:#}"));
+            let _ = send.send(result);
+        });
+        let weak = Rc::downgrade(self);
+        let shown = relative.to_owned();
+        glib::spawn_future_local(async move {
+            let result = receive.await;
+            let Some(ui) = weak.upgrade().filter(|ui| !ui.closed.get()) else {
+                return;
+            };
+            ui.end_operation();
+            match result {
+                Ok(Ok(reply)) => match (&reply.refusal, reply.deletions.first()) {
+                    (Some(refusal), _) => ui.notify(refusal),
+                    (None, Some(one)) => match &one.refusal {
+                        Some(why) => ui.notify(why),
+                        None => ui.notify(&fill(
+                            &gettext("{} is gone. It was not put in the recycle bin."),
+                            &[&shown],
+                        )),
+                    },
+                    (None, None) => ui.notify(&gettext("Nothing was removed.")),
+                },
+                Ok(Err(error)) => ui.notify(&fill(
+                    &gettext("Could not delete permanently: {}"),
+                    &[&error.to_string()],
+                )),
+                Err(_) => ui.notify(&gettext("The service did not answer.")),
+            }
+            ui.refresh();
+        });
+    }
     pub fn keep_offline(self: &Rc<Self>, id: &str, folder: bool) {
         let Some(card) = self.card(id).filter(|c| c.mounted) else {
             return;

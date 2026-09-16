@@ -108,6 +108,9 @@ pub struct AccountCard {
     /// existed from the first day and the names did not, so a warning sign said
     /// that something was wrong and never which file.
     pub failed_paths: Vec<String>,
+    /// A wastebasket a file manager left in the drive root before the mount
+    /// learned to refuse one. Shown, never removed: it is the person's folder.
+    pub wastebasket: Option<String>,
     /// How many of those are worth trying again.
     ///
     /// A change that failed -- a quota, a permission, a connection that went
@@ -528,6 +531,7 @@ impl Overview {
                                 .count() as u64
                         })
                         .unwrap_or_default(),
+                    wastebasket: status.and_then(|s| s.wastebasket.clone()),
                     failed_uploads: status.map_or(0, |s| s.failed_uploads),
                     writable: account.access == cirrove_auth::AccessMode::ReadWrite,
                     client_id: account.registration.client_id.clone(),

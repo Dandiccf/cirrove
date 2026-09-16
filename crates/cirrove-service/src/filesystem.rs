@@ -84,7 +84,7 @@ fn name_errno(problem: cirrove_core::NameProblem) -> Errno {
         cirrove_core::NameProblem::Invalid(_) => Errno::EINVAL,
     }
 }
-fn is_trash_directory(name: &str) -> bool {
+pub(crate) fn is_trash_directory(name: &str) -> bool {
     name == ".Trash"
         || name
             .strip_prefix(".Trash-")

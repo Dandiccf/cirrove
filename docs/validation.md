@@ -2503,3 +2503,24 @@ say what became real and what broke on the way.
 **Still fixture, and not claimed:** duplicate links to one target, a link whose
 target moves, a link whose target is deleted, folder-only access, and per-item
 permissions. One linked folder that works is not the row.
+
+## One mounted test failed once in five, and then would not do it again
+
+**2026-09-16.** `real_a_recursive_pin_keeps_the_files_under_a_folder_readable_offline`
+failed inside a full `scripts/check.sh`, and passed on every attempt to make it
+do so again: alone, and four times in the group under the environment
+`check.sh` gives it (`CIRROVE_RECLAIM_FLOOR_BYTES=8388608`,
+`CIRROVE_RECLAIM_INTERVAL_SECONDS=1`, `--test-threads=1`). A second full
+`check.sh` was green.
+
+Written down rather than re-run past, because this project has done the other
+thing before and paid for it. One in five is not a number to act on and not a
+number to forget: the next time it appears, this is the second sighting rather
+than the first.
+
+Two other failures seen the same evening were **not** this, and are recorded so
+nobody chases them twice. Running the group by hand fails
+`real_reclamation_reaches_a_mount_that_only_reads` -- it says so itself, naming
+the floor it needs -- and `real_unpinned_blocks_stop_being_protected_from_
+eviction`, which needs the serial `--test-threads=1` the script gives it. Both
+are the invocation, not the code.

@@ -9,6 +9,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
         .accounts
         .iter()
         .map(|a| AccountStatus {
+            wastebasket: None,
             account_id: a.id.clone(),
             drive_id: a.drive.id.clone(),
             root_id: a.root_id.clone(),

@@ -430,7 +430,7 @@ try:
     from gi import require_version
 
     require_version("Nautilus", "4.1")
-    from gi.repository import Gio, GLib, GObject, Nautilus
+    from gi.repository import Gio, GLib, GObject, Gtk, Nautilus
 except (ImportError, ValueError):  # pragma: no cover - the tests import without Files
     Nautilus = None
 
@@ -771,8 +771,77 @@ if Nautilus is not None:
 
         def get_file_items(self, *args):
             files = args[0] if len(args) == 1 else args[1]
-            item = self._item(self._located(files))
-            return [item] if item else []
+            located = self._located(files)
+            items = []
+            keep = self._item(located)
+            if keep:
+                items.append(keep)
+            destroy = self._destroy_item(located)
+            if destroy:
+                items.append(destroy)
+            return items
+
+        def _destroy_item(self, located):
+            """Delete without the recycle bin. Files only, and it asks first.
+
+            An ordinary delete in this menu is recoverable and stays that way;
+            nothing configures that off. This is the second gesture ADR 0008
+            describes, and it is the only entry here that destroys anything, so
+            it names itself plainly rather than hiding behind "Delete".
+            """
+            if not located or any(is_dir for _, _, _, is_dir in located):
+                # The daemon refuses a folder, so offering one here would only
+                # be an invitation to be told no.
+                return None
+            labels = {label for _, label, _, _ in located}
+            if len(labels) != 1:
+                return None
+            item = Nautilus.MenuItem(
+                name="CirroveNautilus::delete_permanently",
+                label=_("Delete permanently (no recycle bin)"),
+            )
+            item.connect("activate", self._on_destroy, labels.pop(), located)
+            return item
+
+        def _on_destroy(self, _menu, label, located):
+            names = ", ".join(file.get_name() for file, _, _, _ in located)
+            dialog = Gtk.AlertDialog.new(
+                _("Delete {} permanently?").format(names)
+            )
+            dialog.set_detail(
+                _(
+                    "It does not go to the drive's recycle bin and cannot be "
+                    "recovered, from this computer or from the cloud. Deleting it "
+                    "the ordinary way would be recoverable."
+                )
+            )
+            dialog.set_buttons([_("Cancel"), _("Delete permanently")])
+            dialog.set_cancel_button(0)
+            dialog.set_default_button(0)
+
+            def answered(source, result):
+                try:
+                    if source.choose_finish(result) != 1:
+                        return
+                except GLib.Error:
+                    return
+                body = {
+                    "label": label,
+                    "paths": [relative for _, _, relative, _ in located],
+                    # The person was asked, in the dialogue above. The daemon
+                    # cannot see one and refuses without this.
+                    "confirmed": True,
+                }
+
+                def done(reply):
+                    if DEBUG:
+                        print(f"cirrove: delete-permanently -> {reply}", file=sys.stderr)
+                    for file, _, _, _ in located:
+                        file.invalidate_extension_info()
+
+                request_async("delete-permanently", body, done)
+
+            dialog.choose(None, None, answered)
 
         def get_background_items(self, *args):
             folder = args[0] if len(args) == 1 else args[1]

@@ -24,6 +24,12 @@ pub struct AccountStatus {
     pub account_id: String,
     #[serde(default)]
     pub drive_id: String,
+    /// A wastebasket a file manager left in the drive root before the mount
+    /// learned to refuse one, by name. The mount will not remove it -- that is
+    /// the person's folder and their decision -- but until now nothing told
+    /// them it was there (ADR 0008).
+    #[serde(default)]
+    pub wastebasket: Option<String>,
     #[serde(default)]
     pub root_id: String,
     /// Desired state observed by this manager, not an acknowledgement of a UI click.
@@ -290,6 +296,40 @@ impl Manager {
             .cloned()
             .context("this account is mounted read-only, so it has no changes to try again")?;
         Ok(control.retry_stuck().await?)
+    }
+    /// Remove these paths without the provider's recycle bin (ADR 0008).
+    ///
+    /// Refuses unless the caller says it has asked the person and been told
+    /// yes. That is not politeness: the daemon cannot see a dialogue, and a
+    /// client that forgot to show one would otherwise destroy files silently on
+    /// its say-so. A caller that lies about it has taken the responsibility.
+    pub async fn delete_permanently(
+        &self,
+        label: &str,
+        paths: &[String],
+        confirmed: bool,
+    ) -> Result<Vec<crate::PermanentDeletion>> {
+        if !confirmed {
+            bail!("permanent deletion needs the person to have been asked; nothing was removed");
+        }
+        let id = self.account_id(label).await?;
+        let engine = self
+            .engines
+            .read()
+            .await
+            .get(&id)
+            .cloned()
+            .context("this account is not running")?;
+        let provider = self
+            .writers
+            .read()
+            .await
+            .get(&id)
+            .cloned()
+            .context("this account is mounted read-only, so nothing can be removed through it")?
+            .provider()
+            .context("this account's writers are not running yet")?;
+        Ok(engine.delete_permanently(paths, provider.as_ref()).await)
     }
     /// Keep both copies of every save the cloud refused: put the person's bytes
     /// beside the remote version under a new name.
@@ -627,6 +667,7 @@ impl Manager {
                     let mut statuses = vec![];
                     for account in &settings.accounts {
                         let mut status = AccountStatus {
+                            wastebasket: None,
                             account_id: account.id.clone(),
                             drive_id: account.drive.id.clone(),
                             root_id: account.root_id.clone(),
@@ -757,6 +798,8 @@ impl Manager {
                                 status.indexed_feeds = feeds;
                                 status.indexed_items = items;
                             }
+
+                            status.wastebasket = active.engine.wastebasket().await;
 
                             status.state =
                                 account_state(active.mount_error.as_deref(), &status.feeds);
