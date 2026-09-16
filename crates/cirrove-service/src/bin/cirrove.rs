@@ -175,6 +175,16 @@ enum Command {
         /// saturated resource, and one connection through a NAT is not one.
         #[arg(long, default_value = "1")]
         streams: usize,
+        /// A file to open and read whole while the index is still being built,
+        /// as a mount-relative path. What a person waits for when they open a
+        /// document; see docs/benchmarks/waiting-for-a-file-during-the-first-index.json.
+        #[arg(long)]
+        read_first: Option<String>,
+        /// A second file of comparable size, read after the index completes.
+        /// A second file rather than the same one, because by then the first is
+        /// in the engine's own cache and re-reading it would time the cache.
+        #[arg(long)]
+        read_later: Option<String>,
         /// A large file to download against the navigation loop.
         #[arg(long)]
         item: Option<String>,
@@ -537,6 +547,8 @@ async fn main() -> Result<()> {
             idle_seconds,
             per_arm,
             streams,
+            read_first,
+            read_later,
             item,
             root,
             state_dir: state,
@@ -552,6 +564,8 @@ async fn main() -> Result<()> {
                 streams,
                 item,
                 root,
+                read_first,
+                read_later,
             )
             .await?;
         }

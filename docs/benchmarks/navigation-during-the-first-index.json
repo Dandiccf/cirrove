@@ -1,0 +1,41 @@
+{
+  "question": "While a large library is indexed for the first time, is navigation responsive -- and does a competing transfer that really saturates the connection make it worse?",
+  "supersedes": "navigation-interference.json, whose bounds could not fail for the right reason. It asked for the indexing arm's p95 to be under twice the IDLE arm's, and those two are not two measurements of one thing: during the index build a first visit is a provider round trip, and once the build is done the same visit is a read of the local index that never reaches the provider. Its own verdict records that as a bad prediction. It also found that the interference figures it was asked to reproduce -- 1.36 and 1.37 from two host runs -- were never reproducible, because no run had recorded what the competing transfer was moving.",
+  "why_now": "The milestone 1 row says 'responsive navigation during initial indexing and competing downloads' and has never had a bound that could be failed. The three runs of 2026-09-15 produced the numbers and the method; what they could not produce is a registration written before them.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-16",
+  "workload": "The Fedora VM, the owner's real drive, a cold engine of the validator's own beside the machine's running daemon, so the index really is built from nothing. Three arms of sixty first visits each, a budget rather than a slice of time because the arms share one directory tree and the collection has about 1,550 directories: indexing alone, indexing with a competing transfer, and -- after the index completes -- the same walk on a settled daemon. The competing transfer is six concurrent readers of one file, looping until the arm ends, and the bytes it moves are counted.",
+  "endpoint": "p95 and maximum of a first-visit readdir in each arm, the count of failures, and the megabytes per second the competing transfer moved while its arm ran.",
+  "predictions": [
+    {
+      "id": "P1",
+      "claim": "During the first index pass, a first visit's p95 is under 500 ms and no single listing exceeds five seconds, with no failed listing in the arm.",
+      "role": "the row's clause as an absolute bound. 500 ms is the threshold the project's own fixture has asserted against since before this was measured; five seconds is what a person calls a freeze."
+    },
+    {
+      "id": "P2",
+      "claim": "A competing transfer raises that p95 by less than a factor of two.",
+      "role": "the 'and competing downloads' half. Both arms are provider-bound first visits differing only in whether something else is pulling bytes, which is the only comparison that isolates interference."
+    },
+    {
+      "id": "P3",
+      "claim": "The competing transfer moves at least 5 MiB/s while its arm runs.",
+      "role": "discriminator, and the one the earlier artifact lacked. At 1.75 MiB/s the same measurement showed no interference at all and the arm was competing in name only. Below this the run says nothing about P2."
+    },
+    {
+      "id": "P4",
+      "claim": "Once the index is complete, a first visit's p95 is under 50 ms.",
+      "role": "the control, and what the index is for. It is not a ratio against the arms above and must not be used as one."
+    }
+  ],
+  "decision_rule": {
+    "P1_P2_P4_hold_and_P3_holds": "The row's clause is met on bounds that could have failed: navigation during the first index stays inside half a second at the 95th percentile, a saturating transfer costs less than a doubling, and a settled daemon answers in milliseconds. The row can be ticked naming these.",
+    "P1_fails": "Navigation during the first index is not responsive by the project's own threshold, and the row stays open with the number.",
+    "P2_fails": "The competing-downloads half is what fails, and it is a contention problem inside this project rather than the provider's.",
+    "P3_fails": "The second arm measured nothing and is repeated. Nothing is claimed about P2 from it.",
+    "P4_fails": "Something is wrong with the settled path that has nothing to do with this row's clause, and it outranks the rest."
+  },
+  "what_this_does_not_cover": "One machine, one network, one collection of about 184,000 items in two feeds. The ratio removes the provider from the comparison; it does not make the result portable to a library ten times the size.",
+  "result": null,
+  "verdict": null
+}

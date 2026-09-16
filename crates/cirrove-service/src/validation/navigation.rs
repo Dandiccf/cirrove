@@ -43,6 +43,44 @@ impl Samples {
         })
     }
 }
+/// Read one file through the mount, whole, and say how long it took.
+///
+/// Opening a file is what a person does after navigating to one, and on a cloud
+/// filesystem it is the part they wait for. The path is resolved through the
+/// mount like everything else, so this includes finding the file as well as
+/// fetching it -- which is what "I opened a document" actually costs.
+async fn timed_read(mount: &Path, relative: &str) -> serde_json::Value {
+    let target = mount.join(relative);
+    let at = std::time::Instant::now();
+    let read = tokio::task::spawn_blocking(move || -> std::io::Result<u64> {
+        use std::io::Read;
+        let mut file = std::fs::File::open(&target)?;
+        let mut buffer = vec![0u8; 1 << 20];
+        let mut total = 0u64;
+        loop {
+            let n = file.read(&mut buffer)?;
+            if n == 0 {
+                return Ok(total);
+            }
+            total += n as u64;
+        }
+    })
+    .await;
+    let seconds = at.elapsed().as_secs_f64();
+    match read {
+        Ok(Ok(bytes)) => serde_json::json!({
+            "path": relative,
+            "bytes": bytes,
+            "seconds": seconds,
+            "mib_per_s": bytes as f64 / 1024.0 / 1024.0 / seconds.max(0.001),
+        }),
+        Ok(Err(error)) => {
+            serde_json::json!({"path": relative, "failed": error.to_string(), "seconds": seconds})
+        }
+        Err(_) => serde_json::json!({"path": relative, "failed": "the read task did not finish"}),
+    }
+}
+
 /// One arm: take `budget` first-visit samples, walking into directories this
 /// mount has never listed.
 ///
@@ -127,6 +165,8 @@ pub async fn onedrive_navigation(
     streams: usize,
     item: Option<String>,
     root_id: Option<String>,
+    read_first: Option<String>,
+    read_later: Option<String>,
 ) -> Result<()> {
     let account = read_only_account(state, label)?;
     let run = uuid::Uuid::new_v4();
@@ -211,6 +251,18 @@ pub async fn onedrive_navigation(
         let mut idle = Samples::default();
         let ceiling = tokio::time::Instant::now() + Duration::from_secs(seconds.max(60));
 
+        // Before arm one, while the index is at its emptiest: what a person
+        // waits for when they open a file. Registered separately in
+        // docs/benchmarks/waiting-for-a-file-during-the-first-index.json.
+        let mut during_index = serde_json::Value::Null;
+        if let Some(relative) = read_first.clone() {
+            during_index = timed_read(&mount, &relative).await;
+            event(
+                &mut log,
+                serde_json::json!({"stage":"content_read_during_index","read":during_index}),
+            )?;
+        }
+
         // Arm one: indexing, nothing else.
         take_arm(
             &engine, &mount, &mut known, &mut unvisited, &mut alone, per_arm, ceiling,
@@ -290,6 +342,7 @@ pub async fn onedrive_navigation(
         // be a ratio of -- which is what left this row open with good figures
         // and no way to fail them.
         let mut settled_after = None;
+        let mut settled_read = serde_json::Value::Null;
         if idle_seconds > 0 {
             let waiting_from = tokio::time::Instant::now();
             let deadline = waiting_from + Duration::from_secs(2 * 60 * 60);
@@ -313,6 +366,17 @@ pub async fn onedrive_navigation(
                 &mut log,
                 serde_json::json!({"stage":"settled","waited_ms":settled_after.map(|d|d.as_millis())}),
             )?;
+            // The same wait, on a settled daemon. A second file rather than the
+            // same one: this engine's cache still holds the first, so re-reading
+            // it would time the cache and not the daemon.
+            if let Some(relative) = read_later.clone() {
+                let after = timed_read(&mount, &relative).await;
+                event(
+                    &mut log,
+                    serde_json::json!({"stage":"content_read_when_settled","read":after}),
+                )?;
+                settled_read = after;
+            }
             take_arm(
                 &engine,
                 &mount,
@@ -324,13 +388,27 @@ pub async fn onedrive_navigation(
             )
             .await?;
         }
-        Ok::<(Samples, Samples, Samples, Option<Duration>, u64, f64), anyhow::Error>((
+        Ok::<
+            (
+                Samples,
+                Samples,
+                Samples,
+                Option<Duration>,
+                u64,
+                f64,
+                serde_json::Value,
+                serde_json::Value,
+            ),
+            anyhow::Error,
+        >((
             alone,
             competing,
             idle,
             settled_after,
             competed_bytes,
             competed_for.as_secs_f64(),
+            during_index,
+            settled_read,
         ))
     }
     .await;
@@ -338,7 +416,16 @@ pub async fn onedrive_navigation(
     if let Some(session) = session {
         tokio::task::spawn_blocking(move || session.umount_and_join()).await??;
     }
-    let (alone, competing, idle, settled_after, competed_bytes, competed_seconds) = result?;
+    let (
+        alone,
+        competing,
+        idle,
+        settled_after,
+        competed_bytes,
+        competed_seconds,
+        during_index,
+        settled_read,
+    ) = result?;
     let alone_report = alone.report("indexing_only");
     let mut competing_report = competing.report("indexing_and_download");
     if let Some(object) = competing_report.as_object_mut() {
@@ -370,6 +457,15 @@ pub async fn onedrive_navigation(
     event(&mut log, competing_report.clone())?;
     println!("{}", serde_json::to_string_pretty(&alone_report)?);
     println!("{}", serde_json::to_string_pretty(&competing_report)?);
+    if !during_index.is_null() || !settled_read.is_null() {
+        let waiting = serde_json::json!({
+            "phase": "waiting_for_a_file",
+            "during_the_first_index": during_index,
+            "when_settled": settled_read,
+        });
+        event(&mut log, waiting.clone())?;
+        println!("{}", serde_json::to_string_pretty(&waiting)?);
+    }
     if idle_seconds > 0 {
         let mut idle_report = idle.report("idle");
         if let Some(object) = idle_report.as_object_mut() {
