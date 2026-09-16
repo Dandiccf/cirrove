@@ -182,6 +182,15 @@ pub enum UploadState {
     Uploaded,
     Conflict,
     Failed,
+    /// The person decided what happens to this save, and it is finished.
+    ///
+    /// A conflicted or failed save had no ending at all before this: nothing
+    /// ever removed one, so it stayed counted as a problem for as long as the
+    /// account lived. The owner had one from a power-cut test still being
+    /// reported days later. Keeping both copies resolves the original by
+    /// putting the person's bytes beside the remote version under a new name;
+    /// what is resolved is no longer failed, and is not counted as one.
+    Resolved,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -831,6 +840,46 @@ impl UploadJournal {
     }
     /// Remove only an explicitly acknowledged payload; keep the durable receipt.
     /// Pending, failed, conflicted and uncertain edits have no deletion API here.
+    /// Keep both copies: put this save's bytes beside the remote version under
+    /// a new name, and finish the original.
+    ///
+    /// Until now a conflicted save could only be discarded, and discarding one
+    /// throws away what the person wrote -- the cloud keeps its version and the
+    /// local edit is gone. The bytes are still here, sealed and verified by
+    /// their digest, so the honest resolution is to keep both and let the
+    /// person compare them. The copy is an ordinary create and travels the
+    /// ordinary path; nothing about it is special once it is queued.
+    ///
+    /// The original is left in place as `Resolved` rather than deleted. Records
+    /// carry barriers, successors and replacement links, and unpicking those
+    /// for a record the person has already dealt with would risk stranding
+    /// something that depends on it.
+    ///
+    /// `Resolved` is deliberately as inert as `Conflict` was. Every query that
+    /// picks work up names the states it wants, so nothing claims it, retries
+    /// it or verifies it; and the one query phrased the other way round --
+    /// whether an object still has an operation outstanding -- already treated
+    /// a conflicted record as outstanding forever, so this changes nothing
+    /// there. What does change is the count: what a person has dealt with stops
+    /// being reported to them as a failure.
+    pub fn keep_both(&mut self, id: Uuid, parent: String, name: String) -> Result<UploadRecord> {
+        let record = self.get(id)?;
+        if !matches!(record.state, UploadState::Conflict | UploadState::Failed) {
+            return Err(JournalError::Stale);
+        }
+        // `payload` verifies the digest before handing the bytes over, so a
+        // copy is never made from a file that rotted on disk.
+        let bytes = self.payload(id)?;
+        let copy = self.enqueue(
+            record.scope.clone(),
+            UploadIntent::Create { parent, name },
+            bytes,
+        )?;
+        let mut record = self.get(id)?;
+        record.state = UploadState::Resolved;
+        self.save(&record)?;
+        Ok(copy)
+    }
     pub fn prune_uploaded_payload(&mut self, id: Uuid) -> Result<()> {
         if self.get(id)?.state != UploadState::Uploaded {
             return Err(JournalError::Stale);

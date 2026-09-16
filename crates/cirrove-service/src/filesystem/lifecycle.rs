@@ -105,6 +105,24 @@ impl WriteControl {
             .await
             .map_err(|_| std::io::Error::other("local namespace is unavailable"))
     }
+    pub async fn keep_both_plans(
+        &self,
+        limit: usize,
+    ) -> std::io::Result<Vec<crate::recent::SavePlan>> {
+        self.writer
+            .keep_both_plans(limit)
+            .await
+            .map_err(|_| std::io::Error::other("local namespace is unavailable"))
+    }
+    pub async fn keep_both(
+        &self,
+        plans: Vec<(uuid::Uuid, String, String)>,
+    ) -> std::io::Result<u64> {
+        self.writer
+            .keep_both(plans)
+            .await
+            .map_err(|_| std::io::Error::other("local namespace is unavailable"))
+    }
     pub async fn recent_local(
         &self,
         limit: usize,

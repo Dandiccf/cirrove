@@ -479,6 +479,50 @@ impl Writeback {
             })
             .collect())
     }
+    /// The saves that could be kept beside the remote version, with what the
+    /// caller needs to name the copy. A create already knows its parent and
+    /// name; a replace knows only the item it was acting on, and the caller is
+    /// the one with an index to resolve that against.
+    pub async fn keep_both_plans(&self, limit: usize) -> Result<Vec<crate::recent::SavePlan>> {
+        use cirrove_core::upload::UploadIntent;
+        let records = self.local(move |j| j.failed_upload_list(limit)).await?;
+        Ok(records
+            .into_iter()
+            .map(|record| match record.intent {
+                UploadIntent::Create { parent, name } => crate::recent::SavePlan {
+                    id: record.id,
+                    item: None,
+                    parent: Some(parent),
+                    name: Some(name),
+                },
+                UploadIntent::Replace { item, .. } => crate::recent::SavePlan {
+                    id: record.id,
+                    item: Some(item),
+                    parent: None,
+                    name: None,
+                },
+            })
+            .collect())
+    }
+
+    /// Keep both copies for each save named here. One that cannot be resolved
+    /// does not stop the others: what is left is still counted, so nothing is
+    /// hidden by skipping it.
+    pub async fn keep_both(&self, plans: Vec<(uuid::Uuid, String, String)>) -> Result<u64> {
+        let kept = self
+            .local(move |j| {
+                let mut kept = 0u64;
+                for (id, parent, name) in plans {
+                    if j.keep_both(id, parent, name).is_ok() {
+                        kept += 1;
+                    }
+                }
+                Ok(kept)
+            })
+            .await?;
+        self.wake.notify_waiters();
+        Ok(kept)
+    }
     pub async fn recent_local(&self, limit: usize) -> Result<Vec<crate::recent::LocalChange>> {
         let records = self.local(|j| j.list(0, 10_000)).await?;
         Ok(records

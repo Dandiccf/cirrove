@@ -507,6 +507,37 @@ pub struct RetryReply {
     pub refusal: Option<String>,
 }
 
+/// What keeping both copies did.
+///
+/// `considered` is every save the cloud refused; `kept` is how many now have a
+/// copy queued beside the remote version. They differ when a save names an item
+/// the index no longer knows -- the file it was replacing has since been moved
+/// or removed -- and the difference is reported rather than hidden, because the
+/// person is about to be told their work is safe.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct KeepBothReply {
+    #[serde(default)]
+    pub kept: u64,
+    #[serde(default)]
+    pub considered: u64,
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+
+/// Put the person's version of every refused save beside the cloud's, under a
+/// new name, instead of making them choose which one to lose.
+pub async fn keep_both(socket: &Path, label: &str) -> Result<KeepBothReply> {
+    request(
+        socket,
+        "keep-both",
+        Some(DiscardRequest {
+            label: label.to_owned(),
+        }),
+        "Cirrove keep-both",
+    )
+    .await
+}
+
 pub async fn status(socket: &Path) -> Result<Status> {
     request(socket, "status", None::<()>, "Cirrove status").await
 }
@@ -774,6 +805,7 @@ impl Capabilities {
                 ("paths".to_string(), 1),
                 ("recent".to_string(), 1),
                 ("retry-stuck".to_string(), 1),
+                ("keep-both".to_string(), 1),
                 ("stop-job".to_string(), 1),
             ]
             .into_iter()
@@ -956,6 +988,17 @@ pub async fn serve_managed(
                                 },
                                 (Ok(_),None)=>RetryReply{refusal:Some("this service manages no accounts".into()),..Default::default()},
                                 (Err(_),_)=>RetryReply{refusal:Some("malformed request body".into()),..Default::default()},
+                            };
+                            return write_reply(&mut stream,&reply).await;
+                        }
+                        if verb=="keep-both" {
+                            let reply=match (serde_json::from_str::<DiscardRequest>(body),&manager) {
+                                (Ok(r),Some(m))=>match m.keep_both(&r.label).await {
+                                    Ok((kept,considered))=>KeepBothReply{kept,considered,refusal:None},
+                                    Err(error)=>KeepBothReply{refusal:Some(error.to_string()),..Default::default()},
+                                },
+                                (Ok(_),None)=>KeepBothReply{refusal:Some("this service manages no accounts".into()),..Default::default()},
+                                (Err(_),_)=>KeepBothReply{refusal:Some("malformed request body".into()),..Default::default()},
                             };
                             return write_reply(&mut stream,&reply).await;
                         }

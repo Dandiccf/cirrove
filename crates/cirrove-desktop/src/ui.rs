@@ -47,6 +47,7 @@ struct AccountRow {
     /// those are the ones the cloud already decided about, and re-sending one
     /// would act on whatever is there now.
     retry: gtk::Button,
+    keep_both: gtk::Button,
     unsent: adw::ActionRow,
     remove: gtk::Button,
     /// What this account keeps offline. An expander rather than a flat list
@@ -647,8 +648,10 @@ impl Window {
         row.add_row(&kept);
         // Distinct from the refused row above: those are changes to the
         // namespace the cloud would not take; this is a file's content that
-        // did not reach the cloud. Its remedy is different too -- open the
-        // file and save it again -- so it carries no discard button.
+        // did not reach the cloud. Its remedy is different too, and so is its
+        // one button: discarding a refused folder removal loses nothing, and
+        // discarding a failed save loses what the person wrote, so this row
+        // offers to keep both copies rather than to throw one away.
         let unsent = adw::ActionRow::builder()
             .title(gettext("Saves that did not reach the cloud"))
             .use_markup(false)
@@ -656,6 +659,11 @@ impl Window {
             .visible(false)
             .build();
         unsent.add_css_class("warning");
+        let keep_both = gtk::Button::builder()
+            .label(gettext("Keep both copies"))
+            .valign(gtk::Align::Center)
+            .build();
+        unsent.add_suffix(&keep_both);
         row.add_row(&refused);
         row.add_row(&unsent);
         row.add_row(&removal);
@@ -692,6 +700,13 @@ impl Window {
         retry.connect_clicked(move |_| {
             if let Some(ui) = weak.upgrade() {
                 ui.retry_refused(&key);
+            }
+        });
+        let weak = Rc::downgrade(self);
+        let key = id.to_owned();
+        keep_both.connect_clicked(move |_| {
+            if let Some(ui) = weak.upgrade() {
+                ui.keep_both_saves(&key);
             }
         });
         let weak = Rc::downgrade(self);
@@ -735,6 +750,7 @@ impl Window {
             discard,
             retry,
             unsent,
+            keep_both,
             remove,
             kept,
             kept_rows: RefCell::new(Vec::new()),
@@ -913,6 +929,10 @@ impl Window {
             }
         }
         row.unsent.set_subtitle(&unsent);
+        row.keep_both.set_sensitive(idle && card.failed_uploads > 0);
+        row.keep_both.set_tooltip_text(Some(&gettext(
+            "Put your version beside the cloud's, under a new name, instead of losing one of them",
+        )));
         self.render_kept_offline(row, card, idle);
         // Removal under a running mount would race it; the daemon refuses, and
         // the button says so before the user gets that far.
@@ -1531,6 +1551,69 @@ impl Window {
     /// insensitive when every refusal is the second kind, and the answer says
     /// how many were left alone, because a person who pressed "Try again" and
     /// saw nothing move deserves to know why.
+    /// Keep both copies of every save the cloud refused.
+    ///
+    /// The other two answers to a refusal each cost something: trying again
+    /// sends the person's version over whatever the cloud has now, and
+    /// discarding throws the person's version away. This one costs nothing --
+    /// their bytes are still in the journal, sealed and checked against their
+    /// digest, so they go beside the cloud's version under a new name and the
+    /// person decides afterwards, with both in front of them.
+    pub fn keep_both_saves(self: &Rc<Self>, id: &str) {
+        let Some(card) = self.card(id).filter(|c| c.failed_uploads > 0) else {
+            return;
+        };
+        let Backend::Live {
+            runtime, socket, ..
+        } = &self.backend
+        else {
+            return;
+        };
+        if !self.begin_operation(id, n("Keeping both copies…")) {
+            return;
+        }
+        let socket = socket.clone();
+        let label = card.label.clone();
+        let (send, receive) = tokio::sync::oneshot::channel();
+        runtime.spawn(async move {
+            let result = cirrove_service::keep_both(&socket, &label)
+                .await
+                .map_err(|error| format!("{error:#}"));
+            let _ = send.send(result);
+        });
+        let weak = Rc::downgrade(self);
+        glib::spawn_future_local(async move {
+            let result = receive.await;
+            let Some(ui) = weak.upgrade().filter(|ui| !ui.closed.get()) else {
+                return;
+            };
+            ui.end_operation();
+            match result {
+                Ok(Ok(reply)) => {
+                    let missed = reply.considered.saturating_sub(reply.kept);
+                    match (&reply.refusal, reply.kept, missed) {
+                        (Some(refusal), _, _) => ui.notify(refusal),
+                        (None, kept, 0) => ui.notify(&fill(
+                            &gettext("Copying {} save(s) to the cloud beside the version already there."),
+                            &[&kept.to_string()],
+                        )),
+                        // The exceptions are named rather than swallowed: the
+                        // person is being told their work is safe.
+                        (None, kept, missed) => ui.notify(&fill(
+                            &gettext("Copying {} save(s) beside the version already there. {} could not be copied, because the file each was replacing is no longer in the drive."),
+                            &[&kept.to_string(), &missed.to_string()],
+                        )),
+                    }
+                }
+                Ok(Err(error)) => ui.notify(&fill(
+                    &gettext("Could not keep both copies: {}"),
+                    &[&error.to_string()],
+                )),
+                Err(_) => ui.notify(&gettext("The service did not answer.")),
+            }
+            ui.refresh();
+        });
+    }
     pub fn retry_refused(self: &Rc<Self>, id: &str) {
         let Some(card) = self.card(id).filter(|c| c.retryable > 0) else {
             return;

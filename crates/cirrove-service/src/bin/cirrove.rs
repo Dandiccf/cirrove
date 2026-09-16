@@ -435,6 +435,21 @@ enum Command {
         #[arg(long)]
         socket: Option<PathBuf>,
     },
+    /// Keep both copies of every save the cloud refused.
+    ///
+    /// A conflict means the cloud decided about the file while the person was
+    /// editing it, so one of the two versions has to give way. `discard-stuck`
+    /// makes that the person's: the cloud keeps its version and the local edit
+    /// is gone. This makes it neither's. The bytes are still in the journal,
+    /// sealed and checked against their digest, so they are queued as a new
+    /// file beside the remote one -- `Report (conflicted copy 2026-09-16).docx`
+    /// -- and the person compares them at their leisure.
+    KeepBoth {
+        #[arg(long, default_value = "")]
+        label: String,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
     /// Try the stuck changes again, where trying again is a sensible thing to do.
     ///
     /// Not all of them, and the difference is the whole of it. A change that
@@ -1113,6 +1128,29 @@ async fn main() -> Result<()> {
                     n => format!(
                         "; {n} are conflicts the cloud already decided about and are not re-sent \
                          (discard-stuck abandons them)"
+                    ),
+                }
+            );
+        }
+        Command::KeepBoth { label, socket } => {
+            let socket = match socket {
+                Some(p) => p,
+                None => socket_path()?,
+            };
+            let reply = cirrove_service::keep_both(&socket, &label).await?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            let missed = reply.considered.saturating_sub(reply.kept);
+            println!(
+                "{} refused save(s) now have a copy queued beside the cloud's version{}",
+                reply.kept,
+                match missed {
+                    0 => String::new(),
+                    // Said rather than swallowed: the person is being told their
+                    // work is safe, so the exceptions have to be named.
+                    n => format!(
+                        "; {n} could not be copied, because the file each was replacing is no                          longer in the index"
                     ),
                 }
             );

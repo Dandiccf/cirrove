@@ -803,3 +803,73 @@ fn a_failed_save_can_be_sent_again_and_a_conflicted_one_cannot() {
         "a refused retry must leave the record exactly as it was"
     );
 }
+
+/// Keeping both copies must not lose the bytes and must not lie about them.
+///
+/// A conflict means the cloud decided about a file while the person was editing
+/// it, so one version has to give way. Discarding makes that the person's: the
+/// cloud keeps its version and the edit is gone. This makes it neither's.
+#[test]
+fn keeping_both_queues_the_local_bytes_and_finishes_the_original() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let mut journal = open(&root);
+
+    let refused = journal
+        .enqueue(scope(), create("Report.docx"), BYTES)
+        .unwrap();
+    let claimed = journal.claim_next().unwrap().unwrap();
+    journal
+        .stop_attempt(refused.id, claimed.attempt.unwrap(), UploadState::Conflict)
+        .unwrap();
+    assert_eq!(journal.failed_uploads().unwrap(), 1);
+
+    let copy = journal
+        .keep_both(
+            refused.id,
+            "root".into(),
+            "Report (conflicted copy 2026-09-16).docx".into(),
+        )
+        .unwrap();
+
+    // The copy carries the person's bytes, not a placeholder.
+    assert_eq!(copy.size, BYTES.len() as u64);
+    assert_eq!(copy.sha256, refused.sha256);
+    match &copy.intent {
+        UploadIntent::Create { parent, name } => {
+            assert_eq!(parent, "root");
+            assert_eq!(name, "Report (conflicted copy 2026-09-16).docx");
+        }
+        other => panic!("a rescued save is an ordinary create: {other:?}"),
+    }
+    // And it travels the ordinary path from here.
+    assert_eq!(journal.claim_next().unwrap().unwrap().id, copy.id);
+
+    // What the person has dealt with stops being reported to them as a failure.
+    assert_eq!(
+        journal.get(refused.id).unwrap().state,
+        UploadState::Resolved
+    );
+    assert_eq!(
+        journal.failed_uploads().unwrap(),
+        0,
+        "a resolved save is not a failed one"
+    );
+    assert!(journal.failed_upload_list(10).unwrap().is_empty());
+}
+
+#[test]
+fn keeping_both_refuses_a_save_that_is_still_on_its_way() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let mut journal = open(&root);
+    let queued = journal.enqueue(scope(), create("Live.txt"), BYTES).unwrap();
+    assert!(
+        journal
+            .keep_both(queued.id, "root".into(), "Live (copy).txt".into())
+            .is_err(),
+        "a save the daemon is still working on has nothing to rescue, and copying it \
+         would leave the person with two files where they saved one"
+    );
+    assert_eq!(journal.get(queued.id).unwrap().state, UploadState::Pending);
+}

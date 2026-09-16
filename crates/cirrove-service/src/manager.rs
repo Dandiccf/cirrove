@@ -164,6 +164,65 @@ impl Default for Manager {
         }
     }
 }
+/// `Report.docx` becomes `Report (conflicted copy 2026-09-16).docx`.
+///
+/// The suffix goes before the extension so the file still opens with the
+/// program it belongs to, and the date is there because a second conflict on
+/// the same file must not silently overwrite the first rescue.
+fn conflicted_copy_name(name: &str) -> String {
+    let stamp = chrono_date();
+    match name.rsplit_once('.') {
+        // A dotfile is all extension and no stem; it keeps its whole name.
+        Some((stem, extension)) if !stem.is_empty() => {
+            format!("{stem} (conflicted copy {stamp}).{extension}")
+        }
+        _ => format!("{name} (conflicted copy {stamp})"),
+    }
+}
+
+/// Today, as `YYYY-MM-DD`, without taking a date library for one line.
+fn chrono_date() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+    let days = secs.div_euclid(86_400);
+    let (mut year, mut left) = (1970i64, days);
+    loop {
+        let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+        let length = if leap { 366 } else { 365 };
+        if left < length {
+            break;
+        }
+        left -= length;
+        year += 1;
+    }
+    let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    let months = [
+        31,
+        if leap { 29 } else { 28 },
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
+    ];
+    let mut month = 1;
+    for length in months {
+        if left < length {
+            break;
+        }
+        left -= length;
+        month += 1;
+    }
+    format!("{year:04}-{month:02}-{:02}", left + 1)
+}
+
 impl Manager {
     /// A stream of changes, primed by the caller with `events::prime`.
     ///
@@ -217,6 +276,61 @@ impl Manager {
             .cloned()
             .context("this account is mounted read-only, so it has no changes to try again")?;
         Ok(control.retry_stuck().await?)
+    }
+    /// Keep both copies of every save the cloud refused: put the person's bytes
+    /// beside the remote version under a new name.
+    ///
+    /// Until this existed a conflicted save could only be discarded, and
+    /// discarding one throws away what the person wrote. The bytes are still in
+    /// the journal, sealed and verified, so the honest resolution is to keep
+    /// both and let the person compare them.
+    ///
+    /// The copy's name is not translated. It is a file name that goes to the
+    /// cloud and comes back to every other machine on the account, and a name
+    /// that changed with the desktop's language would make one person's copy
+    /// unrecognisable to the next.
+    pub async fn keep_both(&self, label: &str) -> Result<(u64, u64)> {
+        let id = self.account_id(label).await?;
+        let control = self
+            .writers
+            .read()
+            .await
+            .get(&id)
+            .cloned()
+            .context("this account is mounted read-only, so it has no refused saves")?;
+        let engine = self
+            .engines
+            .read()
+            .await
+            .get(&id)
+            .cloned()
+            .context("this account is not running")?;
+        let scope = engine.scope(&engine.account.drive.id);
+        let plans = control.keep_both_plans(1000).await.unwrap_or_default();
+        let total = plans.len() as u64;
+        let mut ready = Vec::new();
+        for plan in plans {
+            let (parent, name) = match (plan.parent.clone(), plan.name.clone()) {
+                (Some(parent), Some(name)) => (parent, name),
+                _ => {
+                    // A replace names only the item. The index is the only place
+                    // that knows what it was called and where it lived.
+                    let Some(item) = plan.item.as_deref() else {
+                        continue;
+                    };
+                    let Ok(node) = engine.node(&scope, item).await else {
+                        continue;
+                    };
+                    let Some(parent) = node.parent_id.clone() else {
+                        continue;
+                    };
+                    (parent, node.name.clone())
+                }
+            };
+            ready.push((plan.id, parent, conflicted_copy_name(&name)));
+        }
+        let kept = control.keep_both(ready).await?;
+        Ok((kept, total))
     }
     /// What changed lately on one account: the delta feed's recent deliveries
     /// and the journal's latest saves, latest first, `limit` of each. Names for
@@ -935,5 +1049,66 @@ mod tests {
             std::fs::read_to_string(path.join("local.txt")).unwrap(),
             "preserve"
         );
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod copy_names {
+    use super::conflicted_copy_name;
+
+    #[test]
+    fn the_suffix_goes_before_the_extension() {
+        let name = conflicted_copy_name("Report.docx");
+        assert!(name.starts_with("Report (conflicted copy "), "{name}");
+        assert!(
+            name.ends_with(".docx"),
+            "a rescued save still opens with the program it belongs to: {name}"
+        );
+    }
+
+    #[test]
+    fn a_name_with_no_extension_keeps_its_shape() {
+        let name = conflicted_copy_name("Notes");
+        assert!(name.starts_with("Notes (conflicted copy "), "{name}");
+        assert!(!name.contains('.'), "nothing invented an extension: {name}");
+    }
+
+    #[test]
+    fn a_dotfile_is_all_extension_and_keeps_its_whole_name() {
+        // ".bashrc" has no stem. Splitting on the last dot would rescue it as
+        // " (conflicted copy ...).bashrc", which is a different file entirely.
+        let name = conflicted_copy_name(".bashrc");
+        assert!(name.starts_with(".bashrc (conflicted copy "), "{name}");
+    }
+
+    #[test]
+    fn several_dots_split_only_at_the_last_one() {
+        let name = conflicted_copy_name("archive.tar.gz");
+        assert!(name.starts_with("archive.tar (conflicted copy "), "{name}");
+        assert!(name.ends_with(".gz"), "{name}");
+    }
+
+    #[test]
+    fn the_date_is_a_real_one() {
+        let name = conflicted_copy_name("x.txt");
+        let stamp = name
+            .rsplit_once(" (conflicted copy ")
+            .and_then(|(_, rest)| rest.split(')').next())
+            .unwrap()
+            .to_owned();
+        let parts: Vec<&str> = stamp.split('-').collect();
+        assert_eq!(parts.len(), 3, "{stamp}");
+        let (year, month, day): (i64, u32, u32) = (
+            parts[0].parse().unwrap(),
+            parts[1].parse().unwrap(),
+            parts[2].parse().unwrap(),
+        );
+        // Written without a date library, so the arithmetic is worth asserting
+        // rather than trusting: a leap year off by one would name the copy
+        // after the wrong day for the rest of the year.
+        assert!((2026..2100).contains(&year), "{stamp}");
+        assert!((1..=12).contains(&month), "{stamp}");
+        assert!((1..=31).contains(&day), "{stamp}");
     }
 }

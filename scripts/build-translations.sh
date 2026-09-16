@@ -23,6 +23,17 @@ xgettext --language=C --from-code=UTF-8 \
   -o "$repo/po/cirrove.pot" \
   $(find "$repo/crates/cirrove-desktop/src" -name '*.rs' | sort) 2>/dev/null
 
+# The Files extension is Python and was left out of this entirely, so for as
+# long as it existed none of its strings could be translated: the owner looked
+# past an English "Keep offline" in a German menu three times on 2026-09-16
+# before finding it. Joined rather than regenerated, because xgettext takes one
+# language per run.
+xgettext --language=Python --from-code=UTF-8 --join-existing \
+  --keyword=_ \
+  --add-comments=TRANSLATORS --package-name=cirrove \
+  -o "$repo/po/cirrove.pot" \
+  "$repo/packaging/nautilus/cirrove.py"
+
 for po in "$repo"/po/*.po; do
   lang=$(basename "$po" .po)
   # Merge first, so a string added since the last translation shows up as

@@ -169,3 +169,16 @@ mod tests {
         );
     }
 }
+
+/// One save that could be kept beside the remote version.
+///
+/// A create carries its own parent and name; a replace carries only the item it
+/// was acting on, because that is all its intent holds. The caller resolves the
+/// rest against the index, which is the only place that has one.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct SavePlan {
+    pub id: uuid::Uuid,
+    pub item: Option<String>,
+    pub parent: Option<String>,
+    pub name: Option<String>,
+}
