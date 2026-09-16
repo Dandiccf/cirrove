@@ -37,7 +37,10 @@ use std::{
     },
     time::{Duration, UNIX_EPOCH},
 };
-use tokio::{runtime::Handle, sync::Semaphore};
+use tokio::{
+    runtime::Handle,
+    sync::{OwnedSemaphorePermit, Semaphore},
+};
 
 /// How long the kernel may cache an entry or attribute before asking again.
 ///
@@ -901,6 +904,31 @@ impl Inner {
         self.next_handle.fetch_add(1, Ordering::Relaxed)
     }
 }
+/// Admission waits for its turn. It never refuses.
+///
+/// These semaphores bound how much work runs at once, not how much the kernel
+/// is allowed to ask for. Refusing an ordinary operation with `EAGAIN` is a
+/// contract a filesystem cannot offer: POSIX permits that answer only on a
+/// descriptor opened `O_NONBLOCK`, so a caller that never asked for one reads
+/// it as damage rather than as backpressure. On 2026-09-16 a desktop file
+/// indexer crawling a mount on the owner's machine collected 13,589 failures,
+/// 7,892 of them reported as damaged PDF documents, because a parser met
+/// `EAGAIN` in the middle of a file it was entitled to read. Nothing was
+/// actually wrong with those files. ADR 0006 named this failure in advance --
+/// "`ls: Resource temporarily unavailable` is the failure a user would see" --
+/// and it was never closed. ADR 0012 records the change.
+///
+/// The queue this creates cannot grow without bound: the kernel limits how many
+/// FUSE requests are outstanding, so the waiters are capped by the requests the
+/// kernel is willing to have in flight, not by the callers behind them.
+async fn admit(gate: Arc<Semaphore>, cancel: &CancellationToken) -> Option<OwnedSemaphorePermit> {
+    tokio::select! {
+        biased;
+        () = cancel.cancelled() => None,
+        permit = gate.acquire_owned() => permit.ok(),
+    }
+}
+
 fn errno(error: &ProviderError) -> Errno {
     match error {
         ProviderError::NotFound => Errno::ENOENT,
@@ -948,10 +976,7 @@ impl Filesystem for CloudFs {
     }
 
     fn lookup(&self, _req: &Request, parent: INodeNo, name: &OsStr, reply: ReplyEntry) {
-        let Ok(permit) = self.inner.pending.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.pending.clone();
         let inner = self.inner.clone();
         // Capture residency before dispatch, including its ancestor leases.
         let parent = match inner.view(parent.0) {
@@ -963,7 +988,10 @@ impl Filesystem for CloudFs {
         };
         let name = name.to_os_string();
         self.inner.runtime.spawn(async move {
-            let _permit = permit;
+            let Some(_permit) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             let result = async {
                 let node = if inner.writeback.is_none() {
                     let name = name.to_str().ok_or(ProviderError::NotFound)?;
@@ -996,10 +1024,7 @@ impl Filesystem for CloudFs {
         });
     }
     fn getattr(&self, _req: &Request, inode: INodeNo, _fh: Option<FileHandle>, reply: ReplyAttr) {
-        let Ok(permit) = self.inner.pending.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.pending.clone();
         let inner = self.inner.clone();
         let view = match inner.view(inode.0) {
             Ok(view) => view,
@@ -1009,7 +1034,10 @@ impl Filesystem for CloudFs {
             }
         };
         self.inner.runtime.spawn(async move {
-            let _permit = permit;
+            let Some(_permit) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             let result = async {
                 let node = inner.node(&view).await?;
                 Ok::<_, ProviderError>((view, node))
@@ -1046,10 +1074,7 @@ impl Filesystem for CloudFs {
             reply.error(Errno::EOPNOTSUPP);
             return;
         }
-        let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.writes.clone();
         let Ok(admission) = self.inner.edits.admit() else {
             reply.error(Errno::ENODEV);
             return;
@@ -1064,7 +1089,10 @@ impl Filesystem for CloudFs {
             }
         };
         self.inner.runtime.spawn(async move {
-            let _permit = permit;
+            let Some(_permit) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             let _admission = admission;
             let result = async {
                 if parent.node.kind != NodeKind::Folder {
@@ -1129,10 +1157,7 @@ impl Filesystem for CloudFs {
             reply.error(name_errno(problem));
             return;
         }
-        let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.writes.clone();
         let Ok(admission) = self.inner.edits.admit() else {
             reply.error(Errno::ENODEV);
             return;
@@ -1147,7 +1172,10 @@ impl Filesystem for CloudFs {
             }
         };
         self.inner.runtime.spawn(async move {
-            let _permit = permit;
+            let Some(_permit) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             let _admission = admission;
             let result = async {
                 let nodes = inner.children(&parent).await.map_err(|e| errno(&e))?;
@@ -1246,10 +1274,7 @@ impl Filesystem for CloudFs {
             reply.error(name_errno(problem));
             return;
         }
-        let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.writes.clone();
         let Ok(admission) = self.inner.edits.admit() else {
             reply.error(Errno::ENODEV);
             return;
@@ -1271,7 +1296,10 @@ impl Filesystem for CloudFs {
             }
         };
         self.inner.runtime.spawn(async move {
-            let _permit = permit;
+            let Some(_permit) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             let _admission = admission;
             let result = async {
                 if parent.scope != destination.scope || parent.alias != destination.alias {
@@ -1382,10 +1410,7 @@ impl Filesystem for CloudFs {
             reply.error(Errno::EINVAL);
             return;
         };
-        let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.writes.clone();
         let Ok(admission) = self.inner.edits.admit() else {
             reply.error(Errno::ENODEV);
             return;
@@ -1400,7 +1425,10 @@ impl Filesystem for CloudFs {
             }
         };
         self.inner.runtime.spawn(async move {
-            let _permit = permit;
+            let Some(_permit) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             let _admission = admission;
             let result = async {
                 if parent.node.kind != NodeKind::Folder {
@@ -1449,10 +1477,7 @@ impl Filesystem for CloudFs {
             reply.error(Errno::EINVAL);
             return;
         };
-        let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.writes.clone();
         let Ok(admission) = self.inner.edits.admit() else {
             reply.error(Errno::ENODEV);
             return;
@@ -1467,7 +1492,10 @@ impl Filesystem for CloudFs {
             }
         };
         self.inner.runtime.spawn(async move {
-            let _permit = permit;
+            let Some(_permit) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             let _admission = admission;
             let result = async {
                 if parent.node.kind != NodeKind::Folder {
@@ -1519,10 +1547,7 @@ impl Filesystem for CloudFs {
             reply.error(Errno::EINVAL);
             return;
         }
-        let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.writes.clone();
         let Ok(admission) = self.inner.edits.admit() else {
             reply.error(Errno::ENODEV);
             return;
@@ -1530,7 +1555,10 @@ impl Filesystem for CloudFs {
         let inner = self.inner.clone();
         let bytes = data.to_vec();
         self.inner.runtime.spawn(async move {
-            let _permit = permit;
+            let Some(_permit) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             let _admission = admission;
             let result = async {
                 let file = inner
@@ -1601,10 +1629,7 @@ impl Filesystem for CloudFs {
             reply.error(Errno::EINVAL);
             return;
         };
-        let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.writes.clone();
         let Ok(admission) = self.inner.edits.admit() else {
             reply.error(Errno::ENODEV);
             return;
@@ -1632,7 +1657,10 @@ impl Filesystem for CloudFs {
             (None, Some(view))
         };
         self.inner.runtime.spawn(async move {
-            let _permit = permit;
+            let Some(_permit) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             let _admission = admission;
             let result = async {
                 if let Some(file) = opened {
@@ -1727,10 +1755,7 @@ impl Filesystem for CloudFs {
             reply.error(Errno::EROFS);
             return;
         }
-        let Ok(permit) = self.inner.pending.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.pending.clone();
         let admission = if flags.0 & libc::O_ACCMODE != libc::O_RDONLY {
             match self.inner.edits.admit() {
                 Ok(token) => Some(token),
@@ -1751,7 +1776,10 @@ impl Filesystem for CloudFs {
             }
         };
         self.inner.runtime.spawn(async move {
-            let _permit = permit;
+            let Some(_permit) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             let _admission = admission;
             let result = async {
                 let lease = match &inner.writeback {
@@ -1825,13 +1853,13 @@ impl Filesystem for CloudFs {
     ) {
         // Bound task admission separately from active read buffers. A routine
         // thumbnail burst waits asynchronously instead of failing at 32 readers.
-        let Ok(admission) = self.inner.admitted_reads.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.admitted_reads.clone();
         let inner = self.inner.clone();
         self.inner.runtime.spawn(async move {
-            let _admission = admission;
+            let Some(_admission) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             let _permit = tokio::select! {
                 biased;
                 _ = inner.cancel.cancelled() => {
@@ -1909,10 +1937,7 @@ impl Filesystem for CloudFs {
         reply.ok();
     }
     fn opendir(&self, _req: &Request, inode: INodeNo, _flags: OpenFlags, reply: ReplyOpen) {
-        let Ok(permit) = self.inner.pending.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.pending.clone();
         let inner = self.inner.clone();
         let parent = match inner.view(inode.0) {
             Ok(view) => view,
@@ -1922,7 +1947,10 @@ impl Filesystem for CloudFs {
             }
         };
         self.inner.runtime.spawn(async move {
-            let _permit = permit;
+            let Some(_permit) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             match inner.listing(&parent).await {
                 Ok(entries) => {
                     let handle = inner.handle();
@@ -1956,10 +1984,7 @@ impl Filesystem for CloudFs {
             reply.error(Errno::EBADF);
             return;
         };
-        let Ok(permit) = self.inner.pending.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.pending.clone();
         let cancel = self.inner.cancel.clone();
         self.inner.runtime.spawn(async move {
             let ready = tokio::select! {
@@ -1971,6 +1996,11 @@ impl Filesystem for CloudFs {
                 reply.error(error);
                 return;
             }
+            // Wait for a place before occupying a blocking thread, not on one.
+            let Some(permit) = admit(gate, &cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             tokio::task::spawn_blocking(move || {
                 let _permit = permit;
                 let page = match entries.snapshot.page(offset) {

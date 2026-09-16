@@ -166,9 +166,30 @@ impl Store {
         // longer truncated on close, so bound it explicitly: automatic
         // checkpointing keeps it near 1,000 pages, and this limit returns the
         // space afterwards instead of leaving a high-water-mark file behind.
+        // Read the database through a memory map. Without one SQLite fetches
+        // every page it needs with a positional read, and its own cache holds
+        // only the default 2000 pages, so a store larger than about 2 MiB pays
+        // a syscall per page for data the kernel already has in its cache. That
+        // is invisible until something walks the tree quickly: on 2026-09-16 a
+        // desktop file indexer crawled a mount after an update and held a core
+        // at roughly 875,000 read syscalls per second for 25 minutes, while
+        // reaching the disk for only 451 MB of it. The map removes the syscall,
+        // not the memory: these are file pages the kernel can reclaim, and they
+        // are shared between the connections, which each map the same file. The
+        // bound must cover the whole database or the uncovered pages keep their
+        // syscall: at 256 MiB against this machine's 564 MB store the observed
+        // rate fell from 875,000 reads per second to 395,000, which is the
+        // covered fraction and no more. SQLite maps at most the file's length,
+        // so a larger bound costs address space, not memory.
+        //
+        // The cost is that an I/O error on a mapped page arrives as SIGBUS
+        // instead of an error return, so a failing disk takes the mount down
+        // rather than reporting a fault. ADR 0012 records why that trade is
+        // worth making here.
         db.execute_batch(
             "PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;
-            PRAGMA journal_size_limit=16777216;",
+            PRAGMA journal_size_limit=16777216;
+            PRAGMA mmap_size=2147483648;",
         )?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
         if version > SCHEMA_VERSION {
