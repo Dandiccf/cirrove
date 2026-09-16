@@ -46,6 +46,8 @@ fn relative_path(
 #[cfg(test)]
 mod deadlines;
 #[cfg(test)]
+mod deletion;
+#[cfg(test)]
 mod discovery;
 #[cfg(test)]
 mod paths;

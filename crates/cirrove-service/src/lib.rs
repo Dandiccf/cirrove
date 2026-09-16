@@ -1046,6 +1046,12 @@ pub async fn serve_managed(
                         }
                         if verb=="delete-permanently" {
                             let reply=match (serde_json::from_str::<PermanentDeleteRequest>(body),&manager) {
+                                // Before anything else, including whether this
+                                // daemon has the account: consent is a condition
+                                // of the request, not a property of a drive, and
+                                // a client author who forgot it should be told
+                                // that rather than something about accounts.
+                                (Ok(r),_) if !r.confirmed=>PermanentDeleteReply{refusal:Some("permanent deletion needs the person to have been asked; nothing was removed".into()),..Default::default()},
                                 (Ok(r),_) if r.paths.len()>PATHS_PER_REQUEST=>PermanentDeleteReply{refusal:Some(format!("at most {PATHS_PER_REQUEST} paths per request")),..Default::default()},
                                 (Ok(r),Some(m))=>match m.delete_permanently(&r.label,&r.paths,r.confirmed).await {
                                     Ok(deletions)=>PermanentDeleteReply{deletions,refusal:None},
@@ -1230,6 +1236,30 @@ mod tests {
         assert!(
             !status_reply.contains("capabilities"),
             "status payload changed: {status_reply}"
+        );
+        cancel.cancel();
+        task.await.unwrap().unwrap();
+    }
+
+    /// The daemon cannot see a dialogue, so it will not act on the assumption
+    /// that one happened. A client that forgot to ask would otherwise destroy
+    /// files on its own say-so, and this is the one operation with no way back.
+    #[tokio::test]
+    async fn permanent_deletion_refuses_a_request_that_did_not_ask_the_person() {
+        let (_dir, socket, cancel, task) = serving(None).await;
+        let body = serde_json::json!({
+            "label": "",
+            "paths": ["Note.txt"],
+            "confirmed": false,
+        });
+        let reply = ask(&socket, &format!("delete-permanently {body}\n")).await;
+        let parsed: PermanentDeleteReply = serde_json::from_str(&reply).unwrap();
+        assert!(parsed.deletions.is_empty(), "nothing may be removed");
+        let refusal = parsed.refusal.unwrap_or_default();
+        assert!(
+            refusal.contains("asked"),
+            "the refusal must say what is missing, so a client author can fix it \
+             rather than guess: {refusal}"
         );
         cancel.cancel();
         task.await.unwrap().unwrap();
