@@ -835,6 +835,26 @@ passes have moved 15 to 20 percent each and which will not reach a factor of two
 on its own, or decline to resolve views beyond a ceiling at all, which is a change
 to the lookup contract rather than to reclamation and needs its own ADR.
 
+**Both halves were answered on 2026-09-17, and the answers point the same way.**
+The first half was pushed a fourth time and is finished:
+[ADR 0014](0014-a-view-remembers-its-identity-not-its-contents.md) took a view
+from 637–664 bytes to 489–509 and the peak from 483/476/491 MiB of anonymous PSS
+to 383/383/398, which is 21 percent — and then ran out. The largest remaining
+item, the name in the view, is not removable: entry invalidation is
+`fuse_notify_inval_entry(parent, name)`, the case it exists for is deletion, and
+the live view is the last place in the process that knows what a deleted item was
+called. What is left of that half sums to about 81 bytes against a 149-byte gap.
+
+The second half now has its ADR — [ADR 0015](0015-a-ceiling-on-resolved-views.md)
+— and it arrives with the first half of *this* section revived rather than
+replaced. The 107 invalidations per second that retired shedding were measured
+with every invalidation aimed at the directory being read, which is the one case
+the parent's `i_rwsem` serialises. A ceiling sheds its *oldest* views, which are
+in directories the traversal has left. Measured the same night: 24,000 per
+second sustained, one FORGET each, and no measurable effect on concurrent
+lookups. So the shape in ADR 0015 is a ceiling held by shedding *and* by
+admission — wait, never refuse — rather than either alone.
+
 It took four attempts to get the trim condition right, and the first three failed
 invisibly: whether it fired could only be inferred from the memory it was supposed
 to move, and each failure looked like a mechanism that did not work rather than a

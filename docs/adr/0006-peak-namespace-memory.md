@@ -5,6 +5,19 @@ Status: **rejected by its own measurement.** Both named measurements were run on
 peak criterion. The document stays because the negative result is the useful
 part, and because what it rules out narrows what is left.
 
+**2026-09-17: the premise below is narrower than it reads.** This document opens
+by taking shedding as retired at 107 `notify_inval_entry` per second, and builds
+its alternative on the claim that "shedding fails because it pushes
+invalidations *up* into a lock the lookup path already holds". That lock is the
+**parent's** `i_rwsem`, and the 107 was measured with every invalidation aimed at
+the directory being read. Aimed at directories the sweep has left — which is
+what a ceiling shedding its oldest views does — it sustains 24,000 per second
+with a FORGET for each and no measurable effect on lookups
+([the measurement](../benchmarks/shedding-where-nobody-is-looking.json)). The
+rejection of *this* document stands on its own measurement and is unaffected.
+What changes is the sentence it starts from, and
+[ADR 0015](0015-a-ceiling-on-resolved-views.md) is where that goes.
+
 ## Why this exists
 
 [ADR 0005](0005-namespace-memory.md) closed G3: the reclamation tick returns freed
