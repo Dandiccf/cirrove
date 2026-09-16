@@ -1,0 +1,40 @@
+{
+  "attempted": {
+    "how_far": "The View was changed, 85 compile errors fell to 38 through mechanical replacement plus three designed changes: `project` returns the node beside the view instead of swallowing it, `inode_key` takes the node its callers already hold, and `View::remember` keeps the slim fields in step when a node is refreshed. Then reverted, leaving the tree green.",
+    "when": "2026-09-17, 00:20 to 00:50",
+    "why_reverted": "The tail is not mechanical. Two places need a whole node and neither can simply fetch one. `writeback::ancestry` walks the view chain while holding the views mutex, so no await is available inside the loop; the ids would have to be collected under the lock and the nodes fetched after it. `writeback::unlink` needs a full node for the journal's `materialize`, which is the path a person's unsent changes travel. A mistake there costs data rather than bytes, and it is not work to finish in a hurry at the end of a long session."
+  },
+  "design": "The view stops holding `Arc<Node>` and holds instead: `id: Arc<str>` shared with the invalidation index's key, `kind`, `size` and `modified_unix`. The four or so places that want an etag, a parent id or a shortcut target fetch the node, and all of them are already in async contexts. No FUSE callback gains a store lookup, so none of the 22 sites that made ADR 0014 expensive has to move.",
+  "prediction": {
+    "bytes_per_live_view": "650-664 today. Dropping the Arc<Node> allocation (about 176 with its header and rounding) and the node's four heap strings (about 160 in this fixture), adding about 65 bytes of inline scalars and a shared id, and letting the invalidation key share that id rather than keeping its own Box<str> (about 48): I predict **330 to 380 bytes**. At 750,438 views that is 248 to 285 MB against a 268 MB bound -- so this may land either side of the line, and saying which before the run is not honest.",
+    "i_may_be_wrong_about": "the 41 `.id` reads. If some of them want the id of a node the view has *refreshed* rather than the identity it was created with, a slim view holding a fixed id changes behaviour rather than memory. The nine whole-node assignments are where that would show, and they are the first thing to read.",
+    "the_gate": "peak anonymous PSS and live bytes per view at 500,000 files. If bytes per view does not fall below about 358, this does not close the row on its own and the remaining gap has to come from the two B-tree maps.",
+    "written_before_the_run": true
+  },
+  "question": "ADR 0014 proposed that a view fetch its node from the store per operation, and counting the cost put 22 of 74 accesses inside FUSE callbacks where the store must not be touched. But what do those 74 accesses actually read? If the answer is mostly scalars, the view does not need to fetch anything -- it needs to stop carrying a Node.",
+  "registered": "2026-09-17",
+  "registered_before_the_run": true,
+  "result": "not measured. The change was attempted and reverted before the measurement, because finishing it correctly needs two writeback functions restructured and that deserves its own session and a review.",
+  "source_base": "edd96c0d0c68bbc7c7255ebe740edbf4d18ec199",
+  "source_sha256": {
+    "crates/cirrove-service/src/filesystem.rs": "6d07717a2cc297440c97714e35021bfb768ebb5a6b93d08a1f6fa708fff11757"
+  },
+  "what_the_attempt_established": [
+    "The design is sound and needs no store lookup in any FUSE callback. The 22 sync sites that made ADR 0014 expensive do not arise, because the view keeps `id`, `kind`, `size` and `modified_unix` inline and that is what they read.",
+    "`inode_key` was the one worry and it is not one: both real callers hold a node already, and `snapshot_batch` can keep its nodes for the life of a 128-entry batch rather than the life of the views.",
+    "The real work is two functions, named above, and both are in the writeback path rather than the read path. That is where a reviewer's attention belongs.",
+    "85 compile errors is the true size of the change, not the 74 accesses counted beforehand."
+  ],
+  "what_the_count_says": {
+    "as_ref (four of six in tests)": 5,
+    "content_revision": 1,
+    "id": 41,
+    "kind": 14,
+    "name": 2,
+    "note": "`attr()` already takes the node as a parameter rather than reading it off the view, and `name` is carried separately as `View.name: Arc<str>` anyway.",
+    "parent_id": 2,
+    "size": 1,
+    "target": 1,
+    "whole node (all of them assignments, none a read)": 9
+  }
+}
