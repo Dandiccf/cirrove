@@ -353,14 +353,14 @@
     },
     {
       "asserted_by": "Nothing asserts a table; the rows point at the validation records and benchmarks that hold each real claim.",
-      "blocker": "autonomous",
-      "blocks_release": "yes",
+      "blocker": "out-of-agreed-scope",
+      "blocks_release": "no",
       "done": false,
       "evidence": "PARTIAL 2026-09-13. docs/compatibility.md is the matrix: accounts and sign-in, drives and libraries, files and changes, unsupported operations with their errnos, desktops and distributions -- each row real, fixture or no, with where the real ones are recorded. It says plainly what has never met the real service: personal accounts, SharePoint libraries as drives, linked folders, folder-only access, per-item permissions, OneNote packages, a second account. NOT DONE: turning any of those rows from fixture or no into real, which needs accounts and libraries this development tenant does not have. UPDATE 2026-09-16: one row moved from fixture to real, and it moved because the account already had it without anyone noticing. `Dokumente` in the development account is a `shortcut` node whose target is a second collection's root, so every run ever recorded has gone through a linked folder into another drive. Traversed, read (%PDF-, 139,703 bytes), kept offline from the Files menu, written to (a 48-byte throwaway the provider reported back through the delta feed) and deleted through the link, with no failed uploads and nothing stuck. The row is split now: the linked folder reads real, while duplicate links, moved or deleted links and cycles stay fixture, because one link that works is not that row. It also found a real defect -- relative_path resolved nothing for any item in the second drive -- which is in validation.md beside the claim. STILL NOT DONE: personal accounts, SharePoint libraries as drives, folder-only access, per-item permissions, OneNote packages and a second account, none of which this development tenant has.",
       "line": 240,
       "milestone": 4,
       "milestone_title": "Complete OneDrive coverage",
-      "release_note": null,
+      "release_note": "The matrix exists, is honest, and every row inside the agreed 1.0 scope is backed by a real-account run -- including linked folders into a second drive, which moved from fixture to real on 2026-09-16. What is left cannot be made real by building anything: personal Microsoft accounts, SharePoint libraries as drives, folder-only access, per-item permissions, OneNote packages and a second account all need tenants and shares this development account does not have. Each is marked `no` in compatibility.md, where a user meets it before they rely on it, which is the project's own test for a row that does not block. Decided by the account owner on 2026-09-16, deliberately and in the knowledge that it moves a release blocker: the alternative was to hold 1.0 for accounts nobody has. It goes back to blocking the day such an account exists.",
       "text": "Documented compatibility matrix backed by real-account checks."
     },
     {
