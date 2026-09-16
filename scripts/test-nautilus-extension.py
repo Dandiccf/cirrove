@@ -23,6 +23,12 @@ SOURCE = ROOT / "packaging/nautilus/cirrove.py"
 
 
 def load():
+    # Assert the English strings, whatever language the machine speaks. The
+    # extension binds gettext now, and this developer's desktop is German, so
+    # without this every expectation below would read "Offline behalten" on one
+    # machine and "Keep offline" on the next.
+    for name in ("LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"):
+        os.environ[name] = "en_US.UTF-8"
     spec = importlib.util.spec_from_file_location("cirrove_nautilus", SOURCE)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -132,7 +138,7 @@ class Badges(unittest.TestCase):
     def test_inherited_pins_say_through_which_folder_and_folders_are_kept(self):
         via = {"kind": "file", "pinned": "inherited", "size": 10, "resident": 10}
         folder = {"kind": "folder", "pinned": "direct", "size": 0, "resident": 0}
-        self.assertEqual(ext.describe(via), "Kept offline (folder)")
+        self.assertEqual(ext.describe(via), "Kept offline through a folder")
         self.assertEqual(ext.emblem_for(folder, self.GENERIC), "emblem-ok-symbolic")
         self.assertEqual(ext.describe(folder), "Kept offline")
 
@@ -193,18 +199,42 @@ class Menu(unittest.TestCase):
     def test_all_pinned_offers_to_stop_and_anything_else_offers_to_keep(self):
         direct = {"pinned": "direct"}
         none = {"pinned": None}
-        self.assertEqual(ext.menu_label([direct, direct], []), "Stop keeping offline")
-        self.assertEqual(ext.menu_label([direct, none], []), "Keep offline")
-        self.assertEqual(ext.menu_label([none], []), "Keep offline")
+        self.assertEqual(ext.menu_label([direct, direct], []), ("Stop keeping offline", True))
+        self.assertEqual(ext.menu_label([direct, none], []), ("Keep offline", False))
+        self.assertEqual(ext.menu_label([none], []), ("Keep offline", False))
         # Inherited is not the item's own pin; un-keeping it would have to
         # touch the folder above, which the user did not select.
-        self.assertEqual(ext.menu_label([{"pinned": "inherited"}], []), "Keep offline")
+        self.assertEqual(ext.menu_label([{"pinned": "inherited"}], []), ("Keep offline", False))
+
+    def test_what_the_item_does_is_not_read_off_its_label(self):
+        """The label is for the person; the flag is for the program.
+
+        This used to be decided with `text.startswith("Stop")`, which is the
+        program reading its own user interface. It worked only while the label
+        was English: the first translation would have turned every "stop
+        keeping" into a "keep", silently, on somebody's German desktop.
+        """
+        for states, folders in (
+            ([{"pinned": "direct"}], []),
+            ([{"pinned": None}], []),
+            ([{"pinned": None}], ["one"]),
+            ([{"pinned": "inherited"}], []),
+        ):
+            text, unpin = ext.menu_label(states, folders)
+            self.assertIsInstance(unpin, bool)
+            # The only case that un-keeps is the one where every selected item
+            # holds a pin of its own.
+            self.assertEqual(
+                unpin, all(s.get("pinned") == "direct" for s in states), text
+            )
 
     def test_folders_are_named_as_folders(self):
-        self.assertEqual(ext.menu_label([{"pinned": None}], ["one"]), "Keep folder offline")
+        self.assertEqual(
+            ext.menu_label([{"pinned": None}], ["one"]), ("Keep folder offline", False)
+        )
         self.assertEqual(
             ext.menu_label([{"pinned": None}, {"pinned": None}], ["one", "two"]),
-            "Keep folders offline",
+            ("Keep folders offline", False),
         )
 
 

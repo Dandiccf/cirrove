@@ -793,6 +793,71 @@ msgstr ""
 "eingerichtet. Installieren Sie eine Dateiverwaltung oder öffnen Sie den Pfad "
 "selbst."
 
+
+#. The Files extension. Until 2026-09-16 none of this was translatable at
+#. all: the owner looked past an English "Keep offline" in a German menu
+#. three times before finding it.
+
+msgid "Availability"
+msgstr "Verfügbarkeit"
+
+msgid "On demand"
+msgstr "Bei Bedarf"
+
+msgid "Kept offline through a folder"
+msgstr "Offline behalten über einen Ordner"
+
+msgid "Kept offline · fetching {percent}%"
+msgstr "Offline behalten · {percent} % geladen"
+
+msgid "Kept offline through a folder · fetching {percent}%"
+msgstr "Offline behalten über einen Ordner · {percent} % geladen"
+
+msgid "On this computer"
+msgstr "Auf diesem Rechner"
+
+msgid "all {size}"
+msgstr "vollständig, {size}"
+
+msgid "all {size}, until the space is needed"
+msgstr "vollständig, {size} – bis der Platz gebraucht wird"
+
+msgid "{here} of {total}"
+msgstr "{here} von {total}"
+
+msgid "not downloaded yet"
+msgstr "noch nicht heruntergeladen"
+
+msgid "yes"
+msgstr "ja"
+
+msgid "yes, through a folder above"
+msgstr "ja, über einen übergeordneten Ordner"
+
+msgid "no"
+msgstr "nein"
+
+msgid "Cloud location"
+msgstr "Ort in der Cloud"
+
+msgid "Provider item"
+msgstr "Kennung beim Anbieter"
+
+msgid "Whether the file is kept offline"
+msgstr "Ob die Datei offline behalten wird"
+
+msgid "Keep offline"
+msgstr "Offline behalten"
+
+msgid "Keep folder offline"
+msgstr "Ordner offline behalten"
+
+msgid "Keep folders offline"
+msgstr "Ordner offline behalten"
+
+msgid "Stop keeping offline"
+msgstr "Nicht mehr offline behalten"
+
 #~ msgid ""
 #~ "Could not save the mount preference. Another account operation may be "
 #~ "running; refresh and try again."

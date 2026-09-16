@@ -22,6 +22,7 @@ holds the functions to what they promise, against a daemon that is only a
 socket.
 """
 
+import gettext
 import json
 import os
 import socket
@@ -56,6 +57,35 @@ ICON = "io.github.Dandiccf.Cirrove-symbolic"
 # One line per listing to stderr when set; off by default because a line per
 # directory opened is noise in a journal that is read for other reasons.
 DEBUG = bool(os.environ.get("CIRROVE_NAUTILUS_DEBUG"))
+
+
+def _catalogue():
+    """The same catalogue the window uses, found the same way.
+
+    `crates/cirrove-desktop/src/i18n.rs` looks beside the binary first and falls
+    back to `/usr/share/locale`; a developer install puts it under
+    `~/.local/share/locale` and a package under `/usr/share/locale`. This file
+    is not a binary, so it tries those two in that order instead of deriving a
+    prefix. Until 2026-09-16 it translated nothing at all: every string here was
+    hardcoded English, in a file manager that was otherwise German, and the
+    owner looked straight past "Keep offline" three times in a German menu
+    before finding it.
+    """
+    candidates = []
+    override = os.environ.get("CIRROVE_LOCALE_DIR")
+    if override:
+        candidates.append(override)
+    candidates.append(os.path.expanduser("~/.local/share/locale"))
+    candidates.append("/usr/share/locale")
+    for directory in candidates:
+        try:
+            return gettext.translation("cirrove", localedir=directory).gettext
+        except (OSError, FileNotFoundError):
+            continue
+    return lambda text: text
+
+
+_ = _catalogue()
 # How many files the extension remembers so it can refresh them when what is
 # kept offline changes behind Files. A window shows tens; this covers several,
 # and the entries are small. Bounded because Files never says a file is gone.
@@ -160,15 +190,20 @@ def describe(state):
         return ""
     pinned = state.get("pinned")
     if not pinned:
-        return "On demand"
-    via = " (folder)" if pinned == "inherited" else ""
-    if state.get("kind") == "folder":
-        return "Kept offline" + via
-    if state.get("resident", 0) >= state.get("size", 0):
-        return "Kept offline" + via
-    fetched = state.get("resident", 0)
-    total = max(state.get("size", 0), 1)
-    return f"Kept offline{via} · fetching {100 * fetched // total}%"
+        return _("On demand")
+    # Whole sentences, not a stem with a suffix glued on: a translator cannot
+    # put "(folder)" where their language needs it if it arrives separately.
+    inherited = pinned == "inherited"
+    settled = state.get("kind") == "folder" or state.get("resident", 0) >= state.get("size", 0)
+    if settled:
+        return _("Kept offline through a folder") if inherited else _("Kept offline")
+    percent = 100 * state.get("resident", 0) // max(state.get("size", 0), 1)
+    template = (
+        _("Kept offline through a folder · fetching {percent}%")
+        if inherited
+        else _("Kept offline · fetching {percent}%")
+    )
+    return template.format(percent=percent)
 
 
 def human_bytes(n):
@@ -191,7 +226,7 @@ def properties(state, relative):
     if not state or state.get("refusal"):
         return []
     folder = state.get("kind") == "folder"
-    pairs = [("Availability", describe(state) or "On demand")]
+    pairs = [(_("Availability"), describe(state) or _("On demand"))]
     if not folder:
         size = state.get("size", 0)
         resident = state.get("resident", 0)
@@ -199,19 +234,31 @@ def properties(state, relative):
             # A cached copy without a pin is here now and may be reclaimed;
             # saying only "all 66.2 KB" beside "Availability: On demand" reads
             # as a contradiction and promises something nothing guarantees.
-            kept = " " if state.get("pinned") else ", until the space is needed"
-            pairs.append(("On this computer", f"all {human_bytes(size)}{kept}".rstrip()))
+            template = (
+                _("all {size}")
+                if state.get("pinned")
+                else _("all {size}, until the space is needed")
+            )
+            pairs.append((_("On this computer"), template.format(size=human_bytes(size))))
         elif resident > 0:
-            pairs.append(("On this computer", f"{human_bytes(resident)} of {human_bytes(size)}"))
+            pairs.append((
+                _("On this computer"),
+                _("{here} of {total}").format(
+                    here=human_bytes(resident), total=human_bytes(size)
+                ),
+            ))
         else:
-            pairs.append(("On this computer", "not downloaded yet"))
+            pairs.append((_("On this computer"), _("not downloaded yet")))
     pairs.append((
-        "Kept offline",
-        {"direct": "yes", "inherited": "yes, through a folder above"}.get(state.get("pinned"), "no"),
+        _("Kept offline"),
+        {
+            "direct": _("yes"),
+            "inherited": _("yes, through a folder above"),
+        }.get(state.get("pinned"), _("no")),
     ))
-    pairs.append(("Cloud location", "/" + relative if relative else "/"))
+    pairs.append((_("Cloud location"), "/" + relative if relative else "/"))
     if state.get("item"):
-        pairs.append(("Provider item", state["item"]))
+        pairs.append((_("Provider item"), state["item"]))
     return pairs
 
 
@@ -249,7 +296,12 @@ def states_for(label, entries, path=None):
 
 
 def menu_label(states, folders):
-    """What the one menu item should say for a selection.
+    """What the one menu item should say, and whether pressing it un-keeps.
+
+    The caller used to ask the label whether this was an un-keep, with
+    ``text.startswith("Stop")``. That reads the user interface to decide what
+    the program does, and it survived only as long as the label was English:
+    the first translation would have turned every "stop keeping" into a "keep".
 
     Every selected item pinned in its own right -> offer to stop. Anything
     else -> offer to keep, which also covers a mix: keeping what is already
@@ -257,10 +309,11 @@ def menu_label(states, folders):
     loss they notice offline.
     """
     if states and all(s.get("pinned") == "direct" for s in states):
-        return "Stop keeping offline"
+        return _("Stop keeping offline"), True
     if folders and len(states) == len(folders):
-        return "Keep folder offline" if len(folders) == 1 else "Keep folders offline"
-    return "Keep offline"
+        text = _("Keep folder offline") if len(folders) == 1 else _("Keep folders offline")
+        return text, False
+    return _("Keep offline"), False
 
 
 class Refreshes:
@@ -641,7 +694,7 @@ if Nautilus is not None:
                     name="CirroveNautilus::status",
                     attribute="cirrove_status",
                     label="Cirrove",
-                    description="Whether the file is kept offline",
+                    description=_("Whether the file is kept offline"),
                 )
             ]
 
@@ -707,19 +760,13 @@ if Nautilus is not None:
             states = states_for(label, [(relative, None) for _, _, relative, _ in located])
             ordered = [states.get(relative, {}) for _, _, relative, _ in located]
             folders = [entry for entry in located if entry[3]]
-            text = menu_label(ordered, folders)
+            text, unpin = menu_label(ordered, folders)
             item = Nautilus.MenuItem(
                 name="CirroveNautilus::keep_offline",
                 label=text,
                 icon=ICON,
             )
-            item.connect(
-                "activate",
-                self._on_activate,
-                label,
-                located,
-                text.startswith("Stop"),
-            )
+            item.connect("activate", self._on_activate, label, located, unpin)
             return item
 
         def get_file_items(self, *args):

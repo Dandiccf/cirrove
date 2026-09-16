@@ -25,8 +25,20 @@ fn relative_path(
             return Some(parts.join("/"));
         }
         let node = store.node(scope, &id).ok().flatten()?;
+        // A node with no parent is a drive root, and `root` names only one of
+        // them. An account can subscribe to more than one drive -- this one has
+        // two -- and every item in the others walked up to a parentless node
+        // that did not match, and resolved to no path at all. What the owner
+        // saw on 2026-09-16 was `cirrove pins` naming a file
+        // `01YQR2QYPXJNXJZ7LXENA2KXH77S2VBEFB` instead of the PDF they had just
+        // kept offline; refused changes and failed saves in that drive were
+        // just as nameless. The root's own name is not part of the path.
+        let Some(parent) = node.parent_id else {
+            parts.reverse();
+            return Some(parts.join("/"));
+        };
         parts.push(node.name);
-        id = node.parent_id?;
+        id = parent;
     }
     None
 }
@@ -35,6 +47,8 @@ fn relative_path(
 mod deadlines;
 #[cfg(test)]
 mod discovery;
+#[cfg(test)]
+mod paths;
 #[cfg(test)]
 mod persistence;
 #[cfg(test)]
