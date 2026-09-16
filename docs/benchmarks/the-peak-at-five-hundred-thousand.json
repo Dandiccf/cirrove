@@ -1,16 +1,63 @@
 {
+ "a_second_finding_the_run_was_not_looking_for": "The fixture failed on `g3_released`, not on the peak, and for a reason that is not live data at all. Released anonymous PSS is 18.5, 25.5 and 26.6 MiB -- far inside the 256 MiB budget, and still the closed gate the trim tick made it on 2026-09-10. Released RSS is 37.4, 694.2 and 695.1 MiB. The difference is the store's mapped pages becoming resident and staying resident, which is ADR 0012's map and which traversal-peak-gate.json already recorded as a regression I introduced. It is now failing a hard assertion rather than only reading badly. Those pages are clean and file-backed: the kernel drops them under pressure without asking anyone, so they are not memory the daemon holds. The gate measures RSS, which no longer means what it meant when the gate was written.",
+ "measured": {
+  "anonymous_pss_at_the_traversal_mib": [
+   383.4,
+   382.7,
+   397.9
+  ],
+  "anonymous_pss_over_the_indexed_baseline_mib": [
+   379.5,
+   378.8,
+   394.0
+  ],
+  "bytes_per_live_view": [
+   509,
+   489
+  ],
+  "indexed_baseline": {
+   "anonymous_pss_mib": 3.9,
+   "live_mb": 19.6,
+   "rss_mib": 144.5
+  },
+  "live_mb_at_the_traversal": [
+   410.9,
+   386.1,
+   402.4
+  ],
+  "note_on_the_third": "round three's `released` marker never printed: the fixture's own g3 assertion fired first, so there are nine markers and not eleven, and the third round's bytes per view cannot be paired. Its traversal figures are here; its endpoint is not.",
+  "rss_at_the_traversal_mib": [
+   402.3,
+   1051.4,
+   1508.4
+  ],
+  "views": 750438
+ },
+ "prediction": {
+  "arithmetic": "750,438 live views at about 510 bytes is 382.7 MB live. The recorded runs put peak RSS about 30 MB above live bytes, so about 413 MB, or 394 MiB. The gate needs 268 MB, which at 750,438 views is about 318 bytes each.",
+  "bytes_per_live_view": "495 to 525, matching the 40,000-file figure, because bytes per live view is scale-free -- that is what bytes-per-live-view.json established and this run also tests it at the other end.",
+  "i_may_be_wrong_about": "the 30 MB constant between live heap and RSS. It was read off runs with a different allocation mix -- an Arc<Node> per view produced many more small chunks than the slim view does -- so fragmentation could be lower now and the peak could come in under 385. It cannot plausibly come in under 256: that would need live bytes to be wrong by a factor of 1.5, and the 40,000-file figure reproduces to within 6 percent across three rounds.",
+  "peak": "385 to 400 MiB anonymous PSS at traversed_with_old_files, against a 256 MiB gate and against 492.8 / 490.7 / 504.1 MiB recorded at 650 bytes per view on 2026-09-08.",
+  "so_what_would_close_it": "a further 38 percent off a figure that four passes have now moved 15 to 20 percent each. Saying that before the run rather than after it is the point of writing this down.",
+  "verdict": "fails",
+  "written_before_the_run": true
+ },
  "question": "ADR 0014 is implemented and measured at 40,000 files: 492 to 520 bytes per live view, from 650 to 664. Its own gate is peak RSS at or below 256 MiB over three rounds at 500,000 files. Does it pass, and if not, by how much -- measured rather than extrapolated?",
  "registered": "2026-09-17",
  "registered_before_the_run": true,
- "prediction": {
-  "verdict": "fails",
-  "peak": "385 to 400 MiB anonymous PSS at traversed_with_old_files, against a 256 MiB gate and against 492.8 / 490.7 / 504.1 MiB recorded at 650 bytes per view on 2026-09-08.",
-  "bytes_per_live_view": "495 to 525, matching the 40,000-file figure, because bytes per live view is scale-free -- that is what bytes-per-live-view.json established and this run also tests it at the other end.",
-  "arithmetic": "750,438 live views at about 510 bytes is 382.7 MB live. The recorded runs put peak RSS about 30 MB above live bytes, so about 413 MB, or 394 MiB. The gate needs 268 MB, which at 750,438 views is about 318 bytes each.",
-  "so_what_would_close_it": "a further 38 percent off a figure that four passes have now moved 15 to 20 percent each. Saying that before the run rather than after it is the point of writing this down.",
-  "i_may_be_wrong_about": "the 30 MB constant between live heap and RSS. It was read off runs with a different allocation mix -- an Arc<Node> per view produced many more small chunks than the slim view does -- so fragmentation could be lower now and the peak could come in under 385. It cannot plausibly come in under 256: that would need live bytes to be wrong by a factor of 1.5, and the 40,000-file figure reproduces to within 6 percent across three rounds.",
-  "written_before_the_run": true
- },
+ "result": "The gate still fails, and bytes per live view is scale-free for the fourth time: 509 and 489 at 750,438 views against 492 to 520 at 60,093. Anonymous memory over the indexed baseline is 379.5, 378.8 and 394.0 MiB against 256. The prediction said 385 to 400 MiB and the first two rounds came in just under that band, at 383.4 and 382.7 MiB of anonymous PSS; the arithmetic behind the prediction -- 750,438 views at about 510 bytes -- was right, and the 30 MB constant it added on top was too generous, because the slim view allocates far fewer small chunks and fragments less. That is the direction the prediction said it might be wrong in.",
  "safety": "The capped-memory window is open in the Ubuntu VM on this host until 2026-09-17 18:35. The host has 45 GB available and this traversal peaks near 0.5 GB, so it does not endanger the window. The claim that it could not run beside the window was wrong once already and is recorded as such in the memory notes.",
- "result": null
+ "the_metric_question_cuts_both_ways_here": "Worth stating plainly, because it would be easy to pick whichever reading flatters the result. On RSS over the indexed baseline, round one reads 260.2 MiB against 256 -- over by 1.6 percent, which looks like a near miss. It is not a near miss, it is a flattered number: the indexed baseline's 144.5 MiB of RSS is mostly mapped store pages, so subtracting it subtracts 140 MiB of the map from the peak as well. Rounds two and three, where more of the map has become resident, read 909 and 1366 MiB over the baseline. Anonymous memory is the honest column in both directions, and on it this gate fails by 1.48 times.",
+ "what_the_slim_view_actually_bought": "The peak was 483.2 / 476.4 / 491.3 MiB of anonymous PSS on 2026-09-08 and on this build before today (traversal-peak-gate.json). It is now 383.4 / 382.7 / 397.9. That is 21 percent off the peak, and it matches the 21 percent off bytes per view exactly, which is the coherence check: if the two had disagreed, one of them would have been measuring something else.",
+ "what_would_close_it_now_arithmetic_rather_than_hope": {
+  "candidates_with_their_sizes": [
+   "Stop keeping the name in the view: 16 inline and a 64-byte allocation, and the inline saving shrinks the B-tree entry too -- about 87. It is read in four places. Readdir already has the node beside the view since `project` returns both. Invalidation is async and batched at 128, so it can read the store. Trash detection walks ancestors and is rare.",
+   "Index the views by inode into a slab rather than a `BTreeMap<u64, Entry>`: inodes are allocated sequentially, so the key and most of the node slack go -- about 50.",
+   "Give the identity index a hash of (scope, item) rather than a second `Key` with its own ordering -- about 20.",
+   "Derive `_parent_residency` from the parent inode rather than holding a second `Arc` -- about 11."
+  ],
+  "needed": "about 365 bytes per live view. 256 MiB over the baseline is 268.4 MB; at 750,438 views and the measured ratio of anonymous PSS to live heap (0.978) that is 365 bytes each. Today: 489 to 509. A further 28 percent.",
+  "the_sum": "about 168, which lands at 341 against a 365 budget. So this row is closable by structure, with margin, and that is a different statement from the one the ledger has carried since 2026-09-08. None of the four is a trim; each is a design with its own lifetime question, and the first two are most of the saving.",
+  "where_the_509_is": "measured by structure rather than guessed: the `entries` B-tree holds `Entry { View(128), generation: u64, queued: bool }` = 144 inline plus its key and its node slack, about 203; the view's `name` is 16 inline and a 64-byte `Arc<str>` allocation, 80; the id is 16 inline and 48 allocated, 64; the identity index's `Key` is 32 inline plus slack, about 43; the per-view `Arc<LookupRefs>` is 8 inline and a 32-byte allocation, 40; the candidate queue reached 624,436 slots of 16 bytes, about 13. That is 443 of the 509, and the rest is B-tree fill worse than the 75 percent assumed."
+ }
 }

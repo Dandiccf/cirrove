@@ -151,3 +151,64 @@ paragraph.
 Nothing here is implemented. The one thing this record adds that its two dead
 predecessors could not have is a reason to believe the cost is now affordable,
 and that reason is a measurement taken for an unrelated defect on the same day.
+
+## Implemented 2026-09-17, and what it measured
+
+It is implemented, and the shape it took is not the one above.
+
+The design here had a view fetch its node per operation, which is why the
+paragraph above counts twenty-two FUSE callbacks that would have had to change.
+**None of them did.** The reason is that the twenty-two do not want a node; they
+want kind, size, modified time or the id. So the view keeps those, and the node
+goes away rather than being fetched: a `getattr` is answered by `attributes_of`
+from the view alone. That *removed* a store read per lookup instead of adding
+one, because `lookup` used to project a node and then immediately ask for it
+again.
+
+The node is still kept where a writeback exists. `unlink` must name the version
+the caller looked at rather than a fresh one, which is what ADR 0008 exists to
+prevent, so a writable mount pays what it paid. On the read-only mount the gate
+measures, the field is `None`: eight bytes and no allocation.
+
+**Measured, against this ADR's own gate.**
+
+| | before | after |
+| --- | --- | --- |
+| bytes per live view | 637–664 | 489–509 |
+| peak anonymous PSS over the indexed baseline, 500,000 files | 483.2 / 476.4 / 491.3 MiB | 379.5 / 378.8 / 394.0 MiB |
+| the gate | 256 MiB | 256 MiB |
+
+Twenty-one percent off both numbers, which is the coherence check: had the peak
+and the per-view figure disagreed, one of them would have been measuring
+something else. Bytes per live view is scale-free for the fourth time — 489–509
+at 750,438 views, 492–520 at 60,093.
+
+**The gate fails, by 1.48 times rather than by 1.9.** This ADR does not retire,
+and it does not join its two predecessors either, because what is left is
+arithmetic rather than another idea. 365 bytes per view closes the row, and the
+four structures between here and there have been measured:
+
+- the **name** in the view — 16 bytes inline and a 64-byte `Arc<str>`, about 87
+  with the B-tree slack it also carries. Four readers. `project` already returns
+  the node beside the view, so readdir has the name without the view keeping it;
+  invalidation is async and batched at 128, so it can read the store; trash
+  detection walks ancestors and is rare.
+- a **slab indexed by inode** instead of `BTreeMap<u64, Entry>` — inodes are
+  allocated sequentially, so the key and most of the node slack go, about 50.
+- a **hashed identity index** instead of a second ordered `Key` — about 20.
+- a **derived parent residency** instead of a second `Arc` — about 11.
+
+That sums to 341 against a 365 budget. Each is a design with its own lifetime
+question and none of them is a trim; the first two are most of the saving.
+
+The second gate — a cold listing must not get slower than its recorded bound —
+holds: the twelve `real_` capacity fixtures run in 125.4 seconds against 126.5,
+inside their own noise, with
+`real_cold_directory_pages_publish_with_bounded_memory` among them.
+
+A prediction registered before the work said 330–380 bytes per view. It was
+wrong by about 170, for two reasons worth keeping: it counted the invalidation
+index's duplicate id as saved when the sharing had not been written, and it put
+the view's own growth at half what it was, 88 bytes inline to 128.
+`docs/benchmarks/a-slim-view.json` and
+`docs/benchmarks/the-peak-at-five-hundred-thousand.json` hold the arithmetic.
