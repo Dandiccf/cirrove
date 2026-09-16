@@ -444,6 +444,8 @@ impl Writeback {
                     // carried in `path` only so it has something to resolve.
                     path: id,
                     state: format!("{:?}", record.state).to_ascii_lowercase(),
+                    // Filled in by the caller, which has the index.
+                    instead: None,
                 }
             })
             .collect())
@@ -475,6 +477,8 @@ impl Writeback {
                     name,
                     path: id,
                     state: format!("{:?}", record.state).to_ascii_lowercase(),
+                    // Filled in by the caller, which has the index.
+                    instead: None,
                 }
             })
             .collect())

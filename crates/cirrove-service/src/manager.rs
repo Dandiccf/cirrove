@@ -164,6 +164,14 @@ impl Default for Manager {
         }
     }
 }
+/// The cloud's version of a file, in one line: how big it is and when it
+/// changed. Deliberately plain -- a person comparing two versions wants the two
+/// facts that differ, not a paragraph.
+fn describe_remote(node: &cirrove_core::Node) -> String {
+    let when = chrono_date_at(node.modified_unix as i64);
+    format!("{} bytes, changed {when}", node.size)
+}
+
 /// `Report.docx` becomes `Report (conflicted copy 2026-09-16).docx`.
 ///
 /// The suffix goes before the extension so the file still opens with the
@@ -182,10 +190,16 @@ fn conflicted_copy_name(name: &str) -> String {
 
 /// Today, as `YYYY-MM-DD`, without taking a date library for one line.
 fn chrono_date() -> String {
-    let secs = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs() as i64;
+    chrono_date_at(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64,
+    )
+}
+
+/// A unix second as `YYYY-MM-DD`, in UTC.
+fn chrono_date_at(secs: i64) -> String {
     let days = secs.div_euclid(86_400);
     let (mut year, mut left) = (1970i64, days);
     loop {
@@ -377,10 +391,15 @@ impl Manager {
         };
         for change in &mut failed {
             if let Some(id) = change.path.take() {
-                if change.name.is_empty()
-                    && let Ok(node) = engine.node(&scope, &id).await
-                {
-                    change.name = node.name;
+                // What the cloud has instead. A conflict says somebody else got
+                // there first and, until this, said nothing else; choosing
+                // between your version and theirs without being told anything
+                // about theirs is a guess, not a choice.
+                if let Ok(node) = engine.node(&scope, &id).await {
+                    if change.name.is_empty() {
+                        change.name = node.name.clone();
+                    }
+                    change.instead = Some(describe_remote(&node));
                 }
                 change.path = engine.relative_path_of(&scope, &id).await;
             }

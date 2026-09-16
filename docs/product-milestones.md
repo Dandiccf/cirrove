@@ -260,7 +260,7 @@ account repair and the wider recovery flow still need implementation and accepta
 - [x] Account picker, mount controls, reconnect, connection removal and cleanup.
 - [ ] Tray status and actions using the daemon as the source of truth.
 - [x] Nautilus badges, pin/unpin actions and consistent status refresh.
-- [ ] Actionable errors, progress, cancellation and conflict resolution.
+- [x] Actionable errors, progress, cancellation and conflict resolution.
 - [ ] Keyboard navigation, accessibility, localization and visual verification.
 - [x] Verify a declared session matrix covering native Wayland and X11, and GNOME
       and KDE Plasma: windows, dialogs, system dark-style preference and

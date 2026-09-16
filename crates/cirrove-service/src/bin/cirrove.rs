@@ -1072,6 +1072,12 @@ async fn main() -> Result<()> {
                         change.what,
                         change.path.as_deref().unwrap_or(&change.name)
                     );
+                    // What the cloud has instead. Choosing between your version
+                    // and theirs without being told anything about theirs is a
+                    // guess; `keep-both` is the answer that needs no choice.
+                    if let Some(instead) = &change.instead {
+                        println!("      the cloud has: {instead}");
+                    }
                 }
             }
         }

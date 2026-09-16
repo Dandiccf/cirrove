@@ -92,6 +92,15 @@ pub struct StuckChange {
     pub path: Option<String>,
     /// The journal's word: conflict, failed, needs_review.
     pub state: String,
+    /// What the cloud has instead, for a save it refused: the size and date of
+    /// the version that is there now.
+    ///
+    /// A conflict is the cloud saying "somebody else got here first", and until
+    /// this field existed it said only that. Deciding between your version and
+    /// theirs without being told anything about theirs is not a decision, it is
+    /// a guess. Empty for a change that is not about a file the index knows.
+    #[serde(default)]
+    pub instead: Option<String>,
 }
 
 #[derive(Default)]

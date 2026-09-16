@@ -500,7 +500,14 @@ impl Overview {
                                 .failed
                                 .iter()
                                 .map(|change| {
-                                    change.path.clone().unwrap_or_else(|| change.name.clone())
+                                    let where_ =
+                                        change.path.clone().unwrap_or_else(|| change.name.clone());
+                                    // And what the cloud has instead, so the
+                                    // row is a comparison and not an accusation.
+                                    match &change.instead {
+                                        Some(instead) => format!("{where_} — {instead}"),
+                                        None => where_,
+                                    }
                                 })
                                 .collect()
                         })

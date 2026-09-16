@@ -358,8 +358,10 @@ fn refused_changes_are_named_and_not_only_counted() {
     // nothing, and discarding a failed save loses what the person wrote.
     assert_eq!(
         card.failed_paths,
-        vec!["Projects/Quarterly report.odt".to_owned()],
-        "a save that failed must arrive with its path, not only with a count"
+        vec!["Projects/Quarterly report.odt — 24,312 bytes, changed 2026-09-16".to_owned()],
+        "a save that failed must arrive with its path and with what the cloud has \
+         instead: a conflict where only your side is described is a choice made \
+         blind"
     );
     // And the two kinds are told apart, because the answer differs: the folder
     // removal is a conflict the cloud decided about; the folder creation and
