@@ -355,3 +355,77 @@ fn every_package_requires_xdg_utils_rather_than_recommending_it() {
         "xdg-utils must not be a Recommends as well"
     );
 }
+
+/// The four places a version is written must mean the same version.
+///
+/// `docs/release-procedure.md` step 3 says so in words and nothing enforced it.
+/// Each ecosystem spells a pre-release differently -- Cargo `0.1.0-dev`, Arch
+/// `0.1.0dev` because a `pkgver` may not contain a hyphen, Debian and RPM
+/// `0.1.0~dev` because `~` sorts *before* the release in both -- so they cannot
+/// be compared as text and nobody did. A release where three of them moved and
+/// one did not ships a package whose version disagrees with the binary inside
+/// it, and the only symptom is a user reporting a version that does not exist.
+#[test]
+fn every_packaging_source_names_the_same_version_as_the_crate() {
+    /// Reduce a version to what all four agree on: digits, dots and the
+    /// pre-release word, with whatever separator each ecosystem requires
+    /// removed. `0.1.0-dev`, `0.1.0dev` and `0.1.0~dev` all become `0.1.0dev`.
+    fn normalise(raw: &str) -> String {
+        raw.trim()
+            .chars()
+            .filter(|c| !matches!(c, '-' | '~' | '_' | '+'))
+            .collect()
+    }
+
+    let cargo = repo("Cargo.toml");
+    let crate_version = cargo
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("version = "))
+        .map(|v| v.trim().trim_matches('"').to_owned())
+        .expect("the workspace version");
+
+    let pkgbuild = repo("packaging/arch/PKGBUILD");
+    let arch = pkgbuild
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("pkgver="))
+        .map(str::to_owned)
+        .expect("pkgver in the PKGBUILD");
+    assert!(
+        !arch.contains('-'),
+        "a pkgver may not contain a hyphen; makepkg refuses the package: {arch}"
+    );
+
+    let changelog = repo("packaging/debian/changelog");
+    let debian = changelog
+        .lines()
+        .next()
+        .and_then(|line| line.split_once('(').map(|(_, rest)| rest))
+        .and_then(|rest| rest.split_once(')').map(|(v, _)| v))
+        // Debian appends its own revision after the upstream version.
+        .map(|v| {
+            v.rsplit_once('-')
+                .map_or(v, |(upstream, _)| upstream)
+                .to_owned()
+        })
+        .expect("the version at the top of the Debian changelog");
+
+    let spec = repo("packaging/rpm/cirrove.spec");
+    let rpm = spec
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("Version:"))
+        .map(|v| v.trim().to_owned())
+        .expect("Version: in the RPM spec");
+
+    for (what, raw) in [
+        ("packaging/arch/PKGBUILD pkgver", &arch),
+        ("packaging/debian/changelog", &debian),
+        ("packaging/rpm/cirrove.spec Version:", &rpm),
+    ] {
+        assert_eq!(
+            normalise(raw),
+            normalise(&crate_version),
+            "{what} says {raw}, and Cargo.toml says {crate_version}. A release \
+             ships one version or it ships a lie about which one it is."
+        );
+    }
+}
