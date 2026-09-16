@@ -39,6 +39,18 @@
     "P2_fails": "Everything above stops mattering until that is understood."
   },
   "what_this_does_not_cover": "The dialog itself. No filesystem can stop an editor from marking a loading document modified; what a filesystem can do is make the loading short enough that nobody is inside that window when they press the close button.",
-  "result": null,
-  "verdict": null
+  "result": {
+    "when": "2026-09-16, Fedora VM, the owner's real drive, a cold engine of the validator's own indexing from nothing beside the machine's settled daemon",
+    "two_files_rather_than_one": "28,832,462 and 28,865,194 bytes, 0.1 percent apart, in the same folder. The same file twice would have timed this engine's own cache the second time.",
+    "during_the_first_index": "28.83 MB in 3.53 s, 7.79 MiB/s, including resolving four directory levels through the mount",
+    "when_settled": "28.87 MB in 2.38 s, 11.59 MiB/s, the same path resolution served from the index",
+    "ratio": 1.485
+  },
+  "verdict": {
+    "P1": "FAILS. I predicted a cold read during the first index would take more than three times as long as the same read on a settled daemon. It takes 1.49 times as long. The first index is not what made the wait.",
+    "P2": "HOLDS. Both reads returned the file's exact size and neither failed.",
+    "P3": "NOT MEASURED. Two points cannot show a ratio falling, and with P1 failing there is nothing for a trend to be a trend of."
+  },
+  "what_this_means_for_the_observation": "The owner said the wait was 'Sekunden-Minuten'. It is seconds: three and a half during the first index, two and a half once it is done, for a file of 29 MB. The minutes were a feeling, and the feeling came from somewhere real -- three and a half seconds is plenty of time to press a close button, which is all it takes to reach the dialog. So the observation stands and its cause is simpler than my hypothesis: a cloud filesystem cannot make a 29 MB file appear instantly, and GNOME Text Editor marks a document modified while it loads. Nothing here is a defect, and my guess that the first index was the cause was wrong by a factor of two.",
+  "what_would_still_be_worth_knowing": "Whether the ratio is worse on a slower connection or a bigger file, where the absolute wait is long enough that the editor's marker is the least of it. This machine's mount reads at 8 to 12 MiB/s; on a domestic upstream a 200 MB file would be minutes for real, and nothing measured here says what that feels like."
 }

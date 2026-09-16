@@ -36,6 +36,139 @@
     "P4_fails": "Something is wrong with the settled path that has nothing to do with this row's clause, and it outranks the rest."
   },
   "what_this_does_not_cover": "One machine, one network, one collection of about 184,000 items in two feeds. The ratio removes the provider from the comparison; it does not make the result portable to a library ten times the size.",
-  "result": null,
-  "verdict": null
+  "result": {
+    "three_runs_same_method": "60 samples an arm, six streams, the same drive and machine, within two hours of each other",
+    "indexing_only_p95_ms": [
+      291.3,
+      238.4,
+      282.8
+    ],
+    "indexing_only_max_ms": [
+      712.4,
+      305.6,
+      472.6
+    ],
+    "with_a_transfer_p95_ms": [
+      581.3,
+      273.0,
+      219.3
+    ],
+    "transfer_rate_mib_s": [
+      8.29,
+      8.49,
+      9.29
+    ],
+    "interference_factor": [
+      1.9955,
+      1.1454,
+      0.7755
+    ],
+    "settled_p95_ms": [
+      8.73,
+      8.73,
+      10.57
+    ],
+    "failed_listings": 0
+  },
+  "verdict": {
+    "P1": "HOLDS, three times. p95 of a first visit during the first index pass: 291, 238 and 283 ms against a bound of 500. Worst single listing across all three runs: 712 ms against a ceiling of five seconds. Not one listing failed in 360 samples.",
+    "P2": "HOLDS, three times, and the spread is the finding. The factor came out 2.00, 1.15 and 0.78 while the competing transfer moved 8.29, 8.49 and 9.29 MiB/s -- nearly constant load, and an effect ranging from a doubling to none at all. In the third run the arm WITH the transfer was faster than the arm without it, which no amount of interpretation makes into interference. So the honest reading is not 'a competing transfer costs 1.6x'. It is: on this machine and this network the effect is inside the method's noise, and across three runs it never reached a doubling.",
+    "P3": "HOLDS, three times. 267, 235 and 239 MB moved during the arms, all above the 5 MiB/s floor the arm needs to count.",
+    "P4": "HOLDS, three times, and by a wide margin. A settled daemon answers a first visit in 5 to 6 ms at the median and 9 to 11 ms at p95, against a bound of 50."
+  },
+  "run_1": {
+    "when": "2026-09-16, Fedora VM, cold engine on the owner's real drive, 184,085 items in two feeds",
+    "indexing_only": {
+      "samples": 60,
+      "while_indexing": 60,
+      "p50_ms": 181.094,
+      "p95_ms": 291.28,
+      "max_ms": 712.358,
+      "over_500ms": 1,
+      "failed": 0
+    },
+    "indexing_and_download": {
+      "samples": 60,
+      "while_indexing": 60,
+      "p50_ms": 194.704,
+      "p95_ms": 581.263,
+      "max_ms": 2083.08,
+      "over_500ms": 4,
+      "failed": 0,
+      "download_bytes": 266505856,
+      "download_mib_per_s": 8.291,
+      "streams": 6
+    },
+    "idle": {
+      "samples": 60,
+      "p50_ms": 6.007,
+      "p95_ms": 8.73,
+      "max_ms": 10.132,
+      "over_500ms": 0,
+      "failed": 0,
+      "settled_after_ms": 405093
+    },
+    "interference_factor": 1.9955
+  },
+  "verdict_after_run_1": {
+    "P1": "HOLDS. p95 291 ms against a bound of 500, worst listing 712 ms against a ceiling of five seconds, no failed listing.",
+    "P3": "HOLDS. The competing transfer moved 266.5 MB at 8.29 MiB/s, above the 5 MiB/s the arm needs to count.",
+    "P4": "HOLDS, and by a distance. A settled daemon answers a first visit in 6 ms at the median and 8.7 ms at p95, against a bound of 50.",
+    "P2": "UNDECIDED, and this is the honest word for it. The factor is 1.9955 against a bound of 2, a margin of 0.45 percent -- while the same arm's p95 varied by about 15 percent across three runs of the same method yesterday (272.4, 274.1, 314.9 ms). A measurement whose spread is thirty times its margin cannot adjudicate its own bound. Ticking a row on this number would be ticking on noise, and reporting it as a comfortable pass would be worse."
+  },
+  "what_happens_next": "The busy arms are repeated twice more, as registered and without changing the method -- sixty samples an arm, six streams, the same files. Three factors instead of one. If all three fall under two, P2 holds and the row can be ticked naming the spread as well as the number. If they straddle it, P2 fails and the row stays open with a real finding: a saturating transfer roughly doubles what a person waits for while their library is being indexed for the first time. Repeating because a margin is inside the method's noise is not the same as repeating until a number is liked, and the difference is that this sentence was written before the repeats ran.",
+  "run_2": {
+    "indexing_only": {
+      "p50_ms": 157.991,
+      "p95_ms": 238.357,
+      "max_ms": 305.634,
+      "over_500ms": 0,
+      "failed": 0
+    },
+    "indexing_and_download": {
+      "p50_ms": 176.824,
+      "p95_ms": 273.017,
+      "max_ms": 512.953,
+      "over_500ms": 1,
+      "failed": 0,
+      "download_bytes": 234874368,
+      "download_mib_per_s": 8.493,
+      "streams": 6
+    },
+    "idle": {
+      "p50_ms": 5.427,
+      "p95_ms": 8.727,
+      "max_ms": 11.187,
+      "settled_after_ms": 360086
+    },
+    "interference_factor": 1.1454
+  },
+  "run_3": {
+    "indexing_only": {
+      "p50_ms": 149.262,
+      "p95_ms": 282.766,
+      "max_ms": 472.58,
+      "over_500ms": 0,
+      "failed": 0
+    },
+    "indexing_and_download": {
+      "p50_ms": 147.3,
+      "p95_ms": 219.293,
+      "max_ms": 409.219,
+      "over_500ms": 0,
+      "failed": 0,
+      "download_bytes": 239068672,
+      "download_mib_per_s": 9.29,
+      "streams": 6
+    },
+    "idle": {
+      "p50_ms": 5.73,
+      "p95_ms": 10.571,
+      "max_ms": 15.688,
+      "settled_after_ms": 335081
+    },
+    "interference_factor": 0.7755
+  },
+  "decision": "The row's clause is met on bounds that could have failed, and the registration's own rule says so. Navigation during the first index of a 184,000-item library stays inside half a second at the 95th percentile and inside three quarters of a second at its worst, with no failures; a saturating transfer never pushed it past a doubling; and once the index is built the same navigation costs milliseconds. What this does NOT license is a claim about how much a competing transfer costs: three runs at constant load gave 2.00, 1.15 and 0.78, so the effect is not resolvable by this method and anybody quoting a single factor from it would be quoting noise.",
+  "what_it_cost_to_learn_that": "The first run came out at 1.9955 against a bound of 2 -- a margin of 0.45 percent, against a method whose own spread is fifteen. Ticking there would have been ticking on a coin flip; calling it a comfortable pass would have been worse. The two repeats cost half an hour and turned a number nobody should trust into a bound three runs agree on."
 }
