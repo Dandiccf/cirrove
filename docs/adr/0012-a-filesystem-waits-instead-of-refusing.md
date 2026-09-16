@@ -92,11 +92,40 @@ An `EAGAIN` observed on the mount by any caller that did not open `O_NONBLOCK`.
 A queue of waiters that grows beyond what the kernel has in flight. A resident
 set that tracks the map size rather than the working set.
 
-## What this does not explain
+## What this does not fix
 
-The daemon burns a core for roughly 25 minutes after **every** start, not only
-after an update, and it did so again after the restart that installed this
+The daemon burns a core for roughly 16 to 25 minutes after **every** start, not
+only after an update, and it did so again after the restart that installed this
 change -- with the indexer idle at 0 percent CPU and nothing holding the mount
-open. `indexed_items` reads 184,092 and the state reads `ready` while it
-happens. That is a third defect, it is not this one, and it is not yet
-explained. The crawler made it worse and made it visible; it did not cause it.
+open. That is a third defect. The crawler made it worse and made it visible; it
+did not cause it, and neither of the changes here addresses it.
+
+It is no longer unexplained. Sampling the threads that are actually computing
+-- every stack whose leaf is `futex`, `read`, `epoll_wait` or `syscall` has to
+be discarded first, or two dozen parked tokio workers drown the one that is
+working -- gives 16 computing stacks: **five in `Store::open`**, reading and
+initialising the schema; **four closing a connection**, in `sqlite3Close`,
+`sqlite3BtreeClose` and `drop_glue<rusqlite::Connection>`; **four in
+`sqlite3Prepare` and `yy_reduce`**, parsing SQL; and four in
+`Store::with_children`, which is the only one doing the work that was asked for.
+
+**The daemon opens a new SQLite connection per operation.** There are 58 call
+sites of `Store::open` in `cirrove-service`. Opening one and running a single
+statement costs 0.10 ms where the same statement on a warm connection costs
+0.002 ms, because each new connection re-reads and re-parses the whole schema --
+17 tables, 23 indexes, 3,071 characters of DDL -- and prepares every statement
+again.
+
+This is the other half of the sentence ADR 0006 wrote and nobody acted on: "A
+pooled read connection is a prerequisite, not an optimisation." The `EAGAIN`
+half is fixed above. The pool is not, and it wants its own record, because a
+pooled connection must not carry a transaction between users and must not
+sidestep the write gate. `Store::open`'s own comment already states the intent
+-- "one connection per worker" -- and the code does not do it.
+
+Measured and ruled out on the way, so that nobody pays for them twice:
+`Engine::refresh_active_directories` holds at most 32 directories two seconds
+apart; the recursive shortcut query takes 0.1 ms because a partial index covers
+it; and all 116 SELECTs in the tree were planned against the real 564 MB
+database, where the worst of the 20 full scans, `COUNT(*) FROM nodes` at 8.6 ms,
+runs once every five seconds for the status display.

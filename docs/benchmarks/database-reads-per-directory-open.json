@@ -1,4 +1,5 @@
 {
+  "a_check_on_this_change_itself": "Mapping the file does not make opening a connection more expensive, which was worth checking because a connection per operation means a map and an unmap per operation, and __munmap does appear in the profile. Median open-plus-first-statement on the real database: 0.150 ms with no map, 0.163 ms at 256 MiB, 0.100 ms at 2 GiB. The full map is faster, because the first statement's pages come from the map instead of from reads.",
   "arms": [
     {
       "name": "today",
@@ -83,7 +84,7 @@
     "crates/cirrove-service/src/filesystem/directories.rs": "1ab6d73dce3aae9630ca2e9029506987895892873bc1c72aa23dfb249230fb93",
     "crates/cirrove-store/src/lib.rs": "879123cd48d5ba7f2fd68d4eedd968fc5f7090ddee97b71d610af01bcab30614"
   },
-  "what_this_did_not_fix": "The daemon still spends about 0.98 of a core for roughly 25 minutes after every start, with 74 percent of that in userspace, writing nothing to the database -- the row counts for directories, directory_entries, observed, nodes and metadata_versions do not move while it runs. Removing the syscalls removed the syscalls. The work underneath them is a separate defect and is not yet explained.",
+  "what_this_did_not_fix": "The daemon still spends about a core for 16 to 25 minutes after every start. Profiling it (pkexec sysctl kernel.yama.ptrace_scope=0, then eu-stack sampling only threads whose stack leaf is not futex/read/epoll_wait/syscall) found the cause: a new SQLite connection per operation. Of 16 computing stacks, 5 were in Store::open, 4 in closing a connection, 4 in sqlite3Prepare/yy_reduce, and only 4 in Store::with_children. An open plus one statement costs 0.10 ms against 0.002 ms warm. The fix is the pooled read connection ADR 0006 called a prerequisite; it is not in this change.",
   "where_the_prediction_was_wrong": "I predicted PSS would rise far less than RSS, because the map is of one file and is shared between the store's connections. It did not: RSS rose 63 MB and PSS rose 64 MB. Sharing between threads of one process does not divide PSS -- proportional set size divides a mapping between the processes that hold it, and only this process maps the database. The bound I set the prediction against was the right one and it held: the whole rise is file-backed and reclaimable, and anonymous memory actually fell by 16 MB.",
   "why_it_matters": "On 2026-09-16 the owner updated the OS and rebooted. GNOME's localsearch-3 re-crawled $HOME, which contains the mount, and cirroved burned about 93 percent of one core for 25 minutes at roughly 875,000 read syscalls per second. No file content was fetched (content_gets was 0), so the cost was entirely metadata lookups amplified by a crawler. A machine whose fan spins up for half an hour after every update loses its user."
 }
