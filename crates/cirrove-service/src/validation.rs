@@ -501,7 +501,7 @@ mod tests {
                 .contains("--write-access")
         );
         assert!(
-            onedrive_notifications(temp.path(), "fixture", true)
+            onedrive_notifications(temp.path(), "fixture", true, true)
                 .await
                 .unwrap_err()
                 .to_string()
@@ -532,7 +532,7 @@ mod tests {
                 .contains("disable")
         );
         assert!(
-            onedrive_notifications(temp.path(), "fixture", true)
+            onedrive_notifications(temp.path(), "fixture", true, true)
                 .await
                 .unwrap_err()
                 .to_string()
@@ -559,7 +559,7 @@ mod tests {
         assert!(onedrive_uploads(temp.path(), "fixture").await.is_err());
         assert!(onedrive_mutations(temp.path(), "fixture").await.is_err());
         assert!(
-            onedrive_notifications(temp.path(), "fixture", true)
+            onedrive_notifications(temp.path(), "fixture", true, true)
                 .await
                 .is_err()
         );
