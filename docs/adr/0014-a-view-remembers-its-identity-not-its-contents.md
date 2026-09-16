@@ -188,18 +188,52 @@ and it does not join its two predecessors either, because what is left is
 arithmetic rather than another idea. 365 bytes per view closes the row, and the
 four structures between here and there have been measured:
 
-- the **name** in the view — 16 bytes inline and a 64-byte `Arc<str>`, about 87
-  with the B-tree slack it also carries. Four readers. `project` already returns
-  the node beside the view, so readdir has the name without the view keeping it;
-  invalidation is async and batched at 128, so it can read the store; trash
-  detection walks ancestors and is rare.
+- ~~the **name** in the view — about 87 bytes~~ **Withdrawn the same night,
+  before anything was built on it. See below.**
 - a **slab indexed by inode** instead of `BTreeMap<u64, Entry>` — inodes are
   allocated sequentially, so the key and most of the node slack go, about 50.
 - a **hashed identity index** instead of a second ordered `Key` — about 20.
 - a **derived parent residency** instead of a second `Arc` — about 11.
 
-That sums to 341 against a 365 budget. Each is a design with its own lifetime
-question and none of them is a trim; the first two are most of the saving.
+Without the name, that sums to about 81, which lands at 408 to 428 against a
+365 budget. **The remaining three do not close the row**, and the one that
+would have is not available.
+
+## The name cannot leave the view, and finding out took twenty minutes
+
+Written down because the paragraph above had it as the largest of the four and
+would have sent the next session at it first.
+
+The kernel's entry invalidation is `fuse_notify_inval_entry(parent, name)`.
+There is no inode-only form: a dentry is identified by its name in its parent,
+so anything that drops one must name it. The driver in
+`filesystem/invalidation.rs` is async and already does its notifications in a
+`spawn_blocking`, so reading names from the store there looked free — one
+batched read per 128 entries at 0.002 ms each.
+
+**It is free for every item except the one that matters.** Entry invalidation
+exists for deletions and renames. When an item is deleted remotely, `refresh`
+removes its row and *then* the change feed is read, so by the time the driver
+runs there is no row to read the name from. The live view is the last place in
+the process that knows what the item was called. A view that had forgotten its
+name would leave the kernel holding a dentry for a file that no longer exists,
+and the only symptom is a deleted file that stays visible until some other
+lookup happens to revalidate it.
+
+`MetadataChange` carries `scope`, `kind` and `identity` and no name, and
+`metadata_versions` has no name column, so the change feed cannot supply it
+either. That is the route that would make the name removable — record the name
+on the change row, take per-item names from the change and scope-wide names
+from the store — and it is a schema migration plus an argument about whether
+every deletion really does produce its own item change. It is not a trim, and
+it is not what this ADR is.
+
+So: **field-trimming has run out at about 410 bytes per live view against a 365
+budget.** Three passes before this one moved 15 to 20 percent each, this one
+moved 21, and the remainder now costs more than it returns. ADR 0005 named two
+ways out of this row and this was the first. The second — declining to hold a
+resolved view beyond a ceiling, which is a change to the lookup contract rather
+than to what a view weighs — is the one that is left.
 
 The second gate — a cold listing must not get slower than its recorded bound —
 holds: the twelve `real_` capacity fixtures run in 125.4 seconds against 126.5,
