@@ -63,10 +63,26 @@ That is the change. This design was not rejected earlier; it was not available.
 
 ## What it should cost, and the gate it must pass
 
-An identity-only view is an inode, a parent inode and a store key. Against 650
-bytes now, a rough expectation is **150 to 200 bytes** including the map's own
-overhead, which at 750,438 views is 107 to 143 MiB -- inside the 256 MiB gate
-with room that a rough estimate needs.
+**Corrected the same evening it was written, by measurement.** The first version
+of this section expected **150 to 200 bytes** per identity-only view. That was a
+guess, and it was about two and a half times too optimistic.
+
+Lengthening one field of the churn fixture at a time and watching bytes per live
+view move (`bytes-per-live-view.json`) says where the 658 bytes actually are. The
+name is stored once, not twice as this record first assumed. The id is stored
+about 1.3 times. All four strings together occupy about 160 bytes once each
+allocation's header and rounding are counted -- which leaves **about 498 bytes of
+per-view structure**: the view itself, the two indexes that each hold an entry
+per view, and the B-tree's own overhead.
+
+So dropping the node saves its strings (about 160) and its `Arc` allocation
+(about 176) and costs a key (about 32): **about 354 bytes per view.** At 750,438
+views that is **266 MB against a 268 MB gate**. On the line, not inside it, and a
+design that arrives exactly at its bound has not passed it.
+
+This record therefore proposes something necessary and not sufficient. The 498
+bytes it does not touch are now the larger half of the problem, and whatever
+comes next has to say what it does about them.
 
 **G-peak: `traversed_with_old_files` peak RSS at 500,000 files, three rounds, at
 most 256 MiB, with bytes per live view reported beside it.** Registered before
