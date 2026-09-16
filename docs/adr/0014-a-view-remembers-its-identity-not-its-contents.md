@@ -130,6 +130,22 @@ until FORGET; what changes is what it remembers, not how long. The residency
 handles stay exactly as they are -- they are what keeps the parent chain alive,
 and they are not the bytes in question.
 
+## What it does touch, counted rather than estimated
+
+**74 places read a view's node.** Fifty-two are already inside an `async` context
+where a store lookup belongs. **Twenty-two are not**: they sit in FUSE callbacks,
+on the session thread, where `Store::open`'s own comment forbids going -- "call
+from a blocking worker, never from a filesystem callback". Those twenty-two
+cannot simply gain a lookup; the work has to move into the task the handler
+spawns, which changes the shape of the handler rather than its memory.
+
+So the sentence above is true of fifty-two sites and not of twenty-two. This is
+a change to how the filesystem's callbacks are arranged, and it should be
+planned and reviewed as one, not slipped in as a memory optimisation. The
+measurement that says it is worth doing is in `bytes-per-live-view.json` and
+`traversal-peak-gate.json`; the measurement that says what it costs is this
+paragraph.
+
 ## The honest state
 
 Nothing here is implemented. The one thing this record adds that its two dead
