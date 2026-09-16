@@ -53,5 +53,17 @@
     }
   ],
   "what_this_does_not_cover": "One machine, one library of 184,000 items, and a workload that lists a directory a minute. It is a resting bound over a long session, not a bound under sustained concurrent reading -- that is allocator-arena-cost.json's fixture, which measured growth of 43.9 to 44.6 MiB capped.",
-  "why_now": "The bounded-memory row has one clause left and it is a number, not a decision. bounded-memory-long-session.json measured five capped hours and closed nothing: it settled at 129 MiB of which 78 was resident-minus-live, and its own verdict said the number was not answered because the run could not say how much of that any allocator would return. It also failed a prediction for a reason worth not repeating -- it compared a daemon that had just re-indexed 184,000 items against one that had idled for a day, which was never like-for-like. This run makes the comparison the last one could not: the same machine shape, the same library, the same light workload and a warm index, with the cap on, for a day, recording what the resident figure is made of rather than only its size."
+  "why_now": "The bounded-memory row has one clause left and it is a number, not a decision. bounded-memory-long-session.json measured five capped hours and closed nothing: it settled at 129 MiB of which 78 was resident-minus-live, and its own verdict said the number was not answered because the run could not say how much of that any allocator would return. It also failed a prediction for a reason worth not repeating -- it compared a daemon that had just re-indexed 184,000 items against one that had idled for a day, which was never like-for-like. This run makes the comparison the last one could not: the same machine shape, the same library, the same light workload and a warm index, with the cap on, for a day, recording what the resident figure is made of rather than only its size.",
+  "window_in_flight": {
+    "attempt": "third. The first died to a deliberate consent revocation on 2026-09-15, the second to the host reboot on 2026-09-16 that this day's incident came from.",
+    "cap": "Environment=MALLOC_ARENA_MAX=1 from the shipped unit, confirmed in /proc/4548/environ -- not a drop-in added for the occasion.",
+    "collect": "scripts/vm/run.sh ubuntu get /home/tester/capped-day/samples.tsv <local>; scripts/sustained-operation-report.py <local>",
+    "first_sample": "rss 24,800 KiB, free arena 492 KiB, retained 2,988 KiB, 0 trims, root listing 0 ms, 184,151 items, both feeds ready.",
+    "opened": "2026-09-16 18:35 +02:00, closing 2026-09-17 18:35",
+    "started_at_unix": 1789576500,
+    "tmpdir": "ext4, asserted with findmnt. A tmpfs TMPDIR would move bytes out of process RSS without reducing host memory and flatter the result.",
+    "voids_it": "a reboot of the VM or of this host, a daemon restart that is not recorded, replacing the installed cirrove package, or killing the QEMU process. The host must not be rebooted before 2026-09-17 evening.",
+    "where": "Ubuntu VM, packages cirrove and cirrove-desktop 0.1.0~dev.r474.g35d0dd7-1 from this branch's CI run 35070813025, daemon pid 4548, sampler pid 4791.",
+    "why_this_build": "It carries both of the day's changes that move memory: the store is read through a 2 GiB memory map (ADR 0012), which puts reclaimable file pages in RSS, and connections are pooled (ADR 0013), which keeps far fewer of them open. Measuring the older package would have answered a question about a version we are not shipping. It lacks only a1955fe, which adds a list to a reply and touches no allocation path."
+  }
 }
