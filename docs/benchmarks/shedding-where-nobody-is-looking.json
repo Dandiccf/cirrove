@@ -1,17 +1,73 @@
 {
- "question": "inval-entry-rate.json retired shedding: 107 invalidations per second under concurrent lookups, against the 1,400 a resident ceiling needs during a traversal. Its own limits section says 'One parent directory. Invalidations spread across many parents would contend less.' A resident ceiling sheds the OLDEST views, which are by construction in directories the traversal has already left. Does the rate survive when the invalidation and the lookups are in different parents?",
- "why_this_is_worth_re-opening": "The mechanism that record identified is `fuse_reverse_inval_entry` taking the parent's `i_rwsem` exclusively while `lookup_slow` holds the same lock shared for a whole round trip. That lock is per-inode. If it is the only mechanism, then invalidating in a directory nobody is looking at should cost nothing, and the measured 107 is the worst case rather than the traversal case. The measurement was never taken because the instrument has one parent.",
- "registered": "2026-09-17",
- "registered_before_the_run": true,
+ "instrument": "benchmarks/inval-entry, extended with multiple parent directories and a mode choosing whether invalidations land where the stat workers are or elsewhere. Deliberately outside the workspace, as before.",
+ "measured": {
+  "conditions": "20-second runs, 8 stat workers, 1 ms server delay, 64 directories, the shed region warmed with no delay and the workers' region left cold so their lookups reach the server as a traversal's do.",
+  "lookups_are_untouched": "17,729 to 18,062 lookups in every arm including the ones doing nothing, with p99 at 1,103 to 1,145 microseconds -- the injected 1 ms server delay. Shedding elsewhere costs the traversal nothing measurable.",
+  "same_parent_reproduction": {
+   "achieved": 105.4,
+   "forgets": 2109,
+   "note": "against 107.9 recorded on 2026-09-08. Within 3 percent, and now with forgets beside it proving the invalidations did real work.",
+   "requested": 1400
+  },
+  "trailing": [
+   {
+    "achieved": 1400.0,
+    "forgets": 28000,
+    "forgets_per_second": 1400.0,
+    "requested": 1400
+   },
+   {
+    "achieved": 4000.0,
+    "forgets": 80000,
+    "forgets_per_second": 4000.0,
+    "requested": 4000
+   },
+   {
+    "achieved": 8000.0,
+    "forgets": 160000,
+    "forgets_per_second": 8000.0,
+    "requested": 8000
+   },
+   {
+    "achieved": 24000.3,
+    "forgets": 480006,
+    "forgets_per_second": 24000.3,
+    "requested": 24000
+   },
+   {
+    "achieved": 60002.2,
+    "forgets": 1000000,
+    "forgets_per_second": 50000.0,
+    "note": "the supply of two million warmed entries ran out at 16.7 seconds, so 50,000 is a floor for the rate and not a ceiling. No arm has found the ceiling.",
+    "requested": 60000
+   }
+  ]
+ },
  "prediction": {
   "disjoint": "1,300 to 1,400 per second at a 1 ms server delay -- that is, the requested rate, matching the no-worker control which reached 1,400 with a slowest invalidation of 74 microseconds. The i_rwsem is per-inode and nothing else in the path is per-connection except the notification channel itself.",
+  "i_may_be_wrong_about": "head-of-line blocking on the single /dev/fuse notification channel. Every notification is a write to one fd, processed by the kernel synchronously, so one invalidation that blocks on a contended parent blocks every later one whatever parent it names. In disjoint mode nothing should block -- but if the channel serialises more than I think, disjoint will read far below 1,400 and the whole idea dies here.",
   "same": "about 429 per second with eight workers spread over eight directories, because the recorded control shows one worker per parent giving 429 and eight giving 108. If `same` does not reproduce roughly that, the instrument's new layout has changed something else and neither arm may be believed.",
   "the_ceiling": "a 4,000-requested arm in disjoint mode finds where it actually stops. I do not have a number for that and am not going to invent one.",
-  "i_may_be_wrong_about": "head-of-line blocking on the single /dev/fuse notification channel. Every notification is a write to one fd, processed by the kernel synchronously, so one invalidation that blocks on a contended parent blocks every later one whatever parent it names. In disjoint mode nothing should block -- but if the channel serialises more than I think, disjoint will read far below 1,400 and the whole idea dies here.",
-  "what_it_would_mean_if_it_holds": "not that shedding closes the row. It would mean shedding was retired on a worst case that a real ceiling does not meet, and that ADR 0005's first way out deserves re-reading before its second is designed. The claim would still have to be made against Cirrove's own handler rather than this instrument's injected delay.",
+  "what_it_would_mean_if_it_holds": "not that shedding closes the row on its own -- nothing here is implemented and the claim would still have to be made against Cirrove's own handler rather than this instrument's injected delay. It would mean shedding was retired on a worst case a real ceiling does not meet, and that combining it with admission -- wait, do not refuse, exactly as ADR 0012 -- gives ADR 0005 its first way out back, with a cost measured in seconds of traversal rather than in refused lookups.",
   "written_before_the_run": true
  },
- "instrument": "benchmarks/inval-entry, extended with multiple parent directories and a mode choosing whether invalidations land where the stat workers are or elsewhere. Deliberately outside the workspace, as before.",
+ "question": "inval-entry-rate.json retired shedding: 107 invalidations per second under concurrent lookups, against the 1,400 a resident ceiling needs during a traversal. Its own limits section says 'One parent directory. Invalidations spread across many parents would contend less.' A resident ceiling sheds the OLDEST views, which are by construction in directories the traversal has already left. Does the rate survive when the invalidation and the lookups are in different parents?",
+ "registered": "2026-09-17",
+ "registered_before_the_run": true,
+ "result": "The prediction held and then some, and the answer is not 1,400. Shedding in directories the sweep has left runs at 24,000 per second sustained over twenty seconds, with one FORGET for every invalidation and no measurable effect on concurrent lookups. The same-parent arm reproduces the original at 105.4 per second. So the 107 that retired this design is the worst case -- every shed aimed at the directory being read -- and it is not the case a resident ceiling meets.",
  "the_bar": "about 1,400 sheds per second. A 500,000-file traversal resolves 750,438 views; this build does it in 96 seconds per round, not the 530 the original bar was set from, which makes the bar HARDER, not easier: 750,438 in 96 seconds is 7,800 per second.",
- "result": null
+ "the_bar_is_the_wrong_shape_and_writing_it_down_showed_that": "The original bar -- shed as fast as the traversal resolves -- makes shedding a BOUND, and on this build that bar is 7,800 per second rather than 1,400, because the traversal now takes 96 seconds per round rather than 530. On that reading the idea is dead before it is measured.\n\nBut a ceiling does not have to shed at the arrival rate. It has to keep the PEAK under the budget. At 499 bytes per live view the 256 MiB budget is about 538,000 views, and the traversal resolves 750,438, so about 212,000 have to go during it -- 2,210 per second if the traversal is allowed to run at today's speed.\n\nAnd it need not be allowed to. ADR 0012's whole lesson is that a filesystem under pressure WAITS rather than refusing, because refusing is read as damage: thirteen gates that answered EAGAIN produced 7,892 'PDF document is damaged' errors from an indexer. The same shape applies here. Above the ceiling, admit a lookup only as fast as shedding retires an old view. The traversal slows; it does not break; nothing is refused; and the peak is bounded by construction rather than by hoping the rate is enough. At 1,400 sheds per second a 750,438-view traversal above a 538,000 ceiling would take about 152 seconds longer than its 96 -- two and a half times slower on a machine that cannot afford the memory, which is the trade a memory bound IS.\n\nSo the rate measured here is not pass-or-fail. It sets how much slower a traversal gets on a machine at its ceiling, and 107 per second versus 1,400 is the difference between two hours and two and a half minutes of added time. That is the number this run is for.",
+ "three_wrong_versions_first_and_each_read_like_an_answer": [
+  "A `disjoint` mode invalidating in directories the workers never entered: 120,000 per second, slowest invalidation 58 microseconds -- and zero FORGETs. The entries had never been looked up, so `inval_entry` had nothing to drop. The FORGET counter was added because of this, and it is the only reason the number was not written down as a result.",
+  "A `trailing` mode aiming a fixed distance behind a shared cursor: no ENOENT at all, and still zero FORGETs. Two mistakes at once. ENOENT from `inval_entry` reports an unknown PARENT and says nothing about the child, so `absent == 0` proved nothing; and the lag of 20,000 was larger than the 18,000 lookups the run managed, so it pointed behind the start of the sweep at entries never visited.",
+  "A warm-up that warmed everything: `same` then read 911 per second instead of 105, because the workers' stats became dentry-cache hits and stopped holding `i_rwsem` the way a traversal does. Only the shed region is warmed now, and `same` reproduces the original to within 3 percent, which is what says the instrument is still measuring the thing it measured in September."
+ ],
+ "what_it_changes": "ADR 0005 named two ways out of the peak row. The first, shedding, was retired on 2026-09-08 by a measurement whose own limits section named the untested case; the second, declining to hold a resolved view, still has no ADR. Tonight the first one comes back, and it comes back stronger than the bar it failed: 24,000 sheds per second against a traversal that resolves 7,800 views per second means a ceiling can bind DURING a traversal without slowing it, in every topology except the single giant directory. That is worth an ADR, and it is worth re-reading ADR 0006 -- the shorter-TTL successor -- which was rejected for not moving the peak and may have been rejected for the same reason.",
+ "what_this_does_not_show": [
+  "That Cirrove can do it. This is a trivial server; a real ceiling has to choose victims and keep its own books, which is the candidate queue that already exists but has never run at this rate.",
+  "Anything about the giant-directory topology, which ADR 0005's gate includes. A single directory of 250,000 files IS the same-parent case, and there shedding runs at 105 per second. Against a traversal resolving 7,800 views per second that is a brake rather than a bound, and it needs admission -- wait, do not refuse, exactly as ADR 0012 -- to be a bound at all.",
+  "That a FORGET frees a view. It does in Cirrove -- `residency.rs` reclaims on forget -- but that path has never been driven at 24,000 per second and the candidate queue reached 624,436 entries in the 500,000-file run without being asked to shed anything.",
+  "Anything measured against Cirrove's own handler. The 1 ms delay here stands in for it, and the real traversal resolves a view every 0.128 ms of wall clock across 8 workers, so about 1 ms of round trip each. That is the arm chosen, but it is a stand-in."
+ ],
+ "why_this_is_worth_re-opening": "The mechanism that record identified is `fuse_reverse_inval_entry` taking the parent's `i_rwsem` exclusively while `lookup_slow` holds the same lock shared for a whole round trip. That lock is per-inode. If it is the only mechanism, then invalidating in a directory nobody is looking at should cost nothing, and the measured 107 is the worst case rather than the traversal case. The measurement was never taken because the instrument has one parent."
 }
