@@ -1,0 +1,55 @@
+{
+  "a_pairing_error_worth_recording": "The probe writes one sample per marker plus one for an earlier write, so a naive zip is off by one and produces bytes per view that are negative -- with magnitudes of 654, 644 and 659, which match the recorded figures and would have read as a result. The alignment is now chosen by a property rather than assumed: the traversal must hold more live bytes than the released phase, and only one offset satisfies that.",
+  "arms": [
+    {
+      "name": "40k",
+      "note": "CIRROVE_CHURN_FILES=40000, about 26 MiB of views at today's cost"
+    },
+    {
+      "name": "80k",
+      "note": "CIRROVE_CHURN_FILES=80000, to show the figure does not drift with scale"
+    }
+  ],
+  "endpoint": "live_bytes_per_view at the traversed_with_old_files phase",
+  "measured": {
+    "bytes_per_live_view": [
+      661,
+      650,
+      664
+    ],
+    "live_bytes_after_release": [
+      "18.3 MB",
+      "18.5 MB",
+      "18.6 MB"
+    ],
+    "live_bytes_held_at_the_traversal": [
+      "58.0 MB",
+      "57.6 MB",
+      "58.5 MB"
+    ],
+    "probe": "the repository's own LD_PRELOAD mallinfo2 interposer (scripts/heap-probe.c), sampling on each CIRROVE_COMBINED_CHURN marker, exactly as the 500,000-file attribution run did",
+    "recorded_at_750438_views": [
+      653,
+      637,
+      657
+    ],
+    "scale": "CIRROVE_CHURN_FILES=40000, which the fixture turns into 60,093 live views"
+  },
+  "prediction": {
+    "value": "637 to 657 at both scales, matching the 500,000-file runs. If the small-scale figure differs from the recorded large-scale one by more than a few percent, then bytes per view is not scale-free after all, small-scale work cannot judge this design, and the whole approach waits for tomorrow's window.",
+    "why_it_could_be_wrong": "Fixed costs -- the root, the map's initial capacity, a few long-lived directory views -- are amortised over fewer views at 40,000 than at 750,000, so a small run should read slightly HIGHER, not lower. A lower figure would mean something scales with the traversal rather than with the views, and that is a different finding than the one being looked for.",
+    "written_before_the_run": true
+  },
+  "question": "ADR 0014 proposes that a live view hold its identity and fetch its contents per operation. The number the design turns on is bytes per live view: 637-657 today at 750,438 views. Can that number be measured honestly at a scale that does not endanger the capped-memory window running beside it, so the design can be judged tonight rather than tomorrow?",
+  "registered": "2026-09-16",
+  "registered_before_the_run": true,
+  "result": "passed. 650-664 bytes per live view at 60,093 views against 637-657 at 750,438. The figure is scale-free, so this design can be judged at a scale that costs 26 MiB rather than 500.",
+  "safety": "The capped-memory window is open in the Ubuntu VM on this host until 2026-09-17 evening. 40,000 views cost about 26 MiB against the 500 MiB a full run peaks at, which is why this is run at all tonight instead of the gate itself.",
+  "source_base": "98196c22d0c246b0596efc647e275d7a0beaf04e",
+  "source_sha256": {
+    "crates/cirrove-service/src/filesystem.rs": "6d07717a2cc297440c97714e35021bfb768ebb5a6b93d08a1f6fa708fff11757"
+  },
+  "the_prediction_held_in_both_directions": "Value and direction. It said 637-657 and it said a small run should read slightly HIGHER, because fixed costs -- the root, the map's initial capacity, a handful of long-lived directory views -- amortise over fewer views. It reads 650-664. Had it read lower, that would have meant something scales with the traversal rather than with the views, which is a different finding and would have sent this back to tomorrow's window.",
+  "what_this_does_not_do": "It does not touch the 256 MiB peak gate, which still needs the full 500,000-file run and the machine to itself. What it buys is the ability to iterate on ADR 0014 tonight and measure the gate once, rather than measuring the gate to learn whether iterating is worth it.",
+  "why_small_scale_is_legitimate": "docs/benchmarks/namespace-memory-attribution.json records that bytes per live view reproduces to within 0.2 percent across rounds while retained RSS varies by about 6 percent. A per-view figure is a property of the structure, not of the traversal's size. The 256 MiB peak gate still needs the full 500,000-file run and is not claimed here."
+}
