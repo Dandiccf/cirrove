@@ -1,6 +1,15 @@
 # A ceiling on resolved views
 
-Status: **proposed.** Nothing here is implemented. It exists because
+Status: **accepted, implemented and measured, 2026-09-17.** The shedding half
+is built and on by default at 200,000 views; the admission half is written down
+and deliberately not built, because neither topology of the gate needed it. The
+gate this proposed to pass, passes: see
+[a ceiling that holds](../benchmarks/a-ceiling-that-holds.json) and the
+outcome section at the end. The rest of this document is as it was written
+before the run, including the prediction that the giant-directory topology would
+fail, which was wrong.
+
+It exists because
 [ADR 0005](0005-namespace-memory.md) named two ways out of the peak criterion,
 said the second "needs its own ADR", and did not have one — and because the
 first one turns out not to be dead.
@@ -119,15 +128,49 @@ Like its two predecessors, and for the same reason.
 If 1 holds and 3 is intolerable, this ADR joins the other two rather than
 shipping with a footnote.
 
+## What it did
+
+The shipped default, no environment variables, 500,000 files, anonymous PSS over
+the indexed baseline against a 256 MiB budget:
+
+| topology | round 1 | round 2 | round 3 | views held | traversal |
+| --- | --- | --- | --- | --- | --- |
+| 2,000 per directory | 131.1 MiB | 148.3 | 150.2 | 200,000 | 94.7 / 96.9 / 95.8 s |
+| one 250,000 directory | 144.9 MiB | 164.3 | 197.0 | 245,815 | 100.3 / 96.6 / 96.6 s |
+| **no ceiling, for comparison** | **379.5** | **378.8** | **394.0** | 750,438 | 96 s |
+
+Shedding costs the traversal nothing: 94.7 seconds against 96 unlimited, and the
+tree topology is *faster*, because a map of 200,000 entries is cheaper to work
+than one of 750,438. `peak_resident` is enforced from this day.
+
+Three things went differently from what is written above.
+
+**The giant-directory topology passes, and the prediction said it would not.**
+The instrument's same-parent arm holds one directory's `i_rwsem` shared almost
+continuously with eight workers; a traversal reads a directory once through and
+the sheds fall between its lookups. It is also six directories across three
+routes rather than one, which is what that topology means in this fixture. So
+the admission half of this ADR is **not built**. It stays here as the named
+answer for a topology that defeats shedding, and the overshoot it would remove
+is 46,817 views — 23 percent, inside the budget.
+
+**Waking the shed task on a timer overshot by 30,000 views.** It is woken by the
+lookup that crosses the ceiling instead, which holds the tree topology at
+exactly 200,000 and costs an idle mount nothing — a 50 ms poll is 20 wakeups a
+second on a laptop doing nothing.
+
+**Both criteria now read anonymous PSS.** Gate 1 above already said this was
+owed; it was done here because the run needed it. Total PSS included 541 MiB of
+the store's mapped pages and made G3 — closed in September at 13–16 MiB — fail
+on memory the kernel reclaims without asking. The mapped pages are reported
+beside the gate as `mapped_pss_kib`.
+
 ## What is not claimed
 
-Nothing here is implemented. The instrument is a trivial server whose lookups
+The instrument is a trivial server whose lookups
 are a 1 ms sleep standing in for Cirrove's handler, which resolves a view in
 about 1 ms of round trip across eight workers — the arm chosen, but a stand-in.
-Cirrove's own candidate queue reached 624,436 entries during the 500,000-file
-run without being asked to shed one, so the reclamation path has never been
-driven at anything like 24,000 per second. And three wrong versions of the
-measurement came before the working one, each of which read like an answer;
+Three wrong versions of the measurement came before the working one, each of which read like an answer;
 [the record](../benchmarks/shedding-where-nobody-is-looking.json) names them,
 because the counter that caught two of them — did a FORGET actually arrive —
 is the one a reimplementation would leave out.
