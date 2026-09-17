@@ -1,66 +1,73 @@
 {
-  "arms": [
-    {
-      "name": "today",
-      "note": "a fresh Connection per Store::open"
-    },
-    {
-      "name": "pooled",
-      "note": "connections returned to a per-file pool on drop and reused"
-    }
-  ],
-  "endpoints": [
-    "connections actually built for N opens of the same database, counted in the store",
-    "daemon CPU milliseconds per entry for a walk of the real mount, the indexer's workload",
-    "read syscalls per directory open, which must not regress"
-  ],
-  "measured": {
-    "connections_built": {
-      "note": "one, not none: the first open finds nothing idle because the account keeper is using its connection rather than resting it.",
-      "pooled": "1 for 200 opens",
-      "today": "200 for 200 opens"
-    },
-    "cpu_ms_per_entry": {
-      "honest_limit": "the 1.28 figure is a single walk, not a median. The factor of four is well outside the pooled arm's own spread, so the direction and rough size hold, but a like-for-like spread for the old arm was never taken.",
-      "pooled_median": 0.32,
-      "pooled_range": [
-        0.15,
-        0.42
-      ],
-      "samples": "seven walks of about 4,096 entries each, median reported",
-      "today": 1.28
-    },
-    "fixture": "the owner's account on the development machine: 184,092 items, a 564 MB metadata database, an actual kernel FUSE mount, with GNOME's localsearch crawling at about 90 percent of a core throughout -- as it was during the measurement this is compared against.",
-    "full_recrawl_cpu_minutes": {
-      "pooled": 0.9,
-      "today": 3.6
-    },
-    "time_to_settle_after_a_daemon_start": {
-      "pooled": "57 seconds, peaking at 16 percent",
-      "today": "16 to 25 minutes at about 100 percent of a core"
-    }
+ "arms": [
+  {
+   "name": "today",
+   "note": "a fresh Connection per Store::open"
   },
-  "prediction": {
-    "connections_built": "today N for N opens; pooled, a handful -- one per worker thread that touches the store, so bounded by the runtime's thread count, not by the operation count.",
-    "cpu_per_entry": "1.28 ms today. An open plus one statement measures 0.10 ms against 0.002 ms warm, and the profile says roughly 13/16 of the CPU is that overhead, so I predict between 0.2 and 0.5 ms -- a factor of three to six, not a factor of fifty. The rest is the listing itself, which pooling does not touch.",
-    "i_may_be_wrong_about": "whether the opens are spread across many threads. If each tokio blocking worker takes a different connection, the pool has to hold one per thread and the win is smaller than a single shared connection would give. It also may reveal contention that a fresh connection per operation was hiding.",
-    "written_before_the_run": true
+  {
+   "name": "pooled",
+   "note": "connections returned to a per-file pool on drop and reused"
+  }
+ ],
+ "endpoints": [
+  "connections actually built for N opens of the same database, counted in the store",
+  "daemon CPU milliseconds per entry for a walk of the real mount, the indexer's workload",
+  "read syscalls per directory open, which must not regress"
+ ],
+ "measured": {
+  "connections_built": {
+   "note": "one, not none: the first open finds nothing idle because the account keeper is using its connection rather than resting it.",
+   "pooled": "1 for 200 opens",
+   "today": "200 for 200 opens"
   },
-  "question": "cirrove-service opens a new SQLite connection at 58 call sites, one per operation. Does pooling them per database file remove the open-parse-close cost, and what does a directory listing on the mount cost afterwards?",
-  "registered": "2026-09-16",
-  "registered_before_the_run": true,
-  "result": "passed. 200 opens build 1 connection instead of 200. 1.28 ms of daemon CPU per entry became 0.32. A daemon start settles in 57 seconds at 16 percent of a core instead of 16 to 25 minutes at 100 percent.",
-  "risks_to_check": [
-    "a connection must never be returned to the pool inside a transaction",
-    ":memory: databases must never be pooled -- each open is a separate database and the tests depend on that isolation",
-    "the write gate must still serialise writers"
-  ],
-  "source_base": "683fd903f0c6a0fdc287c9a3434a6817d0ab2415",
-  "source_sha256": {
-    "crates/cirrove-store/src/lib.rs": "980f8cefca1c0239921f58b6048817a01e113bd63a3fb556c4e1e95c42407042"
+  "cpu_ms_per_entry": {
+   "honest_limit": "the 1.28 figure is a single walk, not a median. The factor of four is well outside the pooled arm's own spread, so the direction and rough size hold, but a like-for-like spread for the old arm was never taken.",
+   "pooled_median": 0.32,
+   "pooled_range": [
+    0.15,
+    0.42
+   ],
+   "samples": "seven walks of about 4,096 entries each, median reported",
+   "today": 1.28
   },
-  "the_contract_that_had_to_be_kept": "Before pooling, the last Store to drop was the last connection to close, and SQLite retires -wal and -shm when the last connection closes. A pool that outlived its stores left a write-ahead log beside a cleanly closed account, which reads downstream as a crash; three tests said so immediately. Idle connections therefore exist only while at least one store does: the pool counts live stores per database and closes everything when the count reaches zero. The old contract is unchanged.",
-  "what_the_prediction_missed": "It said nothing about the state a reused connection carries, and that was the whole difficulty. Three kinds turned up, each found by a test rather than by reading the code: an open transaction; six temporary tables that directory publication creates without IF NOT EXISTS, on purpose, so that finding them already there is a failure rather than a silent inheritance; and a progress handler that capacity::cold installs to abandon a fetch, which interrupted whoever got the connection next with SQLITE_INTERRUPT. A connection now goes back only if it is in the state a fresh one would be in, and is closed otherwise. The risks_to_check list named the transaction and the in-memory isolation and missed both of the others.",
-  "where_the_prediction_was_right": "0.2 to 0.5 ms per entry was predicted and 0.32 was measured. The reasoning behind it also held: pooling removes the open-parse-close overhead and leaves the listing itself, so this was never going to be the factor of fifty that a single warm statement suggests.",
-  "why_it_matters": "Profiling the daemon on 2026-09-16 put 13 of 16 computing stacks in Store::open (schema read), sqlite3Prepare/yy_reduce (parsing SQL) and closing a connection, and only 4 in Store::with_children, the work that was asked for. A desktop file indexer re-checking the mount costs 1.28 ms of daemon CPU per file, about a thousand times what a local disk costs, so a legitimate re-check becomes a quarter of an hour of fan noise. ADR 0006 called a pooled read connection a prerequisite, not an optimisation."
+  "fixture": "the owner's account on the development machine: 184,092 items, a 564 MB metadata database, an actual kernel FUSE mount, with GNOME's localsearch crawling at about 90 percent of a core throughout -- as it was during the measurement this is compared against.",
+  "full_recrawl_cpu_minutes": {
+   "pooled": 0.9,
+   "today": 3.6
+  },
+  "time_to_settle_after_a_daemon_start": {
+   "pooled": "57 seconds, peaking at 16 percent",
+   "today": "16 to 25 minutes at about 100 percent of a core"
+  }
+ },
+ "prediction": {
+  "connections_built": "today N for N opens; pooled, a handful -- one per worker thread that touches the store, so bounded by the runtime's thread count, not by the operation count.",
+  "cpu_per_entry": "1.28 ms today. An open plus one statement measures 0.10 ms against 0.002 ms warm, and the profile says roughly 13/16 of the CPU is that overhead, so I predict between 0.2 and 0.5 ms -- a factor of three to six, not a factor of fifty. The rest is the listing itself, which pooling does not touch.",
+  "i_may_be_wrong_about": "whether the opens are spread across many threads. If each tokio blocking worker takes a different connection, the pool has to hold one per thread and the win is smaller than a single shared connection would give. It also may reveal contention that a fresh connection per operation was hiding.",
+  "written_before_the_run": true
+ },
+ "question": "cirrove-service opens a new SQLite connection at 58 call sites, one per operation. Does pooling them per database file remove the open-parse-close cost, and what does a directory listing on the mount cost afterwards?",
+ "registered": "2026-09-16",
+ "registered_before_the_run": true,
+ "result": "passed. 200 opens build 1 connection instead of 200. 1.28 ms of daemon CPU per entry became 0.32. A daemon start settles in 57 seconds at 16 percent of a core instead of 16 to 25 minutes at 100 percent.",
+ "risks_to_check": [
+  "a connection must never be returned to the pool inside a transaction",
+  ":memory: databases must never be pooled -- each open is a separate database and the tests depend on that isolation",
+  "the write gate must still serialise writers"
+ ],
+ "source_base": "683fd903f0c6a0fdc287c9a3434a6817d0ab2415",
+ "source_sha256": {
+  "crates/cirrove-store/src/lib.rs": "980f8cefca1c0239921f58b6048817a01e113bd63a3fb556c4e1e95c42407042"
+ },
+ "the_contract_that_had_to_be_kept": "Before pooling, the last Store to drop was the last connection to close, and SQLite retires -wal and -shm when the last connection closes. A pool that outlived its stores left a write-ahead log beside a cleanly closed account, which reads downstream as a crash; three tests said so immediately. Idle connections therefore exist only while at least one store does: the pool counts live stores per database and closes everything when the count reaches zero. The old contract is unchanged.",
+ "what_a_start_costs_now": {
+  "how": "/proc/<pid>/stat fields 14+15 over an interval, and per-thread from /proc/<pid>/task/*/stat. `ps` reports a lifetime average and will keep reporting the settle long after it is over, which is how this was misread once already.",
+  "measured": "2026-09-17 on the owner's machine at b5a725a, with the account ready and 184,170 items indexed across two feeds.",
+  "not_profiled": "the six minutes were not attributed to a call stack. `pkexec` no longer works from the agent's tool channel -- on this date it hung ten minutes waiting for an authentication agent it cannot show and had to be killed by PID -- so Yama's ptrace_scope could not be lowered. The owner can do it in one line: `pkexec sysctl -w kernel.yama.ptrace_scope=0`, sample with eu-stack, set it back to 1.",
+  "settle": "about fourteen percent of a core for roughly six minutes, spread evenly across the tokio workers rather than sitting on one, and then 0.72 percent over a minute at fourteen minutes in, with 77 MiB of RSS.",
+  "why_this_is_recorded_here": "the result line above says a start 'settles in 57 seconds at 16 percent of a core', which reads as a steady sixteen percent forever. It is not: sixteen percent is the settle, and what follows it is under one percent. The row this record belongs to is about the defect that made a start cost 16 to 25 minutes at 100 percent, and the thing left after it is a six-minute settle rather than a drain."
+ },
+ "what_the_prediction_missed": "It said nothing about the state a reused connection carries, and that was the whole difficulty. Three kinds turned up, each found by a test rather than by reading the code: an open transaction; six temporary tables that directory publication creates without IF NOT EXISTS, on purpose, so that finding them already there is a failure rather than a silent inheritance; and a progress handler that capacity::cold installs to abandon a fetch, which interrupted whoever got the connection next with SQLITE_INTERRUPT. A connection now goes back only if it is in the state a fresh one would be in, and is closed otherwise. The risks_to_check list named the transaction and the in-memory isolation and missed both of the others.",
+ "where_the_prediction_was_right": "0.2 to 0.5 ms per entry was predicted and 0.32 was measured. The reasoning behind it also held: pooling removes the open-parse-close overhead and leaves the listing itself, so this was never going to be the factor of fifty that a single warm statement suggests.",
+ "why_it_matters": "Profiling the daemon on 2026-09-16 put 13 of 16 computing stacks in Store::open (schema read), sqlite3Prepare/yy_reduce (parsing SQL) and closing a connection, and only 4 in Store::with_children, the work that was asked for. A desktop file indexer re-checking the mount costs 1.28 ms of daemon CPU per file, about a thousand times what a local disk costs, so a legitimate re-check becomes a quarter of an hour of fan noise. ADR 0006 called a pooled read connection a prerequisite, not an optimisation."
 }
