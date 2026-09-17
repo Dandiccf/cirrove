@@ -59,10 +59,53 @@ and the places where it could be are marked.
     `.MTREE` and file checksums; record whether it is reproducible and, if
     not, what differed. A lockfile is not reproducibility.
 
+## The signature, and the one decision it needs
+
+Step 13 asks for a signature over `SHA256SUMS`, and what signs it is the one
+thing in this document that is not ours to decide: a release key is a credential
+someone has to hold for the life of the project. The options, with what each
+costs the person holding it and what a stranger does to check a download.
+
+**A. GitHub artifact attestations** (`actions/attest-build-provenance`).
+No key exists. CI signs each package as it builds it, through Sigstore and
+GitHub's OIDC identity, and a stranger runs
+`gh attestation verify cirrove-0.1.0-1-x86_64.pkg.tar.zst --repo Dandiccf/cirrove`.
+It proves more than a detached signature does -- not only *someone with the key
+made this* but *this workflow, on this commit, made this* -- and there is nothing
+to keep safe, lose, or rotate. Costs: CI needs `id-token: write` and
+`attestations: write`, which it does not have today; it can only cover artifacts
+CI built, so the Arch package would come from CI's `arch-packages` rather than
+from a local clean chroot as step 8 has it; and a verifier needs `gh` or cosign
+rather than the `gpg` already on every machine.
+
+**B. An OpenPGP release key.** What a release page has looked like for thirty
+years, verifiable offline with `gpg --verify` and nothing installed. Costs: the
+key has to be generated, its private half kept for the project's life, and its
+public half put somewhere a stranger has reason to trust -- and losing it or
+leaking it is a real event with a real recovery. There is no key on this machine
+today (`gpg --list-secret-keys` is empty), so choosing this means making one.
+
+**C. Both.** Attestations for provenance, OpenPGP over `SHA256SUMS` for the
+people who expect it. Twice the ceremony, and the second one still has to be
+kept safe.
+
+**D. Neither, said plainly.** `SHA256SUMS` published unsigned, with the release
+notes saying it is unsigned and what that does and does not protect against.
+Honest, and weaker than the other three.
+
+**The recommendation is A for 0.1.0.** One developer, no update channels yet --
+signed APT and COPR are their own milestone-6 row and explicitly do not gate
+this release -- and the failure mode of B is a lost or leaked key held by one
+person, against a mechanism that has no key at all. B becomes worth its cost
+when there is a channel whose metadata must be signed, which is the release
+after this one. Unverified: the attestation flow has not been run here, and
+proving it is one change to `ci.yml` on a branch, which is a job for whoever
+picks it rather than a reason to pick it.
+
 ## Publishing
 
 13. A GitHub release on the tag with the packages, `SHA256SUMS`, its
-    signature, and the changelog entry as the body.
+    signature per the decision above, and the changelog entry as the body.
 14. The AUR recipe (`.SRCINFO` from `makepkg --printsrcinfo`) once there is a
     release to point at; APT and COPR channels are their own milestone-6 rows
     and do not gate this.
