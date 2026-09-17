@@ -36,11 +36,14 @@ and the places where it could be are marked.
 
 ## Building the packages
 
-8. Arch: `scripts/build-arch-package.sh` builds HEAD, which for a release is
-   the tagged commit plus the checksum commit; the package version carries no
-   suffix when `pkgver` is a release version. Build in a clean chroot
-   (`extra-x86_64-build` from `devtools`) rather than on a developer machine,
-   so the build depends on what the PKGBUILD says and nothing else.
+8. Arch: the published package is the tagged commit's `arch-packages`
+   artefact, because an attestation covers what CI built and nothing else.
+   `scripts/build-arch-package.sh` still builds HEAD locally -- the tagged
+   commit plus the checksum commit, no version suffix when `pkgver` is a
+   release version -- in a clean chroot (`extra-x86_64-build` from `devtools`)
+   rather than on a developer machine, so the build depends on what the
+   PKGBUILD says and nothing else. That local build is step 12's
+   reproducibility comparison; it is not what ships.
 9. Ubuntu 24.04 and Fedora: download the `deb-packages` and `rpm-packages`
    artefacts of the tag's CI run; they were built on a clean runner and a
    clean container from the tagged commit.
@@ -93,19 +96,47 @@ kept safe.
 notes saying it is unsigned and what that does and does not protect against.
 Honest, and weaker than the other three.
 
-**The recommendation is A for 0.1.0.** One developer, no update channels yet --
-signed APT and COPR are their own milestone-6 row and explicitly do not gate
-this release -- and the failure mode of B is a lost or leaked key held by one
-person, against a mechanism that has no key at all. B becomes worth its cost
-when there is a channel whose metadata must be signed, which is the release
-after this one. Unverified: the attestation flow has not been run here, and
-proving it is one change to `ci.yml` on a branch, which is a job for whoever
-picks it rather than a reason to pick it.
+**A is chosen, by the account owner on 2026-09-17, and it is built.** One
+developer, no update channels yet -- signed APT and COPR are their own
+milestone-6 row and explicitly do not gate this release -- and the failure mode
+of B is a lost or leaked key held by one person, against a mechanism that has no
+key at all. B becomes worth its cost when there is a channel whose metadata must
+be signed, which is the release after this one.
+
+All three package jobs in `ci.yml` now attest what they build, with
+`actions/attest-build-provenance` pinned to v4.2.2, each job carrying
+`id-token: write` and `attestations: write` of its own -- naming any permission
+at a job replaces the workflow's whole set, so `contents: read` is repeated
+beside them. The attestation is made **before** the upload, so what a release
+publishes is the file this workflow signed rather than one that passed through
+anything afterwards. It runs on every push and pull request, not only on a
+release: a mechanism exercised once a year is one that is broken when you need
+it.
+
+**What this changes elsewhere in this document.** Step 8 built the Arch package
+locally in a clean chroot; the published one must now come from the tagged
+commit's `arch-packages` artefact, because an attestation covers what CI built
+and nothing else. A local build stays worth doing -- it is step 12's
+reproducibility comparison -- but it is not what ships.
+
+**What a stranger runs**, with nothing but `gh` installed and no key to fetch:
+
+```sh
+gh attestation verify cirrove-0.1.0-1-x86_64.pkg.tar.zst --repo Dandiccf/cirrove
+```
+
+It answers with the workflow, the commit and the repository that produced the
+file. Anyone preferring not to install `gh` can verify the same Sigstore bundle
+with `cosign verify-blob-attestation`.
 
 ## Publishing
 
-13. A GitHub release on the tag with the packages, `SHA256SUMS`, its
-    signature per the decision above, and the changelog entry as the body.
+13. A GitHub release on the tag with the packages, `SHA256SUMS`, and the
+    changelog entry as the body. `SHA256SUMS` itself is unsigned; each package
+    carries its own attestation, made by the workflow that built it, and the
+    release body says so with the `gh attestation verify` line above. Verify
+    every published package against its attestation before publishing, from a
+    checkout that is not the one that built it.
 14. The AUR recipe (`.SRCINFO` from `makepkg --printsrcinfo`) once there is a
     release to point at; APT and COPR channels are their own milestone-6 rows
     and do not gate this.

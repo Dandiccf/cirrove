@@ -267,6 +267,16 @@ jobs:
     runs-on: ubuntu-24.04
     container: archlinux:base-devel
     timeout-minutes: 50
+    # Attestations, not a signature: the release procedure's option A. CI signs
+    # each package as it builds it, through Sigstore and this workflow's own
+    # OIDC identity, so there is no private key for anyone to hold, lose or
+    # rotate -- and what it proves is stronger than a detached signature, which
+    # says only that someone with the key made this. `contents` is repeated
+    # because naming any permission at a job replaces the workflow's whole set.
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - name: Build tools, and the desktop libraries the desktop package builds against
         run: pacman -Syu --noconfirm --needed git rust cmake pkgconf gtk4 libadwaita fuse3 desktop-file-utils appstream
@@ -285,6 +295,11 @@ jobs:
           # and the removal; a developer's scripts/build-arch-package.sh run
           # still checks.
           runuser -u builder -- scripts/build-arch-package.sh -- --nocheck
+      # Attested before it is uploaded, so what a release publishes is the file
+      # this workflow signed and not one that passed through anything after.
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: target/arch/*.pkg.tar.zst
       # The packages are the artefact a release takes and a VM installs; every
       # push leaves a set to download.
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -315,6 +330,16 @@ jobs:
   deb-package:
     runs-on: ubuntu-24.04
     timeout-minutes: 40
+    # Attestations, not a signature: the release procedure's option A. CI signs
+    # each package as it builds it, through Sigstore and this workflow's own
+    # OIDC identity, so there is no private key for anyone to hold, lose or
+    # rotate -- and what it proves is stronger than a detached signature, which
+    # says only that someone with the key made this. `contents` is repeated
+    # because naming any permission at a job replaces the workflow's whole set.
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -329,6 +354,9 @@ jobs:
         run: scripts/build-deb-package.sh
       # The packages are the artefact a release takes and a VM installs; every
       # push leaves a set to download.
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: target/deb/*.deb
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: deb-packages
@@ -359,6 +387,16 @@ jobs:
     runs-on: ubuntu-24.04
     container: fedora:42
     timeout-minutes: 40
+    # Attestations, not a signature: the release procedure's option A. CI signs
+    # each package as it builds it, through Sigstore and this workflow's own
+    # OIDC identity, so there is no private key for anyone to hold, lose or
+    # rotate -- and what it proves is stronger than a detached signature, which
+    # says only that someone with the key made this. `contents` is repeated
+    # because naming any permission at a job replaces the workflow's whole set.
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - name: Packaging tools, and the desktop libraries the desktop package builds against
         run: dnf install -y git rpm-build gcc cmake pkgconf-pkg-config gtk4-devel libadwaita-devel fuse3 desktop-file-utils appstream curl tar gzip
@@ -376,6 +414,9 @@ jobs:
           scripts/build-rpm-package.sh
       # The packages are the artefact a release takes and a VM installs; every
       # push leaves a set to download.
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: target/rpm/*.rpm
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: rpm-packages
