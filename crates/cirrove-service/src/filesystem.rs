@@ -4,6 +4,7 @@
 #[cfg(test)]
 mod capacity;
 mod directories;
+mod ceiling;
 mod invalidation;
 mod lifecycle;
 mod residency;
@@ -185,6 +186,7 @@ struct Inner {
     runtime: Handle,
     views: Mutex<NamespaceViews>,
     invalidation_metrics: invalidation::InvalidationMetrics,
+    ceiling_metrics: ceiling::CeilingMetrics,
     files: Mutex<HashMap<u64, Arc<OpenFile>>>,
     directories: Mutex<HashMap<u64, Arc<OpenDirectory>>>,
     directory_budget: directories::Budget,
@@ -294,8 +296,13 @@ impl CloudFs {
                 writeback: None,
                 edits: lifecycle::EditAdmission::new(),
                 runtime: Handle::current(),
-                views: Mutex::new(NamespaceViews::new(root)),
+                views: Mutex::new({
+                    let mut views = NamespaceViews::new(root);
+                    views.set_ceiling(ceiling::configured());
+                    views
+                }),
                 invalidation_metrics: invalidation::InvalidationMetrics::default(),
+                ceiling_metrics: ceiling::CeilingMetrics::default(),
                 files: Mutex::new(HashMap::new()),
                 directories: Mutex::new(HashMap::new()),
                 directory_budget: directories::Budget::default(),
@@ -311,6 +318,16 @@ impl CloudFs {
     }
     pub fn start_invalidations(&self, notifier: fuser::Notifier) {
         let wake = self.inner.engine.changed.subscribe();
+        if self
+            .inner
+            .views
+            .lock()
+            .is_ok_and(|views| views.over_ceiling() > 0 || ceiling::configured() > 0)
+        {
+            self.inner
+                .runtime
+                .spawn(ceiling::run(self.inner.clone(), notifier.clone()));
+        }
         self.inner
             .runtime
             .spawn(invalidation::run(self.inner.clone(), notifier, wake));

@@ -1,0 +1,19 @@
+{
+ "question": "ADR 0015 proposes a ceiling on resolved views held by shedding the oldest. The mechanism measures at 24,000 sheds per second in a standalone instrument. Does it hold inside Cirrove, against Cirrove's own traversal, with Cirrove's own lookups contending?",
+ "registered": "2026-09-17",
+ "registered_before_the_run": true,
+ "what_is_built": "Shedding only, no admission. `NamespaceViews` keeps a resolution-order queue when a ceiling is configured and `shed_batch` returns the oldest views the kernel still holds, skipping directories (invalidating one takes its subtree, and the subtree is where the traversal may still be) and skipping anything another clone holds. A background task asks the kernel to drop them with `notify_inval_entry` and counts only the calls that succeeded. Nothing removes a view: the FORGET that follows travels the path every other forget travels, which is why this cannot corrupt the residency accounting. Off by default; `CIRROVE_VIEW_CEILING` turns it on.",
+ "first_arm": {
+  "fixture": "real_combined_namespace_churn, CIRROVE_CHURN_FILES=40000, which holds 60,093 live views without a ceiling",
+  "ceiling": 20000
+ },
+ "prediction": {
+  "retained_views_at_the_traversal": "20,000 to 30,000, against 60,093 without a ceiling. Not 20,000 exactly: the task sheds in batches of 512 and the traversal resolves faster than one batch at a time, so an overshoot of a few thousand is expected and `max_over_ceiling` is there to report it.",
+  "shed_asked": "at least 40,000 -- the difference between what is resolved and what is held -- and every one of them a call that returned Ok, because a call the kernel refuses is not counted.",
+  "live_bytes": "about a third of the 33 MB the unlimited run holds at the traversal, in proportion to the views.",
+  "traversal_time": "within 10 percent of the 7.2 seconds the unlimited 40,000-file run takes. The instrument says shedding behind the sweep costs lookups nothing; if this arm is much slower, then Cirrove's shed is not landing behind its sweep and the resolution-order assumption is wrong.",
+  "i_may_be_wrong_about": "whether FORGET arrives promptly. `inval_entry` drops the dentry, but the kernel sends FORGET when it drops the INODE, and it may keep the inode on its own LRU for a while. If retained_views stays near 60,000 while shed_asked climbs, the invalidations are landing and the kernel is simply not giving the references back, and this design needs the kernel's memory pressure rather than a count to drive it -- which is ADR 0006's territory and was rejected there.",
+  "written_before_the_run": true
+ },
+ "result": null
+}

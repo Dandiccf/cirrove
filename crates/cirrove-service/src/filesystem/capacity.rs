@@ -202,6 +202,17 @@ fn namespace_sample(inner: &Inner, phase: &str, seconds: f64) -> serde_json::Val
     let references = inner.views.lock().unwrap().diagnostics();
     serde_json::json!({
         "allocator_trims": super::TRIMS.load(std::sync::atomic::Ordering::Relaxed),
+        // Zero when no ceiling is configured, which is the default. A shed count
+        // beside the view count is what separates "the ceiling held" from "the
+        // ceiling was never reached".
+        "shed_asked": inner
+            .ceiling_metrics
+            .asked
+            .load(std::sync::atomic::Ordering::Relaxed),
+        "max_over_ceiling": inner
+            .ceiling_metrics
+            .max_over
+            .load(std::sync::atomic::Ordering::Relaxed),
         "references": references,
         "phase": phase, "seconds": seconds, "retained_views": retained,
         "open_directory_handles": handles,

@@ -56,9 +56,24 @@ struct Entry {
     generation: u64,
     queued: bool,
 }
+/// One view a ceiling has decided to ask the kernel to drop.
+///
+/// It carries what `notify_inval_entry` needs and nothing else. Shedding never
+/// touches this index: it asks, and the FORGET that follows goes through the
+/// same path every other forget does. That is the whole reason it is safe.
+pub(in crate::filesystem) struct Shed {
+    pub inode: u64,
+    pub parent: u64,
+    pub name: Arc<str>,
+}
 pub(super) struct NamespaceViews {
     entries: BTreeMap<u64, Entry>,
     candidates: VecDeque<(u64, u64)>,
+    /// Resolution order, for a ceiling to shed its oldest first (ADR 0015).
+    /// Empty and never pushed when no ceiling is configured, which is why a
+    /// mount without one does not pay its sixteen bytes a view.
+    resolved: VecDeque<(u64, u64)>,
+    ceiling: usize,
     generation: u64,
     invalidation: ProjectionIndex,
 }
@@ -76,6 +91,8 @@ impl NamespaceViews {
                 },
             )]),
             candidates: VecDeque::new(),
+            resolved: VecDeque::new(),
+            ceiling: 0,
             generation: 0,
             invalidation,
         }
@@ -158,6 +175,9 @@ impl NamespaceViews {
                     queued: false,
                 },
             );
+            if self.ceiling > 0 {
+                self.resolved.push_back((inode, self.generation));
+            }
         }
         self.invalidation.insert(&view);
         self.queue(inode);
@@ -249,6 +269,77 @@ impl NamespaceViews {
             // NamespaceViews is locked by the caller. At count one, no external
             // View exists from which another thread could clone this token.
             && Arc::strong_count(&entry.view.residency) == 1
+    }
+    /// Hold at most this many resolved views before shedding the oldest.
+    /// Zero, the default, keeps the previous behaviour exactly and costs
+    /// nothing: the resolution queue is never written.
+    pub(in crate::filesystem) fn set_ceiling(&mut self, ceiling: usize) {
+        self.ceiling = ceiling;
+        if ceiling == 0 {
+            self.resolved = VecDeque::new();
+        }
+    }
+    /// How far over the ceiling this index is, or zero.
+    pub(in crate::filesystem) fn over_ceiling(&self) -> usize {
+        if self.ceiling == 0 {
+            return 0;
+        }
+        self.entries.len().saturating_sub(self.ceiling)
+    }
+    /// The oldest resolved views the kernel still holds.
+    ///
+    /// Oldest first is the point rather than a convenience. A traversal
+    /// resolves a directory's children consecutively, so the oldest entries are
+    /// in directories it has left -- and `fuse_reverse_inval_entry` takes the
+    /// PARENT's `i_rwsem`, which is why shedding where the sweep is looking runs
+    /// at 105 a second and shedding behind it runs at 24,000
+    /// (docs/benchmarks/shedding-where-nobody-is-looking.json).
+    ///
+    /// Directories are dropped from the queue rather than shed: invalidating a
+    /// directory entry takes its subtree with it, and the subtree is where the
+    /// traversal may still be. They retire by the ordinary path once their
+    /// children go.
+    ///
+    /// A view anything else holds -- an open file, an in-flight operation, a
+    /// snapshot -- is passed over and NOT returned to the queue: it will be
+    /// offered again the next time it is resolved, and re-queueing it here is
+    /// how a shed loop starts spinning on entries it may not touch.
+    pub(in crate::filesystem) fn shed_batch(&mut self, budget: usize) -> Vec<Shed> {
+        let mut batch = Vec::new();
+        let mut over = self.over_ceiling();
+        let mut examined = 0;
+        while batch.len() < budget && over > 0 && examined < budget * 8 {
+            examined += 1;
+            let Some((inode, generation)) = self.resolved.pop_front() else {
+                break;
+            };
+            let Some(entry) = self
+                .entries
+                .get(&inode)
+                .filter(|entry| entry.generation == generation)
+            else {
+                continue;
+            };
+            if entry.view.kind == NodeKind::Folder
+                || entry.view.residency.quarantine.load(Ordering::SeqCst)
+                || entry.view.residency.kernel.load(Ordering::SeqCst) == 0
+                || Arc::strong_count(&entry.view.residency) != 1
+            {
+                continue;
+            }
+            batch.push(Shed {
+                inode,
+                parent: entry.view.parent,
+                name: entry.view.name.clone(),
+            });
+            over -= 1;
+        }
+        // The queue is a high-water mark of past churn, like the candidate
+        // queue, and gives its capacity back the same way.
+        if self.resolved.capacity() > 64 && self.resolved.len() * 2 < self.resolved.capacity() {
+            self.resolved.shrink_to_fit();
+        }
+        batch
     }
     pub(super) fn collect(&mut self, limit: usize) -> usize {
         let mut removed = 0;
