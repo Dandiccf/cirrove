@@ -562,6 +562,10 @@ async fn run(with_mappings: bool) {
     let seconds = std::env::var("CIRROVE_CHURN_SECONDS").map_or(0, |s| s.parse::<u64>().unwrap());
     assert!(seconds <= 86_400);
     let _ = FIXTURE_FILES.set(files);
+    // Before any sample, so the walk's own scratch is in the indexed baseline
+    // that every later phase is compared against rather than appearing between
+    // them. 1.5 views per file is what both topologies produce.
+    super::reserve_charge_scratch(files * 3 / 2);
     // Sustained rounds are not full, so they never settle, and every sample taken
     // during them is pre-invalidation and not root-only. That leaves no series a
     // plateau rule can bind to, which is why the twenty-four hour gate has no

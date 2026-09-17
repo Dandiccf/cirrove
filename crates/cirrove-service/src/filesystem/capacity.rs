@@ -193,6 +193,52 @@ fn process_memory() -> serde_json::Value {
         "mapped_pss_kib": pss.saturating_sub(anonymous)
     })
 }
+/// Scratch for the `resident_bytes` walk, reserved once for the whole fixture.
+///
+/// It has to be allocated before the first sample and reused for every one
+/// after, or it pollutes exactly what it measures: nine slots per view at
+/// 200,000 views is about 29 MB, and a 29 MB allocation appearing between the
+/// indexed baseline and the traversal would be charged to the traversal. The
+/// charge is off unless `CIRROVE_CHURN_CHARGE` asks for it, so a gate run never
+/// pays for it at all.
+static CHARGE_SCRATCH: std::sync::Mutex<Vec<(usize, u64)>> = std::sync::Mutex::new(Vec::new());
+
+/// Reserve the scratch before any sample is taken. Idempotent.
+pub(super) fn reserve_charge_scratch(views: usize) {
+    if std::env::var("CIRROVE_CHURN_CHARGE").is_err() {
+        return;
+    }
+    if let Ok(mut scratch) = CHARGE_SCRATCH.lock() {
+        let slots = views.saturating_mul(9) + 4096;
+        scratch.reserve(slots);
+        // Reserved is not resident: untouched pages cost nothing until the walk
+        // writes them, which would charge the traversal for a buffer the
+        // baseline never paid for. Touch every page now so it is in both.
+        scratch.resize(slots, (0, 0));
+        scratch.clear();
+    }
+}
+
+fn charge_sample(inner: &Inner) -> Option<serde_json::Value> {
+    if std::env::var("CIRROVE_CHURN_CHARGE").is_err() {
+        return None;
+    }
+    let mut scratch = CHARGE_SCRATCH.lock().ok()?;
+    let reserved = scratch.capacity();
+    let charge = inner.views.lock().ok()?.charge(&mut scratch);
+    Some(serde_json::json!({
+        "evictable_kib": charge.evictable / 1024,
+        "inline_kib": charge.inline / 1024,
+        "modelled_kib": (charge.evictable + charge.inline) / 1024,
+        "undeduplicated_kib": charge.undeduplicated / 1024,
+        "allocations": charge.allocations,
+        "examined": charge.examined,
+        "walk_micros": charge.micros,
+        // If the walk outgrew its reservation it allocated while running, which
+        // the formula forbids, and the sample that did it is not evidence.
+        "reservation_held": scratch.capacity() == reserved,
+    }))
+}
 fn namespace_sample(inner: &Inner, phase: &str, seconds: f64) -> serde_json::Value {
     let views = inner.views.lock().unwrap();
     let retained = views.len();
@@ -207,7 +253,9 @@ fn namespace_sample(inner: &Inner, phase: &str, seconds: f64) -> serde_json::Val
     // allocator retention, and the headline slope figures were recorded on a
     // fixture that emitted neither.
     let references = inner.views.lock().unwrap().diagnostics();
+    let charge = charge_sample(inner);
     serde_json::json!({
+        "resident_bytes": charge,
         "allocator_trims": super::TRIMS.load(std::sync::atomic::Ordering::Relaxed),
         // Zero when no ceiling is configured, which is the default. A shed count
         // beside the view count is what separates "the ceiling held" from "the

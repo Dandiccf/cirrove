@@ -1,6 +1,8 @@
 //! Reference-aware residency for resolved views. Child views retain parent
 //! residency; the root and inconsistent kernel counts remain conservative.
 use super::View;
+#[cfg(test)]
+mod charge;
 mod invalidation;
 use cirrove_core::{NodeKind, ProviderError};
 pub(super) use invalidation::InvalidationCursor;
