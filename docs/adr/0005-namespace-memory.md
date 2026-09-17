@@ -409,7 +409,7 @@ the largest machine — backwards for a requirement about running on any hardwar
 | Gate | Fixture | Criterion |
 | --- | --- | --- |
 | G3 resident bound | `real_combined_namespace_churn`, `CIRROVE_CHURN_FILES=500000`, both topologies | `released` PSS minus `indexed_baseline` PSS at most 256 MiB, every round |
-| G2 evictable bound | same | a named `resident_bytes.evictable` counter at most 64 MiB, with its charge formula written here before the counter is built |
+| G2 evictable bound | same | **retired 2026-09-17.** The counter was built to the formula below and the formula's own validation falsified it at 38–51 percent agreement against 15. The fallback that paragraph names — a view-count ceiling — is in force instead ([ADR 0015](0015-a-ceiling-on-resolved-views.md)) and passes the peak criterion. The counter is reported, not enforced. |
 | G7 sustained plateau | same, sustained mode | over the final twelve hours of a twenty-four hour run, post-settle PSS must not exceed the hour-two sample by more than X percent |
 | Survivability | same, under `MemoryMax` with `MemorySwapMax=0` | no OOM kill; assertions intact |
 
@@ -697,6 +697,37 @@ resting on it is a bound. The fallback is a view-count ceiling derived from the
 measured 637 to 657 bytes per view: weaker, because it cannot see a change in
 per-view size, but honest, and it costs a day rather than a phase. That choice is
 to be made in the open, not by loosening the tolerance until the model passes.
+
+**The counter was built to this formula on 2026-09-17, and the validation
+falsified it.** Agreement with `Pss_Anon` over the indexed baseline is 41.6–48.1
+percent in the tree topology and 38.5–51.2 percent in the giant directory, at
+every round; at the `released` phase the model reads 0.0 MiB against 21–38, since
+one view is charged while the process still holds a store, a runtime and an
+allocator's free arena. The modelled figure is 63.4 MiB at 200,000 views and 77.3
+at 246,831, and the walk costs 38–45 ms holding the namespace lock — which the
+formula predicted, and which is why it stays `#[cfg(test)]`. The pre-reserved
+`Vec` held in every sample, so nothing allocated during a walk.
+
+What the formula does not charge is named rather than added, because adding it is
+what this paragraph forbids: the `entries` B-tree's node slack around a 128-byte
+view, the identity index's `BTreeSet<Key>` and its slack, the candidate and
+resolution queues, and the free arena a shedding traversal leaves — visible as
+agreement falling from 48.1 to 43.5 percent across three rounds while the modelled
+figure does not move at all.
+
+**So the fallback is taken, in the open.** `resident_bytes.evictable` reads 34.4
+MiB in the tree, under G2's 64 MiB, and 77.3 in the giant directory, over it — and
+neither number means anything while the model behind it explains under half the
+memory it claims to describe. **G2 is retired as a bound.** The ceiling actually
+in force is the count-based one this paragraph named as the fallback:
+[ADR 0015](0015-a-ceiling-on-resolved-views.md), 200,000 views, which was built
+the same day for the peak criterion and passes it in both topologies. Its stated
+weakness — it cannot see a change in per-view size — is real, and the guard
+against it is that bytes per live view is measured on every pass and has
+reproduced to within 0.2 percent across four measurements at two scales. The
+counter stays, reported and not enforced, because a falsified model that is
+measured beside the truth is how the next version of the formula gets written.
+See [is the charge formula fiction](../benchmarks/is-the-charge-formula-fiction.json).
 
 ## Shedding: the design, and why it was not built
 
