@@ -1,0 +1,16 @@
+{
+ "question": "ADR 0005's G7: over the final twelve hours of a twenty-four hour run, post-settle PSS must not exceed the hour-two sample by more than X percent. X 'must be fixed from a two-hour pilot before the twenty-four hour run, not chosen by intuition'. What is X?",
+ "registered": "2026-09-17",
+ "registered_before_the_run": true,
+ "why_now": "G7 is the only thing left on the M1 traversal row. The peak criterion passed today with ADR 0015's ceiling, and G2 retired on its own falsified model. A twenty-four hour run cannot start before the capped-memory window in the Ubuntu VM closes this evening, but the pilot that fixes X can run on the host now, and without it the twenty-four hours would be spent measuring against a number chosen by intuition -- which is what the ADR forbids.",
+ "the_only_datum_that_exists": "a sixty-five second debug run rising 9.7 percent per round. A rule picked from that would fail both arms inside the first hour.",
+ "what_changed_under_it": "the ceiling. Every earlier sustained observation was of a namespace that grew without bound during each round's traversal; a mount now holds at most 200,000 resolved views and sheds its oldest above that (ADR 0015). So the drift this pilot measures is a different quantity from the 9.7 percent, and the pilot is the only way to know which.",
+ "method": "CIRROVE_CHURN_FILES=500000, CIRROVE_CHURN_SECONDS=7200, CIRROVE_CHURN_SUSTAINED_FULL_EVERY=3 so that every third sustained round settles and produces a post-invalidation root-only sample -- which is the prerequisite ADR 0005 names as blocking G7, since sustained rounds otherwise never settle and there is no series a plateau rule can bind to. The endpoint is anonymous PSS at the settled `released` samples, which is the column both memory criteria moved to today.",
+ "prediction": {
+  "drift": "under 5 percent from the first settled sustained sample to the last, and most of it in the first twenty minutes as the allocator's arenas reach their working size. The ceiling bounds what each round can hold, and the trim tick returns what a round frees, so there is no mechanism left that should accumulate across rounds.",
+  "x": "I will propose X as the observed maximum drift plus half again, rounded up, and I expect that to land between 8 and 15 percent. Not the observed maximum itself: a tolerance with no margin fails on noise, and a twenty-four hour run that fails on noise costs a day and teaches nothing.",
+  "what_would_make_this_wrong": "the persistent inode table. G8 records that every revision of every file mints a permanent row and nothing deletes them, so the store grows all run. It is file-backed, so it should not touch anonymous PSS at all -- but if anonymous PSS climbs steadily rather than settling, the store's own heap around that table is the first suspect and the pilot has found something G8 did not.",
+  "written_before_the_run": true
+ },
+ "result": null
+}
