@@ -5,6 +5,31 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
 
 ## Unreleased
 
+- **Your desktop's search no longer reports your files as damaged.** GNOME
+  indexes your home folder, and because a Cirrove drive looks like an ordinary
+  disk to it, it walks the whole drive -- which is the point: your cloud files
+  turn up in desktop search without being downloaded. But when thousands of
+  files arrived at once Cirrove answered *try again* instead of making the
+  caller wait, and nothing outside Cirrove reads that as *wait*: one crawl of a
+  160,000-file drive produced 7,892 failures reading **PDF document is
+  damaged** about files that opened perfectly the moment the machine was quiet.
+  Cirrove now waits rather than turning anyone away, in every place it used to
+  refuse.
+- **Opening a folder reads the index seven times less.** Cirrove's index of your
+  drive had grown to 564 MB and was being read through a 2 MB window, a system
+  call at a time: 82 reads to open one directory, and 875,000 reads a second
+  while the desktop was crawling. It is 11 reads and about 2,000 a second now.
+  You notice it as a machine that stays responsive while something walks your
+  drive in the background.
+- **Cirrove's memory no longer grows with the size of your drive.** Something
+  that walks every file -- a desktop indexer, a backup, a search -- used to
+  leave Cirrove holding about **490 MB** by the end of half a million files,
+  because it remembered every file the system had asked about and nothing ever
+  told the system it could forget them. It now holds at most **150 MB** however
+  large the drive is, letting go of what has not been touched for longest, and
+  the walk is not slower for it -- 94.7 seconds against 96. On a machine with a
+  gigabyte to spare that is the difference between working and not.
+
 - **Taking away Cirrove's access now has a measured answer.** Revoke the app's
   consent in your directory and Cirrove keeps working for up to an hour -- the
   pass it holds has its own expiry and Microsoft does not re-check consent on
