@@ -216,11 +216,29 @@ static FIXTURE_FILES: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
 /// at 500,000 files. A gate that passes and cannot fail is worth nothing, so it
 /// fails the build from here.
 ///
-/// The peak criterion is reported, not enforced, because it still fails at about
-/// 1.9x: trimming returns pages after the fact and does not lower the high-water
-/// mark reached while the views were held. Only bounding the resident count does
-/// that. `CIRROVE_CHURN_ENFORCE_MEMORY` turns it into an assertion for anyone
-/// working on that, and it becomes unconditional when they finish.
+/// The peak criterion is enforced from 2026-09-17, which is the first day it
+/// held in the shipped default configuration. It had failed since the criterion
+/// was written, at about 1.9 times the budget: trimming returns pages after the
+/// fact and cannot lower a high-water mark reached while the views were held.
+/// Only bounding the resident count does that, and ADR 0015's ceiling -- 200,000
+/// views by default, `CIRROVE_VIEW_CEILING` to change or disable it -- does.
+/// Three designs died on this criterion before it; a gate that cannot fail is
+/// worth nothing, and so is one that can never pass.
+///
+/// **Both criteria read ANONYMOUS PSS, and that changed on 2026-09-17.** They
+/// read total PSS until then, which was the same number until ADR 0012 put a
+/// 2 GiB memory map over the store. Its clean, file-backed pages go resident
+/// during a traversal that touches the whole store and stay: on this build the
+/// released phase held 695 MiB of resident memory against 26 MiB of live heap.
+/// The kernel reclaims those without asking anyone, so they are not memory the
+/// daemon holds -- and counting them made G3, a gate closed in September at 13
+/// to 16 MiB, fail on a number that is not live data.
+///
+/// This is not a budget quietly widened to fit. The peak fails on anonymous
+/// memory too in the default configuration -- 379.5 / 378.8 / 394.0 MiB against
+/// 256 -- and total PSS ALSO flatters it, because the indexed baseline that is
+/// subtracted already contains about 140 MiB of the same map. The mapped pages
+/// are still reported, in `mapped_pss_kib`, so nothing is hidden by the change.
 const MEMORY_BUDGET_KIB: u64 = 256 * 1024;
 /// Below this the fixture is a correctness check, not a capacity measurement,
 /// and its memory is dominated by fixed overhead.
@@ -328,24 +346,27 @@ async fn sample(inner: &Arc<Inner>, round: usize, phase: &'static str, started: 
     let files = FIXTURE_FILES.get().copied().unwrap_or(0);
     let memory = &value["memory"];
     if phase == "indexed_baseline" {
-        let _ = BASELINE_PSS_KIB.set(memory["pss_kib"].as_u64().unwrap());
+        let _ = BASELINE_PSS_KIB.set(memory["anonymous_pss_kib"].as_u64().unwrap());
     }
     if phase == "released" {
         check_memory(
             &value,
             "g3_released",
-            memory["pss_kib"].as_u64().unwrap(),
+            memory["anonymous_pss_kib"].as_u64().unwrap(),
             files,
             true,
         );
     }
     if phase == "traversed_with_old_files" {
+        // Anonymous PSS at this phase, not VmHWM. The high-water mark has no
+        // anonymous form in /proc, and it does not need one: this phase IS the
+        // moment the views are held, which is what the peak criterion is about.
         check_memory(
             &value,
             "peak_resident",
-            memory["peak_rss_kib"].as_u64().unwrap(),
+            memory["anonymous_pss_kib"].as_u64().unwrap(),
             files,
-            false,
+            true,
         );
     }
     println!("CIRROVE_COMBINED_CHURN {value}");

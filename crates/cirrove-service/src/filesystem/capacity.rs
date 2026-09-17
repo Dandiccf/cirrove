@@ -181,9 +181,16 @@ fn process_memory() -> serde_json::Value {
             .parse()
             .unwrap()
     };
+    let pss = value(&rollup, "Pss:");
+    let anonymous = value(&rollup, "Pss_Anon:");
     serde_json::json!({
         "rss_kib": value(&status, "VmRSS:"), "peak_rss_kib": value(&status, "VmHWM:"),
-        "pss_kib": value(&rollup, "Pss:"), "anonymous_pss_kib": value(&rollup, "Pss_Anon:")
+        "pss_kib": pss, "anonymous_pss_kib": anonymous,
+        // What the store's memory map costs, reported beside the gate rather
+        // than inside it: clean file-backed pages the kernel reclaims under
+        // pressure without asking. They are not memory the daemon holds, and
+        // they are not hidden either.
+        "mapped_pss_kib": pss.saturating_sub(anonymous)
     })
 }
 fn namespace_sample(inner: &Inner, phase: &str, seconds: f64) -> serde_json::Value {
@@ -718,8 +725,15 @@ async fn real_directory_ancestry_retires_after_last_kernel_snapshot_and_file_use
     parents::directories_and_aliases().await;
 }
 
+mod bounded;
 mod cold;
 mod early;
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; a ceiling must hold the resident view count"]
+async fn real_a_ceiling_holds_the_resident_view_count_during_a_traversal() {
+    bounded::a_ceiling_holds_during_a_traversal().await;
+}
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires synthetic kernel FUSE; first directory batch before a blocked inode writer"]

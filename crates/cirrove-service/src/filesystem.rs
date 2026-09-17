@@ -3,8 +3,8 @@
 //! holds the namespace map while awaiting a provider or a database operation.
 #[cfg(test)]
 mod capacity;
-mod directories;
 mod ceiling;
+mod directories;
 mod invalidation;
 mod lifecycle;
 mod residency;
@@ -187,6 +187,7 @@ struct Inner {
     views: Mutex<NamespaceViews>,
     invalidation_metrics: invalidation::InvalidationMetrics,
     ceiling_metrics: ceiling::CeilingMetrics,
+    over_ceiling: tokio::sync::Notify,
     files: Mutex<HashMap<u64, Arc<OpenFile>>>,
     directories: Mutex<HashMap<u64, Arc<OpenDirectory>>>,
     directory_budget: directories::Budget,
@@ -303,6 +304,7 @@ impl CloudFs {
                 }),
                 invalidation_metrics: invalidation::InvalidationMetrics::default(),
                 ceiling_metrics: ceiling::CeilingMetrics::default(),
+                over_ceiling: tokio::sync::Notify::new(),
                 files: Mutex::new(HashMap::new()),
                 directories: Mutex::new(HashMap::new()),
                 directory_budget: directories::Budget::default(),
@@ -318,16 +320,9 @@ impl CloudFs {
     }
     pub fn start_invalidations(&self, notifier: fuser::Notifier) {
         let wake = self.inner.engine.changed.subscribe();
-        if self
-            .inner
-            .views
-            .lock()
-            .is_ok_and(|views| views.over_ceiling() > 0 || ceiling::configured() > 0)
-        {
-            self.inner
-                .runtime
-                .spawn(ceiling::run(self.inner.clone(), notifier.clone()));
-        }
+        self.inner
+            .runtime
+            .spawn(ceiling::run(self.inner.clone(), notifier.clone()));
         self.inner
             .runtime
             .spawn(invalidation::run(self.inner.clone(), notifier, wake));
@@ -525,11 +520,21 @@ impl CloudFs {
     }
 }
 impl Inner {
+    /// Take the kernel's reference on a view, and wake the ceiling if this is
+    /// the reference that put the mount over it.
+    ///
+    /// The wake is here rather than on a timer because a mount under its
+    /// ceiling must cost nothing at all -- a 50 ms poll is 20 wakeups a second
+    /// on a laptop doing nothing.
     fn acquire_lookup(&self, inode: u64) -> Result<(), ProviderError> {
-        self.views
-            .lock()
-            .map_err(|_| ProviderError::Unavailable)?
-            .acquire_lookup(inode)
+        let mut views = self.views.lock().map_err(|_| ProviderError::Unavailable)?;
+        views.acquire_lookup(inode)?;
+        let over = views.over_ceiling() > 0;
+        drop(views);
+        if over {
+            self.over_ceiling.notify_one();
+        }
+        Ok(())
     }
     fn view(&self, inode: u64) -> Result<View, ProviderError> {
         self.views
