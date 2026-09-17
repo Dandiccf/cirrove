@@ -410,7 +410,7 @@ the largest machine — backwards for a requirement about running on any hardwar
 | --- | --- | --- |
 | G3 resident bound | `real_combined_namespace_churn`, `CIRROVE_CHURN_FILES=500000`, both topologies | `released` PSS minus `indexed_baseline` PSS at most 256 MiB, every round |
 | G2 evictable bound | same | **retired 2026-09-17.** The counter was built to the formula below and the formula's own validation falsified it at 38–51 percent agreement against 15. The fallback that paragraph names — a view-count ceiling — is in force instead ([ADR 0015](0015-a-ceiling-on-resolved-views.md)) and passes the peak criterion. The counter is reported, not enforced. |
-| G7 sustained plateau | same, sustained mode | over the final twelve hours of a twenty-four hour run, post-settle PSS must not exceed the hour-two sample by more than X percent |
+| G7 sustained plateau | same, sustained mode | over the final half of the sustained period, post-settle **anonymous** PSS must not exceed the sample one twelfth in — hour two of twenty-four — by more than **18 percent**, fixed from the 2026-09-17 pilot. Asserted only where that reference falls at least ninety minutes in, twice the measured settle. |
 | Survivability | same, under `MemoryMax` with `MemorySwapMax=0` | no OOM kill; assertions intact |
 
 G3 failed at 476.4 / 514.8 / 546.7 MiB, missing by 1.86x to 2.14x. **It closed on
@@ -444,6 +444,41 @@ Two prerequisites block G7 as written. `capacity/churn.rs:414` skips
 runs only non-full rounds, so no sustained sample is post-invalidation root-only
 and there is no series a plateau rule can be applied to. Sustained mode also
 carries no memory assertion at all.
+
+**X is 18 percent, fixed from the pilot on 2026-09-17**
+([the pilot](../benchmarks/what-x-is-in-the-plateau-rule.json)). Both
+prerequisites are closed: `CIRROVE_CHURN_SUSTAINED_FULL_EVERY` makes sustained
+rounds settle, so there is a post-invalidation root-only series, and both memory
+criteria now assert in sustained rounds.
+
+Two hours at 500,000 files, 105 settled sustained samples. Anonymous memory is
+flat at 62–68 MiB for 35 minutes, climbs to about 90 between minutes 35 and 47,
+and is flat at 88–94 for the 73 minutes after. Inside the plateau the largest
+excursion is +11.5 percent and the second largest +10.4, against −10.1 at the
+bottom; X is that maximum plus half again, rounded up, because a tolerance with
+no margin is a twenty-four hour run that fails on noise.
+
+**The pilot earned the sentence above it.** Compared against a reference taken
+one twelfth into a *two-hour* run — minute 10, which is inside the climb — the
+same plateau reads **+45.5 percent**. G7's reference is hour two of twenty-four,
+which is past the 47-minute settle, so the real rule sees 11.5 and not 45.5. A
+rule picked from the two-hour reading would have failed the long run in its
+first hour, which is exactly what this paragraph predicted a blind choice would
+do. The fixture therefore refuses to assert the rule at all unless the reference
+point falls at least ninety minutes into the sustained period — twice the
+measured settle — and prints why rather than passing silently.
+
+`plateau_verdict` is separated from the run and held to the pilot's own shape by
+three tests: a two-hour run reports and declines to judge, a twenty-four hour
+run judges the measured plateau and passes it, and a plateau that keeps climbing
+by one MiB an hour fails. That last one is the shape a leak would make, and it
+matters because one candidate is still open — the resolution queue
+[ADR 0015](0015-a-ceiling-on-resolved-views.md) added the same day is filled on
+every insert and drained only while the mount is over its ceiling. It had no
+counter during the pilot, which is why the pilot cannot say whether the 35-to-47
+minute climb was it; it has `resolution_entries` now. The candidate queue is
+ruled out and is in the data: it falls from 913,667 entries to 279,502 and
+holds.
 
 **G8, the persistent inode table.** Measured across two 500,000-file runs: rows go
 from 1 to 750,495 and the database file from 565.6 to 662.7 MiB. The first pass

@@ -1,16 +1,38 @@
 {
+ "measured": {
+  "drift_if_the_reference_is_taken_at_one_twelfth_of_a_two_hour_run": 45.5,
+  "drift_inside_the_plateau_percent": 11.5,
+  "plateau_high_mib": 99.8,
+  "plateau_low_mib": 80.5,
+  "plateau_ninetieth_percentile_mib": 96.1,
+  "plateau_reference_mib": 89.5,
+  "plateau_samples": 64,
+  "plateau_second_high_mib": 98.8,
+  "plateau_span_minutes": 72.9,
+  "settle_ends_at_minutes": 47.4,
+  "settled_sustained_samples": 105,
+  "span_minutes": 120.3
+ },
+ "method": "CIRROVE_CHURN_FILES=500000, CIRROVE_CHURN_SECONDS=7200, CIRROVE_CHURN_SUSTAINED_FULL_EVERY=3 so that every third sustained round settles and produces a post-invalidation root-only sample -- which is the prerequisite ADR 0005 names as blocking G7, since sustained rounds otherwise never settle and there is no series a plateau rule can bind to. The endpoint is anonymous PSS at the settled `released` samples, which is the column both memory criteria moved to today.",
+ "one_thing_this_could_not_rule_out": "The resolution queue ADR 0015 added the same night. It is filled on every insert and drained only while the mount is over its ceiling, so a mount that stays under one could hold a queue that only grows -- sixteen bytes an entry, which over an hour of churn is the right order for the climb seen here. It had no counter, which is why this pilot cannot say. It has one now, `resolution_entries` and `resolution_capacity` beside the candidate queue's, and the twenty-four hour run will answer it. The candidate queue was ruled out and is in the data: it FALLS from 913,667 entries to 279,502 and then holds.",
+ "prediction": {
+  "drift": "under 5 percent from the first settled sustained sample to the last, and most of it in the first twenty minutes as the allocator's arenas reach their working size. The ceiling bounds what each round can hold, and the trim tick returns what a round frees, so there is no mechanism left that should accumulate across rounds.",
+  "what_would_make_this_wrong": "the persistent inode table. G8 records that every revision of every file mints a permanent row and nothing deletes them, so the store grows all run. It is file-backed, so it should not touch anonymous PSS at all -- but if anonymous PSS climbs steadily rather than settling, the store's own heap around that table is the first suspect and the pilot has found something G8 did not.",
+  "written_before_the_run": true,
+  "x": "I will propose X as the observed maximum drift plus half again, rounded up, and I expect that to land between 8 and 15 percent. Not the observed maximum itself: a tolerance with no margin fails on noise, and a twenty-four hour run that fails on noise costs a day and teaches nothing."
+ },
  "question": "ADR 0005's G7: over the final twelve hours of a twenty-four hour run, post-settle PSS must not exceed the hour-two sample by more than X percent. X 'must be fixed from a two-hour pilot before the twenty-four hour run, not chosen by intuition'. What is X?",
  "registered": "2026-09-17",
  "registered_before_the_run": true,
- "why_now": "G7 is the only thing left on the M1 traversal row. The peak criterion passed today with ADR 0015's ceiling, and G2 retired on its own falsified model. A twenty-four hour run cannot start before the capped-memory window in the Ubuntu VM closes this evening, but the pilot that fixes X can run on the host now, and without it the twenty-four hours would be spent measuring against a number chosen by intuition -- which is what the ADR forbids.",
+ "result": "X is 18 percent, and the pilot earned its name: the naive reading of the same data says 45.5, which would have failed a twenty-four hour run inside its first hour. Two hours at 500,000 files, 105 settled sustained samples. Anonymous memory at the post-invalidation root-only points is flat at 62 to 68 MiB for 35 minutes, climbs to about 90 between minutes 35 and 47, and is flat at 88 to 94 for the 73 minutes after that. Inside the plateau the largest excursion is +11.5 percent and the second largest +10.4, against -10.1 at the bottom. X = 11.5 plus half again, rounded up.",
  "the_only_datum_that_exists": "a sixty-five second debug run rising 9.7 percent per round. A rule picked from that would fail both arms inside the first hour.",
+ "the_prediction_was_wrong_three_ways": [
+  "'Under 5 percent drift': the plateau varies by 11.5 percent above and 10.1 below. Out by more than a factor of two.",
+  "'Most of it in the first twenty minutes': the settle takes 47 minutes, and the climb does not even begin until minute 35. The shape was flat, then rising, then flat -- not a decaying transient, which is what 'most of it early' describes.",
+  "'X between 8 and 15 percent': 18. Just outside, and outside on the side that matters, since a tolerance chosen too tight is a run that fails on noise."
+ ],
+ "the_thing_the_pilot_was_for": "G7's reference is the hour-two sample of a twenty-four hour run, which is well after the settle. A two-hour pilot puts one twelfth at minute 10, which is in the climb. Compared against the climb the plateau reads +45.5 percent; compared against itself it reads +11.5. Both numbers are in this record because the difference between them IS the reason ADR 0005 forbids choosing X by intuition. The fixture now refuses to assert the rule at all unless the reference point falls at least ninety minutes into the sustained period -- twice the measured settle -- and says so in its own output rather than passing silently.",
  "what_changed_under_it": "the ceiling. Every earlier sustained observation was of a namespace that grew without bound during each round's traversal; a mount now holds at most 200,000 resolved views and sheds its oldest above that (ADR 0015). So the drift this pilot measures is a different quantity from the 9.7 percent, and the pilot is the only way to know which.",
- "method": "CIRROVE_CHURN_FILES=500000, CIRROVE_CHURN_SECONDS=7200, CIRROVE_CHURN_SUSTAINED_FULL_EVERY=3 so that every third sustained round settles and produces a post-invalidation root-only sample -- which is the prerequisite ADR 0005 names as blocking G7, since sustained rounds otherwise never settle and there is no series a plateau rule can bind to. The endpoint is anonymous PSS at the settled `released` samples, which is the column both memory criteria moved to today.",
- "prediction": {
-  "drift": "under 5 percent from the first settled sustained sample to the last, and most of it in the first twenty minutes as the allocator's arenas reach their working size. The ceiling bounds what each round can hold, and the trim tick returns what a round frees, so there is no mechanism left that should accumulate across rounds.",
-  "x": "I will propose X as the observed maximum drift plus half again, rounded up, and I expect that to land between 8 and 15 percent. Not the observed maximum itself: a tolerance with no margin fails on noise, and a twenty-four hour run that fails on noise costs a day and teaches nothing.",
-  "what_would_make_this_wrong": "the persistent inode table. G8 records that every revision of every file mints a permanent row and nothing deletes them, so the store grows all run. It is file-backed, so it should not touch anonymous PSS at all -- but if anonymous PSS climbs steadily rather than settling, the store's own heap around that table is the first suspect and the pilot has found something G8 did not.",
-  "written_before_the_run": true
- },
- "result": null
+ "what_it_got_right": "The persistent inode table does not touch anonymous memory. It grew by 243 rows a round all run, from 750,657 to 752,115, and the anonymous series plateaued regardless, which is what G8 says it should do because it is file-backed. The suspicion named in the prediction is cleared.",
+ "why_now": "G7 is the only thing left on the M1 traversal row. The peak criterion passed today with ADR 0015's ceiling, and G2 retired on its own falsified model. A twenty-four hour run cannot start before the capped-memory window in the Ubuntu VM closes this evening, but the pilot that fixes X can run on the host now, and without it the twenty-four hours would be spent measuring against a number chosen by intuition -- which is what the ADR forbids."
 }

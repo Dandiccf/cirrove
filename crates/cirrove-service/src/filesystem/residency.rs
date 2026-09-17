@@ -130,6 +130,14 @@ impl NamespaceViews {
             "kernel_referenced_views":kernel_referenced,"lease_protected_views":lease_protected,
             "quarantined_views":quarantined,"candidate_entries":self.candidates.len(),
             "candidate_capacity":self.candidates.capacity(),"identity_index_entries":identity_keys,
+            // The resolution queue a ceiling sheds from. It is filled on every
+            // insert and drained only while the mount is over its ceiling, so a
+            // mount that stays under one could in principle hold a queue that
+            // only grows -- which is exactly the shape a two-hour sustained
+            // pilot was unable to rule out on 2026-09-17 because this was not
+            // reported. Sixteen bytes an entry.
+            "resolution_entries":self.resolved.len(),
+            "resolution_capacity":self.resolved.capacity(),
             "inode_index_entries":inode_keys})
     }
 
