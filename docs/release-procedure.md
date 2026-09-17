@@ -129,6 +129,21 @@ It answers with the workflow, the commit and the repository that produced the
 file. Anyone preferring not to install `gh` can verify the same Sigstore bundle
 with `cosign verify-blob-attestation`.
 
+**Proven on 2026-09-17, not assumed.** CI run 35185096527 built the three Arch
+packages and attested them; the artefact was downloaded again afterwards and
+verified from a directory that had nothing to do with the build:
+
+```
+Repository : https://github.com/Dandiccf/cirrove
+Commit     : a9e47dbf282b7bd47b73eb1ead5d2ce07a346b09
+Workflow   : .github/workflows/ci.yml@refs/pull/48/merge
+Subject    : cirrove-0.1.0dev.r522.ga9e47db-1-x86_64.pkg.tar.zst
+```
+
+`gh attestation verify` exits 0 and prints nothing on success, which is worth
+knowing before someone reads an empty output as a failure; `--format json` is
+where the four lines above come from.
+
 ## Publishing
 
 13. A GitHub release on the tag with the packages, `SHA256SUMS`, and the
