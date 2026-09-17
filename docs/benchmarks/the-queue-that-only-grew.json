@@ -1,0 +1,24 @@
+{
+ "question": "The peak criterion was enforced on 2026-09-17 after passing on the development machine with 48 percent of headroom. The first time it ran anywhere else -- the twenty-four hour G7 run, in the Fedora VM -- it failed at round 36, 31 minutes in, by 1.9 percent. Why?",
+ "registered": "2026-09-17",
+ "registered_before_the_run": false,
+ "why_not_registered_first": "This is not a benchmark with a prediction. It is a gate firing on a machine it had never run on, and the diagnosis that followed. Recorded because the gate being enforced is the only reason it was found at all, and because it is a defect in shipped behaviour rather than in a measurement.",
+ "what_the_gate_saw": {
+  "where": "Fedora VM, 4 CPUs, host-built release binary at 618a5cd, CIRROVE_CHURN_FILES=500000, CIRROVE_CHURN_SECONDS=86400, CIRROVE_CHURN_SUSTAINED_FULL_EVERY=3",
+  "failure": "peak_resident 267,152 KiB over the indexed baseline against 262,144, at round 36 after 31 minutes",
+  "the_series": "candidate_entries 1,311,303 at round 5, 2,037,543 at 15, 2,242,649 at 25, 2,738,729 at 33, with capacity doubling from 2,223,244 to 4,438,778. At sixteen bytes a slot that is 44 MB held and 71 MB reserved.",
+  "the_same_run_on_the_host": "candidate_entries fell from 913,667 to 279,502 and held, which is why two days of measurement here never saw it."
+ },
+ "the_cause": "Every view that is created queues itself once as a reclamation candidate, and every view that is reclaimed leaves its slot behind, because a `VecDeque` cannot take an entry out of the middle. A traversal of 500,000 files therefore leaves about 750,000 stale slots, and a mount that keeps traversing leaves that many again each round. The collector drained a FIXED 4,096 of them a second. That is a constant against a backlog that grows with the traversal: fast enough on the machine the number was chosen on, and not fast enough on one with four cores, where the queue only grew.",
+ "the_fix": "More passes, not a bigger one. The reclamation tick now takes up to 64 passes of 4,096, releasing the namespace lock and yielding between them, and stops as soon as the backlog is within 4,096 of the view count. A single long pass would be head-of-line blocking on a deliberately single-threaded dispatcher, which is the thing five earlier commits were spent removing; 64 short holds of about 0.4 ms each are not.",
+ "measured_after": {
+  "host_500k": {
+   "candidate_entries": [201691, 202235, 207261],
+   "before_the_fix": [913667, 279502, 279502],
+   "peak_over_baseline_mib": [127.7, 127.7, 141.2],
+   "before_the_fix_peak": [131.1, 148.3, 150.2]
+  }
+ },
+ "what_this_says_about_enforcing_a_gate": "It was enforced the night before on three green runs on one machine, and the first foreign machine failed it in half an hour. That is the gate working, not the enforcement being premature -- an unenforced gate would have reported 267,152 against 262,144 into a log nobody reads, and the twenty-four hour run would have finished with a queue of seventy megabytes and called it a pass.",
+ "the_test": "residency::tests::a_traversals_worth_of_stale_candidates_drains_in_bounded_passes: twenty thousand views created, looked up and forgotten, leaving twenty thousand stale slots. One pass of the old fixed budget leaves more than fifteen thousand of them; the new policy drains to within the view count in at most sixty-four passes, and a quiet mount asks for no extra pass at all."
+}

@@ -128,7 +128,7 @@ impl NamespaceViews {
         let (identity_keys, inode_keys) = (self.invalidation.count(), self.entries.len());
         serde_json::json!({"views":self.entries.len(),"map_storage":"btree",
             "kernel_referenced_views":kernel_referenced,"lease_protected_views":lease_protected,
-            "quarantined_views":quarantined,"candidate_entries":self.candidates.len(),
+            "quarantined_views":quarantined,"candidate_entries":self.candidate_backlog(),
             "candidate_capacity":self.candidates.capacity(),"identity_index_entries":identity_keys,
             // The resolution queue a ceiling sheds from. It is filled on every
             // insert and drained only while the mount is over its ceiling, so a
@@ -350,6 +350,35 @@ impl NamespaceViews {
             self.resolved.shrink_to_fit();
         }
         batch
+    }
+    /// Candidates waiting to be examined.
+    ///
+    /// Most of them are stale: every view that is created queues once and every
+    /// view that is reclaimed leaves its slot behind, because a `VecDeque` has
+    /// no way to take an entry out of the middle. A traversal of 500,000 files
+    /// therefore leaves about 750,000 slots for the collector to discard, and a
+    /// mount that keeps traversing leaves that many again each time.
+    #[cfg(test)]
+    pub(super) fn candidate_backlog(&self) -> usize {
+        self.candidates.len()
+    }
+    /// Whether the collector should take another pass before its next tick.
+    ///
+    /// A fixed budget per second does not work: it is a constant against a
+    /// backlog that grows with the traversal, so on a machine slower than the
+    /// one it was chosen on the queue only grows. Measured on 2026-09-17 in the
+    /// Fedora VM -- 1.3 million slots after five rounds, 2.7 million after
+    /// thirty-three, 71 MB of capacity, and the peak criterion failed by 1.9
+    /// percent because of it. The same run on the host drained fine, which is
+    /// why this was never seen here.
+    ///
+    /// The answer is more passes, not a bigger one. Each pass releases the
+    /// namespace lock, so a long backlog is drained in many short holds rather
+    /// than one that blocks every reply on a single-threaded dispatcher.
+    pub(super) fn wants_another_pass(&self, passes: usize) -> bool {
+        const SLACK: usize = 4096;
+        const MAX_PASSES: usize = 64;
+        passes < MAX_PASSES && self.candidates.len() > self.entries.len() + SLACK
     }
     pub(super) fn collect(&mut self, limit: usize) -> usize {
         let mut removed = 0;
@@ -686,6 +715,62 @@ mod tests {
         assert_eq!(cache.len(), 8);
         assert_eq!(cache.collect(100), 7);
         assert_eq!(cache.len(), 1);
+    }
+
+    /// A traversal leaves one stale candidate for every view it made, and a
+    /// fixed budget a second cannot drain them: this is the shape that put 2.7
+    /// million slots and 71 MB into the Fedora VM on 2026-09-17 and failed the
+    /// peak criterion by 1.9 percent.
+    #[test]
+    fn a_traversals_worth_of_stale_candidates_drains_in_bounded_passes() {
+        let mut cache = cache();
+        const VIEWS: u64 = 20_000;
+        for inode in 2..2 + VIEWS {
+            let view = cache.insert(view(inode, NodeKind::File)).unwrap();
+            cache.acquire_lookup(inode).unwrap();
+            drop(view);
+        }
+        assert_eq!(cache.candidate_backlog() as u64, VIEWS);
+        // The kernel gives them all back, as shedding makes it do. Each is
+        // removed directly and leaves its queue slot behind.
+        for inode in 2..2 + VIEWS {
+            assert!(cache.forget(inode, 1));
+        }
+        assert_eq!(cache.len(), 1);
+        assert_eq!(cache.candidate_backlog() as u64, VIEWS);
+
+        // One pass of the old fixed budget leaves almost all of it.
+        assert_eq!(cache.collect(4096), 0);
+        assert!(
+            cache.candidate_backlog() > 15_000,
+            "one pass should not have drained a traversal: {}",
+            cache.candidate_backlog()
+        );
+
+        // The policy asks for more passes until the backlog is in proportion to
+        // the index, and is bounded so it cannot spin.
+        let mut passes = 1;
+        while cache.wants_another_pass(passes) {
+            cache.collect(4096);
+            passes += 1;
+        }
+        assert!(passes <= 64, "the pass limit did not bind: {passes}");
+        assert!(
+            cache.candidate_backlog() <= cache.len() + 4096,
+            "the backlog outlived its drain: {} against {} views",
+            cache.candidate_backlog(),
+            cache.len()
+        );
+    }
+
+    #[test]
+    fn a_quiet_mount_asks_for_no_extra_passes() {
+        let mut cache = cache();
+        drop(cache.insert(view(2, NodeKind::File)).unwrap());
+        assert!(
+            !cache.wants_another_pass(1),
+            "an idle mount would drain in a loop every tick"
+        );
     }
 
     #[test]

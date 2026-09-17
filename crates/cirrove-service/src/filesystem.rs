@@ -430,10 +430,33 @@ impl CloudFs {
                 tokio::select! { biased;
                     _ = inner.cancel.cancelled() => break,
                     _ = tick.tick() => {
-                        let (reclaimed, held) = match inner.views.lock() {
-                            Ok(mut views) => (views.collect(4096), views.len()),
-                            Err(_) => continue,
-                        };
+                        // Drained in short passes that each release the lock,
+                        // not one long one. A single fixed budget a second is a
+                        // constant against a backlog that grows with the
+                        // traversal, and the Fedora VM showed where that ends:
+                        // 2.7 million stale candidates, 71 MB of queue, and the
+                        // peak criterion failing because of it.
+                        let mut reclaimed = 0;
+                        let mut held = 0;
+                        let mut passes = 0;
+                        loop {
+                            let again = match inner.views.lock() {
+                                Ok(mut views) => {
+                                    reclaimed += views.collect(4096);
+                                    held = views.len();
+                                    passes += 1;
+                                    views.wants_another_pass(passes)
+                                }
+                                Err(_) => break,
+                            };
+                            if !again {
+                                break;
+                            }
+                            tokio::task::yield_now().await;
+                        }
+                        if passes == 0 {
+                            continue;
+                        }
                         // The guard is dropped before trimming: trim takes every
                         // arena lock in turn, and holding the namespace lock
                         // across that would block every filesystem reply.
