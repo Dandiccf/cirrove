@@ -1,4 +1,4 @@
-cirrove (0.1.0-1) unstable; urgency=medium
+cirrove (0.2.0~dev-1) unstable; urgency=medium
 
   * Development build from the tree. scripts/build-deb-package.sh rewrites
     this version with the commit it builds.

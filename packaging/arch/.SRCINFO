@@ -1,6 +1,6 @@
 pkgbase = cirrove
 	pkgdesc = Cloud drive filesystem that keeps the cloud where it is: OneDrive mounted on demand, without syncing everything
-	pkgver = 0.1.0
+	pkgver = 0.2.0dev
 	pkgrel = 1
 	url = https://github.com/Dandiccf/cirrove
 	arch = x86_64
@@ -12,8 +12,8 @@ pkgbase = cirrove
 	makedepends = libadwaita
 	makedepends = gettext
 	options = !lto
-	source = cirrove-0.1.0.tar.gz::https://github.com/Dandiccf/cirrove/archive/refs/tags/v0.1.0.tar.gz
-	sha256sums = 9f626adf0a42763cf0d9ba368171a5b579d1d8e64d7706559e9be5e87015ef84
+	source = cirrove-0.2.0dev.tar.gz::https://github.com/Dandiccf/cirrove/archive/refs/tags/v0.2.0dev.tar.gz
+	sha256sums = SKIP
 
 pkgname = cirrove
 	pkgdesc = Cloud drive filesystem that keeps the cloud where it is: OneDrive mounted on demand, without syncing everything (service and command line)

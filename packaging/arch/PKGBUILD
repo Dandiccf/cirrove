@@ -13,7 +13,7 @@
 
 pkgbase=cirrove
 pkgname=(cirrove cirrove-desktop)
-pkgver=0.1.0
+pkgver=0.2.0dev
 pkgrel=1
 pkgdesc="Cloud drive filesystem that keeps the cloud where it is: OneDrive mounted on demand, without syncing everything"
 arch=(x86_64)
@@ -28,7 +28,7 @@ makedepends=(cargo cmake pkgconf gtk4 libadwaita gettext)
 # from Cargo.toml; the C side is a few objects that gain nothing from it.
 options=(!lto)
 source=("$pkgbase-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('9f626adf0a42763cf0d9ba368171a5b579d1d8e64d7706559e9be5e87015ef84')
+sha256sums=('SKIP')
 
 prepare() {
   cd "$pkgbase-$pkgver"

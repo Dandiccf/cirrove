@@ -194,9 +194,16 @@ where the four lines above come from.
 ## After
 
 15. Bump the workspace version to the next `-dev`, and the three packaging
-    sources with it. **Reset the PKGBUILD's `sha256sums` to `SKIP`** in the
-    same commit: a development version names a tag that does not exist, so the
-    digest left over from the release points at a tarball that has nothing to
-    do with it. The version test fails if this is forgotten.
+    sources with it. Four more things belong in the same commit, and each was
+    missing from this step until the first release walked through it:
+    - **Reset the PKGBUILD's `sha256sums` to `SKIP`.** A development version
+      names a tag that does not exist, so the release's digest points at a
+      tarball with nothing to do with it. The version test fails otherwise.
+    - **Regenerate `.SRCINFO`**, or it keeps indexing the version that shipped.
+    - **Regenerate `Cargo.lock`** (`cargo check --offline --workspace`). The
+      workspace crates carry their version in it, so `--locked` fails on the
+      next build otherwise — which is how this was found.
+    - **Open a new `## Unreleased` heading** in the changelog above the one
+      just released.
 16. Anything that went differently from this document goes into this
     document.
