@@ -7,6 +7,18 @@
  },
  "endpoint": "Resident memory, live heap (resident minus retained), what the allocator holds free, the number of trims, and the time a root listing takes -- each as a series over 24 hours, compared between the first and second halves.",
  "how": "The Ubuntu VM, the owner's account with about 184,000 indexed items already in the store, the daemon from the packages CI built for this branch so the shipped unit's Environment=MALLOC_ARENA_MAX=1 is the setting under test rather than a drop-in someone added for the occasion. Confirmed in /proc/<pid>/environ before the window opens. scripts/sustained-operation-sample.py writes a row a minute for 24 hours; it now records free_arena_kib, retained_kib and trims beside rss_kib, which is the addition that makes this run able to answer what the last one could not.",
+ "measured": {
+  "free_arena_at_the_end_mib": 12,
+  "indexed_items": "184,170 to 184,211 -- the library changed under it during the day, which is what a real account does.",
+  "live_heap": "21 -> 21 MiB, peak 32. The second half adds -2.0 MiB -- it ends where it began.",
+  "resident": "24 -> 35 MiB, peak 35. The second half adds 0.0 MiB.",
+  "retained": "3 -> 14 MiB, peak 15. Resident that is not live heap: what the allocator holds and has not returned.",
+  "root_listing": "worst 8 ms, mean 0.1 ms, against a 50 ms ceiling and a 5 ms mean.",
+  "samples": "docs/benchmarks/capped-memory-day-samples.tsv, the file itself, so the series can be re-read rather than taken from this summary.",
+  "states": "1,426 ready, 14 updating_or_offline; the mount was present in all fourteen and the slowest listing during them was 2 ms.",
+  "trims_over_the_window": 1
+ },
+ "p2_was_the_one_that_mattered": "P1 could have held on its own while the daemon leaked: resident can sit flat while live heap climbs under it, because the allocator absorbs the difference. That is why P2 exists and why it is measured from the daemon's own retained counter rather than from resident alone. It ends at 21 MiB having started at 21, with a peak of 32 in between -- so the heap moved during the day and came back, which is what a bounded daemon looks like and what a flat resident alone could not have shown.",
  "predictions": [
   {
    "claim": "Resident memory reaches a plateau within the first two hours, and the second half of the window adds less than 5 MiB to it.",
@@ -32,12 +44,13 @@
  "question": "Over a day on a large library, with the allocator capped the way the shipped unit caps it and the index already warm, where does the daemon's memory settle -- and how much of that figure is live heap rather than memory an allocator is holding?",
  "registered_at": "2026-09-15",
  "registered_before_run": true,
- "result": "void; not yet run to completion",
+ "result": "All four predictions hold over a complete twenty-four hour window, so by this record's own decision rule the bounded-memory row states its bound with these numbers and closes. 1,440 samples, Wed 18:35 to Thu 18:34, one process, no restarts, the mount present in every sample.",
  "safety": {
   "account": "The Ubuntu VM's own connection to the owner's drive, read-write, in a throwaway machine.",
   "note": "A reboot or an unplanned restart voids the window; the sampler records the process id every minute so a restart cannot be mistaken for continuity.",
   "writes": "None. A directory listing a minute."
  },
+ "the_bound_this_states": "On this machine's library -- 184,000 items across two feeds -- a daemon with the allocator capped as the shipped unit caps it rests at 35 MiB resident, of which 21 MiB is live heap and 14 MiB is memory the allocator holds and has not returned. It does not grow over a day: the second half adds nothing to resident and takes two megabytes off live heap. That is the bound the row was waiting for, and it is a bound on a daemon that answered a root listing in 0.1 ms on average throughout -- memory kept down by answering slowly would not be this row's answer.",
  "thresholds": {
   "like_for_like_factor": 2,
   "listing_ceiling_ms": 50,
@@ -47,7 +60,7 @@
   "second_half_growth_mib": 5,
   "uncapped_plateau_mib": 42
  },
- "verdict": null,
+ "verdict": "closes the bounded-memory row",
  "voided_windows": [
   {
    "cap": "Environment=MALLOC_ARENA_MAX=1 is in the shipped unit at /usr/lib/systemd/user/cirroved.service line 22 and confirmed in /proc/50734/environ -- not a drop-in added for the occasion",
