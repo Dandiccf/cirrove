@@ -7,12 +7,25 @@ and the places where it could be are marked.
 
 ## Before tagging
 
-1. The release blockers are closed: `scripts/acceptance-ledger.py --blockers`
-   lists nothing under "What stands between this and a 1.0 release". Each of
-   those rows is closed with evidence in the [ledger](acceptance-ledger.json),
-   not with intent, and each carries the test that would fail if it stopped
-   holding. The criterion for what blocks is in
+1. The release blockers are closed, **except the two that are the release
+   itself**: `scripts/acceptance-ledger.py --blockers` lists nothing under
+   "What stands between this and a 1.0 release" other than the packages-from-a-
+   release row and the tagged-release row. Each closed row is closed with
+   evidence in the [ledger](acceptance-ledger.json), not with intent, and each
+   carries the test that would fail if it stopped holding. The criterion for
+   what blocks is in
    [Distribution](distribution.md#what-blocks-the-first-release-and-what-does-not).
+
+   The exception is not a loophole and it took until 2026-09-18 to notice,
+   because the list had never been short enough for the circle to show. Read
+   literally, this step forbids a first release for ever: those two rows cannot
+   close before a tag exists, a tag cannot be made before this step passes, and
+   no amount of work on anything else moves either. The criterion the ledger
+   actually applies is *"would a person reasonably say you shipped 1.0 with
+   this broken"*, and it cannot be asked of "you have not shipped yet". So the
+   two rows are what this step is a precondition **for**, not part of it.
+   Everything else on the blocking list still has to be closed with evidence
+   first, which is the whole of the list's value.
 2. CI is green on the commit to be tagged: every job, including the three
    package jobs and the dependency audit.
 3. `Cargo.toml`'s workspace version is the release version without `-dev`

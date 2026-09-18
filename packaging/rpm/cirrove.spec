@@ -12,7 +12,7 @@
 %global app_id io.github.Dandiccf.Cirrove
 
 Name:           cirrove
-Version:        0.1.0~dev
+Version:        0.1.0
 Release:        1%{?dist}
 Summary:        Cloud drive filesystem that keeps the cloud where it is
 License:        Apache-2.0
