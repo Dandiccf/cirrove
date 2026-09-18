@@ -39,6 +39,16 @@ and the places where it could be are marked.
 5. The PKGBUILD's `sha256sums` is filled in from the tagged tarball
    (`updpkgsums` after the tag exists, so this is step 7 as well).
 
+   **A recipe cannot carry the digest of its own commit's tarball**, and it
+   took a release to notice: writing the digest in changes the commit, which
+   changes the tarball, which changes the digest. So the tagged tree's
+   `sha256sums` necessarily belongs to some earlier tarball or says `SKIP`,
+   and the one an AUR user builds against is the one on `main` after step 7.
+   `scripts/test-package-versions.py` holds the pairing that *can* be
+   asserted -- a `dev` version must say `SKIP`, a release version must carry a
+   digest -- which catches shipping a release recipe that verifies nothing,
+   and leaving a release digest behind in a development cycle.
+
 ## Tagging
 
 6. `git tag -a v0.1.0 -m "Cirrove 0.1.0"` on that commit, and push the tag.
@@ -172,6 +182,9 @@ where the four lines above come from.
 ## After
 
 15. Bump the workspace version to the next `-dev`, and the three packaging
-    sources with it.
+    sources with it. **Reset the PKGBUILD's `sha256sums` to `SKIP`** in the
+    same commit: a development version names a tag that does not exist, so the
+    digest left over from the release points at a tarball that has nothing to
+    do with it. The version test fails if this is forgotten.
 16. Anything that went differently from this document goes into this
     document.

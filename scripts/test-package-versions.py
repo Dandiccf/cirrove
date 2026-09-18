@@ -110,17 +110,39 @@ class TheDevBuildSkipsADigestItCannotMatch(unittest.TestCase):
         text = SCRIPTS["arch"].read_text()
         self.assertIn("s/^sha256sums=.*/sha256sums=('SKIP')/", text)
 
-    def test_the_recipe_itself_keeps_a_real_digest(self):
-        """What an AUR user building from source verifies. `SKIP` there means
-        they verify nothing."""
+    def test_the_recipe_pairs_its_checksum_with_its_version(self):
+        """A development version has no tarball to hash; a release version does.
+
+        The strong form of this -- "the digest is the digest of this version's
+        tarball" -- cannot be asserted, and the reason is worth keeping: a
+        PKGBUILD cannot contain the digest of the tarball of its own commit,
+        because writing the digest in changes the commit and therefore the
+        digest. That is why the release procedure fills it in a commit AFTER
+        the tag, and why the tagged tree's own digest necessarily belongs to
+        some earlier tarball. What is left is the pairing, and it catches both
+        real mistakes: shipping a release recipe that still says SKIP, so an
+        AUR user verifies nothing, and leaving a release digest behind in a
+        development cycle, where it points at a tarball that no longer matches
+        anything.
+        """
         recipe = (REPO / "packaging/arch/PKGBUILD").read_text()
+        version = re.search(r"^pkgver=(.*)$", recipe, re.M).group(1).strip()
         sums = re.search(r"^sha256sums=\((.*)\)$", recipe, re.M)
         self.assertIsNotNone(sums, "the recipe has no sha256sums line")
-        self.assertRegex(
-            sums.group(1).strip(),
-            r"^'[0-9a-f]{64}'$",
-            "the released recipe must carry the tag tarball's digest, not SKIP",
-        )
+        digest = sums.group(1).strip()
+        if "dev" in version:
+            self.assertEqual(
+                digest,
+                "'SKIP'",
+                f"pkgver={version} names no tag, so there is no tarball to hash",
+            )
+        else:
+            self.assertRegex(
+                digest,
+                r"^'[0-9a-f]{64}'$",
+                f"pkgver={version} is a release, so the recipe an AUR user "
+                "builds from must carry a digest rather than SKIP",
+            )
 
 
 if __name__ == "__main__":
