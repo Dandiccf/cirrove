@@ -84,6 +84,13 @@ and the places where it could be are marked.
 12. Build the Arch package a second time from the same tag and compare the
     `.MTREE` and file checksums; record whether it is reproducible and, if
     not, what differed. A lockfile is not reproducibility.
+12b. `scripts/verify-release-recipe.sh` — the recipe's `sha256sums`, its
+    `.SRCINFO`, and the tarball the tag actually serves must be the same
+    digest. Nothing else can see this, because it compares a file here against
+    a file on a server, and it went wrong on the first release: the tag was
+    moved after step 7 filled the digest in, so the recipe named a tarball that
+    no longer existed and `.SRCINFO` carried the stale value onward. **Any step
+    that moves a tag sends you back to step 7 and then to here.**
 
 ## The signature, and the one decision it needs
 
@@ -177,7 +184,12 @@ where the four lines above come from.
     checkout that is not the one that built it.
 14. The AUR recipe (`.SRCINFO` from `makepkg --printsrcinfo`) once there is a
     release to point at; APT and COPR channels are their own milestone-6 rows
-    and do not gate this.
+    and do not gate this. It is generated into `packaging/arch/.SRCINFO` and
+    committed, so the recipe and its index move together and a reader can see
+    what the AUR would be given. **Pushing it to the AUR needs an AUR account
+    and its ssh key**, which is the maintainer's and is not in this
+    repository — so that push is the one part of a release this procedure
+    cannot carry out on its own.
 
 ## After
 

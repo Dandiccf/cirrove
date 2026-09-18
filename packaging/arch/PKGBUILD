@@ -28,7 +28,7 @@ makedepends=(cargo cmake pkgconf gtk4 libadwaita gettext)
 # from Cargo.toml; the C side is a few objects that gain nothing from it.
 options=(!lto)
 source=("$pkgbase-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('b06d942a3b2ca6d88aac258173fec4ab1d9b663d97215da7d55738525978336a')
+sha256sums=('9f626adf0a42763cf0d9ba368171a5b579d1d8e64d7706559e9be5e87015ef84')
 
 prepare() {
   cd "$pkgbase-$pkgver"
