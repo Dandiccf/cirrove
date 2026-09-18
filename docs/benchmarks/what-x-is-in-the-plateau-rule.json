@@ -1,4 +1,24 @@
 {
+ "g7_result": {
+  "evidence": "docs/benchmarks/g7-twenty-four-hours.log.gz, the fixture's whole output, so the 5,051 samples can be re-read rather than taken from this summary.",
+  "g8_holds_too": "The persistent inode table grew from 1 to 795,855 rows. ADR 0005's G8 clause for the sustained arm is 'must not add more than one row per changed file per round': the fixture changes nine items in each of three collections, and the table grew by 45,360 rows over about 1,680 rounds -- 27 a round, exactly one per changed file. It is file-backed and contributes nothing to anonymous memory, which the day's series confirms.",
+  "the_headroom_is_thin_and_that_is_worth_saying": "peak_resident reached 239.5 MiB of a 256 MiB budget at its worst moment in the day -- 93.6 percent, six percent of headroom. It held 3,366 checks without one breach, so the bound is real, but it is not comfortable. A lower ceiling buys margin at no measured cost: the 200,000-view ceiling was chosen for 33 percent of headroom at 500,000 files and a day of churn eats most of that. Anyone raising the library size should lower the ceiling with it rather than assume the margin scales.",
+  "the_whole_day": {
+   "allocator_trims": 1731,
+   "candidate_queue": "0 to 216,686 -- bounded, where the first attempt reached 2.7 million in half an hour",
+   "full_traversals": 563,
+   "g3_released_over_baseline_mib": "21.2 to 121.3",
+   "gate_breaches": 0,
+   "gate_checks": 3366,
+   "largest_overshoot_of_the_ceiling_in_a_day": 50,
+   "peak_resident_over_baseline_mib": "43.4 to 239.5, against 256",
+   "quarantined_views": 0,
+   "resolution_queue": "0 to 205,753, one ceiling's worth, flat across the day",
+   "views_held_at_a_full_traversal": "199,999 to 200,000"
+  },
+  "verdict": "PASSES. The fixture's own line: applies true, reference at 7,259 s (2.02 h) = 109.6 MiB, worst in the final half 123.1 MiB, 12.31 percent over against a tolerance of 18, 560 settled samples. `test result: ok. 1 passed` in 86,605 seconds.",
+  "x_was_right_and_was_fixed_first": "X was derived from the two-hour pilot the morning before -- largest excursion inside the plateau 11.5 percent, plus half again, rounded to 18 -- and the twenty-four hour run came in at 12.31. Neither too tight to survive noise nor loosened afterwards, and fixed before the number was known, which is what ADR 0005 asked for."
+ },
  "measured": {
   "drift_if_the_reference_is_taken_at_one_twelfth_of_a_two_hour_run": 45.5,
   "drift_inside_the_plateau_percent": 11.5,
@@ -24,7 +44,7 @@
  "question": "ADR 0005's G7: over the final twelve hours of a twenty-four hour run, post-settle PSS must not exceed the hour-two sample by more than X percent. X 'must be fixed from a two-hour pilot before the twenty-four hour run, not chosen by intuition'. What is X?",
  "registered": "2026-09-17",
  "registered_before_the_run": true,
- "result": "X is 18 percent, and the pilot earned its name: the naive reading of the same data says 45.5, which would have failed a twenty-four hour run inside its first hour. Two hours at 500,000 files, 105 settled sustained samples. Anonymous memory at the post-invalidation root-only points is flat at 62 to 68 MiB for 35 minutes, climbs to about 90 between minutes 35 and 47, and is flat at 88 to 94 for the 73 minutes after that. Inside the plateau the largest excursion is +11.5 percent and the second largest +10.4, against -10.1 at the bottom. X = 11.5 plus half again, rounded up.",
+ "result": "X is 18 percent, and the twenty-four hour run it was fixed for passes at 12.31. See g7_result.",
  "the_only_datum_that_exists": "a sixty-five second debug run rising 9.7 percent per round. A rule picked from that would fail both arms inside the first hour.",
  "the_prediction_was_wrong_three_ways": [
   "'Under 5 percent drift': the plateau varies by 11.5 percent above and 10.1 below. Out by more than a factor of two.",
@@ -34,17 +54,5 @@
  "the_thing_the_pilot_was_for": "G7's reference is the hour-two sample of a twenty-four hour run, which is well after the settle. A two-hour pilot puts one twelfth at minute 10, which is in the climb. Compared against the climb the plateau reads +45.5 percent; compared against itself it reads +11.5. Both numbers are in this record because the difference between them IS the reason ADR 0005 forbids choosing X by intuition. The fixture now refuses to assert the rule at all unless the reference point falls at least ninety minutes into the sustained period -- twice the measured settle -- and says so in its own output rather than passing silently.",
  "what_changed_under_it": "the ceiling. Every earlier sustained observation was of a namespace that grew without bound during each round's traversal; a mount now holds at most 200,000 resolved views and sheds its oldest above that (ADR 0015). So the drift this pilot measures is a different quantity from the 9.7 percent, and the pilot is the only way to know which.",
  "what_it_got_right": "The persistent inode table does not touch anonymous memory. It grew by 243 rows a round all run, from 750,657 to 752,115, and the anonymous series plateaued regardless, which is what G8 says it should do because it is file-backed. The suspicion named in the prediction is cleared.",
- "why_now": "G7 is the only thing left on the M1 traversal row. The peak criterion passed today with ADR 0015's ceiling, and G2 retired on its own falsified model. A twenty-four hour run cannot start before the capped-memory window in the Ubuntu VM closes this evening, but the pilot that fixes X can run on the host now, and without it the twenty-four hours would be spent measuring against a number chosen by intuition -- which is what the ADR forbids.",
- "window_in_flight": {
-  "binary": "host-built release test binary at aabc09c, copied in as ~/churn-test. The packaged cirrove in the VMs has no fixtures, which is why it goes in this way.",
-  "collect": "scripts/vm/run.sh fedora ssh 'cat ~/churn-24h.log' -- the CIRROVE_PLATEAU line at the end is the verdict; CIRROVE_MEMORY_GATE lines carry the peak and g3 criteria, both enforced.",
-  "first_attempt_failed_and_that_was_the_point": "The first start, 2026-09-17 06:45, failed at round 36 after 31 minutes: peak_resident 267,152 KiB over the indexed baseline against 262,144, by 1.9 percent. The cause was a reclamation queue draining at a fixed 4,096 a second against a backlog that grows with the traversal -- fine on the development machine, not on four cores, where it reached 2.7 million slots and 71 MB. Fixed the same morning (the-queue-that-only-grew.json) and restarted. The gate enforced the night before is the only reason this was found rather than shipped.",
-  "first_rounds": "views held at exactly 200,000 against the ceiling, anonymous PSS 165.5 / 150.8 / 163.6 MiB at the traversals, rounds about 1.1 minutes.",
-  "opened": "2026-09-17 07:47 +02:00 (second start), closing 2026-09-18 07:47. The VM's clock is UTC, two hours behind the host's, so its log timestamps read 05:47 -- worth knowing before someone compares them to a host time and concludes the run is two hours old when it is minutes old.",
-  "the_question_it_was_started_to_answer": "whether the resolution queue caused the pilot's 35-to-47 minute climb. ITS FIRST THREE ROUNDS ALREADY SAY NO: `resolution_entries` reads 199,661 at every released phase, where one view is left. It holds one ceiling's worth of stale entries and does not grow -- 3.2 MB, against the 28 MiB the pilot climbed. Its capacity does churn (262,144 -> 203,101 -> 399,312) as it shrinks and regrows, which is a smaller allocator suspect and now visible. What the climb was remains open, and twenty-four hours of this series is the thing that will say.",
-  "voids_it": "killing the Fedora QEMU process, rebooting that VM or this host, or replacing ~/churn-test. Nothing on the host disturbs it: the host is free to build.",
-  "what": "G7 itself: real_combined_namespace_churn at CIRROVE_CHURN_FILES=500000, CIRROVE_CHURN_SECONDS=86400, CIRROVE_CHURN_SUSTAINED_FULL_EVERY=3, with the plateau rule asserting at X=18 percent.",
-  "where": "the FEDORA VM, not the host and not the Ubuntu VM. 4 CPUs, 7.9 GB, 29 GB free on /home, TMPDIR and SQLITE_TMPDIR on btrfs under /home/tester/churn-tmp (asserted with findmnt; a tmpfs would move bytes out of RSS without reducing host memory).",
-  "why_a_vm": "a twenty-four hour run on the host forbids building for its whole length, which is the reason this project runs long windows in VMs at all. It also leaves the capped-memory window in the UBUNTU VM untouched -- the two are different machines and neither can void the other."
- }
+ "why_now": "G7 is the only thing left on the M1 traversal row. The peak criterion passed today with ADR 0015's ceiling, and G2 retired on its own falsified model. A twenty-four hour run cannot start before the capped-memory window in the Ubuntu VM closes this evening, but the pilot that fixes X can run on the host now, and without it the twenty-four hours would be spent measuring against a number chosen by intuition -- which is what the ADR forbids."
 }
