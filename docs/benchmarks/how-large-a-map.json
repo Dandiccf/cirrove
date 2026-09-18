@@ -1,0 +1,40 @@
+{
+  "a_measurement_that_first_measured_nothing": "The first attempt reported 0.0 reads at every map size, which would have read as 'the map does not matter'. The query returned no rows: the scope came from one drive and the parent from the other, because this account subscribes to two. That is the third time in one evening that the second drive has produced a wrong answer that looked like a right one -- the pin with no path, the earlier query plan, and this.",
+  "arms": [
+    "mmap_size=0 (no map)",
+    "16 MiB",
+    "64 MiB",
+    "256 MiB",
+    "2 GiB (today)"
+  ],
+  "endpoints": [
+    "read syscalls the daemon performs per directory open, background rate measured and subtracted",
+    "resident file pages of the daemon after the walk"
+  ],
+  "measured": {
+    "database": "565 MB, the owner's own store, copied",
+    "reads_per_listing": {
+      "16 MiB": 455.8,
+      "2 GiB": 0.0,
+      "256 MiB": 256.3,
+      "64 MiB": 444.0,
+      "none": 459.1
+    },
+    "workload": "400 directory listings against one warm connection, 40 of them first as a warm-up, the scope and parent taken from the same row"
+  },
+  "prediction": {
+    "i_may_be_wrong_about": "whether the index pages are hot enough to stay in a small map while node bodies stream past them. If reads per open rise steeply below 256 MiB, the map has been serving the bodies too and the trade is real rather than free.",
+    "value": "The hot set of an ordinary directory open is index pages, not node bodies, so I expect a small map to buy most of the win: 16 MiB already close to the 11 reads the 2 GiB map gives, and 64 MiB indistinguishable from it. The 875,000-per-second burst measured this morning is a different workload -- it walks the whole store -- and a small map will not help there.",
+    "written_before_the_run": true
+  },
+  "question": "ADR 0012 set PRAGMA mmap_size to 2 GiB and that put 1,349 MiB of resident file pages under a gate that reads RSS. How small can the map be before the syscalls it was there to remove come back?",
+  "registered": "2026-09-16",
+  "registered_before_the_run": true,
+  "result": "The prediction was wrong, and not by a little. It said a 16 MiB map would already be close to what 2 GiB gives. It gives nothing: 455.8 reads against 459.1 with no map at all. 64 MiB gives nothing either. The win arrives only when the map approaches the file's size.",
+  "source_base": "0e6e8fba2597a5d9860df1a4bdc4f194ddc1a633",
+  "source_sha256": {
+    "crates/cirrove-store/src/lib.rs": "efa8caf88f1914e1a1d4d08231140d946ac8d0277b361c7c74784b9413980dd9"
+  },
+  "what_that_means": "The hot set is not a small index that a small map can hold. The listings reach node bodies spread across the whole file, so a map either covers it or does not help. Bounding the map to fix the resident-pages problem therefore gives the syscalls back -- there is no size that buys both. The question the peak gate now turns on is not how large the map should be; it is whether a gate that reads RSS is still measuring what it was written to measure now that a reclaimable mapped page and a held heap page look the same to it. That is an argument for ADR 0005 and it is not made here.",
+  "why_it_matters": "Two gates in this project read RSS. A map that makes the whole store resident is invisible to the kernel's accounting of what is held but not to theirs, nor to a person looking at their process list."
+}

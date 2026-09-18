@@ -65,16 +65,86 @@ def clock(unix):
     return time.strftime("%a %H:%M", time.localtime(unix))
 
 
+def capped_memory(rows, record: pathlib.Path) -> int:
+    """Answer the capped-memory day's registered predictions.
+
+    Its four are not this script's five: those are about a process surviving a
+    day, these are about where its memory settles. Doing them by eye at the end
+    of a twenty-four hour window is how a window gets reported as clean, which
+    is the same reason the other five are here.
+    """
+    import json as _json
+
+    thresholds = _json.loads(record.read_text())["thresholds"]
+    if not rows:
+        print("no samples")
+        return 1
+    span = rows[-1]["unix"] - rows[0]["unix"]
+    midpoint = rows[0]["unix"] + span / 2
+    first = [r for r in rows if r["unix"] < midpoint]
+    second = [r for r in rows if r["unix"] >= midpoint]
+    if not first or not second:
+        print("not enough of the window to halve")
+        return 1
+    mib = lambda kib: kib / 1024.0
+    live = lambda r: r["rss"] - r.get("retained", 0)
+    allowed = thresholds["second_half_growth_mib"]
+    complete = span >= 23.5 * 3600
+
+    def plateau(name, value, role):
+        grew = mib(max(value(r) for r in second)) - mib(max(value(r) for r in first))
+        ok = grew <= allowed
+        print(f"  {name} {'HOLDS ' if ok else 'FAILS '} second half adds "
+              f"{grew:+.1f} MiB against {allowed} allowed  ({role})")
+        return ok
+
+    print(f"the capped-memory day, {span / 3600:.1f} h of "
+          f"{'a complete' if complete else 'an INCOMPLETE'} window")
+    held = plateau("P1", lambda r: r["rss"], "resident: bounded, not merely slow")
+    held &= plateau("P2", live, "live heap: an allocator can hide a climb under a flat resident")
+    worst = max(r["listing"] for r in rows)
+    mean = sum(r["listing"] for r in rows) / len(rows)
+    p3 = worst <= thresholds["listing_ceiling_ms"] and mean <= thresholds["listing_mean_ms"]
+    print(f"  P3 {'HOLDS ' if p3 else 'FAILS '} listing worst {worst} ms, mean {mean:.1f} ms "
+          f"against {thresholds['listing_ceiling_ms']} and {thresholds['listing_mean_ms']}  "
+          "(memory bounded by refusing to serve is not bounded memory)")
+    held &= p3
+    plateau_mib = mib(max(r["rss"] for r in second))
+    factor = plateau_mib / thresholds["uncapped_plateau_mib"]
+    p4 = factor <= thresholds["like_for_like_factor"]
+    print(f"  P4 {'HOLDS ' if p4 else 'FAILS '} plateau {plateau_mib:.1f} MiB is {factor:.2f}x the "
+          f"uncapped day's {thresholds['uncapped_plateau_mib']} MiB, against "
+          f"{thresholds['like_for_like_factor']}x  (decides nothing on its own)")
+    if not complete:
+        print("\nINCOMPLETE: these are an early reading, not the window's answer. The decision "
+              "rule applies to a window that ran its full length.")
+        return 0
+    print("\n" + ("all four hold: the bounded-memory row states its bound with these numbers"
+                   if held and p4 else
+                   "the row stays open, with the series that shows why"))
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("samples", type=pathlib.Path)
     parser.add_argument("--injections", type=pathlib.Path)
+    parser.add_argument(
+        "--capped-memory",
+        type=pathlib.Path,
+        metavar="RECORD",
+        help="answer the capped-memory window's own four predictions instead, "
+        "with the thresholds read from its benchmark record so the two cannot "
+        "drift apart",
+    )
     args = parser.parse_args()
 
     rows, markers = read(args.samples)
     if not rows:
         print("no samples", file=sys.stderr)
         return 2
+    if args.capped_memory:
+        return capped_memory(rows, args.capped_memory)
 
     voided = [m for m in markers if "void" in m.lower() or "PROBE-LOST" in m]
     restarts = [m for m in markers if m.startswith("# RESTART")]

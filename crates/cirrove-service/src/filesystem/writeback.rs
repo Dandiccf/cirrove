@@ -368,6 +368,25 @@ impl Writeback {
                         queued += 1;
                     }
                 }
+                // Saves the daemon gave up on, under the same rule and for the
+                // same reason. A save that FAILED is one the cloud never
+                // decided about -- a quota, a permission, a connection that
+                // went away -- and sending it again is ordinary. A save in
+                // CONFLICT is one the cloud did decide about, and re-sending
+                // would overwrite whatever is there now. `request_retry` has
+                // refused Conflict since it was written; until now nothing
+                // outside the journal called it at all, so a stranded save
+                // could be counted and never acted on. The owner had one
+                // sitting on a machine for days.
+                for record in j.failed_upload_list(1000)? {
+                    if record.state == crate::journal::UploadState::Conflict {
+                        conflicts += 1;
+                        continue;
+                    }
+                    if j.request_retry(record.id).is_ok() {
+                        queued += 1;
+                    }
+                }
                 Ok((queued, conflicts))
             })
             .await?;
@@ -425,9 +444,88 @@ impl Writeback {
                     // carried in `path` only so it has something to resolve.
                     path: id,
                     state: format!("{:?}", record.state).to_ascii_lowercase(),
+                    // Filled in by the caller, which has the index.
+                    instead: None,
                 }
             })
             .collect())
+    }
+    /// The saves the daemon has given up on, named.
+    ///
+    /// A create carries its own name; a replace names only the item it was
+    /// acting on, so the caller resolves that against the index exactly as it
+    /// does for a stuck mutation. These are kept apart from stuck mutations on
+    /// purpose: discarding a refused folder removal loses nothing, and
+    /// discarding a failed save loses what the person wrote.
+    pub async fn failed_uploads_named(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<crate::recent::StuckChange>> {
+        use cirrove_core::upload::UploadIntent;
+        let records = self.local(move |j| j.failed_upload_list(limit)).await?;
+        Ok(records
+            .into_iter()
+            .map(|record| {
+                let (what, name, id) = match &record.intent {
+                    UploadIntent::Create { name, .. } => ("save new file", name.clone(), None),
+                    UploadIntent::Replace { item, .. } => {
+                        ("save", String::new(), Some(item.clone()))
+                    }
+                };
+                crate::recent::StuckChange {
+                    what: what.to_owned(),
+                    name,
+                    path: id,
+                    state: format!("{:?}", record.state).to_ascii_lowercase(),
+                    // Filled in by the caller, which has the index.
+                    instead: None,
+                }
+            })
+            .collect())
+    }
+    /// The saves that could be kept beside the remote version, with what the
+    /// caller needs to name the copy. A create already knows its parent and
+    /// name; a replace knows only the item it was acting on, and the caller is
+    /// the one with an index to resolve that against.
+    pub async fn keep_both_plans(&self, limit: usize) -> Result<Vec<crate::recent::SavePlan>> {
+        use cirrove_core::upload::UploadIntent;
+        let records = self.local(move |j| j.failed_upload_list(limit)).await?;
+        Ok(records
+            .into_iter()
+            .map(|record| match record.intent {
+                UploadIntent::Create { parent, name } => crate::recent::SavePlan {
+                    id: record.id,
+                    item: None,
+                    parent: Some(parent),
+                    name: Some(name),
+                },
+                UploadIntent::Replace { item, .. } => crate::recent::SavePlan {
+                    id: record.id,
+                    item: Some(item),
+                    parent: None,
+                    name: None,
+                },
+            })
+            .collect())
+    }
+
+    /// Keep both copies for each save named here. One that cannot be resolved
+    /// does not stop the others: what is left is still counted, so nothing is
+    /// hidden by skipping it.
+    pub async fn keep_both(&self, plans: Vec<(uuid::Uuid, String, String)>) -> Result<u64> {
+        let kept = self
+            .local(move |j| {
+                let mut kept = 0u64;
+                for (id, parent, name) in plans {
+                    if j.keep_both(id, parent, name).is_ok() {
+                        kept += 1;
+                    }
+                }
+                Ok(kept)
+            })
+            .await?;
+        self.wake.notify_waiters();
+        Ok(kept)
     }
     pub async fn recent_local(&self, limit: usize) -> Result<Vec<crate::recent::LocalChange>> {
         let records = self.local(|j| j.list(0, 10_000)).await?;
@@ -543,7 +641,7 @@ impl Writeback {
         truncate: bool,
         cancel: &CancellationToken,
     ) -> Result<WorkingFile> {
-        let identity = key(&view.scope, &view.node.id);
+        let identity = key(&view.scope, &view.id);
         let gate = {
             let mut gates = self.hydrating.lock().map_err(|_| Errno::EIO)?;
             gates.retain(|_, v| v.strong_count() > 0);
@@ -561,17 +659,19 @@ impl Writeback {
             _ = cancel.cancelled() => return Err(Errno::ENODEV),
             guard = gate.lock() => guard,
         };
-        let working = match self.working(&view.scope, &view.node.id)? {
+        let working = match self.working(&view.scope, &view.id)? {
             Some(working) => working,
             None => {
                 // A link is resolved at lookup to its target scope and local
                 // owner. Only target file metadata may become a working copy;
                 // the source-side shortcut itself is never mutated here.
-                if view.node.kind != NodeKind::File || view.node.target.is_some() {
+                if view.kind != NodeKind::File
+                    || view.node.as_ref().is_some_and(|n| n.target.is_some())
+                {
                     return Err(Errno::EOPNOTSUPP);
                 }
                 let scope = view.scope.as_ref().clone();
-                let node = view.node.as_ref().clone();
+                let node = view.node.as_ref().ok_or(Errno::EINVAL)?.as_ref().clone();
                 let object = self
                     .local(move |j| Self::materialize(j, scope, node))
                     .await?;

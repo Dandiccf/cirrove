@@ -33,7 +33,14 @@ async fn connected(
     Ok(())
 }
 
-pub async fn onedrive_notifications(state: &Path, label: &str, check_renewal: bool) -> Result<()> {
+/// `keep_fixture` leaves the folder behind for inspection. A failing run keeps
+/// it either way, because that is the run somebody needs to look at.
+pub async fn onedrive_notifications(
+    state: &Path,
+    label: &str,
+    check_renewal: bool,
+    keep_fixture: bool,
+) -> Result<()> {
     let account = test_account(state, label)?;
     let _operation = accounts::account_operation(state, &account.id)?;
     let _owner = accounts::account_lock(&state.join("accounts").join(&account.id))?;
@@ -196,7 +203,7 @@ pub async fn onedrive_notifications(state: &Path, label: &str, check_renewal: bo
                     serde_json::json!({"stage":"passed","sample":sample,"elapsed_ms":started.elapsed().as_millis(),"hints":hints_seen}),
                 )?;
                 println!(
-                    "Passed: Graph notification triggered a delta containing the new fixture. Folder retained."
+                    "Passed: Graph notification triggered a delta containing the new fixture."
                 );
                 break;
             }
@@ -205,9 +212,43 @@ pub async fn onedrive_notifications(state: &Path, label: &str, check_renewal: bo
     }
     cancel.cancel();
     let _ = listener.await?;
+    // A passing run leaves the drive as it found it. Retaining the fixture is
+    // for a run that failed and needs looking at; retaining one after every
+    // pass is how fourteen validation folders came to be sitting in the owner's
+    // real drive by 2026-09-16, one per check anybody had ever run.
+    let removed = if keep_fixture {
+        false
+    } else if let Some(before) = previous.take() {
+        use cirrove_core::mutation::{MutationIntent, MutationProvider, MutationRequest};
+        let outcome = graph
+            .mutate(
+                &MutationRequest {
+                    scope: scope.clone(),
+                    intent: MutationIntent::RemoveFolder { before },
+                },
+                &CancellationToken::new(),
+            )
+            .await;
+        // An ordinary delete, so it is in the drive's recycle bin rather than
+        // gone. A refusal is reported and not fatal: the check itself passed,
+        // and a folder left behind is untidy rather than wrong.
+        match outcome {
+            Ok(_) => true,
+            Err(error) => {
+                println!("Fixture folder could not be removed and stays behind: {error}");
+                false
+            }
+        }
+    } else {
+        false
+    };
     event(
         &mut log,
-        serde_json::json!({"stage":"finished","passed":true,"renewal_checked":check_renewal}),
+        serde_json::json!({"stage":"finished","passed":true,"renewal_checked":check_renewal,
+                           "fixture_removed":removed}),
     )?;
+    if removed {
+        println!("Fixture folder removed; it is in the drive's recycle bin.");
+    }
     Ok(())
 }

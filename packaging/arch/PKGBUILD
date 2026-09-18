@@ -13,7 +13,7 @@
 
 pkgbase=cirrove
 pkgname=(cirrove cirrove-desktop)
-pkgver=0.1.0dev
+pkgver=0.1.0
 pkgrel=1
 pkgdesc="Cloud drive filesystem that keeps the cloud where it is: OneDrive mounted on demand, without syncing everything"
 arch=(x86_64)

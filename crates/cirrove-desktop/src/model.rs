@@ -104,6 +104,13 @@ pub struct AccountCard {
     /// something is wrong and not what; these are the paths behind it, so the
     /// row can say "Old invoices" instead of "1 change".
     pub refused_paths: Vec<String>,
+    /// The saves that never reached the cloud, by path. The count beside them
+    /// existed from the first day and the names did not, so a warning sign said
+    /// that something was wrong and never which file.
+    pub failed_paths: Vec<String>,
+    /// A wastebasket a file manager left in the drive root before the mount
+    /// learned to refuse one. Shown, never removed: it is the person's folder.
+    pub wastebasket: Option<String>,
     /// How many of those are worth trying again.
     ///
     /// A change that failed -- a quota, a permission, a connection that went
@@ -487,18 +494,44 @@ impl Overview {
                                 .collect()
                         })
                         .unwrap_or_default(),
-                    retryable: snapshot
+                    failed_paths: snapshot
                         .activity
                         .iter()
                         .find(|(label, _)| label == &account.label)
                         .map(|(_, reply)| {
                             reply
+                                .failed
+                                .iter()
+                                .map(|change| {
+                                    let where_ =
+                                        change.path.clone().unwrap_or_else(|| change.name.clone());
+                                    // And what the cloud has instead, so the
+                                    // row is a comparison and not an accusation.
+                                    match &change.instead {
+                                        Some(instead) => format!("{where_} — {instead}"),
+                                        None => where_,
+                                    }
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default(),
+                    retryable: snapshot
+                        .activity
+                        .iter()
+                        .find(|(label, _)| label == &account.label)
+                        .map(|(_, reply)| {
+                            // Saves count too: Try again reaches them now, and a
+                            // button that says how many are worth trying must not
+                            // leave half of them out.
+                            reply
                                 .stuck
                                 .iter()
+                                .chain(reply.failed.iter())
                                 .filter(|change| change.state != "conflict")
                                 .count() as u64
                         })
                         .unwrap_or_default(),
+                    wastebasket: status.and_then(|s| s.wastebasket.clone()),
                     failed_uploads: status.map_or(0, |s| s.failed_uploads),
                     writable: account.access == cirrove_auth::AccessMode::ReadWrite,
                     client_id: account.registration.client_id.clone(),

@@ -24,6 +24,12 @@ pub struct AccountStatus {
     pub account_id: String,
     #[serde(default)]
     pub drive_id: String,
+    /// A wastebasket a file manager left in the drive root before the mount
+    /// learned to refuse one, by name. The mount will not remove it -- that is
+    /// the person's folder and their decision -- but until now nothing told
+    /// them it was there (ADR 0008).
+    #[serde(default)]
+    pub wastebasket: Option<String>,
     #[serde(default)]
     pub root_id: String,
     /// Desired state observed by this manager, not an acknowledgement of a UI click.
@@ -164,6 +170,79 @@ impl Default for Manager {
         }
     }
 }
+/// The cloud's version of a file, in one line: how big it is and when it
+/// changed. Deliberately plain -- a person comparing two versions wants the two
+/// facts that differ, not a paragraph.
+fn describe_remote(node: &cirrove_core::Node) -> String {
+    let when = chrono_date_at(node.modified_unix as i64);
+    format!("{} bytes, changed {when}", node.size)
+}
+
+/// `Report.docx` becomes `Report (conflicted copy 2026-09-16).docx`.
+///
+/// The suffix goes before the extension so the file still opens with the
+/// program it belongs to, and the date is there because a second conflict on
+/// the same file must not silently overwrite the first rescue.
+fn conflicted_copy_name(name: &str) -> String {
+    let stamp = chrono_date();
+    match name.rsplit_once('.') {
+        // A dotfile is all extension and no stem; it keeps its whole name.
+        Some((stem, extension)) if !stem.is_empty() => {
+            format!("{stem} (conflicted copy {stamp}).{extension}")
+        }
+        _ => format!("{name} (conflicted copy {stamp})"),
+    }
+}
+
+/// Today, as `YYYY-MM-DD`, without taking a date library for one line.
+fn chrono_date() -> String {
+    chrono_date_at(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs() as i64,
+    )
+}
+
+/// A unix second as `YYYY-MM-DD`, in UTC.
+fn chrono_date_at(secs: i64) -> String {
+    let days = secs.div_euclid(86_400);
+    let (mut year, mut left) = (1970i64, days);
+    loop {
+        let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+        let length = if leap { 366 } else { 365 };
+        if left < length {
+            break;
+        }
+        left -= length;
+        year += 1;
+    }
+    let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    let months = [
+        31,
+        if leap { 29 } else { 28 },
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
+    ];
+    let mut month = 1;
+    for length in months {
+        if left < length {
+            break;
+        }
+        left -= length;
+        month += 1;
+    }
+    format!("{year:04}-{month:02}-{:02}", left + 1)
+}
+
 impl Manager {
     /// A stream of changes, primed by the caller with `events::prime`.
     ///
@@ -218,6 +297,95 @@ impl Manager {
             .context("this account is mounted read-only, so it has no changes to try again")?;
         Ok(control.retry_stuck().await?)
     }
+    /// Remove these paths without the provider's recycle bin (ADR 0008).
+    ///
+    /// Refuses unless the caller says it has asked the person and been told
+    /// yes. That is not politeness: the daemon cannot see a dialogue, and a
+    /// client that forgot to show one would otherwise destroy files silently on
+    /// its say-so. A caller that lies about it has taken the responsibility.
+    pub async fn delete_permanently(
+        &self,
+        label: &str,
+        paths: &[String],
+        confirmed: bool,
+    ) -> Result<Vec<crate::PermanentDeletion>> {
+        if !confirmed {
+            bail!("permanent deletion needs the person to have been asked; nothing was removed");
+        }
+        let id = self.account_id(label).await?;
+        let engine = self
+            .engines
+            .read()
+            .await
+            .get(&id)
+            .cloned()
+            .context("this account is not running")?;
+        let provider = self
+            .writers
+            .read()
+            .await
+            .get(&id)
+            .cloned()
+            .context("this account is mounted read-only, so nothing can be removed through it")?
+            .provider()
+            .context("this account's writers are not running yet")?;
+        Ok(engine.delete_permanently(paths, provider.as_ref()).await)
+    }
+    /// Keep both copies of every save the cloud refused: put the person's bytes
+    /// beside the remote version under a new name.
+    ///
+    /// Until this existed a conflicted save could only be discarded, and
+    /// discarding one throws away what the person wrote. The bytes are still in
+    /// the journal, sealed and verified, so the honest resolution is to keep
+    /// both and let the person compare them.
+    ///
+    /// The copy's name is not translated. It is a file name that goes to the
+    /// cloud and comes back to every other machine on the account, and a name
+    /// that changed with the desktop's language would make one person's copy
+    /// unrecognisable to the next.
+    pub async fn keep_both(&self, label: &str) -> Result<(u64, u64)> {
+        let id = self.account_id(label).await?;
+        let control = self
+            .writers
+            .read()
+            .await
+            .get(&id)
+            .cloned()
+            .context("this account is mounted read-only, so it has no refused saves")?;
+        let engine = self
+            .engines
+            .read()
+            .await
+            .get(&id)
+            .cloned()
+            .context("this account is not running")?;
+        let scope = engine.scope(&engine.account.drive.id);
+        let plans = control.keep_both_plans(1000).await.unwrap_or_default();
+        let total = plans.len() as u64;
+        let mut ready = Vec::new();
+        for plan in plans {
+            let (parent, name) = match (plan.parent.clone(), plan.name.clone()) {
+                (Some(parent), Some(name)) => (parent, name),
+                _ => {
+                    // A replace names only the item. The index is the only place
+                    // that knows what it was called and where it lived.
+                    let Some(item) = plan.item.as_deref() else {
+                        continue;
+                    };
+                    let Ok(node) = engine.node(&scope, item).await else {
+                        continue;
+                    };
+                    let Some(parent) = node.parent_id.clone() else {
+                        continue;
+                    };
+                    (parent, node.name.clone())
+                }
+            };
+            ready.push((plan.id, parent, conflicted_copy_name(&name)));
+        }
+        let kept = control.keep_both(ready).await?;
+        Ok((kept, total))
+    }
     /// What changed lately on one account: the delta feed's recent deliveries
     /// and the journal's latest saves, latest first, `limit` of each. Names for
     /// replaced items come from the index, which has them because a save
@@ -251,10 +419,36 @@ impl Manager {
                 change.path = engine.relative_path_of(&scope, &id).await;
             }
         }
+        // The same treatment for saves that failed. A create carries its own
+        // name and no path; a replace carries only the item id, so it needs
+        // both resolved before a person can act on it.
+        let mut failed = match &control {
+            Some(control) => control
+                .failed_uploads_named(limit)
+                .await
+                .unwrap_or_default(),
+            None => Vec::new(),
+        };
+        for change in &mut failed {
+            if let Some(id) = change.path.take() {
+                // What the cloud has instead. A conflict says somebody else got
+                // there first and, until this, said nothing else; choosing
+                // between your version and theirs without being told anything
+                // about theirs is a guess, not a choice.
+                if let Ok(node) = engine.node(&scope, &id).await {
+                    if change.name.is_empty() {
+                        change.name = node.name.clone();
+                    }
+                    change.instead = Some(describe_remote(&node));
+                }
+                change.path = engine.relative_path_of(&scope, &id).await;
+            }
+        }
         Ok(crate::RecentReply {
             remote,
             local,
             stuck,
+            failed,
             refusal: None,
         })
     }
@@ -473,6 +667,7 @@ impl Manager {
                     let mut statuses = vec![];
                     for account in &settings.accounts {
                         let mut status = AccountStatus {
+                            wastebasket: None,
                             account_id: account.id.clone(),
                             drive_id: account.drive.id.clone(),
                             root_id: account.root_id.clone(),
@@ -603,6 +798,8 @@ impl Manager {
                                 status.indexed_feeds = feeds;
                                 status.indexed_items = items;
                             }
+
+                            status.wastebasket = active.engine.wastebasket().await;
 
                             status.state =
                                 account_state(active.mount_error.as_deref(), &status.feeds);
@@ -914,5 +1111,66 @@ mod tests {
             std::fs::read_to_string(path.join("local.txt")).unwrap(),
             "preserve"
         );
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod copy_names {
+    use super::conflicted_copy_name;
+
+    #[test]
+    fn the_suffix_goes_before_the_extension() {
+        let name = conflicted_copy_name("Report.docx");
+        assert!(name.starts_with("Report (conflicted copy "), "{name}");
+        assert!(
+            name.ends_with(".docx"),
+            "a rescued save still opens with the program it belongs to: {name}"
+        );
+    }
+
+    #[test]
+    fn a_name_with_no_extension_keeps_its_shape() {
+        let name = conflicted_copy_name("Notes");
+        assert!(name.starts_with("Notes (conflicted copy "), "{name}");
+        assert!(!name.contains('.'), "nothing invented an extension: {name}");
+    }
+
+    #[test]
+    fn a_dotfile_is_all_extension_and_keeps_its_whole_name() {
+        // ".bashrc" has no stem. Splitting on the last dot would rescue it as
+        // " (conflicted copy ...).bashrc", which is a different file entirely.
+        let name = conflicted_copy_name(".bashrc");
+        assert!(name.starts_with(".bashrc (conflicted copy "), "{name}");
+    }
+
+    #[test]
+    fn several_dots_split_only_at_the_last_one() {
+        let name = conflicted_copy_name("archive.tar.gz");
+        assert!(name.starts_with("archive.tar (conflicted copy "), "{name}");
+        assert!(name.ends_with(".gz"), "{name}");
+    }
+
+    #[test]
+    fn the_date_is_a_real_one() {
+        let name = conflicted_copy_name("x.txt");
+        let stamp = name
+            .rsplit_once(" (conflicted copy ")
+            .and_then(|(_, rest)| rest.split(')').next())
+            .unwrap()
+            .to_owned();
+        let parts: Vec<&str> = stamp.split('-').collect();
+        assert_eq!(parts.len(), 3, "{stamp}");
+        let (year, month, day): (i64, u32, u32) = (
+            parts[0].parse().unwrap(),
+            parts[1].parse().unwrap(),
+            parts[2].parse().unwrap(),
+        );
+        // Written without a date library, so the arithmetic is worth asserting
+        // rather than trusting: a leap year off by one would name the copy
+        // after the wrong day for the rest of the year.
+        assert!((2026..2100).contains(&year), "{stamp}");
+        assert!((1..=12).contains(&month), "{stamp}");
+        assert!((1..=31).contains(&day), "{stamp}");
     }
 }

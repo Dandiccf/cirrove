@@ -213,7 +213,9 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                                         name: "Old invoices".into(),
                                         path: Some("Accounts/Old invoices".into()),
                                         state: "conflict".into(),
+                                        instead: None,
                                     }],
+                                    failed: Vec::new(),
                                     refusal: None,
                                 }
                             } else {

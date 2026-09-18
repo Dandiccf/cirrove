@@ -115,7 +115,12 @@ impl Store {
     }
     /// Remove a pin and release the blocks it protected. Returns whether one existed.
     pub fn unpin(&mut self, scope: &str, item: &str) -> Result<bool> {
-        let tx = self.db.transaction()?;
+        // Immediate for the same reason, even though this one writes first:
+        // the distinction is subtle enough that the next statement added above
+        // the delete would reintroduce the fault silently.
+        let tx = self
+            .db
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         tx.execute(
             "DELETE FROM pin_blocks WHERE scope=?1 AND item=?2",
             params![scope, item],
@@ -155,7 +160,18 @@ impl Store {
     /// look at them again and eviction would never take those blocks -- cache
     /// capacity leaking away with no field anywhere that would show it.
     pub fn protect_blocks(&mut self, scope: &str, item: &str, keys: &[String]) -> Result<bool> {
-        let tx = self.db.transaction()?;
+        // Immediate, because this reads the pin before it writes. A deferred
+        // transaction takes a read lock first and must upgrade, and SQLite
+        // answers an upgrade that collides with another writer by returning
+        // BUSY at once, bypassing the busy handler -- the same behaviour
+        // `initial_wal` documents for journal-mode changes. So this failed
+        // instantly instead of waiting its three seconds, and a person keeping
+        // a folder offline was told "database is locked" halfway through the
+        // fetch. Taking the write lock up front means the handler applies and
+        // the second writer waits, which is what every other writer here does.
+        let tx = self
+            .db
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let pinned: i64 = tx.query_row(
             "SELECT count(*) FROM pins WHERE scope=?1 AND item=?2",
             params![scope, item],

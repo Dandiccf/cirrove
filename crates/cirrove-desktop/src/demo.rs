@@ -9,6 +9,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
         .accounts
         .iter()
         .map(|a| AccountStatus {
+            wastebasket: None,
             account_id: a.id.clone(),
             drive_id: a.drive.id.clone(),
             root_id: a.root_id.clone(),
@@ -144,14 +145,23 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
                             name: "Old invoices".into(),
                             path: Some("Accounts/2024/Old invoices".into()),
                             state: "conflict".into(),
+                            instead: None,
                         },
                         cirrove_service::recent::StuckChange {
                             what: "create folder".into(),
                             name: "Q3 drafts".into(),
                             path: Some("Projects/Q3 drafts".into()),
                             state: "failed".into(),
+                            instead: None,
                         },
                     ],
+                    failed: vec![cirrove_service::recent::StuckChange {
+                        what: "save".into(),
+                        name: "Quarterly report.odt".into(),
+                        path: Some("Projects/Quarterly report.odt".into()),
+                        state: "failed".into(),
+                        instead: Some("24,312 bytes, changed 2026-09-16".into()),
+                    }],
                     refusal: None,
                 },
             )]

@@ -409,8 +409,8 @@ the largest machine — backwards for a requirement about running on any hardwar
 | Gate | Fixture | Criterion |
 | --- | --- | --- |
 | G3 resident bound | `real_combined_namespace_churn`, `CIRROVE_CHURN_FILES=500000`, both topologies | `released` PSS minus `indexed_baseline` PSS at most 256 MiB, every round |
-| G2 evictable bound | same | a named `resident_bytes.evictable` counter at most 64 MiB, with its charge formula written here before the counter is built |
-| G7 sustained plateau | same, sustained mode | over the final twelve hours of a twenty-four hour run, post-settle PSS must not exceed the hour-two sample by more than X percent |
+| G2 evictable bound | same | **retired 2026-09-17.** The counter was built to the formula below and the formula's own validation falsified it at 38–51 percent agreement against 15. The fallback that paragraph names — a view-count ceiling — is in force instead ([ADR 0015](0015-a-ceiling-on-resolved-views.md)) and passes the peak criterion. The counter is reported, not enforced. |
+| G7 sustained plateau | same, sustained mode | over the final half of the sustained period, post-settle **anonymous** PSS must not exceed the sample one twelfth in — hour two of twenty-four — by more than **18 percent**, fixed from the 2026-09-17 pilot. Asserted only where that reference falls at least ninety minutes in, twice the measured settle. |
 | Survivability | same, under `MemoryMax` with `MemorySwapMax=0` | no OOM kill; assertions intact |
 
 G3 failed at 476.4 / 514.8 / 546.7 MiB, missing by 1.86x to 2.14x. **It closed on
@@ -444,6 +444,41 @@ Two prerequisites block G7 as written. `capacity/churn.rs:414` skips
 runs only non-full rounds, so no sustained sample is post-invalidation root-only
 and there is no series a plateau rule can be applied to. Sustained mode also
 carries no memory assertion at all.
+
+**X is 18 percent, fixed from the pilot on 2026-09-17**
+([the pilot](../benchmarks/what-x-is-in-the-plateau-rule.json)). Both
+prerequisites are closed: `CIRROVE_CHURN_SUSTAINED_FULL_EVERY` makes sustained
+rounds settle, so there is a post-invalidation root-only series, and both memory
+criteria now assert in sustained rounds.
+
+Two hours at 500,000 files, 105 settled sustained samples. Anonymous memory is
+flat at 62–68 MiB for 35 minutes, climbs to about 90 between minutes 35 and 47,
+and is flat at 88–94 for the 73 minutes after. Inside the plateau the largest
+excursion is +11.5 percent and the second largest +10.4, against −10.1 at the
+bottom; X is that maximum plus half again, rounded up, because a tolerance with
+no margin is a twenty-four hour run that fails on noise.
+
+**The pilot earned the sentence above it.** Compared against a reference taken
+one twelfth into a *two-hour* run — minute 10, which is inside the climb — the
+same plateau reads **+45.5 percent**. G7's reference is hour two of twenty-four,
+which is past the 47-minute settle, so the real rule sees 11.5 and not 45.5. A
+rule picked from the two-hour reading would have failed the long run in its
+first hour, which is exactly what this paragraph predicted a blind choice would
+do. The fixture therefore refuses to assert the rule at all unless the reference
+point falls at least ninety minutes into the sustained period — twice the
+measured settle — and prints why rather than passing silently.
+
+`plateau_verdict` is separated from the run and held to the pilot's own shape by
+three tests: a two-hour run reports and declines to judge, a twenty-four hour
+run judges the measured plateau and passes it, and a plateau that keeps climbing
+by one MiB an hour fails. That last one is the shape a leak would make, and it
+matters because one candidate is still open — the resolution queue
+[ADR 0015](0015-a-ceiling-on-resolved-views.md) added the same day is filled on
+every insert and drained only while the mount is over its ceiling. It had no
+counter during the pilot, which is why the pilot cannot say whether the 35-to-47
+minute climb was it; it has `resolution_entries` now. The candidate queue is
+ruled out and is in the data: it falls from 913,667 entries to 279,502 and
+holds.
 
 **G8, the persistent inode table.** Measured across two 500,000-file runs: rows go
 from 1 to 750,495 and the database file from 565.6 to 662.7 MiB. The first pass
@@ -698,6 +733,37 @@ measured 637 to 657 bytes per view: weaker, because it cannot see a change in
 per-view size, but honest, and it costs a day rather than a phase. That choice is
 to be made in the open, not by loosening the tolerance until the model passes.
 
+**The counter was built to this formula on 2026-09-17, and the validation
+falsified it.** Agreement with `Pss_Anon` over the indexed baseline is 41.6–48.1
+percent in the tree topology and 38.5–51.2 percent in the giant directory, at
+every round; at the `released` phase the model reads 0.0 MiB against 21–38, since
+one view is charged while the process still holds a store, a runtime and an
+allocator's free arena. The modelled figure is 63.4 MiB at 200,000 views and 77.3
+at 246,831, and the walk costs 38–45 ms holding the namespace lock — which the
+formula predicted, and which is why it stays `#[cfg(test)]`. The pre-reserved
+`Vec` held in every sample, so nothing allocated during a walk.
+
+What the formula does not charge is named rather than added, because adding it is
+what this paragraph forbids: the `entries` B-tree's node slack around a 128-byte
+view, the identity index's `BTreeSet<Key>` and its slack, the candidate and
+resolution queues, and the free arena a shedding traversal leaves — visible as
+agreement falling from 48.1 to 43.5 percent across three rounds while the modelled
+figure does not move at all.
+
+**So the fallback is taken, in the open.** `resident_bytes.evictable` reads 34.4
+MiB in the tree, under G2's 64 MiB, and 77.3 in the giant directory, over it — and
+neither number means anything while the model behind it explains under half the
+memory it claims to describe. **G2 is retired as a bound.** The ceiling actually
+in force is the count-based one this paragraph named as the fallback:
+[ADR 0015](0015-a-ceiling-on-resolved-views.md), 200,000 views, which was built
+the same day for the peak criterion and passes it in both topologies. Its stated
+weakness — it cannot see a change in per-view size — is real, and the guard
+against it is that bytes per live view is measured on every pass and has
+reproduced to within 0.2 percent across four measurements at two scales. The
+counter stays, reported and not enforced, because a falsified model that is
+measured beside the truth is how the next version of the formula gets written.
+See [is the charge formula fiction](../benchmarks/is-the-charge-formula-fiction.json).
+
 ## Shedding: the design, and why it was not built
 
 **Retired by measurement. Kept as a record of what was designed and what killed
@@ -834,6 +900,26 @@ shedding section and neither half is small — reduce bytes per view, which thre
 passes have moved 15 to 20 percent each and which will not reach a factor of two
 on its own, or decline to resolve views beyond a ceiling at all, which is a change
 to the lookup contract rather than to reclamation and needs its own ADR.
+
+**Both halves were answered on 2026-09-17, and the answers point the same way.**
+The first half was pushed a fourth time and is finished:
+[ADR 0014](0014-a-view-remembers-its-identity-not-its-contents.md) took a view
+from 637–664 bytes to 489–509 and the peak from 483/476/491 MiB of anonymous PSS
+to 383/383/398, which is 21 percent — and then ran out. The largest remaining
+item, the name in the view, is not removable: entry invalidation is
+`fuse_notify_inval_entry(parent, name)`, the case it exists for is deletion, and
+the live view is the last place in the process that knows what a deleted item was
+called. What is left of that half sums to about 81 bytes against a 149-byte gap.
+
+The second half now has its ADR — [ADR 0015](0015-a-ceiling-on-resolved-views.md)
+— and it arrives with the first half of *this* section revived rather than
+replaced. The 107 invalidations per second that retired shedding were measured
+with every invalidation aimed at the directory being read, which is the one case
+the parent's `i_rwsem` serialises. A ceiling sheds its *oldest* views, which are
+in directories the traversal has left. Measured the same night: 24,000 per
+second sustained, one FORGET each, and no measurable effect on concurrent
+lookups. So the shape in ADR 0015 is a ceiling held by shedding *and* by
+admission — wait, never refuse — rather than either alone.
 
 It took four attempts to get the trim condition right, and the first three failed
 invisibly: whether it fired could only be inferred from the memory it was supposed

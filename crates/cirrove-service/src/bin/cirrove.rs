@@ -240,6 +240,10 @@ enum Command {
         /// Also wait for the real 50-minute renewal and verify a fresh notification.
         #[arg(long)]
         check_renewal: bool,
+        /// Leave the fixture folder in the drive after a passing run. A failing
+        /// run keeps it either way; this is for inspecting one that worked.
+        #[arg(long)]
+        keep_fixture: bool,
     },
     /// Developer-only rename, move and file deletion inside a new synthetic folder.
     ValidateOnedriveMutations {
@@ -435,6 +439,44 @@ enum Command {
         #[arg(long)]
         socket: Option<PathBuf>,
     },
+    /// Remove files without the recycle bin. This cannot be undone.
+    ///
+    /// An ordinary delete -- in any file manager, on any desktop -- puts the
+    /// file in the drive's recycle bin, and nothing configures that away. This
+    /// is the second gesture, and it exists because POSIX has one `unlink` with
+    /// no flag in which "and skip the recycle bin" could live (ADR 0008).
+    ///
+    /// Folders are refused. The provider's delete on a folder is recursive, and
+    /// nothing available can tell whether a child arrived a moment ago; the
+    /// recycle bin is the only recovery from that, and this is the one
+    /// operation that removes it.
+    DeletePermanently {
+        #[arg(long, default_value = "")]
+        label: String,
+        /// Mount-relative paths, as `paths` and `pin` take them.
+        #[arg(required = true)]
+        paths: Vec<String>,
+        /// Skip the question. For scripts that have already asked.
+        #[arg(long)]
+        yes: bool,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
+    /// Keep both copies of every save the cloud refused.
+    ///
+    /// A conflict means the cloud decided about the file while the person was
+    /// editing it, so one of the two versions has to give way. `discard-stuck`
+    /// makes that the person's: the cloud keeps its version and the local edit
+    /// is gone. This makes it neither's. The bytes are still in the journal,
+    /// sealed and checked against their digest, so they are queued as a new
+    /// file beside the remote one -- `Report (conflicted copy 2026-09-16).docx`
+    /// -- and the person compares them at their leisure.
+    KeepBoth {
+        #[arg(long, default_value = "")]
+        label: String,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
     /// Try the stuck changes again, where trying again is a sensible thing to do.
     ///
     /// Not all of them, and the difference is the whole of it. A change that
@@ -591,9 +633,15 @@ async fn main() -> Result<()> {
             label,
             state_dir,
             check_renewal,
+            keep_fixture,
         } => {
-            cirrove_service::validation::onedrive_notifications(&state_dir, &label, check_renewal)
-                .await?;
+            cirrove_service::validation::onedrive_notifications(
+                &state_dir,
+                &label,
+                check_renewal,
+                keep_fixture,
+            )
+            .await?;
         }
         Command::ValidateOnedriveMutations { label, state_dir } => {
             cirrove_service::validation::onedrive_mutations(&state_dir, &label).await?;
@@ -1045,6 +1093,26 @@ async fn main() -> Result<()> {
                     );
                 }
             }
+            // `status` reports these as `failed_uploads`, a number beside a
+            // warning sign. Which file it was about could not be learned from
+            // this program at all until now.
+            if !reply.failed.is_empty() {
+                println!("Saves that never reached the cloud:");
+                for change in reply.failed {
+                    println!(
+                        "  {}  {}  {}",
+                        change.state,
+                        change.what,
+                        change.path.as_deref().unwrap_or(&change.name)
+                    );
+                    // What the cloud has instead. Choosing between your version
+                    // and theirs without being told anything about theirs is a
+                    // guess; `keep-both` is the answer that needs no choice.
+                    if let Some(instead) = &change.instead {
+                        println!("      the cloud has: {instead}");
+                    }
+                }
+            }
         }
         Command::Paths {
             label,
@@ -1099,6 +1167,78 @@ async fn main() -> Result<()> {
                     n => format!(
                         "; {n} are conflicts the cloud already decided about and are not re-sent \
                          (discard-stuck abandons them)"
+                    ),
+                }
+            );
+        }
+        Command::DeletePermanently {
+            label,
+            paths,
+            yes,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(p) => p,
+                None => socket_path()?,
+            };
+            if !yes {
+                // Asked here, in the program the person typed into, because the
+                // daemon cannot see a dialogue and will not act without being
+                // told this happened.
+                println!(
+                    "This removes {} file(s) without the recycle bin.",
+                    paths.len()
+                );
+                for path in &paths {
+                    println!("  {path}");
+                }
+                print!("There is no way back. Type yes to continue: ");
+                use std::io::Write as _;
+                std::io::stdout().flush().ok();
+                let mut answer = String::new();
+                std::io::stdin().read_line(&mut answer)?;
+                if answer.trim() != "yes" {
+                    println!("Nothing was removed.");
+                    return Ok(());
+                }
+            }
+            let reply = cirrove_service::delete_permanently(&socket, &label, paths).await?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            let mut refused = 0;
+            for deletion in &reply.deletions {
+                match &deletion.refusal {
+                    Some(why) => {
+                        refused += 1;
+                        println!("{}  --  {why}", deletion.path);
+                    }
+                    None => println!("{}  removed permanently", deletion.path),
+                }
+            }
+            if refused > 0 {
+                bail!("{refused} of {} were not removed", reply.deletions.len());
+            }
+        }
+        Command::KeepBoth { label, socket } => {
+            let socket = match socket {
+                Some(p) => p,
+                None => socket_path()?,
+            };
+            let reply = cirrove_service::keep_both(&socket, &label).await?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            let missed = reply.considered.saturating_sub(reply.kept);
+            println!(
+                "{} refused save(s) now have a copy queued beside the cloud's version{}",
+                reply.kept,
+                match missed {
+                    0 => String::new(),
+                    // Said rather than swallowed: the person is being told their
+                    // work is safe, so the exceptions have to be named.
+                    n => format!(
+                        "; {n} could not be copied, because the file each was replacing is no                          longer in the index"
                     ),
                 }
             );

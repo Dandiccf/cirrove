@@ -3661,3 +3661,89 @@ async fn a_refused_collection_carries_a_reason_worth_logging() {
     );
     engine.stop().await;
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires a working /dev/fuse and fusermount3; run explicitly"]
+async fn real_a_crawler_never_sees_resource_temporarily_unavailable() {
+    // A desktop file indexer asks many questions at once and has no idea that a
+    // filesystem might refuse one. EAGAIN on a descriptor nobody opened
+    // O_NONBLOCK is not backpressure to a caller, it is damage: on 2026-09-16
+    // GNOME's localsearch crawled a mount on the owner's machine and recorded
+    // 13,589 failures, 7,892 of them "PDF document is damaged", for files that
+    // read back perfectly once the machine was quiet. ADR 0006 named this
+    // failure before it happened and nothing asserted against it.
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let state = temp.path().join("state");
+    let config = account(mount.clone());
+    let provider = Fixture::new();
+    let engine = Engine::new(config.clone(), provider.clone(), state.clone())
+        .await
+        .unwrap();
+    engine.start().await.unwrap();
+    ready(&engine).await;
+    let session = CloudFs::new(engine.clone()).unwrap().mount(&mount).unwrap();
+
+    // More callers than the admission gate has places, which is the whole
+    // point: the gate must make them wait, not turn them away.
+    const CALLERS: usize = 384;
+    const EACH: usize = 40;
+    let path = mount.clone();
+    let refused = tokio::time::timeout(
+        Duration::from_secs(90),
+        tokio::task::spawn_blocking(move || {
+            let refused = Arc::new(AtomicU64::new(0));
+            let other = Arc::new(AtomicU64::new(0));
+            std::thread::scope(|scope| {
+                for caller in 0..CALLERS {
+                    let (path, refused, other) = (path.clone(), refused.clone(), other.clone());
+                    scope.spawn(move || {
+                        for round in 0..EACH {
+                            // Listing a directory reaches the daemon every
+                            // time. A stat does not: the kernel answers the
+                            // second one from its attribute cache, and a test
+                            // built on stat measures the cache, not the gate.
+                            let target = match (caller + round) % 2 {
+                                0 => path.join("Documents"),
+                                _ => path.clone(),
+                            };
+                            match std::fs::read_dir(&target).map(Iterator::count) {
+                                Ok(_) => {}
+                                Err(error) if error.raw_os_error() == Some(libc::EAGAIN) => {
+                                    refused.fetch_add(1, Ordering::Relaxed);
+                                }
+                                Err(_) => {
+                                    other.fetch_add(1, Ordering::Relaxed);
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+            (
+                refused.load(Ordering::Relaxed),
+                other.load(Ordering::Relaxed),
+            )
+        }),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+
+    engine.stop().await;
+    tokio::task::spawn_blocking(move || session.umount_and_join())
+        .await
+        .unwrap()
+        .unwrap();
+
+    let (refused, other) = refused;
+    assert_eq!(
+        refused,
+        0,
+        "{refused} of {} operations were answered EAGAIN; a caller that never \
+         asked for a non-blocking descriptor reads that as a broken file \
+         ({other} failed for other reasons)",
+        CALLERS * EACH
+    );
+}

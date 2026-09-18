@@ -1,0 +1,169 @@
+{
+ "first_arm": {
+  "ceiling": 20000,
+  "fixture": "real_combined_namespace_churn, CIRROVE_CHURN_FILES=40000, which holds 60,093 live views without a ceiling",
+  "one_prediction_just_missed": "`shed_asked` was predicted at 'at least 40,000' and round one asked 39,962. Thirty-eight short, because a handful of views are passed over each pass -- an open file, an in-flight operation -- and offered again only when next resolved. Recorded because a prediction that says 'at least' and lands under it is wrong, however narrowly.",
+  "result": "It holds, and it is free. 20,134 / 20,395 / 20,376 views held at the traversal against a ceiling of 20,000 and 60,093 without one, with a largest overshoot of 2,022. Anonymous PSS at the traversal is 22.4 / 27.1 / 28.5 MiB against 39.0 / 39.4 / 42.2. And the traversal takes 7.2 / 7.1 / 7.2 seconds against 7.2 without a ceiling -- the shedding costs it nothing measurable, which is what the standalone instrument said and is the part that had to be shown inside Cirrove. Every fixture assertion passes unchanged. The one thing I named as a likely error -- that the kernel might drop the dentry and keep the inode, so the references would not come back -- did not happen: 39,962 sheds in round one, and the view count went where it was told."
+ },
+ "fourth_arm": {
+  "ceiling": 200000,
+  "fixture": "the tree topology again, to choose a default rather than ship the first number that worked",
+  "prediction": {
+   "peak": "150 to 180 MiB over the baseline, from the same slope: 70.7 MiB of intercept plus 200,000 views at 437 bytes is 154, plus the free-arena creep that put round three 34 MiB above round one at a ceiling of 300,000.",
+   "traversal_time": "90 seconds or faster. At 300,000 it was already faster than the unlimited run, because a smaller map is cheaper to work.",
+   "why": "234.1 of 256 MiB in the giant-directory round three is nine percent of headroom, and the intercept grows with the library. A default wants margin it has been measured to have.",
+   "written_before_the_run": true
+  },
+  "result": "144.3 / 163.3 / 171.7 MiB over the baseline, 33 percent of headroom against nine at 300,000, and the traversal unchanged at 90.9 / 90.2 / 89.9 seconds. Predicted 150 to 180; round one came in under the band at 144.3. 200,000 becomes the default."
+ },
+ "prediction": {
+  "i_may_be_wrong_about": "whether FORGET arrives promptly. `inval_entry` drops the dentry, but the kernel sends FORGET when it drops the INODE, and it may keep the inode on its own LRU for a while. If retained_views stays near 60,000 while shed_asked climbs, the invalidations are landing and the kernel is simply not giving the references back, and this design needs the kernel's memory pressure rather than a count to drive it -- which is ADR 0006's territory and was rejected there.",
+  "live_bytes": "about a third of the 33 MB the unlimited run holds at the traversal, in proportion to the views.",
+  "retained_views_at_the_traversal": "20,000 to 30,000, against 60,093 without a ceiling. Not 20,000 exactly: the task sheds in batches of 512 and the traversal resolves faster than one batch at a time, so an overshoot of a few thousand is expected and `max_over_ceiling` is there to report it.",
+  "shed_asked": "at least 40,000 -- the difference between what is resolved and what is held -- and every one of them a call that returned Ok, because a call the kernel refuses is not counted.",
+  "traversal_time": "within 10 percent of the 7.2 seconds the unlimited 40,000-file run takes. The instrument says shedding behind the sweep costs lookups nothing; if this arm is much slower, then Cirrove's shed is not landing behind its sweep and the resolution-order assumption is wrong.",
+  "written_before_the_run": true
+ },
+ "question": "ADR 0015 proposes a ceiling on resolved views held by shedding the oldest. The mechanism measures at 24,000 sheds per second in a standalone instrument. Does it hold inside Cirrove, against Cirrove's own traversal, with Cirrove's own lookups contending?",
+ "registered": "2026-09-17",
+ "registered_before_the_run": true,
+ "result": "ADR 0005's peak criterion passes, in the shipped default configuration, in both topologies of its own matrix, with 48 percent of headroom in the tree and 23 in the giant directory. It had failed since it was written, at about 1.9 times the budget.",
+ "second_arm": {
+  "ceiling": 300000,
+  "fixture": "real_combined_namespace_churn, CIRROVE_CHURN_FILES=500000, 750,438 live views unlimited",
+  "measured": {
+   "g3_released_over_baseline_mib": [
+    27.0,
+    45.2,
+    34.4
+   ],
+   "largest_overshoot": 31058,
+   "peak_anonymous_pss_over_baseline_mib": [
+    200.2,
+    233.7,
+    211.8
+   ],
+   "the_map_now_reported_separately_mib": {
+    "indexed_baseline": 138.3,
+    "traversals": [
+     12.5,
+     541.6,
+     358.3
+    ]
+   },
+   "traversal_seconds": [
+    90.8,
+    89.9,
+    89.4
+   ],
+   "unlimited_for_comparison": {
+    "peak": [
+     379.5,
+     378.8,
+     394.0
+    ],
+    "seconds": 96,
+    "views": 750438
+   },
+   "views_held": [
+    300351,
+    300394,
+    300336
+   ]
+  },
+  "prediction": {
+   "anonymous_pss_over_the_indexed_baseline": "180 to 215 MiB against a 256 MiB budget, from 70.7 MiB of intercept plus 300,000 views at 437 bytes, less the 3.9 MiB baseline.",
+   "retained_views": "300,000 to 315,000",
+   "shed_asked": "about 450,000 a round",
+   "traversal_time": "96 seconds a round, unchanged from the unlimited run",
+   "verdict": "passes",
+   "what_would_make_this_wrong": "the intercept. It is inferred from two points at one twelfth the scale, and free arena from the shed-and-reallocate churn grew across the three rounds at 40,000 (22.4, 27.1, 28.5). If it grows the same way here the third round could be 20 MiB above the first, which a 180 to 215 band has room for and a ceiling of 450,000 would not.",
+   "written_before_the_run": true
+  },
+  "result": "PASSES, all three rounds, both criteria. peak_resident 200.2 / 233.7 / 211.8 MiB over the indexed baseline against 256; g3_released 27.0 / 45.2 / 34.4. Views held 300,351 / 300,394 / 300,336 against a ceiling of 300,000. The traversal takes 90.8 / 89.9 / 89.4 seconds against 96 without a ceiling -- FASTER, because a map of 300,000 entries is cheaper to work than one of 750,438. The prediction said 180 to 215 MiB and rounds one and three landed in it; round two at 233.7 is above the band, for the reason the prediction named as what could make it wrong: free arena from the shed-and-reallocate churn.",
+  "why_300000_and_not_450000": "450,000 is where the arithmetic puts the line, and a ceiling set at the line is not a bound, it is a coin toss. 300,000 leaves the margin the inferred intercept deserves. If it passes with room, the run after it can ask how high the ceiling may go."
+ },
+ "shipped_default": {
+  "ceiling": 200000,
+  "giant_directory_topology": {
+   "g3_released_over_baseline_mib": [
+    18.1,
+    37.8,
+    50.9
+   ],
+   "note": "the overshoot is where the same-parent contention shows: 23 percent, against zero in the tree. It stays inside the budget at 500,000 files and it is what ADR 0015's admission half would remove.",
+   "overshoot": 46817,
+   "peak_over_baseline_mib": [
+    144.9,
+    164.3,
+    197.0
+   ],
+   "traversal_seconds": [
+    100.3,
+    96.6,
+    96.6
+   ],
+   "views_held": [
+    245815,
+    246613,
+    245668
+   ]
+  },
+  "the_gate_is_enforced_from_today": "`peak_resident` was reported and not enforced since the criterion was written, because it had never passed. It fails the build from here. Three designs died on this criterion; a gate that can never pass is worth as little as one that cannot fail.",
+  "the_overshoot_went_to_zero_when_the_poll_did": "The first version woke the shed task on a 50 ms timer and overshot by 30,000 to 31,000 views. It is now woken by the lookup that crosses the ceiling, and the tree topology holds at exactly 200,000. That was done for battery -- 20 wakeups a second on an idle laptop -- and it removed the overshoot as a side effect.",
+  "the_run_that_matters": "no environment variables at all, which is what a user gets.",
+  "tree_topology": {
+   "g3_released_over_baseline_mib": [
+    23.3,
+    31.8,
+    41.4
+   ],
+   "overshoot": 0,
+   "peak_over_baseline_mib": [
+    131.1,
+    148.3,
+    150.2
+   ],
+   "shed_asked_per_round": 550442,
+   "traversal_seconds": [
+    94.7,
+    96.9,
+    95.8
+   ],
+   "views_held": [
+    200000,
+    199999,
+    199999
+   ]
+  }
+ },
+ "the_gate_now_reads_anonymous_memory": "Changed in the same session, which is why it is written down carefully. Both criteria read total PSS until 2026-09-17, which was the same number until ADR 0012 put a 2 GiB map over the store. Its clean file-backed pages go resident during a traversal and stay -- 541.6 MiB at round two here, against 12.5 at round one -- and counting them made G3, closed in September at 13 to 16 MiB, fail on something that is not live data. It is not a budget widened to fit: the peak fails on anonymous memory too without a ceiling, at 379.5 / 378.8 / 394.0 against 256, and total PSS also FLATTERED it, because the subtracted baseline already contains 138.3 MiB of the same map. The mapped pages are now reported beside the gate as `mapped_pss_kib` so nothing is hidden.",
+ "the_slope_this_gives": "Two points at 40,000 files: 60,093 views at 39.0 MiB and 20,300 at 22.4. That is 437 bytes of anonymous PSS per view with a 14.0 MiB intercept. Applying the same slope to the unlimited 500,000-file run -- 750,438 views at 383.4 MiB -- puts the intercept there at about 70.7 MiB, which is what the next arm's prediction is built from rather than from proportional scaling. It matters: anonymous PSS fell 43 percent while the view count fell 66, and reading that as proportional would set the ceiling far too high.",
+ "third_arm": {
+  "ceiling": 300000,
+  "fixture": "real_combined_namespace_churn, CIRROVE_CHURN_FILES=500000, CIRROVE_CHURN_PER_DIRECTORY=250000 -- the giant-directory topology, which ADR 0005's gate includes",
+  "prediction": {
+   "i_may_be_wrong_about": "whether it is 105 per second inside Cirrove. The instrument's same-parent arm had eight workers hammering one directory continuously; a real traversal reads a giant directory in one pass, so the contention may be lower and the shed may bind after all. If shed_asked comes in near 450,000 here too, then the same-parent limit does not reproduce inside Cirrove and the instrument's worst case is worse than anything real.",
+   "peak": "close to the unlimited 379.5 to 394.0 MiB, and over the 256 MiB budget",
+   "shed_asked": "about 9,500 a round -- 105 per second over a 90-second traversal -- against the 450,000 the tree topology manages",
+   "traversal_time": "unchanged at about 90 seconds. The instrument found lookups untouched even in the same-parent arm: it is the SHED that is slow there, not the lookup.",
+   "verdict": "fails, and it should. This is the same-parent case: nearly every view hangs off one of two directories, so a shed and the lookups it competes with take the same `i_rwsem`. The standalone instrument measures 105 per second there against 24,000 behind a sweep.",
+   "views_held": "close to the unlimited 750,438, because the ceiling cannot shed fast enough to bind",
+   "written_before_the_run": true
+  },
+  "result": "MY PREDICTION WAS WRONG, in the good direction. The giant-directory topology passes too: 193.7 / 217.6 / 234.1 MiB over the baseline against 256, views held at 300,345 / 300,173 / 300,320, and 449,724 sheds a round -- the full rate, not the 9,500 I predicted from the instrument's 105 per second. So the same-parent limit does not reproduce inside Cirrove, and the reason is the one the prediction named: the instrument's same-parent arm has eight workers hammering one directory continuously, holding its `i_rwsem` shared almost all the time, while a traversal reads a directory once through and the sheds fall between its lookups. It is also not literally one parent -- 500,000 files at 250,000 per directory is six directories across three routes -- which is the gate's giant-directory topology as defined, and a single 750,000-entry directory is not something this fixture can build.",
+  "what_that_means_for_adr_0015": "The admission half is not needed for either gate. It should stay in the ADR as the named answer for a topology that defeats shedding, and it should not be built until one is found: the overshoot it would remove is 46,817 views in the giant-directory run at the shipped default, which is 23 percent and still inside the budget.",
+  "why_run_a_prediction_of_failure": "because ADR 0015 claims this topology needs admission, and that claim is worth nothing until the failure it predicts is shown. If it passes, the admission half of ADR 0015 is unnecessary and should be struck rather than built."
+ },
+ "what_is_built": "Shedding only, no admission. `NamespaceViews` keeps a resolution-order queue when a ceiling is configured and `shed_batch` returns the oldest views the kernel still holds, skipping directories (invalidating one takes its subtree, and the subtree is where the traversal may still be) and skipping anything another clone holds. A background task asks the kernel to drop them with `notify_inval_entry` and counts only the calls that succeeded. Nothing removes a view: the FORGET that follows travels the path every other forget travels, which is why this cannot corrupt the residency accounting. Off by default; `CIRROVE_VIEW_CEILING` turns it on.",
+ "what_this_closes_and_what_it_does_not": {
+  "an_overshoot_worth_naming": "max_over_ceiling reached 31,058 in rounds two and three against 564 in round one -- the shed task falling about ten percent behind a warm traversal. It is reported rather than averaged because it is what an admission gate would remove, and ADR 0015 proposes one. Nothing here needed it.",
+  "closes": "the peak criterion of ADR 0005, in the 2,000-per-directory topology, at a ceiling of 300,000 views. Two designs died on this criterion and a third was written off tonight when field-trimming ran out at about 410 bytes a view. This is the fourth and it holds.",
+  "not_yet": [
+   "The giant-directory topology, which the gate's matrix includes. A single directory of 250,000 files is the same-parent case, where shedding measures 105 per second rather than 24,000, and it has not been run.",
+   "The default. `CIRROVE_VIEW_CEILING` is off unless set, so the shipped configuration still fails the peak. The row cannot be ticked on a gate that passes only when an environment variable is set, and choosing the default needs the giant-directory number first.",
+   "Margin. 233.7 of 256 is nine percent of headroom, and the intercept grows with the library. A lower ceiling buys margin and costs nothing measurable -- the traversal at 300,000 was faster than the traversal at 750,438.",
+   "A test that fails without the change. The fixture passes either way today, because the peak criterion is reported rather than enforced."
+  ]
+ }
+}

@@ -55,7 +55,7 @@ impl WriteWorkers {
                 issue.clone(),
             ));
         }
-        let mutations = MutationWorker::new(journal.clone(), provider, cancel.clone());
+        let mutations = MutationWorker::new(journal.clone(), provider.clone(), cancel.clone());
         workers.spawn(pump(
             WriteWorker::Mutation(mutations),
             control.clone(),
@@ -65,7 +65,7 @@ impl WriteWorkers {
         workers.spawn(maintain(control.clone(), cancel.clone(), issue.clone()));
         workers.close();
         Self {
-            control,
+            control: control.with_provider(provider.clone()),
             cancel,
             workers,
             issue,
@@ -88,6 +88,27 @@ impl WriteWorkers {
             .stuck_changes_named(limit)
             .await
             .unwrap_or_default()
+    }
+    pub(crate) async fn failed_uploads_named(
+        &self,
+        limit: usize,
+    ) -> Vec<crate::recent::StuckChange> {
+        self.control
+            .failed_uploads_named(limit)
+            .await
+            .unwrap_or_default()
+    }
+    pub(crate) async fn keep_both_plans(&self, limit: usize) -> Vec<crate::recent::SavePlan> {
+        self.control
+            .keep_both_plans(limit)
+            .await
+            .unwrap_or_default()
+    }
+    pub(crate) async fn keep_both(
+        &self,
+        plans: Vec<(uuid::Uuid, String, String)>,
+    ) -> std::io::Result<u64> {
+        self.control.keep_both(plans).await
     }
     pub(crate) async fn recent_local(&self, limit: usize) -> Vec<crate::recent::LocalChange> {
         self.control.recent_local(limit).await.unwrap_or_default()
@@ -220,6 +241,24 @@ impl WritableSession {
         match &self.writers {
             Some(writers) => writers.stuck_changes_named(limit).await,
             None => Vec::new(),
+        }
+    }
+    pub async fn failed_uploads_named(&self, limit: usize) -> Vec<crate::recent::StuckChange> {
+        match &self.writers {
+            Some(writers) => writers.failed_uploads_named(limit).await,
+            None => Vec::new(),
+        }
+    }
+    pub async fn keep_both_plans(&self, limit: usize) -> Vec<crate::recent::SavePlan> {
+        match &self.writers {
+            Some(writers) => writers.keep_both_plans(limit).await,
+            None => Vec::new(),
+        }
+    }
+    pub async fn keep_both(&self, plans: Vec<(uuid::Uuid, String, String)>) -> io::Result<u64> {
+        match &self.writers {
+            Some(writers) => writers.keep_both(plans).await,
+            None => Ok(0),
         }
     }
     pub async fn recent_local(&self, limit: usize) -> Vec<crate::recent::LocalChange> {

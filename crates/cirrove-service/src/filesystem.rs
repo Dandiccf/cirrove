@@ -3,6 +3,7 @@
 //! holds the namespace map while awaiting a provider or a database operation.
 #[cfg(test)]
 mod capacity;
+mod ceiling;
 mod directories;
 mod invalidation;
 mod lifecycle;
@@ -37,7 +38,10 @@ use std::{
     },
     time::{Duration, UNIX_EPOCH},
 };
-use tokio::{runtime::Handle, sync::Semaphore};
+use tokio::{
+    runtime::Handle,
+    sync::{OwnedSemaphorePermit, Semaphore},
+};
 
 /// How long the kernel may cache an entry or attribute before asking again.
 ///
@@ -81,7 +85,7 @@ fn name_errno(problem: cirrove_core::NameProblem) -> Errno {
         cirrove_core::NameProblem::Invalid(_) => Errno::EINVAL,
     }
 }
-fn is_trash_directory(name: &str) -> bool {
+pub(crate) fn is_trash_directory(name: &str) -> bool {
     name == ".Trash"
         || name
             .strip_prefix(".Trash-")
@@ -113,12 +117,52 @@ struct View {
     // Immutable metadata is shared by operations/open handles. Sibling files
     // also share their unchanged scope, alias route and ancestry.
     scope: Arc<Scope>,
-    node: Arc<Node>,
+    // What a live view remembers of its item, instead of a whole `Node`.
+    //
+    // Counted before this changed: of 74 reads of the node, 41 wanted `id` and
+    // 14 wanted `kind`; the nine uses of the whole node were all assignments.
+    // A `Node` per live view is five heap strings kept in case somebody asks,
+    // and at 750,438 views during a traversal that is the larger half of the
+    // 650 bytes each one costs.
+    //
+    // The id is an `Arc<str>` so the invalidation index can share it rather
+    // than keeping the separate `Box<str>` copy measurement found it holding.
+    id: Arc<str>,
+    kind: NodeKind,
+    size: u64,
+    modified_unix: u64,
+    package: bool,
+    // The whole node, and only where a writeback exists.
+    //
+    // The write path needs all of it: `materialize` puts the node into the
+    // journal's namespace, and `unlink` must name the version the caller looked
+    // at rather than a fresh one -- fetching would delete a version nobody saw,
+    // which is what ADR 0008 exists to prevent. So a writable mount keeps what
+    // it kept before.
+    //
+    // A read-only mount needs none of it, and that is where a traversal of
+    // 750,000 files happens. `None` is eight bytes; the `Arc<Node>` it replaces
+    // was about 336 with its allocation and its five heap strings.
+    node: Option<Arc<Node>>,
     name: Arc<str>,
     alias: Arc<Vec<(String, String)>>,
     reference: bool,
     entry: Option<Arc<Node>>,
     ancestry: Arc<Vec<(String, String)>>,
+}
+impl View {
+    /// Take from a node exactly what a live view keeps. Everything else stays
+    /// in the store, which is where it already is.
+    fn remember(&mut self, node: &Node, writable: bool) {
+        self.id = node.id.as_str().into();
+        self.kind = node.kind.clone();
+        self.size = node.size;
+        self.modified_unix = node.modified_unix;
+        self.package = node.package;
+        if writable {
+            self.node = Some(Arc::new(node.clone()));
+        }
+    }
 }
 #[derive(Clone)]
 struct OpenFile {
@@ -142,6 +186,8 @@ struct Inner {
     runtime: Handle,
     views: Mutex<NamespaceViews>,
     invalidation_metrics: invalidation::InvalidationMetrics,
+    ceiling_metrics: ceiling::CeilingMetrics,
+    over_ceiling: tokio::sync::Notify,
     files: Mutex<HashMap<u64, Arc<OpenFile>>>,
     directories: Mutex<HashMap<u64, Arc<OpenDirectory>>>,
     directory_budget: directories::Budget,
@@ -179,7 +225,7 @@ impl CloudFs {
         self.inner.runtime.spawn(async move {
             let _admission = admission;
             if let Some(writer) = &inner.writeback {
-                match writer.working(&file.view.scope, &file.view.node.id) {
+                match writer.working(&file.view.scope, &file.view.id) {
                     Ok(Some(record)) => match writer.seal(record.id).await {
                         Ok(()) => reply.ok(),
                         Err(e) => reply.error(e),
@@ -220,19 +266,30 @@ impl CloudFs {
             target: None,
         };
         let scope = engine.scope(&engine.account.drive.id);
-        let root = View {
+        let mut view = View {
             residency: Arc::default(),
             _parent_residency: None,
             inode: ROOT_INODE,
             parent: ROOT_INODE,
             ancestry: vec![(scope.collection.clone(), root.id.clone())].into(),
             scope: scope.into(),
-            node: root.into(),
+            id: Arc::from(""),
+            kind: NodeKind::Folder,
+            size: 0,
+            modified_unix: 0,
+            package: false,
+            node: None,
             name: engine.account.label.as_str().into(),
             alias: vec![].into(),
             reference: false,
             entry: None,
         };
+        // The root's node is synthesised, not stored: its name is the account
+        // label, which no row carries. So this one view keeps it -- one
+        // allocation for the life of the mount -- and `remember` is asked for
+        // the writable shape whatever the mount, for that reason alone.
+        view.remember(&root, true);
+        let root = view;
         Ok(Self {
             inner: Arc::new(Inner {
                 cancel: engine.cancel.child_token(),
@@ -240,8 +297,14 @@ impl CloudFs {
                 writeback: None,
                 edits: lifecycle::EditAdmission::new(),
                 runtime: Handle::current(),
-                views: Mutex::new(NamespaceViews::new(root)),
+                views: Mutex::new({
+                    let mut views = NamespaceViews::new(root);
+                    views.set_ceiling(ceiling::configured());
+                    views
+                }),
                 invalidation_metrics: invalidation::InvalidationMetrics::default(),
+                ceiling_metrics: ceiling::CeilingMetrics::default(),
+                over_ceiling: tokio::sync::Notify::new(),
                 files: Mutex::new(HashMap::new()),
                 directories: Mutex::new(HashMap::new()),
                 directory_budget: directories::Budget::default(),
@@ -257,6 +320,9 @@ impl CloudFs {
     }
     pub fn start_invalidations(&self, notifier: fuser::Notifier) {
         let wake = self.inner.engine.changed.subscribe();
+        self.inner
+            .runtime
+            .spawn(ceiling::run(self.inner.clone(), notifier.clone()));
         self.inner
             .runtime
             .spawn(invalidation::run(self.inner.clone(), notifier, wake));
@@ -364,10 +430,33 @@ impl CloudFs {
                 tokio::select! { biased;
                     _ = inner.cancel.cancelled() => break,
                     _ = tick.tick() => {
-                        let (reclaimed, held) = match inner.views.lock() {
-                            Ok(mut views) => (views.collect(4096), views.len()),
-                            Err(_) => continue,
-                        };
+                        // Drained in short passes that each release the lock,
+                        // not one long one. A single fixed budget a second is a
+                        // constant against a backlog that grows with the
+                        // traversal, and the Fedora VM showed where that ends:
+                        // 2.7 million stale candidates, 71 MB of queue, and the
+                        // peak criterion failing because of it.
+                        let mut reclaimed = 0;
+                        let mut held = 0;
+                        let mut passes = 0;
+                        loop {
+                            let again = match inner.views.lock() {
+                                Ok(mut views) => {
+                                    reclaimed += views.collect(4096);
+                                    held = views.len();
+                                    passes += 1;
+                                    views.wants_another_pass(passes)
+                                }
+                                Err(_) => break,
+                            };
+                            if !again {
+                                break;
+                            }
+                            tokio::task::yield_now().await;
+                        }
+                        if passes == 0 {
+                            continue;
+                        }
                         // The guard is dropped before trimming: trim takes every
                         // arena lock in turn, and holding the namespace lock
                         // across that would block every filesystem reply.
@@ -454,11 +543,21 @@ impl CloudFs {
     }
 }
 impl Inner {
+    /// Take the kernel's reference on a view, and wake the ceiling if this is
+    /// the reference that put the mount over it.
+    ///
+    /// The wake is here rather than on a timer because a mount under its
+    /// ceiling must cost nothing at all -- a 50 ms poll is 20 wakeups a second
+    /// on a laptop doing nothing.
     fn acquire_lookup(&self, inode: u64) -> Result<(), ProviderError> {
-        self.views
-            .lock()
-            .map_err(|_| ProviderError::Unavailable)?
-            .acquire_lookup(inode)
+        let mut views = self.views.lock().map_err(|_| ProviderError::Unavailable)?;
+        views.acquire_lookup(inode)?;
+        let over = views.over_ceiling() > 0;
+        drop(views);
+        if over {
+            self.over_ceiling.notify_one();
+        }
+        Ok(())
     }
     fn view(&self, inode: u64) -> Result<View, ProviderError> {
         self.views
@@ -496,7 +595,10 @@ impl Inner {
         }
         false
     }
-    fn project(parent: &View, child: Node) -> Result<View, ProviderError> {
+    /// Returns the node beside the view rather than inside it: the caller
+    /// wants it for the inode key and for attributes, and a view that keeps it
+    /// for its whole life is what costs 650 bytes each during a traversal.
+    fn project(parent: &View, child: Node, writable: bool) -> Result<(View, Node), ProviderError> {
         if child.name.is_empty()
             || child.name == "."
             || child.name == ".."
@@ -536,30 +638,41 @@ impl Inner {
             inode: 0,
             parent: parent.inode,
             scope,
-            node: node.into(),
+            id: node.id.as_str().into(),
+            kind: node.kind.clone(),
+            size: node.size,
+            modified_unix: node.modified_unix,
+            package: node.package,
+            node: writable.then(|| Arc::new(node.clone())),
             name,
             alias,
             reference: entry.is_some(),
             entry,
             ancestry,
         };
-        Ok(view)
+        // The node goes back to the caller rather than into the view: it is
+        // wanted for the inode key and for attributes, both while the caller
+        // still holds it. Keeping it for the life of the view is the cost.
+        Ok((view, node))
     }
-    fn inode_key(view: &View, writable: bool) -> Result<String, ProviderError> {
+    /// The node is passed rather than read off the view: a view carries its
+    /// identity, and the content revision belongs to the metadata, which every
+    /// caller of this holds already.
+    fn inode_key(view: &View, node: &Node, writable: bool) -> Result<String, ProviderError> {
         let identity = (
             &view.scope.account,
             view.alias.as_ref(),
             &view.scope.collection,
-            &view.node.id,
+            &*view.id,
         );
         // Regular-file revisions have independent kernel page caches. Stable
         // provider identity remains account/drive/item; names never enter the key.
-        if view.node.kind == NodeKind::File && !writable {
+        if view.kind == NodeKind::File && !writable {
             serde_json::to_string(&(
                 "content-inode-v1",
                 identity,
-                view.node.content_revision(),
-                view.node.size,
+                node.content_revision(),
+                node.size,
             ))
         } else {
             serde_json::to_string(&identity)
@@ -567,31 +680,33 @@ impl Inner {
         .map_err(|_| ProviderError::Unavailable)
     }
     async fn insert(&self, parent: &View, child: Node) -> Result<View, ProviderError> {
-        let mut view = Self::project(parent, child)?;
+        let writable = self.writeback.is_some();
+        // The node lives as long as this call, not as long as the view.
+        let (mut view, mut node) = Self::project(parent, child, writable)?;
         if view.reference {
             let (local, retained) = match &self.writeback {
-                Some(writer) => writer
-                    .reference_view(&view.scope, &view.node.id)
-                    .map_err(|e| {
-                        if e == Errno::ENOENT {
-                            ProviderError::NotFound
-                        } else {
-                            ProviderError::Unavailable
-                        }
-                    })?,
+                Some(writer) => writer.reference_view(&view.scope, &view.id).map_err(|e| {
+                    if e == Errno::ENOENT {
+                        ProviderError::NotFound
+                    } else {
+                        ProviderError::Unavailable
+                    }
+                })?,
                 None => (None, false),
             };
             if let Some(local) = local {
-                Arc::make_mut(&mut view.node).id = local;
-                view.node = self.node(&view).await?.into();
-            } else if view.node.kind == NodeKind::Folder && retained {
+                view.id = local.as_str().into();
+                node = self.node(&view).await?;
+                view.remember(&node, writable);
+            } else if view.kind == NodeKind::Folder && retained {
                 // A retained shortcut is the local route to an absent target
                 // root. Its directory view remains traversable without metadata.
             } else {
-                view.node = self.engine.node(&view.scope, &view.node.id).await?.into();
+                node = self.engine.node(&view.scope, &view.id).await?;
+                view.remember(&node, writable);
             }
         }
-        let key = Self::inode_key(&view, self.writeback.is_some())?;
+        let key = Self::inode_key(&view, &node, writable)?;
         let db = self.engine.db.clone();
         view.inode = tokio::task::spawn_blocking(move || Store::open(db)?.inode(&key))
             .await
@@ -633,11 +748,7 @@ impl Inner {
             self.directory_budget.clone(),
             self.cancel.clone(),
         );
-        let (scope, item, db) = (
-            parent.scope.clone(),
-            parent.node.id.clone(),
-            engine.db.clone(),
-        );
+        let (scope, item, db) = (parent.scope.clone(), parent.id.clone(), engine.db.clone());
         let (send, receive) = tokio::sync::oneshot::channel();
         let worker = self.runtime.spawn(async move {
             let mut send = Some(send);
@@ -734,7 +845,7 @@ impl Inner {
                 if cancel.is_cancelled() || snapshot.cancelled() {
                     return Err(Errno::ENODEV);
                 }
-                match Self::project(&route[0], node.map_err(|_| Errno::EIO)?) {
+                match Self::project(&route[0], node.map_err(|_| Errno::EIO)?, writable) {
                     Ok(view) => projected.push(view),
                     Err(ProviderError::Protocol(_)) => {
                         tracing::warn!(
@@ -757,41 +868,42 @@ impl Inner {
         result.inspect_err(|error: &Errno| snapshot.fail(error.code()))?;
         Ok(snapshot)
     }
+    /// The nodes travel with their views through the batch and are dropped with
+    /// it. A batch is 128 entries; a view outlives the listing that made it.
     fn snapshot_batch(
         store: &mut Store,
-        projected: &mut Vec<View>,
+        projected: &mut Vec<(View, Node)>,
         writable: bool,
         snapshot: &mut directories::Builder,
     ) -> Result<(), Errno> {
-        for view in projected.iter_mut() {
+        for (view, node) in projected.iter_mut() {
             // A cold link stays provisional until LOOKUP resolves its target;
             // listing only uses cached target metadata, never provider I/O.
             if view.reference
-                && let Some(node) = store
-                    .node(&view.scope, &view.node.id)
-                    .map_err(|_| Errno::EIO)?
+                && let Some(fresh) = store.node(&view.scope, &view.id).map_err(|_| Errno::EIO)?
             {
-                view.node = node.into();
+                view.remember(&fresh, writable);
+                *node = fresh;
             }
         }
         let keys = projected
             .iter()
-            .map(|view| Self::inode_key(view, writable).map_err(|e| errno(&e)))
+            .map(|(view, node)| Self::inode_key(view, node, writable).map_err(|e| errno(&e)))
             .collect::<Result<Vec<_>, _>>()?;
         let inodes = store.inodes(&keys).map_err(|_| Errno::EIO)?;
-        for (view, inode) in projected.drain(..).zip(inodes) {
+        for ((view, _node), inode) in projected.drain(..).zip(inodes) {
             // READDIR does not create kernel lookup references. Only the parent
             // route is retained by the snapshot, not every projected child.
-            snapshot.push(inode, view.node.kind == NodeKind::Folder, &view.name)?;
+            snapshot.push(inode, view.kind == NodeKind::Folder, &view.name)?;
         }
         Ok(())
     }
     async fn children(&self, parent: &View) -> Result<Vec<Node>, ProviderError> {
         let identity = match &self.writeback {
             Some(writer) => writer
-                .directory_identity(&parent.scope, &parent.node.id)
+                .directory_identity(&parent.scope, &parent.id)
                 .map_err(|_| ProviderError::Unavailable)?,
-            None => Some(parent.node.id.clone()),
+            None => Some(parent.id.to_string()),
         };
         let nodes = match identity {
             Some(item) => match self.engine.children(&parent.scope, &item).await {
@@ -799,7 +911,7 @@ impl Inner {
                 Err(ProviderError::NotFound) => {
                     let retained = match &self.writeback {
                         Some(w) => w
-                            .retains_directory(&parent.scope, &parent.node.id)
+                            .retains_directory(&parent.scope, &parent.id)
                             .map_err(|_| ProviderError::Unavailable)?,
                         None => false,
                     };
@@ -814,7 +926,7 @@ impl Inner {
         };
         match &self.writeback {
             Some(writer) => writer
-                .overlay(&parent.scope, &parent.node.id, nodes)
+                .overlay(&parent.scope, &parent.id, nodes)
                 .map_err(|_| ProviderError::Unavailable),
             None => Ok(nodes),
         }
@@ -822,47 +934,83 @@ impl Inner {
     async fn node(&self, view: &View) -> Result<Node, ProviderError> {
         if let Some(writer) = &self.writeback
             && let Some(node) = writer
-                .node(&view.scope, &view.node.id)
+                .node(&view.scope, &view.id)
                 .map_err(|_| ProviderError::Unavailable)?
         {
             return Ok(node);
         }
         if let Some(writer) = &self.writeback
-            && view.node.kind == NodeKind::Folder
+            && view.kind == NodeKind::Folder
             && writer
-                .retains_directory(&view.scope, &view.node.id)
+                .retains_directory(&view.scope, &view.id)
                 .map_err(|_| ProviderError::Unavailable)?
         {
-            return Ok(view.node.as_ref().clone());
+            return Ok(view
+                .node
+                .as_ref()
+                .ok_or(ProviderError::Unavailable)?
+                .as_ref()
+                .clone());
         }
         if let Some(writer) = &self.writeback
             && writer
-                .follows_remote(&view.scope, &view.node.id)
+                .follows_remote(&view.scope, &view.id)
                 .map_err(|_| ProviderError::Unavailable)?
         {
             let item = writer
-                .remote_identity(&view.scope, &view.node.id)
+                .remote_identity(&view.scope, &view.id)
                 .map_err(|_| ProviderError::Unavailable)?
                 .ok_or(ProviderError::Unavailable)?;
             let mut node = self.engine.node(&view.scope, &item).await?;
-            node.id = view.node.id.clone();
+            node.id = view.id.to_string();
             writer
                 .localize_parent(&view.scope, &mut node)
                 .map_err(|_| ProviderError::Unavailable)?;
             return Ok(node);
         }
-        if view.inode == ROOT_INODE || view.node.kind == NodeKind::File {
-            return Ok(view.node.as_ref().clone());
+        // A writable mount keeps the node and must answer with the version the
+        // caller looked at rather than the current one (ADR 0008). A read-only
+        // view keeps none; the callers that still need a whole node there --
+        // `open`, and the content path behind it -- pay a store read for it,
+        // which an attribute no longer does.
+        if (view.inode == ROOT_INODE || view.kind == NodeKind::File)
+            && let Some(node) = &view.node
+        {
+            return Ok(node.as_ref().clone());
         }
-        self.engine.node(&view.scope, &view.node.id).await
+        self.engine.node(&view.scope, &view.id).await
     }
+    /// The attributes of a view, and nothing else read to find them.
+    ///
+    /// A live view keeps exactly what a `getattr` answers with -- kind, size
+    /// and modified time -- so a read-only mount answers one from the view
+    /// alone: no node held for its lifetime, and no store read per call.
+    async fn attributes_of(&self, view: &View) -> Result<FileAttr, ProviderError> {
+        match &self.writeback {
+            None => Ok(self.attr_of(view)),
+            // A working copy, an overlay or a retained recovery route can each
+            // make the view stale, so a writable mount asks, as it always has.
+            Some(_) => {
+                let node = self.node(view).await?;
+                Ok(self.attr(view, &node))
+            }
+        }
+    }
+    fn attr_of(&self, view: &View) -> FileAttr {
+        self.attributes(view, view.kind.clone(), view.size, view.modified_unix)
+    }
+    /// Attributes from a node the caller holds, which may be newer than the
+    /// view: a truncate answers with the size it has just written.
     fn attr(&self, view: &View, node: &Node) -> FileAttr {
-        let directory = node.kind == NodeKind::Folder;
-        let time = UNIX_EPOCH + Duration::from_secs(node.modified_unix);
+        self.attributes(view, node.kind.clone(), node.size, node.modified_unix)
+    }
+    fn attributes(&self, view: &View, kind: NodeKind, size: u64, modified_unix: u64) -> FileAttr {
+        let directory = kind == NodeKind::Folder;
+        let time = UNIX_EPOCH + Duration::from_secs(modified_unix);
         FileAttr {
             ino: INodeNo(view.inode),
-            size: node.size,
-            blocks: node.size.div_ceil(512),
+            size,
+            blocks: size.div_ceil(512),
             atime: time,
             mtime: time,
             ctime: time,
@@ -884,7 +1032,7 @@ impl Inner {
             } else if self
                 .writeback
                 .as_ref()
-                .is_some_and(|w| w.is_unlinked(&view.scope, &view.node.id).unwrap_or(false))
+                .is_some_and(|w| w.is_unlinked(&view.scope, &view.id).unwrap_or(false))
             {
                 0
             } else {
@@ -901,6 +1049,31 @@ impl Inner {
         self.next_handle.fetch_add(1, Ordering::Relaxed)
     }
 }
+/// Admission waits for its turn. It never refuses.
+///
+/// These semaphores bound how much work runs at once, not how much the kernel
+/// is allowed to ask for. Refusing an ordinary operation with `EAGAIN` is a
+/// contract a filesystem cannot offer: POSIX permits that answer only on a
+/// descriptor opened `O_NONBLOCK`, so a caller that never asked for one reads
+/// it as damage rather than as backpressure. On 2026-09-16 a desktop file
+/// indexer crawling a mount on the owner's machine collected 13,589 failures,
+/// 7,892 of them reported as damaged PDF documents, because a parser met
+/// `EAGAIN` in the middle of a file it was entitled to read. Nothing was
+/// actually wrong with those files. ADR 0006 named this failure in advance --
+/// "`ls: Resource temporarily unavailable` is the failure a user would see" --
+/// and it was never closed. ADR 0012 records the change.
+///
+/// The queue this creates cannot grow without bound: the kernel limits how many
+/// FUSE requests are outstanding, so the waiters are capped by the requests the
+/// kernel is willing to have in flight, not by the callers behind them.
+async fn admit(gate: Arc<Semaphore>, cancel: &CancellationToken) -> Option<OwnedSemaphorePermit> {
+    tokio::select! {
+        biased;
+        () = cancel.cancelled() => None,
+        permit = gate.acquire_owned() => permit.ok(),
+    }
+}
+
 fn errno(error: &ProviderError) -> Errno {
     match error {
         ProviderError::NotFound => Errno::ENOENT,
@@ -948,10 +1121,7 @@ impl Filesystem for CloudFs {
     }
 
     fn lookup(&self, _req: &Request, parent: INodeNo, name: &OsStr, reply: ReplyEntry) {
-        let Ok(permit) = self.inner.pending.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.pending.clone();
         let inner = self.inner.clone();
         // Capture residency before dispatch, including its ancestor leases.
         let parent = match inner.view(parent.0) {
@@ -963,14 +1133,14 @@ impl Filesystem for CloudFs {
         };
         let name = name.to_os_string();
         self.inner.runtime.spawn(async move {
-            let _permit = permit;
+            let Some(_permit) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             let result = async {
                 let node = if inner.writeback.is_none() {
                     let name = name.to_str().ok_or(ProviderError::NotFound)?;
-                    inner
-                        .engine
-                        .child(&parent.scope, &parent.node.id, name)
-                        .await?
+                    inner.engine.child(&parent.scope, &parent.id, name).await?
                 } else {
                     // Pending local edits, aliases and retained recovery routes
                     // must participate in the writable namespace lookup.
@@ -982,13 +1152,13 @@ impl Filesystem for CloudFs {
                         .ok_or(ProviderError::NotFound)?
                 };
                 let view = inner.insert(&parent, node).await?;
-                let node = inner.node(&view).await?;
-                Ok::<_, ProviderError>((view, node))
+                let attr = inner.attributes_of(&view).await?;
+                Ok::<_, ProviderError>((view, attr))
             }
             .await;
             match result {
-                Ok((view, node)) => match inner.acquire_lookup(view.inode) {
-                    Ok(()) => reply.entry(&TTL, &inner.attr(&view, &node), Generation(0)),
+                Ok((view, attr)) => match inner.acquire_lookup(view.inode) {
+                    Ok(()) => reply.entry(&TTL, &attr, Generation(0)),
                     Err(error) => reply.error(errno(&error)),
                 },
                 Err(e) => reply.error(errno(&e)),
@@ -996,10 +1166,7 @@ impl Filesystem for CloudFs {
         });
     }
     fn getattr(&self, _req: &Request, inode: INodeNo, _fh: Option<FileHandle>, reply: ReplyAttr) {
-        let Ok(permit) = self.inner.pending.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.pending.clone();
         let inner = self.inner.clone();
         let view = match inner.view(inode.0) {
             Ok(view) => view,
@@ -1009,14 +1176,13 @@ impl Filesystem for CloudFs {
             }
         };
         self.inner.runtime.spawn(async move {
-            let _permit = permit;
-            let result = async {
-                let node = inner.node(&view).await?;
-                Ok::<_, ProviderError>((view, node))
-            }
-            .await;
+            let Some(_permit) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
+            let result = inner.attributes_of(&view).await;
             match result {
-                Ok((view, node)) => reply.attr(&TTL, &inner.attr(&view, &node)),
+                Ok(attr) => reply.attr(&TTL, &attr),
                 Err(e) => reply.error(errno(&e)),
             }
         });
@@ -1046,10 +1212,7 @@ impl Filesystem for CloudFs {
             reply.error(Errno::EOPNOTSUPP);
             return;
         }
-        let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.writes.clone();
         let Ok(admission) = self.inner.edits.admit() else {
             reply.error(Errno::ENODEV);
             return;
@@ -1064,10 +1227,13 @@ impl Filesystem for CloudFs {
             }
         };
         self.inner.runtime.spawn(async move {
-            let _permit = permit;
+            let Some(_permit) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             let _admission = admission;
             let result = async {
-                if parent.node.kind != NodeKind::Folder {
+                if parent.kind != NodeKind::Folder {
                     return Err(Errno::ENOTDIR);
                 }
                 if inner
@@ -1082,7 +1248,7 @@ impl Filesystem for CloudFs {
                 inner.refuse_within_package(&parent)?;
                 inner.capture_ancestors(&parent).await?;
                 let node = writer
-                    .create_directory(parent.scope.as_ref().clone(), parent.node.id.clone(), name)
+                    .create_directory(parent.scope.as_ref().clone(), parent.id.to_string(), name)
                     .await
                     .map_err(|e| if e == Errno::ESTALE { Errno::EEXIST } else { e })?;
                 let view = inner
@@ -1129,10 +1295,7 @@ impl Filesystem for CloudFs {
             reply.error(name_errno(problem));
             return;
         }
-        let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.writes.clone();
         let Ok(admission) = self.inner.edits.admit() else {
             reply.error(Errno::ENODEV);
             return;
@@ -1147,7 +1310,10 @@ impl Filesystem for CloudFs {
             }
         };
         self.inner.runtime.spawn(async move {
-            let _permit = permit;
+            let Some(_permit) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             let _admission = admission;
             let result = async {
                 let nodes = inner.children(&parent).await.map_err(|e| errno(&e))?;
@@ -1160,7 +1326,7 @@ impl Filesystem for CloudFs {
                 let node = Node {
                     package: false,
                     id: String::new(),
-                    parent_id: Some(parent.node.id.clone()),
+                    parent_id: Some(parent.id.to_string()),
                     name,
                     kind: NodeKind::File,
                     size: 0,
@@ -1246,10 +1412,7 @@ impl Filesystem for CloudFs {
             reply.error(name_errno(problem));
             return;
         }
-        let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.writes.clone();
         let Ok(admission) = self.inner.edits.admit() else {
             reply.error(Errno::ENODEV);
             return;
@@ -1271,14 +1434,16 @@ impl Filesystem for CloudFs {
             }
         };
         self.inner.runtime.spawn(async move {
-            let _permit = permit;
+            let Some(_permit) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             let _admission = admission;
             let result = async {
                 if parent.scope != destination.scope || parent.alias != destination.alias {
                     return Err(Errno::EXDEV);
                 }
-                if parent.node.kind != NodeKind::Folder || destination.node.kind != NodeKind::Folder
-                {
+                if parent.kind != NodeKind::Folder || destination.kind != NodeKind::Folder {
                     return Err(Errno::ENOTDIR);
                 }
                 // Trashing is a rename. See `inside_root_trash`.
@@ -1297,7 +1462,7 @@ impl Filesystem for CloudFs {
                 let _lease = writer
                     .lease(&parent.scope, &source.id, &inner.cancel)
                     .await?;
-                if parent.node.id == destination.node.id && name == newname {
+                if parent.id == destination.id && name == newname {
                     return if flags.contains(RenameFlags::RENAME_NOREPLACE) {
                         Err(Errno::EEXIST)
                     } else {
@@ -1344,9 +1509,9 @@ impl Filesystem for CloudFs {
                     .relocate(
                         parent.scope.as_ref().clone(),
                         source,
-                        parent.node.id.clone(),
+                        parent.id.to_string(),
                         name,
-                        destination.node.id.clone(),
+                        destination.id.to_string(),
                         newname,
                     )
                     .await?;
@@ -1382,10 +1547,7 @@ impl Filesystem for CloudFs {
             reply.error(Errno::EINVAL);
             return;
         };
-        let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.writes.clone();
         let Ok(admission) = self.inner.edits.admit() else {
             reply.error(Errno::ENODEV);
             return;
@@ -1400,10 +1562,13 @@ impl Filesystem for CloudFs {
             }
         };
         self.inner.runtime.spawn(async move {
-            let _permit = permit;
+            let Some(_permit) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             let _admission = admission;
             let result = async {
-                if parent.node.kind != NodeKind::Folder {
+                if parent.kind != NodeKind::Folder {
                     return Err(Errno::ENOTDIR);
                 }
                 let source = inner
@@ -1449,10 +1614,7 @@ impl Filesystem for CloudFs {
             reply.error(Errno::EINVAL);
             return;
         };
-        let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.writes.clone();
         let Ok(admission) = self.inner.edits.admit() else {
             reply.error(Errno::ENODEV);
             return;
@@ -1467,10 +1629,13 @@ impl Filesystem for CloudFs {
             }
         };
         self.inner.runtime.spawn(async move {
-            let _permit = permit;
+            let Some(_permit) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             let _admission = admission;
             let result = async {
-                if parent.node.kind != NodeKind::Folder {
+                if parent.kind != NodeKind::Folder {
                     return Err(Errno::ENOTDIR);
                 }
                 let source = inner
@@ -1519,10 +1684,7 @@ impl Filesystem for CloudFs {
             reply.error(Errno::EINVAL);
             return;
         }
-        let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.writes.clone();
         let Ok(admission) = self.inner.edits.admit() else {
             reply.error(Errno::ENODEV);
             return;
@@ -1530,7 +1692,10 @@ impl Filesystem for CloudFs {
         let inner = self.inner.clone();
         let bytes = data.to_vec();
         self.inner.runtime.spawn(async move {
-            let _permit = permit;
+            let Some(_permit) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             let _admission = admission;
             let result = async {
                 let file = inner
@@ -1544,7 +1709,7 @@ impl Filesystem for CloudFs {
                     return Err(Errno::EBADF);
                 }
                 let working = writer
-                    .working(&file.view.scope, &file.view.node.id)?
+                    .working(&file.view.scope, &file.view.id)?
                     .ok_or(Errno::EIO)?;
                 let count = writer
                     .write(working.id, offset, bytes, file.flags & libc::O_APPEND != 0)
@@ -1601,10 +1766,7 @@ impl Filesystem for CloudFs {
             reply.error(Errno::EINVAL);
             return;
         };
-        let Ok(permit) = self.inner.writes.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.writes.clone();
         let Ok(admission) = self.inner.edits.admit() else {
             reply.error(Errno::ENODEV);
             return;
@@ -1632,7 +1794,10 @@ impl Filesystem for CloudFs {
             (None, Some(view))
         };
         self.inner.runtime.spawn(async move {
-            let _permit = permit;
+            let Some(_permit) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             let _admission = admission;
             let result = async {
                 if let Some(file) = opened {
@@ -1640,20 +1805,18 @@ impl Filesystem for CloudFs {
                         return Err(Errno::EBADF);
                     }
                     let working = writer
-                        .working(&file.view.scope, &file.view.node.id)?
+                        .working(&file.view.scope, &file.view.id)?
                         .ok_or(Errno::EIO)?;
                     let record = writer.truncate(working.id, size).await?;
                     return Ok(inner.attr(&file.view, &record.node));
                 }
                 let view = path_view.ok_or(Errno::EIO)?;
-                if writer.is_unlinked(&view.scope, &view.node.id)? {
+                if writer.is_unlinked(&view.scope, &view.id)? {
                     return Err(Errno::ENOENT);
                 }
-                let _lease = writer
-                    .lease(&view.scope, &view.node.id, &inner.cancel)
-                    .await?;
+                let _lease = writer.lease(&view.scope, &view.id, &inner.cancel).await?;
                 let mut view = view;
-                view.node = inner.node(&view).await.map_err(|e| errno(&e))?.into();
+                view.node = Some(Arc::new(inner.node(&view).await.map_err(|e| errno(&e))?));
                 inner.refuse_within_package(&view)?;
                 inner.capture_ancestors(&view).await?;
                 let working = writer
@@ -1727,10 +1890,7 @@ impl Filesystem for CloudFs {
             reply.error(Errno::EROFS);
             return;
         }
-        let Ok(permit) = self.inner.pending.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.pending.clone();
         let admission = if flags.0 & libc::O_ACCMODE != libc::O_RDONLY {
             match self.inner.edits.admit() {
                 Ok(token) => Some(token),
@@ -1751,15 +1911,14 @@ impl Filesystem for CloudFs {
             }
         };
         self.inner.runtime.spawn(async move {
-            let _permit = permit;
+            let Some(_permit) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             let _admission = admission;
             let result = async {
                 let lease = match &inner.writeback {
-                    Some(writer) => Some(
-                        writer
-                            .lease(&view.scope, &view.node.id, &inner.cancel)
-                            .await?,
-                    ),
+                    Some(writer) => Some(writer.lease(&view.scope, &view.id, &inner.cancel).await?),
                     None => None,
                 };
                 let node = inner.node(&view).await.map_err(|e| errno(&e))?;
@@ -1767,7 +1926,7 @@ impl Filesystem for CloudFs {
                     return Err(Errno::EISDIR);
                 }
                 if let Some(writer) = &inner.writeback
-                    && writer.is_unlinked(&view.scope, &view.node.id)?
+                    && writer.is_unlinked(&view.scope, &view.id)?
                 {
                     return Err(Errno::ENOENT);
                 }
@@ -1785,7 +1944,7 @@ impl Filesystem for CloudFs {
                 };
                 if flags.0 & libc::O_ACCMODE != libc::O_RDONLY {
                     let writer = inner.writeback.as_ref().ok_or(Errno::EROFS)?;
-                    view.node = node.clone().into();
+                    view.node = Some(Arc::new(node.clone()));
                     inner.refuse_within_package(&view)?;
                     inner.capture_ancestors(&view).await?;
                     writer
@@ -1825,13 +1984,13 @@ impl Filesystem for CloudFs {
     ) {
         // Bound task admission separately from active read buffers. A routine
         // thumbnail burst waits asynchronously instead of failing at 32 readers.
-        let Ok(admission) = self.inner.admitted_reads.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.admitted_reads.clone();
         let inner = self.inner.clone();
         self.inner.runtime.spawn(async move {
-            let _admission = admission;
+            let Some(_admission) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             let _permit = tokio::select! {
                 biased;
                 _ = inner.cancel.cancelled() => {
@@ -1909,10 +2068,7 @@ impl Filesystem for CloudFs {
         reply.ok();
     }
     fn opendir(&self, _req: &Request, inode: INodeNo, _flags: OpenFlags, reply: ReplyOpen) {
-        let Ok(permit) = self.inner.pending.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.pending.clone();
         let inner = self.inner.clone();
         let parent = match inner.view(inode.0) {
             Ok(view) => view,
@@ -1922,7 +2078,10 @@ impl Filesystem for CloudFs {
             }
         };
         self.inner.runtime.spawn(async move {
-            let _permit = permit;
+            let Some(_permit) = admit(gate, &inner.cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             match inner.listing(&parent).await {
                 Ok(entries) => {
                     let handle = inner.handle();
@@ -1956,10 +2115,7 @@ impl Filesystem for CloudFs {
             reply.error(Errno::EBADF);
             return;
         };
-        let Ok(permit) = self.inner.pending.clone().try_acquire_owned() else {
-            reply.error(Errno::EAGAIN);
-            return;
-        };
+        let gate = self.inner.pending.clone();
         let cancel = self.inner.cancel.clone();
         self.inner.runtime.spawn(async move {
             let ready = tokio::select! {
@@ -1971,6 +2127,11 @@ impl Filesystem for CloudFs {
                 reply.error(error);
                 return;
             }
+            // Wait for a place before occupying a blocking thread, not on one.
+            let Some(permit) = admit(gate, &cancel).await else {
+                reply.error(Errno::ENODEV);
+                return;
+            };
             tokio::task::spawn_blocking(move || {
                 let _permit = permit;
                 let page = match entries.snapshot.page(offset) {

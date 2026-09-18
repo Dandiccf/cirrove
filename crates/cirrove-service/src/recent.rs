@@ -92,6 +92,15 @@ pub struct StuckChange {
     pub path: Option<String>,
     /// The journal's word: conflict, failed, needs_review.
     pub state: String,
+    /// What the cloud has instead, for a save it refused: the size and date of
+    /// the version that is there now.
+    ///
+    /// A conflict is the cloud saying "somebody else got here first", and until
+    /// this field existed it said only that. Deciding between your version and
+    /// theirs without being told anything about theirs is not a decision, it is
+    /// a guess. Empty for a change that is not about a file the index knows.
+    #[serde(default)]
+    pub instead: Option<String>,
 }
 
 #[derive(Default)]
@@ -168,4 +177,17 @@ mod tests {
             "the oldest five fell off the front"
         );
     }
+}
+
+/// One save that could be kept beside the remote version.
+///
+/// A create carries its own parent and name; a replace carries only the item it
+/// was acting on, because that is all its intent holds. The caller resolves the
+/// rest against the index, which is the only place that has one.
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct SavePlan {
+    pub id: uuid::Uuid,
+    pub item: Option<String>,
+    pub parent: Option<String>,
+    pub name: Option<String>,
 }

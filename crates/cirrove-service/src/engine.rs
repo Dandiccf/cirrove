@@ -25,8 +25,20 @@ fn relative_path(
             return Some(parts.join("/"));
         }
         let node = store.node(scope, &id).ok().flatten()?;
+        // A node with no parent is a drive root, and `root` names only one of
+        // them. An account can subscribe to more than one drive -- this one has
+        // two -- and every item in the others walked up to a parentless node
+        // that did not match, and resolved to no path at all. What the owner
+        // saw on 2026-09-16 was `cirrove pins` naming a file
+        // `01YQR2QYPXJNXJZ7LXENA2KXH77S2VBEFB` instead of the PDF they had just
+        // kept offline; refused changes and failed saves in that drive were
+        // just as nameless. The root's own name is not part of the path.
+        let Some(parent) = node.parent_id else {
+            parts.reverse();
+            return Some(parts.join("/"));
+        };
         parts.push(node.name);
-        id = node.parent_id?;
+        id = parent;
     }
     None
 }
@@ -34,7 +46,11 @@ fn relative_path(
 #[cfg(test)]
 mod deadlines;
 #[cfg(test)]
+mod deletion;
+#[cfg(test)]
 mod discovery;
+#[cfg(test)]
+mod paths;
 #[cfg(test)]
 mod persistence;
 #[cfg(test)]
@@ -739,6 +755,104 @@ impl Engine {
     /// exchange for a whole listing; the pins are read once for all of them.
     /// A path that does not resolve gets a refusal of its own rather than
     /// failing the rest: a listing with one broken entry is still a listing.
+    /// Remove these paths without passing through the provider's recycle bin.
+    ///
+    /// Only ever reached because a person asked for it a second time, in words:
+    /// POSIX has one `unlink` and no flag in which "and skip the recycle bin"
+    /// could live (ADR 0008).
+    ///
+    /// **A folder is refused, and that is a decision rather than an omission.**
+    /// Graph's delete on a folder is recursive, and a folder's eTag does not
+    /// move when a child is added -- measured, `folder_etag_and_mtime_ignore_
+    /// their_children` -- so nothing available over Graph can tell whether a
+    /// child arrived between the check and the delete. The recycle bin is the
+    /// only recovery from that, and a permanent delete is precisely the thing
+    /// that removes it. One file at a time can be looked at; a subtree cannot.
+    /// The name of a wastebasket sitting in the drive root, if one is there.
+    ///
+    /// The mount refuses to create one and refuses renames into one, so nothing
+    /// can put anything in it any more. What it cannot do is remove one that
+    /// arrived before the guard existed -- a file manager made a real
+    /// `.Trash-1000/` in this owner's live drive on 2026-09-11 -- and removing
+    /// somebody's folder is not a mount's decision to take. Telling them it is
+    /// there was the part that was missing (ADR 0008, "what is not closed").
+    pub async fn wastebasket(self: &Arc<Self>) -> Option<String> {
+        let scope = self.scope(&self.account.drive.id);
+        let root = self.account.root_id.clone();
+        let children = self.children(&scope, &root).await.ok()?;
+        children
+            .into_iter()
+            .map(|node| node.name)
+            .find(|name| crate::filesystem::is_trash_directory(name))
+    }
+
+    ///
+    /// The provider is passed in rather than read from the engine: the engine
+    /// holds a read provider, and the index that turns a path into an item.
+    /// Writing belongs to the write side. This is the one place they meet.
+    pub async fn delete_permanently(
+        self: &Arc<Self>,
+        paths: &[String],
+        provider: &dyn cirrove_core::mutation::MutationProvider,
+    ) -> Vec<crate::PermanentDeletion> {
+        let support = provider.deletion();
+        let mut done = Vec::with_capacity(paths.len());
+        for path in paths {
+            let refuse = |why: &str| crate::PermanentDeletion {
+                path: path.clone(),
+                removed: false,
+                refusal: Some(why.to_owned()),
+            };
+            if !support.permanent {
+                done.push(refuse(
+                    "this provider has no permanent deletion, and an ordinary delete \
+                     must not be substituted for one that was asked for by name",
+                ));
+                continue;
+            }
+            let request = crate::PinRequest {
+                path: Some(path.clone()),
+                ..Default::default()
+            };
+            let (scope, node) = match self.resolve_request(&request).await {
+                Ok(resolved) => resolved,
+                Err(error) => {
+                    done.push(refuse(&error.to_string()));
+                    continue;
+                }
+            };
+            if node.kind == cirrove_core::NodeKind::Folder {
+                done.push(refuse(
+                    "a folder cannot be deleted permanently: the provider's delete is \
+                     recursive and nothing can tell whether a child arrived a moment \
+                     ago, so the recycle bin is the only recovery -- and this is the \
+                     one operation that removes it",
+                ));
+                continue;
+            }
+            let outcome = provider
+                .delete_permanently(&scope, &node.id, node.etag.as_deref(), &self.cancel)
+                .await;
+            match outcome {
+                Ok(()) => {
+                    // The delta feed reports the removal, and the folder it was
+                    // in is marked active so the feed is asked sooner rather
+                    // than at its own pace: a person who has just destroyed
+                    // something should not watch it linger in the file manager.
+                    if let Some(parent) = node.parent_id.as_deref() {
+                        self.activity.touch(&scope, parent);
+                    }
+                    done.push(crate::PermanentDeletion {
+                        path: path.clone(),
+                        removed: true,
+                        refusal: None,
+                    });
+                }
+                Err(error) => done.push(refuse(&error.to_string())),
+            }
+        }
+        done
+    }
     pub async fn path_states(self: &Arc<Self>, paths: &[String]) -> Result<Vec<crate::PathState>> {
         let db = self.db.clone();
         let pins = tokio::task::spawn_blocking(move || Store::open(db)?.pins()).await??;

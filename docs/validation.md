@@ -2468,3 +2468,81 @@ Refreshing from the provider is the feed's job, and doing it inside a discard
 would be a second, worse copy of it.
 
 Final state of that drive: no leftovers, 192 mutations, all applied.
+
+## A linked folder into a second drive, on the real account
+
+**2026-09-16, the owner's account, developer install on Arch.** This was never
+arranged: the account's `Dokumente` folder turned out to be a `shortcut` node
+whose target is a second collection's root, so every day's work has been going
+through a linked folder into another drive without anybody writing it down. The
+matrix called that row *fixture*.
+
+Checked through the link, with the owner at the machine:
+
+- **Traversal and read.** `Dokumente/Unternehmen/Umlaufbeschlüsse/20220408
+  Umlaufbeschluss goodguys.pdf` reads back `%PDF-`, 139,703 bytes, in a file
+  manager and from the shell.
+- **Keeping offline.** Kept from the Files context menu; the daemon recorded one
+  pin of 139,735 reserved bytes and `kept_generation` moved to 2. The badge
+  appeared and the menu switched to its un-keep wording.
+- **Write.** A 48-byte throwaway file created inside the linked folder was
+  uploaded, and the provider reported it back through the delta feed.
+- **Delete.** Removed through the link; gone from the mount, no failed uploads
+  and nothing stuck. Nothing of the owner's own data was touched.
+
+**It found a defect, which is the reason to write this down rather than tick a
+box.** `relative_path` walked a node's ancestors until it reached the account's
+configured root, and this account has two. Every item in the linked drive walked
+up to a parentless node that did not match and resolved to no path at all, so
+`cirrove pins` named the file `01YQR2QYPXJNXJZ7LXENA2KXH77S2VBEFB`, and refused
+changes and failed saves in that drive would have been just as nameless. A node
+without a parent is a drive root, whichever drive it is; fixed with four tests,
+two of which fail without it. Recorded because a row that reads *real* should
+say what became real and what broke on the way.
+
+**Still fixture, and not claimed:** duplicate links to one target, a link whose
+target moves, a link whose target is deleted, folder-only access, and per-item
+permissions. One linked folder that works is not the row.
+
+## A pin that said "database is locked", and the lock upgrade behind it
+
+**2026-09-16.** `real_a_recursive_pin_keeps_the_files_under_a_folder_readable_offline`
+failed inside a full `scripts/check.sh`, twice in five runs, and would not fail
+on demand: not alone, and not four times in its group under the environment
+`check.sh` gives it. It was tempting to record it as a one-in-five and move on.
+
+**The error said nothing, and that was the first thing to fix.** The job read
+`issue: Some("metadata database error")`, because `StoreError::Database` threw
+SQLite's own words away. With those words restored the second sighting read
+`database is locked`, and the hunt took minutes instead of runs.
+
+**The cause is a lock upgrade, and connection pooling only changed the timing.**
+`Pins::protect_blocks` opened a DEFERRED transaction, read the pin, and then
+deleted its rows. A deferred transaction that reads first holds a read lock and
+must upgrade to write, and SQLite answers an upgrade that collides with another
+writer by returning `SQLITE_BUSY` **immediately, bypassing the busy handler** --
+the same behaviour `initial_wal` has documented in this file for journal-mode
+changes since it was written. So a writer that should have waited its three
+seconds failed at once, and a person keeping a folder offline was told the
+database was locked halfway through the fetch.
+
+It is now IMMEDIATE, which takes the write lock up front so the handler applies,
+and so is `unpin` -- which writes first and was safe, but is one statement away
+from not being. `protecting_blocks_waits_for_a_writer_instead_of_failing_at_once`
+reproduces the old failure deterministically: without the change it panics with
+`DatabaseBusy, "database is locked"`, the same words the intermittent run gave.
+
+**The pool was suspected and cleared.** Two full checks with pooling disabled
+were green, which was consistent with the pool being at fault and would have
+been enough to blame it. The four other deferred transactions in the store were
+then read rather than guessed at: `children`, `child`, `with_children`,
+`visit_children` and `metadata_changes` write nothing, and the directory
+staging transaction writes only temp tables. None of them needs IMMEDIATE, and
+giving it to a reader would take write locks for reads.
+
+Two other failures seen the same evening were **not** this, and are recorded so
+nobody chases them twice. Running the group by hand fails
+`real_reclamation_reaches_a_mount_that_only_reads` -- it says so itself, naming
+the floor it needs -- and `real_unpinned_blocks_stop_being_protected_from_
+eviction`, which needs the serial `--test-threads=1` the script gives it. Both
+are the invocation, not the code.

@@ -26,7 +26,8 @@ tests against a synthetic provider and has never met the real service;
 | The account's own OneDrive (drive type `business`) | real | everything |
 | Choosing among several drives at connection time | fixture -- the listing is real Graph, the choice was always the first | connect flow |
 | SharePoint document libraries as separate drives | no | -- |
-| Linked folders (shortcuts into another drive), duplicate links, moved or deleted links | fixture -- ancestry, cycles, duplicate targets and removed links are all tested against a synthetic provider | validation.md § shortcuts |
+| A linked folder into another drive | real -- the development account's `Dokumente` is a shortcut to a second collection's root, so every recorded run has gone through one; traversed, read, kept offline, written to and deleted through the link on 2026-09-16 | validation.md § a linked folder into a second drive |
+| Duplicate links, moved or deleted links, link cycles | fixture -- ancestry, cycles, duplicate targets and removed links are tested against a synthetic provider only | validation.md § shortcuts |
 | Folder-only access (a share of one folder, not the drive) | no | -- |
 | Per-item restricted permissions, revoked access to one item | no | -- |
 

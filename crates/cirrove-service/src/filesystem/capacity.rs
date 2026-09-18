@@ -149,6 +149,24 @@ fn account(mount_path: PathBuf) -> crate::accounts::Account {
         cache_bytes: 16 * 1024 * 1024,
     }
 }
+/// The versions the open handles on an inode are holding.
+///
+/// A read-only view keeps no node: the content revision lives in the inode key
+/// (a new revision is a new inode) and the open file keeps the node it opened.
+/// So this, not the view, is where "the old handle still has the old version"
+/// can be read -- which is the invariant ADR 0008 is about.
+fn open_versions(inner: &Inner, inode: u64) -> Vec<Option<String>> {
+    let mut held = inner
+        .files
+        .lock()
+        .unwrap()
+        .values()
+        .filter(|file| file.view.inode == inode)
+        .map(|file| file.node.etag.clone())
+        .collect::<Vec<_>>();
+    held.sort();
+    held
+}
 fn process_memory() -> serde_json::Value {
     let status = std::fs::read_to_string("/proc/self/status").unwrap();
     let rollup = std::fs::read_to_string("/proc/self/smaps_rollup").unwrap();
@@ -163,10 +181,63 @@ fn process_memory() -> serde_json::Value {
             .parse()
             .unwrap()
     };
+    let pss = value(&rollup, "Pss:");
+    let anonymous = value(&rollup, "Pss_Anon:");
     serde_json::json!({
         "rss_kib": value(&status, "VmRSS:"), "peak_rss_kib": value(&status, "VmHWM:"),
-        "pss_kib": value(&rollup, "Pss:"), "anonymous_pss_kib": value(&rollup, "Pss_Anon:")
+        "pss_kib": pss, "anonymous_pss_kib": anonymous,
+        // What the store's memory map costs, reported beside the gate rather
+        // than inside it: clean file-backed pages the kernel reclaims under
+        // pressure without asking. They are not memory the daemon holds, and
+        // they are not hidden either.
+        "mapped_pss_kib": pss.saturating_sub(anonymous)
     })
+}
+/// Scratch for the `resident_bytes` walk, reserved once for the whole fixture.
+///
+/// It has to be allocated before the first sample and reused for every one
+/// after, or it pollutes exactly what it measures: nine slots per view at
+/// 200,000 views is about 29 MB, and a 29 MB allocation appearing between the
+/// indexed baseline and the traversal would be charged to the traversal. The
+/// charge is off unless `CIRROVE_CHURN_CHARGE` asks for it, so a gate run never
+/// pays for it at all.
+static CHARGE_SCRATCH: std::sync::Mutex<Vec<(usize, u64)>> = std::sync::Mutex::new(Vec::new());
+
+/// Reserve the scratch before any sample is taken. Idempotent.
+pub(super) fn reserve_charge_scratch(views: usize) {
+    if std::env::var("CIRROVE_CHURN_CHARGE").is_err() {
+        return;
+    }
+    if let Ok(mut scratch) = CHARGE_SCRATCH.lock() {
+        let slots = views.saturating_mul(9) + 4096;
+        scratch.reserve(slots);
+        // Reserved is not resident: untouched pages cost nothing until the walk
+        // writes them, which would charge the traversal for a buffer the
+        // baseline never paid for. Touch every page now so it is in both.
+        scratch.resize(slots, (0, 0));
+        scratch.clear();
+    }
+}
+
+fn charge_sample(inner: &Inner) -> Option<serde_json::Value> {
+    if std::env::var("CIRROVE_CHURN_CHARGE").is_err() {
+        return None;
+    }
+    let mut scratch = CHARGE_SCRATCH.lock().ok()?;
+    let reserved = scratch.capacity();
+    let charge = inner.views.lock().ok()?.charge(&mut scratch);
+    Some(serde_json::json!({
+        "evictable_kib": charge.evictable / 1024,
+        "inline_kib": charge.inline / 1024,
+        "modelled_kib": (charge.evictable + charge.inline) / 1024,
+        "undeduplicated_kib": charge.undeduplicated / 1024,
+        "allocations": charge.allocations,
+        "examined": charge.examined,
+        "walk_micros": charge.micros,
+        // If the walk outgrew its reservation it allocated while running, which
+        // the formula forbids, and the sample that did it is not evidence.
+        "reservation_held": scratch.capacity() == reserved,
+    }))
 }
 fn namespace_sample(inner: &Inner, phase: &str, seconds: f64) -> serde_json::Value {
     let views = inner.views.lock().unwrap();
@@ -182,8 +253,21 @@ fn namespace_sample(inner: &Inner, phase: &str, seconds: f64) -> serde_json::Val
     // allocator retention, and the headline slope figures were recorded on a
     // fixture that emitted neither.
     let references = inner.views.lock().unwrap().diagnostics();
+    let charge = charge_sample(inner);
     serde_json::json!({
+        "resident_bytes": charge,
         "allocator_trims": super::TRIMS.load(std::sync::atomic::Ordering::Relaxed),
+        // Zero when no ceiling is configured, which is the default. A shed count
+        // beside the view count is what separates "the ceiling held" from "the
+        // ceiling was never reached".
+        "shed_asked": inner
+            .ceiling_metrics
+            .asked
+            .load(std::sync::atomic::Ordering::Relaxed),
+        "max_over_ceiling": inner
+            .ceiling_metrics
+            .max_over
+            .load(std::sync::atomic::Ordering::Relaxed),
         "references": references,
         "phase": phase, "seconds": seconds, "retained_views": retained,
         "open_directory_handles": handles,
@@ -262,7 +346,8 @@ async fn real_directory_listing_releases_unlooked_up_projections() {
         inner.views.lock().unwrap().len() <= 5,
         "plain listings retained thousands of views"
     );
-    let original = inner.view(old_inode).unwrap();
+    let original = open_versions(&inner, old_inode);
+    assert_eq!(original, vec![Some("revision-1".to_owned())]);
     provider.revision.store(2, Ordering::SeqCst);
     crate::refresh(
         provider.as_ref(),
@@ -305,10 +390,11 @@ async fn real_directory_listing_releases_unlooked_up_projections() {
     .unwrap();
     assert_eq!(held.metadata().unwrap().ino(), old_inode);
     assert_ne!(newest.metadata().unwrap().ino(), old_inode);
+    assert!(inner.view(old_inode).is_ok());
     assert_eq!(
-        inner.view(old_inode).unwrap().node.etag,
-        original.node.etag,
-        "a listing replaced the view belonging to an old open file"
+        open_versions(&inner, old_inode),
+        original,
+        "a listing replaced the version belonging to an old open file"
     );
     assert!(inner.views.lock().unwrap().len() <= 6);
     assert_eq!(provider.foreground_requests.load(Ordering::SeqCst), 0);
@@ -387,7 +473,7 @@ async fn real_resolved_file_views_retire_after_kernel_and_open_references() {
             .lock()
             .unwrap()
             .values()
-            .filter(|view| view.node.kind == NodeKind::File)
+            .filter(|view| view.kind == NodeKind::File)
             .count();
         if remaining == 1 {
             break;
@@ -399,8 +485,8 @@ async fn real_resolved_file_views_retire_after_kernel_and_open_references() {
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
     assert_eq!(
-        inner.view(old_inode).unwrap().node.etag.as_deref(),
-        Some("revision-1")
+        open_versions(&inner, old_inode),
+        vec![Some("revision-1".to_owned())]
     );
     assert_eq!(held.metadata().unwrap().ino(), old_inode);
     let path = mount.join("directory-000000/Projektunterlagen – Übersicht 00000000.txt");
@@ -418,7 +504,7 @@ async fn real_resolved_file_views_retire_after_kernel_and_open_references() {
                 .lock()
                 .unwrap()
                 .values()
-                .all(|v| v.node.kind != NodeKind::File)
+                .all(|v| v.kind != NodeKind::File)
         {
             break;
         }
@@ -687,8 +773,15 @@ async fn real_directory_ancestry_retires_after_last_kernel_snapshot_and_file_use
     parents::directories_and_aliases().await;
 }
 
+mod bounded;
 mod cold;
 mod early;
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; a ceiling must hold the resident view count"]
+async fn real_a_ceiling_holds_the_resident_view_count_during_a_traversal() {
+    bounded::a_ceiling_holds_during_a_traversal().await;
+}
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires synthetic kernel FUSE; first directory batch before a blocked inode writer"]

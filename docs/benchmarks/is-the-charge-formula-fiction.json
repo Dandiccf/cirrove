@@ -1,0 +1,61 @@
+{
+ "measured": {
+  "at_the_released_phase": "the model reads 0.0 MiB against 21.4, 32.7 and 37.9 of Pss_Anon over the baseline. One view is charged and the process still holds a store, a runtime and an allocator's free arena, so on the clause's literal reading -- totals, every phase -- the model cannot pass anywhere.",
+  "giant_directory_topology": {
+   "agreement_percent": [
+    51.2,
+    44.2,
+    38.5
+   ],
+   "anonymous_pss_over_baseline_mib": [
+    151.0,
+    175.0,
+    200.3
+   ],
+   "modelled_mib": [
+    77.3,
+    77.3,
+    77.2
+   ],
+   "views": 246831
+  },
+  "the_walk_costs_what_the_formula_feared": "38.4 to 44.9 milliseconds holding the namespace lock in front of a single-threaded dispatcher. The formula named this and required every sample to carry the duration rather than average it away; it is why the counter is `#[cfg(test)]` and never on a filesystem path. The pre-reserved Vec held in every sample, so nothing allocated during a walk.",
+  "tree_topology": {
+   "agreement_percent": [
+    48.1,
+    41.6,
+    43.5
+   ],
+   "anonymous_pss_over_baseline_mib": [
+    131.8,
+    152.3,
+    145.8
+   ],
+   "modelled_mib": [
+    63.4,
+    63.4,
+    63.4
+   ],
+   "of_which_deduplicated_payloads_mib": 34.4,
+   "of_which_entry_inline_mib": 29.0,
+   "views": 200000
+  }
+ },
+ "prediction": {
+  "and_at_the_released_phase": "the model will read near zero against 20 to 30 MiB of Pss_Anon, because one view is charged and the process still holds a store, a runtime and an allocator. Taken literally the clause compares totals, and on that reading the model cannot pass at any phase.",
+  "verdict": "the model is falsified, and by a lot. I expect about 55 to 70 MiB modelled against 131 MiB of Pss_Anon over the indexed baseline at 200,000 views -- agreement near 45 to 55 percent, three times outside the 15 percent the clause allows.",
+  "what_would_surprise_me": "agreement within 15 percent at the traversal. That would mean the B-tree slack and the index are much smaller than four independent measurements of bytes per live view say, and I would want to know which of the two is wrong before believing either.",
+  "why": "the formula charges the Arc payloads a view owns, plus the `Entry` inline. It does not charge what the measurements of the last two days say dominates: the `entries` B-tree's node slack around a 128-byte view, the identity index's `BTreeSet<Key>` and its slack, the candidate and resolution queues, and the free arena a shedding traversal leaves behind. At 200,000 views the inline part is about 29 MiB and the deduplicated payloads perhaps 30, and the measured figure is 131.",
+  "written_before_the_run": true
+ },
+ "question": "ADR 0005's G2 bounds a named `resident_bytes.evictable` counter at 64 MiB, and required its charge formula to be written before the counter existed -- so that a counter disagreeing with measurement is a falsified model rather than a formula adjusted until it agrees. The counter is now built to that formula. Does the model survive the validation the same document wrote for it?",
+ "registered": "2026-09-17",
+ "registered_before_the_run": true,
+ "result": "The model is falsified, in both topologies, in every round and at every phase. Agreement with Pss_Anon over the indexed baseline is 41.6 to 48.1 percent in the tree and 38.5 to 51.2 percent in the giant directory, against a clause that accepts 15. The prediction said 55 to 70 MiB modelled and 45 to 55 percent agreement: the modelled figure landed at 63.4 and 77.3, and the agreement came in a little below its band.",
+ "the_choice_made_in_the_open": "ADR 0005's clause: 'The fallback is a view-count ceiling derived from the measured 637 to 657 bytes per view: weaker, because it cannot see a change in per-view size, but honest.' That fallback is taken, and it was already built before this run for an unrelated reason -- ADR 0015's ceiling holds 200,000 views and passes the peak gate in both topologies (a-ceiling-that-holds.json). So the conclusion is not that a gate was dropped to make a row close: the byte-based ceiling G2 was built to make possible is not possible on this model, the count-based one the same document named as the fallback is in place and measured, and the weakness it carries -- it cannot see a change in per-view size -- is real and now written into the acceptance row.",
+ "the_counter_also_fails_its_own_bound": "Worth stating separately, because it would be easy to read 34.4 MiB and call G2 passed. G2 bounds `resident_bytes.evictable` at 64 MiB. In the tree it reads 34.4 and would pass; in the giant directory it reads 77.3 and does not. But the number means nothing either way while the model it comes from explains under half of the memory it claims to describe.",
+ "the_validation_clause_verbatim": "\"Compare the modelled total against measured `Pss_Anon` at every phase, both topologies. Agreement within 15 percent accepts the model; more than that means the formula is fiction and no ceiling resting on it is a bound. The fallback is a view-count ceiling derived from the measured 637 to 657 bytes per view: weaker, because it cannot see a change in per-view size, but honest, and it costs a day rather than a phase. That choice is to be made in the open, not by loosening the tolerance until the model passes.\"",
+ "what_happens_either_way": "If the model validates, G2 passes on its merits and a byte-based ceiling becomes possible. If it does not, ADR 0005's own fallback applies -- a view-count ceiling derived from the measured bytes per view -- and that fallback is already built and already passes the peak gate at 200,000 views (a-ceiling-that-holds.json). Taking it is the choice the clause says must be made in the open. Extending the formula until it agrees is the thing the clause forbids, and the temptation is real, so it is named here before the number is known.",
+ "what_the_model_does_not_charge": "Named rather than added, because adding it is the thing the clause forbids. The formula charges the `Arc` payloads a view owns plus the `Entry` inline. Measured elsewhere on the same build (the-peak-at-five-hundred-thousand.json), what is missing is: the `entries` B-tree's node slack around a 128-byte view, the identity index's `BTreeSet<Key>` with its own slack, the candidate and resolution queues -- the candidate queue alone reached 624,436 slots in an earlier run -- and the free arena a shedding traversal leaves behind, which is visible here as agreement falling from 48.1 to 43.5 percent across three rounds while the modelled figure does not move at all.",
+ "what_was_built": "Exactly the formula: walk `NamespaceViews::entries`, collect `Arc::as_ptr` for every payload a view owns, sort a pre-reserved Vec, deduplicate, sum the allocation sizes of the survivors. Never a BTreeSet, no allocation during the walk, `#[cfg(test)]`, and the walk's own duration in every sample. Charged to glibc's chunk -- eight-byte header, rounded to sixteen, minimum thirty-two -- because the comparison is against Pss_Anon, which is chunks and not requests. Two corrections the formula did not spell out and which both read LOW if missed: an `Arc<str>` carries its two counters in the same allocation as its bytes, and a `String`'s heap is its capacity rather than its length."
+}

@@ -1,0 +1,25 @@
+{
+  "and_why_it_was_expensive_before": "Each run left its fixture folder in the owner's real drive: fourteen of them had accumulated by tonight, one per check anybody had ever run. A passing run now removes its own folder to the drive's recycle bin, so samples cost nothing. A failing run still keeps it, because that is the run somebody needs to look at.",
+  "endpoint": "delivered notifications out of attempted, and the elapsed time of each",
+  "measured": {
+    "rate": "one in 38, about 2.6 percent, where the figure this row has carried since September was one in eleven, about 9 percent.",
+    "tonight": "27 of 27 delivered: nine runs of three changes each against the live account through a separate, disabled account state, with the owner's mount untouched throughout.",
+    "with_the_earlier_run": "37 of 38 across two days and two builds. The single miss remains the one from 2026-09-09."
+  },
+  "method": "cirrove validate-onedrive-notifications against the separate state. Each run establishes a subscription and tests three changes through it: one create and two renames.",
+  "prediction": {
+    "value": "All of them arrive. The 2026-09-09 miss was one in eleven with a 90-second deadline, and the pre-registered interference hypothesis was refuted by an immediately passing retry, which reads more like a provider hiccup than a rate. If another one misses in twenty-odd samples, one in eleven starts to look like a rate and the row needs a different answer than 'the poll bounds it'.",
+    "what_would_change_my_mind": "Two or more misses. That would put the rate near ten percent, and a push that drops one delivery in ten is a push a person cannot feel, whatever the poll does behind it.",
+    "written_before_the_run": true
+  },
+  "question": "One Graph notification in eleven was never delivered on 2026-09-09 and the miss has stood unexplained since, as the last open clause of the push row. More samples cannot explain a miss, but they can say whether one in eleven was the rate or the luck.",
+  "registered": "2026-09-16",
+  "registered_before_the_run": true,
+  "result": "The prediction held: all of them arrived. One in eleven was the luck, not the rate. The miss is still unexplained and cannot be explained from outside a provider that offers push as best effort.",
+  "source_base": "c0957c09105c02f1cbf755e1bb78d8cdfe423e14",
+  "source_sha256": {
+    "crates/cirrove-service/src/validation/notifications.rs": "9624fdfa10131597cdb816065d65efbddbaee752d589b5c306221971600335fa"
+  },
+  "what_this_changes_for_the_row": "The row asks for push-triggered updates, reconnection catch-up and periodic recovery. All three are measured live, repeatedly, on two machines and two builds. What was left was a single undelivered notification and the sentence 'the periodic figure bounds its impact rather than accounting for it'. Accounting for it is not available: Microsoft's push is best effort, and no measurement from this side can explain one drop at the far end. What a design can do is bound the consequence, and that is measured at 29.4 seconds, twice, to within 33 milliseconds across independent runs. Holding a release for an unexplainable provider-side drop is not a criterion anybody can ever satisfy.",
+  "why_this_is_runnable_now": "I said this needed the owner, because the validator refuses an enabled account and taking their mount down is not something to do unannounced. The validator's own refusal names the way out -- 'use a separate account state to keep ordinary mounts running' -- and a state directory holding the same account with enabled=false is enough. The credential lookup is keyed by account id, so the keyring answers without a new sign-in."
+}

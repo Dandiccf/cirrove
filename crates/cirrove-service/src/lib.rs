@@ -400,6 +400,14 @@ pub struct RecentReply {
     /// list that daemon can produce.
     #[serde(default)]
     pub stuck: Vec<recent::StuckChange>,
+    /// The saves the daemon has given up on, named rather than counted.
+    /// `failed_uploads` counted these from the day it was written and nothing
+    /// ever named them, so a person met a warning triangle and a number with no
+    /// way to learn which file it meant. Kept apart from `stuck` because the
+    /// actions differ: discarding a refused folder removal loses nothing, and
+    /// discarding a failed save loses what the person wrote.
+    #[serde(default)]
+    pub failed: Vec<recent::StuckChange>,
     #[serde(default)]
     pub refusal: Option<String>,
 }
@@ -497,6 +505,89 @@ pub struct RetryReply {
     pub conflicts: u64,
     #[serde(default)]
     pub refusal: Option<String>,
+}
+
+/// What happened to one path asked to be deleted permanently.
+///
+/// Every path gets an answer, including the refused ones. A person destroying
+/// things without recovery is owed a line per thing, not a count.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct PermanentDeletion {
+    pub path: String,
+    #[serde(default)]
+    pub removed: bool,
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct PermanentDeleteRequest {
+    #[serde(default)]
+    pub label: String,
+    pub paths: Vec<String>,
+    /// Sent by a caller that has told the person this cannot be undone and has
+    /// had them say yes. The daemon refuses without it, so a client cannot make
+    /// this happen quietly by forgetting to ask.
+    #[serde(default)]
+    pub confirmed: bool,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct PermanentDeleteReply {
+    #[serde(default)]
+    pub deletions: Vec<PermanentDeletion>,
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+
+/// Remove these paths without the provider's recycle bin. See ADR 0008.
+pub async fn delete_permanently(
+    socket: &Path,
+    label: &str,
+    paths: Vec<String>,
+) -> Result<PermanentDeleteReply> {
+    request(
+        socket,
+        "delete-permanently",
+        Some(PermanentDeleteRequest {
+            label: label.to_owned(),
+            paths,
+            confirmed: true,
+        }),
+        "Cirrove delete-permanently",
+    )
+    .await
+}
+
+/// What keeping both copies did.
+///
+/// `considered` is every save the cloud refused; `kept` is how many now have a
+/// copy queued beside the remote version. They differ when a save names an item
+/// the index no longer knows -- the file it was replacing has since been moved
+/// or removed -- and the difference is reported rather than hidden, because the
+/// person is about to be told their work is safe.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct KeepBothReply {
+    #[serde(default)]
+    pub kept: u64,
+    #[serde(default)]
+    pub considered: u64,
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+
+/// Put the person's version of every refused save beside the cloud's, under a
+/// new name, instead of making them choose which one to lose.
+pub async fn keep_both(socket: &Path, label: &str) -> Result<KeepBothReply> {
+    request(
+        socket,
+        "keep-both",
+        Some(DiscardRequest {
+            label: label.to_owned(),
+        }),
+        "Cirrove keep-both",
+    )
+    .await
 }
 
 pub async fn status(socket: &Path) -> Result<Status> {
@@ -766,6 +857,8 @@ impl Capabilities {
                 ("paths".to_string(), 1),
                 ("recent".to_string(), 1),
                 ("retry-stuck".to_string(), 1),
+                ("keep-both".to_string(), 1),
+                ("delete-permanently".to_string(), 1),
                 ("stop-job".to_string(), 1),
             ]
             .into_iter()
@@ -951,6 +1044,35 @@ pub async fn serve_managed(
                             };
                             return write_reply(&mut stream,&reply).await;
                         }
+                        if verb=="delete-permanently" {
+                            let reply=match (serde_json::from_str::<PermanentDeleteRequest>(body),&manager) {
+                                // Before anything else, including whether this
+                                // daemon has the account: consent is a condition
+                                // of the request, not a property of a drive, and
+                                // a client author who forgot it should be told
+                                // that rather than something about accounts.
+                                (Ok(r),_) if !r.confirmed=>PermanentDeleteReply{refusal:Some("permanent deletion needs the person to have been asked; nothing was removed".into()),..Default::default()},
+                                (Ok(r),_) if r.paths.len()>PATHS_PER_REQUEST=>PermanentDeleteReply{refusal:Some(format!("at most {PATHS_PER_REQUEST} paths per request")),..Default::default()},
+                                (Ok(r),Some(m))=>match m.delete_permanently(&r.label,&r.paths,r.confirmed).await {
+                                    Ok(deletions)=>PermanentDeleteReply{deletions,refusal:None},
+                                    Err(error)=>PermanentDeleteReply{refusal:Some(error.to_string()),..Default::default()},
+                                },
+                                (Ok(_),None)=>PermanentDeleteReply{refusal:Some("this service manages no accounts".into()),..Default::default()},
+                                (Err(_),_)=>PermanentDeleteReply{refusal:Some("malformed request body".into()),..Default::default()},
+                            };
+                            return write_reply(&mut stream,&reply).await;
+                        }
+                        if verb=="keep-both" {
+                            let reply=match (serde_json::from_str::<DiscardRequest>(body),&manager) {
+                                (Ok(r),Some(m))=>match m.keep_both(&r.label).await {
+                                    Ok((kept,considered))=>KeepBothReply{kept,considered,refusal:None},
+                                    Err(error)=>KeepBothReply{refusal:Some(error.to_string()),..Default::default()},
+                                },
+                                (Ok(_),None)=>KeepBothReply{refusal:Some("this service manages no accounts".into()),..Default::default()},
+                                (Err(_),_)=>KeepBothReply{refusal:Some("malformed request body".into()),..Default::default()},
+                            };
+                            return write_reply(&mut stream,&reply).await;
+                        }
                         if verb=="recent" {
                             let reply=match (serde_json::from_str::<RecentRequest>(body),&manager) {
                                 (Ok(r),Some(m))=>match m.recent(&r.label,if r.limit==0 {20} else {r.limit.min(200)}).await {
@@ -1114,6 +1236,30 @@ mod tests {
         assert!(
             !status_reply.contains("capabilities"),
             "status payload changed: {status_reply}"
+        );
+        cancel.cancel();
+        task.await.unwrap().unwrap();
+    }
+
+    /// The daemon cannot see a dialogue, so it will not act on the assumption
+    /// that one happened. A client that forgot to ask would otherwise destroy
+    /// files on its own say-so, and this is the one operation with no way back.
+    #[tokio::test]
+    async fn permanent_deletion_refuses_a_request_that_did_not_ask_the_person() {
+        let (_dir, socket, cancel, task) = serving(None).await;
+        let body = serde_json::json!({
+            "label": "",
+            "paths": ["Note.txt"],
+            "confirmed": false,
+        });
+        let reply = ask(&socket, &format!("delete-permanently {body}\n")).await;
+        let parsed: PermanentDeleteReply = serde_json::from_str(&reply).unwrap();
+        assert!(parsed.deletions.is_empty(), "nothing may be removed");
+        let refusal = parsed.refusal.unwrap_or_default();
+        assert!(
+            refusal.contains("asked"),
+            "the refusal must say what is missing, so a client author can fix it \
+             rather than guess: {refusal}"
         );
         cancel.cancel();
         task.await.unwrap().unwrap();

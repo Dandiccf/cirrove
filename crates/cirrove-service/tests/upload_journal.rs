@@ -694,3 +694,182 @@ fn journal_crash_fixture() {
         std::thread::park();
     }
 }
+
+/// A save the daemon has given up on must be nameable, not only countable.
+///
+/// `failed_uploads` counted these from the day it was written and nothing ever
+/// named them. The owner met the result on 2026-09-16: a warning triangle in
+/// the window beside a drive that otherwise read "Connected", a count of one,
+/// and no way at all to learn which file it was about. Answering the question
+/// took copying this journal off the machine and resolving an item id by hand
+/// against the metadata store.
+#[test]
+fn a_save_the_daemon_gave_up_on_can_be_named_and_not_only_counted() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let mut journal = open(&root);
+    assert!(journal.failed_upload_list(10).unwrap().is_empty());
+
+    let doomed = journal
+        .enqueue(scope(), create("Quarterly report.odt"), BYTES)
+        .unwrap();
+    let healthy = journal
+        .enqueue(scope(), create("Untouched.txt"), BYTES)
+        .unwrap();
+    // Corrupting the sealed payload is the shortest route to a save the daemon
+    // will not try again; how it got there is not what this asserts.
+    let path = root.join("objects").join(doomed.id.to_string());
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+    std::fs::write(&path, vec![0; BYTES.len()]).unwrap();
+    assert!(matches!(journal.claim_next(), Err(JournalError::Corrupt)));
+    assert_eq!(journal.get(doomed.id).unwrap().state, UploadState::Failed);
+
+    assert_eq!(
+        journal.failed_uploads().unwrap(),
+        1,
+        "the count still works"
+    );
+    let named = journal.failed_upload_list(10).unwrap();
+    assert_eq!(
+        named.len(),
+        1,
+        "the count says one; the list must say which one"
+    );
+    assert_eq!(named[0].id, doomed.id);
+    assert_ne!(named[0].id, healthy.id, "a queued save is not a failed one");
+    match &named[0].intent {
+        UploadIntent::Create { name, .. } => assert_eq!(name, "Quarterly report.odt"),
+        other => panic!("a create must carry the name it was saving: {other:?}"),
+    }
+}
+
+/// The rule `retry_stuck` applies to saves, asserted where it is decided.
+///
+/// A save that FAILED is one the cloud never decided about -- a quota, a
+/// permission, a connection that went away -- and sending it again is ordinary.
+/// A save in CONFLICT is one the cloud did decide about: the remote moved, and
+/// re-sending would act on whatever is there now. `request_retry` has enforced
+/// that since it was written, and until 2026-09-16 nothing outside the journal
+/// ever called it, so a stranded save was counted forever and could not be
+/// acted on. `failed_upload_list` is what lets the caller walk them.
+#[test]
+fn a_failed_save_can_be_sent_again_and_a_conflicted_one_cannot() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let mut journal = open(&root);
+
+    let failed = journal
+        .enqueue(scope(), create("Retry me.txt"), BYTES)
+        .unwrap();
+    let claimed = journal.claim_next().unwrap().unwrap();
+    assert_eq!(claimed.id, failed.id);
+    journal
+        .stop_attempt(failed.id, claimed.attempt.unwrap(), UploadState::Failed)
+        .unwrap();
+
+    let conflicted = journal
+        .enqueue(scope(), create("Leave me alone.txt"), BYTES)
+        .unwrap();
+    let claimed = journal.claim_next().unwrap().unwrap();
+    assert_eq!(claimed.id, conflicted.id);
+    journal
+        .stop_attempt(
+            conflicted.id,
+            claimed.attempt.unwrap(),
+            UploadState::Conflict,
+        )
+        .unwrap();
+
+    // Both are given up on, so both are listed: a caller has to see the
+    // conflicted one to be able to say why it is not being retried.
+    let listed = journal.failed_upload_list(10).unwrap();
+    assert_eq!(listed.len(), 2);
+
+    assert!(
+        journal.request_retry(failed.id).is_ok(),
+        "a save the cloud never decided about is ordinary to send again"
+    );
+    assert_eq!(
+        journal.get(failed.id).unwrap().state,
+        UploadState::VerifyRequired
+    );
+    assert!(
+        journal.request_retry(conflicted.id).is_err(),
+        "a save the cloud decided about must not be re-sent over whatever is there now"
+    );
+    assert_eq!(
+        journal.get(conflicted.id).unwrap().state,
+        UploadState::Conflict,
+        "a refused retry must leave the record exactly as it was"
+    );
+}
+
+/// Keeping both copies must not lose the bytes and must not lie about them.
+///
+/// A conflict means the cloud decided about a file while the person was editing
+/// it, so one version has to give way. Discarding makes that the person's: the
+/// cloud keeps its version and the edit is gone. This makes it neither's.
+#[test]
+fn keeping_both_queues_the_local_bytes_and_finishes_the_original() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let mut journal = open(&root);
+
+    let refused = journal
+        .enqueue(scope(), create("Report.docx"), BYTES)
+        .unwrap();
+    let claimed = journal.claim_next().unwrap().unwrap();
+    journal
+        .stop_attempt(refused.id, claimed.attempt.unwrap(), UploadState::Conflict)
+        .unwrap();
+    assert_eq!(journal.failed_uploads().unwrap(), 1);
+
+    let copy = journal
+        .keep_both(
+            refused.id,
+            "root".into(),
+            "Report (conflicted copy 2026-09-16).docx".into(),
+        )
+        .unwrap();
+
+    // The copy carries the person's bytes, not a placeholder.
+    assert_eq!(copy.size, BYTES.len() as u64);
+    assert_eq!(copy.sha256, refused.sha256);
+    match &copy.intent {
+        UploadIntent::Create { parent, name } => {
+            assert_eq!(parent, "root");
+            assert_eq!(name, "Report (conflicted copy 2026-09-16).docx");
+        }
+        other => panic!("a rescued save is an ordinary create: {other:?}"),
+    }
+    // And it travels the ordinary path from here.
+    assert_eq!(journal.claim_next().unwrap().unwrap().id, copy.id);
+
+    // What the person has dealt with stops being reported to them as a failure.
+    assert_eq!(
+        journal.get(refused.id).unwrap().state,
+        UploadState::Resolved
+    );
+    assert_eq!(
+        journal.failed_uploads().unwrap(),
+        0,
+        "a resolved save is not a failed one"
+    );
+    assert!(journal.failed_upload_list(10).unwrap().is_empty());
+}
+
+#[test]
+fn keeping_both_refuses_a_save_that_is_still_on_its_way() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let mut journal = open(&root);
+    let queued = journal.enqueue(scope(), create("Live.txt"), BYTES).unwrap();
+    assert!(
+        journal
+            .keep_both(queued.id, "root".into(), "Live (copy).txt".into())
+            .is_err(),
+        "a save the daemon is still working on has nothing to rescue, and copying it \
+         would leave the person with two files where they saved one"
+    );
+    assert_eq!(journal.get(queued.id).unwrap().state, UploadState::Pending);
+}

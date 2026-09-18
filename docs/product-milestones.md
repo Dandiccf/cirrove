@@ -15,9 +15,9 @@ Private account measurements belong in local records, not the public repository.
 - [x] Remove Graph metadata checks per cache block from the validated read-session
       fast path; implement and measure shared session setup, bounded sequential
       windows and safe renewal as specified in [read-session efficiency](adr/0004-read-session-efficiency.md).
-- [ ] Push-triggered metadata updates, reconnection/catch-up and periodic recovery checks, with provider delivery and local reaction latency measured separately.
-- [ ] Bounded memory and background work with large libraries and long sessions.
-- [ ] Reclaim inactive namespace views with correct FUSE lifetimes; pass the
+- [x] Push-triggered metadata updates, reconnection/catch-up and periodic recovery checks, with provider delivery and local reaction latency measured separately.
+- [x] Bounded memory and background work with large libraries and long sessions.
+- [x] Reclaim inactive namespace views with correct FUSE lifetimes; pass the
       500,000-file traversal, invalidation and 24-hour churn memory gates in
       [namespace memory](adr/0005-namespace-memory.md). Content-cache limits do not
       satisfy this requirement.
@@ -231,7 +231,7 @@ Live mutation fixtures must be isolated from the user's existing documents.
 - [ ] Per-item capabilities, restricted permissions and revoked-access behavior.
 - [x] Remote creates, edits, moves and deletions update mounted views correctly.
 - [x] Defined filename, package/notebook and unsupported-operation behavior.
-- [ ] Deletion defined end to end: the provider's recycle bin as the default for
+- [x] Deletion defined end to end: the provider's recycle bin as the default for
   every file manager without an extension, no local wastebasket created inside
   the user's drive, permanent deletion reachable only as an explicit second
   gesture that the window offers too, and both gated on a per-provider capability
@@ -259,8 +259,8 @@ account repair and the wider recovery flow still need implementation and accepta
 - [x] GTK4/libadwaita setup and settings without a terminal in ordinary flows.
 - [x] Account picker, mount controls, reconnect, connection removal and cleanup.
 - [ ] Tray status and actions using the daemon as the source of truth.
-- [ ] Nautilus badges, pin/unpin actions and consistent status refresh.
-- [ ] Actionable errors, progress, cancellation and conflict resolution.
+- [x] Nautilus badges, pin/unpin actions and consistent status refresh.
+- [x] Actionable errors, progress, cancellation and conflict resolution.
 - [ ] Keyboard navigation, accessibility, localization and visual verification.
 - [x] Verify a declared session matrix covering native Wayland and X11, and GNOME
       and KDE Plasma: windows, dialogs, system dark-style preference and
