@@ -8,18 +8,24 @@ Cirrove is an Apache-2.0 Linux cloud-filesystem project, starting with OneDrive 
 linked SharePoint libraries through Microsoft Graph. It keeps metadata locally and
 fetches file content on demand into a bounded disk cache.
 
-**Status: read-only development preview, under validation.** Browser authentication,
-metadata workers and a FUSE mount are implemented. Local synthetic tests exercise
-actual filesystem reads and recovery. Isolated business-account checks have
-exercised Graph operations; sustained operation and wider account/provider coverage
-remain under validation. Do not replace a trusted cloud
-client with this preview. Ordinary mounts remain read-only. An isolated experimental
-writable filesystem API and upload worker are undergoing validation. Offline pinning
-exists at the daemon and command line: a pin is durable, reserves cache space that
-eviction may not take, and keeps pinned content readable with the provider
-unreachable across a restart. It is not in any user interface, pinned content is
-not yet fetched automatically in the background, and none of it has been measured
-on a real account. Tray UI and Nautilus badges are not implemented.
+**Status: pre-release, in daily use on one machine, under validation.** A
+OneDrive is mounted on demand -- files appear at once, their contents download
+when opened into a bounded cache, and saves upload in the background through a
+journal that has survived the machine losing power mid-write. Offline pinning
+works from Files and the command line. The settings window connects, re-signs,
+removes and repairs accounts without a terminal; the tray and the Files
+extension show what the daemon knows. Arch, Ubuntu 24.04 and Fedora packages
+are built and installed on clean systems by CI on every push; there is no
+tagged release yet, and [what blocks one](docs/distribution.md#what-blocks-the-first-release-and-what-does-not)
+is written down, as is [what has been checked against a real account and
+what has not](docs/compatibility.md). Do not yet replace a trusted cloud
+client with it for data you have nowhere else. The
+[user guide](docs/user-guide.md) is where to start.
+`cirrove pins` shows what each pin has kept against what it reserved, and how much
+of the cache budget pinning has claimed. All of it has been measured against a real
+business drive: a pinned file reads through a mount without touching the provider
+while an unpinned control needs it. It is still in no user interface, and pinned
+content is fetched when a pin is made rather than in the background afterwards. Tray UI and Nautilus badges are not implemented.
 
 ## Current implementation
 
@@ -68,10 +74,11 @@ on a real account. Tray UI and Nautilus badges are not implemented.
   per-block revalidation.
 - Private status socket, desired mount state, accidental-ejection remount and
   graceful worker/session shutdown. Settings and metadata persist across runs.
-- Native GTK4/libadwaita account overview with mount controls and opening confirmed
-  mounts in Files. It reads local service status asynchronously and distinguishes
-  saved preferences from completed mount operations. Native sign-in, connection
-  removal and tray integration are still unfinished; see [Desktop preview](docs/desktop.md).
+- Native GTK4/libadwaita window: connect a drive through the browser, mount and
+  unmount, sign in again, discard changes the cloud refused, remove a connection
+  -- each offered only where it applies -- plus a StatusNotifierItem tray and a
+  nautilus-python extension with offline badges and Keep offline; see
+  [Desktop](docs/desktop.md).
 - Durable upload snapshots, keyring-backed session checkpoints and bounded Graph
   upload fragments, exercised with synthetic HTTP/fault fixtures. An explicit
   [isolated write check](docs/write-validation.md) is available for live validation;
@@ -142,6 +149,8 @@ These are implementation capabilities, not a production-readiness claim. See the
 
 ## Build and try
 
+Using it, rather than building it, is in the [user guide](docs/user-guide.md).
+
 Requires Linux, Rust 1.98.1 (pinned), a C/C++ build toolchain, CMake and pkg-config.
 Rustup installs the toolchain if necessary. SQLite is bundled; HTTPS uses Rustls.
 Mounting additionally needs `/dev/fuse`, `fusermount3` (`fuse3` on Arch), and a kernel
@@ -187,6 +196,13 @@ identity matches; live mounts and unrelated paths are preserved.
 
 Existing cloud clients, mounts and credentials are not imported or modified.
 The systemd template is supplied separately and is not installed by a build.
+On Arch, `scripts/build-arch-package.sh` builds installable packages from the
+committed tree -- see [Distribution](docs/distribution.md#arch).
+Enabled on a real account, it has been through a reboot: the daemon stopped
+cleanly, unmounting itself, and started again at the next login with its mount,
+index, feeds and schema unchanged. Tests hold the unit to that wiring; only a
+login can exercise it. See
+[the lifecycle measurements](docs/benchmarks/service-lifecycle-and-suspend.json).
 
 ## Architecture and contributing
 

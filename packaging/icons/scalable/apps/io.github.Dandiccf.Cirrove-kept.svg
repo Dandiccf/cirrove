@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <title>Cirrove: kept offline</title>
+  <!-- Flat and monochrome. An emblem is drawn over a thumbnail of any colour,
+       so it carries its own ground: a light rim, a solid dark disc, a white
+       mark. No gradient, no brand colour, nothing to read at 16 pixels but the
+       shape. -->
+  <circle cx="8" cy="8" r="7.9" fill="#ffffff" fill-opacity="0.92"/>
+  <circle cx="8" cy="8" r="6.8" fill="#26282b"/>
+  <path d="M 4.9,8.25 L 7.05,10.4 L 11.1,5.95" fill="none" stroke="#ffffff"
+        stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

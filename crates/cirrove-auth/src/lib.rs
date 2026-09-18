@@ -47,6 +47,16 @@ impl AccessMode {
             Self::ReadWrite => WRITE_SCOPES,
         }
     }
+    /// Whether a token response carries at least what this mode needs.
+    ///
+    /// A read-only request is satisfied by a write grant, and that is not an
+    /// oversight: where the account has already consented to the wider scope
+    /// the provider may hand it back whatever is asked for, and refusing it
+    /// would make an account that once allowed writes impossible to move back.
+    /// What `ReadOnly` then means is that Cirrove will not write -- the mount
+    /// refuses changes and no upload is attempted -- not that the token could
+    /// not. Only the person can withdraw the permission, in their Microsoft
+    /// account, and the window says so rather than implying this button does it.
     fn validate_grant(self, granted: Option<&str>) -> Result<()> {
         // OAuth may omit scope when it equals the requested scope. Never inspect
         // opaque access tokens to infer permissions; use the token response.
@@ -169,6 +179,56 @@ pub trait CredentialVault: Send + Sync {
 }
 /// Only Cirrove-owned entries are ever searched, updated or removed.
 pub struct DesktopVault;
+
+impl DesktopVault {
+    /// Whether there is somewhere to keep a grant, asked before one is obtained.
+    ///
+    /// Connecting an account opens a browser, the person signs in, grants
+    /// consent and chooses a drive -- and only then did anything discover there
+    /// was no Secret Service to put the result in, which threw the whole
+    /// sign-in away. Seen on a clean Arch machine on 2026-09-15, in the hands of
+    /// the person doing it: "desktop Secret Service unavailable: zbus error:
+    /// org.freedesktop.DBus.Error.ServiceUnknown", after the sign-in.
+    ///
+    /// Not a guarantee -- a keyring can go away between this and the save --
+    /// but the difference between failing before a person's work and after it.
+    pub async fn reachable() -> Result<()> {
+        let service = SecretService::connect(EncryptionType::Dh)
+            .await
+            .map_err(|_| {
+                anyhow::anyhow!(
+                    "no desktop keyring is running, so a sign-in could not be saved. Cirrove keeps \
+                 grants in the desktop's Secret Service; install gnome-keyring, or any other \
+                 implementation your desktop offers, and sign in again."
+                )
+            })?;
+        // Present is not the same as usable, and the difference has cost a
+        // sign-in twice. On the Fedora VM the service was there and its
+        // collection locked, which was written off as a peculiarity of a machine
+        // that logs in automatically; on Arch there was no service at all.
+        // Both end the same way -- a grant with nowhere to go, after the person
+        // has done the work -- so both are asked about here.
+        let collection = service.get_default_collection().await.map_err(|_| {
+            anyhow::anyhow!(
+                "the desktop keyring has no default collection to keep a sign-in in. Open your \
+                 keyring application once to create one, then sign in again."
+            )
+        })?;
+        if collection.is_locked().await.unwrap_or(false) {
+            // Asking raises the desktop's own prompt, which is the right thing
+            // to happen before a sign-in and the wrong thing to happen after.
+            let _ = collection.unlock().await;
+            if collection.is_locked().await.unwrap_or(true) {
+                anyhow::bail!(
+                    "the desktop keyring is locked, so a sign-in could not be saved. Unlock it \
+                     -- most desktops ask for your login password -- and sign in again."
+                );
+            }
+        }
+        Ok(())
+    }
+}
+
 fn attributes(key: &str) -> HashMap<&str, &str> {
     HashMap::from([("application", "cirrove"), ("credential-id", key)])
 }
@@ -234,10 +294,11 @@ async fn write_desktop_secret(key: &str, value: &SecretString) -> Result<()> {
     let ss = SecretService::connect(EncryptionType::Dh)
         .await
         .context("desktop Secret Service unavailable")?;
-    let collection = ss
-        .get_default_collection()
-        .await
-        .context("no default desktop keyring")?;
+    let collection = ss.get_default_collection().await.context(
+        "no default desktop keyring to keep the sign-in in. A machine that logs you in \
+             automatically unlocks none; open Passwords and Keys and create the Login keyring \
+             once, or log in with your password once",
+    )?;
     if collection.is_locked().await? {
         collection
             .unlock()

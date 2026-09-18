@@ -80,12 +80,23 @@ async fn workload(mode: Mode) -> anyhow::Result<serde_json::Value> {
     // so mallopt is unavailable, and because glibc reads the variable before
     // main: setting it from here would be too late and would silently do
     // nothing, which is worse than refusing.
+    // The one run that legitimately wants the default allocator is the arm that
+    // measures what capping costs -- and until now this guard made that arm
+    // impossible to run at all, so the trade could not be measured with the
+    // workload it is a trade about. Opting out skips the RSS assertion rather
+    // than weakening it, because without the cap that assertion is measuring
+    // glibc and not this code; a timing arm has no business claiming a memory
+    // result. See docs/benchmarks/allocator-arena-cost.json.
+    let arenas_capped = std::env::var("MALLOC_ARENA_MAX").is_ok_and(|value| value == "1");
+    let timing_arm = std::env::var("CIRROVE_FIXTURE_ALLOW_DEFAULT_ARENAS").is_ok();
     ensure!(
-        std::env::var("MALLOC_ARENA_MAX").is_ok_and(|value| value == "1"),
+        arenas_capped || timing_arm,
         "run this with MALLOC_ARENA_MAX=1. Without it the RSS assertion measures \
          glibc arena retention, not the service: the same workload reports \
          anywhere from 133 to 302 MiB and fails about one run in seven for \
-         reasons that have nothing to do with this code."
+         reasons that have nothing to do with this code. To measure what capping \
+         costs, set CIRROVE_FIXTURE_ALLOW_DEFAULT_ARENAS=1, which runs the \
+         workload and skips the memory assertion."
     );
     let delay_ms = std::env::var("CIRROVE_FIXTURE_REQUEST_DELAY_MS")
         .unwrap_or_else(|_| "0".into())
@@ -193,7 +204,7 @@ async fn workload(mode: Mode) -> anyhow::Result<serde_json::Value> {
         // reached by the allocator, which is why it fired at random.
         const RSS_GROWTH_LIMIT: u64 = 128 * 1024 * 1024;
         ensure!(
-            peak.saturating_sub(baseline) < RSS_GROWTH_LIMIT,
+            !arenas_capped || peak.saturating_sub(baseline) < RSS_GROWTH_LIMIT,
             "whole-file-sized service RSS growth: {:.1} MiB over a {:.1} MiB baseline, limit {:.1} MiB",
             peak.saturating_sub(baseline) as f64 / (1024.0 * 1024.0),
             baseline as f64 / (1024.0 * 1024.0),

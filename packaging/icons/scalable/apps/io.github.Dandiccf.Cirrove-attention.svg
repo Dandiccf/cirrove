@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <title>Cirrove: attention</title>
+  <g fill="none" stroke="#000000b8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 11.88,3.04 A 6.3,6.3 0 1 0 13.72,10.0" stroke-width="4.3"/>
+  </g>
+  <path d="M 8,4.8 V 8.6" fill="none" stroke="#000000b8" stroke-width="4.0" stroke-linecap="round"/><circle cx="8" cy="11.1" r="2.1" fill="#000000b8"/>
+  <g fill="none" stroke="#ffffff" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 11.88,3.04 A 6.3,6.3 0 1 0 13.72,10.0" stroke-width="2.3"/>
+  </g>
+  <path d="M 8,4.8 V 8.6" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/><circle cx="8" cy="11.1" r="1.1" fill="#ffffff"/>
+</svg>

@@ -1,6 +1,8 @@
 # Distribution and installation plan
 
-Status: planned; no installable OneDrive 1.0 release is available.
+Status: no tagged release. The Arch packages build from the committed tree
+(see [Arch](#arch) below) and CI installs and removes them on a clean Arch
+container on every push; Debian and Fedora packages do not exist yet.
 
 Cirrove is a Linux application, not an Omarchy-specific service. The current
 development machine uses Arch and CI uses Ubuntu 24.04. Building on Ubuntu is not
@@ -46,6 +48,218 @@ Fedora's official package repositories. The comparison motivating this work is
 supported by [onedriver's installation documentation](https://github.com/jstaf/onedriver#quick-start),
 which describes COPR and Debian/Ubuntu package-manager installation through OBS.
 Its documentation alone does not verify every listed distribution's current builds.
+
+## Arch
+
+`packaging/arch/PKGBUILD` builds two packages from one source, because a
+headless host should be able to install the daemon without a desktop library:
+
+| Package | Contents | Depends on |
+| --- | --- | --- |
+| `cirrove` | `/usr/bin/cirroved`, `/usr/bin/cirrove`, `/usr/lib/systemd/user/cirroved.service`, licence | `fuse3` (for `fusermount3`) and `xdg-utils` (for `xdg-open`, which is how signing in opens a browser); optionally a Secret Service keyring |
+| `cirrove-desktop` | `/usr/bin/cirrove-desktop`, `/usr/bin/cirrove-tray`, the desktop entry, the tray's `/etc/xdg/autostart` entry, the hicolor icons, the AppStream metainfo, the Files extension under `/usr/share/nautilus-python/extensions/`, licence | `cirrove`, `gtk4`, `libadwaita`; optionally the GNOME AppIndicator extension and `nautilus-python` for the Files badges and menu |
+
+The PKGBUILD is written for a tagged release and downloads the tarball by
+version. There is no tag yet, so `scripts/build-arch-package.sh` builds HEAD: it
+archives the commit under the name the source line expects, sets `pkgver` to
+`0.1.0dev.r<commits>.g<hash>` (which sorts before `0.1.0` for pacman and
+upgrades from one dev build to the next), and points makepkg at the archive.
+It then lists each package and fails if a file is missing or the daemon package
+has acquired a desktop dependency. It builds the commit, not the working copy;
+uncommitted edits are not in the package, and it says so.
+
+```sh
+scripts/build-arch-package.sh
+sudo pacman -U target/arch/cirrove-*.pkg.tar.zst   # the two it names, not the -debug ones
+systemctl --user enable --now cirroved.service
+cirrove status
+```
+
+The packaged unit runs `/usr/bin/cirroved`; the template in `packaging/systemd/`
+runs `%h/.local/bin/cirroved` for a developer install, and `package()` rewrites
+the path and checks the rewrite took. **Moving from a developer install to the
+package**: the user-local files shadow the packaged ones, so remove them first --
+`~/.config/systemd/user/cirroved.service` (after `systemctl --user disable --now
+cirroved`), the binaries in `~/.local/bin/`, and
+`~/.config/autostart/io.github.Dandiccf.Cirrove.Tray.desktop`
+(`scripts/install-tray-autostart.py --remove`) -- then `systemctl --user
+daemon-reload` and enable the packaged unit. Accounts, credentials and the
+journal under `~/.local/state/cirrove` are not touched by any of this.
+
+`pacman -R cirrove-desktop cirrove` removes only package-owned files. The state
+directory, the keyring entries and any unsent bytes in the journal stay, which
+is the retention the milestone asks for; removing them is a separate, explicit
+step (`cirrove forget` per account, or deleting the state directory) and never
+happens through a mounted path.
+
+CI's `arch-package` job does the build in an `archlinux:base-devel` container as
+an unprivileged user with the distribution's rust, installs both packages,
+runs the binaries, validates the desktop entries and metainfo from their
+installed locations, removes the packages, and checks nothing package-owned
+survived. A container has no login session: it shows the packages are correct,
+not that the service starts at login. The AUR recipe and `.SRCINFO` follow the
+first tag.
+
+## Real desktops, in virtual machines
+
+CI's containers prove the packages; they have no login session, no display
+manager, no shell to show a tray in. For that there are throwaway desktop
+machines on the development host, installed without a hand on them and
+checked by a script, so the run is the same each time and a person's
+attention goes to the screenshots rather than the clicking.
+
+- `scripts/vm/run.sh <ubuntu|fedora|arch> install` installs Ubuntu 24.04 Desktop
+  (Subiquity autoinstall) or Fedora Workstation (anaconda kickstart) into a
+  QEMU/KVM machine: nothing needs root, the installer's answers are served
+  over HTTP on the address the guest sees as its gateway, the kernel and
+  initrd come out of the ISO with `bsdtar` so no boot menu is ever driven.
+  The test account logs in automatically and can sudo without a password;
+  the machine is not meant to be kept. Arch is the third, and the odd one:
+  archiso has no kickstart and no autoinstall, and its `script=` boot
+  parameter is the only unattended hook there is -- `scripts/vm/arch/install.sh`
+  is what it runs.
+- `scripts/vm/check.sh <ubuntu|fedora|arch>` boots it, installs the packages CI
+  built,
+  starts the service as the user, starts the tray the way the autostart
+  entry will and reads it back from the shell's StatusNotifierWatcher, opens
+  Files with the extension, reboots and looks again, removes the packages and
+  checks nothing package-owned survived -- a screenshot at each stage,
+  under `~/Work/cirrove-vms/<distro>/checks/`. It clears the machine's package
+  directory before downloading, because one checked before still holds the
+  previous run's packages: `pacman -U ./pkgs/*` refuses the lot as duplicate
+  targets, and apt and dnf would silently install the newest rather than what
+  was just fetched.
+- `scripts/vm/qmp.py` is the hand on the machine: a screenshot, a key, a
+  click, the power button, through QEMU's monitor socket.
+
+What the checks cannot do is sign in: that is a person's browser and
+credentials. Run the machine with a window (`CIRROVE_VM_DISPLAY=gtk
+scripts/vm/run.sh <distro> boot`), sign in there, and the tray -- Passive
+without an account, which a shell hides -- gets its icon. One thing the
+first attempt found: the test account logs in automatically, so no keyring
+is ever unlocked and there is no default one to keep the grant in --
+`echo -n cirrove | gnome-keyring-daemon --unlock` in the session creates it,
+and the same is true of any real machine with automatic login, which the
+user guide now says.
+
+**Fedora 44 Workstation, 2026-09-13:** everything above passed on a clean
+machine: the fc42-built rpms install on 44, the service runs as the user,
+the tray registers with GNOME's watcher through the AppIndicator extension
+(installed by the package's recommendation, enabled by the user -- or here,
+by the check in the user's place), Files loads the extension, the tray comes
+back after a reboot from the packaged autostart entry, `dnf remove` leaves
+the state directory and nothing else. Not seen: an icon in the top bar,
+for want of an account. Fedora 44 is what "current Fedora" meant on the day;
+CI's container is 42, and the packages built there installed on 44 without
+complaint.
+
+**What the Arch machine itself lacked, 2026-09-15:** applications. It was
+pacstrapped with a shell, a file manager and a terminal, which is enough to
+install a package and read a tray icon and not enough to use a drive: the owner
+signed in, reached a mounted OneDrive and could not open a text file. A cloud
+filesystem is judged by what opens out of it, so the fixture now installs a text
+editor, an image and a document viewer and LibreOffice. Not xdg-utils, which the
+package under test must bring itself.
+
+**What the Arch sign-in found, 2026-09-15:** `xdg-utils` was an `optdepends`
+here and a `Recommends` on the other two, described as being "for the command
+line". It is neither optional nor only for the command line: connecting an
+account opens the provider's sign-in in a browser, and `xdg-open` is how both
+the window and the CLI do that. On Arch, which does not install optional
+dependencies, that made a fresh install unable to connect an account at all --
+the window's Sign in with Microsoft button answered "could not start the
+browser: No such file or directory (os error 2)", which names neither the
+program nor the package. It is a hard dependency in all three families now, and
+the message names `xdg-utils`. Fedora and Debian pull it in with any desktop,
+which is why two clean-machine runs and a year of development never showed it:
+the one distribution that does not install what it merely recommends is the one
+that found it, in the hands of a person pressing a button.
+
+**Arch, 2026-09-15:** the same again on a clean Arch machine, this time from a
+script rather than by hand: the CI-built packages install with pacman, both
+desktop entries and the metainfo validate, the service runs as the user, the
+tray names its own icon, all of it is back after a reboot from the packaged
+autostart alone, and `pacman -Rns` leaves nothing named cirrove under `/usr` or
+`/etc`. The two desktop dependencies are `optdepends` here and are absent before
+and after, which is the distribution's convention -- pacman prints them at
+install time -- and is now visible in every run rather than in one person's
+notes.
+
+**Ubuntu 24.04.4 Desktop, 2026-09-13:** the same, on a clean machine
+installed by autoinstall: the CI-built debs install with apt, the service
+runs as the user, the tray registers with the watcher Ubuntu's own
+AppIndicator extension provides (enabled in the Ubuntu session by default,
+so nothing to enable), Files loads the extension, the tray comes back after
+a reboot, `apt purge` leaves the state directory and nothing else. The tray
+was Passive throughout, again for want of an account.
+
+## Dependency and security review
+
+What is reviewed, and where the review is repeated so it does not go stale:
+
+- **Advisories.** `cargo audit` against the RustSec database, in CI on every
+  push (`dependency-audit`). One advisory is passed over, with its reason in
+  `.cargo/audit.toml`: RUSTSEC-2023-0071, a timing side channel in RSA
+  private-key operations in the `rsa` crate, which reaches the tree through
+  `openidconnect` for verifying ID-token signatures -- public-key operations;
+  Cirrove holds no RSA private key. No fixed release exists yet.
+- **Licences.** 416 crates outside the workspace, every one under a licence
+  the binaries may be distributed under (MIT, Apache-2.0, BSD, ISC, Zlib,
+  Unicode-3.0, CDLA-Permissive-2.0 and their combinations; the single crate
+  that offers LGPL offers it as one alternative among MIT and Apache-2.0).
+  `scripts/licence-check.py` evaluates each crate's SPDX expression against
+  the permissive list and fails CI on anything else, so a copyleft dependency
+  arriving through a transitive bump is a failure and not a surprise at
+  release time.
+- **Unsafe code.** `unsafe_code = "forbid"` across the workspace; the FUSE,
+  SQLite and TLS surfaces are reached through crates that carry their own
+  unsafe, not through any of ours.
+- **What the binaries touch.** Tokens live only in the desktop keyring
+  (Secret Service); the control socket is under `$XDG_RUNTIME_DIR` with mode
+  0700 on its directory; the state directory is 0700; the mount is
+  user-private FUSE. The daemon runs as the user, never as root, and the
+  package installs no setuid binary of its own (`fusermount3` is the
+  distribution's).
+
+Not done: a review of the update channels' signing (there are none yet), and
+a third party's reading of any of this.
+
+## What blocks the first release, and what does not
+
+Every open row in the [acceptance ledger](acceptance-ledger.json) carries a
+decision -- `blocks_release` is `yes` or `no`, and a `no` carries its reason --
+so "is it ready" has one answer rather than fifty-four, and the answer cannot
+go stale. `scripts/acceptance-ledger.py --blockers` prints both lists, and the
+script refuses an open row with no decision and a `no` with no reason. This
+paragraph used to be the list itself, written by hand, and it had already
+drifted: it named localization and the recent-activity view as not blocking
+after both were done.
+
+**The test is not "is this unfinished"** -- everything open is -- **but "would
+a person reasonably say you shipped 1.0 with this broken".** A row blocks when
+the core job needs a capability that is not there: connecting a drive, seeing
+and opening files, keeping some offline, being told the truth about what has
+and has not reached the cloud, installing and removing cleanly on a declared
+platform. A row does not block when the capability exists and is asserted and
+only an outside verification is missing, when it is breadth beyond the agreed
+scope, or when its absence is honestly written down where a user will meet it.
+
+As of 2026-09-14 that is 22 blocking and 12 not, against 20 rows closed. The
+shape of it: all seven of milestone 1, because a filesystem that has not been
+run for a day and through a suspend is not a thing to hand people; three of
+milestone 4, deletion and the compatibility matrix among them; seven of
+milestone 5, the session matrix and actionable errors among them; and five of
+milestone 6, ending with the tag itself.
+
+## Supported versions
+
+There is no release yet. Until there is, what is supported is the current
+build of the main branch on Arch, on the machine it is developed on. From the
+first release on: the latest release and the one before it, for the length of
+one release cycle; the distribution floor is Ubuntu 24.04 (GTK 4.14,
+libadwaita 1.5), current Fedora and current Arch, x86_64 only. Anything older
+or elsewhere may work and is not claimed. The same policy, for users, is in
+the [user guide](user-guide.md#supported-versions).
 
 ## Milestone-6 acceptance gates
 

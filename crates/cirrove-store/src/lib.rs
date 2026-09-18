@@ -15,8 +15,12 @@ pub use observations::{
 use rusqlite::{Connection, OptionalExtension, params};
 use std::{
     collections::HashMap,
+    ops::{Deref, DerefMut},
     path::{Path, PathBuf},
-    sync::{Arc, Mutex, MutexGuard, OnceLock, RwLock, Weak},
+    sync::{
+        Arc, Mutex, MutexGuard, OnceLock, RwLock, Weak,
+        atomic::{AtomicU64, Ordering},
+    },
 };
 
 /// Writers to one database queue in this process instead of racing for SQLite's
@@ -30,6 +34,217 @@ use std::{
 /// writers rather than merely rarer. Measured on this machine, four writers of a
 /// hundred transactions each go from a 1,144.6 ms worst wait to 366.3 ms under
 /// competing fsync writers, and from 180.0 ms to 2.8 ms on a quiet filesystem.
+/// The name a database is pooled under, or `None` for one that must never be
+/// shared. Every `:memory:` open is a different database and the tests depend
+/// on that isolation, so an in-memory store keeps its connection to itself.
+fn pool_key(path: &Path) -> Option<PathBuf> {
+    let name = path.to_string_lossy();
+    if name == ":memory:" || name.starts_with("file::memory:") || name.contains("mode=memory") {
+        return None;
+    }
+    Some(
+        path.parent()
+            .and_then(|parent| parent.canonicalize().ok())
+            .map_or_else(
+                || path.to_path_buf(),
+                |parent| parent.join(path.file_name().unwrap_or_default()),
+            ),
+    )
+}
+
+/// What this process holds for one database file: how many stores are alive on
+/// it, and the connections none of them is using.
+///
+/// The live count is what keeps the old contract intact. Before pooling, the
+/// last `Store` to drop was the last connection to close, and SQLite retires
+/// `-wal` and `-shm` when the last connection closes. A pool that outlived its
+/// stores would leave a write-ahead log beside a cleanly shut down account,
+/// which reads downstream as a crash. So idle connections exist only while at
+/// least one store does: when the count reaches zero they are closed with it.
+#[derive(Default)]
+struct Shared {
+    live: usize,
+    idle: Vec<Connection>,
+}
+
+fn pool() -> &'static Mutex<HashMap<PathBuf, Shared>> {
+    static POOL: OnceLock<Mutex<HashMap<PathBuf, Shared>>> = OnceLock::new();
+    POOL.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// One per blocking worker that touches a database is the shape this is for.
+/// Beyond that a connection is cheaper to close than to keep, because each one
+/// holds its own page cache and its own map of the file.
+const IDLE_PER_DATABASE: usize = 24;
+
+/// Take an idle connection and record the store that will hold it. Counting
+/// only when one is handed out keeps the count honest if the caller then fails
+/// to build one: a count that rose for a store that never existed would stop
+/// the database from ever reaching zero, and its write-ahead log from ever
+/// being retired.
+fn check_out(key: &Path) -> Option<Connection> {
+    let mut pool = pool().lock().unwrap_or_else(|error| error.into_inner());
+    let entry = pool.get_mut(key)?;
+    let db = entry.idle.pop()?;
+    entry.live += 1;
+    Some(db)
+}
+
+/// Return a connection to the state a freshly opened one is in.
+///
+/// A temp table belongs to its connection, not to the statement that made it,
+/// so a reused connection hands the next caller the last one's scratch space.
+/// `directory_publication` builds six of them per listing and creates them
+/// without `IF NOT EXISTS`, on purpose: a listing that finds them already there
+/// has inherited somebody else's rows and must fail rather than publish them.
+/// The same goes for a progress handler: `capacity::cold` installs one to
+/// abandon a fetch, and a connection that carries it onwards interrupts
+/// whoever gets it next with `SQLITE_INTERRUPT`, which reads as a database
+/// failure rather than as the cancellation it was.
+///
+/// A connection that cannot be reset is closed instead of shared.
+fn reset_for_reuse(db: &Connection) -> Result<()> {
+    db.progress_handler(0, None::<fn() -> bool>)?;
+    let leftovers: Vec<(String, String)> = db
+        .prepare("SELECT type,name FROM sqlite_temp_schema WHERE name NOT LIKE 'sqlite_%'")?
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .collect::<rusqlite::Result<_>>()?;
+    for (kind, name) in leftovers {
+        // Dropping a table takes its indexes with it, so one that has already
+        // gone is not an error worth refusing a connection over.
+        let quoted = name.replace('"', "\"\"");
+        db.execute_batch(&format!("DROP {kind} IF EXISTS temp.\"{quoted}\""))?;
+    }
+    Ok(())
+}
+
+/// Record a store holding a connection this process just built.
+fn count_built(key: &Path) {
+    pool()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .entry(key.to_path_buf())
+        .or_default()
+        .live += 1;
+}
+
+/// Give a connection back, or close it and every other idle one if this was the
+/// last store on the database.
+fn check_in(key: &Path, db: Connection) {
+    let mut pool = pool().lock().unwrap_or_else(|error| error.into_inner());
+    let Some(entry) = pool.get_mut(key) else {
+        return;
+    };
+    entry.live = entry.live.saturating_sub(1);
+    if entry.live > 0 {
+        if entry.idle.len() < IDLE_PER_DATABASE {
+            entry.idle.push(db);
+        }
+        return;
+    }
+    let closing = pool.remove(key).map(|entry| entry.idle);
+    // Close outside the lock. The last connection to close checkpoints and
+    // unlinks the log, which is filesystem work no other database should queue
+    // behind.
+    drop(pool);
+    drop(closing);
+    drop(db);
+}
+
+static CONNECTIONS_BUILT: AtomicU64 = AtomicU64::new(0);
+
+/// How many SQLite connections this process has actually built, as opposed to
+/// how many times a caller asked for a store. A pool that is doing its job
+/// keeps this far below the number of opens.
+#[must_use]
+pub fn connections_built() -> u64 {
+    CONNECTIONS_BUILT.load(Ordering::Relaxed)
+}
+
+/// A connection borrowed from its database's pool, returned when the store that
+/// holds it is dropped.
+///
+/// Opening one is expensive in a way no single operation reveals: SQLite reads
+/// and re-parses the whole schema on a connection's first statement -- 17
+/// tables and 23 indexes here -- and prepares every statement again. On the
+/// owner's 564 MB store an open plus one statement measures 0.10 ms where the
+/// same statement on a warm connection measures 0.002 ms. `cirrove-service`
+/// opens one at 58 call sites, once per operation. Sampling the daemon on
+/// 2026-09-16 put thirteen of sixteen computing stacks in opening, parsing and
+/// closing rather than in the work that was asked for. ADR 0006 called a pooled
+/// read connection "a prerequisite, not an optimisation"; this is it.
+struct Pooled {
+    /// Holds a connection for the whole of its life. `drop` takes it, which it
+    /// cannot do out of a plain field, and `unsafe_code` is forbidden here, so
+    /// this is an `Option` rather than a `ManuallyDrop`.
+    db: Option<Connection>,
+    key: Option<PathBuf>,
+}
+
+impl Pooled {
+    fn built(db: Connection, key: Option<PathBuf>) -> Self {
+        CONNECTIONS_BUILT.fetch_add(1, Ordering::Relaxed);
+        if let Some(key) = &key {
+            count_built(key);
+        }
+        Self { db: Some(db), key }
+    }
+    fn reused(db: Connection, key: PathBuf) -> Self {
+        Self {
+            db: Some(db),
+            key: Some(key),
+        }
+    }
+}
+
+impl Deref for Pooled {
+    type Target = Connection;
+    fn deref(&self) -> &Connection {
+        self.db
+            .as_ref()
+            .expect("a pooled connection is present until its store is dropped")
+    }
+}
+
+impl DerefMut for Pooled {
+    fn deref_mut(&mut self) -> &mut Connection {
+        self.db
+            .as_mut()
+            .expect("a pooled connection is present until its store is dropped")
+    }
+}
+
+impl Drop for Pooled {
+    fn drop(&mut self) {
+        let (Some(db), Some(key)) = (self.db.take(), self.key.clone()) else {
+            return;
+        };
+        // An open transaction, and anything left in the temporary schema, is
+        // state the next caller must not inherit. A connection carrying either
+        // is closed rather than shared. The count falls either way.
+        if db.is_autocommit() && reset_for_reuse(&db).is_ok() {
+            check_in(&key, db);
+        } else {
+            drop(db);
+            check_in_closed(&key);
+        }
+    }
+}
+
+/// Drop a live store whose connection was not fit to share.
+fn check_in_closed(key: &Path) {
+    let mut pool = pool().lock().unwrap_or_else(|error| error.into_inner());
+    let Some(entry) = pool.get_mut(key) else {
+        return;
+    };
+    entry.live = entry.live.saturating_sub(1);
+    if entry.live == 0 {
+        let closing = pool.remove(key).map(|entry| entry.idle);
+        drop(pool);
+        drop(closing);
+    }
+}
+
 fn write_gate(path: &Path) -> Arc<Mutex<()>> {
     static GATES: OnceLock<RwLock<HashMap<PathBuf, Weak<Mutex<()>>>>> = OnceLock::new();
     let gates = GATES.get_or_init(|| RwLock::new(HashMap::new()));
@@ -72,7 +287,13 @@ fn hold(gate: &Arc<Mutex<()>>) -> MutexGuard<'_, ()> {
 
 #[derive(Debug, thiserror::Error)]
 pub enum StoreError {
-    #[error("metadata database error")]
+    /// Carries SQLite's own words. Without them this read "metadata database
+    /// error" and nothing else, which is what a person saw when a pin failed
+    /// and what a developer saw when trying to find out why -- an intermittent
+    /// failure on 2026-09-16 cost two full check runs to narrow down because
+    /// the one line that knew what happened did not say it. SQLite's messages
+    /// describe states ("database is locked", "disk I/O error"), not paths.
+    #[error("metadata database error: {0}")]
     Database(#[from] rusqlite::Error),
     #[error("invalid stored metadata")]
     Encoding(#[from] serde_json::Error),
@@ -111,7 +332,7 @@ fn timestamp() -> i64 {
 }
 
 pub struct Store {
-    db: Connection,
+    db: Pooled,
     /// Shared with every other Store on the same database in this process.
     gate: Arc<Mutex<()>>,
 }
@@ -157,7 +378,19 @@ impl Store {
     /// Call from a blocking worker, never from a filesystem callback or while a
     /// network request is outstanding. One connection per worker.
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
-        let gate = write_gate(path.as_ref());
+        let path = path.as_ref();
+        let gate = write_gate(path);
+        let key = pool_key(path);
+        // Everything below this point is what an open costs, and a connection
+        // that has already paid it keeps its pragmas and its migrated schema.
+        if let Some(key) = key.clone()
+            && let Some(db) = check_out(&key)
+        {
+            return Ok(Self {
+                db: Pooled::reused(db, key),
+                gate,
+            });
+        }
         let mut db = Connection::open(path)?;
         db.busy_timeout(BUSY_TIMEOUT)?;
         // A connection is held for the account's lifetime so that per-operation
@@ -166,9 +399,30 @@ impl Store {
         // longer truncated on close, so bound it explicitly: automatic
         // checkpointing keeps it near 1,000 pages, and this limit returns the
         // space afterwards instead of leaving a high-water-mark file behind.
+        // Read the database through a memory map. Without one SQLite fetches
+        // every page it needs with a positional read, and its own cache holds
+        // only the default 2000 pages, so a store larger than about 2 MiB pays
+        // a syscall per page for data the kernel already has in its cache. That
+        // is invisible until something walks the tree quickly: on 2026-09-16 a
+        // desktop file indexer crawled a mount after an update and held a core
+        // at roughly 875,000 read syscalls per second for 25 minutes, while
+        // reaching the disk for only 451 MB of it. The map removes the syscall,
+        // not the memory: these are file pages the kernel can reclaim, and they
+        // are shared between the connections, which each map the same file. The
+        // bound must cover the whole database or the uncovered pages keep their
+        // syscall: at 256 MiB against this machine's 564 MB store the observed
+        // rate fell from 875,000 reads per second to 395,000, which is the
+        // covered fraction and no more. SQLite maps at most the file's length,
+        // so a larger bound costs address space, not memory.
+        //
+        // The cost is that an I/O error on a mapped page arrives as SIGBUS
+        // instead of an error return, so a failing disk takes the mount down
+        // rather than reporting a fault. ADR 0012 records why that trade is
+        // worth making here.
         db.execute_batch(
             "PRAGMA synchronous=FULL; PRAGMA foreign_keys=ON;
-            PRAGMA journal_size_limit=16777216;",
+            PRAGMA journal_size_limit=16777216;
+            PRAGMA mmap_size=2147483648;",
         )?;
         let version: u32 = db.pragma_query_value(None, "user_version", |r| r.get(0))?;
         if version > SCHEMA_VERSION {
@@ -235,7 +489,10 @@ impl Store {
         observations::validate(&db)?;
         directories::validate(&db)?;
         metadata_changes::validate(&db)?;
-        Ok(Self { db, gate })
+        Ok(Self {
+            db: Pooled::built(db, key),
+            gate,
+        })
     }
     /// Hold this database's write queue and SQLite's write lock until the
     /// caller releases, so a test can observe what a blocked writer does.
@@ -623,6 +880,7 @@ mod tests {
     }
     fn node(id: &str) -> Change {
         Change::Upsert(Node {
+            package: false,
             id: id.into(),
             parent_id: None,
             name: id.into(),
@@ -738,6 +996,57 @@ mod tests {
         assert!(db.node(&scope, "item").unwrap().is_none());
         assert!(db.children(&scope, "root").unwrap().unwrap().is_empty());
     }
+    #[test]
+    fn protecting_blocks_waits_for_a_writer_instead_of_failing_at_once() {
+        // `protect_blocks` reads the pin and then deletes its rows. A DEFERRED
+        // transaction that reads first takes a read lock and has to upgrade to
+        // write, and SQLite answers an upgrade that collides with another
+        // writer by returning BUSY **immediately**, bypassing the busy handler
+        // -- the same behaviour `initial_wal` documents for journal-mode
+        // changes. So this failed instantly rather than waiting its three
+        // seconds, and a pin fetch reported "database is locked" to the person
+        // halfway through. Seen twice in full check runs on 2026-09-16, made
+        // frequent by connection pooling, which changed the timing rather than
+        // the fault.
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("db");
+        // The pin exists before anything holds the lock, so the measurement
+        // below is about `protect_blocks` and not about getting there.
+        let mut waiting = Store::open(&path).unwrap();
+        assert!(
+            waiting
+                .pin("account", "item", false, 10, 1_000_000)
+                .expect("the pin itself must be taken")
+                .is_ok(),
+            "the budget must accept this pin, or the lock below is never reached"
+        );
+        let (release, released) = std::sync::mpsc::channel();
+        let (entered, holding) = std::sync::mpsc::channel();
+        std::thread::scope(|threads| {
+            let blocking = path.clone();
+            threads.spawn(move || {
+                let mut blocker = Store::open(&blocking).unwrap();
+                entered.send(()).unwrap();
+                blocker.write_and_block(&released).unwrap();
+            });
+            holding.recv().unwrap();
+            std::thread::sleep(std::time::Duration::from_millis(200));
+            let releasing = std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_millis(600));
+                release.send(()).unwrap();
+            });
+            let started = std::time::Instant::now();
+            waiting
+                .protect_blocks("account", "item", &["block-key".to_owned()])
+                .expect("protecting blocks must wait for the writer, not fail at once");
+            assert!(
+                started.elapsed() >= std::time::Duration::from_millis(400),
+                "it did not wait at all, so it never met the lock this asserts about"
+            );
+            releasing.join().unwrap();
+        });
+    }
+
     #[test]
     fn a_writer_blocked_past_the_busy_timeout_waits_instead_of_failing() {
         // The recorded CI failure was a writer that exhausted SQLite's busy

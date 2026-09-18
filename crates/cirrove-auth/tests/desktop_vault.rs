@@ -37,3 +37,21 @@ async fn desktop_keyring_checkpoint_updates_survive_new_sessions() -> anyhow::Re
     );
     Ok(())
 }
+
+/// A keyring that can take a grant is asked about before a sign-in, not after.
+///
+/// Twice a person has done a full Microsoft sign-in and been told afterwards
+/// that there was nowhere to keep it: on the Fedora VM the keyring was locked,
+/// on a clean Arch machine there was none at all. Both throw away minutes of
+/// somebody's attention that cannot be handed back. This is the question that
+/// now runs first.
+///
+/// Ignored like its neighbour: it needs a real desktop Secret Service. On a
+/// machine that has one and has it unlocked, it must say so.
+#[tokio::test]
+#[ignore = "requires an unlocked desktop Secret Service; reads nothing and writes nothing"]
+async fn an_unlocked_keyring_reports_itself_as_somewhere_to_keep_a_grant() {
+    cirrove_auth::DesktopVault::reachable()
+        .await
+        .expect("this machine has an unlocked Secret Service");
+}

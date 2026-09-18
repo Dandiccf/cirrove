@@ -16,6 +16,7 @@ fn scope() -> Scope {
 }
 fn node(id: &str) -> Node {
     Node {
+        package: false,
         id: id.into(),
         name: format!("{id}.txt"),
         parent_id: Some("root".into()),

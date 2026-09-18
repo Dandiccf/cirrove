@@ -1,0 +1,96 @@
+{
+  "question": "Does the daemon run for a full day without degrading -- same process, mount still serving, index intact, memory not climbing -- and does it come back from a restart and an outage deliberately induced during that window?",
+  "why_now": "Its acceptance row is the only one in the project with no evidence of any kind, in either field. Not because it is hard but because it is made of elapsed time: nothing about it can be hurried, and every session so far has had something more urgent to do with the machine.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-11",
+  "the_row_has_two_clauses": {
+    "sustained_operation": "Twenty-four hours with the daemon serving throughout.",
+    "restart_and_outage_checks": "Real ones, not test doubles. The recovery row covers process failure and network loss with tests; this row asks for them against the live account, inside the window, so that recovery is observed in a daemon that has been up for hours rather than one just started."
+  },
+  "shape": {
+    "sampler": "scripts/sustained-operation-sample.py, one row a minute: MainPID, VmRSS of that process, account state, mounted, per-feed state, indexed_items, stuck_changes, and the time to list the mount root.",
+    "why_rss_and_not_the_cgroup": "MemoryCurrent includes page cache the daemon never allocated. The prediction is about the process.",
+    "why_listing_latency": "A daemon that is alive but no longer serving looks identical to a healthy one in every other column. Listing the root each minute is the cheapest thing that would notice.",
+    "restart_injection": "At a recorded point inside the window, systemctl --user restart cirroved.service. The sampler writes a # RESTART line rather than spanning it silently -- a sampler that hid it would report a clean twenty-four hours for a daemon that did not have one.",
+    "outage_injection": "At another recorded point, the network is taken down for several minutes and brought back. What is watched is whether the feeds return to ready without intervention and whether a change made afterwards is delivered."
+  },
+  "predictions": {
+    "P1": "The daemon is the same process for the whole window apart from the deliberate restart, and the mount is present in every sample.",
+    "P2": "VmRSS at the end is within 20 percent of its value one hour in, once the index is warm. The trim cadence work measured +40.5 MiB of drift across a two-hour window (trim-cadence.json) and left it NOT SETTLED; a day is where that either flattens or does not, and this is the run that says which.",
+    "P3": "indexed_items never drops to zero: a daemon that reindexes 184,000 items on a restart has not preserved anything.",
+    "P4": "Listing the mount root stays under a second in every sample, including during the outage -- the namespace is local and an unreachable provider must not stall a listing.",
+    "P5": "After the deliberate restart, the account reaches ready and mounted without intervention; after the outage, both feeds return to ready and a change made afterwards is delivered."
+  },
+  "decision_rule": {
+    "all_hold": "The row is closed: a day of sustained operation with a real restart and a real outage inside it.",
+    "P2_fails": "The row stays open and the number is the finding. Unbounded growth over a day is the failure this clause exists to catch, and it belongs with the bounded-memory row rather than being absorbed here.",
+    "P4_fails": "A defect. A listing that stalls because the provider is unreachable is the thing a read-only preview must never do.",
+    "any_unplanned_restart": "The window is void, not dented. Recorded as such and re-run, the way trim-cadence.json was when a reboot took its first attempt seventeen minutes in."
+  },
+  "what_it_costs": "The machine, for a day. Under this project's own rule -- one measurement at a time, with nothing else compiling -- no build may run on it while the window is open, which also means no fixes can be deployed to that daemon until it closes.",
+  "what_this_does_not_cover": "One window on one machine with one account. It says nothing about a week, about several accounts, or about a laptop that suspends during the day; the suspend question is registered separately in deep-suspend-beyond-token-lifetime.json.",
+  "result": {
+    "when": "2026-09-13T15:56 to 2026-09-14T15:55 +02:00, 24.0 hours, 1440 samples, no void or probe-lost marker",
+    "where": "the Ubuntu VM, packages 0.1.0~dev.r370.g46de988, the owner's OneDrive signed in, 184,053 indexed items",
+    "observed": {
+      "P1": "HOLDS. Two process ids across the day and exactly one recorded restart -- the deliberate one at four hours. Not one sample in 1440 found the mount absent.",
+      "P2": "HOLDS. Resident memory 42 to 43 MiB over the first run and 40 to 42 MiB over the second, +3.0 and +5.7 percent, peak 43 MiB. Segmented by pid, because comparing across a restart would report the restart as growth -- which an earlier version of the report script did.",
+      "P3": "HOLDS. Indexed items stayed between 184,053 and 184,054 for the whole day; the extra one is the file written after the outage and removed again.",
+      "P4": "HOLDS, and by a wide margin. The slowest root listing in the entire day was 7 ms against a ceiling of 1000, and the mean was 1.0 ms. Including the twenty-five samples where the account read updating_or_offline: the mount was present in all twenty-five and the slowest listing among them was 1 ms. A listing served from the local namespace does not wait on the provider, which is the whole point of the clause.",
+      "P5": "HOLDS. The daemon was ready and mounted in the very first sample after the deliberate restart, and stayed so for the 1199 samples that followed."
+    },
+    "injections_as_run": "A deliberate restart at four hours, recovered unattended in 10 s. A five-minute link outage, run by hand at 05:39 rather than the planned 23:56 because the detached scheduler died after performing the restart -- with the daemon then up 9h42m, which is what the row asks for. Both feeds returned to ready 95 s after the link came back with nothing done to them, a file written afterwards uploaded in 10 s and was confirmed in the cloud through Graph independently of Cirrove. One unplanned 15 s outage at 16:12 on the first evening, caused by verifying QMP link off/on before trusting it unattended, is in the log so it cannot later be mistaken for a provider failure.",
+    "what_it_does_not_cover": "One machine, one account, a light workload -- a listing a minute plus the injections. It says the daemon runs for a day without drifting, not that it does so under load; the concurrent read workloads are where load is measured."
+  },
+  "verdict": "All five hold. Attempt 2 stands: 24.0 hours unattended, the mount present in every one of 1440 samples, memory flat at 43 MiB peak, the index steady, the slowest listing of the day 7 ms, and recovery from both a restart and a five-minute outage without anyone touching it. The row's two clauses -- real restart and outage checks, and at least 24 hours of sustained operation -- are both met.",
+  "attempts": [
+    {
+      "attempt": 1,
+      "started": "2026-09-13T12:39+02:00",
+      "ended": "2026-09-13T15:38+02:00",
+      "ran": "2h56m of 24h",
+      "verdict": "VOID",
+      "why": "Not a restart and not a result: the window went blind. The machine was moved off the Cirrove packages back to a developer install, which took /usr/bin/cirrove with it, and the sampler probes the daemon through that CLI. The last four rows read unreachable/mounted=0/items=-1 while the daemon was untouched -- same pid 368874, mount still served. Rows written blind are indistinguishable afterwards from a real provider outage, so nothing is claimed from the 177 samples. They are kept, annotated, in sustained-operation.samples.jsonl.",
+      "fixed_so_it_cannot_recur": "The sampler resolves its probe to an absolute path before opening the window, refuses to start without one, and on losing it mid-window writes a PROBE-LOST marker and stops instead of filling the file with rows it cannot see. Demonstrated both ways against a stand-in CLI."
+    }
+  ],
+  "amendment_2026_09_13": {
+    "what_changed": "Attempt 2 runs in the Ubuntu VM, not on the host.",
+    "why": "The clause 'no build may run on the machine while the window is open' costs a day of every other kind of progress, and the machine owner has already asked for exactly these checks to move into a VM: 'Kannst du die ganzen Tests (reboot, Network-Outage,...) dann nicht auch in einer VM machen (simulieren), das waere doch viel einfacher wie jetzt hier am host?'. The VM has the owner's own OneDrive signed in, so the account is real rather than a double, and QMP gives the two injections cleanly: `link off/on` is a truer outage than anything that can be done to a daemon on the host without cutting the session it runs in.",
+    "what_this_costs_the_result": "The host is free to build while the window runs, so host CPU is no longer quiet. This weakens nothing the predictions ask: P1 P3 P5 are about identity and recovery, P2 is about the daemon's own RSS, and P4's ceiling is a second -- a thousand times any scheduling noise a parallel build adds to a listing served from a local namespace. If P4 fails it will be re-run quiet before being called a defect.",
+    "what_stays_the_same": "The question, all five predictions and the decision rule are unchanged.",
+    "registered_before_run": true
+  },
+  "attempt_2": {
+    "opened": "2026-09-13T15:56+02:00",
+    "closes": "2026-09-14T15:56+02:00",
+    "where": "the Ubuntu VM, packages 0.1.0~dev.r370.g46de988, the owner's OneDrive signed in",
+    "sampler": "python3 ~/sustained-operation-sample.py --out ~/window/samples.tsv --mount /home/tester/OneDrive --hours 24 --interval 60, detached in the VM",
+    "injections": {
+      "by": "scripts/vm/window-injections.sh ubuntu 1789307766, detached on the host, so it survives the session that started it",
+      "restart": "2026-09-13T19:56+02:00, four hours in",
+      "outage": "2026-09-13T23:56+02:00, eight hours in, the link down for five minutes",
+      "log": "~/window/injections.log in the VM, separate from the samples because the sampler holds that file open"
+    },
+    "one_unplanned_event_recorded": "A roughly fifteen second link outage at about 16:12, caused by verifying that QMP link off/on works before trusting it to the unattended run. The daemon was not restarted and the samples show no change -- the feed poll is longer than the outage was -- and it is written into the injection log so it is not later mistaken for a provider failure.",
+    "how_to_collect": [
+      "scripts/vm/run.sh ubuntu get '~/window/samples.tsv' docs/benchmarks/sustained-operation.attempt2.tsv",
+      "scripts/vm/run.sh ubuntu get '~/window/injections.log' /tmp/",
+      "scripts/sustained-operation-report.py docs/benchmarks/sustained-operation.attempt2.tsv --injections /tmp/injections.log",
+      "The report answers each of the five predictions from the file and refuses a file carrying a void or probe-lost marker. Read its answer against decision_rule above before ticking anything."
+    ],
+    "if_the_machine_reboots_first": "The window is void, per the decision rule's any_unplanned_restart clause. Record it as attempt 2 void and open attempt 3; do not report partial hours as a result.",
+    "injections_as_they_happened": {
+      "restart": {
+        "when": "2026-09-13T19:56 local, four hours in, as planned",
+        "result": "Recovered unattended in 10 s. The sampler recorded the new process, and it was ready and mounted in the very first sample after it."
+      },
+      "outage": {
+        "when": "2026-09-14T05:39 local, not the planned 23:56",
+        "why_late": "The detached scheduler performed the 19:56 restart and then died some time before 23:56. It was started with setsid from a tool call on the host; two of this session's background tasks were culled around 19:45 while /tmp -- a RAM filesystem -- was 19 GB full of another project's build output, and the scheduler most likely went with them. Run by hand instead, with the daemon up 9h42m since the restart, which is what the row actually asks for: recovery observed in a daemon that has been up for hours.",
+        "result": "Link down five minutes. Both feeds reported offline for seven consecutive samples and returned to ready 95 s after the link came back, with nothing done to them. The mount was present in every sample throughout and a listing of the root took 1 ms in every one of them -- which is P4's whole point, that an unreachable provider must not stall a listing served from a local namespace. The indexed count did not move during the outage and rose by one afterwards, which is the file below. A file written after the outage was uploaded in 10 s and confirmed present in the cloud through Graph independently of Cirrove, then removed to the recycle bin."
+      },
+      "lesson_for_the_tooling": "Injections scheduled from the host did not survive the host. The next window should run them from inside the VM, where nothing culls them and where the machine under measurement is the one keeping them alive."
+    }
+  }
+}

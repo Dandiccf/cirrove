@@ -142,6 +142,7 @@ impl UploadJournal {
             names: namespace::policy(&self.db, &scope)?,
             scope,
             node: Node {
+                package: false,
                 id: format!("local-directory-{id}"),
                 parent_id: Some(parent),
                 name,

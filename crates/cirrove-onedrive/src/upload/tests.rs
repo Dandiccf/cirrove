@@ -91,6 +91,7 @@ async fn fixture(replies: Vec<Reply>) -> (OneDrive, tokio::task::JoinHandle<Vec<
 
 fn mutation_node() -> Node {
     Node {
+        package: false,
         id: "file".into(),
         parent_id: Some("source".into()),
         name: "old.txt".into(),

@@ -178,6 +178,24 @@ pub(crate) fn account_operation(state: &Path, id: &str) -> Result<File> {
         .context("another operation is changing this account")?;
     Ok(file)
 }
+/// Why the browser did not start, in words the reader can act on.
+///
+/// "could not start the browser: No such file or directory (os error 2)" is
+/// what a person saw on a fresh Arch install when they pressed Sign in with
+/// Microsoft, and it names neither the program nor the package. `xdg-open` is
+/// the only way this opens a browser; on Fedora and Debian a desktop pulls it
+/// in and it was never missing, which is why the message had never been read by
+/// anyone who needed it.
+fn browser_failure(error: std::io::Error) -> anyhow::Error {
+    if error.kind() == std::io::ErrorKind::NotFound {
+        return anyhow::anyhow!(
+            "could not open a browser: xdg-open is not installed. It is in the xdg-utils \
+             package on every distribution Cirrove ships for, and signing in needs it."
+        );
+    }
+    anyhow::Error::new(error).context("could not start the browser")
+}
+
 async fn browser_login(
     app: AppRegistration,
     access: AccessMode,
@@ -200,7 +218,7 @@ async fn browser_login(
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .spawn()
-        .context("could not start the browser")?;
+        .map_err(browser_failure)?;
     // Some launchers remain alive as long as a newly started browser. Receiving
     // the callback must not depend on the launcher exiting, or close that browser.
     await_browser_login(&mut child, pending.finish()).await
@@ -213,7 +231,10 @@ async fn await_browser_login<T>(
     tokio::select! {biased;
         result=&mut login=>result,
         status=child.wait()=>{
-            if !status.context("browser launcher failed")?.success(){bail!("browser could not be opened; check xdg-open");}
+            // xdg-open ran and gave up. On a desktop with no browser installed
+            // at all -- which a minimal Arch is -- that is the whole story, and
+            // "check xdg-open" sent the reader to the one thing that was fine.
+            if !status.context("browser launcher failed")?.success(){bail!("xdg-open could not open a browser. Check that a web browser is installed and is the default for http and https.");}
             login.await
         }
     }
@@ -435,6 +456,10 @@ pub async fn reauthenticate(
         })
         .await
         .context("account did not stop; close files in this mount and try again")?;
+        // The same question as `begin_connect`, for the same reason: a
+        // re-sign-in is a person's minutes too, and a keyring that cannot take
+        // the grant afterwards has wasted all of them.
+        DesktopVault::reachable().await?;
         let (identity, credentials) =
             browser_login(original.registration.clone(), requested).await?;
         if identity.tenant_id != original.identity.tenant_id
@@ -516,8 +541,23 @@ fn refuse_to_migrate_under_a_running_daemon(state: &Path, db: &Path) -> Result<(
     if daemon_lock(state).is_ok() {
         return Ok(()); // nothing is running; migrating on open is the normal path
     }
-    let Ok(version) = cirrove_store::schema_version(db) else {
-        return Ok(()); // no database yet, so nothing to migrate
+    let version = match cirrove_store::schema_version(db) {
+        Ok(version) => version,
+        // Absent really is nothing to migrate. Present and unreadable is a
+        // different thing and must not borrow that answer: a daemon is running,
+        // and a guard that opens the gate whenever it cannot see is worse than
+        // no guard, because the caller believes it was checked. SQLite can fail
+        // this read for reasons that pass -- a busy database, a hot journal, no
+        // descriptors left -- and every one of them used to disable the refusal
+        // silently.
+        Err(_) if !db.exists() => return Ok(()),
+        Err(error) => bail!(
+            "a daemon is running and this account's index at {} could not be read \
+             to check its schema ({error}). Refusing rather than guessing: opening \
+             it here may migrate it and stop that daemon reading its own metadata. \
+             Stop cirroved and try again.",
+            db.display()
+        ),
     };
     if version < cirrove_store::SCHEMA_VERSION {
         bail!(
@@ -555,7 +595,7 @@ pub fn set_pin(
     let directory = state.join("accounts").join(&account.id);
     let scope = cirrove_core::Scope {
         account: account.id.clone(),
-        provider: "onedrive".into(),
+        provider: cirrove_onedrive::PROVIDER_ID.into(),
         collection: account.drive.id.clone(),
     };
     let key = serde_json::to_string(&scope)?;
@@ -597,7 +637,7 @@ pub fn clear_pin(state: &Path, label: &str, item: &str) -> Result<String> {
     let _operation = account_operation(state, &account.id)?;
     let scope = cirrove_core::Scope {
         account: account.id.clone(),
-        provider: "onedrive".into(),
+        provider: cirrove_onedrive::PROVIDER_ID.into(),
         collection: account.drive.id.clone(),
     };
     let key = serde_json::to_string(&scope)?;
@@ -612,14 +652,87 @@ pub fn clear_pin(state: &Path, label: &str, item: &str) -> Result<String> {
 }
 /// Complete browser sign-in, display verified identity and let the caller choose a
 /// drive. Persistence happens only after the selected drive's root is verified.
-pub async fn connect(
+/// A sign-in that has happened and a drive that has not yet been chosen.
+///
+/// `connect` used to do both in one call and ask for the drive on stdin, which
+/// a window cannot answer. Split, the window shows the drives and finishes with
+/// the one the user picks; the CLI does the same with a prompt. Nothing is saved
+/// until `finish`: dropping this forgets the grant, which is the right outcome
+/// for a sign-in the user walked away from.
+pub struct PendingConnection {
     state: PathBuf,
     label: String,
     app: AppRegistration,
     mount_path: PathBuf,
-    drive_id: Option<String>,
     access: AccessMode,
-) -> Result<()> {
+    id: String,
+    identity: Identity,
+    credentials: cirrove_auth::Credentials,
+    graph: OneDrive,
+    drives: Vec<DriveInfo>,
+}
+impl PendingConnection {
+    /// Who signed in.
+    pub fn identity(&self) -> &Identity {
+        &self.identity
+    }
+    /// The drives this account can mount, the default Documents drive first.
+    pub fn drives(&self) -> &[DriveInfo] {
+        &self.drives
+    }
+    /// Save the account with this drive. A drive not in the list is looked up,
+    /// so a caller who knows an id can name one the listing missed.
+    pub async fn finish(self, drive_id: &str) -> Result<Account> {
+        let cancel = CancellationToken::new();
+        let drive = match self.drives.iter().find(|d| d.id == drive_id) {
+            Some(drive) => drive.clone(),
+            None => self.graph.drive(drive_id, &cancel).await?,
+        };
+        let root = self.graph.root(&drive.id, &cancel).await?;
+        if self.mount_path.exists() && std::fs::read_dir(&self.mount_path)?.next().is_some() {
+            bail!("mount directory must be empty");
+        }
+        let account = Account {
+            id: self.id,
+            label: self.label,
+            registration: self.app,
+            identity: self.identity,
+            credential_id: uuid::Uuid::new_v4().to_string(),
+            access: self.access,
+            drive,
+            root_id: root.id,
+            mount_path: self.mount_path,
+            enabled: self.access == AccessMode::ReadOnly,
+            poll_seconds: 30,
+            cache_bytes: 5 * 1024 * 1024 * 1024,
+        };
+        let _lock = config_lock(&self.state)?;
+        let mut settings = Settings::load(&self.state)?;
+        if settings
+            .accounts
+            .iter()
+            .any(|a| a.label == account.label || a.mount_path == account.mount_path)
+        {
+            bail!("account settings changed during sign-in; try another label or path");
+        }
+        save_credentials(&DesktopVault, &account.credential_id, &self.credentials).await?;
+        settings.accounts.push(account.clone());
+        if let Err(error) = settings.save(&self.state) {
+            let _ = DesktopVault.remove(&account.credential_id).await;
+            return Err(error);
+        }
+        Ok(account)
+    }
+}
+/// Check the label and mount path, sign in through the browser, and list the
+/// drives. The account is not saved until `PendingConnection::finish`.
+pub async fn begin_connect(
+    state: PathBuf,
+    label: String,
+    app: AppRegistration,
+    mount_path: PathBuf,
+    access: AccessMode,
+) -> Result<PendingConnection> {
     if !valid_label(&label) {
         bail!("use a label of 1–48 letters, digits, hyphens or underscores");
     }
@@ -639,78 +752,82 @@ pub async fn connect(
             bail!("this label or mount path is already configured");
         }
     }
+    // Before the browser, not after. A sign-in is minutes of a person's
+    // attention and it cannot be handed back: discovering afterwards that there
+    // is nowhere to keep the grant throws all of it away, which is what
+    // happened on a clean Arch machine on 2026-09-15.
+    DesktopVault::reachable().await?;
     let (identity, credentials) = browser_login(app.clone(), access).await?;
-    println!(
-        "Signed in: {} ({})\nTenant: {}",
-        identity.display_name, identity.username, identity.tenant_id
-    );
     let id = uuid::Uuid::new_v4().to_string();
     let graph = OneDrive::new(
         id.clone(),
         Arc::new(StaticToken(credentials.access_token())),
     )?;
-    let cancel = CancellationToken::new();
-    let drive = if let Some(drive) = drive_id {
-        graph.drive(&drive, &cancel).await?
-    } else {
-        let drives = graph.drives(&cancel).await?;
-        for (index, drive) in drives.iter().enumerate() {
-            println!(
-                "{}. {} · {}\n   {}",
-                index + 1,
-                drive.name,
-                drive.drive_type,
-                drive.web_url
-            );
-        }
-        let selected = tokio::task::spawn_blocking(move || -> Result<usize> {
-            print!("Drive number to mount (Enter cancels): ");
-            std::io::stdout().flush()?;
-            let mut line = String::new();
-            std::io::stdin().read_line(&mut line)?;
-            line.trim()
-                .parse::<usize>()
-                .context("drive selection cancelled or invalid")
-        })
-        .await??;
-        drives
-            .get(selected.checked_sub(1).context("invalid drive number")?)
-            .context("invalid drive number")?
-            .clone()
-    };
-    let root = graph.root(&drive.id, &cancel).await?;
-    if mount_path.exists() && std::fs::read_dir(&mount_path)?.next().is_some() {
-        bail!("mount directory must be empty");
-    }
-    let account = Account {
-        id,
+    let drives = graph.drives(&CancellationToken::new()).await?;
+    Ok(PendingConnection {
+        state,
         label,
-        registration: app,
-        identity,
-        credential_id: uuid::Uuid::new_v4().to_string(),
-        access,
-        drive,
-        root_id: root.id,
+        app,
         mount_path,
-        enabled: access == AccessMode::ReadOnly,
-        poll_seconds: 30,
-        cache_bytes: 5 * 1024 * 1024 * 1024,
+        access,
+        id,
+        identity,
+        credentials,
+        graph,
+        drives,
+    })
+}
+pub async fn connect(
+    state: PathBuf,
+    label: String,
+    app: AppRegistration,
+    mount_path: PathBuf,
+    drive_id: Option<String>,
+    access: AccessMode,
+) -> Result<()> {
+    let pending = begin_connect(state, label, app, mount_path, access).await?;
+    let identity = pending.identity();
+    println!(
+        "Signed in: {} ({})\nTenant: {}",
+        identity.display_name, identity.username, identity.tenant_id
+    );
+    let drive = match drive_id {
+        Some(drive) => drive,
+        None => {
+            let drives = pending.drives();
+            for (index, drive) in drives.iter().enumerate() {
+                println!(
+                    "{}. {} · {}\n   {}",
+                    index + 1,
+                    drive.name,
+                    drive.drive_type,
+                    drive.web_url
+                );
+            }
+            // The ids, for an error that can actually be acted on. By the time
+            // this question is asked the browser half has already succeeded, so
+            // failing here throws away a sign-in the person has just done.
+            let listing = drives
+                .iter()
+                .map(|drive| format!("  --drive-id {}   ({})", drive.id, drive.name))
+                .collect::<Vec<_>>()
+                .join("\n");
+            let selected = tokio::task::spawn_blocking(move || -> Result<usize> {
+                print!("Drive number to mount (Enter cancels): ");
+                std::io::stdout().flush()?;
+                let mut line = String::new();
+                let read = std::io::stdin().read_line(&mut line)?;
+                drive_choice(read, &line, &listing)
+            })
+            .await??;
+            drives
+                .get(selected.checked_sub(1).context("invalid drive number")?)
+                .context("invalid drive number")?
+                .id
+                .clone()
+        }
     };
-    let _lock = config_lock(&state)?;
-    let mut settings = Settings::load(&state)?;
-    if settings
-        .accounts
-        .iter()
-        .any(|a| a.label == account.label || a.mount_path == account.mount_path)
-    {
-        bail!("account settings changed during sign-in; try another label or path");
-    }
-    save_credentials(&DesktopVault, &account.credential_id, &credentials).await?;
-    settings.accounts.push(account.clone());
-    if let Err(error) = settings.save(&state) {
-        let _ = DesktopVault.remove(&account.credential_id).await;
-        return Err(error);
-    }
+    let account = pending.finish(&drive).await?;
     println!(
         "Connected {}. Mount location: {}",
         account.label,
@@ -719,23 +836,314 @@ pub async fn connect(
     Ok(())
 }
 pub fn set_enabled(state: &Path, label: &str, enabled: bool) -> Result<()> {
-    update_enabled(state, |account| account.label == label, enabled)
+    // The command line wants a sentence; the window wants the kind, and gets it
+    // from set_enabled_by_id. PreferenceRefusal implements Error, so `?` here
+    // turns the kind into that sentence without either side losing anything.
+    Ok(update_enabled(
+        state,
+        |account| account.label == label,
+        enabled,
+    )?)
 }
 /// Desktop actions address the persisted account identity, never a reusable label.
-pub fn set_enabled_by_id(state: &Path, id: &str, enabled: bool) -> Result<()> {
+/// Why a mount-preference change did not happen.
+///
+/// A kind rather than a message. The window has to say something different for
+/// each of these -- they have different remedies -- and it must not show a raw
+/// error. Until now all four collapsed into one sentence guessing that another
+/// operation might be running, which was the wrong guess three times in four.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PreferenceRefusal {
+    /// Another window, the tray or the command line holds the settings lock,
+    /// or this account already has an operation in flight.
+    Busy,
+    /// The account is not in the settings any more: removed somewhere else
+    /// while this window was showing it.
+    NotConfigured,
+    /// The settings could not be read.
+    Unreadable,
+    /// The settings could not be written back.
+    Unwritable,
+}
+
+impl std::fmt::Display for PreferenceRefusal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Busy => "another Cirrove operation is running; try again in a moment",
+            Self::NotConfigured => "that connection is no longer configured",
+            Self::Unreadable => "the saved connections could not be read",
+            Self::Unwritable => "the saved connections could not be written",
+        })
+    }
+}
+impl std::error::Error for PreferenceRefusal {}
+
+pub fn set_enabled_by_id(
+    state: &Path,
+    id: &str,
+    enabled: bool,
+) -> std::result::Result<(), PreferenceRefusal> {
     update_enabled(state, |account| account.id == id, enabled)
 }
-fn update_enabled(state: &Path, select: impl Fn(&Account) -> bool, enabled: bool) -> Result<()> {
-    let _lock = config_lock(state)?;
-    let mut settings = Settings::load(state)?;
+fn update_enabled(
+    state: &Path,
+    select: impl Fn(&Account) -> bool,
+    enabled: bool,
+) -> std::result::Result<(), PreferenceRefusal> {
+    let _lock = config_lock(state).map_err(|_| PreferenceRefusal::Busy)?;
+    let mut settings = Settings::load(state).map_err(|_| PreferenceRefusal::Unreadable)?;
     let account = settings
         .accounts
         .iter_mut()
         .find(|a| select(a))
-        .context("account is no longer configured")?;
-    let _operation = account_operation(state, &account.id)?;
+        .ok_or(PreferenceRefusal::NotConfigured)?;
+    // Held per account, so this is "this drive is busy" and not "Cirrove is".
+    let _operation = account_operation(state, &account.id).map_err(|_| PreferenceRefusal::Busy)?;
     account.enabled = enabled;
-    settings.save(state)
+    settings
+        .save(state)
+        .map_err(|_| PreferenceRefusal::Unwritable)
+}
+/// Remove an account, refusing while it still holds work nobody has sent.
+///
+/// Built because milestone 3 asks that unsent changes survive "account disable
+/// and removal" and there was no removal path at all -- so a test of the clause
+/// would have asserted that a thing which does not exist does not delete a
+/// journal, and would have passed before and after any change for the same
+/// reason.
+///
+/// Three deliberate narrownesses. It refuses while the account is enabled, so
+/// removal never races a live mount and reuses machinery that already exists.
+/// It refuses when the journal still holds unsent records, naming how many,
+/// unless the caller says explicitly to discard them -- that refusal is the
+/// clause. And it MOVES the account directory to `removed/` rather than
+/// deleting it, which is what AGENTS.md asks of anything that would otherwise
+/// be a recursive delete near a mount; a human empties that directory.
+///
+/// The mount directory itself is never touched. A stray local file there is
+/// already asserted to survive a remount, and removal must not become the
+/// exception.
+pub fn forget(state: &Path, label: &str, discard_unsent: bool) -> Result<String> {
+    let _lock = config_lock(state)?;
+    let mut settings = Settings::load(state)?;
+    let index = settings
+        .accounts
+        .iter()
+        .position(|a| a.label == label)
+        .context("no account carries that label")?;
+    let account = settings.accounts[index].clone();
+    let _operation = account_operation(state, &account.id)?;
+    if account.enabled {
+        bail!("{label} is still enabled; disable it first so removal cannot race a running mount");
+    }
+    let directory = state.join("accounts").join(&account.id);
+    let unsent = unsent_uploads(&directory, &account.id)?;
+    if unsent > 0 && !discard_unsent {
+        bail!(
+            "{label} still holds {unsent} change(s) that have not reached the cloud. \
+Enable it and let them upload, or pass --discard-unsent to remove them with it."
+        );
+    }
+    let removed = state.join("removed");
+    private_dir(&removed)?;
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let target = removed.join(format!("{}-{stamp}", account.id));
+    if directory.exists() {
+        std::fs::rename(&directory, &target)
+            .with_context(|| format!("could not move {} aside", directory.display()))?;
+    }
+    settings.accounts.remove(index);
+    settings.save(state)?;
+    Ok(format!(
+        "removed {label}; its local data was moved to {} rather than deleted{}",
+        target.display(),
+        if unsent > 0 {
+            format!(", including {unsent} unsent change(s)")
+        } else {
+            String::new()
+        }
+    ))
+}
+/// One connection's data, set aside by `forget` and still on the disk.
+#[derive(Clone, Debug)]
+pub struct SetAside {
+    /// The directory name under `removed/`: the account id and when it went.
+    pub name: String,
+    pub bytes: u64,
+    pub removed_at: u64,
+}
+
+/// What Cirrove is keeping on this computer, and which of it can be reclaimed.
+#[derive(Clone, Debug)]
+pub struct LocalData {
+    pub state_dir: PathBuf,
+    /// Connections that still exist, with what each one's cache and index cost.
+    pub live: Vec<(String, u64)>,
+    /// Connections already removed, whose data `forget` moved aside rather than
+    /// deleted. Nothing else ever looks at these, so without this they sit
+    /// there for good -- which is how an uninstall leaves gigabytes behind that
+    /// the person believed they had removed.
+    pub set_aside: Vec<SetAside>,
+    /// Everything else under the state directory: the settings file, locks,
+    /// the shared index.
+    pub other_bytes: u64,
+}
+
+impl LocalData {
+    pub fn total_bytes(&self) -> u64 {
+        self.live.iter().map(|(_, b)| b).sum::<u64>()
+            + self.set_aside.iter().map(|a| a.bytes).sum::<u64>()
+            + self.other_bytes
+    }
+    pub fn reclaimable_bytes(&self) -> u64 {
+        self.set_aside.iter().map(|a| a.bytes).sum()
+    }
+}
+
+/// Bytes under a directory, following nothing and failing on nothing.
+///
+/// A size that cannot be read is reported as zero rather than as an error: this
+/// exists to tell a person roughly what their disk is being used for, and one
+/// unreadable file is not a reason to refuse to answer at all.
+fn directory_bytes(path: &Path) -> u64 {
+    let Ok(entries) = std::fs::read_dir(path) else {
+        return 0;
+    };
+    entries
+        .flatten()
+        .map(|entry| match entry.file_type() {
+            Ok(kind) if kind.is_dir() => directory_bytes(&entry.path()),
+            Ok(kind) if kind.is_file() => entry.metadata().map(|m| m.len()).unwrap_or(0),
+            _ => 0,
+        })
+        .sum()
+}
+
+/// Report what is on the disk, so the choice to keep or remove it can be made
+/// on numbers rather than on a path from the documentation.
+pub fn local_data(state: &Path) -> Result<LocalData> {
+    let settings = Settings::load(state).unwrap_or_default();
+    let live: Vec<(String, u64)> = settings
+        .accounts
+        .iter()
+        .map(|account| {
+            (
+                account.label.clone(),
+                directory_bytes(&state.join("accounts").join(&account.id)),
+            )
+        })
+        .collect();
+    let mut set_aside = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(state.join("removed")) {
+        for entry in entries.flatten() {
+            if !entry.file_type().map(|k| k.is_dir()).unwrap_or(false) {
+                continue;
+            }
+            let name = entry.file_name().to_string_lossy().into_owned();
+            // forget names these "<account id>-<unix seconds>".
+            let removed_at = name
+                .rsplit('-')
+                .next()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0);
+            set_aside.push(SetAside {
+                bytes: directory_bytes(&entry.path()),
+                name,
+                removed_at,
+            });
+        }
+    }
+    set_aside.sort_by_key(|a| a.removed_at);
+    let accounts_total = directory_bytes(&state.join("accounts"));
+    let live_total: u64 = live.iter().map(|(_, b)| *b).sum();
+    Ok(LocalData {
+        state_dir: state.to_path_buf(),
+        live,
+        set_aside,
+        // Everything under the state directory that is neither a live account
+        // nor a set-aside one.
+        other_bytes: directory_bytes(state)
+            .saturating_sub(accounts_total)
+            .saturating_sub(directory_bytes(&state.join("removed")))
+            .saturating_add(accounts_total.saturating_sub(live_total)),
+    })
+}
+
+/// Delete the data of connections that were already removed.
+///
+/// Touches `removed/` and nothing else, ever. A live account's data is not
+/// reachable from here by any argument, which is the point: the dangerous
+/// version of this command would be one that could be talked into deleting a
+/// drive someone is still using.
+pub fn discard_set_aside(state: &Path) -> Result<(usize, u64)> {
+    let _lock = config_lock(state)?;
+    let removed = state.join("removed");
+    let mut count = 0;
+    let mut bytes = 0;
+    let Ok(entries) = std::fs::read_dir(&removed) else {
+        return Ok((0, 0));
+    };
+    for entry in entries.flatten() {
+        if !entry.file_type().map(|k| k.is_dir()).unwrap_or(false) {
+            continue;
+        }
+        let path = entry.path();
+        // Refuse anything that is not directly inside removed/, which a
+        // symlink or a crafted name could otherwise make it follow.
+        if path.parent() != Some(removed.as_path()) {
+            continue;
+        }
+        let size = directory_bytes(&path);
+        std::fs::remove_dir_all(&path)
+            .with_context(|| format!("could not delete {}", path.display()))?;
+        count += 1;
+        bytes += size;
+    }
+    Ok((count, bytes))
+}
+
+/// How many changes an account still holds that have not reached the cloud.
+///
+/// For a window deciding what to ask before removing an account: with zero the
+/// question is "remove?", with more it is "remove and discard these?". Takes the
+/// same locks `forget` takes and refuses an enabled account for the same reason.
+pub fn unsent_changes(state: &Path, label: &str) -> Result<usize> {
+    let _lock = config_lock(state)?;
+    let account = Settings::load(state)?
+        .accounts
+        .into_iter()
+        .find(|a| a.label == label)
+        .context("no account carries that label")?;
+    let _operation = account_operation(state, &account.id)?;
+    if account.enabled {
+        bail!("{label} is still enabled; disable it first");
+    }
+    unsent_uploads(&state.join("accounts").join(&account.id), &account.id)
+}
+/// How many uploads are still waiting, without disturbing them.
+///
+/// Opening the journal takes its lock, so this runs only under
+/// `account_operation` and only for an account nothing is running.
+fn unsent_uploads(directory: &Path, owner: &str) -> Result<usize> {
+    let journal = directory.join("journal");
+    if !journal.exists() {
+        return Ok(0);
+    }
+    let open = crate::journal::UploadJournal::open(&journal, owner, u64::MAX)
+        .context("could not read the account's pending uploads")?;
+    let rows = open.list(0, 10_000)?;
+    Ok(rows
+        .iter()
+        .filter(|r| {
+            !matches!(
+                r.state,
+                crate::journal::UploadState::Uploaded | crate::journal::UploadState::Failed
+            )
+        })
+        .count())
 }
 pub async fn keyring_check() -> Result<()> {
     let key = format!("selftest-{}", uuid::Uuid::new_v4());
@@ -751,10 +1159,79 @@ pub async fn keyring_check() -> Result<()> {
     println!("Desktop keyring write/read/removal passed using a synthetic Cirrove credential.");
     Ok(())
 }
+/// Which drive the person picked, or an error that says what to do instead.
+///
+/// `read` is what `read_line` returned: zero means end of input, which is what
+/// a command with nothing connected to its input sees. That is not the same as
+/// someone pressing Enter to cancel, and it is the case that matters -- a
+/// desktop sign-in reaches `connect` with no terminal, gets all the way through
+/// the browser, and would otherwise be told that an empty string is not an
+/// integer. The grant is already spent by then, so the message has to name the
+/// flag that avoids the question rather than describe a parse failure.
+fn drive_choice(read: usize, line: &str, listing: &str) -> Result<usize> {
+    let answer = line.trim();
+    if read == 0 {
+        bail!(
+            "no drive was chosen: this command asks which drive to mount and \
+             nothing is connected to its input. The sign-in itself succeeded. \
+             Run it again naming the drive, which skips the question:\n{listing}"
+        );
+    }
+    if answer.is_empty() {
+        bail!("cancelled: no drive was chosen. To connect without being asked:\n{listing}");
+    }
+    answer
+        .parse::<usize>()
+        .with_context(|| format!("{answer:?} is not a drive number"))
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    const DRIVE_LISTING: &str = "  --drive-id b!abc   (Dokumente)";
+
+    #[test]
+    fn no_terminal_names_the_flag_rather_than_blaming_a_parse() {
+        // read_line returning zero is end of input: a sign-in driven from a
+        // desktop, a script or a service reaches the question this way, after
+        // the browser half has already succeeded.
+        let error = format!("{:#}", drive_choice(0, "", DRIVE_LISTING).unwrap_err());
+        assert!(
+            error.contains("--drive-id b!abc"),
+            "must name the flag and the id: {error}"
+        );
+        assert!(
+            error.contains("sign-in itself succeeded"),
+            "must say the sign-in was not wasted: {error}"
+        );
+        assert!(
+            !error.contains("parse"),
+            "must not blame an integer parse: {error}"
+        );
+    }
+
+    #[test]
+    fn pressing_enter_is_a_cancellation_and_not_an_absent_terminal() {
+        let error = format!("{:#}", drive_choice(1, "\n", DRIVE_LISTING).unwrap_err());
+        assert!(error.contains("cancelled"), "{error}");
+        assert!(error.contains("--drive-id b!abc"), "{error}");
+    }
+
+    #[test]
+    fn a_number_is_the_number() {
+        assert_eq!(drive_choice(2, "2\n", DRIVE_LISTING).expect("a number"), 2);
+    }
+
+    #[test]
+    fn a_word_is_reported_as_the_word_it_was() {
+        let error = format!("{:#}", drive_choice(5, "two\n", DRIVE_LISTING).unwrap_err());
+        assert!(
+            error.contains("\"two\""),
+            "must quote what was typed: {error}"
+        );
+    }
     #[test]
     fn a_pin_will_not_migrate_an_index_a_running_daemon_is_reading() {
         let temp = tempfile::tempdir().expect("fixture");
@@ -789,6 +1266,29 @@ mod tests {
             .expect_err("a running daemon must block the migration");
         let message = format!("{refusal}");
         assert!(message.contains("Install the matching build"), "{message}");
+
+        // An index that is there but cannot be read right now is not the same as
+        // no index, and the guard must not treat it as one. SQLite fails this
+        // read for reasons that pass -- a busy database, a hot journal, no
+        // descriptors left -- and treating any of them as "nothing to migrate"
+        // opens the gate at exactly the moment the guard cannot see.
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(&db).expect("db metadata").permissions();
+        std::fs::set_permissions(&db, std::fs::Permissions::from_mode(0o000))
+            .expect("make the index unreadable");
+        let blind = super::refuse_to_migrate_under_a_running_daemon(&state, &db);
+        std::fs::set_permissions(&db, mode).expect("restore");
+        let blind = format!(
+            "{}",
+            blind.expect_err("an unreadable index under a running daemon must be refused")
+        );
+        assert!(blind.contains("could not be read"), "{blind}");
+
+        // Absent really is nothing to migrate, and must stay allowed -- a guard
+        // that refused a first run would make a new account unusable.
+        std::fs::remove_file(&db).expect("remove the index");
+        super::refuse_to_migrate_under_a_running_daemon(&state, &db)
+            .expect("no index at all is nothing to migrate");
         drop(held);
     }
     #[test]
@@ -844,6 +1344,28 @@ mod tests {
         }
         assert!(valid_label("work-onedrive"));
     }
+    /// A message that names the package, rather than the errno.
+    ///
+    /// "could not start the browser: No such file or directory (os error 2)" is
+    /// what a person saw on a fresh Arch install, and it named neither the
+    /// program nor the package. Every distribution Cirrove ships for calls it
+    /// xdg-utils, so the message can say so.
+    #[test]
+    fn a_missing_xdg_open_names_the_package_and_not_the_errno() {
+        let said = browser_failure(std::io::Error::from(std::io::ErrorKind::NotFound)).to_string();
+        assert!(said.contains("xdg-open"), "{said}");
+        assert!(said.contains("xdg-utils"), "{said}");
+        assert!(
+            !said.contains("os error"),
+            "an errno is not something a person can act on: {said}"
+        );
+        // Anything else keeps the context it had; only the missing-program case
+        // has a remedy worth naming.
+        let other =
+            browser_failure(std::io::Error::from(std::io::ErrorKind::PermissionDenied)).to_string();
+        assert!(other.contains("could not start the browser"), "{other}");
+    }
+
     #[tokio::test]
     async fn login_completion_does_not_wait_for_or_kill_the_browser_launcher() {
         let mut child = tokio::process::Command::new("sleep")
@@ -1037,6 +1559,25 @@ mod tests {
             );
             std::thread::sleep(std::time::Duration::from_millis(20));
         }
+    }
+
+    /// An older package over a newer settings file must stop, not read what it
+    /// does not understand: the version guard is what a rollback relies on.
+    #[test]
+    fn a_settings_file_from_a_newer_version_is_refused_rather_than_read() {
+        let temp = tempfile::tempdir().unwrap();
+        let state = temp.path().join("state");
+        crate::private_dir(&state).unwrap();
+        std::fs::write(
+            state.join("accounts.json"),
+            br#"{"version":2,"accounts":[]}"#,
+        )
+        .unwrap();
+        let error = Settings::load(&state).unwrap_err().to_string();
+        assert!(
+            error.contains("unsupported account settings version"),
+            "a newer settings file must be refused by name: {error}"
+        );
     }
 
     fn fixture_account(access: AccessMode) -> Account {

@@ -1,0 +1,84 @@
+{
+ "a_constraint_found_while_stopping": "`unlink` must not fetch a fresh node, and realising why changes the arithmetic again. The delete carries an eTag precondition (ADR 0008), and the version that precondition names has to be the version the caller looked at. Fetching the current node at unlink time would delete a version the person never saw -- the exact hazard that record exists to prevent. So a slim view on a writable mount has to keep the eTag, which is another per-view string and perhaps 40 bytes back. On a read-only mount it does not. Whether the traversal gate is measured writable decides whether that matters to the number, and that is the first thing to check next time rather than the last.",
+ "a_defect_it_found": "The first run of the gate failed every read-only fixture with EIO, and the cause was a comment of mine asserting something false: the root view was given `node: None` under the note that nothing in the write path asks the root for a node. The read path does, on every path resolution. The root's node is synthesised rather than stored -- its name is the account label, which no row carries -- so that one view keeps it. The fix that followed is the design's own argument: `attributes_of` answers a read-only `getattr` and `lookup` from the view alone, because a view keeps exactly kind, size and modified time, which is all a `getattr` is. That removed a store read per lookup rather than adding one.",
+ "attempted": {
+  "how_far": "The View was changed, 85 compile errors fell to 38 through mechanical replacement plus three designed changes: `project` returns the node beside the view instead of swallowing it, `inode_key` takes the node its callers already hold, and `View::remember` keeps the slim fields in step when a node is refreshed. Then reverted, leaving the tree green.",
+  "when": "2026-09-17, 00:20 to 00:50",
+  "why_reverted": "The tail is not mechanical. Two places need a whole node and neither can simply fetch one. `writeback::ancestry` walks the view chain while holding the views mutex, so no await is available inside the loop; the ids would have to be collected under the lock and the nodes fetched after it. `writeback::unlink` needs a full node for the journal's `materialize`, which is the path a person's unsent changes travel. A mistake there costs data rather than bytes, and it is not work to finish in a hurry at the end of a long session."
+ },
+ "design": "The view stops holding `Arc<Node>` and holds instead: `id: Arc<str>` shared with the invalidation index's key, `kind`, `size` and `modified_unix`. The four or so places that want an etag, a parent id or a shortcut target fetch the node, and all of them are already in async contexts. No FUSE callback gains a store lookup, so none of the 22 sites that made ADR 0014 expensive has to move.",
+ "does_it_close_the_row": "No. The gate needs about 358 bytes per live view and this reaches 532 to 549. The record said before the run that it might land either side of the line; it landed on the far side. What is left, measured rather than guessed: the identity index's duplicate id (about 56), the `entries` B-tree node slack around a 128-byte view, the per-view `Arc<LookupRefs>` allocation, and the name's own `Arc<str>`. Sharing the id with the index is the next cheapest and the view already holds the right type for it.",
+ "measured": {
+  "against": "650, 661, 664 at the same scale and by the same endpoint (bytes-per-live-view.json)",
+  "anonymous_pss_at_the_traversal": [
+   "40.7 MiB",
+   "39.5 MiB",
+   "42.2 MiB"
+  ],
+  "bytes_per_live_view": [
+   549,
+   532,
+   549
+  ],
+  "endpoint": "(live bytes at traversed_with_old_files minus live bytes at the following released) over the views held at the traversal",
+  "pairing": "eleven markers and eleven samples this run, not the off-by-one the earlier run had. The alignment was still chosen by the property rather than assumed: at offset 0 the traversal holds 51.1 MB against 18.1 MB released, at offset 1 it holds less than the released phase, which is impossible.",
+  "probe": "scripts/heap-probe.c, sampling on each CIRROVE_COMBINED_CHURN marker",
+  "scale": "CIRROVE_CHURN_FILES=40000, which the fixture turns into 60,093 live views"
+ },
+ "prediction": {
+  "bytes_per_live_view": "650-664 today. Dropping the Arc<Node> allocation (about 176 with its header and rounding) and the node's four heap strings (about 160 in this fixture), adding about 65 bytes of inline scalars and a shared id, and letting the invalidation key share that id rather than keeping its own Box<str> (about 48): I predict **330 to 380 bytes**. At 750,438 views that is 248 to 285 MB against a 268 MB bound -- so this may land either side of the line, and saying which before the run is not honest.",
+  "i_may_be_wrong_about": "the 41 `.id` reads. If some of them want the id of a node the view has *refreshed* rather than the identity it was created with, a slim view holding a fixed id changes behaviour rather than memory. The nine whole-node assignments are where that would show, and they are the first thing to read.",
+  "the_gate": "peak anonymous PSS and live bytes per view at 500,000 files. If bytes per view does not fall below about 358, this does not close the row on its own and the remaining gap has to come from the two B-tree maps.",
+  "written_before_the_run": true
+ },
+ "prediction_was_wrong": {
+  "by": "about 170 bytes, or 50 percent of the saving claimed",
+  "measured": "532 to 549",
+  "predicted": "330 to 380 bytes per live view",
+  "what_it_got_right": "the direction and that no FUSE callback gained a store lookup. 17 percent is a real and permanent reduction, and the three passes before this one each moved 15 to 20 percent as well.",
+  "what_the_prediction_missed": [
+   "The id is now stored three times, not once. The view holds an `Arc<str>`, the identity index still holds its own `Box<str>` in `Key.item`, and the store holds the row. Making the view's id an `Arc<str>` was supposed to let the index share it -- that sharing was never written, so its 48 to 56 bytes were counted as saved while still being paid.",
+   "The view grew by 40 bytes inline, not the 20 or so assumed: 88 bytes to 128. The `Arc<str>` id is a 16-byte fat pointer, and `size` and `modified_unix` are eight each, against the eight bytes the `Arc<Node>` gave back.",
+   "Dropping the node frees its allocation and its strings, but adds one: the view's own id allocation, about 56 bytes at this fixture's id lengths, which did not exist before because the id lived inside the node."
+  ]
+ },
+ "question": "ADR 0014 proposed that a view fetch its node from the store per operation, and counting the cost put 22 of 74 accesses inside FUSE callbacks where the store must not be touched. But what do those 74 accesses actually read? If the answer is mostly scalars, the view does not need to fetch anything -- it needs to stop carrying a Node.",
+ "registered": "2026-09-17",
+ "registered_before_the_run": true,
+ "result": "not measured. The change was attempted and reverted before the measurement, because finishing it correctly needs two writeback functions restructured and that deserves its own session and a review.",
+ "second_attempt": {
+  "how_far": "green and measured. 85 errors to 0 across filesystem.rs and four test modules; scripts/check.sh --fast passes and all twelve real_ capacity fixtures pass, the writable one included.",
+  "what_the_tail_actually_needed": "less than the first attempt feared. `writeback::ancestry` and `writeback::unlink` both take the node they need from `View.node`, which a writable mount still has, so neither had to be restructured and no await moved inside the views mutex. The first attempt stopped at a problem that the optional field dissolves.",
+  "when": "2026-09-17, from 00:36"
+ },
+ "source_base": "edd96c0d0c68bbc7c7255ebe740edbf4d18ec199",
+ "source_sha256": {
+  "crates/cirrove-service/src/filesystem.rs": "6d07717a2cc297440c97714e35021bfb768ebb5a6b93d08a1f6fa708fff11757"
+ },
+ "the_fact_that_settles_it": "The gate fixture mounts with `CloudFs::new`, not `new_experimental_writable`. It is **read-only**. So neither of the two functions that stopped the refactor is reachable while the gate is being measured: `writeback::unlink` and `writeback::ancestry` both live behind a writeback that is `None` there. The eTag constraint that seemed to sink the design applies to writable mounts, which this gate does not measure. The resolution for writable mounts costs the gate nothing: carry `etag` and `parent_id` as `Option<Arc<str>>`, populated only where a writeback exists. On the read-only mount the gate measures they are `None` -- eight bytes each and no allocation. On a writable mount they cost what they cost, and correctness comes first there.",
+ "what_the_attempt_established": [
+  "The design is sound and needs no store lookup in any FUSE callback. The 22 sync sites that made ADR 0014 expensive do not arise, because the view keeps `id`, `kind`, `size` and `modified_unix` inline and that is what they read.",
+  "`inode_key` was the one worry and it is not one: both real callers hold a node already, and `snapshot_batch` can keep its nodes for the life of a 128-entry batch rather than the life of the views.",
+  "The real work is two functions, named above, and both are in the writeback path rather than the read path. That is where a reviewer's attention belongs.",
+  "85 compile errors is the true size of the change, not the 74 accesses counted beforehand."
+ ],
+ "what_the_count_says": {
+  "as_ref (four of six in tests)": 5,
+  "content_revision": 1,
+  "id": 41,
+  "kind": 14,
+  "name": 2,
+  "note": "`attr()` already takes the node as a parameter rather than reading it off the view, and `name` is carried separately as `View.name: Arc<str>` anyway.",
+  "parent_id": 2,
+  "size": 1,
+  "target": 1,
+  "whole node (all of them assignments, none a read)": 9
+ },
+ "what_the_next_session_should_do": [
+  "Start from this: the design is viable, the gate is read-only, and the two writeback functions need the optional fields rather than a fetch.",
+  "Redo the mechanical pass -- it took minutes and got 85 errors to 38 -- then restructure `ancestry` to collect ids under the views mutex and resolve after it, and give `unlink` the optional etag and parent id rather than a fresh node.",
+  "Measure at 40,000 files first: three minutes, and bytes per live view is scale-free (bytes-per-live-view.json). Only then spend half an hour on the 500,000 gate.",
+  "And ask ADR 0005 the question this turned up: a peak gate measured read-only says nothing about a writable mount, where a view has to carry more. That may be the right scope, but it is currently an accident of the fixture rather than a decision."
+ ],
+ "what_was_built_differs_from_the_plan": "The record proposed carrying `etag` and `parent_id` as two `Option<Arc<str>>` populated only on a writable mount. What is built is one `node: Option<Arc<Node>>`, `Some` exactly when a writeback exists. It costs the read-only gate the same eight bytes and no allocation, and it costs a writable mount what it costs today rather than a subset -- which is the safer side to be wrong on for `unlink`, where the eTag precondition of ADR 0008 lives. `project` now returns `(View, Node)` so the caller keeps the node for the inode key and the attributes, and `View::remember` keeps the slim fields in step when a node is refreshed."
+}

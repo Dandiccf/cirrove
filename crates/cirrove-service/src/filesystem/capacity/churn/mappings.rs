@@ -12,6 +12,7 @@ const SIZE: u64 = 8192;
 
 pub(super) fn node(revision: usize) -> Node {
     Node {
+        package: false,
         id: ID.into(),
         parent_id: Some(format!("level-{:02}", DEPTH - 1)),
         name: NAME.into(),

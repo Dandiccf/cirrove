@@ -21,6 +21,7 @@ async fn cached_reads_never_create_or_unlink_the_write_ahead_log() {
     let provider = Arc::new(LinkedLibrary {
         linked: AtomicBool::new(false),
         primary_changes: AtomicU64::new(0),
+        ..Default::default()
     });
     let engine = Engine::new(
         fixture_account(temp.path().join("mount")),
@@ -30,9 +31,16 @@ async fn cached_reads_never_create_or_unlink_the_write_ahead_log() {
     .await
     .unwrap();
     let scope = engine.scope("primary");
-    crate::refresh(provider.as_ref(), &scope, &engine.db, false, &engine.cancel)
-        .await
-        .unwrap();
+    crate::refresh(
+        provider.as_ref(),
+        &scope,
+        &engine.db,
+        false,
+        &engine.cancel,
+        None,
+    )
+    .await
+    .unwrap();
     assert_eq!(
         sidecars(&engine.db),
         (true, true),

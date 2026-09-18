@@ -11,14 +11,27 @@
 //! subsequent stat on that parent until the in-flight lookup returns.
 //!
 //! Zero information transfers between the two, so this measures the real one, in
-//! isolation, outside Cirrove: a trivial server, one big directory, stat workers
-//! running while invalidations are driven at a fixed rate.
+//! isolation, outside Cirrove: a trivial server, stat workers running while
+//! invalidations are driven at a fixed rate.
 //!
-//! The bar is set by the workload it is meant to serve. A 500,000-file traversal
-//! resolves about 750,000 views in roughly 530 seconds, so a ceiling that binds
-//! during traversal has to shed at about 1,400 entries per second. Below that,
-//! shedding is a soft ceiling with an overshoot rather than a bound, and that
-//! changes what may be claimed.
+//! 2026-09-17: extended with more than one parent, which the first run's own
+//! limits section named as untested -- "invalidations spread across many parents
+//! would contend less". That matters because a resident ceiling sheds the OLDEST
+//! views, which are in directories the traversal has already left. `i_rwsem` is
+//! per-inode, so whether the recorded 107 per second is the traversal case or the
+//! worst case turns entirely on this. `disjoint` puts the invalidations in
+//! directories no worker is looking at; `same` puts them where the workers are,
+//! and with one directory reproduces the original arms exactly.
+//!
+//! The bar was set by the workload it serves: a 500,000-file traversal resolving
+//! about 750,000 views in roughly 530 seconds needs about 1,400 sheds per second
+//! for a ceiling to bind during it. Two things have moved since. The traversal now
+//! takes 96 seconds per round rather than 530, which makes that bar 7,800; and a
+//! ceiling does not have to shed at the arrival rate if it may also SLOW the
+//! arrivals, which is what ADR 0012 says a filesystem under pressure does -- wait,
+//! never refuse. On that reading the rate is not pass-or-fail. It decides how much
+//! slower a traversal runs on a machine at its ceiling, and 107 per second against
+//! 1,400 is the difference between two hours of added time and two minutes.
 //!
 //! Deliberately outside the workspace: it is a measurement instrument, not a
 //! feature, and the workspace forbids adding abstractions for unimplemented work.
@@ -27,18 +40,33 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime};
 
-const ENTRIES: u64 = 250_000;
-const PARENT: u64 = 1;
+const DEFAULT_ENTRIES: u64 = 250_000;
+const ROOT: u64 = 1;
 const TTL: Duration = Duration::from_secs(1);
+/// Directory `d` is inode `2 + d`; its entries start above every directory.
+const FIRST_FILE: u64 = 1_000_000;
 
 fn name_of(index: u64) -> String {
     format!("entry-{index:08}")
 }
+fn directory_name(index: u64) -> String {
+    format!("dir-{index:06}")
+}
 
 struct Directory {
     /// Injected per-reply delay, standing in for a server that has to think.
+    /// Not charged during the warm-up, which is filling the cache rather than
+    /// being measured.
     delay: Duration,
+    warming: Arc<std::sync::atomic::AtomicBool>,
+    /// How many parents the entries are spread over. One reproduces the
+    /// original single-directory arms byte for byte.
+    directories: u64,
+    per_directory: u64,
     lookups: Arc<Mutex<Vec<u64>>>,
+    /// Invalidating a dentry is only useful if FORGET follows: that is what lets
+    /// the server drop the view. A rate with no forgets behind it frees nothing.
+    forgotten: Arc<AtomicU64>,
 }
 
 fn attr(inode: u64, directory: bool) -> fuser::FileAttr {
@@ -74,29 +102,53 @@ impl fuser::Filesystem for Directory {
         reply: fuser::ReplyEntry,
     ) {
         let started = Instant::now();
-        if parent.0 != PARENT {
+        let Some(text) = name.to_str() else {
             reply.error(fuser::Errno::ENOENT);
             return;
+        };
+        // A directory is resolved without the delay: the workers walk one every
+        // time they stat, and charging them the server's thinking time twice
+        // would halve the lookup rate for a reason that is not being measured.
+        if parent.0 == ROOT {
+            let index = text
+                .strip_prefix("dir-")
+                .and_then(|n| n.parse::<u64>().ok())
+                .filter(|index| *index < self.directories);
+            match index {
+                Some(index) => {
+                    reply.entry(&TTL, &attr(2 + index, true), fuser::Generation(0));
+                }
+                None => reply.error(fuser::Errno::ENOENT),
+            }
+            return;
         }
-        let Some(index) = name
-            .to_str()
-            .and_then(|n| n.strip_prefix("entry-"))
+        let Some(directory) = parent.0.checked_sub(2).filter(|d| *d < self.directories) else {
+            reply.error(fuser::Errno::ENOENT);
+            return;
+        };
+        let Some(index) = text
+            .strip_prefix("entry-")
             .and_then(|n| n.parse::<u64>().ok())
-            .filter(|index| *index < ENTRIES)
+            .filter(|index| *index < self.per_directory)
         else {
             reply.error(fuser::Errno::ENOENT);
             return;
         };
-        if !self.delay.is_zero() {
+        if !self.delay.is_zero() && !self.warming.load(Ordering::Relaxed) {
             std::thread::sleep(self.delay);
         }
-        reply.entry(&TTL, &attr(index + 2, false), fuser::Generation(0));
+        let inode = FIRST_FILE + directory * self.per_directory + index;
+        reply.entry(&TTL, &attr(inode, false), fuser::Generation(0));
         // Recorded after the reply so the measurement includes the reply itself,
         // which is where a blocked i_rwsem would show up.
         self.lookups
             .lock()
             .unwrap()
             .push(started.elapsed().as_micros() as u64);
+    }
+
+    fn forget(&self, _req: &fuser::Request, _inode: fuser::INodeNo, nlookup: u64) {
+        self.forgotten.fetch_add(nlookup, Ordering::Relaxed);
     }
 
     fn getattr(
@@ -106,7 +158,7 @@ impl fuser::Filesystem for Directory {
         _fh: Option<fuser::FileHandle>,
         reply: fuser::ReplyAttr,
     ) {
-        reply.attr(&TTL, &attr(inode.0, inode.0 == PARENT));
+        reply.attr(&TTL, &attr(inode.0, inode.0 < FIRST_FILE));
     }
 }
 
@@ -132,11 +184,41 @@ fn main() {
         .nth(4)
         .and_then(|a| a.parse().ok())
         .unwrap_or(8);
+    let directories: u64 = std::env::args()
+        .nth(5)
+        .and_then(|a| a.parse().ok())
+        .unwrap_or(1)
+        .max(1);
+    // `same` puts the invalidations where the workers are stat-ing, which is the
+    // original arm. `trailing` sweeps the workers forward through every directory
+    // and follows them at a fixed lag, which is what a ceiling shedding its
+    // oldest views does during a traversal.
+    let trailing = std::env::args().nth(6).as_deref() == Some("trailing");
+    // How many entries exist. The shed region is half of them, so a high rate
+    // needs a large one or it runs out of warmed dentries mid-run and reports a
+    // supply limit as though it were a rate limit.
+    let entries: u64 = std::env::args()
+        .nth(7)
+        .and_then(|a| a.parse().ok())
+        .unwrap_or(DEFAULT_ENTRIES);
+    let per_directory = entries / directories;
+    assert!(!trailing || directories >= 2, "trailing needs two directories");
+    // The workers hold the upper half, the invalidations walk the lower half:
+    // entries that were resolved, whose directories the sweep has left, and
+    // which are the oldest -- which is what a resident ceiling sheds.
+    let worker_first = if trailing { entries / 2 } else { 0 };
+    let worker_span = if trailing { entries / 2 } else { entries };
 
     let lookups = Arc::new(Mutex::new(Vec::with_capacity(1 << 20)));
+    let forgotten = Arc::new(AtomicU64::new(0));
+    let warming = Arc::new(std::sync::atomic::AtomicBool::new(true));
     let filesystem = Directory {
         delay: Duration::from_millis(delay_ms),
+        warming: warming.clone(),
+        directories,
+        per_directory,
         lookups: lookups.clone(),
+        forgotten: forgotten.clone(),
     };
     let mut config = fuser::Config::default();
     // Single-threaded, matching the dispatcher this is measuring for.
@@ -152,16 +234,52 @@ fn main() {
     std::thread::sleep(Duration::from_millis(200));
     let stop = Arc::new(AtomicU64::new(0));
 
+    // Fill the dentry cache before measuring anything. Without this there is
+    // nothing for an invalidation to drop and the rate measures no-ops.
+    let warmed = Instant::now();
+    let warm_cursor = Arc::new(AtomicU64::new(0));
+    let mut warm_threads = Vec::new();
+    // Only the region the invalidations will walk. The workers' region stays
+    // cold so their lookups reach the server, as a traversal's do.
+    let warm_span = if trailing { worker_first } else { 0 };
+    for _ in 0..workers.max(1) {
+        let root = mount.clone();
+        let warm_cursor = warm_cursor.clone();
+        warm_threads.push(std::thread::spawn(move || {
+            loop {
+                let index = warm_cursor.fetch_add(1, Ordering::Relaxed);
+                if index >= warm_span {
+                    return;
+                }
+                let path = std::path::Path::new(&root)
+                    .join(directory_name(index / per_directory))
+                    .join(name_of(index % per_directory));
+                let _ = std::fs::metadata(path);
+            }
+        }));
+    }
+    for thread in warm_threads {
+        let _ = thread.join();
+    }
+    let warm_seconds = warmed.elapsed().as_secs_f64();
+    let warm_forgets = forgotten.load(Ordering::Relaxed);
+    warming.store(false, Ordering::Relaxed);
+    lookups.lock().unwrap().clear();
+
+    let cursor = Arc::new(AtomicU64::new(0));
     let mut stat_threads = Vec::new();
-    for worker in 0..workers {
+    for _ in 0..workers {
         let root = mount.clone();
         let stop = stop.clone();
+        let cursor = cursor.clone();
         stat_threads.push(std::thread::spawn(move || {
-            let mut index = worker as u64;
             while stop.load(Ordering::Relaxed) == 0 {
-                let path = std::path::Path::new(&root).join(name_of(index % ENTRIES));
+                let index =
+                    worker_first + cursor.fetch_add(1, Ordering::Relaxed) % worker_span;
+                let path = std::path::Path::new(&root)
+                    .join(directory_name(index / per_directory))
+                    .join(name_of(index % per_directory));
                 let _ = std::fs::metadata(path);
-                index += workers as u64;
             }
         }));
     }
@@ -171,21 +289,32 @@ fn main() {
     let started = Instant::now();
     let interval = Duration::from_nanos(1_000_000_000 / rate.max(1));
     let mut sent = 0u64;
+    let mut absent = 0u64;
     let mut failed = 0u64;
     let mut slowest = Duration::ZERO;
     let deadline = started + Duration::from_secs(20);
     while Instant::now() < deadline {
         let call = Instant::now();
-        let name = name_of(sent % ENTRIES);
-        match notifier.inval_entry(fuser::INodeNo(PARENT), OsStr::new(&name)) {
+        // `trailing` walks the warmed lower half, which the workers have left.
+        // `same` walks the same entries the workers are walking.
+        let target = if trailing {
+            (sent + absent) % worker_first
+        } else {
+            (sent + absent) % entries
+        };
+        let name = name_of(target % per_directory);
+        let directory = target / per_directory;
+        match notifier.inval_entry(fuser::INodeNo(2 + directory), OsStr::new(&name)) {
             Ok(()) => sent += 1,
-            // ENOENT means the kernel had already dropped it, which is success
-            // for our purposes and must not be counted as a stall.
-            Err(error) if error.raw_os_error() == Some(libc::ENOENT) => sent += 1,
+            // ENOENT means the kernel has no such dentry. That is not a stall,
+            // but it is also not work: an arm where most calls are ENOENT is
+            // measuring the cost of invalidating nothing, which is why these are
+            // counted apart and why `forgets_received` is reported beside them.
+            Err(error) if error.raw_os_error() == Some(libc::ENOENT) => absent += 1,
             Err(_) => failed += 1,
         }
         slowest = slowest.max(call.elapsed());
-        let next = started + interval * u32::try_from(sent + failed).unwrap_or(u32::MAX);
+        let next = started + interval * u32::try_from(sent + absent + failed).unwrap_or(u32::MAX);
         if let Some(sleep) = next.checked_duration_since(Instant::now()) {
             std::thread::sleep(sleep);
         }
@@ -201,11 +330,21 @@ fn main() {
     println!(
         "{}",
         serde_json::json!({
-            "entries": ENTRIES,
+            "entries": entries,
+            "directories": directories,
+            "per_directory": per_directory,
+            "mode": if trailing { "trailing" } else { "same" },
+            "warm_up_seconds": warm_seconds,
+            "warm_up_forgets": warm_forgets,
+            "forgets_per_second": (forgotten.load(Ordering::Relaxed) - warm_forgets) as f64
+                / elapsed.as_secs_f64(),
             "requested_rate_per_second": rate,
-            "achieved_rate_per_second": sent as f64 / elapsed.as_secs_f64(),
+            "achieved_rate_per_second": (sent + absent) as f64 / elapsed.as_secs_f64(),
+            "invalidations_that_dropped_an_entry_per_second": sent as f64 / elapsed.as_secs_f64(),
             "invalidations_sent": sent,
+            "invalidations_absent": absent,
             "invalidations_failed": failed,
+            "forgets_received": forgotten.load(Ordering::Relaxed) - warm_forgets,
             "slowest_inval_us": slowest.as_micros() as u64,
             "stat_workers": workers,
             "server_delay_ms": delay_ms,

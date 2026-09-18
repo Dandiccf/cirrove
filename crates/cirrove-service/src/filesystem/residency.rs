@@ -1,6 +1,8 @@
 //! Reference-aware residency for resolved views. Child views retain parent
 //! residency; the root and inconsistent kernel counts remain conservative.
 use super::View;
+#[cfg(test)]
+mod charge;
 mod invalidation;
 use cirrove_core::{NodeKind, ProviderError};
 pub(super) use invalidation::InvalidationCursor;
@@ -56,9 +58,24 @@ struct Entry {
     generation: u64,
     queued: bool,
 }
+/// One view a ceiling has decided to ask the kernel to drop.
+///
+/// It carries what `notify_inval_entry` needs and nothing else. Shedding never
+/// touches this index: it asks, and the FORGET that follows goes through the
+/// same path every other forget does. That is the whole reason it is safe.
+pub(in crate::filesystem) struct Shed {
+    pub inode: u64,
+    pub parent: u64,
+    pub name: Arc<str>,
+}
 pub(super) struct NamespaceViews {
     entries: BTreeMap<u64, Entry>,
     candidates: VecDeque<(u64, u64)>,
+    /// Resolution order, for a ceiling to shed its oldest first (ADR 0015).
+    /// Empty and never pushed when no ceiling is configured, which is why a
+    /// mount without one does not pay its sixteen bytes a view.
+    resolved: VecDeque<(u64, u64)>,
+    ceiling: usize,
     generation: u64,
     invalidation: ProjectionIndex,
 }
@@ -76,6 +93,8 @@ impl NamespaceViews {
                 },
             )]),
             candidates: VecDeque::new(),
+            resolved: VecDeque::new(),
+            ceiling: 0,
             generation: 0,
             invalidation,
         }
@@ -109,8 +128,16 @@ impl NamespaceViews {
         let (identity_keys, inode_keys) = (self.invalidation.count(), self.entries.len());
         serde_json::json!({"views":self.entries.len(),"map_storage":"btree",
             "kernel_referenced_views":kernel_referenced,"lease_protected_views":lease_protected,
-            "quarantined_views":quarantined,"candidate_entries":self.candidates.len(),
+            "quarantined_views":quarantined,"candidate_entries":self.candidate_backlog(),
             "candidate_capacity":self.candidates.capacity(),"identity_index_entries":identity_keys,
+            // The resolution queue a ceiling sheds from. It is filled on every
+            // insert and drained only while the mount is over its ceiling, so a
+            // mount that stays under one could in principle hold a queue that
+            // only grows -- which is exactly the shape a two-hour sustained
+            // pilot was unable to rule out on 2026-09-17 because this was not
+            // reported. Sixteen bytes an entry.
+            "resolution_entries":self.resolved.len(),
+            "resolution_capacity":self.resolved.capacity(),
             "inode_index_entries":inode_keys})
     }
 
@@ -121,7 +148,7 @@ impl NamespaceViews {
         // metadata can reuse an already live projection, without an intern cache.
         let shared = self
             .invalidation
-            .matches(&view.scope, &view.node.id)
+            .matches(&view.scope, &view.id)
             .find_map(|candidate| {
                 let existing = &self.entries.get(&candidate)?.view;
                 (existing.scope == view.scope && existing.node == view.node).then(|| {
@@ -158,6 +185,9 @@ impl NamespaceViews {
                     queued: false,
                 },
             );
+            if self.ceiling > 0 {
+                self.resolved.push_back((inode, self.generation));
+            }
         }
         self.invalidation.insert(&view);
         self.queue(inode);
@@ -168,7 +198,7 @@ impl NamespaceViews {
             return Err(ProviderError::Protocol("reserved namespace inode"));
         }
         let entry = self.entries.get(&parent).ok_or(ProviderError::NotFound)?;
-        if entry.view.node.kind != NodeKind::Folder {
+        if entry.view.kind != NodeKind::Folder {
             return Err(ProviderError::Protocol(
                 "namespace parent is not a directory",
             ));
@@ -250,6 +280,106 @@ impl NamespaceViews {
             // View exists from which another thread could clone this token.
             && Arc::strong_count(&entry.view.residency) == 1
     }
+    /// Hold at most this many resolved views before shedding the oldest.
+    /// Zero, the default, keeps the previous behaviour exactly and costs
+    /// nothing: the resolution queue is never written.
+    pub(in crate::filesystem) fn set_ceiling(&mut self, ceiling: usize) {
+        self.ceiling = ceiling;
+        if ceiling == 0 {
+            self.resolved = VecDeque::new();
+        }
+    }
+    /// How far over the ceiling this index is, or zero.
+    pub(in crate::filesystem) fn over_ceiling(&self) -> usize {
+        if self.ceiling == 0 {
+            return 0;
+        }
+        self.entries.len().saturating_sub(self.ceiling)
+    }
+    /// The oldest resolved views the kernel still holds.
+    ///
+    /// Oldest first is the point rather than a convenience. A traversal
+    /// resolves a directory's children consecutively, so the oldest entries are
+    /// in directories it has left -- and `fuse_reverse_inval_entry` takes the
+    /// PARENT's `i_rwsem`, which is why shedding where the sweep is looking runs
+    /// at 105 a second and shedding behind it runs at 24,000
+    /// (docs/benchmarks/shedding-where-nobody-is-looking.json).
+    ///
+    /// Directories are dropped from the queue rather than shed: invalidating a
+    /// directory entry takes its subtree with it, and the subtree is where the
+    /// traversal may still be. They retire by the ordinary path once their
+    /// children go.
+    ///
+    /// A view anything else holds -- an open file, an in-flight operation, a
+    /// snapshot -- is passed over and NOT returned to the queue: it will be
+    /// offered again the next time it is resolved, and re-queueing it here is
+    /// how a shed loop starts spinning on entries it may not touch.
+    pub(in crate::filesystem) fn shed_batch(&mut self, budget: usize) -> Vec<Shed> {
+        let mut batch = Vec::new();
+        let mut over = self.over_ceiling();
+        let mut examined = 0;
+        while batch.len() < budget && over > 0 && examined < budget * 8 {
+            examined += 1;
+            let Some((inode, generation)) = self.resolved.pop_front() else {
+                break;
+            };
+            let Some(entry) = self
+                .entries
+                .get(&inode)
+                .filter(|entry| entry.generation == generation)
+            else {
+                continue;
+            };
+            if entry.view.kind == NodeKind::Folder
+                || entry.view.residency.quarantine.load(Ordering::SeqCst)
+                || entry.view.residency.kernel.load(Ordering::SeqCst) == 0
+                || Arc::strong_count(&entry.view.residency) != 1
+            {
+                continue;
+            }
+            batch.push(Shed {
+                inode,
+                parent: entry.view.parent,
+                name: entry.view.name.clone(),
+            });
+            over -= 1;
+        }
+        // The queue is a high-water mark of past churn, like the candidate
+        // queue, and gives its capacity back the same way.
+        if self.resolved.capacity() > 64 && self.resolved.len() * 2 < self.resolved.capacity() {
+            self.resolved.shrink_to_fit();
+        }
+        batch
+    }
+    /// Candidates waiting to be examined.
+    ///
+    /// Most of them are stale: every view that is created queues once and every
+    /// view that is reclaimed leaves its slot behind, because a `VecDeque` has
+    /// no way to take an entry out of the middle. A traversal of 500,000 files
+    /// therefore leaves about 750,000 slots for the collector to discard, and a
+    /// mount that keeps traversing leaves that many again each time.
+    #[cfg(test)]
+    pub(super) fn candidate_backlog(&self) -> usize {
+        self.candidates.len()
+    }
+    /// Whether the collector should take another pass before its next tick.
+    ///
+    /// A fixed budget per second does not work: it is a constant against a
+    /// backlog that grows with the traversal, so on a machine slower than the
+    /// one it was chosen on the queue only grows. Measured on 2026-09-17 in the
+    /// Fedora VM -- 1.3 million slots after five rounds, 2.7 million after
+    /// thirty-three, 71 MB of capacity, and the peak criterion failed by 1.9
+    /// percent because of it. The same run on the host drained fine, which is
+    /// why this was never seen here.
+    ///
+    /// The answer is more passes, not a bigger one. Each pass releases the
+    /// namespace lock, so a long backlog is drained in many short holds rather
+    /// than one that blocks every reply on a single-threaded dispatcher.
+    pub(super) fn wants_another_pass(&self, passes: usize) -> bool {
+        const SLACK: usize = 4096;
+        const MAX_PASSES: usize = 64;
+        passes < MAX_PASSES && self.candidates.len() > self.entries.len() + SLACK
+    }
     pub(super) fn collect(&mut self, limit: usize) -> usize {
         let mut removed = 0;
         // Examine each queued candidate once, but start the count again after a
@@ -300,8 +430,24 @@ mod tests {
     use super::*;
     use cirrove_core::{Node, Scope};
 
+    pub(super) fn node(inode: u64, kind: NodeKind) -> Node {
+        Node {
+            package: false,
+            id: format!("item-{inode}"),
+            parent_id: Some("root".into()),
+            name: format!("item-{inode}"),
+            kind,
+            size: 0,
+            modified_unix: 0,
+            etag: Some("version".into()),
+            content_version: None,
+            target: None,
+        }
+    }
+    /// A fixture view keeps its node, which is what a writable mount does.
+    /// Tests that care about the read-only shape say so themselves.
     pub(super) fn view(inode: u64, kind: NodeKind) -> View {
-        View {
+        let mut view = View {
             residency: Arc::default(),
             _parent_residency: None,
             inode,
@@ -312,23 +458,31 @@ mod tests {
                 collection: "drive".into(),
             }
             .into(),
-            node: Node {
-                id: format!("item-{inode}"),
-                parent_id: Some("root".into()),
-                name: format!("item-{inode}"),
-                kind,
-                size: 0,
-                modified_unix: 0,
-                etag: Some("version".into()),
-                content_version: None,
-                target: None,
-            }
-            .into(),
+            id: Arc::from(""),
+            kind: NodeKind::Folder,
+            size: 0,
+            modified_unix: 0,
+            package: false,
+            node: None,
             name: format!("item-{inode}").into(),
             alias: vec![].into(),
             reference: false,
             entry: None,
             ancestry: vec![].into(),
+        };
+        view.remember(&node(inode, kind), true);
+        view
+    }
+    /// The node a writable fixture view kept.
+    pub(super) fn held(view: &View) -> &Node {
+        view.node.as_deref().unwrap()
+    }
+    /// Two views sharing one allocation, which is what interning produces and
+    /// what a read-only view (holding no node at all) never does.
+    pub(super) fn shares_node(left: &View, right: &View) -> bool {
+        match (&left.node, &right.node) {
+            (Some(left), Some(right)) => Arc::ptr_eq(left, right),
+            _ => false,
         }
     }
     pub(super) fn cache() -> NamespaceViews {
@@ -342,32 +496,32 @@ mod tests {
         let mut alias = first.clone();
         alias.inode = 3;
         alias.residency = Arc::default();
-        alias.node = Arc::new(first.node.as_ref().clone());
+        alias.node = Some(Arc::new(held(&first).clone()));
         alias.name = first.name.as_ref().into();
         alias.alias = vec![("drive".into(), "second-link".into())].into();
-        assert!(!Arc::ptr_eq(&first.node, &alias.node));
+        assert!(!shares_node(&first, &alias));
         let alias = cache.insert(alias).unwrap();
-        assert!(Arc::ptr_eq(&first.node, &alias.node));
+        assert!(shares_node(&first, &alias));
         assert!(Arc::ptr_eq(&first.name, &alias.name));
         assert!(!Arc::ptr_eq(&first.residency, &alias.residency));
         assert_ne!(
-            super::super::Inner::inode_key(&first, false).unwrap(),
-            super::super::Inner::inode_key(&alias, false).unwrap()
+            super::super::Inner::inode_key(&first, held(&first), false).unwrap(),
+            super::super::Inner::inode_key(&alias, held(&alias), false).unwrap()
         );
         let mut changed = alias.clone();
         changed.inode = 4;
         changed.residency = Arc::default();
-        Arc::make_mut(&mut changed.node).etag = Some("new-version".into());
+        Arc::make_mut(changed.node.as_mut().unwrap()).etag = Some("new-version".into());
         let changed = cache.insert(changed).unwrap();
-        assert!(!Arc::ptr_eq(&first.node, &changed.node));
-        assert_eq!(first.node.etag.as_deref(), Some("version"));
+        assert!(!shares_node(&first, &changed));
+        assert_eq!(held(&first).etag.as_deref(), Some("version"));
         let mut other = first.clone();
         other.inode = 5;
         other.residency = Arc::default();
-        other.node = Arc::new(first.node.as_ref().clone());
+        other.node = Some(Arc::new(held(&first).clone()));
         Arc::make_mut(&mut other.scope).account = "other-account".into();
         let other = cache.insert(other).unwrap();
-        assert!(!Arc::ptr_eq(&first.node, &other.node));
+        assert!(!shares_node(&first, &other));
         drop((first, alias, changed, other));
         cache.collect(128);
         assert_eq!(cache.len(), 1);
@@ -379,6 +533,15 @@ mod tests {
         let node: Node = serde_json::from_str(encoded).unwrap();
         assert_eq!(serde_json::to_string(&node).unwrap(), encoded);
         assert_eq!(node.target.as_ref().unwrap().item, "target");
+
+        // A package says so and an ordinary node says nothing, which is what
+        // keeps an index of 184,000 nodes from being rewritten to record that
+        // almost none of them are notebooks. This test caught the first
+        // attempt, which wrote "package":false into every one of them.
+        let notebook = r#"{"id":"nb","parent_id":"root","name":"Notes","kind":"folder","size":0,"modified_unix":0,"etag":null,"content_version":null,"target":null,"package":true}"#;
+        let node: Node = serde_json::from_str(notebook).unwrap();
+        assert!(node.package);
+        assert_eq!(serde_json::to_string(&node).unwrap(), notebook);
     }
 
     #[test]
@@ -554,61 +717,131 @@ mod tests {
         assert_eq!(cache.len(), 1);
     }
 
+    /// A traversal leaves one stale candidate for every view it made, and a
+    /// fixed budget a second cannot drain them: this is the shape that put 2.7
+    /// million slots and 71 MB into the Fedora VM on 2026-09-17 and failed the
+    /// peak criterion by 1.9 percent.
+    #[test]
+    fn a_traversals_worth_of_stale_candidates_drains_in_bounded_passes() {
+        let mut cache = cache();
+        const VIEWS: u64 = 20_000;
+        for inode in 2..2 + VIEWS {
+            let view = cache.insert(view(inode, NodeKind::File)).unwrap();
+            cache.acquire_lookup(inode).unwrap();
+            drop(view);
+        }
+        assert_eq!(cache.candidate_backlog() as u64, VIEWS);
+        // The kernel gives them all back, as shedding makes it do. Each is
+        // removed directly and leaves its queue slot behind.
+        for inode in 2..2 + VIEWS {
+            assert!(cache.forget(inode, 1));
+        }
+        assert_eq!(cache.len(), 1);
+        assert_eq!(cache.candidate_backlog() as u64, VIEWS);
+
+        // One pass of the old fixed budget leaves almost all of it.
+        assert_eq!(cache.collect(4096), 0);
+        assert!(
+            cache.candidate_backlog() > 15_000,
+            "one pass should not have drained a traversal: {}",
+            cache.candidate_backlog()
+        );
+
+        // The policy asks for more passes until the backlog is in proportion to
+        // the index, and is bounded so it cannot spin.
+        let mut passes = 1;
+        while cache.wants_another_pass(passes) {
+            cache.collect(4096);
+            passes += 1;
+        }
+        assert!(passes <= 64, "the pass limit did not bind: {passes}");
+        assert!(
+            cache.candidate_backlog() <= cache.len() + 4096,
+            "the backlog outlived its drain: {} against {} views",
+            cache.candidate_backlog(),
+            cache.len()
+        );
+    }
+
+    #[test]
+    fn a_quiet_mount_asks_for_no_extra_passes() {
+        let mut cache = cache();
+        drop(cache.insert(view(2, NodeKind::File)).unwrap());
+        assert!(
+            !cache.wants_another_pass(1),
+            "an idle mount would drain in a loop every tick"
+        );
+    }
+
     #[test]
     fn shared_projection_metadata_preserves_inode_encoding_and_detaches_edits() {
         use super::super::Inner;
         let parent = view(1, NodeKind::Folder);
-        let first = Inner::project(&parent, view(3, NodeKind::File).node.as_ref().clone()).unwrap();
-        let sibling =
-            Inner::project(&parent, view(4, NodeKind::File).node.as_ref().clone()).unwrap();
+        let (first, first_node) = Inner::project(&parent, node(3, NodeKind::File), true).unwrap();
+        let (sibling, _) = Inner::project(&parent, node(4, NodeKind::File), true).unwrap();
         assert!(Arc::ptr_eq(&first.scope, &sibling.scope));
         assert!(Arc::ptr_eq(&first.alias, &sibling.alias));
         assert!(Arc::ptr_eq(&first.ancestry, &sibling.ancestry));
         // Persistent inode keys must remain byte-for-byte compatible with owned metadata.
         assert_eq!(
-            Inner::inode_key(&first, false).unwrap(),
+            Inner::inode_key(&first, &first_node, false).unwrap(),
             r#"["content-inode-v1",["account",[],"drive","item-3"],["etag","version"],0]"#
         );
         assert_eq!(
-            Inner::inode_key(&first, true).unwrap(),
+            Inner::inode_key(&first, &first_node, true).unwrap(),
             r#"["account",[],"drive","item-3"]"#
         );
-        let mut changed = first.clone();
-        assert!(Arc::ptr_eq(&first.node, &changed.node));
-        Arc::make_mut(&mut changed.node).etag = Some("replacement".into());
-        assert_eq!(first.node.etag.as_deref(), Some("version"));
+        // A read-only projection keeps no node and still keys identically: the
+        // key reads the node its caller holds, not one the view stores.
+        let (lean, lean_node) = Inner::project(&parent, node(3, NodeKind::File), false).unwrap();
+        assert!(lean.node.is_none());
+        assert!(first.node.is_some());
+        assert_eq!(
+            Inner::inode_key(&lean, &lean_node, false).unwrap(),
+            Inner::inode_key(&first, &first_node, false).unwrap()
+        );
+        let mut changed = first_node.clone();
+        changed.etag = Some("replacement".into());
+        assert_eq!(first_node.etag.as_deref(), Some("version"));
         assert_ne!(
-            Inner::inode_key(&first, false).unwrap(),
-            Inner::inode_key(&changed, false).unwrap()
+            Inner::inode_key(&first, &first_node, false).unwrap(),
+            Inner::inode_key(&first, &changed, false).unwrap()
         );
         assert_eq!(
-            Inner::inode_key(&first, true).unwrap(),
-            Inner::inode_key(&changed, true).unwrap()
+            Inner::inode_key(&first, &first_node, true).unwrap(),
+            Inner::inode_key(&first, &changed, true).unwrap()
         );
+        // Where a writable mount does keep the node, a clone shares it until
+        // one of the two writes, and then the other keeps what it read.
+        let held = first.node.clone().unwrap();
+        let mut copy = first.clone();
+        assert!(Arc::ptr_eq(&held, copy.node.as_ref().unwrap()));
+        Arc::make_mut(copy.node.as_mut().unwrap()).etag = Some("replacement".into());
+        assert_eq!(held.etag.as_deref(), Some("version"));
 
-        let mut node = view(5, NodeKind::Shortcut).node.as_ref().clone();
+        let mut node = node(5, NodeKind::Shortcut);
         node.target = Some(Box::new(cirrove_core::RemoteRef {
             collection: "shared".into(),
             item: "target".into(),
             kind: Some(NodeKind::Folder),
         }));
-        let link = Inner::project(&parent, node.clone()).unwrap();
+        let (link, link_node) = Inner::project(&parent, node.clone(), true).unwrap();
         assert_eq!(link.entry.as_deref(), Some(&node));
-        assert!(link.node.target.is_none());
-        assert_eq!(link.node.id, "target");
+        assert!(link_node.target.is_none());
+        assert_eq!(&*link.id, "target");
         assert_eq!(parent.scope.collection, "drive");
         assert!(parent.alias.is_empty());
         assert!(parent.ancestry.is_empty());
         assert_eq!(
-            Inner::inode_key(&link, false).unwrap(),
+            Inner::inode_key(&link, &link_node, false).unwrap(),
             r#"["account",[["drive","item-5"]],"shared","target"]"#
         );
         let mut another = node;
         another.id = "another-shortcut".into();
-        let another = Inner::project(&parent, another).unwrap();
+        let (another, another_node) = Inner::project(&parent, another, true).unwrap();
         assert_ne!(
-            Inner::inode_key(&link, false).unwrap(),
-            Inner::inode_key(&another, false).unwrap()
+            Inner::inode_key(&link, &link_node, false).unwrap(),
+            Inner::inode_key(&another, &another_node, false).unwrap()
         );
         // Appending a linked folder route cannot change its siblings or parent.
         assert_eq!(
@@ -625,9 +858,8 @@ mod tests {
     fn listing_only_projection_protects_parent_without_acquiring_kernel_references() {
         let mut cache = cache();
         let parent = child(&mut cache, 2, 1, NodeKind::Folder);
-        let projected =
-            super::super::Inner::project(&parent, view(3, NodeKind::File).node.as_ref().clone())
-                .unwrap();
+        let (projected, _) =
+            super::super::Inner::project(&parent, node(3, NodeKind::File), false).unwrap();
         drop(parent);
         assert_eq!(cache.collect(100), 0);
         assert_eq!(cache.len(), 2);

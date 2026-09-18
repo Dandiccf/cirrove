@@ -1,0 +1,88 @@
+{
+  "question": "When the Microsoft grant is revoked rather than merely expired, does the daemon say so where a user will see it, and does signing in again restore the account without losing its index or its pins?",
+  "why_now": "The milestone 1 row asks for 'visible reauthentication when consent expires'. Its refresh half is evidenced -- the installed daemon refreshed hourly for a day and a half unattended. Its visible half was asserted only at the last hop, and the chain into that hop is now covered by tests (read_only::an_expired_grant_is_shown_as_needing_sign_in_and_not_as_being_offline and manager::tests::a_feed_needing_sign_in_is_not_hidden_by_one_that_is_merely_offline). What no test can supply is the event itself.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-11",
+  "why_it_can_be_scheduled_after_all": "The ledger recorded consent expiry as unobservable because it 'cannot be scheduled'. Waiting for a grant to lapse on Microsoft's timetable cannot. Revoking it can: the user removes the application's access from their Microsoft account or their tenant, which invalidates the refresh token at once. That is the same event from the daemon's side -- the token it holds stops working and no refresh will fix it -- and it is the event the row cares about.",
+  "shape": {
+    "before": "Record the account state, indexed_items and the pin list, so that what reauthentication must preserve is written down before it is at risk.",
+    "revoke": "In the Microsoft account's privacy settings or the Entra tenant, remove this application's access.",
+    "observe": "Without touching the daemon: watch for the account state to become sign_in_required, and check that the tray icon goes to NeedsAttention and the window says so. The point is that nobody had to look in a log.",
+    "restore": "cirrove reauth for the same account, then confirm the account returns to ready.",
+    "after": "Compare indexed_items and pins against the before state."
+  },
+  "predictions": {
+    "P1": "The account reaches sign_in_required without intervention, within the feed's retry interval of sixty seconds plus its jitter.",
+    "P2": "It is visible without reading a log: the tray reports NeedsAttention and the window shows the sign-in state.",
+    "P3": "The mount stays present, and listing a cached directory through it still works. Losing the grant is not losing the index, and unmounting on a credential problem would take away the offline copies a user still has.",
+    "P4": "After reauth the account returns to ready, indexed_items is not reset to zero, and the pins are unchanged."
+  },
+  "decision_rule": {
+    "all_hold": "The row's last clause is closed and the row can be ticked, its refresh half already being evidenced.",
+    "P1_fails": "The daemon treats a revoked grant as something to retry. That is the defect this clause exists to catch -- polite, silent, and indefinite.",
+    "P3_fails": "A defect of its own and worse than the row: a credential problem must not cost a user the data they already have offline.",
+    "P4_fails": "Recorded against the reauth path rather than this row. Reauthentication that reindexes 184,000 items is usable; one that drops pins silently is not."
+  },
+  "what_it_costs": "One reauthentication. The account is unusable between the revocation and the sign-in, and the run should not be started while anything is mid-upload -- `cirrove status` must show no pending work first.",
+  "result": {
+    "how_the_grant_was_withdrawn": "The enterprise application's 'Enabled for users to sign-in' was set to No, rather than deleting the service principal. Chosen because the app has no verified publisher and the tenant warns that end users cannot consent to such an app -- deleting the consent risked needing an administrator to get back in. The toggle is one click and reverses in one. It tests the same daemon-side event (a refused grant) and less of the consent cycle, and the artifact says so rather than calling them the same thing.",
+    "P1": "HOLDS, and the corrected version is the one it holds against. Disabled at about 09:07 with the daemon reading ready; sign_in_required at 09:13-09:14, about six minutes later, on both feeds and on the account. The figure is reported, not scored: the previous refresh was at 07:53 and the observed cadence is about 82 minutes, so the next attempt was due around 09:15 and this sample happened to land six minutes after the withdrawal. Another withdrawal a minute after a refresh would have waited over an hour.",
+    "P2": "HOLDS. The tray reports Status=NeedsAttention with icon dialog-warning-symbolic and the tooltip 'work-onedrive: sign-in required', read back over D-Bus. Visible without opening a terminal or a log.",
+    "P3": "HOLDS, and further than the prediction asked. The mount stayed present and a cached listing of the root returned its 26 entries. The pinned file read in full while the grant was refused -- 32,476 bytes, checksummed -- which is the offline clause working under the condition it exists for. Measured rather than assumed: reading three further files of 100 KB to 20 MB moved neither content_gets nor graph_gets (16 and 3,063 before and after), so those reads were served entirely from cache and the provider was not contacted at all.",
+    "P4": "HOLDS on every field it names, and did so WITHOUT a reauthentication, which is the part worth stating plainly. Re-enabling sign-in was enough: 'Microsoft authorization refreshed and saved' at 09:29:39, one feed ready at about 09:30:16 and both at 09:30:40 -- roughly five minutes after the toggle, with no command run and nothing asked of the user. Against the 08:43 reference: indexed_items 184,052 unchanged, the pin unchanged, the cached root listing still 26 entries, and the pinned file still reads to the same checksum. WHAT THIS DOES NOT TEST: the reauth path itself. P4 was written as 'after reauth ...' and no reauth was needed, so `cirrove reauth` restoring an account remains unexercised. Recovering without it is the better outcome for a user and the weaker one for this clause, and the row says both.",
+    "recovery_timeline": {
+      "disabled": "about 09:07",
+      "noticed": "09:13-09:14, both feeds",
+      "re_enabled": "about 09:24",
+      "token_refreshed": "09:29:39",
+      "first_feed_ready": "about 09:30:16",
+      "both_ready": "09:30:40",
+      "note": "Recovery took about five minutes after the toggle, not the sixty-second feed retry interval. The feeds retry on that interval; the authorization layer that has to succeed first does not, and it is the one that gates recovery."
+    },
+    "one_feed_recovered_before_the_other": "Observed rather than designed for, and it exercised a rule written the day before: at 09:30:28 one collection read ready and the other still sign_in_required, and the account stayed sign_in_required. That is manager::account_state putting the state a user can act on above a healthy sibling -- the ordering that a_feed_needing_sign_in_is_not_hidden_by_one_that_is_merely_offline holds. It had never been seen happen."
+  },
+  "verdict": {
+    "what_holds": "All four predictions hold on the fields they name. A refused grant is noticed without intervention, made visible without a log, costs the user nothing they already hold, and recovers with the index and the pin intact.",
+    "the_row_is_not_ticked_and_these_are_the_reasons": [
+      "The grant was withdrawn by disabling the enterprise application's sign-in, not by revoking consent. That reaches the same event on the daemon's side and less of the consent cycle. It was chosen because the app has no verified publisher and re-consent could have required an administrator, which is a real risk to take with someone's working account and not one this measurement was worth.",
+      "P4 is written as 'after reauth ...' and no reauthentication was needed: re-enabling was enough. Every field it names is unchanged, and the path it names was never walked. `cirrove reauth` restoring an account remains unexercised."
+    ],
+    "what_the_run_is_worth_anyway": "Before it, the visible half of this row was asserted at its last hop only and consent expiry had never been observed at all. Now the whole chain from a provider refusing the grant to a tray icon a person can see has been walked once against a real account, and the clause nobody had thought to test -- that a credential problem must not cost the data already held -- was measured rather than assumed.",
+    "what_should_happen_next": "Either delete the service principal and run the full consent cycle, accepting that re-consent may need an administrator, or leave the row open and say so. Both are honest; the second is what stands until someone chooses the first.",
+    "a_defect_this_run_found_that_belongs_to_no_prediction": "The daemon wrote nothing to its journal when authorization was refused. Not a line. The state reached the user through the tray and `cirrove status`, which is what the row asks and why P2 holds, but an operator reading the journal saw a healthy daemon for seventeen minutes. Nothing recorded that authorization had been refused, or what the provider said about it. That is worth its own row rather than a footnote here."
+  },
+  "corrected_before_the_outcome_was_known": {
+    "what_was_wrong": "P1 claimed the account reaches sign_in_required 'within the feed's retry interval of sixty seconds plus its jitter'. That is the interval at which a FAILING feed retries, and it has nothing to do with when a working one starts failing.",
+    "why_it_cannot_hold": "The daemon holds an access token. Disabling sign-in, or revoking consent, blocks new tokens and refreshes; it does not recall one already issued, because an access token is a signed assertion validated by expiry rather than by asking. So the daemon keeps working -- correctly, on data it is still entitled to -- until it next needs to refresh.",
+    "the_real_bound": "One token lifetime. Measured on this account from its own journal: refreshes at 06:31:38 and 07:53:04, a cadence of about 82 minutes. The grant was disabled at about 09:07 with the last refresh at 07:53, so the notice is due around 09:15 and not around 09:08.",
+    "recorded_when": "2026-09-13, after the grant was disabled and while the account still read ready, before the outcome was observed. Written now rather than afterwards because a prediction corrected after its result is not a prediction.",
+    "P1_replaced_by": "The account reaches sign_in_required without intervention at its next token refresh, which is bounded by the access-token lifetime rather than by any interval inside this daemon. What the run measures is the delay from revocation to notice, and that figure is a property of the provider's token lifetime, so it is reported rather than bounded.",
+    "what_it_means_for_a_user": "Someone whose access is withdrawn keeps working for up to a token lifetime. That is how OAuth behaves and is not a defect; it is worth knowing because it is the difference between 'the daemon did not notice' and 'the daemon could not have noticed yet', and only one of those is a bug."
+  },
+  "what_the_run_also_found": {
+    "the_daemon_logs_nothing": "It changed both feeds to sign_in_required and wrote no journal entry at all -- only its ordinary reclamation lines. The state reaches the user through the tray and `cirrove status`, which is what the row asks for, but an operator reading the journal sees a healthy daemon. Nothing records that authorization was refused or what the provider said about it, so the one place a person looks when something is wrong is the one place that does not say.",
+    "an_unpinned_file_is_not_a_negative_control_here": "Unpinned files in subdirectories also read fine, because this cache has held them for days. The counters show why -- no provider request was made for any of them -- so this run cannot demonstrate that uncached content becomes unavailable, only that cached and pinned content stays available. Finding uncached content would mean walking the user's drive, which is not worth the clause.",
+    "a_stale_reference": "WRONG, corrected 2026-09-13. I recorded that the before snapshot predated the pin and could not serve as a reference for P4. It was retaken at 08:43:17, after the pin, exactly as the runbook asked. I had read my own 08:39 trial run as the reference and did not check the file before saying so. The comparison is valid and the pin line in it is real."
+  },
+  "the_real_consent_cycle_2026_09_15": {
+    "why_it_was_done_again": "The first run withdrew the grant by turning off the enterprise application's sign-in, and said so: that reaches the same event on the daemon's side and less of the consent cycle. It also never reached `reauth`, because the account recovered by itself when the toggle went back. Both gaps kept the row open. This run closes them: the account owner revoked the consent itself, all six delegated permissions under admin consent for the tenant, and signed in again through the window's own button.",
+    "timeline": {
+      "20:09:01": "the daemon refreshed its authorization and saved it -- two minutes before the revocation, which is the worst case for noticing",
+      "20:11:22": "all six delegated permissions revoked in Entra (openid, profile, offline_access, User.Read, Files.Read.All, Files.ReadWrite.All)",
+      "20:11 to 21:17": "the daemon keeps working, correctly. Both feeds report successful delta calls every few seconds throughout. An access token is a signed assertion validated by its expiry, not by asking whether consent still stands, so a revocation does not recall one already issued.",
+      "21:17:37": "both feeds move to sign_in_required, each with a journal warning naming the collection, the state and the reason",
+      "21:19": "the owner presses Sign in again in the window and completes the Microsoft sign-in in the browser",
+      "21:20:01": "the mount is taken down deliberately -- reauthentication disables the account so its workers release the old credential",
+      "21:20:56": "the mount is back",
+      "21:21:22": "ready, both feeds succeeding, 184,080 items"
+    },
+    "the_number_this_row_was_missing": "66 minutes from the revocation to the daemon noticing, and 68.5 minutes from the issue of the token it was holding. That is the worst case and it is not ours to shorten: it is one access-token lifetime. Shortening it would mean asking the provider on every call whether consent still stands.",
+    "verdict": {
+      "P1": "HOLDS on the corrected reading the first run established: the account reaches sign_in_required without intervention, one access-token lifetime after the withdrawal rather than within a retry interval. Measured at 66 minutes.",
+      "P2": "HOLDS, and more strongly than in the first run. The window shows 'Erneut anmelden' under the account, the tray item is Active, and -- unlike 2026-09-11, when the daemon changed state and wrote nothing -- the journal now carries a warning per collection naming the state and the reason. That gap was closed in between and this run is the evidence.",
+      "P3": "HOLDS. The mount stayed present throughout the hour without a grant; directories listed from the index and cached content read.",
+      "P4": "HOLDS on the index: 184,080 items before the revocation and 184,080 after the reauthentication, with no reindex. NOT TESTED on pins: this account had none at the time, because the day's pinning work had released them all. The first run covered the pin half and holds there."
+    },
+    "what_this_closes": "Both reasons the first run gave for not ticking the row. The grant was withdrawn by revoking consent, through the whole consent cycle including re-consent at the sign-in; and reauthentication was actually exercised, from the window's button rather than the command line, and restored the account with its index intact."
+  }
+}

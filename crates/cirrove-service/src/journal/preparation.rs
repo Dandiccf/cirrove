@@ -69,6 +69,7 @@ impl UploadJournal {
             scope: scope.clone(),
             intent,
             state: UploadState::Preparing,
+            saved_at: crate::journal::now_seconds(),
             size: plan.source.node.size,
             sha256: String::new(),
             attempt: None,

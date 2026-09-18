@@ -473,6 +473,7 @@ mod tests {
                 collection: "test-drive".into(),
             },
             root: Node {
+                package: false,
                 id: "new-fixture-root".into(),
                 parent_id: Some("drive-root".into()),
                 name: "Cirrove-Mounted-Write-Validation-fixture".into(),
@@ -514,6 +515,7 @@ mod tests {
         };
         assert!(fixture.request_allowed(&outside).is_err());
         let node = Node {
+            package: false,
             id: "created-by-this-run".into(),
             name: "saved.txt".into(),
             parent_id: Some(fixture.root.id.clone()),
@@ -576,6 +578,7 @@ mod tests {
         use cirrove_core::mutation::MutationProvider;
         let fixture = fixture();
         let node = Node {
+            package: false,
             id: "created-source".into(),
             parent_id: Some(fixture.root.id.clone()),
             name: "temporary.txt".into(),

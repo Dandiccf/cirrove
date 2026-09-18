@@ -94,3 +94,49 @@ fn unpinning_releases_both_the_reservation_and_the_protection() {
         "unpinning what is not pinned reports that rather than pretending"
     );
 }
+
+/// Protection follows a pin; it cannot exist without one.
+///
+/// Keeping something offline became a job on 2026-09-15, so the fetch outlives
+/// the request that started it. A stop releases the pin while the fetch is
+/// still running, and the job that finishes afterwards would have written
+/// protection rows for a pin that is gone -- rows nothing would ever look at
+/// again, over blocks eviction would never take. Cache capacity leaking away
+/// with no field anywhere that would show it.
+#[test]
+fn blocks_cannot_be_protected_for_an_item_that_is_not_pinned() {
+    let (_temp, mut store) = store();
+    assert!(
+        !store
+            .protect_blocks("scope", "never-pinned", &["aa".into()])
+            .expect("protect"),
+        "an item with no pin has nothing to protect blocks on behalf of"
+    );
+    assert!(store.protected_blocks().expect("blocks").is_empty());
+
+    store
+        .pin("scope", "item", false, GIB, 4 * GIB)
+        .expect("pin")
+        .expect("fits");
+    assert!(
+        store
+            .protect_blocks("scope", "item", &["aa".into()])
+            .expect("protect"),
+        "a pinned item does protect its blocks"
+    );
+    assert_eq!(store.protected_blocks().expect("blocks").len(), 1);
+
+    // And the race itself: the pin goes while a fetch is still running, and the
+    // fetch finishes afterwards.
+    assert!(store.unpin("scope", "item").expect("unpin"));
+    assert!(
+        !store
+            .protect_blocks("scope", "item", &["aa".into(), "bb".into()])
+            .expect("protect"),
+        "a fetch that finishes after its pin was released protects nothing"
+    );
+    assert!(
+        store.protected_blocks().expect("blocks").is_empty(),
+        "and leaves nothing behind either"
+    );
+}

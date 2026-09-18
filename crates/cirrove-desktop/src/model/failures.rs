@@ -1,4 +1,5 @@
 //! Safe presentation causes. Never retain raw settings, response bodies or URLs.
+use crate::i18n::{fill, gettext, n};
 use std::io::ErrorKind;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -24,18 +25,21 @@ impl SettingsFailure {
     pub fn description(&self) -> String {
         match self {
             Self::Read(ErrorKind::PermissionDenied) =>
-                "Cirrove does not have permission to read your saved connections. Check access to the settings directory, then retry.".into(),
+                n("Cirrove does not have permission to read your saved connections. Check access to the settings directory, then retry.").into(),
             Self::Read(ErrorKind::IsADirectory) =>
-                "The accounts settings path is a directory instead of a file. Restore the settings file, then retry.".into(),
+                n("The accounts settings path is a directory instead of a file. Restore the settings file, then retry.").into(),
             Self::Read(_) =>
-                "The saved connections could not be read from disk. Check that the settings location is accessible, then retry.".into(),
-            Self::InvalidFormat { line, column } => format!(
-                "The settings file has invalid data at line {line}, column {column}. Restore a valid settings file, then retry. Your cloud files have not been changed."
+                n("The saved connections could not be read from disk. Check that the settings location is accessible, then retry.").into(),
+            Self::InvalidFormat { line, column } => fill(
+                &gettext(
+                    "The settings file has invalid data at line {}, column {}. Restore a valid settings file, then retry. Your cloud files have not been changed.",
+                ),
+                &[&line.to_string(), &column.to_string()],
             ),
             Self::InvalidConfiguration =>
-                "The saved connections contain unsupported or invalid settings. Check the Cirrove version and restore a valid settings file, then retry.".into(),
+                n("The saved connections contain unsupported or invalid settings. Check the Cirrove version and restore a valid settings file, then retry.").into(),
             Self::WorkerUnavailable =>
-                "The task reading your saved connections stopped unexpectedly. Retry or reopen Cirrove.".into(),
+                n("The task reading your saved connections stopped unexpectedly. Retry or reopen Cirrove.").into(),
         }
     }
 }
@@ -61,24 +65,24 @@ impl ServiceFailure {
     }
     pub fn description(&self) -> &'static str {
         match self {
-            Self::Io(ErrorKind::NotFound | ErrorKind::ConnectionRefused) => {
-                "The Cirrove service is not running at this location. Start the service, then retry."
-            }
-            Self::Io(ErrorKind::PermissionDenied) => {
-                "Access to the Cirrove service was denied. Check the service permissions, then retry."
-            }
+            Self::Io(ErrorKind::NotFound | ErrorKind::ConnectionRefused) => n(
+                "The Cirrove service is not running at this location. Start the service, then retry.",
+            ),
+            Self::Io(ErrorKind::PermissionDenied) => n(
+                "Access to the Cirrove service was denied. Check the service permissions, then retry.",
+            ),
             Self::TimedOut | Self::Io(ErrorKind::TimedOut) => {
-                "The Cirrove service did not respond in time. Check the service, then retry."
+                n("The Cirrove service did not respond in time. Check the service, then retry.")
             }
             Self::Io(_) => {
-                "The connection to the Cirrove service failed. Check the service, then retry."
+                n("The connection to the Cirrove service failed. Check the service, then retry.")
             }
-            Self::InvalidResponse => {
-                "The Cirrove service returned an invalid response. Check that the desktop and service versions match."
-            }
-            Self::Incompatible { .. } => {
-                "This Cirrove service version is incompatible. Update the desktop and service together, then retry."
-            }
+            Self::InvalidResponse => n(
+                "The Cirrove service returned an invalid response. Check that the desktop and service versions match.",
+            ),
+            Self::Incompatible { .. } => n(
+                "This Cirrove service version is incompatible. Update the desktop and service together, then retry.",
+            ),
         }
     }
 }

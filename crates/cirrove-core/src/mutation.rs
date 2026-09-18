@@ -169,8 +169,51 @@ pub enum MutationReconciliation {
     /// Cannot distinguish a lost success from another actor/access change.
     Indeterminate,
 }
+/// What a provider can actually do about deletion.
+///
+/// Both default to false, and that is the whole point of the type. A provider
+/// that has not said it has a recycle bin must not have its ordinary delete
+/// presented to a person as recoverable, and one that has not said it can
+/// delete permanently must not show a menu entry that quietly falls back to the
+/// ordinary delete. Those two are the failures ADR 0008 exists to prevent, and
+/// a default of "yes" would reintroduce both by silence.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct DeletionSupport {
+    /// An ordinary delete is recoverable by the person, without our help.
+    pub recycle_bin: bool,
+    /// Something can be removed without passing through that recovery.
+    pub permanent: bool,
+}
+
 #[async_trait]
 pub trait MutationProvider: Send + Sync {
+    /// What this provider can do about deletion. See [`DeletionSupport`] for
+    /// why the default is "neither".
+    fn deletion(&self) -> DeletionSupport {
+        DeletionSupport::default()
+    }
+
+    /// Remove an item without passing through the provider's recovery.
+    ///
+    /// Never the answer to an ordinary `unlink`: POSIX has one delete and no
+    /// flag in which "and skip the recycle bin" could live, so this is only
+    /// ever reached by a person asking for it a second time, in words. The
+    /// eTag precondition is carried for the same reason it is carried
+    /// everywhere else -- the thing being destroyed must be the thing that was
+    /// looked at.
+    ///
+    /// The default refuses, so a provider that has not implemented it cannot
+    /// have an ordinary delete quietly substituted for what was asked.
+    async fn delete_permanently(
+        &self,
+        _scope: &Scope,
+        _item: &str,
+        _etag: Option<&str>,
+        _cancel: &CancellationToken,
+    ) -> Result<()> {
+        Err(MutationError::Invalid)
+    }
+
     /// Return the actual conditional mutation receipt. A later independent GET
     /// can include another actor's edit and is not an equivalent upload base.
     async fn mutate(

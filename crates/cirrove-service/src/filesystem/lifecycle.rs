@@ -32,6 +32,25 @@ impl EditAdmission {
 pub(crate) struct WriteControl {
     inner: Arc<Inner>,
     writer: Arc<super::writeback::Writeback>,
+    /// Set once the writers exist, for the one operation that is not queued
+    /// work: permanent deletion (ADR 0008). Everything else here drains a
+    /// journal, because a save or a rename must survive a restart. A permanent
+    /// delete must not survive anything: it is a person at the machine saying
+    /// "destroy this one, now", and a durable queue for destruction would retry
+    /// it after the item had moved.
+    provider: Option<Arc<dyn cirrove_core::mutation::MutationProvider>>,
+}
+impl WriteControl {
+    pub(crate) fn with_provider(
+        mut self,
+        provider: Arc<dyn cirrove_core::mutation::MutationProvider>,
+    ) -> Self {
+        self.provider = Some(provider);
+        self
+    }
+    pub(crate) fn provider(&self) -> Option<Arc<dyn cirrove_core::mutation::MutationProvider>> {
+        self.provider.clone()
+    }
 }
 impl CloudFs {
     pub(crate) fn write_control(&self) -> std::io::Result<WriteControl> {
@@ -43,6 +62,7 @@ impl CloudFs {
         Ok(WriteControl {
             inner: self.inner.clone(),
             writer,
+            provider: None,
         })
     }
 }
@@ -60,6 +80,77 @@ impl WriteControl {
             .map_err(|_| std::io::Error::other("local namespace refresh failed"))?;
         self.inner.engine.changed.notify_waiters();
         Ok(())
+    }
+    /// Try the stuck changes again, where trying again is a sensible thing to
+    /// do. See [`super::writeback::Writeback::retry_stuck`].
+    pub async fn retry_stuck(&self) -> std::io::Result<(u64, u64)> {
+        self.writer
+            .retry_stuck()
+            .await
+            .map_err(|_| std::io::Error::other("the stuck changes could not be queued again"))
+    }
+    pub async fn discard_stuck(&self) -> std::io::Result<u64> {
+        self.writer
+            .discard_stuck()
+            .await
+            .map_err(|_| std::io::Error::other("could not discard the stuck changes"))
+    }
+    pub async fn stuck_changes(&self) -> std::io::Result<u64> {
+        self.writer
+            .stuck_changes()
+            .await
+            .map_err(|_| std::io::Error::other("local namespace is unavailable"))
+    }
+    pub async fn failed_uploads(&self) -> std::io::Result<u64> {
+        self.writer
+            .failed_uploads()
+            .await
+            .map_err(|_| std::io::Error::other("local namespace is unavailable"))
+    }
+    pub async fn stuck_changes_named(
+        &self,
+        limit: usize,
+    ) -> std::io::Result<Vec<crate::recent::StuckChange>> {
+        self.writer
+            .stuck_changes_named(limit)
+            .await
+            .map_err(|_| std::io::Error::other("local namespace is unavailable"))
+    }
+    pub async fn failed_uploads_named(
+        &self,
+        limit: usize,
+    ) -> std::io::Result<Vec<crate::recent::StuckChange>> {
+        self.writer
+            .failed_uploads_named(limit)
+            .await
+            .map_err(|_| std::io::Error::other("local namespace is unavailable"))
+    }
+    pub async fn keep_both_plans(
+        &self,
+        limit: usize,
+    ) -> std::io::Result<Vec<crate::recent::SavePlan>> {
+        self.writer
+            .keep_both_plans(limit)
+            .await
+            .map_err(|_| std::io::Error::other("local namespace is unavailable"))
+    }
+    pub async fn keep_both(
+        &self,
+        plans: Vec<(uuid::Uuid, String, String)>,
+    ) -> std::io::Result<u64> {
+        self.writer
+            .keep_both(plans)
+            .await
+            .map_err(|_| std::io::Error::other("local namespace is unavailable"))
+    }
+    pub async fn recent_local(
+        &self,
+        limit: usize,
+    ) -> std::io::Result<Vec<crate::recent::LocalChange>> {
+        self.writer
+            .recent_local(limit)
+            .await
+            .map_err(|_| std::io::Error::other("local namespace is unavailable"))
     }
     pub fn conflicts(&self) -> std::io::Result<Vec<crate::journal::NamespaceCollision>> {
         self.writer

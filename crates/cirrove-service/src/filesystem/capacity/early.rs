@@ -21,9 +21,16 @@ pub(super) async fn run(close_early: bool) {
     .await
     .unwrap();
     let scope = engine.scope("capacity-drive");
-    crate::refresh(provider.as_ref(), &scope, &engine.db, false, &engine.cancel)
-        .await
-        .unwrap();
+    crate::refresh(
+        provider.as_ref(),
+        &scope,
+        &engine.db,
+        false,
+        &engine.cancel,
+        None,
+    )
+    .await
+    .unwrap();
     let fs = CloudFs::new(engine.clone()).unwrap();
     let inner = fs.inner.clone();
     let session = fs.mount(&mount).unwrap();
@@ -35,8 +42,8 @@ pub(super) async fn run(close_early: bool) {
     let parent = inner.view(inode).unwrap();
     let keys = (0..128)
         .map(|index| {
-            let view = Inner::project(&parent, provider.node_at(index + 2)).unwrap();
-            Inner::inode_key(&view, false).unwrap()
+            let (view, node) = Inner::project(&parent, provider.node_at(index + 2), false).unwrap();
+            Inner::inode_key(&view, &node, false).unwrap()
         })
         .collect::<Vec<_>>();
     drop(parent);

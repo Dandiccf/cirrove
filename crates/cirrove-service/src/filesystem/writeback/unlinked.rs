@@ -19,13 +19,13 @@ impl Writeback {
     /// this stream even if OPEN has not returned its file handle yet.
     pub fn register_open(&self, file: OpenFile) -> Result<Arc<OpenFile>> {
         let mut p = self.projection.lock().map_err(|_| Errno::EIO)?;
-        let object = p.local_object(&file.view.scope, &file.view.node.id);
+        let object = p.local_object(&file.view.scope, &file.view.id);
         if object.is_some_and(|o| o.unlinked) {
             return Err(Errno::ENOENT);
         }
         let identity = key(
             &file.view.scope,
-            object.map_or(&file.view.node.id, |o| &o.node.id),
+            object.map_or(&file.view.id, |o| &o.node.id),
         );
         p.streams.retain(|_, users| {
             users.retain(|u| u.strong_count() > 0);
@@ -49,7 +49,7 @@ impl Writeback {
     }
     pub fn read_source(&self, file: &OpenFile) -> Result<ReadSource> {
         let p = self.projection.lock().map_err(|_| Errno::EIO)?;
-        let object = p.local_object(&file.view.scope, &file.view.node.id);
+        let object = p.local_object(&file.view.scope, &file.view.id);
         if let Some(working) = object.and_then(|o| o.working_file) {
             return Ok(ReadSource::Working(working));
         }
@@ -65,14 +65,18 @@ impl Writeback {
         Ok(ReadSource::Remote(node, file.remote_reads.token()))
     }
     pub async fn unlink(self: &Arc<Self>, inner: &Arc<Inner>, view: View) -> Result<()> {
-        let _lease = self
-            .lease(&view.scope, &view.node.id, &inner.cancel)
-            .await?;
-        let parent = view.node.parent_id.clone().ok_or(Errno::EINVAL)?;
-        let name = view.node.name.clone();
+        let _lease = self.lease(&view.scope, &view.id, &inner.cancel).await?;
+        let parent = view
+            .node
+            .as_ref()
+            .ok_or(Errno::EINVAL)?
+            .parent_id
+            .clone()
+            .ok_or(Errno::EINVAL)?;
+        let name = view.node.as_ref().ok_or(Errno::EINVAL)?.name.clone();
         let writer = self.clone();
         let scope = view.scope.as_ref().clone();
-        let source = view.node.as_ref().clone();
+        let source = view.node.as_ref().ok_or(Errno::EINVAL)?.as_ref().clone();
         tokio::task::spawn_blocking(move || -> Result<()> {
             let mut j = writer.journal.lock().map_err(|_| Errno::EIO)?;
             let mut object = Self::materialize(&mut j, scope, source).map_err(error)?;
@@ -132,14 +136,18 @@ impl Writeback {
     /// journal refuses one whose children exist only locally, and the adapter
     /// checks the provider's side immediately before deleting.
     pub async fn rmdir(self: &Arc<Self>, inner: &Arc<Inner>, view: View) -> Result<()> {
-        let _lease = self
-            .lease(&view.scope, &view.node.id, &inner.cancel)
-            .await?;
-        let parent = view.node.parent_id.clone().ok_or(Errno::EINVAL)?;
-        let name = view.node.name.clone();
+        let _lease = self.lease(&view.scope, &view.id, &inner.cancel).await?;
+        let parent = view
+            .node
+            .as_ref()
+            .ok_or(Errno::EINVAL)?
+            .parent_id
+            .clone()
+            .ok_or(Errno::EINVAL)?;
+        let name = view.node.as_ref().ok_or(Errno::EINVAL)?.name.clone();
         let writer = self.clone();
         let scope = view.scope.as_ref().clone();
-        let source = view.node.as_ref().clone();
+        let source = view.node.as_ref().ok_or(Errno::EINVAL)?.as_ref().clone();
         tokio::task::spawn_blocking(move || -> Result<()> {
             let mut j = writer.journal.lock().map_err(|_| Errno::EIO)?;
             let object = Self::materialize(&mut j, scope, source).map_err(error)?;
@@ -152,12 +160,23 @@ impl Writeback {
             if object.node.parent_id.as_ref() != Some(&parent) || object.node.name != name {
                 return Err(Errno::ESTALE);
             }
-            // A directory whose creation the provider has not acknowledged has no
-            // ETag, so no conditional removal can be expressed against it.
-            // Cancelling an in-flight creation is a different operation and is not
-            // implemented; reporting it as busy is honest, where letting it reach
-            // the journal would surface as a malformed request.
-            if object.remote.is_none() {
+            // A directory whose own creation has not settled cannot carry a
+            // conditional removal, and the window is wider than "no ETag yet".
+            //
+            // An acknowledged creation supplies one -- but not a current one.
+            // Graph moves a folder's eTag between the create response and a
+            // moment later, so a DELETE conditioned on the receipt loses its
+            // precondition and lands in `Conflict`, *after* `rmdir` has already
+            // returned success. That is a deletion the user was told happened and
+            // which did not: measured on a live drive as fourteen of fourteen
+            // chained folder removals conflicting while five of five unchained
+            // ones applied. Waiting for `latest` to clear means the removal is
+            // built from the object's current remote node instead.
+            //
+            // `EBUSY` is the refusal because it is the one true thing to say:
+            // not now, try again. It used to surface as `EINVAL` from the
+            // journal, which told the caller its request was malformed.
+            if object.remote.is_none() || object.latest.is_some() {
                 return Err(Errno::EBUSY);
             }
             Self::publish_locked(&j, &writer.projection)?;
@@ -299,7 +318,7 @@ impl Writeback {
                 return Err(Errno::ESTALE);
             }
             let mut view = users[0].view.clone();
-            view.node = object.node.clone().into();
+            view.node = Some(std::sync::Arc::new(object.node.clone()));
             drop(users);
             self.prepare(engine, &view, false, &engine.cancel).await?;
         }

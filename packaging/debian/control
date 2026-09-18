@@ -1,0 +1,31 @@
+Source: cirrove
+Section: net
+Priority: optional
+Maintainer: Christian Dandachi <dandiccf@users.noreply.github.com>
+# No cargo here on purpose: Ubuntu 24.04's is 1.75 and the crates need 1.98,
+# so the build uses the rustup toolchain on PATH and is run with -d. A source
+# package for an archive would vendor the crates and declare cargo; that is
+# the APT-channel work, not this.
+Build-Depends: debhelper-compat (= 13), cmake, pkg-config, libgtk-4-dev (>= 4.14), libadwaita-1-dev (>= 1.5), gettext
+Standards-Version: 4.6.2
+Homepage: https://github.com/Dandiccf/cirrove
+Rules-Requires-Root: no
+
+Package: cirrove
+Architecture: amd64
+Depends: ${shlibs:Depends}, ${misc:Depends}, fuse3, xdg-utils
+Recommends: gnome-keyring
+Suggests: cirrove-desktop
+Description: cloud drive filesystem that keeps the cloud where it is (service and CLI)
+ Cirrove mounts a cloud drive -- OneDrive first -- as a filesystem that
+ downloads files when they are opened and uploads changes in the background,
+ without syncing everything. This package is the daemon, its user service
+ unit and the command line; it needs no desktop library.
+
+Package: cirrove-desktop
+Architecture: amd64
+Depends: ${shlibs:Depends}, ${misc:Depends}, cirrove (= ${binary:Version})
+Recommends: python3-nautilus, gnome-shell-extension-appindicator
+Description: cloud drive filesystem that keeps the cloud where it is (desktop)
+ The settings window, the tray, the desktop entry, the icons, the AppStream
+ metainfo and the Files extension for Cirrove.

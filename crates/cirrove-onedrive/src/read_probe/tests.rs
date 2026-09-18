@@ -116,6 +116,7 @@ fn scope() -> Scope {
 }
 fn node() -> Node {
     Node {
+        package: false,
         id: "file".into(),
         name: "private-name".into(),
         parent_id: None,

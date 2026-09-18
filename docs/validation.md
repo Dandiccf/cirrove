@@ -2327,3 +2327,222 @@ The consequence for milestone 3 is not optional: the same daemon doing the
 same work rests at 108 MiB or 211 MiB depending on a setting nobody has
 chosen, so a bounded-memory box cannot be answered without naming the
 allocator.
+
+## Pinning on a real drive, and a renewal the provider performed
+
+`docs/benchmarks/live-offline-pinning.json`, 2026-09-11, on an isolated
+validation connection to the user's business drive with their permission.
+
+Every pinning test uses a fixture provider, and a fixture cannot produce what
+a real drive does: content revisions that change block keys, a linked
+collection whose scope is not the account's own drive, a size the index and
+the provider disagree about. So the five milestone 3 rows all carried the
+same last clause — no measured evidence on a real account.
+
+One fixture folder, two generated files, one of them pinned through the same
+request path `cirrove pin` uses:
+
+| | |
+|---|---|
+| reserved | 9,000,096 bytes |
+| resident | 9,000,096 bytes |
+| blocks | 3 |
+| provider content requests for the pinned read | **0** |
+| for the unpinned control | **1** |
+
+`reserved` equals `resident` exactly, and both are the file's 9,000,000 bytes
+plus three block digests at 32 each. That is the reservation correction made
+the day before — reservations were made in logical bytes while the cache
+stores a SHA-256 per block — arriving at the right answer on a real drive.
+
+Offline is established by counting rather than by severing the connection: a
+read that makes no provider request cannot depend on one. The unpinned
+control is what makes that mean something; without it a warm cache would look
+identical.
+
+**The subscription renewal, separately.** The notification validator held a
+real Socket.IO subscription for its full lifetime, Microsoft renewed it, and a
+change made afterwards arrived through the renewed connection. That is a
+renewal the provider performed rather than one a fixture simulated, and it is
+what the milestone 1 push row had never had.
+
+What none of this closes: recursive folder pinning is still fixture-only,
+behaviour as the cache budget fills is not built, and the one notification in
+eleven that was never delivered is still unexplained.
+
+## A CI failure that did not reproduce
+
+`cached_navigation_survives_stalled_reads_and_metadata_restart` failed once in
+CI on 2026-09-11 with `Resource temporarily unavailable` at the point where the
+test drops an engine and rebuilds one on the same state directory — the owner
+lock still held.
+
+It is recorded because a single red run is easy to wave away and this one sat
+on a branch that had changed engine lifetime handling, which is exactly the
+shape of thing that would cause it.
+
+It did not reproduce: 0 of 10 runs of that test alone locally, 0 of 6 runs of
+the whole target in parallel, and 0 occurrences across four subsequent CI runs
+of the same branch. It had never failed on `main` in the preceding eight runs
+either. One occurrence in five is not enough to act on and not enough to
+dismiss, so it is written down rather than decided.
+
+## A folder's eTag moves right after it is created, and a fix relied on it not moving
+
+Found while verifying a fix on the user's live drive, after that fix was committed
+with a green suite and installed on a running daemon. It was wrong, and the way it
+was wrong is the useful part.
+
+The change let a folder removal be queued behind its own creation, with the real
+identity and ETag substituted from the creation's receipt before the DELETE goes
+out. That machinery already existed for file relocation and file removal; folder
+removal had simply never been listed. Adding it made `mkdir` followed quickly by
+`rmdir` stop answering `EINVAL`.
+
+It also stopped the deletions from happening.
+
+**The measurement.** A sweep of create-then-remove at fixed delays through the
+mount, three runs per delay, then the mutation journal read afterwards:
+
+| chained to its own creation | outcome |
+| --- | ---: |
+| yes | 14 of 14 `Conflict` |
+| no | 5 of 5 `Applied` |
+
+Every chained removal lost. `rmdir` had already returned success to the caller, so
+fourteen empty folders stayed in the account while the mount showed them gone.
+
+**The cause, read off the store rather than assumed.** The creation receipt and
+the settled item, same folder:
+
+```
+receipt    "{B229781C-A6AB-467E-B6C9-E7E4778B3B91},1"
+delta feed "{B229781C-A6AB-467E-B6C9-E7E4778B3B91},2"
+```
+
+Same GUID, version bumped. OneDrive moves a folder's eTag immediately after
+creation, so a DELETE conditioned on the create response loses its precondition.
+
+This does not contradict `folder_etag_and_mtime_ignore_their_children`, which
+measured that a folder's eTag does *not* move when a child is added. Both are
+true and they constrain different things: a folder's eTag is useless as a
+precondition against its contents, and stale as a precondition from its creation.
+
+**Why the suite did not catch it.** The synthetic provider echoed the create
+receipt's eTag straight back into its stored node, so it accepted exactly what a
+live drive rejects. It now stores a moved eTag, and the test that would have
+caught this asserts the outcome rather than the errno: after the dust settles the
+folder is gone from the provider and nothing sits in `Conflict`. Re-chaining makes
+it fail on precisely that.
+
+**What shipped instead.** `Writeback::rmdir` refuses the whole unsettled window
+with `EBUSY` -- not now, try again -- and builds the removal from the object's
+current remote node once the creation has settled. `EINVAL` is gone either way; it
+is gone by refusing honestly rather than by succeeding falsely.
+
+**The second finding.** Fourteen namespace changes sat terminally stuck in a live
+journal and no status field said so: a conflict hid the directory locally, left it
+remotely, and reported nothing. `AccountStatus` now carries `stuck_changes`, and
+the daemon on that drive reported `14`.
+
+**And the way out, measured on the same fourteen.** `cirrove discard-stuck`
+abandons a removal the provider never took. It discards rather than retries: a
+conflict means the remote moved, and re-sending a delete against whatever is
+there now is how a stale intent destroys someone else's change. Run against the
+live drive:
+
+| step | result |
+| --- | --- |
+| `discard-stuck` | abandoned 14; `stuck_changes` 14 → 0 |
+| folders back in the mount | 14 of 14 |
+| second `rmdir` | 10 applied, 4 conflicted again |
+| their local ETags | `,1` while the delta feed already held `,2` |
+| `discard-stuck` again, then `rmdir` | 4 of 4 applied |
+
+So a discard restores *visibility*, not *freshness*. The restored object keeps
+the ETag it held when the removal was built, and a second attempt made before the
+delta feed catches up is refused for the original reason -- and is itself
+discardable. Making the discard follow the remote was tried and does not help:
+the node it would follow is the one this journal stored, which is the stale one.
+Refreshing from the provider is the feed's job, and doing it inside a discard
+would be a second, worse copy of it.
+
+Final state of that drive: no leftovers, 192 mutations, all applied.
+
+## A linked folder into a second drive, on the real account
+
+**2026-09-16, the owner's account, developer install on Arch.** This was never
+arranged: the account's `Dokumente` folder turned out to be a `shortcut` node
+whose target is a second collection's root, so every day's work has been going
+through a linked folder into another drive without anybody writing it down. The
+matrix called that row *fixture*.
+
+Checked through the link, with the owner at the machine:
+
+- **Traversal and read.** `Dokumente/Unternehmen/Umlaufbeschlüsse/20220408
+  Umlaufbeschluss goodguys.pdf` reads back `%PDF-`, 139,703 bytes, in a file
+  manager and from the shell.
+- **Keeping offline.** Kept from the Files context menu; the daemon recorded one
+  pin of 139,735 reserved bytes and `kept_generation` moved to 2. The badge
+  appeared and the menu switched to its un-keep wording.
+- **Write.** A 48-byte throwaway file created inside the linked folder was
+  uploaded, and the provider reported it back through the delta feed.
+- **Delete.** Removed through the link; gone from the mount, no failed uploads
+  and nothing stuck. Nothing of the owner's own data was touched.
+
+**It found a defect, which is the reason to write this down rather than tick a
+box.** `relative_path` walked a node's ancestors until it reached the account's
+configured root, and this account has two. Every item in the linked drive walked
+up to a parentless node that did not match and resolved to no path at all, so
+`cirrove pins` named the file `01YQR2QYPXJNXJZ7LXENA2KXH77S2VBEFB`, and refused
+changes and failed saves in that drive would have been just as nameless. A node
+without a parent is a drive root, whichever drive it is; fixed with four tests,
+two of which fail without it. Recorded because a row that reads *real* should
+say what became real and what broke on the way.
+
+**Still fixture, and not claimed:** duplicate links to one target, a link whose
+target moves, a link whose target is deleted, folder-only access, and per-item
+permissions. One linked folder that works is not the row.
+
+## A pin that said "database is locked", and the lock upgrade behind it
+
+**2026-09-16.** `real_a_recursive_pin_keeps_the_files_under_a_folder_readable_offline`
+failed inside a full `scripts/check.sh`, twice in five runs, and would not fail
+on demand: not alone, and not four times in its group under the environment
+`check.sh` gives it. It was tempting to record it as a one-in-five and move on.
+
+**The error said nothing, and that was the first thing to fix.** The job read
+`issue: Some("metadata database error")`, because `StoreError::Database` threw
+SQLite's own words away. With those words restored the second sighting read
+`database is locked`, and the hunt took minutes instead of runs.
+
+**The cause is a lock upgrade, and connection pooling only changed the timing.**
+`Pins::protect_blocks` opened a DEFERRED transaction, read the pin, and then
+deleted its rows. A deferred transaction that reads first holds a read lock and
+must upgrade to write, and SQLite answers an upgrade that collides with another
+writer by returning `SQLITE_BUSY` **immediately, bypassing the busy handler** --
+the same behaviour `initial_wal` has documented in this file for journal-mode
+changes since it was written. So a writer that should have waited its three
+seconds failed at once, and a person keeping a folder offline was told the
+database was locked halfway through the fetch.
+
+It is now IMMEDIATE, which takes the write lock up front so the handler applies,
+and so is `unpin` -- which writes first and was safe, but is one statement away
+from not being. `protecting_blocks_waits_for_a_writer_instead_of_failing_at_once`
+reproduces the old failure deterministically: without the change it panics with
+`DatabaseBusy, "database is locked"`, the same words the intermittent run gave.
+
+**The pool was suspected and cleared.** Two full checks with pooling disabled
+were green, which was consistent with the pool being at fault and would have
+been enough to blame it. The four other deferred transactions in the store were
+then read rather than guessed at: `children`, `child`, `with_children`,
+`visit_children` and `metadata_changes` write nothing, and the directory
+staging transaction writes only temp tables. None of them needs IMMEDIATE, and
+giving it to a reader would take write locks for reads.
+
+Two other failures seen the same evening were **not** this, and are recorded so
+nobody chases them twice. Running the group by hand fails
+`real_reclamation_reaches_a_mount_that_only_reads` -- it says so itself, naming
+the floor it needs -- and `real_unpinned_blocks_stop_being_protected_from_
+eviction`, which needs the serial `--test-threads=1` the script gives it. Both
+are the invocation, not the code.

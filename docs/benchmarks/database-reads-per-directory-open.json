@@ -1,0 +1,90 @@
+{
+  "a_check_on_this_change_itself": "Mapping the file does not make opening a connection more expensive, which was worth checking because a connection per operation means a map and an unmap per operation, and __munmap does appear in the profile. Median open-plus-first-statement on the real database: 0.150 ms with no map, 0.163 ms at 256 MiB, 0.100 ms at 2 GiB. The full map is faster, because the first statement's pages come from the map instead of from reads.",
+  "arms": [
+    {
+      "name": "today",
+      "note": "SQLite default page cache, 2000 pages",
+      "pragmas": []
+    },
+    {
+      "name": "cache_size",
+      "note": "64 MiB page cache per connection",
+      "pragmas": [
+        "PRAGMA cache_size=-65536"
+      ]
+    },
+    {
+      "name": "mmap 256 MiB",
+      "note": "covers 45 percent of this machine's 564 MB store",
+      "pragmas": [
+        "PRAGMA mmap_size=268435456"
+      ]
+    },
+    {
+      "name": "mmap 2 GiB",
+      "note": "SQLite maps at most the file length; 563 MiB mapped in practice",
+      "pragmas": [
+        "PRAGMA mmap_size=2147483648"
+      ]
+    }
+  ],
+  "endpoints": [
+    "read syscalls the daemon performs per directory open, from /proc/<pid>/io syscr",
+    "daemon resident set size, because mapped file pages are counted in RSS even though the kernel can reclaim them, and a bounded-memory release blocker is still open"
+  ],
+  "known_trade_off": "With a memory map, an I/O error on the database reaches the process as SIGBUS rather than as an error return. For a filesystem daemon that turns a bad sector into a disappearing mount instead of an error. This is the reason the change needs a decision record, not just a commit.",
+  "measured": {
+    "fixture": "the owner's own account on the development machine: 184,092 items, a 564 MB metadata database, an actual kernel FUSE mount. Not synthetic.",
+    "memory_kib": {
+      "after": {
+        "Pss": 147748,
+        "RssAnon": 52800,
+        "RssFile": 97536,
+        "VmRSS": 150336
+      },
+      "before": {
+        "Pss": 83467,
+        "RssAnon": 68796,
+        "RssFile": 18180,
+        "VmRSS": 86976
+      }
+    },
+    "read_syscalls_per_second_during_the_post_start_burst": {
+      "before_any_change": 875000,
+      "mmap_256_mib": 391989,
+      "mmap_2_gib": 1940,
+      "note": "the same workload in all three: the daemon's own activity in the first half hour after a start, with the file indexer idle at 0 percent CPU.",
+      "spread": "the 256 MiB arm: 23 samples, 385,532 to 401,434. The 2 GiB arm: 8 samples, 412 to 13,572, which is wide because the burst's own work varies."
+    },
+    "reads_per_directory_open": {
+      "method": "median of nine opens of the same directory, background rate measured and subtracted; every repeat cost the same before the change, so this is a fixed cost and not a cold cache",
+      "mmap_2_gib": 11,
+      "today": 82,
+      "why_not_zero": "SQLite reads the write-ahead log with ordinary reads, not through the map. metadata.db-wal was 16 MB."
+    }
+  },
+  "prediction": {
+    "i_may_be_wrong_about": "whether the 82 reads are SQLite at all. The evidence is indirect: no file descriptor position advances, which means positional reads, and SQLite is the only positional reader in the daemon. A counter in the daemon would settle it directly.",
+    "reads_per_open": "today about 82; cache_size barely better, because a pilot on a copy of the real 564 MB database moved only 5.6 to 4.7 reads per lookup; mmap_size close to zero, because the same pilot moved 2,239 reads to 1.",
+    "resident_memory": "RSS rises by up to the mapped working set, so I expect a visible increase, bounded by 256 MiB per connection and shared between them because the mapping is of one file. I predict PSS rises far less than RSS. If RSS rises by more than 256 MiB the explanation is wrong and the change does not ship.",
+    "written_before_the_run": true
+  },
+  "question": "Opening one directory on the mount costs about 82 database read syscalls, measured on the owner's machine and reproducible on every repeat. Does setting PRAGMA mmap_size on the store's connections remove those syscalls, and what does it cost in resident memory?",
+  "registered": "2026-09-16",
+  "registered_before_the_run": true,
+  "result": "passed. Reads per directory open 82 to 11. The post-start read storm 875,000 to about 2,000 per second, a factor of roughly 400. Resident memory rose 63 MB, all of it reclaimable file pages.",
+  "second_prediction": {
+    "occasion": "The 256 MiB arm halved the rate rather than removing it, which is the covered fraction of the file and nothing more.",
+    "prediction": "A map covering the whole 564 MB file brings the rate below 40,000 reads per second, under a tenth of the 875,000 measured during the incident. If it does not, size is not the explanation and the change is wrong.",
+    "written_before_the_run": true
+  },
+  "source_base": "02b458423dd3fd119b4b72364c9c0286b013b7b4",
+  "source_sha256": {
+    "crates/cirrove-service/src/filesystem.rs": "505d9e5832ab7666caf7dba69c1a1929a94f24f9c66a0d48266a79d104f0a26e",
+    "crates/cirrove-service/src/filesystem/directories.rs": "1ab6d73dce3aae9630ca2e9029506987895892873bc1c72aa23dfb249230fb93",
+    "crates/cirrove-store/src/lib.rs": "879123cd48d5ba7f2fd68d4eedd968fc5f7090ddee97b71d610af01bcab30614"
+  },
+  "what_this_did_not_fix": "The daemon still spends about a core for 16 to 25 minutes after every start. Profiling it (pkexec sysctl kernel.yama.ptrace_scope=0, then eu-stack sampling only threads whose stack leaf is not futex/read/epoll_wait/syscall) found the cause: a new SQLite connection per operation. Of 16 computing stacks, 5 were in Store::open, 4 in closing a connection, 4 in sqlite3Prepare/yy_reduce, and only 4 in Store::with_children. An open plus one statement costs 0.10 ms against 0.002 ms warm. The fix is the pooled read connection ADR 0006 called a prerequisite; it is not in this change.",
+  "where_the_prediction_was_wrong": "I predicted PSS would rise far less than RSS, because the map is of one file and is shared between the store's connections. It did not: RSS rose 63 MB and PSS rose 64 MB. Sharing between threads of one process does not divide PSS -- proportional set size divides a mapping between the processes that hold it, and only this process maps the database. The bound I set the prediction against was the right one and it held: the whole rise is file-backed and reclaimable, and anonymous memory actually fell by 16 MB.",
+  "why_it_matters": "On 2026-09-16 the owner updated the OS and rebooted. GNOME's localsearch-3 re-crawled $HOME, which contains the mount, and cirroved burned about 93 percent of one core for 25 minutes at roughly 875,000 read syscalls per second. No file content was fetched (content_gets was 0), so the cost was entirely metadata lookups amplified by a crawler. A machine whose fan spins up for half an hour after every update loses its user."
+}

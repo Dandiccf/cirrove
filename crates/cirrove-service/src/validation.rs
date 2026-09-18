@@ -5,6 +5,7 @@ mod freshness;
 mod namespace;
 mod navigation;
 mod notifications;
+mod pinning;
 mod read_bytes;
 mod remote_changes;
 mod writable;
@@ -27,6 +28,7 @@ pub use freshness::onedrive_freshness;
 pub use namespace::onedrive_mutations;
 pub use navigation::onedrive_navigation;
 pub use notifications::onedrive_notifications;
+pub use pinning::onedrive_pinning;
 pub use read_bytes::onedrive_read_bytes;
 pub use remote_changes::onedrive_remote_changes;
 use secrecy::SecretString;
@@ -499,7 +501,7 @@ mod tests {
                 .contains("--write-access")
         );
         assert!(
-            onedrive_notifications(temp.path(), "fixture", true)
+            onedrive_notifications(temp.path(), "fixture", true, true)
                 .await
                 .unwrap_err()
                 .to_string()
@@ -530,7 +532,7 @@ mod tests {
                 .contains("disable")
         );
         assert!(
-            onedrive_notifications(temp.path(), "fixture", true)
+            onedrive_notifications(temp.path(), "fixture", true, true)
                 .await
                 .unwrap_err()
                 .to_string()
@@ -557,7 +559,7 @@ mod tests {
         assert!(onedrive_uploads(temp.path(), "fixture").await.is_err());
         assert!(onedrive_mutations(temp.path(), "fixture").await.is_err());
         assert!(
-            onedrive_notifications(temp.path(), "fixture", true)
+            onedrive_notifications(temp.path(), "fixture", true, true)
                 .await
                 .is_err()
         );

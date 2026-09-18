@@ -1,0 +1,37 @@
+{
+  "question": "Over a long session against a large library, with malloc arenas capped as the shipped unit now caps them, does the daemon's resident memory reach a plateau and stay there -- and what is the number the bounded-memory row should state?",
+  "why_now": "The bounded-memory row has been open since 2026-09-10 on a product decision, not a measurement: the same daemon sat at 108 or 211 MiB depending on a setting nobody had chosen. That decision was made on 2026-09-14 with both halves of the trade measured (allocator-arena-cost.json), and the shipped unit now caps arenas. What is left is the bound itself, which is now a measurement with no decision in front of it.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-14",
+  "honesty_note": "The sampler was started a few minutes before this file was written, at 11:58. No sample had been read when these predictions were set down, and none is read until the run ends. Saying so is better than backdating.",
+  "how": "The Fedora VM, the owner's account with 184,054 indexed items, the daemon restarted with MALLOC_ARENA_MAX=1 through a systemd drop-in and confirmed set in /proc/<pid>/environ. scripts/sustained-operation-sample.py writes a row a minute for five hours: rss, state, mounted, feeds, items, stuck, and the time a root listing takes.",
+  "what_is_already_known": {
+    "uncapped_over_a_day": "The Ubuntu window running concurrently, on the same drive and the same 184,053 items but without the cap, shows a plateau rather than a climb: 29.9 MiB rising to 42.3 over 17.6 hours, of which the second half contributed 1.0 MiB. An earlier 4-hour run on the same machine had the same shape, +8.7 MiB total and +0.4 in its second half. That workload is mostly idle -- a listing a minute -- which is why its numbers are far below the 103 to 158 MiB growth the concurrent read fixture produces uncapped.",
+    "capped_under_load": "43.9 to 44.6 MiB of growth across six concurrent read workloads, spread 0.7 MiB."
+  },
+  "predictions": {
+    "P1": "Resident memory reaches a plateau within the first two hours and the second half of the run adds less than 5 MiB. The uncapped run shows this shape already; capping should not change whether it plateaus, only where.",
+    "P2": "The plateau is at or below the uncapped machine's, and probably a little under it. This workload is light, so the arena effect should be smaller here than under the concurrent read fixture -- if capping made this workload's resting memory noticeably worse, that would be worth knowing and would not be expected.",
+    "P3": "A root listing stays at a millisecond or two throughout, as it does on the uncapped machine. Memory that is bounded by refusing to serve is not bounded.",
+    "P4": "The account stays ready and mounted for the whole run with no restart, and indexed_items does not drift. Anything else and this is measuring a different event."
+  },
+  "decision_rule": {
+    "all_hold": "The bounded-memory row states its bound against the capped allocator, with this number and the uncapped day beside it, and closes.",
+    "P1_fails": "There is a leak and the row stays open with a number nobody should ship.",
+    "P3_fails": "The row stays open: a listing that slows as memory settles is the trade this row exists to refuse."
+  },
+  "what_this_does_not_cover": "Five hours, not a day, and one machine. The day belongs to the Ubuntu window, which is uncapped; running a capped day is the obvious follow-on and is not this.",
+  "result": {
+    "when": "2026-09-14T11:58-16:57+02:00, 300 samples over 4.99 hours, one process throughout",
+    "where": "Fedora VM, the owner's account, 184,054 to 184,057 indexed items, MALLOC_ARENA_MAX=1 confirmed in the daemon's own environ",
+    "observed": {
+      "P1": "HOLDS. Resident memory rose from 50.5 MiB to a plateau and stayed there: quarter means 127.3, 132.6, 130.1, 128.8 MiB. The second half did not add 5 MiB, it subtracted 3.7. Peak 132.8 across five hours.",
+      "P2": "FAILS as written, and the prediction was the thing at fault rather than the daemon. I said the capped plateau would be at or below the uncapped machine's 42 MiB; it is 129. But the two are not comparable and I should not have compared them: the Ubuntu daemon had been running for a day and never indexed during its window, while this one had just been restarted and re-indexed 184,000 items. The like-for-like figure is live heap, and there the two agree -- Fedora reports 77.9 MiB retained out of 129, so about 48 MiB is live against Ubuntu's 42.",
+      "P3": "HOLDS. Root listing median 1.0 ms, p95 1.0 ms, max 26 ms across the whole run. Memory that is bounded by refusing to serve is not bounded, and this is not that.",
+      "P4": "HOLDS. One process for five hours, ready in every sample, indexed items 184,054 to 184,057 -- the drift is the upgrade check files written and removed during the run."
+    },
+    "what_it_actually_found": "Not what I first wrote. 412 trims in five hours is the reclamation cadence -- once a minute, by design -- and not a tick misfiring on a figure it cannot act on. I registered a separate artifact claiming the latter and withdrew it within the hour: the trigger was deliberately moved from a threshold to a cadence because free arena bytes and resident-minus-live do not fall when a trim succeeds, which is written in trim-cadence.json and in the comment above the trigger itself. Reading that first would have saved the detour. What the series genuinely contributes is the answer to the question trim-cadence.json left open: the drift it saw between its first and second hour is an asymptote, not a ramp.",
+    "next": "Why 412 trims return nothing is its own question and belongs in its own artifact, not in a conclusion here. Until it is answered, a bound stated for this daemon has to be stated as live heap plus what the allocator is holding, and say which is which."
+  },
+  "verdict": "Three of four hold and the fourth was a bad prediction: I compared a daemon that had just re-indexed 184,000 items against one that had idled for a day, which was never like-for-like. Memory plateaus and stays -- the second half subtracts 3.7 MiB -- and a listing takes a millisecond while it does, so the substance of the row is answered. The number is not, because 78 of the 129 MiB is resident-minus-live and this run cannot say how much of that any allocator could return. The row stays open by its own decision rule. The series' real contribution is elsewhere: it settles the drift question trim-cadence.json registered and could not answer in two hours."
+}

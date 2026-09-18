@@ -529,6 +529,22 @@ filename equivalence. Receipts and queue completion commit together. Migration
 preserves existing upload sequence numbers, snapshots and pending states. Older
 binaries refuse newer schemas instead of trying to downgrade them.
 
+A namespace change may be queued behind an operation whose receipt has not
+arrived, with the real identity and ETag substituted from that receipt before
+anything is sent. Folder removal is deliberately excluded, and this was tried:
+Graph moves a folder's eTag between the create response and a moment later, so a
+DELETE conditioned on the creation receipt loses its precondition and lands in
+`Conflict` -- after `rmdir` has already told the caller it succeeded. Measured on
+a live drive: fourteen of fourteen chained folder removals conflicted and five of
+five unchained ones applied, leaving fourteen empty folders in the account and
+nothing in the mount to show for them.
+
+`Writeback::rmdir` therefore refuses the whole unsettled window with `EBUSY` --
+not now, try again -- and the removal is built from the object's current remote
+node once its creation has settled. The refusal used to surface as `EINVAL`
+through the journal, which told a caller its request was malformed for the
+ordinary act of creating a folder and changing their mind.
+
 After interruption, a namespace operation requires verification. A matching immutable
 item at the requested new name/parent can complete a lost rename/move response.
 An unchanged original revision permits a new conditional attempt. A missing item
@@ -536,6 +552,21 @@ alone does not establish deletion: lost deletes and unidentified folder creation
 can enter `NeedsReview`, retaining their request without an automatic retry loop.
 HTTP success is required for a confirmed deletion receipt. File DELETE uses the
 provider's recycle-bin behavior; it is not permanent deletion or local POSIX rmdir.
+Nothing in the tree deletes permanently, and no setting makes the default do so.
+
+The mount root refuses to hold a local wastebasket. The freedesktop trash
+specification points a file manager at `$topdir/.Trash-$uid`, and on a mount
+`$topdir` is the mount point, so the first Delete in GNOME Files created that
+directory inside the user's cloud drive -- a second wastebasket, synced to every
+device, while the provider's own recycle bin stayed empty. `mkdir` now answers
+`EOPNOTSUPP` for `.Trash` and `.Trash-$uid` at the root only, and `rename`
+refuses a destination inside one, because trashing into a wastebasket that is
+already in the drive is a rename rather than a mkdir. Renames out of one stay
+allowed, so an existing wastebasket can still be emptied. A file manager then
+offers permanent deletion instead, which is safe and still not accurate about
+where the file goes; [ADR 0008](adr/0008-deletion-and-the-recycle-bin.md) records
+that gap and why permanent deletion needs a control verb rather than a filesystem
+call.
 
 Experimental writable mounts now connect regular-file rename/move to this worker.
 Experimental FUSE also supports folder creation and dependent child destinations
@@ -974,6 +1005,12 @@ must consume the service's state rather than maintain their own sync logic.
 Google Drive will implement provider contracts around its native changes and content
 APIs, including shared drives and explicit document export. iCloud must stay isolated
 behind a compatibility adapter with visible authentication/API limitations.
+[ADR 0009](adr/0009-a-second-provider.md) surveys what a second provider would
+actually cost here: the core traits and the store's key space already carry it,
+while the account record, the auth crate and the status wire format assume
+Microsoft, and the write contract requires an ETag precondition that Drive does
+not offer. It records the order those must change in, and that the precondition
+becomes a stated capability rather than a requirement.
 
 ## References
 

@@ -1,0 +1,6 @@
+cirrove (0.1.0-1) unstable; urgency=medium
+
+  * Development build from the tree. scripts/build-deb-package.sh rewrites
+    this version with the commit it builds.
+
+ -- Christian Dandachi <dandiccf@users.noreply.github.com>  Sat, 13 Sep 2026 00:00:00 +0000

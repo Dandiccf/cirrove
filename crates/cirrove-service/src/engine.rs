@@ -1,10 +1,56 @@
 //! Per-account metadata service. Change feeds and foreground directory requests
 //! share a provider client but never hold SQLite locks across network awaits.
 mod changes;
+
+/// An item's mount-relative path, by walking parents up to the drive root.
+///
+/// `None` rather than a partial answer: an item whose chain of parents is not
+/// fully indexed, or which belongs to a collection this account does not root,
+/// has no honest mount-relative path, and half a path points at a real file
+/// that is not the one in question. The depth bound is a guard against a cycle
+/// in the parent chain, which no correct index has and which would otherwise
+/// hang the status call that every client polls.
+fn relative_path(
+    store: &Store,
+    scope: &cirrove_core::Scope,
+    root: &str,
+    item: &str,
+) -> Option<String> {
+    const DEEPER_THAN_ANY_REAL_DRIVE: usize = 128;
+    let mut parts: Vec<String> = Vec::new();
+    let mut id = item.to_string();
+    for _ in 0..DEEPER_THAN_ANY_REAL_DRIVE {
+        if id == root {
+            parts.reverse();
+            return Some(parts.join("/"));
+        }
+        let node = store.node(scope, &id).ok().flatten()?;
+        // A node with no parent is a drive root, and `root` names only one of
+        // them. An account can subscribe to more than one drive -- this one has
+        // two -- and every item in the others walked up to a parentless node
+        // that did not match, and resolved to no path at all. What the owner
+        // saw on 2026-09-16 was `cirrove pins` naming a file
+        // `01YQR2QYPXJNXJZ7LXENA2KXH77S2VBEFB` instead of the PDF they had just
+        // kept offline; refused changes and failed saves in that drive were
+        // just as nameless. The root's own name is not part of the path.
+        let Some(parent) = node.parent_id else {
+            parts.reverse();
+            return Some(parts.join("/"));
+        };
+        parts.push(node.name);
+        id = parent;
+    }
+    None
+}
+
 #[cfg(test)]
 mod deadlines;
 #[cfg(test)]
+mod deletion;
+#[cfg(test)]
 mod discovery;
+#[cfg(test)]
+mod paths;
 #[cfg(test)]
 mod persistence;
 #[cfg(test)]
@@ -39,6 +85,13 @@ const DISCOVERY_RETRY_LIMIT: Duration = Duration::from_secs(60);
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PinStatus {
     pub item: String,
+    /// Where the item is in the drive, mount-relative, so a person can be shown
+    /// what is kept instead of a provider id. `None` when the chain of parents
+    /// is not fully indexed or does not reach this account's root -- a path that
+    /// cannot be completed would be a wrong path, not a shorter one, and the
+    /// caller should fall back to the id rather than print half of one.
+    #[serde(default)]
+    pub path: Option<String>,
     pub recursive: bool,
     /// Claimed from the cache budget when the pin was made.
     pub reserved: u64,
@@ -48,6 +101,97 @@ pub struct PinStatus {
     /// from "nothing to fetch".
     pub blocks: u64,
 }
+
+/// How much of the cache pinning has claimed, and how close that is to the
+/// point where the next pin is refused.
+///
+/// Reported because "clear free-space behaviour" is a claim about what a user
+/// can find out before they are refused, not only about the refusal. A caller
+/// who can see the budget filling can act; one who learns about it from an
+/// error has already been stopped.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PinBudget {
+    /// The account's whole cache allowance.
+    pub cache_bytes: u64,
+    /// The most pinning may claim of it. Reservations may not take the whole
+    /// budget, because a cache with no unreserved room would evict each block an
+    /// unpinned read had just fetched.
+    pub pinnable_bytes: u64,
+    /// Claimed by pins right now.
+    pub reserved_bytes: u64,
+    /// What a new pin could still take.
+    pub free_bytes: u64,
+}
+impl PinBudget {
+    /// Tenths of a percent, so a caller can compare without floating point.
+    #[must_use]
+    pub fn used_per_mille(&self) -> u64 {
+        if self.pinnable_bytes == 0 {
+            return 1000;
+        }
+        (self.reserved_bytes.saturating_mul(1000) / self.pinnable_bytes).min(1000)
+    }
+    /// A sentence for a person, not a status code.
+    #[must_use]
+    pub fn explain(&self) -> String {
+        let mib = |b: u64| b as f64 / (1024.0 * 1024.0);
+        if self.free_bytes == 0 {
+            return format!(
+                "Pinning has claimed all {:.0} MiB it may use of a {:.0} MiB cache. \
+                 Unpin something, or raise cache_bytes for this account, before pinning more.",
+                mib(self.pinnable_bytes),
+                mib(self.cache_bytes)
+            );
+        }
+        format!(
+            "Pinning holds {:.0} of {:.0} MiB it may use ({}.{}%), leaving {:.0} MiB. \
+             The rest of the {:.0} MiB cache stays available for ordinary reads.",
+            mib(self.reserved_bytes),
+            mib(self.pinnable_bytes),
+            self.used_per_mille() / 10,
+            self.used_per_mille() % 10,
+            mib(self.free_bytes),
+            mib(self.cache_bytes)
+        )
+    }
+}
+/// Whether a feed changing state is worth a line in the log, and which line.
+///
+/// The daemon used to write nothing at all when a provider refused its
+/// authorization. The state reached a user through the tray and `cirrove
+/// status`, which is what the acceptance row asks for -- and an operator reading
+/// the journal saw a healthy daemon for the seventeen minutes a real grant was
+/// withdrawn, with nothing saying what had been refused or why. The one place a
+/// person looks when something is wrong was the one place that stayed silent.
+///
+/// On transitions only. A refused feed retries every sixty seconds, and a line
+/// per retry would bury the one that matters under the ones that do not.
+/// `indexing` is the state a feed starts in, so reaching it first is not a
+/// failure to announce.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum FeedNotice {
+    /// It stopped working, and this is the first tick that says so.
+    Failed,
+    /// It works again after having stopped.
+    Recovered,
+    Nothing,
+}
+
+pub(crate) fn feed_notice(before: &str, after: &str) -> FeedNotice {
+    if before == after {
+        return FeedNotice::Nothing;
+    }
+    match (before, after) {
+        (_, "ready") if before != "indexing" => FeedNotice::Recovered,
+        (_, "ready") => FeedNotice::Nothing,
+        // Indexing is work in progress rather than a fault, and a feed passes
+        // through it on every reset. Announcing it would make the log noisy in
+        // exactly the situation where it needs to be readable.
+        (_, "indexing") => FeedNotice::Nothing,
+        _ => FeedNotice::Failed,
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FeedHealth {
     pub collection: String,
@@ -67,6 +211,17 @@ fn now() -> u64 {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs()
+}
+/// A folder pin that has been walked and reserved, with the fetching left.
+struct PlannedPin {
+    files: Vec<Node>,
+    bytes: u64,
+    complete: bool,
+}
+/// What a fetch managed to keep, and whether it was stopped rather than done.
+struct KeptOffline {
+    blocks: usize,
+    stopped: bool,
 }
 pub struct Engine {
     pub account: Account,
@@ -88,6 +243,25 @@ pub struct Engine {
     /// asking why their saves failed should not have the answer erased by the
     /// remount that failing saves can themselves provoke.
     pub save_refusals: Arc<crate::journal::SaveRefusals>,
+    /// What the delta feed delivered lately, for a window and a tray.
+    pub recent: crate::recent::RecentChanges,
+    /// Long work somebody asked for and can watch or stop. See [`crate::jobs`].
+    pub jobs: Arc<crate::jobs::Jobs>,
+    /// Bumped whenever what this account keeps offline changes: a pin made or
+    /// released, or a file of one arriving.
+    ///
+    /// A level, not a log, and it exists for the file manager. Files asks the
+    /// daemon about a path when it lists a directory and then keeps the answer,
+    /// so a pin made in the window left a stale badge sitting in an open window
+    /// until something else made Files re-list. A counter on the event channel
+    /// is the smallest thing that can say "ask again" without saying what
+    /// changed -- which would be a path, on a channel that carries none.
+    ///
+    /// Bumped per file rather than per job on purpose: the status vector is
+    /// rebuilt every five seconds, so a fetch of three hundred files produces
+    /// one event per sample rather than three hundred. That coalescing is the
+    /// channel's whole design (ADR 0007).
+    kept_generation: AtomicU64,
     /// One connection stays open for the account's lifetime. Without it every
     /// `Store::open` is both the first and the last connection to a WAL
     /// database, so SQLite creates `metadata.db-wal` and `-shm` on open and, on
@@ -148,9 +322,19 @@ impl Engine {
             discovery_failures: AtomicU64::new(0),
             activity: crate::activity::DirectoryActivity::default(),
             save_refusals: Arc::new(crate::journal::SaveRefusals::default()),
+            recent: crate::recent::RecentChanges::default(),
+            jobs: Arc::new(crate::jobs::Jobs::default()),
+            kept_generation: AtomicU64::new(0),
             _keeper: StdMutex::new(keeper),
             _owner: owner,
         }))
+    }
+    /// What is kept offline, as a number that changes when it does.
+    pub fn kept_generation(&self) -> u64 {
+        self.kept_generation.load(Ordering::Relaxed)
+    }
+    fn kept_changed(&self) {
+        self.kept_generation.fetch_add(1, Ordering::Relaxed);
     }
     pub fn scope(&self, collection: &str) -> Scope {
         Scope {
@@ -214,6 +398,7 @@ impl Engine {
         .await??;
         if outcome.is_ok() {
             self.refresh_reservations().await?;
+            self.kept_changed();
         }
         Ok(outcome)
     }
@@ -228,37 +413,160 @@ impl Engine {
     /// Content revisions change block keys, so this is also what a pin needs
     /// after the file changes remotely.
     pub async fn materialise_pin(&self, scope: &Scope, node: &Node) -> Result<usize> {
-        let keys = anyhow::Context::context(
+        // A file with no content version has no block keys to bind to, and a
+        // pin bound to nothing looks exactly like one that works.
+        anyhow::Context::context(
             crate::content::block_keys(scope, node),
             "pinned file has no content version to bind its blocks to",
         )?;
-        let mut start = 0;
-        while start < node.size {
-            let length = (node.size - start).min(crate::content::BLOCK_SIZE as u64) as u32;
-            self.cache
-                .read(
-                    self.provider.as_ref(),
-                    scope,
-                    node,
-                    start,
-                    length,
-                    &self.cancel,
-                )
-                .await?;
-            start += crate::content::BLOCK_SIZE as u64;
+        Ok(self
+            .keep_files_offline(scope, &node.id, std::slice::from_ref(node), None)
+            .await?
+            .blocks)
+    }
+    /// Fetch every block of every file listed, and protect what was kept.
+    ///
+    /// The one place content is fetched because somebody asked for it rather
+    /// than because something read it, and therefore the one place with progress
+    /// worth reporting: `progress` is the job a person is watching, when there
+    /// is one. It ends early when that job is stopped.
+    ///
+    /// A fetch that fails part way still protects what it managed to keep. Three
+    /// hundred files of three hundred and forty are three hundred files a person
+    /// can open on a train, and blocks nothing protects are blocks eviction
+    /// takes at the next download.
+    async fn keep_files_offline(
+        &self,
+        scope: &Scope,
+        item: &str,
+        files: &[Node],
+        progress: Option<&crate::jobs::JobHandle>,
+    ) -> Result<KeptOffline> {
+        let cancel = progress.map_or(&self.cancel, |job| &job.cancel);
+        let mut keys: Vec<String> = Vec::new();
+        let (mut files_done, mut bytes_done) = (0u64, 0u64);
+        let mut failure = None;
+        'files: for file in files {
+            let mut start = 0;
+            while start < file.size {
+                if cancel.is_cancelled() {
+                    break 'files;
+                }
+                let length = (file.size - start).min(crate::content::BLOCK_SIZE as u64) as u32;
+                if let Err(error) = self
+                    .cache
+                    .read(self.provider.as_ref(), scope, file, start, length, cancel)
+                    .await
+                {
+                    failure = Some(error);
+                    break 'files;
+                }
+                start += crate::content::BLOCK_SIZE as u64;
+                bytes_done += u64::from(length);
+                if let Some(job) = progress {
+                    job.advance(files_done, bytes_done);
+                }
+            }
+            files_done += 1;
+            if let Some(file_keys) = crate::content::block_keys(scope, file) {
+                keys.extend(file_keys);
+            }
+            if let Some(job) = progress {
+                job.advance(files_done, bytes_done);
+            }
+            // A file that has arrived is a badge that has changed. Coalesced by
+            // the status loop, so a folder of three hundred costs one event per
+            // sample rather than three hundred.
+            self.kept_changed();
+        }
+        // Stopping means the pin goes with the job, so there is nothing to
+        // protect and nothing to publish: the caller releases it.
+        let stopped = cancel.is_cancelled();
+        if stopped {
+            return Ok(KeptOffline {
+                blocks: keys.len(),
+                stopped,
+            });
         }
         let db = self.db.clone();
         let key = serde_json::to_string(scope).unwrap_or_default();
-        let item = node.id.clone();
-        let count = keys.len();
         let owned = keys.clone();
+        let item = item.to_owned();
         tokio::task::spawn_blocking(move || Store::open(db)?.protect_blocks(&key, &item, &owned))
             .await??;
         // Published only after the blocks exist. Protecting keys before their
         // content is fetched would shrink what eviction may take while the cache
         // still has to make room for the fetch itself.
         self.refresh_reservations().await?;
-        Ok(count)
+        match failure {
+            Some(error) => Err(error.into()),
+            None => Ok(KeptOffline {
+                blocks: keys.len(),
+                stopped,
+            }),
+        }
+    }
+    /// Start keeping files offline as a job, and hand back its id.
+    ///
+    /// The fetching half of a pin. It is spawned rather than awaited because a
+    /// control request answers in one exchange and the client half gives up
+    /// after three seconds: a folder that took longer than that used to report
+    /// `Cirrove pin timed out` to the person who asked for it while the daemon
+    /// went on keeping every file, which is a wrong answer about work that
+    /// succeeded.
+    async fn keep_offline_job(
+        self: &Arc<Self>,
+        scope: &Scope,
+        root: &Node,
+        files: Vec<Node>,
+        bytes: u64,
+    ) -> String {
+        // Named by where it sits in the drive. The item id is what the daemon
+        // acts on and it is not something a person can recognise.
+        let name = self
+            .relative_path_of(scope, &root.id)
+            .await
+            .unwrap_or_else(|| root.name.clone());
+        let handle = self.jobs.start(
+            crate::jobs::JobKind::KeepOffline,
+            name,
+            files.len() as u64,
+            bytes,
+            &self.cancel,
+        );
+        let id = handle.id().to_owned();
+        let engine = self.clone();
+        let scope = scope.clone();
+        let item = root.id.clone();
+        self.tasks.spawn(async move {
+            let outcome = engine
+                .keep_files_offline(&scope, &item, &files, Some(&handle))
+                .await;
+            match outcome {
+                Ok(kept) if kept.stopped => {
+                    // Only a stop somebody asked for releases the pin. The same
+                    // token is cancelled when the account stops, and unpinning
+                    // there would quietly throw away what a user chose to keep
+                    // every time their machine shut down.
+                    if !handle.asked_to_stop() {
+                        return;
+                    }
+                    // A person who stopped a fetch did not ask to keep half a
+                    // folder, and a pin reserving the whole of it while holding
+                    // part of it misreports both.
+                    if let Err(error) = engine.unpin(scope, item).await {
+                        tracing::warn!("stopped keeping offline, but the pin remains: {error}");
+                    }
+                    let _ = engine.cache.reclaim().await;
+                    handle.failed(crate::jobs::JobState::Stopped, None);
+                }
+                Ok(_) => handle.finished(),
+                Err(error) => {
+                    handle.failed(crate::jobs::JobState::Failed, Some(error.to_string()));
+                }
+            }
+        });
+        id
     }
     /// Every file at or below `root`, with the total bytes they occupy.
     ///
@@ -314,41 +622,57 @@ impl Engine {
         scope: &Scope,
         root: &Node,
     ) -> Result<std::result::Result<(usize, bool), cirrove_store::pins::PinRefusal>> {
-        let (files, bytes, complete) = self.subtree_files(scope, &root.id).await?;
+        let planned = match self.plan_folder_pin(scope, root).await? {
+            Ok(planned) => planned,
+            Err(refusal) => return Ok(Err(refusal)),
+        };
+        self.keep_files_offline(scope, &root.id, &planned.files, None)
+            .await?;
+        Ok(Ok((planned.files.len(), planned.complete)))
+    }
+    /// Walk the subtree and reserve what it needs, without fetching anything.
+    ///
+    /// The half of a folder pin that belongs inside a request: it reads the
+    /// local index and writes one row, so it answers in milliseconds and it is
+    /// where every refusal a caller can act on comes from. The fetching half is
+    /// minutes of network and belongs to a job.
+    async fn plan_folder_pin(
+        &self,
+        scope: &Scope,
+        root: &Node,
+    ) -> Result<std::result::Result<PlannedPin, cirrove_store::pins::PinRefusal>> {
+        let (files, logical, complete) = self.subtree_files(scope, &root.id).await?;
+        // Same correction as a single file, per file in the walk: the walk sums
+        // logical sizes and the cache stores a digest with every block.
+        let bytes: u64 = files
+            .iter()
+            .map(|f| crate::content::stored_bytes(f.size))
+            .sum::<u64>()
+            .max(logical);
         if let Err(refusal) = self
             .pin(scope.clone(), root.id.clone(), true, bytes)
             .await?
         {
             return Ok(Err(refusal));
         }
-        let key = serde_json::to_string(scope).unwrap_or_default();
-        let mut keys = Vec::new();
-        for file in &files {
-            let mut start = 0;
-            while start < file.size {
-                let length = (file.size - start).min(crate::content::BLOCK_SIZE as u64) as u32;
-                self.cache
-                    .read(
-                        self.provider.as_ref(),
-                        scope,
-                        file,
-                        start,
-                        length,
-                        &self.cancel,
-                    )
-                    .await?;
-                start += crate::content::BLOCK_SIZE as u64;
-            }
-            if let Some(file_keys) = crate::content::block_keys(scope, file) {
-                keys.extend(file_keys);
-            }
-        }
+        Ok(Ok(PlannedPin {
+            files,
+            bytes,
+            complete,
+        }))
+    }
+    /// What pinning has claimed of the cache and what is left.
+    pub async fn pin_budget(&self) -> Result<PinBudget> {
         let db = self.db.clone();
-        let item = root.id.clone();
-        tokio::task::spawn_blocking(move || Store::open(db)?.protect_blocks(&key, &item, &keys))
-            .await??;
-        self.refresh_reservations().await?;
-        Ok(Ok((files.len(), complete)))
+        let reserved =
+            tokio::task::spawn_blocking(move || Store::open(db)?.reserved_bytes()).await??;
+        let pinnable = self.pinnable_budget();
+        Ok(PinBudget {
+            cache_bytes: self.account.cache_bytes,
+            pinnable_bytes: pinnable,
+            reserved_bytes: reserved,
+            free_bytes: pinnable.saturating_sub(reserved),
+        })
     }
     /// What each pin has actually kept, as against what it reserved.
     ///
@@ -356,10 +680,30 @@ impl Engine {
     /// content was never fetched reserves space and keeps nothing, and a status
     /// that showed only the reservation would report content as available that
     /// no offline read could produce.
+    /// Where an item sits in the drive, as a mount-relative path.
+    ///
+    /// The same walk the pin listing does, exposed because the stuck-change
+    /// listing needs it too: the writeback layer knows an item id and nothing
+    /// else, and this is the only place with an index to turn one into a path
+    /// a person recognises.
+    pub async fn relative_path_of(&self, scope: &Scope, item: &str) -> Option<String> {
+        let db = self.db.clone();
+        let root = self.account.root_id.clone();
+        let scope = scope.clone();
+        let item = item.to_owned();
+        tokio::task::spawn_blocking(move || {
+            let store = Store::open(db).ok()?;
+            relative_path(&store, &scope, &root, &item)
+        })
+        .await
+        .ok()
+        .flatten()
+    }
     pub async fn pin_status(&self) -> Result<Vec<PinStatus>> {
         let db = self.db.clone();
         let blocks = self.blocks_path();
         let cache = self.cache_path();
+        let root = self.account.root_id.clone();
         tokio::task::spawn_blocking(move || -> anyhow::Result<Vec<PinStatus>> {
             let store = Store::open(db)?;
             let index = cirrove_store::BlockIndex::open(&blocks)?;
@@ -376,8 +720,12 @@ impl Engine {
                     .filter(|key| cache.join(key).exists())
                     .filter_map(|key| sizes.get(key))
                     .sum();
+                let path = serde_json::from_str::<cirrove_core::Scope>(&pin.scope)
+                    .ok()
+                    .and_then(|scope| relative_path(&store, &scope, &root, &pin.item));
                 out.push(PinStatus {
                     item: pin.item,
+                    path,
                     recursive: pin.recursive,
                     reserved: pin.reserved,
                     resident,
@@ -391,10 +739,191 @@ impl Engine {
     pub(crate) fn blocks_path(&self) -> PathBuf {
         self.db.with_file_name("blocks.db")
     }
+
     /// Where published blocks live. Exposed so a caller reasoning about cache
     /// files derives the path from here rather than rebuilding it and drifting.
-    pub(crate) fn cache_path(&self) -> PathBuf {
+    ///
+    /// Public because an acceptance test has to be able to weigh the directory:
+    /// "unpinning frees the bytes" is a claim about a filesystem, and rebuilding
+    /// the path in the test would let the two drift apart silently.
+    pub fn cache_path(&self) -> PathBuf {
         self.db.with_file_name("cache")
+    }
+    /// The state of mount-relative paths, for a file manager drawing badges:
+    /// what each is, whether a pin covers it -- its own, or a recursive one on
+    /// a folder above -- and how much of a file's content is on disk. One
+    /// exchange for a whole listing; the pins are read once for all of them.
+    /// A path that does not resolve gets a refusal of its own rather than
+    /// failing the rest: a listing with one broken entry is still a listing.
+    /// Remove these paths without passing through the provider's recycle bin.
+    ///
+    /// Only ever reached because a person asked for it a second time, in words:
+    /// POSIX has one `unlink` and no flag in which "and skip the recycle bin"
+    /// could live (ADR 0008).
+    ///
+    /// **A folder is refused, and that is a decision rather than an omission.**
+    /// Graph's delete on a folder is recursive, and a folder's eTag does not
+    /// move when a child is added -- measured, `folder_etag_and_mtime_ignore_
+    /// their_children` -- so nothing available over Graph can tell whether a
+    /// child arrived between the check and the delete. The recycle bin is the
+    /// only recovery from that, and a permanent delete is precisely the thing
+    /// that removes it. One file at a time can be looked at; a subtree cannot.
+    /// The name of a wastebasket sitting in the drive root, if one is there.
+    ///
+    /// The mount refuses to create one and refuses renames into one, so nothing
+    /// can put anything in it any more. What it cannot do is remove one that
+    /// arrived before the guard existed -- a file manager made a real
+    /// `.Trash-1000/` in this owner's live drive on 2026-09-11 -- and removing
+    /// somebody's folder is not a mount's decision to take. Telling them it is
+    /// there was the part that was missing (ADR 0008, "what is not closed").
+    pub async fn wastebasket(self: &Arc<Self>) -> Option<String> {
+        let scope = self.scope(&self.account.drive.id);
+        let root = self.account.root_id.clone();
+        let children = self.children(&scope, &root).await.ok()?;
+        children
+            .into_iter()
+            .map(|node| node.name)
+            .find(|name| crate::filesystem::is_trash_directory(name))
+    }
+
+    ///
+    /// The provider is passed in rather than read from the engine: the engine
+    /// holds a read provider, and the index that turns a path into an item.
+    /// Writing belongs to the write side. This is the one place they meet.
+    pub async fn delete_permanently(
+        self: &Arc<Self>,
+        paths: &[String],
+        provider: &dyn cirrove_core::mutation::MutationProvider,
+    ) -> Vec<crate::PermanentDeletion> {
+        let support = provider.deletion();
+        let mut done = Vec::with_capacity(paths.len());
+        for path in paths {
+            let refuse = |why: &str| crate::PermanentDeletion {
+                path: path.clone(),
+                removed: false,
+                refusal: Some(why.to_owned()),
+            };
+            if !support.permanent {
+                done.push(refuse(
+                    "this provider has no permanent deletion, and an ordinary delete \
+                     must not be substituted for one that was asked for by name",
+                ));
+                continue;
+            }
+            let request = crate::PinRequest {
+                path: Some(path.clone()),
+                ..Default::default()
+            };
+            let (scope, node) = match self.resolve_request(&request).await {
+                Ok(resolved) => resolved,
+                Err(error) => {
+                    done.push(refuse(&error.to_string()));
+                    continue;
+                }
+            };
+            if node.kind == cirrove_core::NodeKind::Folder {
+                done.push(refuse(
+                    "a folder cannot be deleted permanently: the provider's delete is \
+                     recursive and nothing can tell whether a child arrived a moment \
+                     ago, so the recycle bin is the only recovery -- and this is the \
+                     one operation that removes it",
+                ));
+                continue;
+            }
+            let outcome = provider
+                .delete_permanently(&scope, &node.id, node.etag.as_deref(), &self.cancel)
+                .await;
+            match outcome {
+                Ok(()) => {
+                    // The delta feed reports the removal, and the folder it was
+                    // in is marked active so the feed is asked sooner rather
+                    // than at its own pace: a person who has just destroyed
+                    // something should not watch it linger in the file manager.
+                    if let Some(parent) = node.parent_id.as_deref() {
+                        self.activity.touch(&scope, parent);
+                    }
+                    done.push(crate::PermanentDeletion {
+                        path: path.clone(),
+                        removed: true,
+                        refusal: None,
+                    });
+                }
+                Err(error) => done.push(refuse(&error.to_string())),
+            }
+        }
+        done
+    }
+    pub async fn path_states(self: &Arc<Self>, paths: &[String]) -> Result<Vec<crate::PathState>> {
+        let db = self.db.clone();
+        let pins = tokio::task::spawn_blocking(move || Store::open(db)?.pins()).await??;
+        let cache = self.cache_path();
+        let mut states = Vec::with_capacity(paths.len());
+        for path in paths {
+            let request = crate::PinRequest {
+                path: Some(path.clone()),
+                ..Default::default()
+            };
+            let (scope, node) = match self.resolve_request(&request).await {
+                Ok(resolved) => resolved,
+                Err(error) => {
+                    states.push(crate::PathState {
+                        path: path.clone(),
+                        refusal: Some(error.to_string()),
+                        ..Default::default()
+                    });
+                    continue;
+                }
+            };
+            let folder = node.kind == cirrove_core::NodeKind::Folder;
+            let pinned = self.pin_covering(&scope, &node, &pins).await;
+            let resident = if folder {
+                0
+            } else {
+                resident_bytes(&cache, &scope, &node)
+            };
+            states.push(crate::PathState {
+                path: path.clone(),
+                item: node.id.clone(),
+                kind: if folder { "folder" } else { "file" }.into(),
+                pinned,
+                size: node.size,
+                resident,
+                refusal: None,
+            });
+        }
+        Ok(states)
+    }
+    /// "direct" for the item's own pin, "inherited" for a recursive pin on a
+    /// folder above it, nothing otherwise. Walks up through the index only when
+    /// a recursive pin exists to be found.
+    async fn pin_covering(
+        &self,
+        scope: &Scope,
+        node: &Node,
+        pins: &[cirrove_store::pins::Pin],
+    ) -> Option<String> {
+        let key = serde_json::to_string(scope).unwrap_or_default();
+        if pins.iter().any(|p| p.scope == key && p.item == node.id) {
+            return Some("direct".into());
+        }
+        let recursive: Vec<&str> = pins
+            .iter()
+            .filter(|p| p.scope == key && p.recursive)
+            .map(|p| p.item.as_str())
+            .collect();
+        if recursive.is_empty() {
+            return None;
+        }
+        let mut parent = node.parent_id.clone();
+        // Bounded: a cycle in the index must not hang a badge.
+        for _ in 0..256 {
+            let id = parent?;
+            if recursive.contains(&id.as_str()) {
+                return Some("inherited".into());
+            }
+            parent = self.node(scope, &id).await.ok()?.parent_id;
+        }
+        None
     }
     /// Release a pin and the space it held. Reports whether one existed.
     pub async fn unpin(&self, scope: Scope, item: String) -> Result<bool> {
@@ -403,7 +932,235 @@ impl Engine {
         let removed =
             tokio::task::spawn_blocking(move || Store::open(db)?.unpin(&key, &item)).await??;
         self.refresh_reservations().await?;
+        if removed {
+            self.kept_changed();
+        }
         Ok(removed)
+    }
+    /// Resolve, reserve and materialise a pin asked for over the control socket.
+    ///
+    /// This is the path `materialise_pin` and `pin_folder` never had. The command
+    /// line used to write the reservation into the index itself, which is why a
+    /// pin a user made kept nothing: only the daemon holds an engine, and only an
+    /// engine can fetch.
+    pub async fn apply_pin_request(
+        self: &Arc<Self>,
+        request: &crate::PinRequest,
+    ) -> Result<crate::PinReply> {
+        let (scope, node) = match self.resolve_request(request).await {
+            Ok(resolved) => resolved,
+            Err(error) => {
+                return Ok(crate::PinReply {
+                    refusal: Some(error.to_string()),
+                    ..Default::default()
+                });
+            }
+        };
+        if request.recursive {
+            return Ok(match self.plan_folder_pin(&scope, &node).await? {
+                Ok(planned) => {
+                    let files = planned.files.len() as u64;
+                    let complete = planned.complete;
+                    let job = self
+                        .keep_offline_job(&scope, &node, planned.files, planned.bytes)
+                        .await;
+                    crate::PinReply {
+                        accepted: true,
+                        reserved: self.reserved_for(&node.id).await.unwrap_or(0),
+                        item: node.id,
+                        files,
+                        complete,
+                        job: Some(job),
+                        refusal: None,
+                    }
+                }
+                Err(refusal) => crate::PinReply {
+                    item: node.id,
+                    refusal: Some(refusal.to_string()),
+                    ..Default::default()
+                },
+            });
+        }
+        // A folder has no content of its own to keep; what a pin on it can mean
+        // is everything beneath it, and that is a choice the caller makes with
+        // `recursive`, not one to make for them by charging their budget for a
+        // subtree they did not ask about. Refused in words: the first version
+        // fell through to materialising a folder, which has no blocks, and the
+        // error dropped the connection with no reply at all.
+        if node.kind == cirrove_core::NodeKind::Folder {
+            return Ok(crate::PinReply {
+                item: node.id,
+                refusal: Some(
+                    "that is a folder; pin it with --recursive to keep every file beneath it"
+                        .into(),
+                ),
+                ..Default::default()
+            });
+        }
+        // A single file reserves what it will actually occupy: the node's size
+        // plus one digest per block. An explicit --bytes is taken as given.
+        let reserved = request
+            .bytes
+            .unwrap_or_else(|| crate::content::stored_bytes(node.size));
+        match self
+            .pin(scope.clone(), node.id.clone(), false, reserved)
+            .await?
+        {
+            Err(refusal) => Ok(crate::PinReply {
+                item: node.id,
+                refusal: Some(refusal.to_string()),
+                ..Default::default()
+            }),
+            Ok(_) => {
+                // A single file is a job too. Most are small and the job is over
+                // before anyone looks, but "most" is not a size limit: one file
+                // can be a four-gigabyte recording, and the request that keeps it
+                // must answer in the same breath as the one that keeps a folder.
+                let size = node.size;
+                let job = self
+                    .keep_offline_job(&scope, &node, vec![node.clone()], size)
+                    .await;
+                Ok(crate::PinReply {
+                    accepted: true,
+                    item: node.id,
+                    reserved,
+                    files: 1,
+                    complete: true,
+                    job: Some(job),
+                    refusal: None,
+                })
+            }
+        }
+    }
+    /// Release a pin named by item id, from the local registry alone.
+    ///
+    /// A pin is a local record and releasing one must not depend on the
+    /// provider being able to resolve its id. Measured on a real account on
+    /// 2026-09-15: a folder inside a linked SharePoint library is pinned under
+    /// that library's scope, and unpinning by id looked the id up in the
+    /// account's own drive and answered "remote item not found" -- so the
+    /// window's Stop keeping button, which acts by id because that is the
+    /// handle that survives a rename, could not release such a pin at all. The
+    /// same lookup would have failed with the network down, which is exactly
+    /// when someone wants their disk space back.
+    ///
+    /// Returns how many records were released, which is zero when the id names
+    /// nothing pinned -- that case still goes through resolution, so the caller
+    /// can be told whether the item exists at all.
+    async fn release_recorded_pin(&self, item: &str) -> Result<usize> {
+        let db = self.db.clone();
+        let item = item.to_owned();
+        let released = tokio::task::spawn_blocking(move || -> cirrove_store::Result<usize> {
+            let mut store = Store::open(db)?;
+            let scopes: Vec<String> = store
+                .pins()?
+                .into_iter()
+                .filter(|pin| pin.item == item)
+                .map(|pin| pin.scope)
+                .collect();
+            let mut released = 0;
+            for scope in scopes {
+                if store.unpin(&scope, &item)? {
+                    released += 1;
+                }
+            }
+            Ok(released)
+        })
+        .await??;
+        if released > 0 {
+            self.refresh_reservations().await?;
+            self.kept_changed();
+        }
+        Ok(released)
+    }
+    /// Release a pin and give the space back, rather than only unreserving it.
+    pub async fn apply_unpin_request(
+        self: &Arc<Self>,
+        request: &crate::PinRequest,
+    ) -> Result<crate::PinReply> {
+        if let Some(item) = &request.item
+            && self.release_recorded_pin(item).await? > 0
+        {
+            // Unreserving is not freeing; the same reclaim the resolved path does.
+            self.cache.reclaim().await?;
+            return Ok(crate::PinReply {
+                accepted: true,
+                item: item.clone(),
+                complete: true,
+                ..Default::default()
+            });
+        }
+        let (scope, node) = match self.resolve_request(request).await {
+            Ok(resolved) => resolved,
+            Err(error) => {
+                return Ok(crate::PinReply {
+                    refusal: Some(error.to_string()),
+                    ..Default::default()
+                });
+            }
+        };
+        let removed = self.unpin(scope, node.id.clone()).await?;
+        if !removed {
+            return Ok(crate::PinReply {
+                item: node.id,
+                refusal: Some("that item is not pinned".into()),
+                ..Default::default()
+            });
+        }
+        // Unreserving is not freeing. Without this the blocks stay on disk until
+        // some unrelated download happens to trigger an eviction pass, which is
+        // not what "unpin frees space" means to anyone who typed it.
+        self.cache.reclaim().await?;
+        Ok(crate::PinReply {
+            accepted: true,
+            item: node.id,
+            complete: true,
+            ..Default::default()
+        })
+    }
+    /// What a pin currently reserves, for reporting back what was accepted.
+    async fn reserved_for(&self, item: &str) -> Option<u64> {
+        self.pin_status()
+            .await
+            .ok()?
+            .into_iter()
+            .find(|p| p.item == item)
+            .map(|p| p.reserved)
+    }
+    /// Turn `--path` or `--item` into a scope and a node.
+    ///
+    /// Path resolution belongs here because only the daemon can list a directory
+    /// the index has not reached yet, and because most of this account's content
+    /// can live in a linked collection whose scope is not the account's own drive
+    /// -- a caller outside the daemon would record the pin under the wrong key.
+    async fn resolve_request(
+        self: &Arc<Self>,
+        request: &crate::PinRequest,
+    ) -> Result<(Scope, Node)> {
+        let scope = self.scope(&self.account.drive.id);
+        if let Some(item) = &request.item {
+            let node = self.node(&scope, item).await?;
+            return Ok((scope, node));
+        }
+        let Some(path) = &request.path else {
+            return Err(anyhow::anyhow!("name an item with --path or --item"));
+        };
+        let mut scope = scope;
+        let mut node = self.node(&scope, &self.account.root_id).await?;
+        for name in path.split('/').filter(|s| !s.is_empty()) {
+            // A shortcut leaves this drive: follow it before descending, or the
+            // rest of the path is looked up in a collection that does not hold it.
+            if let Some(target) = node.target.clone() {
+                scope = self.scope(&target.collection);
+                node = self.node(&scope, &target.item).await?;
+            }
+            node = self.child(&scope, &node.id, name).await?;
+        }
+        if let Some(target) = node.target.clone() {
+            scope = self.scope(&target.collection);
+            node = self.node(&scope, &target.item).await?;
+        }
+        Ok((scope, node))
     }
     pub async fn start(self: &Arc<Self>) -> Result<()> {
         // Before anything can evict, so a restart never spends the window
@@ -585,7 +1342,16 @@ impl Engine {
             health.state = "indexing".into();
             health.retry_at = None;
             self.set_health(&scope, &health).await;
-            let result = refresh(self.provider.as_ref(), &scope, &self.db, reset, &cancel).await;
+            let result = refresh(
+                self.provider.as_ref(),
+                &scope,
+                &self.db,
+                reset,
+                &cancel,
+                Some(&self.recent),
+            )
+            .await;
+            let was = health.state.clone();
             match result {
                 Ok(_) => {
                     reset = false;
@@ -634,6 +1400,24 @@ impl Engine {
                 }
             }
             health.retry_at = Some(now() + delay.as_secs());
+            // Say it once, where an operator looks. `health.message` is built
+            // from typed provider errors only -- the branch above is explicit
+            // that database and network detail may carry paths -- so it is safe
+            // to write down.
+            match feed_notice(&was, &health.state) {
+                FeedNotice::Failed => tracing::warn!(
+                    collection = %scope.collection,
+                    state = %health.state,
+                    reason = health.message.as_deref().unwrap_or("unknown"),
+                    "a collection stopped updating"
+                ),
+                FeedNotice::Recovered => tracing::info!(
+                    collection = %scope.collection,
+                    was = %was,
+                    "a collection is updating again"
+                ),
+                FeedNotice::Nothing => {}
+            }
             self.set_health(&scope, &health).await;
         }
     }
@@ -1114,5 +1898,79 @@ async fn watch_changes(
             }
         };
         tokio::select! {biased; _=cancel.cancelled()=>return, _=tokio::time::sleep(delay)=>()}
+    }
+}
+
+/// Bytes of a file's content present on disk: the block files that exist,
+/// less the digest each carries ahead of its data. Metadata, not the index --
+/// between a block being forgotten and the index rebuilt, the index would
+/// still count it.
+fn resident_bytes(cache: &std::path::Path, scope: &Scope, node: &Node) -> u64 {
+    let Some(keys) = crate::content::block_keys(scope, node) else {
+        return 0;
+    };
+    let present: u64 = keys
+        .iter()
+        .filter_map(|key| std::fs::metadata(cache.join(key)).ok())
+        .map(|meta| meta.len().saturating_sub(crate::content::BLOCK_DIGEST))
+        .sum();
+    present.min(node.size)
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::{FeedNotice, feed_notice};
+
+    /// A refused collection is announced once, not once a minute.
+    ///
+    /// The daemon wrote nothing at all when a real grant was withdrawn, and an
+    /// operator reading the journal saw a healthy daemon for seventeen minutes.
+    /// The cure has to avoid the opposite failure: a feed in this state retries
+    /// every sixty seconds, and a line per retry would bury the one line that
+    /// matters under the ones that do not.
+    #[test]
+    fn a_collection_that_stopped_is_announced_once_and_its_return_once() {
+        assert_eq!(feed_notice("ready", "sign_in_required"), FeedNotice::Failed);
+        for _ in 0..5 {
+            assert_eq!(
+                feed_notice("sign_in_required", "sign_in_required"),
+                FeedNotice::Nothing,
+                "a retry is not news"
+            );
+        }
+        assert_eq!(
+            feed_notice("sign_in_required", "ready"),
+            FeedNotice::Recovered
+        );
+        assert_eq!(feed_notice("ready", "ready"), FeedNotice::Nothing);
+    }
+
+    /// One failure replacing another is still worth a line, because the remedy
+    /// changes with it: waiting out a throttle and signing in again are not the
+    /// same instruction to a person.
+    #[test]
+    fn a_different_failure_is_not_the_same_failure() {
+        assert_eq!(
+            feed_notice("offline", "sign_in_required"),
+            FeedNotice::Failed
+        );
+        assert_eq!(feed_notice("throttled", "offline"), FeedNotice::Failed);
+    }
+
+    /// Starting up is not a fault. A feed begins in `indexing` and passes
+    /// through it again on every reset, so announcing it would make the log
+    /// noisy in exactly the situation where it needs to be readable.
+    #[test]
+    fn indexing_is_work_rather_than_a_fault() {
+        assert_eq!(feed_notice("indexing", "ready"), FeedNotice::Nothing);
+        assert_eq!(feed_notice("ready", "indexing"), FeedNotice::Nothing);
+        assert_eq!(
+            feed_notice("rebuilding", "indexing"),
+            FeedNotice::Nothing,
+            "a reset passes through indexing and is not a new fault"
+        );
+        // But a real failure after indexing still speaks.
+        assert_eq!(feed_notice("indexing", "offline"), FeedNotice::Failed);
     }
 }

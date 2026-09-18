@@ -1,0 +1,66 @@
+{
+  "question": "When the machine loses power in the middle of writing, does the upload journal still produce everything it acknowledged as durable, byte for byte, and is it writable again afterwards?",
+  "why_now": "It is the last clause of the milestone 2 crash box and the only one that cannot be scripted. durable-transition-sites.json covers process death at all 31 runtime durable transitions; journal-under-io-faults.json covers a device refusing writes and a lying fsync (dm-flakey drop_writes). All three share a boundary: the kernel and the filesystem are behaving, and only the process or the block layer misbehaves. A real cut takes the page cache, the drive's own write cache and the filesystem journal with it at once, and no injection stands in for that.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-11",
+  "shape": {
+    "fixture": "working_files::a_journal_survives_the_machine_losing_power_mid_write, phases seed and recover",
+    "seed": "Clears the journal, then writes without stopping: each generation is sealed, and only after the journal acknowledges it is the generation recorded on disk -- written to a staging name, fsynced, renamed, and the directory fsynced. The cut therefore lands mid-write rather than on an idle journal; a cut while nothing is happening tests nothing.",
+    "the_person": "Cuts power at the wall or at the PSU while seed is printing generations. No shutdown, no sync.",
+    "recover": "Runs after the machine is back. Reads the marker, which names the highest generation the journal acknowledged before the cut.",
+    "filesystem": "Asserted with findmnt and printed by the fixture. tmpfs and ramfs are refused outright: a RAM-backed filesystem has no power to lose."
+  },
+  "why_the_claim_is_one_sided": "The marker is written after the journal's own acknowledgement, so it can only ever name less than the journal holds. More surviving than the marker claims is a pass. What must never happen is the journal producing different bytes for a generation it acknowledged, or being unable to produce it at all.",
+  "predictions": {
+    "P1": "The journal opens after the cut.",
+    "P2": "The generation named by the marker reads back byte for byte.",
+    "P3": "The journal accepts and seals new work afterwards -- recovery that leaves nothing writable is not recovery."
+  },
+  "decision_rule": {
+    "P2 fails": "The box is not ticked and this is a defect, not a limit: the journal acknowledged something it cannot produce. Wrong-and-confident data is the one outcome the design forbids.",
+    "P1 fails, P2 untestable": "Recorded as its own outcome, not averaged into a pass. An unopenable journal has not returned wrong bytes, but it has not recovered either. The box stays open and the artifact says which branch ran.",
+    "P3 fails but P1 and P2 hold": "Durability held and usability did not. Worth a separate row rather than a tick, because a user whose journal survives but refuses every save is not served by it."
+  },
+  "what_this_does_not_cover": "One cut is one sample. It cannot bound a rate, and a drive that lies about its write cache may pass this and fail another day. The claim is that this cut did not produce wrong-and-confident data, not that no cut can.",
+  "result": {
+    "when": "2026-09-13, boot 821c999 ended 08:11:27, boot 1928483 began 08:12:16.",
+    "it_was_a_real_power_loss": "Verified rather than assumed. The previous boot's journal ends mid-kernel-message at 08:11:27 with no shutdown sequence -- no Stopping, no Reached target Shutdown, no Power down. A clean reboot leaves those; power removal leaves whatever was flushed before the lights went out. The power button was held, which on this machine drops the rails exactly as pulling the cord would: a mini-PC with no system battery.",
+    "seeded": "585 generations acknowledged durable before the cut, the last at 95c52da3-c04c-4932-8bd7-b70d1419fe27. At about 68 a second that is roughly 8.6 seconds of continuous sealing, so the cut landed mid-write.",
+    "P1": "HOLDS. branch=opened. The journal opened after the cut without recovery tooling.",
+    "P2": "HOLDS. Generation 585 read back byte for byte -- the payload the journal had acknowledged as durable immediately before power was removed.",
+    "P3": "HOLDS. recovered and writable again: it accepted and sealed new work afterwards."
+  },
+  "verdict": {
+    "the_claim": "This cut did not produce wrong-and-confident data. Everything the journal acknowledged before power was removed was still there afterwards, byte for byte, and the journal was usable again without intervention.",
+    "what_it_is_not": "Not a rate and not a guarantee. One cut on one machine with one drive. A drive that lies about FLUSH can pass this and fail another day, and if this SSD has power-loss protection then the hardware may have held rather than the journal having been right to trust it -- see limits.",
+    "why_it_still_settles_the_clause": "The alternative was no evidence at all. Every other fault in this box is injected with the kernel and the filesystem behaving; this is the only interruption that takes the page cache, the drive's cache and the filesystem journal at once, and the milestone asked for it by name."
+  },
+  "how_to_run": {
+    "1_prepare": "CIRROVE_POWERCUT_DIR must name a directory on a real block device. The fixture refuses tmpfs and ramfs and prints the filesystem it found.",
+    "2_seed": "CIRROVE_POWERCUT_DIR=$HOME/.cache/cirrove-powercut CIRROVE_POWERCUT_PHASE=seed cargo test -p cirrove-service --test working_files --locked a_journal_survives_the_machine_losing_power -- --ignored --nocapture",
+    "3_wait": "It prints a durable generation roughly 68 times a second and never stops on its own. Let it run for a few seconds so the cut cannot land on an idle journal.",
+    "4_cut": "Remove power. Holding the power button until the machine dies is equivalent to pulling the cord: both drop the rails and the drive loses power with them. Do NOT use a reset button or a reset key combination -- see which_interruptions_count.",
+    "5_recover": "After the machine is back: same command with CIRROVE_POWERCUT_PHASE=recover.",
+    "what_it_costs": "A hard cut on a live machine. The mount and the daemon are not involved and the fixture writes only inside its own directory, but the rest of the system takes an unclean shutdown like any other -- filesystem journal replay on the next boot, and whatever was unsaved elsewhere is unsaved."
+  },
+  "harness_proven_before_the_run": {
+    "why": "A fixture that cannot fail would waste the one thing this needs, which is a person and a power cut. So it was exercised against process death first -- which proves the mechanics and nothing about durability, because SIGKILL leaves the page cache intact.",
+    "mechanics": "341 and 679 generations acknowledged across two dry runs; the marker named the last one; recover opened the journal, read it back byte for byte, and sealed new work.",
+    "shown_to_fail": "With the acknowledged payload overwritten with other bytes, recover FAILS on 'acknowledged generation N as durable and cannot produce it'. With the payload removed, it FAILS too. Intact, it passes. So the fixture distinguishes a journal that keeps its word from one that does not.",
+    "two_things_the_harness_had_to_learn": [
+      "Each generation needs its own remote identity. Reusing one is refused as Stale after the first -- correctly; a second working file for the same item is a conflict -- which would have left seed writing nothing and the cut landing on an idle journal.",
+      "Sealed payload files are read-only on disk, so damaging one for the discrimination check needs chmod first. That is the journal protecting what it sealed, and it is worth knowing before assuming a failed write means a failed test."
+    ]
+  },
+  "which_interruptions_count": {
+    "the_thing_under_test": "fsync claims the bytes are on stable storage. The kernel reports this drive as write-back caching (/sys/block/nvme0n1/queue/write_cache), so that claim passes through a FLUSH to a device with a volatile cache, and whether it is true depends on the drive honouring it. Removing power is the only interruption that reaches that layer.",
+    "power_removed": "Pulling the cord, or holding the power button until it dies. Equivalent on this machine: it is a mini-PC with no system battery, so both drop the rails and the NVMe loses its cache with them.",
+    "reset_does_not_count": "A reset button asserts the system reset line. The CPU restarts; the drive never loses power, keeps its write cache and flushes it. Anything it had acknowledged but not yet committed still lands, so a reset would pass this fixture without testing what it is for -- and process death is already covered at all 31 durable transitions, so it would add nothing either.",
+    "kexec_and_sysrq_b_do_not_count": "Same reason. Both restart the kernel with the drive powered."
+  },
+  "limits": [
+    "One cut on one machine. It cannot bound a rate.",
+    "It is a statement about THIS drive as much as about the journal. If the SSD has power-loss protection -- capacitors that let it commit its cache after power is gone -- then a pass says the hardware held, not that the journal would survive a drive without it. The model is recorded so the claim can be read at the right scope: PASCARI A3102K0F853GE101T020H, whose power-loss behaviour has not been established here.",
+    "A drive that lies about FLUSH can pass this and fail another day. The claim is that this cut did not produce wrong-and-confident data, not that no cut can."
+  ]
+}

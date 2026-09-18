@@ -1,0 +1,27 @@
+{
+  "question": "When someone removes Cirrove, is what stays behind and what goes a choice they were given, or a thing they discover later? Specifically: does removing the packages leave the mount, the daemon, the keyring grant or a broken session behind, and is there a way to reclaim the local data that does not amount to `rm -rf` on a path from the documentation?",
+  "why_now": "M6 line 329 asks for a clean uninstall and explicit retention/removal choices for local data, and it has never been testable with an account: the interesting parts are the mount that is live at the moment of removal, the credential in the keyring that no package owns, and the cache that may be gigabytes. The Fedora VM has all three as of 2026-09-14.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-14",
+  "how": "The Fedora VM, packages 0.1.0~dev.r418.gfb24186, the owner's OneDrive connected read-only and mounted, one file pinned, the credential in an unlocked login keyring. The packages are removed with dnf while all of that is live -- which is the honest case, because nobody unmounts first. Then the machine is inspected for what survived, and the documented route to reclaim the rest is followed exactly as the user guide words it.",
+  "predictions": {
+    "P1": "dnf remove takes every packaged file, as it did on the empty machine, and leaves ~/.local/state/cirrove alone. Not deleting a person's data on uninstall is correct, not a defect.",
+    "P2": "The live mount is the risk. Removing the binary out from under a running daemon leaves the process alive on a deleted inode still serving a FUSE mount. Nothing stops the removal, so afterwards the user has a mount backed by a program that no longer exists on disk, and if that daemon then dies the mount becomes a stale handle that only `fusermount3 -u` clears. I expect this to be untidy and I expect nothing to warn about it.",
+    "P3": "The keyring grant survives, because it is in the Secret Service and no package owns it. The guide says so and says to remove it by hand. Correct behaviour, but worth confirming the grant really is still there and really is labelled so a person can find it.",
+    "P4": "The tray's autostart entry goes on Fedora (rpm owns it outright); on Debian and Ubuntu `remove` keeps it and `purge` takes it, which the guide already distinguishes.",
+    "P5": "The weakest clause. The guide's instruction for reclaiming local data is to delete a directory by hand. There is no command that reports what is there, how much it is, or removes it -- `cirrove forget` only moves an account's data aside into `removed/`, where it then sits forever with nothing listing it. So 'explicit retention/removal choices' is currently satisfied by prose and not by anything a person can run. I expect this run to confirm that, and it is the part worth fixing."
+  },
+  "run": {
+    "when": "2026-09-14T07:45-07:50+02:00",
+    "where": "Fedora 44 VM, packages 0.1.0~dev.r418.gfb24186, the owner's OneDrive mounted read-only, one file pinned, 2.6 GB of local state, credential in an unlocked login keyring. Removed with everything running, which is the honest case.",
+    "observed": {
+      "P1": "HOLDS. dnf remove took every packaged file -- a find over /usr and /etc for anything named cirrove returned nothing -- and left ~/.local/state/cirrove untouched at 2.6 GB. Not deleting a person's data on uninstall is the right default.",
+      "P2": "HALF WRONG, in the better direction. The removal does leave the daemon running from a deleted binary, still serving the mount: after dnf remove, cirroved was active, /proc/<pid>/exe read '/usr/bin/cirroved (deleted)', and the OneDrive folder still listed the drive's contents. Nothing warned. But the feared part did not happen -- stopping the service, which is what logging out does, unmounted cleanly and left no stale handle. So the state is odd rather than dangerous: an uninstalled program still serving a filesystem until the session ends.",
+      "P3": "HOLDS. The grant survives in the Secret Service, labelled 'Cirrove Microsoft account' with attribute application=cirrove, so a person can find it by name. Which is what the guide already tells them to do.",
+      "P4": "HOLDS. The autostart entry went with the rpm; nothing under /etc survived.",
+      "P5": "HOLDS, and it is the gap. There is no command that says what the 2.6 GB is, or removes it. `cirrove forget` only moves an account's data into state/removed/, where nothing lists it and nothing reclaims it. The guide's instruction is to delete a directory by hand. That is a documented choice, not an explicit one offered by the program."
+    },
+    "not_covered": "Removal with unsent changes queued. This account is read-only. `cirrove forget` already refuses an account holding unsent work unless --discard-unsent is passed, and the window asks before removing; neither was exercised here for want of a writable account."
+  },
+  "conclusion": "The uninstall is clean in the ways that matter: nothing packaged survives, the person's data is left alone, the keyring grant stays and is findable by name, and the mount goes away properly when the session ends. Two things are not right. Removing the packages leaves a daemon running from a deleted binary still serving a mount, with nothing said about it. And the retention/removal choice exists only as prose -- no command reports what the local data is or removes it, so 'explicit choice' is at present an instruction to run rm on a path from the documentation."
+}

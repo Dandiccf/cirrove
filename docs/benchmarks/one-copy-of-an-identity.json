@@ -1,0 +1,39 @@
+{
+ "endpoint": "live_bytes_per_view at the traversed_with_old_files phase, CIRROVE_CHURN_FILES=40000, same probe and same endpoint as bytes-per-live-view.json and a-slim-view.json",
+ "measured": {
+  "before": [
+   549,
+   532,
+   549
+  ],
+  "bytes_per_live_view": [
+   520,
+   492,
+   517
+  ],
+  "held_at_the_traversal": [
+   "49.4 MB",
+   "47.9 MB",
+   "49.5 MB"
+  ],
+  "released": [
+   "18.1 MB",
+   "18.3 MB",
+   "18.4 MB"
+  ],
+  "views": 60093
+ },
+ "prediction": {
+  "arithmetic": "The churn fixture's ids are `file-00000000`, thirteen bytes. A `Box<str>` of thirteen bytes is a 13-byte request; glibc's smallest chunk on 64-bit is 32 bytes, so the duplicate costs 32 per view and not the 48 to 56 a-slim-view.json guessed from longer ids. One fewer allocation per view, about 32 bytes, so about 6 percent.",
+  "i_may_be_wrong_about": "whether the index's key is one per view. `keys()` yields a second key for a view reached through a shortcut, so a fixture whose traversal runs mostly through aliases would save twice this. The churn fixture's three routes are two aliased and one plain, but the alias is at the route's head, not at each file, so the second key is worth three keys out of 60,095 -- nothing.",
+  "value": "515 to 520 bytes per live view, from 532 to 549.",
+  "what_it_costs": "`matches` and the cursor build transient lookup keys from a `&str`, which now allocate an `Arc<str>` each. That is one small malloc per projection reuse check, on the lookup path. ADR 0014's second gate exists for exactly this: a cold listing must not get slower than its recorded bound.",
+  "written_before_the_run": true
+ },
+ "question": "The slim view made a view's id an `Arc<str>` so the invalidation index could share it instead of keeping its own `Box<str>` in `Key.item`. The sharing was never written, and a-slim-view.json records that as half of why the prediction there missed by 170 bytes. What does writing it actually buy?",
+ "registered": "2026-09-17",
+ "registered_before_the_run": true,
+ "result": "passed, and the arithmetic held rather than the range. 520, 492, 517 against a predicted 515 to 520: two rounds inside the band and the third below it. The mean moved 543.3 to 509.7, a saving of 33.6 bytes against the 32 predicted from glibc's 32-byte minimum chunk. Round 2 was the low round before the change as well (532 against 549 and 549), so the spread is the fixture's, not the change's.",
+ "the_cost_did_not_show": "The transient `Arc<str>` per projection reuse check was the risk, and the twelve real_ capacity fixtures run in 125.4 seconds against 126.5 before -- inside their own noise. ADR 0014's cold-listing gate is asserted inside real_cold_directory_pages_publish_with_bounded_memory, which passes.",
+ "why_this_is_worth_doing_anyway": "It is 6 percent against a gate that needs 42. It is done because it is named, correct and small, and because an identity stored twice in one process is a defect whatever the arithmetic says."
+}

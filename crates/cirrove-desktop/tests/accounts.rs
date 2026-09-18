@@ -260,3 +260,125 @@ async fn snapshot_reads_local_socket_and_settings_without_a_cloud_provider() {
     assert!(!view.service_reachable);
     assert_eq!(view.accounts.len(), 2);
 }
+
+/// An upgrade replaces the daemon's binary and leaves the old process running,
+/// so the person keeps using the version they just replaced with nothing
+/// saying so. Measured on Fedora 44: after `dnf upgrade` the pid was unchanged
+/// and `/proc/<pid>/exe` read `/usr/bin/cirroved (deleted)`. The window is
+/// where that has to surface, because the tray is one of the stale processes.
+#[test]
+fn a_daemon_running_a_replaced_binary_asks_for_a_restart_in_the_window() {
+    let snapshot = demo::snapshot().unwrap();
+    assert!(
+        !Overview::from_snapshot(snapshot).restart_required,
+        "nothing should ask for a restart when no upgrade has happened"
+    );
+
+    let mut snapshot = demo::snapshot().unwrap();
+    snapshot.status.as_mut().unwrap().restart_required = true;
+    assert!(
+        Overview::from_snapshot(snapshot).restart_required,
+        "a daemon whose binary was replaced must reach the window"
+    );
+}
+
+/// An older daemon has no such field and deserializes it as false, which is
+/// the only answer it can give. Taking that as "no upgrade pending" from a
+/// daemon we cannot otherwise talk to would be reading meaning into a default.
+#[test]
+fn an_incompatible_daemon_is_never_read_as_saying_no_restart_is_needed() {
+    let mut snapshot = demo::snapshot().unwrap();
+    let status = snapshot.status.as_mut().unwrap();
+    status.restart_required = true;
+    status.protocol_version = cirrove_service::STATUS_PROTOCOL_VERSION + 1;
+    let overview = Overview::from_snapshot(snapshot);
+    assert!(
+        !overview.restart_required,
+        "a daemon we cannot read must not drive this banner"
+    );
+    assert!(
+        overview.service_error.is_some(),
+        "and it must still be reported as incompatible, which is the louder problem"
+    );
+}
+
+/// The activity list had names and states but never times, so after a restart
+/// -- when the remote ring is empty by design -- it was a column of saves
+/// against nothing, with no way to tell this morning's from last week's.
+#[test]
+fn how_long_ago_is_coarse_and_never_reads_the_future_as_the_past() {
+    use cirrove_desktop::model::how_long_ago;
+    let now = 1_000_000_000;
+    assert_eq!(how_long_ago(now, now).as_deref(), Some("just now"));
+    assert_eq!(how_long_ago(now, now - 59).as_deref(), Some("just now"));
+    assert_eq!(how_long_ago(now, now - 60).as_deref(), Some("1 minute ago"));
+    assert_eq!(
+        how_long_ago(now, now - 25 * 60).as_deref(),
+        Some("25 minutes ago")
+    );
+    assert_eq!(how_long_ago(now, now - 3600).as_deref(), Some("1 hour ago"));
+    assert_eq!(
+        how_long_ago(now, now - 5 * 3600).as_deref(),
+        Some("5 hours ago")
+    );
+    assert_eq!(
+        how_long_ago(now, now - 26 * 3600).as_deref(),
+        Some("yesterday")
+    );
+    assert_eq!(
+        how_long_ago(now, now - 3 * 86400).as_deref(),
+        Some("3 days ago")
+    );
+    assert_eq!(
+        how_long_ago(now, now - 30 * 86400).as_deref(),
+        Some("more than a week ago")
+    );
+    // A clock that went backwards, or a record written a moment into the
+    // future, must not come out as a very long time ago.
+    assert_eq!(how_long_ago(now, now + 10), None);
+}
+
+/// A count says something is wrong; it does not say what. Fourteen folder
+/// removals went missing on a live drive and the only trace was the number 14,
+/// which nobody could act on. The window now names them.
+#[test]
+fn refused_changes_are_named_and_not_only_counted() {
+    let snapshot = demo::snapshot().unwrap();
+    let card = &Overview::from_snapshot(snapshot).accounts[0];
+    assert_eq!(
+        card.refused_paths,
+        vec![
+            "Accounts/2024/Old invoices".to_owned(),
+            "Projects/Q3 drafts".to_owned()
+        ],
+        "the refused changes should arrive with the paths the daemon resolved"
+    );
+    // Saves that never reached the cloud are a separate list, because the
+    // remedies differ: discarding a folder removal the cloud refused loses
+    // nothing, and discarding a failed save loses what the person wrote.
+    assert_eq!(
+        card.failed_paths,
+        vec!["Projects/Quarterly report.odt — 24,312 bytes, changed 2026-09-16".to_owned()],
+        "a save that failed must arrive with its path and with what the cloud has \
+         instead: a conflict where only your side is described is a choice made \
+         blind"
+    );
+    // And the two kinds are told apart, because the answer differs: the folder
+    // removal is a conflict the cloud decided about; the folder creation and
+    // the save merely failed. Only those two are offered a second try.
+    assert_eq!(
+        card.retryable, 2,
+        "a conflict and a failure must not be counted as the same thing, and a          failed save is a failure like any other"
+    );
+
+    // A daemon too old to name them leaves the lists empty, and the counts must
+    // still stand on their own rather than the rows going blank.
+    let mut snapshot = demo::snapshot().unwrap();
+    for (_, reply) in snapshot.activity.iter_mut() {
+        reply.stuck.clear();
+        reply.failed.clear();
+    }
+    let card = &Overview::from_snapshot(snapshot).accounts[0];
+    assert!(card.refused_paths.is_empty());
+    assert!(card.failed_paths.is_empty());
+}
