@@ -33,7 +33,17 @@ ver="$base.r$(git -C "$repo" rev-list --count HEAD).g$(git -C "$repo" rev-parse 
 
 mkdir -p "$out/src"
 git -C "$repo" archive --format=tar.gz --prefix="cirrove-$ver/" -o "$out/src/cirrove-$ver.tar.gz" HEAD
-sed "s/^pkgver=.*/pkgver=$ver/" "$repo/packaging/arch/PKGBUILD" > "$out/PKGBUILD"
+# Two rewrites, and the second only became necessary when a release existed.
+# This script substitutes its own archive of HEAD for the source line's release
+# tarball, so the recipe's `sha256sums` -- which is the digest of the tag's
+# tarball, and has to be, or an AUR user building from source verifies nothing
+# -- cannot match what is actually built here. Verifying a file this script
+# just made against a digest of a different file is not a check; it is a
+# guaranteed failure, which is exactly what it became the moment step 7 of the
+# release procedure filled the sum in. The repository's PKGBUILD keeps the real
+# digest; the copy this builds from skips it.
+sed -e "s/^pkgver=.*/pkgver=$ver/" -e "s/^sha256sums=.*/sha256sums=('SKIP')/" \
+  "$repo/packaging/arch/PKGBUILD" > "$out/PKGBUILD"
 
 # makepkg checks makedepends against pacman. A developer whose cargo comes from
 # rustup has one pacman cannot see; build with it and say so. A clean build root
