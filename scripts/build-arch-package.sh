@@ -29,11 +29,33 @@ fi
 # older than the plain segment), and the revision count keeps successive dev
 # builds upgradeable.
 base=$(sed -n 's/^pkgver=//p' "$repo/packaging/arch/PKGBUILD")
-ver="$base.r$(git -C "$repo" rev-list --count HEAD).g$(git -C "$repo" rev-parse --short HEAD)"
+# On the commit a release is tagged at, the version is the release version and
+# nothing else. The procedure has said so since it was written -- "the package
+# version carries no suffix when `pkgver` is a release version" -- and no script
+# implemented it, so the first release build produced 0.1.0.r532.gf6ada29 and
+# would have shipped a package whose version disagrees with the tag it came
+# from. That is the exact failure the four-source version test exists to
+# prevent, one step further along: a user reporting a version that does not
+# exist.
+if [[ "$(git -C "$repo" tag --points-at HEAD)" == *"v$base"* ]]; then
+  ver="$base"
+else
+  ver="$base.r$(git -C "$repo" rev-list --count HEAD).g$(git -C "$repo" rev-parse --short HEAD)"
+fi
 
 mkdir -p "$out/src"
 git -C "$repo" archive --format=tar.gz --prefix="cirrove-$ver/" -o "$out/src/cirrove-$ver.tar.gz" HEAD
-sed "s/^pkgver=.*/pkgver=$ver/" "$repo/packaging/arch/PKGBUILD" > "$out/PKGBUILD"
+# Two rewrites, and the second only became necessary when a release existed.
+# This script substitutes its own archive of HEAD for the source line's release
+# tarball, so the recipe's `sha256sums` -- which is the digest of the tag's
+# tarball, and has to be, or an AUR user building from source verifies nothing
+# -- cannot match what is actually built here. Verifying a file this script
+# just made against a digest of a different file is not a check; it is a
+# guaranteed failure, which is exactly what it became the moment step 7 of the
+# release procedure filled the sum in. The repository's PKGBUILD keeps the real
+# digest; the copy this builds from skips it.
+sed -e "s/^pkgver=.*/pkgver=$ver/" -e "s/^sha256sums=.*/sha256sums=('SKIP')/" \
+  "$repo/packaging/arch/PKGBUILD" > "$out/PKGBUILD"
 
 # makepkg checks makedepends against pacman. A developer whose cargo comes from
 # rustup has one pacman cannot see; build with it and say so. A clean build root
