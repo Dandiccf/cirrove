@@ -29,7 +29,19 @@ fi
 # older than the plain segment), and the revision count keeps successive dev
 # builds upgradeable.
 base=$(sed -n 's/^pkgver=//p' "$repo/packaging/arch/PKGBUILD")
-ver="$base.r$(git -C "$repo" rev-list --count HEAD).g$(git -C "$repo" rev-parse --short HEAD)"
+# On the commit a release is tagged at, the version is the release version and
+# nothing else. The procedure has said so since it was written -- "the package
+# version carries no suffix when `pkgver` is a release version" -- and no script
+# implemented it, so the first release build produced 0.1.0.r532.gf6ada29 and
+# would have shipped a package whose version disagrees with the tag it came
+# from. That is the exact failure the four-source version test exists to
+# prevent, one step further along: a user reporting a version that does not
+# exist.
+if [[ "$(git -C "$repo" tag --points-at HEAD)" == *"v$base"* ]]; then
+  ver="$base"
+else
+  ver="$base.r$(git -C "$repo" rev-list --count HEAD).g$(git -C "$repo" rev-parse --short HEAD)"
+fi
 
 mkdir -p "$out/src"
 git -C "$repo" archive --format=tar.gz --prefix="cirrove-$ver/" -o "$out/src/cirrove-$ver.tar.gz" HEAD
