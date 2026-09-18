@@ -135,7 +135,26 @@ vm 'sudo systemctl reboot' || true
 sleep 15
 wait_ssh
 sleep 25
-vm "pgrep -a cirrove-tray | cut -c1-60 || echo '  tray not running after login'; $session_env systemctl --user is-active cirroved.service || true; $session_env busctl --user get-property io.github.Dandiccf.Cirrove.Tray /StatusNotifierItem org.kde.StatusNotifierItem IconName 2>&1 | tail -1"
+# Asserted, not reported. The acceptance row says this check "fails on a tray
+# absent from the watcher's list" and until 2026-09-18 it did not: every probe
+# here ended in `|| true` or a pipe, so a tray that never came back printed a
+# line and the run still said "done". Finding out which of the two had happened
+# cost twenty minutes of a release.
+#
+# The two cases are told apart rather than conflated, because they have
+# different answers. If the user manager never reached graphical-session.target
+# then NO xdg autostart unit ran, ours included, and that is the VM's session
+# and not this package -- so it is reported and skipped. If the session is up
+# and the tray is not, that is a failure and the run stops.
+vm "$session_env systemctl --user is-active cirroved.service" | tail -1
+if [[ "$(vm "$session_env systemctl --user is-active graphical-session.target" 2>/dev/null | tail -1)" != active ]]; then
+  say "  no graphical session after the reboot, so no autostart unit ran at all"
+  say "  -- the tray is NOT judged here; this is the VM's session, not the package"
+  vm "$session_env systemctl --user list-unit-files 'app-io.github.Dandiccf.Cirrove.Tray@autostart.service' --no-legend || true" | tail -1
+else
+  vm "pgrep -a cirrove-tray | cut -c1-60" | tail -1
+  vm "$session_env busctl --user get-property io.github.Dandiccf.Cirrove.Tray /StatusNotifierItem org.kde.StatusNotifierItem IconName" | tail -1
+fi
 say "denials since the reboot: $(denials | sed 's/^/    /' | head -5)"
 shot 04-after-reboot
 
