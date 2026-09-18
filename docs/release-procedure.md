@@ -39,6 +39,16 @@ and the places where it could be are marked.
 5. The PKGBUILD's `sha256sums` is filled in from the tagged tarball
    (`updpkgsums` after the tag exists, so this is step 7 as well).
 
+   **A recipe cannot carry the digest of its own commit's tarball**, and it
+   took a release to notice: writing the digest in changes the commit, which
+   changes the tarball, which changes the digest. So the tagged tree's
+   `sha256sums` necessarily belongs to some earlier tarball or says `SKIP`,
+   and the one an AUR user builds against is the one on `main` after step 7.
+   `scripts/test-package-versions.py` holds the pairing that *can* be
+   asserted -- a `dev` version must say `SKIP`, a release version must carry a
+   digest -- which catches shipping a release recipe that verifies nothing,
+   and leaving a release digest behind in a development cycle.
+
 ## Tagging
 
 6. `git tag -a v0.1.0 -m "Cirrove 0.1.0"` on that commit, and push the tag.
@@ -74,6 +84,13 @@ and the places where it could be are marked.
 12. Build the Arch package a second time from the same tag and compare the
     `.MTREE` and file checksums; record whether it is reproducible and, if
     not, what differed. A lockfile is not reproducibility.
+12b. `scripts/verify-release-recipe.sh` — the recipe's `sha256sums`, its
+    `.SRCINFO`, and the tarball the tag actually serves must be the same
+    digest. Nothing else can see this, because it compares a file here against
+    a file on a server, and it went wrong on the first release: the tag was
+    moved after step 7 filled the digest in, so the recipe named a tarball that
+    no longer existed and `.SRCINFO` carried the stale value onward. **Any step
+    that moves a tag sends you back to step 7 and then to here.**
 
 ## The signature, and the one decision it needs
 
@@ -167,11 +184,26 @@ where the four lines above come from.
     checkout that is not the one that built it.
 14. The AUR recipe (`.SRCINFO` from `makepkg --printsrcinfo`) once there is a
     release to point at; APT and COPR channels are their own milestone-6 rows
-    and do not gate this.
+    and do not gate this. It is generated into `packaging/arch/.SRCINFO` and
+    committed, so the recipe and its index move together and a reader can see
+    what the AUR would be given. **Pushing it to the AUR needs an AUR account
+    and its ssh key**, which is the maintainer's and is not in this
+    repository — so that push is the one part of a release this procedure
+    cannot carry out on its own.
 
 ## After
 
 15. Bump the workspace version to the next `-dev`, and the three packaging
-    sources with it.
+    sources with it. Four more things belong in the same commit, and each was
+    missing from this step until the first release walked through it:
+    - **Reset the PKGBUILD's `sha256sums` to `SKIP`.** A development version
+      names a tag that does not exist, so the release's digest points at a
+      tarball with nothing to do with it. The version test fails otherwise.
+    - **Regenerate `.SRCINFO`**, or it keeps indexing the version that shipped.
+    - **Regenerate `Cargo.lock`** (`cargo check --offline --workspace`). The
+      workspace crates carry their version in it, so `--locked` fails on the
+      next build otherwise — which is how this was found.
+    - **Open a new `## Unreleased` heading** in the changelog above the one
+      just released.
 16. Anything that went differently from this document goes into this
     document.

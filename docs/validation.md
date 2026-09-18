@@ -2546,3 +2546,66 @@ nobody chases them twice. Running the group by hand fails
 the floor it needs -- and `real_unpinned_blocks_stop_being_protected_from_
 eviction`, which needs the serial `--test-threads=1` the script gives it. Both
 are the invocation, not the code.
+
+## The 0.1.0 release, 2026-09-18
+
+Steps 11 and 12 of [the release procedure](release-procedure.md), against the
+packages CI built from the tagged commit `1543bab` in run 35376209146.
+
+**Every package carries the release version and nothing else.**
+`cirrove-0.1.0-1`, `cirrove-desktop-0.1.0-1`, `cirrove-debug-0.1.0-1` for Arch,
+`cirrove_0.1.0-1_amd64` and `cirrove-desktop_0.1.0-1_amd64` for Debian,
+`cirrove-0.1.0-1.fc42` and `cirrove-desktop-0.1.0-1.fc42` for RPM. The first
+attempt produced `0.1.0.r532.gf6ada29` in all three families, because no build
+script implemented the procedure's own sentence about a release version
+carrying no suffix; `scripts/test-package-versions.py` holds them to it now.
+
+**All seven attestations verify, and all seven name commit `1543bab`** — which
+is what `v0.1.0` points at, so the chain from tag to artefact is closed:
+
+```
+gh attestation verify cirrove-0.1.0-1-x86_64.pkg.tar.zst --repo Dandiccf/cirrove
+```
+
+**Step 11, installation on a clean machine of each family.**
+
+| | install | session | reboot | removal |
+| --- | --- | --- | --- | --- |
+| Fedora 44, SELinux Enforcing | ok, dependencies pulled in by the packages | tray on the bus, Files extension loaded, no denials naming cirrove | *not judged* — see below | clean, state directory kept |
+| Ubuntu 24.04 | ok | tray on the bus as `io.github.Dandiccf.Cirrove-attention` | tray back from the packaged autostart, pid 1723 | purge clean, state kept |
+| Arch | ok | tray on the bus | tray back, pid 569 | `pacman -Rns` clean, state kept |
+
+The Fedora reboot is *not judged* rather than passed, and that distinction is
+new. The check used to report the reboot rather than assert it — every probe
+ended in `|| true` — so a tray that never came back printed a line and the run
+still finished saying done, while the acceptance row claimed the check failed on
+exactly that. On this run `graphical-session.target` was inactive and **no**
+`app-*@autostart.service` unit existed at all, so nothing autostarted, ours
+included: the VM's session, not the package. The step now tells those two cases
+apart, which is why Ubuntu and Arch above are assertions and Fedora is a
+skip with its reason.
+
+**Step 12, reproducibility: no, and here is what differed.** The Arch package
+was built a second time from the tag on the development machine and compared
+against CI's file by file.
+
+- Same compiler both sides: rustc 1.98.1 (48a229cea).
+- **Every data file is identical** — 3 of 5 in `cirrove`, 13 of 16 in
+  `cirrove-desktop`: the unit, the desktop entries, the icons, the metainfo,
+  the catalogues, the licence.
+- The four binaries differ, and they embed the build path: CI builds as the
+  user `builder` and carries `/home/builder/.cargo/registry/...`, the local
+  build carries `/home/dandiccf/.cargo/registry/...`.
+- `.PKGINFO` differs in `builddate`, which is expected, and in `size`:
+  41,931,347 against 41,357,203. The two sides also disagree about makepkg's
+  `debug` option — CI's container splits a `-debug` package and the local build
+  did not — which is the likelier source of half a megabyte than path strings
+  are.
+
+So the packages are not bit-identical, and the causes are the embedded
+`CARGO_HOME` path and a differing makepkg option rather than anything
+non-deterministic in the build itself. What would close it is
+`--remap-path-prefix` over the registry and the cargo target, and pinning the
+same makepkg options on both sides. Recorded as a known limit of 0.1.0 rather
+than claimed: **a lockfile is not reproducibility, and neither is a matching
+compiler version.**

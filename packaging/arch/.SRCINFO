@@ -1,0 +1,33 @@
+pkgbase = cirrove
+	pkgdesc = Cloud drive filesystem that keeps the cloud where it is: OneDrive mounted on demand, without syncing everything
+	pkgver = 0.2.0dev
+	pkgrel = 1
+	url = https://github.com/Dandiccf/cirrove
+	arch = x86_64
+	license = Apache-2.0
+	makedepends = cargo
+	makedepends = cmake
+	makedepends = pkgconf
+	makedepends = gtk4
+	makedepends = libadwaita
+	makedepends = gettext
+	options = !lto
+	source = cirrove-0.2.0dev.tar.gz::https://github.com/Dandiccf/cirrove/archive/refs/tags/v0.2.0dev.tar.gz
+	sha256sums = SKIP
+
+pkgname = cirrove
+	pkgdesc = Cloud drive filesystem that keeps the cloud where it is: OneDrive mounted on demand, without syncing everything (service and command line)
+	depends = fuse3
+	depends = gcc-libs
+	depends = glibc
+	depends = xdg-utils
+	optdepends = gnome-keyring: keep sign-in grants in a desktop keyring (or any Secret Service)
+	optdepends = cirrove-desktop: settings window, tray, and desktop integration
+
+pkgname = cirrove-desktop
+	pkgdesc = Cloud drive filesystem that keeps the cloud where it is: OneDrive mounted on demand, without syncing everything (settings window, tray and desktop integration)
+	depends = cirrove
+	depends = gtk4
+	depends = libadwaita
+	optdepends = gnome-shell-extension-appindicator: show the tray icon on GNOME
+	optdepends = nautilus-python: badges and Keep offline in Files

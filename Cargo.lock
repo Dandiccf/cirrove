@@ -355,14 +355,14 @@ dependencies = [
 
 [[package]]
 name = "cirrove-allocator"
-version = "0.1.0"
+version = "0.2.0-dev"
 dependencies = [
  "libc",
 ]
 
 [[package]]
 name = "cirrove-auth"
-version = "0.1.0"
+version = "0.2.0-dev"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -386,7 +386,7 @@ dependencies = [
 
 [[package]]
 name = "cirrove-core"
-version = "0.1.0"
+version = "0.2.0-dev"
 dependencies = [
  "async-trait",
  "secrecy",
@@ -398,7 +398,7 @@ dependencies = [
 
 [[package]]
 name = "cirrove-desktop"
-version = "0.1.0"
+version = "0.2.0-dev"
 dependencies = [
  "anyhow",
  "cirrove-auth",
@@ -418,7 +418,7 @@ dependencies = [
 
 [[package]]
 name = "cirrove-onedrive"
-version = "0.1.0"
+version = "0.2.0-dev"
 dependencies = [
  "async-trait",
  "chrono",
@@ -437,7 +437,7 @@ dependencies = [
 
 [[package]]
 name = "cirrove-service"
-version = "0.1.0"
+version = "0.2.0-dev"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -468,7 +468,7 @@ dependencies = [
 
 [[package]]
 name = "cirrove-store"
-version = "0.1.0"
+version = "0.2.0-dev"
 dependencies = [
  "cirrove-core",
  "rusqlite",

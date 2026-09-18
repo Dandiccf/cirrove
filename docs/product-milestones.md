@@ -335,7 +335,7 @@ be reachable only through a tray or only through one file manager.
 
 ## 6. Installable OneDrive 1.0
 
-- [ ] Native Arch/AUR, Debian/Ubuntu `.deb` and Fedora `.rpm` packages from the same
+- [x] Native Arch/AUR, Debian/Ubuntu `.deb` and Fedora `.rpm` packages from the same
       release, with the clean-system checks in [Distribution](distribution.md).
 - [ ] Signed APT and COPR update channels, release artifacts, source/provenance,
       supported-version matrix and measured reproducible build procedure.
@@ -362,7 +362,7 @@ be reachable only through a tray or only through one file manager.
       desktop; explicit `--workspace` builds and full contributor checks still
       include it. A package installation on a clean headless host remains required;
       headless buildability does not imply unattended browser/keyring setup.
-- [ ] Tagged release and verified installation from the published artifacts.
+- [x] Tagged release and verified installation from the published artifacts.
 
 ## Platform integration constraints
 

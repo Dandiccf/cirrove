@@ -3,6 +3,8 @@
 What a user notices, in the user's words. The milestone rows a change closes
 are in the [ledger](acceptance-ledger.json); the engineering is in git.
 
+## Unreleased
+
 ## 0.1.0 — 2026-09-18
 
 - **Your desktop's search no longer reports your files as damaged.** GNOME
