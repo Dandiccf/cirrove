@@ -60,7 +60,8 @@
       "later_namespace_mutations_started": 0,
       "deletes_or_trash_requests": 0,
       "cloud_artifacts": "The run-owned folder and byte-correct multipart file remain for review.",
-      "private_evidence": ".local-state/google-write-validation/state/write-checks/15d2bd86-4d8f-4dc9-a9d0-eb6597e5aca7"
+      "private_evidence": ".local-state/google-write-validation/state/write-checks/15d2bd86-4d8f-4dc9-a9d0-eb6597e5aca7",
+      "correction": "The third run sent application/octet-stream on every nonempty session PUT and Google still reported video/mp2t. The missing PUT header was real protocol incompleteness, but it was not the cause of Drive MIME classification; Drive content-sniffed the recognizable payload despite the declarations."
     }
   },
   "official_api_description_observation": {
@@ -78,6 +79,51 @@
     "negative_control": "The exact prepared-ID resumable create test fails at the required-header assertion when only the PUT Content-Type is removed and passes when restored.",
     "candidate_validation": "Full scripts/check.sh passed with 669 Rust test executions, every kernel mount group, script tests, the acceptance ledger and docs.",
     "prediction": "Folder creation, multipart upload/readback and empty-file create/readback will pass. The next metadata capability probe is still expected to report NoStrongEtag and stop before rename, replacement or move.",
+    "endpoint": "Both created files are durably acknowledged and independently read back, followed either by a safely rejected stale metadata probe or an explicit no-strong-ETag stop. Any different boundary is recorded before another run.",
+    "decision_rule": "A missing strong ETag leaves conditional Google replacement, rename, move and trash unavailable. A stale request accepted by Google is a hard failure. Only a real strong ETag plus stale rejection permits the validator to continue to the next conditional operation.",
+    "result": {
+      "status": "folder creation passed; multipart receipt again rejected on Drive-sniffed MIME",
+      "installed_revision": "fe36542225a84a3bfcda48a1c5ac671b12692601",
+      "ci_run": 35472916479,
+      "ci_jobs": "seven of seven passed",
+      "installed_binary_sha256": "35672bdee992c5c085d4a9476adee449a22a295d11d439233e306c841254d42e",
+      "folder_state": "applied",
+      "multipart_journal": "verify_required after eight failed attempts; the session checkpoint retained offset 8388608 and a final 13-byte range",
+      "exact_metadata": {
+        "identity_matches": true,
+        "name_matches": true,
+        "parent_matches": true,
+        "size": 8388621,
+        "version_present": true,
+        "strong_etag_header_present": false,
+        "trashed": false,
+        "reported_mime_type": "video/mp2t"
+      },
+      "exact_content": {
+        "bytes": 8388621,
+        "sha256_matches": true
+      },
+      "diagnosis": "Drive content-sniffed the recognizable repeated-0x47 payload as MPEG transport stream data even though the create metadata, resumable initializer and every nonempty session PUT declared application/octet-stream. Exact identity, destination, size, version and bytes all match; requiring the generic MIME value is therefore not a valid create receipt condition.",
+      "empty_file_started": false,
+      "later_namespace_mutations_started": 0,
+      "deletes_or_trash_requests": 0,
+      "cloud_artifacts": "The run-owned folder and byte-correct multipart file remain for review.",
+      "private_evidence": ".local-state/google-write-validation/state/write-checks/09358a0e-1c01-4b54-9eaa-45727cc03fcf"
+    }
+  },
+  "official_upload_guide_observation": {
+    "url": "https://developers.google.com/workspace/drive/api/guides/manage-uploads",
+    "observation": "The official guide says Drive attempts to detect and automatically set uploaded MIME types, using application/octet-stream only when it cannot detect one.",
+    "interpretation": "A regular sniffed MIME type is metadata, not evidence of different bytes. Google-native MIME types remain rejected because they would indicate conversion."
+  },
+  "fourth_run_registration": {
+    "registered_before_run": true,
+    "registered_at": "2026-09-20T00:45:21+02:00",
+    "source_revision_base": "fe36542225a84a3bfcda48a1c5ac671b12692601",
+    "candidate_change": "A create receipt accepts Drive-sniffed ordinary file MIME types while still rejecting every application/vnd.google-apps.* type. Exact prepared ID, destination, name, size, regular file kind and monotonic content version remain mandatory; the live validator independently downloads and hashes the result.",
+    "negative_control": "Changing only the exact prepared-ID resumable fixture response to the observed video/mp2t makes the prior receipt rule fail with Uncertain. The candidate passes that fixture, and a separate test rejects a Google-native document receipt.",
+    "candidate_validation": "Full scripts/check.sh passed with 670 Rust test executions, every kernel mount group, script tests, the acceptance ledger and docs. The focused exact receipt test first failed under the prior MIME equality rule and passed after the candidate change.",
+    "prediction": "Folder creation, multipart upload/readback and empty-file create/readback will pass. The metadata capability probe is expected to report NoStrongEtag and stop before rename, replacement or move.",
     "endpoint": "Both created files are durably acknowledged and independently read back, followed either by a safely rejected stale metadata probe or an explicit no-strong-ETag stop. Any different boundary is recorded before another run.",
     "decision_rule": "A missing strong ETag leaves conditional Google replacement, rename, move and trash unavailable. A stale request accepted by Google is a hard failure. Only a real strong ETag plus stale rejection permits the validator to continue to the next conditional operation."
   }

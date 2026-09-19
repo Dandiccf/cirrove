@@ -1429,7 +1429,11 @@ impl GoogleDrive {
 
     fn receipt_from_file(&self, request: &UploadRequest, id: &str, file: File) -> Result<Node> {
         if file.id != id
-            || file.mime_type != "application/octet-stream"
+            // Drive can sniff a more specific MIME type from uploaded bytes even
+            // when the resumable session declares application/octet-stream. A
+            // native Google type would mean conversion; an ordinary file MIME
+            // does not change the exact identity, size or downloadable bytes.
+            || file.mime_type.starts_with("application/vnd.google-apps.")
             || file
                 .size
                 .as_deref()
@@ -2448,12 +2452,9 @@ mod tests {
             start.response_headers = format!(
                 "Location: http://{address}/upload/drive/v3/files?upload_id=PRIVATE-SESSION\r\n"
             );
-            let mut upload = Exchange::json(
-                "PUT",
-                "/upload/drive/v3/files",
-                201,
-                file(generated, bytes.len()),
-            );
+            let mut uploaded = file(generated, bytes.len());
+            uploaded["mimeType"] = json!("video/mp2t");
+            let mut upload = Exchange::json("PUT", "/upload/drive/v3/files", 201, uploaded);
             upload.query = vec![("upload_id", "PRIVATE-SESSION")];
             upload.authorized = false;
             upload.headers = vec![
@@ -2491,6 +2492,19 @@ mod tests {
         assert_eq!(node.id, generated);
         assert_eq!(node.name, "report.txt");
         assert_eq!(node.parent_id.as_deref(), Some("root-id"));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_create_receipt_rejects_google_native_conversion() {
+        let (provider, server) = fixture(|_| vec![]).await;
+        let mut converted = file("generated-id", 6);
+        converted["mimeType"] = json!("application/vnd.google-apps.document");
+        let converted = serde_json::from_value(converted).unwrap();
+        assert!(matches!(
+            provider.receipt_from_file(&request(b"abcdef"), "generated-id", converted),
+            Err(UploadError::Uncertain)
+        ));
         server.await.unwrap();
     }
 
