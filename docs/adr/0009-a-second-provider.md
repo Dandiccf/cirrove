@@ -83,6 +83,15 @@ requests still require a real strong provider token and never substitute Drive's
 numeric file version. The first run stopped at that boundary before any file
 upload or further namespace mutation.
 
+The registered rerun confirmed that correction: folder creation reached
+`Applied`. Its resumable file then committed every byte under the prepared ID,
+but Google classified the repeated `0x47` validation payload as `video/mp2t`.
+Although both the create metadata and session initializer declared
+`application/octet-stream`, each nonempty session PUT omitted its own
+`Content-Type`; the adapter correctly refused the mismatched receipt. Nonempty
+resumable PUTs now carry that media type explicitly. Session-status requests
+remain bodyless and unchanged.
+
 The second adapter found real differences at the boundary: initial listing and
 change tracking are separate Google endpoints; sibling names are not unique;
 Google-native documents require an explicit export or link representation. See

@@ -2735,6 +2735,21 @@ the correction. The next live run was registered before starting it in
 `scripts/check.sh` passed with 669 Rust test executions, all kernel mount groups,
 script tests, the acceptance ledger and docs.
 
+The registered rerun confirmed the folder receipt correction and reached
+`Applied`. Its 8,388,621-byte resumable file was also present at the exact
+prepared ID with the requested name, parent, size and SHA-256, but Google had
+classified the repeated `0x47` payload as `video/mp2t`. The session initializer
+declared `application/octet-stream`; each content PUT lacked its own
+`Content-Type`. The adapter refused the mismatched receipt, retained the local
+bytes in `VerifyRequired` through eight bounded attempts and stopped at 300
+seconds before the empty file or any later mutation. Adding the media type to
+every nonempty session PUT makes the exact create test pass; removing only that
+header makes it fail at the synthetic server. The run-owned cloud and local
+artifacts remain. The third run is registered before execution in
+`docs/benchmarks/google-drive-write-validation.json`. The complete
+`scripts/check.sh` passed with 669 Rust test executions, all kernel mount groups,
+script tests, the acceptance ledger and docs.
+
 The focused OAuth test was also run with `drive.file` removed from the requested
 write scopes and failed because the grant no longer satisfied `ReadWrite`;
 restoring the scope passed. The prepared-folder test was run with the create body

@@ -35,6 +35,50 @@
     "candidate_validation": "Full scripts/check.sh passed with 669 Rust test executions, every kernel mount group, script tests, the acceptance ledger and docs.",
     "prediction": "The rerun will acknowledge folder creation and create/read back the multipart and empty files. Because the first run's exact GET also lacked an ETag, the metadata capability probe is expected to record NoStrongEtag and stop before applying a rename, replacement or move.",
     "endpoint": "Folder creation and both file readbacks are durably recorded, followed either by a safely rejected stale metadata probe or an explicit no-strong-ETag stop. Any different boundary is recorded before another run.",
+    "decision_rule": "A missing strong ETag leaves conditional Google replacement, rename, move and trash unavailable. A stale request accepted by Google is a hard failure. Only a real strong ETag plus stale rejection permits the validator to continue to the next conditional operation.",
+    "result": {
+      "status": "folder creation passed; multipart receipt rejected on MIME mismatch",
+      "installed_revision": "1fa3f271a2583efb25a87f52c7380db9d8bc0f5f",
+      "folder_state": "applied",
+      "multipart_journal": "verify_required after eight failed attempts; the session checkpoint retained offset 8388608 and a final 13-byte range",
+      "exact_metadata": {
+        "identity_matches": true,
+        "name_matches": true,
+        "parent_matches": true,
+        "size": 8388621,
+        "version_present": true,
+        "strong_etag_header_present": false,
+        "trashed": false,
+        "reported_mime_type": "video/mp2t"
+      },
+      "exact_content": {
+        "bytes": 8388621,
+        "sha256_matches": true
+      },
+      "diagnosis": "The repeated 0x47 payload resembles MPEG transport stream data. Create metadata and the resumable initializer declared application/octet-stream, but nonempty session PUTs carried no Content-Type, so Google classified the committed file as video/mp2t and Cirrove correctly rejected the receipt.",
+      "empty_file_started": false,
+      "later_namespace_mutations_started": 0,
+      "deletes_or_trash_requests": 0,
+      "cloud_artifacts": "The run-owned folder and byte-correct multipart file remain for review.",
+      "private_evidence": ".local-state/google-write-validation/state/write-checks/15d2bd86-4d8f-4dc9-a9d0-eb6597e5aca7"
+    }
+  },
+  "official_api_description_observation": {
+    "discovery_revision": "20260913",
+    "file_etag_property": false,
+    "file_version_property": "Output-only monotonically increasing number",
+    "update_version_precondition_parameter": false,
+    "interpretation": "This supports the observed absence of a documented version compare-and-set primitive; it does not by itself prove how every HTTP intermediary handles If-Match."
+  },
+  "third_run_registration": {
+    "registered_before_run": true,
+    "registered_at": "2026-09-20T00:11:07+02:00",
+    "source_revision_base": "1fa3f271a2583efb25a87f52c7380db9d8bc0f5f",
+    "candidate_change": "Every nonempty resumable session PUT declares Content-Type application/octet-stream. Bodyless upload-status queries remain unchanged.",
+    "negative_control": "The exact prepared-ID resumable create test fails at the required-header assertion when only the PUT Content-Type is removed and passes when restored.",
+    "candidate_validation": "Full scripts/check.sh passed with 669 Rust test executions, every kernel mount group, script tests, the acceptance ledger and docs.",
+    "prediction": "Folder creation, multipart upload/readback and empty-file create/readback will pass. The next metadata capability probe is still expected to report NoStrongEtag and stop before rename, replacement or move.",
+    "endpoint": "Both created files are durably acknowledged and independently read back, followed either by a safely rejected stale metadata probe or an explicit no-strong-ETag stop. Any different boundary is recorded before another run.",
     "decision_rule": "A missing strong ETag leaves conditional Google replacement, rename, move and trash unavailable. A stale request accepted by Google is a hard failure. Only a real strong ETag plus stale rejection permits the validator to continue to the next conditional operation."
   }
 }

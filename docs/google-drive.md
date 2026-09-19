@@ -10,8 +10,10 @@ request `drive.file`, prepare an isolated live create check and characterize
 HTTP ETag handling for metadata and content on one file created by that run.
 The first authorized run created its prepared folder but stopped before file
 uploads because Drive returned no strong HTTP ETag for either the create response
-or exact-ID inspection. A narrowly scoped receipt correction awaits a registered
-rerun; no conditional write has been accepted or enabled.
+or exact-ID inspection. A registered second run confirmed the receipt correction
+and committed the large file byte-for-byte, then exposed a missing media type on
+the resumable PUT. A tested correction awaits a third registered run; no
+conditional write has been accepted or enabled.
 The normal service does not select the write transport or expose a writable
 Google mount.
 
@@ -372,6 +374,23 @@ name and folder kind without inventing an ETag. Relocate, replacement and remova
 still require a real strong ETag. The corresponding no-ETag fixture fails with
 the old requirement and passes with the correction. The rerun is registered in
 `docs/benchmarks/google-drive-write-validation.json` and has not yet started.
+The complete `scripts/check.sh` passed with 669 Rust test executions, all kernel
+mount groups, script tests, the acceptance ledger and docs.
+
+The registered second attempt ran installed commit `1fa3f27`. Folder creation
+reached `Applied`, and the multipart transfer committed the exact prepared ID,
+name, parent, 8,388,621-byte size and SHA-256. Google nevertheless reported the
+file as `video/mp2t`: the test payload repeats byte `0x47`, which resembles an
+MPEG transport stream. The create metadata and resumable initializer already
+declared `application/octet-stream`, but Cirrove's individual PUT requests did
+not. The adapter refused that MIME mismatch, kept the transfer in
+`VerifyRequired` for eight bounded attempts and stopped at 300 seconds before
+the empty file or any later mutation. The next candidate adds
+`Content-Type: application/octet-stream` to every nonempty session PUT. Its exact
+request test fails without that header and passes with it; bodyless status probes
+remain unchanged. The run-owned folder, byte-correct file, local bytes and
+private journal remain for review. A third run is registered before execution in
+`docs/benchmarks/google-drive-write-validation.json`.
 The complete `scripts/check.sh` passed with 669 Rust test executions, all kernel
 mount groups, script tests, the acceptance ledger and docs.
 

@@ -1491,16 +1491,18 @@ impl GoogleDrive {
         bytes: Vec<u8>,
         conditional: bool,
     ) -> Result<Response> {
-        let response = self
+        let has_content = !bytes.is_empty();
+        let mut request = self
             .client
             .request(method, url)
             .header("Accept-Encoding", "identity")
             .header("Content-Length", bytes.len())
             .header("Content-Range", range)
-            .body(bytes)
-            .send()
-            .await
-            .map_err(|_| UploadError::Uncertain)?;
+            .body(bytes);
+        if has_content {
+            request = request.header(reqwest::header::CONTENT_TYPE, "application/octet-stream");
+        }
+        let response = request.send().await.map_err(|_| UploadError::Uncertain)?;
         if conditional && response.status() == StatusCode::PRECONDITION_FAILED {
             return Err(UploadError::Conflict);
         }
@@ -2454,7 +2456,10 @@ mod tests {
             );
             upload.query = vec![("upload_id", "PRIVATE-SESSION")];
             upload.authorized = false;
-            upload.headers = vec!["content-range: bytes 0-5/6".into()];
+            upload.headers = vec![
+                "content-range: bytes 0-5/6".into(),
+                "content-type: application/octet-stream".into(),
+            ];
             upload.body = Some(ExpectedBody::Bytes(bytes.to_vec()));
             vec![generate, missing, start, upload]
         })
