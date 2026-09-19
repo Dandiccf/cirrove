@@ -80,7 +80,8 @@ currently bundled; another project's client ID is never substituted.
 ## 6 — Additional providers
 
 - [ ] Google Drive: [read-only My Drive implemented and synthetically tested](google-drive.md),
-      with a prepared create, metadata and content-precondition live validator;
+      with a prepared create, metadata, small-content and resumable-content
+      precondition live validator;
       mutation evidence, writable
       namespace rules, shared drives and Docs/Sheets exports remain open.
 - [ ] iCloud feasibility, isolated compatibility adapter and visible limitations.

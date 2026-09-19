@@ -44,13 +44,13 @@ offsets, receipts and content verification. A separate disabled connection may
 now request `drive.file` beside the existing read-only scope for one explicit
 create validator. It cannot be enabled or selected for a writable mount. The
 validator pre-generates and persists its test-folder identity before creating
-multipart and empty files through the shared worker. It then records an exact
-plan and probes whether Drive v3 honors a strong response ETag on a metadata
-PATCH and rejects reuse of that stale ETag. It repeats the sequence with two
-small content payloads and verifies the resulting bytes by ID and SHA-256.
-Synthetic cases cover rejection, ignored preconditions and a missing strong ETag
-for both paths. The API reference does not document this behavior, resumable
-replacement is not implemented, and the validator has not been run against Google.
+multipart and empty files through the shared worker. Its direct capability
+probes cover current and stale strong HTTP ETags for metadata, small media
+replacement and aligned resumable replacement on its own created file. Synthetic
+cases distinguish rejection when a resumable session starts or finishes, an
+ignored stale precondition and the absence of a strong ETag. The API reference
+does not document this behavior, the probes are not an implementation of
+shared-worker replacement, and the validator has not been run against Google.
 Duplicate-name collision semantics and conditional replacement remain unresolved.
 
 The second adapter found real differences at the boundary: initial listing and

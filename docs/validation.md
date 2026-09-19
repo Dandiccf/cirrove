@@ -2638,18 +2638,24 @@ multipart file and an empty file through the shared worker, then read each exact
 identity back and compare SHA-256. It now also persists an exact plan for the
 multipart file, applies a metadata rename with the current strong HTTP ETag and
 reuses that stale value for a second rename. It repeats the sequence with two
-small content payloads and reads the winner back by exact ID and SHA-256. Three
-synthetic arms for each path distinguish a 412 rejection, an ignored stale header
-and a metadata response without a strong ETag; the last arms perform no PATCH.
+small content payloads and reads the winner back by exact ID and SHA-256. It then
+does the same with aligned 8 MiB-plus resumable payloads. Three synthetic arms
+for each metadata and small-content path distinguish a 412 rejection, an ignored
+stale header and a metadata response without a strong ETag; the last arms perform
+no PATCH. Four resumable arms cover rejection when the session starts, rejection
+when its final range commits, an accepted stale replacement and no session when
+there is no strong ETag. Session URLs do not enter the evidence log.
 The validator has not been run, so no
 Google write scope or mutation participated in the evidence recorded here; the
 writable namespace and replacement rules remain open.
 
-Each successful-precondition test was also run once with only its `If-Match`
-header removed. Exactly one test executed in each run and failed at the synthetic
-server's required-header assertion. Restoring the header made each exact test
-pass. This shows that the two tests depend on the outgoing precondition rather
-than only accepting their scripted response status.
+Each successful metadata and small-content precondition test was also run once
+with only its `If-Match` header removed. Exactly one test executed in each run
+and failed at the synthetic server's required-header assertion. Restoring the
+header made each exact test pass. Removing only `If-Match` from the resumable
+session initializer likewise made its exact success test fail at the server's
+required-header assertion; restoring it passed. These controls show that the
+tests depend on the outgoing preconditions rather than scripted status alone.
 
 The focused OAuth test was also run with `drive.file` removed from the requested
 write scopes and failed because the grant no longer satisfied `ReadWrite`;

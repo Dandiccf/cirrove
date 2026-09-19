@@ -1043,6 +1043,14 @@ than an ambiguous sibling name. Two synthetic transfer faults fail if either the
 pre-session persistence or reconciliation handoff is removed. OneDrive never
 returns `Prepared` and ignores the optional reconciliation checkpoint.
 
+An isolated, disabled-account validator also has direct capability probes for
+Google's undocumented strong-ETag behavior on metadata, small media replacement
+and aligned resumable replacement. Plans contain exact identities, sizes and
+hashes and are durable before mutation; resumable session URLs remain in memory.
+Synthetic scenarios distinguish stale rejection at session creation or final
+commit from an accepted stale write. This does not implement `UploadIntent::Replace`
+or select a writable Google mount.
+
 The Google adapter now implements the create transport against this contract:
 pre-generated IDs, resumable ranges, exact remote offsets and streamed SHA-256
 reconciliation. Synthetic HTTP exercises it. Ordinary account construction still

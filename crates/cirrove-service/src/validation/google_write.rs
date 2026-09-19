@@ -263,6 +263,50 @@ pub async fn google_create(state: &Path, label: &str) -> Result<()> {
             bail!("Google returned no strong content ETag; safe replacement remains unavailable")
         }
     }
+
+    let resumable_content = vec![0x52; 8 * 1024 * 1024 + 29];
+    let stale_resumable_content = vec![0x53; 8 * 1024 * 1024 + 31];
+    let resumable_plan = google.prepare_resumable_precondition_probe(
+        &scope,
+        &multipart_id,
+        &folder.id,
+        accepted_name,
+        &resumable_content,
+        &stale_resumable_content,
+    )?;
+    event(
+        &mut log,
+        serde_json::json!({
+            "stage":"resumable_precondition_planned",
+            "plan":resumable_plan
+        }),
+    )?;
+    println!("Checking the same stale ETag rule on a resumable content replacement.");
+    let resumable_precondition = google
+        .probe_resumable_precondition(
+            &scope,
+            &resumable_plan,
+            resumable_content,
+            stale_resumable_content,
+            &cancel,
+        )
+        .await?;
+    event(
+        &mut log,
+        serde_json::json!({
+            "stage":"resumable_precondition_result",
+            "result":resumable_precondition
+        }),
+    )?;
+    match resumable_precondition.stale_rejected() {
+        Some(true) => println!("Google rejected the stale resumable precondition."),
+        Some(false) => bail!(
+            "Google accepted a stale resumable precondition; safe replacement remains unavailable"
+        ),
+        None => bail!(
+            "Google returned no strong ETag for resumable replacement; safe replacement remains unavailable"
+        ),
+    }
     event(
         &mut log,
         serde_json::json!({
@@ -273,6 +317,6 @@ pub async fn google_create(state: &Path, label: &str) -> Result<()> {
     println!(
         "Google create and metadata checks passed. The test folder and local snapshots remain for review."
     );
-    println!("This does not validate resumable replacement or enable writable Google mounts.");
+    println!("This does not enable writable Google mounts.");
     Ok(())
 }

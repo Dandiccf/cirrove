@@ -87,6 +87,19 @@ pub struct ContentPreconditionPlan {
     stale_sha256: String,
 }
 
+/// Exact item and digests for the large-content variant of the conditional
+/// write probe. Session URLs and payload bytes are never part of this plan.
+#[derive(Clone, PartialEq, Eq, Serialize)]
+pub struct ResumablePreconditionPlan {
+    item: String,
+    parent: String,
+    name: String,
+    accepted_size: u64,
+    accepted_sha256: String,
+    stale_size: u64,
+    stale_sha256: String,
+}
+
 #[derive(Clone, Debug, Serialize)]
 #[serde(tag = "outcome", rename_all = "snake_case")]
 pub enum ContentPreconditionProbe {
@@ -105,6 +118,32 @@ pub enum ContentPreconditionProbe {
     },
 }
 impl ContentPreconditionProbe {
+    pub fn stale_rejected(&self) -> Option<bool> {
+        match self {
+            Self::NoStrongEtag { .. } => None,
+            Self::Tested { stale_rejected, .. } => Some(*stale_rejected),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+pub enum ResumablePreconditionProbe {
+    NoStrongEtag {
+        item: String,
+        version: String,
+    },
+    Tested {
+        item: String,
+        before_version: String,
+        updated_version: String,
+        final_version: String,
+        stale_rejected: bool,
+        final_size: u64,
+        final_sha256: String,
+    },
+}
+impl ResumablePreconditionProbe {
     pub fn stale_rejected(&self) -> Option<bool> {
         match self {
             Self::NoStrongEtag { .. } => None,
@@ -540,6 +579,152 @@ impl GoogleDrive {
         .await
     }
 
+    /// Build the durable description of a large conditional replacement. Both
+    /// payloads must exercise the resumable path; their bytes remain outside
+    /// the persisted plan.
+    pub fn prepare_resumable_precondition_probe(
+        &self,
+        scope: &Scope,
+        item: &str,
+        parent: &str,
+        name: &str,
+        accepted: &[u8],
+        stale: &[u8],
+    ) -> Result<ResumablePreconditionPlan> {
+        self.check_folder_destination(scope, parent, name)?;
+        valid_id(item).map_err(UploadError::Provider)?;
+        if accepted.len() <= 5 * 1024 * 1024
+            || stale.len() <= 5 * 1024 * 1024
+            || accepted.len() > u32::MAX as usize
+            || stale.len() > u32::MAX as usize
+        {
+            return Err(UploadError::Invalid);
+        }
+        let accepted_sha256 = hex::encode(Sha256::digest(accepted));
+        let stale_sha256 = hex::encode(Sha256::digest(stale));
+        if accepted_sha256 == stale_sha256 {
+            return Err(UploadError::Invalid);
+        }
+        Ok(ResumablePreconditionPlan {
+            item: item.into(),
+            parent: parent.into(),
+            name: name.into(),
+            accepted_size: accepted.len() as u64,
+            accepted_sha256,
+            stale_size: stale.len() as u64,
+            stale_sha256,
+        })
+    }
+
+    /// Replace one isolated test file through a resumable session, then try a
+    /// second session with the now-stale ETag. A server that defers the
+    /// precondition check until the final byte range is handled as well.
+    pub async fn probe_resumable_precondition(
+        &self,
+        scope: &Scope,
+        plan: &ResumablePreconditionPlan,
+        accepted: Vec<u8>,
+        stale: Vec<u8>,
+        cancel: &CancellationToken,
+    ) -> Result<ResumablePreconditionProbe> {
+        let checked = self.prepare_resumable_precondition_probe(
+            scope,
+            &plan.item,
+            &plan.parent,
+            &plan.name,
+            &accepted,
+            &stale,
+        )?;
+        if checked != *plan {
+            return Err(UploadError::Invalid);
+        }
+        self.upload_call(cancel, Duration::from_secs(15 * 60), async {
+            let (before, etag) = self.file_with_strong_etag(&checked.item).await?;
+            self.check_probe_file(&before, &checked.item, &checked.parent, &checked.name)?;
+            let before_version = self.file_version(&before)?;
+            let Some(etag) = etag else {
+                return Ok(ResumablePreconditionProbe::NoStrongEtag {
+                    item: checked.item.clone(),
+                    version: before_version,
+                });
+            };
+
+            let session = self
+                .begin_conditional_resumable(&checked.item, checked.accepted_size, &etag)
+                .await?;
+            let updated = self.upload_probe_session(session, accepted).await?;
+            self.check_probe_content(
+                &updated,
+                &checked.item,
+                &checked.parent,
+                &checked.name,
+                checked.accepted_size,
+            )?;
+            let updated_version = self.file_version(&updated)?;
+            if !decimal_version_after(&updated_version, &before_version) {
+                return Err(UploadError::Uncertain);
+            }
+
+            let stale_rejected = match self
+                .begin_conditional_resumable(&checked.item, checked.stale_size, &etag)
+                .await
+            {
+                Err(UploadError::Conflict) => true,
+                Ok(session) => match self.upload_probe_session(session, stale).await {
+                    Err(UploadError::Conflict) => true,
+                    Ok(stale) => {
+                        self.check_probe_content(
+                            &stale,
+                            &checked.item,
+                            &checked.parent,
+                            &checked.name,
+                            checked.stale_size,
+                        )?;
+                        false
+                    }
+                    Err(error) => return Err(error),
+                },
+                Err(error) => return Err(error),
+            };
+            let (expected_size, expected_sha256) = if stale_rejected {
+                (checked.accepted_size, checked.accepted_sha256.as_str())
+            } else {
+                (checked.stale_size, checked.stale_sha256.as_str())
+            };
+            let final_file = self.file(&checked.item).await?;
+            self.check_probe_content(
+                &final_file,
+                &checked.item,
+                &checked.parent,
+                &checked.name,
+                expected_size,
+            )?;
+            let final_version = self.file_version(&final_file)?;
+            if final_version != updated_version
+                && !decimal_version_after(&final_version, &updated_version)
+            {
+                return Err(UploadError::Uncertain);
+            }
+            let final_node = final_file
+                .node(&scope.collection)
+                .map_err(|_| UploadError::Uncertain)?;
+            let final_sha256 = self.probe_sha256(scope, &final_node, cancel).await?;
+            if final_sha256 != expected_sha256 {
+                return Err(UploadError::Uncertain);
+            }
+            Ok(ResumablePreconditionProbe::Tested {
+                item: checked.item.clone(),
+                before_version,
+                updated_version,
+                final_version,
+                stale_rejected,
+                final_size: expected_size,
+                final_sha256,
+            })
+        })
+        .await
+    }
+
     fn check_upload(&self, request: &UploadRequest) -> Result<()> {
         request.validate()?;
         self.check_scope(&request.scope)
@@ -791,6 +976,101 @@ impl GoogleDrive {
             return serde_json::from_slice(&body).map_err(|_| UploadError::Uncertain);
         }
         Err(ProviderError::Authentication.into())
+    }
+
+    async fn begin_conditional_resumable(&self, item: &str, size: u64, etag: &str) -> Result<Url> {
+        let mut url = self.upload_endpoint();
+        url.path_segments_mut()
+            .map_err(|_| protocol("invalid Google upload endpoint"))?
+            .push(item);
+        url.query_pairs_mut()
+            .append_pair("uploadType", "resumable")
+            .append_pair("fields", files::FIELDS);
+        for attempt in 0..2 {
+            let token = self.tokens.access_token().await?;
+            let response = self
+                .client
+                .patch(url.clone())
+                .bearer_auth(token.expose_secret())
+                .header("Accept-Encoding", "identity")
+                .header(reqwest::header::IF_MATCH, etag)
+                .header("X-Upload-Content-Type", "application/octet-stream")
+                .header("X-Upload-Content-Length", size)
+                .json(&json!({}))
+                .send()
+                .await
+                .map_err(|_| UploadError::Uncertain)?;
+            if response.status() == StatusCode::UNAUTHORIZED && attempt == 0 {
+                self.tokens.invalidate(&token).await;
+                continue;
+            }
+            let response = self.upload_response(response, false).await?;
+            if response.status() != StatusCode::OK {
+                return Err(UploadError::Uncertain);
+            }
+            let location = response
+                .headers()
+                .get(reqwest::header::LOCATION)
+                .and_then(|value| value.to_str().ok())
+                .ok_or_else(|| protocol("Google upload session has no location"))?;
+            return self.session_url(location);
+        }
+        Err(ProviderError::Authentication.into())
+    }
+
+    async fn upload_probe_session(&self, url: Url, bytes: Vec<u8>) -> Result<File> {
+        let size = bytes.len() as u64;
+        let mut offset = 0;
+        while offset < size {
+            let end = (offset + u64::from(PART_SIZE)).min(size);
+            let range = format!("bytes {offset}-{}/{size}", end - 1);
+            let response = self
+                .client
+                .put(url.clone())
+                .header("Accept-Encoding", "identity")
+                .header("Content-Length", end - offset)
+                .header("Content-Range", range)
+                .body(bytes[offset as usize..end as usize].to_vec())
+                .send()
+                .await
+                .map_err(|_| UploadError::Uncertain)?;
+            if response.status() == StatusCode::PERMANENT_REDIRECT {
+                if end == size || Self::received_offset(&response, size)? != end {
+                    return Err(UploadError::Uncertain);
+                }
+                offset = end;
+                continue;
+            }
+            let response = self.upload_response(response, false).await?;
+            if end != size {
+                return Err(UploadError::Uncertain);
+            }
+            let bytes = body(response, MAX_UPLOAD_RESPONSE)
+                .await
+                .map_err(|_| UploadError::Uncertain)?;
+            return serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain);
+        }
+        Err(UploadError::Invalid)
+    }
+
+    async fn probe_sha256(
+        &self,
+        scope: &Scope,
+        node: &Node,
+        cancel: &CancellationToken,
+    ) -> Result<String> {
+        let mut digest = Sha256::new();
+        let mut offset = 0;
+        while offset < node.size {
+            let length = (node.size - offset).min(4 * 1024 * 1024) as u32;
+            let bytes = self.read_range(scope, node, offset, length, cancel).await?;
+            if bytes.len() != length as usize {
+                return Err(UploadError::Uncertain);
+            }
+            digest.update(&bytes);
+            offset += bytes.len() as u64;
+        }
+        Ok(hex::encode(digest.finalize()))
     }
 
     fn check_probe_file(&self, file: &File, item: &str, parent: &str, name: &str) -> Result<()> {
@@ -1349,7 +1629,7 @@ mod tests {
                     let read = socket.read(&mut bytes).await.unwrap();
                     assert!(read > 0);
                     request.extend_from_slice(&bytes[..read]);
-                    assert!(request.len() < 2 * 1024 * 1024);
+                    assert!(request.len() < 16 * 1024 * 1024);
                     if let Some(position) =
                         request.windows(4).position(|window| window == b"\r\n\r\n")
                     {
@@ -1884,6 +2164,308 @@ mod tests {
                 &plan,
                 accepted.to_vec(),
                 stale.to_vec(),
+                &CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(result.stale_rejected(), None);
+        server.await.unwrap();
+    }
+
+    fn resumable_start(
+        address: std::net::SocketAddr,
+        session: &'static str,
+        etag: &str,
+        size: usize,
+    ) -> Exchange {
+        let mut start = Exchange::json(
+            "PATCH",
+            "/upload/drive/v3/files/generated-id",
+            200,
+            json!({}),
+        );
+        start.query = vec![("uploadType", "resumable"), ("fields", files::FIELDS)];
+        start.headers = vec![
+            format!("if-match: {etag}"),
+            "x-upload-content-type: application/octet-stream".into(),
+            format!("x-upload-content-length: {size}"),
+        ];
+        start.body = Some(ExpectedBody::Json(json!({})));
+        start.response_body.clear();
+        start.response_headers =
+            format!("Location: http://{address}/upload/drive/v3/files?upload_id={session}\r\n");
+        start
+    }
+
+    fn resumable_uploads(session: &'static str, bytes: &[u8], version: &str) -> Vec<Exchange> {
+        let split = PART_SIZE as usize;
+        let mut first = Exchange::json("PUT", "/upload/drive/v3/files", 308, json!({}));
+        first.query = vec![("upload_id", session)];
+        first.authorized = false;
+        first.headers = vec![format!(
+            "content-range: bytes 0-{}/{size}",
+            split - 1,
+            size = bytes.len()
+        )];
+        first.body = Some(ExpectedBody::Bytes(bytes[..split].to_vec()));
+        first.response_body.clear();
+        first.response_headers = format!("Range: bytes=0-{}\r\n", split - 1);
+
+        let mut final_part = Exchange::json(
+            "PUT",
+            "/upload/drive/v3/files",
+            200,
+            named_file("generated-id", "renamed.txt", version, bytes.len()),
+        );
+        final_part.query = vec![("upload_id", session)];
+        final_part.authorized = false;
+        final_part.headers = vec![format!(
+            "content-range: bytes {split}-{}/{size}",
+            bytes.len() - 1,
+            size = bytes.len()
+        )];
+        final_part.body = Some(ExpectedBody::Bytes(bytes[split..].to_vec()));
+        vec![first, final_part]
+    }
+
+    fn resumable_readback(bytes: &[u8], version: &'static str) -> Vec<Exchange> {
+        let metadata = || {
+            let mut exchange = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "renamed.txt", version, bytes.len()),
+            );
+            exchange.query = vec![("fields", files::FIELDS)];
+            exchange
+        };
+        let mut result = vec![metadata()];
+        let mut offset = 0;
+        while offset < bytes.len() {
+            let end = (offset + 4 * 1024 * 1024).min(bytes.len());
+            result.push(metadata());
+            let mut content = Exchange::json("GET", "/drive/v3/files/generated-id", 206, json!({}));
+            content.query = vec![("alt", "media")];
+            content.headers = vec![format!("range: bytes={offset}-{}", end - 1)];
+            content.response_headers = format!(
+                "Content-Range: bytes {offset}-{}/{total}\r\n",
+                end - 1,
+                total = bytes.len()
+            );
+            content.response_body = bytes[offset..end].to_vec();
+            result.push(content);
+            result.push(metadata());
+            offset = end;
+        }
+        result
+    }
+
+    fn resumable_probe_exchanges(
+        address: std::net::SocketAddr,
+        accepted: &[u8],
+        stale: &[u8],
+        stale_rejected: bool,
+    ) -> Vec<Exchange> {
+        let mut before = Exchange::json(
+            "GET",
+            "/drive/v3/files/generated-id",
+            200,
+            named_file("generated-id", "renamed.txt", "10", 6),
+        );
+        before.query = vec![("fields", files::FIELDS)];
+        before.response_headers = "ETag: \"resumable-10\"\r\n".into();
+        let mut result = vec![
+            before,
+            resumable_start(address, "CURRENT", "\"resumable-10\"", accepted.len()),
+        ];
+        result.extend(resumable_uploads("CURRENT", accepted, "11"));
+        if stale_rejected {
+            let mut stale_start = Exchange::json(
+                "PATCH",
+                "/upload/drive/v3/files/generated-id",
+                412,
+                json!({}),
+            );
+            stale_start.query = vec![("uploadType", "resumable"), ("fields", files::FIELDS)];
+            stale_start.headers = vec![
+                "if-match: \"resumable-10\"".into(),
+                "x-upload-content-type: application/octet-stream".into(),
+                format!("x-upload-content-length: {}", stale.len()),
+            ];
+            stale_start.body = Some(ExpectedBody::Json(json!({})));
+            result.push(stale_start);
+            result.extend(resumable_readback(accepted, "11"));
+        } else {
+            result.push(resumable_start(
+                address,
+                "STALE",
+                "\"resumable-10\"",
+                stale.len(),
+            ));
+            result.extend(resumable_uploads("STALE", stale, "12"));
+            result.extend(resumable_readback(stale, "12"));
+        }
+        result
+    }
+
+    #[tokio::test]
+    async fn resumable_probe_uploads_multiple_ranges_and_rejects_the_stale_etag() {
+        let accepted = vec![0x52; PART_SIZE as usize + 29];
+        let stale = vec![0x53; PART_SIZE as usize + 31];
+        let (provider, server) =
+            fixture(|address| resumable_probe_exchanges(address, &accepted, &stale, true)).await;
+        let plan = provider
+            .prepare_resumable_precondition_probe(
+                &scope(),
+                "generated-id",
+                "root-id",
+                "renamed.txt",
+                &accepted,
+                &stale,
+            )
+            .unwrap();
+        let result = provider
+            .probe_resumable_precondition(
+                &scope(),
+                &plan,
+                accepted.clone(),
+                stale,
+                &CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(result.stale_rejected(), Some(true));
+        let ResumablePreconditionProbe::Tested {
+            final_size,
+            final_sha256,
+            ..
+        } = result
+        else {
+            panic!("strong ETag was not tested")
+        };
+        assert_eq!(final_size, accepted.len() as u64);
+        assert_eq!(final_sha256, hex::encode(Sha256::digest(&accepted)));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn resumable_probe_reports_when_drive_accepts_the_stale_etag() {
+        let accepted = vec![0x52; PART_SIZE as usize + 29];
+        let stale = vec![0x53; PART_SIZE as usize + 31];
+        let (provider, server) =
+            fixture(|address| resumable_probe_exchanges(address, &accepted, &stale, false)).await;
+        let plan = provider
+            .prepare_resumable_precondition_probe(
+                &scope(),
+                "generated-id",
+                "root-id",
+                "renamed.txt",
+                &accepted,
+                &stale,
+            )
+            .unwrap();
+        let result = provider
+            .probe_resumable_precondition(
+                &scope(),
+                &plan,
+                accepted,
+                stale,
+                &CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(result.stale_rejected(), Some(false));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn resumable_probe_accepts_a_session_but_rejects_stale_finalization() {
+        let accepted = vec![0x52; PART_SIZE as usize + 29];
+        let stale = vec![0x53; PART_SIZE as usize + 31];
+        let (provider, server) = fixture(|address| {
+            let mut before = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "renamed.txt", "10", 6),
+            );
+            before.query = vec![("fields", files::FIELDS)];
+            before.response_headers = "ETag: \"resumable-10\"\r\n".into();
+            let mut exchanges = vec![
+                before,
+                resumable_start(address, "CURRENT", "\"resumable-10\"", accepted.len()),
+            ];
+            exchanges.extend(resumable_uploads("CURRENT", &accepted, "11"));
+            exchanges.push(resumable_start(
+                address,
+                "STALE",
+                "\"resumable-10\"",
+                stale.len(),
+            ));
+            let mut stale_uploads = resumable_uploads("STALE", &stale, "12");
+            let finalization = stale_uploads.last_mut().unwrap();
+            finalization.status = 412;
+            finalization.response_body = serde_json::to_vec(&json!({})).unwrap();
+            exchanges.extend(stale_uploads);
+            exchanges.extend(resumable_readback(&accepted, "11"));
+            exchanges
+        })
+        .await;
+        let plan = provider
+            .prepare_resumable_precondition_probe(
+                &scope(),
+                "generated-id",
+                "root-id",
+                "renamed.txt",
+                &accepted,
+                &stale,
+            )
+            .unwrap();
+        let result = provider
+            .probe_resumable_precondition(
+                &scope(),
+                &plan,
+                accepted,
+                stale,
+                &CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(result.stale_rejected(), Some(true));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn resumable_probe_does_not_start_a_session_without_a_strong_etag() {
+        let accepted = vec![0x52; 5 * 1024 * 1024 + 1];
+        let stale = vec![0x53; 5 * 1024 * 1024 + 2];
+        let (provider, server) = fixture(|_| {
+            let mut before = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "renamed.txt", "10", 6),
+            );
+            before.query = vec![("fields", files::FIELDS)];
+            vec![before]
+        })
+        .await;
+        let plan = provider
+            .prepare_resumable_precondition_probe(
+                &scope(),
+                "generated-id",
+                "root-id",
+                "renamed.txt",
+                &accepted,
+                &stale,
+            )
+            .unwrap();
+        let result = provider
+            .probe_resumable_precondition(
+                &scope(),
+                &plan,
+                accepted,
+                stale,
                 &CancellationToken::new(),
             )
             .await

@@ -75,9 +75,13 @@ response, then retries another name with that now-stale ETag. Synthetic HTTP
 covers rejection, ignored preconditions and a response without a strong ETag.
 After metadata succeeds, the validator repeats the same current/stale sequence
 with two distinct small content payloads and reads the exact final identity back
-by SHA-256. These are capability probes, not production replacement support;
-resumable replacement still needs its own transport and all observed ETag
-behavior needs live evidence plus a documented stability decision. Those
+by SHA-256. A separate resumable probe then replaces the same isolated file with
+an 8 MiB-plus payload in aligned ranges and tries another session with the stale
+ETag. It distinguishes rejection when the session starts, rejection when the
+final range commits and an accepted stale replacement. These are capability
+probes, not production replacement support; the resumable path is intentionally
+not connected to the upload worker and all observed ETag behavior needs live
+evidence plus a documented stability decision. Those
 namespace and conflict decisions and explicit live mutation validation must be
 completed before a writable Google mount can be offered. See Google's
 [pre-generated ID guidance](https://developers.google.com/workspace/drive/api/guides/manage-uploads)
@@ -156,8 +160,11 @@ metadata-probe plan, renames the multipart file with its current strong HTTP
 ETag and attempts a second rename with the stale ETag. It then persists payload
 sizes and SHA-256 digests, conditionally replaces that file with one small
 payload, attempts a distinct replacement using the stale ETag and reads the
-winning bytes back. A missing strong ETag or an accepted stale update fails the
-command. It retains the cloud folder and private local journal for review.
+winning bytes back. Finally it persists the same non-secret plan for two 8
+MiB-plus payloads, performs an aligned resumable replacement and repeats the
+stale attempt. A missing strong ETag or an accepted stale update fails the
+command. Session URLs are neither logged nor persisted by this probe. It retains
+the cloud folder and private local journal for review.
 Running it changes Google Drive and needs explicit authorization for that run.
 
 Access/refresh tokens and the optional desktop client secret are stored in
@@ -190,11 +197,13 @@ tests distinguish the normal read-only grant from the explicit
 `drive.readonly` plus `drive.file` validator grant. Account tests require a
 Google write-validation connection to remain disabled. A synthetic folder test
 pre-generates its ID, verifies the exact create request and inspects that ID
-afterward. Three metadata-probe and three content-probe tests require the
+afterward. Three metadata-probe and three small-content-probe tests require the
 original strong ETag on the first PATCH, distinguish a rejected stale retry from
 an ignored precondition, and issue no PATCH when metadata has no strong ETag.
-The content cases also read the exact resulting bytes and compare SHA-256. No
-cloud mutation was used for these checks.
+Four resumable-probe tests additionally cover aligned multi-range transfer,
+rejection at session creation, rejection at finalization, an accepted stale
+replacement and the no-ETag/no-session case. Both content paths read the exact
+resulting bytes and compare SHA-256. No cloud mutation was used for these checks.
 
 `crates/cirrove-service/tests/google_drive.rs` drives both real adapters through
 one store and cache, deliberately giving them equal account, collection, file,
@@ -237,6 +246,12 @@ here.
 
 The callback correction subsequently passed the complete `scripts/check.sh`: 642
 Rust test executions plus the kernel groups, script tests, ledger and docs build.
+
+The resumable-precondition probe then passed the complete `scripts/check.sh` on
+2026-09-19: 646 Rust test executions plus the kernel groups, script tests,
+ledger and docs build. Its exact positive test also failed when only the
+outgoing `If-Match` header was removed, then passed after restoration. This is
+still synthetic evidence; the live validator has not been run.
 
 ## First real-account connection, 2026-09-19
 
