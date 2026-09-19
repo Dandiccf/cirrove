@@ -781,9 +781,42 @@ impl GoogleDrive {
         .await
     }
 
-    /// Read the exact validation-owned file together with Google's strong HTTP
-    /// ETag so the provider-neutral upload journal can exercise a replacement.
-    /// Ordinary Google nodes deliberately continue to expose no writable ETag.
+    /// Read one exact validation-owned namespace item together with Google's
+    /// strong HTTP ETag. Ordinary Google nodes deliberately continue to expose
+    /// no writable ETag.
+    pub async fn validation_namespace_base(
+        &self,
+        scope: &Scope,
+        item: &str,
+        parent: &str,
+        name: &str,
+        kind: NodeKind,
+        cancel: &CancellationToken,
+    ) -> Result<Node> {
+        self.check_folder_destination(scope, parent, name)?;
+        valid_id(item).map_err(UploadError::Provider)?;
+        self.upload_call(cancel, Duration::from_secs(125), async {
+            let (file, etag) = self.file_with_strong_etag(item).await?;
+            if file.id != item
+                || file.name != name
+                || file.parents.as_slice() != [parent]
+                || file.trashed
+                || file.drive_id.is_some()
+            {
+                return Err(UploadError::Uncertain);
+            }
+            let node = self.validation_mutation_node(file, etag)?;
+            if node.kind != kind {
+                return Err(UploadError::Uncertain);
+            }
+            Ok(node)
+        })
+        .await
+    }
+
+    /// Read the exact validation-owned regular file together with Google's
+    /// strong HTTP ETag so the provider-neutral upload journal can exercise a
+    /// replacement.
     pub async fn validation_replacement_base(
         &self,
         scope: &Scope,
@@ -792,14 +825,8 @@ impl GoogleDrive {
         name: &str,
         cancel: &CancellationToken,
     ) -> Result<Node> {
-        self.check_folder_destination(scope, parent, name)?;
-        valid_id(item).map_err(UploadError::Provider)?;
-        self.upload_call(cancel, Duration::from_secs(125), async {
-            let (file, etag) = self.file_with_strong_etag(item).await?;
-            self.check_probe_file(&file, item, parent, name)?;
-            self.validation_mutation_node(file, etag)
-        })
-        .await
+        self.validation_namespace_base(scope, item, parent, name, NodeKind::File, cancel)
+            .await
     }
 
     fn check_upload(&self, request: &UploadRequest) -> Result<()> {
@@ -2618,6 +2645,37 @@ mod tests {
                 .await,
             Err(MutationError::Conflict)
         ));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn validation_namespace_base_reads_an_exact_folder_with_a_strong_etag() {
+        let (provider, server) = fixture(|_| {
+            let mut current = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-folder-id",
+                200,
+                named_folder_at("generated-folder-id", "root-id", "folder", "3"),
+            );
+            current.query = vec![("fields", files::FIELDS)];
+            current.response_headers = "ETag: \"folder-3\"\r\n".into();
+            vec![current]
+        })
+        .await;
+        let node = provider
+            .validation_namespace_base(
+                &scope(),
+                "generated-folder-id",
+                "root-id",
+                "folder",
+                NodeKind::Folder,
+                &CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(node.kind, NodeKind::Folder);
+        assert_eq!(node.id, "generated-folder-id");
+        assert_eq!(node.etag.as_deref(), Some("\"folder-3\""));
         server.await.unwrap();
     }
 

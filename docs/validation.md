@@ -2653,7 +2653,10 @@ empty replacements issue no network request. The live validator follows its
 capability probes with one worker replacement and a stale worker conflict.
 It then creates an exact-ID destination folder through the same mutation worker
 and routes a rename and move through it before requiring a stale relocation to
-conflict. The validator-only adapter scans its private destination for a
+conflict. It also creates an exact-ID archive folder, snapshots the nested
+folder with a strong HTTP ETag, moves that nonempty folder into the archive,
+checks the created child by exact identity and requires reuse of the stale folder
+snapshot to conflict. The validator-only adapter scans its private destination for a
 case-folded collision but does not claim Google's missing atomic collision rule.
 Session URLs and ETags do not enter the evidence log.
 The generic mutation worker stores a provider-prepared item identity before the
@@ -2701,6 +2704,13 @@ listing and before Google's PATCH. The live validator does not invoke folder
 trash, and no cloud mutation participated. The complete `scripts/check.sh`
 passed with 666 Rust test executions, all kernel mount groups, script tests, the
 acceptance ledger and docs.
+
+The not-yet-run live validator now also obtains an exact strong-ETag snapshot of
+its run-owned nonempty folder before relocating it through the shared worker. A
+new synthetic HTTP case failed when only that response ETag was removed and
+passed after restoration. The complete `scripts/check.sh` then passed with 667
+Rust test executions, all kernel mount groups, script tests, the acceptance
+ledger and docs. No Google mutation participated.
 
 The focused OAuth test was also run with `drive.file` removed from the requested
 write scopes and failed because the grant no longer satisfied `ReadWrite`;

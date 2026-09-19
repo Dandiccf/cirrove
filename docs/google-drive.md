@@ -96,8 +96,8 @@ resumable `PATCH` with `If-Match`, reports a 412 at either boundary as a conflic
 and reconciles a lost response by exact ID and SHA-256. The validator follows the
 direct probes with one successful worker replacement and one stale worker
 conflict. All observed ETag behavior still needs live evidence plus a documented
-stability decision. A separate validator-only namespace adapter also routes both
-test-folder creates, one rename and one move through the provider-neutral mutation
+stability decision. A separate validator-only namespace adapter also routes all
+test-folder creates plus file and folder relocation through the provider-neutral mutation
 journal and worker. Folder creation durably reserves the generated Google ID first. It
 checks the private destination for a case-folded collision, sends the source's
 strong ETag on the exact-ID PATCH, reconciles a lost response by exact identity,
@@ -199,7 +199,10 @@ worker; reusing that ETag for a second worker operation must end in conflict. It
 then creates a nested destination folder through the same mutation worker and
 sends a rename followed by a move through it. Exact-ID
 inspection must observe both destinations and a follow-up using the stale rename
-base must end in conflict. A
+base must end in conflict. It then creates an archive folder, obtains the nested
+folder's exact strong-ETag snapshot, moves that nonempty folder into the archive
+and confirms its child remains addressable. Reusing the old folder snapshot must
+also conflict. A
 missing strong ETag or an accepted stale update fails the command. Session URLs
 and ETags are not written to its evidence log. It retains
 the cloud folder and private local journal for review.
@@ -236,7 +239,9 @@ tests distinguish the normal read-only grant from the explicit
 Google write-validation connection to remain disabled. Synthetic folder tests
 pre-generate an ID, verify the exact create request and inspection, exercise the
 provider-neutral prepared mutation path and refuse an occupied case-folded
-destination before POST. A service restart test proves the prepared ID survives
+destination before POST. A separate exact folder snapshot test requires a strong
+HTTP ETag before the live validator can enqueue relocation. A service restart
+test proves the prepared ID survives
 the journal handoff and is not generated a second time. Three metadata-probe and three small-content-probe tests require the
 original strong ETag on the first PATCH, distinguish a rejected stale retry from
 an ignored precondition, and issue no PATCH when metadata has no strong ETag.
@@ -336,6 +341,13 @@ list-then-PATCH sequence cannot provide atomic POSIX `rmdir`, the live validator
 does not call it, and no Google mutation participated. The complete
 `scripts/check.sh` then passed with 666 Rust test executions, all kernel mount
 groups, script tests, the acceptance ledger and docs.
+
+Preparing the live validator to relocate a run-owned nonempty folder added one
+exact-ID folder snapshot case. Removing only its strong ETag response header made
+that test fail before any mutation could be enqueued; restoration passed. The
+complete `scripts/check.sh` then passed with 667 Rust test executions, all kernel
+mount groups, script tests, the acceptance ledger and docs. The live validator
+still has not been run.
 
 ## First real-account connection, 2026-09-19
 

@@ -1,5 +1,6 @@
-//! Explicit Google create and metadata-precondition check. It is wired for a
-//! disabled, separately consented account and is never called by the daemon.
+//! Explicit Google create, replacement and namespace-precondition checks. It is
+//! wired for a disabled, separately consented account and is never called by
+//! the daemon.
 use super::*;
 use crate::{
     journal::{MutationRecord, MutationState},
@@ -108,9 +109,9 @@ async fn verify_created(
     Ok(())
 }
 
-/// Create one exact test folder, one multipart file and one empty file, then
-/// characterize stale HTTP ETag handling on the multipart file. The folder and
-/// local evidence remain for review; no pre-existing item is changed.
+/// Create an isolated folder tree, a multipart file and an empty file, then
+/// characterize stale HTTP ETag handling on run-owned files and folders. The
+/// tree and local evidence remain for review; no pre-existing item is changed.
 pub async fn google_create(state: &Path, label: &str) -> Result<()> {
     let account = test_account(state, label)?;
     if !matches!(
@@ -534,6 +535,99 @@ pub async fn google_create(state: &Path, label: &str) -> Result<()> {
         MutationState::Conflict,
         &mut log,
         "worker_stale_relocation_result",
+    )
+    .await?;
+
+    println!("Checking a parent folder move while its created file remains addressable.");
+    let archive_record = apply_mutation(
+        &journal,
+        &mutation_worker,
+        MutationRequest {
+            scope: scope.clone(),
+            intent: MutationIntent::CreateFolder {
+                parent: folder.id.clone(),
+                name: "Archive".into(),
+            },
+        },
+        MutationState::Applied,
+        &mut log,
+        "folder_move_parent_created",
+    )
+    .await?;
+    let Some(MutationReceipt::Upsert(archive)) = archive_record.receipt else {
+        bail!("Google worker folder-move parent has no exact provider receipt");
+    };
+    if archive_record.prepared_item.as_ref() != Some(&archive.id)
+        || archive.parent_id.as_ref() != Some(&folder.id)
+        || archive.name != "Archive"
+        || archive.kind != NodeKind::Folder
+    {
+        bail!("Google worker folder-move parent returned a different item or destination");
+    }
+    let destination_base = google
+        .validation_namespace_base(
+            &scope,
+            &destination.id,
+            &folder.id,
+            "Destination",
+            NodeKind::Folder,
+            &cancel,
+        )
+        .await?;
+    let moved_folder_name = "Destination-Moved";
+    let moved_folder = apply_mutation(
+        &journal,
+        &mutation_worker,
+        MutationRequest {
+            scope: scope.clone(),
+            intent: MutationIntent::Relocate {
+                before: destination_base.clone(),
+                parent: archive.id.clone(),
+                name: moved_folder_name.into(),
+            },
+        },
+        MutationState::Applied,
+        &mut log,
+        "worker_folder_move_result",
+    )
+    .await?;
+    let Some(MutationReceipt::Upsert(moved_folder_node)) = moved_folder.receipt else {
+        bail!("Google worker folder move has no exact provider receipt");
+    };
+    if moved_folder_node.id != destination.id
+        || moved_folder_node.parent_id.as_ref() != Some(&archive.id)
+        || moved_folder_node.name != moved_folder_name
+        || moved_folder_node.kind != NodeKind::Folder
+    {
+        bail!("Google worker folder move returned a different item or destination");
+    }
+    google
+        .validation_namespace_base(
+            &scope,
+            &destination.id,
+            &archive.id,
+            moved_folder_name,
+            NodeKind::Folder,
+            &cancel,
+        )
+        .await?;
+    google
+        .validation_replacement_base(&scope, &multipart_id, &destination.id, moved_name, &cancel)
+        .await?;
+    apply_mutation(
+        &journal,
+        &mutation_worker,
+        MutationRequest {
+            scope: scope.clone(),
+            intent: MutationIntent::Relocate {
+                before: destination_base,
+                parent: folder.id.clone(),
+                name: "Destination-Stale".into(),
+            },
+        },
+        MutationState::Conflict,
+        &mut log,
+        "worker_stale_folder_relocation_result",
     )
     .await?;
 
