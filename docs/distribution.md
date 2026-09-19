@@ -251,6 +251,43 @@ milestone 4, deletion and the compatibility matrix among them; seven of
 milestone 5, the session matrix and actionable errors among them; and five of
 milestone 6, ending with the tag itself.
 
+## The AUR, and where it stands
+
+The package name `cirrove` is free on the AUR — checked 2026-09-19, no hits and
+no near matches. Nothing is submitted, and the reason is not ours:
+
+> **New account registration is temporarily closed.** Registration on the AUR is
+> paused while we deal with a wave of automated account creation. There's no
+> manual registration queue.
+
+So 0.1.0 ships without an AUR entry. That is a gap in convenience and not in
+the release: the packages are published and attested, and building from source
+works from the tagged tarball.
+
+**What is ready here, so this is a five-minute job when registration reopens:**
+
+- `~/.ssh/aur` — a key that exists only for this. `~/.ssh/config` already
+  points `aur.archlinux.org` at it. The public half is
+  `packaging/arch/aur-key.pub`, which is safe to publish and is what goes in
+  the AUR account's *SSH Public Key* field; the private half stays out of this
+  repository and out of every backup that leaves the machine.
+- `scripts/aur-recipe.sh v0.1.0` regenerates the two files the AUR wants and
+  prints the three commands that submit them.
+
+**Why a script and not the files themselves.** The AUR-ready recipe does *not*
+live on `main` and must not: step 15 of a release puts `pkgver` back to a
+development version and `sha256sums` back to `SKIP`, which is right for `main`
+and useless for the AUR. Keeping a copy beside it would be correct on the day
+it was made and quietly wrong at every later commit. The script recomputes the
+digest from the tag's own tarball each time, which also covers the way this
+went wrong once already: a tag that moves changes its tarball, and a digest
+written before the move points at a file that no longer exists.
+
+**The account is a person's, not a project's.** Registering it puts the
+maintainer's name on a public promise to keep the package current; that is the
+machine owner's to make, and no key or account was created on their behalf
+beyond the one above, which grants nothing until they register it.
+
 ## Supported versions
 
 There is no release yet. Until there is, what is supported is the current
