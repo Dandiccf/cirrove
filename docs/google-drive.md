@@ -50,9 +50,11 @@ the submitted range. Session URLs are accepted only on the configured Google
 origin and upload path; they remain in the vault checkpoint and are never sent as
 Bearer credentials or written to SQLite and diagnostics.
 
-An expired session can be replaced once during verification while retaining the
-same generated file ID. The old session URL is removed before that prepared
-checkpoint is saved. Reconciliation addresses that exact ID and streams the
+An expired or otherwise rejected resumable session can be replaced once during
+verification while retaining the same generated file ID. A `429` response keeps
+the existing session and applies its bounded retry delay; every other `4xx`
+follows Google's restart rule. The old session URL is removed before that
+prepared checkpoint is saved. Reconciliation addresses that exact ID and streams the
 remote content through the read adapter to compare its SHA-256 digest. Synthetic
 HTTP and transfer-worker faults cover persistence before mutation, a lost
 session, partial remote offsets, receipt identity, content reconciliation and a

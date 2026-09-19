@@ -2628,11 +2628,13 @@ last byte; the unchanged arm succeeds and the changed arm returns
 
 A separate synthetic create transport pre-generates and persists the destination
 ID before mutation, validates resumable offsets and receipts, rejects foreign
-session URLs and hashes the exact remote object during reconciliation. Negative
-controls show that the worker test fails without pre-session persistence and that
-the range test fails if a reply may advance beyond the bytes submitted. The
-service does not construct this write provider, and no write scope or Google
-mutation participated; the writable namespace and replacement rules remain open.
+session URLs, follows Google's non-throttle `4xx` restart rule and hashes the
+exact remote object during reconciliation. Negative controls show that the worker
+test fails without pre-session persistence, the restart test fails with the old
+narrow status mapping and the range test fails if a reply may advance beyond the
+bytes submitted. The service does not construct this write provider, and no write
+scope or Google mutation participated; the writable namespace and replacement
+rules remain open.
 
 A subsequent [first real-account connection](google-drive.md#first-real-account-connection-2026-09-19)
 completed after correcting the callback's Microsoft-only host check. The new

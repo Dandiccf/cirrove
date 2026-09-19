@@ -240,8 +240,11 @@ impl GoogleDrive {
             return Ok(response);
         }
         match status {
-            StatusCode::NOT_FOUND | StatusCode::GONE if session => Err(UploadError::SessionGone),
-            StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN if session => {
+            status
+                if session
+                    && status.is_client_error()
+                    && status != StatusCode::TOO_MANY_REQUESTS =>
+            {
                 Err(UploadError::SessionGone)
             }
             StatusCode::UNAUTHORIZED => Err(ProviderError::Authentication.into()),
@@ -993,6 +996,79 @@ mod tests {
             panic!("same identity did not start a replacement session")
         };
         assert!(second.checkpoint.expose_secret().contains("PRIVATE-TWO"));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn every_non_throttle_session_4xx_restarts_with_the_same_identity() {
+        for status in [400, 401, 403, 404, 408, 409, 410, 412, 416] {
+            let (provider, server) = fixture(move |_| {
+                let mut reply = Exchange::json("PUT", "/upload/drive/v3/files", status, json!({}));
+                reply.query = vec![("upload_id", "PRIVATE-SESSION")];
+                reply.authorized = false;
+                reply.headers = vec!["content-range: bytes */6".into()];
+                reply.body = Some(ExpectedBody::Bytes(vec![]));
+                vec![reply]
+            })
+            .await;
+            let request = request(b"abcdef");
+            let session = SavedUpload::Session {
+                version: 1,
+                request: request.clone(),
+                id: "generated-id".into(),
+                url: format!(
+                    "{}/upload/drive/v3/files?upload_id=PRIVATE-SESSION",
+                    provider.endpoint.origin().ascii_serialization()
+                ),
+                offset: 0,
+                length: 6,
+            };
+            let checkpoint = SecretString::from(serde_json::to_string(&session).unwrap());
+            let UploadStep::Prepared(prepared) = provider
+                .inspect_upload(&request, &checkpoint, &CancellationToken::new())
+                .await
+                .unwrap()
+            else {
+                panic!("session HTTP {status} did not restart")
+            };
+            assert!(prepared.expose_secret().contains("generated-id"));
+            assert!(!prepared.expose_secret().contains("PRIVATE-SESSION"));
+            server.await.unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn session_rate_limiting_keeps_the_session_for_later_inspection() {
+        let (provider, server) = fixture(|_| {
+            let mut reply = Exchange::json("PUT", "/upload/drive/v3/files", 429, json!({}));
+            reply.query = vec![("upload_id", "PRIVATE-SESSION")];
+            reply.authorized = false;
+            reply.headers = vec!["content-range: bytes */6".into()];
+            reply.body = Some(ExpectedBody::Bytes(vec![]));
+            reply.response_headers = "Retry-After: 1\r\n".into();
+            vec![reply]
+        })
+        .await;
+        let request = request(b"abcdef");
+        let session = SavedUpload::Session {
+            version: 1,
+            request: request.clone(),
+            id: "generated-id".into(),
+            url: format!(
+                "{}/upload/drive/v3/files?upload_id=PRIVATE-SESSION",
+                provider.endpoint.origin().ascii_serialization()
+            ),
+            offset: 0,
+            length: 6,
+        };
+        let checkpoint = SecretString::from(serde_json::to_string(&session).unwrap());
+        assert!(matches!(
+            provider
+                .inspect_upload(&request, &checkpoint, &CancellationToken::new())
+                .await,
+            Err(UploadError::Provider(ProviderError::Throttled(_)))
+        ));
+        assert!(checkpoint.expose_secret().contains("PRIVATE-SESSION"));
         server.await.unwrap();
     }
 
