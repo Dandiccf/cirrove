@@ -125,6 +125,48 @@
     "candidate_validation": "Full scripts/check.sh passed with 670 Rust test executions, every kernel mount group, script tests, the acceptance ledger and docs. The focused exact receipt test first failed under the prior MIME equality rule and passed after the candidate change.",
     "prediction": "Folder creation, multipart upload/readback and empty-file create/readback will pass. The metadata capability probe is expected to report NoStrongEtag and stop before rename, replacement or move.",
     "endpoint": "Both created files are durably acknowledged and independently read back, followed either by a safely rejected stale metadata probe or an explicit no-strong-ETag stop. Any different boundary is recorded before another run.",
+    "decision_rule": "A missing strong ETag leaves conditional Google replacement, rename, move and trash unavailable. A stale request accepted by Google is a hard failure. Only a real strong ETag plus stale rejection permits the validator to continue to the next conditional operation.",
+    "result": {
+      "status": "folder and multipart create passed; immediate independent readback observed a provider version change",
+      "installed_revision": "49ab6913cee126a046f88af22a5adf2f67e665da",
+      "ci_run": 35474486057,
+      "ci_jobs": "seven of seven passed",
+      "installed_binary_sha256": "f3a8b0f9e65114c26df1e5e5f2019a1df945bb5b14a072d41dc1ddcbdd8f751f",
+      "folder_state": "applied",
+      "multipart_state": "uploaded",
+      "receipt_version": "1",
+      "readback_result": "The version-bound read adapter returned VersionChanged and required the validator to reopen rather than combine versions.",
+      "stable_direct_observation": {
+        "versions": [
+          "6",
+          "6",
+          "6"
+        ],
+        "identity_matches": true,
+        "name_matches": true,
+        "parent_matches": true,
+        "size": 8388621,
+        "strong_etag_header_present": false,
+        "reported_mime_type": "video/mp2t",
+        "sha256_matches": true
+      },
+      "diagnosis": "Drive advanced the newly uploaded item from receipt version 1 to stable version 6 during post-upload processing. The read adapter correctly rejected the stale node. A validation readback must reopen and restart its digest on this explicit signal.",
+      "empty_file_started": false,
+      "later_namespace_mutations_started": 0,
+      "deletes_or_trash_requests": 0,
+      "cloud_artifacts": "The run-owned folder and byte-correct multipart file remain for review.",
+      "private_evidence": ".local-state/google-write-validation/state/write-checks/05a9ceef-2a11-4e51-bae0-8bfd0c7a0773"
+    }
+  },
+  "fifth_run_registration": {
+    "registered_before_run": true,
+    "registered_at": "2026-09-20T01:11:57+02:00",
+    "source_revision_base": "49ab6913cee126a046f88af22a5adf2f67e665da",
+    "candidate_change": "The live validator handles only ProviderError::VersionChanged by reopening the exact created item and restarting the full SHA-256 readback, bounded to eight attempts. Identity and size are rechecked on every attempt; every other provider error remains fatal. No retry mutates cloud state.",
+    "negative_control": "A deterministic provider-neutral read fixture returns VersionChanged once and then stable bytes. The validator test fails before the bounded reopen loop and passes after it, with two reads.",
+    "candidate_validation": "Full scripts/check.sh passed with 671 Rust test executions, every kernel mount group, script tests, the acceptance ledger and docs. The focused retry test first failed without the bounded reopen loop and passed after it.",
+    "prediction": "Folder creation, multipart upload/readback and empty-file create/readback will pass after any short post-upload version settling. The metadata capability probe is expected to report NoStrongEtag and stop before rename, replacement or move.",
+    "endpoint": "Both created files are durably acknowledged and independently read back, followed either by a safely rejected stale metadata probe or an explicit no-strong-ETag stop. Any different boundary is recorded before another run.",
     "decision_rule": "A missing strong ETag leaves conditional Google replacement, rename, move and trash unavailable. A stale request accepted by Google is a hard failure. Only a real strong ETag plus stale rejection permits the validator to continue to the next conditional operation."
   }
 }

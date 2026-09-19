@@ -10,7 +10,6 @@ use cirrove_core::{
     NodeKind, ReadProvider,
     mutation::{MutationIntent, MutationReceipt, MutationRequest},
 };
-use cirrove_googledrive::GoogleDrive;
 
 async fn apply_mutation(
     journal: &Arc<Mutex<UploadJournal>>,
@@ -71,7 +70,7 @@ async fn apply_mutation(
 }
 
 async fn verify_created(
-    provider: &GoogleDrive,
+    provider: &dyn ReadProvider,
     record: &UploadRecord,
     cancel: &CancellationToken,
 ) -> Result<()> {
@@ -82,31 +81,51 @@ async fn verify_created(
         .remote
         .as_ref()
         .context("Google create has no exact provider receipt")?;
-    let node = provider
-        .node(&record.scope, &receipt.id, cancel)
-        .await
-        .context("created Google file cannot be read back by its exact identity")?;
-    if node.id != receipt.id || node.size != record.size {
-        bail!("created Google file identity or size changed during readback");
-    }
-    let mut digest = Sha256::new();
-    let mut offset = 0;
-    while offset < node.size {
-        let length = (node.size - offset).min(4 * 1024 * 1024) as u32;
-        let bytes = provider
-            .read_range(&record.scope, &node, offset, length, cancel)
+    for attempt in 0..8 {
+        let node = provider
+            .node(&record.scope, &receipt.id, cancel)
             .await
-            .context("created Google content could not be read back")?;
-        if bytes.len() != length as usize {
-            bail!("created Google content readback was incomplete");
+            .context("created Google file cannot be read back by its exact identity")?;
+        if node.id != receipt.id || node.size != record.size {
+            bail!("created Google file identity or size changed during readback");
         }
-        digest.update(&bytes);
-        offset += bytes.len() as u64;
+        let mut digest = Sha256::new();
+        let mut offset = 0;
+        let mut changed = false;
+        while offset < node.size {
+            let length = (node.size - offset).min(4 * 1024 * 1024) as u32;
+            let bytes = match provider
+                .read_range(&record.scope, &node, offset, length, cancel)
+                .await
+            {
+                Ok(bytes) => bytes,
+                Err(cirrove_core::ProviderError::VersionChanged) => {
+                    changed = true;
+                    break;
+                }
+                Err(error) => {
+                    return Err(error).context("created Google content could not be read back");
+                }
+            };
+            if bytes.len() != length as usize {
+                bail!("created Google content readback was incomplete");
+            }
+            digest.update(&bytes);
+            offset += bytes.len() as u64;
+        }
+        if changed {
+            if attempt == 7 {
+                bail!("created Google content version did not settle for readback");
+            }
+            tokio::time::sleep(Duration::from_millis(250)).await;
+            continue;
+        }
+        if hex::encode(digest.finalize()) != record.sha256 {
+            bail!("created Google content did not match its durable local snapshot");
+        }
+        return Ok(());
     }
-    if hex::encode(digest.finalize()) != record.sha256 {
-        bail!("created Google content did not match its durable local snapshot");
-    }
-    Ok(())
+    unreachable!("bounded readback loop always returns or fails")
 }
 
 /// Create an isolated folder tree, a multipart file and an empty file, then
@@ -667,4 +686,121 @@ pub async fn google_create(state: &Path, label: &str) -> Result<()> {
     );
     println!("This does not enable writable Google mounts.");
     Ok(())
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cirrove_core::{ChangePage, Cursor, DirectoryPage, MetadataProvider, ProviderError};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    struct SettlingRead {
+        bytes: Vec<u8>,
+        node: cirrove_core::Node,
+        reads: AtomicUsize,
+    }
+
+    #[async_trait::async_trait]
+    impl MetadataProvider for SettlingRead {
+        fn provider_id(&self) -> &'static str {
+            "settling-fixture"
+        }
+
+        async fn changes(
+            &self,
+            _scope: &Scope,
+            _cursor: Option<&Cursor>,
+            _cancel: &CancellationToken,
+        ) -> std::result::Result<ChangePage, ProviderError> {
+            Err(ProviderError::Protocol("unused fixture operation"))
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl ReadProvider for SettlingRead {
+        async fn node(
+            &self,
+            _scope: &Scope,
+            _id: &str,
+            _cancel: &CancellationToken,
+        ) -> std::result::Result<cirrove_core::Node, ProviderError> {
+            Ok(self.node.clone())
+        }
+
+        async fn children(
+            &self,
+            _scope: &Scope,
+            _parent: &str,
+            _cursor: Option<&Cursor>,
+            _cancel: &CancellationToken,
+        ) -> std::result::Result<DirectoryPage, ProviderError> {
+            Err(ProviderError::Protocol("unused fixture operation"))
+        }
+
+        async fn read_range(
+            &self,
+            _scope: &Scope,
+            _node: &cirrove_core::Node,
+            offset: u64,
+            length: u32,
+            _cancel: &CancellationToken,
+        ) -> std::result::Result<Vec<u8>, ProviderError> {
+            if self.reads.fetch_add(1, Ordering::SeqCst) == 0 {
+                return Err(ProviderError::VersionChanged);
+            }
+            let end = (offset + u64::from(length)).min(self.bytes.len() as u64);
+            Ok(self.bytes[offset as usize..end as usize].to_vec())
+        }
+    }
+
+    #[tokio::test]
+    async fn created_readback_reopens_after_google_version_settles() {
+        let bytes = b"settled".to_vec();
+        let scope = Scope {
+            account: "account".into(),
+            provider: "googledrive".into(),
+            collection: "root".into(),
+        };
+        let node = cirrove_core::Node {
+            id: "item".into(),
+            parent_id: Some("root".into()),
+            name: "file.bin".into(),
+            kind: NodeKind::File,
+            size: bytes.len() as u64,
+            modified_unix: 0,
+            etag: None,
+            content_version: Some("google-version:6".into()),
+            target: None,
+            package: false,
+        };
+        let provider = SettlingRead {
+            bytes: bytes.clone(),
+            node: node.clone(),
+            reads: AtomicUsize::new(0),
+        };
+        let record = UploadRecord {
+            id: uuid::Uuid::new_v4(),
+            sequence: 1,
+            scope,
+            intent: UploadIntent::Create {
+                parent: "root".into(),
+                name: "file.bin".into(),
+            },
+            state: UploadState::Uploaded,
+            size: bytes.len() as u64,
+            sha256: hex::encode(Sha256::digest(&bytes)),
+            attempt: None,
+            remote: Some(node),
+            base: None,
+            working_file: None,
+            session_key: None,
+            transferred_bytes: bytes.len() as u64,
+            retry_at: 0,
+            failed_attempts: 0,
+            saved_at: 0,
+        };
+        verify_created(&provider, &record, &CancellationToken::new())
+            .await
+            .expect("settling readback should reopen and pass");
+        assert_eq!(provider.reads.load(Ordering::SeqCst), 2);
+    }
 }
