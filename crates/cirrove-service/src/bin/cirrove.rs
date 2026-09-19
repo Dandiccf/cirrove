@@ -271,6 +271,14 @@ enum Command {
         #[arg(long)]
         state_dir: PathBuf,
     },
+    /// Developer-only Google creates in a newly prepared test folder.
+    ValidateGoogleCreate {
+        #[arg(long)]
+        label: String,
+        /// Separate account state created with connect-google --write-access.
+        #[arg(long)]
+        state_dir: PathBuf,
+    },
     /// Sign in again to the same account, preserving its selected drive and cache.
     Reauth {
         label: String,
@@ -303,7 +311,7 @@ enum Command {
         #[arg(long, requires = "state_dir")]
         write_access: bool,
     },
-    /// Connect Google My Drive read-only using your Desktop OAuth client JSON.
+    /// Connect Google My Drive using your Desktop OAuth client JSON.
     ConnectGoogle {
         #[arg(long)]
         label: String,
@@ -314,6 +322,10 @@ enum Command {
         mount_path: PathBuf,
         #[arg(long)]
         state_dir: Option<PathBuf>,
+        /// Opt in to `drive.file` consent for an isolated create validator.
+        /// The connection is saved disabled and cannot become a writable mount.
+        #[arg(long, requires = "state_dir")]
+        write_access: bool,
     },
     /// List configured account identities and drive selections; no secrets.
     Accounts {
@@ -681,6 +693,9 @@ async fn main() -> Result<()> {
         Command::ValidateOnedriveUploads { label, state_dir } => {
             cirrove_service::validation::onedrive_uploads(&state_dir, &label).await?;
         }
+        Command::ValidateGoogleCreate { label, state_dir } => {
+            cirrove_service::validation::google_create(&state_dir, &label).await?;
+        }
         Command::Reauth {
             label,
             state_dir: state,
@@ -733,13 +748,20 @@ async fn main() -> Result<()> {
             client_json,
             mount_path,
             state_dir: state,
+            write_access,
         } => {
             let state = state.map(Ok).unwrap_or_else(state_dir)?;
-            let pending = cirrove_service::accounts::begin_connect_google(
+            let access = if write_access {
+                cirrove_auth::AccessMode::ReadWrite
+            } else {
+                cirrove_auth::AccessMode::ReadOnly
+            };
+            let pending = cirrove_service::accounts::begin_connect_google_with_access(
                 state,
                 label,
                 client_json,
                 mount_path,
+                access,
             )
             .await?;
             println!(
@@ -754,11 +776,19 @@ async fn main() -> Result<()> {
                 .id
                 .clone();
             let account = pending.finish(&id).await?;
-            println!(
-                "Connected {} read-only at {}",
-                account.label,
-                account.mount_path.display()
-            );
+            if write_access {
+                println!(
+                    "Saved disabled Google create-validation connection {} at {}; no mount was started.",
+                    account.label,
+                    account.mount_path.display()
+                );
+            } else {
+                println!(
+                    "Connected {} read-only at {}",
+                    account.label,
+                    account.mount_path.display()
+                );
+            }
         }
         Command::Accounts { state_dir: state } => {
             let state = match state {

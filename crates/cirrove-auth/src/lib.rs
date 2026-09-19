@@ -152,15 +152,17 @@ impl AppRegistration {
     fn scopes(&self, access: AccessMode) -> Result<&'static str> {
         match self {
             Self::Microsoft { .. } => Ok(access.scopes()),
-            Self::Google { .. } if access == AccessMode::ReadOnly => Ok(google::SCOPES),
-            Self::Google { .. } => bail!("Google Drive connections are read-only"),
+            Self::Google { .. } => Ok(match access {
+                AccessMode::ReadOnly => google::SCOPES,
+                AccessMode::ReadWrite => google::WRITE_SCOPES,
+            }),
         }
     }
     fn validate_grant(&self, access: AccessMode, granted: Option<&str>) -> Result<()> {
         self.scopes(access)?;
         match self {
             Self::Microsoft { .. } => access.validate_grant(granted),
-            Self::Google { .. } => google::validate_grant(granted),
+            Self::Google { .. } => google::validate_grant(access, granted),
         }
     }
 }

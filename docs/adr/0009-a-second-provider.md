@@ -40,10 +40,13 @@ ID, starts or replaces a resumable session without changing the ID, follows the
 server's exact committed offset and verifies uncertain completion by streaming
 the exact object's SHA-256. Only the configured upload origin and path can enter
 a session checkpoint. Synthetic tests cover the ordering, lost sessions, partial
-offsets, receipts and content verification. Account construction still rejects
-Google write access, and no write scope, writable mount or live Google mutation
-is part of this decision. Duplicate-name collision semantics and conditional
-replacement remain unresolved.
+offsets, receipts and content verification. A separate disabled connection may
+now request `drive.file` beside the existing read-only scope for one explicit
+create validator. It cannot be enabled or selected for a writable mount. The
+validator pre-generates and persists its test-folder identity before creating
+multipart and empty files through the shared worker; it has not been run against
+Google. Duplicate-name collision semantics and conditional replacement remain
+unresolved.
 
 The second adapter found real differences at the boundary: initial listing and
 change tracking are separate Google endpoints; sibling names are not unique;

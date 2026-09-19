@@ -224,6 +224,11 @@ fn settings_migrate_old_microsoft_in_memory_and_require_explicit_provider_in_v2(
     assert!(cirrove_service::accounts::onedrive_provider(&settings.accounts[0]).is_err());
     settings.accounts[0].access = AccessMode::ReadWrite;
     assert!(settings.validate().is_err());
+    settings.accounts[0].enabled = false;
+    settings
+        .validate()
+        .expect("a disabled Google create-validation connection is valid");
+    assert!(cirrove_service::accounts::provider(&settings.accounts[0]).is_err());
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

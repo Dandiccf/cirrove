@@ -19,6 +19,22 @@ const ALIGNMENT: u64 = 256 * 1024;
 const PART_SIZE: u32 = 8 * 1024 * 1024;
 const MAX_UPLOAD_RESPONSE: usize = 1024 * 1024;
 const MAX_CHECKPOINT: usize = 64 * 1024;
+const FOLDER_MIME: &str = "application/vnd.google-apps.folder";
+
+/// Exact identity for an isolated folder create. The caller persists this
+/// before mutation, so a lost response can be inspected by ID rather than by
+/// Google's non-unique sibling name.
+#[derive(Clone, Serialize)]
+pub struct PreparedFolder {
+    id: String,
+    parent: String,
+    name: String,
+}
+impl PreparedFolder {
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+}
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(tag = "phase", rename_all = "snake_case")]
@@ -63,6 +79,117 @@ fn protocol(message: &'static str) -> UploadError {
 }
 
 impl GoogleDrive {
+    fn check_folder_destination(&self, scope: &Scope, parent: &str, name: &str) -> Result<()> {
+        self.check_scope(scope).map_err(UploadError::Provider)?;
+        valid_id(parent).map_err(UploadError::Provider)?;
+        if name.is_empty()
+            || name.len() > 4096
+            || matches!(name, "." | "..")
+            || name.contains(['/', '\0'])
+        {
+            return Err(UploadError::Invalid);
+        }
+        Ok(())
+    }
+
+    fn check_folder_plan(&self, scope: &Scope, plan: &PreparedFolder) -> Result<()> {
+        self.check_folder_destination(scope, &plan.parent, &plan.name)?;
+        valid_id(&plan.id).map_err(UploadError::Provider)
+    }
+
+    fn folder_receipt(&self, plan: &PreparedFolder, file: File) -> Result<Node> {
+        if file.id != plan.id
+            || file.name != plan.name
+            || file.parents.as_slice() != [plan.parent.as_str()]
+            || file.mime_type != FOLDER_MIME
+        {
+            return Err(UploadError::Uncertain);
+        }
+        let mut node = file
+            .node(&self.collection)
+            .map_err(|_| UploadError::Uncertain)?;
+        node.name = plan.name.clone();
+        if node.kind != NodeKind::Folder {
+            return Err(UploadError::Uncertain);
+        }
+        Ok(node)
+    }
+
+    /// Reserve a provider identity without changing Drive. The returned value
+    /// must be persisted before `create_prepared_folder` is called.
+    pub async fn prepare_folder(
+        &self,
+        scope: &Scope,
+        parent: &str,
+        name: &str,
+        cancel: &CancellationToken,
+    ) -> Result<PreparedFolder> {
+        self.check_folder_destination(scope, parent, name)?;
+        self.upload_call(cancel, Duration::from_secs(125), async {
+            let plan = PreparedFolder {
+                id: self.generated_id().await?,
+                parent: parent.into(),
+                name: name.into(),
+            };
+            self.check_folder_plan(scope, &plan)?;
+            Ok(plan)
+        })
+        .await
+    }
+
+    /// Create only the exact prepared folder identity. A transport error is
+    /// uncertain; inspect the same plan before attempting anything else.
+    pub async fn create_prepared_folder(
+        &self,
+        scope: &Scope,
+        plan: &PreparedFolder,
+        cancel: &CancellationToken,
+    ) -> Result<Node> {
+        self.check_folder_plan(scope, plan)?;
+        self.upload_call(cancel, Duration::from_secs(125), async {
+            let mut url = self.url(&["files"])?;
+            url.query_pairs_mut().append_pair("fields", files::FIELDS);
+            let response = self
+                .authorized_json_upload(
+                    Method::POST,
+                    url,
+                    &json!({
+                        "id": plan.id,
+                        "name": plan.name,
+                        "parents": [plan.parent],
+                        "mimeType": FOLDER_MIME
+                    }),
+                    None,
+                )
+                .await?;
+            let bytes = body(response, MAX_UPLOAD_RESPONSE)
+                .await
+                .map_err(|_| UploadError::Uncertain)?;
+            let file: File = serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)?;
+            self.folder_receipt(plan, file)
+        })
+        .await
+    }
+
+    /// Inspect the prepared ID after a lost response. `None` proves only that
+    /// this exact identity is not currently present.
+    pub async fn inspect_prepared_folder(
+        &self,
+        scope: &Scope,
+        plan: &PreparedFolder,
+        cancel: &CancellationToken,
+    ) -> Result<Option<Node>> {
+        self.check_folder_plan(scope, plan)?;
+        self.upload_call(cancel, Duration::from_secs(125), async {
+            match self.file(&plan.id).await {
+                Ok(file) => self.folder_receipt(plan, file).map(Some),
+                Err(ProviderError::NotFound) => Ok(None),
+                Err(error) => Err(error.into()),
+            }
+        })
+        .await
+    }
+
     fn check_upload(&self, request: &UploadRequest) -> Result<()> {
         request.validate()?;
         self.check_scope(&request.scope)
@@ -711,6 +838,15 @@ mod tests {
             "mimeType": "application/octet-stream"
         })
     }
+    fn folder(id: &str) -> Value {
+        json!({
+            "id": id,
+            "name": "Cirrove-Create-Validation",
+            "mimeType": FOLDER_MIME,
+            "parents": ["root-id"],
+            "version": "3"
+        })
+    }
 
     async fn fixture(
         build: impl FnOnce(std::net::SocketAddr) -> Vec<Exchange>,
@@ -872,6 +1008,55 @@ mod tests {
         assert_eq!(node.id, generated);
         assert_eq!(node.name, "report.txt");
         assert_eq!(node.parent_id.as_deref(), Some("root-id"));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn a_validation_folder_is_prepared_before_create_and_inspected_by_exact_id() {
+        let generated = "generated-folder-id";
+        let (provider, server) = fixture(|_| {
+            let mut generate = Exchange::json(
+                "GET",
+                "/drive/v3/files/generateIds",
+                200,
+                json!({"ids":[generated],"space":"drive","kind":"drive#generatedIds"}),
+            );
+            generate.query = vec![("count", "1"), ("space", "drive"), ("type", "files")];
+            let mut create = Exchange::json("POST", "/drive/v3/files", 200, folder(generated));
+            create.query = vec![("fields", files::FIELDS)];
+            create.body = Some(ExpectedBody::Json(json!({
+                "id": generated,
+                "name": "Cirrove-Create-Validation",
+                "parents": ["root-id"],
+                "mimeType": FOLDER_MIME
+            })));
+            let inspect = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-folder-id",
+                200,
+                folder(generated),
+            );
+            vec![generate, create, inspect]
+        })
+        .await;
+        let cancel = CancellationToken::new();
+        let plan = provider
+            .prepare_folder(&scope(), "root-id", "Cirrove-Create-Validation", &cancel)
+            .await
+            .unwrap();
+        assert_eq!(plan.id(), generated);
+        let created = provider
+            .create_prepared_folder(&scope(), &plan, &cancel)
+            .await
+            .unwrap();
+        assert_eq!(created.id, generated);
+        assert_eq!(created.name, "Cirrove-Create-Validation");
+        let inspected = provider
+            .inspect_prepared_folder(&scope(), &plan, &cancel)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(inspected.id, generated);
         server.await.unwrap();
     }
 

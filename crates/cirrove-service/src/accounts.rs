@@ -115,12 +115,14 @@ impl Settings {
         for account in &self.accounts {
             account.registration.validate()?;
             if matches!(account.registration, AppRegistration::Google { .. })
-                && (account.access != AccessMode::ReadOnly
+                && ((account.access == AccessMode::ReadWrite && account.enabled)
                     || account.drive.id != account.root_id
                     || account.identity.subject.is_empty()
                     || !account.identity.tenant_id.is_empty())
             {
-                bail!("Google Drive requires a read-only My Drive connection");
+                bail!(
+                    "Google Drive requires My Drive; write-validation connections must stay disabled"
+                );
             }
             if !valid_label(&account.label)
                 || uuid::Uuid::parse_str(&account.id).is_err()
@@ -468,9 +470,10 @@ pub async fn reauthenticate(
         .context("unknown account label")?;
     let requested = access.unwrap_or(original.access);
     if matches!(original.registration, AppRegistration::Google { .. })
-        && requested != AccessMode::ReadOnly
+        && requested == AccessMode::ReadWrite
+        && (original.access != AccessMode::ReadWrite || original.enabled)
     {
-        bail!("Google Drive connections are read-only");
+        bail!("create a separate disabled Google connection with connect-google --write-access");
     }
     let _operation = account_operation(&state, &original.id)?;
     // A marker here means an earlier run disabled this account and never put it
@@ -570,21 +573,29 @@ pub fn provider(account: &Account) -> Result<Arc<dyn ReadProvider>> {
         AppRegistration::Microsoft { .. } => Ok(onedrive_provider(account)?),
         AppRegistration::Google { .. } => {
             if account.access != AccessMode::ReadOnly {
-                bail!("Google Drive connections are read-only");
+                bail!("Google write-validation connections cannot be mounted");
             }
-            let broker = TokenBroker::new(
-                account.registration.clone(),
-                account.identity.clone(),
-                account.credential_id.clone(),
-                Arc::new(DesktopVault),
-            )?;
-            Ok(Arc::new(GoogleDrive::new(
-                account.id.clone(),
-                account.drive.id.clone(),
-                Arc::new(broker),
-            )?))
+            Ok(google_provider(account)?)
         }
     }
+}
+/// Google adapter for the explicit create validator. This does not make the
+/// account mountable; settings require a Google write grant to remain disabled.
+pub fn google_provider(account: &Account) -> Result<Arc<GoogleDrive>> {
+    if !matches!(account.registration, AppRegistration::Google { .. }) {
+        bail!("this operation requires a Google Drive connection");
+    }
+    let broker = TokenBroker::new(
+        account.registration.clone(),
+        account.identity.clone(),
+        account.credential_id.clone(),
+        Arc::new(DesktopVault),
+    )?;
+    Ok(Arc::new(GoogleDrive::new(
+        account.id.clone(),
+        account.drive.id.clone(),
+        Arc::new(broker),
+    )?))
 }
 /// Microsoft-only validation and write workers must refuse other accounts before
 /// loading credentials or making a request.
@@ -876,13 +887,23 @@ pub async fn begin_connect_google(
     client_file: PathBuf,
     mount_path: PathBuf,
 ) -> Result<PendingConnection> {
+    begin_connect_google_with_access(state, label, client_file, mount_path, AccessMode::ReadOnly)
+        .await
+}
+pub async fn begin_connect_google_with_access(
+    state: PathBuf,
+    label: String,
+    client_file: PathBuf,
+    mount_path: PathBuf,
+    access: AccessMode,
+) -> Result<PendingConnection> {
     let client = cirrove_auth::google::DesktopClient::load(&client_file)?;
     begin_connect_with_secret(
         state,
         label,
         client.registration,
         mount_path,
-        AccessMode::ReadOnly,
+        access,
         client.secret,
     )
     .await
@@ -1749,6 +1770,27 @@ mod tests {
             error.contains("unsupported account settings version"),
             "a newer settings file must be refused by name: {error}"
         );
+    }
+
+    #[test]
+    fn a_google_create_grant_is_valid_only_while_its_connection_is_disabled() {
+        let mut account = fixture_account(AccessMode::ReadWrite);
+        account.registration = AppRegistration::Google {
+            client_id: "123-fixture.apps.googleusercontent.com".into(),
+        };
+        account.identity.tenant_id.clear();
+        account.drive.id = "root-id".into();
+        account.root_id = "root-id".into();
+        let mut settings = Settings {
+            version: 2,
+            accounts: vec![account],
+        };
+        settings
+            .validate()
+            .expect("a disabled isolated validation grant is valid");
+        settings.accounts[0].enabled = true;
+        let error = settings.validate().unwrap_err().to_string();
+        assert!(error.contains("must stay disabled"), "{error}");
     }
 
     fn fixture_account(access: AccessMode) -> Account {

@@ -428,8 +428,9 @@ capabilities. Microsoft-specific semantics stay in the OneDrive adapter.
 Write and conflict contracts must be concrete and exercised, not placeholder APIs.
 
 The Google Drive read adapter now validates the shared account, metadata, cache
-and mount boundaries. Its create transport has synthetic protocol coverage but
-is not selected by the service while collision and replacement rules remain
-open. Shared drives and document exports require explicit capabilities. iCloud
+and mount boundaries. Its create transport and disabled-account validator have
+synthetic protocol coverage, but the validator has not been run and no writable
+mount selects them while collision and replacement rules remain open. Shared
+drives and document exports require explicit capabilities. iCloud
 has a separate feasibility gate before feature parity is promised. Completion of
 OneDrive 1.0 does not claim either adapter is finished.

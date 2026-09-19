@@ -1045,17 +1045,22 @@ returns `Prepared` and ignores the optional reconciliation checkpoint.
 
 The Google adapter now implements the create transport against this contract:
 pre-generated IDs, resumable ranges, exact remote offsets and streamed SHA-256
-reconciliation. Synthetic HTTP exercises it, while account construction still
-returns only the read provider and rejects Google write access. The worker may
+reconciliation. Synthetic HTTP exercises it. Ordinary account construction still
+returns only the read provider; a separate disabled validation connection may
+hold `drive.readonly` plus `drive.file` consent and cannot be enabled as a mount.
+The worker may
 accept one new `Prepared` checkpoint from verification after a transport session
 is definitely gone; the provider identity survives while the obsolete session
 URL is removed before persistence.
 
 This does not resolve the writable namespace. Drive permits duplicate sibling
 names, so create cannot yet enforce the shared contract's atomic collision rule,
-and `files.update` lacks the OneDrive adapter's conditional ETag update. Google
-write scopes, service selection, replacement operations, writable mounts and
-live mutation validation remain absent.
+and `files.update` lacks the OneDrive adapter's conditional ETag update. An
+explicit create validator now prepares an exact test-folder ID before mutation,
+then routes multipart and empty files through the shared durable worker and reads
+them back by ID and SHA-256. It has not been run against Google. Replacement
+operations, writable service selection, writable mounts and live mutation
+evidence remain absent.
 
 ## References
 

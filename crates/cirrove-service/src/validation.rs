@@ -3,6 +3,7 @@
 mod catchup;
 mod freshness;
 mod google_read;
+mod google_write;
 mod namespace;
 mod navigation;
 mod notifications;
@@ -27,6 +28,7 @@ use cirrove_core::{
 use cirrove_onedrive::OneDrive;
 pub use freshness::onedrive_freshness;
 pub use google_read::google_read;
+pub use google_write::google_create;
 pub use namespace::onedrive_mutations;
 pub use navigation::onedrive_navigation;
 pub use notifications::onedrive_notifications;

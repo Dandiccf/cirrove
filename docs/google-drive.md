@@ -4,9 +4,10 @@ The next provider is Google Drive. This is an implemented **read-only My Drive
 preview with synthetic validation and a first real-account smoke check**, not a
 claim of reliable Google-account operation. It uses Cirrove's existing engine, SQLite staging, disk cache, pin
 jobs and FUSE mount. A create-only upload transport exists behind the provider
-interface and is tested with synthetic HTTP. The service does not select it,
-request write permission or expose a writable Google mount, even if a token has
-wider permissions.
+interface and is tested with synthetic HTTP. An explicit developer command can
+request `drive.file` and prepare an isolated live create check, but it has not
+been run. The normal service does not select the write transport or expose a
+writable Google mount.
 
 ## What it presents
 
@@ -39,7 +40,8 @@ There is no service-account or another client's credential import.
 
 Google Drive permits duplicate sibling names and `files.update` does not expose
 the conditional ETag replacement used by the OneDrive adapter. Cirrove therefore
-does not map its OneDrive write behavior onto Google or request write consent.
+does not map its OneDrive writable-mount behavior onto Google. Write consent is
+available only for a separately configured, disabled validation connection.
 
 The create transport uses `files.generateIds` before any mutating request. The
 provider-neutral worker stores that opaque prepared identity in the credential
@@ -61,11 +63,11 @@ session, partial remote offsets, receipt identity, content reconciliation and a
 foreign session URL. These checks establish the local protocol behavior; no live
 Google mutation has been run.
 
-This transport is create-only and remains disconnected from the service. Drive
+This transport is create-only and remains disconnected from ordinary mounts. Drive
 allows duplicate sibling names, so Cirrove still lacks the atomic collision rule
 required by `UploadIntent::Create`. Safe replacement is also unresolved because
 `files.update` has no OneDrive-style conditional ETag. Those two namespace and
-conflict decisions, write consent and explicit live mutation validation must be
+conflict decisions and explicit live mutation validation must be
 completed before a writable Google mount can be offered. See Google's
 [pre-generated ID guidance](https://developers.google.com/workspace/drive/api/guides/manage-uploads)
 and [`files.update` reference](https://developers.google.com/workspace/drive/api/reference/rest/v3/files/update).
@@ -92,12 +94,14 @@ and [`files.update` reference](https://developers.google.com/workspace/drive/api
    `.apps.googleusercontent.com`. Do not paste the file or its contents into
    a chat or a bug report. Cirrove reads its client ID and optional client
    secret; endpoints in the downloaded file cannot redirect authentication.
-5. Cirrove requests `openid email profile` and
-   `https://www.googleapis.com/auth/drive.readonly`. Google's `drive.file`
-   scope covers selected/app-created files and is insufficient for this
-   filesystem's whole-drive index. Readonly Drive access is a restricted scope;
-   Google sets the publication and verification requirements for an app offered
-   to other users. See [Google's scope guide](https://developers.google.com/workspace/drive/api/guides/api-specific-auth).
+5. An ordinary connection requests `openid email profile` and
+   `https://www.googleapis.com/auth/drive.readonly`. An explicit create-validation
+   connection additionally requests `https://www.googleapis.com/auth/drive.file`,
+   which permits files Cirrove creates while the read-only scope still supplies
+   the whole-drive index. It does not grant Cirrove write access to arbitrary
+   existing files. Readonly Drive access is a restricted scope; Google sets the
+   publication and verification requirements for an app offered to other users.
+   See [Google's scope guide](https://developers.google.com/workspace/drive/api/guides/api-specific-auth).
 
 For an external app in Testing, a refresh grant including Drive access normally
 expires after seven days; signing in again is then expected. See
@@ -118,6 +122,27 @@ cirrove connect-google --label google \
   --client-json /absolute/path/to/cirrove-google-client.json \
   --mount-path /absolute/path/to/an/empty/folder
 ```
+
+The not-yet-run create validator uses a separate state directory and connection:
+
+```sh
+cirrove connect-google --label google-create-validation \
+  --client-json /absolute/path/to/cirrove-google-client.json \
+  --mount-path /absolute/path/to/a/separate/empty/folder \
+  --state-dir /absolute/path/to/private/validation-state \
+  --write-access
+
+cirrove validate-google-create \
+  --label google-create-validation \
+  --state-dir /absolute/path/to/private/validation-state
+```
+
+The write-grant connection is saved disabled and settings validation refuses to
+enable it. The validator persists a generated folder ID before mutation, creates
+an 8 MiB-plus multipart file and an empty file inside that folder, then reads
+both back by exact provider identity and SHA-256. It retains the cloud folder
+and private local journal for review. Running it changes Google Drive and needs
+explicit authorization for that run.
 
 Access/refresh tokens and the optional desktop client secret are stored in
 Cirrove's Secret Service entries. Non-secret settings retain the provider,
@@ -144,7 +169,12 @@ expected final metadata request never occurred; restoring it passes both arms.
 Authentication tests exercise Google issuer/audience/nonce/expiry/signature and
 verified-email checks, token-subject binding on refresh, serialized rotation,
 stale-401 protection and refusal to use a rotation that the keyring cannot save.
-The Microsoft authentication tests remain part of the same suite.
+The Microsoft authentication tests remain part of the same suite. Google OAuth
+tests distinguish the normal read-only grant from the explicit
+`drive.readonly` plus `drive.file` validator grant. Account tests require a
+Google write-validation connection to remain disabled. A synthetic folder test
+pre-generates its ID, verifies the exact create request and inspects that ID
+afterward; no cloud mutation was used for these checks.
 
 `crates/cirrove-service/tests/google_drive.rs` drives both real adapters through
 one store and cache, deliberately giving them equal account, collection, file,

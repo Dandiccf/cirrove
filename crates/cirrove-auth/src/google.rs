@@ -4,13 +4,19 @@ use super::*;
 use openidconnect::core::CoreIdToken;
 
 pub const SCOPES: &str = "openid email profile https://www.googleapis.com/auth/drive.readonly";
+/// Whole-drive reads remain necessary for the filesystem index. `drive.file`
+/// adds writes only for files Cirrove creates (or a person explicitly opens
+/// with it), which is enough for the isolated create validator without asking
+/// to modify every existing file in the account.
+pub const WRITE_SCOPES: &str = "openid email profile https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file";
 
-pub(super) fn validate_grant(granted: Option<&str>) -> Result<()> {
+pub(super) fn validate_grant(access: AccessMode, granted: Option<&str>) -> Result<()> {
     if let Some(granted) = granted {
         let scopes: Vec<_> = granted.split_ascii_whitespace().collect();
-        if !scopes.contains(&"https://www.googleapis.com/auth/drive.readonly")
-            && !scopes.contains(&"https://www.googleapis.com/auth/drive")
-        {
+        let full = scopes.contains(&"https://www.googleapis.com/auth/drive");
+        let readable = full || scopes.contains(&"https://www.googleapis.com/auth/drive.readonly");
+        let writable = full || scopes.contains(&"https://www.googleapis.com/auth/drive.file");
+        if !readable || (access == AccessMode::ReadWrite && !writable) {
             return Err(ProviderError::Authentication.into());
         }
         if !scopes.contains(&"openid") {
@@ -169,7 +175,7 @@ pub(super) async fn subject_at(client: &Client, token: &str, endpoint: &str) -> 
 mod tests {
     use super::*;
     #[tokio::test]
-    async fn google_login_uses_pkce_loopback_offline_consent_and_read_only_scope() {
+    async fn google_login_uses_pkce_loopback_offline_consent_and_explicit_scopes() {
         let app = AppRegistration::Google {
             client_id: "123-example.apps.googleusercontent.com".into(),
         };
@@ -181,13 +187,28 @@ mod tests {
         assert_eq!(q.get("access_type").unwrap(), "offline");
         assert_eq!(q.get("code_challenge_method").unwrap(), "S256");
         assert_eq!(q.get("prompt").unwrap(), "consent select_account");
+        let write = PendingLogin::with_access(app, AccessMode::ReadWrite)
+            .await
+            .unwrap();
+        let write_query: HashMap<_, _> = write.url.query_pairs().collect();
+        assert_eq!(write_query.get("scope").unwrap(), WRITE_SCOPES);
         assert!(
-            PendingLogin::with_access(app, AccessMode::ReadWrite)
-                .await
-                .is_err()
+            validate_grant(
+                AccessMode::ReadOnly,
+                Some("openid https://www.googleapis.com/auth/drive.file")
+            )
+            .is_err()
         );
-        assert!(validate_grant(Some("openid https://www.googleapis.com/auth/drive.file")).is_err());
-        assert!(validate_grant(Some(SCOPES)).is_ok());
+        assert!(validate_grant(AccessMode::ReadOnly, Some(SCOPES)).is_ok());
+        assert!(validate_grant(AccessMode::ReadWrite, Some(SCOPES)).is_err());
+        assert!(validate_grant(AccessMode::ReadWrite, Some(WRITE_SCOPES)).is_ok());
+        assert!(
+            validate_grant(
+                AccessMode::ReadWrite,
+                Some("openid https://www.googleapis.com/auth/drive")
+            )
+            .is_ok()
+        );
     }
     #[test]
     fn google_identity_requires_signature_issuer_audience_nonce_expiry_and_verified_email() {
