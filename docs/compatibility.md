@@ -91,6 +91,8 @@ A second adapter now runs through the existing engine, store, cache and FUSE mou
 My Drive listing, polled changes, bounded reads, duplicate names, offline cache
 reopen and Google OAuth guards have synthetic coverage. A first real-account
 smoke check connected 1,350 entries, read three small files and a document link,
-and exposed a callback-host bug that is now fixed. One unresolved shortcut remains
-recorded; wider live acceptance is open. Google documents appear as browser links; exports, shared drives
+and exposed a callback-host bug that is now fixed. A bounded validator later
+matched three non-link files between direct adapter reads and the mount. Its
+single shortcut lookup confirmed a dangling Google target, which remains `ENOENT`.
+Wider live acceptance is open. Google documents appear as browser links; exports, shared drives
 and Google writes are not implemented. See [Google Drive](google-drive.md).

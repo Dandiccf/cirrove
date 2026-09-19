@@ -2621,9 +2621,17 @@ cached bytes offline with stable inodes. No Google credentials or cloud mutation
 participated. This is proof of shared plumbing under those scenarios, not real
 Google-service reliability or completion of shared-drive/document-export scope.
 
+The adapter also implements the shared bounded read-session path. Its synthetic
+transport test streams a window and checks the Google version again after the
+last byte; the unchanged arm succeeds and the changed arm returns
+`VersionChanged`, leaving publication to the cache only on success.
+
 A subsequent [first real-account connection](google-drive.md#first-real-account-connection-2026-09-19)
 completed after correcting the callback's Microsoft-only host check. The new
 regression was shown to fail without the fix. The account presented 1,350 entries
-on a read-only mount and served three small files and a browser link. An unresolved
-shortcut is recorded with the successful reads; independent reference comparison,
-long sessions and live offline/restart acceptance remain open.
+on a read-only mount and served three small files and a browser link. A later
+GET-only validator matched three non-link files (925 bytes) between direct adapter
+reads and the mount. Its only shortcut target returned not found directly from
+Google, so the remaining `ENOENT` is a dangling target rather than an unexplained
+index omission. Comparison with a separate Google client, long sessions and live
+offline/restart acceptance remain open.

@@ -9,9 +9,9 @@
   ],
   "endpoint": "Google consent and verified identity complete; the account reaches ready with a completed feed; the kernel mount presents entries and permits bounded reads; the pre-existing OneDrive account remains ready.",
   "prediction": "The real Google connection should use the shared engine and mount successfully without changing the existing OneDrive account. File names will include complete IDs and native Google documents will be browser links, as documented for the preview.",
-  "limits": "No cloud mutations, long-session claim, memory or latency comparison, token-lifetime acceptance, independent byte comparison, shared-drive claim or release gate closure. Record any live incompatibility here instead of treating synthetic tests as proof that the live attempt worked.",
+  "limits": "No cloud mutations, long-session claim, memory or latency comparison, token-lifetime acceptance, comparison with a separately implemented Google client, shared-drive claim or release gate closure. Record any live incompatibility here instead of treating synthetic tests as proof that the live attempt worked.",
   "result": {
-    "status": "basic connection and bounded reads passed; unresolved shortcut recorded",
+    "status": "basic connection and bounded reads passed; dangling shortcut classified",
     "recorded_at": "2026-09-19T13:37:04.485543+00:00",
     "callback_fix": "Registered redirect host and port replace the Microsoft-only hardcoded localhost check. New regression fails without the fix; 14 authentication unit tests pass with it.",
     "connection_binary": "Debug CLI built from bedf187 plus the callback fix; installed daemon remains bedf187 during this first check. Corrected installed build verification will be recorded separately.",
@@ -73,7 +73,22 @@
         "errno": 2
       }
     ],
-    "unresolved_entry_investigation": "The failing entry is a shortcut, and its target is absent from the index. The reason for target unavailability is not established.",
+    "unresolved_entry_investigation": "A later bounded GET-only validator asked Google for the only indexed shortcut target directly. Google returned not found; it was not a Shared Drive permission refusal or only a missing index row. The dangling shortcut remains ENOENT in the mount.",
+    "bounded_direct_adapter_mount_comparison": {
+      "files": 3,
+      "bytes": 925,
+      "changed": 0,
+      "unavailable": 0,
+      "browser_links_excluded": true,
+      "result": "All bytes matched between fresh adapter reads and the mounted view. Both paths are Cirrove implementations, so this is not an independent-client comparison."
+    },
+    "shortcut_target_check": {
+      "checked": 1,
+      "available": 0,
+      "not_found": 1,
+      "outside_my_drive": 0,
+      "unavailable": 0
+    },
     "independent_reference_comparison": false,
     "browser_display": "The browser displayed ERR_BLOCKED_BY_CLIENT on the corrected redirect too, but the CLI received and validated its callback, verified identity and completed the connection. No browser protection was disabled.",
     "existing_onedrive_configuration_semantically_unchanged": true,

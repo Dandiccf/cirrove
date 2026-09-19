@@ -12,7 +12,10 @@ selected, even if a token has wider permissions.
 - Ordinary binary files through bounded ranges. The adapter compares Google's
   monotonically increasing file version before and after the download, and
   checks the response range and length before returning bytes to the cache.
-  There is no fabricated HTTP ETag or Google write precondition.
+  Sequential reads can use the shared read-session contract to stream an 8 MiB
+  window into private cache staging under one before/after version check. A
+  changed final version rejects the whole staged window. There is no fabricated
+  HTTP ETag or Google write precondition.
 - Shortcut targets in the same user collection. Shared-drive targets remain
   unsupported. A shortcut requiring a resource key becomes a browser link.
 - Google-native documents, including Docs and Sheets, as nonempty `.url` browser
@@ -97,6 +100,10 @@ used the installed daemon and an additional Google account, alongside OneDrive.
 synthetic loopback responses: pagination, pre-scan change frontier, catch-up,
 opaque scoped cursors, incomplete searches, removals/trash, quota cooldown,
 cancellation, exact content ranges, changed versions and document links.
+The streamed-window scenario asserts that bytes are accepted only when the final
+Google version still matches and rejected when it changes after transfer.
+Removing only that final lookup/check made the exact scenario fail because its
+expected final metadata request never occurred; restoring it passes both arms.
 Authentication tests exercise Google issuer/audience/nonce/expiry/signature and
 verified-email checks, token-subject binding on refresh, serialized rotation,
 stale-401 protection and refusal to use a rotation that the keyring cannot save.
@@ -165,11 +172,21 @@ display issue.
 The live account reached ready with 1,350 indexed entries and one completed feed.
 Its FUSE mount reports `ro`. Three small binary files (319, 1,507 and 334 bytes)
 and one 101-byte Google-document browser link were read twice through the mount;
-sizes and repeated bytes matched. This is not an independent comparison against
-a separately downloaded reference. One shortcut failed with `ENOENT`; its target
-was absent from the index, and the reason for that target's unavailability has
-not been established. The existing OneDrive account was ready with both feeds
-and its mount still present after Google connected.
+sizes and repeated bytes matched. A later bounded GET-only validator compared
+three non-link files (925 bytes total) byte-for-byte between a fresh adapter read
+and the mounted view, with no changed or unavailable sample. This exercises two
+Cirrove paths and is not a comparison with a separately implemented Google client.
+
+The same validator checked the only indexed shortcut target directly. Google
+returned not found; it was not a Shared Drive permission refusal or merely absent
+from Cirrove's baseline. The dangling shortcut still produces `ENOENT` in the
+mount. The existing OneDrive account was ready with both feeds and its mount still
+present after Google connected. The validator is reproducible without printing
+cloud names or IDs:
+
+```sh
+cirrove validate-google-read --label google
+```
 
 The preregistration and failures remain with the result in
 [the first-connection record](benchmarks/google-drive-first-connection.json).

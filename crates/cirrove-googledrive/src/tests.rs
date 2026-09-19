@@ -2,6 +2,7 @@
 use super::*;
 use cirrove_core::{
     CancellationToken, Checkpoint, Cursor, MetadataProvider, ReadProvider, StaticToken,
+    reads::ReadWindowSink,
 };
 use serde_json::{Value, json};
 use tokio::{
@@ -221,6 +222,56 @@ async fn reads_require_exact_ranges_and_unchanged_monotonic_versions() {
             .await;
         if after == "1" {
             assert_eq!(result.unwrap(), b"bcd");
+        } else {
+            assert!(matches!(result, Err(ProviderError::VersionChanged)));
+        }
+        task.await.unwrap();
+    }
+}
+
+#[derive(Default)]
+struct Sink(Vec<u8>);
+
+#[async_trait::async_trait]
+impl ReadWindowSink for Sink {
+    async fn write_chunk(&mut self, bytes: &[u8]) -> Result<(), ProviderError> {
+        self.0.extend_from_slice(bytes);
+        Ok(())
+    }
+}
+
+#[tokio::test]
+async fn read_sessions_stream_a_window_and_reject_a_changed_final_version() {
+    for after in ["1", "2"] {
+        let (provider, task) = server(vec![
+            json_step("/drive/v3/files/same-id", file("1")),
+            Step {
+                path: "/drive/v3/files/same-id",
+                query: vec![("alt", "media")],
+                status: 206,
+                body: b"bcd".to_vec(),
+                headers: "Content-Range: bytes 1-3/6\r\n",
+            },
+            json_step("/drive/v3/files/same-id", file(after)),
+        ])
+        .await;
+        let node = serde_json::from_value::<files::File>(file("1"))
+            .unwrap()
+            .node("root-id")
+            .unwrap();
+        let session = provider
+            .open_read_session(&scope(), &node, &CancellationToken::new())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(session.window_limit(), 8 * 1024 * 1024);
+        let mut sink = Sink::default();
+        let result = session
+            .read_window(1, 3, &mut sink, &CancellationToken::new())
+            .await;
+        assert_eq!(sink.0, b"bcd");
+        if after == "1" {
+            result.unwrap();
         } else {
             assert!(matches!(result, Err(ProviderError::VersionChanged)));
         }

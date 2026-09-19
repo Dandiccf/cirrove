@@ -1007,6 +1007,9 @@ Its initial index captures a change token before listing files, stages all listi
 pages, then catches up from that token before completing the baseline. Its content
 path uses bounded, exact ranges with monotonically increasing Google file versions
 checked before and after, without pretending a version number is an HTTP ETag.
+It implements the same `ReadSession` interface as the shared cache: sequential
+reads may stream an 8 MiB staging window under one pair of version checks, and a
+changed final version prevents publication of every byte in that window.
 Google-native files are browser links, not implicit document exports.
 [Google Drive](google-drive.md) records the name policy, setup, tests and remaining
 live-account, shared-drive and export limits. iCloud remains a separate future

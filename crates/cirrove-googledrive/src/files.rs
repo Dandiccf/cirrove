@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use cirrove_core::{
     CancellationToken, CollectionInfo, Cursor, DirectoryPage, Node, NodeKind, Priority,
     ReadProvider, RemoteRef,
+    reads::{ReadIdentity, ReadSession, ReadWindowSink},
 };
 use serde::Deserialize;
 
@@ -265,8 +266,134 @@ impl GoogleDrive {
         Ok(page)
     }
 }
+
+struct GoogleReadSession {
+    drive: GoogleDrive,
+    identity: ReadIdentity,
+    node: Node,
+}
+
+#[async_trait]
+impl ReadSession for GoogleReadSession {
+    fn identity(&self) -> &ReadIdentity {
+        &self.identity
+    }
+
+    fn window_limit(&self) -> u32 {
+        8 * 1024 * 1024
+    }
+
+    async fn read_window(
+        &self,
+        offset: u64,
+        length: u32,
+        sink: &mut dyn ReadWindowSink,
+        cancel: &CancellationToken,
+    ) -> Result<(), ProviderError> {
+        if length > self.window_limit() {
+            return Err(ProviderError::Protocol("invalid Google read window"));
+        }
+        tokio::select! { biased;
+            _ = cancel.cancelled() => Err(ProviderError::Cancelled),
+            result = async {
+                let _permit = self.drive.budget.acquire(Priority::Content, cancel).await?;
+                let before = self.drive.file(&self.node.id).await?;
+                let current = before.node(&self.identity.scope.collection)?;
+                if current.kind != NodeKind::File
+                    || current.content_revision() != self.node.content_revision()
+                    || current.size != self.node.size
+                {
+                    return Err(ProviderError::VersionChanged);
+                }
+                if offset >= self.node.size || length == 0 {
+                    return Ok(());
+                }
+                let count = (self.node.size - offset).min(u64::from(length));
+                if let Some(content) = before.local_content() {
+                    for chunk in content[offset as usize..(offset + count) as usize].chunks(64 * 1024) {
+                        sink.write_chunk(chunk).await?;
+                    }
+                    return Ok(());
+                }
+                if !before.capabilities.as_ref().is_some_and(|c| c.can_download == Some(true)) {
+                    return Err(ProviderError::Permission);
+                }
+                let end = offset + count - 1;
+                let mut url = self.drive.url(&["files", &self.node.id])?;
+                url.query_pairs_mut().append_pair("alt", "media");
+                let mut response = self.drive.response(url, Some((offset, end))).await?;
+                if response.headers().get("content-encoding").is_some_and(|v| v != "identity") {
+                    return Err(ProviderError::Protocol("encoded Google range"));
+                }
+                if response.status() == reqwest::StatusCode::PARTIAL_CONTENT {
+                    let expected = format!("bytes {offset}-{end}/{}", self.node.size);
+                    if response.headers().get("content-range").and_then(|v| v.to_str().ok()) != Some(expected.as_str()) {
+                        return Err(ProviderError::Protocol("incorrect Google content range"));
+                    }
+                } else if offset != 0 || count != self.node.size {
+                    return Err(ProviderError::Protocol("Google ignored content range"));
+                }
+                if response.content_length().is_some_and(|length| length != count) {
+                    return Err(ProviderError::Protocol("short Google content range"));
+                }
+                let mut received = 0_u64;
+                while let Some(bytes) = response.chunk().await.map_err(|_| ProviderError::Unavailable)? {
+                    if bytes.len() as u64 > count.saturating_sub(received) {
+                        return Err(ProviderError::Protocol("long Google content range"));
+                    }
+                    for chunk in bytes.chunks(64 * 1024) {
+                        sink.write_chunk(chunk).await?;
+                    }
+                    received += bytes.len() as u64;
+                }
+                if received != count {
+                    return Err(ProviderError::Protocol("short Google content range"));
+                }
+                let after = self
+                    .drive
+                    .file(&self.node.id)
+                    .await?
+                    .node(&self.identity.scope.collection)?;
+                if after.kind != NodeKind::File
+                    || after.content_revision() != self.node.content_revision()
+                    || after.size != self.node.size
+                {
+                    return Err(ProviderError::VersionChanged);
+                }
+                Ok(())
+            } => result,
+        }
+    }
+
+    async fn read_range(
+        &self,
+        offset: u64,
+        length: u32,
+        cancel: &CancellationToken,
+    ) -> Result<Vec<u8>, ProviderError> {
+        self.drive
+            .read_range(&self.identity.scope, &self.node, offset, length, cancel)
+            .await
+    }
+}
+
 #[async_trait]
 impl ReadProvider for GoogleDrive {
+    async fn open_read_session(
+        &self,
+        scope: &Scope,
+        node: &Node,
+        _cancel: &CancellationToken,
+    ) -> Result<Option<Arc<dyn ReadSession>>, ProviderError> {
+        self.check_scope(scope)?;
+        valid_id(&node.id)?;
+        Ok(Some(Arc::new(GoogleReadSession {
+            drive: self.clone(),
+            identity: ReadIdentity::new(scope, node)?,
+            node: node.clone(),
+        })))
+    }
+
     async fn node(
         &self,
         scope: &Scope,

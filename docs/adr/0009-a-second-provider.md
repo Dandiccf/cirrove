@@ -32,6 +32,13 @@ change tracking are separate Google endpoints; sibling names are not unique;
 Google-native documents require an explicit export or link representation. See
 [the implemented policies and validation](../google-drive.md).
 
+The optional read-session contract now has its second implementation too. Google
+does not provide Graph's expiring download URL plus strong ETag combination, so
+its session keeps the stable provider identity and streams a bounded 8 MiB window
+between metadata/version checks. The shared cache publishes the staging file only
+after the final version still agrees. This reuses the contract without pretending
+the two providers have the same transport primitive.
+
 ## What prompted it
 
 The project's own statement of intent names three providers — "beginnend mit

@@ -1,7 +1,8 @@
-//! Explicit developer-only cloud mutation checks. Never called by the daemon.
-//! Every target is created by this run; no existing document is accepted as input.
+//! Explicit developer-only cloud checks. Never called by the daemon. Mutation
+//! checks create every target they change; read checks emit only aggregate data.
 mod catchup;
 mod freshness;
+mod google_read;
 mod namespace;
 mod navigation;
 mod notifications;
@@ -25,6 +26,7 @@ use cirrove_core::{
 };
 use cirrove_onedrive::OneDrive;
 pub use freshness::onedrive_freshness;
+pub use google_read::google_read;
 pub use namespace::onedrive_mutations;
 pub use navigation::onedrive_navigation;
 pub use notifications::onedrive_notifications;

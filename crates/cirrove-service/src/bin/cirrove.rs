@@ -110,6 +110,17 @@ struct Args {
 }
 #[derive(Subcommand)]
 enum Command {
+    /// Compare bounded Google adapter reads with the mount and classify shortcuts (GET-only).
+    ValidateGoogleRead {
+        #[arg(long)]
+        label: String,
+        #[arg(long, default_value = "3")]
+        files: usize,
+        #[arg(long, default_value = "32")]
+        shortcuts: usize,
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
+    },
     /// Observe download validators for one file; GET-only, no mount or cloud writes.
     InspectOnedriveRead {
         #[arg(long)]
@@ -545,6 +556,15 @@ async fn main() -> Result<()> {
     let command = Args::parse().command;
     let validate_session = matches!(&command, Command::ValidateOnedriveReadSession { .. });
     match command {
+        Command::ValidateGoogleRead {
+            label,
+            files,
+            shortcuts,
+            state_dir: state,
+        } => {
+            let state = state.map(Ok).unwrap_or_else(state_dir)?;
+            cirrove_service::validation::google_read(&state, &label, files, shortcuts).await?;
+        }
         Command::InspectOnedriveRead {
             label,
             item,
