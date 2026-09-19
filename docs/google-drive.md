@@ -252,15 +252,16 @@ resulting bytes and compare SHA-256. Five shared-worker adapter tests additional
 cover durable target preparation, conditional session creation, a changed ETag
 before mutation, a 412 at finalization, exact-hash reconciliation after a lost
 success response and rejection of weak, malformed or empty requests without
-network access. Nine validation-mutation tests cover prepared folder creation
+network access. Ten validation-mutation tests cover prepared folder creation
 and collision plus conditional exact-ID file and folder moves, a
 changed source ETag before destination lookup, case-folded destination collision,
-both applied and uncommitted reconciliation outcomes, and rejection of a weak
-ETag without network access. Six further cases cover exact conditional file and
+applied file/folder and uncommitted reconciliation outcomes, and rejection of a weak
+ETag without network access. Seven further cases cover exact conditional file and
 observed-empty folder moves to Google's trash, refusal of a nonempty folder,
-reconciliation of both exact trashed identities and refusal to treat a 404 alone
-as confirmed removal. The write validator does not invoke this removal path. No
-cloud mutation was used for these checks.
+pagination through every child-list page, reconciliation of both exact trashed
+identities and refusal to treat a 404 alone as confirmed removal. The write
+validator does not invoke this removal path. No cloud mutation was used for
+these checks.
 
 `crates/cirrove-service/tests/google_drive.rs` drives both real adapters through
 one store and cache, deliberately giving them equal account, collection, file,
@@ -348,6 +349,13 @@ that test fail before any mutation could be enqueued; restoration passed. The
 complete `scripts/check.sh` then passed with 667 Rust test executions, all kernel
 mount groups, script tests, the acceptance ledger and docs. The live validator
 still has not been run.
+
+Adding exact folder-move reconciliation and a paginated child guard added two
+Google HTTP cases. Removing folder decoding made the recovery case fail; making
+the guard ignore the second child page made the other case attempt a forbidden
+PATCH. Restoration passed both controls. The complete `scripts/check.sh` then
+passed with 669 Rust test executions, all kernel mount groups, script tests, the
+acceptance ledger and docs. No live Google mutation was used.
 
 ## First real-account connection, 2026-09-19
 

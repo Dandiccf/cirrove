@@ -70,6 +70,9 @@ only because another actor can add a child in its non-atomic window.
 The not-yet-run live validator now uses that exact folder snapshot to move a
 run-owned nonempty folder, verifies its created child remains addressable and
 requires reuse of the stale folder snapshot to conflict.
+Synthetic recovery also recognizes the moved folder by immutable identity after
+a lost response, and the empty-folder guard follows every paginated child page
+before it can issue the trash PATCH.
 
 The second adapter found real differences at the boundary: initial listing and
 change tracking are separate Google endpoints; sibling names are not unique;

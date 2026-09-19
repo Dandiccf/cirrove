@@ -2712,6 +2712,15 @@ passed after restoration. The complete `scripts/check.sh` then passed with 667
 Rust test executions, all kernel mount groups, script tests, the acceptance
 ledger and docs. No Google mutation participated.
 
+Two additional synthetic cases cover namespace recovery and the destructive
+edge: a moved folder reconciles by exact identity after a lost response, and a
+child present only on the second listing page still blocks folder trash.
+Removing folder decoding made the first exact case fail; making the guard ignore
+page two made the second exact case attempt PATCH and fail. Restoration passed
+both controls. The complete `scripts/check.sh` then passed with 669 Rust test
+executions, all kernel mount groups, script tests, the acceptance ledger and
+docs. No Google mutation participated.
+
 The focused OAuth test was also run with `drive.file` removed from the requested
 write scopes and failed because the grant no longer satisfied `ReadWrite`;
 restoring the scope passed. The prepared-folder test was run with the create body

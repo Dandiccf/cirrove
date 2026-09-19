@@ -3031,6 +3031,36 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn validation_mutation_reconciles_a_lost_folder_move_by_exact_identity() {
+        let (provider, server) = fixture(|_| {
+            let mut current = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-folder-id",
+                200,
+                named_folder_at("generated-folder-id", "destination-id", "moved-folder", "4"),
+            );
+            current.query = vec![("fields", files::FIELDS)];
+            current.response_headers = "ETag: \"folder-4\"\r\n".into();
+            vec![current]
+        })
+        .await;
+        let request = folder_mutation_request("destination-id", "moved-folder", "\"folder-3\"");
+        let MutationReconciliation::Applied(MutationReceipt::Upsert(node)) = provider
+            .validation_mutations()
+            .reconcile_mutation(&request, &CancellationToken::new())
+            .await
+            .unwrap()
+        else {
+            panic!("lost folder move was not reconciled")
+        };
+        assert_eq!(node.kind, NodeKind::Folder);
+        assert_eq!(node.id, "generated-folder-id");
+        assert_eq!(node.parent_id.as_deref(), Some("destination-id"));
+        assert_eq!(node.name, "moved-folder");
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
     async fn validation_mutation_reconciliation_retries_an_unchanged_source() {
         let (provider, server) = fixture(|_| {
             let mut current = Exchange::json(
@@ -3135,6 +3165,52 @@ mod tests {
             );
             children.query = vec![("q", "'generated-folder-id' in parents and trashed = false")];
             vec![before, children]
+        })
+        .await;
+        assert!(matches!(
+            provider
+                .validation_mutations()
+                .mutate(
+                    &folder_removal_request("\"folder-3\""),
+                    &CancellationToken::new()
+                )
+                .await,
+            Err(MutationError::Conflict)
+        ));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn validation_mutation_checks_every_child_page_before_folder_trash() {
+        let (provider, server) = fixture(|_| {
+            let mut before = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-folder-id",
+                200,
+                named_folder_at("generated-folder-id", "root-id", "folder", "3"),
+            );
+            before.query = vec![("fields", files::FIELDS)];
+            before.response_headers = "ETag: \"folder-3\"\r\n".into();
+            let mut first_page = Exchange::json(
+                "GET",
+                "/drive/v3/files",
+                200,
+                json!({"files":[],"nextPageToken":"next-page"}),
+            );
+            first_page.query = vec![("q", "'generated-folder-id' in parents and trashed = false")];
+            let mut second_page = Exchange::json(
+                "GET",
+                "/drive/v3/files",
+                200,
+                json!({
+                    "files":[named_file_at("child-id", "generated-folder-id", "child", "1", 1)]
+                }),
+            );
+            second_page.query = vec![
+                ("q", "'generated-folder-id' in parents and trashed = false"),
+                ("pageToken", "next-page"),
+            ];
+            vec![before, first_page, second_page]
         })
         .await;
         assert!(matches!(
