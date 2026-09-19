@@ -557,6 +557,13 @@ HTTP success is required for a confirmed deletion receipt. File DELETE uses the
 provider's recycle-bin behavior; it is not permanent deletion or local POSIX rmdir.
 Nothing in the tree deletes permanently, and no setting makes the default do so.
 
+Google's disconnected validation adapter also implements exact-ID conditional
+folder relocation and an observed-empty folder trash probe. The latter lists
+children immediately before its conditional PATCH, but Google offers no atomic
+empty-folder operation: a child can appear between those requests. This exercises
+the shared contract without enabling production `rmdir`; ordinary Google account
+construction never exposes the adapter to a mount.
+
 The mount root refuses to hold a local wastebasket. The freedesktop trash
 specification points a file manager at `$topdir/.Trash-$uid`, and on a mount
 `$topdir` is the mount point, so the first Delete in GNOME Files created that

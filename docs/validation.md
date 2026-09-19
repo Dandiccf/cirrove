@@ -2690,6 +2690,18 @@ only the trash PATCH's `If-Match` header made its single positive test fail at
 the server assertion; restoration passed. The live validator does not invoke
 this path, so no delete or trash operation is authorized or recorded here.
 
+Four further synthetic cases exercise folder namespace operations through the
+same adapter: exact-ID conditional relocation, refusal to trash a folder whose
+child listing is nonempty, conditional trash after an empty listing and
+reconciliation of the exact trashed folder. The relocate and empty-folder tests
+each failed when only the outgoing `If-Match` was removed. The nonempty case
+failed when only the child scan was bypassed. Restoration passed all three
+controls. This does not establish atomic `rmdir`: a child can appear after the
+listing and before Google's PATCH. The live validator does not invoke folder
+trash, and no cloud mutation participated. The complete `scripts/check.sh`
+passed with 666 Rust test executions, all kernel mount groups, script tests, the
+acceptance ledger and docs.
+
 The focused OAuth test was also run with `drive.file` removed from the requested
 write scopes and failed because the grant no longer satisfied `ReadWrite`;
 restoring the scope passed. The prepared-folder test was run with the create body

@@ -63,7 +63,10 @@ preflight destination scan does not make Google's duplicate-name semantics atomi
 for either create or move, so normal mounts cannot select it. Exact-ID conditional
 regular-file trash is also synthetic only and treats a
 404 as indeterminate rather than proof of success. Duplicate-name collision
-semantics and conditional replacement stability remain unresolved.
+semantics and conditional replacement stability remain unresolved. The same
+adapter can conditionally relocate a folder and trash an exact folder after an
+empty child listing. That list-then-PATCH sequence is deliberately validation
+only because another actor can add a child in its non-atomic window.
 
 The second adapter found real differences at the boundary: initial listing and
 change tracking are separate Google endpoints; sibling names are not unique;

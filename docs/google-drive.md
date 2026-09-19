@@ -4,7 +4,7 @@ The next provider is Google Drive. This is an implemented **read-only My Drive
 preview with synthetic validation and a first real-account smoke check**, not a
 claim of reliable Google-account operation. It uses Cirrove's existing engine, SQLite staging, disk cache, pin
 jobs and FUSE mount. File create/replacement and validation-only prepared folder
-create and relocate transports
+create, relocate and observed-empty trash transports
 exist behind the provider interfaces and are tested with synthetic HTTP. An explicit developer command can
 request `drive.file`, prepare an isolated live create check and characterize
 HTTP ETag handling for metadata and content on one file created by that run,
@@ -108,6 +108,14 @@ namespace and conflict decisions and explicit live mutation validation must be
 completed before a writable Google mount can be offered. See Google's
 [pre-generated ID guidance](https://developers.google.com/workspace/drive/api/guides/manage-uploads)
 and [`files.update` reference](https://developers.google.com/workspace/drive/api/reference/rest/v3/files/update).
+
+The same validation adapter can relocate a folder by exact ID with the original
+strong ETag. It can also list an exact folder's children and conditionally move
+the folder to Google's trash only when that listing is empty. This is useful for
+exercising the provider-neutral `RemoveFolder` contract, but it is not an atomic
+`rmdir`: another client can add a child between the listing and PATCH, and a
+folder ETag is not documented to close that race. The normal service never
+selects this adapter, and the live validator does not invoke its removal path.
 
 ## Check or create your own Google app
 
@@ -239,14 +247,15 @@ resulting bytes and compare SHA-256. Five shared-worker adapter tests additional
 cover durable target preparation, conditional session creation, a changed ETag
 before mutation, a 412 at finalization, exact-hash reconciliation after a lost
 success response and rejection of weak, malformed or empty requests without
-network access. Eight validation-mutation tests cover prepared folder creation
-and collision plus conditional exact-ID move, a
+network access. Nine validation-mutation tests cover prepared folder creation
+and collision plus conditional exact-ID file and folder moves, a
 changed source ETag before destination lookup, case-folded destination collision,
 both applied and uncommitted reconciliation outcomes, and rejection of a weak
-ETag without network access. Three further cases cover an exact conditional move
-to Google's trash, reconciliation of that exact trashed identity and refusal to
-treat a 404 alone as confirmed removal. The write validator does not invoke this
-removal path. No cloud mutation was used for these checks.
+ETag without network access. Six further cases cover exact conditional file and
+observed-empty folder moves to Google's trash, refusal of a nonempty folder,
+reconciliation of both exact trashed identities and refusal to treat a 404 alone
+as confirmed removal. The write validator does not invoke this removal path. No
+cloud mutation was used for these checks.
 
 `crates/cirrove-service/tests/google_drive.rs` drives both real adapters through
 one store and cache, deliberately giving them equal account, collection, file,
@@ -317,6 +326,16 @@ no prepared item after the simulated lost response; restoring it passed. The
 complete `scripts/check.sh` then passed with 662 Rust test executions, all kernel
 mount groups, script tests, the acceptance ledger and docs. No live Google
 mutation was used.
+
+Extending the validation-only namespace adapter to folder relocation and
+observed-empty folder trash added four Google HTTP cases. The relocation and
+trash tests each failed when only their outgoing `If-Match` header was removed;
+the nonempty-folder test failed when only the child listing was bypassed. The
+restored cases all passed. This is synthetic protocol evidence only: the
+list-then-PATCH sequence cannot provide atomic POSIX `rmdir`, the live validator
+does not call it, and no Google mutation participated. The complete
+`scripts/check.sh` then passed with 666 Rust test executions, all kernel mount
+groups, script tests, the acceptance ledger and docs.
 
 ## First real-account connection, 2026-09-19
 

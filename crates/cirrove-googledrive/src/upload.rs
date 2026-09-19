@@ -40,8 +40,8 @@ pub struct PreparedFolder {
 /// Google Drive permits duplicate sibling names and offers no atomic
 /// fail-on-collision relocate operation. This adapter performs a bounded
 /// destination check for the validator's private folder and can trash an exact
-/// regular file conditionally, but ordinary account construction deliberately
-/// never exposes it as a writable mount provider.
+/// file or an observed-empty folder conditionally, but ordinary account
+/// construction deliberately never exposes it as a writable mount provider.
 #[derive(Clone)]
 pub struct GoogleValidationMutations {
     drive: GoogleDrive,
@@ -1515,8 +1515,10 @@ impl GoogleDrive {
     }
 
     fn validation_mutation_node(&self, file: File, etag: Option<String>) -> Result<Node> {
-        if file.mime_type != "application/octet-stream"
-            || file.parents.len() != 1
+        if !matches!(
+            file.mime_type.as_str(),
+            "application/octet-stream" | FOLDER_MIME
+        ) || file.parents.len() != 1
             || file.trashed
             || file.drive_id.is_some()
         {
@@ -1528,7 +1530,9 @@ impl GoogleDrive {
             .map_err(|_| UploadError::Uncertain)?;
         node.name = raw_name;
         node.etag = Some(etag.ok_or_else(|| protocol("missing strong Google ETag"))?);
-        if node.kind != NodeKind::File || node.target.is_some() || node.content_revision().is_none()
+        if node.target.is_some()
+            || !matches!(node.kind, NodeKind::File | NodeKind::Folder)
+            || (node.kind == NodeKind::File && node.content_revision().is_none())
         {
             return Err(UploadError::Uncertain);
         }
@@ -1571,7 +1575,7 @@ impl GoogleDrive {
         } = &request.intent
         else {
             return Err(UploadError::Unsupported(
-                "Google validation adapter only relocates regular files",
+                "Google validation adapter only relocates files and folders",
             ));
         };
         self.upload_call(cancel, Duration::from_secs(125), async {
@@ -1580,6 +1584,7 @@ impl GoogleDrive {
             if current.etag != before.etag
                 || current.name != before.name
                 || current.parent_id != before.parent_id
+                || current.kind != before.kind
             {
                 return Err(UploadError::Conflict);
             }
@@ -1621,13 +1626,16 @@ impl GoogleDrive {
         .await
     }
 
-    async fn validation_remove_file(
+    async fn validation_remove(
         &self,
         request: &MutationRequest,
         cancel: &CancellationToken,
     ) -> Result<MutationReceipt> {
-        let MutationIntent::RemoveFile { before } = &request.intent else {
-            return Err(UploadError::Invalid);
+        let before = match &request.intent {
+            MutationIntent::RemoveFile { before } | MutationIntent::RemoveFolder { before } => {
+                before
+            }
+            _ => return Err(UploadError::Invalid),
         };
         self.upload_call(cancel, Duration::from_secs(125), async {
             let (file, etag) = self.file_with_strong_etag(&before.id).await?;
@@ -1635,8 +1643,22 @@ impl GoogleDrive {
             if current.etag != before.etag
                 || current.name != before.name
                 || current.parent_id != before.parent_id
+                || current.kind != before.kind
             {
                 return Err(UploadError::Conflict);
+            }
+            if matches!(request.intent, MutationIntent::RemoveFolder { .. }) {
+                let mut token = None;
+                loop {
+                    let page = self.list_files(Some(&before.id), token.as_deref()).await?;
+                    if !page.files.is_empty() {
+                        return Err(UploadError::Conflict);
+                    }
+                    let Some(next) = page.next_page_token else {
+                        break;
+                    };
+                    token = Some(next);
+                }
             }
             let mut url = self.url(&["files", &before.id])?;
             url.query_pairs_mut().append_pair("fields", files::FIELDS);
@@ -1655,7 +1677,12 @@ impl GoogleDrive {
             let file: File = serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)?;
             if file.id != before.id
                 || !file.trashed
-                || file.mime_type != "application/octet-stream"
+                || file.mime_type
+                    != if before.kind == NodeKind::File {
+                        "application/octet-stream"
+                    } else {
+                        FOLDER_MIME
+                    }
                 || file.drive_id.is_some()
             {
                 return Err(UploadError::Uncertain);
@@ -1722,7 +1749,9 @@ impl MutationProvider for GoogleValidationMutations {
             "Google validation folder creation is prepared separately",
         ))?;
         valid_id(&before.id).map_err(|_| MutationError::Invalid)?;
-        if before.kind != NodeKind::File || !before.etag.as_deref().is_some_and(valid_strong_etag) {
+        if !matches!(before.kind, NodeKind::File | NodeKind::Folder)
+            || !before.etag.as_deref().is_some_and(valid_strong_etag)
+        {
             return Err(MutationError::Invalid);
         }
         match &request.intent {
@@ -1737,12 +1766,12 @@ impl MutationProvider for GoogleValidationMutations {
                 }
                 self.drive.validation_relocate(request, cancel).await
             }
-            MutationIntent::RemoveFile { .. } => {
-                self.drive.validation_remove_file(request, cancel).await
+            MutationIntent::RemoveFile { .. } | MutationIntent::RemoveFolder { .. } => {
+                self.drive.validation_remove(request, cancel).await
             }
-            MutationIntent::CreateFolder { .. } | MutationIntent::RemoveFolder { .. } => Err(
-                UploadError::Unsupported("Google validation adapter does not mutate folders"),
-            ),
+            MutationIntent::CreateFolder { .. } => Err(UploadError::Unsupported(
+                "Google validation folder creation must carry a prepared identity",
+            )),
         }
         .map_err(mutation_error)
     }
@@ -1813,8 +1842,17 @@ impl MutationProvider for GoogleValidationMutations {
             }
             Err(error) => return Err(mutation_error(error)),
         };
-        if matches!(request.intent, MutationIntent::RemoveFile { .. }) && file.trashed {
-            if file.id != before.id || file.drive_id.is_some() {
+        if matches!(
+            request.intent,
+            MutationIntent::RemoveFile { .. } | MutationIntent::RemoveFolder { .. }
+        ) && file.trashed
+        {
+            let expected_mime = if before.kind == NodeKind::File {
+                "application/octet-stream"
+            } else {
+                FOLDER_MIME
+            };
+            if file.id != before.id || file.drive_id.is_some() || file.mime_type != expected_mime {
                 return Err(MutationError::Uncertain);
             }
             return Ok(MutationReconciliation::Applied(MutationReceipt::Removed {
@@ -2173,6 +2211,15 @@ mod tests {
             "capabilities": {"canDownload": true}
         })
     }
+    fn named_folder_at(id: &str, parent: &str, name: &str, version: &str) -> Value {
+        json!({
+            "id": id,
+            "name": name,
+            "mimeType": FOLDER_MIME,
+            "parents": [parent],
+            "version": version
+        })
+    }
     fn mutation_request(parent: &str, name: &str, etag: &str) -> MutationRequest {
         MutationRequest {
             scope: scope(),
@@ -2205,6 +2252,38 @@ mod tests {
             intent: MutationIntent::RemoveFile { before },
         }
     }
+    fn folder_mutation_request(parent: &str, name: &str, etag: &str) -> MutationRequest {
+        MutationRequest {
+            scope: scope(),
+            intent: MutationIntent::Relocate {
+                before: Node {
+                    id: "generated-folder-id".into(),
+                    parent_id: Some("root-id".into()),
+                    name: "folder".into(),
+                    kind: NodeKind::Folder,
+                    size: 0,
+                    modified_unix: 0,
+                    etag: Some(etag.into()),
+                    content_version: Some("google-version:3".into()),
+                    target: None,
+                    package: false,
+                },
+                parent: parent.into(),
+                name: name.into(),
+            },
+        }
+    }
+    fn folder_removal_request(etag: &str) -> MutationRequest {
+        let MutationIntent::Relocate { before, .. } =
+            folder_mutation_request("root-id", "unused", etag).intent
+        else {
+            unreachable!()
+        };
+        MutationRequest {
+            scope: scope(),
+            intent: MutationIntent::RemoveFolder { before },
+        }
+    }
     fn file(id: &str, size: usize) -> Value {
         named_file(id, "report.txt", "7", size)
     }
@@ -2217,13 +2296,7 @@ mod tests {
         })
     }
     fn folder(id: &str) -> Value {
-        json!({
-            "id": id,
-            "name": "Cirrove-Create-Validation",
-            "mimeType": FOLDER_MIME,
-            "parents": ["root-id"],
-            "version": "3"
-        })
+        named_folder_at(id, "root-id", "Cirrove-Create-Validation", "3")
     }
 
     async fn fixture(
@@ -2760,6 +2833,58 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn validation_mutation_moves_a_folder_by_exact_identity_with_a_strong_precondition() {
+        let (provider, server) = fixture(|_| {
+            let mut before = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-folder-id",
+                200,
+                named_folder_at("generated-folder-id", "root-id", "folder", "3"),
+            );
+            before.query = vec![("fields", files::FIELDS)];
+            before.response_headers = "ETag: \"folder-3\"\r\n".into();
+            let mut destination = Exchange::json(
+                "GET",
+                "/drive/v3/files",
+                200,
+                json!({"files":[],"incompleteSearch":false}),
+            );
+            destination.query = vec![("q", "'destination-id' in parents and trashed = false")];
+            let mut moved = Exchange::json(
+                "PATCH",
+                "/drive/v3/files/generated-folder-id",
+                200,
+                named_folder_at("generated-folder-id", "destination-id", "moved-folder", "4"),
+            );
+            moved.query = vec![
+                ("fields", files::FIELDS),
+                ("addParents", "destination-id"),
+                ("removeParents", "root-id"),
+            ];
+            moved.headers = vec!["if-match: \"folder-3\"".into()];
+            moved.body = Some(ExpectedBody::Json(json!({"name":"moved-folder"})));
+            moved.response_headers = "ETag: \"folder-4\"\r\n".into();
+            vec![before, destination, moved]
+        })
+        .await;
+        let request = folder_mutation_request("destination-id", "moved-folder", "\"folder-3\"");
+        let MutationReceipt::Upsert(node) = provider
+            .validation_mutations()
+            .mutate(&request, &CancellationToken::new())
+            .await
+            .unwrap()
+        else {
+            panic!("folder move returned no item")
+        };
+        assert_eq!(node.kind, NodeKind::Folder);
+        assert_eq!(node.id, "generated-folder-id");
+        assert_eq!(node.parent_id.as_deref(), Some("destination-id"));
+        assert_eq!(node.name, "moved-folder");
+        assert_eq!(node.etag.as_deref(), Some("\"folder-4\""));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
     async fn validation_mutation_refuses_an_occupied_destination_before_patch() {
         let (provider, server) = fixture(|_| {
             let mut before = Exchange::json(
@@ -2932,6 +3057,83 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn validation_mutation_refuses_to_trash_a_nonempty_folder() {
+        let (provider, server) = fixture(|_| {
+            let mut before = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-folder-id",
+                200,
+                named_folder_at("generated-folder-id", "root-id", "folder", "3"),
+            );
+            before.query = vec![("fields", files::FIELDS)];
+            before.response_headers = "ETag: \"folder-3\"\r\n".into();
+            let mut children = Exchange::json(
+                "GET",
+                "/drive/v3/files",
+                200,
+                json!({
+                    "files":[named_file_at("child-id", "generated-folder-id", "child", "1", 1)]
+                }),
+            );
+            children.query = vec![("q", "'generated-folder-id' in parents and trashed = false")];
+            vec![before, children]
+        })
+        .await;
+        assert!(matches!(
+            provider
+                .validation_mutations()
+                .mutate(
+                    &folder_removal_request("\"folder-3\""),
+                    &CancellationToken::new()
+                )
+                .await,
+            Err(MutationError::Conflict)
+        ));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn validation_mutation_trashes_only_an_observed_empty_conditional_folder() {
+        let (provider, server) = fixture(|_| {
+            let mut before = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-folder-id",
+                200,
+                named_folder_at("generated-folder-id", "root-id", "folder", "3"),
+            );
+            before.query = vec![("fields", files::FIELDS)];
+            before.response_headers = "ETag: \"folder-3\"\r\n".into();
+            let mut children = Exchange::json(
+                "GET",
+                "/drive/v3/files",
+                200,
+                json!({"files":[],"incompleteSearch":false}),
+            );
+            children.query = vec![("q", "'generated-folder-id' in parents and trashed = false")];
+            let mut trashed = named_folder_at("generated-folder-id", "root-id", "folder", "4");
+            trashed["trashed"] = true.into();
+            let mut trash =
+                Exchange::json("PATCH", "/drive/v3/files/generated-folder-id", 200, trashed);
+            trash.query = vec![("fields", files::FIELDS)];
+            trash.headers = vec!["if-match: \"folder-3\"".into()];
+            trash.body = Some(ExpectedBody::Json(json!({"trashed":true})));
+            vec![before, children, trash]
+        })
+        .await;
+        assert!(matches!(
+            provider
+                .validation_mutations()
+                .mutate(
+                    &folder_removal_request("\"folder-3\""),
+                    &CancellationToken::new()
+                )
+                .await,
+            Ok(MutationReceipt::Removed { item }) if item == "generated-folder-id"
+        ));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
     async fn validation_mutation_reconciles_an_exact_trashed_item() {
         let (provider, server) = fixture(|_| {
             let mut trashed_file = named_file("generated-id", "report.txt", "10", 6);
@@ -2952,6 +3154,31 @@ mod tests {
                 .await,
             Ok(MutationReconciliation::Applied(MutationReceipt::Removed { item }))
                 if item == "generated-id"
+        ));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn validation_mutation_reconciles_an_exact_trashed_folder() {
+        let (provider, server) = fixture(|_| {
+            let mut trashed = named_folder_at("generated-folder-id", "root-id", "folder", "4");
+            trashed["trashed"] = true.into();
+            let mut current =
+                Exchange::json("GET", "/drive/v3/files/generated-folder-id", 200, trashed);
+            current.query = vec![("fields", files::FIELDS)];
+            vec![current]
+        })
+        .await;
+        assert!(matches!(
+            provider
+                .validation_mutations()
+                .reconcile_mutation(
+                    &folder_removal_request("\"folder-3\""),
+                    &CancellationToken::new()
+                )
+                .await,
+            Ok(MutationReconciliation::Applied(MutationReceipt::Removed { item }))
+                if item == "generated-folder-id"
         ));
         server.await.unwrap();
     }
