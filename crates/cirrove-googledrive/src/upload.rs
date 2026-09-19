@@ -267,11 +267,18 @@ impl GoogleDrive {
         valid_id(&plan.id).map_err(UploadError::Provider)
     }
 
-    fn folder_receipt(&self, plan: &PreparedFolder, file: File) -> Result<Node> {
+    fn folder_receipt(
+        &self,
+        plan: &PreparedFolder,
+        file: File,
+        etag: Option<String>,
+    ) -> Result<Node> {
         if file.id != plan.id
             || file.name != plan.name
             || file.parents.as_slice() != [plan.parent.as_str()]
             || file.mime_type != FOLDER_MIME
+            || file.trashed
+            || file.drive_id.is_some()
         {
             return Err(UploadError::Uncertain);
         }
@@ -279,6 +286,7 @@ impl GoogleDrive {
             .node(&self.collection)
             .map_err(|_| UploadError::Uncertain)?;
         node.name = plan.name.clone();
+        node.etag = Some(etag.ok_or_else(|| protocol("missing strong Google ETag"))?);
         if node.kind != NodeKind::Folder {
             return Err(UploadError::Uncertain);
         }
@@ -333,11 +341,12 @@ impl GoogleDrive {
                     None,
                 )
                 .await?;
+            let etag = strong_etag(&response);
             let bytes = body(response, MAX_UPLOAD_RESPONSE)
                 .await
                 .map_err(|_| UploadError::Uncertain)?;
             let file: File = serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)?;
-            self.folder_receipt(plan, file)
+            self.folder_receipt(plan, file, etag)
         })
         .await
     }
@@ -352,10 +361,10 @@ impl GoogleDrive {
     ) -> Result<Option<Node>> {
         self.check_folder_plan(scope, plan)?;
         self.upload_call(cancel, Duration::from_secs(125), async {
-            match self.file(&plan.id).await {
-                Ok(file) => self.folder_receipt(plan, file).map(Some),
-                Err(ProviderError::NotFound) => Ok(None),
-                Err(error) => Err(error.into()),
+            match self.file_with_strong_etag(&plan.id).await {
+                Ok((file, etag)) => self.folder_receipt(plan, file, etag).map(Some),
+                Err(UploadError::Provider(ProviderError::NotFound)) => Ok(None),
+                Err(error) => Err(error),
             }
         })
         .await
@@ -1680,6 +1689,26 @@ impl MutationProvider for GoogleValidationMutations {
         }
     }
 
+    async fn prepare_mutation(
+        &self,
+        request: &MutationRequest,
+        cancel: &CancellationToken,
+    ) -> cirrove_core::mutation::Result<Option<String>> {
+        request.validate()?;
+        self.drive
+            .check_scope(&request.scope)
+            .map_err(MutationError::Provider)?;
+        match &request.intent {
+            MutationIntent::CreateFolder { parent, name } => self
+                .drive
+                .prepare_folder(&request.scope, parent, name, cancel)
+                .await
+                .map(|plan| Some(plan.id))
+                .map_err(mutation_error),
+            _ => Ok(None),
+        }
+    }
+
     async fn mutate(
         &self,
         request: &MutationRequest,
@@ -1716,6 +1745,46 @@ impl MutationProvider for GoogleValidationMutations {
             ),
         }
         .map_err(mutation_error)
+    }
+
+    async fn mutate_prepared(
+        &self,
+        request: &MutationRequest,
+        prepared_item: Option<&str>,
+        cancel: &CancellationToken,
+    ) -> cirrove_core::mutation::Result<MutationReceipt> {
+        if let MutationIntent::CreateFolder { parent, name } = &request.intent {
+            request.validate()?;
+            self.drive
+                .check_scope(&request.scope)
+                .map_err(MutationError::Provider)?;
+            let id = prepared_item.ok_or(MutationError::Invalid)?;
+            valid_id(id).map_err(|_| MutationError::Invalid)?;
+            let plan = PreparedFolder {
+                id: id.into(),
+                parent: parent.clone(),
+                name: name.clone(),
+            };
+            self.drive
+                .validation_destination_free(parent, name, id)
+                .await
+                .map_err(mutation_error)?;
+            let receipt = MutationReceipt::Upsert(
+                self.drive
+                    .create_prepared_folder(&request.scope, &plan, cancel)
+                    .await
+                    .map_err(mutation_error)?,
+            );
+            return if request.accepts(&receipt) {
+                Ok(receipt)
+            } else {
+                Err(MutationError::Uncertain)
+            };
+        }
+        if prepared_item.is_some() {
+            return Err(MutationError::Invalid);
+        }
+        self.mutate(request, cancel).await
     }
 
     async fn reconcile_mutation(
@@ -1776,6 +1845,47 @@ impl MutationProvider for GoogleValidationMutations {
         } else {
             Ok(MutationReconciliation::Conflict)
         }
+    }
+
+    async fn reconcile_prepared_mutation(
+        &self,
+        request: &MutationRequest,
+        prepared_item: Option<&str>,
+        cancel: &CancellationToken,
+    ) -> cirrove_core::mutation::Result<MutationReconciliation> {
+        if let MutationIntent::CreateFolder { parent, name } = &request.intent {
+            request.validate()?;
+            self.drive
+                .check_scope(&request.scope)
+                .map_err(MutationError::Provider)?;
+            let id = prepared_item.ok_or(MutationError::Invalid)?;
+            valid_id(id).map_err(|_| MutationError::Invalid)?;
+            let plan = PreparedFolder {
+                id: id.into(),
+                parent: parent.clone(),
+                name: name.clone(),
+            };
+            return match self
+                .drive
+                .inspect_prepared_folder(&request.scope, &plan, cancel)
+                .await
+                .map_err(mutation_error)?
+            {
+                Some(node) => {
+                    let receipt = MutationReceipt::Upsert(node);
+                    if request.accepts(&receipt) {
+                        Ok(MutationReconciliation::Applied(receipt))
+                    } else {
+                        Err(MutationError::Uncertain)
+                    }
+                }
+                None => Ok(MutationReconciliation::Uncommitted),
+            };
+        }
+        if prepared_item.is_some() {
+            return Err(MutationError::Invalid);
+        }
+        self.reconcile_mutation(request, cancel).await
     }
 }
 
@@ -2292,18 +2402,20 @@ mod tests {
             generate.query = vec![("count", "1"), ("space", "drive"), ("type", "files")];
             let mut create = Exchange::json("POST", "/drive/v3/files", 200, folder(generated));
             create.query = vec![("fields", files::FIELDS)];
+            create.response_headers = "ETag: \"folder-3\"\r\n".into();
             create.body = Some(ExpectedBody::Json(json!({
                 "id": generated,
                 "name": "Cirrove-Create-Validation",
                 "parents": ["root-id"],
                 "mimeType": FOLDER_MIME
             })));
-            let inspect = Exchange::json(
+            let mut inspect = Exchange::json(
                 "GET",
                 "/drive/v3/files/generated-folder-id",
                 200,
                 folder(generated),
             );
+            inspect.response_headers = "ETag: \"folder-3\"\r\n".into();
             vec![generate, create, inspect]
         })
         .await;
@@ -2325,6 +2437,114 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(inspected.id, generated);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn validation_folder_creation_uses_the_prepared_mutation_identity() {
+        let generated = "generated-folder-id";
+        let (provider, server) = fixture(|_| {
+            let mut generate = Exchange::json(
+                "GET",
+                "/drive/v3/files/generateIds",
+                200,
+                json!({"ids":[generated],"space":"drive","kind":"drive#generatedIds"}),
+            );
+            generate.query = vec![("count", "1"), ("space", "drive"), ("type", "files")];
+            let mut scan = Exchange::json("GET", "/drive/v3/files", 200, json!({"files":[]}));
+            scan.query = vec![("q", "'root-id' in parents and trashed = false")];
+            let mut create = Exchange::json("POST", "/drive/v3/files", 200, folder(generated));
+            create.query = vec![("fields", files::FIELDS)];
+            create.response_headers = "ETag: \"folder-3\"\r\n".into();
+            create.body = Some(ExpectedBody::Json(json!({
+                "id": generated,
+                "name": "Cirrove-Create-Validation",
+                "parents": ["root-id"],
+                "mimeType": FOLDER_MIME
+            })));
+            let mut inspect = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-folder-id",
+                200,
+                folder(generated),
+            );
+            inspect.response_headers = "ETag: \"folder-3\"\r\n".into();
+            vec![generate, scan, create, inspect]
+        })
+        .await;
+        let adapter = provider.validation_mutations();
+        let cancel = CancellationToken::new();
+        let request = MutationRequest {
+            scope: scope(),
+            intent: MutationIntent::CreateFolder {
+                parent: "root-id".into(),
+                name: "Cirrove-Create-Validation".into(),
+            },
+        };
+        let prepared = adapter
+            .prepare_mutation(&request, &cancel)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(prepared, generated);
+        let MutationReceipt::Upsert(created) = adapter
+            .mutate_prepared(&request, Some(&prepared), &cancel)
+            .await
+            .unwrap()
+        else {
+            panic!("expected folder receipt")
+        };
+        assert_eq!(created.id, generated);
+        assert_eq!(created.etag.as_deref(), Some("\"folder-3\""));
+        assert!(matches!(
+            adapter
+                .reconcile_prepared_mutation(&request, Some(&prepared), &cancel)
+                .await
+                .unwrap(),
+            MutationReconciliation::Applied(MutationReceipt::Upsert(node)) if node.id == generated
+        ));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn validation_folder_creation_refuses_an_occupied_destination_before_post() {
+        let generated = "generated-folder-id";
+        let (provider, server) = fixture(|_| {
+            let mut generate = Exchange::json(
+                "GET",
+                "/drive/v3/files/generateIds",
+                200,
+                json!({"ids":[generated],"space":"drive","kind":"drive#generatedIds"}),
+            );
+            generate.query = vec![("count", "1"), ("space", "drive"), ("type", "files")];
+            let mut occupied = folder("occupied-folder-id");
+            occupied["name"] = json!("cirrove-create-validation");
+            let mut scan =
+                Exchange::json("GET", "/drive/v3/files", 200, json!({"files":[occupied]}));
+            scan.query = vec![("q", "'root-id' in parents and trashed = false")];
+            vec![generate, scan]
+        })
+        .await;
+        let adapter = provider.validation_mutations();
+        let cancel = CancellationToken::new();
+        let request = MutationRequest {
+            scope: scope(),
+            intent: MutationIntent::CreateFolder {
+                parent: "root-id".into(),
+                name: "Cirrove-Create-Validation".into(),
+            },
+        };
+        let prepared = adapter
+            .prepare_mutation(&request, &cancel)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(matches!(
+            adapter
+                .mutate_prepared(&request, Some(&prepared), &cancel)
+                .await,
+            Err(MutationError::Conflict)
+        ));
         server.await.unwrap();
     }
 

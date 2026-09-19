@@ -431,9 +431,11 @@ The Google Drive read adapter now validates the shared account, metadata, cache
 and mount boundaries. Its create transport and disabled-account validator have
 synthetic protocol coverage, including persisted current/stale HTTP ETag probes
 for metadata, small content and aligned resumable content on a file created by
-the run, followed by durable shared-worker replacement, rename and move plus stale
-conflicts. The namespace adapter is confined to the private validator because
-its destination scan cannot make Google's duplicate-permitting move atomic. It
+the run, followed by durable shared-worker folder creation, replacement, rename
+and move plus stale conflicts. Folder creation journals a generated Google item
+identity before POST and reconciles that exact ID after interruption. The namespace
+adapter is confined to the private validator because its destination scan cannot
+make Google's duplicate-permitting create or move atomic. It
 also has synthetic exact-ID, ETag-conditional regular-file trash coverage, which
 the live validator does not invoke. The validator has not been run and no
 writable mount selects these transports while collision and replacement rules

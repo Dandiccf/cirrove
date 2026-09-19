@@ -44,8 +44,11 @@ a session checkpoint. Synthetic tests cover the ordering, lost sessions, partial
 offsets, receipts and content verification. A separate disabled connection may
 now request `drive.file` beside the existing read-only scope for one explicit
 create validator. It cannot be enabled or selected for a writable mount. The
-validator pre-generates and persists its test-folder identity before creating
-multipart and empty files through the shared worker. Its direct capability
+validator now creates both its top-level and nested test folders through the
+shared mutation worker. The worker pre-generates and journals each exact Google
+identity before POST, so restart reconciliation never adopts by sibling name.
+It then creates multipart and empty files through the shared transfer worker. Its
+direct capability
 probes cover current and stale strong HTTP ETags for metadata, small media
 replacement and aligned resumable replacement on its own created file. Synthetic
 cases distinguish rejection when a resumable session starts or finishes, an
@@ -54,10 +57,11 @@ does not document this behavior. The adapter now implements shared-worker
 replacement behind the disabled validator and tests its durable preparation,
 conditional session, conflict and reconciliation behavior synthetically; the
 validator has not been run against Google. A validator-only namespace adapter
-also sends exact-ID conditional rename and move through the shared mutation
-worker and reconciles by immutable identity. Its preflight destination scan does
-not make Google's duplicate-name semantics atomic, so normal mounts cannot select
-it. Exact-ID conditional regular-file trash is also synthetic only and treats a
+also sends prepared-ID folder creation and exact-ID conditional rename and move
+through the shared mutation worker and reconciles by immutable identity. Its
+preflight destination scan does not make Google's duplicate-name semantics atomic
+for either create or move, so normal mounts cannot select it. Exact-ID conditional
+regular-file trash is also synthetic only and treats a
 404 as indeterminate rather than proof of success. Duplicate-name collision
 semantics and conditional replacement stability remain unresolved.
 

@@ -6,7 +6,7 @@ use crate::{
     mutations::MutationWorker,
 };
 use cirrove_core::{
-    ReadProvider,
+    NodeKind, ReadProvider,
     mutation::{MutationIntent, MutationReceipt, MutationRequest},
 };
 use cirrove_googledrive::GoogleDrive;
@@ -151,38 +151,6 @@ pub async fn google_create(state: &Path, label: &str) -> Result<()> {
 
     let google = accounts::google_provider(&account)?;
     let cancel = CancellationToken::new();
-    let plan = google
-        .prepare_folder(&scope, &account.root_id, &name, &cancel)
-        .await?;
-    // The exact generated identity is durable before the first mutation. If a
-    // response is lost, the run never searches or adopts by non-unique name.
-    event(
-        &mut log,
-        serde_json::json!({"stage":"folder_prepared", "folder":plan}),
-    )?;
-    let folder = match google
-        .create_prepared_folder(&scope, &plan, &cancel)
-        .await
-    {
-        Ok(folder) => folder,
-        Err(UploadError::Uncertain) => google
-            .inspect_prepared_folder(&scope, &plan, &cancel)
-            .await?
-            .context("Google folder-create outcome is uncertain; the prepared identity is retained in the private evidence")?,
-        Err(error) => return Err(error.into()),
-    };
-    let inspected = google
-        .inspect_prepared_folder(&scope, &plan, &cancel)
-        .await?
-        .context("created Google validation folder is absent")?;
-    if inspected.id != folder.id {
-        bail!("Google validation folder identity changed after creation");
-    }
-    event(
-        &mut log,
-        serde_json::json!({"stage":"folder_created", "node":folder}),
-    )?;
-
     let journal_path = directory.join("journal");
     let account_id = account.id.clone();
     let journal = Arc::new(Mutex::new(
@@ -191,6 +159,48 @@ pub async fn google_create(state: &Path, label: &str) -> Result<()> {
         })
         .await??,
     ));
+    let mutation_worker = MutationWorker::new(
+        journal.clone(),
+        Arc::new(google.validation_mutations()),
+        cancel.clone(),
+    );
+    println!("Checking Google folder creation through the provider-neutral mutation worker.");
+    let folder_record = apply_mutation(
+        &journal,
+        &mutation_worker,
+        MutationRequest {
+            scope: scope.clone(),
+            intent: MutationIntent::CreateFolder {
+                parent: account.root_id.clone(),
+                name: name.clone(),
+            },
+        },
+        MutationState::Applied,
+        &mut log,
+        "folder_created",
+    )
+    .await?;
+    let Some(MutationReceipt::Upsert(folder)) = folder_record.receipt else {
+        bail!("Google worker folder create has no exact provider receipt");
+    };
+    if folder_record.prepared_item.as_ref() != Some(&folder.id)
+        || folder.parent_id.as_ref() != Some(&account.root_id)
+        || folder.name != name
+        || folder.kind != NodeKind::Folder
+    {
+        bail!("Google worker folder create returned a different item or destination");
+    }
+    let inspected = google
+        .node(&scope, &folder.id, &cancel)
+        .await
+        .context("created Google validation folder is absent")?;
+    if inspected.id != folder.id
+        || inspected.parent_id != folder.parent_id
+        || inspected.kind != NodeKind::Folder
+    {
+        bail!("Google validation folder identity changed after creation");
+    }
+
     let worker = TransferWorker::new(
         journal.clone(),
         google.clone(),
@@ -428,11 +438,6 @@ pub async fn google_create(state: &Path, label: &str) -> Result<()> {
         }),
     )?;
     println!("Checking Google rename through the provider-neutral mutation worker.");
-    let mutation_worker = MutationWorker::new(
-        journal.clone(),
-        Arc::new(google.validation_mutations()),
-        cancel.clone(),
-    );
     let relocate = |before: Node, name: &str| MutationRequest {
         scope: scope.clone(),
         intent: MutationIntent::Relocate {
@@ -466,44 +471,32 @@ pub async fn google_create(state: &Path, label: &str) -> Result<()> {
         bail!("Google worker rename did not advance the strong ETag");
     }
 
-    let destination_plan = google
-        .prepare_folder(&scope, &folder.id, "Destination", &cancel)
-        .await?;
-    event(
+    println!("Checking nested Google folder creation through the same mutation worker.");
+    let destination_record = apply_mutation(
+        &journal,
+        &mutation_worker,
+        MutationRequest {
+            scope: scope.clone(),
+            intent: MutationIntent::CreateFolder {
+                parent: folder.id.clone(),
+                name: "Destination".into(),
+            },
+        },
+        MutationState::Applied,
         &mut log,
-        serde_json::json!({
-            "stage":"move_destination_prepared",
-            "folder":destination_plan
-        }),
-    )?;
-    let destination = match google
-        .create_prepared_folder(&scope, &destination_plan, &cancel)
-        .await
-    {
-        Ok(folder) => folder,
-        Err(UploadError::Uncertain) => google
-            .inspect_prepared_folder(&scope, &destination_plan, &cancel)
-            .await?
-            .context(
-                "Google move-destination outcome is uncertain; its prepared identity is retained",
-            )?,
-        Err(error) => return Err(error.into()),
+        "move_destination_created",
+    )
+    .await?;
+    let Some(MutationReceipt::Upsert(destination)) = destination_record.receipt else {
+        bail!("Google worker destination create has no exact provider receipt");
     };
-    let inspected_destination = google
-        .inspect_prepared_folder(&scope, &destination_plan, &cancel)
-        .await?
-        .context("created Google move destination is absent")?;
-    if inspected_destination.id != destination.id {
-        bail!("Google move-destination identity changed after creation");
+    if destination_record.prepared_item.as_ref() != Some(&destination.id)
+        || destination.parent_id.as_ref() != Some(&folder.id)
+        || destination.name != "Destination"
+        || destination.kind != NodeKind::Folder
+    {
+        bail!("Google worker destination create returned a different item or destination");
     }
-    event(
-        &mut log,
-        serde_json::json!({
-            "stage":"move_destination_created",
-            "item":destination.id,
-            "parent":folder.id
-        }),
-    )?;
     let moved_name = "Kärnten & Grüße #1-worker-moved.bin";
     println!("Checking Google move through the same provider-neutral mutation worker.");
     let moved_again = apply_mutation(

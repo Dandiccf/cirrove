@@ -548,8 +548,11 @@ ordinary act of creating a folder and changing their mind.
 After interruption, a namespace operation requires verification. A matching immutable
 item at the requested new name/parent can complete a lost rename/move response.
 An unchanged original revision permits a new conditional attempt. A missing item
-alone does not establish deletion: lost deletes and unidentified folder creations
-can enter `NeedsReview`, retaining their request without an automatic retry loop.
+alone does not establish deletion. A provider may now reserve an exact item identity
+through `prepare_mutation`; the worker stores that account + collection + item identity
+in the journal before the first mutation. A missing prepared create is therefore
+uncommitted and can retry with the same identity, while an unidentified legacy folder
+creation can still enter `NeedsReview`.
 HTTP success is required for a confirmed deletion receipt. File DELETE uses the
 provider's recycle-bin behavior; it is not permanent deletion or local POSIX rmdir.
 Nothing in the tree deletes permanently, and no setting makes the default do so.
@@ -1030,7 +1033,7 @@ Status adds an optional `provider` field without renaming protocol-1 fields.
 Legacy `drive_id`, `drive`, `tenant` and `graph_gets` spellings remain compatibility
 fields; Google's tenant is empty and its optional read-path counters are absent,
 not fabricated Graph values. This additive change deliberately defers the planned
-wire rename in [ADR 0009](adr/0009-a-second-provider.md). No Google write capability
+wire rename in [ADR 0009](adr/0009-a-second-provider.md). No mounted Google write capability
 or weaker replacement contract is introduced by this read-only implementation.
 
 The shared upload contract now covers one concrete Google create prerequisite
@@ -1055,12 +1058,14 @@ is reconciled by identity and SHA-256. Ordinary account construction still does
 not select a writable Google mount.
 
 The same disabled validator can construct a separate namespace adapter and pass
-it to the provider-neutral mutation worker. It supports regular-file rename and
-move only inside the validator's private fixture: the exact source is read with a
+it to the provider-neutral mutation worker. Folder creation first obtains a Google
+generated ID, persists that exact identity in the mutation journal and only then
+issues the POST; restart reconciliation addresses the same ID. Regular-file rename
+and move work inside the validator's private fixture: the exact source is read with a
 strong ETag, the destination is scanned for a case-folded collision, the PATCH
 uses `If-Match`, and reconciliation checks the immutable item ID at the requested
 raw Google name and parent. This does not close the race between the destination
-scan and Google's duplicate-permitting update, so normal provider construction
+scan and Google's duplicate-permitting create/update, so normal provider construction
 does not expose this adapter.
 
 The validator-only adapter also implements regular-file removal as an exact-ID
@@ -1070,8 +1075,8 @@ an exact trashed identity, but a 404 remains indeterminate because absence alone
 cannot prove who removed the item. This path has synthetic coverage and is not
 called by the live validator or any mount.
 
-The Google adapter implements create and validation-only replacement against this
-contract: pre-generated IDs, exact replacement identities, resumable ranges,
+The Google adapter implements file create/replacement and validation-only folder
+create against these contracts: pre-generated IDs, exact identities, resumable ranges,
 strong preconditions, exact remote offsets and streamed SHA-256 reconciliation.
 Synthetic HTTP exercises it. Ordinary account construction still
 returns only the read provider; a separate disabled validation connection may

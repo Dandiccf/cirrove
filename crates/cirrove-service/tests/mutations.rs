@@ -207,9 +207,21 @@ fn requests_reject_wildcards_recursive_delete_shortcuts_and_foreign_accounts() {
     r = request();
     r.scope.account = "other".into();
     assert!(matches!(j.enqueue_mutation(r), Err(JournalError::Account)));
+    let queued = j.enqueue_mutation(request()).unwrap();
+    let active = j.claim_mutation().unwrap().unwrap();
+    assert_eq!(active.id, queued.id);
+    assert!(matches!(
+        j.record_prepared_mutation(
+            active.id,
+            active.attempt.unwrap(),
+            "https://signed.example/secret".into()
+        ),
+        Err(JournalError::Intent)
+    ));
 }
 struct Provider {
     mode: &'static str,
+    preparations: AtomicUsize,
     mutations: AtomicUsize,
     checks: AtomicUsize,
     journal: Weak<Mutex<UploadJournal>>,
@@ -227,6 +239,20 @@ impl Provider {
 }
 #[async_trait]
 impl MutationProvider for Provider {
+    async fn prepare_mutation(
+        &self,
+        _: &MutationRequest,
+        _: &CancellationToken,
+    ) -> Result<Option<String>> {
+        self.unlocked();
+        if self.mode == "prepared_lost" {
+            self.preparations.fetch_add(1, Ordering::SeqCst);
+            Ok(Some("reserved-folder-id".into()))
+        } else {
+            Ok(None)
+        }
+    }
+
     async fn mutate(&self, r: &MutationRequest, c: &CancellationToken) -> Result<MutationReceipt> {
         self.unlocked();
         self.mutations.fetch_add(1, Ordering::SeqCst);
@@ -240,6 +266,20 @@ impl MutationProvider for Provider {
         if self.mode == "success" {
             return Ok(receipt(r));
         }
+        Err(MutationError::Uncertain)
+    }
+    async fn mutate_prepared(
+        &self,
+        r: &MutationRequest,
+        prepared_item: Option<&str>,
+        c: &CancellationToken,
+    ) -> Result<MutationReceipt> {
+        if self.mode != "prepared_lost" {
+            return self.mutate(r, c).await;
+        }
+        self.unlocked();
+        assert_eq!(prepared_item, Some("reserved-folder-id"));
+        self.mutations.fetch_add(1, Ordering::SeqCst);
         Err(MutationError::Uncertain)
     }
     async fn reconcile_mutation(
@@ -261,15 +301,77 @@ impl MutationProvider for Provider {
             MutationReconciliation::Applied(receipt(r))
         })
     }
+    async fn reconcile_prepared_mutation(
+        &self,
+        r: &MutationRequest,
+        prepared_item: Option<&str>,
+        c: &CancellationToken,
+    ) -> Result<MutationReconciliation> {
+        if self.mode != "prepared_lost" {
+            return self.reconcile_mutation(r, c).await;
+        }
+        self.unlocked();
+        assert_eq!(prepared_item, Some("reserved-folder-id"));
+        self.checks.fetch_add(1, Ordering::SeqCst);
+        let MutationReceipt::Upsert(mut node) = receipt(r) else {
+            panic!("expected prepared folder receipt")
+        };
+        node.id = "reserved-folder-id".into();
+        Ok(MutationReconciliation::Applied(MutationReceipt::Upsert(
+            node,
+        )))
+    }
 }
 fn provider(mode: &'static str, j: &Arc<Mutex<UploadJournal>>) -> Arc<Provider> {
     Arc::new(Provider {
         mode,
+        preparations: AtomicUsize::new(0),
         mutations: AtomicUsize::new(0),
         checks: AtomicUsize::new(0),
         journal: Arc::downgrade(j),
         entered: tokio::sync::Notify::new(),
     })
+}
+
+#[tokio::test]
+async fn prepared_identity_survives_restart_and_reconciles_without_a_second_reservation() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("journal");
+    let j = Arc::new(Mutex::new(journal(&root)));
+    let mut create = request();
+    create.intent = MutationIntent::CreateFolder {
+        parent: "destination".into(),
+        name: "new-folder".into(),
+    };
+    let record = j.lock().unwrap().enqueue_mutation(create).unwrap();
+    let p = provider("prepared_lost", &j);
+    let worker = MutationWorker::new(j.clone(), p.clone(), CancellationToken::new());
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        MutationState::VerifyRequired
+    );
+    assert_eq!(
+        j.lock()
+            .unwrap()
+            .mutation(record.id)
+            .unwrap()
+            .prepared_item
+            .as_deref(),
+        Some("reserved-folder-id")
+    );
+    drop(worker);
+    drop(j);
+
+    let j = Arc::new(Mutex::new(journal(&root)));
+    j.lock().unwrap().request_mutation_retry(record.id).unwrap();
+    let worker = MutationWorker::new(j.clone(), p.clone(), CancellationToken::new());
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        MutationState::Applied
+    );
+    assert_eq!(p.preparations.load(Ordering::SeqCst), 1);
+    assert_eq!(p.mutations.load(Ordering::SeqCst), 1);
+    assert_eq!(p.checks.load(Ordering::SeqCst), 1);
 }
 #[tokio::test]
 async fn worker_exposes_content_conflict_after_a_lost_rename_instead_of_acknowledging_a_new_base() {

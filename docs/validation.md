@@ -2633,7 +2633,8 @@ exact remote object during reconciliation. Negative controls show that the worke
 test fails without pre-session persistence, the restart test fails with the old
 narrow status mapping and the range test fails if a reply may advance beyond the
 bytes submitted. An explicit disabled-account validator can now request
-`drive.file`, pre-generate and persist an isolated folder identity, create a
+`drive.file`, create and persist an isolated folder identity through the shared
+mutation worker, create a
 multipart file and an empty file through the shared worker, then read each exact
 identity back and compare SHA-256. It now also persists an exact plan for the
 multipart file, applies a metadata rename with the current strong HTTP ETag and
@@ -2650,11 +2651,19 @@ conditional session creation, pre-session conflict, finalization conflict and
 exact-hash reconciliation after a lost success, while invalid preconditions and
 empty replacements issue no network request. The live validator follows its
 capability probes with one worker replacement and a stale worker conflict.
-It then creates an exact-ID destination folder and routes a rename and move
-through the mutation journal and worker before requiring a stale relocation to
+It then creates an exact-ID destination folder through the same mutation worker
+and routes a rename and move through it before requiring a stale relocation to
 conflict. The validator-only adapter scans its private destination for a
 case-folded collision but does not claim Google's missing atomic collision rule.
 Session URLs and ETags do not enter the evidence log.
+The generic mutation worker stores a provider-prepared item identity before the
+first mutation. A synthetic restart test removes the worker, reopens the journal
+and reconciles the exact prepared folder without generating a second identity.
+Removing only that journal write made the test fail because the durable record
+contained no prepared item; restoration passed.
+The resulting complete `scripts/check.sh` passed with 662 Rust test executions,
+all kernel mount groups, script tests, the acceptance ledger and docs. No Google
+write grant or live mutation participated.
 The validator has not been run, so no
 Google write scope or mutation participated in the evidence recorded here; the
 writable namespace and replacement rules remain open.

@@ -31,6 +31,11 @@ pub struct MutationRecord {
     pub base: Option<WriteBase>,
     #[serde(default)]
     pub working_file: Option<Uuid>,
+    /// Exact provider item identity reserved before a create mutation. Scope is
+    /// carried by the request, so this is account + collection + item rather
+    /// than a path. It may never contain a credential or signed URL.
+    #[serde(default)]
+    pub prepared_item: Option<String>,
     /// A local reader-preservation barrier; independent of cloud receipt lineage.
     #[serde(default = "locally_ready")]
     pub local_ready: bool,
@@ -211,6 +216,7 @@ impl UploadJournal {
             failed_attempts: 0,
             base: order.base,
             working_file: working.as_ref().map(|file| file.id),
+            prepared_item: None,
             local_ready: true,
         };
         let tx = self.db.transaction()?;
@@ -384,6 +390,28 @@ impl UploadJournal {
         }
         Ok(record)
     }
+
+    /// Persist a provider-reserved identity before the first mutating request.
+    pub fn record_prepared_mutation(
+        &mut self,
+        id: Uuid,
+        attempt: Uuid,
+        item: String,
+    ) -> Result<()> {
+        if item.is_empty()
+            || item.len() > 4096
+            || item.contains(['\0', '\r', '\n'])
+            || item.contains("://")
+        {
+            return Err(JournalError::Intent);
+        }
+        let mut record = self.mutation_attempt(id, attempt)?;
+        if record.state != MutationState::Applying || record.prepared_item.is_some() {
+            return Err(JournalError::Stale);
+        }
+        record.prepared_item = Some(item);
+        self.save_mutation(&record)
+    }
     pub fn acknowledge_mutation(
         &mut self,
         id: Uuid,
@@ -392,6 +420,11 @@ impl UploadJournal {
     ) -> Result<MutationState> {
         let mut record = self.mutation_attempt(id, attempt)?;
         if !record.request.accepts(&receipt) {
+            return Err(JournalError::Corrupt);
+        }
+        if let Some(prepared) = &record.prepared_item
+            && !matches!(&receipt, MutationReceipt::Upsert(node) if &node.id == prepared)
+        {
             return Err(JournalError::Corrupt);
         }
         record.state = reconciled_state(&record, &receipt);
@@ -418,6 +451,26 @@ impl UploadJournal {
         }
         let mut record = self.mutation_attempt(id, attempt)?;
         record.state = state;
+        record.attempt = None;
+        record.retry_at = now_seconds()
+            .saturating_add(delay.as_secs())
+            .min(i64::MAX as u64);
+        record.failed_attempts = record.failed_attempts.saturating_add(1);
+        self.save_mutation(&record)
+    }
+    /// A provider preparation call is defined as non-mutating, so a transient
+    /// failure can return to pending without entering remote reconciliation.
+    pub fn defer_mutation_preparation(
+        &mut self,
+        id: Uuid,
+        attempt: Uuid,
+        delay: std::time::Duration,
+    ) -> Result<()> {
+        let mut record = self.mutation_attempt(id, attempt)?;
+        if record.state != MutationState::Applying || record.prepared_item.is_some() {
+            return Err(JournalError::Stale);
+        }
+        record.state = MutationState::Pending;
         record.attempt = None;
         record.retry_at = now_seconds()
             .saturating_add(delay.as_secs())

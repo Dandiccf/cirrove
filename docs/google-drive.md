@@ -3,7 +3,8 @@
 The next provider is Google Drive. This is an implemented **read-only My Drive
 preview with synthetic validation and a first real-account smoke check**, not a
 claim of reliable Google-account operation. It uses Cirrove's existing engine, SQLite staging, disk cache, pin
-jobs and FUSE mount. Create, replacement and validation-only relocate transports
+jobs and FUSE mount. File create/replacement and validation-only prepared folder
+create and relocate transports
 exist behind the provider interfaces and are tested with synthetic HTTP. An explicit developer command can
 request `drive.file`, prepare an isolated live create check and characterize
 HTTP ETag handling for metadata and content on one file created by that run,
@@ -54,6 +55,15 @@ the submitted range. Session URLs are accepted only on the configured Google
 origin and upload path; they remain in the vault checkpoint and are never sent as
 Bearer credentials or written to SQLite and diagnostics.
 
+Folder creation uses the mutation worker's parallel preparation boundary. Google
+generates an exact item ID without changing Drive; the worker stores that item ID
+with its account and collection in SQLite before the POST. After interruption it
+inspects only that ID: an exact matching folder completes the operation, while a
+404 is uncommitted and retries with the same identity. Synthetic restart coverage
+fails if this journal write is removed. The validator's case-folded destination
+scan still cannot prevent an independent client from creating the same sibling
+name between the scan and POST.
+
 An expired or otherwise rejected resumable session can be replaced once during
 verification while retaining the same generated file ID. A `429` response keeps
 the existing session and applies its bounded retry delay; every other `4xx`
@@ -86,8 +96,9 @@ resumable `PATCH` with `If-Match`, reports a 412 at either boundary as a conflic
 and reconciles a lost response by exact ID and SHA-256. The validator follows the
 direct probes with one successful worker replacement and one stale worker
 conflict. All observed ETag behavior still needs live evidence plus a documented
-stability decision. A separate validator-only namespace adapter also routes one
-rename and one move through the provider-neutral mutation journal and worker. It
+stability decision. A separate validator-only namespace adapter also routes both
+test-folder creates, one rename and one move through the provider-neutral mutation
+journal and worker. Folder creation durably reserves the generated Google ID first. It
 checks the private destination for a case-folded collision, sends the source's
 strong ETag on the exact-ID PATCH, reconciles a lost response by exact identity,
 and requires a stale follow-up to conflict. This check is not atomic against an
@@ -164,7 +175,8 @@ cirrove validate-google-create \
 ```
 
 The write-grant connection is saved disabled and settings validation refuses to
-enable it. The validator persists a generated folder ID before mutation, creates
+enable it. The validator creates its top-level test folder through the mutation
+worker, which persists a generated Google ID before mutation, then creates
 an 8 MiB-plus multipart file and an empty file inside that folder, then reads
 both back by exact provider identity and SHA-256. It next persists an exact
 metadata-probe plan, renames the multipart file with its current strong HTTP
@@ -176,8 +188,8 @@ MiB-plus payloads, performs an aligned resumable replacement and repeats the
 stale attempt. It then obtains a fresh strong ETag and sends another 8 MiB-plus
 replacement through the provider-neutral journal, vault checkpoints and transfer
 worker; reusing that ETag for a second worker operation must end in conflict. It
-then prepares a nested destination folder by exact ID and sends a rename followed
-by a move through the provider-neutral mutation journal and worker. Exact-ID
+then creates a nested destination folder through the same mutation worker and
+sends a rename followed by a move through it. Exact-ID
 inspection must observe both destinations and a follow-up using the stale rename
 base must end in conflict. A
 missing strong ETag or an accepted stale update fails the command. Session URLs
@@ -213,9 +225,11 @@ stale-401 protection and refusal to use a rotation that the keyring cannot save.
 The Microsoft authentication tests remain part of the same suite. Google OAuth
 tests distinguish the normal read-only grant from the explicit
 `drive.readonly` plus `drive.file` validator grant. Account tests require a
-Google write-validation connection to remain disabled. A synthetic folder test
-pre-generates its ID, verifies the exact create request and inspects that ID
-afterward. Three metadata-probe and three small-content-probe tests require the
+Google write-validation connection to remain disabled. Synthetic folder tests
+pre-generate an ID, verify the exact create request and inspection, exercise the
+provider-neutral prepared mutation path and refuse an occupied case-folded
+destination before POST. A service restart test proves the prepared ID survives
+the journal handoff and is not generated a second time. Three metadata-probe and three small-content-probe tests require the
 original strong ETag on the first PATCH, distinguish a rejected stale retry from
 an ignored precondition, and issue no PATCH when metadata has no strong ETag.
 Four resumable-probe tests additionally cover aligned multi-range transfer,
@@ -225,7 +239,8 @@ resulting bytes and compare SHA-256. Five shared-worker adapter tests additional
 cover durable target preparation, conditional session creation, a changed ETag
 before mutation, a 412 at finalization, exact-hash reconciliation after a lost
 success response and rejection of weak, malformed or empty requests without
-network access. Six validation-mutation tests cover conditional exact-ID move, a
+network access. Eight validation-mutation tests cover prepared folder creation
+and collision plus conditional exact-ID move, a
 changed source ETag before destination lookup, case-folded destination collision,
 both applied and uncommitted reconciliation outcomes, and rejection of a weak
 ETag without network access. Three further cases cover an exact conditional move
@@ -294,6 +309,14 @@ on 2026-09-19: 659 Rust test executions plus the kernel groups, script tests,
 ledger and docs build. The exact move and trash tests each failed when only their
 `If-Match` header was removed and passed after restoration. The live validator
 still has not been run, and it does not invoke the removal path.
+
+Extending that worker with a durable prepared item identity and routing both
+validator folders through it added two Google HTTP cases and one restart case.
+Removing only the journal write for that identity made the restart test fail with
+no prepared item after the simulated lost response; restoring it passed. The
+complete `scripts/check.sh` then passed with 662 Rust test executions, all kernel
+mount groups, script tests, the acceptance ledger and docs. No live Google
+mutation was used.
 
 ## First real-account connection, 2026-09-19
 

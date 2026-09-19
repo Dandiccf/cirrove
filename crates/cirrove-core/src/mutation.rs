@@ -214,6 +214,20 @@ pub trait MutationProvider: Send + Sync {
         Err(MutationError::Invalid)
     }
 
+    /// Reserve an exact provider item identity before the first mutating call.
+    ///
+    /// This call must not mutate provider state. The worker persists the returned item ID together with the account and
+    /// collection already carried by `request`. It must therefore be an opaque
+    /// item identity only, never a token, cursor or signed URL. Providers whose
+    /// namespace operations do not need preparation use the default `None`.
+    async fn prepare_mutation(
+        &self,
+        _request: &MutationRequest,
+        _cancel: &CancellationToken,
+    ) -> Result<Option<String>> {
+        Ok(None)
+    }
+
     /// Return the actual conditional mutation receipt. A later independent GET
     /// can include another actor's edit and is not an equivalent upload base.
     async fn mutate(
@@ -221,9 +235,39 @@ pub trait MutationProvider: Send + Sync {
         request: &MutationRequest,
         cancel: &CancellationToken,
     ) -> Result<MutationReceipt>;
+
+    /// Apply a mutation using the exact identity saved by
+    /// [`Self::prepare_mutation`]. The default rejects a prepared identity and
+    /// preserves the existing unprepared provider contract.
+    async fn mutate_prepared(
+        &self,
+        request: &MutationRequest,
+        prepared_item: Option<&str>,
+        cancel: &CancellationToken,
+    ) -> Result<MutationReceipt> {
+        if prepared_item.is_some() {
+            return Err(MutationError::Invalid);
+        }
+        self.mutate(request, cancel).await
+    }
     async fn reconcile_mutation(
         &self,
         request: &MutationRequest,
         cancel: &CancellationToken,
     ) -> Result<MutationReconciliation>;
+
+    /// Reconcile using the same durable provider identity. A provider that
+    /// prepares an identity must override this together with
+    /// [`Self::mutate_prepared`].
+    async fn reconcile_prepared_mutation(
+        &self,
+        request: &MutationRequest,
+        prepared_item: Option<&str>,
+        cancel: &CancellationToken,
+    ) -> Result<MutationReconciliation> {
+        if prepared_item.is_some() {
+            return Err(MutationError::Invalid);
+        }
+        self.reconcile_mutation(request, cancel).await
+    }
 }

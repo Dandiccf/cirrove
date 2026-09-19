@@ -95,8 +95,8 @@ and exposed a callback-host bug that is now fixed. A bounded validator later
 matched three non-link files between direct adapter reads and the mount. Its
 single shortcut lookup confirmed a dangling Google target, which remains `ENOENT`.
 Wider live acceptance is open. Google documents appear as browser links; exports, shared drives
-and Google writes are not exposed through a mount. Create, replacement and
-validator-only rename/move and recoverable regular-file removal transports have
+and Google writes are not exposed through a mount. File create/replacement and
+validator-only prepared folder create, rename/move and recoverable regular-file removal transports have
 synthetic coverage through the shared durable contracts; the isolated
 disabled-account validator has not been run and does not invoke removal. The
 service remains read-only while atomic collision and replacement stability are

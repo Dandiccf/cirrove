@@ -3,6 +3,7 @@ use crate::journal::{JournalError, MutationState, UploadJournal};
 use cirrove_core::mutation::{MutationError, MutationProvider, MutationReconciliation};
 use cirrove_core::{CancellationToken, ProviderError};
 use std::{
+    future::Future,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -42,24 +43,95 @@ impl MutationWorker {
         .await
         .map_err(|_| JournalError::Storage)?
     }
+    async fn remote<T>(
+        &self,
+        call: impl Future<Output = cirrove_core::mutation::Result<T>>,
+    ) -> cirrove_core::mutation::Result<T> {
+        tokio::select! { biased;
+            _=self.cancel.cancelled()=>Err(MutationError::Uncertain),
+            result=tokio::time::timeout(Duration::from_secs(130),call)=>
+                result.unwrap_or(Err(MutationError::Uncertain)),
+        }
+    }
     pub async fn run_once(&self) -> Result<Option<MutationResult>, JournalError> {
         if self.cancel.is_cancelled() {
             return Ok(None);
         }
-        let Some(record) = self.local(|j| j.claim_mutation()).await? else {
+        let Some(mut record) = self.local(|j| j.claim_mutation()).await? else {
             return Ok(None);
         };
         let id = record.id;
         let attempt = record.attempt.ok_or(JournalError::Stale)?;
-        let result = tokio::select! { biased;
-            _=self.cancel.cancelled()=>Err(MutationError::Uncertain),
-            result=tokio::time::timeout(Duration::from_secs(130),async {
-                if record.state==MutationState::Verifying {
-                    self.provider.reconcile_mutation(&record.request,&self.cancel).await
-                } else {
-                    self.provider.mutate(&record.request,&self.cancel).await.map(MutationReconciliation::Applied)
+        if record.state == MutationState::Applying && record.prepared_item.is_none() {
+            match self
+                .remote(
+                    self.provider
+                        .prepare_mutation(&record.request, &self.cancel),
+                )
+                .await
+            {
+                Ok(Some(item)) => {
+                    let saved = item.clone();
+                    self.local(move |j| j.record_prepared_mutation(id, attempt, saved))
+                        .await?;
+                    record.prepared_item = Some(item);
                 }
-            })=>result.unwrap_or(Err(MutationError::Uncertain))
+                Ok(None) => {}
+                Err(error) => {
+                    let terminal = matches!(
+                        error,
+                        MutationError::Invalid
+                            | MutationError::Unsupported(_)
+                            | MutationError::Quota
+                            | MutationError::Provider(
+                                ProviderError::Permission
+                                    | ProviderError::Authentication
+                                    | ProviderError::NotFound
+                            )
+                    );
+                    let state = if terminal {
+                        MutationState::Failed
+                    } else {
+                        MutationState::Pending
+                    };
+                    let delay = match &error {
+                        MutationError::Provider(ProviderError::Throttled(delay)) => {
+                            delay.saturating_add(Duration::from_secs(1))
+                        }
+                        _ => Duration::from_secs(2u64.pow(record.failed_attempts.min(6) + 1)),
+                    };
+                    if terminal {
+                        self.local(move |j| {
+                            j.defer_mutation(id, attempt, MutationState::Failed, delay)
+                        })
+                        .await?;
+                    } else {
+                        self.local(move |j| j.defer_mutation_preparation(id, attempt, delay))
+                            .await?;
+                    }
+                    return Ok(Some(MutationResult {
+                        id,
+                        state,
+                        issue: Some(error.to_string()),
+                    }));
+                }
+            }
+        }
+        let result = if record.state == MutationState::Verifying {
+            self.remote(self.provider.reconcile_prepared_mutation(
+                &record.request,
+                record.prepared_item.as_deref(),
+                &self.cancel,
+            ))
+            .await
+        } else {
+            self.remote(self.provider.mutate_prepared(
+                &record.request,
+                record.prepared_item.as_deref(),
+                &self.cancel,
+            ))
+            .await
+            .map(MutationReconciliation::Applied)
         };
         let (state, issue) = match result {
             Ok(MutationReconciliation::Applied(receipt)) => {
