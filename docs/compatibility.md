@@ -84,3 +84,11 @@ filesystem gives in the same situation.
 | Uninstall with a live account | real -- Fedora 44 VM, 2026-09-14, packages removed with the drive mounted and 2.6 GB of state: nothing packaged survived under /usr or /etc, the state directory and the keyring grant were left alone, and stopping the service unmounted cleanly with no stale handle. The removal does leave the daemon running from a deleted binary still serving the mount until the session ends. `cirrove local-data` now reports what is kept and `--discard-removed` reclaims what an earlier removal set aside | benchmarks/clean-uninstall.json |
 | Arch packages installed on a clean system | real -- an Arch 2026.09.01 VM installed unattended on 2026-09-14, packages from CI: every file where it belongs including the German catalogue, service and tray back after a reboot from the packaged autostart alone, the window German from the package, and pacman -Rns leaving nothing named cirrove behind. Note that Arch does not install the optional Files and tray integration: unlike Fedora's and Debian's Recommends, optdepends are the user's to add. Sign-in untested here | benchmarks/arch-clean-install.json |
 | Package upgrade under a live account | real -- Fedora 44 VM, 2026-09-14, r409 to r418 and back: the account, the credential in its keyring and a pin survive both directions and exactly one Files extension remains. Neither direction restarts the daemon or the tray, which go on running from deleted binaries, so the person stays on the version they replaced; the window now says so. See [the record](benchmarks/upgrade-and-rollback.json) |
+
+## Google Drive preview
+
+A second adapter now runs through the existing engine, store, cache and FUSE mount.
+My Drive listing, polled changes, bounded reads, duplicate names, offline cache
+reopen and Google OAuth guards have synthetic coverage. No live Google account
+has been checked. Google documents appear as browser links; exports, shared drives
+and Google writes are not implemented. See [Google Drive](google-drive.md).

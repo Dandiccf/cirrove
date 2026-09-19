@@ -80,7 +80,7 @@ pub async fn onedrive_pinning(state: &Path, label: &str) -> Result<()> {
     };
     let cancel = CancellationToken::new();
     let _cancel_on_return = cancel.clone().drop_guard();
-    let graph = accounts::provider(&account)?;
+    let graph = accounts::onedrive_provider(&account)?;
     let name = format!("Cirrove-Pinning-Validation-{run}");
     let root = graph
         .create_folder(&scope, &account.root_id, &name, &cancel)

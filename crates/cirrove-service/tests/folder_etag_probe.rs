@@ -43,7 +43,7 @@ async fn folder_etag_and_mtime_ignore_their_children() {
         .find(|a| a.access == cirrove_auth::AccessMode::ReadWrite && !a.enabled)
         .expect("a disabled, explicitly writable account");
 
-    let graph = cirrove_service::accounts::provider(&account).expect("provider");
+    let graph = cirrove_service::accounts::onedrive_provider(&account).expect("provider");
     let scope = Scope {
         account: account.id.clone(),
         provider: "onedrive".into(),

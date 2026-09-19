@@ -79,7 +79,8 @@ currently bundled; another project's client ID is never substituted.
 
 ## 6 — Additional providers
 
-- [ ] Google Drive adapter, shared drives and explicit Docs/Sheets export behavior.
+- [ ] Google Drive: [read-only My Drive implemented and synthetically tested](google-drive.md);
+      live-account acceptance, shared drives and Docs/Sheets exports remain open.
 - [ ] iCloud feasibility, isolated compatibility adapter and visible limitations.
 
 Modern components do not establish production readiness. Sustained real-provider

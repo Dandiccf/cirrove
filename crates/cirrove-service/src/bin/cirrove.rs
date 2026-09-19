@@ -292,6 +292,18 @@ enum Command {
         #[arg(long, requires = "state_dir")]
         write_access: bool,
     },
+    /// Connect Google My Drive read-only using your Desktop OAuth client JSON.
+    ConnectGoogle {
+        #[arg(long)]
+        label: String,
+        /// Private (chmod 600) client JSON downloaded from Google Cloud Console.
+        #[arg(long)]
+        client_json: PathBuf,
+        #[arg(long)]
+        mount_path: PathBuf,
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
+    },
     /// List configured account identities and drive selections; no secrets.
     Accounts {
         #[arg(long)]
@@ -553,7 +565,7 @@ async fn main() -> Result<()> {
                 .iter()
                 .find(|a| a.label == label)
                 .context("configured account not found")?;
-            let provider = cirrove_service::accounts::provider(account)?;
+            let provider = cirrove_service::accounts::onedrive_provider(account)?;
             let scope = cirrove_core::Scope {
                 account: account.id.clone(),
                 provider: cirrove_onedrive::PROVIDER_ID.into(),
@@ -682,7 +694,7 @@ async fn main() -> Result<()> {
             cirrove_service::accounts::connect(
                 state,
                 label,
-                cirrove_auth::AppRegistration {
+                cirrove_auth::AppRegistration::Microsoft {
                     client_id,
                     authority: tenant,
                 },
@@ -695,6 +707,38 @@ async fn main() -> Result<()> {
                 },
             )
             .await?;
+        }
+        Command::ConnectGoogle {
+            label,
+            client_json,
+            mount_path,
+            state_dir: state,
+        } => {
+            let state = state.map(Ok).unwrap_or_else(state_dir)?;
+            let pending = cirrove_service::accounts::begin_connect_google(
+                state,
+                label,
+                client_json,
+                mount_path,
+            )
+            .await?;
+            println!(
+                "Signed in: {} ({})",
+                pending.identity().display_name,
+                pending.identity().username
+            );
+            let id = pending
+                .drives()
+                .first()
+                .context("Google returned no My Drive")?
+                .id
+                .clone();
+            let account = pending.finish(&id).await?;
+            println!(
+                "Connected {} read-only at {}",
+                account.label,
+                account.mount_path.display()
+            );
         }
         Command::Accounts { state_dir: state } => {
             let state = match state {

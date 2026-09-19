@@ -62,7 +62,7 @@ pub async fn onedrive_remote_changes(state: &Path, label: &str) -> Result<()> {
     let name = format!("Cirrove-RemoteChange-Validation-{run}");
     let cancel = CancellationToken::new();
     let _cancel_on_return = cancel.clone().drop_guard();
-    let graph = accounts::provider(&account)?;
+    let graph = accounts::onedrive_provider(&account)?;
     let root = graph
         .create_folder(&scope, &account.root_id, &name, &cancel)
         .await?;

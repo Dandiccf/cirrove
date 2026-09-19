@@ -1002,15 +1002,33 @@ synthetic kernel tests cannot establish real-provider reliability. Local-save
 success remains separate from remote acknowledgement. GTK settings, tray and Nautilus integrations
 must consume the service's state rather than maintain their own sync logic.
 
-Google Drive will implement provider contracts around its native changes and content
-APIs, including shared drives and explicit document export. iCloud must stay isolated
-behind a compatibility adapter with visible authentication/API limitations.
-[ADR 0009](adr/0009-a-second-provider.md) surveys what a second provider would
-actually cost here: the core traits and the store's key space already carry it,
-while the account record, the auth crate and the status wire format assume
-Microsoft, and the write contract requires an ETag precondition that Drive does
-not offer. It records the order those must change in, and that the precondition
-becomes a stated capability rather than a requirement.
+Google Drive now exercises those contracts as a read-only My Drive preview.
+Its initial index captures a change token before listing files, stages all listing
+pages, then catches up from that token before completing the baseline. Its content
+path uses bounded, exact ranges with monotonically increasing Google file versions
+checked before and after, without pretending a version number is an HTTP ETag.
+Google-native files are browser links, not implicit document exports.
+[Google Drive](google-drive.md) records the name policy, setup, tests and remaining
+live-account, shared-drive and export limits. iCloud remains a separate future
+compatibility assessment.
+
+Settings version 2 discriminates authentication through `registration.provider`
+(`microsoft` or `google`); runtime scope IDs remain `onedrive` and `googledrive`.
+Version 1 settings load as Microsoft in memory, and are written as version 2 only
+when a settings operation saves. There is no metadata database migration for the
+second provider. `TokenSource` and `CollectionInfo` live in core, and auth no longer
+links the OneDrive adapter. Account provider construction dispatches to an
+`Arc<dyn ReadProvider>`; Microsoft-only validation and writers reject Google
+accounts before accessing credentials. The existing shared OAuth callback, PKCE,
+keyring and refresh broker dispatch to provider-specific scopes and identity
+verification. The desktop uses the same connection and reauthentication lifecycle.
+
+Status adds an optional `provider` field without renaming protocol-1 fields.
+Legacy `drive_id`, `drive`, `tenant` and `graph_gets` spellings remain compatibility
+fields; Google's tenant is empty and its optional read-path counters are absent,
+not fabricated Graph values. This additive change deliberately defers the planned
+wire rename in [ADR 0009](adr/0009-a-second-provider.md). No Google write capability
+or weaker replacement contract is introduced by this read-only implementation.
 
 ## References
 

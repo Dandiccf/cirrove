@@ -23,21 +23,7 @@ use tokio::{sync::Mutex, time::Instant};
 
 const MAX_PAGE_BYTES: usize = 8 * 1024 * 1024;
 
-#[async_trait]
-pub trait TokenSource: Send + Sync {
-    /// Implementations should serialize refresh and return a usable access token.
-    async fn access_token(&self) -> Result<SecretString, ProviderError>;
-    async fn invalidate(&self, _rejected: &SecretString) {}
-}
-
-/// Developer bootstrap only. The browser broker implements TokenSource separately.
-pub struct StaticToken(pub SecretString);
-#[async_trait]
-impl TokenSource for StaticToken {
-    async fn access_token(&self) -> Result<SecretString, ProviderError> {
-        Ok(self.0.clone())
-    }
-}
+pub use cirrove_core::{CollectionInfo as DriveInfo, StaticToken, TokenSource};
 
 #[derive(Clone)]
 pub struct OneDrive {
@@ -578,15 +564,6 @@ fn retry_after(header: Option<&str>, now: SystemTime) -> Duration {
         .max(Duration::from_secs(1))
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DriveInfo {
-    pub id: String,
-    pub name: String,
-    pub drive_type: String,
-    #[serde(default)]
-    pub web_url: String,
-}
 #[derive(Deserialize)]
 struct DriveList {
     value: Vec<DriveInfo>,

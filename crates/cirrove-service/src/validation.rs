@@ -275,7 +275,7 @@ pub async fn onedrive_uploads(state: &Path, label: &str) -> Result<()> {
     .sync_all()?;
     println!("Checking uploads only in the new folder {name}.");
     println!("Private local evidence: {}", directory.display());
-    let graph = accounts::provider(&account)?;
+    let graph = accounts::onedrive_provider(&account)?;
     let cancel = CancellationToken::new();
     let folder = graph
         .create_folder(&scope, &account.root_id, &name, &cancel)

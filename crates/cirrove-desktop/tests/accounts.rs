@@ -382,3 +382,26 @@ fn refused_changes_are_named_and_not_only_counted() {
     assert!(card.refused_paths.is_empty());
     assert!(card.failed_paths.is_empty());
 }
+
+#[test]
+fn google_accounts_have_their_own_identity_and_never_offer_write_consent() {
+    for provider in ["googledrive", "onedrive"] {
+        let mut sample = cirrove_desktop::demo::snapshot().unwrap();
+        let account = &mut sample.settings.as_mut().unwrap().accounts[0];
+        account.registration = cirrove_auth::AppRegistration::Google {
+            client_id: "123-example.apps.googleusercontent.com".into(),
+        };
+        account.identity.tenant_id.clear();
+        account.access = cirrove_auth::AccessMode::ReadOnly;
+        let status = &mut sample.status.as_mut().unwrap().accounts[0];
+        status.tenant.clear();
+        status.provider = provider.into();
+        let view = cirrove_desktop::model::Overview::from_snapshot(sample);
+        assert!(view.accounts[0].title.starts_with("Google Drive"));
+        assert!(!view.accounts[0].supports_writes);
+        assert_eq!(
+            view.accounts[0].state == cirrove_desktop::model::ConnectionState::WaitingForService,
+            provider != "googledrive"
+        );
+    }
+}

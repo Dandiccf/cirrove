@@ -1,9 +1,36 @@
 # 0009: What a second provider costs, and what to change before writing one
 
-Status: decision, not yet code, except for two things that were fixed on the
-spot because they were wrong today rather than wrong later — the provider id is
-now one constant instead of a literal spelled out at each site, and the
-diagnostics bundle no longer leaks a drive id through journal text.
+Status: accepted; read-only Google implementation underway, with the concrete
+boundaries and deviations from the original sequence recorded below.
+
+## Implementation update, 2026-09-19
+
+Google Drive is the second provider, initially read-only. The original survey and
+proposed sequence below remain as their historical rationale. The concrete first
+implementation uses a tagged `AppRegistration` inside the account rather than a
+second, independently mutable account-provider field: `registration.provider` is
+`microsoft` or `google`, and maps to the existing runtime scope names `onedrive`
+and `googledrive`. Settings are version 2 with a side-effect-free version-1 reader.
+
+`TokenSource` and the collection descriptor now live in core; the old OneDrive
+names are re-exports for callers. Auth does not depend on OneDrive. The existing
+PKCE/callback/vault/refresh implementation is shared, with Google scopes, signed
+identity verification and user-info binding isolated in `auth::google`. Microsoft
+logic stays in place while both paths are validated; this is an incremental
+extraction, not a new generic OAuth framework.
+
+Account construction returns `Arc<dyn ReadProvider>`. Microsoft write factories
+and validation verbs explicitly reject Google accounts. Status gains a provider
+field and preserves the old field names and protocol number, so this increment
+does not require an otherwise unrelated IPC rename. Google has no Graph counters.
+The planned compare-and-set capability work is deferred until there is an actual
+Google write implementation; the read-only adapter does not weaken any existing
+write precondition.
+
+The second adapter found real differences at the boundary: initial listing and
+change tracking are separate Google endpoints; sibling names are not unique;
+Google-native documents require an explicit export or link representation. See
+[the implemented policies and validation](../google-drive.md).
 
 ## What prompted it
 

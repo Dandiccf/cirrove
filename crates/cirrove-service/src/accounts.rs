@@ -5,8 +5,9 @@ use cirrove_auth::{
     AccessMode, AppRegistration, CredentialVault, DesktopVault, Identity, PendingLogin,
     TokenBroker, save_credentials,
 };
-use cirrove_core::CancellationToken;
-use cirrove_onedrive::{DriveInfo, OneDrive, StaticToken};
+use cirrove_core::{CancellationToken, CollectionInfo as DriveInfo, ReadProvider};
+use cirrove_googledrive::GoogleDrive;
+use cirrove_onedrive::{OneDrive, StaticToken};
 use serde::{Deserialize, Serialize};
 use std::{
     fs::{File, OpenOptions},
@@ -40,7 +41,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            version: 1,
+            version: 2,
             accounts: vec![],
         }
     }
@@ -52,8 +53,51 @@ impl Settings {
                 if bytes.len() > 1024 * 1024 {
                     bail!("account settings exceed limit");
                 }
-                let settings: Self =
+                #[derive(Deserialize)]
+                struct Header {
+                    version: u32,
+                }
+                // Preserve the typed JSON error (and source location) for a
+                // malformed version; the desktop distinguishes it from a real
+                // future-format version instead of displaying private input.
+                let header: Header =
                     serde_json::from_slice(&bytes).context("invalid Cirrove account settings")?;
+                if header.version == 2 {
+                    let settings: Self = serde_json::from_slice(&bytes)
+                        .context("invalid Cirrove account settings")?;
+                    settings.validate()?;
+                    return Ok(settings);
+                }
+                let mut value: serde_json::Value =
+                    serde_json::from_slice(&bytes).context("invalid Cirrove account settings")?;
+                match header.version {
+                    1 => {
+                        // Read-old is purely in memory. Merely showing accounts must
+                        // neither rewrite configuration nor surprise a running daemon.
+                        if let Some(accounts) =
+                            value.get_mut("accounts").and_then(|v| v.as_array_mut())
+                        {
+                            for account in accounts {
+                                if let Some(registration) = account
+                                    .get_mut("registration")
+                                    .and_then(|v| v.as_object_mut())
+                                {
+                                    if registration
+                                        .get("provider")
+                                        .is_some_and(|p| p != "microsoft")
+                                    {
+                                        bail!("version 1 settings cannot contain another provider");
+                                    }
+                                    registration.insert("provider".into(), "microsoft".into());
+                                }
+                            }
+                        }
+                        value["version"] = 2.into();
+                    }
+                    _ => bail!("unsupported account settings version"),
+                }
+                let settings: Self =
+                    serde_json::from_value(value).context("invalid Cirrove account settings")?;
                 settings.validate()?;
                 Ok(settings)
             }
@@ -62,7 +106,7 @@ impl Settings {
         }
     }
     pub fn validate(&self) -> Result<()> {
-        if self.version != 1 {
+        if self.version != 2 {
             bail!("unsupported account settings version");
         }
         let mut ids = std::collections::HashSet::new();
@@ -70,6 +114,14 @@ impl Settings {
         let mut paths = std::collections::HashSet::new();
         for account in &self.accounts {
             account.registration.validate()?;
+            if matches!(account.registration, AppRegistration::Google { .. })
+                && (account.access != AccessMode::ReadOnly
+                    || account.drive.id != account.root_id
+                    || account.identity.subject.is_empty()
+                    || !account.identity.tenant_id.is_empty())
+            {
+                bail!("Google Drive requires a read-only My Drive connection");
+            }
             if !valid_label(&account.label)
                 || uuid::Uuid::parse_str(&account.id).is_err()
                 || uuid::Uuid::parse_str(&account.credential_id).is_err()
@@ -196,11 +248,15 @@ fn browser_failure(error: std::io::Error) -> anyhow::Error {
     anyhow::Error::new(error).context("could not start the browser")
 }
 
-async fn browser_login(
+async fn browser_login_with_secret(
     app: AppRegistration,
     access: AccessMode,
+    secret: Option<secrecy::SecretString>,
 ) -> Result<(Identity, cirrove_auth::Credentials)> {
-    let pending = PendingLogin::with_access(app, access).await?;
+    let google = matches!(app, AppRegistration::Google { .. });
+    let pending = PendingLogin::with_access(app, access)
+        .await?
+        .with_client_secret(secret);
     if access == AccessMode::ReadWrite {
         // This used to promise that mounts stayed read-only. That was true while
         // the only writable path was a validator mounting a disabled account by
@@ -211,7 +267,10 @@ async fn browser_login(
              so applications can change cloud files through it."
         );
     }
-    println!("Opening Microsoft sign-in in your browser. Select the account you want to connect.");
+    println!(
+        "Opening {} sign-in in your browser. Select the account you want to connect.",
+        if google { "Google" } else { "Microsoft" }
+    );
     let mut child = tokio::process::Command::new("xdg-open")
         .arg(pending.authorization_url().as_str())
         .stdin(std::process::Stdio::null())
@@ -408,6 +467,11 @@ pub async fn reauthenticate(
         .find(|a| a.label == label)
         .context("unknown account label")?;
     let requested = access.unwrap_or(original.access);
+    if matches!(original.registration, AppRegistration::Google { .. })
+        && requested != AccessMode::ReadOnly
+    {
+        bail!("Google Drive connections are read-only");
+    }
     let _operation = account_operation(&state, &original.id)?;
     // A marker here means an earlier run disabled this account and never put it
     // back. Its `enabled` is the account's own wish; what settings currently say
@@ -460,20 +524,35 @@ pub async fn reauthenticate(
         // re-sign-in is a person's minutes too, and a keyring that cannot take
         // the grant afterwards has wasted all of them.
         DesktopVault::reachable().await?;
+        let secret = if matches!(original.registration, AppRegistration::Google { .. }) {
+            cirrove_auth::saved_client_secret(&DesktopVault, &original.credential_id).await?
+        } else {
+            None
+        };
         let (identity, credentials) =
-            browser_login(original.registration.clone(), requested).await?;
+            browser_login_with_secret(original.registration.clone(), requested, secret).await?;
         if identity.tenant_id != original.identity.tenant_id
             || identity.graph_user_id != original.identity.graph_user_id
         {
             bail!("different account selected; use connect with a new label to add it");
         }
-        let graph = OneDrive::new(
-            original.id.clone(),
-            Arc::new(StaticToken(credentials.access_token())),
-        )?;
-        graph
-            .root(&original.drive.id, &CancellationToken::new())
-            .await?;
+        let tokens = Arc::new(StaticToken(credentials.access_token()));
+        match original.registration {
+            AppRegistration::Microsoft { .. } => {
+                OneDrive::new(original.id.clone(), tokens)?
+                    .root(&original.drive.id, &CancellationToken::new())
+                    .await?;
+            }
+            AppRegistration::Google { .. } => {
+                let root =
+                    GoogleDrive::new(original.id.clone(), original.drive.id.clone(), tokens)?
+                        .root(&CancellationToken::new())
+                        .await?;
+                if root.id != original.root_id {
+                    bail!("Google root identity changed");
+                }
+            }
+        }
         save_credentials(&DesktopVault, &original.credential_id, &credentials).await?;
         Ok(())
     }
@@ -486,7 +565,33 @@ pub async fn reauthenticate(
     }
     result
 }
-pub fn provider(account: &Account) -> Result<Arc<OneDrive>> {
+pub fn provider(account: &Account) -> Result<Arc<dyn ReadProvider>> {
+    match account.registration {
+        AppRegistration::Microsoft { .. } => Ok(onedrive_provider(account)?),
+        AppRegistration::Google { .. } => {
+            if account.access != AccessMode::ReadOnly {
+                bail!("Google Drive connections are read-only");
+            }
+            let broker = TokenBroker::new(
+                account.registration.clone(),
+                account.identity.clone(),
+                account.credential_id.clone(),
+                Arc::new(DesktopVault),
+            )?;
+            Ok(Arc::new(GoogleDrive::new(
+                account.id.clone(),
+                account.drive.id.clone(),
+                Arc::new(broker),
+            )?))
+        }
+    }
+}
+/// Microsoft-only validation and write workers must refuse other accounts before
+/// loading credentials or making a request.
+pub fn onedrive_provider(account: &Account) -> Result<Arc<OneDrive>> {
+    if !matches!(account.registration, AppRegistration::Microsoft { .. }) {
+        bail!("this operation requires a OneDrive connection");
+    }
     let broker = TokenBroker::new(
         account.registration.clone(),
         account.identity.clone(),
@@ -519,6 +624,9 @@ pub fn conservative_read_provider(account: &Account) -> Result<Arc<OneDrive>> {
     Ok(Arc::new(base_provider(account)?.without_read_sessions()))
 }
 fn base_provider(account: &Account) -> Result<OneDrive> {
+    if !matches!(account.registration, AppRegistration::Microsoft { .. }) {
+        bail!("this operation requires a OneDrive connection");
+    }
     let broker = TokenBroker::new(
         account.registration.clone(),
         account.identity.clone(),
@@ -595,7 +703,7 @@ pub fn set_pin(
     let directory = state.join("accounts").join(&account.id);
     let scope = cirrove_core::Scope {
         account: account.id.clone(),
-        provider: cirrove_onedrive::PROVIDER_ID.into(),
+        provider: account.registration.provider_id().into(),
         collection: account.drive.id.clone(),
     };
     let key = serde_json::to_string(&scope)?;
@@ -637,7 +745,7 @@ pub fn clear_pin(state: &Path, label: &str, item: &str) -> Result<String> {
     let _operation = account_operation(state, &account.id)?;
     let scope = cirrove_core::Scope {
         account: account.id.clone(),
-        provider: cirrove_onedrive::PROVIDER_ID.into(),
+        provider: account.registration.provider_id().into(),
         collection: account.drive.id.clone(),
     };
     let key = serde_json::to_string(&scope)?;
@@ -668,8 +776,12 @@ pub struct PendingConnection {
     id: String,
     identity: Identity,
     credentials: cirrove_auth::Credentials,
-    graph: OneDrive,
+    provider: ConnectionProvider,
     drives: Vec<DriveInfo>,
+}
+enum ConnectionProvider {
+    Microsoft(OneDrive),
+    Google(GoogleDrive),
 }
 impl PendingConnection {
     /// Who signed in.
@@ -684,11 +796,29 @@ impl PendingConnection {
     /// so a caller who knows an id can name one the listing missed.
     pub async fn finish(self, drive_id: &str) -> Result<Account> {
         let cancel = CancellationToken::new();
-        let drive = match self.drives.iter().find(|d| d.id == drive_id) {
-            Some(drive) => drive.clone(),
-            None => self.graph.drive(drive_id, &cancel).await?,
+        let (drive, root) = match &self.provider {
+            ConnectionProvider::Microsoft(graph) => {
+                let drive = match self.drives.iter().find(|d| d.id == drive_id) {
+                    Some(drive) => drive.clone(),
+                    None => graph.drive(drive_id, &cancel).await?,
+                };
+                let root = graph.root(&drive.id, &cancel).await?;
+                (drive, root)
+            }
+            ConnectionProvider::Google(google) => {
+                let drive = self
+                    .drives
+                    .iter()
+                    .find(|d| d.id == drive_id)
+                    .cloned()
+                    .context("only My Drive is supported for Google")?;
+                let root = google.root(&cancel).await?;
+                if root.id != drive.id {
+                    bail!("Google root identity changed");
+                }
+                (drive, root)
+            }
         };
-        let root = self.graph.root(&drive.id, &cancel).await?;
         if self.mount_path.exists() && std::fs::read_dir(&self.mount_path)?.next().is_some() {
             bail!("mount directory must be empty");
         }
@@ -706,18 +836,23 @@ impl PendingConnection {
             poll_seconds: 30,
             cache_bytes: 5 * 1024 * 1024 * 1024,
         };
-        let _lock = config_lock(&self.state)?;
-        let mut settings = Settings::load(&self.state)?;
-        if settings
-            .accounts
-            .iter()
-            .any(|a| a.label == account.label || a.mount_path == account.mount_path)
-        {
-            bail!("account settings changed during sign-in; try another label or path");
-        }
+        // Store the grant before acquiring the settings lock. Keyring awaits
+        // and cleanup never span a shared filesystem configuration lock.
         save_credentials(&DesktopVault, &account.credential_id, &self.credentials).await?;
-        settings.accounts.push(account.clone());
-        if let Err(error) = settings.save(&self.state) {
+        let saved = (|| -> Result<()> {
+            let _lock = config_lock(&self.state)?;
+            let mut settings = Settings::load(&self.state)?;
+            if settings
+                .accounts
+                .iter()
+                .any(|a| a.label == account.label || a.mount_path == account.mount_path)
+            {
+                bail!("account settings changed during sign-in; try another label or path");
+            }
+            settings.accounts.push(account.clone());
+            settings.save(&self.state)
+        })();
+        if let Err(error) = saved {
             let _ = DesktopVault.remove(&account.credential_id).await;
             return Err(error);
         }
@@ -733,6 +868,34 @@ pub async fn begin_connect(
     mount_path: PathBuf,
     access: AccessMode,
 ) -> Result<PendingConnection> {
+    begin_connect_with_secret(state, label, app, mount_path, access, None).await
+}
+pub async fn begin_connect_google(
+    state: PathBuf,
+    label: String,
+    client_file: PathBuf,
+    mount_path: PathBuf,
+) -> Result<PendingConnection> {
+    let client = cirrove_auth::google::DesktopClient::load(&client_file)?;
+    begin_connect_with_secret(
+        state,
+        label,
+        client.registration,
+        mount_path,
+        AccessMode::ReadOnly,
+        client.secret,
+    )
+    .await
+}
+async fn begin_connect_with_secret(
+    state: PathBuf,
+    label: String,
+    app: AppRegistration,
+    mount_path: PathBuf,
+    access: AccessMode,
+    secret: Option<secrecy::SecretString>,
+) -> Result<PendingConnection> {
+    app.validate()?;
     if !valid_label(&label) {
         bail!("use a label of 1–48 letters, digits, hyphens or underscores");
     }
@@ -757,13 +920,21 @@ pub async fn begin_connect(
     // is nowhere to keep the grant throws all of it away, which is what
     // happened on a clean Arch machine on 2026-09-15.
     DesktopVault::reachable().await?;
-    let (identity, credentials) = browser_login(app.clone(), access).await?;
+    let (identity, credentials) = browser_login_with_secret(app.clone(), access, secret).await?;
     let id = uuid::Uuid::new_v4().to_string();
-    let graph = OneDrive::new(
-        id.clone(),
-        Arc::new(StaticToken(credentials.access_token())),
-    )?;
-    let drives = graph.drives(&CancellationToken::new()).await?;
+    let tokens = Arc::new(StaticToken(credentials.access_token()));
+    let (provider, drives) = match app {
+        AppRegistration::Microsoft { .. } => {
+            let graph = OneDrive::new(id.clone(), tokens)?;
+            let drives = graph.drives(&CancellationToken::new()).await?;
+            (ConnectionProvider::Microsoft(graph), drives)
+        }
+        AppRegistration::Google { .. } => {
+            let google = GoogleDrive::new(id.clone(), "root".into(), tokens)?;
+            let drive = google.collection(&CancellationToken::new()).await?;
+            (ConnectionProvider::Google(google), vec![drive])
+        }
+    };
     Ok(PendingConnection {
         state,
         label,
@@ -773,7 +944,7 @@ pub async fn begin_connect(
         id,
         identity,
         credentials,
-        graph,
+        provider,
         drives,
     })
 }
@@ -1240,7 +1411,7 @@ mod tests {
         let account = fixture_account(AccessMode::ReadOnly);
         let id = account.id.clone();
         Settings {
-            version: 1,
+            version: 2,
             accounts: vec![account],
         }
         .save(&state)
@@ -1433,7 +1604,7 @@ mod tests {
         account.enabled = true;
         let id = account.id.clone();
         Settings {
-            version: 1,
+            version: 2,
             accounts: vec![account],
         }
         .save(&state)
@@ -1484,7 +1655,7 @@ mod tests {
 
         // An attempt records its intent, disables, and is killed.
         Settings {
-            version: 1,
+            version: 2,
             accounts: vec![account],
         }
         .save(&state)
@@ -1525,7 +1696,7 @@ mod tests {
         account.enabled = false;
         let id = account.id.clone();
         Settings {
-            version: 1,
+            version: 2,
             accounts: vec![account],
         }
         .save(&state)
@@ -1570,7 +1741,7 @@ mod tests {
         crate::private_dir(&state).unwrap();
         std::fs::write(
             state.join("accounts.json"),
-            br#"{"version":2,"accounts":[]}"#,
+            br#"{"version":99,"accounts":[]}"#,
         )
         .unwrap();
         let error = Settings::load(&state).unwrap_err().to_string();
@@ -1584,7 +1755,7 @@ mod tests {
         Account {
             id: "00000000-0000-4000-8000-000000000007".into(),
             label: "fixture".into(),
-            registration: cirrove_auth::AppRegistration {
+            registration: cirrove_auth::AppRegistration::Microsoft {
                 client_id: "00000000-0000-4000-8000-000000000001".into(),
                 authority: "common".into(),
             },

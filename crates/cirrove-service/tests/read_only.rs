@@ -65,7 +65,7 @@ fn account(path: std::path::PathBuf) -> Account {
     Account {
         id: "00000000-0000-4000-8000-000000000001".into(),
         label: "fixture".into(),
-        registration: AppRegistration {
+        registration: AppRegistration::Microsoft {
             client_id: "00000000-0000-4000-8000-000000000002".into(),
             authority: "common".into(),
         },
@@ -946,7 +946,7 @@ async fn real_manager_does_not_claim_another_accounts_mount() {
     std::fs::write(
         state.join("accounts.json"),
         serde_json::to_vec(&Settings {
-            version: 1,
+            version: 2,
             accounts: vec![config],
         })
         .unwrap(),
@@ -1012,7 +1012,7 @@ async fn real_manager_remounts_enabled_drives_and_keeps_disabled_drives_unmounte
     let mount = temp.path().join("mount");
     let config = account(mount.clone());
     let settings = Settings {
-        version: 1,
+        version: 2,
         accounts: vec![config],
     };
     std::fs::write(
@@ -1166,7 +1166,7 @@ async fn real_manager_exits_with_client_handles_open() {
     std::fs::write(
         state.join("accounts.json"),
         serde_json::to_vec(&Settings {
-            version: 1,
+            version: 2,
             accounts: vec![config.clone()],
         })
         .unwrap(),
@@ -1249,7 +1249,7 @@ async fn real_manager_recovers_disconnected_mount_after_process_death() {
     }
     let _cleanup = Cleanup(mount.clone());
     let settings = Settings {
-        version: 1,
+        version: 2,
         accounts: vec![account(mount.clone())],
     };
     std::fs::write(
@@ -2878,7 +2878,7 @@ async fn a_pin_from_the_command_line_reaches_the_daemon_and_keeps_the_bytes() {
     std::fs::write(
         state.join("accounts.json"),
         serde_json::to_vec(&Settings {
-            version: 1,
+            version: 2,
             accounts: vec![config],
         })
         .unwrap(),

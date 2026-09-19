@@ -134,7 +134,7 @@ pub async fn onedrive_read_bytes(
     };
     let cancel = CancellationToken::new();
     let _cancel_on_return = cancel.clone().drop_guard();
-    let graph = accounts::provider(&account)?;
+    let graph = accounts::onedrive_provider(&account)?;
     let file = graph.node(&scope, item, &cancel).await?;
     let parent = graph
         .node(

@@ -2609,3 +2609,14 @@ non-deterministic in the build itself. What would close it is
 same makepkg options on both sides. Recorded as a known limit of 0.1.0 rather
 than claimed: **a lockfile is not reproducibility, and neither is a matching
 compiler version.**
+
+## A second provider through the same engine, 2026-09-19
+
+The read-only Google Drive implementation and exact acceptance boundary are in
+[Google Drive](google-drive.md#validation-and-boundary-findings-2026-09-19).
+Synthetic HTTP scenarios exercise both real adapters in the same metadata store
+and content cache with deliberately identical IDs and version tags. The Google
+kernel scenario reads duplicate filenames, rejects a write open and remounts
+cached bytes offline with stable inodes. No Google credentials or cloud mutations
+participated. This is proof of shared plumbing under those scenarios, not real
+Google-service reliability or completion of shared-drive/document-export scope.
