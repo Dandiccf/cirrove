@@ -202,6 +202,28 @@ fn decimal_version_after(after: &str, before: &str) -> bool {
     after.len() > before.len() || (after.len() == before.len() && after > before)
 }
 
+fn strong_etag(response: &Response) -> Option<String> {
+    response
+        .headers()
+        .get(reqwest::header::ETAG)
+        .and_then(|value| value.to_str().ok())
+        .filter(|value| {
+            value.len() <= 1024
+                && value.starts_with('"')
+                && value.ends_with('"')
+                && !value.starts_with("W/")
+        })
+        .map(str::to_owned)
+}
+
+fn valid_strong_etag(value: &str) -> bool {
+    value.len() <= 1024
+        && value.starts_with('"')
+        && value.ends_with('"')
+        && !value.starts_with("W/")
+        && !value.contains(['\r', '\n'])
+}
+
 impl GoogleDrive {
     fn check_folder_destination(&self, scope: &Scope, parent: &str, name: &str) -> Result<()> {
         self.check_scope(scope).map_err(UploadError::Provider)?;
@@ -283,6 +305,7 @@ impl GoogleDrive {
                         "parents": [plan.parent],
                         "mimeType": FOLDER_MIME
                     }),
+                    None,
                     None,
                 )
                 .await?;
@@ -725,16 +748,50 @@ impl GoogleDrive {
         .await
     }
 
+    /// Read the exact validation-owned file together with Google's strong HTTP
+    /// ETag so the provider-neutral upload journal can exercise a replacement.
+    /// Ordinary Google nodes deliberately continue to expose no writable ETag.
+    pub async fn validation_replacement_base(
+        &self,
+        scope: &Scope,
+        item: &str,
+        parent: &str,
+        name: &str,
+        cancel: &CancellationToken,
+    ) -> Result<Node> {
+        self.check_folder_destination(scope, parent, name)?;
+        valid_id(item).map_err(UploadError::Provider)?;
+        self.upload_call(cancel, Duration::from_secs(125), async {
+            let (file, etag) = self.file_with_strong_etag(item).await?;
+            self.check_probe_file(&file, item, parent, name)?;
+            let mut node = file
+                .node(&scope.collection)
+                .map_err(|_| UploadError::Uncertain)?;
+            node.etag = Some(etag.ok_or_else(|| protocol("missing strong Google ETag"))?);
+            Ok(node)
+        })
+        .await
+    }
+
     fn check_upload(&self, request: &UploadRequest) -> Result<()> {
         request.validate()?;
         self.check_scope(&request.scope)
             .map_err(|_| UploadError::Invalid)?;
-        let UploadIntent::Create { parent, .. } = &request.intent else {
-            return Err(UploadError::Unsupported(
-                "Google replacement safety is not implemented",
-            ));
-        };
-        valid_id(parent).map_err(|_| UploadError::Invalid)
+        match &request.intent {
+            UploadIntent::Create { parent, .. } => {
+                valid_id(parent).map_err(|_| UploadError::Invalid)
+            }
+            UploadIntent::Replace {
+                item,
+                expected_etag,
+            } => {
+                valid_id(item).map_err(|_| UploadError::Invalid)?;
+                if request.size == 0 || !valid_strong_etag(expected_etag) {
+                    return Err(UploadError::Invalid);
+                }
+                Ok(())
+            }
+        }
     }
 
     fn prepared_checkpoint(&self, request: &UploadRequest, id: String) -> Result<SecretString> {
@@ -870,6 +927,7 @@ impl GoogleDrive {
         url: Url,
         value: &serde_json::Value,
         size: Option<u64>,
+        etag: Option<&str>,
     ) -> Result<Response> {
         for attempt in 0..2 {
             let token = self.tokens.access_token().await?;
@@ -883,6 +941,9 @@ impl GoogleDrive {
                 request = request
                     .header("X-Upload-Content-Type", "application/octet-stream")
                     .header("X-Upload-Content-Length", size);
+            }
+            if let Some(etag) = etag {
+                request = request.header(reqwest::header::IF_MATCH, etag);
             }
             let response = request.send().await.map_err(|_| UploadError::Uncertain)?;
             if response.status() == StatusCode::UNAUTHORIZED && attempt == 0 {
@@ -898,17 +959,7 @@ impl GoogleDrive {
         let mut url = self.url(&["files", item])?;
         url.query_pairs_mut().append_pair("fields", files::FIELDS);
         let response = self.response(url, None).await?;
-        let etag = response
-            .headers()
-            .get(reqwest::header::ETAG)
-            .and_then(|value| value.to_str().ok())
-            .filter(|value| {
-                value.len() <= 1024
-                    && value.starts_with('"')
-                    && value.ends_with('"')
-                    && !value.starts_with("W/")
-            })
-            .map(str::to_owned);
+        let etag = strong_etag(&response);
         let bytes = body(response, MAX_UPLOAD_RESPONSE)
             .await
             .map_err(UploadError::Provider)?;
@@ -1107,6 +1158,36 @@ impl GoogleDrive {
         Ok(())
     }
 
+    fn replacement_node(
+        &self,
+        request: &UploadRequest,
+        id: &str,
+        file: File,
+        etag: Option<String>,
+    ) -> Result<Node> {
+        let UploadIntent::Replace { item, .. } = &request.intent else {
+            return Err(UploadError::Invalid);
+        };
+        if item != id
+            || file.id != id
+            || file.mime_type != "application/octet-stream"
+            || file.parents.len() != 1
+            || file.trashed
+            || file.drive_id.is_some()
+        {
+            return Err(UploadError::Uncertain);
+        }
+        let mut node = file
+            .node(&request.scope.collection)
+            .map_err(|_| UploadError::Uncertain)?;
+        node.etag = Some(etag.ok_or_else(|| protocol("missing strong Google ETag"))?);
+        if node.kind != NodeKind::File || node.target.is_some() || node.content_revision().is_none()
+        {
+            return Err(UploadError::Uncertain);
+        }
+        Ok(node)
+    }
+
     fn file_version(&self, file: &File) -> Result<String> {
         file.version
             .as_deref()
@@ -1225,16 +1306,26 @@ impl GoogleDrive {
 
     async fn begin_session(&self, request: &UploadRequest, id: &str) -> Result<UploadStep> {
         let mut url = self.upload_endpoint();
+        let (method, metadata, etag) = match &request.intent {
+            UploadIntent::Create { .. } => (Method::POST, Self::create_metadata(request, id), None),
+            UploadIntent::Replace {
+                item,
+                expected_etag,
+            } => {
+                if item != id {
+                    return Err(UploadError::Invalid);
+                }
+                url.path_segments_mut()
+                    .map_err(|_| protocol("invalid Google upload endpoint"))?
+                    .push(item);
+                (Method::PATCH, json!({}), Some(expected_etag.as_str()))
+            }
+        };
         url.query_pairs_mut()
             .append_pair("uploadType", "resumable")
             .append_pair("fields", files::FIELDS);
         let response = self
-            .authorized_json_upload(
-                Method::POST,
-                url,
-                &Self::create_metadata(request, id),
-                Some(request.size),
-            )
+            .authorized_json_upload(method, url, &metadata, Some(request.size), etag)
             .await?;
         if response.status() != StatusCode::OK {
             return Err(UploadError::Uncertain);
@@ -1251,7 +1342,13 @@ impl GoogleDrive {
         let mut url = self.url(&["files"])?;
         url.query_pairs_mut().append_pair("fields", files::FIELDS);
         let response = self
-            .authorized_json_upload(Method::POST, url, &Self::create_metadata(request, id), None)
+            .authorized_json_upload(
+                Method::POST,
+                url,
+                &Self::create_metadata(request, id),
+                None,
+                None,
+            )
             .await?;
         Ok(UploadStep::Complete(
             self.receipt(request, id, response).await?,
@@ -1259,21 +1356,23 @@ impl GoogleDrive {
     }
 
     async fn receipt(&self, request: &UploadRequest, id: &str, response: Response) -> Result<Node> {
+        let etag = strong_etag(&response);
         let bytes = body(response, MAX_UPLOAD_RESPONSE)
             .await
             .map_err(|_| UploadError::Uncertain)?;
         let file: File = serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)?;
-        self.receipt_from_file(request, id, file)
+        let node = match &request.intent {
+            UploadIntent::Create { .. } => self.receipt_from_file(request, id, file)?,
+            UploadIntent::Replace { .. } => self.replacement_node(request, id, file, etag)?,
+        };
+        if node.size != request.size {
+            return Err(UploadError::Uncertain);
+        }
+        Ok(node)
     }
 
     fn receipt_from_file(&self, request: &UploadRequest, id: &str, file: File) -> Result<Node> {
-        let UploadIntent::Create { parent, name } = &request.intent else {
-            return Err(UploadError::Invalid);
-        };
         if file.id != id
-            || &file.name != name
-            || file.parents.len() != 1
-            || file.parents.first() != Some(parent)
             || file.mime_type != "application/octet-stream"
             || file
                 .size
@@ -1286,10 +1385,21 @@ impl GoogleDrive {
         let mut node = file
             .node(&request.scope.collection)
             .map_err(|_| UploadError::Uncertain)?;
-        // The upload journal confirms the requested provider name. The current
-        // read-only Google projection adds an ID suffix later at the namespace
-        // boundary; writable publication is intentionally not connected yet.
-        node.name = name.clone();
+        match &request.intent {
+            UploadIntent::Create { parent, name } => {
+                if &file.name != name
+                    || file.parents.len() != 1
+                    || file.parents.first() != Some(parent)
+                {
+                    return Err(UploadError::Uncertain);
+                }
+                // The upload journal confirms the requested provider name. The
+                // read-only projection adds an ID suffix at the namespace edge.
+                node.name = name.clone();
+            }
+            UploadIntent::Replace { item, .. } if item == id => {}
+            UploadIntent::Replace { .. } => return Err(UploadError::Invalid),
+        }
         if node.kind != NodeKind::File || node.content_revision().is_none() {
             return Err(UploadError::Uncertain);
         }
@@ -1323,6 +1433,7 @@ impl GoogleDrive {
         url: Url,
         range: String,
         bytes: Vec<u8>,
+        conditional: bool,
     ) -> Result<Response> {
         let response = self
             .client
@@ -1334,19 +1445,43 @@ impl GoogleDrive {
             .send()
             .await
             .map_err(|_| UploadError::Uncertain)?;
+        if conditional && response.status() == StatusCode::PRECONDITION_FAILED {
+            return Err(UploadError::Conflict);
+        }
         self.upload_response(response, true).await
     }
 
-    async fn inspect_prepared(&self, request: &UploadRequest, id: &str) -> Result<UploadStep> {
-        match self.file(id).await {
-            Ok(file) => Ok(UploadStep::Complete(
-                self.receipt_from_file(request, id, file)?,
-            )),
-            Err(ProviderError::NotFound) if request.size == 0 => {
-                self.create_empty(request, id).await
+    async fn inspect_prepared(
+        &self,
+        request: &UploadRequest,
+        id: &str,
+        cancel: &CancellationToken,
+    ) -> Result<UploadStep> {
+        match &request.intent {
+            UploadIntent::Create { .. } => match self.file(id).await {
+                Ok(file) => Ok(UploadStep::Complete(
+                    self.receipt_from_file(request, id, file)?,
+                )),
+                Err(ProviderError::NotFound) if request.size == 0 => {
+                    self.create_empty(request, id).await
+                }
+                Err(ProviderError::NotFound) => self.begin_session(request, id).await,
+                Err(error) => Err(error.into()),
+            },
+            UploadIntent::Replace { expected_etag, .. } => {
+                let (file, etag) = self.file_with_strong_etag(id).await?;
+                let node = self.replacement_node(request, id, file, etag)?;
+                if node.etag.as_deref() == Some(expected_etag) {
+                    return self.begin_session(request, id).await;
+                }
+                if node.size == request.size
+                    && self.probe_sha256(&request.scope, &node, cancel).await? == request.sha256
+                {
+                    Ok(UploadStep::Complete(node))
+                } else {
+                    Err(UploadError::Conflict)
+                }
             }
-            Err(ProviderError::NotFound) => self.begin_session(request, id).await,
-            Err(error) => Err(error.into()),
         }
     }
 }
@@ -1359,11 +1494,18 @@ impl UploadProvider for GoogleDrive {
         cancel: &CancellationToken,
     ) -> Result<UploadStep> {
         self.check_upload(request)?;
-        self.upload_call(cancel, Duration::from_secs(125), async {
-            let id = self.generated_id().await?;
-            Ok(UploadStep::Prepared(self.prepared_checkpoint(request, id)?))
-        })
-        .await
+        match &request.intent {
+            UploadIntent::Create { .. } => {
+                self.upload_call(cancel, Duration::from_secs(125), async {
+                    let id = self.generated_id().await?;
+                    Ok(UploadStep::Prepared(self.prepared_checkpoint(request, id)?))
+                })
+                .await
+            }
+            UploadIntent::Replace { item, .. } => Ok(UploadStep::Prepared(
+                self.prepared_checkpoint(request, item.clone())?,
+            )),
+        }
     }
 
     async fn inspect_upload(
@@ -1376,7 +1518,9 @@ impl UploadProvider for GoogleDrive {
         let saved = self.load_upload(request, checkpoint)?;
         self.upload_call(cancel, Duration::from_secs(125), async {
             match saved {
-                SavedUpload::Prepared { id, .. } => self.inspect_prepared(request, &id).await,
+                SavedUpload::Prepared { id, .. } => {
+                    self.inspect_prepared(request, &id, cancel).await
+                }
                 SavedUpload::Session { id, url, .. } => {
                     let result = self
                         .session_request(
@@ -1384,6 +1528,7 @@ impl UploadProvider for GoogleDrive {
                             self.session_url(&url)?,
                             format!("bytes */{}", request.size),
                             Vec::new(),
+                            matches!(request.intent, UploadIntent::Replace { .. }),
                         )
                         .await;
                     match result {
@@ -1436,6 +1581,7 @@ impl UploadProvider for GoogleDrive {
                     self.session_url(&url)?,
                     format!("bytes {offset}-{}/{}", end - 1, request.size),
                     bytes,
+                    matches!(request.intent, UploadIntent::Replace { .. }),
                 )
                 .await;
             match result {
@@ -1466,7 +1612,7 @@ impl UploadProvider for GoogleDrive {
     ) -> Result<UploadStep> {
         self.check_upload(request)?;
         Err(UploadError::Unsupported(
-            "Google create uploads commit with their final byte range",
+            "Google uploads commit with their final byte range",
         ))
     }
 
@@ -1484,18 +1630,43 @@ impl UploadProvider for GoogleDrive {
         let saved = self.load_upload(request, checkpoint)?;
         let id = saved.id().to_owned();
         self.upload_call(cancel, Duration::from_secs(15 * 60), async {
-            let file = match self.file(&id).await {
-                Ok(file) => file,
-                Err(ProviderError::NotFound) if matches!(saved, SavedUpload::Prepared { .. }) => {
-                    return Ok(Reconciliation::Uncommitted);
-                }
-                Err(ProviderError::NotFound) => return Err(UploadError::Uncertain),
-                Err(error) => return Err(error.into()),
+            let (file, etag) = match &request.intent {
+                UploadIntent::Create { .. } => match self.file(&id).await {
+                    Ok(file) => (file, None),
+                    Err(ProviderError::NotFound)
+                        if matches!(saved, SavedUpload::Prepared { .. }) =>
+                    {
+                        return Ok(Reconciliation::Uncommitted);
+                    }
+                    Err(ProviderError::NotFound) => return Err(UploadError::Uncertain),
+                    Err(error) => return Err(error.into()),
+                },
+                UploadIntent::Replace { .. } => match self.file_with_strong_etag(&id).await {
+                    Ok(result) => result,
+                    Err(UploadError::Provider(ProviderError::NotFound)) => {
+                        return Ok(Reconciliation::Conflict);
+                    }
+                    Err(error) => return Err(error),
+                },
             };
-            let node = match self.receipt_from_file(request, &id, file) {
+            let node = match &request.intent {
+                UploadIntent::Create { .. } => self.receipt_from_file(request, &id, file),
+                UploadIntent::Replace { .. } => self.replacement_node(request, &id, file, etag),
+            };
+            let node = match node {
                 Ok(node) => node,
                 Err(_) => return Ok(Reconciliation::Conflict),
             };
+            if node.size != request.size {
+                return match &request.intent {
+                    UploadIntent::Replace { expected_etag, .. }
+                        if node.etag.as_deref() == Some(expected_etag) =>
+                    {
+                        Ok(Reconciliation::Uncommitted)
+                    }
+                    _ => Ok(Reconciliation::Conflict),
+                };
+            }
             let mut digest = Sha256::new();
             let mut offset = 0;
             while offset < node.size {
@@ -1511,7 +1682,14 @@ impl UploadProvider for GoogleDrive {
             if hex::encode(digest.finalize()) == request.sha256 {
                 Ok(Reconciliation::Committed(node))
             } else {
-                Ok(Reconciliation::Conflict)
+                match &request.intent {
+                    UploadIntent::Replace { expected_etag, .. }
+                        if node.etag.as_deref() == Some(expected_etag) =>
+                    {
+                        Ok(Reconciliation::Uncommitted)
+                    }
+                    _ => Ok(Reconciliation::Conflict),
+                }
             }
         })
         .await
@@ -2510,23 +2688,250 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn replacement_is_rejected_before_any_provider_request() {
-        let (provider, server) = fixture(|_| vec![]).await;
+    async fn replacement_uses_a_durable_target_and_conditional_resumable_session() {
+        let bytes = b"abcdef";
+        let (provider, server) = fixture(|address| {
+            let mut before = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "report.txt", "10", 3),
+            );
+            before.query = vec![("fields", files::FIELDS)];
+            before.response_headers = "ETag: \"old-10\"\r\n".into();
+            let mut start = Exchange::json(
+                "PATCH",
+                "/upload/drive/v3/files/generated-id",
+                200,
+                json!({}),
+            );
+            start.query = vec![("uploadType", "resumable"), ("fields", files::FIELDS)];
+            start.headers = vec![
+                "if-match: \"old-10\"".into(),
+                "x-upload-content-type: application/octet-stream".into(),
+                "x-upload-content-length: 6".into(),
+            ];
+            start.body = Some(ExpectedBody::Json(json!({})));
+            start.response_body.clear();
+            start.response_headers = format!(
+                "Location: http://{address}/upload/drive/v3/files?upload_id=REPLACEMENT\r\n"
+            );
+            let mut upload = Exchange::json(
+                "PUT",
+                "/upload/drive/v3/files",
+                200,
+                named_file("generated-id", "report.txt", "11", bytes.len()),
+            );
+            upload.query = vec![("upload_id", "REPLACEMENT")];
+            upload.authorized = false;
+            upload.headers = vec!["content-range: bytes 0-5/6".into()];
+            upload.body = Some(ExpectedBody::Bytes(bytes.to_vec()));
+            upload.response_headers = "ETag: \"new-11\"\r\n".into();
+            vec![before, start, upload]
+        })
+        .await;
         let request = UploadRequest {
             scope: scope(),
             intent: UploadIntent::Replace {
                 item: "generated-id".into(),
-                expected_etag: "etag".into(),
+                expected_etag: "\"old-10\"".into(),
+            },
+            size: bytes.len() as u64,
+            sha256: hex::encode(Sha256::digest(bytes)),
+        };
+        let cancel = CancellationToken::new();
+        let UploadStep::Prepared(prepared) =
+            provider.begin_upload(&request, &cancel).await.unwrap()
+        else {
+            panic!("replacement target was not persisted first")
+        };
+        assert!(prepared.expose_secret().contains("generated-id"));
+        let UploadStep::Continue(progress) = provider
+            .inspect_upload(&request, &prepared, &cancel)
+            .await
+            .unwrap()
+        else {
+            panic!("replacement session did not request content")
+        };
+        let UploadStep::Complete(node) = provider
+            .upload_part(&request, &progress.checkpoint, 0, bytes.to_vec(), &cancel)
+            .await
+            .unwrap()
+        else {
+            panic!("replacement did not complete")
+        };
+        assert_eq!(node.id, "generated-id");
+        assert_eq!(node.etag.as_deref(), Some("\"new-11\""));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn replacement_conflicts_before_starting_a_session_when_the_etag_changed() {
+        let (provider, server) = fixture(|_| {
+            let mut current = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "report.txt", "12", 3),
+            );
+            current.query = vec![("fields", files::FIELDS)];
+            current.response_headers = "ETag: \"newer-12\"\r\n".into();
+            vec![current]
+        })
+        .await;
+        let request = UploadRequest {
+            scope: scope(),
+            intent: UploadIntent::Replace {
+                item: "generated-id".into(),
+                expected_etag: "\"old-10\"".into(),
             },
             size: 6,
             sha256: hex::encode(Sha256::digest(b"abcdef")),
         };
+        let cancel = CancellationToken::new();
+        let UploadStep::Prepared(prepared) =
+            provider.begin_upload(&request, &cancel).await.unwrap()
+        else {
+            panic!("replacement target was not prepared")
+        };
+        assert!(matches!(
+            provider.inspect_upload(&request, &prepared, &cancel).await,
+            Err(UploadError::Conflict)
+        ));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn replacement_rejects_weak_malformed_and_empty_requests_without_network() {
+        let (provider, server) = fixture(|_| vec![]).await;
+        for (etag, size) in [
+            ("etag", 6),
+            ("W/\"weak\"", 6),
+            ("\"line\nfeed\"", 6),
+            ("\"strong\"", 0),
+        ] {
+            let payload: &[u8] = if size == 0 { b"" } else { b"abcdef" };
+            let request = UploadRequest {
+                scope: scope(),
+                intent: UploadIntent::Replace {
+                    item: "generated-id".into(),
+                    expected_etag: etag.into(),
+                },
+                size,
+                sha256: hex::encode(Sha256::digest(payload)),
+            };
+            assert!(matches!(
+                provider
+                    .begin_upload(&request, &CancellationToken::new())
+                    .await,
+                Err(UploadError::Invalid)
+            ));
+        }
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn replacement_maps_a_final_precondition_failure_to_conflict() {
+        let bytes = b"abcdef";
+        let (provider, server) = fixture(|address| {
+            let mut before = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "report.txt", "10", 3),
+            );
+            before.query = vec![("fields", files::FIELDS)];
+            before.response_headers = "ETag: \"old-10\"\r\n".into();
+            let mut start = resumable_start(address, "REPLACEMENT", "\"old-10\"", bytes.len());
+            start.body = Some(ExpectedBody::Json(json!({})));
+            let mut rejected = Exchange::json("PUT", "/upload/drive/v3/files", 412, json!({}));
+            rejected.query = vec![("upload_id", "REPLACEMENT")];
+            rejected.authorized = false;
+            rejected.headers = vec!["content-range: bytes 0-5/6".into()];
+            rejected.body = Some(ExpectedBody::Bytes(bytes.to_vec()));
+            vec![before, start, rejected]
+        })
+        .await;
+        let request = UploadRequest {
+            scope: scope(),
+            intent: UploadIntent::Replace {
+                item: "generated-id".into(),
+                expected_etag: "\"old-10\"".into(),
+            },
+            size: bytes.len() as u64,
+            sha256: hex::encode(Sha256::digest(bytes)),
+        };
+        let cancel = CancellationToken::new();
+        let UploadStep::Prepared(prepared) =
+            provider.begin_upload(&request, &cancel).await.unwrap()
+        else {
+            panic!("replacement target was not prepared")
+        };
+        let UploadStep::Continue(progress) = provider
+            .inspect_upload(&request, &prepared, &cancel)
+            .await
+            .unwrap()
+        else {
+            panic!("replacement session did not start")
+        };
         assert!(matches!(
             provider
-                .begin_upload(&request, &CancellationToken::new())
+                .upload_part(&request, &progress.checkpoint, 0, bytes.to_vec(), &cancel)
                 .await,
-            Err(UploadError::Unsupported(_))
+            Err(UploadError::Conflict)
         ));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn replacement_reconciliation_hashes_the_exact_item_after_a_lost_response() {
+        let bytes = b"abcdef";
+        let (provider, server) = fixture(|_| {
+            let metadata = || {
+                let mut exchange = Exchange::json(
+                    "GET",
+                    "/drive/v3/files/generated-id",
+                    200,
+                    named_file("generated-id", "report.txt", "11", bytes.len()),
+                );
+                exchange.query = vec![("fields", files::FIELDS)];
+                exchange
+            };
+            let mut exact = metadata();
+            exact.response_headers = "ETag: \"new-11\"\r\n".into();
+            let mut content = Exchange::json("GET", "/drive/v3/files/generated-id", 206, json!({}));
+            content.query = vec![("alt", "media")];
+            content.headers = vec!["range: bytes=0-5".into()];
+            content.response_headers = "Content-Range: bytes 0-5/6\r\n".into();
+            content.response_body = bytes.to_vec();
+            vec![exact, metadata(), content, metadata()]
+        })
+        .await;
+        let request = UploadRequest {
+            scope: scope(),
+            intent: UploadIntent::Replace {
+                item: "generated-id".into(),
+                expected_etag: "\"old-10\"".into(),
+            },
+            size: bytes.len() as u64,
+            sha256: hex::encode(Sha256::digest(bytes)),
+        };
+        let UploadStep::Prepared(prepared) = provider
+            .begin_upload(&request, &CancellationToken::new())
+            .await
+            .unwrap()
+        else {
+            panic!("replacement target was not prepared")
+        };
+        let Reconciliation::Committed(node) = provider
+            .reconcile_upload(&request, Some(&prepared), &CancellationToken::new())
+            .await
+            .unwrap()
+        else {
+            panic!("lost replacement success was not reconciled")
+        };
+        assert_eq!(node.id, "generated-id");
+        assert_eq!(node.etag.as_deref(), Some("\"new-11\""));
         server.await.unwrap();
     }
 

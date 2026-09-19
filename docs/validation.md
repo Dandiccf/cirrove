@@ -2644,7 +2644,13 @@ for each metadata and small-content path distinguish a 412 rejection, an ignored
 stale header and a metadata response without a strong ETag; the last arms perform
 no PATCH. Four resumable arms cover rejection when the session starts, rejection
 when its final range commits, an accepted stale replacement and no session when
-there is no strong ETag. Session URLs do not enter the evidence log.
+there is no strong ETag. Five adapter cases then exercise `UploadIntent::Replace`
+through the durable-worker contract: target preparation before mutation,
+conditional session creation, pre-session conflict, finalization conflict and
+exact-hash reconciliation after a lost success, while invalid preconditions and
+empty replacements issue no network request. The live validator follows its
+capability probes with one worker replacement and a stale worker conflict.
+Session URLs and ETags do not enter the evidence log.
 The validator has not been run, so no
 Google write scope or mutation participated in the evidence recorded here; the
 writable namespace and replacement rules remain open.
@@ -2654,8 +2660,10 @@ with only its `If-Match` header removed. Exactly one test executed in each run
 and failed at the synthetic server's required-header assertion. Restoring the
 header made each exact test pass. Removing only `If-Match` from the resumable
 session initializer likewise made its exact success test fail at the server's
-required-header assertion; restoring it passed. These controls show that the
-tests depend on the outgoing preconditions rather than scripted status alone.
+required-header assertion; restoring it passed. Removing `If-Match` from the
+shared-worker session initializer made its exact replacement test fail at the
+same boundary and restoration passed. These controls show that the tests depend
+on the outgoing preconditions rather than scripted status alone.
 
 The focused OAuth test was also run with `drive.file` removed from the requested
 write scopes and failed because the grant no longer satisfied `ReadWrite`;

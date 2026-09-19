@@ -35,8 +35,9 @@ durability boundary in the credential vault. Recovery inspection reuses it, and
 reconciliation receives the last saved checkpoint so it can address the exact
 provider identity instead of a non-unique Google sibling name.
 
-The adapter now has a create-only transport using that boundary. It generates an
-ID, starts or replaces a resumable session without changing the ID, follows the
+The adapter now has a create transport and a validation-only replacement transport
+using that boundary. Create generates an ID; replacement durably binds the exact
+existing ID and strong ETag. Both start or replace a resumable session without changing the ID, follow the
 server's exact committed offset and verifies uncertain completion by streaming
 the exact object's SHA-256. Only the configured upload origin and path can enter
 a session checkpoint. Synthetic tests cover the ordering, lost sessions, partial
@@ -49,8 +50,10 @@ probes cover current and stale strong HTTP ETags for metadata, small media
 replacement and aligned resumable replacement on its own created file. Synthetic
 cases distinguish rejection when a resumable session starts or finishes, an
 ignored stale precondition and the absence of a strong ETag. The API reference
-does not document this behavior, the probes are not an implementation of
-shared-worker replacement, and the validator has not been run against Google.
+does not document this behavior. The adapter now implements shared-worker
+replacement behind the disabled validator and tests its durable preparation,
+conditional session, conflict and reconciliation behavior synthetically; the
+validator has not been run against Google.
 Duplicate-name collision semantics and conditional replacement remain unresolved.
 
 The second adapter found real differences at the boundary: initial listing and

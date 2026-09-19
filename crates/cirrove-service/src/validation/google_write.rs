@@ -307,6 +307,72 @@ pub async fn google_create(state: &Path, label: &str) -> Result<()> {
             "Google returned no strong ETag for resumable replacement; safe replacement remains unavailable"
         ),
     }
+
+    let replacement_base = google
+        .validation_replacement_base(&scope, &multipart_id, &folder.id, accepted_name, &cancel)
+        .await?;
+    let expected_etag = replacement_base
+        .etag
+        .clone()
+        .context("Google returned no strong ETag for the shared-worker replacement")?;
+    let worker_content = vec![0x57; 8 * 1024 * 1024 + 47];
+    event(
+        &mut log,
+        serde_json::json!({
+            "stage":"worker_replacement_planned",
+            "item":multipart_id,
+            "size":worker_content.len(),
+            "sha256":hex::encode(Sha256::digest(&worker_content))
+        }),
+    )?;
+    println!("Checking Google replacement through the provider-neutral durable worker.");
+    let worker_replacement = transfer(
+        &journal,
+        &worker,
+        scope.clone(),
+        UploadIntent::Replace {
+            item: multipart_id.clone(),
+            expected_etag: expected_etag.clone(),
+        },
+        worker_content,
+    )
+    .await?;
+    event(
+        &mut log,
+        serde_json::json!({
+            "stage":"worker_replacement_result",
+            "operation":worker_replacement.id,
+            "state":worker_replacement.state,
+            "size":worker_replacement.size,
+            "sha256":worker_replacement.sha256
+        }),
+    )?;
+    verify_created(google.as_ref(), &worker_replacement, &cancel).await?;
+
+    let stale_worker = transfer(
+        &journal,
+        &worker,
+        scope.clone(),
+        UploadIntent::Replace {
+            item: multipart_id.clone(),
+            expected_etag,
+        },
+        vec![0x58; 8 * 1024 * 1024 + 59],
+    )
+    .await?;
+    event(
+        &mut log,
+        serde_json::json!({
+            "stage":"worker_stale_replacement_result",
+            "operation":stale_worker.id,
+            "state":stale_worker.state,
+            "size":stale_worker.size,
+            "sha256":stale_worker.sha256
+        }),
+    )?;
+    if stale_worker.state != UploadState::Conflict {
+        bail!("the provider-neutral worker did not preserve the stale Google conflict");
+    }
     event(
         &mut log,
         serde_json::json!({

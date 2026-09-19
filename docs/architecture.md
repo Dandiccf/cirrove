@@ -1048,12 +1048,16 @@ Google's undocumented strong-ETag behavior on metadata, small media replacement
 and aligned resumable replacement. Plans contain exact identities, sizes and
 hashes and are durable before mutation; resumable session URLs remain in memory.
 Synthetic scenarios distinguish stale rejection at session creation or final
-commit from an accepted stale write. This does not implement `UploadIntent::Replace`
-or select a writable Google mount.
+commit from an accepted stale write. `UploadIntent::Replace` now uses the same
+durable worker only for the disabled validator: the exact target is prepared
+before mutation, the resumable `PATCH` carries `If-Match`, and uncertain success
+is reconciled by identity and SHA-256. Ordinary account construction still does
+not select a writable Google mount.
 
-The Google adapter now implements the create transport against this contract:
-pre-generated IDs, resumable ranges, exact remote offsets and streamed SHA-256
-reconciliation. Synthetic HTTP exercises it. Ordinary account construction still
+The Google adapter implements create and validation-only replacement against this
+contract: pre-generated IDs, exact replacement identities, resumable ranges,
+strong preconditions, exact remote offsets and streamed SHA-256 reconciliation.
+Synthetic HTTP exercises it. Ordinary account construction still
 returns only the read provider; a separate disabled validation connection may
 hold `drive.readonly` plus `drive.file` consent and cannot be enabled as a mount.
 The worker may
@@ -1072,9 +1076,9 @@ ETag, then attempts another with that stale value. A second persisted plan does
 the same with distinct small content payloads and verifies the winning bytes by
 exact identity and SHA-256. Synthetic tests distinguish stale rejection, ignored
 preconditions and a missing strong response ETag for both paths. This
-characterizes an undocumented capability; it does not yet supply resumable
-replacement, satisfy the production contract or establish live behavior.
-Replacement operations, writable service selection, writable mounts and live
+characterizes an undocumented capability; it does not satisfy the production
+contract or establish live behavior. Validation-only replacement is connected to
+the resumable worker, while writable service selection, writable mounts and live
 mutation evidence remain absent.
 
 ## References

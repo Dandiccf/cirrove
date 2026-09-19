@@ -95,7 +95,7 @@ and exposed a callback-host bug that is now fixed. A bounded validator later
 matched three non-link files between direct adapter reads and the mount. Its
 single shortcut lookup confirmed a dangling Google target, which remains `ENOENT`.
 Wider live acceptance is open. Google documents appear as browser links; exports, shared drives
-and Google writes are not exposed through a mount. A create-only provider
+and Google writes are not exposed through a mount. A create-and-replace provider
 transport and an isolated, disabled-account validator have synthetic coverage;
 the validator has not been run. The service remains read-only while collision
 and replacement semantics are unresolved. See [Google Drive](google-drive.md).

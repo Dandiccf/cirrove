@@ -431,7 +431,7 @@ The Google Drive read adapter now validates the shared account, metadata, cache
 and mount boundaries. Its create transport and disabled-account validator have
 synthetic protocol coverage, including persisted current/stale HTTP ETag probes
 for metadata, small content and aligned resumable content on a file created by
-the run. The validator has
+the run, followed by a durable shared-worker replacement and stale conflict. The validator has
 not been run and no writable
 mount selects them while collision and replacement rules remain open. Shared
 drives and document exports require explicit capabilities. iCloud

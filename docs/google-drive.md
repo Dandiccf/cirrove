@@ -3,8 +3,8 @@
 The next provider is Google Drive. This is an implemented **read-only My Drive
 preview with synthetic validation and a first real-account smoke check**, not a
 claim of reliable Google-account operation. It uses Cirrove's existing engine, SQLite staging, disk cache, pin
-jobs and FUSE mount. A create-only upload transport exists behind the provider
-interface and is tested with synthetic HTTP. An explicit developer command can
+jobs and FUSE mount. A create-and-replace upload transport exists behind the
+provider interface for isolated validation and is tested with synthetic HTTP. An explicit developer command can
 request `drive.file`, prepare an isolated live create check and characterize
 HTTP ETag handling for metadata and content on one file created by that run,
 but it has not been run.
@@ -65,9 +65,9 @@ session, partial remote offsets, receipt identity, content reconciliation and a
 foreign session URL. These checks establish the local protocol behavior; no live
 Google mutation has been run.
 
-This transport is create-only and remains disconnected from ordinary mounts. Drive
+This transport remains disconnected from ordinary mounts. Drive
 allows duplicate sibling names, so Cirrove still lacks the atomic collision rule
-required by `UploadIntent::Create`. Safe replacement is also unresolved because
+required by `UploadIntent::Create`. Replacement stability is also unresolved because
 the Drive v3 `files.update` reference documents no OneDrive-style conditional
 ETag. The isolated validator therefore records a plan before touching its own
 multipart file, renames it with the strong HTTP ETag from an exact metadata
@@ -79,9 +79,14 @@ by SHA-256. A separate resumable probe then replaces the same isolated file with
 an 8 MiB-plus payload in aligned ranges and tries another session with the stale
 ETag. It distinguishes rejection when the session starts, rejection when the
 final range commits and an accepted stale replacement. These are capability
-probes, not production replacement support; the resumable path is intentionally
-not connected to the upload worker and all observed ETag behavior needs live
-evidence plus a documented stability decision. Those
+probes, not production replacement support. The adapter now also accepts a
+nonempty `UploadIntent::Replace` from the durable worker only when it carries a
+strong, exact HTTP ETag. It persists the target before mutation, starts the
+resumable `PATCH` with `If-Match`, reports a 412 at either boundary as a conflict,
+and reconciles a lost response by exact ID and SHA-256. The validator follows the
+direct probes with one successful worker replacement and one stale worker
+conflict. All observed ETag behavior still needs live evidence plus a documented
+stability decision. Those
 namespace and conflict decisions and explicit live mutation validation must be
 completed before a writable Google mount can be offered. See Google's
 [pre-generated ID guidance](https://developers.google.com/workspace/drive/api/guides/manage-uploads)
@@ -162,8 +167,11 @@ sizes and SHA-256 digests, conditionally replaces that file with one small
 payload, attempts a distinct replacement using the stale ETag and reads the
 winning bytes back. Finally it persists the same non-secret plan for two 8
 MiB-plus payloads, performs an aligned resumable replacement and repeats the
-stale attempt. A missing strong ETag or an accepted stale update fails the
-command. Session URLs are neither logged nor persisted by this probe. It retains
+stale attempt. It then obtains a fresh strong ETag and sends another 8 MiB-plus
+replacement through the provider-neutral journal, vault checkpoints and transfer
+worker; reusing that ETag for a second worker operation must end in conflict. A
+missing strong ETag or an accepted stale update fails the command. Session URLs
+and ETags are not written to its evidence log. It retains
 the cloud folder and private local journal for review.
 Running it changes Google Drive and needs explicit authorization for that run.
 
@@ -203,7 +211,11 @@ an ignored precondition, and issue no PATCH when metadata has no strong ETag.
 Four resumable-probe tests additionally cover aligned multi-range transfer,
 rejection at session creation, rejection at finalization, an accepted stale
 replacement and the no-ETag/no-session case. Both content paths read the exact
-resulting bytes and compare SHA-256. No cloud mutation was used for these checks.
+resulting bytes and compare SHA-256. Five shared-worker adapter tests additionally
+cover durable target preparation, conditional session creation, a changed ETag
+before mutation, a 412 at finalization, exact-hash reconciliation after a lost
+success response and rejection of weak, malformed or empty requests without
+network access. No cloud mutation was used for these checks.
 
 `crates/cirrove-service/tests/google_drive.rs` drives both real adapters through
 one store and cache, deliberately giving them equal account, collection, file,
@@ -252,6 +264,13 @@ The resumable-precondition probe then passed the complete `scripts/check.sh` on
 ledger and docs build. Its exact positive test also failed when only the
 outgoing `If-Match` header was removed, then passed after restoration. This is
 still synthetic evidence; the live validator has not been run.
+
+Connecting validation-only replacement to the durable worker then passed the
+complete `scripts/check.sh` on 2026-09-19: 650 Rust test executions plus the
+kernel groups, script tests, ledger and docs build. Its exact worker test failed
+when only the resumable session's `If-Match` header was removed and passed after
+restoration. This remains synthetic evidence; the live write validator has not
+been run.
 
 ## First real-account connection, 2026-09-19
 
