@@ -1055,12 +1055,19 @@ URL is removed before persistence.
 
 This does not resolve the writable namespace. Drive permits duplicate sibling
 names, so create cannot yet enforce the shared contract's atomic collision rule,
-and `files.update` lacks the OneDrive adapter's conditional ETag update. An
-explicit create validator now prepares an exact test-folder ID before mutation,
-then routes multipart and empty files through the shared durable worker and reads
-them back by ID and SHA-256. It has not been run against Google. Replacement
-operations, writable service selection, writable mounts and live mutation
-evidence remain absent.
+and the Drive v3 `files.update` reference documents no OneDrive-style conditional
+ETag update. An explicit write validator now prepares an exact test-folder ID
+before mutation, routes multipart and empty files through the shared durable
+worker and reads them back by ID and SHA-256. It also persists an exact plan for
+its multipart file, applies one metadata rename with the current strong HTTP
+ETag, then attempts another with that stale value. A second persisted plan does
+the same with distinct small content payloads and verifies the winning bytes by
+exact identity and SHA-256. Synthetic tests distinguish stale rejection, ignored
+preconditions and a missing strong response ETag for both paths. This
+characterizes an undocumented capability; it does not yet supply resumable
+replacement, satisfy the production contract or establish live behavior.
+Replacement operations, writable service selection, writable mounts and live
+mutation evidence remain absent.
 
 ## References
 

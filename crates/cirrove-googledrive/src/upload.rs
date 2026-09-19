@@ -36,6 +36,83 @@ impl PreparedFolder {
     }
 }
 
+/// Result of an isolated test against Drive's undocumented HTTP ETag behavior.
+/// The ETag itself is deliberately not exposed or persisted in this result.
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+pub enum MetadataPreconditionProbe {
+    NoStrongEtag {
+        item: String,
+        version: String,
+    },
+    Tested {
+        item: String,
+        before_version: String,
+        updated_version: String,
+        final_version: String,
+        stale_rejected: bool,
+        final_name: String,
+    },
+}
+impl MetadataPreconditionProbe {
+    pub fn stale_rejected(&self) -> Option<bool> {
+        match self {
+            Self::NoStrongEtag { .. } => None,
+            Self::Tested { stale_rejected, .. } => Some(*stale_rejected),
+        }
+    }
+}
+
+/// Exact item and names for one isolated metadata-precondition probe. Persist
+/// this value before calling `probe_metadata_precondition`.
+#[derive(Clone, Serialize)]
+pub struct MetadataPreconditionPlan {
+    item: String,
+    parent: String,
+    original_name: String,
+    accepted_name: String,
+    stale_name: String,
+}
+
+/// Exact item and content digests for one isolated conditional-content probe.
+/// The small deterministic payloads are supplied separately and never logged.
+#[derive(Clone, PartialEq, Eq, Serialize)]
+pub struct ContentPreconditionPlan {
+    item: String,
+    parent: String,
+    name: String,
+    accepted_size: u64,
+    accepted_sha256: String,
+    stale_size: u64,
+    stale_sha256: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+pub enum ContentPreconditionProbe {
+    NoStrongEtag {
+        item: String,
+        version: String,
+    },
+    Tested {
+        item: String,
+        before_version: String,
+        updated_version: String,
+        final_version: String,
+        stale_rejected: bool,
+        final_size: u64,
+        final_sha256: String,
+    },
+}
+impl ContentPreconditionProbe {
+    pub fn stale_rejected(&self) -> Option<bool> {
+        match self {
+            Self::NoStrongEtag { .. } => None,
+            Self::Tested { stale_rejected, .. } => Some(*stale_rejected),
+        }
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(tag = "phase", rename_all = "snake_case")]
 enum SavedUpload {
@@ -76,6 +153,14 @@ struct GeneratedIds {
 
 fn protocol(message: &'static str) -> UploadError {
     ProviderError::Protocol(message).into()
+}
+
+fn decimal_version_after(after: &str, before: &str) -> bool {
+    let after = after.trim_start_matches('0');
+    let before = before.trim_start_matches('0');
+    let after = if after.is_empty() { "0" } else { after };
+    let before = if before.is_empty() { "0" } else { before };
+    after.len() > before.len() || (after.len() == before.len() && after > before)
 }
 
 impl GoogleDrive {
@@ -186,6 +271,271 @@ impl GoogleDrive {
                 Err(ProviderError::NotFound) => Ok(None),
                 Err(error) => Err(error.into()),
             }
+        })
+        .await
+    }
+
+    /// Validate a no-network probe plan. The caller persists the returned value
+    /// before the first metadata mutation.
+    pub fn prepare_metadata_precondition_probe(
+        &self,
+        scope: &Scope,
+        item: &str,
+        parent: &str,
+        original_name: &str,
+        accepted_name: &str,
+        stale_name: &str,
+    ) -> Result<MetadataPreconditionPlan> {
+        self.check_folder_destination(scope, parent, original_name)?;
+        for name in [accepted_name, stale_name] {
+            self.check_folder_destination(scope, parent, name)?;
+        }
+        valid_id(item).map_err(UploadError::Provider)?;
+        if accepted_name == original_name
+            || stale_name == original_name
+            || stale_name == accepted_name
+        {
+            return Err(UploadError::Invalid);
+        }
+        Ok(MetadataPreconditionPlan {
+            item: item.into(),
+            parent: parent.into(),
+            original_name: original_name.into(),
+            accepted_name: accepted_name.into(),
+            stale_name: stale_name.into(),
+        })
+    }
+
+    /// Characterize whether Drive v3 honors a strong response ETag as an
+    /// `If-Match` precondition. This changes only the exact item in a plan that
+    /// the caller has already persisted and created for this isolated run.
+    pub async fn probe_metadata_precondition(
+        &self,
+        scope: &Scope,
+        plan: &MetadataPreconditionPlan,
+        cancel: &CancellationToken,
+    ) -> Result<MetadataPreconditionProbe> {
+        let checked = self.prepare_metadata_precondition_probe(
+            scope,
+            &plan.item,
+            &plan.parent,
+            &plan.original_name,
+            &plan.accepted_name,
+            &plan.stale_name,
+        )?;
+        self.upload_call(cancel, Duration::from_secs(125), async {
+            let (before, etag) = self.file_with_strong_etag(&checked.item).await?;
+            self.check_probe_file(
+                &before,
+                &checked.item,
+                &checked.parent,
+                &checked.original_name,
+            )?;
+            let before_version = self.file_version(&before)?;
+            let Some(etag) = etag else {
+                return Ok(MetadataPreconditionProbe::NoStrongEtag {
+                    item: checked.item.clone(),
+                    version: before_version,
+                });
+            };
+
+            let updated = self
+                .conditional_metadata_name(&checked.item, &checked.accepted_name, &etag)
+                .await?;
+            self.check_probe_file(
+                &updated,
+                &checked.item,
+                &checked.parent,
+                &checked.accepted_name,
+            )?;
+            let updated_version = self.file_version(&updated)?;
+            if !decimal_version_after(&updated_version, &before_version) {
+                return Err(UploadError::Uncertain);
+            }
+
+            let stale_rejected = match self
+                .conditional_metadata_name(&checked.item, &checked.stale_name, &etag)
+                .await
+            {
+                Err(UploadError::Conflict) => true,
+                Ok(stale) => {
+                    self.check_probe_file(
+                        &stale,
+                        &checked.item,
+                        &checked.parent,
+                        &checked.stale_name,
+                    )?;
+                    false
+                }
+                Err(error) => return Err(error),
+            };
+            let final_file = self.file(&checked.item).await?;
+            let expected_name = if stale_rejected {
+                checked.accepted_name.as_str()
+            } else {
+                checked.stale_name.as_str()
+            };
+            self.check_probe_file(&final_file, &checked.item, &checked.parent, expected_name)?;
+            let final_version = self.file_version(&final_file)?;
+            if final_version != updated_version
+                && !decimal_version_after(&final_version, &updated_version)
+            {
+                return Err(UploadError::Uncertain);
+            }
+            Ok(MetadataPreconditionProbe::Tested {
+                item: checked.item.clone(),
+                before_version,
+                updated_version,
+                final_version,
+                stale_rejected,
+                final_name: expected_name.into(),
+            })
+        })
+        .await
+    }
+
+    /// Build the durable, non-secret description of one content-precondition
+    /// probe. Payload bytes remain caller-owned and are checked against this
+    /// plan before any request is sent.
+    pub fn prepare_content_precondition_probe(
+        &self,
+        scope: &Scope,
+        item: &str,
+        parent: &str,
+        name: &str,
+        accepted: &[u8],
+        stale: &[u8],
+    ) -> Result<ContentPreconditionPlan> {
+        self.check_folder_destination(scope, parent, name)?;
+        valid_id(item).map_err(UploadError::Provider)?;
+        if accepted.is_empty()
+            || stale.is_empty()
+            || accepted.len() > 5 * 1024 * 1024
+            || stale.len() > 5 * 1024 * 1024
+        {
+            return Err(UploadError::Invalid);
+        }
+        let accepted_sha256 = hex::encode(Sha256::digest(accepted));
+        let stale_sha256 = hex::encode(Sha256::digest(stale));
+        if accepted_sha256 == stale_sha256 {
+            return Err(UploadError::Invalid);
+        }
+        Ok(ContentPreconditionPlan {
+            item: item.into(),
+            parent: parent.into(),
+            name: name.into(),
+            accepted_size: accepted.len() as u64,
+            accepted_sha256,
+            stale_size: stale.len() as u64,
+            stale_sha256,
+        })
+    }
+
+    /// Apply one small conditional content update, then try a distinct update
+    /// with the now-stale ETag and read the exact item back by ID and SHA-256.
+    pub async fn probe_content_precondition(
+        &self,
+        scope: &Scope,
+        plan: &ContentPreconditionPlan,
+        accepted: Vec<u8>,
+        stale: Vec<u8>,
+        cancel: &CancellationToken,
+    ) -> Result<ContentPreconditionProbe> {
+        let checked = self.prepare_content_precondition_probe(
+            scope,
+            &plan.item,
+            &plan.parent,
+            &plan.name,
+            &accepted,
+            &stale,
+        )?;
+        if checked != *plan {
+            return Err(UploadError::Invalid);
+        }
+        self.upload_call(cancel, Duration::from_secs(125), async {
+            let (before, etag) = self.file_with_strong_etag(&checked.item).await?;
+            self.check_probe_file(&before, &checked.item, &checked.parent, &checked.name)?;
+            let before_version = self.file_version(&before)?;
+            let Some(etag) = etag else {
+                return Ok(ContentPreconditionProbe::NoStrongEtag {
+                    item: checked.item.clone(),
+                    version: before_version,
+                });
+            };
+
+            let updated = self
+                .conditional_content(&checked.item, accepted, &etag)
+                .await?;
+            self.check_probe_content(
+                &updated,
+                &checked.item,
+                &checked.parent,
+                &checked.name,
+                checked.accepted_size,
+            )?;
+            let updated_version = self.file_version(&updated)?;
+            if !decimal_version_after(&updated_version, &before_version) {
+                return Err(UploadError::Uncertain);
+            }
+
+            let stale_rejected = match self.conditional_content(&checked.item, stale, &etag).await {
+                Err(UploadError::Conflict) => true,
+                Ok(stale) => {
+                    self.check_probe_content(
+                        &stale,
+                        &checked.item,
+                        &checked.parent,
+                        &checked.name,
+                        checked.stale_size,
+                    )?;
+                    false
+                }
+                Err(error) => return Err(error),
+            };
+            let (expected_size, expected_sha256) = if stale_rejected {
+                (checked.accepted_size, checked.accepted_sha256.as_str())
+            } else {
+                (checked.stale_size, checked.stale_sha256.as_str())
+            };
+            let final_file = self.file(&checked.item).await?;
+            self.check_probe_content(
+                &final_file,
+                &checked.item,
+                &checked.parent,
+                &checked.name,
+                expected_size,
+            )?;
+            let final_version = self.file_version(&final_file)?;
+            if final_version != updated_version
+                && !decimal_version_after(&final_version, &updated_version)
+            {
+                return Err(UploadError::Uncertain);
+            }
+            let final_node = final_file
+                .node(&scope.collection)
+                .map_err(|_| UploadError::Uncertain)?;
+            let bytes = self
+                .read_range(
+                    scope,
+                    &final_node,
+                    0,
+                    u32::try_from(expected_size).map_err(|_| UploadError::Invalid)?,
+                    cancel,
+                )
+                .await?;
+            let final_sha256 = hex::encode(Sha256::digest(&bytes));
+            if bytes.len() as u64 != expected_size || final_sha256 != expected_sha256 {
+                return Err(UploadError::Uncertain);
+            }
+            Ok(ContentPreconditionProbe::Tested {
+                item: checked.item.clone(),
+                before_version,
+                updated_version,
+                final_version,
+                stale_rejected,
+                final_size: expected_size,
+                final_sha256,
+            })
         })
         .await
     }
@@ -359,6 +709,134 @@ impl GoogleDrive {
         Err(ProviderError::Authentication.into())
     }
 
+    async fn file_with_strong_etag(&self, item: &str) -> Result<(File, Option<String>)> {
+        let mut url = self.url(&["files", item])?;
+        url.query_pairs_mut().append_pair("fields", files::FIELDS);
+        let response = self.response(url, None).await?;
+        let etag = response
+            .headers()
+            .get(reqwest::header::ETAG)
+            .and_then(|value| value.to_str().ok())
+            .filter(|value| {
+                value.len() <= 1024
+                    && value.starts_with('"')
+                    && value.ends_with('"')
+                    && !value.starts_with("W/")
+            })
+            .map(str::to_owned);
+        let bytes = body(response, MAX_UPLOAD_RESPONSE)
+            .await
+            .map_err(UploadError::Provider)?;
+        let file = serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)?;
+        Ok((file, etag))
+    }
+
+    async fn conditional_metadata_name(&self, item: &str, name: &str, etag: &str) -> Result<File> {
+        let mut url = self.url(&["files", item])?;
+        url.query_pairs_mut().append_pair("fields", files::FIELDS);
+        for attempt in 0..2 {
+            let token = self.tokens.access_token().await?;
+            let response = self
+                .client
+                .patch(url.clone())
+                .bearer_auth(token.expose_secret())
+                .header("Accept-Encoding", "identity")
+                .header(reqwest::header::IF_MATCH, etag)
+                .json(&json!({"name": name}))
+                .send()
+                .await
+                .map_err(|_| UploadError::Uncertain)?;
+            if response.status() == StatusCode::UNAUTHORIZED && attempt == 0 {
+                self.tokens.invalidate(&token).await;
+                continue;
+            }
+            let response = self.upload_response(response, false).await?;
+            let bytes = body(response, MAX_UPLOAD_RESPONSE)
+                .await
+                .map_err(|_| UploadError::Uncertain)?;
+            return serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain);
+        }
+        Err(ProviderError::Authentication.into())
+    }
+
+    async fn conditional_content(&self, item: &str, bytes: Vec<u8>, etag: &str) -> Result<File> {
+        let mut url = self.upload_endpoint();
+        url.path_segments_mut()
+            .map_err(|_| protocol("invalid Google upload endpoint"))?
+            .push(item);
+        url.query_pairs_mut()
+            .append_pair("uploadType", "media")
+            .append_pair("fields", files::FIELDS);
+        for attempt in 0..2 {
+            let token = self.tokens.access_token().await?;
+            let response = self
+                .client
+                .patch(url.clone())
+                .bearer_auth(token.expose_secret())
+                .header("Accept-Encoding", "identity")
+                .header(reqwest::header::IF_MATCH, etag)
+                .header(reqwest::header::CONTENT_TYPE, "application/octet-stream")
+                .body(bytes.clone())
+                .send()
+                .await
+                .map_err(|_| UploadError::Uncertain)?;
+            if response.status() == StatusCode::UNAUTHORIZED && attempt == 0 {
+                self.tokens.invalidate(&token).await;
+                continue;
+            }
+            let response = self.upload_response(response, false).await?;
+            let body = body(response, MAX_UPLOAD_RESPONSE)
+                .await
+                .map_err(|_| UploadError::Uncertain)?;
+            return serde_json::from_slice(&body).map_err(|_| UploadError::Uncertain);
+        }
+        Err(ProviderError::Authentication.into())
+    }
+
+    fn check_probe_file(&self, file: &File, item: &str, parent: &str, name: &str) -> Result<()> {
+        if file.id != item
+            || file.name != name
+            || file.parents.as_slice() != [parent]
+            || file.mime_type == FOLDER_MIME
+            || file.trashed
+            || file.drive_id.is_some()
+        {
+            return Err(UploadError::Uncertain);
+        }
+        self.file_version(file).map(|_| ())
+    }
+
+    fn check_probe_content(
+        &self,
+        file: &File,
+        item: &str,
+        parent: &str,
+        name: &str,
+        size: u64,
+    ) -> Result<()> {
+        self.check_probe_file(file, item, parent, name)?;
+        if file.mime_type != "application/octet-stream"
+            || file
+                .size
+                .as_deref()
+                .and_then(|value| value.parse::<u64>().ok())
+                != Some(size)
+        {
+            return Err(UploadError::Uncertain);
+        }
+        Ok(())
+    }
+
+    fn file_version(&self, file: &File) -> Result<String> {
+        file.version
+            .as_deref()
+            .filter(|version| {
+                !version.is_empty() && version.bytes().all(|byte| byte.is_ascii_digit())
+            })
+            .map(str::to_owned)
+            .ok_or_else(|| protocol("missing Google file version"))
+    }
+
     async fn upload_response(&self, response: Response, session: bool) -> Result<Response> {
         let status = response.status();
         if matches!(status, StatusCode::OK | StatusCode::CREATED)
@@ -376,6 +854,7 @@ impl GoogleDrive {
             }
             StatusCode::UNAUTHORIZED => Err(ProviderError::Authentication.into()),
             StatusCode::NOT_FOUND => Err(ProviderError::NotFound.into()),
+            StatusCode::PRECONDITION_FAILED => Err(UploadError::Conflict),
             StatusCode::CONFLICT => Err(UploadError::Uncertain),
             StatusCode::BAD_REQUEST => Err(UploadError::Invalid),
             StatusCode::FORBIDDEN => {
@@ -819,16 +1298,19 @@ mod tests {
             sha256: hex::encode(Sha256::digest(bytes)),
         }
     }
-    fn file(id: &str, size: usize) -> Value {
+    fn named_file(id: &str, name: &str, version: &str, size: usize) -> Value {
         json!({
             "id": id,
-            "name": "report.txt",
+            "name": name,
             "mimeType": "application/octet-stream",
             "parents": ["root-id"],
             "size": size.to_string(),
-            "version": "7",
+            "version": version,
             "capabilities": {"canDownload": true}
         })
+    }
+    fn file(id: &str, size: usize) -> Value {
+        named_file(id, "report.txt", "7", size)
     }
     fn metadata(id: &str) -> Value {
         json!({
@@ -1057,6 +1539,356 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(inspected.id, generated);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn metadata_probe_updates_once_and_rejects_the_now_stale_etag() {
+        let (provider, server) = fixture(|_| {
+            let mut before = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "report.txt", "9", 6),
+            );
+            before.query = vec![("fields", files::FIELDS)];
+            before.response_headers = "ETag: \"metadata-9\"\r\n".into();
+            let mut update = Exchange::json(
+                "PATCH",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "renamed.txt", "10", 6),
+            );
+            update.query = vec![("fields", files::FIELDS)];
+            update.headers = vec!["if-match: \"metadata-9\"".into()];
+            update.body = Some(ExpectedBody::Json(json!({"name":"renamed.txt"})));
+            let mut stale = Exchange::json("PATCH", "/drive/v3/files/generated-id", 412, json!({}));
+            stale.query = vec![("fields", files::FIELDS)];
+            stale.headers = vec!["if-match: \"metadata-9\"".into()];
+            stale.body = Some(ExpectedBody::Json(json!({"name":"stale.txt"})));
+            let mut final_read = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "renamed.txt", "10", 6),
+            );
+            final_read.query = vec![("fields", files::FIELDS)];
+            vec![before, update, stale, final_read]
+        })
+        .await;
+        let plan = provider
+            .prepare_metadata_precondition_probe(
+                &scope(),
+                "generated-id",
+                "root-id",
+                "report.txt",
+                "renamed.txt",
+                "stale.txt",
+            )
+            .unwrap();
+        let result = provider
+            .probe_metadata_precondition(&scope(), &plan, &CancellationToken::new())
+            .await
+            .unwrap();
+        assert_eq!(result.stale_rejected(), Some(true));
+        let MetadataPreconditionProbe::Tested {
+            before_version,
+            updated_version,
+            final_version,
+            final_name,
+            ..
+        } = result
+        else {
+            panic!("strong ETag was not tested")
+        };
+        assert_eq!(before_version, "9");
+        assert_eq!(updated_version, "10");
+        assert_eq!(final_version, "10");
+        assert_eq!(final_name, "renamed.txt");
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn metadata_probe_reports_when_drive_accepts_the_stale_etag() {
+        let (provider, server) = fixture(|_| {
+            let mut before = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "report.txt", "9", 6),
+            );
+            before.query = vec![("fields", files::FIELDS)];
+            before.response_headers = "ETag: \"metadata-9\"\r\n".into();
+            let mut update = Exchange::json(
+                "PATCH",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "renamed.txt", "10", 6),
+            );
+            update.query = vec![("fields", files::FIELDS)];
+            update.headers = vec!["if-match: \"metadata-9\"".into()];
+            update.body = Some(ExpectedBody::Json(json!({"name":"renamed.txt"})));
+            let mut stale = Exchange::json(
+                "PATCH",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "stale.txt", "11", 6),
+            );
+            stale.query = vec![("fields", files::FIELDS)];
+            stale.headers = vec!["if-match: \"metadata-9\"".into()];
+            stale.body = Some(ExpectedBody::Json(json!({"name":"stale.txt"})));
+            let mut final_read = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "stale.txt", "11", 6),
+            );
+            final_read.query = vec![("fields", files::FIELDS)];
+            vec![before, update, stale, final_read]
+        })
+        .await;
+        let plan = provider
+            .prepare_metadata_precondition_probe(
+                &scope(),
+                "generated-id",
+                "root-id",
+                "report.txt",
+                "renamed.txt",
+                "stale.txt",
+            )
+            .unwrap();
+        let result = provider
+            .probe_metadata_precondition(&scope(), &plan, &CancellationToken::new())
+            .await
+            .unwrap();
+        assert_eq!(result.stale_rejected(), Some(false));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn metadata_probe_does_not_mutate_without_a_strong_etag() {
+        let (provider, server) = fixture(|_| {
+            let mut before = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "report.txt", "9", 6),
+            );
+            before.query = vec![("fields", files::FIELDS)];
+            vec![before]
+        })
+        .await;
+        let plan = provider
+            .prepare_metadata_precondition_probe(
+                &scope(),
+                "generated-id",
+                "root-id",
+                "report.txt",
+                "renamed.txt",
+                "stale.txt",
+            )
+            .unwrap();
+        let result = provider
+            .probe_metadata_precondition(&scope(), &plan, &CancellationToken::new())
+            .await
+            .unwrap();
+        assert_eq!(result.stale_rejected(), None);
+        server.await.unwrap();
+    }
+
+    fn content_probe_exchanges(
+        accepted: &[u8],
+        stale: &[u8],
+        stale_rejected: bool,
+    ) -> Vec<Exchange> {
+        let mut before = Exchange::json(
+            "GET",
+            "/drive/v3/files/generated-id",
+            200,
+            named_file("generated-id", "renamed.txt", "10", 6),
+        );
+        before.query = vec![("fields", files::FIELDS)];
+        before.response_headers = "ETag: \"content-10\"\r\n".into();
+
+        let mut update = Exchange::json(
+            "PATCH",
+            "/upload/drive/v3/files/generated-id",
+            200,
+            named_file("generated-id", "renamed.txt", "11", accepted.len()),
+        );
+        update.query = vec![("uploadType", "media"), ("fields", files::FIELDS)];
+        update.headers = vec![
+            "if-match: \"content-10\"".into(),
+            "content-type: application/octet-stream".into(),
+        ];
+        update.body = Some(ExpectedBody::Bytes(accepted.to_vec()));
+
+        let mut stale_update = if stale_rejected {
+            Exchange::json(
+                "PATCH",
+                "/upload/drive/v3/files/generated-id",
+                412,
+                json!({}),
+            )
+        } else {
+            Exchange::json(
+                "PATCH",
+                "/upload/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "renamed.txt", "12", stale.len()),
+            )
+        };
+        stale_update.query = vec![("uploadType", "media"), ("fields", files::FIELDS)];
+        stale_update.headers = vec![
+            "if-match: \"content-10\"".into(),
+            "content-type: application/octet-stream".into(),
+        ];
+        stale_update.body = Some(ExpectedBody::Bytes(stale.to_vec()));
+
+        let (final_bytes, final_version) = if stale_rejected {
+            (accepted, "11")
+        } else {
+            (stale, "12")
+        };
+        let final_metadata = || {
+            let mut exchange = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file(
+                    "generated-id",
+                    "renamed.txt",
+                    final_version,
+                    final_bytes.len(),
+                ),
+            );
+            exchange.query = vec![("fields", files::FIELDS)];
+            exchange
+        };
+        let mut content = Exchange::json("GET", "/drive/v3/files/generated-id", 206, json!({}));
+        content.query = vec![("alt", "media")];
+        content.headers = vec![format!("range: bytes=0-{}", final_bytes.len() - 1)];
+        content.response_headers = format!(
+            "Content-Range: bytes 0-{}/{}\r\n",
+            final_bytes.len() - 1,
+            final_bytes.len()
+        );
+        content.response_body = final_bytes.to_vec();
+        vec![
+            before,
+            update,
+            stale_update,
+            final_metadata(),
+            final_metadata(),
+            content,
+            final_metadata(),
+        ]
+    }
+
+    #[tokio::test]
+    async fn content_probe_updates_once_and_rejects_the_now_stale_etag() {
+        let accepted = b"accepted replacement";
+        let stale = b"stale replacement must not win";
+        let (provider, server) = fixture(|_| content_probe_exchanges(accepted, stale, true)).await;
+        let plan = provider
+            .prepare_content_precondition_probe(
+                &scope(),
+                "generated-id",
+                "root-id",
+                "renamed.txt",
+                accepted,
+                stale,
+            )
+            .unwrap();
+        let result = provider
+            .probe_content_precondition(
+                &scope(),
+                &plan,
+                accepted.to_vec(),
+                stale.to_vec(),
+                &CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(result.stale_rejected(), Some(true));
+        let ContentPreconditionProbe::Tested {
+            final_size,
+            final_sha256,
+            ..
+        } = result
+        else {
+            panic!("strong ETag was not tested")
+        };
+        assert_eq!(final_size, accepted.len() as u64);
+        assert_eq!(final_sha256, hex::encode(Sha256::digest(accepted)));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn content_probe_reports_when_drive_accepts_the_stale_etag() {
+        let accepted = b"accepted replacement";
+        let stale = b"stale replacement wins";
+        let (provider, server) = fixture(|_| content_probe_exchanges(accepted, stale, false)).await;
+        let plan = provider
+            .prepare_content_precondition_probe(
+                &scope(),
+                "generated-id",
+                "root-id",
+                "renamed.txt",
+                accepted,
+                stale,
+            )
+            .unwrap();
+        let result = provider
+            .probe_content_precondition(
+                &scope(),
+                &plan,
+                accepted.to_vec(),
+                stale.to_vec(),
+                &CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(result.stale_rejected(), Some(false));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn content_probe_does_not_mutate_without_a_strong_etag() {
+        let accepted = b"accepted replacement";
+        let stale = b"stale replacement";
+        let (provider, server) = fixture(|_| {
+            let mut before = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "renamed.txt", "10", 6),
+            );
+            before.query = vec![("fields", files::FIELDS)];
+            vec![before]
+        })
+        .await;
+        let plan = provider
+            .prepare_content_precondition_probe(
+                &scope(),
+                "generated-id",
+                "root-id",
+                "renamed.txt",
+                accepted,
+                stale,
+            )
+            .unwrap();
+        let result = provider
+            .probe_content_precondition(
+                &scope(),
+                &plan,
+                accepted.to_vec(),
+                stale.to_vec(),
+                &CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(result.stale_rejected(), None);
         server.await.unwrap();
     }
 

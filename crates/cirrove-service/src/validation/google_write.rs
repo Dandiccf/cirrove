@@ -1,5 +1,5 @@
-//! Explicit Google create check. It is wired for a disabled, separately
-//! consented account and is never called by the daemon.
+//! Explicit Google create and metadata-precondition check. It is wired for a
+//! disabled, separately consented account and is never called by the daemon.
 use super::*;
 use cirrove_core::ReadProvider;
 use cirrove_googledrive::GoogleDrive;
@@ -43,8 +43,9 @@ async fn verify_created(
     Ok(())
 }
 
-/// Create one exact test folder, one multipart file and one empty file. The
-/// folder and local evidence remain for review; no existing item is changed.
+/// Create one exact test folder, one multipart file and one empty file, then
+/// characterize stale HTTP ETag handling on the multipart file. The folder and
+/// local evidence remain for review; no pre-existing item is changed.
 pub async fn google_create(state: &Path, label: &str) -> Result<()> {
     let account = test_account(state, label)?;
     if !matches!(
@@ -80,7 +81,7 @@ pub async fn google_create(state: &Path, label: &str) -> Result<()> {
             .context("validation directory has no parent")?,
     )?
     .sync_all()?;
-    println!("Checking Google creates only in the new folder {name}.");
+    println!("Checking Google writes only in the new folder {name}.");
     println!("Private local evidence: {}", directory.display());
 
     let google = accounts::google_provider(&account)?;
@@ -135,13 +136,14 @@ pub async fn google_create(state: &Path, label: &str) -> Result<()> {
         parent: folder.id.clone(),
         name: name.into(),
     };
+    let multipart_name = "Kärnten & Grüße #1.bin";
 
     println!("Checking a multipart Google create and independent exact-ID readback.");
     let multipart = transfer(
         &journal,
         &worker,
         scope.clone(),
-        create("Kärnten & Grüße #1.bin"),
+        create(multipart_name),
         vec![0x47; 8 * 1024 * 1024 + 13],
     )
     .await?;
@@ -156,7 +158,14 @@ pub async fn google_create(state: &Path, label: &str) -> Result<()> {
     )?;
 
     println!("Checking an empty Google file with its prepared identity.");
-    let empty = transfer(&journal, &worker, scope, create("Empty.txt"), Vec::new()).await?;
+    let empty = transfer(
+        &journal,
+        &worker,
+        scope.clone(),
+        create("Empty.txt"),
+        Vec::new(),
+    )
+    .await?;
     event(
         &mut log,
         serde_json::json!({"stage":"empty_result", "operation":empty}),
@@ -164,9 +173,106 @@ pub async fn google_create(state: &Path, label: &str) -> Result<()> {
     verify_created(google.as_ref(), &empty, &cancel).await?;
     event(
         &mut log,
-        serde_json::json!({"stage":"create_checks_passed", "fixture_retained":true}),
+        serde_json::json!({"stage":"empty_readback_passed"}),
     )?;
-    println!("Google create checks passed. The test folder and local snapshots remain for review.");
-    println!("This does not validate replacement or enable writable Google mounts.");
+
+    let multipart_id = multipart
+        .remote
+        .as_ref()
+        .context("multipart Google create has no exact provider receipt")?
+        .id
+        .clone();
+    let accepted_name = "Kärnten & Grüße #1-renamed.bin";
+    let stale_name = "Kärnten & Grüße #1-stale.bin";
+    let precondition_plan = google.prepare_metadata_precondition_probe(
+        &scope,
+        &multipart_id,
+        &folder.id,
+        multipart_name,
+        accepted_name,
+        stale_name,
+    )?;
+    event(
+        &mut log,
+        serde_json::json!({
+            "stage":"metadata_precondition_planned",
+            "plan":precondition_plan
+        }),
+    )?;
+    println!("Checking whether Google rejects a stale HTTP ETag on its own test file.");
+    let precondition = google
+        .probe_metadata_precondition(&scope, &precondition_plan, &cancel)
+        .await?;
+    event(
+        &mut log,
+        serde_json::json!({
+            "stage":"metadata_precondition_result",
+            "result":precondition
+        }),
+    )?;
+    match precondition.stale_rejected() {
+        Some(true) => println!("Google rejected the stale metadata precondition."),
+        Some(false) => bail!(
+            "Google accepted a stale metadata precondition; safe shared mutation remains unavailable"
+        ),
+        None => bail!(
+            "Google returned no strong metadata ETag; safe shared mutation remains unavailable"
+        ),
+    }
+
+    let accepted_content = vec![0x41; 4 * 1024 + 7];
+    let stale_content = vec![0x42; 8 * 1024 + 13];
+    let content_plan = google.prepare_content_precondition_probe(
+        &scope,
+        &multipart_id,
+        &folder.id,
+        accepted_name,
+        &accepted_content,
+        &stale_content,
+    )?;
+    event(
+        &mut log,
+        serde_json::json!({
+            "stage":"content_precondition_planned",
+            "plan":content_plan
+        }),
+    )?;
+    println!("Checking whether Google rejects a stale HTTP ETag on content replacement.");
+    let content_precondition = google
+        .probe_content_precondition(
+            &scope,
+            &content_plan,
+            accepted_content,
+            stale_content,
+            &cancel,
+        )
+        .await?;
+    event(
+        &mut log,
+        serde_json::json!({
+            "stage":"content_precondition_result",
+            "result":content_precondition
+        }),
+    )?;
+    match content_precondition.stale_rejected() {
+        Some(true) => println!("Google rejected the stale content precondition."),
+        Some(false) => bail!(
+            "Google accepted a stale content precondition; safe replacement remains unavailable"
+        ),
+        None => {
+            bail!("Google returned no strong content ETag; safe replacement remains unavailable")
+        }
+    }
+    event(
+        &mut log,
+        serde_json::json!({
+            "stage":"google_write_checks_passed",
+            "fixture_retained":true
+        }),
+    )?;
+    println!(
+        "Google create and metadata checks passed. The test folder and local snapshots remain for review."
+    );
+    println!("This does not validate resumable replacement or enable writable Google mounts.");
     Ok(())
 }

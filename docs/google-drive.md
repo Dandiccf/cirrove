@@ -5,9 +5,11 @@ preview with synthetic validation and a first real-account smoke check**, not a
 claim of reliable Google-account operation. It uses Cirrove's existing engine, SQLite staging, disk cache, pin
 jobs and FUSE mount. A create-only upload transport exists behind the provider
 interface and is tested with synthetic HTTP. An explicit developer command can
-request `drive.file` and prepare an isolated live create check, but it has not
-been run. The normal service does not select the write transport or expose a
-writable Google mount.
+request `drive.file`, prepare an isolated live create check and characterize
+HTTP ETag handling for metadata and content on one file created by that run,
+but it has not been run.
+The normal service does not select the write transport or expose a writable
+Google mount.
 
 ## What it presents
 
@@ -66,8 +68,17 @@ Google mutation has been run.
 This transport is create-only and remains disconnected from ordinary mounts. Drive
 allows duplicate sibling names, so Cirrove still lacks the atomic collision rule
 required by `UploadIntent::Create`. Safe replacement is also unresolved because
-`files.update` has no OneDrive-style conditional ETag. Those two namespace and
-conflict decisions and explicit live mutation validation must be
+the Drive v3 `files.update` reference documents no OneDrive-style conditional
+ETag. The isolated validator therefore records a plan before touching its own
+multipart file, renames it with the strong HTTP ETag from an exact metadata
+response, then retries another name with that now-stale ETag. Synthetic HTTP
+covers rejection, ignored preconditions and a response without a strong ETag.
+After metadata succeeds, the validator repeats the same current/stale sequence
+with two distinct small content payloads and reads the exact final identity back
+by SHA-256. These are capability probes, not production replacement support;
+resumable replacement still needs its own transport and all observed ETag
+behavior needs live evidence plus a documented stability decision. Those
+namespace and conflict decisions and explicit live mutation validation must be
 completed before a writable Google mount can be offered. See Google's
 [pre-generated ID guidance](https://developers.google.com/workspace/drive/api/guides/manage-uploads)
 and [`files.update` reference](https://developers.google.com/workspace/drive/api/reference/rest/v3/files/update).
@@ -123,7 +134,7 @@ cirrove connect-google --label google \
   --mount-path /absolute/path/to/an/empty/folder
 ```
 
-The not-yet-run create validator uses a separate state directory and connection:
+The not-yet-run write validator uses a separate state directory and connection:
 
 ```sh
 cirrove connect-google --label google-create-validation \
@@ -140,9 +151,14 @@ cirrove validate-google-create \
 The write-grant connection is saved disabled and settings validation refuses to
 enable it. The validator persists a generated folder ID before mutation, creates
 an 8 MiB-plus multipart file and an empty file inside that folder, then reads
-both back by exact provider identity and SHA-256. It retains the cloud folder
-and private local journal for review. Running it changes Google Drive and needs
-explicit authorization for that run.
+both back by exact provider identity and SHA-256. It next persists an exact
+metadata-probe plan, renames the multipart file with its current strong HTTP
+ETag and attempts a second rename with the stale ETag. It then persists payload
+sizes and SHA-256 digests, conditionally replaces that file with one small
+payload, attempts a distinct replacement using the stale ETag and reads the
+winning bytes back. A missing strong ETag or an accepted stale update fails the
+command. It retains the cloud folder and private local journal for review.
+Running it changes Google Drive and needs explicit authorization for that run.
 
 Access/refresh tokens and the optional desktop client secret are stored in
 Cirrove's Secret Service entries. Non-secret settings retain the provider,
@@ -174,7 +190,11 @@ tests distinguish the normal read-only grant from the explicit
 `drive.readonly` plus `drive.file` validator grant. Account tests require a
 Google write-validation connection to remain disabled. A synthetic folder test
 pre-generates its ID, verifies the exact create request and inspects that ID
-afterward; no cloud mutation was used for these checks.
+afterward. Three metadata-probe and three content-probe tests require the
+original strong ETag on the first PATCH, distinguish a rejected stale retry from
+an ignored precondition, and issue no PATCH when metadata has no strong ETag.
+The content cases also read the exact resulting bytes and compare SHA-256. No
+cloud mutation was used for these checks.
 
 `crates/cirrove-service/tests/google_drive.rs` drives both real adapters through
 one store and cache, deliberately giving them equal account, collection, file,

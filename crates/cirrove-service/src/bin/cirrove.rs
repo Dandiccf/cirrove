@@ -271,7 +271,7 @@ enum Command {
         #[arg(long)]
         state_dir: PathBuf,
     },
-    /// Developer-only Google creates in a newly prepared test folder.
+    /// Developer-only Google creates and stale-ETag probe in a new test folder.
     ValidateGoogleCreate {
         #[arg(long)]
         label: String,

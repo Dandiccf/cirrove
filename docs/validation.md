@@ -2635,9 +2635,21 @@ narrow status mapping and the range test fails if a reply may advance beyond the
 bytes submitted. An explicit disabled-account validator can now request
 `drive.file`, pre-generate and persist an isolated folder identity, create a
 multipart file and an empty file through the shared worker, then read each exact
-identity back and compare SHA-256. That validator has not been run, so no Google
-write scope or mutation participated in the evidence recorded here; the writable
-namespace and replacement rules remain open.
+identity back and compare SHA-256. It now also persists an exact plan for the
+multipart file, applies a metadata rename with the current strong HTTP ETag and
+reuses that stale value for a second rename. It repeats the sequence with two
+small content payloads and reads the winner back by exact ID and SHA-256. Three
+synthetic arms for each path distinguish a 412 rejection, an ignored stale header
+and a metadata response without a strong ETag; the last arms perform no PATCH.
+The validator has not been run, so no
+Google write scope or mutation participated in the evidence recorded here; the
+writable namespace and replacement rules remain open.
+
+Each successful-precondition test was also run once with only its `If-Match`
+header removed. Exactly one test executed in each run and failed at the synthetic
+server's required-header assertion. Restoring the header made each exact test
+pass. This shows that the two tests depend on the outgoing precondition rather
+than only accepting their scripted response status.
 
 The focused OAuth test was also run with `drive.file` removed from the requested
 write scopes and failed because the grant no longer satisfied `ReadWrite`;

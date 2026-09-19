@@ -20,7 +20,7 @@ pub(super) struct File {
     #[serde(default)]
     pub(super) parents: Vec<String>,
     pub(super) size: Option<String>,
-    version: Option<String>,
+    pub(super) version: Option<String>,
     modified_time: Option<String>,
     #[serde(default)]
     pub trashed: bool,
