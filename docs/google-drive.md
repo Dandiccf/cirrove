@@ -1,19 +1,17 @@
 # Google Drive preview
 
 The next provider is Google Drive. This is an implemented **read-only My Drive
-preview with synthetic validation and a first real-account smoke check**, not a
-claim of reliable Google-account operation. It uses Cirrove's existing engine, SQLite staging, disk cache, pin
-jobs and FUSE mount. File create/replacement and validation-only prepared folder
-create, relocate and observed-empty trash transports
-exist behind the provider interfaces and are tested with synthetic HTTP. An explicit developer command can
-request `drive.file`, prepare an isolated live create check and characterize
-HTTP ETag handling for metadata and content on one file created by that run.
-The first authorized run created its prepared folder but stopped before file
-uploads because Drive returned no strong HTTP ETag for either the create response
-or exact-ID inspection. A registered second run confirmed the receipt correction
-and committed the large file byte-for-byte, then exposed a missing media type on
-the resumable PUT. A tested correction awaits a third registered run; no
-conditional write has been accepted or enabled.
+preview with synthetic validation and bounded real-account read/create checks**,
+not a claim of reliable Google-account operation. It uses Cirrove's existing
+engine, SQLite staging, disk cache, pin jobs and FUSE mount. File
+create/replacement and validation-only prepared folder create, relocate and
+observed-empty trash transports exist behind the provider interfaces and are
+tested with synthetic HTTP. An explicit developer command can request
+`drive.file` for an isolated live check. The authorized live sequence created a
+prepared-ID folder, an 8 MiB-plus file and an empty file through the
+provider-neutral workers and read both files back by exact identity and SHA-256.
+Google supplied no strong HTTP ETag on the resulting file, so the validator
+stopped before every conditional rename, replacement, move or trash request.
 The normal service does not select the write transport or expose a writable
 Google mount.
 
@@ -77,8 +75,8 @@ prepared checkpoint is saved. Reconciliation addresses that exact ID and streams
 remote content through the read adapter to compare its SHA-256 digest. Synthetic
 HTTP and transfer-worker faults cover persistence before mutation, a lost
 session, partial remote offsets, receipt identity, content reconciliation and a
-foreign session URL. These checks establish the local protocol behavior; no live
-Google mutation has been run.
+foreign session URL. These checks establish the local protocol behavior. The bounded authorized live
+create evidence and its limits are recorded below.
 
 This transport remains disconnected from ordinary mounts. Drive
 allows duplicate sibling names, so Cirrove still lacks the atomic collision rule
@@ -100,8 +98,8 @@ strong, exact HTTP ETag. It persists the target before mutation, starts the
 resumable `PATCH` with `If-Match`, reports a 412 at either boundary as a conflict,
 and reconciles a lost response by exact ID and SHA-256. The validator follows the
 direct probes with one successful worker replacement and one stale worker
-conflict. All observed ETag behavior still needs live evidence plus a documented
-stability decision. A separate validator-only namespace adapter also routes all
+conflict. The authorized live create returned no strong HTTP ETag, so the validator did
+not execute these conditional paths and they remain unavailable. A separate validator-only namespace adapter also routes all
 test-folder creates plus file and folder relocation through the provider-neutral mutation
 journal and worker. Folder creation durably reserves the generated Google ID first. It
 checks the private destination for a case-folded collision, sends the source's
@@ -173,7 +171,7 @@ cirrove connect-google --label google \
   --mount-path /absolute/path/to/an/empty/folder
 ```
 
-The not-yet-run write validator uses a separate state directory and connection:
+The write validator uses a separate state directory and connection:
 
 ```sh
 cirrove connect-google --label google-create-validation \
@@ -362,42 +360,36 @@ PATCH. Restoration passed both controls. The complete `scripts/check.sh` then
 passed with 669 Rust test executions, all kernel mount groups, script tests, the
 acceptance ledger and docs. No live Google mutation was used.
 
-The first authorized write-validation run used a separate disabled connection
-with `drive.file`. Its prepared-ID folder POST succeeded, and subsequent exact-ID
-inspections observed that same folder, but Drive supplied no strong HTTP ETag on
-either response. The worker therefore stayed in `VerifyRequired` for seven
-bounded attempts and the validator stopped at its 180-second deadline before
-any file upload or further namespace mutation. The run-owned folder and private
-journal remain for review. A create receipt does not need a token for a future
-conditional edit, so the candidate correction accepts the exact ID, parent,
-name and folder kind without inventing an ETag. Relocate, replacement and removal
-still require a real strong ETag. The corresponding no-ETag fixture fails with
-the old requirement and passes with the correction. The rerun is registered in
-`docs/benchmarks/google-drive-write-validation.json` and has not yet started.
-The complete `scripts/check.sh` passed with 669 Rust test executions, all kernel
-mount groups, script tests, the acceptance ledger and docs.
+The authorized write validation used a separate disabled connection with
+`drive.file` and five registered attempts. The first run established that an
+exact prepared folder create does not receive a strong ETag. The second and third
+runs established that Drive content-sniffs the recognizable repeated-`0x47`
+payload as `video/mp2t` even when metadata, session initialization and every
+nonempty PUT declare `application/octet-stream`; exact ID, name, parent, size and
+SHA-256 still matched. The fourth run accepted that ordinary file MIME receipt,
+then correctly reopened after Drive advanced the new item from receipt version 1
+to stable version 6 during post-upload processing.
 
-The registered second attempt ran installed commit `1fa3f27`. Folder creation
-reached `Applied`, and the multipart transfer committed the exact prepared ID,
-name, parent, 8,388,621-byte size and SHA-256. Google nevertheless reported the
-file as `video/mp2t`: the test payload repeats byte `0x47`, which resembles an
-MPEG transport stream. The create metadata and resumable initializer already
-declared `application/octet-stream`, but Cirrove's individual PUT requests did
-not. The adapter refused that MIME mismatch, kept the transfer in
-`VerifyRequired` for eight bounded attempts and stopped at 300 seconds before
-the empty file or any later mutation. The next candidate adds
-`Content-Type: application/octet-stream` to every nonempty session PUT. Its exact
-request test fails without that header and passes with it; bodyless status probes
-remain unchanged. The run-owned folder, byte-correct file, local bytes and
-private journal remain for review. A third run is registered before execution in
-`docs/benchmarks/google-drive-write-validation.json`.
-The complete `scripts/check.sh` passed with 669 Rust test executions, all kernel
-mount groups, script tests, the acceptance ledger and docs.
+The fifth registered run is the completed endpoint. Folder creation reached
+`Applied`; the 8,388,621-byte resumable create and the empty create both reached
+`Uploaded` and passed independent exact-ID/SHA-256 readback. The following
+metadata capability probe returned `NoStrongEtag` at version 4. The validator
+therefore stopped before any rename, replacement, move, trash or delete request.
+All run-owned cloud folders/files and private journals remain for review. This is
+live evidence that provider-neutral prepared folder creation and durable file
+creation work on this account. It is also evidence that Cirrove cannot safely
+offer conditional Google updates under its current conflict contract. It does
+not establish general provider reliability or permit a writable Google mount.
+The full chronology, corrections and pre-registered decision rules are in
+`docs/benchmarks/google-drive-write-validation.json`. The final code passed
+`scripts/check.sh` with 671 Rust test executions, all kernel mount groups, script
+tests, the acceptance ledger and docs.
 
 ## First real-account connection, 2026-09-19
 
 The owner created and authorized a separate Google Desktop OAuth app in Testing,
-with their own account as its only test user. Drive access is read-only. The
+with their own account as its only test user. The ordinary mounted account uses
+read-only Drive access; a separate disabled validation connection has `drive.file`. The
 client JSON stays private outside the repository; the resulting grant is stored
 in Cirrove's Secret Service entry.
 

@@ -167,6 +167,34 @@
     "candidate_validation": "Full scripts/check.sh passed with 671 Rust test executions, every kernel mount group, script tests, the acceptance ledger and docs. The focused retry test first failed without the bounded reopen loop and passed after it.",
     "prediction": "Folder creation, multipart upload/readback and empty-file create/readback will pass after any short post-upload version settling. The metadata capability probe is expected to report NoStrongEtag and stop before rename, replacement or move.",
     "endpoint": "Both created files are durably acknowledged and independently read back, followed either by a safely rejected stale metadata probe or an explicit no-strong-ETag stop. Any different boundary is recorded before another run.",
-    "decision_rule": "A missing strong ETag leaves conditional Google replacement, rename, move and trash unavailable. A stale request accepted by Google is a hard failure. Only a real strong ETag plus stale rejection permits the validator to continue to the next conditional operation."
+    "decision_rule": "A missing strong ETag leaves conditional Google replacement, rename, move and trash unavailable. A stale request accepted by Google is a hard failure. Only a real strong ETag plus stale rejection permits the validator to continue to the next conditional operation.",
+    "result": {
+      "status": "registered endpoint reached; creates passed and conditional work stopped at NoStrongEtag",
+      "installed_revision": "1d7724ff8e08cc18faf00151c846e9fbf3700029",
+      "ci_run": 35475735991,
+      "ci_jobs": "seven of seven passed",
+      "installed_binary_sha256": "571f79066fad58b1c8a12a938722c49cfc3571a9f00d98f292a0d3f2d516b845",
+      "folder_state": "applied",
+      "multipart_state": "uploaded",
+      "multipart_bytes": 8388621,
+      "multipart_readback_sha256_matches": true,
+      "empty_state": "uploaded",
+      "empty_bytes": 0,
+      "empty_readback_sha256_matches": true,
+      "metadata_precondition_probe": {
+        "outcome": "no_strong_etag",
+        "version": "4"
+      },
+      "conditional_mutations_started": 0,
+      "deletes_or_trash_requests": 0,
+      "cloud_artifacts": "The run-owned folder, multipart file and empty file remain for review.",
+      "private_evidence": ".local-state/google-write-validation/state/write-checks/5108ef6b-3dcf-48de-a96b-e3c5a6a628bb"
+    }
+  },
+  "conclusion": {
+    "create_capability": "Prepared folder creation and durable resumable/empty file creation completed through the provider-neutral workers on the authorized account, with exact identity and SHA-256 readback.",
+    "conditional_capability": "Unavailable under the current safety contract. Drive returned no strong HTTP ETag and its documented monotonic version has no compare-and-set parameter for files.update.",
+    "production_decision": "Keep every ordinary Google mount read-only. Do not expose replacement, rename, move, trash or delete until a real atomic stale-write rejection primitive is documented and validated.",
+    "reliability_limit": "This bounded single-account characterization is not a claim of general Google provider reliability."
   }
 }
