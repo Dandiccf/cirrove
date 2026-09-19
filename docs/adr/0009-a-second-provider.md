@@ -1,6 +1,6 @@
 # 0009: What a second provider costs, and what to change before writing one
 
-Status: accepted; read-only Google implementation underway, with the concrete
+Status: accepted; read-only Google preview implemented and initially live-checked, with the concrete
 boundaries and deviations from the original sequence recorded below.
 
 ## Implementation update, 2026-09-19

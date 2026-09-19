@@ -1,8 +1,8 @@
 # Google Drive preview
 
 The next provider is Google Drive. This is an implemented **read-only My Drive
-preview with synthetic validation**, not a claim of reliable Google-account
-operation. It uses Cirrove's existing engine, SQLite staging, disk cache, pin
+preview with synthetic validation and a first real-account smoke check**, not a
+claim of reliable Google-account operation. It uses Cirrove's existing engine, SQLite staging, disk cache, pin
 jobs and FUSE mount. No Google upload or mutation worker is implemented or
 selected, even if a token has wider permissions.
 
@@ -88,8 +88,8 @@ use the existing account lifecycle.
 
 For an isolated live validation, pass `--state-dir` to the connection command
 and start `cirroved` with that state directory and a separate `--socket`.
-Do not run two daemons against one state directory. No live Google connection
-was made during the implementation recorded below.
+Do not run two daemons against one state directory. The first live check below
+used the installed daemon and an additional Google account, alongside OneDrive.
 
 ## Validation and boundary findings, 2026-09-19
 
@@ -137,6 +137,41 @@ that environment failure is not counted as provider evidence.
 
 The kernel fixture is included in `scripts/check.sh` and CI. These are correctness
 scenarios, not memory or latency measurements and not evidence of live Google
-reliability. The live acceptance still needs the owner's Google app and consent,
-then listing, byte comparison, refresh, external changes and offline/restart
-checks with evidence recorded here.
+reliability. Broader live acceptance still needs independent byte comparison,
+token refresh, external changes and offline/restart checks with evidence recorded
+here.
+
+The callback correction subsequently passed the complete `scripts/check.sh`: 642
+Rust test executions plus the kernel groups, script tests, ledger and docs build.
+
+## First real-account connection, 2026-09-19
+
+The owner created and authorized a separate Google Desktop OAuth app in Testing,
+with their own account as its only test user. Drive access is read-only. The
+client JSON stays private outside the repository; the resulting grant is stored
+in Cirrove's Secret Service entry.
+
+The first attempt exposed a real integration defect: Google's redirect used
+`127.0.0.1`, but the shared callback parser still required `localhost` in the Host
+header. It rejected the callback and the login timed out. The new exact-loopback
+test failed on that implementation (one test executed). The corrected parser
+requires the host and port of the registered redirect, including rejecting a
+different loopback host or port. All 14 authentication unit tests then passed.
+The browser also displayed `ERR_BLOCKED_BY_CLIENT` during the redirect; no
+browser protection was disabled. The corrected login received its callback,
+verified the Google identity and connected successfully despite that browser
+display issue.
+
+The live account reached ready with 1,350 indexed entries and one completed feed.
+Its FUSE mount reports `ro`. Three small binary files (319, 1,507 and 334 bytes)
+and one 101-byte Google-document browser link were read twice through the mount;
+sizes and repeated bytes matched. This is not an independent comparison against
+a separately downloaded reference. One shortcut failed with `ENOENT`; its target
+was absent from the index, and the reason for that target's unavailability has
+not been established. The existing OneDrive account was ready with both feeds
+and its mount still present after Google connected.
+
+The preregistration and failures remain with the result in
+[the first-connection record](benchmarks/google-drive-first-connection.json).
+This small functional check does not establish large-library, long-session,
+offline/restart or token-lifetime reliability.

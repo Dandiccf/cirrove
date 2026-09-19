@@ -2620,3 +2620,10 @@ kernel scenario reads duplicate filenames, rejects a write open and remounts
 cached bytes offline with stable inodes. No Google credentials or cloud mutations
 participated. This is proof of shared plumbing under those scenarios, not real
 Google-service reliability or completion of shared-drive/document-export scope.
+
+A subsequent [first real-account connection](google-drive.md#first-real-account-connection-2026-09-19)
+completed after correcting the callback's Microsoft-only host check. The new
+regression was shown to fail without the fix. The account presented 1,350 entries
+on a read-only mount and served three small files and a browser link. An unresolved
+shortcut is recorded with the successful reads; independent reference comparison,
+long sessions and live offline/restart acceptance remain open.

@@ -665,7 +665,7 @@ fn parse_callback(request: &str, redirect: &Url, state: &str) -> Option<Result<S
             .filter(|(k, _)| k.eq_ignore_ascii_case("host"))
             .map(|(_, v)| v.trim())
     })?;
-    if host != format!("localhost:{}", redirect.port()?) {
+    if host != format!("{}:{}", redirect.host_str()?, redirect.port()?) {
         return None;
     }
     let parsed = redirect.join(target).ok()?;
@@ -682,9 +682,7 @@ fn parse_callback(request: &str, redirect: &Url, state: &str) -> Option<Result<S
         return None;
     }
     if !values("error").is_empty() {
-        return Some(Err(anyhow::anyhow!(
-            "Microsoft sign-in was cancelled or denied"
-        )));
+        return Some(Err(anyhow::anyhow!("Sign-in was cancelled or denied")));
     }
     let codes = values("code");
     if codes.len() != 1 || codes[0].is_empty() {
@@ -942,6 +940,25 @@ mod tests {
             good.replace("state=expected", "state=expected&state=expected"),
             good.replace("localhost:1234", "evil.example"),
             good.replace("GET", "POST"),
+        ] {
+            assert!(parse_callback(&bad, &url, "expected").is_none());
+        }
+    }
+    #[test]
+    fn google_callback_requires_its_exact_loopback_host_and_port() {
+        let url = Url::parse("http://127.0.0.1:1234/").unwrap();
+        let good = "GET /?code=hello&state=expected HTTP/1.1\r\nHost: 127.0.0.1:1234\r\n\r\n";
+        assert_eq!(
+            parse_callback(good, &url, "expected").unwrap().unwrap(),
+            "hello"
+        );
+        for bad in [
+            good.replace("127.0.0.1:1234", "localhost:1234"),
+            good.replace("127.0.0.1:1234", "127.0.0.1:1235"),
+            good.replace("127.0.0.1:1234", "127.0.0.2:1234"),
+            good.replace("expected", "wrong"),
+            good.replace("state=expected", "state=expected&state=expected"),
+            good.replace("code=hello", "code=hello&code=second"),
         ] {
             assert!(parse_callback(&bad, &url, "expected").is_none());
         }
