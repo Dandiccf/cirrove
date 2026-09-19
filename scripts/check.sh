@@ -50,6 +50,8 @@ if [[ $fast != --fast ]]; then
     CIRROVE_RECLAIM_FLOOR_BYTES=8388608 CIRROVE_RECLAIM_INTERVAL_SECONDS=1 \
       cargo test -p cirrove-service --test read_only --locked real_ \
         -- --ignored --test-threads=1
+    cargo test -p cirrove-service --test google_drive --locked real_ \
+      -- --ignored --test-threads=1
     cargo test -p cirrove-service --lib --locked filesystem::capacity::real_ \
       -- --ignored --test-threads=1 --skip real_writable_namespace_retires_and_stays_bounded
     MALLOC_ARENA_MAX=1 \

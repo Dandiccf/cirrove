@@ -1,0 +1,111 @@
+{
+  "registered_at": "2026-09-19",
+  "source_revision": "bedf187fc54b1d0896ab1e03e08ab6e4c3501ba6",
+  "question": "Can the owner's own Google Desktop OAuth app connect My Drive through the installed shared account lifecycle and serve a read-only mount alongside the existing OneDrive account?",
+  "registration_point": "Cloud project, Drive API, test audience and Desktop client are configured. Cirrove is waiting at Google consent. No Google Drive metadata or content has been read yet.",
+  "kind": "Single-account functional smoke check, not a performance measurement or release acceptance gate.",
+  "arms": [
+    "Installed developer build, owner's Google account, My Drive read-only"
+  ],
+  "endpoint": "Google consent and verified identity complete; the account reaches ready with a completed feed; the kernel mount presents entries and permits bounded reads; the pre-existing OneDrive account remains ready.",
+  "prediction": "The real Google connection should use the shared engine and mount successfully without changing the existing OneDrive account. File names will include complete IDs and native Google documents will be browser links, as documented for the preview.",
+  "limits": "No cloud mutations, long-session claim, memory or latency comparison, token-lifetime acceptance, comparison with a separately implemented Google client, shared-drive claim or release gate closure. Record any live incompatibility here instead of treating synthetic tests as proof that the live attempt worked.",
+  "result": {
+    "status": "basic connection and bounded reads passed; dangling shortcut classified",
+    "recorded_at": "2026-09-19T13:37:04.485543+00:00",
+    "callback_fix": "Registered redirect host and port replace the Microsoft-only hardcoded localhost check. New regression fails without the fix; 14 authentication unit tests pass with it.",
+    "connection_binary": "Debug CLI built from bedf187 plus the callback fix; installed daemon remains bedf187 during this first check. Corrected installed build verification will be recorded separately.",
+    "accounts": [
+      {
+        "provider": "onedrive",
+        "state": "ready",
+        "mounted": true,
+        "indexed_items": 184200,
+        "indexed_feeds": 2,
+        "stuck_changes": 0,
+        "failed_uploads": 0
+      },
+      {
+        "provider": "googledrive",
+        "state": "ready",
+        "mounted": true,
+        "indexed_items": 1350,
+        "indexed_feeds": 1,
+        "stuck_changes": 0,
+        "failed_uploads": 0
+      }
+    ],
+    "mount_readonly": true,
+    "samples": [
+      {
+        "kind": "browser_link",
+        "metadata_size": 101,
+        "bytes_read": 101,
+        "repeat_matches": true,
+        "size_matches": true,
+        "link_format_valid": true
+      },
+      {
+        "kind": "binary",
+        "metadata_size": 319,
+        "bytes_read": 319,
+        "repeat_matches": true,
+        "size_matches": true
+      },
+      {
+        "kind": "binary",
+        "metadata_size": 1507,
+        "bytes_read": 1507,
+        "repeat_matches": true,
+        "size_matches": true
+      },
+      {
+        "kind": "binary",
+        "metadata_size": 334,
+        "bytes_read": 334,
+        "repeat_matches": true,
+        "size_matches": true
+      }
+    ],
+    "unresolved_entries": [
+      {
+        "phase": "entry metadata or read",
+        "errno": 2
+      }
+    ],
+    "unresolved_entry_investigation": "A later bounded GET-only validator asked Google for the only indexed shortcut target directly. Google returned not found; it was not a Shared Drive permission refusal or only a missing index row. The dangling shortcut remains ENOENT in the mount.",
+    "bounded_direct_adapter_mount_comparison": {
+      "files": 3,
+      "bytes": 925,
+      "changed": 0,
+      "unavailable": 0,
+      "browser_links_excluded": true,
+      "result": "All bytes matched between fresh adapter reads and the mounted view. Both paths are Cirrove implementations, so this is not an independent-client comparison."
+    },
+    "shortcut_target_check": {
+      "checked": 1,
+      "available": 0,
+      "not_found": 1,
+      "outside_my_drive": 0,
+      "unavailable": 0
+    },
+    "independent_reference_comparison": false,
+    "browser_display": "The browser displayed ERR_BLOCKED_BY_CLIENT on the corrected redirect too, but the CLI received and validated its callback, verified identity and completed the connection. No browser protection was disabled.",
+    "existing_onedrive_configuration_semantically_unchanged": true,
+    "settings_migration": "Adding Google saved version 2 and the Microsoft provider discriminator; the previous OneDrive account otherwise compares equal to its saved pre-connection configuration.",
+    "validation": "Full scripts/check.sh passed after the callback fix: 642 Rust test executions, kernel groups, script tests, acceptance ledger and documentation build. One existing unrelated rustdoc link warning remains."
+  },
+  "connection_attempts": [
+    {
+      "date": "2026-09-19",
+      "stage": "OAuth callback",
+      "observation": "Google consent was submitted, but Chromium displayed ERR_BLOCKED_BY_CLIENT for the loopback callback. Cirrove was still waiting for the callback; no Google Drive metadata or content had been fetched. Browser handoff requested; no protection was disabled."
+    },
+    {
+      "date": "2026-09-19",
+      "stage": "OAuth callback validation",
+      "observation": "After the browser handoff, the local server rejected the callback. Inspection found that parse_callback still compared Host with localhost:<port> while Google uses the registered 127.0.0.1:<port> redirect. The pending login eventually timed out. This was a Cirrove implementation defect, not a Google permission failure.",
+      "regression_control": "The exact tests::google_callback_requires_its_exact_loopback_host_and_port test executed once and failed on the unchanged host check. The fix binds the Host header to the exact host and port of the registered redirect; alternate loopback hosts and ports remain rejected."
+    }
+  ]
+}

@@ -176,10 +176,11 @@ impl UploadProvider for FixtureGraph {
     async fn reconcile_upload(
         &self,
         r: &UploadRequest,
+        s: Option<&SecretString>,
         c: &CancellationToken,
     ) -> cirrove_core::upload::Result<Reconciliation> {
         self.request_allowed(r)?;
-        let result = self.graph.reconcile_upload(r, c).await?;
+        let result = self.graph.reconcile_upload(r, s, c).await?;
         if let Reconciliation::Committed(node) = &result {
             self.receipt(r, node)?;
         }
@@ -297,7 +298,7 @@ pub async fn onedrive_writable(state: &Path, label: &str) -> Result<()> {
         "Creating a dedicated writable fixture; private evidence: {}",
         directory.display()
     );
-    let graph = accounts::provider(&account)?;
+    let graph = accounts::onedrive_provider(&account)?;
     let cancel = CancellationToken::new();
     let _cancel_on_return = cancel.clone().drop_guard();
     let root = graph

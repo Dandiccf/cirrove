@@ -185,7 +185,7 @@ pub async fn onedrive_navigation(
     };
     let cancel = CancellationToken::new();
     let _cancel_on_return = cancel.clone().drop_guard();
-    let graph = accounts::provider(&account)?;
+    let graph = accounts::onedrive_provider(&account)?;
     // The account's own root id does not exist inside a linked collection, and
     // an engine given one it cannot resolve never serves a listing at all. When a
     // collection is named, its root has to be named with it.

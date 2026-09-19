@@ -1,12 +1,13 @@
 {
-  "version": 1,
+  "version": 2,
   "accounts": [
     {
       "id": "00000000-0000-4000-8000-000000000001",
       "label": "work",
       "registration": {
         "client_id": "00000000-0000-4000-8000-000000000010",
-        "authority": "common"
+        "authority": "common",
+        "provider": "microsoft"
       },
       "identity": {
         "tenant_id": "00000000-0000-4000-8000-000000000020",
@@ -34,7 +35,8 @@
       "label": "personal",
       "registration": {
         "client_id": "00000000-0000-4000-8000-000000000010",
-        "authority": "common"
+        "authority": "common",
+        "provider": "microsoft"
       },
       "identity": {
         "tenant_id": "00000000-0000-4000-8000-000000000020",

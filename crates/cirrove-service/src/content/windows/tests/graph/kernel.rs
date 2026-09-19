@@ -16,7 +16,7 @@ fn account(mount_path: std::path::PathBuf) -> Account {
     Account {
         id: "account".into(),
         label: "synthetic-window-fixture".into(),
-        registration: AppRegistration {
+        registration: AppRegistration::Microsoft {
             client_id: "00000000-0000-4000-8000-000000000002".into(),
             authority: "common".into(),
         },

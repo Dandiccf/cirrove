@@ -1,9 +1,69 @@
 # 0009: What a second provider costs, and what to change before writing one
 
-Status: decision, not yet code, except for two things that were fixed on the
-spot because they were wrong today rather than wrong later — the provider id is
-now one constant instead of a literal spelled out at each site, and the
-diagnostics bundle no longer leaks a drive id through journal text.
+Status: accepted; read-only Google preview implemented and initially live-checked, with the concrete
+boundaries and deviations from the original sequence recorded below.
+
+## Implementation update, 2026-09-19
+
+Google Drive is the second provider, initially read-only. The original survey and
+proposed sequence below remain as their historical rationale. The concrete first
+implementation uses a tagged `AppRegistration` inside the account rather than a
+second, independently mutable account-provider field: `registration.provider` is
+`microsoft` or `google`, and maps to the existing runtime scope names `onedrive`
+and `googledrive`. Settings are version 2 with a side-effect-free version-1 reader.
+
+`TokenSource` and the collection descriptor now live in core; the old OneDrive
+names are re-exports for callers. Auth does not depend on OneDrive. The existing
+PKCE/callback/vault/refresh implementation is shared, with Google scopes, signed
+identity verification and user-info binding isolated in `auth::google`. Microsoft
+logic stays in place while both paths are validated; this is an incremental
+extraction, not a new generic OAuth framework.
+
+Account construction returns `Arc<dyn ReadProvider>`. Microsoft write factories
+and validation verbs explicitly reject Google accounts. Status gains a provider
+field and preserves the old field names and protocol number, so this increment
+does not require an otherwise unrelated IPC rename. Google has no Graph counters.
+The planned compare-and-set capability work is deferred until there is an actual
+Google write implementation; the read-only adapter does not weaken any existing
+write precondition.
+
+A later create-side investigation found one contract change that has a concrete
+Google use before a writer exists. Drive can pre-generate a file ID for safe
+retries, but the worker previously had no way to persist that identity before the
+request that starts a resumable session. `UploadStep::Prepared` now creates that
+durability boundary in the credential vault. Recovery inspection reuses it, and
+reconciliation receives the last saved checkpoint so it can address the exact
+provider identity instead of a non-unique Google sibling name.
+
+The adapter now has a create-only transport using that boundary. It generates an
+ID, starts or replaces a resumable session without changing the ID, follows the
+server's exact committed offset and verifies uncertain completion by streaming
+the exact object's SHA-256. Only the configured upload origin and path can enter
+a session checkpoint. Synthetic tests cover the ordering, lost sessions, partial
+offsets, receipts and content verification. A separate disabled connection may
+now request `drive.file` beside the existing read-only scope for one explicit
+create validator. It cannot be enabled or selected for a writable mount. The
+validator pre-generates and persists its test-folder identity before creating
+multipart and empty files through the shared worker. It then records an exact
+plan and probes whether Drive v3 honors a strong response ETag on a metadata
+PATCH and rejects reuse of that stale ETag. It repeats the sequence with two
+small content payloads and verifies the resulting bytes by ID and SHA-256.
+Synthetic cases cover rejection, ignored preconditions and a missing strong ETag
+for both paths. The API reference does not document this behavior, resumable
+replacement is not implemented, and the validator has not been run against Google.
+Duplicate-name collision semantics and conditional replacement remain unresolved.
+
+The second adapter found real differences at the boundary: initial listing and
+change tracking are separate Google endpoints; sibling names are not unique;
+Google-native documents require an explicit export or link representation. See
+[the implemented policies and validation](../google-drive.md).
+
+The optional read-session contract now has its second implementation too. Google
+does not provide Graph's expiring download URL plus strong ETag combination, so
+its session keeps the stable provider identity and streams a bounded 8 MiB window
+between metadata/version checks. The shared cache publishes the staging file only
+after the final version still agrees. This reuses the contract without pretending
+the two providers have the same transport primitive.
 
 ## What prompted it
 

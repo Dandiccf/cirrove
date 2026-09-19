@@ -26,6 +26,9 @@ struct Form {
     folder_path: RefCell<Option<PathBuf>>,
     client: adw::EntryRow,
     tenant: adw::EntryRow,
+    provider: adw::ComboRow,
+    google_client: adw::ActionRow,
+    google_client_path: RefCell<Option<PathBuf>>,
     writable: adw::SwitchRow,
     sign_in: gtk::Button,
     spinner: gtk::Spinner,
@@ -41,8 +44,11 @@ impl Form {
     fn check(&self) {
         let ready = accounts::valid_label(self.name.text().trim())
             && self.folder_path.borrow().is_some()
-            && !self.client.text().trim().is_empty()
-            && !self.tenant.text().trim().is_empty();
+            && if self.provider.selected() == 1 {
+                self.google_client_path.borrow().is_some()
+            } else {
+                !self.client.text().trim().is_empty() && !self.tenant.text().trim().is_empty()
+            };
         self.sign_in.set_sensitive(ready && !*self.busy.borrow());
     }
     fn set_busy(&self, busy: bool, message: &str) {
@@ -59,6 +65,8 @@ impl Form {
         for row in [&self.name, &self.client, &self.tenant] {
             row.set_sensitive(!busy);
         }
+        self.provider.set_sensitive(!busy);
+        self.google_client.set_sensitive(!busy);
         self.folder.set_sensitive(!busy);
         self.writable.set_sensitive(!busy);
         self.check();
@@ -79,7 +87,8 @@ pub(super) fn present(ui: &Rc<Window>) {
         .current()
         .and_then(|view| {
             view.accounts
-                .first()
+                .iter()
+                .find(|account| !account.authority.is_empty())
                 .map(|account| (account.client_id.clone(), account.authority.clone()))
         })
         .unwrap_or_else(|| (String::new(), "common".to_owned()));
@@ -105,6 +114,14 @@ pub(super) fn present(ui: &Rc<Window>) {
             "A name for this connection, and the folder its files appear in.",
         ))
         .build();
+    let provider = adw::ComboRow::builder()
+        .title(gettext("Provider"))
+        .model(&gtk::StringList::new(&[
+            "OneDrive",
+            &gettext("Google Drive (read-only preview)"),
+        ]))
+        .build();
+    drive.add(&provider);
     let name = adw::EntryRow::builder().title(gettext("Name")).build();
     let folder = adw::ActionRow::builder()
         .title(gettext("Folder in Files"))
@@ -133,6 +150,16 @@ pub(super) fn present(ui: &Rc<Window>) {
             "Files saved in this drive are uploaded. Off, the drive is read-only.",
         ))
         .build();
+    let google_client = adw::ActionRow::builder()
+        .title(gettext("Google Desktop OAuth client"))
+        .subtitle(gettext(
+            "Choose the private client JSON from Google Cloud Console",
+        ))
+        .activatable(true)
+        .visible(false)
+        .build();
+    google_client.add_suffix(&gtk::Image::from_icon_name("document-open-symbolic"));
+    sign.add(&google_client);
     sign.add(&client);
     sign.add(&tenant);
     sign.add(&writable);
@@ -148,7 +175,7 @@ pub(super) fn present(ui: &Rc<Window>) {
     let sign_row = gtk::Box::new(gtk::Orientation::Horizontal, 12);
     sign_row.set_halign(gtk::Align::End);
     let spinner = gtk::Spinner::builder().visible(false).build();
-    let sign_in = gtk::Button::with_label("Sign in with Microsoft");
+    let sign_in = gtk::Button::with_label(&gettext("Sign in with Microsoft"));
     sign_in.add_css_class("suggested-action");
     sign_in.add_css_class("pill");
     sign_in.set_sensitive(false);
@@ -184,6 +211,9 @@ pub(super) fn present(ui: &Rc<Window>) {
         folder_path: RefCell::new(None),
         client,
         tenant,
+        provider,
+        google_client,
+        google_client_path: RefCell::new(None),
         writable,
         sign_in,
         spinner,
@@ -193,6 +223,42 @@ pub(super) fn present(ui: &Rc<Window>) {
         pending: RefCell::new(None),
         busy: RefCell::new(false),
     });
+    {
+        let form = form.clone();
+        form.provider.clone().connect_selected_notify(move |_| {
+            let google = form.provider.selected() == 1;
+            form.client.set_visible(!google);
+            form.tenant.set_visible(!google);
+            form.writable.set_visible(!google);
+            form.google_client.set_visible(google);
+            form.sign_in.set_label(&if google { gettext("Sign in with Google") } else { gettext("Sign in with Microsoft") });
+            sign.set_title(&if google { gettext("Google sign-in") } else { gettext("Microsoft sign-in") });
+            sign.set_description(Some(&if google {
+                gettext("My Drive files open read-only. Google documents appear as browser links; exports and shared drives are not yet supported.")
+            } else { gettext("The application (client) ID of your app registration; the OneDrive setup guide explains where it comes from.") }));
+            form.check();
+        });
+    }
+    {
+        let form = form.clone();
+        let window = window.clone();
+        form.google_client.clone().connect_activated(move |_| {
+            let chooser = gtk::FileDialog::builder()
+                .title(gettext("Google Desktop OAuth client JSON"))
+                .modal(true)
+                .build();
+            let form = form.clone();
+            chooser.open(Some(&window), None::<&gio::Cancellable>, move |result| {
+                if let Ok(file) = result
+                    && let Some(path) = file.path()
+                {
+                    form.google_client.set_subtitle(&path.to_string_lossy());
+                    *form.google_client_path.borrow_mut() = Some(path);
+                    form.check();
+                }
+            });
+        });
+    }
     for row in [&form.name, &form.client, &form.tenant] {
         let form = form.clone();
         row.connect_changed(move |_| form.check());
@@ -252,7 +318,9 @@ fn begin(form: &Rc<Form>, ui: &Rc<Window>, runtime: &tokio::runtime::Handle, sta
     let Some(folder) = form.folder_path.borrow().clone() else {
         return;
     };
-    let app = AppRegistration {
+    let google = form.provider.selected() == 1;
+    let google_client = form.google_client_path.borrow().clone();
+    let app = AppRegistration::Microsoft {
         client_id: form.client.text().trim().to_owned(),
         authority: form.tenant.text().trim().to_owned(),
     };
@@ -263,7 +331,8 @@ fn begin(form: &Rc<Form>, ui: &Rc<Window>, runtime: &tokio::runtime::Handle, sta
     };
     form.set_busy(
         true,
-        "Your browser opens the Microsoft sign-in. Choose the account there; this window continues when it is done.",
+        &if google { gettext("Your browser opens the Google sign-in. Choose the account there; this window continues when it is done.") }
+        else { gettext("Your browser opens the Microsoft sign-in. Choose the account there; this window continues when it is done.") },
     );
     let state = state.to_path_buf();
     let (send, receive) = tokio::sync::oneshot::channel();
@@ -271,7 +340,20 @@ fn begin(form: &Rc<Form>, ui: &Rc<Window>, runtime: &tokio::runtime::Handle, sta
     // callback across awaits, and nothing about that needs to be Send.
     runtime.spawn_blocking(move || {
         let result = tokio::runtime::Handle::current()
-            .block_on(accounts::begin_connect(state, label, app, folder, access))
+            .block_on(async move {
+                if google {
+                    accounts::begin_connect_google(
+                        state,
+                        label,
+                        google_client
+                            .ok_or_else(|| anyhow::anyhow!("choose a Google client JSON file"))?,
+                        folder,
+                    )
+                    .await
+                } else {
+                    accounts::begin_connect(state, label, app, folder, access).await
+                }
+            })
             .map_err(|error| format!("{error:#}"));
         let _ = send.send(result);
     });

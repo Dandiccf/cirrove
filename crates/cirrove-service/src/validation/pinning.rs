@@ -37,6 +37,9 @@ async fn place(
     let mut step = graph.begin_upload(&request, cancel).await?;
     loop {
         step = match step {
+            UploadStep::Prepared(_) => {
+                anyhow::bail!("the OneDrive pinning validator received a prepared upload")
+            }
             // The provider names the exact range it wants next; sending anything
             // else is how a resumable upload goes wrong in a way that only shows
             // up at commit.
@@ -80,7 +83,7 @@ pub async fn onedrive_pinning(state: &Path, label: &str) -> Result<()> {
     };
     let cancel = CancellationToken::new();
     let _cancel_on_return = cancel.clone().drop_guard();
-    let graph = accounts::provider(&account)?;
+    let graph = accounts::onedrive_provider(&account)?;
     let name = format!("Cirrove-Pinning-Validation-{run}");
     let root = graph
         .create_folder(&scope, &account.root_id, &name, &cancel)

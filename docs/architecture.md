@@ -1002,15 +1002,72 @@ synthetic kernel tests cannot establish real-provider reliability. Local-save
 success remains separate from remote acknowledgement. GTK settings, tray and Nautilus integrations
 must consume the service's state rather than maintain their own sync logic.
 
-Google Drive will implement provider contracts around its native changes and content
-APIs, including shared drives and explicit document export. iCloud must stay isolated
-behind a compatibility adapter with visible authentication/API limitations.
-[ADR 0009](adr/0009-a-second-provider.md) surveys what a second provider would
-actually cost here: the core traits and the store's key space already carry it,
-while the account record, the auth crate and the status wire format assume
-Microsoft, and the write contract requires an ETag precondition that Drive does
-not offer. It records the order those must change in, and that the precondition
-becomes a stated capability rather than a requirement.
+Google Drive now exercises those contracts as a read-only My Drive preview.
+Its initial index captures a change token before listing files, stages all listing
+pages, then catches up from that token before completing the baseline. Its content
+path uses bounded, exact ranges with monotonically increasing Google file versions
+checked before and after, without pretending a version number is an HTTP ETag.
+It implements the same `ReadSession` interface as the shared cache: sequential
+reads may stream an 8 MiB staging window under one pair of version checks, and a
+changed final version prevents publication of every byte in that window.
+Google-native files are browser links, not implicit document exports.
+[Google Drive](google-drive.md) records the name policy, setup, tests and remaining
+live-account, shared-drive and export limits. iCloud remains a separate future
+compatibility assessment.
+
+Settings version 2 discriminates authentication through `registration.provider`
+(`microsoft` or `google`); runtime scope IDs remain `onedrive` and `googledrive`.
+Version 1 settings load as Microsoft in memory, and are written as version 2 only
+when a settings operation saves. There is no metadata database migration for the
+second provider. `TokenSource` and `CollectionInfo` live in core, and auth no longer
+links the OneDrive adapter. Account provider construction dispatches to an
+`Arc<dyn ReadProvider>`; Microsoft-only validation and writers reject Google
+accounts before accessing credentials. The existing shared OAuth callback, PKCE,
+keyring and refresh broker dispatch to provider-specific scopes and identity
+verification. The desktop uses the same connection and reauthentication lifecycle.
+
+Status adds an optional `provider` field without renaming protocol-1 fields.
+Legacy `drive_id`, `drive`, `tenant` and `graph_gets` spellings remain compatibility
+fields; Google's tenant is empty and its optional read-path counters are absent,
+not fabricated Graph values. This additive change deliberately defers the planned
+wire rename in [ADR 0009](adr/0009-a-second-provider.md). No Google write capability
+or weaker replacement contract is introduced by this read-only implementation.
+
+The shared upload contract now covers one concrete Google create prerequisite
+without enabling it. `begin_upload` may return an opaque `Prepared` checkpoint,
+which the worker puts in the credential vault at zero transferred bytes before
+calling the provider again. Restart inspection and reconciliation receive that
+persisted value, so a future Google adapter can retain a pre-generated file ID
+through a lost resumable-session response and reconcile the exact identity rather
+than an ambiguous sibling name. Two synthetic transfer faults fail if either the
+pre-session persistence or reconciliation handoff is removed. OneDrive never
+returns `Prepared` and ignores the optional reconciliation checkpoint.
+
+The Google adapter now implements the create transport against this contract:
+pre-generated IDs, resumable ranges, exact remote offsets and streamed SHA-256
+reconciliation. Synthetic HTTP exercises it. Ordinary account construction still
+returns only the read provider; a separate disabled validation connection may
+hold `drive.readonly` plus `drive.file` consent and cannot be enabled as a mount.
+The worker may
+accept one new `Prepared` checkpoint from verification after a transport session
+is definitely gone; the provider identity survives while the obsolete session
+URL is removed before persistence.
+
+This does not resolve the writable namespace. Drive permits duplicate sibling
+names, so create cannot yet enforce the shared contract's atomic collision rule,
+and the Drive v3 `files.update` reference documents no OneDrive-style conditional
+ETag update. An explicit write validator now prepares an exact test-folder ID
+before mutation, routes multipart and empty files through the shared durable
+worker and reads them back by ID and SHA-256. It also persists an exact plan for
+its multipart file, applies one metadata rename with the current strong HTTP
+ETag, then attempts another with that stale value. A second persisted plan does
+the same with distinct small content payloads and verifies the winning bytes by
+exact identity and SHA-256. Synthetic tests distinguish stale rejection, ignored
+preconditions and a missing strong response ETag for both paths. This
+characterizes an undocumented capability; it does not yet supply resumable
+replacement, satisfy the production contract or establish live behavior.
+Replacement operations, writable service selection, writable mounts and live
+mutation evidence remain absent.
 
 ## References
 

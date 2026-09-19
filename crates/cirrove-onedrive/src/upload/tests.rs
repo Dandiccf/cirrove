@@ -784,7 +784,7 @@ async fn reconciliation_checks_actual_content_instead_of_acknowledging_equal_siz
         ])
         .await;
         let result = p
-            .reconcile_upload(&request, &CancellationToken::new())
+            .reconcile_upload(&request, None, &CancellationToken::new())
             .await
             .unwrap();
         assert_eq!(matches, matches!(result, Reconciliation::Committed(_)));

@@ -83,6 +83,7 @@ struct Remote {
     begins: usize,
     inspections: usize,
     reconciliations: usize,
+    reconciliation_had_checkpoint: bool,
     committed: Option<Node>,
 }
 struct Provider {
@@ -93,6 +94,11 @@ struct Provider {
     deferred: AtomicBool,
     conflict_commit: AtomicBool,
     fail_begin_once: AtomicBool,
+    prepare_once: AtomicBool,
+    fail_inspect_once: AtomicBool,
+    restart_prepare_once: AtomicBool,
+    complete_on_inspect_once: AtomicBool,
+    require_reconcile_checkpoint: AtomicBool,
     pause_offset: AtomicU64,
     entered: Notify,
 }
@@ -106,6 +112,11 @@ impl Provider {
             deferred: AtomicBool::new(false),
             conflict_commit: AtomicBool::new(false),
             fail_begin_once: AtomicBool::new(false),
+            prepare_once: AtomicBool::new(false),
+            fail_inspect_once: AtomicBool::new(false),
+            restart_prepare_once: AtomicBool::new(false),
+            complete_on_inspect_once: AtomicBool::new(false),
+            require_reconcile_checkpoint: AtomicBool::new(false),
             pause_offset: AtomicU64::new(u64::MAX),
             entered: Notify::new(),
         }
@@ -159,6 +170,9 @@ impl UploadProvider for Provider {
         if self.fail_begin_once.swap(false, Ordering::SeqCst) {
             return Err(ProviderError::Unavailable.into());
         }
+        if self.prepare_once.swap(false, Ordering::SeqCst) {
+            return Ok(UploadStep::Prepared(SecretString::from(SECRET)));
+        }
         Ok(self.more(request))
     }
     async fn inspect_upload(
@@ -177,6 +191,18 @@ impl UploadProvider for Provider {
             if state.committed.is_some() {
                 return Err(UploadError::SessionGone);
             }
+        }
+        if self.fail_inspect_once.swap(false, Ordering::SeqCst) {
+            return Err(UploadError::Uncertain);
+        }
+        if self.restart_prepare_once.swap(false, Ordering::SeqCst) {
+            return Ok(UploadStep::Prepared(SecretString::from(SECRET)));
+        }
+        if self.complete_on_inspect_once.swap(false, Ordering::SeqCst) {
+            let node = Self::node(request);
+            let mut state = self.state.lock().unwrap();
+            state.committed = Some(node);
+            return Err(UploadError::SessionGone);
         }
         Ok(self.more(request))
     }
@@ -236,11 +262,19 @@ impl UploadProvider for Provider {
     async fn reconcile_upload(
         &self,
         request: &UploadRequest,
+        checkpoint: Option<&SecretString>,
         _: &CancellationToken,
     ) -> UploadResult<Reconciliation> {
         self.probe.check();
         let mut state = self.state.lock().unwrap();
         state.reconciliations += 1;
+        state.reconciliation_had_checkpoint =
+            checkpoint.is_some_and(|value| value.expose_secret() == SECRET);
+        if self.require_reconcile_checkpoint.load(Ordering::SeqCst)
+            && !state.reconciliation_had_checkpoint
+        {
+            return Err(UploadError::CheckpointInvalid);
+        }
         Ok(match &state.committed {
             Some(node) if hex::encode(Sha256::digest(&state.data)) == request.sha256 => {
                 Reconciliation::Committed(node.clone())
@@ -258,6 +292,9 @@ fn journal(root: &Path, probe: &LockProbe) -> Arc<Mutex<UploadJournal>> {
     result
 }
 fn enqueue(j: &Arc<Mutex<UploadJournal>>, name: &str) -> uuid::Uuid {
+    enqueue_data(j, name, DATA)
+}
+fn enqueue_data(j: &Arc<Mutex<UploadJournal>>, name: &str, data: &[u8]) -> uuid::Uuid {
     j.lock()
         .unwrap()
         .enqueue(
@@ -270,7 +307,7 @@ fn enqueue(j: &Arc<Mutex<UploadJournal>>, name: &str) -> uuid::Uuid {
                 parent: "root".into(),
                 name: name.into(),
             },
-            DATA,
+            data,
         )
         .unwrap()
         .id
@@ -293,6 +330,117 @@ fn fixture() -> (Arc<LockProbe>, Arc<Provider>, Arc<Vault>) {
         ..Default::default()
     });
     (probe, p, v)
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn prepared_identity_survives_a_lost_session_start_response() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let (probe, p, v) = fixture();
+    let j = journal(&root, &probe);
+    let id = enqueue(&j, "Saved.txt");
+    p.prepare_once.store(true, Ordering::SeqCst);
+    p.fail_inspect_once.store(true, Ordering::SeqCst);
+
+    let worker = TransferWorker::new(j.clone(), p.clone(), v.clone(), CancellationToken::new());
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::VerifyRequired
+    );
+    let record = j.lock().unwrap().get(id).unwrap();
+    assert_eq!(record.transferred_bytes, 0);
+    assert!(record.session_key.is_some());
+    assert_eq!(p.state.lock().unwrap().begins, 1);
+    assert_eq!(p.state.lock().unwrap().inspections, 1);
+    assert!(p.state.lock().unwrap().offsets.is_empty());
+    assert_eq!(
+        v.values
+            .lock()
+            .unwrap()
+            .get(&format!("upload/{id}"))
+            .unwrap()
+            .expose_secret(),
+        SECRET
+    );
+
+    drop(worker);
+    drop(j);
+    let j = journal(&root, &probe);
+    j.lock().unwrap().request_retry(id).unwrap();
+    let worker = TransferWorker::new(j.clone(), p.clone(), v.clone(), CancellationToken::new());
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+    let state = p.state.lock().unwrap();
+    assert_eq!(state.begins, 1);
+    assert_eq!(state.inspections, 2);
+    assert_eq!(state.offsets, [0, 4, 8]);
+    drop(state);
+    assert!(v.values.lock().unwrap().is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn prepared_identity_is_available_when_a_lost_session_is_reconciled() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let (probe, p, v) = fixture();
+    let j = journal(&root, &probe);
+    let id = enqueue_data(&j, "Empty.txt", &[]);
+    p.prepare_once.store(true, Ordering::SeqCst);
+    p.complete_on_inspect_once.store(true, Ordering::SeqCst);
+    p.require_reconcile_checkpoint.store(true, Ordering::SeqCst);
+
+    let worker = TransferWorker::new(j.clone(), p.clone(), v.clone(), CancellationToken::new());
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::VerifyRequired
+    );
+    drop(worker);
+    drop(j);
+
+    let j = journal(&root, &probe);
+    j.lock().unwrap().request_retry(id).unwrap();
+    let worker = TransferWorker::new(j.clone(), p.clone(), v.clone(), CancellationToken::new());
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+    let state = p.state.lock().unwrap();
+    assert_eq!(state.begins, 1);
+    assert_eq!(state.inspections, 2);
+    assert_eq!(state.reconciliations, 1);
+    assert!(state.reconciliation_had_checkpoint);
+    assert!(state.offsets.is_empty());
+    drop(state);
+    assert!(v.values.lock().unwrap().is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn verification_can_restart_a_gone_session_with_the_same_prepared_identity() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let (probe, p, v) = fixture();
+    let j = journal(&root, &probe);
+    let id = enqueue(&j, "Saved.txt");
+    p.fail_offset_once.store(4, Ordering::SeqCst);
+
+    let worker = TransferWorker::new(j.clone(), p.clone(), v.clone(), CancellationToken::new());
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::VerifyRequired
+    );
+    p.restart_prepare_once.store(true, Ordering::SeqCst);
+    j.lock().unwrap().request_retry(id).unwrap();
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+    let state = p.state.lock().unwrap();
+    assert_eq!(state.begins, 1);
+    assert_eq!(state.inspections, 2);
+    assert_eq!(state.offsets, [0, 4, 4, 8]);
+    assert_eq!(state.data, DATA);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

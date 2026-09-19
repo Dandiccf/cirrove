@@ -1,10 +1,11 @@
-//! Microsoft browser OAuth/PKCE, validated OIDC identity and keyring-backed refresh.
+//! Browser OAuth/PKCE, provider-specific OIDC identity and shared keyring refresh.
 //! No raw token, callback URL or provider response is used in errors or logs.
+pub mod google;
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use cirrove_core::ProviderError;
-use cirrove_onedrive::TokenSource;
+use cirrove_core::TokenSource;
 use openidconnect::{
     AdditionalClaims, ClientId, CsrfToken, IdToken, IssuerUrl, Nonce, PkceCodeChallenge,
     PkceCodeVerifier,
@@ -77,27 +78,92 @@ impl AccessMode {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct AppRegistration {
-    pub client_id: String,
-    pub authority: String,
+#[serde(tag = "provider", rename_all = "snake_case")]
+pub enum AppRegistration {
+    Microsoft {
+        client_id: String,
+        authority: String,
+    },
+    Google {
+        client_id: String,
+    },
 }
 impl AppRegistration {
+    pub fn provider_id(&self) -> &'static str {
+        match self {
+            Self::Microsoft { .. } => "onedrive",
+            Self::Google { .. } => "googledrive",
+        }
+    }
+    pub fn client_id(&self) -> &str {
+        match self {
+            Self::Microsoft { client_id, .. } | Self::Google { client_id } => client_id,
+        }
+    }
+    /// Empty for providers without a Microsoft tenant selection. Retained for
+    /// old desktop diagnostics; it is never used to route Google's authentication.
+    pub fn authority(&self) -> &str {
+        match self {
+            Self::Microsoft { authority, .. } => authority,
+            Self::Google { .. } => "",
+        }
+    }
     pub fn validate(&self) -> Result<()> {
-        uuid::Uuid::parse_str(&self.client_id).context("application/client ID must be a UUID")?;
-        if !matches!(
-            self.authority.as_str(),
-            "common" | "organizations" | "consumers"
-        ) {
-            uuid::Uuid::parse_str(&self.authority)
-                .context("tenant must be a UUID, common, organizations or consumers")?;
+        match self {
+            Self::Microsoft {
+                client_id,
+                authority,
+            } => {
+                uuid::Uuid::parse_str(client_id).context("application/client ID must be a UUID")?;
+                if !matches!(authority.as_str(), "common" | "organizations" | "consumers") {
+                    uuid::Uuid::parse_str(authority)
+                        .context("tenant must be a UUID, common, organizations or consumers")?;
+                }
+            }
+            Self::Google { client_id } => {
+                let prefix = client_id
+                    .strip_suffix(".apps.googleusercontent.com")
+                    .context("Google client ID must end in .apps.googleusercontent.com")?;
+                if prefix.is_empty()
+                    || prefix.len() > 200
+                    || !prefix
+                        .bytes()
+                        .all(|b| b.is_ascii_alphanumeric() || b == b'-')
+                {
+                    bail!("invalid Google client ID");
+                }
+            }
         }
         Ok(())
     }
     fn endpoint(&self, path: &str) -> String {
-        format!(
-            "https://login.microsoftonline.com/{}/oauth2/v2.0/{path}",
-            self.authority
-        )
+        match self {
+            Self::Microsoft { authority, .. } => {
+                format!("https://login.microsoftonline.com/{authority}/oauth2/v2.0/{path}")
+            }
+            Self::Google { .. } => if path == "authorize" {
+                "https://accounts.google.com/o/oauth2/v2/auth"
+            } else {
+                "https://oauth2.googleapis.com/token"
+            }
+            .into(),
+        }
+    }
+    fn scopes(&self, access: AccessMode) -> Result<&'static str> {
+        match self {
+            Self::Microsoft { .. } => Ok(access.scopes()),
+            Self::Google { .. } => Ok(match access {
+                AccessMode::ReadOnly => google::SCOPES,
+                AccessMode::ReadWrite => google::WRITE_SCOPES,
+            }),
+        }
+    }
+    fn validate_grant(&self, access: AccessMode, granted: Option<&str>) -> Result<()> {
+        self.scopes(access)?;
+        match self {
+            Self::Microsoft { .. } => access.validate_grant(granted),
+            Self::Google { .. } => google::validate_grant(access, granted),
+        }
     }
 }
 
@@ -118,6 +184,10 @@ pub struct Credentials {
     expires_at: u64,
     #[serde(default)]
     access: AccessMode,
+    #[serde(default)]
+    provider: Option<String>,
+    #[serde(default)]
+    client_secret: Option<String>,
 }
 impl Credentials {
     pub fn access_token(&self) -> SecretString {
@@ -164,11 +234,11 @@ async fn bounded_json<T: serde::de::DeserializeOwned>(
         .map_err(|_| anyhow::Error::from(ProviderError::Unavailable))?
     {
         if chunk.len() > 1024usize.saturating_mul(1024).saturating_sub(body.len()) {
-            bail!("Microsoft response exceeds limit");
+            bail!("authentication response exceeds limit");
         }
         body.extend_from_slice(&chunk);
     }
-    serde_json::from_slice(&body).map_err(|_| anyhow::anyhow!("invalid Microsoft response"))
+    serde_json::from_slice(&body).map_err(|_| anyhow::anyhow!("invalid authentication response"))
 }
 
 #[async_trait]
@@ -371,6 +441,7 @@ pub struct PendingLogin {
     nonce: Nonce,
     verifier: PkceCodeVerifier,
     client: Client,
+    client_secret: Option<SecretString>,
 }
 impl PendingLogin {
     pub async fn new(app: AppRegistration) -> Result<Self> {
@@ -378,10 +449,16 @@ impl PendingLogin {
     }
     pub async fn with_access(app: AppRegistration, access: AccessMode) -> Result<Self> {
         app.validate()?;
+        app.scopes(access)?;
         let listener = TcpListener::bind("127.0.0.1:0").await?;
         // Microsoft ignores localhost redirect ports; register http://localhost.
         let redirect = Url::parse(&format!(
-            "http://localhost:{}/",
+            "http://{}:{}/",
+            if matches!(app, AppRegistration::Google { .. }) {
+                "127.0.0.1"
+            } else {
+                "localhost"
+            },
             listener.local_addr()?.port()
         ))?;
         let state = CsrfToken::new_random();
@@ -389,18 +466,29 @@ impl PendingLogin {
         let (challenge, verifier) = PkceCodeChallenge::new_random_sha256();
         let mut url = Url::parse(&app.endpoint("authorize"))?;
         url.query_pairs_mut().extend_pairs([
-            ("client_id", app.client_id.as_str()),
+            ("client_id", app.client_id()),
             ("response_type", "code"),
             ("redirect_uri", redirect.as_str()),
             ("response_mode", "query"),
-            ("scope", access.scopes()),
+            ("scope", app.scopes(access)?),
             ("state", state.secret()),
             ("nonce", nonce.secret()),
             ("code_challenge", challenge.as_str()),
             ("code_challenge_method", "S256"),
-            ("prompt", "select_account"),
+            (
+                "prompt",
+                if matches!(app, AppRegistration::Google { .. }) {
+                    "consent select_account"
+                } else {
+                    "select_account"
+                },
+            ),
         ]);
+        if matches!(app, AppRegistration::Google { .. }) {
+            url.query_pairs_mut().append_pair("access_type", "offline");
+        }
         Ok(Self {
+            client_secret: None,
             app,
             access,
             listener,
@@ -411,6 +499,10 @@ impl PendingLogin {
             verifier,
             client: http_client()?,
         })
+    }
+    pub fn with_client_secret(mut self, secret: Option<SecretString>) -> Self {
+        self.client_secret = secret;
+        self
     }
     /// Pass directly to the browser; never log or persist this URL.
     pub fn authorization_url(&self) -> &Url {
@@ -457,22 +549,34 @@ impl PendingLogin {
                 break outcome?;
             }
         };
+        let mut form = vec![
+            ("client_id", self.app.client_id()),
+            ("grant_type", "authorization_code"),
+            ("code", code.as_str()),
+            ("redirect_uri", self.redirect.as_str()),
+            ("code_verifier", self.verifier.secret()),
+            ("scope", self.app.scopes(self.access)?),
+        ];
+        if let Some(secret) = &self.client_secret {
+            form.push(("client_secret", secret.expose_secret()));
+        }
         let reply: TokenReply = bounded_json(
             self.client
                 .post(self.app.endpoint("token"))
-                .form(&[
-                    ("client_id", self.app.client_id.as_str()),
-                    ("grant_type", "authorization_code"),
-                    ("code", code.as_str()),
-                    ("redirect_uri", self.redirect.as_str()),
-                    ("code_verifier", self.verifier.secret()),
-                    ("scope", self.access.scopes()),
-                ])
+                .form(&form)
                 .send()
                 .await
-                .map_err(|_| anyhow::anyhow!("Microsoft token endpoint unavailable"))?,
+                .map_err(|_| anyhow::anyhow!("sign-in token endpoint unavailable"))?,
         )
         .await?;
+        if matches!(self.app, AppRegistration::Google { .. }) {
+            let identity =
+                google::login_identity(&self.client, &reply, self.app.client_id(), &self.nonce)
+                    .await?;
+            let mut credentials = credentials_for(&self.app, reply, None, self.access)?;
+            credentials.client_secret = self.client_secret.map(|s| s.expose_secret().to_owned());
+            return Ok((identity, credentials));
+        }
         let raw = reply
             .id_token
             .as_deref()
@@ -489,8 +593,8 @@ impl PendingLogin {
         let tenant = uuid::Uuid::parse_str(&hint.tid)
             .context("invalid identity tenant")?
             .to_string();
-        if uuid::Uuid::parse_str(&self.app.authority).is_ok()
-            && !tenant.eq_ignore_ascii_case(&self.app.authority)
+        if uuid::Uuid::parse_str(self.app.authority()).is_ok()
+            && !tenant.eq_ignore_ascii_case(self.app.authority())
         {
             bail!("signed-in tenant does not match the selected tenant");
         }
@@ -503,7 +607,7 @@ impl PendingLogin {
         )
         .await?;
         let (subject, username) =
-            verify_id_token(raw, &tenant, &self.app.client_id, &self.nonce, keys)?;
+            verify_id_token(raw, &tenant, self.app.client_id(), &self.nonce, keys)?;
         let user = graph_identity(&self.client, &reply.access_token).await?;
         let identity = Identity {
             tenant_id: tenant,
@@ -516,7 +620,7 @@ impl PendingLogin {
             graph_user_id: user.id,
             display_name: user.display_name,
         };
-        let credentials = credentials(reply, None, self.access)?;
+        let credentials = credentials_for(&self.app, reply, None, self.access)?;
         Ok((identity, credentials))
     }
 }
@@ -563,7 +667,7 @@ fn parse_callback(request: &str, redirect: &Url, state: &str) -> Option<Result<S
             .filter(|(k, _)| k.eq_ignore_ascii_case("host"))
             .map(|(_, v)| v.trim())
     })?;
-    if host != format!("localhost:{}", redirect.port()?) {
+    if host != format!("{}:{}", redirect.host_str()?, redirect.port()?) {
         return None;
     }
     let parsed = redirect.join(target).ok()?;
@@ -580,9 +684,7 @@ fn parse_callback(request: &str, redirect: &Url, state: &str) -> Option<Result<S
         return None;
     }
     if !values("error").is_empty() {
-        return Some(Err(anyhow::anyhow!(
-            "Microsoft sign-in was cancelled or denied"
-        )));
+        return Some(Err(anyhow::anyhow!("Sign-in was cancelled or denied")));
     }
     let codes = values("code");
     if codes.len() != 1 || codes[0].is_empty() {
@@ -623,15 +725,32 @@ async fn graph_identity_at(client: &Client, token: &str, endpoint: &str) -> Resu
     )
     .await
 }
+#[cfg(test)]
 fn credentials(
     reply: TokenReply,
     previous: Option<&Credentials>,
     access: AccessMode,
 ) -> Result<Credentials> {
+    credentials_for(
+        &AppRegistration::Microsoft {
+            client_id: String::new(),
+            authority: String::new(),
+        },
+        reply,
+        previous,
+        access,
+    )
+}
+fn credentials_for(
+    app: &AppRegistration,
+    reply: TokenReply,
+    previous: Option<&Credentials>,
+    access: AccessMode,
+) -> Result<Credentials> {
     if !reply.token_type.eq_ignore_ascii_case("bearer") || reply.access_token.is_empty() {
-        bail!("invalid Microsoft token type");
+        bail!("invalid authentication token type");
     }
-    access.validate_grant(reply.scope.as_deref())?;
+    app.validate_grant(access, reply.scope.as_deref())?;
     if previous.is_some_and(|previous| previous.access != access) {
         bail!("permission changes require a new browser sign-in");
     }
@@ -641,10 +760,27 @@ fn credentials(
             .refresh_token
             .or_else(|| previous.map(|p| p.refresh_token.clone()))
             .filter(|t| !t.is_empty())
-            .context("Microsoft did not grant offline access")?,
+            .context("provider did not grant offline access")?,
         expires_at: now().saturating_add(reply.expires_in),
         access,
+        provider: Some(app.provider_id().into()),
+        client_secret: previous.and_then(|p| p.client_secret.clone()),
     })
+}
+pub async fn saved_client_secret(
+    vault: &dyn CredentialVault,
+    key: &str,
+) -> Result<Option<SecretString>> {
+    let stored = tokio::time::timeout(Duration::from_secs(30), vault.load(key))
+        .await
+        .context("desktop keyring operation timed out")??;
+    let Some(stored) = stored else {
+        return Ok(None);
+    };
+    use secrecy::ExposeSecret;
+    let credentials: Credentials = serde_json::from_str(stored.expose_secret())
+        .map_err(|_| anyhow::anyhow!("invalid Cirrove credential"))?;
+    Ok(credentials.client_secret.map(SecretString::from))
 }
 pub async fn save_credentials(
     vault: &dyn CredentialVault,
@@ -680,9 +816,15 @@ impl TokenBroker {
         app.validate()?;
         Ok(Self {
             token_url: app.endpoint("token"),
-            identity_url:
-                "https://graph.microsoft.com/v1.0/me?$select=id,displayName,userPrincipalName"
-                    .into(),
+            identity_url: match app {
+                AppRegistration::Microsoft { .. } => {
+                    "https://graph.microsoft.com/v1.0/me?$select=id,displayName,userPrincipalName"
+                }
+                AppRegistration::Google { .. } => {
+                    "https://openidconnect.googleapis.com/v1/userinfo"
+                }
+            }
+            .into(),
             app,
             identity,
             key,
@@ -718,32 +860,52 @@ impl TokenBroker {
             );
         }
         let previous = state.as_ref().context("credential unavailable")?;
+        if previous.provider.as_deref().unwrap_or("onedrive") != self.app.provider_id() {
+            bail!("credential belongs to a different provider");
+        }
         if previous.expires_at > now().saturating_add(90) {
             return Ok(previous.access_token());
+        }
+        let mut form = vec![
+            ("client_id", self.app.client_id()),
+            ("grant_type", "refresh_token"),
+            ("refresh_token", previous.refresh_token.as_str()),
+            ("scope", self.app.scopes(previous.access)?),
+        ];
+        if let Some(secret) = &previous.client_secret {
+            form.push(("client_secret", secret.as_str()));
         }
         let response = self
             .client
             .post(&self.token_url)
-            .form(&[
-                ("client_id", self.app.client_id.as_str()),
-                ("grant_type", "refresh_token"),
-                ("refresh_token", previous.refresh_token.as_str()),
-                ("scope", previous.access.scopes()),
-            ])
+            .form(&form)
             .send()
             .await
             .map_err(|_| anyhow::Error::from(ProviderError::Unavailable))?;
         let reply: TokenReply = bounded_json(response).await?;
-        let user = graph_identity_at(&self.client, &reply.access_token, &self.identity_url).await?;
-        if user.id != self.identity.graph_user_id {
-            bail!("refreshed token belongs to a different Microsoft account");
+        match self.app {
+            AppRegistration::Microsoft { .. } => {
+                let user = graph_identity_at(&self.client, &reply.access_token, &self.identity_url)
+                    .await?;
+                if user.id != self.identity.graph_user_id {
+                    bail!("refreshed token belongs to a different Microsoft account");
+                }
+            }
+            AppRegistration::Google { .. } => {
+                let subject =
+                    google::subject_at(&self.client, &reply.access_token, &self.identity_url)
+                        .await?;
+                if subject != self.identity.subject {
+                    bail!("refreshed token belongs to a different Google account");
+                }
+            }
         }
-        let next = credentials(reply, Some(previous), previous.access)?;
+        let next = credentials_for(&self.app, reply, Some(previous), previous.access)?;
         // Persist rotation before using the new token; a keyring failure is visible.
         save_credentials(self.vault.as_ref(), &self.key, &next).await?;
         let token = next.access_token();
         *state = Some(next);
-        tracing::info!("Microsoft authorization refreshed and saved");
+        tracing::info!("authorization refreshed and saved");
         Ok(token)
     }
 }
@@ -784,9 +946,28 @@ mod tests {
             assert!(parse_callback(&bad, &url, "expected").is_none());
         }
     }
+    #[test]
+    fn google_callback_requires_its_exact_loopback_host_and_port() {
+        let url = Url::parse("http://127.0.0.1:1234/").unwrap();
+        let good = "GET /?code=hello&state=expected HTTP/1.1\r\nHost: 127.0.0.1:1234\r\n\r\n";
+        assert_eq!(
+            parse_callback(good, &url, "expected").unwrap().unwrap(),
+            "hello"
+        );
+        for bad in [
+            good.replace("127.0.0.1:1234", "localhost:1234"),
+            good.replace("127.0.0.1:1234", "127.0.0.1:1235"),
+            good.replace("127.0.0.1:1234", "127.0.0.2:1234"),
+            good.replace("expected", "wrong"),
+            good.replace("state=expected", "state=expected&state=expected"),
+            good.replace("code=hello", "code=hello&code=second"),
+        ] {
+            assert!(parse_callback(&bad, &url, "expected").is_none());
+        }
+    }
     #[tokio::test]
     async fn authorization_requests_pkce_nonce_read_only_scopes_and_account_picker() {
-        let pending = PendingLogin::new(AppRegistration {
+        let pending = PendingLogin::new(AppRegistration::Microsoft {
             client_id: uuid::Uuid::new_v4().to_string(),
             authority: "common".into(),
         })
@@ -801,7 +982,7 @@ mod tests {
     #[tokio::test]
     async fn write_consent_is_explicit_and_validates_granted_permissions() {
         let pending = PendingLogin::with_access(
-            AppRegistration {
+            AppRegistration::Microsoft {
                 client_id: uuid::Uuid::new_v4().to_string(),
                 authority: "common".into(),
             },
@@ -861,7 +1042,7 @@ mod tests {
     }
     #[test]
     fn app_registration_does_not_accept_arbitrary_authority_urls() {
-        let app = AppRegistration {
+        let app = AppRegistration::Microsoft {
             client_id: uuid::Uuid::new_v4().to_string(),
             authority: "https://evil.example".into(),
         };
@@ -963,6 +1144,17 @@ mod tests {
         Arc<std::sync::atomic::AtomicUsize>,
         tokio::task::JoinHandle<()>,
     ) {
+        broker_fixture_for(access, false).await
+    }
+    async fn broker_fixture_for(
+        access: AccessMode,
+        google: bool,
+    ) -> (
+        Arc<TokenBroker>,
+        Arc<MemoryVault>,
+        Arc<std::sync::atomic::AtomicUsize>,
+        tokio::task::JoinHandle<()>,
+    ) {
         use std::sync::atomic::{AtomicUsize, Ordering};
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
@@ -1003,10 +1195,22 @@ mod tests {
                             request.split_once("\r\n\r\n").unwrap().1.as_bytes(),
                         )
                         .collect();
-                        assert_eq!(form["scope"], access.scopes());
+                        assert_eq!(
+                            form["scope"],
+                            if google {
+                                google::SCOPES
+                            } else {
+                                access.scopes()
+                            }
+                        );
+                        if google {
+                            assert_eq!(form["client_secret"], "synthetic-client-secret");
+                        }
                         count.fetch_add(1, Ordering::SeqCst);
                         tokio::time::sleep(Duration::from_millis(30)).await;
                         r#"{"token_type":"Bearer","access_token":"synthetic-fresh","refresh_token":"synthetic-rotated","expires_in":3600}"#
+                    } else if google {
+                        r#"{"sub":"synthetic-user"}"#
                     } else {
                         r#"{"id":"synthetic-user","displayName":"Synthetic","userPrincipalName":"fixture@example.invalid"}"#
                     };
@@ -1028,6 +1232,8 @@ mod tests {
                         refresh_token: "synthetic-old-refresh".into(),
                         expires_at: 0,
                         access,
+                        provider: google.then(|| "googledrive".into()),
+                        client_secret: google.then(|| "synthetic-client-secret".into()),
                     })
                     .unwrap(),
                 ),
@@ -1035,13 +1241,19 @@ mod tests {
             .await
             .unwrap();
         let mut broker = TokenBroker::new(
-            AppRegistration {
-                client_id: uuid::Uuid::new_v4().to_string(),
-                authority: "common".into(),
+            if google {
+                AppRegistration::Google {
+                    client_id: "123-example.apps.googleusercontent.com".into(),
+                }
+            } else {
+                AppRegistration::Microsoft {
+                    client_id: uuid::Uuid::new_v4().to_string(),
+                    authority: "common".into(),
+                }
             },
             Identity {
                 tenant_id: uuid::Uuid::new_v4().to_string(),
-                subject: "subject".into(),
+                subject: if google { "synthetic-user" } else { "subject" }.into(),
                 username: "fixture@example.invalid".into(),
                 graph_user_id: "synthetic-user".into(),
                 display_name: "Synthetic".into(),
@@ -1104,5 +1316,57 @@ mod tests {
         assert_eq!(decoded.access, AccessMode::ReadWrite);
         server.abort();
         let _ = server.await;
+    }
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn google_refresh_shares_rotation_stale_401_and_keyring_guards() {
+        use std::sync::atomic::Ordering;
+        let (broker, vault, requests, server) =
+            broker_fixture_for(AccessMode::ReadOnly, true).await;
+        let mut jobs = tokio::task::JoinSet::new();
+        for _ in 0..16 {
+            let broker = broker.clone();
+            jobs.spawn(async move { broker.access_token().await.unwrap() });
+        }
+        while let Some(result) = jobs.join_next().await {
+            assert_eq!(result.unwrap().expose_secret(), "synthetic-fresh");
+        }
+        assert_eq!(requests.load(Ordering::SeqCst), 1);
+        let stored: Credentials =
+            serde_json::from_str(vault.load("key").await.unwrap().unwrap().expose_secret())
+                .unwrap();
+        assert_eq!(stored.provider.as_deref(), Some("googledrive"));
+        assert_eq!(
+            stored.client_secret.as_deref(),
+            Some("synthetic-client-secret")
+        );
+        broker
+            .invalidate(&SecretString::from("synthetic-expired"))
+            .await;
+        assert!(broker.access_token().await.is_ok());
+        assert_eq!(requests.load(Ordering::SeqCst), 1);
+        broker
+            .invalidate(&SecretString::from("synthetic-fresh"))
+            .await;
+        vault.fail_save.store(true, Ordering::SeqCst);
+        assert!(
+            broker.access_token().await.is_err(),
+            "failed rotation must not become usable"
+        );
+        server.abort();
+    }
+    #[tokio::test]
+    async fn google_refresh_rejects_a_different_subject_and_foreign_credentials() {
+        let (broker, vault, _, server) = broker_fixture_for(AccessMode::ReadOnly, true).await;
+        let mut broker = Arc::try_unwrap(broker).ok().unwrap();
+        broker.identity.subject = "another-user".into();
+        assert!(broker.access_token().await.is_err());
+        let stored = vault.load("key").await.unwrap().unwrap();
+        assert!(stored.expose_secret().contains("synthetic-expired"));
+        let (microsoft, _, _, ms_server) = broker_fixture(AccessMode::ReadOnly).await;
+        let mut microsoft = Arc::try_unwrap(microsoft).ok().unwrap();
+        microsoft.vault = vault;
+        assert!(microsoft.access_token().await.is_err());
+        server.abort();
+        ms_server.abort();
     }
 }

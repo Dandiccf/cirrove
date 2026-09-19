@@ -2609,3 +2609,61 @@ non-deterministic in the build itself. What would close it is
 same makepkg options on both sides. Recorded as a known limit of 0.1.0 rather
 than claimed: **a lockfile is not reproducibility, and neither is a matching
 compiler version.**
+
+## A second provider through the same engine, 2026-09-19
+
+The read-only Google Drive implementation and exact acceptance boundary are in
+[Google Drive](google-drive.md#validation-and-boundary-findings-2026-09-19).
+Synthetic HTTP scenarios exercise both real adapters in the same metadata store
+and content cache with deliberately identical IDs and version tags. The Google
+kernel scenario reads duplicate filenames, rejects a write open and remounts
+cached bytes offline with stable inodes. No Google credentials or cloud mutations
+participated. This is proof of shared plumbing under those scenarios, not real
+Google-service reliability or completion of shared-drive/document-export scope.
+
+The adapter also implements the shared bounded read-session path. Its synthetic
+transport test streams a window and checks the Google version again after the
+last byte; the unchanged arm succeeds and the changed arm returns
+`VersionChanged`, leaving publication to the cache only on success.
+
+A separate synthetic create transport pre-generates and persists the destination
+ID before mutation, validates resumable offsets and receipts, rejects foreign
+session URLs, follows Google's non-throttle `4xx` restart rule and hashes the
+exact remote object during reconciliation. Negative controls show that the worker
+test fails without pre-session persistence, the restart test fails with the old
+narrow status mapping and the range test fails if a reply may advance beyond the
+bytes submitted. An explicit disabled-account validator can now request
+`drive.file`, pre-generate and persist an isolated folder identity, create a
+multipart file and an empty file through the shared worker, then read each exact
+identity back and compare SHA-256. It now also persists an exact plan for the
+multipart file, applies a metadata rename with the current strong HTTP ETag and
+reuses that stale value for a second rename. It repeats the sequence with two
+small content payloads and reads the winner back by exact ID and SHA-256. Three
+synthetic arms for each path distinguish a 412 rejection, an ignored stale header
+and a metadata response without a strong ETag; the last arms perform no PATCH.
+The validator has not been run, so no
+Google write scope or mutation participated in the evidence recorded here; the
+writable namespace and replacement rules remain open.
+
+Each successful-precondition test was also run once with only its `If-Match`
+header removed. Exactly one test executed in each run and failed at the synthetic
+server's required-header assertion. Restoring the header made each exact test
+pass. This shows that the two tests depend on the outgoing precondition rather
+than only accepting their scripted response status.
+
+The focused OAuth test was also run with `drive.file` removed from the requested
+write scopes and failed because the grant no longer satisfied `ReadWrite`;
+restoring the scope passed. The prepared-folder test was run with the create body
+using a different ID and failed on the exact JSON request before the response
+could be accepted; restoring the generated ID passed. These negative controls
+exercise the two new safety boundaries rather than only their success paths.
+
+A subsequent [first real-account connection](google-drive.md#first-real-account-connection-2026-09-19)
+completed after correcting the callback's Microsoft-only host check. The new
+regression was shown to fail without the fix. The account presented 1,350 entries
+on a read-only mount and served three small files and a browser link. A later
+GET-only validator matched three non-link files (925 bytes) between direct adapter
+reads and the mount. Its only shortcut target returned not found directly from
+Google, so the remaining `ENOENT` is a dangling target rather than an unexplained
+index omission. Comparison with a separate Google client, long sessions and live
+offline/restart acceptance remain open.
