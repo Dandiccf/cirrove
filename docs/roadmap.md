@@ -81,8 +81,9 @@ currently bundled; another project's client ID is never substituted.
 
 - [ ] Google Drive: [read-only My Drive implemented and synthetically tested](google-drive.md),
       with a prepared create, metadata, small-content and resumable-content
-      precondition live validator plus an isolated shared-worker replacement;
-      mutation evidence, writable
+      precondition live validator plus isolated shared-worker replacement,
+      rename and move, with synthetic conditional trash for exact regular files;
+      atomic collision rules, mutation evidence, writable
       namespace rules, shared drives and Docs/Sheets exports remain open.
 - [ ] iCloud feasibility, isolated compatibility adapter and visible limitations.
 

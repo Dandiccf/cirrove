@@ -53,8 +53,13 @@ ignored stale precondition and the absence of a strong ETag. The API reference
 does not document this behavior. The adapter now implements shared-worker
 replacement behind the disabled validator and tests its durable preparation,
 conditional session, conflict and reconciliation behavior synthetically; the
-validator has not been run against Google.
-Duplicate-name collision semantics and conditional replacement remain unresolved.
+validator has not been run against Google. A validator-only namespace adapter
+also sends exact-ID conditional rename and move through the shared mutation
+worker and reconciles by immutable identity. Its preflight destination scan does
+not make Google's duplicate-name semantics atomic, so normal mounts cannot select
+it. Exact-ID conditional regular-file trash is also synthetic only and treats a
+404 as indeterminate rather than proof of success. Duplicate-name collision
+semantics and conditional replacement stability remain unresolved.
 
 The second adapter found real differences at the boundary: initial listing and
 change tracking are separate Google endpoints; sibling names are not unique;
@@ -114,10 +119,12 @@ deliberate bump with a read-old path to write.
 **One contract-level assumption is real.** `UploadIntent::Replace` requires a
 non-empty ETag precondition and `MutationRequest::validate` enforces it. That
 exists because Graph offers `If-Match` and using it is what makes a replace
-safe. Drive v3 has no equivalent on `files.update`; an adapter would have to
-either fake a precondition it cannot honour, or take a weaker path. This is the
-only place where the write contract encodes a Microsoft capability as a
-requirement rather than as a capability.
+safe. The Drive v3 `files.update` reference documents no equivalent. An isolated
+validator now exercises the response ETag as an undocumented `If-Match` value for
+replacement and relocation, but that cannot turn live observations into a stable
+provider guarantee or supply Google's missing atomic destination-collision rule.
+This is the only place where the write contract encodes a Microsoft capability as
+a requirement rather than as a capability.
 
 ## Decision
 

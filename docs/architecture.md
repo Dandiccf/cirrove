@@ -1054,6 +1054,22 @@ before mutation, the resumable `PATCH` carries `If-Match`, and uncertain success
 is reconciled by identity and SHA-256. Ordinary account construction still does
 not select a writable Google mount.
 
+The same disabled validator can construct a separate namespace adapter and pass
+it to the provider-neutral mutation worker. It supports regular-file rename and
+move only inside the validator's private fixture: the exact source is read with a
+strong ETag, the destination is scanned for a case-folded collision, the PATCH
+uses `If-Match`, and reconciliation checks the immutable item ID at the requested
+raw Google name and parent. This does not close the race between the destination
+scan and Google's duplicate-permitting update, so normal provider construction
+does not expose this adapter.
+
+The validator-only adapter also implements regular-file removal as an exact-ID
+`files.update` to `trashed=true` with the original strong ETag. It reports the
+operation as recoverable and never as permanent deletion. Reconciliation accepts
+an exact trashed identity, but a 404 remains indeterminate because absence alone
+cannot prove who removed the item. This path has synthetic coverage and is not
+called by the live validator or any mount.
+
 The Google adapter implements create and validation-only replacement against this
 contract: pre-generated IDs, exact replacement identities, resumable ranges,
 strong preconditions, exact remote offsets and streamed SHA-256 reconciliation.
@@ -1077,9 +1093,9 @@ the same with distinct small content payloads and verifies the winning bytes by
 exact identity and SHA-256. Synthetic tests distinguish stale rejection, ignored
 preconditions and a missing strong response ETag for both paths. This
 characterizes an undocumented capability; it does not satisfy the production
-contract or establish live behavior. Validation-only replacement is connected to
-the resumable worker, while writable service selection, writable mounts and live
-mutation evidence remain absent.
+contract or establish live behavior. Validation-only replacement, rename and move
+are connected to their durable workers, while writable service selection,
+writable mounts and live mutation evidence remain absent.
 
 ## References
 

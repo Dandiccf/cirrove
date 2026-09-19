@@ -431,9 +431,13 @@ The Google Drive read adapter now validates the shared account, metadata, cache
 and mount boundaries. Its create transport and disabled-account validator have
 synthetic protocol coverage, including persisted current/stale HTTP ETag probes
 for metadata, small content and aligned resumable content on a file created by
-the run, followed by a durable shared-worker replacement and stale conflict. The validator has
-not been run and no writable
-mount selects them while collision and replacement rules remain open. Shared
+the run, followed by durable shared-worker replacement, rename and move plus stale
+conflicts. The namespace adapter is confined to the private validator because
+its destination scan cannot make Google's duplicate-permitting move atomic. It
+also has synthetic exact-ID, ETag-conditional regular-file trash coverage, which
+the live validator does not invoke. The validator has not been run and no
+writable mount selects these transports while collision and replacement rules
+remain open. Shared
 drives and document exports require explicit capabilities. iCloud
 has a separate feasibility gate before feature parity is promised. Completion of
 OneDrive 1.0 does not claim either adapter is finished.

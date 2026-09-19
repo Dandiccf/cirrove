@@ -1,8 +1,73 @@
 //! Explicit Google create and metadata-precondition check. It is wired for a
 //! disabled, separately consented account and is never called by the daemon.
 use super::*;
-use cirrove_core::ReadProvider;
+use crate::{
+    journal::{MutationRecord, MutationState},
+    mutations::MutationWorker,
+};
+use cirrove_core::{
+    ReadProvider,
+    mutation::{MutationIntent, MutationReceipt, MutationRequest},
+};
 use cirrove_googledrive::GoogleDrive;
+
+async fn apply_mutation(
+    journal: &Arc<Mutex<UploadJournal>>,
+    worker: &MutationWorker,
+    request: MutationRequest,
+    expected: MutationState,
+    log: &mut File,
+    stage: &str,
+) -> Result<MutationRecord> {
+    let shared = journal.clone();
+    let id = tokio::task::spawn_blocking(move || -> Result<_> {
+        Ok(shared
+            .lock()
+            .map_err(|_| anyhow::anyhow!("validation journal unavailable"))?
+            .enqueue_mutation(request)?
+            .id)
+    })
+    .await??;
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(180);
+    loop {
+        if let Some(result) = worker.run_once().await? {
+            println!("  namespace change: {:?}", result.state);
+            if let Some(issue) = result.issue {
+                println!("  {issue}");
+            }
+        }
+        let record = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("validation journal unavailable"))?
+            .mutation(id)?;
+        if matches!(
+            record.state,
+            MutationState::Applied
+                | MutationState::Conflict
+                | MutationState::Failed
+                | MutationState::NeedsReview
+        ) {
+            event(
+                log,
+                serde_json::json!({
+                    "stage":stage,
+                    "operation":record.id,
+                    "state":record.state
+                }),
+            )?;
+            if record.state != expected {
+                bail!(
+                    "Google namespace check did not reach its expected state; retained operation requires review"
+                );
+            }
+            return Ok(record);
+        }
+        if tokio::time::Instant::now() >= deadline {
+            bail!("Google namespace validation deadline reached; local evidence is retained");
+        }
+        tokio::time::sleep(Duration::from_millis(250)).await;
+    }
+}
 
 async fn verify_created(
     provider: &GoogleDrive,
@@ -348,6 +413,136 @@ pub async fn google_create(state: &Path, label: &str) -> Result<()> {
         }),
     )?;
     verify_created(google.as_ref(), &worker_replacement, &cancel).await?;
+
+    let mutation_base = google
+        .validation_replacement_base(&scope, &multipart_id, &folder.id, accepted_name, &cancel)
+        .await?;
+    let worker_name = "Kärnten & Grüße #1-worker-renamed.bin";
+    event(
+        &mut log,
+        serde_json::json!({
+            "stage":"worker_relocation_planned",
+            "item":multipart_id,
+            "parent":folder.id,
+            "name":worker_name
+        }),
+    )?;
+    println!("Checking Google rename through the provider-neutral mutation worker.");
+    let mutation_worker = MutationWorker::new(
+        journal.clone(),
+        Arc::new(google.validation_mutations()),
+        cancel.clone(),
+    );
+    let relocate = |before: Node, name: &str| MutationRequest {
+        scope: scope.clone(),
+        intent: MutationIntent::Relocate {
+            before,
+            parent: folder.id.clone(),
+            name: name.into(),
+        },
+    };
+    let moved = apply_mutation(
+        &journal,
+        &mutation_worker,
+        relocate(mutation_base.clone(), worker_name),
+        MutationState::Applied,
+        &mut log,
+        "worker_relocation_result",
+    )
+    .await?;
+    let Some(MutationReceipt::Upsert(moved_node)) = moved.receipt else {
+        bail!("Google worker rename has no exact provider receipt");
+    };
+    if moved_node.id != multipart_id
+        || moved_node.parent_id.as_ref() != Some(&folder.id)
+        || moved_node.name != worker_name
+    {
+        bail!("Google worker rename returned a different item or destination");
+    }
+    let inspected_move = google
+        .validation_replacement_base(&scope, &multipart_id, &folder.id, worker_name, &cancel)
+        .await?;
+    if inspected_move.etag == mutation_base.etag {
+        bail!("Google worker rename did not advance the strong ETag");
+    }
+
+    let destination_plan = google
+        .prepare_folder(&scope, &folder.id, "Destination", &cancel)
+        .await?;
+    event(
+        &mut log,
+        serde_json::json!({
+            "stage":"move_destination_prepared",
+            "folder":destination_plan
+        }),
+    )?;
+    let destination = match google
+        .create_prepared_folder(&scope, &destination_plan, &cancel)
+        .await
+    {
+        Ok(folder) => folder,
+        Err(UploadError::Uncertain) => google
+            .inspect_prepared_folder(&scope, &destination_plan, &cancel)
+            .await?
+            .context(
+                "Google move-destination outcome is uncertain; its prepared identity is retained",
+            )?,
+        Err(error) => return Err(error.into()),
+    };
+    let inspected_destination = google
+        .inspect_prepared_folder(&scope, &destination_plan, &cancel)
+        .await?
+        .context("created Google move destination is absent")?;
+    if inspected_destination.id != destination.id {
+        bail!("Google move-destination identity changed after creation");
+    }
+    event(
+        &mut log,
+        serde_json::json!({
+            "stage":"move_destination_created",
+            "item":destination.id,
+            "parent":folder.id
+        }),
+    )?;
+    let moved_name = "Kärnten & Grüße #1-worker-moved.bin";
+    println!("Checking Google move through the same provider-neutral mutation worker.");
+    let moved_again = apply_mutation(
+        &journal,
+        &mutation_worker,
+        MutationRequest {
+            scope: scope.clone(),
+            intent: MutationIntent::Relocate {
+                before: inspected_move.clone(),
+                parent: destination.id.clone(),
+                name: moved_name.into(),
+            },
+        },
+        MutationState::Applied,
+        &mut log,
+        "worker_move_result",
+    )
+    .await?;
+    let Some(MutationReceipt::Upsert(moved_again_node)) = moved_again.receipt else {
+        bail!("Google worker move has no exact provider receipt");
+    };
+    if moved_again_node.id != multipart_id
+        || moved_again_node.parent_id.as_ref() != Some(&destination.id)
+        || moved_again_node.name != moved_name
+    {
+        bail!("Google worker move returned a different item or destination");
+    }
+    google
+        .validation_replacement_base(&scope, &multipart_id, &destination.id, moved_name, &cancel)
+        .await?;
+    apply_mutation(
+        &journal,
+        &mutation_worker,
+        relocate(inspected_move, "Kärnten & Grüße #1-worker-stale.bin"),
+        MutationState::Conflict,
+        &mut log,
+        "worker_stale_relocation_result",
+    )
+    .await?;
 
     let stale_worker = transfer(
         &journal,

@@ -3,6 +3,10 @@
 //! Prepared IDs and resumable session URLs stay inside opaque vault checkpoints.
 use super::{files::File, transport::body, *};
 use async_trait::async_trait;
+use cirrove_core::mutation::{
+    MutationError, MutationIntent, MutationProvider, MutationReceipt, MutationReconciliation,
+    MutationRequest,
+};
 use cirrove_core::upload::{
     Reconciliation, Result, UploadError, UploadIntent, UploadProgress, UploadProvider,
     UploadRequest, UploadStep,
@@ -29,6 +33,18 @@ pub struct PreparedFolder {
     id: String,
     parent: String,
     name: String,
+}
+
+/// Namespace mutations used only by the isolated write validator.
+///
+/// Google Drive permits duplicate sibling names and offers no atomic
+/// fail-on-collision relocate operation. This adapter performs a bounded
+/// destination check for the validator's private folder and can trash an exact
+/// regular file conditionally, but ordinary account construction deliberately
+/// never exposes it as a writable mount provider.
+#[derive(Clone)]
+pub struct GoogleValidationMutations {
+    drive: GoogleDrive,
 }
 impl PreparedFolder {
     pub fn id(&self) -> &str {
@@ -225,6 +241,14 @@ fn valid_strong_etag(value: &str) -> bool {
 }
 
 impl GoogleDrive {
+    /// Build the namespace adapter for a disabled, separately consented
+    /// validation account. Normal Google mounts never call this method.
+    pub fn validation_mutations(&self) -> GoogleValidationMutations {
+        GoogleValidationMutations {
+            drive: self.clone(),
+        }
+    }
+
     fn check_folder_destination(&self, scope: &Scope, parent: &str, name: &str) -> Result<()> {
         self.check_scope(scope).map_err(UploadError::Provider)?;
         valid_id(parent).map_err(UploadError::Provider)?;
@@ -764,11 +788,7 @@ impl GoogleDrive {
         self.upload_call(cancel, Duration::from_secs(125), async {
             let (file, etag) = self.file_with_strong_etag(item).await?;
             self.check_probe_file(&file, item, parent, name)?;
-            let mut node = file
-                .node(&scope.collection)
-                .map_err(|_| UploadError::Uncertain)?;
-            node.etag = Some(etag.ok_or_else(|| protocol("missing strong Google ETag"))?);
-            Ok(node)
+            self.validation_mutation_node(file, etag)
         })
         .await
     }
@@ -1484,6 +1504,279 @@ impl GoogleDrive {
             }
         }
     }
+
+    fn validation_mutation_node(&self, file: File, etag: Option<String>) -> Result<Node> {
+        if file.mime_type != "application/octet-stream"
+            || file.parents.len() != 1
+            || file.trashed
+            || file.drive_id.is_some()
+        {
+            return Err(UploadError::Uncertain);
+        }
+        let raw_name = file.name.clone();
+        let mut node = file
+            .node(&self.collection)
+            .map_err(|_| UploadError::Uncertain)?;
+        node.name = raw_name;
+        node.etag = Some(etag.ok_or_else(|| protocol("missing strong Google ETag"))?);
+        if node.kind != NodeKind::File || node.target.is_some() || node.content_revision().is_none()
+        {
+            return Err(UploadError::Uncertain);
+        }
+        Ok(node)
+    }
+
+    async fn validation_destination_free(
+        &self,
+        parent: &str,
+        name: &str,
+        item: &str,
+    ) -> Result<()> {
+        let folded = name.to_lowercase();
+        let mut token = None;
+        loop {
+            let page = self.list_files(Some(parent), token.as_deref()).await?;
+            if page
+                .files
+                .iter()
+                .any(|file| file.id != item && !file.trashed && file.name.to_lowercase() == folded)
+            {
+                return Err(UploadError::Conflict);
+            }
+            let Some(next) = page.next_page_token else {
+                return Ok(());
+            };
+            token = Some(next);
+        }
+    }
+
+    async fn validation_relocate(
+        &self,
+        request: &MutationRequest,
+        cancel: &CancellationToken,
+    ) -> Result<MutationReceipt> {
+        let MutationIntent::Relocate {
+            before,
+            parent,
+            name,
+        } = &request.intent
+        else {
+            return Err(UploadError::Unsupported(
+                "Google validation adapter only relocates regular files",
+            ));
+        };
+        self.upload_call(cancel, Duration::from_secs(125), async {
+            let (file, etag) = self.file_with_strong_etag(&before.id).await?;
+            let current = self.validation_mutation_node(file, etag)?;
+            if current.etag != before.etag
+                || current.name != before.name
+                || current.parent_id != before.parent_id
+            {
+                return Err(UploadError::Conflict);
+            }
+            self.validation_destination_free(parent, name, &before.id)
+                .await?;
+
+            let mut url = self.url(&["files", &before.id])?;
+            url.query_pairs_mut().append_pair("fields", files::FIELDS);
+            if current.parent_id.as_deref() != Some(parent) {
+                url.query_pairs_mut()
+                    .append_pair("addParents", parent)
+                    .append_pair(
+                        "removeParents",
+                        current.parent_id.as_deref().ok_or(UploadError::Invalid)?,
+                    );
+            }
+            let response = self
+                .authorized_json_upload(
+                    Method::PATCH,
+                    url,
+                    &json!({"name": name}),
+                    None,
+                    before.etag.as_deref(),
+                )
+                .await?;
+            let response_etag = strong_etag(&response);
+            let bytes = body(response, MAX_UPLOAD_RESPONSE)
+                .await
+                .map_err(|_| UploadError::Uncertain)?;
+            let file: File = serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)?;
+            let receipt =
+                MutationReceipt::Upsert(self.validation_mutation_node(file, response_etag)?);
+            if request.accepts(&receipt) {
+                Ok(receipt)
+            } else {
+                Err(UploadError::Uncertain)
+            }
+        })
+        .await
+    }
+
+    async fn validation_remove_file(
+        &self,
+        request: &MutationRequest,
+        cancel: &CancellationToken,
+    ) -> Result<MutationReceipt> {
+        let MutationIntent::RemoveFile { before } = &request.intent else {
+            return Err(UploadError::Invalid);
+        };
+        self.upload_call(cancel, Duration::from_secs(125), async {
+            let (file, etag) = self.file_with_strong_etag(&before.id).await?;
+            let current = self.validation_mutation_node(file, etag)?;
+            if current.etag != before.etag
+                || current.name != before.name
+                || current.parent_id != before.parent_id
+            {
+                return Err(UploadError::Conflict);
+            }
+            let mut url = self.url(&["files", &before.id])?;
+            url.query_pairs_mut().append_pair("fields", files::FIELDS);
+            let response = self
+                .authorized_json_upload(
+                    Method::PATCH,
+                    url,
+                    &json!({"trashed": true}),
+                    None,
+                    before.etag.as_deref(),
+                )
+                .await?;
+            let bytes = body(response, MAX_UPLOAD_RESPONSE)
+                .await
+                .map_err(|_| UploadError::Uncertain)?;
+            let file: File = serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)?;
+            if file.id != before.id
+                || !file.trashed
+                || file.mime_type != "application/octet-stream"
+                || file.drive_id.is_some()
+            {
+                return Err(UploadError::Uncertain);
+            }
+            Ok(MutationReceipt::Removed {
+                item: before.id.clone(),
+            })
+        })
+        .await
+    }
+}
+
+fn mutation_error(error: UploadError) -> MutationError {
+    match error {
+        UploadError::Provider(error) => error.into(),
+        UploadError::Conflict => MutationError::Conflict,
+        UploadError::Quota => MutationError::Quota,
+        UploadError::Locked => MutationError::Locked,
+        UploadError::Invalid | UploadError::CheckpointInvalid => MutationError::Invalid,
+        UploadError::Unsupported(message) => MutationError::Unsupported(message),
+        _ => MutationError::Uncertain,
+    }
+}
+
+#[async_trait]
+impl MutationProvider for GoogleValidationMutations {
+    fn deletion(&self) -> cirrove_core::mutation::DeletionSupport {
+        cirrove_core::mutation::DeletionSupport {
+            recycle_bin: true,
+            permanent: false,
+        }
+    }
+
+    async fn mutate(
+        &self,
+        request: &MutationRequest,
+        cancel: &CancellationToken,
+    ) -> cirrove_core::mutation::Result<MutationReceipt> {
+        request.validate()?;
+        self.drive
+            .check_scope(&request.scope)
+            .map_err(MutationError::Provider)?;
+        let before = request.intent.before().ok_or(MutationError::Unsupported(
+            "Google validation folder creation is prepared separately",
+        ))?;
+        valid_id(&before.id).map_err(|_| MutationError::Invalid)?;
+        if before.kind != NodeKind::File || !before.etag.as_deref().is_some_and(valid_strong_etag) {
+            return Err(MutationError::Invalid);
+        }
+        match &request.intent {
+            MutationIntent::Relocate { parent, name, .. } => {
+                valid_id(parent).map_err(|_| MutationError::Invalid)?;
+                if name.is_empty()
+                    || name.len() > 4096
+                    || matches!(name.as_str(), "." | "..")
+                    || name.contains(['/', '\0'])
+                {
+                    return Err(MutationError::Invalid);
+                }
+                self.drive.validation_relocate(request, cancel).await
+            }
+            MutationIntent::RemoveFile { .. } => {
+                self.drive.validation_remove_file(request, cancel).await
+            }
+            MutationIntent::CreateFolder { .. } | MutationIntent::RemoveFolder { .. } => Err(
+                UploadError::Unsupported("Google validation adapter does not mutate folders"),
+            ),
+        }
+        .map_err(mutation_error)
+    }
+
+    async fn reconcile_mutation(
+        &self,
+        request: &MutationRequest,
+        cancel: &CancellationToken,
+    ) -> cirrove_core::mutation::Result<MutationReconciliation> {
+        request.validate()?;
+        self.drive
+            .check_scope(&request.scope)
+            .map_err(MutationError::Provider)?;
+        let Some(before) = request.intent.before() else {
+            return Ok(MutationReconciliation::Indeterminate);
+        };
+        let result = self
+            .drive
+            .upload_call(cancel, Duration::from_secs(125), async {
+                let (file, etag) = self.drive.file_with_strong_etag(&before.id).await?;
+                Ok((file, etag))
+            })
+            .await;
+        let (file, etag) = match result {
+            Ok(value) => value,
+            Err(UploadError::Provider(ProviderError::NotFound)) => {
+                return Ok(MutationReconciliation::Indeterminate);
+            }
+            Err(error) => return Err(mutation_error(error)),
+        };
+        if matches!(request.intent, MutationIntent::RemoveFile { .. }) && file.trashed {
+            if file.id != before.id || file.drive_id.is_some() {
+                return Err(MutationError::Uncertain);
+            }
+            return Ok(MutationReconciliation::Applied(MutationReceipt::Removed {
+                item: before.id.clone(),
+            }));
+        }
+        let current = self
+            .drive
+            .validation_mutation_node(file, etag)
+            .map_err(mutation_error)?;
+        if let MutationIntent::Relocate { parent, name, .. } = &request.intent {
+            let receipt = MutationReceipt::Upsert(current.clone());
+            if current.name == *name && current.parent_id.as_ref() == Some(parent) {
+                return if request.accepts(&receipt) {
+                    Ok(MutationReconciliation::Applied(receipt))
+                } else {
+                    Err(MutationError::Uncertain)
+                };
+            }
+        }
+        if current.etag == before.etag
+            && current.name == before.name
+            && current.parent_id == before.parent_id
+            && current.kind == before.kind
+            && current.target == before.target
+        {
+            Ok(MutationReconciliation::Uncommitted)
+        } else {
+            Ok(MutationReconciliation::Conflict)
+        }
+    }
 }
 
 #[async_trait]
@@ -1757,15 +2050,50 @@ mod tests {
         }
     }
     fn named_file(id: &str, name: &str, version: &str, size: usize) -> Value {
+        named_file_at(id, "root-id", name, version, size)
+    }
+    fn named_file_at(id: &str, parent: &str, name: &str, version: &str, size: usize) -> Value {
         json!({
             "id": id,
             "name": name,
             "mimeType": "application/octet-stream",
-            "parents": ["root-id"],
+            "parents": [parent],
             "size": size.to_string(),
             "version": version,
             "capabilities": {"canDownload": true}
         })
+    }
+    fn mutation_request(parent: &str, name: &str, etag: &str) -> MutationRequest {
+        MutationRequest {
+            scope: scope(),
+            intent: MutationIntent::Relocate {
+                before: Node {
+                    id: "generated-id".into(),
+                    parent_id: Some("root-id".into()),
+                    name: "report.txt".into(),
+                    kind: NodeKind::File,
+                    size: 6,
+                    modified_unix: 0,
+                    etag: Some(etag.into()),
+                    content_version: Some("google-version:9".into()),
+                    target: None,
+                    package: false,
+                },
+                parent: parent.into(),
+                name: name.into(),
+            },
+        }
+    }
+    fn removal_request(etag: &str) -> MutationRequest {
+        let MutationIntent::Relocate { before, .. } =
+            mutation_request("root-id", "unused.txt", etag).intent
+        else {
+            unreachable!()
+        };
+        MutationRequest {
+            scope: scope(),
+            intent: MutationIntent::RemoveFile { before },
+        }
     }
     fn file(id: &str, size: usize) -> Value {
         named_file(id, "report.txt", "7", size)
@@ -2151,6 +2479,281 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(result.stale_rejected(), None);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn validation_mutation_moves_by_exact_identity_with_a_strong_precondition() {
+        let (provider, server) = fixture(|_| {
+            let mut before = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "report.txt", "9", 6),
+            );
+            before.query = vec![("fields", files::FIELDS)];
+            before.response_headers = "ETag: \"metadata-9\"\r\n".into();
+            let mut destination = Exchange::json(
+                "GET",
+                "/drive/v3/files",
+                200,
+                json!({"files":[],"incompleteSearch":false}),
+            );
+            destination.query = vec![
+                ("q", "'destination-id' in parents and trashed = false"),
+                ("spaces", "drive"),
+                ("corpora", "user"),
+                ("pageSize", "1000"),
+                ("includeItemsFromAllDrives", "false"),
+            ];
+            let mut moved = Exchange::json(
+                "PATCH",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file_at("generated-id", "destination-id", "moved.txt", "10", 6),
+            );
+            moved.query = vec![
+                ("fields", files::FIELDS),
+                ("addParents", "destination-id"),
+                ("removeParents", "root-id"),
+            ];
+            moved.headers = vec!["if-match: \"metadata-9\"".into()];
+            moved.body = Some(ExpectedBody::Json(json!({"name":"moved.txt"})));
+            moved.response_headers = "ETag: \"metadata-10\"\r\n".into();
+            vec![before, destination, moved]
+        })
+        .await;
+        let request = mutation_request("destination-id", "moved.txt", "\"metadata-9\"");
+        let MutationReceipt::Upsert(node) = provider
+            .validation_mutations()
+            .mutate(&request, &CancellationToken::new())
+            .await
+            .unwrap()
+        else {
+            panic!("move returned no item")
+        };
+        assert_eq!(node.id, "generated-id");
+        assert_eq!(node.parent_id.as_deref(), Some("destination-id"));
+        assert_eq!(node.name, "moved.txt");
+        assert_eq!(node.etag.as_deref(), Some("\"metadata-10\""));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn validation_mutation_refuses_an_occupied_destination_before_patch() {
+        let (provider, server) = fixture(|_| {
+            let mut before = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "report.txt", "9", 6),
+            );
+            before.query = vec![("fields", files::FIELDS)];
+            before.response_headers = "ETag: \"metadata-9\"\r\n".into();
+            let mut destination = Exchange::json(
+                "GET",
+                "/drive/v3/files",
+                200,
+                json!({
+                    "files":[named_file_at("occupied-id","destination-id","MOVED.TXT","4",3)],
+                    "incompleteSearch":false
+                }),
+            );
+            destination.query = vec![("q", "'destination-id' in parents and trashed = false")];
+            vec![before, destination]
+        })
+        .await;
+        let request = mutation_request("destination-id", "moved.txt", "\"metadata-9\"");
+        assert!(matches!(
+            provider
+                .validation_mutations()
+                .mutate(&request, &CancellationToken::new())
+                .await,
+            Err(MutationError::Conflict)
+        ));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn validation_mutation_conflicts_before_destination_scan_when_the_etag_changed() {
+        let (provider, server) = fixture(|_| {
+            let mut current = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "report.txt", "10", 6),
+            );
+            current.query = vec![("fields", files::FIELDS)];
+            current.response_headers = "ETag: \"metadata-10\"\r\n".into();
+            vec![current]
+        })
+        .await;
+        let request = mutation_request("destination-id", "moved.txt", "\"metadata-9\"");
+        assert!(matches!(
+            provider
+                .validation_mutations()
+                .mutate(&request, &CancellationToken::new())
+                .await,
+            Err(MutationError::Conflict)
+        ));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn validation_mutation_reconciles_a_lost_move_by_exact_identity() {
+        let (provider, server) = fixture(|_| {
+            let mut current = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file_at("generated-id", "destination-id", "moved.txt", "10", 6),
+            );
+            current.query = vec![("fields", files::FIELDS)];
+            current.response_headers = "ETag: \"metadata-10\"\r\n".into();
+            vec![current]
+        })
+        .await;
+        let request = mutation_request("destination-id", "moved.txt", "\"metadata-9\"");
+        let MutationReconciliation::Applied(MutationReceipt::Upsert(node)) = provider
+            .validation_mutations()
+            .reconcile_mutation(&request, &CancellationToken::new())
+            .await
+            .unwrap()
+        else {
+            panic!("lost move was not reconciled")
+        };
+        assert_eq!(node.parent_id.as_deref(), Some("destination-id"));
+        assert_eq!(node.name, "moved.txt");
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn validation_mutation_reconciliation_retries_an_unchanged_source() {
+        let (provider, server) = fixture(|_| {
+            let mut current = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "report.txt", "9", 6),
+            );
+            current.query = vec![("fields", files::FIELDS)];
+            current.response_headers = "ETag: \"metadata-9\"\r\n".into();
+            vec![current]
+        })
+        .await;
+        let request = mutation_request("destination-id", "moved.txt", "\"metadata-9\"");
+        assert!(matches!(
+            provider
+                .validation_mutations()
+                .reconcile_mutation(&request, &CancellationToken::new())
+                .await,
+            Ok(MutationReconciliation::Uncommitted)
+        ));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn validation_mutation_rejects_a_weak_etag_without_network() {
+        let (provider, server) = fixture(|_| vec![]).await;
+        for request in [
+            mutation_request("destination-id", "moved.txt", "W/\"metadata-9\""),
+            removal_request("W/\"metadata-9\""),
+        ] {
+            assert!(matches!(
+                provider
+                    .validation_mutations()
+                    .mutate(&request, &CancellationToken::new())
+                    .await,
+                Err(MutationError::Invalid)
+            ));
+        }
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn validation_mutation_trashes_only_the_exact_conditional_file() {
+        let (provider, server) = fixture(|_| {
+            let mut before = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "report.txt", "9", 6),
+            );
+            before.query = vec![("fields", files::FIELDS)];
+            before.response_headers = "ETag: \"metadata-9\"\r\n".into();
+            let mut trashed_file = named_file("generated-id", "report.txt", "10", 6);
+            trashed_file["trashed"] = true.into();
+            let mut trash =
+                Exchange::json("PATCH", "/drive/v3/files/generated-id", 200, trashed_file);
+            trash.query = vec![("fields", files::FIELDS)];
+            trash.headers = vec!["if-match: \"metadata-9\"".into()];
+            trash.body = Some(ExpectedBody::Json(json!({"trashed":true})));
+            vec![before, trash]
+        })
+        .await;
+        let mutations = provider.validation_mutations();
+        assert_eq!(
+            mutations.deletion(),
+            cirrove_core::mutation::DeletionSupport {
+                recycle_bin: true,
+                permanent: false
+            }
+        );
+        assert!(matches!(
+            mutations
+                .mutate(
+                    &removal_request("\"metadata-9\""),
+                    &CancellationToken::new()
+                )
+                .await,
+            Ok(MutationReceipt::Removed { item }) if item == "generated-id"
+        ));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn validation_mutation_reconciles_an_exact_trashed_item() {
+        let (provider, server) = fixture(|_| {
+            let mut trashed_file = named_file("generated-id", "report.txt", "10", 6);
+            trashed_file["trashed"] = true.into();
+            let mut current =
+                Exchange::json("GET", "/drive/v3/files/generated-id", 200, trashed_file);
+            current.query = vec![("fields", files::FIELDS)];
+            vec![current]
+        })
+        .await;
+        assert!(matches!(
+            provider
+                .validation_mutations()
+                .reconcile_mutation(
+                    &removal_request("\"metadata-9\""),
+                    &CancellationToken::new()
+                )
+                .await,
+            Ok(MutationReconciliation::Applied(MutationReceipt::Removed { item }))
+                if item == "generated-id"
+        ));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn validation_mutation_does_not_treat_a_missing_file_as_confirmed_removal() {
+        let (provider, server) = fixture(|_| {
+            let mut missing = Exchange::json("GET", "/drive/v3/files/generated-id", 404, json!({}));
+            missing.query = vec![("fields", files::FIELDS)];
+            vec![missing]
+        })
+        .await;
+        assert!(matches!(
+            provider
+                .validation_mutations()
+                .reconcile_mutation(
+                    &removal_request("\"metadata-9\""),
+                    &CancellationToken::new()
+                )
+                .await,
+            Ok(MutationReconciliation::Indeterminate)
+        ));
         server.await.unwrap();
     }
 

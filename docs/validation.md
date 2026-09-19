@@ -2650,6 +2650,10 @@ conditional session creation, pre-session conflict, finalization conflict and
 exact-hash reconciliation after a lost success, while invalid preconditions and
 empty replacements issue no network request. The live validator follows its
 capability probes with one worker replacement and a stale worker conflict.
+It then creates an exact-ID destination folder and routes a rename and move
+through the mutation journal and worker before requiring a stale relocation to
+conflict. The validator-only adapter scans its private destination for a
+case-folded collision but does not claim Google's missing atomic collision rule.
 Session URLs and ETags do not enter the evidence log.
 The validator has not been run, so no
 Google write scope or mutation participated in the evidence recorded here; the
@@ -2662,8 +2666,20 @@ header made each exact test pass. Removing only `If-Match` from the resumable
 session initializer likewise made its exact success test fail at the server's
 required-header assertion; restoring it passed. Removing `If-Match` from the
 shared-worker session initializer made its exact replacement test fail at the
-same boundary and restoration passed. These controls show that the tests depend
-on the outgoing preconditions rather than scripted status alone.
+same boundary and restoration passed. Removing `If-Match` from the exact
+validation-move PATCH likewise made its single positive test fail at the server's
+required-header assertion; restoration passed. Six mutation-adapter cases also
+cover a changed source before destination lookup, an occupied destination,
+exact-ID applied and uncommitted reconciliation, and a weak ETag rejected before
+network access. These controls show that the tests depend on the outgoing
+preconditions rather than scripted status alone.
+
+Three additional validation-adapter cases exercise recoverable file removal:
+the exact item is patched to `trashed=true` with its strong ETag, reconciliation
+accepts the exact trashed identity, and a 404 remains indeterminate. Removing
+only the trash PATCH's `If-Match` header made its single positive test fail at
+the server assertion; restoration passed. The live validator does not invoke
+this path, so no delete or trash operation is authorized or recorded here.
 
 The focused OAuth test was also run with `drive.file` removed from the requested
 write scopes and failed because the grant no longer satisfied `ReadWrite`;
