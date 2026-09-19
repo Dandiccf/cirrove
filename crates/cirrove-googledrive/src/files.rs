@@ -15,11 +15,11 @@ const SHORTCUT: &str = "application/vnd.google-apps.shortcut";
 #[serde(rename_all = "camelCase")]
 pub(super) struct File {
     pub id: String,
-    name: String,
-    mime_type: String,
+    pub(super) name: String,
+    pub(super) mime_type: String,
     #[serde(default)]
-    parents: Vec<String>,
-    size: Option<String>,
+    pub(super) parents: Vec<String>,
+    pub(super) size: Option<String>,
     version: Option<String>,
     modified_time: Option<String>,
     #[serde(default)]
@@ -214,7 +214,7 @@ impl GoogleDrive {
             web_url: "https://drive.google.com/drive/my-drive".into(),
         })
     }
-    async fn file(&self, id: &str) -> Result<File, ProviderError> {
+    pub(super) async fn file(&self, id: &str) -> Result<File, ProviderError> {
         valid_id(id)?;
         let mut url = self.url(&["files", id])?;
         url.query_pairs_mut().append_pair("fields", FIELDS);

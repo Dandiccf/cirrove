@@ -19,6 +19,8 @@ serde_json.workspace = true
 tokio.workspace = true
 chrono.workspace = true
 httpdate.workspace = true
+hex.workspace = true
+sha2.workspace = true
 
 [lints]
 workspace = true

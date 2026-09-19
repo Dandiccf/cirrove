@@ -2626,6 +2626,14 @@ transport test streams a window and checks the Google version again after the
 last byte; the unchanged arm succeeds and the changed arm returns
 `VersionChanged`, leaving publication to the cache only on success.
 
+A separate synthetic create transport pre-generates and persists the destination
+ID before mutation, validates resumable offsets and receipts, rejects foreign
+session URLs and hashes the exact remote object during reconciliation. Negative
+controls show that the worker test fails without pre-session persistence and that
+the range test fails if a reply may advance beyond the bytes submitted. The
+service does not construct this write provider, and no write scope or Google
+mutation participated; the writable namespace and replacement rules remain open.
+
 A subsequent [first real-account connection](google-drive.md#first-real-account-connection-2026-09-19)
 completed after correcting the callback's Microsoft-only host check. The new
 regression was shown to fail without the fix. The account presented 1,350 entries

@@ -1,9 +1,11 @@
-//! Read-only Google Drive v3 adapter. No token, cursor or response body is logged.
+//! Google Drive v3 adapter. Ordinary mounts select only its read path; upload
+//! support is exercised against synthetic HTTP until the write policy is complete.
 mod feed;
 mod files;
 #[cfg(test)]
 mod tests;
 mod transport;
+mod upload;
 
 use cirrove_core::{ProviderError, RequestBudget, Scope, TokenSource};
 use reqwest::{Client, Url, redirect::Policy};

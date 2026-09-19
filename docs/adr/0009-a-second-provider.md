@@ -33,9 +33,17 @@ retries, but the worker previously had no way to persist that identity before th
 request that starts a resumable session. `UploadStep::Prepared` now creates that
 durability boundary in the credential vault. Recovery inspection reuses it, and
 reconciliation receives the last saved checkpoint so it can address the exact
-provider identity instead of a non-unique Google sibling name. Synthetic tests
-for a lost response and a lost session cover the ordering. No Google mutation
-request, write scope or writable mount is implemented by this change.
+provider identity instead of a non-unique Google sibling name.
+
+The adapter now has a create-only transport using that boundary. It generates an
+ID, starts or replaces a resumable session without changing the ID, follows the
+server's exact committed offset and verifies uncertain completion by streaming
+the exact object's SHA-256. Only the configured upload origin and path can enter
+a session checkpoint. Synthetic tests cover the ordering, lost sessions, partial
+offsets, receipts and content verification. Account construction still rejects
+Google write access, and no write scope, writable mount or live Google mutation
+is part of this decision. Duplicate-name collision semantics and conditional
+replacement remain unresolved.
 
 The second adapter found real differences at the boundary: initial listing and
 change tracking are separate Google endpoints; sibling names are not unique;

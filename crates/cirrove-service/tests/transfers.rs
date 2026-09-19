@@ -96,6 +96,7 @@ struct Provider {
     fail_begin_once: AtomicBool,
     prepare_once: AtomicBool,
     fail_inspect_once: AtomicBool,
+    restart_prepare_once: AtomicBool,
     complete_on_inspect_once: AtomicBool,
     require_reconcile_checkpoint: AtomicBool,
     pause_offset: AtomicU64,
@@ -113,6 +114,7 @@ impl Provider {
             fail_begin_once: AtomicBool::new(false),
             prepare_once: AtomicBool::new(false),
             fail_inspect_once: AtomicBool::new(false),
+            restart_prepare_once: AtomicBool::new(false),
             complete_on_inspect_once: AtomicBool::new(false),
             require_reconcile_checkpoint: AtomicBool::new(false),
             pause_offset: AtomicU64::new(u64::MAX),
@@ -192,6 +194,9 @@ impl UploadProvider for Provider {
         }
         if self.fail_inspect_once.swap(false, Ordering::SeqCst) {
             return Err(UploadError::Uncertain);
+        }
+        if self.restart_prepare_once.swap(false, Ordering::SeqCst) {
+            return Ok(UploadStep::Prepared(SecretString::from(SECRET)));
         }
         if self.complete_on_inspect_once.swap(false, Ordering::SeqCst) {
             let node = Self::node(request);
@@ -409,6 +414,33 @@ async fn prepared_identity_is_available_when_a_lost_session_is_reconciled() {
     assert!(state.offsets.is_empty());
     drop(state);
     assert!(v.values.lock().unwrap().is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn verification_can_restart_a_gone_session_with_the_same_prepared_identity() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let (probe, p, v) = fixture();
+    let j = journal(&root, &probe);
+    let id = enqueue(&j, "Saved.txt");
+    p.fail_offset_once.store(4, Ordering::SeqCst);
+
+    let worker = TransferWorker::new(j.clone(), p.clone(), v.clone(), CancellationToken::new());
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::VerifyRequired
+    );
+    p.restart_prepare_once.store(true, Ordering::SeqCst);
+    j.lock().unwrap().request_retry(id).unwrap();
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+    let state = p.state.lock().unwrap();
+    assert_eq!(state.begins, 1);
+    assert_eq!(state.inspections, 2);
+    assert_eq!(state.offsets, [0, 4, 4, 8]);
+    assert_eq!(state.data, DATA);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

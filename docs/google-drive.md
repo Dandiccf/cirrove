@@ -3,8 +3,10 @@
 The next provider is Google Drive. This is an implemented **read-only My Drive
 preview with synthetic validation and a first real-account smoke check**, not a
 claim of reliable Google-account operation. It uses Cirrove's existing engine, SQLite staging, disk cache, pin
-jobs and FUSE mount. No Google upload or mutation worker is implemented or
-selected, even if a token has wider permissions.
+jobs and FUSE mount. A create-only upload transport exists behind the provider
+interface and is tested with synthetic HTTP. The service does not select it,
+request write permission or expose a writable Google mount, even if a token has
+wider permissions.
 
 ## What it presents
 
@@ -29,8 +31,8 @@ selected, even if a token has wider permissions.
   names with suffixes only for collisions need a separate, stable namespace
   policy; this preview does not pick an arbitrary winner between duplicates.
 
-Shared drives, Google writes, document exports, push webhooks, resource-key
-transport and real-account/large-library/long-session acceptance are not claimed.
+Shared drives, mounted Google writes, document exports, push webhooks,
+resource-key transport and real-account/large-library/long-session acceptance are not claimed.
 There is no service-account or another client's credential import.
 
 ## Write boundary found during the preview
@@ -39,15 +41,30 @@ Google Drive permits duplicate sibling names and `files.update` does not expose
 the conditional ETag replacement used by the OneDrive adapter. Cirrove therefore
 does not map its OneDrive write behavior onto Google or request write consent.
 
-One concrete create-side prerequisite is now present in the provider-neutral
-upload worker. A provider may return a prepared destination identity before any
-mutating request. The worker stores that opaque checkpoint in the credential
-vault before asking the provider to start a session, reuses it after restart and
-passes the last persisted checkpoint into reconciliation. This matches Drive's
-pre-generated-ID retry mechanism without putting an ID or session URL in SQLite
-or diagnostics. Synthetic fault tests cover a lost session-start response and a
-lost session that must be reconciled by the saved identity. They do not implement
-a Google uploader or prove live Google writes. See Google's
+The create transport uses `files.generateIds` before any mutating request. The
+provider-neutral worker stores that opaque prepared identity in the credential
+vault before asking Google to start a resumable session. The adapter sends 8 MiB
+chunks, requires every non-final chunk to be a multiple of 256 KiB, resumes at
+Google's exact reported byte offset and refuses a reply that claims bytes beyond
+the submitted range. Session URLs are accepted only on the configured Google
+origin and upload path; they remain in the vault checkpoint and are never sent as
+Bearer credentials or written to SQLite and diagnostics.
+
+An expired session can be replaced once during verification while retaining the
+same generated file ID. The old session URL is removed before that prepared
+checkpoint is saved. Reconciliation addresses that exact ID and streams the
+remote content through the read adapter to compare its SHA-256 digest. Synthetic
+HTTP and transfer-worker faults cover persistence before mutation, a lost
+session, partial remote offsets, receipt identity, content reconciliation and a
+foreign session URL. These checks establish the local protocol behavior; no live
+Google mutation has been run.
+
+This transport is create-only and remains disconnected from the service. Drive
+allows duplicate sibling names, so Cirrove still lacks the atomic collision rule
+required by `UploadIntent::Create`. Safe replacement is also unresolved because
+`files.update` has no OneDrive-style conditional ETag. Those two namespace and
+conflict decisions, write consent and explicit live mutation validation must be
+completed before a writable Google mount can be offered. See Google's
 [pre-generated ID guidance](https://developers.google.com/workspace/drive/api/guides/manage-uploads)
 and [`files.update` reference](https://developers.google.com/workspace/drive/api/reference/rest/v3/files/update).
 

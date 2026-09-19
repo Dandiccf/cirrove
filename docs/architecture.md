@@ -1043,10 +1043,19 @@ than an ambiguous sibling name. Two synthetic transfer faults fail if either the
 pre-session persistence or reconciliation handoff is removed. OneDrive never
 returns `Prepared` and ignores the optional reconciliation checkpoint.
 
-This does not resolve Google replacement safety: Drive permits duplicate sibling
-names, and its `files.update` operation lacks the OneDrive adapter's conditional
-ETag update. Google upload and mutation implementations, scopes and writable
-mounts remain absent.
+The Google adapter now implements the create transport against this contract:
+pre-generated IDs, resumable ranges, exact remote offsets and streamed SHA-256
+reconciliation. Synthetic HTTP exercises it, while account construction still
+returns only the read provider and rejects Google write access. The worker may
+accept one new `Prepared` checkpoint from verification after a transport session
+is definitely gone; the provider identity survives while the obsolete session
+URL is removed before persistence.
+
+This does not resolve the writable namespace. Drive permits duplicate sibling
+names, so create cannot yet enforce the shared contract's atomic collision rule,
+and `files.update` lacks the OneDrive adapter's conditional ETag update. Google
+write scopes, service selection, replacement operations, writable mounts and
+live mutation validation remain absent.
 
 ## References
 

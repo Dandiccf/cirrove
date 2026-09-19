@@ -248,7 +248,10 @@ impl TransferWorker {
             }
         }
         let mut step = step.ok_or(TransferError::Worker)?;
-        let mut prepared_allowed = record.state != UploadState::Verifying;
+        // A verifier may replace one definitely gone transport session while
+        // retaining the provider identity saved inside its prepared checkpoint.
+        // One transition per run bounds a provider that returns Prepared again.
+        let mut prepared_allowed = true;
         let mut payload = None;
         loop {
             if self.cancel.is_cancelled() {

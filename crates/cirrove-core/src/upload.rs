@@ -120,9 +120,11 @@ pub enum Reconciliation {
 }
 
 /// A caller persists every returned checkpoint before advancing the upload.
-/// `Prepared` may be returned only by `begin_upload`; after persisting it, the
-/// caller passes the checkpoint to `inspect_upload`. This lets a provider bind
-/// an idempotent destination identity before its first mutating request.
+/// `Prepared` may be returned by `begin_upload`, or once during recovery when a
+/// session is gone but its durable provider identity can start a replacement.
+/// After persisting it, the caller passes the checkpoint to `inspect_upload`.
+/// This lets a provider bind and reuse an idempotent destination identity before
+/// its next mutating request.
 /// Each later checkpoint must retain any identity needed to reconcile an
 /// uncertain result; `reconcile_upload` receives the last persisted checkpoint
 /// when one is available.
