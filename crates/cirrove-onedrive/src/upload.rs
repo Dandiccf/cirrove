@@ -588,6 +588,7 @@ impl UploadProvider for OneDrive {
     async fn reconcile_upload(
         &self,
         request: &UploadRequest,
+        _checkpoint: Option<&SecretString>,
         cancel: &CancellationToken,
     ) -> Result<Reconciliation> {
         self.check_upload(request)?;

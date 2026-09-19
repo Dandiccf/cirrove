@@ -37,6 +37,9 @@ async fn place(
     let mut step = graph.begin_upload(&request, cancel).await?;
     loop {
         step = match step {
+            UploadStep::Prepared(_) => {
+                anyhow::bail!("the OneDrive pinning validator received a prepared upload")
+            }
             // The provider names the exact range it wants next; sending anything
             // else is how a resumable upload goes wrong in a way that only shows
             // up at commit.

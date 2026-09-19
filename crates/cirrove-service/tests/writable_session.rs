@@ -342,6 +342,7 @@ impl UploadProvider for Cloud {
     async fn reconcile_upload(
         &self,
         request: &UploadRequest,
+        _: Option<&SecretString>,
         _: &CancellationToken,
     ) -> upload::Result<Reconciliation> {
         let remote = self.remote.lock().unwrap();

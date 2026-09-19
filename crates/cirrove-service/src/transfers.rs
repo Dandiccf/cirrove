@@ -184,25 +184,29 @@ impl TransferWorker {
             size: record.size,
             sha256: record.sha256.clone(),
         };
+        let mut saved_checkpoint = None;
         let mut step = if record.state == UploadState::Verifying {
             let checkpoint = self
                 .load_checkpoint(record.session_key.unwrap_or(id))
                 .await?;
             match checkpoint {
-                Some(checkpoint) => match self
-                    .remote(
-                        Duration::from_secs(125),
-                        self.provider
-                            .inspect_upload(&request, &checkpoint, &self.cancel),
-                    )
-                    .await
-                {
-                    Ok(step) => Some(step),
-                    Err(TransferError::Provider(
-                        UploadError::SessionGone | UploadError::CheckpointInvalid,
-                    )) => None,
-                    Err(error) => return Err(error),
-                },
+                Some(checkpoint) => {
+                    saved_checkpoint = Some(checkpoint.clone());
+                    match self
+                        .remote(
+                            Duration::from_secs(125),
+                            self.provider
+                                .inspect_upload(&request, &checkpoint, &self.cancel),
+                        )
+                        .await
+                    {
+                        Ok(step) => Some(step),
+                        Err(TransferError::Provider(
+                            UploadError::SessionGone | UploadError::CheckpointInvalid,
+                        )) => None,
+                        Err(error) => return Err(error),
+                    }
+                }
                 None => None,
             }
         } else {
@@ -218,7 +222,11 @@ impl TransferWorker {
             match self
                 .remote(
                     Duration::from_secs(15 * 60),
-                    self.provider.reconcile_upload(&request, &self.cancel),
+                    self.provider.reconcile_upload(
+                        &request,
+                        saved_checkpoint.as_ref(),
+                        &self.cancel,
+                    ),
                 )
                 .await?
             {
@@ -240,12 +248,24 @@ impl TransferWorker {
             }
         }
         let mut step = step.ok_or(TransferError::Worker)?;
+        let mut prepared_allowed = record.state != UploadState::Verifying;
         let mut payload = None;
         loop {
             if self.cancel.is_cancelled() {
                 return Err(UploadError::Uncertain.into());
             }
             step = match step {
+                UploadStep::Prepared(checkpoint) if prepared_allowed => {
+                    prepared_allowed = false;
+                    self.checkpoint(record, checkpoint.clone(), 0).await?;
+                    self.remote(
+                        Duration::from_secs(125),
+                        self.provider
+                            .inspect_upload(&request, &checkpoint, &self.cancel),
+                    )
+                    .await?
+                }
+                UploadStep::Prepared(_) => return Err(UploadError::Invalid.into()),
                 UploadStep::Complete(node) => {
                     self.local(move |j| j.acknowledge(id, attempt, node))
                         .await?;
@@ -255,6 +275,7 @@ impl TransferWorker {
                     return Ok(UploadState::Uploaded);
                 }
                 UploadStep::Commit(checkpoint) => {
+                    prepared_allowed = false;
                     self.checkpoint(record, checkpoint.clone(), request.size)
                         .await?;
                     let next = self
@@ -270,6 +291,7 @@ impl TransferWorker {
                     next
                 }
                 UploadStep::Continue(progress) => {
+                    prepared_allowed = false;
                     if progress.length == 0
                         || progress.length > 16 * 1024 * 1024
                         || progress.offset >= request.size

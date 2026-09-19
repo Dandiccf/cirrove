@@ -33,6 +33,24 @@ Shared drives, Google writes, document exports, push webhooks, resource-key
 transport and real-account/large-library/long-session acceptance are not claimed.
 There is no service-account or another client's credential import.
 
+## Write boundary found during the preview
+
+Google Drive permits duplicate sibling names and `files.update` does not expose
+the conditional ETag replacement used by the OneDrive adapter. Cirrove therefore
+does not map its OneDrive write behavior onto Google or request write consent.
+
+One concrete create-side prerequisite is now present in the provider-neutral
+upload worker. A provider may return a prepared destination identity before any
+mutating request. The worker stores that opaque checkpoint in the credential
+vault before asking the provider to start a session, reuses it after restart and
+passes the last persisted checkpoint into reconciliation. This matches Drive's
+pre-generated-ID retry mechanism without putting an ID or session URL in SQLite
+or diagnostics. Synthetic fault tests cover a lost session-start response and a
+lost session that must be reconciled by the saved identity. They do not implement
+a Google uploader or prove live Google writes. See Google's
+[pre-generated ID guidance](https://developers.google.com/workspace/drive/api/guides/manage-uploads)
+and [`files.update` reference](https://developers.google.com/workspace/drive/api/reference/rest/v3/files/update).
+
 ## Check or create your own Google app
 
 1. In [Google Cloud Console](https://console.cloud.google.com/), select a project

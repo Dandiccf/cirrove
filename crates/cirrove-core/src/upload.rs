@@ -94,6 +94,9 @@ pub struct UploadProgress {
     pub length: u32,
 }
 pub enum UploadStep {
+    /// Provider-specific preparation that must be persisted before the caller
+    /// asks the provider to start or recover a mutating upload session.
+    Prepared(SecretString),
     Continue(UploadProgress),
     /// Bytes are staged remotely; persist this checkpoint before the conditional
     /// final commit makes them visible as the replacement file.
@@ -103,6 +106,7 @@ pub enum UploadStep {
 impl std::fmt::Debug for UploadStep {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
+            Self::Prepared(_) => "UploadStep::Prepared([redacted])",
             Self::Continue(_) => "UploadStep::Continue([redacted])",
             Self::Commit(_) => "UploadStep::Commit([redacted])",
             Self::Complete(_) => "UploadStep::Complete([redacted])",
@@ -115,7 +119,13 @@ pub enum Reconciliation {
     Conflict,
 }
 
-/// A caller persists every returned checkpoint before sending its next range.
+/// A caller persists every returned checkpoint before advancing the upload.
+/// `Prepared` may be returned only by `begin_upload`; after persisting it, the
+/// caller passes the checkpoint to `inspect_upload`. This lets a provider bind
+/// an idempotent destination identity before its first mutating request.
+/// Each later checkpoint must retain any identity needed to reconcile an
+/// uncertain result; `reconcile_upload` receives the last persisted checkpoint
+/// when one is available.
 /// After an uncertain result, inspect the same session; a missing session alone
 /// does not prove failure. Reconcile the remote target before restarting it.
 #[async_trait]
@@ -149,6 +159,7 @@ pub trait UploadProvider: Send + Sync {
     async fn reconcile_upload(
         &self,
         request: &UploadRequest,
+        checkpoint: Option<&SecretString>,
         cancel: &CancellationToken,
     ) -> Result<Reconciliation>;
 }

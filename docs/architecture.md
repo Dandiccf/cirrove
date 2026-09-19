@@ -1033,6 +1033,21 @@ not fabricated Graph values. This additive change deliberately defers the planne
 wire rename in [ADR 0009](adr/0009-a-second-provider.md). No Google write capability
 or weaker replacement contract is introduced by this read-only implementation.
 
+The shared upload contract now covers one concrete Google create prerequisite
+without enabling it. `begin_upload` may return an opaque `Prepared` checkpoint,
+which the worker puts in the credential vault at zero transferred bytes before
+calling the provider again. Restart inspection and reconciliation receive that
+persisted value, so a future Google adapter can retain a pre-generated file ID
+through a lost resumable-session response and reconcile the exact identity rather
+than an ambiguous sibling name. Two synthetic transfer faults fail if either the
+pre-session persistence or reconciliation handoff is removed. OneDrive never
+returns `Prepared` and ignores the optional reconciliation checkpoint.
+
+This does not resolve Google replacement safety: Drive permits duplicate sibling
+names, and its `files.update` operation lacks the OneDrive adapter's conditional
+ETag update. Google upload and mutation implementations, scopes and writable
+mounts remain absent.
+
 ## References
 
 - [Microsoft authentication code flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow)

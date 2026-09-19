@@ -27,6 +27,16 @@ The planned compare-and-set capability work is deferred until there is an actual
 Google write implementation; the read-only adapter does not weaken any existing
 write precondition.
 
+A later create-side investigation found one contract change that has a concrete
+Google use before a writer exists. Drive can pre-generate a file ID for safe
+retries, but the worker previously had no way to persist that identity before the
+request that starts a resumable session. `UploadStep::Prepared` now creates that
+durability boundary in the credential vault. Recovery inspection reuses it, and
+reconciliation receives the last saved checkpoint so it can address the exact
+provider identity instead of a non-unique Google sibling name. Synthetic tests
+for a lost response and a lost session cover the ordering. No Google mutation
+request, write scope or writable mount is implemented by this change.
+
 The second adapter found real differences at the boundary: initial listing and
 change tracking are separate Google endpoints; sibling names are not unique;
 Google-native documents require an explicit export or link representation. See
