@@ -74,6 +74,15 @@ Synthetic recovery also recognizes the moved folder by immutable identity after
 a lost response, and the empty-folder guard follows every paginated child page
 before it can issue the trash PATCH.
 
+The first authorized live write attempt found that Drive v3 returned no strong
+HTTP ETag on either the prepared folder POST or its exact-ID inspection. The
+shared receipt contract had unnecessarily required such a future-edit token for
+creation itself, even though the exact ID, parent, name and kind already confirm
+that result. Create-folder receipts may now omit an ETag; relocate and remove
+requests still require a real strong provider token and never substitute Drive's
+numeric file version. The first run stopped at that boundary before any file
+upload or further namespace mutation.
+
 The second adapter found real differences at the boundary: initial listing and
 change tracking are separate Google endpoints; sibling names are not unique;
 Google-native documents require an explicit export or link representation. See

@@ -121,12 +121,13 @@ impl MutationRequest {
     pub fn accepts(&self, receipt: &MutationReceipt) -> bool {
         match (&self.intent, receipt) {
             (MutationIntent::CreateFolder { parent, name }, MutationReceipt::Upsert(node)) => {
+                // Creating an exact prepared identity can be acknowledged even
+                // when a provider exposes no token for a later conditional edit.
                 !node.id.is_empty()
                     && node.kind == NodeKind::Folder
                     && node.target.is_none()
                     && &node.name == name
                     && node.parent_id.as_ref() == Some(parent)
-                    && node.etag.as_ref().is_some_and(|s| !s.is_empty())
             }
             (
                 MutationIntent::Relocate {

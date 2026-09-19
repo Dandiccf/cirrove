@@ -2721,6 +2721,20 @@ both controls. The complete `scripts/check.sh` then passed with 669 Rust test
 executions, all kernel mount groups, script tests, the acceptance ledger and
 docs. No Google mutation participated.
 
+The first authorized live write-validation attempt created its pre-generated
+folder identity, then found no strong HTTP ETag on either the POST response or
+the exact-ID reconciliation GET. The mutation worker retained `VerifyRequired`
+and the command stopped at its 180-second deadline after seven bounded attempts;
+no file upload or later mutation began. The run-owned folder and private journal
+were retained. Creation is already idempotent through the persisted provider ID,
+so the candidate correction lets a create-folder receipt omit a future-edit
+ETag while keeping strong ETags mandatory for relocation and removal. A fixture
+matching the two live no-ETag responses fails under the old rule and passes with
+the correction. The next live run was registered before starting it in
+`docs/benchmarks/google-drive-write-validation.json`. The complete
+`scripts/check.sh` passed with 669 Rust test executions, all kernel mount groups,
+script tests, the acceptance ledger and docs.
+
 The focused OAuth test was also run with `drive.file` removed from the requested
 write scopes and failed because the grant no longer satisfied `ReadWrite`;
 restoring the scope passed. The prepared-folder test was run with the create body

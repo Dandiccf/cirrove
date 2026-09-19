@@ -7,8 +7,11 @@ jobs and FUSE mount. File create/replacement and validation-only prepared folder
 create, relocate and observed-empty trash transports
 exist behind the provider interfaces and are tested with synthetic HTTP. An explicit developer command can
 request `drive.file`, prepare an isolated live create check and characterize
-HTTP ETag handling for metadata and content on one file created by that run,
-but it has not been run.
+HTTP ETag handling for metadata and content on one file created by that run.
+The first authorized run created its prepared folder but stopped before file
+uploads because Drive returned no strong HTTP ETag for either the create response
+or exact-ID inspection. A narrowly scoped receipt correction awaits a registered
+rerun; no conditional write has been accepted or enabled.
 The normal service does not select the write transport or expose a writable
 Google mount.
 
@@ -356,6 +359,21 @@ the guard ignore the second child page made the other case attempt a forbidden
 PATCH. Restoration passed both controls. The complete `scripts/check.sh` then
 passed with 669 Rust test executions, all kernel mount groups, script tests, the
 acceptance ledger and docs. No live Google mutation was used.
+
+The first authorized write-validation run used a separate disabled connection
+with `drive.file`. Its prepared-ID folder POST succeeded, and subsequent exact-ID
+inspections observed that same folder, but Drive supplied no strong HTTP ETag on
+either response. The worker therefore stayed in `VerifyRequired` for seven
+bounded attempts and the validator stopped at its 180-second deadline before
+any file upload or further namespace mutation. The run-owned folder and private
+journal remain for review. A create receipt does not need a token for a future
+conditional edit, so the candidate correction accepts the exact ID, parent,
+name and folder kind without inventing an ETag. Relocate, replacement and removal
+still require a real strong ETag. The corresponding no-ETag fixture fails with
+the old requirement and passes with the correction. The rerun is registered in
+`docs/benchmarks/google-drive-write-validation.json` and has not yet started.
+The complete `scripts/check.sh` passed with 669 Rust test executions, all kernel
+mount groups, script tests, the acceptance ledger and docs.
 
 ## First real-account connection, 2026-09-19
 

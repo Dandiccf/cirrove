@@ -286,7 +286,7 @@ impl GoogleDrive {
             .node(&self.collection)
             .map_err(|_| UploadError::Uncertain)?;
         node.name = plan.name.clone();
-        node.etag = Some(etag.ok_or_else(|| protocol("missing strong Google ETag"))?);
+        node.etag = etag;
         if node.kind != NodeKind::Folder {
             return Err(UploadError::Uncertain);
         }
@@ -2502,7 +2502,6 @@ mod tests {
             generate.query = vec![("count", "1"), ("space", "drive"), ("type", "files")];
             let mut create = Exchange::json("POST", "/drive/v3/files", 200, folder(generated));
             create.query = vec![("fields", files::FIELDS)];
-            create.response_headers = "ETag: \"folder-3\"\r\n".into();
             create.body = Some(ExpectedBody::Json(json!({
                 "id": generated,
                 "name": "Cirrove-Create-Validation",
@@ -2541,7 +2540,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn validation_folder_creation_uses_the_prepared_mutation_identity() {
+    async fn validation_folder_creation_accepts_the_prepared_identity_without_an_etag() {
         let generated = "generated-folder-id";
         let (provider, server) = fixture(|_| {
             let mut generate = Exchange::json(
@@ -2555,20 +2554,18 @@ mod tests {
             scan.query = vec![("q", "'root-id' in parents and trashed = false")];
             let mut create = Exchange::json("POST", "/drive/v3/files", 200, folder(generated));
             create.query = vec![("fields", files::FIELDS)];
-            create.response_headers = "ETag: \"folder-3\"\r\n".into();
             create.body = Some(ExpectedBody::Json(json!({
                 "id": generated,
                 "name": "Cirrove-Create-Validation",
                 "parents": ["root-id"],
                 "mimeType": FOLDER_MIME
             })));
-            let mut inspect = Exchange::json(
+            let inspect = Exchange::json(
                 "GET",
                 "/drive/v3/files/generated-folder-id",
                 200,
                 folder(generated),
             );
-            inspect.response_headers = "ETag: \"folder-3\"\r\n".into();
             vec![generate, scan, create, inspect]
         })
         .await;
@@ -2595,7 +2592,7 @@ mod tests {
             panic!("expected folder receipt")
         };
         assert_eq!(created.id, generated);
-        assert_eq!(created.etag.as_deref(), Some("\"folder-3\""));
+        assert_eq!(created.etag, None);
         assert!(matches!(
             adapter
                 .reconcile_prepared_mutation(&request, Some(&prepared), &cancel)

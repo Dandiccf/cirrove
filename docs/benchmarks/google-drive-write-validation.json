@@ -1,0 +1,40 @@
+{
+  "question": "Which Google Drive writes can the disabled provider-neutral validator safely confirm on the owner's account, and does Drive expose a strong HTTP ETag that can guard replacements and namespace changes?",
+  "kind": "Explicitly authorized single-account functional characterization, not production write acceptance.",
+  "authorization": "The owner explicitly authorized the isolated live write test on 2026-09-19. It may create only run-owned folders and files, must not touch pre-existing items, and performs no delete or trash operation.",
+  "scope": "A separate disabled Google connection with drive.readonly plus drive.file, a private local state directory, pre-generated provider identities, and test folders retained for review.",
+  "limits": "No writable mount, existing-item mutation, delete, trash, shared-drive claim, long-session claim or provider-reliability claim. A missing precondition token must stop conditional work rather than be replaced with a fabricated value.",
+  "attempts": [
+    {
+      "attempt": 1,
+      "registered_before_run": false,
+      "started_from_revision": "5e2d9f7cc9457f1a5531ec05f1d1059b28c4c48a",
+      "started_at": "2026-09-19",
+      "correction": "This repository artifact was added after the first authorized attempt. The private validator had durably recorded its plan before mutating, but the project measurement rule also requires the question and prediction under docs/benchmarks. The omission is recorded here rather than backdated.",
+      "prediction_as_understood_before_run": "The prepared folder, multipart file and empty file should be created and read back. The first metadata probe should then establish whether Drive supplies and rejects a stale strong HTTP ETag.",
+      "endpoint": "The command either completes every create and stale-precondition check or stops at the first unsupported provider boundary while retaining its folder and private evidence.",
+      "result": {
+        "status": "stopped at prepared folder acknowledgement",
+        "observed": "The prepared-ID folder POST succeeded. Exact-ID reconciliation repeatedly observed the same folder, but neither response carried a strong HTTP ETag.",
+        "journal": "One create-folder mutation remained verify_required after seven failed attempts, with its prepared item retained and no receipt accepted.",
+        "deadline_seconds": 180,
+        "file_uploads_started": 0,
+        "later_namespace_mutations_started": 0,
+        "deletes_or_trash_requests": 0,
+        "cloud_artifact": "The run-owned folder remains for review.",
+        "private_evidence": ".local-state/google-write-validation/state/write-checks/87569c29-f0d8-40e4-9cf4-2178a695755a"
+      }
+    }
+  ],
+  "rerun_registration": {
+    "registered_before_run": true,
+    "registered_at": "2026-09-19T23:34:04+02:00",
+    "source_revision_base": "5e2d9f7cc9457f1a5531ec05f1d1059b28c4c48a",
+    "candidate_change": "A create-folder receipt accepts the exact prepared ID, parent, name and folder kind without requiring a token for a future edit. No relocation, replacement or removal precondition is weakened.",
+    "negative_control": "The exact no-ETag folder fixture fails with the former receipt requirement and passes after the candidate correction.",
+    "candidate_validation": "Full scripts/check.sh passed with 669 Rust test executions, every kernel mount group, script tests, the acceptance ledger and docs.",
+    "prediction": "The rerun will acknowledge folder creation and create/read back the multipart and empty files. Because the first run's exact GET also lacked an ETag, the metadata capability probe is expected to record NoStrongEtag and stop before applying a rename, replacement or move.",
+    "endpoint": "Folder creation and both file readbacks are durably recorded, followed either by a safely rejected stale metadata probe or an explicit no-strong-ETag stop. Any different boundary is recorded before another run.",
+    "decision_rule": "A missing strong ETag leaves conditional Google replacement, rename, move and trash unavailable. A stale request accepted by Google is a hard failure. Only a real strong ETag plus stale rejection permits the validator to continue to the next conditional operation."
+  }
+}
