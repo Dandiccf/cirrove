@@ -1,6 +1,6 @@
-//! Explicit Google create, replacement and namespace-precondition checks. It is
-//! wired for a disabled, separately consented account and is never called by
-//! the daemon.
+//! Explicit Google create, replacement and namespace-precondition checks. They
+//! use a disabled, separately consented account and are never called by the
+//! daemon.
 use super::*;
 use crate::{
     journal::{MutationRecord, MutationState},
@@ -10,6 +10,7 @@ use cirrove_core::{
     NodeKind, ReadProvider,
     mutation::{MutationIntent, MutationReceipt, MutationRequest},
 };
+use std::io::{BufRead, BufReader};
 
 async fn apply_mutation(
     journal: &Arc<Mutex<UploadJournal>>,
@@ -126,6 +127,30 @@ async fn verify_created(
         return Ok(());
     }
     unreachable!("bounded readback loop always returns or fails")
+}
+
+async fn exact_sha256(
+    provider: &dyn ReadProvider,
+    scope: &Scope,
+    node: &Node,
+    cancel: &CancellationToken,
+) -> std::result::Result<String, cirrove_core::ProviderError> {
+    let mut digest = Sha256::new();
+    let mut offset = 0;
+    while offset < node.size {
+        let length = (node.size - offset).min(4 * 1024 * 1024) as u32;
+        let bytes = provider
+            .read_range(scope, node, offset, length, cancel)
+            .await?;
+        if bytes.len() != length as usize {
+            return Err(cirrove_core::ProviderError::Protocol(
+                "Google validation readback was incomplete",
+            ));
+        }
+        digest.update(&bytes);
+        offset += bytes.len() as u64;
+    }
+    Ok(hex::encode(digest.finalize()))
 }
 
 /// Create an isolated folder tree, a multipart file and an empty file, then
@@ -685,6 +710,535 @@ pub async fn google_create(state: &Path, label: &str) -> Result<()> {
         "Google create and metadata checks passed. The test folder and local snapshots remain for review."
     );
     println!("This does not enable writable Google mounts.");
+    Ok(())
+}
+
+/// Probe Drive v2's documented file ETag on the exact multipart file retained
+/// by an earlier Google create-validation run. The file is renamed twice under
+/// preconditions and restored before success is reported.
+pub async fn google_v2_etag(state: &Path, label: &str, run: uuid::Uuid) -> Result<()> {
+    let account = test_account(state, label)?;
+    if !matches!(
+        account.registration,
+        cirrove_auth::AppRegistration::Google { .. }
+    ) {
+        bail!("this operation requires a Google Drive connection");
+    }
+    let _operation = accounts::account_operation(state, &account.id)?;
+    let _owner = accounts::account_lock(&state.join("accounts").join(&account.id))?;
+    let run_directory = state.join("write-checks").join(run.to_string());
+    let evidence = File::open(run_directory.join("events.jsonl"))
+        .context("Google create-validation evidence is unavailable")?;
+    let mut multipart = None;
+    for line in BufReader::new(evidence).lines() {
+        let value: serde_json::Value = serde_json::from_str(&line?)?;
+        if value.get("stage").and_then(|stage| stage.as_str()) == Some("multipart_result") {
+            multipart = Some(serde_json::from_value::<UploadRecord>(
+                value
+                    .get("operation")
+                    .cloned()
+                    .context("multipart evidence has no operation")?,
+            )?);
+        }
+    }
+    let multipart = multipart.context("run has no completed multipart create")?;
+    let UploadIntent::Create { parent, name } = &multipart.intent else {
+        bail!("retained Google operation is not a create");
+    };
+    let remote = multipart
+        .remote
+        .as_ref()
+        .context("retained Google create has no exact provider receipt")?;
+    if multipart.state != UploadState::Uploaded
+        || multipart.scope.account != account.id
+        || multipart.scope.provider != cirrove_googledrive::PROVIDER_ID
+        || multipart.scope.collection != account.drive.id
+        || remote.parent_id.as_ref() != Some(parent)
+        || remote.name != *name
+    {
+        bail!("retained Google create does not belong to this validation account and run");
+    }
+
+    let probe = uuid::Uuid::new_v4();
+    let directory = run_directory.join(format!("v2-etag-{probe}"));
+    crate::private_dir(&directory)?;
+    let mut log = OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .mode(0o600)
+        .open(directory.join("events.jsonl"))?;
+    let current_name = format!("Kärnten & Grüße #1-v2-current-{probe}.bin");
+    let stale_name = format!("Kärnten & Grüße #1-v2-stale-{probe}.bin");
+    let google = accounts::google_provider(&account)?;
+    let plan = google.prepare_metadata_precondition_probe(
+        &multipart.scope,
+        &remote.id,
+        parent,
+        name,
+        &current_name,
+        &stale_name,
+    )?;
+    event(
+        &mut log,
+        serde_json::json!({
+            "stage":"planned",
+            "source_run":run,
+            "probe":probe,
+            "plan":plan,
+            "decision_rule":"current v2 ETag must permit one rename; reuse of the stale ETag must return 412; the current ETag must restore the original name"
+        }),
+    )?;
+    File::open(&directory)?.sync_all()?;
+    println!("Checking Drive v2 ETag behavior on the retained Cirrove test file.");
+    println!("Private local evidence: {}", directory.display());
+    let result = google
+        .probe_v2_metadata_precondition(&multipart.scope, &plan, &CancellationToken::new())
+        .await?;
+    event(
+        &mut log,
+        serde_json::json!({"stage":"v2_metadata_precondition_result", "result":result}),
+    )?;
+    match result.stale_rejected() {
+        Some(true) => {
+            println!("Drive v2 rejected the stale ETag and restored the original name.");
+            Ok(())
+        }
+        Some(false) => {
+            bail!("Drive v2 accepted a stale ETag; safe replacement remains unavailable")
+        }
+        None => {
+            bail!("Drive v2 returned no strong file ETag; safe replacement remains unavailable")
+        }
+    }
+}
+
+/// Probe Drive v2's resumable replacement precondition on the same retained
+/// run-owned file, including a concurrent metadata change after session start.
+/// Both the original name and deterministic original bytes are restored before
+/// success is reported.
+pub async fn google_v2_content(state: &Path, label: &str, run: uuid::Uuid) -> Result<()> {
+    let account = test_account(state, label)?;
+    if !matches!(
+        account.registration,
+        cirrove_auth::AppRegistration::Google { .. }
+    ) {
+        bail!("this operation requires a Google Drive connection");
+    }
+    let _operation = accounts::account_operation(state, &account.id)?;
+    let _owner = accounts::account_lock(&state.join("accounts").join(&account.id))?;
+    let run_directory = state.join("write-checks").join(run.to_string());
+    let evidence = File::open(run_directory.join("events.jsonl"))
+        .context("Google create-validation evidence is unavailable")?;
+    let mut multipart = None;
+    for line in BufReader::new(evidence).lines() {
+        let value: serde_json::Value = serde_json::from_str(&line?)?;
+        if value.get("stage").and_then(|stage| stage.as_str()) == Some("multipart_result") {
+            multipart = Some(serde_json::from_value::<UploadRecord>(
+                value
+                    .get("operation")
+                    .cloned()
+                    .context("multipart evidence has no operation")?,
+            )?);
+        }
+    }
+    let multipart = multipart.context("run has no completed multipart create")?;
+    let UploadIntent::Create { parent, name } = &multipart.intent else {
+        bail!("retained Google operation is not a create");
+    };
+    let remote = multipart
+        .remote
+        .as_ref()
+        .context("retained Google create has no exact provider receipt")?;
+    if multipart.state != UploadState::Uploaded
+        || multipart.scope.account != account.id
+        || multipart.scope.provider != cirrove_googledrive::PROVIDER_ID
+        || multipart.scope.collection != account.drive.id
+        || remote.parent_id.as_ref() != Some(parent)
+        || remote.name != *name
+        || multipart.size != 8 * 1024 * 1024 + 13
+        || multipart.sha256 != hex::encode(Sha256::digest(vec![0x47; 8 * 1024 * 1024 + 13]))
+    {
+        bail!("retained Google create does not match the deterministic validation file");
+    }
+
+    let probe = uuid::Uuid::new_v4();
+    let directory = run_directory.join(format!("v2-content-{probe}"));
+    crate::private_dir(&directory)?;
+    let mut log = OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .mode(0o600)
+        .open(directory.join("events.jsonl"))?;
+    let original = vec![0x47; 8 * 1024 * 1024 + 13];
+    let accepted = vec![0x52; 8 * 1024 * 1024 + 29];
+    event(
+        &mut log,
+        serde_json::json!({
+            "stage":"planned",
+            "source_run":run,
+            "probe":probe,
+            "item":remote.id,
+            "original_size":original.len(),
+            "original_sha256":hex::encode(Sha256::digest(&original)),
+            "accepted_size":accepted.len(),
+            "accepted_sha256":hex::encode(Sha256::digest(&accepted)),
+            "decision_rule":"the final range of a session opened before an intervening metadata change must fail; a current session must replace content; a stale session start must fail; original name and bytes must be restored"
+        }),
+    )?;
+    File::open(&directory)?.sync_all()?;
+    println!("Checking Drive v2 resumable preconditions on the retained Cirrove test file.");
+    println!("Private local evidence: {}", directory.display());
+    let google = accounts::google_provider(&account)?;
+    let journal_path = directory.join("journal");
+    let account_id = account.id.clone();
+    let journal = Arc::new(Mutex::new(
+        tokio::task::spawn_blocking(move || {
+            UploadJournal::open(&journal_path, &account_id, 64 * 1024 * 1024)
+        })
+        .await??,
+    ));
+    let cancel = CancellationToken::new();
+    let transfer_worker = TransferWorker::new(
+        journal.clone(),
+        google.clone(),
+        Arc::new(DesktopVault),
+        cancel.clone(),
+    );
+    let mutation_worker = MutationWorker::new(journal.clone(), google.clone(), cancel.clone());
+
+    // A previous run can lose its credential after acknowledging the test
+    // replacement but before restoring the fixture. Recover only the exact
+    // deterministic worker payload; any other bytes remain untouched for review.
+    let worker_size = 8 * 1024 * 1024 + 47;
+    let worker_sha256 = hex::encode(Sha256::digest(vec![0x57; worker_size]));
+    let mut current = google
+        .validation_versioned_item(
+            &multipart.scope,
+            &remote.id,
+            parent,
+            NodeKind::File,
+            &cancel,
+        )
+        .await?;
+    if current.name != *name {
+        let prior_probe = current
+            .name
+            .strip_prefix("Kärnten & Grüße #1-v2-worker-")
+            .and_then(|value| value.strip_suffix(".bin"))
+            .and_then(|value| uuid::Uuid::parse_str(value).ok())
+            .context("retained Google fixture has an unexpected name; refusing recovery")?;
+        let prior_evidence = File::open(
+            run_directory
+                .join(format!("v2-content-{prior_probe}"))
+                .join("events.jsonl"),
+        )
+        .context("interrupted rename has no local evidence; refusing recovery")?;
+        let mut planned_for_item = false;
+        let mut rename_applied = false;
+        for line in BufReader::new(prior_evidence).lines() {
+            let value: serde_json::Value = serde_json::from_str(&line?)?;
+            match value.get("stage").and_then(|stage| stage.as_str()) {
+                Some("planned") => {
+                    planned_for_item = value.get("item").and_then(|item| item.as_str())
+                        == Some(remote.id.as_str());
+                }
+                Some("versioned_worker_rename_result") => {
+                    rename_applied = matches!(
+                        value.get("state").and_then(|state| state.as_str()),
+                        Some("applied" | "conflict")
+                    );
+                }
+                _ => {}
+            }
+        }
+        if !planned_for_item || !rename_applied {
+            bail!(
+                "interrupted rename evidence does not match the exact fixture; refusing recovery"
+            );
+        }
+        apply_mutation(
+            &journal,
+            &mutation_worker,
+            MutationRequest {
+                scope: multipart.scope.clone(),
+                intent: MutationIntent::Relocate {
+                    before: current,
+                    parent: parent.clone(),
+                    name: name.clone(),
+                },
+            },
+            MutationState::Applied,
+            &mut log,
+            "interrupted_worker_name_restore_result",
+        )
+        .await?;
+        println!("Restored the run-owned fixture name left by the interrupted worker run.");
+        current = google
+            .validation_versioned_namespace_base(
+                &multipart.scope,
+                &remote.id,
+                parent,
+                name,
+                NodeKind::File,
+                &cancel,
+            )
+            .await?;
+    }
+    if current.size != original.len() as u64 {
+        if current.size != worker_size as u64 {
+            bail!("retained Google fixture has unexpected content; refusing recovery");
+        }
+        let mut observed = None;
+        for attempt in 0..8 {
+            match exact_sha256(google.as_ref(), &multipart.scope, &current, &cancel).await {
+                Ok(digest) => {
+                    observed = Some(digest);
+                    break;
+                }
+                Err(cirrove_core::ProviderError::VersionChanged) if attempt < 7 => {
+                    tokio::time::sleep(Duration::from_millis(250)).await;
+                    current = google
+                        .validation_versioned_namespace_base(
+                            &multipart.scope,
+                            &remote.id,
+                            parent,
+                            name,
+                            NodeKind::File,
+                            &cancel,
+                        )
+                        .await?;
+                }
+                Err(error) => return Err(error.into()),
+            }
+        }
+        if observed.as_deref() != Some(worker_sha256.as_str()) {
+            bail!(
+                "retained Google fixture is not the interrupted worker payload; refusing recovery"
+            );
+        }
+        event(
+            &mut log,
+            serde_json::json!({
+                "stage":"interrupted_worker_restore_planned",
+                "item":remote.id,
+                "observed_size":current.size,
+                "observed_sha256":worker_sha256
+            }),
+        )?;
+        let recovery = transfer(
+            &journal,
+            &transfer_worker,
+            multipart.scope.clone(),
+            UploadIntent::Replace {
+                item: remote.id.clone(),
+                expected_etag: current
+                    .etag
+                    .clone()
+                    .context("interrupted Google worker has no recovery precondition")?,
+            },
+            original.clone(),
+        )
+        .await?;
+        verify_created(google.as_ref(), &recovery, &cancel).await?;
+        event(
+            &mut log,
+            serde_json::json!({
+                "stage":"interrupted_worker_restore_result",
+                "operation":recovery.id,
+                "state":recovery.state,
+                "remote":recovery.remote
+            }),
+        )?;
+        println!("Restored the deterministic fixture left by the interrupted worker run.");
+    }
+    let plan = google.prepare_v2_content_precondition_probe(
+        &multipart.scope,
+        &remote.id,
+        parent,
+        name,
+        &original,
+        &accepted,
+    )?;
+    let result = google
+        .probe_v2_content_precondition(&multipart.scope, &plan, original, accepted, &cancel)
+        .await?;
+    event(
+        &mut log,
+        serde_json::json!({"stage":"v2_content_precondition_result", "result":result}),
+    )?;
+    if !result.intervening_change_rejected_at_commit
+        || !result.stale_session_rejected
+        || !result.original_name_restored
+        || !result.original_content_restored
+    {
+        bail!("Drive v2 resumable replacement did not satisfy the writable-mount contract")
+    }
+    println!("Drive v2 protected the final upload commit and restored the original file.");
+
+    let current = google
+        .validation_versioned_namespace_base(
+            &multipart.scope,
+            &remote.id,
+            parent,
+            name,
+            NodeKind::File,
+            &cancel,
+        )
+        .await?;
+    let replacement = vec![0x57; 8 * 1024 * 1024 + 47];
+    event(
+        &mut log,
+        serde_json::json!({
+            "stage":"versioned_worker_replacement_planned",
+            "item":remote.id,
+            "size":replacement.len(),
+            "sha256":hex::encode(Sha256::digest(&replacement))
+        }),
+    )?;
+    let replaced = transfer(
+        &journal,
+        &transfer_worker,
+        multipart.scope.clone(),
+        UploadIntent::Replace {
+            item: remote.id.clone(),
+            expected_etag: current
+                .etag
+                .clone()
+                .context("versioned Google replacement has no precondition")?,
+        },
+        replacement,
+    )
+    .await?;
+    verify_created(google.as_ref(), &replaced, &cancel).await?;
+    event(
+        &mut log,
+        serde_json::json!({
+            "stage":"versioned_worker_replacement_result",
+            "operation":replaced.id,
+            "state":replaced.state,
+            "remote":replaced.remote
+        }),
+    )?;
+
+    let replaced_base = google
+        .validation_versioned_namespace_base(
+            &multipart.scope,
+            &remote.id,
+            parent,
+            name,
+            NodeKind::File,
+            &cancel,
+        )
+        .await?;
+    let restored = transfer(
+        &journal,
+        &transfer_worker,
+        multipart.scope.clone(),
+        UploadIntent::Replace {
+            item: remote.id.clone(),
+            expected_etag: replaced_base
+                .etag
+                .clone()
+                .context("versioned Google restore has no precondition")?,
+        },
+        vec![0x47; 8 * 1024 * 1024 + 13],
+    )
+    .await?;
+    verify_created(google.as_ref(), &restored, &cancel).await?;
+    event(
+        &mut log,
+        serde_json::json!({
+            "stage":"versioned_worker_restore_result",
+            "operation":restored.id,
+            "state":restored.state,
+            "remote":restored.remote
+        }),
+    )?;
+
+    let rename_base = google
+        .validation_versioned_namespace_base(
+            &multipart.scope,
+            &remote.id,
+            parent,
+            name,
+            NodeKind::File,
+            &cancel,
+        )
+        .await?;
+    let worker_name = format!("Kärnten & Grüße #1-v2-worker-{probe}.bin");
+    let renamed = apply_mutation(
+        &journal,
+        &mutation_worker,
+        MutationRequest {
+            scope: multipart.scope.clone(),
+            intent: MutationIntent::Relocate {
+                before: rename_base.clone(),
+                parent: parent.clone(),
+                name: worker_name.clone(),
+            },
+        },
+        MutationState::Applied,
+        &mut log,
+        "versioned_worker_rename_result",
+    )
+    .await?;
+    let Some(MutationReceipt::Upsert(renamed_node)) = renamed.receipt else {
+        bail!("versioned Google worker rename has no exact receipt");
+    };
+    if renamed_node.id != remote.id || renamed_node.name != worker_name {
+        bail!("versioned Google worker renamed a different item");
+    }
+    let renamed_base = google
+        .validation_versioned_namespace_base(
+            &multipart.scope,
+            &remote.id,
+            parent,
+            &worker_name,
+            NodeKind::File,
+            &cancel,
+        )
+        .await?;
+    apply_mutation(
+        &journal,
+        &mutation_worker,
+        MutationRequest {
+            scope: multipart.scope.clone(),
+            intent: MutationIntent::Relocate {
+                before: renamed_base,
+                parent: parent.clone(),
+                name: name.clone(),
+            },
+        },
+        MutationState::Applied,
+        &mut log,
+        "versioned_worker_name_restore_result",
+    )
+    .await?;
+    apply_mutation(
+        &journal,
+        &mutation_worker,
+        MutationRequest {
+            scope: multipart.scope.clone(),
+            intent: MutationIntent::Relocate {
+                before: rename_base,
+                parent: parent.clone(),
+                name: format!("Kärnten & Grüße #1-v2-stale-{probe}.bin"),
+            },
+        },
+        MutationState::Conflict,
+        &mut log,
+        "versioned_worker_stale_rename_result",
+    )
+    .await?;
+    event(
+        &mut log,
+        serde_json::json!({
+            "stage":"versioned_worker_checks_passed",
+            "original_name_restored":true,
+            "original_content_restored":true
+        }),
+    )?;
+    println!("The durable transfer and mutation workers also passed and restored the fixture.");
     Ok(())
 }
 #[cfg(test)]

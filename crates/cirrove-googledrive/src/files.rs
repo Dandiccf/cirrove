@@ -7,7 +7,7 @@ use cirrove_core::{
 };
 use serde::Deserialize;
 
-pub(super) const FIELDS: &str = "id,name,mimeType,parents,size,version,modifiedTime,trashed,driveId,capabilities(canDownload),shortcutDetails(targetId,targetMimeType,targetResourceKey)";
+pub(super) const FIELDS: &str = "id,name,mimeType,parents,size,version,headRevisionId,modifiedTime,trashed,driveId,capabilities(canDownload),shortcutDetails(targetId,targetMimeType,targetResourceKey)";
 const FOLDER: &str = "application/vnd.google-apps.folder";
 const SHORTCUT: &str = "application/vnd.google-apps.shortcut";
 
@@ -21,6 +21,7 @@ pub(super) struct File {
     pub(super) parents: Vec<String>,
     pub(super) size: Option<String>,
     pub(super) version: Option<String>,
+    pub(super) head_revision_id: Option<String>,
     modified_time: Option<String>,
     #[serde(default)]
     pub trashed: bool,
@@ -98,6 +99,19 @@ impl File {
                 .ok_or(ProviderError::Protocol("missing Google file size"))?;
             (NodeKind::File, size, None)
         };
+        let content_version =
+            if self.mime_type != FOLDER && self.mime_type != SHORTCUT && link.is_none() {
+                let revision = self
+                    .head_revision_id
+                    .as_deref()
+                    .filter(|revision| !revision.is_empty() && revision.len() <= MAX_TOKEN_BYTES)
+                    .ok_or(ProviderError::Protocol(
+                        "missing Google binary head revision",
+                    ))?;
+                format!("google-revision:{revision}")
+            } else {
+                format!("google-version:{version}")
+            };
         Ok(Node {
             id: self.id.clone(),
             parent_id: self.parents.first().cloned(),
@@ -109,8 +123,9 @@ impl File {
                 .as_deref()
                 .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
                 .map_or(0, |t| t.timestamp().max(0) as u64),
-            etag: None,
-            content_version: Some(format!("google-version:{version}")),
+            etag: (link.is_none() && self.mime_type != SHORTCUT)
+                .then(|| version_precondition(version)),
+            content_version: Some(content_version),
             target,
             package: false,
         })

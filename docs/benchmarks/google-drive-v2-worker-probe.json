@@ -1,0 +1,104 @@
+{
+  "question": "Can Cirrove's provider-neutral durable transfer and mutation workers safely replace and rename one exact Google Drive file by resolving an observed v3 version to a current v2 strong ETag immediately before mutation?",
+  "kind": "Explicitly authorized, bounded live validation on one deterministic file previously created and retained by Cirrove's isolated Google write validator.",
+  "authorization": "On 2026-09-20 the owner instructed Cirrove to plan and implement the Google writable path. Mutations are confined to the retained run-owned fixture and must restore its original name and deterministic bytes.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-20T09:36:22+02:00",
+  "source_revision_base": "138f5b4",
+  "candidate_diff_sha256": "44469f30de70948155b27ea7fbe9fcc40ba1e14d160787c24513fba32bb31a0c",
+  "binary_sha256": "f6756e93b365616ef2a017c873518ec39c33a5ef1fd2bf593534e6e2c7f3e77a",
+  "command": "cirrove validate-google-v2-content --label google-create-validation --run 5108ef6b-3dcf-48de-a96b-e3c5a6a628bb --state-dir <private-validation-state>",
+  "expected_duration_seconds": 180,
+  "temporary_directory": ".local-state/tmp/google-v2-worker-probe (must be disk-backed; TMPDIR and SQLITE_TMPDIR)",
+  "source_run": "5108ef6b-3dcf-48de-a96b-e3c5a6a628bb",
+  "scope": "The exact multipart file created by the completed Google create-validation run. The ordinary mounted Google account and every pre-existing user item are excluded.",
+  "arms": [
+    "Repeat the already-passing direct v2 final-commit probe and restore the deterministic original file.",
+    "Read the restored file through the v3-version/v2-ETag bridge and replace its content through the provider-neutral durable TransferWorker.",
+    "Read back the exact item and SHA-256, then use its new version observation to restore the deterministic original bytes through the same worker.",
+    "Read the restored file through the version bridge, rename it through the provider-neutral MutationWorker, then use the new version to restore the original name.",
+    "Reuse the stale pre-rename version and require the mutation journal to reach Conflict before another write."
+  ],
+  "prediction": "Both current version observations will resolve to a v2 strong ETag and commit through their shared workers; reusing the stale rename observation will conflict; exact name and bytes will be restored.",
+  "endpoint": "Pass only if both worker operations reach their durable Applied/Uploaded state, exact-ID readback matches, the stale operation reaches Conflict, and the fixture is restored. Any uncertain, failed or accepted stale operation keeps normal Google mounts read-only.",
+  "known_limit": "This probe uses raw provider names inside an isolated fixture. It does not resolve the mounted duplicate-safe name projection or Google's non-atomic duplicate-sibling collision rule.",
+  "synthetic_precheck": {
+    "tests": [
+      "versioned_replacement_resolves_a_v2_etag_and_returns_the_new_version",
+      "versioned_replacement_conflicts_before_mutation_when_the_version_changed",
+      "versioned_mutation_resolves_a_v2_etag_before_renaming",
+      "versioned_mutation_conflicts_before_destination_scan_when_version_changed"
+    ],
+    "result": "passed"
+  },
+  "corrections": [
+    {
+      "at": "2026-09-20T09:40:21+02:00",
+      "attempt": 1,
+      "outcome": "The direct final-commit probe passed and restored the fixture. The provider-neutral worker then uploaded its deterministic replacement, but the credential required sign-in before the worker could restore the original bytes.",
+      "boundary": "The test file contains the known 8 MiB + 47 byte 0x57 worker payload. The failed restore remains in the private journal; no other item was addressed.",
+      "correction": "Reauthenticate the disabled validation account with the full Drive scope. Before a rerun, read the exact fixture by ID and version, require both the known replacement size and SHA-256, and only then restore the deterministic original through a newly journaled conditional worker operation. Refuse recovery for every other byte sequence.",
+      "recovery_candidate_diff_sha256": "5abe63da1d182a808bcda4ab8f53f3845b36be9a864738cd8d41ed0291c55394",
+      "recovery_binary_sha256": "762954864da0f6ddca7f268503334e2891f3e2f93b3c1174393286874f9888d6"
+    },
+    {
+      "at": "2026-09-20T09:44:00+02:00",
+      "attempt": 2,
+      "outcome": "Both provider-neutral content replacements completed and restored the original SHA-256. The first rename reached Applied. The immediate restoring rename crossed a v2/v3 consistency window, entered VerifyRequired and its first reconciliation reached Conflict.",
+      "boundary": "The exact item and private journal are retained. A rerun may restore only the deterministic temporary name when the prior probe UUID and its Applied rename event match the current exact ID.",
+      "correction": "Bound v3 confirmation of every v2 write response to five exact-ID reads separated by two seconds. Add synthetic lagging-v3 responses for content and metadata receipts. Before the rerun, conditionally restore a prior temporary name only when its UUID maps to retained matching evidence; refuse every other name.",
+      "recovery_candidate_diff_sha256": "ea5bf52ebef1f97b1034bffcaa8ca56e7acb840d007c3bf5ea0ee8baccbef104",
+      "recovery_binary_sha256": "38ad2034d95357ac9ff53e934f66f6d4bc2cc4640228bb7957e266b6b22c1c88"
+    },
+    {
+      "at": "2026-09-20T09:51:59+02:00",
+      "attempt": 3,
+      "outcome": "The evidence-bound temporary name was restored, and the direct probe again passed. The first content worker then remained in VerifyRequired until the five-minute validator deadline; it did not retry the mutation.",
+      "boundary": "The exact worker session and local snapshot remain journaled. A rerun applies the existing exact-size-and-SHA recovery gate before any new probe.",
+      "cause": "Receipt confirmation had bounded v2/v3 settling, but reconciliation after an uncertain or expired resumable-session response still made only one v2/v3 comparison and one version-bound SHA read per worker pass.",
+      "correction": "Apply the same bounded exact-ID v2/v3 settling to replacement reconciliation and retry the read-only SHA check after VersionChanged. Mutation is never retried during this loop.",
+      "recovery_candidate_diff_sha256": "fdfaf0615daa25ac0296be5f4c1b0104a4d01f6f4f954da70569f46ff0ad520e",
+      "recovery_binary_sha256": "cde0fb8159368e80cfa4860f9621048eaf30b97a90c0d8871837d1c7a65efa10"
+    },
+    {
+      "at": "2026-09-20T09:57:30+02:00",
+      "attempt": 4,
+      "outcome": "Evidence-bound content recovery passed, the direct v2 probe passed, and both content-worker operations reached Uploaded. The following metadata operation became uncertain because Google advanced the general file version while the shared worker interpreted that value as a content revision.",
+      "cause": "Drive file.version changes for metadata as well as content. It is suitable as the observation resolved to a write ETag, but not as the provider-neutral content lineage of a blob.",
+      "correction": "Request v3 headRevisionId for binary files and publish it as google-revision:<id> for content identity while retaining google-version:<number> as the write precondition. Google documents headRevisionId as the head content revision for binary Drive files. Synthetic reads now accept a metadata version change with a stable head revision and still reject a changed head revision.",
+      "recovery_candidate_diff_sha256": "4c93624b046d58df8826b3daec2477a7585eb7d93fe039711d4e35dec3b18c94",
+      "recovery_binary_sha256": "2b9238818a25d5f2d138b500a731a3df5b2ff507248881b3630fcc8b21ba3ca8"
+    },
+    {
+      "at": "2026-09-20T09:58:55+02:00",
+      "attempt": 5,
+      "outcome": "Stopped read-only before the direct probe because the current deterministic temporary name came from the prior operation whose journal had classified the result as Conflict rather than Applied.",
+      "correction": "Permit name recovery when the prior evidence has the exact item, the exact UUID-encoded temporary name and a terminal Applied or Conflict result. In the Conflict case, the current exact remote name is the additional proof that the uncertain conditional rename committed; every unrelated name remains refused.",
+      "recovery_candidate_diff_sha256": "a218dc97aea5962e3f751dc6870c6dc0e3cb399790bbf98aed97493c2f11b1f0",
+      "recovery_binary_sha256": "f6756e93b365616ef2a017c873518ec39c33a5ef1fd2bf593534e6e2c7f3e77a"
+    }
+  ],
+  "result": {
+    "completed_at": "2026-09-20T10:00:38+02:00",
+    "status": "passed",
+    "probe_id": "cecd1c29-4fe7-4179-8238-b6aa85d1cb12",
+    "direct_before_version": "128",
+    "direct_final_version": "134",
+    "intervening_change_rejected_at_commit": true,
+    "stale_session_rejected": true,
+    "worker_replacement_state": "uploaded",
+    "worker_restore_state": "uploaded",
+    "worker_rename_state": "applied",
+    "worker_name_restore_state": "applied",
+    "worker_stale_rename_state": "conflict",
+    "original_name_restored": true,
+    "original_content_restored": true,
+    "ordinary_mounts_restarted": false,
+    "ordinary_google_mount_state_after_run": "ready",
+    "ordinary_google_stuck_changes_after_run": 0,
+    "ordinary_google_failed_uploads_after_run": 0,
+    "ordinary_google_indexed_items_after_run": 1360,
+    "private_evidence": ".local-state/google-write-validation/state/write-checks/5108ef6b-3dcf-48de-a96b-e3c5a6a628bb/v2-content-cecd1c29-4fe7-4179-8238-b6aa85d1cb12",
+    "interpretation": "The provider-neutral durable workers can replace and conditionally rename this app-created binary file through the v3-version/v2-ETag bridge. Binary headRevisionId supplies content lineage across metadata-only version changes. The duplicate-safe mounted name projection and non-atomic sibling collision rule remain open, so ordinary Google mounts stay read-only."
+  }
+}

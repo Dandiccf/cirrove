@@ -28,7 +28,7 @@ use cirrove_core::{
 use cirrove_onedrive::OneDrive;
 pub use freshness::onedrive_freshness;
 pub use google_read::google_read;
-pub use google_write::google_create;
+pub use google_write::{google_create, google_v2_content, google_v2_etag};
 pub use namespace::onedrive_mutations;
 pub use navigation::onedrive_navigation;
 pub use notifications::onedrive_notifications;

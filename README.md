@@ -211,7 +211,7 @@ login can exercise it. See
 | `cirrove-core` | Provider-neutral identity, metadata/read/upload contracts, cancellation and request budgets |
 | `cirrove-store` | Transactional metadata, observations, persistent inodes and cache index |
 | `cirrove-onedrive` | Microsoft Graph metadata, version-checked ranged reads and experimental resumable uploads |
-| `cirrove-googledrive` | Read-only Google Drive v3 metadata, version-checked ranges/windows and browser links for native documents |
+| `cirrove-googledrive` | Google Drive v3 reads plus isolated v2 conditional-write validation; ordinary mounts remain read-only |
 | `cirrove-auth` | Microsoft/Google browser authentication, shared keyring and refresh broker |
 | `cirrove-service` | Daemon, CLI, account workers, FUSE projection and content cache |
 | `cirrove-desktop` | Native account overview and asynchronous service controls |
@@ -223,9 +223,11 @@ The [distribution plan](docs/distribution.md) targets native Arch, Debian/Ubuntu
 and Fedora packages; these release/installability gates are not completed yet.
 
 Google Drive now has a [read-only My Drive preview](docs/google-drive.md), including
-its own browser sign-in and synthetic tests through the shared engine, store, cache
-and kernel mount. A first live connection and bounded read comparison passed;
-broader live Google-account acceptance is still open. iCloud requires a separate compatibility
+its own browser sign-in and tests through the shared engine, store, cache and
+kernel mount. A bounded live v2/v3 check also passed conditional content
+replacement, rename, restoration and stale-version rejection through the shared
+durable workers on one run-owned fixture. Duplicate-name and mounted-namespace
+gates still keep ordinary Google mounts read-only. iCloud requires a separate compatibility
 assessment because its API situation differs. Cirrove does not copy or depend on
 Stratosync or rclone; lessons from those integrations inform the recovery tests.
 

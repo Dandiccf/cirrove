@@ -427,19 +427,19 @@ shared. Adapters implement identity, changes, transfer operations, errors and
 capabilities. Microsoft-specific semantics stay in the OneDrive adapter.
 Write and conflict contracts must be concrete and exercised, not placeholder APIs.
 
-The Google Drive read adapter now validates the shared account, metadata, cache
-and mount boundaries. Its create transport and disabled-account validator have
-synthetic protocol coverage, including persisted current/stale HTTP ETag probes
-for metadata, small content and aligned resumable content on a file created by
-the run, followed by durable shared-worker folder creation, replacement, rename
-and move plus stale conflicts. Folder creation journals a generated Google item
-identity before POST and reconciles that exact ID after interruption. The namespace
+The Google Drive read adapter validates the shared account, metadata, cache and
+mount boundaries. Its disabled-account validator has synthetic protocol coverage
+and bounded live evidence for the v3-version/v2-ETag bridge: final-commit
+protection, durable replacement and restoration, rename and restoration, and a
+stale conflict on one run-owned binary file. Binary `headRevisionId` now carries
+content lineage independently of metadata `version`. Folder creation journals a
+generated Google item identity before POST and reconciles that exact ID after
+interruption. The namespace
 adapter is confined to the private validator because its destination scan cannot
 make Google's duplicate-permitting create or move atomic. It
 also has synthetic exact-ID, ETag-conditional regular-file trash coverage, which
-the live validator does not invoke. The validator has not been run and no
-writable mount selects these transports while collision and replacement rules
-remain open. Shared
+the live validator does not invoke. No writable mount selects these transports
+while duplicate-name, projected-name and folder-removal rules remain open. Shared
 drives and document exports require explicit capabilities. iCloud
 has a separate feasibility gate before feature parity is promised. Completion of
 OneDrive 1.0 does not claim either adapter is finished.

@@ -70,6 +70,90 @@ pub enum MetadataPreconditionProbe {
         final_name: String,
     },
 }
+
+/// Result of the isolated Drive v2 ETag capability probe. Drive v3 omits the
+/// file ETag, while v2 still exposes one in the resource body. This result
+/// deliberately records only the capability outcome, never the ETag itself.
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+pub enum V2MetadataPreconditionProbe {
+    NoStrongEtag {
+        item: String,
+        version: String,
+    },
+    Tested {
+        item: String,
+        before_version: String,
+        updated_version: String,
+        final_version: String,
+        stale_rejected: bool,
+        original_name_restored: bool,
+    },
+}
+
+/// Result of the isolated Drive v2 resumable-content capability probe. Raw
+/// ETags and resumable session URLs never leave the adapter.
+#[derive(Clone, Debug, Serialize)]
+pub struct V2ContentPreconditionProbe {
+    pub item: String,
+    pub before_version: String,
+    pub race_version: String,
+    pub updated_version: String,
+    pub final_version: String,
+    pub stale_session_rejected: bool,
+    pub intervening_change_rejected_at_commit: bool,
+    pub original_name_restored: bool,
+    pub original_content_restored: bool,
+}
+
+/// Durable non-secret description of the Drive v2 final-commit probe.
+#[derive(Clone, PartialEq, Eq, Serialize)]
+pub struct V2ContentPreconditionPlan {
+    item: String,
+    parent: String,
+    name: String,
+    original_size: u64,
+    original_sha256: String,
+    accepted_size: u64,
+    accepted_sha256: String,
+}
+impl V2MetadataPreconditionProbe {
+    pub fn stale_rejected(&self) -> Option<bool> {
+        match self {
+            Self::NoStrongEtag { .. } => None,
+            Self::Tested { stale_rejected, .. } => Some(*stale_rejected),
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct V2File {
+    id: String,
+    title: String,
+    etag: Option<String>,
+    #[serde(default)]
+    parents: Vec<V2Parent>,
+    version: String,
+    #[serde(rename = "mimeType")]
+    mime_type: Option<String>,
+    #[serde(rename = "fileSize")]
+    file_size: Option<String>,
+    #[serde(default)]
+    labels: V2Labels,
+}
+
+const V2_FIELDS: &str = "id,title,etag,parents(id),version,labels(trashed),mimeType,fileSize";
+
+#[derive(Deserialize)]
+struct V2Parent {
+    id: String,
+}
+
+#[derive(Default, Deserialize)]
+struct V2Labels {
+    #[serde(default)]
+    trashed: bool,
+}
 impl MetadataPreconditionProbe {
     pub fn stale_rejected(&self) -> Option<bool> {
         match self {
@@ -282,11 +366,12 @@ impl GoogleDrive {
         {
             return Err(UploadError::Uncertain);
         }
+        let precondition = etag.or_else(|| file.version.as_deref().map(version_precondition));
         let mut node = file
             .node(&self.collection)
             .map_err(|_| UploadError::Uncertain)?;
         node.name = plan.name.clone();
-        node.etag = etag;
+        node.etag = precondition;
         if node.kind != NodeKind::Folder {
             return Err(UploadError::Uncertain);
         }
@@ -484,6 +569,313 @@ impl GoogleDrive {
                 final_version,
                 stale_rejected,
                 final_name: expected_name.into(),
+            })
+        })
+        .await
+    }
+
+    /// Characterize Drive v2's file-resource ETag on an item created by the
+    /// isolated validator. The first rename uses the current ETag, the second
+    /// deliberately reuses that now-stale value, and a final conditional
+    /// rename restores the original name. No ETag value leaves this method.
+    pub async fn probe_v2_metadata_precondition(
+        &self,
+        scope: &Scope,
+        plan: &MetadataPreconditionPlan,
+        cancel: &CancellationToken,
+    ) -> Result<V2MetadataPreconditionProbe> {
+        let checked = self.prepare_metadata_precondition_probe(
+            scope,
+            &plan.item,
+            &plan.parent,
+            &plan.original_name,
+            &plan.accepted_name,
+            &plan.stale_name,
+        )?;
+        self.upload_call(cancel, Duration::from_secs(125), async {
+            let before = self.v2_file(&checked.item).await?;
+            self.check_v2_probe_file(
+                &before,
+                &checked.item,
+                &checked.parent,
+                &checked.original_name,
+            )?;
+            let before_version = self.v2_file_version(&before)?;
+            let Some(etag) = before
+                .etag
+                .as_deref()
+                .filter(|value| valid_strong_etag(value))
+            else {
+                return Ok(V2MetadataPreconditionProbe::NoStrongEtag {
+                    item: checked.item.clone(),
+                    version: before_version,
+                });
+            };
+
+            let updated = self
+                .conditional_v2_metadata_name(&checked.item, &checked.accepted_name, etag)
+                .await?;
+            self.check_v2_probe_file(
+                &updated,
+                &checked.item,
+                &checked.parent,
+                &checked.accepted_name,
+            )?;
+            let updated_version = self.v2_file_version(&updated)?;
+            if !decimal_version_after(&updated_version, &before_version) {
+                return Err(UploadError::Uncertain);
+            }
+
+            let stale_rejected = match self
+                .conditional_v2_metadata_name(&checked.item, &checked.stale_name, etag)
+                .await
+            {
+                Err(UploadError::Conflict) => true,
+                Ok(stale) => {
+                    self.check_v2_probe_file(
+                        &stale,
+                        &checked.item,
+                        &checked.parent,
+                        &checked.stale_name,
+                    )?;
+                    false
+                }
+                Err(error) => return Err(error),
+            };
+
+            // Re-read the exact identity before restoring it. This supplies the
+            // current ETag even if a successful PATCH response omitted fields,
+            // and refuses to overwrite an unexpected concurrent change.
+            let current = self.v2_file(&checked.item).await?;
+            let current_name = if stale_rejected {
+                checked.accepted_name.as_str()
+            } else {
+                checked.stale_name.as_str()
+            };
+            self.check_v2_probe_file(&current, &checked.item, &checked.parent, current_name)?;
+            let current_etag = current
+                .etag
+                .as_deref()
+                .filter(|value| valid_strong_etag(value))
+                .ok_or(UploadError::Uncertain)?;
+            let restored = self
+                .conditional_v2_metadata_name(&checked.item, &checked.original_name, current_etag)
+                .await?;
+            self.check_v2_probe_file(
+                &restored,
+                &checked.item,
+                &checked.parent,
+                &checked.original_name,
+            )?;
+            let final_version = self.v2_file_version(&restored)?;
+            if !decimal_version_after(&final_version, &updated_version) {
+                return Err(UploadError::Uncertain);
+            }
+            Ok(V2MetadataPreconditionProbe::Tested {
+                item: checked.item,
+                before_version,
+                updated_version,
+                final_version,
+                stale_rejected,
+                original_name_restored: true,
+            })
+        })
+        .await
+    }
+
+    pub fn prepare_v2_content_precondition_probe(
+        &self,
+        scope: &Scope,
+        item: &str,
+        parent: &str,
+        name: &str,
+        original: &[u8],
+        accepted: &[u8],
+    ) -> Result<V2ContentPreconditionPlan> {
+        self.check_folder_destination(scope, parent, name)?;
+        valid_id(item).map_err(UploadError::Provider)?;
+        if original.len() <= 5 * 1024 * 1024
+            || accepted.len() <= 5 * 1024 * 1024
+            || original.len() > u32::MAX as usize
+            || accepted.len() > u32::MAX as usize
+        {
+            return Err(UploadError::Invalid);
+        }
+        let original_sha256 = hex::encode(Sha256::digest(original));
+        let accepted_sha256 = hex::encode(Sha256::digest(accepted));
+        if original_sha256 == accepted_sha256 {
+            return Err(UploadError::Invalid);
+        }
+        Ok(V2ContentPreconditionPlan {
+            item: item.into(),
+            parent: parent.into(),
+            name: name.into(),
+            original_size: original.len() as u64,
+            original_sha256,
+            accepted_size: accepted.len() as u64,
+            accepted_sha256,
+        })
+    }
+
+    /// Characterize both points at which Drive v2 can enforce an ETag for a
+    /// resumable replacement. The probe first opens a session and changes the
+    /// metadata before sending bytes: accepting that session's final range
+    /// would make resumable replacement unsafe. It then performs one ordinary
+    /// conditional replacement, verifies that a stale session cannot start,
+    /// and conditionally restores the original bytes and name.
+    pub async fn probe_v2_content_precondition(
+        &self,
+        scope: &Scope,
+        plan: &V2ContentPreconditionPlan,
+        original: Vec<u8>,
+        accepted: Vec<u8>,
+        cancel: &CancellationToken,
+    ) -> Result<V2ContentPreconditionProbe> {
+        let checked = self.prepare_v2_content_precondition_probe(
+            scope,
+            &plan.item,
+            &plan.parent,
+            &plan.name,
+            &original,
+            &accepted,
+        )?;
+        if &checked != plan {
+            return Err(UploadError::Invalid);
+        }
+        let item = checked.item.as_str();
+        let parent = checked.parent.as_str();
+        let original_name = checked.name.as_str();
+        let race_name = format!("{original_name}.cirrove-v2-race");
+        self.check_folder_destination(scope, parent, &race_name)?;
+        let original_size = checked.original_size;
+        let accepted_size = checked.accepted_size;
+        let original_sha256 = checked.original_sha256.clone();
+        self.upload_call(cancel, Duration::from_secs(15 * 60), async {
+            let before = self.v2_file(item).await?;
+            self.check_v2_content_file(&before, item, parent, original_name, original_size)?;
+            let before_version = self.v2_file_version(&before)?;
+            let before_etag = self.v2_etag(&before)?;
+
+            // Open the upload first, then change the file. The final range must
+            // still reject the now-stale precondition or a long upload could
+            // overwrite a concurrent edit made after its session began.
+            let race_session = self
+                .begin_v2_conditional_resumable(item, accepted_size, before_etag)
+                .await?;
+            let raced = self
+                .conditional_v2_metadata_name(item, &race_name, before_etag)
+                .await?;
+            self.check_v2_content_file(&raced, item, parent, &race_name, original_size)?;
+            let race_version = self.v2_file_version(&raced)?;
+            if !decimal_version_after(&race_version, &before_version) {
+                return Err(UploadError::Uncertain);
+            }
+            let intervening_change_rejected_at_commit = match self
+                .upload_v2_probe_session(race_session, accepted.clone())
+                .await
+            {
+                Err(UploadError::Conflict | UploadError::SessionGone) => true,
+                Ok(file) => {
+                    self.check_v2_content_file(&file, item, parent, &race_name, accepted_size)?;
+                    false
+                }
+                Err(error) => return Err(error),
+            };
+
+            let after_race = self.v2_file(item).await?;
+            self.check_v2_probe_file(&after_race, item, parent, &race_name)?;
+            let after_race_etag = self.v2_etag(&after_race)?;
+            let restored_name = self
+                .conditional_v2_metadata_name(item, original_name, after_race_etag)
+                .await?;
+            self.check_v2_probe_file(&restored_name, item, parent, original_name)?;
+            let restored_name_etag = self.v2_etag(&restored_name)?.to_owned();
+
+            let accepted_session = self
+                .begin_v2_conditional_resumable(item, accepted_size, &restored_name_etag)
+                .await?;
+            let updated = self
+                .upload_v2_probe_session(accepted_session, accepted)
+                .await?;
+            self.check_v2_content_file(&updated, item, parent, original_name, accepted_size)?;
+            let updated_version = self.v2_file_version(&updated)?;
+            let stale_session_rejected = match self
+                .begin_v2_conditional_resumable(item, original_size, &restored_name_etag)
+                .await
+            {
+                Err(UploadError::Conflict) => true,
+                Ok(session) => match self
+                    .upload_v2_probe_session(session, original.clone())
+                    .await
+                {
+                    Err(UploadError::Conflict | UploadError::SessionGone) => true,
+                    Ok(file) => {
+                        self.check_v2_content_file(
+                            &file,
+                            item,
+                            parent,
+                            original_name,
+                            original_size,
+                        )?;
+                        false
+                    }
+                    Err(error) => return Err(error),
+                },
+                Err(error) => return Err(error),
+            };
+
+            let current = self.v2_file(item).await?;
+            self.check_v2_content_file(
+                &current,
+                item,
+                parent,
+                original_name,
+                if stale_session_rejected {
+                    accepted_size
+                } else {
+                    original_size
+                },
+            )?;
+            let current_etag = self.v2_etag(&current)?;
+            let restore_session = self
+                .begin_v2_conditional_resumable(item, original_size, current_etag)
+                .await?;
+            let restored = self
+                .upload_v2_probe_session(restore_session, original)
+                .await?;
+            self.check_v2_content_file(&restored, item, parent, original_name, original_size)?;
+            let final_version = self.v2_file_version(&restored)?;
+            let mut verified = None;
+            for attempt in 0..5 {
+                let final_node = self.file(item).await?.node(&scope.collection)?;
+                match self.probe_sha256(scope, &final_node, cancel).await {
+                    Ok(sha256) => {
+                        verified = Some((final_node, sha256));
+                        break;
+                    }
+                    Err(UploadError::Provider(ProviderError::VersionChanged)) if attempt < 4 => {
+                        tokio::select! {
+                            biased;
+                            _ = cancel.cancelled() => return Err(UploadError::Uncertain),
+                            _ = tokio::time::sleep(Duration::from_secs(2)) => {}
+                        }
+                    }
+                    Err(error) => return Err(error),
+                }
+            }
+            let (final_node, final_sha256) = verified.ok_or(UploadError::Uncertain)?;
+            let original_content_restored =
+                final_node.size == original_size && final_sha256 == original_sha256;
+            Ok(V2ContentPreconditionProbe {
+                item: item.into(),
+                before_version,
+                race_version,
+                updated_version,
+                final_version,
+                stale_session_rejected,
+                intervening_change_rejected_at_commit,
+                original_name_restored: restored.title == original_name,
+                original_content_restored,
             })
         })
         .await
@@ -829,6 +1221,53 @@ impl GoogleDrive {
             .await
     }
 
+    /// Read a validation-owned item through the same v3-version/v2-ETag bridge
+    /// used by writable mounts. The raw provider name is retained here because
+    /// the isolated validator records its own exact cloud names rather than the
+    /// duplicate-safe mounted projection.
+    pub async fn validation_versioned_namespace_base(
+        &self,
+        scope: &Scope,
+        item: &str,
+        parent: &str,
+        name: &str,
+        kind: NodeKind,
+        cancel: &CancellationToken,
+    ) -> Result<Node> {
+        let node = self
+            .validation_versioned_item(scope, item, parent, kind, cancel)
+            .await?;
+        if node.name != name {
+            return Err(UploadError::Uncertain);
+        }
+        Ok(node)
+    }
+
+    /// Exact versioned validation read without assuming the current raw name.
+    /// This is used only to recover a run-owned fixture after an interrupted
+    /// conditional rename whose durable evidence names the expected temporary.
+    pub async fn validation_versioned_item(
+        &self,
+        scope: &Scope,
+        item: &str,
+        parent: &str,
+        kind: NodeKind,
+        cancel: &CancellationToken,
+    ) -> Result<Node> {
+        self.check_scope(scope).map_err(UploadError::Provider)?;
+        valid_id(item).map_err(|_| UploadError::Invalid)?;
+        valid_id(parent).map_err(|_| UploadError::Invalid)?;
+        self.upload_call(cancel, Duration::from_secs(125), async {
+            let file = self.v2_file(item).await?;
+            let node = self.v2_mutation_node(&file).await?;
+            if node.id != item || node.parent_id.as_deref() != Some(parent) || node.kind != kind {
+                return Err(UploadError::Uncertain);
+            }
+            Ok(node)
+        })
+        .await
+    }
+
     fn check_upload(&self, request: &UploadRequest) -> Result<()> {
         request.validate()?;
         self.check_scope(&request.scope)
@@ -842,7 +1281,9 @@ impl GoogleDrive {
                 expected_etag,
             } => {
                 valid_id(item).map_err(|_| UploadError::Invalid)?;
-                if request.size == 0 || !valid_strong_etag(expected_etag) {
+                if !valid_strong_etag(expected_etag)
+                    && precondition_version(expected_etag).is_none()
+                {
                     return Err(UploadError::Invalid);
                 }
                 Ok(())
@@ -946,11 +1387,12 @@ impl GoogleDrive {
     fn session_url(&self, value: &str) -> Result<Url> {
         let url = Url::parse(value).map_err(|_| protocol("invalid Google upload session URL"))?;
         let endpoint = self.upload_endpoint();
+        let v2 = url.path().starts_with("/upload/drive/v2/files/");
         if !url.username().is_empty()
             || url.password().is_some()
             || url.fragment().is_some()
             || url.origin() != endpoint.origin()
-            || url.path() != endpoint.path()
+            || (!v2 && url.path() != endpoint.path())
         {
             return Err(protocol("unsafe Google upload session URL"));
         }
@@ -1021,6 +1463,250 @@ impl GoogleDrive {
             .map_err(UploadError::Provider)?;
         let file = serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)?;
         Ok((file, etag))
+    }
+
+    fn v2_file_url(&self, item: &str) -> Result<Url> {
+        valid_id(item).map_err(UploadError::Provider)?;
+        let mut url = self.endpoint.clone();
+        url.set_path("/drive/v2/files");
+        url.set_query(None);
+        url.set_fragment(None);
+        url.path_segments_mut()
+            .map_err(|_| protocol("invalid Google v2 endpoint"))?
+            .push(item);
+        url.query_pairs_mut().append_pair("fields", V2_FIELDS);
+        Ok(url)
+    }
+
+    async fn v2_file(&self, item: &str) -> Result<V2File> {
+        let response = self
+            .response(self.v2_file_url(item)?, None)
+            .await
+            .map_err(UploadError::Provider)?;
+        let bytes = body(response, MAX_UPLOAD_RESPONSE)
+            .await
+            .map_err(UploadError::Provider)?;
+        serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)
+    }
+
+    async fn conditional_v2_metadata_name(
+        &self,
+        item: &str,
+        name: &str,
+        etag: &str,
+    ) -> Result<V2File> {
+        if !valid_strong_etag(etag) {
+            return Err(UploadError::Invalid);
+        }
+        let response = self
+            .authorized_json_upload(
+                Method::PATCH,
+                self.v2_file_url(item)?,
+                &json!({"title": name}),
+                None,
+                Some(etag),
+            )
+            .await?;
+        let bytes = body(response, MAX_UPLOAD_RESPONSE)
+            .await
+            .map_err(UploadError::Provider)?;
+        serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)
+    }
+
+    fn v2_etag<'a>(&self, file: &'a V2File) -> Result<&'a str> {
+        file.etag
+            .as_deref()
+            .filter(|value| valid_strong_etag(value))
+            .ok_or_else(|| protocol("missing strong Google v2 ETag"))
+    }
+
+    fn v2_upload_url(&self, item: &str) -> Result<Url> {
+        valid_id(item).map_err(UploadError::Provider)?;
+        let mut url = self.endpoint.clone();
+        url.set_path("/upload/drive/v2/files");
+        url.set_query(None);
+        url.set_fragment(None);
+        url.path_segments_mut()
+            .map_err(|_| protocol("invalid Google v2 upload endpoint"))?
+            .push(item);
+        url.query_pairs_mut()
+            .append_pair("uploadType", "resumable")
+            .append_pair("fields", V2_FIELDS);
+        Ok(url)
+    }
+
+    async fn replace_v2_empty(
+        &self,
+        request: &UploadRequest,
+        item: &str,
+        etag: &str,
+    ) -> Result<UploadStep> {
+        let mut url = self.v2_upload_url(item)?;
+        url.query_pairs_mut()
+            .clear()
+            .append_pair("uploadType", "media")
+            .append_pair("fields", V2_FIELDS);
+        for attempt in 0..2 {
+            let token = self.tokens.access_token().await?;
+            let response = self
+                .client
+                .put(url.clone())
+                .bearer_auth(token.expose_secret())
+                .header("Accept-Encoding", "identity")
+                .header(reqwest::header::IF_MATCH, etag)
+                .header(reqwest::header::CONTENT_TYPE, "application/octet-stream")
+                .header(reqwest::header::CONTENT_LENGTH, 0)
+                .body(Vec::new())
+                .send()
+                .await
+                .map_err(|_| UploadError::Uncertain)?;
+            if response.status() == StatusCode::UNAUTHORIZED && attempt == 0 {
+                self.tokens.invalidate(&token).await;
+                continue;
+            }
+            let response = self.upload_response(response, false).await?;
+            let bytes = body(response, MAX_UPLOAD_RESPONSE)
+                .await
+                .map_err(|_| UploadError::Uncertain)?;
+            let file: V2File =
+                serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)?;
+            return Ok(UploadStep::Complete(
+                self.v2_replacement_node(request, item, file).await?,
+            ));
+        }
+        Err(ProviderError::Authentication.into())
+    }
+
+    fn v2_session_url(&self, value: &str) -> Result<Url> {
+        let url =
+            Url::parse(value).map_err(|_| protocol("invalid Google v2 upload session URL"))?;
+        if !url.username().is_empty()
+            || url.password().is_some()
+            || url.fragment().is_some()
+            || url.origin() != self.endpoint.origin()
+            || !url.path().starts_with("/upload/drive/v2/files/")
+        {
+            return Err(protocol("unsafe Google v2 upload session URL"));
+        }
+        Ok(url)
+    }
+
+    async fn begin_v2_conditional_resumable(
+        &self,
+        item: &str,
+        size: u64,
+        etag: &str,
+    ) -> Result<Url> {
+        if size == 0 || !valid_strong_etag(etag) {
+            return Err(UploadError::Invalid);
+        }
+        let response = self
+            .authorized_json_upload(
+                Method::PUT,
+                self.v2_upload_url(item)?,
+                &json!({}),
+                Some(size),
+                Some(etag),
+            )
+            .await?;
+        let location = response
+            .headers()
+            .get(reqwest::header::LOCATION)
+            .and_then(|value| value.to_str().ok())
+            .ok_or_else(|| protocol("Google v2 upload session has no location"))?;
+        self.v2_session_url(location)
+    }
+
+    async fn upload_v2_probe_session(&self, url: Url, bytes: Vec<u8>) -> Result<V2File> {
+        let size = bytes.len() as u64;
+        let mut offset = 0;
+        while offset < size {
+            let end = (offset + u64::from(PART_SIZE)).min(size);
+            let response = self
+                .client
+                .put(url.clone())
+                .header("Accept-Encoding", "identity")
+                .header(reqwest::header::CONTENT_LENGTH, end - offset)
+                .header(
+                    reqwest::header::CONTENT_RANGE,
+                    format!("bytes {offset}-{}/{size}", end - 1),
+                )
+                .header(reqwest::header::CONTENT_TYPE, "application/octet-stream")
+                .body(bytes[offset as usize..end as usize].to_vec())
+                .send()
+                .await
+                .map_err(|_| UploadError::Uncertain)?;
+            if response.status() == StatusCode::PRECONDITION_FAILED {
+                return Err(UploadError::Conflict);
+            }
+            if response.status() == StatusCode::PERMANENT_REDIRECT {
+                if end == size || Self::received_offset(&response, size)? != end {
+                    return Err(UploadError::Uncertain);
+                }
+                offset = end;
+                continue;
+            }
+            let response = self.upload_response(response, false).await?;
+            if end != size {
+                return Err(UploadError::Uncertain);
+            }
+            let bytes = body(response, MAX_UPLOAD_RESPONSE)
+                .await
+                .map_err(|_| UploadError::Uncertain)?;
+            return serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain);
+        }
+        Err(UploadError::Invalid)
+    }
+
+    fn check_v2_probe_file(
+        &self,
+        file: &V2File,
+        item: &str,
+        parent: &str,
+        name: &str,
+    ) -> Result<()> {
+        if file.id != item
+            || file.title != name
+            || file.labels.trashed
+            || file.parents.len() != 1
+            || file.parents[0].id != parent
+        {
+            return Err(UploadError::Uncertain);
+        }
+        self.v2_file_version(file)?;
+        Ok(())
+    }
+
+    fn check_v2_content_file(
+        &self,
+        file: &V2File,
+        item: &str,
+        parent: &str,
+        name: &str,
+        size: u64,
+    ) -> Result<()> {
+        self.check_v2_probe_file(file, item, parent, name)?;
+        if file
+            .mime_type
+            .as_deref()
+            .is_none_or(|mime| mime.starts_with("application/vnd.google-apps."))
+            || file
+                .file_size
+                .as_deref()
+                .and_then(|value| value.parse().ok())
+                != Some(size)
+        {
+            return Err(UploadError::Uncertain);
+        }
+        Ok(())
+    }
+
+    fn v2_file_version(&self, file: &V2File) -> Result<String> {
+        let version = file.version.as_str();
+        if version.is_empty() || !version.bytes().all(|byte| byte.is_ascii_digit()) {
+            return Err(UploadError::Uncertain);
+        }
+        Ok(version.into())
     }
 
     async fn conditional_metadata_name(&self, item: &str, name: &str, etag: &str) -> Result<File> {
@@ -1244,6 +1930,44 @@ impl GoogleDrive {
         Ok(node)
     }
 
+    async fn v2_replacement_node(
+        &self,
+        request: &UploadRequest,
+        id: &str,
+        file: V2File,
+    ) -> Result<Node> {
+        let UploadIntent::Replace { item, .. } = &request.intent else {
+            return Err(UploadError::Invalid);
+        };
+        if item != id
+            || file.id != id
+            || file.labels.trashed
+            || file.parents.len() != 1
+            || file
+                .mime_type
+                .as_deref()
+                .is_none_or(|mime| mime.starts_with("application/vnd.google-apps."))
+            || file.file_size.as_deref().and_then(|size| size.parse().ok()) != Some(request.size)
+        {
+            return Err(UploadError::Uncertain);
+        }
+        let current = self.v3_file_for_v2(&file).await?;
+        let raw_name = current.name.clone();
+        let mut node = current
+            .node(&request.scope.collection)
+            .map_err(|_| UploadError::Uncertain)?;
+        node.name = raw_name;
+        node.etag = Some(version_precondition(&file.version));
+        if node.kind != NodeKind::File
+            || node.target.is_some()
+            || node.content_revision().is_none()
+            || node.size != request.size
+        {
+            return Err(UploadError::Uncertain);
+        }
+        Ok(node)
+    }
+
     fn file_version(&self, file: &File) -> Result<String> {
         file.version
             .as_deref()
@@ -1361,6 +2085,25 @@ impl GoogleDrive {
     }
 
     async fn begin_session(&self, request: &UploadRequest, id: &str) -> Result<UploadStep> {
+        if let UploadIntent::Replace {
+            item,
+            expected_etag,
+        } = &request.intent
+            && let Some(expected_version) = precondition_version(expected_etag)
+        {
+            if item != id || request.size == 0 {
+                return Err(UploadError::Invalid);
+            }
+            let current = self.v2_file(id).await?;
+            if self.v2_file_version(&current)? != expected_version {
+                return Err(UploadError::Conflict);
+            }
+            let etag = self.v2_etag(&current)?;
+            let session = self
+                .begin_v2_conditional_resumable(id, request.size, etag)
+                .await?;
+            return self.session_checkpoint(request, id.to_owned(), session.to_string(), 0);
+        }
         let mut url = self.upload_endpoint();
         let (method, metadata, etag) = match &request.intent {
             UploadIntent::Create { .. } => (Method::POST, Self::create_metadata(request, id), None),
@@ -1412,6 +2155,18 @@ impl GoogleDrive {
     }
 
     async fn receipt(&self, request: &UploadRequest, id: &str, response: Response) -> Result<Node> {
+        if matches!(
+            &request.intent,
+            UploadIntent::Replace { expected_etag, .. }
+                if precondition_version(expected_etag).is_some()
+        ) {
+            let bytes = body(response, MAX_UPLOAD_RESPONSE)
+                .await
+                .map_err(|_| UploadError::Uncertain)?;
+            let file: V2File =
+                serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)?;
+            return self.v2_replacement_node(request, id, file).await;
+        }
         let etag = strong_etag(&response);
         let bytes = body(response, MAX_UPLOAD_RESPONSE)
             .await
@@ -1459,6 +2214,9 @@ impl GoogleDrive {
             }
             UploadIntent::Replace { item, .. } if item == id => {}
             UploadIntent::Replace { .. } => return Err(UploadError::Invalid),
+        }
+        if let Some(version) = file.version.as_deref() {
+            node.etag = Some(version_precondition(version));
         }
         if node.kind != NodeKind::File || node.content_revision().is_none() {
             return Err(UploadError::Uncertain);
@@ -1531,6 +2289,42 @@ impl GoogleDrive {
                 Err(error) => Err(error.into()),
             },
             UploadIntent::Replace { expected_etag, .. } => {
+                if let Some(expected_version) = precondition_version(expected_etag) {
+                    let current = self.v2_file(id).await?;
+                    let version = self.v2_file_version(&current)?;
+                    let file = self.file(id).await.map_err(UploadError::Provider)?;
+                    let parents: Vec<_> = current
+                        .parents
+                        .iter()
+                        .map(|parent| parent.id.clone())
+                        .collect();
+                    if file.id != current.id
+                        || file.name != current.title
+                        || file.parents != parents
+                        || file.version.as_deref() != Some(version.as_str())
+                    {
+                        return Err(UploadError::Uncertain);
+                    }
+                    let raw_name = file.name.clone();
+                    let mut node = file
+                        .node(&request.scope.collection)
+                        .map_err(|_| UploadError::Uncertain)?;
+                    node.name = raw_name;
+                    node.etag = Some(version_precondition(&version));
+                    if version == expected_version {
+                        if request.size == 0 {
+                            let etag = self.v2_etag(&current)?;
+                            return self.replace_v2_empty(request, id, etag).await;
+                        }
+                        return self.begin_session(request, id).await;
+                    }
+                    if node.size == request.size
+                        && self.probe_sha256(&request.scope, &node, cancel).await? == request.sha256
+                    {
+                        return Ok(UploadStep::Complete(node));
+                    }
+                    return Err(UploadError::Conflict);
+                }
                 let (file, etag) = self.file_with_strong_etag(id).await?;
                 let node = self.replacement_node(request, id, file, etag)?;
                 if node.etag.as_deref() == Some(expected_etag) {
@@ -1570,6 +2364,173 @@ impl GoogleDrive {
             return Err(UploadError::Uncertain);
         }
         Ok(node)
+    }
+
+    async fn v2_mutation_node(&self, file: &V2File) -> Result<Node> {
+        if file.labels.trashed
+            || file.parents.len() != 1
+            || file.mime_type.as_deref().is_none_or(|mime| {
+                mime != FOLDER_MIME && mime.starts_with("application/vnd.google-apps.")
+            })
+        {
+            return Err(UploadError::Uncertain);
+        }
+        let current = self.v3_file_for_v2(file).await?;
+        if current.mime_type != file.mime_type.as_deref().unwrap_or_default() {
+            return Err(UploadError::Uncertain);
+        }
+        let raw_name = current.name.clone();
+        let mut node = current
+            .node(&self.collection)
+            .map_err(|_| UploadError::Uncertain)?;
+        node.name = raw_name;
+        node.etag = Some(version_precondition(&file.version));
+        if node.target.is_some()
+            || !matches!(node.kind, NodeKind::File | NodeKind::Folder)
+            || (node.kind == NodeKind::File && node.content_revision().is_none())
+        {
+            return Err(UploadError::Uncertain);
+        }
+        Ok(node)
+    }
+
+    async fn v3_file_for_v2(&self, file: &V2File) -> Result<File> {
+        let parents: Vec<_> = file
+            .parents
+            .iter()
+            .map(|parent| parent.id.as_str())
+            .collect();
+        for attempt in 0..5 {
+            let current = self.file(&file.id).await.map_err(UploadError::Provider)?;
+            if current.id == file.id
+                && current.name == file.title
+                && current
+                    .parents
+                    .iter()
+                    .map(String::as_str)
+                    .eq(parents.iter().copied())
+                && current.version.as_deref() == Some(file.version.as_str())
+                && !current.trashed
+                && current.drive_id.is_none()
+            {
+                return Ok(current);
+            }
+            if attempt < 4 {
+                tokio::time::sleep(Duration::from_secs(2)).await;
+            }
+        }
+        Err(UploadError::Uncertain)
+    }
+
+    async fn v2_relocate(
+        &self,
+        request: &MutationRequest,
+        cancel: &CancellationToken,
+    ) -> Result<MutationReceipt> {
+        let MutationIntent::Relocate {
+            before,
+            parent,
+            name,
+        } = &request.intent
+        else {
+            return Err(UploadError::Invalid);
+        };
+        self.upload_call(cancel, Duration::from_secs(125), async {
+            let current_file = self.v2_file(&before.id).await?;
+            let current = self.v2_mutation_node(&current_file).await?;
+            if current.etag != before.etag
+                || current.name != before.name
+                || current.parent_id != before.parent_id
+                || current.kind != before.kind
+            {
+                return Err(UploadError::Conflict);
+            }
+            self.validation_destination_free(parent, name, &before.id)
+                .await?;
+            let mut url = self.v2_file_url(&before.id)?;
+            if current.parent_id.as_deref() != Some(parent) {
+                url.query_pairs_mut()
+                    .append_pair("addParents", parent)
+                    .append_pair(
+                        "removeParents",
+                        current.parent_id.as_deref().ok_or(UploadError::Invalid)?,
+                    );
+            }
+            let response = self
+                .authorized_json_upload(
+                    Method::PATCH,
+                    url,
+                    &json!({"title": name}),
+                    None,
+                    Some(self.v2_etag(&current_file)?),
+                )
+                .await?;
+            let bytes = body(response, MAX_UPLOAD_RESPONSE)
+                .await
+                .map_err(|_| UploadError::Uncertain)?;
+            let file: V2File =
+                serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)?;
+            let receipt = MutationReceipt::Upsert(self.v2_mutation_node(&file).await?);
+            if request.accepts(&receipt) {
+                Ok(receipt)
+            } else {
+                Err(UploadError::Uncertain)
+            }
+        })
+        .await
+    }
+
+    async fn v2_remove(
+        &self,
+        request: &MutationRequest,
+        cancel: &CancellationToken,
+    ) -> Result<MutationReceipt> {
+        let before = request.intent.before().ok_or(UploadError::Invalid)?;
+        self.upload_call(cancel, Duration::from_secs(125), async {
+            let current_file = self.v2_file(&before.id).await?;
+            let current = self.v2_mutation_node(&current_file).await?;
+            if current.etag != before.etag
+                || current.name != before.name
+                || current.parent_id != before.parent_id
+                || current.kind != before.kind
+            {
+                return Err(UploadError::Conflict);
+            }
+            if matches!(request.intent, MutationIntent::RemoveFolder { .. }) {
+                let mut token = None;
+                loop {
+                    let page = self.list_files(Some(&before.id), token.as_deref()).await?;
+                    if !page.files.is_empty() {
+                        return Err(UploadError::Conflict);
+                    }
+                    let Some(next) = page.next_page_token else {
+                        break;
+                    };
+                    token = Some(next);
+                }
+            }
+            let response = self
+                .authorized_json_upload(
+                    Method::PATCH,
+                    self.v2_file_url(&before.id)?,
+                    &json!({"labels":{"trashed":true}}),
+                    None,
+                    Some(self.v2_etag(&current_file)?),
+                )
+                .await?;
+            let bytes = body(response, MAX_UPLOAD_RESPONSE)
+                .await
+                .map_err(|_| UploadError::Uncertain)?;
+            let file: V2File =
+                serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)?;
+            if file.id != before.id || !file.labels.trashed {
+                return Err(UploadError::Uncertain);
+            }
+            Ok(MutationReceipt::Removed {
+                item: before.id.clone(),
+            })
+        })
+        .await
     }
 
     async fn validation_destination_free(
@@ -1783,7 +2744,10 @@ impl MutationProvider for GoogleValidationMutations {
         ))?;
         valid_id(&before.id).map_err(|_| MutationError::Invalid)?;
         if !matches!(before.kind, NodeKind::File | NodeKind::Folder)
-            || !before.etag.as_deref().is_some_and(valid_strong_etag)
+            || !before
+                .etag
+                .as_deref()
+                .is_some_and(|etag| valid_strong_etag(etag) || precondition_version(etag).is_some())
         {
             return Err(MutationError::Invalid);
         }
@@ -1797,10 +2761,28 @@ impl MutationProvider for GoogleValidationMutations {
                 {
                     return Err(MutationError::Invalid);
                 }
-                self.drive.validation_relocate(request, cancel).await
+                if before
+                    .etag
+                    .as_deref()
+                    .and_then(precondition_version)
+                    .is_some()
+                {
+                    self.drive.v2_relocate(request, cancel).await
+                } else {
+                    self.drive.validation_relocate(request, cancel).await
+                }
             }
             MutationIntent::RemoveFile { .. } | MutationIntent::RemoveFolder { .. } => {
-                self.drive.validation_remove(request, cancel).await
+                if before
+                    .etag
+                    .as_deref()
+                    .and_then(precondition_version)
+                    .is_some()
+                {
+                    self.drive.v2_remove(request, cancel).await
+                } else {
+                    self.drive.validation_remove(request, cancel).await
+                }
             }
             MutationIntent::CreateFolder { .. } => Err(UploadError::Unsupported(
                 "Google validation folder creation must carry a prepared identity",
@@ -1861,6 +2843,66 @@ impl MutationProvider for GoogleValidationMutations {
         let Some(before) = request.intent.before() else {
             return Ok(MutationReconciliation::Indeterminate);
         };
+        if before
+            .etag
+            .as_deref()
+            .and_then(precondition_version)
+            .is_some()
+        {
+            let file = match self
+                .drive
+                .upload_call(
+                    cancel,
+                    Duration::from_secs(125),
+                    self.drive.v2_file(&before.id),
+                )
+                .await
+            {
+                Ok(file) => file,
+                Err(UploadError::Provider(ProviderError::NotFound)) => {
+                    return Ok(MutationReconciliation::Indeterminate);
+                }
+                Err(error) => return Err(mutation_error(error)),
+            };
+            if matches!(
+                request.intent,
+                MutationIntent::RemoveFile { .. } | MutationIntent::RemoveFolder { .. }
+            ) && file.labels.trashed
+            {
+                return Ok(MutationReconciliation::Applied(MutationReceipt::Removed {
+                    item: before.id.clone(),
+                }));
+            }
+            let current = self
+                .drive
+                .upload_call(
+                    cancel,
+                    Duration::from_secs(125),
+                    self.drive.v2_mutation_node(&file),
+                )
+                .await
+                .map_err(mutation_error)?;
+            if let MutationIntent::Relocate { parent, name, .. } = &request.intent {
+                let receipt = MutationReceipt::Upsert(current.clone());
+                if current.name == *name && current.parent_id.as_ref() == Some(parent) {
+                    return if request.accepts(&receipt) {
+                        Ok(MutationReconciliation::Applied(receipt))
+                    } else {
+                        Err(MutationError::Uncertain)
+                    };
+                }
+            }
+            return if current.etag == before.etag
+                && current.name == before.name
+                && current.parent_id == before.parent_id
+                && current.kind == before.kind
+                && current.target == before.target
+            {
+                Ok(MutationReconciliation::Uncommitted)
+            } else {
+                Ok(MutationReconciliation::Conflict)
+            };
+        }
         let result = self
             .drive
             .upload_call(cancel, Duration::from_secs(125), async {
@@ -1957,6 +2999,67 @@ impl MutationProvider for GoogleValidationMutations {
             return Err(MutationError::Invalid);
         }
         self.reconcile_mutation(request, cancel).await
+    }
+}
+
+// The same durable mutation implementation is used by the isolated validator
+// and by an explicitly writable account. Strong v3 ETags remain accepted for
+// old validation evidence; ordinary v3 metadata carries a version observation
+// that is resolved to the current strong v2 ETag immediately before mutation.
+#[async_trait]
+impl MutationProvider for GoogleDrive {
+    fn deletion(&self) -> cirrove_core::mutation::DeletionSupport {
+        self.validation_mutations().deletion()
+    }
+
+    async fn prepare_mutation(
+        &self,
+        request: &MutationRequest,
+        cancel: &CancellationToken,
+    ) -> cirrove_core::mutation::Result<Option<String>> {
+        self.validation_mutations()
+            .prepare_mutation(request, cancel)
+            .await
+    }
+
+    async fn mutate(
+        &self,
+        request: &MutationRequest,
+        cancel: &CancellationToken,
+    ) -> cirrove_core::mutation::Result<MutationReceipt> {
+        self.validation_mutations().mutate(request, cancel).await
+    }
+
+    async fn mutate_prepared(
+        &self,
+        request: &MutationRequest,
+        prepared_item: Option<&str>,
+        cancel: &CancellationToken,
+    ) -> cirrove_core::mutation::Result<MutationReceipt> {
+        self.validation_mutations()
+            .mutate_prepared(request, prepared_item, cancel)
+            .await
+    }
+
+    async fn reconcile_mutation(
+        &self,
+        request: &MutationRequest,
+        cancel: &CancellationToken,
+    ) -> cirrove_core::mutation::Result<MutationReconciliation> {
+        self.validation_mutations()
+            .reconcile_mutation(request, cancel)
+            .await
+    }
+
+    async fn reconcile_prepared_mutation(
+        &self,
+        request: &MutationRequest,
+        prepared_item: Option<&str>,
+        cancel: &CancellationToken,
+    ) -> cirrove_core::mutation::Result<MutationReconciliation> {
+        self.validation_mutations()
+            .reconcile_prepared_mutation(request, prepared_item, cancel)
+            .await
     }
 }
 
@@ -2104,6 +3207,60 @@ impl UploadProvider for GoogleDrive {
         let saved = self.load_upload(request, checkpoint)?;
         let id = saved.id().to_owned();
         self.upload_call(cancel, Duration::from_secs(15 * 60), async {
+            if let UploadIntent::Replace { expected_etag, .. } = &request.intent
+                && precondition_version(expected_etag).is_some()
+            {
+                for attempt in 0..8 {
+                    let current = match self.v2_file(&id).await {
+                        Ok(file) => file,
+                        Err(UploadError::Provider(ProviderError::NotFound)) => {
+                            return Ok(Reconciliation::Conflict);
+                        }
+                        Err(error) => return Err(error),
+                    };
+                    let version = self.v2_file_version(&current)?;
+                    let file = match self.v3_file_for_v2(&current).await {
+                        Ok(file) => file,
+                        Err(UploadError::Uncertain) if attempt < 7 => {
+                            tokio::time::sleep(Duration::from_secs(2)).await;
+                            continue;
+                        }
+                        Err(error) => return Err(error),
+                    };
+                    let raw_name = file.name.clone();
+                    let mut node = file
+                        .node(&request.scope.collection)
+                        .map_err(|_| UploadError::Uncertain)?;
+                    node.name = raw_name;
+                    node.etag = Some(version_precondition(&version));
+                    if node.size == request.size {
+                        let digest = if node.size == 0 {
+                            Ok(hex::encode(Sha256::digest([])))
+                        } else {
+                            self.probe_sha256(&request.scope, &node, cancel).await
+                        };
+                        match digest {
+                            Ok(digest) if digest == request.sha256 => {
+                                return Ok(Reconciliation::Committed(node));
+                            }
+                            Err(UploadError::Provider(ProviderError::VersionChanged))
+                                if attempt < 7 =>
+                            {
+                                tokio::time::sleep(Duration::from_secs(2)).await;
+                                continue;
+                            }
+                            Err(error) => return Err(error),
+                            Ok(_) => {}
+                        }
+                    }
+                    return if node.etag.as_deref() == Some(expected_etag) {
+                        Ok(Reconciliation::Uncommitted)
+                    } else {
+                        Ok(Reconciliation::Conflict)
+                    };
+                }
+                return Err(UploadError::Uncertain);
+            }
             let (file, etag) = match &request.intent {
                 UploadIntent::Create { .. } => match self.file(&id).await {
                     Ok(file) => (file, None),
@@ -2241,6 +3398,7 @@ mod tests {
             "parents": [parent],
             "size": size.to_string(),
             "version": version,
+            "headRevisionId": format!("revision-{version}"),
             "capabilities": {"canDownload": true}
         })
     }
@@ -2252,6 +3410,25 @@ mod tests {
             "parents": [parent],
             "version": version
         })
+    }
+    fn v2_named_file(name: &str, version: &str, etag: Option<&str>) -> Value {
+        let mut value = json!({
+            "id": "generated-id",
+            "title": name,
+            "parents": [{"id": "root-id"}],
+            "version": version,
+            "labels": {"trashed": false}
+        });
+        if let Some(etag) = etag {
+            value["etag"] = json!(etag);
+        }
+        value
+    }
+    fn v2_content_file(name: &str, version: &str, etag: &str, size: usize) -> Value {
+        let mut value = v2_named_file(name, version, Some(etag));
+        value["mimeType"] = json!("application/octet-stream");
+        value["fileSize"] = json!(size.to_string());
+        value
     }
     fn mutation_request(parent: &str, name: &str, etag: &str) -> MutationRequest {
         MutationRequest {
@@ -2611,7 +3788,7 @@ mod tests {
             panic!("expected folder receipt")
         };
         assert_eq!(created.id, generated);
-        assert_eq!(created.etag, None);
+        assert_eq!(created.etag.as_deref(), Some("google-version:3"));
         assert!(matches!(
             adapter
                 .reconcile_prepared_mutation(&request, Some(&prepared), &cancel)
@@ -2846,6 +4023,391 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(result.stale_rejected(), None);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn v2_metadata_probe_rejects_a_stale_etag_and_restores_the_original_name() {
+        let fields = V2_FIELDS;
+        let (provider, server) = fixture(|_| {
+            let mut before = Exchange::json(
+                "GET",
+                "/drive/v2/files/generated-id",
+                200,
+                v2_named_file("report.txt", "9", Some("\"v2-9\"")),
+            );
+            before.query = vec![("fields", fields)];
+            let mut update = Exchange::json(
+                "PATCH",
+                "/drive/v2/files/generated-id",
+                200,
+                v2_named_file("renamed.txt", "10", Some("\"v2-10\"")),
+            );
+            update.query = vec![("fields", fields)];
+            update.headers = vec!["if-match: \"v2-9\"".into()];
+            update.body = Some(ExpectedBody::Json(json!({"title":"renamed.txt"})));
+            let mut stale = Exchange::json("PATCH", "/drive/v2/files/generated-id", 412, json!({}));
+            stale.query = vec![("fields", fields)];
+            stale.headers = vec!["if-match: \"v2-9\"".into()];
+            stale.body = Some(ExpectedBody::Json(json!({"title":"stale.txt"})));
+            let mut current = Exchange::json(
+                "GET",
+                "/drive/v2/files/generated-id",
+                200,
+                v2_named_file("renamed.txt", "10", Some("\"v2-10\"")),
+            );
+            current.query = vec![("fields", fields)];
+            let mut restore = Exchange::json(
+                "PATCH",
+                "/drive/v2/files/generated-id",
+                200,
+                v2_named_file("report.txt", "11", Some("\"v2-11\"")),
+            );
+            restore.query = vec![("fields", fields)];
+            restore.headers = vec!["if-match: \"v2-10\"".into()];
+            restore.body = Some(ExpectedBody::Json(json!({"title":"report.txt"})));
+            vec![before, update, stale, current, restore]
+        })
+        .await;
+        let plan = provider
+            .prepare_metadata_precondition_probe(
+                &scope(),
+                "generated-id",
+                "root-id",
+                "report.txt",
+                "renamed.txt",
+                "stale.txt",
+            )
+            .unwrap();
+        let result = provider
+            .probe_v2_metadata_precondition(&scope(), &plan, &CancellationToken::new())
+            .await
+            .unwrap();
+        assert_eq!(result.stale_rejected(), Some(true));
+        let V2MetadataPreconditionProbe::Tested {
+            original_name_restored,
+            final_version,
+            ..
+        } = result
+        else {
+            panic!("v2 ETag was not tested")
+        };
+        assert!(original_name_restored);
+        assert_eq!(final_version, "11");
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn v2_metadata_probe_does_not_mutate_without_a_strong_etag() {
+        let fields = V2_FIELDS;
+        let (provider, server) = fixture(|_| {
+            let mut before = Exchange::json(
+                "GET",
+                "/drive/v2/files/generated-id",
+                200,
+                v2_named_file("report.txt", "9", None),
+            );
+            before.query = vec![("fields", fields)];
+            vec![before]
+        })
+        .await;
+        let plan = provider
+            .prepare_metadata_precondition_probe(
+                &scope(),
+                "generated-id",
+                "root-id",
+                "report.txt",
+                "renamed.txt",
+                "stale.txt",
+            )
+            .unwrap();
+        let result = provider
+            .probe_v2_metadata_precondition(&scope(), &plan, &CancellationToken::new())
+            .await
+            .unwrap();
+        assert_eq!(result.stale_rejected(), None);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn v2_resumable_probe_requires_the_precondition_at_final_commit_and_restores_bytes() {
+        let original = vec![0x47; 5 * 1024 * 1024 + 13];
+        let accepted = vec![0x52; 5 * 1024 * 1024 + 29];
+        let original_len = original.len();
+        let accepted_len = accepted.len();
+        let original_for_server = original.clone();
+        let accepted_for_server = accepted.clone();
+        let (provider, server) = fixture(move |address| {
+            let mut exchanges = Vec::new();
+            let v2_get = |name: &str, version: &str, etag: &str, size: usize| {
+                let mut exchange = Exchange::json(
+                    "GET",
+                    "/drive/v2/files/generated-id",
+                    200,
+                    v2_content_file(name, version, etag, size),
+                );
+                exchange.query = vec![("fields", V2_FIELDS)];
+                exchange
+            };
+            let start = |etag: &str, size: usize, session: &'static str, status: u16| {
+                let mut exchange = Exchange::json(
+                    "PUT",
+                    "/upload/drive/v2/files/generated-id",
+                    status,
+                    json!({}),
+                );
+                exchange.query = vec![("uploadType", "resumable"), ("fields", V2_FIELDS)];
+                exchange.headers = vec![
+                    format!("if-match: {etag}"),
+                    "x-upload-content-type: application/octet-stream".into(),
+                    format!("x-upload-content-length: {size}"),
+                ];
+                exchange.body = Some(ExpectedBody::Json(json!({})));
+                if status == 200 {
+                    exchange.response_body.clear();
+                    exchange.response_headers = format!(
+                        "Location: http://{address}/upload/drive/v2/files/generated-id?upload_id={session}\r\n"
+                    );
+                }
+                exchange
+            };
+            let upload = |session: &'static str,
+                          body: Vec<u8>,
+                          status: u16,
+                          response: Value| {
+                let size = body.len();
+                let mut exchange = Exchange::json(
+                    "PUT",
+                    "/upload/drive/v2/files/generated-id",
+                    status,
+                    response,
+                );
+                exchange.query = vec![("upload_id", session)];
+                exchange.authorized = false;
+                exchange.headers = vec![
+                    format!("content-range: bytes 0-{}/{size}", size - 1),
+                    "content-type: application/octet-stream".into(),
+                ];
+                exchange.body = Some(ExpectedBody::Bytes(body));
+                exchange
+            };
+            exchanges.push(v2_get("report.txt", "6", "\"e6\"", original_len));
+            exchanges.push(start("\"e6\"", accepted_len, "RACE", 200));
+            let mut rename = Exchange::json(
+                "PATCH",
+                "/drive/v2/files/generated-id",
+                200,
+                v2_content_file(
+                    "report.txt.cirrove-v2-race",
+                    "7",
+                    "\"e7\"",
+                    original_len,
+                ),
+            );
+            rename.query = vec![("fields", V2_FIELDS)];
+            rename.headers = vec!["if-match: \"e6\"".into()];
+            rename.body = Some(ExpectedBody::Json(
+                json!({"title":"report.txt.cirrove-v2-race"}),
+            ));
+            exchanges.push(rename);
+            exchanges.push(upload("RACE", accepted_for_server.clone(), 412, json!({})));
+            exchanges.push(v2_get(
+                "report.txt.cirrove-v2-race",
+                "7",
+                "\"e7\"",
+                original_len,
+            ));
+            let mut restore_name = Exchange::json(
+                "PATCH",
+                "/drive/v2/files/generated-id",
+                200,
+                v2_content_file("report.txt", "8", "\"e8\"", original_len),
+            );
+            restore_name.query = vec![("fields", V2_FIELDS)];
+            restore_name.headers = vec!["if-match: \"e7\"".into()];
+            restore_name.body = Some(ExpectedBody::Json(json!({"title":"report.txt"})));
+            exchanges.push(restore_name);
+            exchanges.push(start("\"e8\"", accepted_len, "ACCEPTED", 200));
+            exchanges.push(upload(
+                "ACCEPTED",
+                accepted_for_server,
+                200,
+                v2_content_file("report.txt", "9", "\"e9\"", accepted_len),
+            ));
+            exchanges.push(start("\"e8\"", original_len, "STALE", 200));
+            exchanges.push(upload(
+                "STALE",
+                original_for_server.clone(),
+                412,
+                json!({}),
+            ));
+            exchanges.push(v2_get("report.txt", "9", "\"e9\"", accepted_len));
+            exchanges.push(start("\"e9\"", original_len, "RESTORE", 200));
+            exchanges.push(upload(
+                "RESTORE",
+                original_for_server.clone(),
+                200,
+                v2_content_file("report.txt", "10", "\"e10\"", original_len),
+            ));
+
+            let v3 = || {
+                let mut exchange = Exchange::json(
+                    "GET",
+                    "/drive/v3/files/generated-id",
+                    200,
+                    named_file("generated-id", "report.txt", "10", original_len),
+                );
+                exchange.query = vec![("fields", files::FIELDS)];
+                exchange
+            };
+            exchanges.push(v3());
+            for (start_offset, bytes) in [
+                (0usize, original_for_server[..4 * 1024 * 1024].to_vec()),
+                (
+                    4 * 1024 * 1024,
+                    original_for_server[4 * 1024 * 1024..].to_vec(),
+                ),
+            ] {
+                exchanges.push(v3());
+                let end = start_offset + bytes.len() - 1;
+                let mut media = Exchange::json(
+                    "GET",
+                    "/drive/v3/files/generated-id",
+                    206,
+                    json!({}),
+                );
+                media.query = vec![("alt", "media")];
+                media.headers = vec![format!("range: bytes={start_offset}-{end}")];
+                media.response_headers =
+                    format!("Content-Range: bytes {start_offset}-{end}/{original_len}\r\n");
+                media.response_body = bytes;
+                exchanges.push(media);
+                exchanges.push(v3());
+            }
+            exchanges
+        })
+        .await;
+        let plan = provider
+            .prepare_v2_content_precondition_probe(
+                &scope(),
+                "generated-id",
+                "root-id",
+                "report.txt",
+                &original,
+                &accepted,
+            )
+            .unwrap();
+        let result = provider
+            .probe_v2_content_precondition(
+                &scope(),
+                &plan,
+                original,
+                accepted,
+                &CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+        assert!(result.intervening_change_rejected_at_commit);
+        assert!(result.stale_session_rejected);
+        assert!(result.original_name_restored);
+        assert!(result.original_content_restored);
+        assert_eq!(result.final_version, "10");
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn versioned_mutation_resolves_a_v2_etag_before_renaming() {
+        let (provider, server) = fixture(|_| {
+            let mut v2_current = Exchange::json(
+                "GET",
+                "/drive/v2/files/generated-id",
+                200,
+                v2_content_file("report.txt", "9", "\"v2-9\"", 6),
+            );
+            v2_current.query = vec![("fields", V2_FIELDS)];
+            let mut v3_current = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "report.txt", "9", 6),
+            );
+            v3_current.query = vec![("fields", files::FIELDS)];
+            let mut destination =
+                Exchange::json("GET", "/drive/v3/files", 200, json!({"files":[]}));
+            destination.query = vec![("q", "'root-id' in parents and trashed = false")];
+            let mut rename = Exchange::json(
+                "PATCH",
+                "/drive/v2/files/generated-id",
+                200,
+                v2_content_file("renamed.txt", "10", "\"v2-10\"", 6),
+            );
+            rename.query = vec![("fields", V2_FIELDS)];
+            rename.headers = vec!["if-match: \"v2-9\"".into()];
+            rename.body = Some(ExpectedBody::Json(json!({"title":"renamed.txt"})));
+            let mut renamed_file = named_file("generated-id", "renamed.txt", "10", 6);
+            renamed_file["headRevisionId"] = json!("revision-9");
+            let mut v3_renamed =
+                Exchange::json("GET", "/drive/v3/files/generated-id", 200, renamed_file);
+            v3_renamed.query = vec![("fields", files::FIELDS)];
+            let mut v3_lagging = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "report.txt", "9", 6),
+            );
+            v3_lagging.query = vec![("fields", files::FIELDS)];
+            vec![
+                v2_current,
+                v3_current,
+                destination,
+                rename,
+                v3_lagging,
+                v3_renamed,
+            ]
+        })
+        .await;
+        let request = mutation_request("root-id", "renamed.txt", "google-version:9");
+        let MutationReceipt::Upsert(node) = provider
+            .mutate(&request, &CancellationToken::new())
+            .await
+            .unwrap()
+        else {
+            panic!("versioned rename did not return an upsert")
+        };
+        assert_eq!(node.name, "renamed.txt");
+        assert_eq!(node.etag.as_deref(), Some("google-version:10"));
+        assert_eq!(
+            node.content_version.as_deref(),
+            Some("google-revision:revision-9")
+        );
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn versioned_mutation_conflicts_before_destination_scan_when_version_changed() {
+        let (provider, server) = fixture(|_| {
+            let mut v2_current = Exchange::json(
+                "GET",
+                "/drive/v2/files/generated-id",
+                200,
+                v2_content_file("report.txt", "10", "\"v2-10\"", 6),
+            );
+            v2_current.query = vec![("fields", V2_FIELDS)];
+            let mut v3_current = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "report.txt", "10", 6),
+            );
+            v3_current.query = vec![("fields", files::FIELDS)];
+            vec![v2_current, v3_current]
+        })
+        .await;
+        let request = mutation_request("root-id", "renamed.txt", "google-version:9");
+        assert!(matches!(
+            provider.mutate(&request, &CancellationToken::new()).await,
+            Err(MutationError::Conflict)
+        ));
         server.await.unwrap();
     }
 
@@ -4002,22 +5564,175 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn replacement_rejects_weak_malformed_and_empty_requests_without_network() {
+    async fn versioned_replacement_resolves_a_v2_etag_and_returns_the_new_version() {
+        let bytes = b"abcdef";
+        let (provider, server) = fixture(|address| {
+            let v2_current = || {
+                let mut exchange = Exchange::json(
+                    "GET",
+                    "/drive/v2/files/generated-id",
+                    200,
+                    v2_content_file("report.txt", "9", "\"v2-9\"", 3),
+                );
+                exchange.query = vec![("fields", V2_FIELDS)];
+                exchange
+            };
+            let mut v3_current = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "report.txt", "9", 3),
+            );
+            v3_current.query = vec![("fields", files::FIELDS)];
+            let mut start = Exchange::json(
+                "PUT",
+                "/upload/drive/v2/files/generated-id",
+                200,
+                json!({}),
+            );
+            start.query = vec![("uploadType", "resumable"), ("fields", V2_FIELDS)];
+            start.headers = vec![
+                "if-match: \"v2-9\"".into(),
+                "x-upload-content-type: application/octet-stream".into(),
+                "x-upload-content-length: 6".into(),
+            ];
+            start.body = Some(ExpectedBody::Json(json!({})));
+            start.response_body.clear();
+            start.response_headers = format!(
+                "Location: http://{address}/upload/drive/v2/files/generated-id?upload_id=VERSIONED\r\n"
+            );
+            let mut upload = Exchange::json(
+                "PUT",
+                "/upload/drive/v2/files/generated-id",
+                200,
+                v2_content_file("report.txt", "10", "\"v2-10\"", bytes.len()),
+            );
+            upload.query = vec![("upload_id", "VERSIONED")];
+            upload.authorized = false;
+            upload.headers = vec![
+                "content-range: bytes 0-5/6".into(),
+                "content-type: application/octet-stream".into(),
+            ];
+            upload.body = Some(ExpectedBody::Bytes(bytes.to_vec()));
+            let mut v3_updated = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "report.txt", "10", bytes.len()),
+            );
+            v3_updated.query = vec![("fields", files::FIELDS)];
+            let mut v3_lagging = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "report.txt", "9", 3),
+            );
+            v3_lagging.query = vec![("fields", files::FIELDS)];
+            vec![
+                v2_current(),
+                v3_current,
+                v2_current(),
+                start,
+                upload,
+                v3_lagging,
+                v3_updated,
+            ]
+        })
+        .await;
+        let request = UploadRequest {
+            scope: scope(),
+            intent: UploadIntent::Replace {
+                item: "generated-id".into(),
+                expected_etag: "google-version:9".into(),
+            },
+            size: bytes.len() as u64,
+            sha256: hex::encode(Sha256::digest(bytes)),
+        };
+        let cancel = CancellationToken::new();
+        let UploadStep::Prepared(prepared) =
+            provider.begin_upload(&request, &cancel).await.unwrap()
+        else {
+            panic!("replacement target was not prepared")
+        };
+        let UploadStep::Continue(progress) = provider
+            .inspect_upload(&request, &prepared, &cancel)
+            .await
+            .unwrap()
+        else {
+            panic!("versioned replacement session did not start")
+        };
+        let UploadStep::Complete(node) = provider
+            .upload_part(&request, &progress.checkpoint, 0, bytes.to_vec(), &cancel)
+            .await
+            .unwrap()
+        else {
+            panic!("versioned replacement did not complete")
+        };
+        assert_eq!(node.id, "generated-id");
+        assert_eq!(node.etag.as_deref(), Some("google-version:10"));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn versioned_replacement_conflicts_before_mutation_when_the_version_changed() {
+        let (provider, server) = fixture(|_| {
+            let mut current = Exchange::json(
+                "GET",
+                "/drive/v2/files/generated-id",
+                200,
+                v2_content_file("report.txt", "10", "\"v2-10\"", 3),
+            );
+            current.query = vec![("fields", V2_FIELDS)];
+            let mut v3_current = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                named_file("generated-id", "report.txt", "10", 3),
+            );
+            v3_current.query = vec![("fields", files::FIELDS)];
+            vec![current, v3_current]
+        })
+        .await;
+        let request = UploadRequest {
+            scope: scope(),
+            intent: UploadIntent::Replace {
+                item: "generated-id".into(),
+                expected_etag: "google-version:9".into(),
+            },
+            size: 6,
+            sha256: hex::encode(Sha256::digest(b"abcdef")),
+        };
+        let cancel = CancellationToken::new();
+        let UploadStep::Prepared(prepared) =
+            provider.begin_upload(&request, &cancel).await.unwrap()
+        else {
+            panic!("replacement target was not prepared")
+        };
+        assert!(matches!(
+            provider.inspect_upload(&request, &prepared, &cancel).await,
+            Err(UploadError::Conflict)
+        ));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn replacement_rejects_weak_and_malformed_preconditions_without_network() {
         let (provider, server) = fixture(|_| vec![]).await;
-        for (etag, size) in [
-            ("etag", 6),
-            ("W/\"weak\"", 6),
-            ("\"line\nfeed\"", 6),
-            ("\"strong\"", 0),
+        for etag in [
+            "etag",
+            "W/\"weak\"",
+            "\"line\nfeed\"",
+            "google-version:",
+            "google-version:not-a-number",
         ] {
-            let payload: &[u8] = if size == 0 { b"" } else { b"abcdef" };
+            let payload: &[u8] = b"abcdef";
             let request = UploadRequest {
                 scope: scope(),
                 intent: UploadIntent::Replace {
                     item: "generated-id".into(),
                     expected_etag: etag.into(),
                 },
-                size,
+                size: payload.len() as u64,
                 sha256: hex::encode(Sha256::digest(payload)),
             };
             assert!(matches!(
@@ -4132,6 +5847,65 @@ mod tests {
         };
         assert_eq!(node.id, "generated-id");
         assert_eq!(node.etag.as_deref(), Some("\"new-11\""));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn versioned_replacement_reconciliation_waits_for_v3_then_hashes_exact_bytes() {
+        let bytes = b"abcdef";
+        let (provider, server) = fixture(|_| {
+            let mut v2 = Exchange::json(
+                "GET",
+                "/drive/v2/files/generated-id",
+                200,
+                v2_content_file("report.txt", "10", "\"v2-10\"", bytes.len()),
+            );
+            v2.query = vec![("fields", V2_FIELDS)];
+            let metadata = |version: &'static str, size: usize| {
+                let mut exchange = Exchange::json(
+                    "GET",
+                    "/drive/v3/files/generated-id",
+                    200,
+                    named_file("generated-id", "report.txt", version, size),
+                );
+                exchange.query = vec![("fields", files::FIELDS)];
+                exchange
+            };
+            let mut content = Exchange::json("GET", "/drive/v3/files/generated-id", 206, json!({}));
+            content.query = vec![("alt", "media")];
+            content.headers = vec!["range: bytes=0-5".into()];
+            content.response_headers = "Content-Range: bytes 0-5/6\r\n".into();
+            content.response_body = bytes.to_vec();
+            vec![
+                v2,
+                metadata("9", 3),
+                metadata("10", bytes.len()),
+                metadata("10", bytes.len()),
+                content,
+                metadata("10", bytes.len()),
+            ]
+        })
+        .await;
+        let request = UploadRequest {
+            scope: scope(),
+            intent: UploadIntent::Replace {
+                item: "generated-id".into(),
+                expected_etag: "google-version:9".into(),
+            },
+            size: bytes.len() as u64,
+            sha256: hex::encode(Sha256::digest(bytes)),
+        };
+        let checkpoint = provider
+            .prepared_checkpoint(&request, "generated-id".into())
+            .unwrap();
+        let Reconciliation::Committed(node) = provider
+            .reconcile_upload(&request, Some(&checkpoint), &CancellationToken::new())
+            .await
+            .unwrap()
+        else {
+            panic!("versioned replacement was not reconciled")
+        };
+        assert_eq!(node.etag.as_deref(), Some("google-version:10"));
         server.await.unwrap();
     }
 

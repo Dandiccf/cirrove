@@ -4,11 +4,11 @@ use super::*;
 use openidconnect::core::CoreIdToken;
 
 pub const SCOPES: &str = "openid email profile https://www.googleapis.com/auth/drive.readonly";
-/// Whole-drive reads remain necessary for the filesystem index. `drive.file`
-/// adds writes only for files Cirrove creates (or a person explicitly opens
-/// with it), which is enough for the isolated create validator without asking
-/// to modify every existing file in the account.
-pub const WRITE_SCOPES: &str = "openid email profile https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file";
+/// A writable filesystem must be able to update existing files, not only files
+/// created by Cirrove. Google limits `drive.file` to app-created or explicitly
+/// selected files, so a whole-My-Drive writable mount requires the full Drive
+/// scope. It is requested only by the explicit `--write-access` flow.
+pub const WRITE_SCOPES: &str = "openid email profile https://www.googleapis.com/auth/drive";
 
 pub(super) fn validate_grant(access: AccessMode, granted: Option<&str>) -> Result<()> {
     if let Some(granted) = granted {

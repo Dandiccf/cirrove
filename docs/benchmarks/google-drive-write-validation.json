@@ -195,6 +195,7 @@
     "create_capability": "Prepared folder creation and durable resumable/empty file creation completed through the provider-neutral workers on the authorized account, with exact identity and SHA-256 readback.",
     "conditional_capability": "Unavailable under the current safety contract. Drive returned no strong HTTP ETag and its documented monotonic version has no compare-and-set parameter for files.update.",
     "production_decision": "Keep every ordinary Google mount read-only. Do not expose replacement, rename, move, trash or delete until a real atomic stale-write rejection primitive is documented and validated.",
-    "reliability_limit": "This bounded single-account characterization is not a claim of general Google provider reliability."
+    "reliability_limit": "This bounded single-account characterization is not a claim of general Google provider reliability.",
+    "v2_follow_up": "A separately pre-registered follow-up on 2026-09-20 found that Drive API v2 still returns a strong file-resource ETag for the retained multipart file. A current If-Match metadata PATCH succeeded, reuse of the stale ETag returned 412, and a current conditional PATCH restored the original name. See google-drive-v2-etag-probe.json. This corrects the broad implication that Google exposes no usable compare-and-set primitive; v3 did not expose one in this run, while v2 did. Conditional content upload and the remaining namespace operations still require their own validation."
   }
 }

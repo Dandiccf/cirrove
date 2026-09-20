@@ -1,0 +1,44 @@
+{
+  "question": "Does the still-documented Google Drive API v2 expose a strong file ETag and atomically reject a metadata update that reuses that ETag after an intervening successful update?",
+  "kind": "Explicitly authorized, bounded capability probe on one file previously created and retained by Cirrove's isolated Google write validator.",
+  "authorization": "On 2026-09-20 the owner asked Cirrove to test the proposed Drive v2 ETag path to get a quick evidence-based answer. The earlier Google write authorization already limits mutations to run-owned validation objects.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-20T08:38:49+02:00",
+  "source_revision_base": "5841de5e4283db5d77eb44109b2f0aa823f3d892",
+  "candidate_diff_sha256": "9253dbfb0465304ac89f22291b533e930b37423981b5284f6e28d600926fd97e",
+  "source_run": "5108ef6b-3dcf-48de-a96b-e3c5a6a628bb",
+  "scope": "The exact multipart file whose prepared identity, upload receipt and SHA-256 readback were recorded by the completed fifth Google create-validation run. The ordinary mounted Google account and every pre-existing user item are excluded.",
+  "arms": [
+    "GET the exact file through Drive v2 and require a syntactically strong file-resource ETag before any mutation.",
+    "PATCH the exact file's title with If-Match set to that current ETag.",
+    "PATCH another title while deliberately reusing the now-stale ETag.",
+    "GET the exact identity again and restore its original title with the current ETag."
+  ],
+  "prediction": "Drive v2 will return a strong ETag, accept the first conditional rename, reject the stale rename with HTTP 412, and accept the conditional restoration. This would establish a viable metadata compare-and-set primitive for a hybrid v3-read/v2-write adapter, not yet content replacement or mounted-write reliability.",
+  "endpoint": "Success requires all four observations and the original name restored. No ETag stops before mutation. An accepted stale request is a hard failure but is still followed by an exact re-read and conditional restoration. Any unexpected identity, parent, name or version stops without overwriting it.",
+  "decision_rule": "Only a real strong v2 ETag plus a 412 for its stale reuse permits further conditional Google write work. The v2 token must never be inferred from Drive's numeric version. Ordinary Google mounts remain read-only regardless of this single result.",
+  "synthetic_precheck": {
+    "target_directory": ".local-state/targets/google-drive-v2-etag",
+    "tests": 2,
+    "result": "passed",
+    "coverage": "Current ETag accepted, stale ETag rejected, original name restored; missing ETag performs no mutation."
+  },
+  "result": {
+    "completed_at": "2026-09-20T08:39:57+02:00",
+    "status": "passed",
+    "probe_id": "7f8728a2-2c1f-4016-af42-f36b1f5d4db6",
+    "binary_sha256": "eb6ba3b8900094b677f3c3cab36aeb19781717b0d7a43f6f42d863d348e527dc",
+    "before_version": "6",
+    "updated_version": "7",
+    "final_version": "8",
+    "current_etag_update_accepted": true,
+    "stale_etag_rejected_with_412": true,
+    "original_name_restored": true,
+    "ordinary_mounts_restarted": false,
+    "ordinary_google_mount_state_after_run": "ready",
+    "ordinary_google_stuck_changes_after_run": 0,
+    "ordinary_google_failed_uploads_after_run": 0,
+    "private_evidence": ".local-state/google-write-validation/state/write-checks/5108ef6b-3dcf-48de-a96b-e3c5a6a628bb/v2-etag-7f8728a2-2c1f-4016-af42-f36b1f5d4db6",
+    "interpretation": "Drive v2 supplied a usable strong file-resource ETag and enforced it atomically for metadata PATCH on this retained app-created binary file. This closes the metadata compare-and-set question for this account and operation. It does not yet prove conditional content upload, trash/delete, shared-drive behavior, long-session reliability or a writable mount."
+  }
+}

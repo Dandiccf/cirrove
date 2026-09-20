@@ -80,11 +80,11 @@ currently bundled; another project's client ID is never substituted.
 ## 6 — Additional providers
 
 - [ ] Google Drive: [read-only My Drive implemented and synthetically tested](google-drive.md),
-      with a prepared create, metadata, small-content and resumable-content
-      precondition live validator plus isolated shared-worker folder creation,
-      replacement, file/folder rename and move, with synthetic conditional trash
-      for exact files and observed-empty folders;
-      atomic collision rules, mutation evidence, writable
+      with live prepared creation and a bounded v3-version/v2-ETag worker check
+      for conditional content replacement, rename, restoration and stale
+      conflicts on one run-owned binary file; conditional trash remains synthetic
+      for exact files and observed-empty folders. Atomic collision rules, mounted
+      projected-name behavior, broader mutation evidence, writable
       namespace rules, shared drives and Docs/Sheets exports remain open.
 - [ ] iCloud feasibility, isolated compatibility adapter and visible limitations.
 
