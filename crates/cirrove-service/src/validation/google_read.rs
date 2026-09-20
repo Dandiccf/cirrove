@@ -21,6 +21,14 @@ struct GoogleReadReport {
     compared_bytes: u64,
     changed_files: usize,
     unavailable_files: usize,
+    direct_version_changes: usize,
+    direct_missing_files: usize,
+    direct_unavailable_files: usize,
+    indexed_content_changes: usize,
+    indexed_metadata_changes: usize,
+    indexed_namespace_changes: usize,
+    mounted_byte_mismatches: usize,
+    mounted_unavailable_files: usize,
     shortcut_targets_checked: usize,
     shortcut_targets_available: usize,
     shortcut_targets_missing: usize,
@@ -87,7 +95,25 @@ pub async fn google_read(
         .collect();
     candidates.sort_by_key(|(node, _)| (node.size, node.id.as_str()));
     for (node, relative) in candidates.into_iter().take(max_files) {
-        match direct_bytes(provider.clone(), &scope, node, &cancel).await {
+        let current = match provider.node(&scope, &node.id, &cancel).await {
+            Ok(current) => current,
+            Err(ProviderError::NotFound) => {
+                report.changed_files += 1;
+                report.direct_missing_files += 1;
+                continue;
+            }
+            Err(_) => {
+                report.unavailable_files += 1;
+                report.direct_unavailable_files += 1;
+                continue;
+            }
+        };
+        report.indexed_content_changes +=
+            usize::from(current.content_revision() != node.content_revision());
+        report.indexed_metadata_changes += usize::from(current.etag != node.etag);
+        report.indexed_namespace_changes +=
+            usize::from(current.parent_id != node.parent_id || current.name != node.name);
+        match direct_bytes(provider.clone(), &scope, &current, &cancel).await {
             Ok(direct) => {
                 let mounted = tokio::time::timeout(
                     Duration::from_secs(30),
@@ -99,14 +125,28 @@ pub async fn google_read(
                         report.compared_files += 1;
                         report.compared_bytes += direct.len() as u64;
                     }
-                    Ok(Ok(_)) => report.changed_files += 1,
-                    _ => report.unavailable_files += 1,
+                    Ok(Ok(_)) => {
+                        report.changed_files += 1;
+                        report.mounted_byte_mismatches += 1;
+                    }
+                    _ => {
+                        report.unavailable_files += 1;
+                        report.mounted_unavailable_files += 1;
+                    }
                 }
             }
-            Err(ProviderError::VersionChanged | ProviderError::NotFound) => {
+            Err(ProviderError::VersionChanged) => {
                 report.changed_files += 1;
+                report.direct_version_changes += 1;
             }
-            Err(_) => report.unavailable_files += 1,
+            Err(ProviderError::NotFound) => {
+                report.changed_files += 1;
+                report.direct_missing_files += 1;
+            }
+            Err(_) => {
+                report.unavailable_files += 1;
+                report.direct_unavailable_files += 1;
+            }
         }
     }
 

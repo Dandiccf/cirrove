@@ -509,6 +509,72 @@ impl Manager {
             }
         })
     }
+
+    /// Apply pin controls against the namespace visible through the mount.
+    /// Writable accounts can retain a natural local name after the provider has
+    /// assigned an ID-qualified projection, so their paths must pass through the
+    /// same overlay used by FUSE.
+    pub async fn apply_pin_request(&self, request: &crate::PinRequest) -> Result<crate::PinReply> {
+        let engine = self.engine(&request.label).await?;
+        if let Some(path) = request.path.as_deref() {
+            let control = { self.writers.read().await.get(&engine.account.id).cloned() };
+            if let Some(control) = control {
+                return match control.resolve_visible_path(&engine, path).await {
+                    Ok((scope, node)) => engine.apply_pin_resolved(request, scope, node).await,
+                    Err(error) => Ok(crate::PinReply {
+                        refusal: Some(error.to_string()),
+                        ..Default::default()
+                    }),
+                };
+            }
+        }
+        engine.apply_pin_request(request).await
+    }
+
+    pub async fn apply_unpin_request(
+        &self,
+        request: &crate::PinRequest,
+    ) -> Result<crate::PinReply> {
+        let engine = self.engine(&request.label).await?;
+        if request.item.is_none()
+            && let Some(path) = request.path.as_deref()
+        {
+            let control = { self.writers.read().await.get(&engine.account.id).cloned() };
+            if let Some(control) = control {
+                return match control.resolve_visible_path(&engine, path).await {
+                    Ok((scope, node)) => engine.apply_unpin_resolved(scope, node).await,
+                    Err(error) => Ok(crate::PinReply {
+                        refusal: Some(error.to_string()),
+                        ..Default::default()
+                    }),
+                };
+            }
+        }
+        engine.apply_unpin_request(request).await
+    }
+
+    pub async fn path_states(
+        &self,
+        label: &str,
+        paths: &[String],
+    ) -> Result<Vec<crate::PathState>> {
+        let engine = self.engine(label).await?;
+        let control = { self.writers.read().await.get(&engine.account.id).cloned() };
+        let Some(control) = control else {
+            return engine.path_states(paths).await;
+        };
+        let mut resolved = Vec::with_capacity(paths.len());
+        for path in paths {
+            resolved.push((
+                path.clone(),
+                control
+                    .resolve_visible_path(&engine, path)
+                    .await
+                    .map_err(|error| error.to_string()),
+            ));
+        }
+        engine.path_states_resolved(resolved).await
+    }
 }
 struct Running {
     config: Account,

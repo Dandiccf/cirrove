@@ -740,18 +740,16 @@ async fn handle_control(
             });
         }
     };
-    let engine = match manager.engine(&request.label).await {
-        Ok(engine) => engine,
-        Err(error) => {
-            return Ok(PinReply {
-                refusal: Some(error.to_string()),
-                ..Default::default()
-            });
-        }
+    let reply = match verb {
+        "pin" => manager.apply_pin_request(&request).await,
+        _ => manager.apply_unpin_request(&request).await,
     };
-    match verb {
-        "pin" => engine.apply_pin_request(&request).await,
-        _ => engine.apply_unpin_request(&request).await,
+    match reply {
+        Ok(reply) => Ok(reply),
+        Err(error) => Ok(PinReply {
+            refusal: Some(error.to_string()),
+            ..Default::default()
+        }),
     }
 }
 
@@ -1087,11 +1085,8 @@ pub async fn serve_managed(
                         if verb=="paths" {
                             let reply=match (serde_json::from_str::<PathsRequest>(body),&manager) {
                                 (Ok(r),_) if r.paths.len()>PATHS_PER_REQUEST=>PathsReply{refusal:Some(format!("at most {PATHS_PER_REQUEST} paths per request")),..Default::default()},
-                                (Ok(r),Some(m))=>match m.engine(&r.label).await {
-                                    Ok(engine)=>match engine.path_states(&r.paths).await {
-                                        Ok(states)=>PathsReply{states,refusal:None},
-                                        Err(error)=>PathsReply{refusal:Some(error.to_string()),..Default::default()},
-                                    },
+                                (Ok(r),Some(m))=>match m.path_states(&r.label,&r.paths).await {
+                                    Ok(states)=>PathsReply{states,refusal:None},
                                     Err(error)=>PathsReply{refusal:Some(error.to_string()),..Default::default()},
                                 },
                                 (Ok(_),None)=>PathsReply{refusal:Some("this service manages no accounts".into()),..Default::default()},

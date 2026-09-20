@@ -62,11 +62,19 @@ async fn exact_remote_bytes_match_the_registered_digest() {
     };
     let cancel = CancellationToken::new();
     let node = provider.node(&scope, &item, &cancel).await.unwrap();
-    let bytes = provider
-        .read_range(&scope, &node, 0, node.size.try_into().unwrap(), &cancel)
-        .await
-        .unwrap();
-    assert_eq!(hex::encode(Sha256::digest(bytes)), expected);
+    let mut digest = Sha256::new();
+    let mut offset = 0;
+    while offset < node.size {
+        let length = (node.size - offset).min(4 * 1024 * 1024) as u32;
+        let bytes = provider
+            .read_range(&scope, &node, offset, length, &cancel)
+            .await
+            .unwrap();
+        assert!(!bytes.is_empty(), "Google read ended before the exact item");
+        offset += bytes.len() as u64;
+        digest.update(bytes);
+    }
+    assert_eq!(hex::encode(digest.finalize()), expected);
 }
 
 #[tokio::test]
