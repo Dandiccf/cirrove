@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """Exercise built binaries with private temporary state and no cloud access."""
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-CLI = ROOT / "target/debug/cirrove"
-DAEMON = ROOT / "target/debug/cirroved"
+TARGET = Path(os.environ.get("CARGO_TARGET_DIR", ROOT / "target"))
+CLI = TARGET / "debug/cirrove"
+DAEMON = TARGET / "debug/cirroved"
 
 with tempfile.TemporaryDirectory(prefix="cirrove-smoke-") as directory:
     root = Path(directory)

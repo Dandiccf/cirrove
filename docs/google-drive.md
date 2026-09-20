@@ -1,34 +1,31 @@
 # Google Drive preview
 
-The next provider is Google Drive. This is an implemented **read-only My Drive
-preview with synthetic validation and bounded real-account read/create checks**,
-not a claim of reliable Google-account operation. It uses Cirrove's existing
-engine, SQLite staging, disk cache, pin jobs and FUSE mount. File
-create/replacement and validation-only prepared folder create, relocate and
-observed-empty trash transports exist behind the provider interfaces and are
-tested with synthetic HTTP. An explicit developer command can request
-`drive.file` for an isolated live check. The authorized live sequence created a
-prepared-ID folder, an 8 MiB-plus file and an empty file through the
-provider-neutral workers and read both files back by exact identity and SHA-256.
-Google Drive v3 supplied no strong HTTP ETag on the resulting file, so that
-validator stopped before every conditional rename, replacement, move or trash
-request. A later isolated Drive v2 probe returned a strong file ETag, accepted
-one conditional rename, rejected reuse of the stale ETag with HTTP 412 and
-conditionally restored the original name. Content replacement and the remaining
-namespace operations have not yet been run through that v2 path.
-The normal service does not select the write transport or expose a writable
-Google mount.
+Google Drive is implemented as a **read-only My Drive preview with bounded
+real-account validation**. It uses Cirrove's shared engine, SQLite staging, disk
+cache, pin jobs and FUSE mount. The adapter also implements prepared creation,
+conditional binary replacement and exact-ID namespace mutations behind the shared
+provider interfaces. Those write transports have synthetic coverage and a bounded
+live check on one Cirrove-created fixture, but ordinary Google mounts remain
+read-only while the mounted name/collision contract is unresolved.
+
+The live v2/v3 check established the core conditional path: Cirrove observes a
+v3 numeric file version, resolves it to the current strong Drive v2 file ETag
+immediately before a write, and requires `If-Match` at the mutation boundary. A
+resumable upload whose file changed after session creation was rejected at final
+commit. The durable transfer worker then replaced and restored an 8 MiB-plus
+binary file, while the mutation worker renamed and restored it and rejected a
+stale version. Exact ID and SHA-256 readback confirmed the restored bytes.
 
 ## What it presents
 
 - Files and folders from My Drive, with paginated listings and polled changes.
 - Ordinary binary files through bounded ranges. The adapter compares Google's
-  monotonically increasing file version before and after the download, and
-  checks the response range and length before returning bytes to the cache.
-  Sequential reads can use the shared read-session contract to stream an 8 MiB
-  window into private cache staging under one before/after version check. A
-  changed final version rejects the whole staged window. There is no fabricated
-  HTTP ETag or Google write precondition.
+  binary `headRevisionId` before and after the download, and checks the response
+  range and length before returning bytes to the cache. Sequential reads can use
+  the shared read-session contract to stream an 8 MiB window into private cache
+  staging under one before/after revision check. A changed final revision rejects
+  the whole staged window. The separate numeric file version is exposed only as
+  a write observation; it is never sent to Google as an HTTP ETag.
 - Shortcut targets in the same user collection. Shared-drive targets remain
   unsupported. A shortcut requiring a resource key becomes a browser link.
 - Google-native documents, including Docs and Sheets, as nonempty `.url` browser
@@ -48,87 +45,47 @@ There is no service-account or another client's credential import.
 
 ## Write boundary found during the preview
 
-Google Drive permits duplicate sibling names and Drive v3 `files.update` does not
-expose the conditional ETag replacement used by the OneDrive adapter. Drive v2
-still exposes a file-resource ETag, and one bounded live metadata probe confirmed
-that its `If-Match` rejects a stale update. Cirrove still does not map its OneDrive
-writable-mount behavior onto Google: conditional content upload and the remaining
-namespace operations need the same validation, and the duplicate-name policy is
-unchanged. Write consent is available only for a separately configured, disabled
-validation connection.
+Drive v3 supplies the stable read model, including the numeric file `version` and
+the binary `headRevisionId`, but it does not return the strong HTTP ETag needed by
+Cirrove's conditional-write contract. Drive v2 still returns that ETag. The
+adapter therefore carries `google-version:<number>` as an observation, performs
+an exact v2 and v3 read immediately before mutation, requires both views to name
+the same ID, parent, raw name and version, and sends only the resolved v2 ETag in
+`If-Match`.
 
-The create transport uses `files.generateIds` before any mutating request. The
-provider-neutral worker stores that opaque prepared identity in the credential
-vault before asking Google to start a resumable session. The adapter sends 8 MiB
-chunks, requires every non-final chunk to be a multiple of 256 KiB, resumes at
-Google's exact reported byte offset and refuses a reply that claims bytes beyond
-the submitted range. Session URLs are accepted only on the configured Google
-origin and upload path; they remain in the vault checkpoint and are never sent as
-Bearer credentials or written to SQLite and diagnostics.
+Content and metadata use separate lineages. Google's general file version advances
+for metadata-only changes; using it as a content revision made a successful rename
+look like a concurrent content edit. Binary nodes now use v3 `headRevisionId` as
+`google-revision:<id>` for cache and writeback lineage, while the numeric version
+continues to guard the next mutation. Drive documents `headRevisionId` as the head
+revision for binary files. The adapter retries only read-only v2/v3 confirmation
+when the two API versions are briefly inconsistent; it never repeats an uncertain
+mutation during that settling window.
 
-Folder creation uses the mutation worker's parallel preparation boundary. Google
-generates an exact item ID without changing Drive; the worker stores that item ID
-with its account and collection in SQLite before the POST. After interruption it
-inspects only that ID: an exact matching folder completes the operation, while a
-404 is uncommitted and retries with the same identity. Synthetic restart coverage
-fails if this journal write is removed. The validator's case-folded destination
-scan still cannot prevent an independent client from creating the same sibling
-name between the scan and POST.
+The durable upload worker now supports current-version replacements, zero-byte
+replacement, final-commit conflicts and exact-ID/SHA-256 reconciliation after a
+lost response. The mutation worker supports prepared folder creation, exact-ID
+file/folder rename and move, recoverable trash, and stale-version conflicts. The
+live worker gate replaced and restored one deterministic 8 MiB-plus file, renamed
+and restored it, and observed `Conflict` when reusing the stale pre-rename version.
+The direct probe also proved that a session opened before an intervening metadata
+change cannot commit its bytes. Plans, corrections and results are recorded in
+[`google-drive-v2-content-probe.json`](benchmarks/google-drive-v2-content-probe.json)
+and [`google-drive-v2-worker-probe.json`](benchmarks/google-drive-v2-worker-probe.json).
 
-An expired or otherwise rejected resumable session can be replaced once during
-verification while retaining the same generated file ID. A `429` response keeps
-the existing session and applies its bounded retry delay; every other `4xx`
-follows Google's restart rule. The old session URL is removed before that
-prepared checkpoint is saved. Reconciliation addresses that exact ID and streams the
-remote content through the read adapter to compare its SHA-256 digest. Synthetic
-HTTP and transfer-worker faults cover persistence before mutation, a lost
-session, partial remote offsets, receipt identity, content reconciliation and a
-foreign session URL. These checks establish the local protocol behavior. The bounded authorized live
-create evidence and its limits are recorded below.
+The write connection remains disabled and the normal service does not select the
+Google write transport. Drive permits duplicate sibling names, while the mounted
+preview gives every name a stable full-ID suffix. A destination scan cannot make
+create, rename or move atomic against another Drive client, and the raw-name to
+mounted-name behavior has not yet passed a mounted application-save test. Folder
+trash also remains a list-then-PATCH operation rather than atomic POSIX `rmdir`.
+Those namespace gates must close before an ordinary Google mount can be writable.
 
-This transport remains disconnected from ordinary mounts. Drive
-allows duplicate sibling names, so Cirrove still lacks the atomic collision rule
-required by `UploadIntent::Create`. Replacement stability is also unresolved because
-the Drive v3 `files.update` reference documents no OneDrive-style conditional
-ETag. The isolated validator therefore records a plan before touching its own
-multipart file, renames it with the strong HTTP ETag from an exact metadata
-response, then retries another name with that now-stale ETag. Synthetic HTTP
-covers rejection, ignored preconditions and a response without a strong ETag.
-After metadata succeeds, the validator repeats the same current/stale sequence
-with two distinct small content payloads and reads the exact final identity back
-by SHA-256. A separate resumable probe then replaces the same isolated file with
-an 8 MiB-plus payload in aligned ranges and tries another session with the stale
-ETag. It distinguishes rejection when the session starts, rejection when the
-final range commits and an accepted stale replacement. These are capability
-probes, not production replacement support. The adapter now also accepts a
-nonempty `UploadIntent::Replace` from the durable worker only when it carries a
-strong, exact HTTP ETag. It persists the target before mutation, starts the
-resumable `PATCH` with `If-Match`, reports a 412 at either boundary as a conflict,
-and reconciles a lost response by exact ID and SHA-256. The validator follows the
-direct probes with one successful worker replacement and one stale worker
-conflict. The authorized live v3 create returned no strong HTTP ETag, so that
-validator did not execute these conditional paths. The later v2 metadata probe
-establishes a candidate conditional control plane but does not by itself validate
-these content paths. A separate validator-only namespace adapter also routes all
-test-folder creates plus file and folder relocation through the provider-neutral mutation
-journal and worker. Folder creation durably reserves the generated Google ID first. It
-checks the private destination for a case-folded collision, sends the source's
-strong ETag on the exact-ID PATCH, reconciles a lost response by exact identity,
-and requires a stale follow-up to conflict. This check is not atomic against an
-independent actor creating the same Google name, so it cannot satisfy the mounted
-namespace contract. Those
-namespace and conflict decisions and explicit live mutation validation must be
-completed before a writable Google mount can be offered. See Google's
-[pre-generated ID guidance](https://developers.google.com/workspace/drive/api/guides/manage-uploads)
-and [`files.update` reference](https://developers.google.com/workspace/drive/api/reference/rest/v3/files/update).
-
-The same validation adapter can relocate a folder by exact ID with the original
-strong ETag. It can also list an exact folder's children and conditionally move
-the folder to Google's trash only when that listing is empty. This is useful for
-exercising the provider-neutral `RemoveFolder` contract, but it is not an atomic
-`rmdir`: another client can add a child between the listing and PATCH, and a
-folder ETag is not documented to close that race. The normal service never
-selects this adapter, and the live validator does not invoke its removal path.
+The create path pre-generates the Google item ID and durably stores it before the
+first mutating request. Resumable session URLs stay in the credential vault and
+are accepted only on the configured Google origin and upload path. Reconciliation
+uses the exact prepared ID and hashes the exact file. No token, session URL, strong
+ETag or raw provider body is written to logs or benchmark artifacts.
 
 ## Check or create your own Google app
 
@@ -153,12 +110,12 @@ selects this adapter, and the live validator does not invoke its removal path.
    a chat or a bug report. Cirrove reads its client ID and optional client
    secret; endpoints in the downloaded file cannot redirect authentication.
 5. An ordinary connection requests `openid email profile` and
-   `https://www.googleapis.com/auth/drive.readonly`. An explicit create-validation
-   connection additionally requests `https://www.googleapis.com/auth/drive.file`,
-   which permits files Cirrove creates while the read-only scope still supplies
-   the whole-drive index. It does not grant Cirrove write access to arbitrary
-   existing files. Readonly Drive access is a restricted scope; Google sets the
-   publication and verification requirements for an app offered to other users.
+   `https://www.googleapis.com/auth/drive.readonly`. An explicit write-validation
+   connection requests `https://www.googleapis.com/auth/drive`. `drive.file`
+   covers files created or explicitly selected through the app, but it cannot
+   support a filesystem that must update arbitrary existing My Drive files. Both
+   Drive scopes are restricted; Google sets the publication and verification
+   requirements for an app offered to other users.
    See [Google's scope guide](https://developers.google.com/workspace/drive/api/guides/api-specific-auth).
 
 For an external app in Testing, a refresh grant including Drive access normally
@@ -196,7 +153,16 @@ cirrove validate-google-create \
 ```
 
 The write-grant connection is saved disabled and settings validation refuses to
-enable it. The validator creates its top-level test folder through the mutation
+enable it. Reauthenticate an older validation connection once after this scope
+change:
+
+```sh
+cirrove reauth google-create-validation \
+  --state-dir /absolute/path/to/private/validation-state \
+  --write-access
+```
+
+The validator creates its top-level test folder through the mutation
 worker, which persists a generated Google ID before mutation, then creates
 an 8 MiB-plus multipart file and an empty file inside that folder, then reads
 both back by exact provider identity and SHA-256. It next persists an exact
@@ -233,22 +199,22 @@ and start `cirroved` with that state directory and a separate `--socket`.
 Do not run two daemons against one state directory. The first live check below
 used the installed daemon and an additional Google account, alongside OneDrive.
 
-## Validation and boundary findings, 2026-09-19
+## Validation and boundary findings, 2026-09-20
 
 `cirrove-googledrive` tests exercise the actual HTTP parser and transport, with
 synthetic loopback responses: pagination, pre-scan change frontier, catch-up,
 opaque scoped cursors, incomplete searches, removals/trash, quota cooldown,
 cancellation, exact content ranges, changed versions and document links.
 The streamed-window scenario asserts that bytes are accepted only when the final
-Google version still matches and rejected when it changes after transfer.
+binary head revision still matches and rejected when content changes after transfer.
 Removing only that final lookup/check made the exact scenario fail because its
 expected final metadata request never occurred; restoring it passes both arms.
 Authentication tests exercise Google issuer/audience/nonce/expiry/signature and
 verified-email checks, token-subject binding on refresh, serialized rotation,
 stale-401 protection and refusal to use a rotation that the keyring cannot save.
 The Microsoft authentication tests remain part of the same suite. Google OAuth
-tests distinguish the normal read-only grant from the explicit
-`drive.readonly` plus `drive.file` validator grant. Account tests require a
+tests distinguish the normal read-only grant from the explicit full `drive`
+validator grant. Account tests require a
 Google write-validation connection to remain disabled. Synthetic folder tests
 pre-generate an ID, verify the exact create request and inspection, exercise the
 provider-neutral prepared mutation path and refuse an occupied case-folded
@@ -407,11 +373,25 @@ trash/delete, shared drives and mounted-write behavior remain untested. The plan
 decision rule and result are in
 [`google-drive-v2-etag-probe.json`](benchmarks/google-drive-v2-etag-probe.json).
 
+The 2026-09-20 content and worker follow-up used the same retained run-owned
+binary file. Drive rejected a resumable final commit after an intervening rename,
+accepted a current conditional replacement and rejected the stale session at its
+eventual commit boundary. The provider-neutral worker then reached `Uploaded`
+for replacement and restoration, `Applied` for rename and name restoration, and
+`Conflict` for the stale rename. Exact SHA-256 and name checks confirmed the
+fixture was restored. The run also exposed and corrected two real consistency
+boundaries: v2 and v3 can settle at different times, and metadata changes advance
+file `version` without changing binary `headRevisionId`. The write connection now
+has the full `drive` scope but stays disabled. Stable mounted-name mapping,
+duplicate collisions, folder trash atomicity and mounted application saves remain
+open gates; this result does not enable an ordinary writable Google mount.
+
 ## First real-account connection, 2026-09-19
 
 The owner created and authorized a separate Google Desktop OAuth app in Testing,
 with their own account as its only test user. The ordinary mounted account uses
-read-only Drive access; a separate disabled validation connection has `drive.file`. The
+read-only Drive access; the separate disabled validation connection was upgraded
+from `drive.file` plus read-only access to the full `drive` scope on 2026-09-20. The
 client JSON stays private outside the repository; the resulting grant is stored
 in Cirrove's Secret Service entry.
 

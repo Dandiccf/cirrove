@@ -20,7 +20,7 @@ impl Drop for Server {
     }
 }
 pub fn file(id: &str, version: u64) -> Value {
-    json!({"id":id,"name":"same.txt","mimeType":"text/plain","parents":["root-id"],"size":"6","version":version.to_string(),"capabilities":{"canDownload":true}})
+    json!({"id":id,"name":"same.txt","mimeType":"text/plain","parents":["root-id"],"size":"6","version":version.to_string(),"headRevisionId":format!("revision-{version}"),"capabilities":{"canDownload":true}})
 }
 impl Server {
     pub async fn new() -> Self {
@@ -80,7 +80,7 @@ impl Server {
                 request_count.fetch_add(1, Ordering::SeqCst);
                 let path = request.split_ascii_whitespace().nth(1).unwrap();
                 let is_google = path.starts_with("/drive/v3/");
-                let graph_file = json!({"id":"same-id","name":"same.txt","parentReference":{"driveId":"root-id","id":"root-id"},"file":{},"size":6,"eTag":"etag","cTag":"google-version:2","@microsoft.graph.downloadUrl":format!("{origin}/blob")});
+                let graph_file = json!({"id":"same-id","name":"same.txt","parentReference":{"driveId":"root-id","id":"root-id"},"file":{},"size":6,"eTag":"etag","cTag":"google-revision:revision-2","@microsoft.graph.downloadUrl":format!("{origin}/blob")});
                 let mut status = 200;
                 let mut headers = String::new();
                 let body = if path == "/blob" || path.contains("alt=media") {

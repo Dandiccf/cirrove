@@ -41,9 +41,10 @@ existing ID and strong ETag. Both start or replace a resumable session without c
 server's exact committed offset and verifies uncertain completion by streaming
 the exact object's SHA-256. Only the configured upload origin and path can enter
 a session checkpoint. Synthetic tests cover the ordering, lost sessions, partial
-offsets, receipts and content verification. A separate disabled connection may
-now request `drive.file` beside the existing read-only scope for one explicit
-create validator. It cannot be enabled or selected for a writable mount. The
+offsets, receipts and content verification. A separate disabled connection now
+requests the full `drive` scope for explicit write validation; `drive.file` is
+insufficient for an eventual filesystem that must update arbitrary existing
+items. It cannot be enabled or selected for a writable mount. The
 validator now creates all of its test folders through the
 shared mutation worker. The worker pre-generates and journals each exact Google
 identity before POST, so restart reconciliation never adopts by sibling name.
@@ -55,8 +56,9 @@ cases distinguish rejection when a resumable session starts or finishes, an
 ignored stale precondition and the absence of a strong ETag. The API reference
 does not document this behavior. The adapter now implements shared-worker
 replacement behind the disabled validator and tests its durable preparation,
-conditional session, conflict and reconciliation behavior synthetically; the
-validator has not been run against Google. A validator-only namespace adapter
+conditional session, conflict and reconciliation behavior synthetically. The
+later v2/v3 follow-up ran its replacement and file-rename paths live on one
+run-owned binary fixture. A validator-only namespace adapter
 also sends prepared-ID folder creation and exact-ID conditional rename and move
 through the shared mutation worker and reconciles by immutable identity. Its
 preflight destination scan does not make Google's duplicate-name semantics atomic
@@ -88,8 +90,23 @@ resource on the retained multipart file. V2 returned a strong ETag, accepted one
 metadata PATCH with its current value, rejected reuse of that stale value with
 HTTP 412 and accepted a current conditional PATCH restoring the original name.
 This supplies a viable metadata compare-and-set candidate for a hybrid adapter;
-content replacement, other namespace operations and the duplicate-name rule
-remain separate gates.
+content replacement and the mounted namespace remained separate gates.
+
+The 2026-09-20 follow-up implemented and live-tested that hybrid adapter on the
+same run-owned binary file. V3 numeric `version` is retained as a durable
+observation, resolved immediately before mutation to the matching strong v2
+file ETag, and never sent as an HTTP validator. V2 conditional resumable `PUT`
+protected the final content commit after an intervening metadata change. The
+shared durable workers then replaced and restored the file, renamed and restored
+it, and rejected reuse of the stale pre-rename observation. Brief v2/v3
+inconsistency is handled by bounded exact-ID read-only confirmation.
+
+That run also separated metadata and content lineage. Drive advances general
+file `version` for a rename, so binary nodes now use v3 `headRevisionId` as their
+content revision while the numeric version continues to guard the next write.
+Ordinary Google mounts remain read-only: duplicate sibling names, stable mounted
+ID-suffixed names and non-atomic destination scans still lack a mounted namespace
+contract, and folder trash is not atomic `rmdir`.
 
 The registered rerun confirmed that correction: folder creation reached
 `Applied`. Its resumable file then committed every byte under the prepared ID,
@@ -108,8 +125,8 @@ Google-native documents require an explicit export or link representation. See
 The optional read-session contract now has its second implementation too. Google
 does not provide Graph's expiring download URL plus strong ETag combination, so
 its session keeps the stable provider identity and streams a bounded 8 MiB window
-between metadata/version checks. The shared cache publishes the staging file only
-after the final version still agrees. This reuses the contract without pretending
+between metadata/head-revision checks. The shared cache publishes the staging file only
+after the final binary revision still agrees. This reuses the contract without pretending
 the two providers have the same transport primitive.
 
 ## What prompted it

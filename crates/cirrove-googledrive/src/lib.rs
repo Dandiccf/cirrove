@@ -135,3 +135,13 @@ fn valid_token(token: &str) -> Result<(), ProviderError> {
     }
     Ok(())
 }
+
+fn version_precondition(version: &str) -> String {
+    format!("google-version:{version}")
+}
+
+fn precondition_version(token: &str) -> Option<&str> {
+    token
+        .strip_prefix("google-version:")
+        .filter(|value| !value.is_empty() && value.bytes().all(|byte| byte.is_ascii_digit()))
+}

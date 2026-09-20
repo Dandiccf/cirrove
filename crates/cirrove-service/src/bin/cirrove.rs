@@ -290,6 +290,17 @@ enum Command {
         #[arg(long)]
         state_dir: PathBuf,
     },
+    /// Developer-only Drive v2 resumable and durable-worker probe on a retained test file.
+    ValidateGoogleV2Content {
+        #[arg(long)]
+        label: String,
+        /// UUID of a completed validate-google-create run.
+        #[arg(long)]
+        run: uuid::Uuid,
+        /// Separate account state created with connect-google --write-access.
+        #[arg(long)]
+        state_dir: PathBuf,
+    },
     /// Sign in again to the same account, preserving its selected drive and cache.
     Reauth {
         label: String,
@@ -713,6 +724,13 @@ async fn main() -> Result<()> {
             state_dir,
         } => {
             cirrove_service::validation::google_v2_etag(&state_dir, &label, run).await?;
+        }
+        Command::ValidateGoogleV2Content {
+            label,
+            run,
+            state_dir,
+        } => {
+            cirrove_service::validation::google_v2_content(&state_dir, &label, run).await?;
         }
         Command::Reauth {
             label,

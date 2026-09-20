@@ -27,7 +27,7 @@ fn json_step(path: &'static str, body: Value) -> Step {
     }
 }
 fn file(version: &str) -> Value {
-    json!({"id":"same-id","name":"report.txt","mimeType":"text/plain","parents":["root-id"],"size":"6","version":version,"capabilities":{"canDownload":true}})
+    json!({"id":"same-id","name":"report.txt","mimeType":"text/plain","parents":["root-id"],"size":"6","version":version,"headRevisionId":format!("revision-{version}"),"capabilities":{"canDownload":true}})
 }
 fn scope() -> Scope {
     Scope {
@@ -142,7 +142,7 @@ async fn baseline_frontier_precedes_scan_and_catchup_precedes_completion() {
         .unwrap();
     assert!(last.checkpoint.complete());
     assert!(
-        matches!(&last.changes[0], cirrove_core::Change::Upsert(n) if n.content_version.as_deref() == Some("google-version:2"))
+        matches!(&last.changes[0], cirrove_core::Change::Upsert(n) if n.content_version.as_deref() == Some("google-revision:revision-2"))
     );
     assert!(!format!("{:?}", last.checkpoint).contains("settled"));
     task.await.unwrap();
@@ -227,6 +227,37 @@ async fn reads_require_exact_ranges_and_unchanged_monotonic_versions() {
         }
         task.await.unwrap();
     }
+}
+
+#[tokio::test]
+async fn metadata_version_changes_do_not_replace_the_binary_content_revision() {
+    let mut after = file("2");
+    after["name"] = json!("renamed.txt");
+    after["headRevisionId"] = json!("revision-1");
+    let (provider, task) = server(vec![
+        json_step("/drive/v3/files/same-id", file("1")),
+        Step {
+            path: "/drive/v3/files/same-id",
+            query: vec![("alt", "media")],
+            status: 206,
+            body: b"bcd".to_vec(),
+            headers: "Content-Range: bytes 1-3/6\r\n",
+        },
+        json_step("/drive/v3/files/same-id", after),
+    ])
+    .await;
+    let node = serde_json::from_value::<files::File>(file("1"))
+        .unwrap()
+        .node("root-id")
+        .unwrap();
+    assert_eq!(
+        provider
+            .read_range(&scope(), &node, 1, 3, &CancellationToken::new())
+            .await
+            .unwrap(),
+        b"bcd"
+    );
+    task.await.unwrap();
 }
 
 #[derive(Default)]

@@ -260,14 +260,17 @@ async fn browser_login_with_secret(
         .await?
         .with_client_secret(secret);
     if access == AccessMode::ReadWrite {
-        // This used to promise that mounts stayed read-only. That was true while
-        // the only writable path was a validator mounting a disabled account by
-        // hand; it stopped being true when the daemon learned to mount writable
-        // from the grant, and a consent screen is the wrong place to be wrong.
-        println!(
-            "Requesting write consent. An account with this grant is mounted writable, \
-             so applications can change cloud files through it."
-        );
+        if google {
+            println!(
+                "Requesting full Drive write consent. This Google validation connection remains \
+                 disabled; only explicit validation commands can use the grant."
+            );
+        } else {
+            println!(
+                "Requesting write consent. An account with this grant is mounted writable, \
+                 so applications can change cloud files through it."
+            );
+        }
     }
     println!(
         "Opening {} sign-in in your browser. Select the account you want to connect.",
@@ -579,8 +582,8 @@ pub fn provider(account: &Account) -> Result<Arc<dyn ReadProvider>> {
         }
     }
 }
-/// Google adapter for the explicit create validator. This does not make the
-/// account mountable; settings require a Google write grant to remain disabled.
+/// Google adapter for the isolated validators. Writable Google connections are
+/// kept disabled until the mounted namespace contract has live evidence.
 pub fn google_provider(account: &Account) -> Result<Arc<GoogleDrive>> {
     if !matches!(account.registration, AppRegistration::Google { .. }) {
         bail!("this operation requires a Google Drive connection");
@@ -1773,7 +1776,7 @@ mod tests {
     }
 
     #[test]
-    fn a_google_create_grant_is_valid_only_while_its_connection_is_disabled() {
+    fn a_google_write_grant_is_valid_only_while_its_connection_is_disabled() {
         let mut account = fixture_account(AccessMode::ReadWrite);
         account.registration = AppRegistration::Google {
             client_id: "123-fixture.apps.googleusercontent.com".into(),

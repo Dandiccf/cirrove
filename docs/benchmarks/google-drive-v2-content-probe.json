@@ -1,0 +1,68 @@
+{
+  "question": "Does Drive API v2 enforce a file ETag at the final byte commit of a resumable replacement when the file changes after session creation, and does it reject a stale ETag when a new resumable session starts?",
+  "kind": "Explicitly authorized, bounded capability probe on one file previously created and retained by Cirrove's isolated Google write validator.",
+  "authorization": "On 2026-09-20 the owner instructed Cirrove to plan and implement Google writable support. Cloud mutations are confined to the retained run-owned validation file and restore its original name and deterministic bytes.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-20T09:13:00+02:00",
+  "source_revision_base": "138f5b4",
+  "candidate_diff_sha256": "69bf151eb08bc9f00b001fa41cd61c7538e059be3ee864f694f172d135fcd9f6",
+  "binary_sha256": "edab3cc4ae91f74605ccf845296b7d36d2445833eaff8912823979ec4cd44f3d",
+  "source_run": "5108ef6b-3dcf-48de-a96b-e3c5a6a628bb",
+  "scope": "The exact multipart file created by the completed fifth Google create-validation run. The ordinary mounted Google account and every pre-existing user item are excluded.",
+  "arms": [
+    "Read the exact v2 file resource and require its strong ETag, original name, parent, size and version.",
+    "Start a resumable v2 replacement with that ETag, then conditionally rename the file before sending any upload bytes.",
+    "Send the final byte range to the already-created session and require rejection rather than overwriting the intervening change.",
+    "Restore the original name, perform one resumable replacement with the current ETag, and require a new session with that now-stale ETag to return 412.",
+    "Use the current ETag to restore the deterministic original bytes and verify their exact SHA-256 through v3 reads."
+  ],
+  "prediction": "Drive v2 will reject the final range of the session whose ETag became stale after session creation, accept the current conditional replacement, reject the stale new session with HTTP 412, and accept restoration of the original bytes.",
+  "endpoint": "Success requires final-commit rejection after the intervening rename, stale-session-start rejection, and exact restoration of both name and content. An accepted stale final commit blocks production writable mounts even if session creation itself enforces If-Match.",
+  "decision_rule": "Only enforcement after session creation is sufficient for the provider-neutral resumable replacement contract. The ordinary Google mount remains read-only regardless of session-start behavior alone.",
+  "synthetic_precheck": {
+    "test": "v2_resumable_probe_requires_the_precondition_at_final_commit_and_restores_bytes",
+    "result": "passed"
+  },
+  "corrections": [
+    {
+      "at": "2026-09-20T09:14:47+02:00",
+      "attempt": 1,
+      "outcome": "Stopped before content mutation. The exact v2 metadata GET still succeeded independently, while the upload-session request returned 404.",
+      "cause": "The candidate used PATCH on the v2 /upload URI. Google's files.patch reference exposes only the metadata URI; files.update documents PUT for /upload/drive/v2/files/{fileId}.",
+      "correction": "Use PUT for v2 resumable session creation while retaining PATCH for metadata-only changes. The synthetic fixture now requires PUT and passes."
+    },
+    {
+      "at": "2026-09-20T09:15:52+02:00",
+      "attempt": 2,
+      "outcome": "The probe reached the final restored-content readback, where v3 reported that the file version changed during the immediate range read.",
+      "cause": "The v2 write response and the v3 metadata/read path did not present one stable version immediately after restoration.",
+      "correction": "Retry the exact v3 identity-and-SHA readback at most five times with two seconds between VersionChanged responses. Every retry reacquires the item by ID; no write is retried."
+    },
+    {
+      "at": "2026-09-20T09:17:27+02:00",
+      "attempt": 3,
+      "outcome": "Drive rejected the final range after the intervening change and restored the original file, but accepted creation of a new session carrying an already-stale ETag.",
+      "cause": "The precondition is enforced when the resumable content is committed, not necessarily when the upload session is created.",
+      "correction": "If stale session creation succeeds, send its final bytes and require that commit to fail. Session creation is preparation; the final byte request is the mutation boundary required by the provider-neutral contract."
+    }
+  ],
+  "result": {
+    "completed_at": "2026-09-20T09:18:14+02:00",
+    "status": "passed",
+    "probe_id": "5b069875-6702-4773-9526-86ade56ac5f6",
+    "before_version": "34",
+    "race_version": "35",
+    "updated_version": "37",
+    "final_version": "40",
+    "intervening_change_rejected_at_commit": true,
+    "stale_session_rejected": true,
+    "original_name_restored": true,
+    "original_content_restored": true,
+    "ordinary_mounts_restarted": false,
+    "ordinary_google_mount_state_after_run": "ready",
+    "ordinary_google_stuck_changes_after_run": 0,
+    "ordinary_google_failed_uploads_after_run": 0,
+    "private_evidence": ".local-state/google-write-validation/state/write-checks/5108ef6b-3dcf-48de-a96b-e3c5a6a628bb/v2-content-5b069875-6702-4773-9526-86ade56ac5f6",
+    "interpretation": "Drive v2 enforces If-Match at the resumable content commit boundary even when the file changes after session creation. A stale ETag can be accepted for session creation but its bytes are rejected at commit. This supplies the conditional content primitive required by the provider-neutral journal on this account and app-created binary file."
+  }
+}
