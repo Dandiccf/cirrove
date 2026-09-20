@@ -10,6 +10,7 @@ use cirrove_core::{
     NodeKind, ReadProvider,
     mutation::{MutationIntent, MutationReceipt, MutationRequest},
 };
+use std::io::{BufRead, BufReader};
 
 async fn apply_mutation(
     journal: &Arc<Mutex<UploadJournal>>,
@@ -686,6 +687,105 @@ pub async fn google_create(state: &Path, label: &str) -> Result<()> {
     );
     println!("This does not enable writable Google mounts.");
     Ok(())
+}
+
+/// Probe Drive v2's documented file ETag on the exact multipart file retained
+/// by an earlier Google create-validation run. The file is renamed twice under
+/// preconditions and restored before success is reported.
+pub async fn google_v2_etag(state: &Path, label: &str, run: uuid::Uuid) -> Result<()> {
+    let account = test_account(state, label)?;
+    if !matches!(
+        account.registration,
+        cirrove_auth::AppRegistration::Google { .. }
+    ) {
+        bail!("this operation requires a Google Drive connection");
+    }
+    let _operation = accounts::account_operation(state, &account.id)?;
+    let _owner = accounts::account_lock(&state.join("accounts").join(&account.id))?;
+    let run_directory = state.join("write-checks").join(run.to_string());
+    let evidence = File::open(run_directory.join("events.jsonl"))
+        .context("Google create-validation evidence is unavailable")?;
+    let mut multipart = None;
+    for line in BufReader::new(evidence).lines() {
+        let value: serde_json::Value = serde_json::from_str(&line?)?;
+        if value.get("stage").and_then(|stage| stage.as_str()) == Some("multipart_result") {
+            multipart = Some(serde_json::from_value::<UploadRecord>(
+                value
+                    .get("operation")
+                    .cloned()
+                    .context("multipart evidence has no operation")?,
+            )?);
+        }
+    }
+    let multipart = multipart.context("run has no completed multipart create")?;
+    let UploadIntent::Create { parent, name } = &multipart.intent else {
+        bail!("retained Google operation is not a create");
+    };
+    let remote = multipart
+        .remote
+        .as_ref()
+        .context("retained Google create has no exact provider receipt")?;
+    if multipart.state != UploadState::Uploaded
+        || multipart.scope.account != account.id
+        || multipart.scope.provider != cirrove_googledrive::PROVIDER_ID
+        || multipart.scope.collection != account.drive.id
+        || remote.parent_id.as_ref() != Some(parent)
+        || remote.name != *name
+    {
+        bail!("retained Google create does not belong to this validation account and run");
+    }
+
+    let probe = uuid::Uuid::new_v4();
+    let directory = run_directory.join(format!("v2-etag-{probe}"));
+    crate::private_dir(&directory)?;
+    let mut log = OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .mode(0o600)
+        .open(directory.join("events.jsonl"))?;
+    let current_name = format!("Kärnten & Grüße #1-v2-current-{probe}.bin");
+    let stale_name = format!("Kärnten & Grüße #1-v2-stale-{probe}.bin");
+    let google = accounts::google_provider(&account)?;
+    let plan = google.prepare_metadata_precondition_probe(
+        &multipart.scope,
+        &remote.id,
+        parent,
+        name,
+        &current_name,
+        &stale_name,
+    )?;
+    event(
+        &mut log,
+        serde_json::json!({
+            "stage":"planned",
+            "source_run":run,
+            "probe":probe,
+            "plan":plan,
+            "decision_rule":"current v2 ETag must permit one rename; reuse of the stale ETag must return 412; the current ETag must restore the original name"
+        }),
+    )?;
+    File::open(&directory)?.sync_all()?;
+    println!("Checking Drive v2 ETag behavior on the retained Cirrove test file.");
+    println!("Private local evidence: {}", directory.display());
+    let result = google
+        .probe_v2_metadata_precondition(&multipart.scope, &plan, &CancellationToken::new())
+        .await?;
+    event(
+        &mut log,
+        serde_json::json!({"stage":"v2_metadata_precondition_result", "result":result}),
+    )?;
+    match result.stale_rejected() {
+        Some(true) => {
+            println!("Drive v2 rejected the stale ETag and restored the original name.");
+            Ok(())
+        }
+        Some(false) => {
+            bail!("Drive v2 accepted a stale ETag; safe replacement remains unavailable")
+        }
+        None => {
+            bail!("Drive v2 returned no strong file ETag; safe replacement remains unavailable")
+        }
+    }
 }
 #[cfg(test)]
 mod tests {

@@ -1096,7 +1096,12 @@ URL is removed before persistence.
 This does not resolve the writable namespace. Drive permits duplicate sibling
 names, so create cannot yet enforce the shared contract's atomic collision rule,
 and the Drive v3 `files.update` reference documents no OneDrive-style conditional
-ETag update. An explicit write validator now prepares an exact test-folder ID
+ETag update. A bounded live follow-up found that Drive v2 still returns a strong
+file-resource ETag and rejects its stale reuse with HTTP 412 for metadata PATCH;
+the probe restored the original name conditionally. This makes a hybrid
+v3-read/v2-write control plane viable for further validation, but has not yet
+established conditional content upload or the remaining namespace operations.
+An explicit write validator now prepares an exact test-folder ID
 before mutation, routes multipart and empty files through the shared durable
 worker and reads them back by ID and SHA-256. It also persists an exact plan for
 its multipart file, applies one metadata rename with the current strong HTTP

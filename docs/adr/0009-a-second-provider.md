@@ -83,6 +83,14 @@ requests still require a real strong provider token and never substitute Drive's
 numeric file version. The first run stopped at that boundary before any file
 upload or further namespace mutation.
 
+A separately pre-registered follow-up tested the still-documented Drive v2 file
+resource on the retained multipart file. V2 returned a strong ETag, accepted one
+metadata PATCH with its current value, rejected reuse of that stale value with
+HTTP 412 and accepted a current conditional PATCH restoring the original name.
+This supplies a viable metadata compare-and-set candidate for a hybrid adapter;
+content replacement, other namespace operations and the duplicate-name rule
+remain separate gates.
+
 The registered rerun confirmed that correction: folder creation reached
 `Applied`. Its resumable file then committed every byte under the prepared ID,
 but Google classified the repeated `0x47` validation payload as `video/mp2t`.
@@ -150,12 +158,13 @@ deliberate bump with a read-old path to write.
 **One contract-level assumption is real.** `UploadIntent::Replace` requires a
 non-empty ETag precondition and `MutationRequest::validate` enforces it. That
 exists because Graph offers `If-Match` and using it is what makes a replace
-safe. The Drive v3 `files.update` reference documents no equivalent. An isolated
-validator now exercises the response ETag as an undocumented `If-Match` value for
-replacement and relocation, but that cannot turn live observations into a stable
-provider guarantee or supply Google's missing atomic destination-collision rule.
-This is the only place where the write contract encodes a Microsoft capability as
-a requirement rather than as a capability.
+safe. The Drive v3 `files.update` reference documents no equivalent. Drive v2
+does expose a file ETag, and the later implementation record above confirms its
+metadata `If-Match` behavior on one live binary file. That does not supply
+Google's missing atomic destination-collision rule, and every content/namespace
+operation still needs its own validation. This is the only place where the write
+contract encodes a provider capability as a requirement rather than as a
+capability.
 
 ## Decision
 

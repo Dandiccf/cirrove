@@ -10,8 +10,12 @@ tested with synthetic HTTP. An explicit developer command can request
 `drive.file` for an isolated live check. The authorized live sequence created a
 prepared-ID folder, an 8 MiB-plus file and an empty file through the
 provider-neutral workers and read both files back by exact identity and SHA-256.
-Google supplied no strong HTTP ETag on the resulting file, so the validator
-stopped before every conditional rename, replacement, move or trash request.
+Google Drive v3 supplied no strong HTTP ETag on the resulting file, so that
+validator stopped before every conditional rename, replacement, move or trash
+request. A later isolated Drive v2 probe returned a strong file ETag, accepted
+one conditional rename, rejected reuse of the stale ETag with HTTP 412 and
+conditionally restored the original name. Content replacement and the remaining
+namespace operations have not yet been run through that v2 path.
 The normal service does not select the write transport or expose a writable
 Google mount.
 
@@ -44,10 +48,14 @@ There is no service-account or another client's credential import.
 
 ## Write boundary found during the preview
 
-Google Drive permits duplicate sibling names and `files.update` does not expose
-the conditional ETag replacement used by the OneDrive adapter. Cirrove therefore
-does not map its OneDrive writable-mount behavior onto Google. Write consent is
-available only for a separately configured, disabled validation connection.
+Google Drive permits duplicate sibling names and Drive v3 `files.update` does not
+expose the conditional ETag replacement used by the OneDrive adapter. Drive v2
+still exposes a file-resource ETag, and one bounded live metadata probe confirmed
+that its `If-Match` rejects a stale update. Cirrove still does not map its OneDrive
+writable-mount behavior onto Google: conditional content upload and the remaining
+namespace operations need the same validation, and the duplicate-name policy is
+unchanged. Write consent is available only for a separately configured, disabled
+validation connection.
 
 The create transport uses `files.generateIds` before any mutating request. The
 provider-neutral worker stores that opaque prepared identity in the credential
@@ -98,8 +106,10 @@ strong, exact HTTP ETag. It persists the target before mutation, starts the
 resumable `PATCH` with `If-Match`, reports a 412 at either boundary as a conflict,
 and reconciles a lost response by exact ID and SHA-256. The validator follows the
 direct probes with one successful worker replacement and one stale worker
-conflict. The authorized live create returned no strong HTTP ETag, so the validator did
-not execute these conditional paths and they remain unavailable. A separate validator-only namespace adapter also routes all
+conflict. The authorized live v3 create returned no strong HTTP ETag, so that
+validator did not execute these conditional paths. The later v2 metadata probe
+establishes a candidate conditional control plane but does not by itself validate
+these content paths. A separate validator-only namespace adapter also routes all
 test-folder creates plus file and folder relocation through the provider-neutral mutation
 journal and worker. Folder creation durably reserves the generated Google ID first. It
 checks the private destination for a case-folded collision, sends the source's
@@ -384,6 +394,18 @@ The full chronology, corrections and pre-registered decision rules are in
 `docs/benchmarks/google-drive-write-validation.json`. The final code passed
 `scripts/check.sh` with 671 Rust test executions, all kernel mount groups, script
 tests, the acceptance ledger and docs.
+
+The pre-registered Drive v2 follow-up reused only the retained multipart test
+file. An exact v2 metadata GET returned a strong file-resource ETag at version 6.
+A title PATCH with that ETag succeeded at version 7; a second title PATCH with
+the same now-stale ETag returned HTTP 412. An exact re-read supplied the current
+ETag, and a final conditional PATCH restored the original title at version 8.
+The ordinary daemon was not restarted, and its Google account remained ready
+with no stuck changes or failed uploads. This establishes metadata compare-and-set
+for that API version, account and binary file. Conditional content upload,
+trash/delete, shared drives and mounted-write behavior remain untested. The plan,
+decision rule and result are in
+[`google-drive-v2-etag-probe.json`](benchmarks/google-drive-v2-etag-probe.json).
 
 ## First real-account connection, 2026-09-19
 

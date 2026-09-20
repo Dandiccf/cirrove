@@ -70,6 +70,57 @@ pub enum MetadataPreconditionProbe {
         final_name: String,
     },
 }
+
+/// Result of the isolated Drive v2 ETag capability probe. Drive v3 omits the
+/// file ETag, while v2 still exposes one in the resource body. This result
+/// deliberately records only the capability outcome, never the ETag itself.
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+pub enum V2MetadataPreconditionProbe {
+    NoStrongEtag {
+        item: String,
+        version: String,
+    },
+    Tested {
+        item: String,
+        before_version: String,
+        updated_version: String,
+        final_version: String,
+        stale_rejected: bool,
+        original_name_restored: bool,
+    },
+}
+impl V2MetadataPreconditionProbe {
+    pub fn stale_rejected(&self) -> Option<bool> {
+        match self {
+            Self::NoStrongEtag { .. } => None,
+            Self::Tested { stale_rejected, .. } => Some(*stale_rejected),
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct V2File {
+    id: String,
+    title: String,
+    etag: Option<String>,
+    #[serde(default)]
+    parents: Vec<V2Parent>,
+    version: String,
+    #[serde(default)]
+    labels: V2Labels,
+}
+
+#[derive(Deserialize)]
+struct V2Parent {
+    id: String,
+}
+
+#[derive(Default, Deserialize)]
+struct V2Labels {
+    #[serde(default)]
+    trashed: bool,
+}
 impl MetadataPreconditionProbe {
     pub fn stale_rejected(&self) -> Option<bool> {
         match self {
@@ -484,6 +535,115 @@ impl GoogleDrive {
                 final_version,
                 stale_rejected,
                 final_name: expected_name.into(),
+            })
+        })
+        .await
+    }
+
+    /// Characterize Drive v2's file-resource ETag on an item created by the
+    /// isolated validator. The first rename uses the current ETag, the second
+    /// deliberately reuses that now-stale value, and a final conditional
+    /// rename restores the original name. No ETag value leaves this method.
+    pub async fn probe_v2_metadata_precondition(
+        &self,
+        scope: &Scope,
+        plan: &MetadataPreconditionPlan,
+        cancel: &CancellationToken,
+    ) -> Result<V2MetadataPreconditionProbe> {
+        let checked = self.prepare_metadata_precondition_probe(
+            scope,
+            &plan.item,
+            &plan.parent,
+            &plan.original_name,
+            &plan.accepted_name,
+            &plan.stale_name,
+        )?;
+        self.upload_call(cancel, Duration::from_secs(125), async {
+            let before = self.v2_file(&checked.item).await?;
+            self.check_v2_probe_file(
+                &before,
+                &checked.item,
+                &checked.parent,
+                &checked.original_name,
+            )?;
+            let before_version = self.v2_file_version(&before)?;
+            let Some(etag) = before
+                .etag
+                .as_deref()
+                .filter(|value| valid_strong_etag(value))
+            else {
+                return Ok(V2MetadataPreconditionProbe::NoStrongEtag {
+                    item: checked.item.clone(),
+                    version: before_version,
+                });
+            };
+
+            let updated = self
+                .conditional_v2_metadata_name(&checked.item, &checked.accepted_name, etag)
+                .await?;
+            self.check_v2_probe_file(
+                &updated,
+                &checked.item,
+                &checked.parent,
+                &checked.accepted_name,
+            )?;
+            let updated_version = self.v2_file_version(&updated)?;
+            if !decimal_version_after(&updated_version, &before_version) {
+                return Err(UploadError::Uncertain);
+            }
+
+            let stale_rejected = match self
+                .conditional_v2_metadata_name(&checked.item, &checked.stale_name, etag)
+                .await
+            {
+                Err(UploadError::Conflict) => true,
+                Ok(stale) => {
+                    self.check_v2_probe_file(
+                        &stale,
+                        &checked.item,
+                        &checked.parent,
+                        &checked.stale_name,
+                    )?;
+                    false
+                }
+                Err(error) => return Err(error),
+            };
+
+            // Re-read the exact identity before restoring it. This supplies the
+            // current ETag even if a successful PATCH response omitted fields,
+            // and refuses to overwrite an unexpected concurrent change.
+            let current = self.v2_file(&checked.item).await?;
+            let current_name = if stale_rejected {
+                checked.accepted_name.as_str()
+            } else {
+                checked.stale_name.as_str()
+            };
+            self.check_v2_probe_file(&current, &checked.item, &checked.parent, current_name)?;
+            let current_etag = current
+                .etag
+                .as_deref()
+                .filter(|value| valid_strong_etag(value))
+                .ok_or(UploadError::Uncertain)?;
+            let restored = self
+                .conditional_v2_metadata_name(&checked.item, &checked.original_name, current_etag)
+                .await?;
+            self.check_v2_probe_file(
+                &restored,
+                &checked.item,
+                &checked.parent,
+                &checked.original_name,
+            )?;
+            let final_version = self.v2_file_version(&restored)?;
+            if !decimal_version_after(&final_version, &updated_version) {
+                return Err(UploadError::Uncertain);
+            }
+            Ok(V2MetadataPreconditionProbe::Tested {
+                item: checked.item,
+                before_version,
+                updated_version,
+                final_version,
+                stale_rejected,
+                original_name_restored: true,
             })
         })
         .await
@@ -1021,6 +1181,84 @@ impl GoogleDrive {
             .map_err(UploadError::Provider)?;
         let file = serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)?;
         Ok((file, etag))
+    }
+
+    fn v2_file_url(&self, item: &str) -> Result<Url> {
+        valid_id(item).map_err(UploadError::Provider)?;
+        let mut url = self.endpoint.clone();
+        url.set_path("/drive/v2/files");
+        url.set_query(None);
+        url.set_fragment(None);
+        url.path_segments_mut()
+            .map_err(|_| protocol("invalid Google v2 endpoint"))?
+            .push(item);
+        url.query_pairs_mut().append_pair(
+            "fields",
+            "id,title,etag,parents(id),version,labels(trashed)",
+        );
+        Ok(url)
+    }
+
+    async fn v2_file(&self, item: &str) -> Result<V2File> {
+        let response = self
+            .response(self.v2_file_url(item)?, None)
+            .await
+            .map_err(UploadError::Provider)?;
+        let bytes = body(response, MAX_UPLOAD_RESPONSE)
+            .await
+            .map_err(UploadError::Provider)?;
+        serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)
+    }
+
+    async fn conditional_v2_metadata_name(
+        &self,
+        item: &str,
+        name: &str,
+        etag: &str,
+    ) -> Result<V2File> {
+        if !valid_strong_etag(etag) {
+            return Err(UploadError::Invalid);
+        }
+        let response = self
+            .authorized_json_upload(
+                Method::PATCH,
+                self.v2_file_url(item)?,
+                &json!({"title": name}),
+                None,
+                Some(etag),
+            )
+            .await?;
+        let bytes = body(response, MAX_UPLOAD_RESPONSE)
+            .await
+            .map_err(UploadError::Provider)?;
+        serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)
+    }
+
+    fn check_v2_probe_file(
+        &self,
+        file: &V2File,
+        item: &str,
+        parent: &str,
+        name: &str,
+    ) -> Result<()> {
+        if file.id != item
+            || file.title != name
+            || file.labels.trashed
+            || file.parents.len() != 1
+            || file.parents[0].id != parent
+        {
+            return Err(UploadError::Uncertain);
+        }
+        self.v2_file_version(file)?;
+        Ok(())
+    }
+
+    fn v2_file_version(&self, file: &V2File) -> Result<String> {
+        let version = file.version.as_str();
+        if version.is_empty() || !version.bytes().all(|byte| byte.is_ascii_digit()) {
+            return Err(UploadError::Uncertain);
+        }
+        Ok(version.into())
     }
 
     async fn conditional_metadata_name(&self, item: &str, name: &str, etag: &str) -> Result<File> {
@@ -2253,6 +2491,19 @@ mod tests {
             "version": version
         })
     }
+    fn v2_named_file(name: &str, version: &str, etag: Option<&str>) -> Value {
+        let mut value = json!({
+            "id": "generated-id",
+            "title": name,
+            "parents": [{"id": "root-id"}],
+            "version": version,
+            "labels": {"trashed": false}
+        });
+        if let Some(etag) = etag {
+            value["etag"] = json!(etag);
+        }
+        value
+    }
     fn mutation_request(parent: &str, name: &str, etag: &str) -> MutationRequest {
         MutationRequest {
             scope: scope(),
@@ -2843,6 +3094,109 @@ mod tests {
             .unwrap();
         let result = provider
             .probe_metadata_precondition(&scope(), &plan, &CancellationToken::new())
+            .await
+            .unwrap();
+        assert_eq!(result.stale_rejected(), None);
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn v2_metadata_probe_rejects_a_stale_etag_and_restores_the_original_name() {
+        let fields = "id,title,etag,parents(id),version,labels(trashed)";
+        let (provider, server) = fixture(|_| {
+            let mut before = Exchange::json(
+                "GET",
+                "/drive/v2/files/generated-id",
+                200,
+                v2_named_file("report.txt", "9", Some("\"v2-9\"")),
+            );
+            before.query = vec![("fields", fields)];
+            let mut update = Exchange::json(
+                "PATCH",
+                "/drive/v2/files/generated-id",
+                200,
+                v2_named_file("renamed.txt", "10", Some("\"v2-10\"")),
+            );
+            update.query = vec![("fields", fields)];
+            update.headers = vec!["if-match: \"v2-9\"".into()];
+            update.body = Some(ExpectedBody::Json(json!({"title":"renamed.txt"})));
+            let mut stale = Exchange::json("PATCH", "/drive/v2/files/generated-id", 412, json!({}));
+            stale.query = vec![("fields", fields)];
+            stale.headers = vec!["if-match: \"v2-9\"".into()];
+            stale.body = Some(ExpectedBody::Json(json!({"title":"stale.txt"})));
+            let mut current = Exchange::json(
+                "GET",
+                "/drive/v2/files/generated-id",
+                200,
+                v2_named_file("renamed.txt", "10", Some("\"v2-10\"")),
+            );
+            current.query = vec![("fields", fields)];
+            let mut restore = Exchange::json(
+                "PATCH",
+                "/drive/v2/files/generated-id",
+                200,
+                v2_named_file("report.txt", "11", Some("\"v2-11\"")),
+            );
+            restore.query = vec![("fields", fields)];
+            restore.headers = vec!["if-match: \"v2-10\"".into()];
+            restore.body = Some(ExpectedBody::Json(json!({"title":"report.txt"})));
+            vec![before, update, stale, current, restore]
+        })
+        .await;
+        let plan = provider
+            .prepare_metadata_precondition_probe(
+                &scope(),
+                "generated-id",
+                "root-id",
+                "report.txt",
+                "renamed.txt",
+                "stale.txt",
+            )
+            .unwrap();
+        let result = provider
+            .probe_v2_metadata_precondition(&scope(), &plan, &CancellationToken::new())
+            .await
+            .unwrap();
+        assert_eq!(result.stale_rejected(), Some(true));
+        let V2MetadataPreconditionProbe::Tested {
+            original_name_restored,
+            final_version,
+            ..
+        } = result
+        else {
+            panic!("v2 ETag was not tested")
+        };
+        assert!(original_name_restored);
+        assert_eq!(final_version, "11");
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn v2_metadata_probe_does_not_mutate_without_a_strong_etag() {
+        let fields = "id,title,etag,parents(id),version,labels(trashed)";
+        let (provider, server) = fixture(|_| {
+            let mut before = Exchange::json(
+                "GET",
+                "/drive/v2/files/generated-id",
+                200,
+                v2_named_file("report.txt", "9", None),
+            );
+            before.query = vec![("fields", fields)];
+            vec![before]
+        })
+        .await;
+        let plan = provider
+            .prepare_metadata_precondition_probe(
+                &scope(),
+                "generated-id",
+                "root-id",
+                "report.txt",
+                "renamed.txt",
+                "stale.txt",
+            )
+            .unwrap();
+        let result = provider
+            .probe_v2_metadata_precondition(&scope(), &plan, &CancellationToken::new())
             .await
             .unwrap();
         assert_eq!(result.stale_rejected(), None);
