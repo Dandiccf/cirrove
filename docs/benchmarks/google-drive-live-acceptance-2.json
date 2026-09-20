@@ -1,0 +1,26 @@
+{
+  "question": "Does the installed writable Google My Drive mount handle a broader real-application and provider-observation matrix on the owner's existing connection?",
+  "kind": "Explicitly authorized bounded live functional validation on one run-owned Google Drive folder.",
+  "authorization": "The owner asked for further tests with the current Google Drive connection. Earlier in this session the owner explicitly authorized Google Drive read and write operations. Every mutation in this run is confined to one newly created, uniquely named folder and cleanup is by its exact provider identity.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-20T21:19:35+02:00",
+  "source_revision": "7ccf81543d7c9ed45fb024d7c5b93d31027daa93",
+  "installed_binary_sha256": "43874687e8182d81ee18adb017be786b770ab9a3fc401b0426f00674ece11945",
+  "temporary_directory": "/home/dandiccf/Work/cirrove/.local-state/live-runs/google-drive-acceptance-20260920T211935 (btrfs, mode 0700, not tmpfs)",
+  "expected_duration_seconds": 1200,
+  "command": "A bounded operator-driven sequence using the installed cirrove CLI, the mounted path, LibreOffice 26.8 headless conversion, and the ignored exact-ID Google live helpers. No recursive filesystem deletion is used.",
+  "scope": "The enabled account labelled google and one new top-level folder named Cirrove Acceptance 2026-09-20 2119. Existing user items are read only by the aggregate GET-only validator; it emits no names, ids, hashes or bodies.",
+  "arms": [
+    "Run the aggregate GET-only Google validator against eight bounded binary files and all indexed shortcut targets, comparing direct provider bytes with mounted bytes.",
+    "Write a deterministic 20 MiB-plus binary through the ordinary mount, wait for writeback, and compare its exact provider bytes by SHA-256.",
+    "Have LibreOffice read a local source and create real ODT and DOCX outputs in the mounted folder, then verify both settled remotely and their exact provider bytes match the mounted files.",
+    "Exercise held-descriptor atomic replacement: an old open descriptor must retain the old bytes while the replaced path exposes and uploads the new bytes.",
+    "Rename one exact run-owned file through the provider adapter, measure when the mounted view follows it, then edit the observed new path and verify exact remote bytes.",
+    "Pin the large run-owned file until resident, restart neither daemon nor mount, read it again, unpin it, and verify the reservation is released.",
+    "Trash only the exact registered run-owned tree through the bounded provider helper and return the ordinary account to ready with zero failed or stuck changes."
+  ],
+  "prediction": "All bounded reads will match; the large and LibreOffice outputs will upload without stuck work; held-descriptor replacement will preserve old and new streams; an external exact-ID rename will appear through polling within 90 seconds; the renamed file will remain writable; pinning will reach full residency and unpin cleanly; exact-ID cleanup will leave no run-owned mount path.",
+  "endpoint": "Pass an arm only with an independently observable result: byte equality or exact SHA-256 for content, old/new descriptor equality for replacement, elapsed visibility for external rename, resident bytes and released reservation for pinning, and exact-ID absence plus zero failed/stuck changes for cleanup. A failure is recorded rather than retried into a pass.",
+  "limits": "One account and one bounded run do not establish general reliability. The run cannot validate Shared Drives, OAuth publication, Google-native document import/export, push notifications, full offline operation or large-library longevity. Provider polling is accepted for the external-change arm.",
+  "status": "registered"
+}
