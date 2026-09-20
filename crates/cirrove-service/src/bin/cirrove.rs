@@ -102,7 +102,7 @@ use std::{
 #[derive(Parser)]
 #[command(
     version,
-    about = "Cirrove — your clouds, one filesystem (read-only preview)"
+    about = "Cirrove — your clouds, one filesystem (pre-release preview)"
 )]
 struct Args {
     #[command(subcommand)]
@@ -315,7 +315,7 @@ enum Command {
         #[arg(long)]
         read_only: bool,
     },
-    /// Sign in through the browser and select an account/drive (read-only).
+    /// Sign in through the browser and select an account/drive.
     Connect {
         #[arg(long)]
         label: String,
@@ -329,7 +329,7 @@ enum Command {
         drive_id: Option<String>,
         #[arg(long)]
         state_dir: Option<PathBuf>,
-        /// Opt in to write consent for isolated developer tests; mounts stay read-only.
+        /// Request write consent and mount this connection read-write.
         #[arg(long, requires = "state_dir")]
         write_access: bool,
     },
@@ -344,9 +344,8 @@ enum Command {
         mount_path: PathBuf,
         #[arg(long)]
         state_dir: Option<PathBuf>,
-        /// Opt in to `drive.file` consent for an isolated create validator.
-        /// The connection is saved disabled and cannot become a writable mount.
-        #[arg(long, requires = "state_dir")]
+        /// Request full Drive consent and mount this connection read-write.
+        #[arg(long)]
         write_access: bool,
     },
     /// List configured account identities and drive selections; no secrets.
@@ -814,7 +813,7 @@ async fn main() -> Result<()> {
             let account = pending.finish(&id).await?;
             if write_access {
                 println!(
-                    "Saved disabled Google create-validation connection {} at {}; no mount was started.",
+                    "Connected {} writable at {}",
                     account.label,
                     account.mount_path.display()
                 );

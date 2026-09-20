@@ -384,7 +384,7 @@ fn refused_changes_are_named_and_not_only_counted() {
 }
 
 #[test]
-fn google_accounts_have_their_own_identity_and_never_offer_write_consent() {
+fn google_accounts_have_their_own_identity_and_offer_write_consent() {
     for provider in ["googledrive", "onedrive"] {
         let mut sample = cirrove_desktop::demo::snapshot().unwrap();
         let account = &mut sample.settings.as_mut().unwrap().accounts[0];
@@ -398,7 +398,7 @@ fn google_accounts_have_their_own_identity_and_never_offer_write_consent() {
         status.provider = provider.into();
         let view = cirrove_desktop::model::Overview::from_snapshot(sample);
         assert!(view.accounts[0].title.starts_with("Google Drive"));
-        assert!(!view.accounts[0].supports_writes);
+        assert!(view.accounts[0].supports_writes);
         assert_eq!(
             view.accounts[0].state == cirrove_desktop::model::ConnectionState::WaitingForService,
             provider != "googledrive"

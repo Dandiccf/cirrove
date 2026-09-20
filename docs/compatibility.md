@@ -87,19 +87,17 @@ filesystem gives in the same situation.
 
 ## Google Drive preview
 
-A second adapter now runs through the existing engine, store, cache and FUSE mount.
+Google My Drive runs through the shared engine, store, cache, journal, pinning and
+FUSE mount. Read-only and read-write OAuth grants produce the matching mount mode.
 My Drive listing, polled changes, bounded reads, duplicate names, offline cache
-reopen and Google OAuth guards have synthetic coverage. A first real-account
-smoke check connected 1,350 entries, read three small files and a document link,
-and exposed a callback-host bug that is now fixed. A bounded validator later
-matched three non-link files between direct adapter reads and the mount. Its
-single shortcut lookup confirmed a dangling Google target, which remains `ENOENT`.
-Wider live acceptance is open. Google documents appear as browser links; exports, shared drives
-and Google writes are not exposed through a mount. File create/replacement and
-validator-only prepared folder create, file/folder rename/move and recoverable
-file plus observed-empty folder removal transports have synthetic coverage
-through the shared durable contracts; the isolated disabled-account validator
-has not been run and does not invoke removal. Folder removal is a non-atomic
-list-then-PATCH capability probe, not POSIX `rmdir`. The
-service remains read-only while atomic collision and replacement stability are
-unresolved. See [Google Drive](google-drive.md).
+reopen and OAuth guards have synthetic coverage. Google documents appear as browser
+links; native exports and Shared Drives are outside the preview.
+
+A bounded live writable run on one separate account completed binary file create,
+in-place edit, editor-style atomic replacement, file and folder rename/move,
+regular-file deletion, observed-empty folder removal, conflict preservation and
+daemon restart. An existing Google binary file was also pinned until resident and
+then unpinned. This establishes the tested workflow on that account, not broad
+provider reliability. Folder removal remains a non-atomic list-then-PATCH sequence,
+and Drive offers no atomic sibling-name reservation. See [Google Drive](google-drive.md)
+and the [writable mount record](benchmarks/google-drive-writable-mount.json).

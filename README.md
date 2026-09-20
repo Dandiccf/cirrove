@@ -54,7 +54,7 @@ and controls; Dolphin's live desktop acceptance remains open.
   Large-library and long-session acceptance remains open.
 - Linked-drive discovery and shortcut projection with separate target identities.
   Folder-only SharePoint sharing and revoked targets still need live validation.
-- Read-only FUSE projection with persistent directory and content-version inodes,
+- FUSE projection with persistent directory and content-version inodes,
   including shared read-only and private memory mappings. Directory requests have
   capacity reserved separately from a bounded queue of content reads.
 - Cached read-only directory listings stream into immutable anonymous disk
@@ -79,22 +79,20 @@ and controls; Dolphin's live desktop acceptance remains open.
   -- each offered only where it applies -- plus a StatusNotifierItem tray and a
   nautilus-python extension with offline badges and Keep offline; see
   [Desktop](docs/desktop.md).
-- Durable upload snapshots, keyring-backed session checkpoints and bounded Graph
-  upload fragments, exercised with synthetic HTTP/fault fixtures. An explicit
-  [isolated write check](docs/write-validation.md) is available for live validation;
-  these workers are not enabled in ordinary mounts. Conditional rename, move,
-  folder creation and file deletion now share durable ordering with uploads;
-  their isolated checks preserve collisions and uncertain results.
-- Experimental local working files and immutable save generations, with actual
+- Durable upload snapshots, keyring-backed session checkpoints and bounded
+  provider transfers. Conditional rename, move, folder creation and deletion
+  share durable ordering with uploads. Writable OneDrive and Google My Drive
+  connections use these workers; isolated validators remain available for
+  controlled live checks.
+- Local working files and immutable save generations, with actual
   synthetic FUSE create/write/truncate/fsync and offline-restart checks. A new save
-  waits for its predecessor's confirmed remote identity and ETag. This API requires
-  an explicitly writable, disabled test account; ordinary mounts do not enable it.
-  Its session starts bounded upload workers automatically and drains accepted local
+  waits for its predecessor's confirmed remote identity and ETag. A writable
+  account starts bounded upload workers automatically and drains accepted local
   writes before unmounting. An isolated business-drive check passed two actual
   mounted saves, automatic uploads and independent content verification. Regular-file
-  atomic replacement now has synthetic application checks. Folder creation and
-  nested local saves are also implemented experimentally; folder rename/removal
-  and broader real-application acceptance remain incomplete.
+  atomic replacement has synthetic application checks and bounded OneDrive and
+  Google live evidence. Folder creation, rename, removal and nested saves are
+  implemented; broader real-application acceptance remains incomplete.
 - Offline pinning with storage reservations. A pin is recorded in the metadata
   index and survives restart; it reserves bytes against the cache budget when it is
   made, so a request the budget cannot hold is refused rather than accepted and
@@ -104,16 +102,16 @@ and controls; Dolphin's live desktop acceptance remains open.
   runs before anything else can. Folder pins walk cached directory views and report
   whether the walk saw the whole subtree. Status separates what a pin reserved from
   what it actually holds, counted from files present rather than from the block
-  index. Not reachable from any user interface, and pinned content is fetched when
-  something asks for it rather than in the background.
+  index. Files and Dolphin expose these controls, and pin jobs fetch the content in
+  the background.
 - Durable local object identities and directory entries separate from optional
   working bytes. Local stream lookups are separate from provider-binding lookups,
-  so provider aliases cannot redirect existing local views. Experimental mounts
+  so provider aliases cannot redirect existing local views. Writable mounts
   can rename and move regular files within one collection without downloading
   content. Uploads and namespace changes share
   receipt-based ordering; a lost rename response containing another actor's edit
-  blocks later saves and retains both versions. Folder rename/removal and broader
-  application/provider acceptance remain incomplete.
+  blocks later saves and retains both versions. Broader application/provider
+  acceptance remains incomplete.
 - Experimental sessions retire fully acknowledged working copies after the last
   file user closes, then follow remote edits, moves and deletions while retaining
   the file's local identity. Cleanup is restartable and preserves pending or
@@ -132,11 +130,11 @@ and controls; Dolphin's live desktop acceptance remains open.
   exercise actual mounted atomic saves, held reads and interrupted preparation;
   ordinary desktop editors and broader provider scenarios still need acceptance.
 
-- Experimental folder creation commits its local entry before cloud confirmation.
+- Folder creation commits its local entry before cloud confirmation.
   Nested folders, file creation and file-move destinations wait for the parent's
   confirmed provider identity independently of each file's save sequence. Actual
   synthetic mounts exercise pending-parent navigation and recovery after restart;
-  live directory workflows remain unvalidated.
+  bounded live directory workflows have passed on OneDrive and Google My Drive.
 
 - Experimental edits capture their traversed folder/link paths. Those local routes
   remain visible when a provider removes an ancestor, and survive remount without
@@ -175,7 +173,7 @@ cargo run --locked --bin cirrove -- demo --state-dir "$(mktemp -d)"
 The demo uses synthetic metadata and no cloud account. To create a personally owned
 Microsoft development environment, follow [Personal Microsoft/Azure/Entra setup](docs/microsoft-developer-setup.md).
 If you already have an Entra directory, use the shorter [OneDrive setup](docs/onedrive-setup.md).
-Once an account is connected, start its read-only mount with:
+Once an account is connected, start its mount with:
 
 ```sh
 ./target/debug/cirroved
@@ -213,7 +211,7 @@ login can exercise it. See
 | `cirrove-core` | Provider-neutral identity, metadata/read/upload contracts, cancellation and request budgets |
 | `cirrove-store` | Transactional metadata, observations, persistent inodes and cache index |
 | `cirrove-onedrive` | Microsoft Graph metadata, version-checked ranged reads and experimental resumable uploads |
-| `cirrove-googledrive` | Google Drive v3 reads plus isolated v2 conditional-write validation; ordinary mounts remain read-only |
+| `cirrove-googledrive` | Google Drive v3 reads plus v2 conditional writes for writable My Drive mounts |
 | `cirrove-auth` | Microsoft/Google browser authentication, shared keyring and refresh broker |
 | `cirrove-service` | Daemon, CLI, account workers, FUSE projection and content cache |
 | `cirrove-desktop` | Native account overview and asynchronous service controls |
@@ -224,14 +222,15 @@ Read [Architecture](docs/architecture.md), [Roadmap](docs/roadmap.md),
 The [distribution plan](docs/distribution.md) targets native Arch, Debian/Ubuntu
 and Fedora packages; these release/installability gates are not completed yet.
 
-Google Drive now has a [read-only My Drive preview](docs/google-drive.md), including
-its own browser sign-in and tests through the shared engine, store, cache and
-kernel mount. A bounded live v2/v3 check also passed conditional content
-replacement, rename, restoration and stale-version rejection through the shared
-durable workers on one run-owned fixture. Duplicate-name and mounted-namespace
-gates still keep ordinary Google mounts read-only. iCloud requires a separate compatibility
-assessment because its API situation differs. Cirrove does not copy or depend on
-Stratosync or rclone; lessons from those integrations inform the recovery tests.
+Google Drive now has a [writable My Drive preview](docs/google-drive.md), including
+its own browser sign-in and the shared engine, journal, cache, pinning and kernel
+mount. A bounded live run passed create, edit, atomic replacement, rename, move,
+deletion, stale-write conflict preservation and daemon restart on one run-owned
+fixture. This is functional evidence on one account, not a general reliability
+claim. Shared Drives and native Google document content remain outside the preview.
+iCloud requires a separate compatibility assessment because its API situation
+differs. Cirrove does not copy or depend on Stratosync or rclone; lessons from
+those integrations inform the recovery tests.
 
 ## License
 

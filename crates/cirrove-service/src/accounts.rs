@@ -115,14 +115,11 @@ impl Settings {
         for account in &self.accounts {
             account.registration.validate()?;
             if matches!(account.registration, AppRegistration::Google { .. })
-                && ((account.access == AccessMode::ReadWrite && account.enabled)
-                    || account.drive.id != account.root_id
+                && (account.drive.id != account.root_id
                     || account.identity.subject.is_empty()
                     || !account.identity.tenant_id.is_empty())
             {
-                bail!(
-                    "Google Drive requires My Drive; write-validation connections must stay disabled"
-                );
+                bail!("Google Drive requires My Drive");
             }
             if !valid_label(&account.label)
                 || uuid::Uuid::parse_str(&account.id).is_err()
@@ -260,17 +257,10 @@ async fn browser_login_with_secret(
         .await?
         .with_client_secret(secret);
     if access == AccessMode::ReadWrite {
-        if google {
-            println!(
-                "Requesting full Drive write consent. This Google validation connection remains \
-                 disabled; only explicit validation commands can use the grant."
-            );
-        } else {
-            println!(
-                "Requesting write consent. An account with this grant is mounted writable, \
-                 so applications can change cloud files through it."
-            );
-        }
+        println!(
+            "Requesting write consent. An account with this grant is mounted writable, \
+             so applications can change cloud files through it."
+        );
     }
     println!(
         "Opening {} sign-in in your browser. Select the account you want to connect.",
@@ -472,12 +462,6 @@ pub async fn reauthenticate(
         .find(|a| a.label == label)
         .context("unknown account label")?;
     let requested = access.unwrap_or(original.access);
-    if matches!(original.registration, AppRegistration::Google { .. })
-        && requested == AccessMode::ReadWrite
-        && (original.access != AccessMode::ReadWrite || original.enabled)
-    {
-        bail!("create a separate disabled Google connection with connect-google --write-access");
-    }
     let _operation = account_operation(&state, &original.id)?;
     // A marker here means an earlier run disabled this account and never put it
     // back. Its `enabled` is the account's own wish; what settings currently say
@@ -574,16 +558,9 @@ pub async fn reauthenticate(
 pub fn provider(account: &Account) -> Result<Arc<dyn ReadProvider>> {
     match account.registration {
         AppRegistration::Microsoft { .. } => Ok(onedrive_provider(account)?),
-        AppRegistration::Google { .. } => {
-            if account.access != AccessMode::ReadOnly {
-                bail!("Google write-validation connections cannot be mounted");
-            }
-            Ok(google_provider(account)?)
-        }
+        AppRegistration::Google { .. } => Ok(google_provider(account)?),
     }
 }
-/// Google adapter for the isolated validators. Writable Google connections are
-/// kept disabled until the mounted namespace contract has live evidence.
 pub fn google_provider(account: &Account) -> Result<Arc<GoogleDrive>> {
     if !matches!(account.registration, AppRegistration::Google { .. }) {
         bail!("this operation requires a Google Drive connection");
@@ -599,6 +576,12 @@ pub fn google_provider(account: &Account) -> Result<Arc<GoogleDrive>> {
         account.drive.id.clone(),
         Arc::new(broker),
     )?))
+}
+pub fn write_provider(account: &Account) -> Result<Arc<dyn crate::writable::WriteProvider>> {
+    match account.registration {
+        AppRegistration::Microsoft { .. } => Ok(onedrive_provider(account)?),
+        AppRegistration::Google { .. } => Ok(google_provider(account)?),
+    }
 }
 /// Microsoft-only validation and write workers must refuse other accounts before
 /// loading credentials or making a request.
@@ -846,7 +829,7 @@ impl PendingConnection {
             drive,
             root_id: root.id,
             mount_path: self.mount_path,
-            enabled: self.access == AccessMode::ReadOnly,
+            enabled: true,
             poll_seconds: 30,
             cache_bytes: 5 * 1024 * 1024 * 1024,
         };
@@ -1776,7 +1759,7 @@ mod tests {
     }
 
     #[test]
-    fn a_google_write_grant_is_valid_only_while_its_connection_is_disabled() {
+    fn a_google_write_grant_can_enable_a_my_drive_connection() {
         let mut account = fixture_account(AccessMode::ReadWrite);
         account.registration = AppRegistration::Google {
             client_id: "123-fixture.apps.googleusercontent.com".into(),
@@ -1790,10 +1773,11 @@ mod tests {
         };
         settings
             .validate()
-            .expect("a disabled isolated validation grant is valid");
+            .expect("a disabled Google write grant is valid");
         settings.accounts[0].enabled = true;
-        let error = settings.validate().unwrap_err().to_string();
-        assert!(error.contains("must stay disabled"), "{error}");
+        settings
+            .validate()
+            .expect("an enabled Google My Drive write connection is valid");
     }
 
     fn fixture_account(access: AccessMode) -> Account {

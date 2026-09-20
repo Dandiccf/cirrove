@@ -45,6 +45,7 @@ impl WriteControl {
         mut self,
         provider: Arc<dyn cirrove_core::mutation::MutationProvider>,
     ) -> Self {
+        self.writer.set_provider(provider.clone());
         self.provider = Some(provider);
         self
     }

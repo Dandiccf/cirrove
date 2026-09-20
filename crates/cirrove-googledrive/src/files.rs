@@ -167,7 +167,7 @@ fn document_link(id: &str, mime: &str) -> Option<Vec<u8>> {
 /// Stable, page-independent names. Drive permits duplicate sibling names and '/'.
 /// The full ID disambiguates even duplicates split across pages; extensions remain
 /// at the end. No enumeration-order winner or truncated-ID collision is possible.
-fn projected_name(name: &str, id: &str, link: bool) -> String {
+pub(super) fn projected_name(name: &str, id: &str, link: bool) -> String {
     let escaped = name
         .replace('%', "%25")
         .replace('/', "%2F")

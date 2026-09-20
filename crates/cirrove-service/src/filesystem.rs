@@ -962,6 +962,9 @@ impl Inner {
                 .map_err(|_| ProviderError::Unavailable)?
                 .ok_or(ProviderError::Unavailable)?;
             let mut node = self.engine.node(&view.scope, &item).await?;
+            node = writer
+                .present_node(&view.scope, &view.id, node)
+                .map_err(|_| ProviderError::Unavailable)?;
             node.id = view.id.to_string();
             writer
                 .localize_parent(&view.scope, &mut node)

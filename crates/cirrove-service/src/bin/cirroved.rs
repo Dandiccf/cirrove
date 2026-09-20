@@ -6,7 +6,7 @@ use clap::Parser;
 use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(version, about = "Cirrove user service — read-only preview")]
+#[command(version, about = "Cirrove user service — pre-release preview")]
 struct Args {
     #[arg(long)]
     state_dir: Option<PathBuf>,

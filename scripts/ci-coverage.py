@@ -29,6 +29,19 @@ WORKFLOW = ROOT / ".github/workflows/ci.yml"
 # Ignored tests deliberately not run by CI. A test belongs here only with a
 # reason someone can disagree with.
 EXCUSED = {
+    # Exact live Google helpers need the owner's OAuth grant and are additionally
+    # fenced by an explicit state directory plus exact run-owned item identity.
+    # Their successful bounded run is recorded in the writable-mount benchmark;
+    # CI has neither the credential nor a fixture it is allowed to mutate.
+    "rename_the_exact_run_owned_item_outside_the_mount": (
+        "live Google grant and exact run-owned item; bounded conflict arm"
+    ),
+    "exact_remote_bytes_match_the_registered_digest": (
+        "live Google grant and exact run-owned item; independent digest readback"
+    ),
+    "trash_only_the_exact_run_owned_tree": (
+        "live Google grant and exact run-owned folder; bounded cleanup"
+    ),
     # Needs a live Microsoft account with a write grant, which CI has no way to
     # hold. It records a provider behaviour the rmdir design depends on -- a
     # folder's eTag does not move when a child is added -- so it is run by hand

@@ -1,20 +1,17 @@
 # Google Drive preview
 
-Google Drive is implemented as a **read-only My Drive preview with bounded
-real-account validation**. It uses Cirrove's shared engine, SQLite staging, disk
-cache, pin jobs and FUSE mount. The adapter also implements prepared creation,
-conditional binary replacement and exact-ID namespace mutations behind the shared
-provider interfaces. Those write transports have synthetic coverage and a bounded
-live check on one Cirrove-created fixture, but ordinary Google mounts remain
-read-only while the mounted name/collision contract is unresolved.
+Google Drive is implemented as a **writable My Drive preview under validation**.
+An account connected with **Allow changes** uses Cirrove's shared FUSE namespace,
+durable journal, conflict handling, cache and offline pin jobs. A read-only grant
+still produces a read-only mount.
 
-The live v2/v3 check established the core conditional path: Cirrove observes a
-v3 numeric file version, resolves it to the current strong Drive v2 file ETag
-immediately before a write, and requires `If-Match` at the mutation boundary. A
-resumable upload whose file changed after session creation was rejected at final
-commit. The durable transfer worker then replaced and restored an 8 MiB-plus
-binary file, while the mutation worker renamed and restored it and rejected a
-stale version. Exact ID and SHA-256 readback confirmed the restored bytes.
+The mounted path now creates and edits binary files, performs editor-style atomic
+replacement, creates folders, renames and moves files and folders, and moves files
+and observed-empty folders to Google's trash. Every mutation carries an exact item
+identity and the current conditional version. A stale mounted save becomes a
+visible conflict and does not overwrite the independently changed Google item.
+The bounded live record for these operations is
+[`google-drive-writable-mount.json`](benchmarks/google-drive-writable-mount.json).
 
 ## What it presents
 
@@ -31,16 +28,16 @@ stale version. Exact ID and SHA-256 readback confirmed the restored bytes.
 - Google-native documents, including Docs and Sheets, as nonempty `.url` browser
   links. They are **not exported document contents**. DOCX/XLSX/PDF exports and
   their version, size and cache semantics remain future work.
-- Every projected name carries its complete item ID before the extension:
+- Provider listings give every pre-existing name its complete item ID before the extension:
   `report [item-id].txt`. This initial policy is deliberately stable across
   pagination, rename, restart and duplicate sibling names. `/`, NUL and `%` are
-  escaped; long stems are shortened on a UTF-8 boundary to fit 255 bytes.
-  It changes the mounted presentation, never the remote filename. More natural
-  names with suffixes only for collisions need a separate, stable namespace
-  policy; this preview does not pick an arbitrary winner between duplicates.
+  escaped; long stems are shortened on a UTF-8 boundary to fit 255 bytes. Items
+  created or explicitly renamed through a writable mount retain the natural name
+  the application chose while that exact identity is acknowledged. This changes
+  mounted presentation only; it never rewrites a remote name just to format it.
 
-Shared drives, mounted Google writes, document exports, push webhooks,
-resource-key transport and real-account/large-library/long-session acceptance are not claimed.
+Shared Drives, document exports, push webhooks, resource-key transport and
+large-library/long-session acceptance are not claimed.
 There is no service-account or another client's credential import.
 
 ## Write boundary found during the preview
@@ -73,13 +70,14 @@ change cannot commit its bytes. Plans, corrections and results are recorded in
 [`google-drive-v2-content-probe.json`](benchmarks/google-drive-v2-content-probe.json)
 and [`google-drive-v2-worker-probe.json`](benchmarks/google-drive-v2-worker-probe.json).
 
-The write connection remains disabled and the normal service does not select the
-Google write transport. Drive permits duplicate sibling names, while the mounted
-preview gives every name a stable full-ID suffix. A destination scan cannot make
-create, rename or move atomic against another Drive client, and the raw-name to
-mounted-name behavior has not yet passed a mounted application-save test. Folder
-trash also remains a list-then-PATCH operation rather than atomic POSIX `rmdir`.
-Those namespace gates must close before an ordinary Google mount can be writable.
+The normal service selects this transport only for an account whose successful
+Google sign-in recorded read-write access. Drive permits duplicate sibling names,
+so provider observations use stable full-ID suffixes while acknowledged local
+names remain natural. A destination scan cannot make create, rename or move atomic
+against another Drive client. Cirrove therefore relies on exact identities and
+conditional source updates to preserve conflicting data rather than claiming
+Google offers POSIX namespace transactions. Folder trash remains a
+list-then-PATCH operation and is not atomic POSIX `rmdir`.
 
 The create path pre-generates the Google item ID and durably stores it before the
 first mutating request. Resumable session URLs stay in the credential vault and
@@ -128,17 +126,20 @@ Install the developer build first, following [Development](development.md).
 The 0.1.0 release does not include Google support.
 
 In the window, choose **Connect a drive → Provider → Google Drive**, select an
-empty mount folder and your private Desktop OAuth client JSON, then sign in in
-the browser. The drive-selection page offers **My Drive**. Google does not offer
-an Allow changes switch. You can also connect through the CLI:
+empty mount folder and your private Desktop OAuth client JSON, choose whether
+**Allow changes** is enabled, then sign in in the browser. The drive-selection
+page offers **My Drive**. You can also connect through the CLI:
 
 ```sh
 cirrove connect-google --label google \
   --client-json /absolute/path/to/cirrove-google-client.json \
-  --mount-path /absolute/path/to/an/empty/folder
+  --mount-path /absolute/path/to/an/empty/folder \
+  --write-access
 ```
 
-The write validator uses a separate state directory and connection:
+Omit `--write-access` for a read-only connection. Reauthenticate an existing
+connection with `cirrove reauth google --write-access` or turn off writes with
+`--read-only`. The separate validator remains available for protocol probes:
 
 ```sh
 cirrove connect-google --label google-create-validation \
@@ -150,16 +151,6 @@ cirrove connect-google --label google-create-validation \
 cirrove validate-google-create \
   --label google-create-validation \
   --state-dir /absolute/path/to/private/validation-state
-```
-
-The write-grant connection is saved disabled and settings validation refuses to
-enable it. Reauthenticate an older validation connection once after this scope
-change:
-
-```sh
-cirrove reauth google-create-validation \
-  --state-dir /absolute/path/to/private/validation-state \
-  --write-access
 ```
 
 The validator creates its top-level test folder through the mutation
@@ -214,8 +205,8 @@ verified-email checks, token-subject binding on refresh, serialized rotation,
 stale-401 protection and refusal to use a rotation that the keyring cannot save.
 The Microsoft authentication tests remain part of the same suite. Google OAuth
 tests distinguish the normal read-only grant from the explicit full `drive`
-validator grant. Account tests require a
-Google write-validation connection to remain disabled. Synthetic folder tests
+write grant. Account tests cover enabled Google read-write connections and reject
+write factories for read-only grants. Synthetic folder tests
 pre-generate an ID, verify the exact create request and inspection, exercise the
 provider-neutral prepared mutation path and refuse an occupied case-folded
 destination before POST. A separate exact folder snapshot test requires a strong
@@ -385,6 +376,41 @@ file `version` without changing binary `headRevisionId`. The write connection no
 has the full `drive` scope but stays disabled. Stable mounted-name mapping,
 duplicate collisions, folder trash atomicity and mounted application saves remain
 open gates; this result does not enable an ordinary writable Google mount.
+
+### Writable mounted milestone, 2026-09-20
+
+The next pre-registered run closed those mounted-name gates for My Drive binary
+files. An isolated ordinary read-write account mounted with `rw`; a real FUSE
+workflow created and edited a file, performed an editor-style atomic replacement,
+renamed it, created a folder, moved the file into it, and removed a file and an
+observed-empty folder. A synthetic kernel fixture repeated the workflow with
+Google's ID-qualified provider names. A provider presentation hook now preserves
+the natural name attached to an acknowledged exact identity without hiding an
+independent remote rename.
+
+Google can advance a newly created file's numeric version after returning its
+upload receipt. The first atomic-save attempt exposed that race: the replacement
+bytes arrived, but the chained cleanup used the earlier version. Production Google
+creates now wait for two matching exact-ID observations before the journal
+acknowledges the receipt. The corrected atomic save retained its natural name and
+left no failed or stuck change.
+
+For the conflict arm, another client renamed the exact remote item between an
+open mounted file and its save. The stale upload reached `Conflict`; an exact
+provider read proved the foreign bytes were unchanged, and **Keep both** retained
+the local bytes as a separate item. Restarting the isolated daemon preserved the
+resolved local data and returned with no stuck or failed change. A separate live
+pin check made an existing Google binary file resident, then released the pin and
+its reservation. Finally, cleanup enumerated and trashed only the registered
+run-owned tree by exact identity. The installed OneDrive and read-only Google
+mounts ran throughout this measurement.
+
+This one-account run establishes the bounded workflow, not general provider
+reliability. The conflict-resolution view currently keeps the resolved local name
+alongside the separately named remote item; that presentation is safe but can be
+surprising. Shared Drives, native Docs/Sheets content, cross-provider moves and
+large-library or long-session acceptance remain outside the claim. See
+[`google-drive-writable-mount.json`](benchmarks/google-drive-writable-mount.json).
 
 ## First real-account connection, 2026-09-19
 

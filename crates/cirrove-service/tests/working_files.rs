@@ -95,6 +95,33 @@ fn repeated_application_saves_keep_immutable_uploads_and_follow_receipts() {
 }
 
 #[test]
+fn a_content_receipt_cannot_replace_an_established_mounted_name() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut j = open(&temp.path().join("journal"), 1024);
+    let mut mounted = node(8);
+    mounted.name = "Kärnten & Grüße [remote-file].txt".into();
+    let working = j
+        .create_working(scope(), mounted.clone(), false, b"original".as_slice())
+        .unwrap();
+    j.write_working(working.id, 0, b"changed!").unwrap();
+    let upload = j.seal_working(working.id).unwrap().unwrap();
+    let attempt = j.claim_next().unwrap().unwrap();
+    let mut receipt = node(8);
+    receipt.name = "Kärnten & Grüße.txt".into();
+    receipt.etag = Some("confirmed".into());
+    j.acknowledge(upload.id, attempt.attempt.unwrap(), receipt)
+        .unwrap();
+    let object = j
+        .namespace_by_local(&scope(), &mounted.id)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        object.remote.unwrap().name,
+        "Kärnten & Grüße [remote-file].txt"
+    );
+}
+
+#[test]
 fn truncate_sparse_writes_and_quota_failures_preserve_the_working_copy() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("journal");
