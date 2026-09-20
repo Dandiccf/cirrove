@@ -97,7 +97,15 @@ A bounded live writable run on one separate account completed binary file create
 in-place edit, editor-style atomic replacement, file and folder rename/move,
 regular-file deletion, observed-empty folder removal, conflict preservation and
 daemon restart. An existing Google binary file was also pinned until resident and
-then unpinned. This establishes the tested workflow on that account, not broad
-provider reliability. Folder removal remains a non-atomic list-then-PATCH sequence,
-and Drive offers no atomic sibling-name reservation. See [Google Drive](google-drive.md)
-and the [writable mount record](benchmarks/google-drive-writable-mount.json).
+then unpinned. A broader installed-mount run added a 20 MiB-plus write with direct
+Drive hash comparison, LibreOffice ODT and DOCX saves, held-descriptor atomic
+replacement, an externally renamed file followed and edited through the mount,
+and pin/unpin through the natural path presented by Files and Dolphin. The last
+case exposed and corrected a mismatch between FUSE's writable-name overlay and
+control-socket path resolution; its negative regression control and installed
+live retest are recorded. This establishes the bounded workflows on that account,
+not broad provider reliability. Folder removal remains a non-atomic
+list-then-PATCH sequence, and Drive offers no atomic sibling-name reservation. See
+[Google Drive](google-drive.md), the
+[writable mount record](benchmarks/google-drive-writable-mount.json) and the
+[broader live record](benchmarks/google-drive-live-acceptance-2.json).

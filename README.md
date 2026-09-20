@@ -226,8 +226,11 @@ Google Drive now has a [writable My Drive preview](docs/google-drive.md), includ
 its own browser sign-in and the shared engine, journal, cache, pinning and kernel
 mount. A bounded live run passed create, edit, atomic replacement, rename, move,
 deletion, stale-write conflict preservation and daemon restart on one run-owned
-fixture. This is functional evidence on one account, not a general reliability
-claim. Shared Drives and native Google document content remain outside the preview.
+fixture. A second run added a 20 MiB-plus exact readback, LibreOffice ODT/DOCX
+saves, an external rename followed by a mounted edit, and natural-path pinning
+through the installed file-manager integration. This is functional evidence on
+one account, not a general reliability claim. Shared Drives and native Google
+document content remain outside the preview.
 iCloud requires a separate compatibility assessment because its API situation
 differs. Cirrove does not copy or depend on Stratosync or rclone; lessons from
 those integrations inform the recovery tests.

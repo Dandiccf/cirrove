@@ -52,6 +52,72 @@ impl WriteControl {
     pub(crate) fn provider(&self) -> Option<Arc<dyn cirrove_core::mutation::MutationProvider>> {
         self.provider.clone()
     }
+
+    /// Resolve the path a writable mount actually presents, including natural
+    /// names retained by the durable writeback namespace after provider IDs are
+    /// assigned. Control-socket features such as file-manager pinning must walk
+    /// the same overlay as FUSE or a visible path can be rejected even while it
+    /// is open in the file manager.
+    pub(crate) async fn resolve_visible_path(
+        &self,
+        engine: &Arc<Engine>,
+        path: &str,
+    ) -> std::io::Result<(Scope, Node)> {
+        fn unavailable(error: impl std::fmt::Display) -> std::io::Error {
+            std::io::Error::other(error.to_string())
+        }
+
+        let mut scope = engine.scope(&engine.account.drive.id);
+        let mut node = engine
+            .node(&scope, &engine.account.root_id)
+            .await
+            .map_err(unavailable)?;
+        for name in path.split('/').filter(|part| !part.is_empty()) {
+            if let Some(target) = node.target.clone() {
+                scope = engine.scope(&target.collection);
+                node = engine
+                    .node(&scope, &target.item)
+                    .await
+                    .map_err(unavailable)?;
+            }
+            let parent = node.id.clone();
+            let provider_parent = self
+                .writer
+                .directory_identity(&scope, &parent)
+                .map_err(|error| std::io::Error::from_raw_os_error(error.code()))?;
+            let children = match provider_parent {
+                Some(provider_parent) => engine
+                    .children(&scope, &provider_parent)
+                    .await
+                    .map_err(unavailable)?,
+                None => Vec::new(),
+            };
+            node = self
+                .writer
+                .overlay(&scope, &parent, children)
+                .map_err(|error| std::io::Error::from_raw_os_error(error.code()))?
+                .into_iter()
+                .find(|child| child.name == name)
+                .ok_or_else(|| {
+                    std::io::Error::new(std::io::ErrorKind::NotFound, "remote item not found")
+                })?;
+        }
+        if let Some(target) = node.target.clone() {
+            scope = engine.scope(&target.collection);
+            node = engine
+                .node(&scope, &target.item)
+                .await
+                .map_err(unavailable)?;
+        }
+        if let Some(item) = self
+            .writer
+            .remote_identity(&scope, &node.id)
+            .map_err(|error| std::io::Error::from_raw_os_error(error.code()))?
+        {
+            node = engine.node(&scope, &item).await.map_err(unavailable)?;
+        }
+        Ok((scope, node))
+    }
 }
 impl CloudFs {
     pub(crate) fn write_control(&self) -> std::io::Result<WriteControl> {

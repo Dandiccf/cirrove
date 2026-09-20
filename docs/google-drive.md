@@ -412,6 +412,46 @@ surprising. Shared Drives, native Docs/Sheets content, cross-provider moves and
 large-library or long-session acceptance remain outside the claim. See
 [`google-drive-writable-mount.json`](benchmarks/google-drive-writable-mount.json).
 
+### Broader live acceptance, 2026-09-20
+
+A second pre-registered run used the installed writable mount and the owner's
+ordinary Google connection. A deterministic 20,971,643-byte file crossed the
+mount in one writeback entry and matched the direct Drive readback by SHA-256.
+LibreOffice 26.8 created an ODT in the mount, reopened it there and wrote a DOCX
+beside it; both exact provider reads matched the mounted files. An open descriptor
+kept the old bytes through an atomic replacement while the path and Google exposed
+the replacement. A rename made through the provider adapter appeared in the mount
+after 8.263 seconds, and a subsequent mounted edit of that renamed identity also
+matched the direct provider read.
+
+The aggregate read validator's first execution classified all eight selected
+files as changed. The diagnostic follow-up found no byte discrepancy: all eight
+files and 23,147 bytes matched, while the existing index carried metadata and
+content-version lineage written by the older Google implementation. Exact current
+metadata and the mounted reads agreed. One previously indexed shortcut target was
+already absent at Google. The validator now reports provider version changes,
+missing items, unavailable reads and byte mismatches separately instead of
+combining them into one counter.
+
+The run also found a provider-neutral integration defect. A newly uploaded file
+kept its natural visible name in FUSE, but the control socket used only the
+ID-qualified indexed presentation, so `pin --path` and `paths` could not resolve
+the name shown by Files or Dolphin. Writable control requests now walk the same
+durable namespace overlay as FUSE and hand the confirmed provider identity to the
+shared pin engine. The regression test failed without that correction and passed
+with it. After installing the checked candidate, a 5,243,003-byte file was pinned,
+became fully resident in two blocks, appeared as directly pinned, and was unpinned
+through the same natural path. The reservation returned to zero. Both test trees
+were removed only by their recorded Google folder IDs; the account finished ready
+with no pins, failed uploads or stuck changes.
+
+These results cover one My Drive account and bounded binary-file workflows. They
+do not cover Shared Drives, native Google document import/export, a published and
+verified OAuth application, full offline outage behavior, or long sessions and
+large libraries. The registered plan, first failures, corrections and exact
+outcomes are in
+[`google-drive-live-acceptance-2.json`](benchmarks/google-drive-live-acceptance-2.json).
+
 ## First real-account connection, 2026-09-19
 
 The owner created and authorized a separate Google Desktop OAuth app in Testing,

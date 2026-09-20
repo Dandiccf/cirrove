@@ -3683,6 +3683,7 @@ async fn real_manager_mounts_writable_only_for_an_account_with_a_write_grant() {
         let mut config = account(&mount);
         config.access = access;
         config.enabled = true;
+        config.cache_bytes = 64 * 1024 * 1024;
         // The manager loads through `Settings`, which enforces the label rules the
         // rest of these fixtures never go through.
         config.label = "writable-fixture".into();
@@ -3696,14 +3697,19 @@ async fn real_manager_mounts_writable_only_for_an_account_with_a_write_grant() {
         )
         .unwrap();
         let cloud = Arc::new(Cloud::default());
+        cloud.google_names.store(true, Ordering::SeqCst);
         namespace_fixture(&cloud);
         let reads = cloud.clone();
         let writes = cloud.clone();
         let read_factory: ProviderFactory = Arc::new(move |_| Ok(reads.clone()));
         let write_factory: WriteFactory = Arc::new(move |_| Ok(writes.clone()));
         let cancel = CancellationToken::new();
-        let (manager, worker) =
-            Manager::start_with_providers(state, cancel.clone(), read_factory, Some(write_factory));
+        let (manager, worker) = Manager::start_with_providers(
+            state.clone(),
+            cancel.clone(),
+            read_factory,
+            Some(write_factory),
+        );
         let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
         loop {
             let seen: Vec<_> = manager
@@ -3738,8 +3744,80 @@ async fn real_manager_mounts_writable_only_for_an_account_with_a_write_grant() {
                 panic!("writable={expected} but mkdir gave {result:?} for {access:?}")
             }
         }
+        let mut control_server = None;
+        if writable {
+            let socket = state.join("control.sock");
+            let server = tokio::spawn(cirrove_service::serve_managed(
+                state.join("control.db"),
+                socket.clone(),
+                cancel.clone(),
+                Some(manager.clone()),
+            ));
+            tokio::time::timeout(Duration::from_secs(2), async {
+                while !socket.exists() {
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+            })
+            .await
+            .unwrap();
+            control_server = Some(server);
+            let path = mount.join("made-by-the-daemon/pinned.txt");
+            tokio::task::spawn_blocking(move || std::fs::write(path, b"pin through visible path"))
+                .await
+                .unwrap()
+                .unwrap();
+            let request = cirrove_service::PinRequest {
+                label: "writable-fixture".into(),
+                path: Some("made-by-the-daemon/pinned.txt".into()),
+                ..Default::default()
+            };
+            let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+            let reply = loop {
+                let reply = cirrove_service::pin(&socket, &request).await.unwrap();
+                if reply.accepted {
+                    break reply;
+                }
+                assert!(
+                    tokio::time::Instant::now() < deadline,
+                    "the visible natural Google-style path never resolved for pinning: {reply:?}"
+                );
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            };
+            assert!(reply.reserved > 0);
+            let engine = manager.engine("writable-fixture").await.unwrap();
+            assert!(
+                engine
+                    .pin_status()
+                    .await
+                    .unwrap()
+                    .iter()
+                    .any(|pin| pin.item == reply.item && pin.reserved == reply.reserved),
+                "the accepted visible-path pin was not recorded"
+            );
+            let states = cirrove_service::paths(
+                &socket,
+                &cirrove_service::PathsRequest {
+                    label: "writable-fixture".into(),
+                    paths: vec!["made-by-the-daemon/pinned.txt".into()],
+                },
+            )
+            .await
+            .unwrap();
+            assert_eq!(states.states.len(), 1);
+            assert_eq!(states.states[0].item, reply.item);
+            assert_eq!(states.states[0].pinned.as_deref(), Some("direct"));
+            assert_eq!(states.states[0].refusal, None);
+            let unpinned = cirrove_service::unpin(&socket, &request).await.unwrap();
+            assert!(
+                unpinned.accepted,
+                "visible path did not unpin: {unpinned:?}"
+            );
+        }
         cancel.cancel();
         let _ = tokio::time::timeout(Duration::from_secs(20), worker).await;
+        if let Some(server) = control_server {
+            let _ = tokio::time::timeout(Duration::from_secs(5), server).await;
+        }
     }
 }
 

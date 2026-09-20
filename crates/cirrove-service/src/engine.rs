@@ -74,6 +74,8 @@ use std::{
 use tokio::sync::{Mutex, Notify, RwLock, watch};
 use tokio_util::task::TaskTracker;
 
+type PathResolution = (String, std::result::Result<(Scope, Node), String>);
+
 /// Discovery shares the store with every feed, so a transient store failure must
 /// recover on its own schedule rather than on the next successful poll.
 /// A single-item fetch on the filesystem path must not wait indefinitely for an
@@ -854,21 +856,37 @@ impl Engine {
         done
     }
     pub async fn path_states(self: &Arc<Self>, paths: &[String]) -> Result<Vec<crate::PathState>> {
-        let db = self.db.clone();
-        let pins = tokio::task::spawn_blocking(move || Store::open(db)?.pins()).await??;
-        let cache = self.cache_path();
-        let mut states = Vec::with_capacity(paths.len());
+        let mut resolved = Vec::with_capacity(paths.len());
         for path in paths {
             let request = crate::PinRequest {
                 path: Some(path.clone()),
                 ..Default::default()
             };
-            let (scope, node) = match self.resolve_request(&request).await {
+            resolved.push((
+                path.clone(),
+                self.resolve_request(&request)
+                    .await
+                    .map_err(|error| error.to_string()),
+            ));
+        }
+        self.path_states_resolved(resolved).await
+    }
+
+    pub(crate) async fn path_states_resolved(
+        self: &Arc<Self>,
+        resolved: Vec<PathResolution>,
+    ) -> Result<Vec<crate::PathState>> {
+        let db = self.db.clone();
+        let pins = tokio::task::spawn_blocking(move || Store::open(db)?.pins()).await??;
+        let cache = self.cache_path();
+        let mut states = Vec::with_capacity(resolved.len());
+        for (path, result) in resolved {
+            let (scope, node) = match result {
                 Ok(resolved) => resolved,
                 Err(error) => {
                     states.push(crate::PathState {
-                        path: path.clone(),
-                        refusal: Some(error.to_string()),
+                        path,
+                        refusal: Some(error),
                         ..Default::default()
                     });
                     continue;
@@ -882,7 +900,7 @@ impl Engine {
                 resident_bytes(&cache, &scope, &node)
             };
             states.push(crate::PathState {
-                path: path.clone(),
+                path,
                 item: node.id.clone(),
                 kind: if folder { "folder" } else { "file" }.into(),
                 pinned,
@@ -956,6 +974,15 @@ impl Engine {
                 });
             }
         };
+        self.apply_pin_resolved(request, scope, node).await
+    }
+
+    pub(crate) async fn apply_pin_resolved(
+        self: &Arc<Self>,
+        request: &crate::PinRequest,
+        scope: Scope,
+        node: Node,
+    ) -> Result<crate::PinReply> {
         if request.recursive {
             return Ok(match self.plan_folder_pin(&scope, &node).await? {
                 Ok(planned) => {
@@ -1099,6 +1126,14 @@ impl Engine {
                 });
             }
         };
+        self.apply_unpin_resolved(scope, node).await
+    }
+
+    pub(crate) async fn apply_unpin_resolved(
+        self: &Arc<Self>,
+        scope: Scope,
+        node: Node,
+    ) -> Result<crate::PinReply> {
         let removed = self.unpin(scope, node.id.clone()).await?;
         if !removed {
             return Ok(crate::PinReply {
