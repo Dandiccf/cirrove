@@ -60,6 +60,21 @@ fn buttons(widget: &gtk::Widget, label: &str) -> Vec<gtk::Button> {
     found
 }
 
+fn provider_selector(widget: &gtk::Widget) -> Option<adw::ComboRow> {
+    if let Some(row) = widget.downcast_ref::<adw::ComboRow>()
+        && row.title() == "Provider"
+    {
+        return Some(row.clone());
+    }
+    let mut child = widget.first_child();
+    while let Some(current) = child {
+        if let Some(found) = provider_selector(&current) {
+            return Some(found);
+        }
+        child = current.next_sibling();
+    }
+    None
+}
 fn displays_text(widget: &gtk::Widget, text: &str) -> bool {
     if let Some(label) = widget.downcast_ref::<gtk::Label>()
         && label.is_mapped()
@@ -934,6 +949,46 @@ fn every_account_action_is_offered_from_the_window_and_only_where_it_applies() {
         "sign-in must wait for a name, a folder and an application id"
     );
 
+    let selector = provider_selector(window.upcast_ref()).expect("provider selector is reachable");
+    selector.set_selected(1);
+    pump_until("Google sign-in choice", || {
+        button(window.upcast_ref(), "Sign in with Google").is_some()
+    });
+    assert!(button(window.upcast_ref(), "Sign in with Microsoft").is_none());
+    assert!(
+        !button(window.upcast_ref(), "Sign in with Google")
+            .unwrap()
+            .is_sensitive(),
+        "a private Google client file is required"
+    );
+    assert!(displays_text(
+        window.upcast_ref(),
+        "Google Desktop OAuth client"
+    ));
+    assert!(!displays_text(window.upcast_ref(), "Tenant"));
+    if let Some(path) = std::env::var_os("CIRROVE_GOOGLE_DIALOG_SNAPSHOT") {
+        // Let the dialog's slide transition finish before rendering its pixels.
+        let until = Instant::now() + Duration::from_millis(500);
+        while Instant::now() < until {
+            while glib::MainContext::default().pending() {
+                glib::MainContext::default().iteration(false);
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let paintable = gtk::WidgetPaintable::new(Some(&window));
+        let snapshot = gtk::Snapshot::new();
+        paintable.snapshot(&snapshot, window.width() as f64, window.height() as f64);
+        let node = snapshot.to_node().expect("dialog render node");
+        let renderer = window.renderer().expect("dialog renderer");
+        renderer
+            .render_texture(&node, None)
+            .save_to_png(Path::new(&path))
+            .expect("save Google dialog screenshot");
+    }
+    selector.set_selected(0);
+    pump_until("Microsoft choice preserved", || {
+        button(window.upcast_ref(), "Sign in with Microsoft").is_some()
+    });
     window.close();
     service.task.abort();
     runtime.shutdown_timeout(Duration::from_secs(1));

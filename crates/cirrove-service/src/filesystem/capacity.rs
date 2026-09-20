@@ -123,7 +123,7 @@ fn account(mount_path: PathBuf) -> crate::accounts::Account {
     crate::accounts::Account {
         id: "00000000-0000-4000-8000-000000000011".into(),
         label: "capacity-fixture".into(),
-        registration: AppRegistration {
+        registration: AppRegistration::Microsoft {
             client_id: "00000000-0000-4000-8000-000000000012".into(),
             authority: "common".into(),
         },

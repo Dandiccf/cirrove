@@ -867,7 +867,9 @@ impl Window {
         } else {
             row.consent.add_css_class("suggested-action");
         }
-        row.consent.set_sensitive(idle && card.controls_available);
+        row.consent.set_visible(card.supports_writes);
+        row.consent
+            .set_sensitive(idle && card.controls_available && card.supports_writes);
         row.storage.set_subtitle(&fill(
             &gettext("Up to {} GiB · downloaded as needed"),
             &[&format!(

@@ -231,6 +231,7 @@ impl UploadJournal {
             failed_attempts: 0,
             base,
             working_file: None,
+            prepared_item: None,
             local_ready: true,
         };
         object.unlinked = true;

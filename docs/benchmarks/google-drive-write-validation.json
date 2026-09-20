@@ -1,0 +1,200 @@
+{
+  "question": "Which Google Drive writes can the disabled provider-neutral validator safely confirm on the owner's account, and does Drive expose a strong HTTP ETag that can guard replacements and namespace changes?",
+  "kind": "Explicitly authorized single-account functional characterization, not production write acceptance.",
+  "authorization": "The owner explicitly authorized the isolated live write test on 2026-09-19. It may create only run-owned folders and files, must not touch pre-existing items, and performs no delete or trash operation.",
+  "scope": "A separate disabled Google connection with drive.readonly plus drive.file, a private local state directory, pre-generated provider identities, and test folders retained for review.",
+  "limits": "No writable mount, existing-item mutation, delete, trash, shared-drive claim, long-session claim or provider-reliability claim. A missing precondition token must stop conditional work rather than be replaced with a fabricated value.",
+  "attempts": [
+    {
+      "attempt": 1,
+      "registered_before_run": false,
+      "started_from_revision": "5e2d9f7cc9457f1a5531ec05f1d1059b28c4c48a",
+      "started_at": "2026-09-19",
+      "correction": "This repository artifact was added after the first authorized attempt. The private validator had durably recorded its plan before mutating, but the project measurement rule also requires the question and prediction under docs/benchmarks. The omission is recorded here rather than backdated.",
+      "prediction_as_understood_before_run": "The prepared folder, multipart file and empty file should be created and read back. The first metadata probe should then establish whether Drive supplies and rejects a stale strong HTTP ETag.",
+      "endpoint": "The command either completes every create and stale-precondition check or stops at the first unsupported provider boundary while retaining its folder and private evidence.",
+      "result": {
+        "status": "stopped at prepared folder acknowledgement",
+        "observed": "The prepared-ID folder POST succeeded. Exact-ID reconciliation repeatedly observed the same folder, but neither response carried a strong HTTP ETag.",
+        "journal": "One create-folder mutation remained verify_required after seven failed attempts, with its prepared item retained and no receipt accepted.",
+        "deadline_seconds": 180,
+        "file_uploads_started": 0,
+        "later_namespace_mutations_started": 0,
+        "deletes_or_trash_requests": 0,
+        "cloud_artifact": "The run-owned folder remains for review.",
+        "private_evidence": ".local-state/google-write-validation/state/write-checks/87569c29-f0d8-40e4-9cf4-2178a695755a"
+      }
+    }
+  ],
+  "rerun_registration": {
+    "registered_before_run": true,
+    "registered_at": "2026-09-19T23:34:04+02:00",
+    "source_revision_base": "5e2d9f7cc9457f1a5531ec05f1d1059b28c4c48a",
+    "candidate_change": "A create-folder receipt accepts the exact prepared ID, parent, name and folder kind without requiring a token for a future edit. No relocation, replacement or removal precondition is weakened.",
+    "negative_control": "The exact no-ETag folder fixture fails with the former receipt requirement and passes after the candidate correction.",
+    "candidate_validation": "Full scripts/check.sh passed with 669 Rust test executions, every kernel mount group, script tests, the acceptance ledger and docs.",
+    "prediction": "The rerun will acknowledge folder creation and create/read back the multipart and empty files. Because the first run's exact GET also lacked an ETag, the metadata capability probe is expected to record NoStrongEtag and stop before applying a rename, replacement or move.",
+    "endpoint": "Folder creation and both file readbacks are durably recorded, followed either by a safely rejected stale metadata probe or an explicit no-strong-ETag stop. Any different boundary is recorded before another run.",
+    "decision_rule": "A missing strong ETag leaves conditional Google replacement, rename, move and trash unavailable. A stale request accepted by Google is a hard failure. Only a real strong ETag plus stale rejection permits the validator to continue to the next conditional operation.",
+    "result": {
+      "status": "folder creation passed; multipart receipt rejected on MIME mismatch",
+      "installed_revision": "1fa3f271a2583efb25a87f52c7380db9d8bc0f5f",
+      "folder_state": "applied",
+      "multipart_journal": "verify_required after eight failed attempts; the session checkpoint retained offset 8388608 and a final 13-byte range",
+      "exact_metadata": {
+        "identity_matches": true,
+        "name_matches": true,
+        "parent_matches": true,
+        "size": 8388621,
+        "version_present": true,
+        "strong_etag_header_present": false,
+        "trashed": false,
+        "reported_mime_type": "video/mp2t"
+      },
+      "exact_content": {
+        "bytes": 8388621,
+        "sha256_matches": true
+      },
+      "diagnosis": "The repeated 0x47 payload resembles MPEG transport stream data. Create metadata and the resumable initializer declared application/octet-stream, but nonempty session PUTs carried no Content-Type, so Google classified the committed file as video/mp2t and Cirrove correctly rejected the receipt.",
+      "empty_file_started": false,
+      "later_namespace_mutations_started": 0,
+      "deletes_or_trash_requests": 0,
+      "cloud_artifacts": "The run-owned folder and byte-correct multipart file remain for review.",
+      "private_evidence": ".local-state/google-write-validation/state/write-checks/15d2bd86-4d8f-4dc9-a9d0-eb6597e5aca7",
+      "correction": "The third run sent application/octet-stream on every nonempty session PUT and Google still reported video/mp2t. The missing PUT header was real protocol incompleteness, but it was not the cause of Drive MIME classification; Drive content-sniffed the recognizable payload despite the declarations."
+    }
+  },
+  "official_api_description_observation": {
+    "discovery_revision": "20260913",
+    "file_etag_property": false,
+    "file_version_property": "Output-only monotonically increasing number",
+    "update_version_precondition_parameter": false,
+    "interpretation": "This supports the observed absence of a documented version compare-and-set primitive; it does not by itself prove how every HTTP intermediary handles If-Match."
+  },
+  "third_run_registration": {
+    "registered_before_run": true,
+    "registered_at": "2026-09-20T00:11:07+02:00",
+    "source_revision_base": "1fa3f271a2583efb25a87f52c7380db9d8bc0f5f",
+    "candidate_change": "Every nonempty resumable session PUT declares Content-Type application/octet-stream. Bodyless upload-status queries remain unchanged.",
+    "negative_control": "The exact prepared-ID resumable create test fails at the required-header assertion when only the PUT Content-Type is removed and passes when restored.",
+    "candidate_validation": "Full scripts/check.sh passed with 669 Rust test executions, every kernel mount group, script tests, the acceptance ledger and docs.",
+    "prediction": "Folder creation, multipart upload/readback and empty-file create/readback will pass. The next metadata capability probe is still expected to report NoStrongEtag and stop before rename, replacement or move.",
+    "endpoint": "Both created files are durably acknowledged and independently read back, followed either by a safely rejected stale metadata probe or an explicit no-strong-ETag stop. Any different boundary is recorded before another run.",
+    "decision_rule": "A missing strong ETag leaves conditional Google replacement, rename, move and trash unavailable. A stale request accepted by Google is a hard failure. Only a real strong ETag plus stale rejection permits the validator to continue to the next conditional operation.",
+    "result": {
+      "status": "folder creation passed; multipart receipt again rejected on Drive-sniffed MIME",
+      "installed_revision": "fe36542225a84a3bfcda48a1c5ac671b12692601",
+      "ci_run": 35472916479,
+      "ci_jobs": "seven of seven passed",
+      "installed_binary_sha256": "35672bdee992c5c085d4a9476adee449a22a295d11d439233e306c841254d42e",
+      "folder_state": "applied",
+      "multipart_journal": "verify_required after eight failed attempts; the session checkpoint retained offset 8388608 and a final 13-byte range",
+      "exact_metadata": {
+        "identity_matches": true,
+        "name_matches": true,
+        "parent_matches": true,
+        "size": 8388621,
+        "version_present": true,
+        "strong_etag_header_present": false,
+        "trashed": false,
+        "reported_mime_type": "video/mp2t"
+      },
+      "exact_content": {
+        "bytes": 8388621,
+        "sha256_matches": true
+      },
+      "diagnosis": "Drive content-sniffed the recognizable repeated-0x47 payload as MPEG transport stream data even though the create metadata, resumable initializer and every nonempty session PUT declared application/octet-stream. Exact identity, destination, size, version and bytes all match; requiring the generic MIME value is therefore not a valid create receipt condition.",
+      "empty_file_started": false,
+      "later_namespace_mutations_started": 0,
+      "deletes_or_trash_requests": 0,
+      "cloud_artifacts": "The run-owned folder and byte-correct multipart file remain for review.",
+      "private_evidence": ".local-state/google-write-validation/state/write-checks/09358a0e-1c01-4b54-9eaa-45727cc03fcf"
+    }
+  },
+  "official_upload_guide_observation": {
+    "url": "https://developers.google.com/workspace/drive/api/guides/manage-uploads",
+    "observation": "The official guide says Drive attempts to detect and automatically set uploaded MIME types, using application/octet-stream only when it cannot detect one.",
+    "interpretation": "A regular sniffed MIME type is metadata, not evidence of different bytes. Google-native MIME types remain rejected because they would indicate conversion."
+  },
+  "fourth_run_registration": {
+    "registered_before_run": true,
+    "registered_at": "2026-09-20T00:45:21+02:00",
+    "source_revision_base": "fe36542225a84a3bfcda48a1c5ac671b12692601",
+    "candidate_change": "A create receipt accepts Drive-sniffed ordinary file MIME types while still rejecting every application/vnd.google-apps.* type. Exact prepared ID, destination, name, size, regular file kind and monotonic content version remain mandatory; the live validator independently downloads and hashes the result.",
+    "negative_control": "Changing only the exact prepared-ID resumable fixture response to the observed video/mp2t makes the prior receipt rule fail with Uncertain. The candidate passes that fixture, and a separate test rejects a Google-native document receipt.",
+    "candidate_validation": "Full scripts/check.sh passed with 670 Rust test executions, every kernel mount group, script tests, the acceptance ledger and docs. The focused exact receipt test first failed under the prior MIME equality rule and passed after the candidate change.",
+    "prediction": "Folder creation, multipart upload/readback and empty-file create/readback will pass. The metadata capability probe is expected to report NoStrongEtag and stop before rename, replacement or move.",
+    "endpoint": "Both created files are durably acknowledged and independently read back, followed either by a safely rejected stale metadata probe or an explicit no-strong-ETag stop. Any different boundary is recorded before another run.",
+    "decision_rule": "A missing strong ETag leaves conditional Google replacement, rename, move and trash unavailable. A stale request accepted by Google is a hard failure. Only a real strong ETag plus stale rejection permits the validator to continue to the next conditional operation.",
+    "result": {
+      "status": "folder and multipart create passed; immediate independent readback observed a provider version change",
+      "installed_revision": "49ab6913cee126a046f88af22a5adf2f67e665da",
+      "ci_run": 35474486057,
+      "ci_jobs": "seven of seven passed",
+      "installed_binary_sha256": "f3a8b0f9e65114c26df1e5e5f2019a1df945bb5b14a072d41dc1ddcbdd8f751f",
+      "folder_state": "applied",
+      "multipart_state": "uploaded",
+      "receipt_version": "1",
+      "readback_result": "The version-bound read adapter returned VersionChanged and required the validator to reopen rather than combine versions.",
+      "stable_direct_observation": {
+        "versions": [
+          "6",
+          "6",
+          "6"
+        ],
+        "identity_matches": true,
+        "name_matches": true,
+        "parent_matches": true,
+        "size": 8388621,
+        "strong_etag_header_present": false,
+        "reported_mime_type": "video/mp2t",
+        "sha256_matches": true
+      },
+      "diagnosis": "Drive advanced the newly uploaded item from receipt version 1 to stable version 6 during post-upload processing. The read adapter correctly rejected the stale node. A validation readback must reopen and restart its digest on this explicit signal.",
+      "empty_file_started": false,
+      "later_namespace_mutations_started": 0,
+      "deletes_or_trash_requests": 0,
+      "cloud_artifacts": "The run-owned folder and byte-correct multipart file remain for review.",
+      "private_evidence": ".local-state/google-write-validation/state/write-checks/05a9ceef-2a11-4e51-bae0-8bfd0c7a0773"
+    }
+  },
+  "fifth_run_registration": {
+    "registered_before_run": true,
+    "registered_at": "2026-09-20T01:11:57+02:00",
+    "source_revision_base": "49ab6913cee126a046f88af22a5adf2f67e665da",
+    "candidate_change": "The live validator handles only ProviderError::VersionChanged by reopening the exact created item and restarting the full SHA-256 readback, bounded to eight attempts. Identity and size are rechecked on every attempt; every other provider error remains fatal. No retry mutates cloud state.",
+    "negative_control": "A deterministic provider-neutral read fixture returns VersionChanged once and then stable bytes. The validator test fails before the bounded reopen loop and passes after it, with two reads.",
+    "candidate_validation": "Full scripts/check.sh passed with 671 Rust test executions, every kernel mount group, script tests, the acceptance ledger and docs. The focused retry test first failed without the bounded reopen loop and passed after it.",
+    "prediction": "Folder creation, multipart upload/readback and empty-file create/readback will pass after any short post-upload version settling. The metadata capability probe is expected to report NoStrongEtag and stop before rename, replacement or move.",
+    "endpoint": "Both created files are durably acknowledged and independently read back, followed either by a safely rejected stale metadata probe or an explicit no-strong-ETag stop. Any different boundary is recorded before another run.",
+    "decision_rule": "A missing strong ETag leaves conditional Google replacement, rename, move and trash unavailable. A stale request accepted by Google is a hard failure. Only a real strong ETag plus stale rejection permits the validator to continue to the next conditional operation.",
+    "result": {
+      "status": "registered endpoint reached; creates passed and conditional work stopped at NoStrongEtag",
+      "installed_revision": "1d7724ff8e08cc18faf00151c846e9fbf3700029",
+      "ci_run": 35475735991,
+      "ci_jobs": "seven of seven passed",
+      "installed_binary_sha256": "571f79066fad58b1c8a12a938722c49cfc3571a9f00d98f292a0d3f2d516b845",
+      "folder_state": "applied",
+      "multipart_state": "uploaded",
+      "multipart_bytes": 8388621,
+      "multipart_readback_sha256_matches": true,
+      "empty_state": "uploaded",
+      "empty_bytes": 0,
+      "empty_readback_sha256_matches": true,
+      "metadata_precondition_probe": {
+        "outcome": "no_strong_etag",
+        "version": "4"
+      },
+      "conditional_mutations_started": 0,
+      "deletes_or_trash_requests": 0,
+      "cloud_artifacts": "The run-owned folder, multipart file and empty file remain for review.",
+      "private_evidence": ".local-state/google-write-validation/state/write-checks/5108ef6b-3dcf-48de-a96b-e3c5a6a628bb"
+    }
+  },
+  "conclusion": {
+    "create_capability": "Prepared folder creation and durable resumable/empty file creation completed through the provider-neutral workers on the authorized account, with exact identity and SHA-256 readback.",
+    "conditional_capability": "Unavailable under the current safety contract. Drive returned no strong HTTP ETag and its documented monotonic version has no compare-and-set parameter for files.update.",
+    "production_decision": "Keep every ordinary Google mount read-only. Do not expose replacement, rename, move, trash or delete until a real atomic stale-write rejection primitive is documented and validated.",
+    "reliability_limit": "This bounded single-account characterization is not a claim of general Google provider reliability."
+  }
+}

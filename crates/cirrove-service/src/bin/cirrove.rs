@@ -110,6 +110,17 @@ struct Args {
 }
 #[derive(Subcommand)]
 enum Command {
+    /// Compare bounded Google adapter reads with the mount and classify shortcuts (GET-only).
+    ValidateGoogleRead {
+        #[arg(long)]
+        label: String,
+        #[arg(long, default_value = "3")]
+        files: usize,
+        #[arg(long, default_value = "32")]
+        shortcuts: usize,
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
+    },
     /// Observe download validators for one file; GET-only, no mount or cloud writes.
     InspectOnedriveRead {
         #[arg(long)]
@@ -260,6 +271,14 @@ enum Command {
         #[arg(long)]
         state_dir: PathBuf,
     },
+    /// Developer-only Google creates and stale-ETag probe in a new test folder.
+    ValidateGoogleCreate {
+        #[arg(long)]
+        label: String,
+        /// Separate account state created with connect-google --write-access.
+        #[arg(long)]
+        state_dir: PathBuf,
+    },
     /// Sign in again to the same account, preserving its selected drive and cache.
     Reauth {
         label: String,
@@ -289,6 +308,22 @@ enum Command {
         #[arg(long)]
         state_dir: Option<PathBuf>,
         /// Opt in to write consent for isolated developer tests; mounts stay read-only.
+        #[arg(long, requires = "state_dir")]
+        write_access: bool,
+    },
+    /// Connect Google My Drive using your Desktop OAuth client JSON.
+    ConnectGoogle {
+        #[arg(long)]
+        label: String,
+        /// Private (chmod 600) client JSON downloaded from Google Cloud Console.
+        #[arg(long)]
+        client_json: PathBuf,
+        #[arg(long)]
+        mount_path: PathBuf,
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
+        /// Opt in to `drive.file` consent for an isolated create validator.
+        /// The connection is saved disabled and cannot become a writable mount.
         #[arg(long, requires = "state_dir")]
         write_access: bool,
     },
@@ -533,6 +568,15 @@ async fn main() -> Result<()> {
     let command = Args::parse().command;
     let validate_session = matches!(&command, Command::ValidateOnedriveReadSession { .. });
     match command {
+        Command::ValidateGoogleRead {
+            label,
+            files,
+            shortcuts,
+            state_dir: state,
+        } => {
+            let state = state.map(Ok).unwrap_or_else(state_dir)?;
+            cirrove_service::validation::google_read(&state, &label, files, shortcuts).await?;
+        }
         Command::InspectOnedriveRead {
             label,
             item,
@@ -553,7 +597,7 @@ async fn main() -> Result<()> {
                 .iter()
                 .find(|a| a.label == label)
                 .context("configured account not found")?;
-            let provider = cirrove_service::accounts::provider(account)?;
+            let provider = cirrove_service::accounts::onedrive_provider(account)?;
             let scope = cirrove_core::Scope {
                 account: account.id.clone(),
                 provider: cirrove_onedrive::PROVIDER_ID.into(),
@@ -649,6 +693,9 @@ async fn main() -> Result<()> {
         Command::ValidateOnedriveUploads { label, state_dir } => {
             cirrove_service::validation::onedrive_uploads(&state_dir, &label).await?;
         }
+        Command::ValidateGoogleCreate { label, state_dir } => {
+            cirrove_service::validation::google_create(&state_dir, &label).await?;
+        }
         Command::Reauth {
             label,
             state_dir: state,
@@ -682,7 +729,7 @@ async fn main() -> Result<()> {
             cirrove_service::accounts::connect(
                 state,
                 label,
-                cirrove_auth::AppRegistration {
+                cirrove_auth::AppRegistration::Microsoft {
                     client_id,
                     authority: tenant,
                 },
@@ -695,6 +742,53 @@ async fn main() -> Result<()> {
                 },
             )
             .await?;
+        }
+        Command::ConnectGoogle {
+            label,
+            client_json,
+            mount_path,
+            state_dir: state,
+            write_access,
+        } => {
+            let state = state.map(Ok).unwrap_or_else(state_dir)?;
+            let access = if write_access {
+                cirrove_auth::AccessMode::ReadWrite
+            } else {
+                cirrove_auth::AccessMode::ReadOnly
+            };
+            let pending = cirrove_service::accounts::begin_connect_google_with_access(
+                state,
+                label,
+                client_json,
+                mount_path,
+                access,
+            )
+            .await?;
+            println!(
+                "Signed in: {} ({})",
+                pending.identity().display_name,
+                pending.identity().username
+            );
+            let id = pending
+                .drives()
+                .first()
+                .context("Google returned no My Drive")?
+                .id
+                .clone();
+            let account = pending.finish(&id).await?;
+            if write_access {
+                println!(
+                    "Saved disabled Google create-validation connection {} at {}; no mount was started.",
+                    account.label,
+                    account.mount_path.display()
+                );
+            } else {
+                println!(
+                    "Connected {} read-only at {}",
+                    account.label,
+                    account.mount_path.display()
+                );
+            }
         }
         Command::Accounts { state_dir: state } => {
             let state = match state {

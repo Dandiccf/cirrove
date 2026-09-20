@@ -1,4 +1,6 @@
 //! Provider-neutral metadata contracts. Paths are presentation; IDs are identity.
+pub mod auth;
+pub use auth::{StaticToken, TokenSource};
 pub mod mutation;
 pub mod notifications;
 pub mod reads;
@@ -407,4 +409,16 @@ mod tests {
             Err(ProviderError::Cancelled)
         ));
     }
+}
+
+/// A saved provider collection. The legacy JSON spelling remains readable by
+/// existing OneDrive settings; the type itself belongs to no adapter.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CollectionInfo {
+    pub id: String,
+    pub name: String,
+    pub drive_type: String,
+    #[serde(default)]
+    pub web_url: String,
 }

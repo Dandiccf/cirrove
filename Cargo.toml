@@ -6,6 +6,7 @@ default-members = [
     "crates/cirrove-auth",
     "crates/cirrove-core",
     "crates/cirrove-onedrive",
+    "crates/cirrove-googledrive",
     "crates/cirrove-service",
     "crates/cirrove-store",
 ]
@@ -22,6 +23,7 @@ repository = "https://github.com/Dandiccf/cirrove"
 cirrove-allocator = { path = "crates/cirrove-allocator" }
 cirrove-core = { path = "crates/cirrove-core" }
 cirrove-store = { path = "crates/cirrove-store" }
+cirrove-googledrive = { path = "crates/cirrove-googledrive" }
 cirrove-onedrive = { path = "crates/cirrove-onedrive" }
 cirrove-auth = { path = "crates/cirrove-auth" }
 cirrove-service = { path = "crates/cirrove-service" }

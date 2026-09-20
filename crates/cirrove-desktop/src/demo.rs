@@ -11,6 +11,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
         .map(|a| AccountStatus {
             wastebasket: None,
             account_id: a.id.clone(),
+            provider: a.registration.provider_id().into(),
             drive_id: a.drive.id.clone(),
             root_id: a.root_id.clone(),
             enabled: a.enabled,

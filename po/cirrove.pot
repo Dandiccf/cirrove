@@ -921,3 +921,36 @@ msgid ""
 "computer or from the cloud. Deleting it the ordinary way would be "
 "recoverable."
 msgstr ""
+
+msgid "Provider"
+msgstr ""
+
+msgid "Google Drive (read-only preview)"
+msgstr ""
+
+msgid "Google Desktop OAuth client"
+msgstr ""
+
+msgid "Choose the private client JSON from Google Cloud Console"
+msgstr ""
+
+msgid "Sign in with Google"
+msgstr ""
+
+msgid "Sign in with Microsoft"
+msgstr ""
+
+msgid "Google sign-in"
+msgstr ""
+
+msgid "Google Desktop OAuth client JSON"
+msgstr ""
+
+msgid "My Drive files open read-only. Google documents appear as browser links; exports and shared drives are not yet supported."
+msgstr ""
+
+msgid "Your browser opens the Google sign-in. Choose the account there; this window continues when it is done."
+msgstr ""
+
+msgid "Your browser opens the Microsoft sign-in. Choose the account there; this window continues when it is done."
+msgstr ""

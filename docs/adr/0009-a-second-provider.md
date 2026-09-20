@@ -1,9 +1,108 @@
 # 0009: What a second provider costs, and what to change before writing one
 
-Status: decision, not yet code, except for two things that were fixed on the
-spot because they were wrong today rather than wrong later — the provider id is
-now one constant instead of a literal spelled out at each site, and the
-diagnostics bundle no longer leaks a drive id through journal text.
+Status: accepted; read-only Google preview implemented and initially live-checked, with the concrete
+boundaries and deviations from the original sequence recorded below.
+
+## Implementation update, 2026-09-19
+
+Google Drive is the second provider, initially read-only. The original survey and
+proposed sequence below remain as their historical rationale. The concrete first
+implementation uses a tagged `AppRegistration` inside the account rather than a
+second, independently mutable account-provider field: `registration.provider` is
+`microsoft` or `google`, and maps to the existing runtime scope names `onedrive`
+and `googledrive`. Settings are version 2 with a side-effect-free version-1 reader.
+
+`TokenSource` and the collection descriptor now live in core; the old OneDrive
+names are re-exports for callers. Auth does not depend on OneDrive. The existing
+PKCE/callback/vault/refresh implementation is shared, with Google scopes, signed
+identity verification and user-info binding isolated in `auth::google`. Microsoft
+logic stays in place while both paths are validated; this is an incremental
+extraction, not a new generic OAuth framework.
+
+Account construction returns `Arc<dyn ReadProvider>`. Microsoft write factories
+and validation verbs explicitly reject Google accounts. Status gains a provider
+field and preserves the old field names and protocol number, so this increment
+does not require an otherwise unrelated IPC rename. Google has no Graph counters.
+The planned compare-and-set capability work is deferred until there is an actual
+Google write implementation; the read-only adapter does not weaken any existing
+write precondition.
+
+A later create-side investigation found one contract change that has a concrete
+Google use before a writer exists. Drive can pre-generate a file ID for safe
+retries, but the worker previously had no way to persist that identity before the
+request that starts a resumable session. `UploadStep::Prepared` now creates that
+durability boundary in the credential vault. Recovery inspection reuses it, and
+reconciliation receives the last saved checkpoint so it can address the exact
+provider identity instead of a non-unique Google sibling name.
+
+The adapter now has a create transport and a validation-only replacement transport
+using that boundary. Create generates an ID; replacement durably binds the exact
+existing ID and strong ETag. Both start or replace a resumable session without changing the ID, follow the
+server's exact committed offset and verifies uncertain completion by streaming
+the exact object's SHA-256. Only the configured upload origin and path can enter
+a session checkpoint. Synthetic tests cover the ordering, lost sessions, partial
+offsets, receipts and content verification. A separate disabled connection may
+now request `drive.file` beside the existing read-only scope for one explicit
+create validator. It cannot be enabled or selected for a writable mount. The
+validator now creates all of its test folders through the
+shared mutation worker. The worker pre-generates and journals each exact Google
+identity before POST, so restart reconciliation never adopts by sibling name.
+It then creates multipart and empty files through the shared transfer worker. Its
+direct capability
+probes cover current and stale strong HTTP ETags for metadata, small media
+replacement and aligned resumable replacement on its own created file. Synthetic
+cases distinguish rejection when a resumable session starts or finishes, an
+ignored stale precondition and the absence of a strong ETag. The API reference
+does not document this behavior. The adapter now implements shared-worker
+replacement behind the disabled validator and tests its durable preparation,
+conditional session, conflict and reconciliation behavior synthetically; the
+validator has not been run against Google. A validator-only namespace adapter
+also sends prepared-ID folder creation and exact-ID conditional rename and move
+through the shared mutation worker and reconciles by immutable identity. Its
+preflight destination scan does not make Google's duplicate-name semantics atomic
+for either create or move, so normal mounts cannot select it. Exact-ID conditional
+regular-file trash is also synthetic only and treats a
+404 as indeterminate rather than proof of success. Duplicate-name collision
+semantics and conditional replacement stability remain unresolved. The same
+adapter can conditionally relocate a folder and trash an exact folder after an
+empty child listing. That list-then-PATCH sequence is deliberately validation
+only because another actor can add a child in its non-atomic window.
+The not-yet-run live validator now uses that exact folder snapshot to move a
+run-owned nonempty folder, verifies its created child remains addressable and
+requires reuse of the stale folder snapshot to conflict.
+Synthetic recovery also recognizes the moved folder by immutable identity after
+a lost response, and the empty-folder guard follows every paginated child page
+before it can issue the trash PATCH.
+
+The first authorized live write attempt found that Drive v3 returned no strong
+HTTP ETag on either the prepared folder POST or its exact-ID inspection. The
+shared receipt contract had unnecessarily required such a future-edit token for
+creation itself, even though the exact ID, parent, name and kind already confirm
+that result. Create-folder receipts may now omit an ETag; relocate and remove
+requests still require a real strong provider token and never substitute Drive's
+numeric file version. The first run stopped at that boundary before any file
+upload or further namespace mutation.
+
+The registered rerun confirmed that correction: folder creation reached
+`Applied`. Its resumable file then committed every byte under the prepared ID,
+but Google classified the repeated `0x47` validation payload as `video/mp2t`.
+Although both the create metadata and session initializer declared
+`application/octet-stream`, each nonempty session PUT omitted its own
+`Content-Type`; the adapter correctly refused the mismatched receipt. Nonempty
+resumable PUTs now carry that media type explicitly. Session-status requests
+remain bodyless and unchanged.
+
+The second adapter found real differences at the boundary: initial listing and
+change tracking are separate Google endpoints; sibling names are not unique;
+Google-native documents require an explicit export or link representation. See
+[the implemented policies and validation](../google-drive.md).
+
+The optional read-session contract now has its second implementation too. Google
+does not provide Graph's expiring download URL plus strong ETag combination, so
+its session keeps the stable provider identity and streams a bounded 8 MiB window
+between metadata/version checks. The shared cache publishes the staging file only
+after the final version still agrees. This reuses the contract without pretending
+the two providers have the same transport primitive.
 
 ## What prompted it
 
@@ -51,10 +150,12 @@ deliberate bump with a read-old path to write.
 **One contract-level assumption is real.** `UploadIntent::Replace` requires a
 non-empty ETag precondition and `MutationRequest::validate` enforces it. That
 exists because Graph offers `If-Match` and using it is what makes a replace
-safe. Drive v3 has no equivalent on `files.update`; an adapter would have to
-either fake a precondition it cannot honour, or take a weaker path. This is the
-only place where the write contract encodes a Microsoft capability as a
-requirement rather than as a capability.
+safe. The Drive v3 `files.update` reference documents no equivalent. An isolated
+validator now exercises the response ETag as an undocumented `If-Match` value for
+replacement and relocation, but that cannot turn live observations into a stable
+provider guarantee or supply Google's missing atomic destination-collision rule.
+This is the only place where the write contract encodes a Microsoft capability as
+a requirement rather than as a capability.
 
 ## Decision
 

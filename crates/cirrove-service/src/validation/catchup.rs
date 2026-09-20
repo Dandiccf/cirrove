@@ -353,7 +353,7 @@ pub async fn onedrive_catchup(state: &Path, label: &str) -> Result<()> {
         "Creating one new fixture folder; private evidence: {}",
         directory.display()
     );
-    let graph = accounts::provider(&account)?;
+    let graph = accounts::onedrive_provider(&account)?;
     let cancel = CancellationToken::new();
     let _cancel_on_return = cancel.clone().drop_guard();
     let root = graph

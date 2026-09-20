@@ -2609,3 +2609,160 @@ non-deterministic in the build itself. What would close it is
 same makepkg options on both sides. Recorded as a known limit of 0.1.0 rather
 than claimed: **a lockfile is not reproducibility, and neither is a matching
 compiler version.**
+
+## A second provider through the same engine, 2026-09-19
+
+The read-only Google Drive implementation and exact acceptance boundary are in
+[Google Drive](google-drive.md#validation-and-boundary-findings-2026-09-19).
+Synthetic HTTP scenarios exercise both real adapters in the same metadata store
+and content cache with deliberately identical IDs and version tags. The Google
+kernel scenario reads duplicate filenames, rejects a write open and remounts
+cached bytes offline with stable inodes. No Google credentials or cloud mutations
+participated. This is proof of shared plumbing under those scenarios, not real
+Google-service reliability or completion of shared-drive/document-export scope.
+
+The adapter also implements the shared bounded read-session path. Its synthetic
+transport test streams a window and checks the Google version again after the
+last byte; the unchanged arm succeeds and the changed arm returns
+`VersionChanged`, leaving publication to the cache only on success.
+
+A separate synthetic create transport pre-generates and persists the destination
+ID before mutation, validates resumable offsets and receipts, rejects foreign
+session URLs, follows Google's non-throttle `4xx` restart rule and hashes the
+exact remote object during reconciliation. Negative controls show that the worker
+test fails without pre-session persistence, the restart test fails with the old
+narrow status mapping and the range test fails if a reply may advance beyond the
+bytes submitted. An explicit disabled-account validator can now request
+`drive.file`, create and persist an isolated folder identity through the shared
+mutation worker, create a
+multipart file and an empty file through the shared worker, then read each exact
+identity back and compare SHA-256. It now also persists an exact plan for the
+multipart file, applies a metadata rename with the current strong HTTP ETag and
+reuses that stale value for a second rename. It repeats the sequence with two
+small content payloads and reads the winner back by exact ID and SHA-256. It then
+does the same with aligned 8 MiB-plus resumable payloads. Three synthetic arms
+for each metadata and small-content path distinguish a 412 rejection, an ignored
+stale header and a metadata response without a strong ETag; the last arms perform
+no PATCH. Four resumable arms cover rejection when the session starts, rejection
+when its final range commits, an accepted stale replacement and no session when
+there is no strong ETag. Five adapter cases then exercise `UploadIntent::Replace`
+through the durable-worker contract: target preparation before mutation,
+conditional session creation, pre-session conflict, finalization conflict and
+exact-hash reconciliation after a lost success, while invalid preconditions and
+empty replacements issue no network request. The live validator follows its
+capability probes with one worker replacement and a stale worker conflict.
+It then creates an exact-ID destination folder through the same mutation worker
+and routes a rename and move through it before requiring a stale relocation to
+conflict. It also creates an exact-ID archive folder, snapshots the nested
+folder with a strong HTTP ETag, moves that nonempty folder into the archive,
+checks the created child by exact identity and requires reuse of the stale folder
+snapshot to conflict. The validator-only adapter scans its private destination for a
+case-folded collision but does not claim Google's missing atomic collision rule.
+Session URLs and ETags do not enter the evidence log.
+The generic mutation worker stores a provider-prepared item identity before the
+first mutation. A synthetic restart test removes the worker, reopens the journal
+and reconciles the exact prepared folder without generating a second identity.
+Removing only that journal write made the test fail because the durable record
+contained no prepared item; restoration passed.
+The resulting complete `scripts/check.sh` passed with 662 Rust test executions,
+all kernel mount groups, script tests, the acceptance ledger and docs. No Google
+write grant or live mutation participated.
+The validator has not been run, so no
+Google write scope or mutation participated in the evidence recorded here; the
+writable namespace and replacement rules remain open.
+
+Each successful metadata and small-content precondition test was also run once
+with only its `If-Match` header removed. Exactly one test executed in each run
+and failed at the synthetic server's required-header assertion. Restoring the
+header made each exact test pass. Removing only `If-Match` from the resumable
+session initializer likewise made its exact success test fail at the server's
+required-header assertion; restoring it passed. Removing `If-Match` from the
+shared-worker session initializer made its exact replacement test fail at the
+same boundary and restoration passed. Removing `If-Match` from the exact
+validation-move PATCH likewise made its single positive test fail at the server's
+required-header assertion; restoration passed. Six mutation-adapter cases also
+cover a changed source before destination lookup, an occupied destination,
+exact-ID applied and uncommitted reconciliation, and a weak ETag rejected before
+network access. These controls show that the tests depend on the outgoing
+preconditions rather than scripted status alone.
+
+Three additional validation-adapter cases exercise recoverable file removal:
+the exact item is patched to `trashed=true` with its strong ETag, reconciliation
+accepts the exact trashed identity, and a 404 remains indeterminate. Removing
+only the trash PATCH's `If-Match` header made its single positive test fail at
+the server assertion; restoration passed. The live validator does not invoke
+this path, so no delete or trash operation is authorized or recorded here.
+
+Four further synthetic cases exercise folder namespace operations through the
+same adapter: exact-ID conditional relocation, refusal to trash a folder whose
+child listing is nonempty, conditional trash after an empty listing and
+reconciliation of the exact trashed folder. The relocate and empty-folder tests
+each failed when only the outgoing `If-Match` was removed. The nonempty case
+failed when only the child scan was bypassed. Restoration passed all three
+controls. This does not establish atomic `rmdir`: a child can appear after the
+listing and before Google's PATCH. The live validator does not invoke folder
+trash, and no cloud mutation participated. The complete `scripts/check.sh`
+passed with 666 Rust test executions, all kernel mount groups, script tests, the
+acceptance ledger and docs.
+
+The not-yet-run live validator now also obtains an exact strong-ETag snapshot of
+its run-owned nonempty folder before relocating it through the shared worker. A
+new synthetic HTTP case failed when only that response ETag was removed and
+passed after restoration. The complete `scripts/check.sh` then passed with 667
+Rust test executions, all kernel mount groups, script tests, the acceptance
+ledger and docs. No Google mutation participated.
+
+Two additional synthetic cases cover namespace recovery and the destructive
+edge: a moved folder reconciles by exact identity after a lost response, and a
+child present only on the second listing page still blocks folder trash.
+Removing folder decoding made the first exact case fail; making the guard ignore
+page two made the second exact case attempt PATCH and fail. Restoration passed
+both controls. The complete `scripts/check.sh` then passed with 669 Rust test
+executions, all kernel mount groups, script tests, the acceptance ledger and
+docs. No Google mutation participated.
+
+The first authorized live write-validation attempt created its pre-generated
+folder identity, then found no strong HTTP ETag on either the POST response or
+the exact-ID reconciliation GET. The mutation worker retained `VerifyRequired`
+and the command stopped at its 180-second deadline after seven bounded attempts;
+no file upload or later mutation began. The run-owned folder and private journal
+were retained. Creation is already idempotent through the persisted provider ID,
+so the candidate correction lets a create-folder receipt omit a future-edit
+ETag while keeping strong ETags mandatory for relocation and removal. A fixture
+matching the two live no-ETag responses fails under the old rule and passes with
+the correction. The next live run was registered before starting it in
+`docs/benchmarks/google-drive-write-validation.json`. The complete
+`scripts/check.sh` passed with 669 Rust test executions, all kernel mount groups,
+script tests, the acceptance ledger and docs.
+
+The registered rerun confirmed the folder receipt correction and reached
+`Applied`. Its 8,388,621-byte resumable file was also present at the exact
+prepared ID with the requested name, parent, size and SHA-256, but Google had
+classified the repeated `0x47` payload as `video/mp2t`. The session initializer
+declared `application/octet-stream`; each content PUT lacked its own
+`Content-Type`. The adapter refused the mismatched receipt, retained the local
+bytes in `VerifyRequired` through eight bounded attempts and stopped at 300
+seconds before the empty file or any later mutation. Adding the media type to
+every nonempty session PUT makes the exact create test pass; removing only that
+header makes it fail at the synthetic server. The run-owned cloud and local
+artifacts remain. The third run is registered before execution in
+`docs/benchmarks/google-drive-write-validation.json`. The complete
+`scripts/check.sh` passed with 669 Rust test executions, all kernel mount groups,
+script tests, the acceptance ledger and docs.
+
+The focused OAuth test was also run with `drive.file` removed from the requested
+write scopes and failed because the grant no longer satisfied `ReadWrite`;
+restoring the scope passed. The prepared-folder test was run with the create body
+using a different ID and failed on the exact JSON request before the response
+could be accepted; restoring the generated ID passed. These negative controls
+exercise the two new safety boundaries rather than only their success paths.
+
+A subsequent [first real-account connection](google-drive.md#first-real-account-connection-2026-09-19)
+completed after correcting the callback's Microsoft-only host check. The new
+regression was shown to fail without the fix. The account presented 1,350 entries
+on a read-only mount and served three small files and a browser link. A later
+GET-only validator matched three non-link files (925 bytes) between direct adapter
+reads and the mount. Its only shortcut target returned not found directly from
+Google, so the remaining `ENOENT` is a dangling target rather than an unexplained
+index omission. Comparison with a separate Google client, long sessions and live
+offline/restart acceptance remain open.

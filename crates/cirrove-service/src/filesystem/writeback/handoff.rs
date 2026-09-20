@@ -285,7 +285,7 @@ mod tests {
             let account = crate::accounts::Account {
                 id: "handoff".into(),
                 label: "fixture".into(),
-                registration: AppRegistration {
+                registration: AppRegistration::Microsoft {
                     client_id: "00000000-0000-4000-8000-000000000001".into(),
                     authority: "common".into(),
                 },

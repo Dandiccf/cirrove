@@ -22,6 +22,9 @@ pub struct AccountStatus {
     /// Stable settings identity for desktop actions. Older daemon responses omit it.
     #[serde(default)]
     pub account_id: String,
+    /// Provider discriminator; absent in older status replies.
+    #[serde(default)]
+    pub provider: String,
     #[serde(default)]
     pub drive_id: String,
     /// A wastebasket a file manager left in the drive root before the mount
@@ -545,8 +548,10 @@ impl Manager {
         Self::start_with_providers(
             state,
             cancel,
-            Arc::new(|account| Ok(provider(account)?)),
-            Some(Arc::new(|account| Ok(provider(account)?))),
+            Arc::new(provider),
+            Some(Arc::new(|account| {
+                Ok(crate::accounts::onedrive_provider(account)?)
+            })),
         )
     }
     /// The same account lifecycle is used for production and deterministic providers.
@@ -669,6 +674,7 @@ impl Manager {
                         let mut status = AccountStatus {
                             wastebasket: None,
                             account_id: account.id.clone(),
+                            provider: account.registration.provider_id().into(),
                             drive_id: account.drive.id.clone(),
                             root_id: account.root_id.clone(),
                             enabled: account.enabled,

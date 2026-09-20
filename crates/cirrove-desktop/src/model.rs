@@ -125,6 +125,7 @@ pub struct AccountCard {
     pub failed_uploads: u64,
     /// Whether the grant allows changes; a read-only drive shows as such.
     pub writable: bool,
+    pub supports_writes: bool,
     /// The app registration this account signed in through, so connecting a
     /// second drive can start from it rather than from an empty field.
     pub client_id: String,
@@ -439,6 +440,12 @@ impl Overview {
                     .and_then(|s| {
                         s.accounts.iter().find(|s| {
                             s.account_id == account.id
+                                && (s.provider == account.registration.provider_id()
+                                    || s.provider.is_empty()
+                                        && matches!(
+                                            account.registration,
+                                            cirrove_auth::AppRegistration::Microsoft { .. }
+                                        ))
                                 && s.drive_id == account.drive.id
                                 && s.root_id == account.root_id
                                 && s.mount_path == account.mount_path
@@ -469,7 +476,18 @@ impl Overview {
                 AccountCard {
                     id: account.id.clone(),
                     label: account.label.clone(),
-                    title: format!("OneDrive · {}", account.drive.name),
+                    title: format!(
+                        "{} · {}",
+                        if matches!(
+                            account.registration,
+                            cirrove_auth::AppRegistration::Google { .. }
+                        ) {
+                            "Google Drive"
+                        } else {
+                            "OneDrive"
+                        },
+                        account.drive.name
+                    ),
                     username: account.identity.username.clone(),
                     tenant: account.identity.tenant_id.clone(),
                     mount_path: account.mount_path.clone(),
@@ -534,8 +552,12 @@ impl Overview {
                     wastebasket: status.and_then(|s| s.wastebasket.clone()),
                     failed_uploads: status.map_or(0, |s| s.failed_uploads),
                     writable: account.access == cirrove_auth::AccessMode::ReadWrite,
-                    client_id: account.registration.client_id.clone(),
-                    authority: account.registration.authority.clone(),
+                    supports_writes: matches!(
+                        account.registration,
+                        cirrove_auth::AppRegistration::Microsoft { .. }
+                    ),
+                    client_id: account.registration.client_id().to_owned(),
+                    authority: account.registration.authority().to_owned(),
                     kept_offline: status
                         .map(|s| s.pins.iter().map(KeptOffline::from_status).collect())
                         .unwrap_or_default(),

@@ -1,7 +1,9 @@
-//! Explicit developer-only cloud mutation checks. Never called by the daemon.
-//! Every target is created by this run; no existing document is accepted as input.
+//! Explicit developer-only cloud checks. Never called by the daemon. Mutation
+//! checks create every target they change; read checks emit only aggregate data.
 mod catchup;
 mod freshness;
+mod google_read;
+mod google_write;
 mod namespace;
 mod navigation;
 mod notifications;
@@ -25,6 +27,8 @@ use cirrove_core::{
 };
 use cirrove_onedrive::OneDrive;
 pub use freshness::onedrive_freshness;
+pub use google_read::google_read;
+pub use google_write::google_create;
 pub use namespace::onedrive_mutations;
 pub use navigation::onedrive_navigation;
 pub use notifications::onedrive_notifications;
@@ -130,9 +134,10 @@ impl UploadProvider for CompetingEdit {
     async fn reconcile_upload(
         &self,
         r: &UploadRequest,
+        s: Option<&SecretString>,
         c: &CancellationToken,
     ) -> cirrove_core::upload::Result<Reconciliation> {
-        self.inner.reconcile_upload(r, c).await
+        self.inner.reconcile_upload(r, s, c).await
     }
 }
 
@@ -200,7 +205,7 @@ async fn verify(
         sha256: record.sha256.clone(),
     };
     if !matches!(
-        provider.reconcile_upload(&request, cancel).await?,
+        provider.reconcile_upload(&request, None, cancel).await?,
         Reconciliation::Committed(_)
     ) {
         bail!("uploaded content did not pass independent readback");
@@ -275,7 +280,7 @@ pub async fn onedrive_uploads(state: &Path, label: &str) -> Result<()> {
     .sync_all()?;
     println!("Checking uploads only in the new folder {name}.");
     println!("Private local evidence: {}", directory.display());
-    let graph = accounts::provider(&account)?;
+    let graph = accounts::onedrive_provider(&account)?;
     let cancel = CancellationToken::new();
     let folder = graph
         .create_folder(&scope, &account.root_id, &name, &cancel)
@@ -449,7 +454,7 @@ pub async fn onedrive_uploads(state: &Path, label: &str) -> Result<()> {
         .clone()
         .context("competing edit did not finish")?;
     if !matches!(
-        graph.reconcile_upload(&competing, &cancel).await?,
+        graph.reconcile_upload(&competing, None, &cancel).await?,
         Reconciliation::Committed(_)
     ) {
         bail!("competing edit was not preserved; do not enable writable mounts");

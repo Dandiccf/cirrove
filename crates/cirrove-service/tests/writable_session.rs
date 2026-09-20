@@ -342,6 +342,7 @@ impl UploadProvider for Cloud {
     async fn reconcile_upload(
         &self,
         request: &UploadRequest,
+        _: Option<&SecretString>,
         _: &CancellationToken,
     ) -> upload::Result<Reconciliation> {
         let remote = self.remote.lock().unwrap();
@@ -524,7 +525,7 @@ fn account(mount: &Path) -> Account {
     Account {
         id: "00000000-0000-4000-8000-000000000005".into(),
         label: "writable fixture".into(),
-        registration: AppRegistration {
+        registration: AppRegistration::Microsoft {
             client_id: "00000000-0000-4000-8000-000000000002".into(),
             authority: "common".into(),
         },
@@ -3563,7 +3564,7 @@ async fn real_manager_mounts_writable_only_for_an_account_with_a_write_grant() {
         std::fs::write(
             state.join("accounts.json"),
             serde_json::to_vec(&Settings {
-                version: 1,
+                version: 2,
                 accounts: vec![config],
             })
             .unwrap(),
@@ -3824,7 +3825,7 @@ async fn real_unsent_changes_survive_disabling_and_refuse_removal() {
     std::fs::write(
         state.join("accounts.json"),
         serde_json::to_vec(&Settings {
-            version: 1,
+            version: 2,
             accounts: vec![config.clone()],
         })
         .unwrap(),

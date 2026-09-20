@@ -150,7 +150,7 @@ pub(super) fn fixture_account(mount_path: std::path::PathBuf) -> crate::accounts
     crate::accounts::Account {
         id: "00000000-0000-4000-8000-000000000015".into(),
         label: "discovery-fixture".into(),
-        registration: AppRegistration {
+        registration: AppRegistration::Microsoft {
             client_id: "00000000-0000-4000-8000-000000000017".into(),
             authority: "common".into(),
         },

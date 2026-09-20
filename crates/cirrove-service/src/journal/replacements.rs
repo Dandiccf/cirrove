@@ -319,6 +319,7 @@ pub(super) fn commit(
         failed_attempts: 0,
         base: plan.cleanup_base.clone(),
         working_file: None,
+        prepared_item: None,
         local_ready: true,
     };
     cleanup.sequence = mutations::queue_insert(
