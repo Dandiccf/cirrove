@@ -88,6 +88,7 @@ struct Cloud {
     /// Refuse every content read, so an offline claim can be tested rather than
     /// asserted. Nothing else in this fixture can make the provider unreachable.
     offline: AtomicBool,
+    google_names: AtomicBool,
 }
 fn root() -> Node {
     Node {
@@ -121,7 +122,7 @@ impl MetadataProvider for Cloud {
                 .unwrap()
                 .files
                 .values()
-                .map(|(n, _)| Change::Upsert(n.clone())),
+                .map(|(n, _)| Change::Upsert(self.read_node(n))),
         );
         Ok(ChangePage {
             changes: nodes,
@@ -149,7 +150,7 @@ impl ReadProvider for Cloud {
             .unwrap()
             .files
             .get(id)
-            .map(|(n, _)| n.clone())
+            .map(|(n, _)| self.read_node(n))
             .ok_or(ProviderError::NotFound)
     }
     async fn children(
@@ -168,7 +169,7 @@ impl ReadProvider for Cloud {
                 .files
                 .values()
                 .filter(|(n, _)| n.parent_id.as_deref() == Some(parent))
-                .map(|(n, _)| n.clone())
+                .map(|(n, _)| self.read_node(n))
                 .collect(),
             next: None,
         })
@@ -200,6 +201,21 @@ impl ReadProvider for Cloud {
     }
 }
 impl Cloud {
+    fn read_node(&self, node: &Node) -> Node {
+        let mut node = node.clone();
+        if self.google_names.load(Ordering::SeqCst) && node.id != "root" {
+            let (stem, extension) = node
+                .name
+                .rsplit_once('.')
+                .filter(|(stem, extension)| !stem.is_empty() && extension.len() <= 20)
+                .map_or((node.name.as_str(), String::new()), |(stem, extension)| {
+                    (stem, format!(".{extension}"))
+                });
+            node.name = format!("{stem} [{}]{extension}", node.id);
+        }
+        node
+    }
+
     fn has_parent(remote: &Remote, parent: &str) -> bool {
         parent == "root"
             || remote
@@ -364,6 +380,17 @@ impl UploadProvider for Cloud {
 }
 #[async_trait]
 impl MutationProvider for Cloud {
+    fn present_observation(&self, acknowledged: &Node, observed: Node) -> Node {
+        if self.google_names.load(Ordering::SeqCst) {
+            let mut raw = observed.clone();
+            raw.name = acknowledged.name.clone();
+            if self.read_node(&raw).name == observed.name {
+                return raw;
+            }
+        }
+        observed
+    }
+
     async fn mutate(
         &self,
         request: &MutationRequest,
@@ -568,6 +595,104 @@ async fn acknowledged(session: &WritableSession, count: usize) {
     })
     .await
     .unwrap();
+}
+
+async fn handed_off(journal: &Arc<Mutex<UploadJournal>>) {
+    tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            if journal
+                .lock()
+                .unwrap()
+                .namespace_objects()
+                .unwrap()
+                .iter()
+                .all(|object| object.follows_remote)
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; Google-style read names must survive ordinary mounted writes"]
+async fn real_google_style_names_remain_natural_after_create_edit_rename_move_and_handoff() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    cloud.google_names.store(true, Ordering::SeqCst);
+    let vault = Arc::new(Vault::default());
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session = WritableSession::mount(engine, journal.clone(), cloud, vault)
+        .await
+        .unwrap();
+
+    let root = mount.clone();
+    tokio::task::spawn_blocking(move || {
+        std::fs::write(root.join("report.txt"), b"one").unwrap();
+    })
+    .await
+    .unwrap();
+    acknowledged(&session, 1).await;
+    handed_off(&journal).await;
+    assert!(mount.join("report.txt").exists());
+    assert!(
+        std::fs::read_dir(&mount).unwrap().all(|entry| !entry
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .contains('['))
+    );
+
+    let report = mount.join("report.txt");
+    tokio::task::spawn_blocking(move || std::fs::write(report, b"two").unwrap())
+        .await
+        .unwrap();
+    acknowledged(&session, 2).await;
+    handed_off(&journal).await;
+
+    let root = mount.clone();
+    tokio::task::spawn_blocking(move || {
+        std::fs::rename(root.join("report.txt"), root.join("renamed.txt")).unwrap();
+        std::fs::create_dir(root.join("folder")).unwrap();
+    })
+    .await
+    .unwrap();
+    mutations_applied(&session, 2).await;
+    handed_off(&journal).await;
+
+    let root = mount.clone();
+    tokio::task::spawn_blocking(move || {
+        std::fs::rename(root.join("renamed.txt"), root.join("folder/final.txt")).unwrap();
+    })
+    .await
+    .unwrap();
+    mutations_applied(&session, 3).await;
+    handed_off(&journal).await;
+    assert_eq!(
+        std::fs::read(mount.join("folder/final.txt")).unwrap(),
+        b"two"
+    );
+
+    let root = mount.clone();
+    tokio::task::spawn_blocking(move || {
+        std::fs::remove_file(root.join("folder/final.txt")).unwrap();
+        std::fs::remove_dir(root.join("folder")).unwrap();
+    })
+    .await
+    .unwrap();
+    mutations_applied(&session, 5).await;
+    session.shutdown().await.unwrap();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

@@ -1,0 +1,49 @@
+{
+  "question": "Can an ordinary explicitly writable Cirrove My Drive mount complete the provider-neutral file and directory workflow while preserving collision-safe names and rejecting stale writes?",
+  "kind": "Explicitly authorized bounded live functional validation on the owner's separate Google write-validation connection.",
+  "authorization": "The owner instructed Cirrove to implement and test this milestone and authorized Google cloud mutations. The run is confined to a newly created run-owned folder; it does not address pre-existing user items.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-20T18:08:53+02:00",
+  "source_revision_base": "ba96d9237e14ae3314c21fc7dc367d23a2b6d548",
+  "candidate_diff_sha256": "3a5aaef1f68f0f79f309b2e903c8280e2ab2227f22d11d8698e95624b11ceff7",
+  "binary_sha256": "ed21f538ea8fbd985a02ec614da278c1a64d4aa388726731645c48550f43c71f",
+  "temporary_directory": "/home/dandiccf/Work/cirrove/.local-state/google-write-validation (btrfs, not tmpfs)",
+  "expected_duration_seconds": 300,
+  "scope": "The disabled google-create-validation account, its separate mount and one new UUID-named test folder. The installed daemon, OneDrive mount and ordinary read-only Google mount remain running and untouched.",
+  "arms": [
+    "Synthetic kernel FUSE workflow with Google-style ID-qualified read names: create, edit, rename, move, delete and clean handoff.",
+    "Live mounted workflow in a new test folder: editor-style save, file-manager create/rename/move/delete, exact readback and stable names after handoff.",
+    "Concurrent remote change followed by a stale mounted save, which must surface as a conflict and preserve both remote and local evidence.",
+    "Isolated daemon interruption and restart with the same journal, followed by exact mounted readback and completion of pending work."
+  ],
+  "prediction": "The ordinary writable mount will retain natural names for items it creates or explicitly renames, retain ID-qualified names for pre-existing duplicates, complete current writes, reject a stale write without overwriting the foreign version, and recover its durable journal after restart.",
+  "endpoint": "Pass only if all mounted operations reach durable Uploaded or Applied state, no stuck change remains after current operations, the stale arm reaches Conflict without overwriting the foreign bytes, names remain unique across handoff, restart preserves exact bytes, and only the run-owned fixture is trashed during cleanup.",
+  "limits": "My Drive binary files and folders only. Shared Drives, native Google document content/exports, cross-provider moves and push notifications are outside this milestone. Folder removal remains a non-atomic list-then-PATCH operation. One account and one bounded run establish function, not general provider reliability.",
+  "corrections": [
+    {
+      "at": "2026-09-20T18:11:25+02:00",
+      "attempt": 1,
+      "outcome": "Create and in-place editor save passed. An atomic temp-file replacement delivered the exact replacement bytes, but the old temp identity's cleanup reached Conflict and the final mounted name fell back to its ID-qualified provider projection.",
+      "boundary": "The isolated daemon was stopped. The run-owned folder contains the exact replacement bytes; one run-owned temporary provider item remains. The ordinary installed daemon and mounts were not restarted.",
+      "cause": "The replacement receipt copied the source object's old provider name instead of its already-committed destination presentation. Separately, Google advanced the new temp item's version after its upload receipt, so the immediately chained conditional cleanup used a pre-settling version.",
+      "correction": "Bind an atomic replacement receipt to the source object's committed destination name. Production Google create and folder receipts now wait for two matching exact-ID observations before the durable worker acknowledges them, so a chained edit or cleanup starts from a settled version. Synthetic Google transports remain immediate unless a test explicitly enables settling.",
+      "correction_candidate_diff_sha256": "fd10c8233698f48100967bc44ab0e4173b7f4952f37e09dc4af64bda94c1ae84",
+      "correction_binary_sha256": "6adba570f7dba0a99695c8fff4275fe5f332e7cd4f1957d646a469db37441847"
+    }
+  ],
+  "result": {
+    "status": "pass",
+    "synthetic_mount": "The actual-kernel Google-style namespace workflow passed create, edit, handoff, rename, folder create, move, file delete and empty-folder removal while acknowledged names stayed natural.",
+    "live_mount": "The isolated ordinary account mounted rw. File/folder create, in-place editor save, corrected atomic replacement, rename, move, regular-file deletion and observed-empty folder removal reached zero failed and zero stuck changes.",
+    "settling_correction": "The first atomic replacement exposed Google advancing a newly created item version after its receipt. Waiting for two matching exact-ID observations before acknowledging production create receipts made the replacement and chained cleanup complete.",
+    "conflict": "An exact remote rename between an open mounted file and its save caused the stale upload to reach Conflict. Exact provider SHA-256 readback proved the remote bytes were unchanged; Keep both retained the local bytes in a distinct provider item.",
+    "restart": "After conflict resolution, the isolated daemon was stopped and restarted with the same journal; exact mounted bytes survived and status returned ready with zero failed or stuck changes.",
+    "pinning": "A pre-existing Google binary file was pinned by exact identity until content was resident, then unpinned; the reservation returned to zero.",
+    "cleanup": "The isolated daemon was stopped, the validation account was disabled, and an exact-ID bounded traversal trashed only the registered run-owned tree.",
+    "regression": "scripts/check.sh passed formatting, clippy, workspace tests, all kernel-mount groups including the new Google-style workflow, script tests, Dolphin builds/tests, translations, acceptance ledger and docs.",
+    "coexistence": "The installed daemon and its OneDrive and ordinary read-only Google mounts were not restarted during the live measurement."
+  },
+  "final_candidate_diff_sha256": "d4557032da17040441b3faa960c1f249389fd4803567c3dd81b096ac5da7c76f",
+  "final_binary_sha256": "821b85379856effcc3ffc31f18efa8f8084f104de242b163421dab4899721a17",
+  "completed_at": "2026-09-20T18:43:40+02:00"
+}

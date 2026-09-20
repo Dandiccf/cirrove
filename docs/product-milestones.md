@@ -197,11 +197,10 @@ request and no content read. It is deliberately moderate in scale and does not
 measure a 500,000-file library or a memory budget; it establishes that the writable
 regime retires at all, which was previously unknown.
 
-The normal daemon remains read-only. Folder rename/removal, broader ordinary editor
-and office behavior, live provider replacement/unlink scenarios, physical-fault
-coverage, restored remote identities, detached-data recovery and bounded long-session
-history remain acceptance gaps. This implementation progress does not close the
-safe-file-changes milestone.
+The normal daemon enables these paths only for accounts with a verified write
+grant. Broader ordinary editor and office behavior, physical-fault coverage,
+detached-data recovery and bounded long-session history remain acceptance gaps.
+This implementation progress does not close the full safe-file-changes milestone.
 
 - [x] Provider-neutral create, update, rename, move and delete contracts (regular-file deletion; folder removal remains an explicit gap).
 - [x] Durable local file contents and journal before local-save acknowledgement.
@@ -428,19 +427,19 @@ shared. Adapters implement identity, changes, transfer operations, errors and
 capabilities. Microsoft-specific semantics stay in the OneDrive adapter.
 Write and conflict contracts must be concrete and exercised, not placeholder APIs.
 
-The Google Drive read adapter validates the shared account, metadata, cache and
-mount boundaries. Its disabled-account validator has synthetic protocol coverage
-and bounded live evidence for the v3-version/v2-ETag bridge: final-commit
-protection, durable replacement and restoration, rename and restoration, and a
-stale conflict on one run-owned binary file. Binary `headRevisionId` now carries
-content lineage independently of metadata `version`. Folder creation journals a
-generated Google item identity before POST and reconciles that exact ID after
-interruption. The namespace
-adapter is confined to the private validator because its destination scan cannot
-make Google's duplicate-permitting create or move atomic. It
-also has synthetic exact-ID, ETag-conditional regular-file trash coverage, which
-the live validator does not invoke. No writable mount selects these transports
-while duplicate-name, projected-name and folder-removal rules remain open. Shared
-drives and document exports require explicit capabilities. iCloud
+The Google Drive adapter validates the shared account, metadata, cache, journal and
+mount boundaries. A verified full-Drive grant now selects its conditional upload
+and namespace transports in an ordinary writable My Drive mount. Binary
+`headRevisionId` carries content lineage independently of metadata `version`;
+folder and file creation journal a generated item identity before the first POST.
+A provider presentation hook keeps locally acknowledged names natural while exact
+ID-qualified observations preserve duplicate siblings.
+
+A bounded live mount passed create, in-place and atomic editor saves, file/folder
+rename and move, regular-file and observed-empty folder removal, stale-save conflict
+preservation, restart and a separate pin/unpin check. Google's destination scan
+cannot provide atomic sibling-name reservation, and folder removal is not atomic
+POSIX `rmdir`; conflict handling preserves data around those provider limits.
+Shared drives and document exports require explicit capabilities. iCloud
 has a separate feasibility gate before feature parity is promised. Completion of
 OneDrive 1.0 does not claim either adapter is finished.

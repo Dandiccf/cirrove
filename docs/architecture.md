@@ -4,13 +4,13 @@
 
 Cirrove makes remote files usable through ordinary Linux applications. Cached
 metadata should stay available when a provider is slow; file bytes arrive on demand.
-The current implementation is a **read-only preview under validation**. Ordinary mounts do not
-upload through mounted paths or pin files. A separate experimental constructor
-now exercises local writes and offline recovery on isolated synthetic FUSE mounts. A separate
-upload journal and worker protect sealed edits, persist resumable Graph sessions
-through the keyring, and reconcile uncertain attempts. They have synthetic HTTP and
-crash coverage; broader live-provider checks and writable application-save integration remain in
-progress. See
+The current implementation is a **writable preview under validation**. Accounts
+whose verified OAuth grant allows changes mount read-write; read-only grants stay
+read-only. The shared upload journal and workers protect sealed edits, persist
+resumable provider sessions through the keyring, reconcile uncertain attempts and
+preserve conflicts. They have synthetic HTTP/crash coverage and bounded live
+OneDrive and Google My Drive evidence; broader application and long-session
+acceptance remains in progress. See
 [durable local edits](adr/0002-durable-local-edits.md).
 
 A cloud API cannot provide instant uncached access or complete local POSIX semantics.
@@ -27,12 +27,12 @@ flowchart LR
     Desktop[GTK account overview] --> Settings
     Desktop --> Status[Private status socket]
     Manager --> Status
-    Apps[Linux applications] --> FUSE[Read-only FUSE projection]
+    Apps[Linux applications] --> FUSE[FUSE projection]
     FUSE --> Engine[Per-account service]
     Engine --> Store[SQLite metadata and stable inodes]
     Engine --> Cache[Version-keyed disk blocks]
-    Engine --> Graph[OneDrive / Microsoft Graph]
-    Graph --> Auth
+    Engine --> Provider[OneDrive / Google Drive]
+    Provider --> Auth
     Settings --> Manager[Mount and worker manager]
     Manager --> Engine
 ```
@@ -557,12 +557,12 @@ HTTP success is required for a confirmed deletion receipt. File DELETE uses the
 provider's recycle-bin behavior; it is not permanent deletion or local POSIX rmdir.
 Nothing in the tree deletes permanently, and no setting makes the default do so.
 
-Google's disconnected validation adapter also implements exact-ID conditional
-folder relocation and an observed-empty folder trash probe. The latter lists
+Google's mutation adapter implements exact-ID conditional folder relocation and
+observed-empty folder trash. The latter lists
 children immediately before its conditional PATCH, but Google offers no atomic
 empty-folder operation: a child can appear between those requests. This exercises
-the shared contract without enabling production `rmdir`; ordinary Google account
-construction never exposes the adapter to a mount.
+the shared contract in production while explicitly retaining the non-atomic
+`rmdir` boundary.
 
 The mount root refuses to hold a local wastebasket. The freedesktop trash
 specification points a file manager at `$topdir/.Trash-$uid`, and on a mount
@@ -610,17 +610,17 @@ new name and queued mutation together. Schema 7 adds separate local object ident
 directory entries, confirmed remote bindings and optional working bytes. Regular-file replacement now uses the same namespace; directory
 operations and broader application workflows remain under development.
 
-The developer constructor requires a disabled test account with explicit write
-access and a journal owned by that account. It supports regular-file create,
+The writable constructor requires explicit write access and a journal owned by
+that account. It supports regular-file create,
 write, append, truncate, flush and fsync. Working metadata overlays the cached
 remote namespace, so dirty local content stays visible across offline restart.
-The normal manager continues to construct read-only filesystems. No application
-save on the user's ordinary mount is routed through this experimental path.
+The normal manager constructs this writable filesystem only when the account's
+verified grant allows changes. Application saves then enter this durable path.
 
-Experimental writable inodes retain identity while their local bytes change.
+Writable inodes retain identity while their local bytes change.
 Memory mapping is currently disabled for these sessions; read-only sessions keep
-their existing content-version inode and mapping behavior. Folder rename/removal,
-permission/time changes and conflict UI are not connected to writable mounts yet.
+their existing content-version inode and mapping behavior. Permission/time changes
+are not connected to writable mounts yet.
 Sealing may require space
 for both the working file and its snapshot; failure
 keeps the dirty source and reports an error. Physical power loss, physical disk-full
@@ -679,9 +679,8 @@ Observed receipts remain available for review without being treated as confirmed
 save bases. Providers must distinguish conditional responses from later observations.
 
 These APIs establish journal ordering and working-file transactions. The sparse
-namespace model below connects regular-file relocation and replacement to FUSE.
-Folder rename/removal and complete detached-stream retention/recovery remain
-required. The ordinary manager stays read-only.
+namespace model below connects relocation, replacement and folder changes to FUSE.
+Complete detached-stream retention and recovery remain required.
 
 ## Sparse local namespace and mounted relocation
 
@@ -781,7 +780,7 @@ operations. It participates in session cancellation and shutdown.
 This releases working storage, not all historical metadata. Aliases are still
 loaded into the in-memory projection, and operation history has no retention policy
 yet. Pins, writable mappings and complete application-save semantics remain separate
-acceptance gates. Ordinary daemon mounts still use the read-only constructor.
+acceptance gates. Accounts without write consent use the read-only constructor.
 
 ## Unlinked names and retained file streams
 
@@ -877,7 +876,7 @@ directory locks. `RENAME_NOREPLACE` keeps the occupant; exchanges, directories,
 shortcuts and collisions differing only by case remain explicitly unsupported by
 this replacement path. Retained history, restored IDs, recovery UI, ordinary editor
 and office save patterns, and broader real-provider replacement/cleanup acceptance
-remain open. Ordinary mounts stay read-only.
+remain open. Write-enabled accounts use this path in ordinary mounts.
 
 ## Deferred source capture for replacement
 
@@ -944,7 +943,7 @@ calling Graph DELETE is not a proven empty-folder-only operation: its folder ETa
 does not cover descendant changes, and business folders do not expose a cTag.
 Do not implement folder removal by extending the regular-file deletion path.
 The existing namespace/history capacity limits, physical-fault checks and broader
-application/provider acceptance gates still apply. Ordinary mounts remain read-only.
+application/provider acceptance gates still apply.
 
 ## Retained routes to local changes
 
@@ -980,8 +979,8 @@ operations are not redirected or marked complete. Conflict resolution, cold-dire
 behavior during other provider failures and recovery presentation remain unfinished.
 Older journals lacking a captured ancestor cannot reconstruct its vanished name from
 an opaque parent ID alone; their retained bytes still need the recovery/export flow.
-Ordinary daemon mounts remain read-only, and these new route/file-link cases have not
-been validated against real OneDrive or SharePoint accounts.
+These route/file-link cases have not been validated against real OneDrive or
+SharePoint accounts.
 
 ## Desktop account overview
 
@@ -1005,14 +1004,14 @@ Native authentication, removal, tray integration, pins and conflict UI remain op
 
 ## Next boundaries
 
-Before enabling ordinary writable mounts, complete the application, provider,
-recovery and capacity acceptance matrix. The experimental mounted save path now
+Before widening the writable-preview claim, complete the application, provider,
+recovery and capacity acceptance matrix. The mounted save path
 uses the journal's ordering, conditional uploads and conflict preservation;
 synthetic kernel tests cannot establish real-provider reliability. Local-save
 success remains separate from remote acknowledgement. GTK settings, tray and Nautilus integrations
 must consume the service's state rather than maintain their own sync logic.
 
-Google Drive exercises those contracts as a read-only My Drive preview. Its initial
+Google Drive exercises those contracts as a writable My Drive preview. Its initial
 index captures a change token before listing, stages every listing page and catches
 up from that token before publishing completion. Binary reads use v3
 `headRevisionId` as content lineage, require exact byte ranges and compare the head
@@ -1024,9 +1023,9 @@ Settings version 2 discriminates authentication through `registration.provider`
 (`microsoft` or `google`); runtime scope IDs remain `onedrive` and `googledrive`.
 `TokenSource` and `CollectionInfo` live in core, and account read construction
 dispatches through `Arc<dyn ReadProvider>`. Status keeps its protocol-1 field names
-and adds the provider without fabricating Microsoft counters for Google. A Google
-write grant is stored only on a disabled validation connection; settings and the
-normal manager continue to refuse a writable Google mount.
+and adds the provider without fabricating Microsoft counters for Google. A verified
+Google full-Drive grant selects the same provider-neutral writeback and worker
+manager as OneDrive; a read-only grant cannot construct a write provider.
 
 The Google upload adapter implements the shared prepared-identity contract. It
 calls `files.generateIds`, persists that exact ID before mutation, starts bounded
@@ -1060,13 +1059,18 @@ pre-rename observation reached `Conflict`. Exact identity and SHA-256 checks
 confirmed restoration. The full pre-registration, failed attempts, corrections
 and final endpoint are in the two Google v2 benchmark artifacts.
 
-This does not resolve the writable mounted namespace. Drive permits duplicate
-sibling names, while the preview projects every name with a stable full-ID suffix.
+Drive permits duplicate sibling names, so provider listings project stable full-ID
+suffixes. Writeback retains the natural acknowledged name for the exact identity it
+created or renamed; an unrelated remote rename still appears as an ID-qualified
+provider observation. The hook is allowed to change presentation only, never item,
+parent, kind or version. A synthetic kernel fixture and a bounded real mount run
+cover create, edit, editor replacement, rename, move and delete across handoff.
+
 A preflight destination scan cannot make create, rename or move atomic against an
-independent Drive client, and the raw-name/projected-name behavior has no mounted
-application-save evidence. Folder removal remains a list-then-conditional-PATCH
-sequence and therefore cannot provide atomic POSIX `rmdir`. Ordinary Google
-mounts remain read-only until those gates are closed.
+independent Drive client. Exact identity and conditional source versions preserve
+both sides when another client wins; they do not turn Google Drive into a POSIX
+transactional namespace. Folder removal remains a list-then-conditional-PATCH
+sequence and therefore cannot provide atomic POSIX `rmdir`.
 
 ## References
 

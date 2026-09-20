@@ -188,6 +188,16 @@ pub struct DeletionSupport {
 
 #[async_trait]
 pub trait MutationProvider: Send + Sync {
+    /// Reconcile a fresh read-side observation with the exact node returned by
+    /// a completed write. Providers whose mounted namespace encodes identity in
+    /// the visible name may restore the acknowledged user-facing name here.
+    ///
+    /// Callers accept only a name change; identity, parent, kind, versions and
+    /// all other metadata continue to come from `observed`.
+    fn present_observation(&self, _acknowledged: &Node, observed: Node) -> Node {
+        observed
+    }
+
     /// What this provider can do about deletion. See [`DeletionSupport`] for
     /// why the default is "neither".
     fn deletion(&self) -> DeletionSupport {

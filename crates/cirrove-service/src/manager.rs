@@ -549,9 +549,7 @@ impl Manager {
             state,
             cancel,
             Arc::new(provider),
-            Some(Arc::new(|account| {
-                Ok(crate::accounts::onedrive_provider(account)?)
-            })),
+            Some(Arc::new(crate::accounts::write_provider)),
         )
     }
     /// The same account lifecycle is used for production and deterministic providers.

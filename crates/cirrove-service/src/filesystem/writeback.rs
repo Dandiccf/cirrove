@@ -28,6 +28,7 @@ pub(super) struct Writeback {
     maintenance_cursor: Mutex<Option<Uuid>>,
     preserving_cursor: Mutex<u64>,
     maintenance_retries: Mutex<HashMap<Uuid, (u32, tokio::time::Instant)>>,
+    provider: std::sync::OnceLock<Arc<dyn cirrove_core::mutation::MutationProvider>>,
 }
 #[derive(Default)]
 struct Projection {
@@ -232,7 +233,35 @@ impl Writeback {
             maintenance_cursor: Mutex::new(None),
             preserving_cursor: Mutex::new(0),
             maintenance_retries: Mutex::new(HashMap::new()),
+            provider: std::sync::OnceLock::new(),
         }))
+    }
+    pub(crate) fn set_provider(&self, provider: Arc<dyn cirrove_core::mutation::MutationProvider>) {
+        let _ = self.provider.set(provider);
+    }
+    fn present_observation(&self, expected: &Node, observed: Node) -> Result<Node> {
+        let Some(provider) = self.provider.get() else {
+            return Ok(observed);
+        };
+        let presented = provider.present_observation(expected, observed.clone());
+        let mut comparable = presented.clone();
+        comparable.name = observed.name.clone();
+        if comparable != observed {
+            return Err(Errno::EIO);
+        }
+        Ok(presented)
+    }
+    pub fn present_node(&self, scope: &Scope, item: &str, observed: Node) -> Result<Node> {
+        let expected = {
+            let projection = self.projection.lock().map_err(|_| Errno::EIO)?;
+            projection
+                .local_object(scope, item)
+                .and_then(|object| object.remote.clone())
+        };
+        match expected {
+            Some(expected) => self.present_observation(&expected, observed),
+            None => Ok(observed),
+        }
     }
     async fn local<T: Send + 'static>(
         &self,
@@ -565,8 +594,21 @@ impl Writeback {
             .cloned()
             .collect())
     }
-    pub fn overlay(&self, scope: &Scope, parent: &str, nodes: Vec<Node>) -> Result<Vec<Node>> {
+    pub fn overlay(&self, scope: &Scope, parent: &str, mut nodes: Vec<Node>) -> Result<Vec<Node>> {
         let mut projection = self.projection.lock().map_err(|_| Errno::EIO)?;
+        for node in &mut nodes {
+            let Some(object) = projection
+                .remote_bindings
+                .get(&key(scope, &node.id))
+                .and_then(|id| projection.objects.get(id))
+            else {
+                continue;
+            };
+            let Some(expected) = object.remote.as_ref() else {
+                continue;
+            };
+            *node = self.present_observation(expected, node.clone())?;
+        }
         let listing = project_retained_namespace(
             projection.objects.values(),
             projection.retained(),

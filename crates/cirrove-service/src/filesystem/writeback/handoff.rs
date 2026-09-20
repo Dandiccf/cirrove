@@ -161,6 +161,8 @@ impl Writeback {
                     }
                 }
             };
+            let remote =
+                self.present_observation(object.remote.as_ref().ok_or(Errno::EIO)?, remote)?;
             self.maintenance_retries
                 .lock()
                 .map_err(|_| Errno::EIO)?

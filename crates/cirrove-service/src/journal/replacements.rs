@@ -291,6 +291,14 @@ pub(super) fn locally_ready(db: &Connection, id: Uuid) -> Result<bool> {
         [id.to_string()],|r|r.get::<_,bool>(0))?)
 }
 
+pub(super) fn receipt_name(db: &Connection, operation: Uuid) -> Result<Option<String>> {
+    match load(db, operation) {
+        Ok(record) => Ok(Some(namespace::by_id(db, record.source)?.node.name)),
+        Err(JournalError::Missing) => Ok(None),
+        Err(error) => Err(error),
+    }
+}
+
 pub(super) fn commit(
     tx: &Transaction<'_>,
     plan: &ReplacementCommit,

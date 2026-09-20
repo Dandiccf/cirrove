@@ -815,7 +815,7 @@ impl UploadJournal {
     }
     /// Called only after a successful remote commit or verified remote receipt.
     /// An uncertain receipt after restart needs a new fenced verification attempt.
-    pub fn acknowledge(&mut self, id: Uuid, attempt: Uuid, remote: Node) -> Result<()> {
+    pub fn acknowledge(&mut self, id: Uuid, attempt: Uuid, mut remote: Node) -> Result<()> {
         let mut record = self.active_attempt(id, attempt)?;
         let identity_matches = match &record.intent {
             UploadIntent::Create { parent, name } => {
@@ -831,6 +831,21 @@ impl UploadJournal {
             || remote.content_revision().is_none()
         {
             return Err(JournalError::Corrupt);
+        }
+        if matches!(record.intent, UploadIntent::Replace { .. }) {
+            let name = match replacements::receipt_name(&self.db, id)? {
+                Some(name) => Some(name),
+                None => self
+                    .namespace_for_operation(id)?
+                    .and_then(|object| object.remote.map(|previous| previous.name)),
+            };
+            if let Some(name) = name {
+                // A content replacement cannot rename an item. Atomic editor
+                // replacement is owned by the source object, whose local name
+                // is already the destination; an ordinary save keeps its prior
+                // remote presentation.
+                remote.name = name;
+            }
         }
         record.remote = Some(remote);
         record.state = UploadState::Uploaded;

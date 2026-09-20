@@ -38,6 +38,7 @@ impl WriteWorkers {
         vault: Arc<dyn CredentialVault>,
         parent: &CancellationToken,
     ) -> Self {
+        let control = control.with_provider(provider.clone());
         let cancel = parent.child_token();
         let workers = TaskTracker::new();
         let issue = Arc::new(Mutex::new(None));
@@ -65,7 +66,7 @@ impl WriteWorkers {
         workers.spawn(maintain(control.clone(), cancel.clone(), issue.clone()));
         workers.close();
         Self {
-            control: control.with_provider(provider.clone()),
+            control,
             cancel,
             workers,
             issue,

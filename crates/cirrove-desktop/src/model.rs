@@ -552,10 +552,7 @@ impl Overview {
                     wastebasket: status.and_then(|s| s.wastebasket.clone()),
                     failed_uploads: status.map_or(0, |s| s.failed_uploads),
                     writable: account.access == cirrove_auth::AccessMode::ReadWrite,
-                    supports_writes: matches!(
-                        account.registration,
-                        cirrove_auth::AppRegistration::Microsoft { .. }
-                    ),
+                    supports_writes: true,
                     client_id: account.registration.client_id().to_owned(),
                     authority: account.registration.authority().to_owned(),
                     kept_offline: status

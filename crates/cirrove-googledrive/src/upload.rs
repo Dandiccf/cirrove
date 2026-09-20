@@ -1,5 +1,4 @@
-//! Google create uploads. This adapter is deliberately not selected by the
-//! service yet: the mounted namespace and replacement policy remain read-only.
+//! Google create, replacement and namespace mutations for writable My Drive mounts.
 //! Prepared IDs and resumable session URLs stay inside opaque vault checkpoints.
 use super::{files::File, transport::body, *};
 use async_trait::async_trait;
@@ -324,9 +323,25 @@ fn valid_strong_etag(value: &str) -> bool {
         && !value.contains(['\r', '\n'])
 }
 
+fn mounted_name_matches(current: &Node, acknowledged: &Node) -> bool {
+    current.name == acknowledged.name
+        || files::projected_name(&current.name, &current.id, false) == acknowledged.name
+}
+
+fn present_google_observation(acknowledged: &Node, mut observed: Node) -> Node {
+    if acknowledged.id == observed.id
+        && acknowledged.kind == observed.kind
+        && acknowledged.target.is_none()
+        && files::projected_name(&acknowledged.name, &observed.id, false) == observed.name
+    {
+        observed.name = acknowledged.name.clone();
+    }
+    observed
+}
+
 impl GoogleDrive {
-    /// Build the namespace adapter for a disabled, separately consented
-    /// validation account. Normal Google mounts never call this method.
+    /// Build the conditional namespace half used by both the mounted writer and
+    /// the explicit protocol validators.
     pub fn validation_mutations(&self) -> GoogleValidationMutations {
         GoogleValidationMutations {
             drive: self.clone(),
@@ -349,6 +364,48 @@ impl GoogleDrive {
     fn check_folder_plan(&self, scope: &Scope, plan: &PreparedFolder) -> Result<()> {
         self.check_folder_destination(scope, &plan.parent, &plan.name)?;
         valid_id(&plan.id).map_err(UploadError::Provider)
+    }
+
+    async fn settle_created_node(
+        &self,
+        scope: &Scope,
+        initial: Node,
+        cancel: &CancellationToken,
+    ) -> Result<Node> {
+        if !self.settle_write_receipts {
+            return Ok(initial);
+        }
+        let mut previous: Option<Node> = None;
+        for _ in 0..5 {
+            tokio::select! {
+                biased;
+                _ = cancel.cancelled() => return Err(ProviderError::Cancelled.into()),
+                _ = tokio::time::sleep(Duration::from_secs(2)) => {}
+            }
+            let file = self
+                .file(&initial.id)
+                .await
+                .map_err(UploadError::Provider)?;
+            let raw_name = file.name.clone();
+            let mut current = file
+                .node(&scope.collection)
+                .map_err(UploadError::Provider)?;
+            current.name = raw_name;
+            if current.id != initial.id
+                || current.parent_id != initial.parent_id
+                || current.name != initial.name
+                || current.kind != initial.kind
+                || current.size != initial.size
+                || current.target != initial.target
+            {
+                return Err(UploadError::Uncertain);
+            }
+            if previous.as_ref() == Some(&current) {
+                return Ok(current);
+            }
+            previous = Some(current);
+        }
+        Err(UploadError::Uncertain)
     }
 
     fn folder_receipt(
@@ -431,7 +488,8 @@ impl GoogleDrive {
                 .await
                 .map_err(|_| UploadError::Uncertain)?;
             let file: File = serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)?;
-            self.folder_receipt(plan, file, etag)
+            let node = self.folder_receipt(plan, file, etag)?;
+            self.settle_created_node(scope, node, cancel).await
         })
         .await
     }
@@ -2137,7 +2195,12 @@ impl GoogleDrive {
         self.session_checkpoint(request, id.to_owned(), location.to_owned(), 0)
     }
 
-    async fn create_empty(&self, request: &UploadRequest, id: &str) -> Result<UploadStep> {
+    async fn create_empty(
+        &self,
+        request: &UploadRequest,
+        id: &str,
+        cancel: &CancellationToken,
+    ) -> Result<UploadStep> {
         let mut url = self.url(&["files"])?;
         url.query_pairs_mut().append_pair("fields", files::FIELDS);
         let response = self
@@ -2150,11 +2213,17 @@ impl GoogleDrive {
             )
             .await?;
         Ok(UploadStep::Complete(
-            self.receipt(request, id, response).await?,
+            self.receipt(request, id, response, cancel).await?,
         ))
     }
 
-    async fn receipt(&self, request: &UploadRequest, id: &str, response: Response) -> Result<Node> {
+    async fn receipt(
+        &self,
+        request: &UploadRequest,
+        id: &str,
+        response: Response,
+        cancel: &CancellationToken,
+    ) -> Result<Node> {
         if matches!(
             &request.intent,
             UploadIntent::Replace { expected_etag, .. }
@@ -2179,7 +2248,11 @@ impl GoogleDrive {
         if node.size != request.size {
             return Err(UploadError::Uncertain);
         }
-        Ok(node)
+        if matches!(request.intent, UploadIntent::Create { .. }) {
+            self.settle_created_node(&request.scope, node, cancel).await
+        } else {
+            Ok(node)
+        }
     }
 
     fn receipt_from_file(&self, request: &UploadRequest, id: &str, file: File) -> Result<Node> {
@@ -2283,7 +2356,7 @@ impl GoogleDrive {
                     self.receipt_from_file(request, id, file)?,
                 )),
                 Err(ProviderError::NotFound) if request.size == 0 => {
-                    self.create_empty(request, id).await
+                    self.create_empty(request, id, cancel).await
                 }
                 Err(ProviderError::NotFound) => self.begin_session(request, id).await,
                 Err(error) => Err(error.into()),
@@ -2439,7 +2512,7 @@ impl GoogleDrive {
             let current_file = self.v2_file(&before.id).await?;
             let current = self.v2_mutation_node(&current_file).await?;
             if current.etag != before.etag
-                || current.name != before.name
+                || !mounted_name_matches(&current, before)
                 || current.parent_id != before.parent_id
                 || current.kind != before.kind
             {
@@ -2490,7 +2563,7 @@ impl GoogleDrive {
             let current_file = self.v2_file(&before.id).await?;
             let current = self.v2_mutation_node(&current_file).await?;
             if current.etag != before.etag
-                || current.name != before.name
+                || !mounted_name_matches(&current, before)
                 || current.parent_id != before.parent_id
                 || current.kind != before.kind
             {
@@ -2576,7 +2649,7 @@ impl GoogleDrive {
             let (file, etag) = self.file_with_strong_etag(&before.id).await?;
             let current = self.validation_mutation_node(file, etag)?;
             if current.etag != before.etag
-                || current.name != before.name
+                || !mounted_name_matches(&current, before)
                 || current.parent_id != before.parent_id
                 || current.kind != before.kind
             {
@@ -2635,7 +2708,7 @@ impl GoogleDrive {
             let (file, etag) = self.file_with_strong_etag(&before.id).await?;
             let current = self.validation_mutation_node(file, etag)?;
             if current.etag != before.etag
-                || current.name != before.name
+                || !mounted_name_matches(&current, before)
                 || current.parent_id != before.parent_id
                 || current.kind != before.kind
             {
@@ -2893,7 +2966,7 @@ impl MutationProvider for GoogleValidationMutations {
                 }
             }
             return if current.etag == before.etag
-                && current.name == before.name
+                && mounted_name_matches(&current, before)
                 && current.parent_id == before.parent_id
                 && current.kind == before.kind
                 && current.target == before.target
@@ -2949,7 +3022,7 @@ impl MutationProvider for GoogleValidationMutations {
             }
         }
         if current.etag == before.etag
-            && current.name == before.name
+            && mounted_name_matches(&current, before)
             && current.parent_id == before.parent_id
             && current.kind == before.kind
             && current.target == before.target
@@ -3008,6 +3081,10 @@ impl MutationProvider for GoogleValidationMutations {
 // that is resolved to the current strong v2 ETag immediately before mutation.
 #[async_trait]
 impl MutationProvider for GoogleDrive {
+    fn present_observation(&self, acknowledged: &Node, observed: Node) -> Node {
+        present_google_observation(acknowledged, observed)
+    }
+
     fn deletion(&self) -> cirrove_core::mutation::DeletionSupport {
         self.validation_mutations().deletion()
     }
@@ -3114,7 +3191,7 @@ impl UploadProvider for GoogleDrive {
                             self.session_checkpoint(request, id, url, offset)
                         }
                         Ok(response) => Ok(UploadStep::Complete(
-                            self.receipt(request, &id, response).await?,
+                            self.receipt(request, &id, response, cancel).await?,
                         )),
                         Err(UploadError::SessionGone) => {
                             Ok(UploadStep::Prepared(self.prepared_checkpoint(request, id)?))
@@ -3170,7 +3247,7 @@ impl UploadProvider for GoogleDrive {
                     self.session_checkpoint(request, id, url, next)
                 }
                 Ok(response) => Ok(UploadStep::Complete(
-                    self.receipt(request, &id, response).await?,
+                    self.receipt(request, &id, response, cancel).await?,
                 )),
                 Err(UploadError::SessionGone) => {
                     Ok(UploadStep::Prepared(self.prepared_checkpoint(request, id)?))
@@ -3337,6 +3414,52 @@ mod tests {
         io::{AsyncReadExt, AsyncWriteExt},
         net::TcpListener,
     };
+
+    fn observed_node(name: &str) -> Node {
+        Node {
+            id: "google-id".into(),
+            parent_id: Some("root".into()),
+            name: name.into(),
+            kind: NodeKind::File,
+            size: 3,
+            modified_unix: 1,
+            etag: Some("google-version:2".into()),
+            content_version: Some("google-revision:2".into()),
+            target: None,
+            package: false,
+        }
+    }
+
+    #[test]
+    fn a_matching_projected_observation_keeps_the_acknowledged_mount_name() {
+        let acknowledged = observed_node("report.txt");
+        let observed = observed_node("report [google-id].txt");
+        assert_eq!(
+            present_google_observation(&acknowledged, observed).name,
+            "report.txt"
+        );
+    }
+
+    #[test]
+    fn an_external_google_rename_is_not_hidden_by_the_local_alias() {
+        let acknowledged = observed_node("report.txt");
+        let observed = observed_node("changed [google-id].txt");
+        assert_eq!(
+            present_google_observation(&acknowledged, observed).name,
+            "changed [google-id].txt"
+        );
+    }
+
+    #[test]
+    fn projected_existing_names_match_the_raw_google_precondition() {
+        let current = observed_node("report.txt");
+        let mounted = observed_node("report [google-id].txt");
+        assert!(mounted_name_matches(&current, &mounted));
+        assert!(!mounted_name_matches(
+            &observed_node("changed.txt"),
+            &mounted
+        ));
+    }
 
     enum ExpectedBody {
         Json(Value),
@@ -3603,6 +3726,50 @@ mod tests {
             .unwrap(),
             task,
         )
+    }
+
+    #[tokio::test]
+    async fn a_created_receipt_waits_for_two_matching_provider_observations() {
+        let (mut provider, server) = fixture(|_| {
+            vec![
+                Exchange::json(
+                    "GET",
+                    "/drive/v3/files/generated-id",
+                    200,
+                    named_file("generated-id", "report.txt", "6", 6),
+                ),
+                Exchange::json(
+                    "GET",
+                    "/drive/v3/files/generated-id",
+                    200,
+                    named_file("generated-id", "report.txt", "6", 6),
+                ),
+            ]
+        })
+        .await;
+        provider.settle_write_receipts = true;
+        let initial = Node {
+            id: "generated-id".into(),
+            parent_id: Some("root-id".into()),
+            name: "report.txt".into(),
+            kind: NodeKind::File,
+            size: 6,
+            modified_unix: 0,
+            etag: Some("google-version:1".into()),
+            content_version: Some("google-revision:1".into()),
+            target: None,
+            package: false,
+        };
+        let settled = provider
+            .settle_created_node(&scope(), initial, &CancellationToken::new())
+            .await
+            .unwrap();
+        assert_eq!(settled.etag.as_deref(), Some("google-version:6"));
+        assert_eq!(
+            settled.content_version.as_deref(),
+            Some("google-revision:revision-6")
+        );
+        server.await.unwrap();
     }
 
     #[tokio::test]

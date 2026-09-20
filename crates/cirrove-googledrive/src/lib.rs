@@ -1,5 +1,4 @@
-//! Google Drive v3 adapter. Ordinary mounts select only its read path; upload
-//! support is exercised against synthetic HTTP until the write policy is complete.
+//! Google Drive adapter for My Drive reads and explicitly consented writes.
 mod feed;
 mod files;
 #[cfg(test)]
@@ -25,6 +24,7 @@ pub struct GoogleDrive {
     tokens: Arc<dyn TokenSource>,
     budget: RequestBudget,
     cooldown: Arc<Mutex<Option<Instant>>>,
+    settle_write_receipts: bool,
 }
 impl GoogleDrive {
     /// `collection` is the real My Drive root ID, resolved during connection.
@@ -33,13 +33,15 @@ impl GoogleDrive {
         collection: String,
         tokens: Arc<dyn TokenSource>,
     ) -> Result<Self, ProviderError> {
-        Self::build(
+        let mut drive = Self::build(
             account,
             collection,
             tokens,
             Url::parse("https://www.googleapis.com/drive/v3/")
                 .map_err(|_| ProviderError::Protocol("Google endpoint"))?,
-        )
+        )?;
+        drive.settle_write_receipts = true;
+        Ok(drive)
     }
     fn build(
         account: String,
@@ -58,6 +60,7 @@ impl GoogleDrive {
             tokens,
             budget: RequestBudget::default(),
             cooldown: Arc::new(Mutex::new(None)),
+            settle_write_receipts: false,
             client: Client::builder()
                 .redirect(Policy::none())
                 .retry(reqwest::retry::never())
@@ -91,14 +94,27 @@ impl GoogleDrive {
                 "synthetic endpoint must be HTTP IPv4 loopback",
             ));
         }
-        Self::build(
+        let mut drive = Self::build(
             account,
             collection,
             Arc::new(cirrove_core::StaticToken(secrecy::SecretString::from(
                 "synthetic-google-token",
             ))),
             endpoint,
-        )
+        )?;
+        drive.settle_write_receipts = false;
+        Ok(drive)
+    }
+    #[cfg(feature = "test-support")]
+    #[doc(hidden)]
+    pub fn synthetic_loopback_with_settled_writes(
+        account: String,
+        collection: String,
+        endpoint: &str,
+    ) -> Result<Self, ProviderError> {
+        let mut drive = Self::synthetic_loopback(account, collection, endpoint)?;
+        drive.settle_write_receipts = true;
+        Ok(drive)
     }
     fn check_scope(&self, scope: &Scope) -> Result<(), ProviderError> {
         if scope.account != self.account

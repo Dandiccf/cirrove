@@ -118,7 +118,7 @@ pub(super) fn present(ui: &Rc<Window>) {
         .title(gettext("Provider"))
         .model(&gtk::StringList::new(&[
             "OneDrive",
-            &gettext("Google Drive (read-only preview)"),
+            &gettext("Google Drive"),
         ]))
         .build();
     drive.add(&provider);
@@ -229,12 +229,12 @@ pub(super) fn present(ui: &Rc<Window>) {
             let google = form.provider.selected() == 1;
             form.client.set_visible(!google);
             form.tenant.set_visible(!google);
-            form.writable.set_visible(!google);
+            form.writable.set_visible(true);
             form.google_client.set_visible(google);
             form.sign_in.set_label(&if google { gettext("Sign in with Google") } else { gettext("Sign in with Microsoft") });
             sign.set_title(&if google { gettext("Google sign-in") } else { gettext("Microsoft sign-in") });
             sign.set_description(Some(&if google {
-                gettext("My Drive files open read-only. Google documents appear as browser links; exports and shared drives are not yet supported.")
+                gettext("My Drive files can be changed when Allow changes is on. Google documents appear as browser links; exports and shared drives are not yet supported.")
             } else { gettext("The application (client) ID of your app registration; the OneDrive setup guide explains where it comes from.") }));
             form.check();
         });
@@ -342,12 +342,13 @@ fn begin(form: &Rc<Form>, ui: &Rc<Window>, runtime: &tokio::runtime::Handle, sta
         let result = tokio::runtime::Handle::current()
             .block_on(async move {
                 if google {
-                    accounts::begin_connect_google(
+                    accounts::begin_connect_google_with_access(
                         state,
                         label,
                         google_client
                             .ok_or_else(|| anyhow::anyhow!("choose a Google client JSON file"))?,
                         folder,
+                        access,
                     )
                     .await
                 } else {
@@ -410,9 +411,6 @@ fn finish(
         let result = tokio::runtime::Handle::current()
             .block_on(async {
                 let account = pending.finish(&drive_id).await?;
-                // The CLI saves a writable account unmounted, a leftover from
-                // when only a validator asked for write access. From the
-                // window, connecting a drive means seeing it in Files.
                 if !account.enabled {
                     accounts::set_enabled_by_id(&state, &account.id, true)?;
                 }

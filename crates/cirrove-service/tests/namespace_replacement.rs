@@ -122,10 +122,19 @@ fn local_swap_retains_old_stream_and_receipt_transfers_only_active_cloud_ownersh
             expected_etag: "target-etag".into()
         }
     );
-    let receipt = node("target-id", "document", "replacement-etag", 3);
+    let receipt = node("target-id", "provider-raw-name", "replacement-etag", 3);
     j.acknowledge(upload.id, upload.attempt.unwrap(), receipt.clone())
         .unwrap();
     assert!(j.replacement(replacement.id).unwrap().remote_applied);
+    assert_eq!(
+        j.namespace_by_remote(&scope(), "target-id")
+            .unwrap()
+            .unwrap()
+            .remote
+            .unwrap()
+            .name,
+        "document"
+    );
     assert_eq!(
         j.namespace_by_remote(&scope(), "target-id")
             .unwrap()
