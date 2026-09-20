@@ -366,7 +366,12 @@ impl GoogleDrive {
         valid_id(&plan.id).map_err(UploadError::Provider)
     }
 
-    async fn settle_created_node(
+    /// Google can advance a file version after returning a successful write
+    /// receipt. A chained save must use the version that later reads observe,
+    /// including when the first write was the zero-byte truncation of O_TRUNC.
+    /// Wait for two equal exact-ID observations before the durable worker may
+    /// expose this node as the predecessor of another operation.
+    async fn settle_written_node(
         &self,
         scope: &Scope,
         initial: Node,
@@ -489,7 +494,7 @@ impl GoogleDrive {
                 .map_err(|_| UploadError::Uncertain)?;
             let file: File = serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)?;
             let node = self.folder_receipt(plan, file, etag)?;
-            self.settle_created_node(scope, node, cancel).await
+            self.settle_written_node(scope, node, cancel).await
         })
         .await
     }
@@ -1598,6 +1603,7 @@ impl GoogleDrive {
         request: &UploadRequest,
         item: &str,
         etag: &str,
+        cancel: &CancellationToken,
     ) -> Result<UploadStep> {
         let mut url = self.v2_upload_url(item)?;
         url.query_pairs_mut()
@@ -1628,8 +1634,10 @@ impl GoogleDrive {
                 .map_err(|_| UploadError::Uncertain)?;
             let file: V2File =
                 serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)?;
+            let node = self.v2_replacement_node(request, item, file).await?;
             return Ok(UploadStep::Complete(
-                self.v2_replacement_node(request, item, file).await?,
+                self.settle_written_node(&request.scope, node, cancel)
+                    .await?,
             ));
         }
         Err(ProviderError::Authentication.into())
@@ -2234,7 +2242,8 @@ impl GoogleDrive {
                 .map_err(|_| UploadError::Uncertain)?;
             let file: V2File =
                 serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)?;
-            return self.v2_replacement_node(request, id, file).await;
+            let node = self.v2_replacement_node(request, id, file).await?;
+            return self.settle_written_node(&request.scope, node, cancel).await;
         }
         let etag = strong_etag(&response);
         let bytes = body(response, MAX_UPLOAD_RESPONSE)
@@ -2248,11 +2257,7 @@ impl GoogleDrive {
         if node.size != request.size {
             return Err(UploadError::Uncertain);
         }
-        if matches!(request.intent, UploadIntent::Create { .. }) {
-            self.settle_created_node(&request.scope, node, cancel).await
-        } else {
-            Ok(node)
-        }
+        self.settle_written_node(&request.scope, node, cancel).await
     }
 
     fn receipt_from_file(&self, request: &UploadRequest, id: &str, file: File) -> Result<Node> {
@@ -2352,9 +2357,13 @@ impl GoogleDrive {
     ) -> Result<UploadStep> {
         match &request.intent {
             UploadIntent::Create { .. } => match self.file(id).await {
-                Ok(file) => Ok(UploadStep::Complete(
-                    self.receipt_from_file(request, id, file)?,
-                )),
+                Ok(file) => {
+                    let node = self.receipt_from_file(request, id, file)?;
+                    Ok(UploadStep::Complete(
+                        self.settle_written_node(&request.scope, node, cancel)
+                            .await?,
+                    ))
+                }
                 Err(ProviderError::NotFound) if request.size == 0 => {
                     self.create_empty(request, id, cancel).await
                 }
@@ -2387,14 +2396,17 @@ impl GoogleDrive {
                     if version == expected_version {
                         if request.size == 0 {
                             let etag = self.v2_etag(&current)?;
-                            return self.replace_v2_empty(request, id, etag).await;
+                            return self.replace_v2_empty(request, id, etag, cancel).await;
                         }
                         return self.begin_session(request, id).await;
                     }
                     if node.size == request.size
                         && self.probe_sha256(&request.scope, &node, cancel).await? == request.sha256
                     {
-                        return Ok(UploadStep::Complete(node));
+                        return Ok(UploadStep::Complete(
+                            self.settle_written_node(&request.scope, node, cancel)
+                                .await?,
+                        ));
                     }
                     return Err(UploadError::Conflict);
                 }
@@ -2406,7 +2418,10 @@ impl GoogleDrive {
                 if node.size == request.size
                     && self.probe_sha256(&request.scope, &node, cancel).await? == request.sha256
                 {
-                    Ok(UploadStep::Complete(node))
+                    Ok(UploadStep::Complete(
+                        self.settle_written_node(&request.scope, node, cancel)
+                            .await?,
+                    ))
                 } else {
                     Err(UploadError::Conflict)
                 }
@@ -3761,7 +3776,7 @@ mod tests {
             package: false,
         };
         let settled = provider
-            .settle_created_node(&scope(), initial, &CancellationToken::new())
+            .settle_written_node(&scope(), initial, &CancellationToken::new())
             .await
             .unwrap();
         assert_eq!(settled.etag.as_deref(), Some("google-version:6"));
@@ -3769,6 +3784,71 @@ mod tests {
             settled.content_version.as_deref(),
             Some("google-revision:revision-6")
         );
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn an_empty_replacement_waits_for_the_post_receipt_version_before_a_successor() {
+        let (mut provider, server) = fixture(|_| {
+            let mut replace = Exchange::json(
+                "PUT",
+                "/upload/drive/v2/files/generated-id",
+                200,
+                v2_content_file("report.txt", "6", "\"v2-6\"", 0),
+            );
+            replace.query = vec![("uploadType", "media"), ("fields", V2_FIELDS)];
+            replace.headers = vec![
+                "if-match: \"v2-5\"".into(),
+                "content-type: application/octet-stream".into(),
+                "content-length: 0".into(),
+            ];
+            vec![
+                replace,
+                Exchange::json(
+                    "GET",
+                    "/drive/v3/files/generated-id",
+                    200,
+                    named_file("generated-id", "report.txt", "6", 0),
+                ),
+                Exchange::json(
+                    "GET",
+                    "/drive/v3/files/generated-id",
+                    200,
+                    named_file("generated-id", "report.txt", "7", 0),
+                ),
+                Exchange::json(
+                    "GET",
+                    "/drive/v3/files/generated-id",
+                    200,
+                    named_file("generated-id", "report.txt", "7", 0),
+                ),
+            ]
+        })
+        .await;
+        provider.settle_write_receipts = true;
+        let request = UploadRequest {
+            scope: scope(),
+            intent: UploadIntent::Replace {
+                item: "generated-id".into(),
+                expected_etag: "google-version:5".into(),
+            },
+            size: 0,
+            sha256: hex::encode(Sha256::digest([])),
+        };
+        let step = provider
+            .replace_v2_empty(
+                &request,
+                "generated-id",
+                "\"v2-5\"",
+                &CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+        let UploadStep::Complete(node) = step else {
+            panic!("empty replacement did not complete");
+        };
+        assert_eq!(node.etag.as_deref(), Some("google-version:7"));
+        assert_eq!(node.size, 0);
         server.await.unwrap();
     }
 

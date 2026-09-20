@@ -29,6 +29,17 @@
       "correction": "Bind an atomic replacement receipt to the source object's committed destination name. Production Google create and folder receipts now wait for two matching exact-ID observations before the durable worker acknowledges them, so a chained edit or cleanup starts from a settled version. Synthetic Google transports remain immediate unless a test explicitly enables settling.",
       "correction_candidate_diff_sha256": "fd10c8233698f48100967bc44ab0e4173b7f4952f37e09dc4af64bda94c1ae84",
       "correction_binary_sha256": "6adba570f7dba0a99695c8fff4275fe5f332e7cd4f1957d646a469db37441847"
+    },
+    {
+      "at": "2026-09-20T19:26:47+02:00",
+      "attempt": 2,
+      "outcome": "After the ordinary Google account was upgraded to read-write, a common O_TRUNC save safely stopped at Conflict: its zero-byte truncation reached Google, but the immediately chained content generation used the version returned before Google advanced that truncation's version.",
+      "boundary": "The remote zero-byte generation was not overwritten after its version changed. Keep Both retained the refused local bytes; terminal test conflicts were explicitly abandoned, and exact-ID bounded cleanup trashed the two run-owned trees. Status returned to zero failed and zero stuck changes.",
+      "cause": "Production receipt settling covered creates and folders, but not replacement receipts. An O_TRUNC save intentionally seals a zero-byte replacement before its content successor; the successor therefore needs Google's settled post-receipt version just as a newly created item does.",
+      "correction": "Settle every production Google upload receipt, including empty and non-empty v2 replacements and recovered prepared uploads, using two matching exact-ID observations before it can become another operation's durable predecessor. A focused regression fails on the old behavior with version 6 instead of the observed version 7 and passes with the correction.",
+      "verification": "After reinstalling the candidate, an ordinary enabled Google account completed create-with-content followed by O_TRUNC and its content successor with zero failed and zero stuck changes. Exact-ID provider readback matched the registered SHA-256 of the final 34 bytes. Exact-ID bounded cleanup then trashed only the named run-owned tree.",
+      "correction_candidate_diff_sha256": "70cc69289a8d06ed41d2b00e55ddc9d72dbfd1e1ef36fa447f72f1cd4bca3763",
+      "correction_binary_sha256": "43874687e8182d81ee18adb017be786b770ab9a3fc401b0426f00674ece11945"
     }
   ],
   "result": {
@@ -39,6 +50,7 @@
     "conflict": "An exact remote rename between an open mounted file and its save caused the stale upload to reach Conflict. Exact provider SHA-256 readback proved the remote bytes were unchanged; Keep both retained the local bytes in a distinct provider item.",
     "restart": "After conflict resolution, the isolated daemon was stopped and restarted with the same journal; exact mounted bytes survived and status returned ready with zero failed or stuck changes.",
     "pinning": "A pre-existing Google binary file was pinned by exact identity until content was resident, then unpinned; the reservation returned to zero.",
+    "ordinary_account_regression": "The upgraded ordinary Google account mounted rw and completed the previously failing create plus O_TRUNC chain. All four durable generations uploaded, exact-ID Google readback matched the final mounted bytes, and cleanup was confined to the registered run-owned tree.",
     "cleanup": "The isolated daemon was stopped, the validation account was disabled, and an exact-ID bounded traversal trashed only the registered run-owned tree.",
     "regression": "scripts/check.sh passed formatting, clippy, workspace tests, all kernel-mount groups including the new Google-style workflow, script tests, Dolphin builds/tests, translations, acceptance ledger and docs.",
     "coexistence": "The installed daemon and its OneDrive and ordinary read-only Google mounts were not restarted during the live measurement."
