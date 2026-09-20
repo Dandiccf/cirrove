@@ -282,18 +282,14 @@ gated behind a file manager. Everything below is about the extras layered on
 top of that, never about access.
 
 **Supported file managers.** Files (Nautilus 43 and later, through
-nautilus-python 4) is the supported one, and the only one with badges, the
-Cirrove column, the properties section and the context-menu pin. **Dolphin has
-no plugin in 1.0** -- see [ADR 0010](adr/0010-file-managers-and-dolphin.md),
-which decides the scope and names the three conditions for revisiting it. The
-mechanism question was settled first, and the rest of this section is that
-working.
-
-A Dolphin user loses the badge and the right-click pin, and nothing else: both
-are in the Cirrove window and in `cirrove pin`, `unpin`, `pins` and `paths`,
-for every file on every desktop. That is the standing rule -- no control and no
-state may be reachable only through one file manager -- and it is what makes
-the deferral affordable.
+nautilus-python 4) has badges, the Cirrove column, the properties section and
+the context-menu pin. Dolphin on KF6 has the same kept/fetching badges and
+**Keep offline** / **Stop keeping offline** for selected files and folders.
+Its plugin is provider-neutral: it locates the mounted account through
+`status`, asks `paths`, sends `pin` or `unpin`, and follows `subscribe` for
+changes. It therefore behaves the same for OneDrive and Google Drive. Dolphin
+does not yet have a Cirrove column or custom properties page. See the revised
+[ADR 0010](adr/0010-file-managers-and-dolphin.md).
 
 It has to be a plugin, and the cheap alternative was checked rather than
 assumed. Dolphin reads service menus from `/usr/share/kio/servicemenus/`, which
@@ -308,10 +304,10 @@ the context menu of every file on the machine, including the ones Cirrove has
 never heard of, which is a worse desktop than no integration at all.
 
 A `KFileItemActionPlugin` is given the selection and returns the actions it
-wants, so it can be silent everywhere else; badges need a `KOverlayIconPlugin`,
-and a column needs a KFileMetaData extractor. All three are compiled against
-KF6, which is a C++ build dependency, a second packaging target and an ABI to
-follow. KIO's own Google Drive integration
+wants, so it is silent everywhere else; badges use a `KOverlayIconPlugin`.
+Both live in `packaging/dolphin/`, share the small control-socket client and
+are compiled against KF6 as their own package. A column would additionally
+need a KFileMetaData extractor. KIO's own Google Drive integration
 (`kf6/kfileitemaction/gdrivecontextmenuaction.so`) is built the same way, which
 is some comfort that the cost is the going rate rather than a mistake.
 
@@ -333,6 +329,14 @@ development, copy it to `~/.local/share/nautilus-python/extensions/` and
 restart Files with `nautilus -q`. `scripts/test-nautilus-extension.py` drives
 its functions against a daemon that is only a socket; the classes Files calls
 are the thin part on top.
+
+The Dolphin plugins install under Qt's `kf6/kfileitemaction` and
+`kf6/overlayicon` plugin directories. `cirrove-dolphin` carries them on Arch
+and Fedora. A developer install puts them under
+`~/.local/lib/qt6/plugins` and adds that location through `environment.d`; log
+out and back in once so Dolphin inherits the path, then restart Dolphin. The
+KF6 build tests the mount-boundary, longest-mount, file/folder selection,
+direct-pin and fetching-badge decisions without a cloud account.
 
 ## Ejecting the mount
 
@@ -438,8 +442,8 @@ template is exactly how a missing string hides.
 
 ## Remaining product work
 
-Transfer progress with cancellation remains separate work. Dolphin is decided
-rather than pending -- it has no plugin in 1.0, see
+Transfer progress with cancellation remains separate work. Dolphin's live
+desktop acceptance and its optional column/properties presentation remain; see
 [ADR 0010](adr/0010-file-managers-and-dolphin.md). Localization is done for the
 window, its dialogs and the tray, in German; see [Languages](#languages) above.
 What is still English is everything outside the desktop: the command line, the

@@ -305,11 +305,12 @@ account repair and the wider recovery flow still need implementation and accepta
 - [x] Publish a supported file-manager list beyond the initial Nautilus target,
       with an explicit Dolphin decision and a shared daemon status contract
       behind each integration. Unsupported managers must still access mounted
-      files; badge/control availability must be explained. The decision is that
-      **Dolphin has no plugin in 1.0** ([ADR 0010](adr/0010-file-managers-and-dolphin.md)),
-      with three named conditions for revisiting; the list, the access
-      guarantee and the availability explanation are in [Desktop](desktop.md)
-      and the [user guide](user-guide.md).
+      files; badge/control availability must be explained. The original
+      no-plugin decision was revisited on 2026-09-20: Dolphin now has KF6 badge
+      and context-menu plugins over the same daemon contract
+      ([ADR 0010](adr/0010-file-managers-and-dolphin.md)). The supported list,
+      access guarantee and remaining column/properties difference are in
+      [Desktop](desktop.md) and the [user guide](user-guide.md).
 - [x] Preserve actionable, sanitized error causes in the window. Unreadable or
       invalid settings, an unreachable service and an incompatible service remain
       distinguishable, with recovery actions and diagnostic detail appropriate

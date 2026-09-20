@@ -51,13 +51,14 @@ Its documentation alone does not verify every listed distribution's current buil
 
 ## Arch
 
-`packaging/arch/PKGBUILD` builds two packages from one source, because a
+`packaging/arch/PKGBUILD` builds three packages from one source, because a
 headless host should be able to install the daemon without a desktop library:
 
 | Package | Contents | Depends on |
 | --- | --- | --- |
 | `cirrove` | `/usr/bin/cirroved`, `/usr/bin/cirrove`, `/usr/lib/systemd/user/cirroved.service`, licence | `fuse3` (for `fusermount3`) and `xdg-utils` (for `xdg-open`, which is how signing in opens a browser); optionally a Secret Service keyring |
 | `cirrove-desktop` | `/usr/bin/cirrove-desktop`, `/usr/bin/cirrove-tray`, the desktop entry, the tray's `/etc/xdg/autostart` entry, the hicolor icons, the AppStream metainfo, the Files extension under `/usr/share/nautilus-python/extensions/`, licence | `cirrove`, `gtk4`, `libadwaita`; optionally the GNOME AppIndicator extension and `nautilus-python` for the Files badges and menu |
+| `cirrove-dolphin` | KF6 context-menu and overlay-icon plugins under Qt's plugin directory, licence | `cirrove-desktop` for the shared icons and translations, plus Qt 6, KIO and KI18n; optional unless Dolphin integration is wanted |
 
 The PKGBUILD is written for a tagged release and downloads the tarball by
 version. There is no tag yet, so `scripts/build-arch-package.sh` builds HEAD: it
@@ -70,7 +71,7 @@ uncommitted edits are not in the package, and it says so.
 
 ```sh
 scripts/build-arch-package.sh
-sudo pacman -U target/arch/cirrove-*.pkg.tar.zst   # the two it names, not the -debug ones
+sudo pacman -U target/arch/cirrove-*.pkg.tar.zst   # the three it names, not the -debug ones
 systemctl --user enable --now cirroved.service
 cirrove status
 ```
@@ -86,14 +87,14 @@ cirroved`), the binaries in `~/.local/bin/`, and
 daemon-reload` and enable the packaged unit. Accounts, credentials and the
 journal under `~/.local/state/cirrove` are not touched by any of this.
 
-`pacman -R cirrove-desktop cirrove` removes only package-owned files. The state
+`pacman -R cirrove-dolphin cirrove-desktop cirrove` removes only package-owned files. The state
 directory, the keyring entries and any unsent bytes in the journal stay, which
 is the retention the milestone asks for; removing them is a separate, explicit
 step (`cirrove forget` per account, or deleting the state directory) and never
 happens through a mounted path.
 
 CI's `arch-package` job does the build in an `archlinux:base-devel` container as
-an unprivileged user with the distribution's rust, installs both packages,
+an unprivileged user with the distribution's rust, installs all three packages,
 runs the binaries, validates the desktop entries and metainfo from their
 installed locations, removes the packages, and checks nothing package-owned
 survived. A container has no login session: it shows the packages are correct,

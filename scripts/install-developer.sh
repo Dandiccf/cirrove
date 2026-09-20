@@ -21,17 +21,26 @@ bin="$HOME/.local/bin"
 icons="$HOME/.local/share/icons/hicolor"
 ext="$HOME/.local/share/nautilus-python/extensions"
 unit="$HOME/.config/systemd/user/cirroved.service"
+dolphin_plugins="$HOME/.local/lib/qt6/plugins"
+dolphin_environment="$HOME/.config/environment.d/60-cirrove-dolphin.conf"
 
-if pacman -Qq cirrove >/dev/null 2>&1 || pacman -Qq cirrove-desktop >/dev/null 2>&1; then
+if pacman -Qq cirrove >/dev/null 2>&1 || pacman -Qq cirrove-desktop >/dev/null 2>&1 \
+  || pacman -Qq cirrove-dolphin >/dev/null 2>&1; then
   echo "The Cirrove packages are installed; a home install on top of them would load" >&2
   echo "everything twice. Remove them first:" >&2
-  echo "    sudo pacman -Rns cirrove cirrove-desktop" >&2
+  echo "    sudo pacman -Rns cirrove cirrove-desktop cirrove-dolphin" >&2
   exit 1
 fi
 
 if [[ ${1:-} != --no-build ]]; then
   echo "building"
   (cd "$repo" && cargo build --release --locked --workspace)
+  if find /usr/lib /usr/lib64 /usr/local/lib -maxdepth 4 \
+    -name KF6KIOConfig.cmake -print -quit 2>/dev/null | grep -q .; then
+    cmake -S "$repo/packaging/dolphin" -B "$repo/target/dolphin" \
+      -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+    cmake --build "$repo/target/dolphin" --parallel
+  fi
 fi
 
 echo "installing into $HOME"
@@ -62,6 +71,20 @@ install -Dm644 "$repo"/packaging/icons/scalable/apps/*.svg -t "$icons/scalable/a
 install -Dm644 "$repo"/packaging/icons/symbolic/apps/*.svg -t "$icons/symbolic/apps/"
 gtk-update-icon-cache -f "$icons" >/dev/null 2>&1 || true
 install -Dm644 "$repo/packaging/nautilus/cirrove.py" -t "$ext/"
+
+# Qt does not include a user-local plugin directory in its default search path.
+# Put the plugins under ~/.local and add that directory for the next login.
+# Packaged plugins live in Qt's system directory and need no environment entry.
+if [[ -f $repo/target/dolphin/plugins/cirrovefileitemaction.so \
+   && -f $repo/target/dolphin/plugins/cirroveoverlayicon.so ]]; then
+  install -Dm755 "$repo/target/dolphin/plugins/cirrovefileitemaction.so" \
+    "$dolphin_plugins/kf6/kfileitemaction/cirrovefileitemaction.so"
+  install -Dm755 "$repo/target/dolphin/plugins/cirroveoverlayicon.so" \
+    "$dolphin_plugins/kf6/overlayicon/cirroveoverlayicon.so"
+  install -d "$(dirname "$dolphin_environment")"
+  printf 'QT_PLUGIN_PATH=%s${QT_PLUGIN_PATH:+:${QT_PLUGIN_PATH}}\n' \
+    "$dolphin_plugins" > "$dolphin_environment"
+fi
 
 # The tray's autostart entry, with Exec= resolved the way the systemd XDG
 # autostart generator needs for ~/.local/bin. See the script's own comments.
@@ -95,4 +118,7 @@ echo "installed from $(cd "$repo" && git rev-parse --short HEAD):"
 systemctl --user show cirroved.service -p FragmentPath -p ExecStart -p ActiveState | sed 's/^/  /'
 echo "  tray: $(pgrep -x cirrove-tray >/dev/null && echo running || echo 'not running')"
 echo "  files extension: $ext/cirrove.py"
+if [[ -f $dolphin_plugins/kf6/kfileitemaction/cirrovefileitemaction.so ]]; then
+  echo "  Dolphin plugins: $dolphin_plugins (available after the next login)"
+fi
 echo "Your accounts, credentials and cache under ~/.local/state/cirrove were not touched."

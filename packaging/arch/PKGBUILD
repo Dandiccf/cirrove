@@ -1,9 +1,9 @@
 # Maintainer: Christian Dandachi <dandiccf@users.noreply.github.com>
 #
-# Two packages from one source: `cirrove` is the daemon and CLI and needs no
-# desktop library on the machine; `cirrove-desktop` is the settings window, the
-# tray, and the files a desktop reads -- entries, icons, metainfo. A headless
-# host installs the first alone.
+# Three packages from one source: `cirrove` is the daemon and CLI and needs no
+# desktop library on the machine; `cirrove-desktop` is the GTK window, tray and
+# Files integration; `cirrove-dolphin` is the optional KF6 integration. A
+# headless host installs the first alone.
 #
 # This file is written for a tagged release. Until one exists,
 # scripts/build-arch-package.sh builds from the checked-in tree: it archives
@@ -12,7 +12,7 @@
 # checksum stays SKIP until the first tag, when `updpkgsums` fills it in.
 
 pkgbase=cirrove
-pkgname=(cirrove cirrove-desktop)
+pkgname=(cirrove cirrove-desktop cirrove-dolphin)
 pkgver=0.2.0dev
 pkgrel=1
 pkgdesc="Cloud drive filesystem that keeps the cloud where it is: OneDrive mounted on demand, without syncing everything"
@@ -21,7 +21,7 @@ url="https://github.com/Dandiccf/cirrove"
 license=(Apache-2.0)
 # gtk4 and libadwaita are here for the desktop package's build; the daemon
 # package's own dependencies are declared on it alone below.
-makedepends=(cargo cmake pkgconf gtk4 libadwaita gettext)
+makedepends=(cargo cmake pkgconf gtk4 libadwaita gettext qt6-base kio ki18n)
 # Not makepkg's LTO: it puts -flto into the C flags, the bundled TLS library's
 # C objects come out as GCC bitcode, and rust-lld cannot read those -- the
 # link fails on hundreds of undefined aws_lc symbols. Rust does its own LTO
@@ -46,6 +46,8 @@ build() {
   # --workspace: the root's default members exclude the desktop on purpose, so
   # that a plain build needs no GTK. The package builds both halves.
   cargo build --frozen --release --workspace
+  cmake -S packaging/dolphin -B target/dolphin -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+  cmake --build target/dolphin --parallel
 }
 
 check() {
@@ -103,6 +105,7 @@ package_cirrove-desktop() {
   optdepends=(
     'gnome-shell-extension-appindicator: show the tray icon on GNOME'
     'nautilus-python: badges and Keep offline in Files'
+    'cirrove-dolphin: badges and Keep offline in Dolphin'
   )
 
   cd "$pkgbase-$pkgver"
@@ -130,5 +133,16 @@ package_cirrove-desktop() {
     msgfmt --check -o "$pkgdir/usr/share/locale/$lang/LC_MESSAGES/cirrove.mo" "$po"
   done
 
+  install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
+}
+
+package_cirrove-dolphin() {
+  pkgdesc+=" (Dolphin badges and offline actions)"
+  # The desktop package owns the shared icon theme entries and gettext domain
+  # used by both file-manager integrations.
+  depends=(cirrove-desktop kio ki18n qt6-base)
+
+  cd "$pkgbase-$pkgver"
+  DESTDIR="$pkgdir" cmake --install target/dolphin --prefix /usr
   install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
 }

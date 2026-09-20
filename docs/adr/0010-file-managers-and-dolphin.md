@@ -1,6 +1,31 @@
-# 0010: Dolphin is out of 1.0
+# 0010: Dolphin was out of 1.0
 
-Status: decision. The mechanism was already settled; this settles the scope.
+Status: superseded on 2026-09-20 by the implementation described below.
+
+## 2026-09-20: decision revisited
+
+The circumstances behind this decision changed. The first release is tagged,
+the provider-neutral reshaping and the Google Drive adapter have landed, and a
+user explicitly asked for Dolphin integration. The implementation now has an
+owner and an isolated KF6 CMake target, an Arch/Fedora package boundary and a
+dedicated KF6 CI job, so KDE libraries remain outside the daemon and GTK
+packages.
+
+Dolphin is therefore supported through two KF6 plugins:
+
+- a `KFileItemActionPlugin` adds **Keep offline** and **Stop keeping offline**
+  only for selections inside a mounted Cirrove account;
+- a `KOverlayIconPlugin` shows the same kept/fetching badges as Files and
+  follows the daemon's `kept_generation` event so an open view does not stay
+  stale.
+
+Both are clients of the existing provider-neutral `status`, `paths`, `pin`,
+`unpin` and `subscribe` contracts. They contain no OneDrive or Google Drive
+branch. Dolphin columns and a custom properties page are still absent; those
+are presentation extras, while offline state and control are present. KF5 is
+not targeted. The plugins compile and their selection, path-boundary, badge
+and metadata behavior have automated KF6 coverage; a real Dolphin session is
+still an acceptance check rather than a claim made here.
 
 ## What was already decided, and what was not
 

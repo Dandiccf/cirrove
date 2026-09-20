@@ -84,6 +84,7 @@ expect() {
 id=io.github.Dandiccf.Cirrove
 core=$(ls "$out"/cirrove-"$ver"-*.pkg.tar.* | grep -v -- '-debug-')
 desktop=$(ls "$out"/cirrove-desktop-"$ver"-*.pkg.tar.* | grep -v -- '-debug-')
+dolphin=$(ls "$out"/cirrove-dolphin-"$ver"-*.pkg.tar.* | grep -v -- '-debug-')
 expect "$core" \
   usr/bin/cirroved usr/bin/cirrove \
   usr/lib/systemd/user/cirroved.service \
@@ -102,8 +103,12 @@ expect "$desktop" \
   "usr/share/metainfo/$id.metainfo.xml" \
   usr/share/nautilus-python/extensions/cirrove.py \
   usr/share/licenses/cirrove-desktop/LICENSE
+expect "$dolphin" \
+  usr/lib/qt6/plugins/kf6/kfileitemaction/cirrovefileitemaction.so \
+  usr/lib/qt6/plugins/kf6/overlayicon/cirroveoverlayicon.so \
+  usr/share/licenses/cirrove-dolphin/LICENSE
 # The daemon package must not pull a desktop library in through the back door.
-if tar -xOf "$core" .PKGINFO | grep -E '^depend = (gtk4|libadwaita)'; then
+if tar -xOf "$core" .PKGINFO | grep -E '^depend = (gtk4|libadwaita|qt6-base|kio|ki18n)'; then
   echo "$core depends on a desktop library" >&2; exit 1
 fi
 
@@ -111,4 +116,5 @@ echo
 echo "built:"
 echo "  $core"
 echo "  $desktop"
-echo "install with: sudo pacman -U $core $desktop"
+echo "  $dolphin"
+echo "install with: sudo pacman -U $core $desktop $dolphin"

@@ -12,7 +12,7 @@ fetches file content on demand into a bounded disk cache.
 OneDrive is mounted on demand -- files appear at once, their contents download
 when opened into a bounded cache, and saves upload in the background through a
 journal that has survived the machine losing power mid-write. Offline pinning
-works from Files and the command line. The settings window connects, re-signs,
+works from Files, Dolphin and the command line. The settings window connects, re-signs,
 removes and repairs accounts without a terminal; the tray and the Files
 extension show what the daemon knows. Arch, Ubuntu 24.04 and Fedora packages
 are built and installed on clean systems by CI on every push; there is no
@@ -24,8 +24,8 @@ client with it for data you have nowhere else. The
 `cirrove pins` shows what each pin has kept against what it reserved, and how much
 of the cache budget pinning has claimed. All of it has been measured against a real
 business drive: a pinned file reads through a mount without touching the provider
-while an unpinned control needs it. It is still in no user interface, and pinned
-content is fetched when a pin is made rather than in the background afterwards. Tray UI and Nautilus badges are not implemented.
+while an unpinned control needs it. Files and Dolphin expose the same pin state
+and controls; Dolphin's live desktop acceptance remains open.
 
 ## Current implementation
 
@@ -161,6 +161,8 @@ that descriptor so shutdown can finish even while applications hold files open.
 Browser sign-in needs `xdg-open` and a desktop Secret Service keyring.
 Building the desktop also requires GTK 4.14+ and libadwaita 1.5+ development files
 (`gtk4 libadwaita` on Arch; `libgtk-4-dev libadwaita-1-dev` on Ubuntu 24.04).
+The optional Dolphin plugins require Qt 6, KIO 6 and KI18n 6 development files
+and build separately with `cmake -S packaging/dolphin -B target/dolphin`.
 The default `cargo build --locked` builds the service/CLI and core libraries without
 GTK dependencies. Add the desktop explicitly with `cargo build -p cirrove-desktop --locked`,
 or use `cargo build --workspace --locked` to build everything.
