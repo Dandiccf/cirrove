@@ -76,6 +76,7 @@ python=$(command -v /usr/bin/python3 || command -v python3)
 "$python" scripts/test-package-versions.py
 "$python" scripts/test-nautilus-extension.py
 "$python" scripts/test-file-manager-docs.py
+scripts/check-dolphin.sh
 "$python" scripts/test-icon-geometry.py
 "$python" scripts/test-translations.py
 "$python" scripts/acceptance-ledger.py

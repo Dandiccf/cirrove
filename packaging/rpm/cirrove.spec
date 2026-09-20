@@ -1,6 +1,7 @@
-# Two packages from one build, the same split as packaging/arch/PKGBUILD:
-# cirrove (daemon, CLI, user unit) and cirrove-desktop (window, tray, entries,
-# icons, metainfo, Files extension). scripts/build-rpm-package.sh rewrites
+# Three packages from one build, the same split as packaging/arch/PKGBUILD:
+# cirrove (daemon, CLI, user unit), cirrove-desktop (window, tray, entries,
+# icons, metainfo, Files extension), and cirrove-dolphin (KF6 plugins).
+# scripts/build-rpm-package.sh rewrites
 # Version with the commit it builds and supplies the tarball.
 #
 # The build uses the cargo on PATH -- a rustup toolchain in CI, since the
@@ -25,6 +26,9 @@ BuildRequires:  pkgconf-pkg-config
 BuildRequires:  gtk4-devel >= 4.14
 BuildRequires:  libadwaita-devel >= 1.5
 BuildRequires:  gettext
+BuildRequires:  qt6-qtbase-devel
+BuildRequires:  kf6-kio-devel
+BuildRequires:  kf6-ki18n-devel
 Requires:       fuse3
 # Not a Recommends: connecting an account opens a browser and xdg-open is how,
 # so without it a fresh install cannot connect an account at all. Arch showed
@@ -52,6 +56,16 @@ Recommends:     gnome-shell-extension-appindicator
 The settings window, the tray, the desktop entry, the icons, the AppStream
 metainfo and the Files extension for Cirrove.
 
+%package        dolphin
+Summary:        Dolphin integration for Cirrove
+Requires:       %{name}-desktop = %{version}-%{release}
+Requires:       kf6-kio
+Requires:       kf6-ki18n
+
+%description    dolphin
+Status badges and context-menu actions for keeping Cirrove files and folders
+available offline in Dolphin.
+
 %prep
 %autosetup -n %{name}-%{version}
 
@@ -59,6 +73,8 @@ metainfo and the Files extension for Cirrove.
 # --workspace: the root's default members exclude the desktop so that a plain
 # build needs no GTK; the package builds both halves.
 cargo build --locked --release --workspace
+cmake -S packaging/dolphin -B target/dolphin -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+cmake --build target/dolphin --parallel
 
 %install
 install -Dm755 target/release/cirroved %{buildroot}%{_bindir}/cirroved
@@ -85,6 +101,7 @@ for po in po/*.po; do
   install -d %{buildroot}%{_datadir}/locale/$lang/LC_MESSAGES
   msgfmt --check -o %{buildroot}%{_datadir}/locale/$lang/LC_MESSAGES/cirrove.mo "$po"
 done
+DESTDIR=%{buildroot} cmake --install target/dolphin --prefix /usr
 
 %files
 %license LICENSE
@@ -107,6 +124,11 @@ done
 %{_metainfodir}/%{app_id}.metainfo.xml
 %{_datadir}/nautilus-python/extensions/cirrove.py
 %{_datadir}/locale/*/LC_MESSAGES/cirrove.mo
+
+%files dolphin
+%license LICENSE
+%{_libdir}/qt6/plugins/kf6/kfileitemaction/cirrovefileitemaction.so
+%{_libdir}/qt6/plugins/kf6/overlayicon/cirroveoverlayicon.so
 
 %changelog
 * Sat Sep 13 2026 Christian Dandachi <dandiccf@users.noreply.github.com> - 0.1.0~dev-1

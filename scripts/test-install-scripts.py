@@ -34,6 +34,8 @@ HOME_LOCATIONS = {
     "metainfo": "~/.local/share/metainfo -- the AppStream metainfo",
     "icons": "~/.local/share/icons/hicolor -- the icons",
     "nautilus-python": "~/.local/share/nautilus-python/extensions -- the Files extension",
+    "qt6/plugins": "~/.local/lib/qt6/plugins -- the Dolphin plugins",
+    "environment.d": "~/.config/environment.d -- the user-local Qt plugin path",
 }
 
 # What to look for in each script to decide it handles a location. Kept as
@@ -47,6 +49,8 @@ MARKERS = {
     "metainfo": [".local/share/metainfo"],
     "icons": [".local/share/icons"],
     "nautilus-python": ["nautilus-python"],
+    "qt6/plugins": [".local/lib/qt6/plugins"],
+    "environment.d": [".config/environment.d"],
 }
 
 

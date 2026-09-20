@@ -34,6 +34,15 @@ xgettext --language=Python --from-code=UTF-8 --join-existing \
   -o "$repo/po/cirrove.pot" \
   "$repo/packaging/nautilus/cirrove.py"
 
+# Dolphin is a KF6/C++ plugin and uses KI18n's i18n() with the same gettext
+# domain. Join it into the one catalogue so the two file managers use the same
+# words for the same operation.
+xgettext --language=C++ --from-code=UTF-8 --join-existing \
+  --keyword=i18n \
+  --add-comments=TRANSLATORS --package-name=cirrove \
+  -o "$repo/po/cirrove.pot" \
+  "$repo/packaging/dolphin/actionplugin.cpp"
+
 for po in "$repo"/po/*.po; do
   lang=$(basename "$po" .po)
   # Merge first, so a string added since the last translation shows up as

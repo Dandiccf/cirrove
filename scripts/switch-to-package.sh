@@ -45,6 +45,15 @@ if [[ -f $extension ]]; then
   rm -f "$extension"
   nautilus -q 2>/dev/null || true
 fi
+dolphin_action="$HOME/.local/lib/qt6/plugins/kf6/kfileitemaction/cirrovefileitemaction.so"
+dolphin_overlay="$HOME/.local/lib/qt6/plugins/kf6/overlayicon/cirroveoverlayicon.so"
+dolphin_environment="$HOME/.config/environment.d/60-cirrove-dolphin.conf"
+for stale in "$dolphin_action" "$dolphin_overlay" "$dolphin_environment"; do
+  if [[ -f $stale ]]; then
+    echo "removing $stale (the Dolphin package provides the plugins under /usr)"
+    rm -f "$stale"
+  fi
+done
 
 # The rest of what a developer install writes into the home. These are not
 # programs and nothing breaks loudly when they are left, which is why they were

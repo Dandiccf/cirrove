@@ -3,7 +3,7 @@
 #
 # Like scripts/build-arch-package.sh: HEAD is archived under the name the spec's
 # Source0 expects, the spec's Version is rewritten to name the commit, and
-# rpmbuild builds both binary packages in its own tree under the output
+# rpmbuild builds all binary packages in its own tree under the output
 # directory. Needs rpm-build and a cargo on PATH -- see the note in
 # packaging/rpm/cirrove.spec on why cargo is not a BuildRequires.
 #
@@ -58,6 +58,7 @@ expect() {
 id=io.github.Dandiccf.Cirrove
 core=$(ls "$top"/RPMS/*/cirrove-"$ver"-*.rpm)
 desktop=$(ls "$top"/RPMS/*/cirrove-desktop-"$ver"-*.rpm)
+dolphin=$(ls "$top"/RPMS/*/cirrove-dolphin-"$ver"-*.rpm)
 expect "$core" \
   /usr/bin/cirroved /usr/bin/cirrove \
   /usr/lib/systemd/user/cirroved.service
@@ -71,15 +72,19 @@ expect "$desktop" \
   "/usr/share/icons/hicolor/scalable/apps/$id-fetching.svg" \
   "/usr/share/metainfo/$id.metainfo.xml" \
   /usr/share/nautilus-python/extensions/cirrove.py
+expect "$dolphin" \
+  /usr/lib64/qt6/plugins/kf6/kfileitemaction/cirrovefileitemaction.so \
+  /usr/lib64/qt6/plugins/kf6/overlayicon/cirroveoverlayicon.so
 # The daemon package must not pull a desktop library in through the back door.
-if rpm -qpR "$core" 2>/dev/null | grep -E '^(gtk4|libadwaita)|libgtk-4|libadwaita-1'; then
+if rpm -qpR "$core" 2>/dev/null | grep -E '^(gtk4|libadwaita|kf6-|qt6-)|libgtk-4|libadwaita-1|libKF6|libQt6'; then
   echo "$core depends on a desktop library" >&2; exit 1
 fi
 
 mkdir -p "$out"
-cp "$core" "$desktop" "$out/"
+cp "$core" "$desktop" "$dolphin" "$out/"
 echo
 echo "built:"
 echo "  $out/$(basename "$core")"
 echo "  $out/$(basename "$desktop")"
-echo "install with: sudo dnf install $out/$(basename "$core") $out/$(basename "$desktop")"
+echo "  $out/$(basename "$dolphin")"
+echo "install with: sudo dnf install $out/$(basename "$core") $out/$(basename "$desktop") $out/$(basename "$dolphin")"

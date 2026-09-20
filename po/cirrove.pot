@@ -954,3 +954,11 @@ msgstr ""
 
 msgid "Your browser opens the Microsoft sign-in. Choose the account there; this window continues when it is done."
 msgstr ""
+
+#: packaging/dolphin/actionplugin.cpp:91
+msgid "Cirrove service is not reachable"
+msgstr ""
+
+#: packaging/dolphin/actionplugin.cpp:96
+msgid "Cirrove could not change offline availability"
+msgstr ""

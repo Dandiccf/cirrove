@@ -280,13 +280,18 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - name: Build tools, and the desktop libraries the desktop package builds against
-        run: pacman -Syu --noconfirm --needed git rust cmake pkgconf gtk4 libadwaita fuse3 desktop-file-utils appstream
+      - name: Build tools, and the desktop libraries the desktop packages build against
+        run: pacman -Syu --noconfirm --needed git rust cmake pkgconf gtk4 libadwaita fuse3 desktop-file-utils appstream qt6-base kio ki18n
       - uses: actions/checkout@v4
         with:
           # The package version carries the commit count.
           fetch-depth: 0
-      - name: Build both packages from HEAD as an unprivileged user
+      - name: Dolphin plugins load and cover ordinary files and folders
+        run: |
+          cmake -S packaging/dolphin -B target/dolphin-ci -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTING=ON
+          cmake --build target/dolphin-ci --parallel
+          ctest --test-dir target/dolphin-ci --output-on-failure
+      - name: Build all packages from HEAD as an unprivileged user
         run: |
           useradd -m builder
           git config --system --add safe.directory "$GITHUB_WORKSPACE"
@@ -320,7 +325,9 @@ jobs:
           appstreamcli validate /usr/share/metainfo/io.github.Dandiccf.Cirrove.metainfo.xml
           test -f /usr/share/icons/hicolor/scalable/apps/io.github.Dandiccf.Cirrove-attention.svg
           test -f /usr/share/nautilus-python/extensions/cirrove.py
-          pacman -Rns --noconfirm cirrove-desktop cirrove
+          test -f /usr/lib/qt6/plugins/kf6/kfileitemaction/cirrovefileitemaction.so
+          test -f /usr/lib/qt6/plugins/kf6/overlayicon/cirroveoverlayicon.so
+          pacman -Rns --noconfirm cirrove-dolphin cirrove-desktop cirrove
           for f in /usr/bin/cirroved /usr/bin/cirrove /usr/bin/cirrove-tray /usr/lib/systemd/user/cirroved.service /etc/xdg/autostart/io.github.Dandiccf.Cirrove.Tray.desktop; do
             ! test -e "$f" || { echo "$f survived removal"; exit 1; }
           done
@@ -400,8 +407,8 @@ jobs:
       id-token: write
       attestations: write
     steps:
-      - name: Packaging tools, and the desktop libraries the desktop package builds against
-        run: dnf install -y git rpm-build gcc cmake pkgconf-pkg-config gtk4-devel libadwaita-devel fuse3 desktop-file-utils appstream curl tar gzip
+      - name: Packaging tools, and the desktop libraries the desktop packages build against
+        run: dnf install -y git rpm-build gcc cmake pkgconf-pkg-config gtk4-devel libadwaita-devel fuse3 desktop-file-utils appstream curl tar gzip qt6-qtbase-devel kf6-kio-devel kf6-ki18n-devel
       - name: Install pinned toolchain
         run: |
           curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain 1.98.1
@@ -410,7 +417,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - name: Build both packages from HEAD
+      - name: Build all packages from HEAD
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           scripts/build-rpm-package.sh
@@ -434,7 +441,9 @@ jobs:
           desktop-file-validate /etc/xdg/autostart/io.github.Dandiccf.Cirrove.Tray.desktop
           appstreamcli validate /usr/share/metainfo/io.github.Dandiccf.Cirrove.metainfo.xml
           test -f /usr/share/nautilus-python/extensions/cirrove.py
-          dnf remove -y cirrove-desktop cirrove
+          test -f /usr/lib64/qt6/plugins/kf6/kfileitemaction/cirrovefileitemaction.so
+          test -f /usr/lib64/qt6/plugins/kf6/overlayicon/cirroveoverlayicon.so
+          dnf remove -y cirrove-dolphin cirrove-desktop cirrove
           for f in /usr/bin/cirroved /usr/bin/cirrove /usr/bin/cirrove-tray /usr/lib/systemd/user/cirroved.service /etc/xdg/autostart/io.github.Dandiccf.Cirrove.Tray.desktop; do
             ! test -e "$f" || { echo "$f survived removal"; exit 1; }
           done

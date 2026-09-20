@@ -13,18 +13,21 @@ and what has been checked against a real account, and what has not, in
 
 ## Installing
 
-**Arch:** two packages, `cirrove` (the service and the command line) and
-`cirrove-desktop` (the settings window, the tray, and the Files extension).
-Until there is a release they are built from the tree:
+**Arch:** `cirrove` contains the service and command line,
+`cirrove-desktop` the settings window, tray and Files extension, and the
+optional `cirrove-dolphin` package the KF6 plugins. Until there is a release
+they are built from the tree:
 
 ```sh
 scripts/build-arch-package.sh
-sudo pacman -U target/arch/cirrove-*.pkg.tar.zst    # the two it names, not the -debug ones
+sudo pacman -U target/arch/cirrove-*.pkg.tar.zst    # the three it names, not the -debug ones
 ```
 
-**Ubuntu 24.04 / Fedora:** `scripts/build-deb-package.sh` and
-`scripts/build-rpm-package.sh` build the same two packages; see
-[Distribution](distribution.md) for what is verified where.
+**Ubuntu 24.04 / Fedora:** `scripts/build-deb-package.sh` builds the core and
+desktop packages. Ubuntu 24.04 has no KF6 KIO development package, so it does
+not build the Dolphin plugin. `scripts/build-rpm-package.sh` also builds
+`cirrove-dolphin`; see [Distribution](distribution.md) for what is verified
+where.
 
 The service is installed, not started. It starts the moment you connect a
 drive from the window, or with `systemctl --user enable --now cirroved`. The
@@ -56,6 +59,9 @@ Arch works. Fedora and Ubuntu pull both in for you. So on Arch:
 `sudo pacman -S nautilus-python gnome-shell-extension-appindicator`. Without
 them the drive works completely; what you lose is the badges and the tray icon,
 and Cirrove says so in its own window rather than leaving you to wonder.
+For Dolphin, install the separate `cirrove-dolphin` package. It brings the KF6
+plugins without making KDE libraries a dependency of the daemon or the GTK
+window.
 
 On GNOME, the extension only counts from your next login. Installing
 `cirrove-desktop` brings the extension in with it, but a running GNOME Shell
@@ -108,10 +114,11 @@ an hour later.
 
 **Any file manager works.** The drive is a folder on your computer, so
 Dolphin, Konqueror, Thunar, a terminal or any program's Open dialog use it
-exactly like any other folder. What only GNOME Files has is the extra layer:
-the state badges, the Cirrove column, the properties section and the
-right-click **Keep offline**. If you use something else, everything those do
-is in the Cirrove window and in the `cirrove` command, described below.
+exactly like any other folder. GNOME Files adds state badges, the Cirrove
+column, a properties section and right-click **Keep offline**. Dolphin on KF6
+adds the same badges and right-click offline action; the column and properties
+section remain specific to Files. Everything is also in the Cirrove window and
+the `cirrove` command, described below.
 
 **OneNote notebooks are read-only.** A notebook is a folder in OneDrive, and
 what is inside it are section files that only OneNote knows how to write. You

@@ -2,14 +2,12 @@
 """Hold the file-manager promise to what the code actually offers.
 
 M5 line 292 carries one rule with teeth: no control and no state may be
-reachable only through one file manager. Everything the Nautilus extension can
-do has to be reachable from the command line too, or a person on Dolphin loses
-something -- and the Dolphin decision (ADR 0010) rests on that rule holding.
+reachable only through one file manager. Everything either file-manager
+integration can do has to be reachable from the command line too, or a person
+using another manager loses something.
 
-This asserts the rule rather than the prose. Every daemon verb the Nautilus
-extension speaks must also be a verb the CLI speaks. If someone teaches the
-extension a verb the CLI does not have, a Files-only capability has just been
-created and this fails.
+This asserts the rule rather than the prose. Every user-facing daemon verb the
+Files and Dolphin integrations speak must also be a verb the CLI speaks.
 
 The lighter checks are that the decision and the published list still exist:
 a deferral nobody can find is indistinguishable from neglect.
@@ -23,6 +21,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 EXTENSION = ROOT / "packaging/nautilus/cirrove.py"
+DOLPHIN = sorted((ROOT / "packaging/dolphin").glob("*.cpp"))
 DESKTOP = ROOT / "docs/desktop.md"
 ADR = ROOT / "docs/adr/0010-file-managers-and-dolphin.md"
 CLI = ROOT / "crates/cirrove-service/src/bin/cirrove.rs"
@@ -71,9 +70,19 @@ def cli_verbs():
     return verbs
 
 
+def dolphin_verbs():
+    """Queries and actions exposed by the KF6 plugins.
+
+    `subscribe` is an invalidation channel, not a user-visible control or state
+    of its own, so it does not belong to this parity check.
+    """
+    source = "\n".join(path.read_text() for path in DOLPHIN)
+    return set(re.findall(r'QStringLiteral\("(status|paths|pin|unpin)"\)', source))
+
+
 class FileManagerPromise(unittest.TestCase):
     def test_the_extension_speaks_no_verb_the_command_line_lacks(self):
-        extension = extension_verbs()
+        extension = extension_verbs() | dolphin_verbs()
         self.assertTrue(extension, "found no verbs in the extension; the pattern has rotted")
         cli = cli_verbs()
         only_in_files = sorted(extension - cli)

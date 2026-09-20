@@ -1072,3 +1072,11 @@ msgstr "Die Google-Anmeldung öffnet sich im Browser. Wähle dort das Konto aus;
 
 msgid "Your browser opens the Microsoft sign-in. Choose the account there; this window continues when it is done."
 msgstr "Die Microsoft-Anmeldung öffnet sich im Browser. Wähle dort das Konto aus; danach geht es in diesem Fenster weiter."
+
+#: packaging/dolphin/actionplugin.cpp:91
+msgid "Cirrove service is not reachable"
+msgstr "Cirrove-Dienst nicht erreichbar"
+
+#: packaging/dolphin/actionplugin.cpp:96
+msgid "Cirrove could not change offline availability"
+msgstr "Cirrove konnte die Offline-Verfügbarkeit nicht ändern"

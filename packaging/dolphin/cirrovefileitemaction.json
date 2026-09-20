@@ -1,0 +1,16 @@
+{
+    "KPlugin": {
+        "Id": "cirrovefileitemaction",
+        "Name": "Cirrove",
+        "Description": "Keep Cirrove files and folders available offline",
+        "Icon": "io.github.Dandiccf.Cirrove-symbolic",
+        "License": "Apache-2.0",
+        "MimeTypes": [
+            "application/octet-stream",
+            "inode/directory"
+        ],
+        "ServiceTypes": [
+            "KFileItemAction/Plugin"
+        ]
+    }
+}

@@ -23,6 +23,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PO = sorted((ROOT / "po").glob("*.po"))
 SOURCES = sorted((ROOT / "crates/cirrove-desktop/src").rglob("*.rs"))
+CPP_SOURCES = [ROOT / "packaging/dolphin/actionplugin.cpp"]
 
 
 def entries(path):
@@ -46,6 +47,11 @@ def extract_from_source():
         subprocess.run(
             ["xgettext", "--language=C", "--from-code=UTF-8",
              "--keyword=gettext", "--keyword=n", "-o", pot.name, *map(str, SOURCES)],
+            check=True, capture_output=True,
+        )
+        subprocess.run(
+            ["xgettext", "--language=C++", "--from-code=UTF-8", "--join-existing",
+             "--keyword=i18n", "-o", pot.name, *map(str, CPP_SOURCES)],
             check=True, capture_output=True,
         )
         return entries(pot.name)

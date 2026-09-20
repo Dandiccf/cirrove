@@ -29,7 +29,10 @@ scripts/switch-to-package.sh            # after pacman -U, move off the develope
 `install-developer.sh` puts the binaries in `~/.local/bin`, the unit in
 `~/.config/systemd/user`, the tray's autostart entry in `~/.config/autostart`,
 and the icons, desktop entry, metainfo and Files extension under
-`~/.local/share`. It then restarts the service and the tray, so the build you
+`~/.local/share`. When KF6 development files are installed it also builds the
+Dolphin plugins under `~/.local/lib/qt6/plugins` and writes a user environment
+entry so Qt finds them after the next login. It then restarts the service and
+the tray, so the build you
 just made is the one running -- the point of the developer install is that a new
 version needs no password and no step from the person using the machine.
 
