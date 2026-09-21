@@ -85,7 +85,10 @@ currently bundled; another project's client ID is never substituted.
       conflicts on one run-owned binary file; conditional trash remains synthetic
       for exact files and observed-empty folders. Atomic collision rules, mounted
       projected-name behavior, broader mutation evidence, writable
-      namespace rules, shared drives and Docs/Sheets exports remain open.
+      namespace rules and shared drives remain open. Bounded read-only DOCX/XLSX
+      package exports for native Docs/Sheets are implemented and checked on one
+      existing item of each type; native import/write-back, additional formats,
+      exports over 10 MiB and broader fidelity evidence remain open.
 - [ ] iCloud feasibility, isolated compatibility adapter and visible limitations.
 
 Modern components do not establish production readiness. Sustained real-provider

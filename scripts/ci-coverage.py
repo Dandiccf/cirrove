@@ -29,6 +29,9 @@ WORKFLOW = ROOT / ".github/workflows/ci.yml"
 # Ignored tests deliberately not run by CI. A test belongs here only with a
 # reason someone can disagree with.
 EXCUSED = {
+    "report_native_doc_and_sheet_export_shape_without_item_identity": (
+        "live Google read grant; bounded GET-only export preflight with aggregate output"
+    ),
     # Exact live Google helpers need the owner's OAuth grant and are additionally
     # fenced by an explicit state directory plus exact run-owned item identity.
     # Their successful bounded run is recorded in the writable-mount benchmark;

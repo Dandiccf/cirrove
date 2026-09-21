@@ -62,6 +62,17 @@ They have neither a file nor a folder facet; treating that as a malformed entry 
 abort a whole delta page or directory. This projection does not implement OneNote
 editing or claim compatibility with native notebook applications.
 
+The same provider-neutral parent-metadata hook expands generated provider
+representations without teaching the engine Google item types. Native Google Docs
+and Sheets are read-only package folders. Entering one makes the adapter export a
+bounded DOCX or XLSX artifact, verify that the source version did not change, and
+return a child whose identity is derived from account, collection, source item and
+format rather than its path. Because repeated Google exports of one unchanged
+source were not byte-stable, the child revision includes the artifact SHA-256.
+The adapter hands those exact bytes to the service before directory publication;
+the normal verified block cache then owns later reads. No network await occurs in
+the SQLite publication transaction.
+
 Discovery follows indexed ancestry and starts one delta worker per linked drive.
 Reachable roots are persisted; obsolete subscriptions are removed only when the
 remaining reachable scopes have complete indexes. Discovery stops at duplicate roots
@@ -1016,8 +1027,10 @@ index captures a change token before listing, stages every listing page and catc
 up from that token before publishing completion. Binary reads use v3
 `headRevisionId` as content lineage, require exact byte ranges and compare the head
 revision before and after every range or staged window. The separate numeric v3
-file `version` is a metadata/write observation. Google-native files remain browser
-links rather than implicit exports.
+file `version` is a metadata/write observation. Native Docs and Sheets use explicit
+read-only package folders containing a staged DOCX or XLSX export and a browser
+link. Exporting happens only when that package is opened, avoiding a content
+download for every ordinary parent listing.
 
 Settings version 2 discriminates authentication through `registration.provider`
 (`microsoft` or `google`); runtime scope IDs remain `onedrive` and `googledrive`.

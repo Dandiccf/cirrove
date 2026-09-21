@@ -358,27 +358,172 @@ async fn quota_403_sets_account_wide_cooldown_without_exposing_provider_body() {
     ));
 }
 #[tokio::test]
-async fn native_documents_are_nonempty_browser_links_and_never_fake_blob_exports() {
+async fn native_documents_expand_to_exact_versioned_exports_and_a_browser_link() {
     let mut doc = file("1");
+    doc["name"] = "Quarterly plan".into();
     doc["mimeType"] = "application/vnd.google-apps.document".into();
-    doc.as_object_mut().unwrap().remove("size");
+    doc["size"] = "777".into();
+    doc.as_object_mut().unwrap().remove("headRevisionId");
     let node = serde_json::from_value::<files::File>(doc.clone())
         .unwrap()
         .node("root-id")
         .unwrap();
-    assert!(node.name.ends_with(".url"));
-    assert!(node.size > 0);
-    let (p, task) = server(vec![json_step("/drive/v3/files/same-id", doc)]).await;
-    let content = p
-        .read_range(&scope(), &node, 0, 4096, &CancellationToken::new())
+    assert_eq!(node.kind, cirrove_core::NodeKind::Folder);
+    assert!(node.package);
+    assert!(node.name.ends_with(".gdoc"));
+    assert_eq!(node.size, 0);
+
+    let exported = b"synthetic-docx-content".to_vec();
+    let (p, task) = server(vec![
+        json_step("/drive/v3/files/same-id", doc.clone()),
+        Step {
+            path: "/drive/v3/files/same-id/export",
+            query: vec![(
+                "mimeType",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )],
+            status: 200,
+            body: exported.clone(),
+            headers: "",
+        },
+        json_step("/drive/v3/files/same-id", doc),
+    ])
+    .await;
+    let page = p
+        .children_for_node(&scope(), &node, None, &CancellationToken::new())
         .await
         .unwrap();
-    assert_eq!(content.len() as u64, node.size);
+    assert!(page.next.is_none());
+    assert_eq!(page.nodes.len(), 2);
+    let export = page
+        .nodes
+        .iter()
+        .find(|child| child.name == "Document.docx")
+        .unwrap();
+    assert_eq!(export.size, exported.len() as u64);
+    assert_eq!(export.parent_id.as_deref(), Some("same-id"));
+    assert!(
+        export
+            .content_version
+            .as_deref()
+            .unwrap()
+            .starts_with("google-export-docx:1:")
+    );
+    let content = p
+        .read_range(
+            &scope(),
+            export,
+            1,
+            exported.len() as u32,
+            &CancellationToken::new(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(content, exported[1..]);
+
+    let link = page
+        .nodes
+        .iter()
+        .find(|child| child.name == "Open in Google.url")
+        .unwrap();
+    let content = p
+        .read_range(&scope(), link, 0, 4096, &CancellationToken::new())
+        .await
+        .unwrap();
     assert!(
         String::from_utf8(content)
             .unwrap()
             .contains("https://drive.google.com/open?id=same-id")
     );
+    let repeated = p
+        .children_for_node(&scope(), &node, None, &CancellationToken::new())
+        .await
+        .unwrap();
+    assert_eq!(repeated.nodes, page.nodes);
+    task.await.unwrap();
+}
+
+#[tokio::test]
+async fn native_export_is_discarded_when_the_source_changes_during_materialization() {
+    let mut before = file("1");
+    before["mimeType"] = "application/vnd.google-apps.spreadsheet".into();
+    before.as_object_mut().unwrap().remove("headRevisionId");
+    let mut after = before.clone();
+    after["version"] = "2".into();
+    let parent = serde_json::from_value::<files::File>(before.clone())
+        .unwrap()
+        .node("root-id")
+        .unwrap();
+    let (provider, task) = server(vec![
+        json_step("/drive/v3/files/same-id", before),
+        Step {
+            path: "/drive/v3/files/same-id/export",
+            query: vec![(
+                "mimeType",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )],
+            status: 200,
+            body: b"stale-xlsx".to_vec(),
+            headers: "",
+        },
+        json_step("/drive/v3/files/same-id", after),
+    ])
+    .await;
+    assert!(matches!(
+        provider
+            .children_for_node(&scope(), &parent, None, &CancellationToken::new())
+            .await,
+        Err(ProviderError::VersionChanged)
+    ));
+    task.await.unwrap();
+}
+#[tokio::test]
+async fn native_export_preflight_compares_selected_bytes_without_exposing_identity() {
+    let mut doc = file("7");
+    doc["name"] = "private-title".into();
+    doc["mimeType"] = "application/vnd.google-apps.document".into();
+    doc["size"] = "777".into();
+    doc.as_object_mut().unwrap().remove("headRevisionId");
+    let exported = b"synthetic-docx".to_vec();
+    let steps = vec![
+        json_step(
+            "/drive/v3/files",
+            json!({"files":[doc.clone()],"incompleteSearch":false}),
+        ),
+        json_step(
+            "/drive/v3/files/same-id/revisions",
+            json!({"revisions":[{"id":"revision-private"}]}),
+        ),
+        json_step("/drive/v3/files/same-id", doc.clone()),
+        Step {
+            path: "/drive/v3/files/same-id/export",
+            query: vec![(
+                "mimeType",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )],
+            status: 200,
+            body: exported.clone(),
+            headers: "",
+        },
+        json_step("/drive/v3/files/same-id", doc),
+    ];
+    let (provider, task) = server(steps).await;
+    let report = provider
+        .native_export_preflight(&CancellationToken::new())
+        .await
+        .unwrap();
+    assert_eq!(report.scanned_files, 1);
+    assert_eq!(report.observations.len(), 1);
+    let observed = &report.observations[0];
+    assert_eq!(observed.kind, "document");
+    assert_eq!(observed.metadata_size, Some(777));
+    assert_eq!(observed.export_bytes, exported.len() as u64);
+    assert!(!observed.metadata_matches_export);
+    assert!(observed.version_stable);
+    assert!(!observed.head_revision_available);
+    assert!(observed.listed_revision_available);
+    let serialized = serde_json::to_string(&report).unwrap();
+    assert!(!serialized.contains("same-id") && !serialized.contains("private-title"));
     task.await.unwrap();
 }
 #[test]
