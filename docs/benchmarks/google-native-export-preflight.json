@@ -1,0 +1,20 @@
+{
+  "question": "Can Google Docs and Sheets be projected as ordinary DOCX/XLSX files while preserving Cirrove's exact size, version and bounded-read contracts?",
+  "kind": "Pre-registered GET-only metadata and export preflight on the owner's existing Google connection.",
+  "authorization": "The owner asked Cirrove to implement native Google Docs/Sheets content and exports. This preflight reads bounded metadata and at most one existing Doc and one existing Sheet; it does not create, edit, rename or delete cloud items.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-21T06:29:30+02:00",
+  "source_revision": "46ee1f8469e5f5705733860f1dc96b2517a737ee",
+  "temporary_directory": "/home/dandiccf/Work/cirrove/.local-state/live-runs/google-native-export-preflight-20260921 (btrfs, not tmpfs)",
+  "expected_duration_seconds": 300,
+  "command": "A bounded ignored test loads the existing Google connection, aggregates native-document metadata without emitting names, IDs, URLs or bodies, and exports at most one Google Doc as DOCX and one Google Sheet as XLSX.",
+  "arms": [
+    "Check whether native Docs and Sheets expose a metadata size and a stable revision identity.",
+    "Export at most one Doc to DOCX and one Sheet to XLSX, recording only type, byte count, SHA-256 and whether the surrounding metadata version stayed unchanged.",
+    "Compare each exported byte count with the file metadata size without printing provider identities or raw responses."
+  ],
+  "prediction": "Drive's file size will either be absent or differ from the selected export, so a correct FUSE projection will need to materialize the chosen revision before publishing its size. The export bytes themselves will be nonempty and the file version will remain stable across each bounded read.",
+  "endpoint": "The implementation direction is chosen from observed size and revision behavior. A direct projection is allowed only if the selected export has an exact, stable size before content transfer; otherwise Cirrove must stage the complete revision export before exposing it as a regular file.",
+  "limits": "One Doc and one Sheet cannot establish all format fidelity. This preflight does not test Shared Drives, documents over 10 MB, write/import behavior, comments, suggestions, formulas, charts or macros.",
+  "status": "registered"
+}
