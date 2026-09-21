@@ -50,6 +50,8 @@ mod deletion;
 #[cfg(test)]
 mod discovery;
 #[cfg(test)]
+mod packages;
+#[cfg(test)]
 mod paths;
 #[cfg(test)]
 mod persistence;
@@ -1781,6 +1783,15 @@ impl Engine {
         deadline: std::time::Instant,
     ) -> Result<(), ProviderError> {
         use cirrove_store::DirectoryPublicationResult;
+        let db = self.db.clone();
+        let parent_scope = scope.clone();
+        let parent_id = parent.to_owned();
+        let parent_node = self
+            .tasks
+            .spawn_blocking(move || Store::open(db)?.node(&parent_scope, &parent_id))
+            .await
+            .map_err(|_| ProviderError::Unavailable)?
+            .map_err(|_| ProviderError::Unavailable)?;
         for _ in 0..3 {
             let permit = tokio::select! {biased;
                 _=cancel.cancelled()=>return Err(ProviderError::Cancelled),
@@ -1804,10 +1815,20 @@ impl Engine {
                 .map_err(|_| ProviderError::Unavailable)?;
             let mut cursor = None;
             loop {
-                let page = self
-                    .provider
-                    .children(scope, parent, cursor.as_ref(), &cancel)
-                    .await?;
+                let page = if let Some(parent_node) = parent_node.as_ref() {
+                    self.provider
+                        .children_for_node(scope, parent_node, cursor.as_ref(), &cancel)
+                        .await?
+                } else {
+                    self.provider
+                        .children(scope, parent, cursor.as_ref(), &cancel)
+                        .await?
+                };
+                for node in &page.nodes {
+                    if let Some(bytes) = self.provider.staged_content(scope, node, &cancel).await? {
+                        self.cache.stage(scope, node, &bytes, &cancel).await?;
+                    }
+                }
                 let next = page.next.clone();
                 staged = self
                     .tasks

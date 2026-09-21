@@ -8,8 +8,28 @@ mod upload;
 
 use cirrove_core::{ProviderError, RequestBudget, Scope, TokenSource};
 use reqwest::{Client, Url, redirect::Policy};
-use std::{sync::Arc, time::Duration};
+use std::{collections::VecDeque, sync::Arc, time::Duration};
 use tokio::{sync::Mutex, time::Instant};
+
+#[cfg(feature = "test-support")]
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct NativeExportObservation {
+    pub kind: &'static str,
+    pub metadata_size: Option<u64>,
+    pub export_bytes: u64,
+    pub export_sha256: String,
+    pub metadata_matches_export: bool,
+    pub version_stable: bool,
+    pub head_revision_available: bool,
+    pub listed_revision_available: bool,
+}
+
+#[cfg(feature = "test-support")]
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct NativeExportPreflight {
+    pub scanned_files: usize,
+    pub observations: Vec<NativeExportObservation>,
+}
 
 pub const PROVIDER_ID: &str = "googledrive";
 const MAX_PAGE_BYTES: usize = 8 * 1024 * 1024;
@@ -24,7 +44,14 @@ pub struct GoogleDrive {
     tokens: Arc<dyn TokenSource>,
     budget: RequestBudget,
     cooldown: Arc<Mutex<Option<Instant>>>,
+    native_exports: Arc<Mutex<VecDeque<NativeExportCacheEntry>>>,
     settle_write_receipts: bool,
+}
+
+#[derive(Clone)]
+struct NativeExportCacheEntry {
+    identity: String,
+    bytes: Arc<[u8]>,
 }
 impl GoogleDrive {
     /// `collection` is the real My Drive root ID, resolved during connection.
@@ -60,6 +87,7 @@ impl GoogleDrive {
             tokens,
             budget: RequestBudget::default(),
             cooldown: Arc::new(Mutex::new(None)),
+            native_exports: Arc::new(Mutex::new(VecDeque::new())),
             settle_write_receipts: false,
             client: Client::builder()
                 .redirect(Policy::none())

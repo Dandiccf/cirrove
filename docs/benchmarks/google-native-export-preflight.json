@@ -16,5 +16,26 @@
   "prediction": "Drive's file size will either be absent or differ from the selected export, so a correct FUSE projection will need to materialize the chosen revision before publishing its size. The export bytes themselves will be nonempty and the file version will remain stable across each bounded read.",
   "endpoint": "The implementation direction is chosen from observed size and revision behavior. A direct projection is allowed only if the selected export has an exact, stable size before content transfer; otherwise Cirrove must stage the complete revision export before exposing it as a regular file.",
   "limits": "One Doc and one Sheet cannot establish all format fidelity. This preflight does not test Shared Drives, documents over 10 MB, write/import behavior, comments, suggestions, formulas, charts or macros.",
-  "status": "registered"
+  "status": "passed_with_correction",
+  "result": {
+    "scanned_files": 626,
+    "spreadsheet": {
+      "metadata_size": 13619,
+      "export_size": 45701,
+      "metadata_matches_export": false,
+      "source_version_stable": true,
+      "head_revision_available": false,
+      "listed_revision_available": true
+    },
+    "document": {
+      "metadata_size": 22953,
+      "export_size": 1345146,
+      "metadata_matches_export": false,
+      "source_version_stable": true,
+      "head_revision_available": false,
+      "listed_revision_available": true
+    }
+  },
+  "correction": "A second run through the production package path kept both source versions stable but produced different export SHA-256 values; the spreadsheet artifact was also 18 bytes smaller. Google export generation is therefore not treated as byte-deterministic for a source version. The published child revision includes the exact artifact SHA-256, and the already materialized bytes are transferred into Cirrove's verified disk cache before the directory entry is published.",
+  "conclusion": "Drive metadata size cannot describe a selected native export. Cirrove projects a native Doc or Sheet as a read-only package and materializes its DOCX or XLSX child on entry, with exact size, artifact hash and source-version checks. The evidence covers one item of each type and the files.export 10 MiB limit; it does not establish other formats, larger exports, import/write-back or general fidelity."
 }

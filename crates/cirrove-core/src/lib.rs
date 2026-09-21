@@ -271,6 +271,36 @@ pub trait ReadProvider: MetadataProvider {
         cursor: Option<&Cursor>,
         cancel: &CancellationToken,
     ) -> Result<DirectoryPage, ProviderError>;
+    /// List a parent for which the service already has provider metadata.
+    ///
+    /// The default preserves the ordinary remote-directory contract. Providers
+    /// may use the parent metadata to expand an opaque provider package into
+    /// read-only representations whose identities are derived from the remote
+    /// item rather than from a presentation path.
+    async fn children_for_node(
+        &self,
+        scope: &Scope,
+        parent: &Node,
+        cursor: Option<&Cursor>,
+        cancel: &CancellationToken,
+    ) -> Result<DirectoryPage, ProviderError> {
+        self.children(scope, &parent.id, cursor, cancel).await
+    }
+    /// Bytes already materialized while constructing a derived directory entry.
+    ///
+    /// Generated provider representations sometimes have no trustworthy size
+    /// until the provider has produced the complete artifact. The service asks
+    /// for those exact bytes before publishing the entry so its ordinary disk
+    /// cache, rather than an adapter's bounded scratch memory, owns subsequent
+    /// reads. Ordinary remote files return `None`.
+    async fn staged_content(
+        &self,
+        _scope: &Scope,
+        _node: &Node,
+        _cancel: &CancellationToken,
+    ) -> Result<Option<Arc<[u8]>>, ProviderError> {
+        Ok(None)
+    }
     /// Return exactly the requested range, bounded by EOF. Never return bytes of
     /// another version of `node`; a changed object must yield VersionChanged.
     async fn read_range(

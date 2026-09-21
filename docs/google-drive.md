@@ -25,9 +25,15 @@ The bounded live record for these operations is
   a write observation; it is never sent to Google as an HTTP ETag.
 - Shortcut targets in the same user collection. Shared-drive targets remain
   unsupported. A shortcut requiring a resource key becomes a browser link.
-- Google-native documents, including Docs and Sheets, as nonempty `.url` browser
-  links. They are **not exported document contents**. DOCX/XLSX/PDF exports and
-  their version, size and cache semantics remain future work.
+- Native Google Docs and Sheets as read-only `.gdoc` and `.gsheet` package
+  folders. Opening one materializes the current document as `Document.docx` or
+  `Spreadsheet.xlsx`, alongside `Open in Google.url`. Cirrove compares the
+  numeric source version before and after export, hashes the exact generated
+  artifact, and stages it into the ordinary durable content cache before
+  publishing its size. Package ancestry refuses rename, removal and edits that
+  would otherwise imply unsupported native-document import. Google's
+  `files.export` endpoint limits this path to 10 MiB; PDF and other formats,
+  larger exports, and native write-back remain open.
 - Provider listings give every pre-existing name its complete item ID before the extension:
   `report [item-id].txt`. This initial policy is deliberately stable across
   pagination, rename, restart and duplicate sibling names. `/`, NUL and `%` are
@@ -36,8 +42,9 @@ The bounded live record for these operations is
   the application chose while that exact identity is acknowledged. This changes
   mounted presentation only; it never rewrites a remote name just to format it.
 
-Shared Drives, document exports, push webhooks, resource-key transport and
-large-library/long-session acceptance are not claimed.
+Shared Drives, native document imports, exports over 10 MiB, PDF and other export
+formats, push webhooks, resource-key transport and large-library/long-session
+acceptance are not claimed.
 There is no service-account or another client's credential import.
 
 ## Write boundary found during the preview
@@ -446,7 +453,7 @@ were removed only by their recorded Google folder IDs; the account finished read
 with no pins, failed uploads or stuck changes.
 
 These results cover one My Drive account and bounded binary-file workflows. They
-do not cover Shared Drives, native Google document import/export, a published and
+do not cover Shared Drives, native Google document import, a published and
 verified OAuth application, full offline outage behavior, or long sessions and
 large libraries. The registered plan, first failures, corrections and exact
 outcomes are in
@@ -495,3 +502,23 @@ The preregistration and failures remain with the result in
 [the first-connection record](benchmarks/google-drive-first-connection.json).
 This small functional check does not establish large-library, long-session,
 offline/restart or token-lifetime reliability.
+
+## Native Docs/Sheets export preflight, 2026-09-21
+
+A pre-registered GET-only run exercised the production package exporter against
+one existing Google Doc and one existing Google Sheet without recording their
+names or IDs. The DOCX export was 1,345,146 bytes while Drive metadata reported
+22,953; the XLSX export was 45,701 bytes while metadata reported 13,619. Both
+source versions stayed stable and both exposed a revision through
+`revisions.list`, while neither exposed binary `headRevisionId`.
+
+Repeating the export with the same source versions produced different hashes, and
+the XLSX size changed by 18 bytes. The implementation therefore identifies the
+exact generated artifact by SHA-256 and transfers those already materialized
+bytes into the service content cache before its directory entry becomes visible.
+It does not treat the source metadata size or version as a unique identity for
+Google's generated ZIP bytes. The full preregistration, correction and aggregate
+results are in
+[`google-native-export-preflight.json`](benchmarks/google-native-export-preflight.json).
+This is evidence for two bounded readable exports on one account, not general
+format-fidelity or provider-reliability evidence.
