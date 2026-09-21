@@ -8,7 +8,7 @@ use cirrove_core::{
 use serde::Deserialize;
 
 pub(super) const FIELDS: &str = "id,name,mimeType,parents,size,version,headRevisionId,modifiedTime,trashed,driveId,capabilities(canDownload),shortcutDetails(targetId,targetMimeType,targetResourceKey)";
-const FOLDER: &str = "application/vnd.google-apps.folder";
+pub(super) const FOLDER: &str = "application/vnd.google-apps.folder";
 const SHORTCUT: &str = "application/vnd.google-apps.shortcut";
 const NATIVE_DOCUMENT: &str = "application/vnd.google-apps.document";
 const NATIVE_SPREADSHEET: &str = "application/vnd.google-apps.spreadsheet";
@@ -114,7 +114,7 @@ impl File {
         if self.trashed {
             return Err(ProviderError::NotFound);
         }
-        if self.drive_id.is_some() {
+        if self.drive_id.as_deref().is_some_and(|id| id != collection) {
             return Err(ProviderError::Permission);
         }
         if self.parents.len() > 1 {
@@ -300,8 +300,11 @@ impl GoogleDrive {
             _ = cancel.cancelled() => Err(ProviderError::Cancelled),
             result = async {
                 let _permit = self.budget.acquire(Priority::Interactive, cancel).await?;
-                let file = self.file("root").await?;
-                if file.mime_type != FOLDER || !file.parents.is_empty() { return Err(ProviderError::Protocol("invalid Google root")); }
+                let file = self.file(if self.shared_drive { &self.collection } else { "root" }).await?;
+                if file.mime_type != FOLDER || !file.parents.is_empty() ||
+                    (self.shared_drive && (file.id != self.collection || !self.accepts_file(&file))) {
+                    return Err(ProviderError::Protocol("invalid Google root"));
+                }
                 file.node(&file.id)
             } => result,
         }
@@ -318,6 +321,71 @@ impl GoogleDrive {
             web_url: "https://drive.google.com/drive/my-drive".into(),
         })
     }
+    /// List selectable collections without joining their identities or feeds.
+    pub async fn collections(
+        &self,
+        cancel: &CancellationToken,
+    ) -> Result<Vec<CollectionInfo>, ProviderError> {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct SharedDrive {
+            id: String,
+            name: String,
+        }
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Page {
+            #[serde(default)]
+            drives: Vec<SharedDrive>,
+            next_page_token: Option<String>,
+        }
+
+        let mut collections = vec![self.collection(cancel).await?];
+        let mut token: Option<String> = None;
+        for _ in 0..100 {
+            let mut url = self.url(&["drives"])?;
+            url.query_pairs_mut().extend_pairs([
+                ("pageSize", "100"),
+                ("fields", "nextPageToken,drives(id,name)"),
+            ]);
+            if let Some(current) = token.as_deref() {
+                url.query_pairs_mut().append_pair("pageToken", current);
+            }
+            let page: Page = tokio::select! { biased;
+                _ = cancel.cancelled() => return Err(ProviderError::Cancelled),
+                result = async {
+                    let _permit = self.budget.acquire(Priority::Interactive, cancel).await?;
+                    self.json(url).await
+                } => result?,
+            };
+            for drive in page.drives {
+                valid_id(&drive.id)?;
+                if drive.name.is_empty()
+                    || drive.name.len() > 4096
+                    || collections.iter().any(|c| c.id == drive.id)
+                {
+                    return Err(ProviderError::Protocol("invalid shared-drive listing"));
+                }
+                collections.push(CollectionInfo {
+                    web_url: format!("https://drive.google.com/drive/u/0/folders/{}", drive.id),
+                    id: drive.id,
+                    name: drive.name,
+                    drive_type: "shared_drive".into(),
+                });
+            }
+            match page.next_page_token {
+                Some(next) => {
+                    valid_token(&next)?;
+                    if token.as_deref() == Some(next.as_str()) {
+                        return Err(ProviderError::Protocol("repeated Google drive token"));
+                    }
+                    token = Some(next);
+                }
+                None => return Ok(collections),
+            }
+        }
+        Err(ProviderError::Protocol("too many Google drive pages"))
+    }
     pub(super) async fn file(&self, id: &str) -> Result<File, ProviderError> {
         valid_id(id)?;
         let mut url = self.url(&["files", id])?;
@@ -325,6 +393,9 @@ impl GoogleDrive {
         let file: File = self.json(url).await?;
         if id != "root" && file.id != id {
             return Err(ProviderError::Protocol("Google returned a different item"));
+        }
+        if !self.accepts_file(&file) {
+            return Err(ProviderError::Permission);
         }
         Ok(file)
     }
@@ -343,14 +414,21 @@ impl GoogleDrive {
         url.query_pairs_mut().extend_pairs([
             ("q", query.as_str()),
             ("spaces", "drive"),
-            ("corpora", "user"),
+            ("corpora", if self.shared_drive { "drive" } else { "user" }),
             ("pageSize", "1000"),
             (
                 "fields",
                 &format!("nextPageToken,incompleteSearch,files({FIELDS})"),
             ),
-            ("includeItemsFromAllDrives", "false"),
+            (
+                "includeItemsFromAllDrives",
+                if self.shared_drive { "true" } else { "false" },
+            ),
         ]);
+        if self.shared_drive {
+            url.query_pairs_mut()
+                .append_pair("driveId", &self.collection);
+        }
         if let Some(token) = token {
             valid_token(token)?;
             url.query_pairs_mut().append_pair("pageToken", token);
@@ -917,7 +995,7 @@ impl ReadProvider for GoogleDrive {
                 let page = self.list_files(Some(parent), cursor.as_ref().map(|c| c.token.as_str())).await?;
                 let mut nodes = Vec::new();
                 for file in page.files {
-                    if file.drive_id.is_some() || file.trashed { continue; }
+                    if !self.accepts_file(&file) || file.trashed { continue; }
                     if file.parents.first().map(String::as_str) != Some(parent) { return Err(ProviderError::Protocol("Google returned a different parent")); }
                     nodes.push(file.node(&scope.collection)?);
                 }

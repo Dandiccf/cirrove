@@ -82,6 +82,10 @@ impl MetadataProvider for GoogleDrive {
                         // this same staging transaction before Complete is returned.
                         let mut url = self.url(&["changes", "startPageToken"])?;
                         url.query_pairs_mut().append_pair("fields", "startPageToken");
+                        if self.shared_drive {
+                            url.query_pairs_mut().append_pair("driveId", &self.collection);
+                            self.shared_drive_query(&mut url);
+                        }
                         let start: Start = self.json(url).await?;
                         valid_token(&start.start_page_token)?;
                         self.baseline(scope, &start.start_page_token, None).await
@@ -109,10 +113,22 @@ impl GoogleDrive {
         let listing = self.list_files(None, page).await?;
         let mut changes = Vec::new();
         for file in listing.files {
-            if file.trashed || file.drive_id.is_some() {
+            if file.trashed || !self.accepts_file(&file) {
                 continue;
             }
             changes.push(Change::Upsert(file.node(&scope.collection)?));
+        }
+        if self.shared_drive
+            && page.is_none()
+            && !changes
+                .iter()
+                .any(|change| matches!(change, Change::Upsert(node) if node.id == self.collection))
+        {
+            let root = self.file(&self.collection).await?;
+            if root.mime_type != files::FOLDER || !root.parents.is_empty() {
+                return Err(ProviderError::Protocol("invalid shared-drive root"));
+            }
+            changes.push(Change::Upsert(root.node(&scope.collection)?));
         }
         let phase = match listing.next_page_token {
             Some(page) => Phase::Listing {
@@ -133,7 +149,10 @@ impl GoogleDrive {
             ("pageSize", "1000"),
             ("spaces", "drive"),
             ("includeRemoved", "true"),
-            ("includeItemsFromAllDrives", "false"),
+            (
+                "includeItemsFromAllDrives",
+                if self.shared_drive { "true" } else { "false" },
+            ),
             (
                 "fields",
                 &format!(
@@ -142,6 +161,11 @@ impl GoogleDrive {
                 ),
             ),
         ]);
+        if self.shared_drive {
+            url.query_pairs_mut()
+                .append_pair("driveId", &self.collection);
+            self.shared_drive_query(&mut url);
+        }
         let response: Changes = self.json(url).await?;
         let mut changes = Vec::new();
         for change in response.changes {
@@ -156,7 +180,7 @@ impl GoogleDrive {
             if file.id != change.file_id {
                 return Err(ProviderError::Protocol("Google change identity mismatch"));
             }
-            if file.trashed || file.drive_id.is_some() {
+            if file.trashed || !self.accepts_file(&file) {
                 changes.push(Change::Delete { id: change.file_id });
             } else {
                 changes.push(Change::Upsert(file.node(&scope.collection)?));

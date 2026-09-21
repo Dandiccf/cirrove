@@ -128,6 +128,8 @@ impl V2MetadataPreconditionProbe {
 #[derive(Deserialize)]
 struct V2File {
     id: String,
+    #[serde(rename = "teamDriveId")]
+    team_drive_id: Option<String>,
     title: String,
     etag: Option<String>,
     #[serde(default)]
@@ -141,7 +143,8 @@ struct V2File {
     labels: V2Labels,
 }
 
-const V2_FIELDS: &str = "id,title,etag,parents(id),version,labels(trashed),mimeType,fileSize";
+const V2_FIELDS: &str =
+    "id,title,etag,parents(id),version,labels(trashed),mimeType,fileSize,teamDriveId";
 
 #[derive(Deserialize)]
 struct V2Parent {
@@ -424,7 +427,7 @@ impl GoogleDrive {
             || file.parents.as_slice() != [plan.parent.as_str()]
             || file.mime_type != FOLDER_MIME
             || file.trashed
-            || file.drive_id.is_some()
+            || !self.accepts_file(&file)
         {
             return Err(UploadError::Uncertain);
         }
@@ -1256,7 +1259,7 @@ impl GoogleDrive {
                 || file.name != name
                 || file.parents.as_slice() != [parent]
                 || file.trashed
-                || file.drive_id.is_some()
+                || !self.accepts_file(&file)
             {
                 return Err(UploadError::Uncertain);
             }
@@ -1444,6 +1447,7 @@ impl GoogleDrive {
         url.set_path("/upload/drive/v3/files");
         url.set_query(None);
         url.set_fragment(None);
+        self.shared_drive_query(&mut url);
         url
     }
 
@@ -1538,6 +1542,7 @@ impl GoogleDrive {
             .map_err(|_| protocol("invalid Google v2 endpoint"))?
             .push(item);
         url.query_pairs_mut().append_pair("fields", V2_FIELDS);
+        self.shared_drive_query(&mut url);
         Ok(url)
     }
 
@@ -1549,7 +1554,17 @@ impl GoogleDrive {
         let bytes = body(response, MAX_UPLOAD_RESPONSE)
             .await
             .map_err(UploadError::Provider)?;
-        serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)
+        let file: V2File = serde_json::from_slice(&bytes).map_err(|_| UploadError::Uncertain)?;
+        if file.id != item
+            || if self.shared_drive {
+                file.team_drive_id.as_deref() != Some(self.collection.as_str())
+            } else {
+                file.team_drive_id.is_some()
+            }
+        {
+            return Err(UploadError::Uncertain);
+        }
+        Ok(file)
     }
 
     async fn conditional_v2_metadata_name(
@@ -1595,6 +1610,7 @@ impl GoogleDrive {
         url.query_pairs_mut()
             .append_pair("uploadType", "resumable")
             .append_pair("fields", V2_FIELDS);
+        self.shared_drive_query(&mut url);
         Ok(url)
     }
 
@@ -1610,6 +1626,7 @@ impl GoogleDrive {
             .clear()
             .append_pair("uploadType", "media")
             .append_pair("fields", V2_FIELDS);
+        self.shared_drive_query(&mut url);
         for attempt in 0..2 {
             let token = self.tokens.access_token().await?;
             let response = self
@@ -1938,7 +1955,7 @@ impl GoogleDrive {
             || file.parents.as_slice() != [parent]
             || file.mime_type == FOLDER_MIME
             || file.trashed
-            || file.drive_id.is_some()
+            || !self.accepts_file(file)
         {
             return Err(UploadError::Uncertain);
         }
@@ -1981,7 +1998,7 @@ impl GoogleDrive {
             || file.mime_type != "application/octet-stream"
             || file.parents.len() != 1
             || file.trashed
-            || file.drive_id.is_some()
+            || !self.accepts_file(&file)
         {
             return Err(UploadError::Uncertain);
         }
@@ -2435,7 +2452,7 @@ impl GoogleDrive {
             "application/octet-stream" | FOLDER_MIME
         ) || file.parents.len() != 1
             || file.trashed
-            || file.drive_id.is_some()
+            || !self.accepts_file(&file)
         {
             return Err(UploadError::Uncertain);
         }
@@ -2499,7 +2516,7 @@ impl GoogleDrive {
                     .eq(parents.iter().copied())
                 && current.version.as_deref() == Some(file.version.as_str())
                 && !current.trashed
-                && current.drive_id.is_none()
+                && self.accepts_file(&current)
             {
                 return Ok(current);
             }
@@ -2765,7 +2782,7 @@ impl GoogleDrive {
                     } else {
                         FOLDER_MIME
                     }
-                || file.drive_id.is_some()
+                || !self.accepts_file(&file)
             {
                 return Err(UploadError::Uncertain);
             }
@@ -3015,7 +3032,10 @@ impl MutationProvider for GoogleValidationMutations {
             } else {
                 FOLDER_MIME
             };
-            if file.id != before.id || file.drive_id.is_some() || file.mime_type != expected_mime {
+            if file.id != before.id
+                || !self.drive.accepts_file(&file)
+                || file.mime_type != expected_mime
+            {
                 return Err(MutationError::Uncertain);
             }
             return Ok(MutationReconciliation::Applied(MutationReceipt::Removed {
@@ -3983,6 +4003,50 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn shared_drive_folder_create_is_scoped_and_rejects_foreign_receipts() {
+        for receipt_drive in ["shared-root", "other-root"] {
+            let (provider, server) = fixture(|_| {
+                let mut generate = Exchange::json(
+                    "GET", "/drive/v3/files/generateIds", 200,
+                    json!({"ids":["generated-folder-id"],"space":"drive","kind":"drive#generatedIds"}),
+                );
+                generate.query = vec![("count", "1"), ("space", "drive"), ("type", "files")];
+                let mut response = named_folder_at("generated-folder-id", "shared-root", "Test", "3");
+                response["driveId"] = json!(receipt_drive);
+                let mut create = Exchange::json("POST", "/drive/v3/files", 200, response);
+                create.query = vec![("fields", files::FIELDS), ("supportsAllDrives", "true")];
+                create.body = Some(ExpectedBody::Json(json!({
+                    "id":"generated-folder-id", "name":"Test", "parents":["shared-root"],
+                    "mimeType": FOLDER_MIME
+                })));
+                vec![generate, create]
+            }).await;
+            let provider = provider
+                .for_collection(&cirrove_core::CollectionInfo {
+                    id: "shared-root".into(),
+                    name: "Team".into(),
+                    drive_type: "shared_drive".into(),
+                    web_url: String::new(),
+                })
+                .unwrap();
+            let shared = Scope {
+                collection: "shared-root".into(),
+                ..scope()
+            };
+            let cancel = CancellationToken::new();
+            let plan = provider
+                .prepare_folder(&shared, "shared-root", "Test", &cancel)
+                .await
+                .unwrap();
+            let result = provider
+                .create_prepared_folder(&shared, &plan, &cancel)
+                .await;
+            assert_eq!(result.is_ok(), receipt_drive == "shared-root");
+            server.await.unwrap();
+        }
+    }
+
+    #[tokio::test]
     async fn validation_folder_creation_accepts_the_prepared_identity_without_an_etag() {
         let generated = "generated-folder-id";
         let (provider, server) = fixture(|_| {
@@ -4655,6 +4719,82 @@ mod tests {
             provider.mutate(&request, &CancellationToken::new()).await,
             Err(MutationError::Conflict)
         ));
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn shared_drive_rename_uses_scoped_v2_precondition_and_destination() {
+        let v2 = |name: &str, version: &str, etag: &str| {
+            let mut value = v2_content_file(name, version, etag, 6);
+            value["parents"] = json!([{"id":"shared-root"}]);
+            value["teamDriveId"] = json!("shared-root");
+            value
+        };
+        let v3 = |name: &str, version: &str| {
+            let mut value = named_file_at("generated-id", "shared-root", name, version, 6);
+            value["driveId"] = json!("shared-root");
+            value
+        };
+        let (provider, server) = fixture(|_| {
+            let mut current = Exchange::json(
+                "GET",
+                "/drive/v2/files/generated-id",
+                200,
+                v2("report.txt", "9", "\"v2-9\""),
+            );
+            current.query = vec![("fields", V2_FIELDS), ("supportsAllDrives", "true")];
+            let mut current_v3 = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                v3("report.txt", "9"),
+            );
+            current_v3.query = vec![("fields", files::FIELDS), ("supportsAllDrives", "true")];
+            let mut destination =
+                Exchange::json("GET", "/drive/v3/files", 200, json!({"files":[]}));
+            destination.query = vec![
+                ("corpora", "drive"),
+                ("driveId", "shared-root"),
+                ("includeItemsFromAllDrives", "true"),
+                ("supportsAllDrives", "true"),
+            ];
+            let mut rename = Exchange::json(
+                "PATCH",
+                "/drive/v2/files/generated-id",
+                200,
+                v2("renamed.txt", "10", "\"v2-10\""),
+            );
+            rename.query = vec![("fields", V2_FIELDS), ("supportsAllDrives", "true")];
+            rename.headers = vec!["if-match: \"v2-9\"".into()];
+            rename.body = Some(ExpectedBody::Json(json!({"title":"renamed.txt"})));
+            let mut renamed_v3 = Exchange::json(
+                "GET",
+                "/drive/v3/files/generated-id",
+                200,
+                v3("renamed.txt", "10"),
+            );
+            renamed_v3.query = vec![("fields", files::FIELDS), ("supportsAllDrives", "true")];
+            vec![current, current_v3, destination, rename, renamed_v3]
+        })
+        .await;
+        let provider = provider
+            .for_collection(&cirrove_core::CollectionInfo {
+                id: "shared-root".into(),
+                name: "Team".into(),
+                drive_type: "shared_drive".into(),
+                web_url: String::new(),
+            })
+            .unwrap();
+        let mut request = mutation_request("shared-root", "renamed.txt", "google-version:9");
+        request.scope.collection = "shared-root".into();
+        if let MutationIntent::Relocate { before, .. } = &mut request.intent {
+            before.parent_id = Some("shared-root".into());
+        }
+        let receipt = provider
+            .mutate(&request, &CancellationToken::new())
+            .await
+            .unwrap();
+        assert!(matches!(receipt, MutationReceipt::Upsert(node) if node.name == "renamed.txt"));
         server.await.unwrap();
     }
 

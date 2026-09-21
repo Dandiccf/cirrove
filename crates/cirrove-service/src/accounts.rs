@@ -116,10 +116,16 @@ impl Settings {
             account.registration.validate()?;
             if matches!(account.registration, AppRegistration::Google { .. })
                 && (account.drive.id != account.root_id
+                    || !matches!(
+                        account.drive.drive_type.as_str(),
+                        "my_drive" | "shared_drive"
+                    )
+                    || (account.drive.drive_type == "shared_drive"
+                        && account.access == AccessMode::ReadWrite)
                     || account.identity.subject.is_empty()
                     || !account.identity.tenant_id.is_empty())
             {
-                bail!("Google Drive requires My Drive");
+                bail!("invalid selected Google Drive");
             }
             if !valid_label(&account.label)
                 || uuid::Uuid::parse_str(&account.id).is_err()
@@ -536,6 +542,7 @@ pub async fn reauthenticate(
             AppRegistration::Google { .. } => {
                 let root =
                     GoogleDrive::new(original.id.clone(), original.drive.id.clone(), tokens)?
+                        .for_collection(&original.drive)?
                         .root(&CancellationToken::new())
                         .await?;
                 if root.id != original.root_id {
@@ -571,15 +578,21 @@ pub fn google_provider(account: &Account) -> Result<Arc<GoogleDrive>> {
         account.credential_id.clone(),
         Arc::new(DesktopVault),
     )?;
-    Ok(Arc::new(GoogleDrive::new(
-        account.id.clone(),
-        account.drive.id.clone(),
-        Arc::new(broker),
-    )?))
+    Ok(Arc::new(
+        GoogleDrive::new(
+            account.id.clone(),
+            account.drive.id.clone(),
+            Arc::new(broker),
+        )?
+        .for_collection(&account.drive)?,
+    ))
 }
 pub fn write_provider(account: &Account) -> Result<Arc<dyn crate::writable::WriteProvider>> {
     match account.registration {
         AppRegistration::Microsoft { .. } => Ok(onedrive_provider(account)?),
+        AppRegistration::Google { .. } if account.drive.drive_type == "shared_drive" => {
+            bail!("Google shared-drive writes require live validation")
+        }
         AppRegistration::Google { .. } => Ok(google_provider(account)?),
     }
 }
@@ -808,8 +821,11 @@ impl PendingConnection {
                     .iter()
                     .find(|d| d.id == drive_id)
                     .cloned()
-                    .context("only My Drive is supported for Google")?;
-                let root = google.root(&cancel).await?;
+                    .context("Google drive was not offered at sign-in")?;
+                if drive.drive_type == "shared_drive" && self.access == AccessMode::ReadWrite {
+                    bail!("Google shared drives are read-only until live write validation");
+                }
+                let root = google.clone().for_collection(&drive)?.root(&cancel).await?;
                 if root.id != drive.id {
                     bail!("Google root identity changed");
                 }
@@ -938,8 +954,8 @@ async fn begin_connect_with_secret(
         }
         AppRegistration::Google { .. } => {
             let google = GoogleDrive::new(id.clone(), "root".into(), tokens)?;
-            let drive = google.collection(&CancellationToken::new()).await?;
-            (ConnectionProvider::Google(google), vec![drive])
+            let drives = google.collections(&CancellationToken::new()).await?;
+            (ConnectionProvider::Google(google), drives)
         }
     };
     Ok(PendingConnection {
@@ -1766,6 +1782,7 @@ mod tests {
         };
         account.identity.tenant_id.clear();
         account.drive.id = "root-id".into();
+        account.drive.drive_type = "my_drive".into();
         account.root_id = "root-id".into();
         let mut settings = Settings {
             version: 2,

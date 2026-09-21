@@ -42,9 +42,13 @@ The bounded live record for these operations is
   the application chose while that exact identity is acknowledged. This changes
   mounted presentation only; it never rewrites a remote name just to format it.
 
-Shared Drives, native document imports, exports over 10 MiB, PDF and other export
-formats, push webhooks, resource-key transport and large-library/long-session
-acceptance are not claimed.
+Shared Drive discovery and a separate read-only collection are implemented with
+synthetic coverage; they have not been tested against a real Shared Drive. The
+selected drive gets its own root, listing, change cursor, cache identity and mount.
+Shared Drive writes are blocked until a bounded live write-and-recovery run passes.
+Native document imports, exports over 10 MiB, PDF and other export formats, push
+webhooks, resource-key transport and large-library/long-session acceptance are not
+claimed.
 There is no service-account or another client's credential import.
 
 ## Write boundary found during the preview
@@ -522,3 +526,18 @@ results are in
 [`google-native-export-preflight.json`](benchmarks/google-native-export-preflight.json).
 This is evidence for two bounded readable exports on one account, not general
 format-fidelity or provider-reliability evidence.
+
+## Shared Drive preflight, 2026-09-21
+
+The adapter now lists Shared Drives visible to the signed-in user and can bind a
+read-only connection to one selected drive. Its listing and change requests use
+the drive ID and Google's shared-drive parameters; file reads stay within that
+collection. Synthetic provider and service tests cover discovery pagination,
+collection-scoped refresh, root and content caching, and conditional-write request
+shape. Account validation refuses a writable Shared Drive connection.
+
+A read-only query through the existing connected Google account returned zero
+accessible Shared Drives. This is a discovery result for that account, not a
+finding about Google Workspace support. A Workspace account with an accessible
+Shared Drive is still needed to validate root metadata, permissions, refresh,
+exports and bounded read/write recovery before writes can be enabled.

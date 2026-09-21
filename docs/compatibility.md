@@ -90,8 +90,11 @@ filesystem gives in the same situation.
 Google My Drive runs through the shared engine, store, cache, journal, pinning and
 FUSE mount. Read-only and read-write OAuth grants produce the matching mount mode.
 My Drive listing, polled changes, bounded reads, duplicate names, offline cache
-reopen and OAuth guards have synthetic coverage. Google documents appear as browser
-links; native exports and Shared Drives are outside the preview.
+reopen and OAuth guards have synthetic coverage. Native Google Docs and Sheets
+appear as read-only package folders with bounded DOCX/XLSX exports; one item of
+each type was checked live on the connected account. Shared Drive discovery and
+a separate read-only collection have synthetic coverage, but no real Shared Drive
+was accessible on the connected account. Shared Drive writes remain disabled.
 
 A bounded live writable run on one separate account completed binary file create,
 in-place edit, editor-style atomic replacement, file and folder rename/move,

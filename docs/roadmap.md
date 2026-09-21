@@ -79,16 +79,14 @@ currently bundled; another project's client ID is never substituted.
 
 ## 6 — Additional providers
 
-- [ ] Google Drive: [read-only My Drive implemented and synthetically tested](google-drive.md),
-      with live prepared creation and a bounded v3-version/v2-ETag worker check
-      for conditional content replacement, rename, restoration and stale
-      conflicts on one run-owned binary file; conditional trash remains synthetic
-      for exact files and observed-empty folders. Atomic collision rules, mounted
-      projected-name behavior, broader mutation evidence, writable
-      namespace rules and shared drives remain open. Bounded read-only DOCX/XLSX
-      package exports for native Docs/Sheets are implemented and checked on one
-      existing item of each type; native import/write-back, additional formats,
-      exports over 10 MiB and broader fidelity evidence remain open.
+- [ ] Google Drive: [writable My Drive preview](google-drive.md) has bounded live
+      create, edit, rename, move, trash, conflict, installed-mount and pinning
+      evidence on one account. Shared Drive discovery and an isolated read-only
+      collection have synthetic coverage; live Workspace acceptance and writes
+      remain open. Bounded read-only DOCX/XLSX package exports for native
+      Docs/Sheets are implemented and checked on one existing item of each type;
+      native import/write-back, additional formats, exports over 10 MiB and
+      broader fidelity evidence remain open.
 - [ ] iCloud feasibility, isolated compatibility adapter and visible limitations.
 
 Modern components do not establish production readiness. Sustained real-provider

@@ -229,8 +229,10 @@ deletion, stale-write conflict preservation and daemon restart on one run-owned
 fixture. A second run added a 20 MiB-plus exact readback, LibreOffice ODT/DOCX
 saves, an external rename followed by a mounted edit, and natural-path pinning
 through the installed file-manager integration. This is functional evidence on
-one account, not a general reliability claim. Shared Drives and native Google
-document write-back remain outside the preview. Native Docs and Sheets can be
+one account, not a general reliability claim. Shared Drive discovery and a
+read-only collection are synthetically covered; no Shared Drive was accessible
+for live validation, so writes remain disabled there. Native Google document
+write-back remains outside the preview. Native Docs and Sheets can be
 opened as read-only package folders containing bounded DOCX/XLSX exports; the
 current Google export endpoint limits these artifacts to 10 MiB.
 iCloud requires a separate compatibility assessment because its API situation
