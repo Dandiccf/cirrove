@@ -90,6 +90,25 @@ fn read_source(
         if !complete {
             return Ok(None);
         }
+        // Feed entries describe provider objects, not representations synthesized
+        // inside a package. An unknown package directory therefore needs its own
+        // provider fetch even when the feed is complete; an indexed empty result
+        // would make unopened packages appear permanently empty.
+        let package = db
+            .query_row(
+                "SELECT json_extract(body,'$.package') FROM (
+                    SELECT body FROM observed WHERE scope=?1 AND id=?2
+                    UNION ALL SELECT body FROM nodes WHERE scope=?1 AND id=?2
+                ) LIMIT 1",
+                params![key, parent],
+                |row| row.get::<_, Option<bool>>(0),
+            )
+            .optional()?
+            .flatten()
+            .unwrap_or(false);
+        if package {
+            return Ok(None);
+        }
         INDEXED_CHILDREN
     };
     Ok(Some((sql, revision)))

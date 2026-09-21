@@ -157,7 +157,8 @@ async fn directory_fetch_passes_committed_parent_metadata_to_provider_packages()
     .await
     .unwrap();
 
-    engine.fetch_directory(&scope, "package").await.unwrap();
+    // A complete feed contains the package itself, but never its derived children.
+    // Opening it must fetch the package even after the feed completes.
     let children = engine.children(&scope, "package").await.unwrap();
     assert!(provider.used_metadata_hook.load(Ordering::SeqCst));
     assert_eq!(children.len(), 1);
