@@ -1,0 +1,20 @@
+{
+  "question": "Can a fresh isolated mount of the validated selected Shared Drive expose all six export formats for the two additional run-owned native fixtures and preserve their known marker content?",
+  "kind": "Pre-registered correction to the installed-connection assumption; bounded read-only private-mount fidelity probe with no Google mutation.",
+  "registered_at_utc": "2026-09-22T20:02:00Z",
+  "source_revision": "c70e1e63ee2ae68b8010266eac4f2c5b9811a04d",
+  "prior_result": "google-native-additional-mount-fidelity-live.json failed before listing because the installed Calista connection is My Drive rather than the selected Shared Drive. No export or mutation was attempted.",
+  "private_run_manifest": ".local-state/live-runs/google-native-additional-private-mount-fidelity-20260922/manifest.json",
+  "source_items": "The exact additional run-owned Doc and Sheet created by google-native-additional-fixtures-live.json in the dedicated Shared Drive test folder. Their IDs, names and marker remain only in private run state.",
+  "arms": [
+    "A: start the installed merged daemon against fresh private state containing only the previously validated selected Shared Drive connection; require its private mount and feed to become ready while the installed daemon PID and three-mount set remain unchanged",
+    "B: locate only the exact registered parent and two exact run-owned identities through bounded root and parent listings; require .gdoc/.gsheet packages with the three expected format children and browser link",
+    "C: read DOCX, PDF and ODT for the Doc and XLSX, PDF and ODS for the Sheet twice through FUSE; require matching repeat SHA-256 values and valid format signatures",
+    "D: require the private marker in DOCX/XLSX/OpenDocument XML and in text extracted from both PDFs; publish only format byte counts, elapsed times and booleans",
+    "E: stop only the recorded private daemon PID, require its mount to disappear, and require the installed daemon PID, mount set and account health to remain unchanged"
+  ],
+  "endpoint": "Pass only if the fresh Shared Drive mount becomes ready, both exact packages expose all expected children, every format reads twice with the same hash and valid signature, every exported representation contains the registered marker, private cleanup succeeds, and the installed service remains healthy. A first-attempt failure remains recorded even if a later diagnostic succeeds.",
+  "prediction": "The selected Shared Drive should index the retained fixtures and all six conversions should preserve the short marker. This run may instead expose conversion-specific loss, an export timeout or another cold-package regression.",
+  "limits": "Two small fixtures on one Workspace administrator account cannot establish general formatting, formulas, charts, comments, suggestions, restricted roles, large-export behavior, collaborative write safety or public OAuth readiness.",
+  "status": "registered"
+}

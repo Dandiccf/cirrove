@@ -15,5 +15,17 @@
   "endpoint": "Pass only if both exact packages expose all expected children, every format reads twice with the same hash and valid signature, every exported representation contains the registered marker, and the installed service remains healthy. A first-attempt failure remains recorded even if a later diagnostic succeeds.",
   "prediction": "The two extra fixtures should pass because direct DOCX/XLSX exports contained the marker and the installed adapter already materialized every format for one earlier Doc and Sheet. This run may expose conversion-specific loss or a package-cache regression on different items.",
   "limits": "Two small fixtures on one Workspace administrator account cannot establish general formatting, formulas, charts, comments, suggestions, restricted roles, large-export behavior, collaborative write safety or public OAuth readiness.",
-  "status": "registered"
+  "status": "failed_before_listing",
+  "observed_at_utc": "2026-09-22T19:51:47Z",
+  "observed": {
+    "status": "failed_before_listing",
+    "failure_phase": "initial-health",
+    "failure_class": "AssertionError",
+    "exports_attempted": 0,
+    "cloud_mutations": 0,
+    "installed_accounts_ready": 3,
+    "installed_mounts_present": 3,
+    "cause": "The installed Calista Google connection is My Drive, not the selected Shared Drive that owns the exact additional fixtures; the exact collection comparison failed closed."
+  },
+  "next_probe": "Use fresh private state for the already validated selected Shared Drive connection, mount it in an isolated directory, then run the same exact-ID and marker-fidelity assertions. Preserve this failed precondition result."
 }
