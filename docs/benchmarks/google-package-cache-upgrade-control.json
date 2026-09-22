@@ -1,0 +1,10 @@
+{
+  "question": "Does a cached native package expose newly added representation children on its first open after a service restart, while keeping old cached children readable when revalidation is temporarily unavailable?",
+  "kind": "Synthetic persisted-store regression control, not a live Google measurement.",
+  "baseline": "Merged main 39ec9db with a new test: the first process published one DOCX child, then a second process used the same SQLite state with a provider that could also publish PDF.",
+  "initial_fixture_correction": "The first test execution stopped at the account ownership lock because the old Engine Arc had not been dropped. The fixture was corrected before evaluating the assertion; that first execution is not counted as fix evidence.",
+  "observed_failure_without_fix": "The corrected test executed once and failed because the provider metadata hook was not called after restart: the known package snapshot returned the old child immediately.",
+  "change": "The Google adapter asks the shared engine to revalidate cached package listings on their first open in each process. The request uses the existing per-directory gate and publication path, with a 10-second foreground cap. A bounded per-process set avoids repeated foreground revalidation; a temporary Unavailable/Throttled result preserves the cached children. Package detection precedes the directory consumer, which is invoked only once. Other providers retain the previous behavior.",
+  "observed_with_fix": "Four package tests passed, including concurrent first openings with one provider listing and one consumer invocation, direct lookup of a newly added child, and cached readability when the first revalidation returns Unavailable.",
+  "limits": "This proves the persisted-cache mechanism and the service correction under synthetic fixtures. It does not prove that this was the exact assertion in the earlier live mount probe, whose initial failure lacked a phase, or establish broad Google provider reliability."
+}

@@ -708,6 +708,21 @@ impl Store {
         tx.commit()?;
         Ok(result)
     }
+    /// Whether a provider-generated package has a previously published child
+    /// snapshot. This is a read-only check before a service decides to refresh
+    /// the package; no directory consumer has run yet.
+    pub fn known_package_directory(&self, scope: &Scope, parent: &str) -> Result<bool> {
+        let key = Self::key(scope)?;
+        let known = self.db.query_row(
+            "SELECT EXISTS(SELECT 1 FROM directories WHERE scope=?1 AND parent=?2)",
+            params![key, parent],
+            |row| row.get::<_, bool>(0),
+        )?;
+        if !known {
+            return Ok(false);
+        }
+        Ok(self.node(scope, parent)?.is_some_and(|node| node.package))
+    }
     /// Visit a known directory in stable name/identity order within one read
     /// transaction. Returns false if the directory has not been indexed. The
     /// callback must perform only local blocking work, never network I/O. It can
