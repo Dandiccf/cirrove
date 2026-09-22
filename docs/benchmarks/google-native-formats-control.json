@@ -1,0 +1,10 @@
+{
+  "question": "Does a native Sheet package expose independently readable XLSX, PDF and ODS children rather than only the old XLSX child?",
+  "kind": "Synthetic regression control, not a live provider measurement.",
+  "baseline": "Merged main c9a588a in an isolated detached worktree, with only the new test applied and a separate Cargo target directory.",
+  "test": "cargo test -p cirrove-googledrive --features test-support native_spreadsheets_expose_distinct_pdf_and_ods_bytes -- --nocapture",
+  "expected_failure_without_change": "The old package returned 2 children, whereas the test required 4 (XLSX, PDF, ODS and browser link).",
+  "observed_baseline": "1 test executed and failed at the child-count assertion: left 2, right 4.",
+  "observed_change": "The same filtered test executed and passed (1 passed, 76 filtered). The full Google adapter suite passed (77 tests).",
+  "limits": "Mock responses prove format routing, distinct child identity and exact staged/read bytes. The separate GET-only live probe checked four small Drive exports before this package change; mounted package behavior and broader format fidelity remain open."
+}

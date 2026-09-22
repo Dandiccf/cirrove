@@ -65,9 +65,9 @@ editing or claim compatibility with native notebook applications.
 The same provider-neutral parent-metadata hook expands generated provider
 representations without teaching the engine Google item types. Native Google Docs
 and Sheets are read-only package folders. Entering one makes the adapter export a
-bounded DOCX or XLSX artifact, verify that the source version did not change, and
-return a child whose identity is derived from account, collection, source item and
-format rather than its path. Because repeated Google exports of one unchanged
+bounded DOCX/PDF/ODT or XLSX/PDF/ODS artifacts, verify that the source version did not change, and
+return children whose identities derive from account, collection, source item and
+format rather than their paths. Because repeated Google exports of one unchanged
 source were not byte-stable, the child revision includes the artifact SHA-256.
 The adapter hands those exact bytes to the service before directory publication;
 the normal verified block cache then owns later reads. No network await occurs in
@@ -1028,7 +1028,7 @@ up from that token before publishing completion. Binary reads use v3
 `headRevisionId` as content lineage, require exact byte ranges and compare the head
 revision before and after every range or staged window. The separate numeric v3
 file `version` is a metadata/write observation. Native Docs and Sheets use explicit
-read-only package folders containing a staged DOCX or XLSX export and a browser
+read-only package folders containing staged DOCX/PDF/ODT or XLSX/PDF/ODS exports and a browser
 link. Exporting happens only when that package is opened, avoiding a content
 download for every ordinary parent listing.
 

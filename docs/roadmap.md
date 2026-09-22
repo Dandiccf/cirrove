@@ -83,9 +83,10 @@ currently bundled; another project's client ID is never substituted.
       have bounded live read, create, edit, rename, move, trash, conflict,
       mounted-write and recovery evidence. A selected Shared Drive was also
       mounted and written through the reviewed branch without the earlier test
-      override. Native Docs/Sheets remain read-only DOCX/XLSX packages; direct
-      GET-only PDF/OpenDocument exports passed on two test items but are not
-      mounted package formats. Native writeback failed a stale-update integrity
+      override. Native Docs/Sheets remain read-only packages with DOCX/XLSX,
+      PDF and OpenDocument exports. Direct GET-only PDF/OpenDocument exports
+      passed on two test items; mounted behavior still needs a live check.
+      Native writeback failed a stale-update integrity
       probe and remains disabled. One isolated Shared Drive hour completed 61
       matching reads with a fresh feed; restricted roles, late uncached reads,
       longer sessions, larger exports and broader fidelity remain open. The

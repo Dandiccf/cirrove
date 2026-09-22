@@ -503,6 +503,24 @@ async fn native_documents_expand_to_exact_versioned_exports_and_a_browser_link()
             body: exported.clone(),
             headers: "",
         },
+        json_step("/drive/v3/files/same-id", doc.clone()),
+        json_step("/drive/v3/files/same-id", doc.clone()),
+        Step {
+            path: "/drive/v3/files/same-id/export",
+            query: vec![("mimeType", "application/pdf")],
+            status: 200,
+            body: b"synthetic-pdf-content".to_vec(),
+            headers: "",
+        },
+        json_step("/drive/v3/files/same-id", doc.clone()),
+        json_step("/drive/v3/files/same-id", doc.clone()),
+        Step {
+            path: "/drive/v3/files/same-id/export",
+            query: vec![("mimeType", "application/vnd.oasis.opendocument.text")],
+            status: 200,
+            body: b"synthetic-odt-content".to_vec(),
+            headers: "",
+        },
         json_step("/drive/v3/files/same-id", doc),
     ])
     .await;
@@ -511,7 +529,7 @@ async fn native_documents_expand_to_exact_versioned_exports_and_a_browser_link()
         .await
         .unwrap();
     assert!(page.next.is_none());
-    assert_eq!(page.nodes.len(), 2);
+    assert_eq!(page.nodes.len(), 4);
     let export = page
         .nodes
         .iter()
@@ -537,6 +555,26 @@ async fn native_documents_expand_to_exact_versioned_exports_and_a_browser_link()
         .await
         .unwrap();
     assert_eq!(content, exported[1..]);
+    for (name, expected) in [
+        ("Document.pdf", b"synthetic-pdf-content".as_slice()),
+        ("Document.odt", b"synthetic-odt-content".as_slice()),
+    ] {
+        let child = page.nodes.iter().find(|child| child.name == name).unwrap();
+        assert_ne!(child.id, export.id);
+        assert_eq!(child.parent_id, export.parent_id);
+        let staged = p
+            .staged_content(&scope(), child, &CancellationToken::new())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(staged.as_ref(), expected);
+        assert_eq!(
+            p.read_range(&scope(), child, 0, 4096, &CancellationToken::new())
+                .await
+                .unwrap(),
+            expected
+        );
+    }
 
     let link = page
         .nodes
@@ -557,6 +595,72 @@ async fn native_documents_expand_to_exact_versioned_exports_and_a_browser_link()
         .await
         .unwrap();
     assert_eq!(repeated.nodes, page.nodes);
+    task.await.unwrap();
+}
+
+#[tokio::test]
+async fn native_spreadsheets_expose_distinct_pdf_and_ods_bytes() {
+    let mut sheet = file("1");
+    sheet["mimeType"] = "application/vnd.google-apps.spreadsheet".into();
+    sheet.as_object_mut().unwrap().remove("headRevisionId");
+    let parent = serde_json::from_value::<files::File>(sheet.clone())
+        .unwrap()
+        .node("root-id")
+        .unwrap();
+    let mut steps = Vec::new();
+    for (mime, content) in [
+        (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            b"synthetic-xlsx".as_slice(),
+        ),
+        ("application/pdf", b"synthetic-sheet-pdf".as_slice()),
+        (
+            "application/vnd.oasis.opendocument.spreadsheet",
+            b"synthetic-ods".as_slice(),
+        ),
+    ] {
+        steps.push(json_step("/drive/v3/files/same-id", sheet.clone()));
+        steps.push(Step {
+            path: "/drive/v3/files/same-id/export",
+            query: vec![("mimeType", mime)],
+            status: 200,
+            body: content.to_vec(),
+            headers: "",
+        });
+        steps.push(json_step("/drive/v3/files/same-id", sheet.clone()));
+    }
+    let (provider, task) = server(steps).await;
+    let page = provider
+        .children_for_node(&scope(), &parent, None, &CancellationToken::new())
+        .await
+        .unwrap();
+    assert_eq!(page.nodes.len(), 4);
+    for (name, expected) in [
+        ("Spreadsheet.xlsx", b"synthetic-xlsx".as_slice()),
+        ("Spreadsheet.pdf", b"synthetic-sheet-pdf".as_slice()),
+        ("Spreadsheet.ods", b"synthetic-ods".as_slice()),
+    ] {
+        let child = page.nodes.iter().find(|child| child.name == name).unwrap();
+        assert_eq!(child.size, expected.len() as u64);
+        let staged = provider
+            .staged_content(&scope(), child, &CancellationToken::new())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(staged.as_ref(), expected);
+        assert_eq!(
+            provider
+                .read_range(&scope(), child, 0, 4096, &CancellationToken::new())
+                .await
+                .unwrap(),
+            expected
+        );
+    }
+    assert_eq!(page.nodes[0].name, "Spreadsheet.xlsx");
+    assert_eq!(page.nodes[1].name, "Spreadsheet.pdf");
+    assert_eq!(page.nodes[2].name, "Spreadsheet.ods");
+    assert_ne!(page.nodes[0].id, page.nodes[1].id);
+    assert_ne!(page.nodes[1].id, page.nodes[2].id);
     task.await.unwrap();
 }
 

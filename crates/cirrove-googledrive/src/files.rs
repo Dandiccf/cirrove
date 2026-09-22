@@ -14,9 +14,16 @@ const NATIVE_DOCUMENT: &str = "application/vnd.google-apps.document";
 const NATIVE_SPREADSHEET: &str = "application/vnd.google-apps.spreadsheet";
 const DOCX: &str = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const XLSX: &str = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const PDF: &str = "application/pdf";
+const ODT: &str = "application/vnd.oasis.opendocument.text";
+const ODS: &str = "application/vnd.oasis.opendocument.spreadsheet";
 const MAX_NATIVE_EXPORT_BYTES: usize = 10 * 1024 * 1024;
 const EXPORT_DOCX_PREFIX: &str = "cirrove_export_docx_";
 const EXPORT_XLSX_PREFIX: &str = "cirrove_export_xlsx_";
+const EXPORT_DOCUMENT_PDF_PREFIX: &str = "cirrove_export_document_pdf_";
+const EXPORT_SPREADSHEET_PDF_PREFIX: &str = "cirrove_export_spreadsheet_pdf_";
+const EXPORT_ODT_PREFIX: &str = "cirrove_export_odt_";
+const EXPORT_ODS_PREFIX: &str = "cirrove_export_ods_";
 const NATIVE_LINK_PREFIX: &str = "cirrove_native_link_";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -41,20 +48,6 @@ impl NativeKind {
         }
     }
 
-    fn export_mime(self) -> &'static str {
-        match self {
-            Self::Document => DOCX,
-            Self::Spreadsheet => XLSX,
-        }
-    }
-
-    fn export_name(self) -> &'static str {
-        match self {
-            Self::Document => "Document.docx",
-            Self::Spreadsheet => "Spreadsheet.xlsx",
-        }
-    }
-
     fn version_prefix(self) -> &'static str {
         match self {
             Self::Document => "google-native-document:",
@@ -62,17 +55,88 @@ impl NativeKind {
         }
     }
 
+    #[cfg(feature = "test-support")]
+    fn primary_format(self) -> NativeFormat {
+        match self {
+            Self::Document => NativeFormat::Docx,
+            Self::Spreadsheet => NativeFormat::Xlsx,
+        }
+    }
+
+    fn formats(self) -> [NativeFormat; 3] {
+        match self {
+            Self::Document => [
+                NativeFormat::Docx,
+                NativeFormat::PdfDocument,
+                NativeFormat::Odt,
+            ],
+            Self::Spreadsheet => [
+                NativeFormat::Xlsx,
+                NativeFormat::PdfSpreadsheet,
+                NativeFormat::Ods,
+            ],
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum NativeFormat {
+    Docx,
+    PdfDocument,
+    Odt,
+    Xlsx,
+    PdfSpreadsheet,
+    Ods,
+}
+
+impl NativeFormat {
+    fn kind(self) -> NativeKind {
+        match self {
+            Self::Docx | Self::PdfDocument | Self::Odt => NativeKind::Document,
+            Self::Xlsx | Self::PdfSpreadsheet | Self::Ods => NativeKind::Spreadsheet,
+        }
+    }
+
+    fn export_mime(self) -> &'static str {
+        match self {
+            Self::Docx => DOCX,
+            Self::PdfDocument | Self::PdfSpreadsheet => PDF,
+            Self::Odt => ODT,
+            Self::Xlsx => XLSX,
+            Self::Ods => ODS,
+        }
+    }
+
+    fn export_name(self) -> &'static str {
+        match self {
+            Self::Docx => "Document.docx",
+            Self::PdfDocument => "Document.pdf",
+            Self::Odt => "Document.odt",
+            Self::Xlsx => "Spreadsheet.xlsx",
+            Self::PdfSpreadsheet => "Spreadsheet.pdf",
+            Self::Ods => "Spreadsheet.ods",
+        }
+    }
+
     fn export_version_prefix(self) -> &'static str {
         match self {
-            Self::Document => "google-export-docx:",
-            Self::Spreadsheet => "google-export-xlsx:",
+            Self::Docx => "google-export-docx:",
+            Self::PdfDocument => "google-export-document-pdf:",
+            Self::Odt => "google-export-odt:",
+            Self::Xlsx => "google-export-xlsx:",
+            Self::PdfSpreadsheet => "google-export-spreadsheet-pdf:",
+            Self::Ods => "google-export-ods:",
         }
     }
 
     fn export_id_prefix(self) -> &'static str {
         match self {
-            Self::Document => EXPORT_DOCX_PREFIX,
-            Self::Spreadsheet => EXPORT_XLSX_PREFIX,
+            Self::Docx => EXPORT_DOCX_PREFIX,
+            Self::PdfDocument => EXPORT_DOCUMENT_PDF_PREFIX,
+            Self::Odt => EXPORT_ODT_PREFIX,
+            Self::Xlsx => EXPORT_XLSX_PREFIX,
+            Self::PdfSpreadsheet => EXPORT_SPREADSHEET_PDF_PREFIX,
+            Self::Ods => EXPORT_ODS_PREFIX,
         }
     }
 }
@@ -524,28 +588,15 @@ impl GoogleDrive {
                         "Google native package lost its metadata version",
                     ));
                 }
-                let page = self.native_package_children(&parent, None, cancel).await?;
-                let export_node = page
-                    .nodes
-                    .iter()
-                    .find(|node| node.id.starts_with(native_kind.export_id_prefix()))
-                    .ok_or(ProviderError::Protocol(
-                        "Google native package omitted its export",
-                    ))?;
-                let identity = format!(
-                    "{}:{}",
-                    export_node.id,
-                    export_node
-                        .content_version
-                        .as_deref()
-                        .ok_or(ProviderError::Protocol("missing Google export version"))?
-                );
-                let export =
-                    self.cached_native_export(&identity)
-                        .await
-                        .ok_or(ProviderError::Protocol(
-                            "Google native package omitted staged bytes",
-                        ))?;
+                let exported = tokio::select! { biased;
+                    _ = cancel.cancelled() => return Err(ProviderError::Cancelled),
+                    result = async {
+                        let _permit = self.budget.acquire(Priority::Content, cancel).await?;
+                        self.materialize_native_export(&parent.id, native_kind.primary_format(), &version, parent.modified_unix).await
+                    } => result?,
+                };
+                let export_node = &exported.node;
+                let export = exported.bytes;
                 let version_stable = true;
                 let export_bytes = export_node.size;
                 observations.push(NativeExportObservation {
@@ -631,7 +682,9 @@ impl GoogleDrive {
         let mut cache = self.native_exports.lock().await;
         cache.retain(|entry| entry.identity != identity);
         cache.push_front(super::NativeExportCacheEntry { identity, bytes });
-        while cache.len() > 2 {
+        // One package yields three artifacts; retain up to two packages until
+        // the service stages each exact export into its durable block cache.
+        while cache.len() > 6 {
             cache.pop_back();
         }
     }
@@ -639,12 +692,12 @@ impl GoogleDrive {
     async fn cached_native_materialization(
         &self,
         source_id: &str,
-        kind: NativeKind,
+        format: NativeFormat,
         expected_version: &str,
         modified_unix: u64,
     ) -> Option<NativeExport> {
-        let id = derived_representation_id(kind.export_id_prefix(), source_id);
-        let prefix = format!("{id}:{}{expected_version}:", kind.export_version_prefix());
+        let id = derived_representation_id(format.export_id_prefix(), source_id);
+        let prefix = format!("{id}:{}{expected_version}:", format.export_version_prefix());
         let cache = self.native_exports.lock().await;
         let entry = cache
             .iter()
@@ -657,14 +710,14 @@ impl GoogleDrive {
             node: Node {
                 id,
                 parent_id: Some(source_id.to_owned()),
-                name: kind.export_name().into(),
+                name: format.export_name().into(),
                 kind: NodeKind::File,
                 size: entry.bytes.len() as u64,
                 modified_unix,
                 etag: None,
                 content_version: Some(format!(
                     "{}{expected_version}:{digest}",
-                    kind.export_version_prefix()
+                    format.export_version_prefix()
                 )),
                 target: None,
                 package: false,
@@ -676,7 +729,7 @@ impl GoogleDrive {
     async fn materialize_native_export(
         &self,
         source_id: &str,
-        kind: NativeKind,
+        format: NativeFormat,
         expected_version: &str,
         modified_unix: u64,
     ) -> Result<NativeExport, ProviderError> {
@@ -684,7 +737,7 @@ impl GoogleDrive {
 
         valid_id(source_id)?;
         let before = self.file(source_id).await?;
-        if NativeKind::from_mime(&before.mime_type) != Some(kind)
+        if NativeKind::from_mime(&before.mime_type) != Some(format.kind())
             || before.version.as_deref() != Some(expected_version)
         {
             return Err(ProviderError::VersionChanged);
@@ -692,7 +745,7 @@ impl GoogleDrive {
         let mut export_url = self.url(&["files", source_id, "export"])?;
         export_url
             .query_pairs_mut()
-            .append_pair("mimeType", kind.export_mime());
+            .append_pair("mimeType", format.export_mime());
         let bytes: Arc<[u8]> = super::transport::body(
             self.response(export_url, None).await?,
             MAX_NATIVE_EXPORT_BYTES,
@@ -700,21 +753,21 @@ impl GoogleDrive {
         .await?
         .into();
         let after = self.file(source_id).await?;
-        if NativeKind::from_mime(&after.mime_type) != Some(kind)
+        if NativeKind::from_mime(&after.mime_type) != Some(format.kind())
             || after.version.as_deref() != Some(expected_version)
         {
             return Err(ProviderError::VersionChanged);
         }
         let digest = hex::encode(Sha256::digest(bytes.as_ref()));
-        let id = derived_representation_id(kind.export_id_prefix(), source_id);
+        let id = derived_representation_id(format.export_id_prefix(), source_id);
         let content_version = format!(
             "{}{expected_version}:{digest}",
-            kind.export_version_prefix()
+            format.export_version_prefix()
         );
         let node = Node {
             id: id.clone(),
             parent_id: Some(source_id.to_owned()),
-            name: kind.export_name().into(),
+            name: format.export_name().into(),
             kind: NodeKind::File,
             size: bytes.len() as u64,
             modified_unix,
@@ -743,20 +796,24 @@ impl GoogleDrive {
             "unknown Google native package kind",
         ))?;
         let version = native_parent_version(parent, kind)?;
-        let export = if let Some(export) = self
-            .cached_native_materialization(&parent.id, kind, version, parent.modified_unix)
-            .await
-        {
-            export
-        } else {
-            tokio::select! { biased;
-                _ = cancel.cancelled() => return Err(ProviderError::Cancelled),
-                result = async {
-                    let _permit = self.budget.acquire(Priority::Content, cancel).await?;
-                    self.materialize_native_export(&parent.id, kind, version, parent.modified_unix).await
-                } => result?,
-            }
-        };
+        let mut nodes = Vec::with_capacity(4);
+        for format in kind.formats() {
+            let export = if let Some(export) = self
+                .cached_native_materialization(&parent.id, format, version, parent.modified_unix)
+                .await
+            {
+                export
+            } else {
+                tokio::select! { biased;
+                    _ = cancel.cancelled() => return Err(ProviderError::Cancelled),
+                    result = async {
+                        let _permit = self.budget.acquire(Priority::Content, cancel).await?;
+                        self.materialize_native_export(&parent.id, format, version, parent.modified_unix).await
+                    } => result?,
+                }
+            };
+            nodes.push(export.node);
+        }
         let link_id = derived_representation_id(NATIVE_LINK_PREFIX, &parent.id);
         let link = browser_link(&parent.id);
         let link_node = Node {
@@ -771,28 +828,31 @@ impl GoogleDrive {
             target: None,
             package: false,
         };
-        Ok(DirectoryPage {
-            nodes: vec![export.node, link_node],
-            next: None,
-        })
+        nodes.push(link_node);
+        Ok(DirectoryPage { nodes, next: None })
     }
 
     fn native_representation<'a>(
         &self,
         node: &'a Node,
-    ) -> Result<Option<(NativeKind, &'a str, &'a str)>, ProviderError> {
+    ) -> Result<Option<(NativeFormat, &'a str, &'a str)>, ProviderError> {
         let Some(source_id) = node.parent_id.as_deref() else {
             return Ok(None);
         };
-        let kind = if node.id.starts_with(EXPORT_DOCX_PREFIX) {
-            NativeKind::Document
-        } else if node.id.starts_with(EXPORT_XLSX_PREFIX) {
-            NativeKind::Spreadsheet
-        } else {
+        let Some(format) = [
+            NativeFormat::Docx,
+            NativeFormat::PdfDocument,
+            NativeFormat::Odt,
+            NativeFormat::Xlsx,
+            NativeFormat::PdfSpreadsheet,
+            NativeFormat::Ods,
+        ]
+        .into_iter()
+        .find(|format| node.id.starts_with(format.export_id_prefix())) else {
             return Ok(None);
         };
         valid_id(source_id)?;
-        if node.id != derived_representation_id(kind.export_id_prefix(), source_id) {
+        if node.id != derived_representation_id(format.export_id_prefix(), source_id) {
             return Err(ProviderError::Permission);
         }
         let content_version = node
@@ -800,7 +860,7 @@ impl GoogleDrive {
             .as_deref()
             .ok_or(ProviderError::Protocol("missing Google export version"))?;
         let remainder = content_version
-            .strip_prefix(kind.export_version_prefix())
+            .strip_prefix(format.export_version_prefix())
             .ok_or(ProviderError::Protocol("invalid Google export version"))?;
         let (version, digest) = remainder
             .split_once(':')
@@ -812,7 +872,7 @@ impl GoogleDrive {
         {
             return Err(ProviderError::Protocol("invalid Google export version"));
         }
-        Ok(Some((kind, version, content_version)))
+        Ok(Some((format, version, content_version)))
     }
 }
 
@@ -937,6 +997,10 @@ impl ReadProvider for GoogleDrive {
         self.check_scope(scope)?;
         if node.id.starts_with(EXPORT_DOCX_PREFIX)
             || node.id.starts_with(EXPORT_XLSX_PREFIX)
+            || node.id.starts_with(EXPORT_DOCUMENT_PDF_PREFIX)
+            || node.id.starts_with(EXPORT_SPREADSHEET_PDF_PREFIX)
+            || node.id.starts_with(EXPORT_ODT_PREFIX)
+            || node.id.starts_with(EXPORT_ODS_PREFIX)
             || node.id.starts_with(NATIVE_LINK_PREFIX)
         {
             return Ok(None);
@@ -1079,7 +1143,7 @@ impl ReadProvider for GoogleDrive {
             let count = (node.size - offset).min(u64::from(length));
             return Ok(bytes[offset as usize..(offset + count) as usize].to_vec());
         }
-        if let Some((kind, version, content_version)) = self.native_representation(node)? {
+        if let Some((format, version, content_version)) = self.native_representation(node)? {
             let source_id = node
                 .parent_id
                 .as_deref()
@@ -1092,7 +1156,7 @@ impl ReadProvider for GoogleDrive {
                     _ = cancel.cancelled() => return Err(ProviderError::Cancelled),
                     result = async {
                         let _permit = self.budget.acquire(Priority::Content, cancel).await?;
-                        self.materialize_native_export(source_id, kind, version, node.modified_unix).await
+                        self.materialize_native_export(source_id, format, version, node.modified_unix).await
                     } => result?,
                 };
                 if export.node.id != node.id
