@@ -1,0 +1,30 @@
+{
+  "question": "Can Cirrove-owned additional native Google Doc and Sheet fixtures be created in the dedicated Shared Drive test folder with exact parent and collection identity, then imported and exported with their known marker content?",
+  "kind": "Pre-registered bounded live fixture creation; no claim about general native writeback, formatting fidelity or provider reliability.",
+  "authorization": "The owner requested additional test items. Only two new Cirrove-prefixed native items in the existing Cirrove Validation folder may be created and filled. No existing cloud item may be modified or removed.",
+  "registered_at_utc": "2026-09-22T13:31:00Z",
+  "private_run_manifest": ".local-state/live-runs/google-native-additional-20260922/manifest.json",
+  "arms": [
+    "A: wait until the one-hour Shared Drive measurement has fully ended, then confirm the exact designated parent is an untrashed folder in the expected selected Shared Drive",
+    "B: create one new native Doc and one new native Sheet with unique Cirrove fixture names, recording their private IDs before importing content",
+    "C: import short run-owned text and CSV marker content into only those new items; require exact-ID metadata and valid DOCX/XLSX ZIP packages containing the marker",
+    "D: leave both fixtures in the test folder for later mounted format checks and confirm the installed Cirrove mounts remain ready"
+  ],
+  "endpoint": "Pass only if both new items have the expected parent, drive ID and MIME type, imports and exports succeed, marker content is present, and original mounts remain ready. Record the first failure and retain any created fixture for inspection rather than retrying or deleting it.",
+  "prediction": "The same bounded Drive create/import/export path used for earlier small run-owned fixtures should produce two additional readable test items after the measurement window.",
+  "limits": "Two small native items on one administrator account do not validate revision-safe collaborative writes, formatting or formula fidelity, restricted roles, large exports or public OAuth readiness.",
+  "result": {
+    "items_created": 2,
+    "types": ["native Google Doc", "native Google Sheet"],
+    "exact_parent_and_selected_drive_confirmed": true,
+    "imports_succeeded": true,
+    "docx_bytes": 6826,
+    "xlsx_bytes": 5107,
+    "export_zip_and_marker_checks_passed": true,
+    "installed_mounts_ready": 3,
+    "failed_uploads": 0,
+    "stuck_changes": 0,
+    "fixtures_retained_in_test_folder": true
+  },
+  "status": "passed_bounded_fixture_creation"
+}

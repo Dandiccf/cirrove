@@ -1,0 +1,31 @@
+{
+  "question": "Can Google native packages list available formats without exporting content, then materialize only the selected format through a version-checked, bounded path that can carry large files.download results?",
+  "kind": "Pre-registered synthetic fail-before-fix control plus later isolated live mount check; implementation and outcome not yet claimed.",
+  "registered_at_utc": "2026-09-22T13:13:41.362748+00:00",
+  "source_revision_before_fix": "449dae70c3f94c0bf49d1e1ddd6faabb4198e3cf",
+  "arms": [
+    "A: run native_package_listing_defers_exports_until_one_format_is_opened on the unmodified code and require it to fail because source-package listing still exports all formats",
+    "B: implement provider-neutral generated-package nesting; the source package lists format folders and its browser link without provider content requests, and each format folder exports only its selected artifact",
+    "C: synthetic tests require exact item/collection/version identity, bounded LRO operation and download response, allowlisted Google download origin, Authorization stripped on redirects, and no raw provider body or URL in errors",
+    "D: after the long Shared Drive measurement has ended, run full scripts/check.sh; then use an isolated mount of the run-owned large Sheet to prove XLSX can be read without waiting for its slow PDF, and separately test PDF if the bounded deadline permits"
+  ],
+  "endpoint": "A must fail before code changes. B/C must pass without broadening ordinary directory timeouts or exposing secrets. The live arm must report first-attempt outcome and source version; any failure remains in this record. Do not claim large mounted exports merely from direct API probes.",
+  "prediction": "A fails on the current eager package listing. A nested format directory should make the package listing immediate; the selected 22.3 MB XLSX should succeed with LRO, while the 38.8 MB PDF requires a longer format-specific deadline and may still reveal FUSE or memory limits.",
+  "limits": "The UX gains one format directory level. Synthetic fixtures cannot establish real-provider reliability; one run-owned large Sheet cannot establish all native content fidelity or sustained use.",
+  "control_result": "On unmodified commit 449dae70c3f94c0bf49d1e1ddd6faabb4198e3cf with only the new test copied in, exactly one filtered test ran and failed: the eager source-package listing issued additional export requests that the test did not provide, returning Unavailable before a format folder could be selected. This is the predicted old behavior, not a compile failure.",
+  "candidate_synthetic_result": "Nine filtered native Google tests passed, including selected-format staging, source-version rejection, bounded operation polling, non-Google download-URI refusal and bearer removal on redirect. The full scripts/check.sh run passed formatting, clippy, workspace tests, kernel mount tests, scripts, ledger and docs before this live-result edit.",
+  "live_setup_correction": "The first two isolated daemon starts refused private directories created with mode 0755 (first state, then run root). Both failed before mounting or requesting Google content, and the installed daemon/mounts stayed unchanged. The run root, state, tmp and mount directories were changed to 0700; the third start performed the registered probe. The two failed starts remain in the private manifest.",
+  "live_result": {
+    "source": "One exact pre-existing run-owned 70000-row native Sheet in the dedicated Shared Drive test folder; fresh private Cirrove state and mount.",
+    "package_listing_seconds": 0.008,
+    "cache_files_after_package_listing": 0,
+    "format_folders_and_browser_link_correct": true,
+    "xlsx": {"status": "valid_mounted_export", "bytes": 22344729, "elapsed_seconds": 7.318, "zip_and_marker_cells_valid": true},
+    "pdf": {"status": "valid_mounted_export", "bytes": 38825599, "elapsed_seconds": 83.696, "signature_valid": true},
+    "ods": {"status": "valid_mounted_export", "bytes": 22024341, "elapsed_seconds": 38.288, "zip_and_mimetype_valid": true},
+    "private_mount_removed": true,
+    "installed_daemon_and_three_mounts_unchanged": true
+  },
+  "interpretation": "The isolated mounted path now selects formats independently and carries three exports over the files.export 10 MiB cap for this one settled native Sheet. It does not establish general Google reliability, document fidelity, other tenants or native writeback. The separate one-hour late-uncached read arm was invalidated by accidental cache contamination and remains open.",
+  "status": "passed_bounded_format_folder_live_gate"
+}

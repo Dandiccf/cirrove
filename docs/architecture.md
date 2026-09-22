@@ -64,14 +64,17 @@ editing or claim compatibility with native notebook applications.
 
 The same provider-neutral parent-metadata hook expands generated provider
 representations without teaching the engine Google item types. Native Google Docs
-and Sheets are read-only package folders. Entering one makes the adapter export a
-bounded DOCX/PDF/ODT or XLSX/PDF/ODS artifacts, verify that the source version did not change, and
-return children whose identities derive from account, collection, source item and
-format rather than their paths. Because repeated Google exports of one unchanged
-source were not byte-stable, the child revision includes the artifact SHA-256.
-The adapter hands those exact bytes to the service before directory publication;
-the normal verified block cache then owns later reads. No network await occurs in
-the SQLite publication transaction.
+and Sheets are read-only package folders. The source package lists a browser link
+and DOCX/PDF/ODT or XLSX/PDF/ODS format folders without downloading content.
+Entering one format folder requests only that export through Drive's bounded
+long-running download operation. The adapter checks the source version before and
+after conversion, and derives each representation identity from account,
+collection, source item and format rather than its path. Because repeated Google
+exports of one unchanged source were not byte-stable, the child revision includes
+the artifact SHA-256. The adapter hands those exact bytes to the service before
+directory publication; the normal verified block cache then owns later reads.
+Only generated format folders use a longer directory deadline; ordinary folders
+retain 60 seconds. No network await occurs in the SQLite publication transaction.
 The Google adapter rechecks a cached package once on its first open after each
 service start, since a Cirrove update can add export formats without a remote
 item change. The foreground recheck has a 10-second cap; a transient unavailable
@@ -1033,9 +1036,9 @@ up from that token before publishing completion. Binary reads use v3
 `headRevisionId` as content lineage, require exact byte ranges and compare the head
 revision before and after every range or staged window. The separate numeric v3
 file `version` is a metadata/write observation. Native Docs and Sheets use explicit
-read-only package folders containing staged DOCX/PDF/ODT or XLSX/PDF/ODS exports and a browser
-link. Exporting happens only when that package is opened, avoiding a content
-download for every ordinary parent listing.
+read-only package folders containing DOCX/PDF/ODT or XLSX/PDF/ODS format folders and a browser
+link. The selected format is staged before its file entry is published, avoiding
+unselected exports and content downloads for ordinary parent listings.
 
 Settings version 2 discriminates authentication through `registration.provider`
 (`microsoft` or `google`); runtime scope IDs remain `onedrive` and `googledrive`.

@@ -231,8 +231,8 @@ Drive run covered scoped discovery, change-feed recovery, binary reads and small
 native exports; isolated writable mounts then covered run-owned create, interrupted
 upload recovery, rename, move, replacement and trash. These are functional checks
 on one Workspace administrator and one owned drive, not a general reliability
-claim. Native Docs and Sheets remain read-only package folders with bounded
-DOCX/XLSX exports. A direct native Doc import conflict probe found that HTTP 412
+claim. Native Docs and Sheets remain read-only packages with bounded, selected
+DOCX/PDF/ODT or XLSX/PDF/ODS exports. A direct native Doc import conflict probe found that HTTP 412
 could still change its contents, so native write-back remains outside the preview.
 iCloud requires a separate compatibility assessment because its API situation
 differs. Cirrove does not copy or depend on Stratosync or rclone; lessons from

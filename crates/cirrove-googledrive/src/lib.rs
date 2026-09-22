@@ -42,6 +42,7 @@ pub struct GoogleDrive {
     shared_drive: bool,
     endpoint: Url,
     client: Client,
+    download_client: Client,
     tokens: Arc<dyn TokenSource>,
     budget: RequestBudget,
     cooldown: Arc<Mutex<Option<Instant>>>,
@@ -108,6 +109,14 @@ impl GoogleDrive {
                 .retry(reqwest::retry::never())
                 .connect_timeout(Duration::from_secs(10))
                 .timeout(Duration::from_secs(30))
+                .user_agent(concat!("Cirrove/", env!("CARGO_PKG_VERSION")))
+                .build()
+                .map_err(|_| ProviderError::Unavailable)?,
+            download_client: Client::builder()
+                .redirect(Policy::none())
+                .retry(reqwest::retry::never())
+                .connect_timeout(Duration::from_secs(10))
+                .timeout(Duration::from_secs(240))
                 .user_agent(concat!("Cirrove/", env!("CARGO_PKG_VERSION")))
                 .build()
                 .map_err(|_| ProviderError::Unavailable)?,
