@@ -1,0 +1,18 @@
+{
+  "question": "With a fresh private state and predicate-specific liveness evidence, does the first uncached FUSE read of the run-owned 85-byte Shared Drive file succeed after one hour?",
+  "kind": "Pre-registered diagnostic rerun of the failed late-uncached Shared Drive arm; read-only, one account and one exact run-owned file.",
+  "registered_at_utc": "2026-09-22T17:11:43Z",
+  "source_revision": "e1468ab573dd932e397aaaacc34999cf1ab95495",
+  "prior_result": "google-shared-late-uncached-rerun-live.json failed at sample 58 after 57 minutes. Its compound liveness gate did not preserve which predicate failed, and it never attempted the late read.",
+  "private_run_manifest": ".local-state/live-runs/google-shared-late-diagnostic-20260922/manifest.json",
+  "arms": [
+    "A: start the installed merged binary with fresh private account state, a private Shared Drive mount and btrfs-backed TMPDIR/SQLITE_TMPDIR; preserve the installed daemon and three mounts as a baseline",
+    "B: take 61 status samples at 60-second intervals while doing no external traversal or content read; record only safe predicate names, feed count and numeric maximum feed age when liveness fails",
+    "C: require an empty private content cache, then read exactly the pre-registered run-owned file once through FUSE and require its 85 bytes and private SHA-256",
+    "D: stop only the recorded private daemon PID and require its mount to disappear while the installed daemon PID and mount set remain unchanged"
+  ],
+  "endpoint": "Pass only if 61 samples span at least 3600 seconds, every account/feed predicate remains healthy, the cache is empty before the first content read, the exact mounted bytes match, and cleanup preserves the installed baseline. On failure, retain individual predicate names and numeric feed age without account identifiers, tokens, URLs, cursor values or provider bodies.",
+  "prediction": "The earlier failure happened near token expiry, but that cause was not observed. This diagnostic run should either complete the late read or identify whether account state, mount state, upload state, feed state or feed freshness closed the gate.",
+  "limits": "One tiny file, one Workspace administrator and one Shared Drive. A pass does not establish large late downloads, restricted roles, 24-hour uptime, native document writeback or a memory trend.",
+  "status": "registered"
+}
