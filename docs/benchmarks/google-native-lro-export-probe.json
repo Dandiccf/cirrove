@@ -1,0 +1,46 @@
+{
+  "question": "Can the existing Cirrove Workspace test Doc and Sheet be exported read-only through Drive v3 files.download long-running operations, with exact scope and source-version checks, as a candidate path around files.export’s 10 MiB limit?",
+  "kind": "Pre-registered bounded direct API probe, not a Cirrove implementation or a large-export proof.",
+  "registered_at_utc": "2026-09-22T12:28:08.588301+00:00",
+  "source_items": "The same two run-owned native test items in the private google-native-import-20260922 fixture manifest; exact IDs and names remain private.",
+  "arms": [
+    "A: verify each exact item ID, parent, selected Shared Drive, MIME type and source version through a scoped metadata GET",
+    "B: POST files.download for DOCX and XLSX with explicit MIME types, check initial LRO result or bounded polling, follow only validated HTTPS Google-host download redirects without forwarding OAuth authorization to the download URL, and inspect bounded ZIP signatures",
+    "C: repeat exact metadata GET and require unchanged source versions and all three installed mounts still ready"
+  ],
+  "endpoint": "Pass only if both exact items yield valid nonempty DOCX/XLSX artifacts through the LRO path, stay within a 20 MiB per-response bound, and retain unchanged source versions. Record initial HTTP/LRO phases on failure without logging tokens, operation names, download URIs or raw bodies.",
+  "prediction": "The newer files.download path should return usable exports for both small fixtures. A small-file pass supports implementing this transport but cannot establish that it bypasses the 10 MiB files.export limit.",
+  "limits": "This does not exercise an artifact over 10 MiB, revision-pinned export, resource-key transport, prolonged polling, formatting fidelity, or arbitrary tenant permissions. No cloud mutation is authorized by this run.",
+  "status": "passed_small_lro_exports_large_limit_unverified",
+  "first_attempt": {
+    "status": "failed",
+    "doc_phase": "download HTTP 401",
+    "sheet_phase": "download HTTP 401",
+    "source_versions_unchanged": true,
+    "probe_policy": "The client intentionally omitted the OAuth Authorization header on returned download URIs pending host validation. Both LRO starts reached the download step; this does not establish a provider limitation."
+  },
+  "followup_question": "Can the returned download URI be safely authorized after confirming its exact trusted host, and can the small exports then be read?",
+  "followup_registered_at_utc": "2026-09-22T12:29:23.405438+00:00",
+  "diagnostic_followup": {
+    "status": "failed",
+    "doc_and_sheet": "download HTTP 401 without Authorization",
+    "returned_download_host_class": "Google-owned google.com host (exact host and URI not recorded)",
+    "source_versions_unchanged": true
+  },
+  "authorized_followup_registered_at_utc": "2026-09-22T12:30:37.869754+00:00",
+  "authorized_followup_policy": "Send the existing OAuth bearer only to the exact HTTPS google.com host returned by the authenticated Drive operation, after validating the Google-owned suffix; strip Authorization on every redirect. This is a direct read-only diagnostic.",
+  "authorized_followup_result": {
+    "status": "passed",
+    "docx_bytes": 6823,
+    "xlsx_bytes": 5107,
+    "zip_signatures_valid": true,
+    "docx_sha256": "add66dc65a5396c74b0474e5446740d3f8fe5060c1582747c646e8183d00ce0f",
+    "xlsx_sha256": "65186c88433fa65e41c731488a793ed0c5c61ed9ed8d8d138e05ffb97224331f",
+    "initial_operations_completed_without_polling": true,
+    "source_versions_unchanged": true,
+    "interpretation": "The returned Google-owned download host requires OAuth Authorization in this live path. The direct LRO transport works for both small fixtures when the header is sent only to the validated origin and stripped on redirects. This is not evidence of >10 MiB export capability."
+  },
+  "finished_at_utc": "2026-09-22T12:32:16.888595+00:00",
+  "provider_reference": "https://developers.google.com/workspace/drive/api/guides/long-running-operations",
+  "export_limit_reference": "https://developers.google.com/workspace/drive/api/reference/rest/v3/files/export"
+}

@@ -1,0 +1,41 @@
+{
+  "question": "Can Drive files.download return a valid native Google Sheets XLSX export larger than the 10 MiB files.export ceiling from one run-owned Shared Drive fixture?",
+  "kind": "Pre-registered bounded live functional probe. One item and one run do not establish general large-export reliability.",
+  "registered_at_utc": "2026-09-22T12:33:04.989385+00:00",
+  "authorization": "The owner authorized creation of dedicated Shared Drive test objects for Cirrove validation. Create only one uniquely named native Sheet inside the existing Cirrove Validation folder; retain its exact private identity for follow-up. Do not touch existing user items.",
+  "arms": [
+    "A: confirm the exact selected Shared Drive and test folder, create one new run-owned native Sheet, and save its exact item ID privately before content upload",
+    "B: import a deterministic approximately 28 MiB two-column CSV with 70,000 data rows into only that new item; make no blind retry after an uncertain response and inspect exact metadata before proceeding",
+    "C: request XLSX through files.download LRO with explicit MIME and bounded polling, authenticate the Google-owned download origin, strip auth on redirects, require a valid ZIP with workbook/sheet XML, at least 10 MiB of bytes, known marker cells, and unchanged source version across export",
+    "D: verify the installed original mounts remain ready with no failed uploads or stuck changes"
+  ],
+  "endpoint": "Pass only if the owned fixture export exceeds 10 MiB, all ZIP/content and identity checks pass, the source version stays stable, and original mounts remain healthy. A smaller artifact is inconclusive. On failure retain the fixture and private evidence; never retry an uncertain upload blindly.",
+  "prediction": "The approximately 28 MiB high-entropy CSV should produce an XLSX over 10 MiB and files.download should return it without the files.export cap. Import/conversion latency is uncertain.",
+  "limits": "One artificially large Sheet does not prove user-document fidelity, arbitrary MIME formats, long polling, token expiry handling, memory bounds inside Cirrove, or production reliability.",
+  "status": "passed_bounded_direct_large_export",
+  "result": {
+    "status": "passed",
+    "run_owned_native_sheet_created_and_retained": true,
+    "source_csv_bytes": 28478953,
+    "xlsx_export_bytes": 22344729,
+    "xlsx_sha256": "aba416b55d1df73decbb31097d7b2b6fd78670443988860e6ac4e6d46377733d",
+    "initial_lro_completed_without_polling": true,
+    "zip_integrity_valid": true,
+    "workbook_and_worksheet_present": true,
+    "both_known_marker_cells_present": true,
+    "source_version_unchanged": true,
+    "original_three_mounts_ready_no_failed_uploads_or_stuck_changes": true,
+    "interpretation": "A direct read-only Drive files.download LRO returned a valid 22,344,729-byte XLSX for one run-owned Workspace Sheet, exceeding files.export’s documented 10 MiB limit. This supports an adapter implementation but does not test Cirrove’s mounted path."
+  },
+  "finished_at_utc": "2026-09-22T12:37:09.149709+00:00",
+  "export_limit_control_registered_at_utc": "2026-09-22T12:43:20.271933+00:00",
+  "export_limit_control": "Read-only GET files.export for the exact large run-owned Sheet and XLSX MIME; record only HTTP status and bounded structured reason, no response body. This control demonstrates the current transport’s behavior on the same item; it does not modify the LRO result.",
+  "export_limit_control_result": {
+    "http_status": 403,
+    "structured_reason": "exportSizeLimitExceeded",
+    "same_exact_item_and_xlsx_format_as_successful_lro": true,
+    "interpretation": "The currently implemented files.export path rejects this test artifact, while files.download returned 22,344,729 valid XLSX bytes. No raw error body was retained."
+  },
+  "provider_reference": "https://developers.google.com/workspace/drive/api/guides/long-running-operations",
+  "export_limit_reference": "https://developers.google.com/workspace/drive/api/reference/rest/v3/files/export"
+}

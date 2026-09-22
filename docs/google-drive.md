@@ -98,13 +98,33 @@ A subsequent [installed-mount read probe](benchmarks/google-native-format-mount-
 listed and read all six DOCX/XLSX, PDF and OpenDocument children for one
 existing Doc and one Sheet, with valid format signatures and matching repeat
 hashes. Its first attempt failed at an unclassified local assertion before two
-passes, so reliable cold opening after installation remains unproven.
-Broader fidelity and large-export behavior remain untested.
+passes. The [subsequent first-open probe](benchmarks/google-package-cold-open-live.json)
+passed on its first attempt after installing the cached-package correction for
+the same two items. This does not establish reliability across other items.
+Broader conversion fidelity remains untested.
 A [persisted-cache regression](benchmarks/google-package-cache-upgrade-control.json)
 then reproduced one concrete route to stale package children across a service
 restart and corrected the first-open recheck. The original live assertion did
 not identify its phase, so that synthetic control cannot retroactively assign
-it a cause; a fresh installed-mount cold-open check remains necessary.
+it a cause.
+
+Google also offers `files.download` as a long-running export path. A
+[small direct probe](benchmarks/google-native-lro-export-probe.json) obtained
+DOCX and XLSX from the existing test items after sending OAuth authorization to
+the validated Google download origin. A separate
+[large direct probe](benchmarks/google-native-lro-large-live.json) returned a
+valid 22,344,729-byte XLSX from one run-owned Shared Drive Sheet; `files.export`
+rejected that same format and item with `exportSizeLimitExceeded`. This transport
+is not yet wired into Cirrove. A
+[format matrix](benchmarks/google-native-large-format-matrix-live.json) found
+that the same large Sheet took about 163 seconds to export as a 38.8 MB PDF and
+29 seconds as a 22.0 MB ODS. Google also advanced the source version across that
+read-only run; later metadata checks were stable, but the earlier change remains
+unclassified. Cirrove currently prepares all three formats when opening a native
+package, under a 60-second directory deadline. Simply replacing `files.export`
+with the long-running path would therefore not make this large package usable.
+Per-format background materialization, bounded memory and version handling
+remain implementation gates for exports over 10 MiB.
 
 ## Write boundary found during the preview
 

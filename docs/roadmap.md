@@ -88,7 +88,12 @@ currently bundled; another project's client ID is never substituted.
       passed on two test items; one installed-mount read probe passed twice
       after an unexplained first-attempt assertion.
       Native writeback failed a stale-update integrity
-      probe and remains disabled. One isolated Shared Drive hour completed 61
+      probe and remains disabled. A subsequent installed first-open probe passed
+      for the same Doc and Sheet after the cached-package correction. A direct
+      Drive `files.download` probe exported a 22.3 MB XLSX that `files.export`
+      rejected at its 10 MiB limit, but a 38.8 MB PDF of that Sheet took about
+      163 seconds. Large native exports are not yet integrated into Cirrove's
+      eager three-format package path. One isolated Shared Drive hour completed 61
       matching reads with a fresh feed; restricted roles, late uncached reads,
       longer sessions, larger exports and broader fidelity remain open. The
       Cirrove OAuth app is still in Testing and needs public branding and

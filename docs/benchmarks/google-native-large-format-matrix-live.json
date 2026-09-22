@@ -1,0 +1,46 @@
+{
+  "question": "For the same 70,000-row run-owned native Sheet whose XLSX export exceeded 10 MiB, can files.download also materialize PDF and ODS within bounds suitable for Cirrove’s current all-formats-on-open package path?",
+  "kind": "Pre-registered direct read-only two-format probe; no cloud mutation.",
+  "registered_at_utc": "2026-09-22T12:37:53.607136+00:00",
+  "source_item": "The exact run-owned Sheet recorded privately by google-native-lro-large-20260922; no other item is selected.",
+  "arms": [
+    "A: verify exact ID, parent, selected Shared Drive and source version",
+    "B: run one bounded LRO PDF request with at most 10 polls and a 64 MiB response bound; inspect PDF signature without logging content",
+    "C: run one bounded LRO ODS request with the same bound; inspect ZIP integrity and ODS mimetype; verify source version unchanged"
+  ],
+  "endpoint": "Record each format’s success, size, polling and latency independently. This probe passes the current package-materialization feasibility gate only if both complete within 32 MiB and within the 60-second directory deadline together; otherwise leave implementation scoped and document the limitation.",
+  "prediction": "ODS should be comparable to XLSX. A 70,000-row PDF may be much larger or slower and may exceed the current all-formats-on-open bounds.",
+  "limits": "One artificial Sheet; no mounted Cirrove read or arbitrary format fidelity. No change to source bytes.",
+  "status": "failed_current_package_feasibility",
+  "result": {
+    "pdf": {
+      "status": "valid_export",
+      "bytes": 38825599,
+      "elapsed_seconds": 162.701,
+      "initial_operation_done_without_polling": true,
+      "signature_valid": true
+    },
+    "ods": {
+      "status": "valid_export",
+      "bytes": 22024341,
+      "elapsed_seconds": 29.088,
+      "initial_operation_done_without_polling": true,
+      "signature_valid": true
+    },
+    "source_version_unchanged": false,
+    "feasibility_endpoint": "failed",
+    "interpretation": "Both direct exports were valid but together took about 192 seconds; the PDF alone exceeded the service’s 60-second package directory deadline and a 32 MiB artifact cap. The source version changed across this read-only probe, perhaps delayed import settling, but cause is unclassified. The current all-formats-on-open package design cannot simply switch to LRO and claim large-sheet support."
+  },
+  "finished_at_utc": "2026-09-22T12:42:09.308204+00:00",
+  "followup_registered_at_utc": "2026-09-22T12:42:17.244328+00:00",
+  "followup_question": "After the slow read-only export run, do two exact metadata GETs 30 seconds apart report a stable source version for the run-owned Sheet?",
+  "followup_endpoint": "Record whether the version is stable; this diagnoses timing but does not erase the original failed feasibility endpoint or prove the cause of the earlier change.",
+  "followup_result": {
+    "two_exact_metadata_gets_30_seconds_apart": "stable",
+    "observed_version_first": "7",
+    "observed_version_second": "7",
+    "interpretation": "The fixture settled by this follow-up, but the earlier version change remains real and unclassified."
+  },
+  "provider_reference": "https://developers.google.com/workspace/drive/api/guides/long-running-operations",
+  "export_limit_reference": "https://developers.google.com/workspace/drive/api/reference/rest/v3/files/export"
+}
