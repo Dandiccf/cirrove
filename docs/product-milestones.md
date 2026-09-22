@@ -458,4 +458,8 @@ content; entering one selected format folder uses a bounded long-running
 download. An isolated mount read valid 22.3 MB XLSX, 38.8 MB PDF and 22.0 MB
 ODS artifacts independently from that one settled Sheet. Broader document
 fidelity and sustained memory behavior remain open.
+A separate direct Docs API probe on one run-owned native document passed a
+bounded stale-revision check: `requiredRevisionId` rejected the second update
+with HTTP 400 and three exports retained the winning content. Cirrove has not
+implemented native writeback, and Sheets has no proven safe conflict path here.
 Completion of OneDrive 1.0 does not claim either adapter is finished.

@@ -146,6 +146,12 @@ published text must not claim a resolved policy interpretation on this record.
 
 ## Inputs still required
 
+- The existing GitHub repository page is not an owned, DNS-verifiable homepage
+  domain for Google's production review. The operator chose to keep the
+  homepage and privacy wording as an internal draft for now. A later GitHub
+  Pages site could host them under an operator-owned custom domain, after the
+  Cloud project owner verifies that domain through Search Console. See
+  [Google's domain verification guidance](https://support.google.com/cloud/answer/13804266).
 - An operator-controlled public domain and verified Search Console ownership.
 - The operator's public identity/contact and approved homepage, privacy-policy
   and terms wording, including accurate local retention and removal behavior.
