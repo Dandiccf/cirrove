@@ -94,8 +94,11 @@ currently bundled; another project's client ID is never substituted.
       rejected at its 10 MiB limit, but a 38.8 MB PDF of that Sheet took about
       163 seconds. Large native exports are not yet integrated into Cirrove's
       eager three-format package path. One isolated Shared Drive hour completed 61
-      matching reads with a fresh feed; restricted roles, late uncached reads,
-      longer sessions, larger exports and broader fidelity remain open. The
+      matching reads with a fresh feed. A separate fresh private mount kept its
+      content cache empty for an hour through one accepted indexing interval,
+      then read an exact uncached 16,777,263-byte fixture in 5.247 seconds.
+      Restricted roles, longer sessions, larger exports and broader fidelity
+      remain open. The
       Cirrove OAuth app is still in Testing and needs public branding and
       Drive-scope verification before general Google-account onboarding.
 - [ ] iCloud feasibility, isolated compatibility adapter and visible limitations.

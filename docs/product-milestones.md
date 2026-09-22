@@ -443,13 +443,12 @@ POSIX `rmdir`; conflict handling preserves data around those provider limits.
 Shared Drive selection and native Docs/Sheets read-only exports now have explicit
 capabilities and bounded live evidence. The reviewed branch passed one isolated
 Shared Drive mounted write without a local gate override. A separate isolated
-hour kept the Shared Drive ready with matching reads and fresh feed success, but
-restricted roles, late uncached reads, longer sessions, native writeback and
-public Google OAuth verification remain open. iCloud has a separate feasibility
-gate before feature parity is promised.
-The clean late-uncached rerun then passed 58 ready/feed samples over 57 minutes
-but failed its combined liveness gate before the registered one-hour first read;
-the exact failed predicate was not captured, so that gate remains open.
+hour kept the Shared Drive ready with matching reads and fresh feed success. A
+fresh private mount then retained an empty content cache for an hour through one
+accepted indexing interval and read an exact uncached 16,777,263-byte fixture in
+5.247 seconds. Restricted roles, longer sessions, native writeback and public
+Google OAuth verification remain open. iCloud has a separate feasibility gate
+before feature parity is promised.
 An installed first-open probe for one native Doc and Sheet passed after the
 cached-package correction. A direct `files.download` probe then exported a
 22.3 MB XLSX that `files.export` rejected, while the same large Sheet's PDF
