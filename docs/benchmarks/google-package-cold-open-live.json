@@ -1,0 +1,55 @@
+{
+  "question": "After installing the cached-package recheck fix, does the first opening of each previously viewed native Google Doc and Sheet package through the live mount expose and read its current three format children without an initial assertion failure?",
+  "kind": "Pre-registered read-only installed-mount probe; no Google mutation.",
+  "registered_at_utc": "2026-09-22T11:43:21Z",
+  "source_items": "The exact existing Doc and Sheet used in google-native-format-mount-live.json, identified only in the private run manifest; their package directories were viewed before this code update.",
+  "arms": [
+    "A: confirm PR #68 merged with green CI, no running measurement, no packaged Cirrove install, and the developer install running the matching binary with all three original mounts ready",
+    "B: immediately run the bounded read-only mount probe once after installation, recording the diagnostic phase on failure; require four package children and valid repeated reads for each selected item",
+    "C: confirm the original mounts remain ready with zero failed uploads and zero stuck changes"
+  ],
+  "endpoint": "The first post-install probe attempt passes for both selected packages without a retry. A failure remains a failure even if later attempts pass.",
+  "prediction": "The first attempt should pass because cached native package directories are rechecked before their contents reach a consumer, while already staged bytes remain available.",
+  "limits": "The already cached live packages may already contain all four children, so this cannot reproduce the old two-child to four-child schema transition on a real account. The persisted-store synthetic control covers that transition. Two small existing items do not establish broad provider reliability or conversion fidelity.",
+  "status": "passed_first_attempt",
+  "result": {
+    "pull_request": "https://github.com/Dandiccf/cirrove/pull/68",
+    "merge_commit": "35753e0ae99d556180a97d85e6a53558fe30fda6",
+    "ci": "all seven checks passed",
+    "installed_source_commit": "1923e8ab99b192ed8c3bfa90eedba7088e75ddae",
+    "installed_tree_matches_merge": true,
+    "installed_binary_sha256": "87d4f708f2d06996cb0375cdc123815b2b29067c3e6e25d10693b4a303dd5a2d",
+    "first_attempt": "passed",
+    "first_attempt_elapsed_seconds_approx": 14,
+    "same_private_item_identities_as_prior_probe": true,
+    "observations": [
+      {
+        "kind": "Google Doc",
+        "formats": {
+          "docx": 16448,
+          "pdf": 121536,
+          "odt": 3116649
+        },
+        "repeated_hash_match": true,
+        "file_signatures_valid": true
+      },
+      {
+        "kind": "Google Sheet",
+        "formats": {
+          "xlsx": 77200,
+          "pdf": 88692,
+          "ods": 28254
+        },
+        "repeated_hash_match": true,
+        "file_signatures_valid": true
+      }
+    ],
+    "post_probe_mounts": {
+      "ready": 3,
+      "failed_uploads": 0,
+      "stuck_changes": 0,
+      "restart_required": false
+    }
+  },
+  "finished_at_utc": "2026-09-22T12:03:29.094340+00:00"
+}
