@@ -1,0 +1,25 @@
+{
+  "question": "Can an app-created Google Doc and Sheet in the owned Shared Drive receive imported content and round-trip through exports with a version-safe update primitive?",
+  "kind": "Pre-registered bounded live protocol probe, not a mounted writeback or fidelity claim.",
+  "authorization": "The owner requested continued Google testing and has authorized run-owned cloud fixtures. Only two new Cirrove-prefixed native items in the dedicated Cirrove Validation folder may be created or updated; no existing Workspace content is touched.",
+  "registered_at_utc": "2026-09-22T07:28:38Z",
+  "official_contract": "Google Drive's upload guide states that media uploaded to an existing Docs, Sheets or Slides file replaces its full content: https://developers.google.com/workspace/drive/api/guides/manage-uploads. This probe must still establish observed behavior and conflict protection on the selected account.",
+  "arms": [
+    "A: create one run-owned native Doc and one Sheet, record exact IDs, parents and initial v2/v3 versions without printing provider response bodies",
+    "B: import a tiny plain-text body into the Doc and a two-row CSV into the Sheet using Drive upload updates, then export DOCX and XLSX and require the known text/cells inside valid packages",
+    "C: take a fresh strong file ETag, advance the run-owned Doc, then attempt a distinct update with the stale ETag; require rejection before any writeback path can be considered"
+  ],
+  "endpoint": "A and B pass only with exact-ID collection confinement, successful imports, valid DOCX/XLSX exports and expected content. C passes only if the stale conditional upload is rejected and exact-ID readback confirms the winning content unchanged. On any failure retain both items and local evidence, and keep native packages read-only in Cirrove.",
+  "prediction": "Small imports and exports should work, but Drive's native-document upload path may not honor the same conditional ETag rule as binary files. No native writeback is enabled by this probe alone.",
+  "limits": "Two small documents cannot establish formatting fidelity, formula behavior, collaboration safety or large exports.",
+  "private_run_manifest": ".local-state/live-runs/google-native-import-20260922/manifest.json",
+  "temporary_filesystem": "btrfs under /home; TMPDIR and SQLITE_TMPDIR were disk-backed, not tmpfs",
+  "result": {
+    "arm_a": "Created exactly one new native Google Doc and one new native Sheet in the owned Cirrove Validation folder. Exact IDs, parent, selected Shared Drive and initial versions were confirmed.",
+    "arm_b": "A small text/plain import into the Doc and a two-row CSV import into the Sheet both returned HTTP 200. Subsequent DOCX and XLSX exports were valid ZIP packages containing the expected marker and text/cells. These are direct API probes; Cirrove does not offer native writeback.",
+    "arm_c": "The first v2 media update with a current strong ETag returned HTTP 200; exact-ID metadata advanced from version 5 to 6 and a text/plain export contained the winner. A second update with the old ETag returned HTTP 412, but exact-ID export then contained the rejected request's distinct stale content, not the winner. The metadata version still reported 6. Three further exports over about nine seconds returned that same stale content. Thus a 412 response did not protect native document contents in this observed path.",
+    "interpretation": "The bounded import/export protocol works for these tiny fixtures, but arm C fails the conflict-integrity endpoint. The v2 media upload plus If-Match primitive cannot be used for safe native writeback on this evidence. The run-owned Doc and Sheet remain in the test folder for investigation. Native packages in Cirrove remain read-only."
+  },
+  "remaining": "Investigate a native Docs/Sheets-specific revision-aware write path, formatting and formula fidelity, collaboration safety, and larger exports before considering native writeback. This single-account observation does not characterize all Google tenants or API paths.",
+  "status": "failed_native_conflict_integrity"
+}

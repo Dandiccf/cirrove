@@ -65,6 +65,13 @@ webhooks, resource-key transport and large-library/long-session acceptance are n
 claimed.
 There is no service-account or another client's credential import.
 
+A bounded [native import probe](benchmarks/google-native-import-live.json) could
+replace the contents of one test Doc and Sheet and export the expected small
+DOCX/XLSX packages. Its conflict check failed: a stale native Doc media upload
+returned HTTP 412, yet the rejected content appeared in later exports. That
+transport cannot safely implement native writeback. Native packages remain
+read-only while a revision-aware native path is investigated.
+
 ## Write boundary found during the preview
 
 Drive v3 supplies the stable read model, including the numeric file `version` and
@@ -165,8 +172,8 @@ cirrove connect-google --label google \
 
 Omit `--write-access` for a read-only connection. Reauthenticate an existing
 connection with `cirrove reauth google --write-access` or turn off writes with
-`--read-only`. To choose a Shared Drive in the CLI, add its `--drive-id` from
-the offered drive list; My Drive remains the default. The separate validator
+`--read-only`. To choose a Shared Drive in the CLI, add its ID from that drive's
+Google Drive URL as `--drive-id`; My Drive remains the default. The separate validator
 remains available for protocol probes:
 
 ```sh
