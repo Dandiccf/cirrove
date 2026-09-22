@@ -43,8 +43,10 @@ The bounded live record for these operations is
   mounted presentation only; it never rewrites a remote name just to format it.
 
 Shared Drive discovery and a separate read-only collection are implemented with
-synthetic coverage; they have not been tested against a real Shared Drive. The
-selected drive gets its own root, listing, change cursor, cache identity and mount.
+synthetic coverage and one bounded Workspace live run. The selected drive gets
+its own root, listing, change cursor, cache identity and mount. Root, folder,
+binary content, change-feed recovery, daemon restart and small native DOCX/XLSX
+exports passed in an isolated mount; see the [live record](benchmarks/google-shared-drive-live.json).
 Shared Drive writes are blocked until a bounded live write-and-recovery run passes.
 Native document imports, exports over 10 MiB, PDF and other export formats, push
 webhooks, resource-key transport and large-library/long-session acceptance are not
@@ -536,8 +538,13 @@ collection. Synthetic provider and service tests cover discovery pagination,
 collection-scoped refresh, root and content caching, and conditional-write request
 shape. Account validation refuses a writable Shared Drive connection.
 
-A read-only query through the existing connected Google account returned zero
-accessible Shared Drives. This is a discovery result for that account, not a
-finding about Google Workspace support. A Workspace account with an accessible
-Shared Drive is still needed to validate root metadata, permissions, refresh,
-exports and bounded read/write recovery before writes can be enabled.
+A read-only query through the original personal Google account returned zero
+accessible Shared Drives. A separate Workspace account subsequently created an
+owned test drive and folder. The [2026-09-22 live run](benchmarks/google-shared-drive-live.json)
+read one binary fixture and small native Doc/Sheet exports through a separate
+read-only FUSE mount. It found and fixed a change-feed parser failure: Google
+also sends drive-level changes without `fileId`. After the fix, the isolated feed
+resumed its saved cursor and indexed a new external file before any mount listing.
+The test daemon was stopped without changing the installed daemon or its mounts.
+This is one bounded account/drive run; Shared Drive writes and recovery remain
+unvalidated and disabled.

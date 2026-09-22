@@ -42,7 +42,9 @@ struct Changes {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct FileChange {
-    file_id: String,
+    change_type: Option<String>,
+    drive_id: Option<String>,
+    file_id: Option<String>,
     #[serde(default)]
     removed: bool,
     file: Option<files::File>,
@@ -156,7 +158,7 @@ impl GoogleDrive {
             (
                 "fields",
                 &format!(
-                    "nextPageToken,newStartPageToken,changes(fileId,removed,file({}))",
+                    "nextPageToken,newStartPageToken,changes(changeType,driveId,fileId,removed,file({}))",
                     files::FIELDS
                 ),
             ),
@@ -169,19 +171,55 @@ impl GoogleDrive {
         let response: Changes = self.json(url).await?;
         let mut changes = Vec::new();
         for change in response.changes {
-            valid_id(&change.file_id)?;
+            if change.change_type.as_deref() == Some("drive") {
+                let drive_id = change
+                    .drive_id
+                    .as_deref()
+                    .ok_or(ProviderError::Protocol("Google drive change missing ID"))?;
+                valid_id(drive_id)?;
+                if change.file_id.is_some() || change.file.is_some() {
+                    return Err(ProviderError::Protocol("invalid Google drive change"));
+                }
+                // A user-scoped My Drive feed can also mention Shared Drives.
+                // They are separate collections, never children of My Drive.
+                if !self.shared_drive {
+                    continue;
+                }
+                if drive_id != self.collection {
+                    return Err(ProviderError::Protocol("foreign Google drive change"));
+                }
+                if change.removed {
+                    changes.push(Change::Delete {
+                        id: self.collection.clone(),
+                    });
+                } else {
+                    let root = self.file(&self.collection).await?;
+                    if root.mime_type != files::FOLDER || !root.parents.is_empty() {
+                        return Err(ProviderError::Protocol("invalid shared-drive root"));
+                    }
+                    changes.push(Change::Upsert(root.node(&scope.collection)?));
+                }
+                continue;
+            }
+            if !matches!(change.change_type.as_deref(), Some("file") | None) {
+                return Err(ProviderError::Protocol("unsupported Google change type"));
+            }
+            let file_id = change
+                .file_id
+                .ok_or(ProviderError::Protocol("Google file change missing ID"))?;
+            valid_id(&file_id)?;
             if change.removed {
-                changes.push(Change::Delete { id: change.file_id });
+                changes.push(Change::Delete { id: file_id });
                 continue;
             }
             let file = change
                 .file
                 .ok_or(ProviderError::Protocol("Google change missing file"))?;
-            if file.id != change.file_id {
+            if file.id != file_id {
                 return Err(ProviderError::Protocol("Google change identity mismatch"));
             }
             if file.trashed || !self.accepts_file(&file) {
-                changes.push(Change::Delete { id: change.file_id });
+                changes.push(Change::Delete { id: file_id });
             } else {
                 changes.push(Change::Upsert(file.node(&scope.collection)?));
             }

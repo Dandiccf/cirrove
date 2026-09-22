@@ -29,6 +29,9 @@ WORKFLOW = ROOT / ".github/workflows/ci.yml"
 # Ignored tests deliberately not run by CI. A test belongs here only with a
 # reason someone can disagree with.
 EXCUSED = {
+    "live_google_shared_drive_discovery": (
+        "live Workspace grant and exact owned Shared Drive; CI has neither the credential nor test folder"
+    ),
     "report_native_doc_and_sheet_export_shape_without_item_identity": (
         "live Google read grant; bounded GET-only export preflight with aggregate output"
     ),

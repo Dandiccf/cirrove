@@ -220,7 +220,7 @@ async fn baseline_frontier_precedes_scan_and_catchup_precedes_completion() {
     second.query.push(("pageToken", "listing-2"));
     let mut catchup = json_step(
         "/drive/v3/changes",
-        json!({"changes":[{"fileId":"same-id","file":file("2")}],"newStartPageToken":"settled"}),
+        json!({"changes":[{"changeType":"drive","driveId":"other-shared","removed":false},{"changeType":"file","fileId":"same-id","file":file("2")}],"newStartPageToken":"settled"}),
     );
     catchup.query.push(("pageToken", "before-scan"));
     let (p, task) = server(vec![
@@ -253,6 +253,11 @@ async fn baseline_frontier_precedes_scan_and_catchup_precedes_completion() {
         .await
         .unwrap();
     assert!(last.checkpoint.complete());
+    assert_eq!(
+        last.changes.len(),
+        1,
+        "My Drive ignores Shared Drive events"
+    );
     assert!(
         matches!(&last.changes[0], cirrove_core::Change::Upsert(n) if n.content_version.as_deref() == Some("google-revision:revision-2"))
     );

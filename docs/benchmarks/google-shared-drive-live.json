@@ -1,0 +1,31 @@
+{
+  "question": "Can the Workspace-owned Shared Drive be read as its own collection through the Google adapter and an isolated Cirrove mount?",
+  "kind": "Pre-registered bounded live functional validation, not a performance measurement or a general reliability claim.",
+  "authorization": "The owner requested all work needed to continue Google testing and explicitly authorized creating Shared Drives. Only the dedicated Cirrove Test drive and its Cirrove Validation folder may receive test fixtures; existing Workspace content is out of scope.",
+  "registered_at_utc": "2026-09-22T05:55:26Z",
+  "source_revision_before_live_run": "4e541f60195793e4b24dc41ae55710977103a62b",
+  "private_run_manifest": ".local-state/live-runs/google-shared-20260922/manifest.json (gitignored, no credentials in this artifact)",
+  "temporary_filesystem": "btrfs under /home; TMPDIR and SQLITE_TMPDIR were private directories there, not tmpfs",
+  "preflight_already_observed": "The owner account connected in Cirrove. The new Shared Drive and its empty test folder were visible through a bounded Drive API read. A direct adapter test discovered the drive, listed its root and completed its paginated change baseline. Those observations preceded this registration and are not claimed as pre-registered measurements.",
+  "arms": [
+    "A: direct provider reads of one newly created small binary fixture by exact Shared Drive and item identity",
+    "B: isolated read-only Cirrove daemon and FUSE mount of the same Shared Drive, with separate state and mount paths",
+    "C: one external create inside the run-owned folder while the isolated mount is active, then wait for its periodic change feed",
+    "D: after the discovered feed parsing fix, create one more run-owned file and observe indexed item count and feed success advance before any mount listing",
+    "E: create one small native Google Doc and one Sheet in the run-owned folder; read their bounded DOCX/XLSX exports through the isolated mount"
+  ],
+  "endpoint": "A passes if discovery, root and folder listing, change baseline and exact byte digest agree, and a foreign collection scope is refused. B passes if the private mount shows the fixture and reads the same bytes, including after its own daemon restart. C's initial mount observation is classified separately because foreground listing could have produced it. D passes if a third run-owned file created through Google advances the isolated feed's completed success and indexed item count before any mount listing, then reads byte-identically from the mount within 90 seconds. E passes if both native items appear as packages whose exported child files have their respective ZIP signatures and open through the mount. The existing installed daemon and its three mounts are not restarted.",
+  "prediction": "The shared-drive adapter should preserve drive-scoped identities and bytes. The most likely fault is a live API response shape or mount initialization assumption not covered by synthetic fixtures.",
+  "limits": "One account, one Shared Drive and one small file cannot establish general Workspace permissions, native Docs/Sheets export behavior, writable recovery, large-library performance or sustained reliability.",
+  "status": "passed_with_correction",
+  "result": {
+    "direct_adapter": "The selected Workspace account discovered the owned Shared Drive, listed its root and test folder, read a 43-byte file with the registered SHA-256, rejected a foreign collection scope and completed the paginated baseline.",
+    "isolated_mount": "A separate read-only daemon mounted this one collection, listed the owned folder and read the same 43 bytes. After its own orderly stop and restart, the folder and digest remained correct. The installed daemon stayed at three mounts throughout.",
+    "initial_remote_create": "A 47-byte externally created file became visible in the mount, but this observation alone could have come from foreground listing because the feed later reported invalid Google metadata.",
+    "feed_recovery_and_refresh": "The corrected adapter resumed the previously failing cursor, reached ready with four indexed items, and then indexed a new externally created file from four to five items before any mount listing. The file's 42 bytes matched the registered digest through the mount. One run supports this recovery path, not a long-session reliability claim.",
+    "native_exports": "A native Doc and Sheet created in the owned folder were indexed by the feed without a mount listing. Their package children opened through the mount as valid 6,484-byte DOCX and 4,943-byte XLSX ZIP archives with expected document/workbook parts. The final feed was ready with seven indexed items.",
+    "cleanup": "The isolated daemon exited cleanly and its FUSE mount was gone; the installed daemon still had its original three mounts. Test fixtures remain in the dedicated Shared Drive."
+  },
+  "correction": "The first live mount run exposed a drive-level Google change with no fileId. The adapter had requested only file fields and deserialized every change as a file, so the feed went offline while foreground reads still worked. The failed synthetic fixture reproduced that exact shape before the fix. Requesting changeType and driveId and handling own-drive changes recovered the saved live cursor; the no-foreground-read arm then proved feed progression. The early remote-create mount observation is not counted as feed proof.",
+  "remaining": "Shared Drive writable behavior and crash recovery are still disabled and unverified. One small Doc and Sheet do not establish broad export fidelity, large files, multiple users or sustained operation."
+}

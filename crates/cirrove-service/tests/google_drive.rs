@@ -5,7 +5,8 @@
 mod fixture;
 use cirrove_auth::{AccessMode, AppRegistration, Identity};
 use cirrove_core::{
-    CancellationToken, Change, ChangePage, Checkpoint, CollectionInfo, Cursor, ReadProvider, Scope,
+    CancellationToken, Change, ChangePage, Checkpoint, CollectionInfo, Cursor, MetadataProvider,
+    ReadProvider, Scope,
 };
 use cirrove_googledrive::GoogleDrive;
 use cirrove_service::{
@@ -17,6 +18,7 @@ use cirrove_service::{
 };
 use cirrove_store::Store;
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use std::{
     path::PathBuf,
     sync::{
@@ -63,15 +65,27 @@ fn account(mount_path: PathBuf) -> Account {
 }
 
 #[tokio::test]
-#[ignore = "reads the locally connected Google account and lists accessible drives"]
+#[ignore = "reads an explicitly named Google account and Shared Drive"]
 async fn live_google_shared_drive_discovery() {
+    let label = std::env::var("CIRROVE_GOOGLE_LIVE_LABEL")
+        .expect("set CIRROVE_GOOGLE_LIVE_LABEL to the connected Workspace account label");
+    let expected_drive = std::env::var("CIRROVE_GOOGLE_SHARED_DRIVE_ID")
+        .expect("set CIRROVE_GOOGLE_SHARED_DRIVE_ID to the owned test drive ID");
+    let expected_folder = std::env::var("CIRROVE_GOOGLE_SHARED_TEST_FOLDER")
+        .expect("set CIRROVE_GOOGLE_SHARED_TEST_FOLDER to the owned test folder name");
+    let expected_file = std::env::var("CIRROVE_GOOGLE_SHARED_TEST_FILE")
+        .expect("set CIRROVE_GOOGLE_SHARED_TEST_FILE to the owned test file name");
+    let expected_sha256 = std::env::var("CIRROVE_GOOGLE_SHARED_TEST_SHA256")
+        .expect("set CIRROVE_GOOGLE_SHARED_TEST_SHA256 to the test file digest");
     let state = cirrove_service::state_dir().unwrap();
     let settings = Settings::load(&state).unwrap();
     let google = settings
         .accounts
         .iter()
-        .find(|account| matches!(account.registration, AppRegistration::Google { .. }))
-        .expect("no connected Google account");
+        .find(|account| {
+            account.label == label && matches!(account.registration, AppRegistration::Google { .. })
+        })
+        .expect("named Google account is not connected");
     let provider = cirrove_service::accounts::google_provider(google).unwrap();
     let drives = provider
         .collections(&CancellationToken::new())
@@ -79,9 +93,119 @@ async fn live_google_shared_drive_discovery() {
         .unwrap();
     let shared = drives
         .iter()
-        .filter(|drive| drive.drive_type == "shared_drive")
-        .count();
-    println!("accessible shared drives: {shared}");
+        .find(|drive| drive.id == expected_drive && drive.drive_type == "shared_drive")
+        .expect("test Shared Drive not discovered");
+    let provider = provider.as_ref().clone().for_collection(shared).unwrap();
+    let scope = Scope {
+        account: google.id.clone(),
+        provider: "googledrive".into(),
+        collection: shared.id.clone(),
+    };
+    let cancel = CancellationToken::new();
+    let root = provider.node(&scope, &shared.id, &cancel).await.unwrap();
+    assert_eq!(root.id, shared.id);
+    let mut cursor = None;
+    let mut found_folder = None;
+    loop {
+        let page = provider
+            .children(&scope, &root.id, cursor.as_ref(), &cancel)
+            .await
+            .unwrap();
+        found_folder = found_folder.or_else(|| {
+            page.nodes
+                .iter()
+                .find(|node| {
+                    node.name == format!("{expected_folder} [{}]", node.id)
+                        && node.parent_id.as_deref() == Some(shared.id.as_str())
+                        && node.kind == cirrove_core::NodeKind::Folder
+                })
+                .map(|node| node.id.clone())
+        });
+        match page.next {
+            Some(next) => cursor = Some(next),
+            None => break,
+        }
+    }
+    let found_folder = found_folder.expect("test folder not listed in the Shared Drive root");
+    let mut cursor = None;
+    let mut found_file = None;
+    loop {
+        let page = provider
+            .children(&scope, &found_folder, cursor.as_ref(), &cancel)
+            .await
+            .unwrap();
+        found_file = found_file.or_else(|| {
+            page.nodes
+                .iter()
+                .find(|node| {
+                    expected_file
+                        .rsplit_once('.')
+                        .is_some_and(|(stem, extension)| {
+                            node.name == format!("{stem} [{}].{extension}", node.id)
+                        })
+                        && node.parent_id.as_deref() == Some(found_folder.as_str())
+                        && node.kind == cirrove_core::NodeKind::File
+                })
+                .cloned()
+        });
+        match page.next {
+            Some(next) => cursor = Some(next),
+            None => break,
+        }
+    }
+    let found_file = found_file.expect("test file not listed in the Shared Drive folder");
+    let bytes = provider
+        .read_range(
+            &scope,
+            &found_file,
+            0,
+            u32::try_from(found_file.size).unwrap(),
+            &cancel,
+        )
+        .await
+        .unwrap();
+    assert_eq!(hex::encode(Sha256::digest(&bytes)), expected_sha256);
+    let foreign_scope = Scope {
+        collection: "another-collection".into(),
+        ..scope.clone()
+    };
+    assert!(matches!(
+        provider.node(&foreign_scope, &found_file.id, &cancel).await,
+        Err(cirrove_core::ProviderError::Permission)
+    ));
+    let mut checkpoint = None;
+    let mut baseline_has_folder = false;
+    let mut baseline_has_file = false;
+    for _ in 0..16 {
+        let page = provider
+            .changes(&scope, checkpoint.as_ref(), &cancel)
+            .await
+            .unwrap();
+        baseline_has_folder |= page
+            .changes
+            .iter()
+            .any(|change| matches!(change, Change::Upsert(node) if node.id == found_folder));
+        baseline_has_file |= page
+            .changes
+            .iter()
+            .any(|change| matches!(change, Change::Upsert(node) if node.id == found_file.id));
+        if page.checkpoint.complete() {
+            assert!(
+                baseline_has_folder,
+                "test folder absent from Shared Drive baseline"
+            );
+            assert!(
+                baseline_has_file,
+                "test file absent from Shared Drive baseline"
+            );
+            println!(
+                "Shared Drive discovery, scoped listing, exact bytes and change baseline passed"
+            );
+            return;
+        }
+        checkpoint = Some(page.checkpoint.cursor().clone());
+    }
+    panic!("Shared Drive baseline exceeded 16 pages");
 }
 
 #[tokio::test]
@@ -134,7 +258,7 @@ async fn shared_drive_refresh_keeps_its_root_and_content_in_its_collection() {
                 }
                 "/drive/v3/changes" => {
                     assert!(has("driveId", "shared-root"));
-                    (200, String::new(), serde_json::to_vec(&json!({"changes":[],"newStartPageToken":"second"})).unwrap())
+                    (200, String::new(), serde_json::to_vec(&json!({"changes":[{"changeType":"drive","driveId":"shared-root","removed":false},{"changeType":"file","fileId":"shared-file","removed":false,"file":{"id":"shared-file","name":"report.txt","mimeType":"text/plain","parents":["shared-root"],"size":"6","version":"1","headRevisionId":"r1","driveId":"shared-root","capabilities":{"canDownload":true}}}],"newStartPageToken":"second"})).unwrap())
                 }
                 "/drive/v3/files/shared-file" if has("alt", "media") => {
                     assert!(has("supportsAllDrives", "true"));

@@ -92,9 +92,12 @@ FUSE mount. Read-only and read-write OAuth grants produce the matching mount mod
 My Drive listing, polled changes, bounded reads, duplicate names, offline cache
 reopen and OAuth guards have synthetic coverage. Native Google Docs and Sheets
 appear as read-only package folders with bounded DOCX/XLSX exports; one item of
-each type was checked live on the connected account. Shared Drive discovery and
-a separate read-only collection have synthetic coverage, but no real Shared Drive
-was accessible on the connected account. Shared Drive writes remain disabled.
+each type was checked live on the original account. Shared Drive discovery and
+a separate read-only collection have synthetic and one bounded Workspace live
+run: root, folder, binary content, feed recovery after a drive-level change,
+restart and small native exports passed in an isolated mount. See the
+[live record](benchmarks/google-shared-drive-live.json). Shared Drive writes
+remain disabled and unvalidated.
 
 A bounded live writable run on one separate account completed binary file create,
 in-place edit, editor-style atomic replacement, file and folder rename/move,
