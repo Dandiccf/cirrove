@@ -121,6 +121,22 @@ fn displays_text(widget: &gtk::Widget, text: &str) -> bool {
     }
     false
 }
+fn displays_text_containing(widget: &gtk::Widget, text: &str) -> bool {
+    if let Some(label) = widget.downcast_ref::<gtk::Label>()
+        && label.is_mapped()
+        && label.text().contains(text)
+    {
+        return true;
+    }
+    let mut child = widget.first_child();
+    while let Some(current) = child {
+        if displays_text_containing(&current, text) {
+            return true;
+        }
+        child = current.next_sibling();
+    }
+    false
+}
 /// Every mapped button of ours that shows an icon and no text. GTK's own
 /// window controls -- the close button it draws when there is no compositor
 /// to draw one, as under Xvfb -- are not ours to name and are skipped.
@@ -978,13 +994,23 @@ fn every_account_action_is_offered_from_the_window_and_only_where_it_applies() {
             .is_sensitive(),
         "sign-in must wait for a name, a folder and an application id"
     );
+    assert!(!displays_text_containing(
+        window.upcast_ref(),
+        "account-wide Drive access"
+    ));
 
     let selector = provider_selector(window.upcast_ref()).expect("provider selector is reachable");
     selector.set_selected(1);
     pump_until("Google sign-in choice", || {
         button(window.upcast_ref(), "Sign in with Google").is_some()
+            && displays_text_containing(window.upcast_ref(), "account-wide Drive access")
     });
     assert!(button(window.upcast_ref(), "Sign in with Microsoft").is_none());
+    assert!(displays_text_containing(
+        window.upcast_ref(),
+        "account-wide Drive access"
+    ));
+    assert!(displays_text_containing(window.upcast_ref(), "stay local"));
     entry_row(window.upcast_ref(), "Name")
         .unwrap()
         .set_text("GooglePreview");
@@ -1050,6 +1076,7 @@ fn a_second_google_account_reuses_the_app_and_receives_a_default_folder() {
     account.registration = cirrove_auth::AppRegistration::Google {
         client_id: "123-fixture.apps.googleusercontent.com".into(),
     };
+    account.access = cirrove_auth::AccessMode::ReadWrite;
     account.identity.tenant_id.clear();
     account.drive.drive_type = "my_drive".into();
     account.root_id = account.drive.id.clone();
@@ -1071,6 +1098,32 @@ fn a_second_google_account_reuses_the_app_and_receives_a_default_folder() {
         ui.current().is_some_and(|view| !view.accounts.is_empty())
     });
     let window = ui.window.upgrade().unwrap();
+    expand_all(window.upcast_ref());
+    pump_until("Google account row", || {
+        action_row(window.upcast_ref(), "Google account").is_some()
+            && button(window.upcast_ref(), "Make read-only").is_some()
+    });
+    assert!(action_row(window.upcast_ref(), "Google account").is_some());
+    let restrict = button(window.upcast_ref(), "Make read-only").unwrap();
+    assert!(
+        restrict
+            .tooltip_text()
+            .is_some_and(|text| text.contains("Google Account"))
+    );
+    restrict.emit_clicked();
+    pump_until("Google re-sign-in notice", || {
+        button(window.upcast_ref(), "Continue to Google").is_some()
+    });
+    assert!(displays_text_containing(
+        window.upcast_ref(),
+        "Drive files across your account"
+    ));
+    button(window.upcast_ref(), "Cancel")
+        .unwrap()
+        .emit_clicked();
+    pump_until("Google re-sign-in cancelled", || {
+        button(window.upcast_ref(), "Continue to Google").is_none()
+    });
     button(window.upcast_ref(), "Connect a drive")
         .unwrap()
         .emit_clicked();

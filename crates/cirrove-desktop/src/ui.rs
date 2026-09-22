@@ -224,14 +224,22 @@ impl Window {
         empty_actions.append(&settings_retry);
         empty.set_child(Some(&empty_actions));
         body.append(&empty);
-        let help = gtk::LinkButton::with_label(
+        let help = gtk::Box::new(gtk::Orientation::Horizontal, 16);
+        let onedrive_help = gtk::LinkButton::with_label(
             "https://github.com/Dandiccf/cirrove/blob/main/docs/onedrive-setup.md",
             &gettext("OneDrive setup guide"),
         );
+        let google_help = gtk::LinkButton::with_label(
+            "https://github.com/Dandiccf/cirrove/blob/main/docs/google-drive.md#connect",
+            &gettext("Google Drive setup guide"),
+        );
         help.set_halign(gtk::Align::Start);
         if matches!(backend, Backend::Demo) {
-            help.set_sensitive(false);
+            onedrive_help.set_sensitive(false);
+            google_help.set_sensitive(false);
         }
+        help.append(&onedrive_help);
+        help.append(&google_help);
         body.append(&help);
         let footer = gtk::Label::builder()
             .label(gettext(if matches!(backend, Backend::Demo) {
@@ -416,7 +424,7 @@ impl Window {
                 n("Account settings unavailable")
             }));
         let description = overview.settings_error.as_ref().map_or_else(
-            || gettext("Connect a OneDrive and its files appear in Files, downloaded as you open them."),
+            || gettext("Connect a cloud drive and its files appear in Files, downloaded as you open them."),
             |error| gettext(error.description()),
         );
         self.empty.set_description(Some(&description));
@@ -542,7 +550,7 @@ impl Window {
             .subtitle_lines(2)
             .build();
         let identity = adw::ActionRow::builder()
-            .title(gettext("Microsoft account"))
+            .title(gettext("Cloud account"))
             .use_markup(false)
             .subtitle_selectable(true)
             .subtitle_lines(2)
@@ -838,6 +846,12 @@ impl Window {
             .set_visible(writing.is_some() || card.state.busy());
         row.location
             .set_subtitle(&card.mount_path.to_string_lossy());
+        row.identity
+            .set_title(&if card.provider_id == "googledrive" {
+                gettext("Google account")
+            } else {
+                gettext("Microsoft account")
+            });
         row.identity.set_subtitle(&card.username);
         row.access.set_subtitle(if card.writable {
             "Changes made in this drive are uploaded to the cloud."
@@ -849,14 +863,16 @@ impl Window {
         } else {
             "Allow changes"
         });
-        row.consent.set_tooltip_text(Some(if card.writable {
+        row.consent.set_tooltip_text(Some(if card.writable && card.provider_id == "googledrive" {
+            "Sign in again asking only to read. Cirrove stops making changes; withdraw the earlier permission separately in your Google Account"
+        } else if card.writable {
             // Deliberately about what Cirrove will do, not about what the token
             // can do. Asking for the narrower scope does not take the wider one
             // away: where the account has already consented to it, the provider
             // may return it again, and only the person can withdraw it in their
-            // Microsoft account. Saying "Cirrove can no longer write to your
-            // OneDrive" would be a stronger promise than this button keeps.
-            "Sign in again asking only to read. Cirrove stops making changes; the permission itself is withdrawn in your Microsoft account"
+            // provider account. Saying the permission is gone would be a
+            // stronger promise than this button keeps.
+            "Sign in again asking only to read. Cirrove stops making changes; withdraw the earlier permission separately in your Microsoft account"
         } else {
             "Sign in again asking to make changes, so files in this drive can be saved"
         }));
@@ -1233,11 +1249,8 @@ impl Window {
     /// read-only, read-only where it can write.
     ///
     /// The same re-sign-in as `sign_in`, with a level asked for rather than the
-    /// current one kept. It is the provider's consent screen that actually
-    /// grants or narrows anything -- this only asks -- which is why no
-    /// confirmation is put in front of it: the browser already shows exactly
-    /// what is being granted, and a dialog here would be a second, vaguer copy
-    /// of that.
+    /// current one kept. Google's in-app data notice immediately precedes its
+    /// browser consent; Microsoft still goes straight to its consent screen.
     pub fn change_access(self: &Rc<Self>, id: &str) {
         let Some(card) = self.card(id) else {
             return;
@@ -1261,6 +1274,50 @@ impl Window {
         let Some(card) = self.card(id) else {
             return;
         };
+        if card.provider_id == "googledrive" {
+            let Some(window) = self.window.upgrade() else {
+                return;
+            };
+            let mode = access.unwrap_or(if card.writable {
+                cirrove_auth::AccessMode::ReadWrite
+            } else {
+                cirrove_auth::AccessMode::ReadOnly
+            });
+            let grant = if mode == cirrove_auth::AccessMode::ReadWrite {
+                gettext("read and write")
+            } else {
+                gettext("read-only")
+            };
+            let dialog = adw::AlertDialog::new(
+                Some(&gettext("Continue to Google sign-in?")),
+                Some(&fill(
+                    &gettext(
+                        "Google grants {} access to Drive files across your account. Cirrove mounts only the drive you chose. Your name, email, file names, metadata and opened content are stored locally; credentials stay in your desktop keyring. With write access, ordinary-file edits go directly to Google, not to a Cirrove server. Removing this connection retains recoverable local data until you discard it.",
+                    ),
+                    &[&grant],
+                )),
+            );
+            dialog.add_response("cancel", &gettext("Cancel"));
+            dialog.add_response("continue", &gettext("Continue to Google"));
+            dialog.set_default_response(Some("cancel"));
+            dialog.set_close_response("cancel");
+            let weak = Rc::downgrade(self);
+            let id = id.to_owned();
+            dialog.choose(Some(&window), gtk::gio::Cancellable::NONE, move |answer| {
+                if answer == "continue"
+                    && let Some(ui) = weak.upgrade()
+                {
+                    ui.start_reauthentication(&id, access);
+                }
+            });
+            return;
+        }
+        self.start_reauthentication(id, access);
+    }
+    fn start_reauthentication(self: &Rc<Self>, id: &str, access: Option<cirrove_auth::AccessMode>) {
+        let Some(card) = self.card(id) else {
+            return;
+        };
         let Backend::Live { runtime, state, .. } = &self.backend else {
             return;
         };
@@ -1269,6 +1326,7 @@ impl Window {
         }
         let state = state.clone();
         let label = card.label.clone();
+        let google = card.provider_id == "googledrive";
         let (send, receive) = tokio::sync::oneshot::channel();
         // block_on off the runtime's worker threads: the sign-in holds a
         // browser callback and the keyring open across awaits, and nothing
@@ -1292,7 +1350,11 @@ impl Window {
                         "Signed in. Changes in this drive are uploaded to the cloud."
                     }
                     Some(cirrove_auth::AccessMode::ReadOnly) => {
-                        "Signed in. Cirrove will not change anything in this drive. To withdraw the permission itself, remove Cirrove's access in your Microsoft account."
+                        if google {
+                            "Signed in. Cirrove will not change anything in this drive. To withdraw the earlier permission, remove Cirrove's access in your Google Account."
+                        } else {
+                            "Signed in. Cirrove will not change anything in this drive. To withdraw the earlier permission, remove Cirrove's access in your Microsoft account."
+                        }
                     }
                     None => "Signed in again.",
                 }),

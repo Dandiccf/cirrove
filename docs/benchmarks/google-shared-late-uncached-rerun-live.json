@@ -1,0 +1,37 @@
+{
+  "question": "With a fresh private state and no external mount traversal, does the first uncached FUSE read of the same run-owned 85-byte Shared Drive file succeed after one hour of ready metadata/feed checks?",
+  "kind": "Pre-registered clean rerun of the contaminated one-hour arm; read-only, one account and one exact file.",
+  "registered_at_utc": "2026-09-22T14:35:00Z",
+  "source_revision": "e5eeae6076e303ac82eb16c49e418ec2f8544e58",
+  "prior_failed_attempt": "google-shared-late-uncached-live.json: accidental native-package traversal staged 26 cache files, so its supervisor correctly refused the final read. That failed endpoint remains recorded separately.",
+  "private_run_manifest": ".local-state/live-runs/google-shared-late-uncached-rerun-20260922/manifest.json",
+  "arms": [
+    "A: start the installed merged binary with fresh private account state and a private Shared Drive mount; verify btrfs TMPDIR/SQLITE_TMPDIR, empty content cache and installed daemon/mount baseline",
+    "B: take at least 61 status/feed samples spanning at least 3600 seconds while doing no external traversal of the private mount and no file-content read",
+    "C: verify the private content cache is still empty, then read exactly the pre-registered run-owned file once through the private FUSE mount and require its 85 bytes and private SHA-256; require all feeds fresher than five minutes",
+    "D: stop only the recorded private daemon process and confirm its mount is gone while the installed daemon and three mounts are unchanged"
+  ],
+  "endpoint": "Pass only if the full duration/sample and ready/feed conditions hold, the private cache is empty before the first content read, the exact byte length and SHA-256 match, and cleanup/baseline checks pass. Record the first failure in this artifact; do not reinterpret a contaminated cache as a pass.",
+  "prediction": "The previous attempt maintained ready status and fresh feeds for an hour but never reached the read gate. With no incidental traversal, the first uncached binary read should succeed; late token and collection behavior remain unproven until this run ends.",
+  "limits": "One tiny file, one Workspace administrator and one Shared Drive. This does not establish large late downloads, restricted roles, 24-hour uptime or a memory trend.",
+  "observed_at_utc": "2026-09-22T15:34:00Z",
+  "observed": {
+    "status": "failed_before_late_read",
+    "completed_samples": 58,
+    "last_completed_sample": 57,
+    "last_elapsed_seconds": 3420.003,
+    "first_failed_sample": 58,
+    "failure": "account or feed failed liveness gate",
+    "last_feed_success_at_utc": "2026-09-22T15:32:55Z",
+    "last_feed_success_age_at_completion_seconds": 65,
+    "private_mount_gone": true,
+    "installed_daemon_and_mounts_unchanged": true,
+    "rss_kib_range": [23380, 24908],
+    "max_status_latency_ms": 5.666,
+    "cache_count_at_endpoint": null,
+    "late_read_attempted": false
+  },
+  "interpretation": "The clean private rerun maintained ready metadata and fresh feed samples for 57 minutes, then failed the compound account/feed liveness gate at sample 58. The first uncached file read was not attempted, so this run does not answer the registered late-read question. The supervisor did not persist which individual predicate failed. A fresh status of the installed Google connections was ready after the failure, but it cannot identify the private daemon's transient cause. Token expiry near this time is a hypothesis, not an observed cause. The private mount was removed and the installed daemon and three mounts were unchanged.",
+  "next_probe": "Before another long arm, instrument the private supervisor to record only individual state/feed predicate names and numeric feed age when the gate fails, without account identifiers, tokens, URLs or provider bodies. Re-register a new endpoint and prediction; do not relabel this failed run as a pass.",
+  "status": "failed_before_late_read"
+}
