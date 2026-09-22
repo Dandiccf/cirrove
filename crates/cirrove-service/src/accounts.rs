@@ -266,6 +266,19 @@ async fn browser_login_with_secret(
              so applications can change cloud files through it."
         );
     }
+    if google {
+        println!(
+            "Google grants {} access to Drive files across your account. Cirrove mounts only the drive you choose. \
+             Your name, email, file names, metadata and opened content are stored \
+             locally; sign-in credentials stay in your desktop keyring. With write access, edits to ordinary files are sent directly to Google, \
+             not to a Cirrove server. Removing a connection retains recoverable local data until you discard it.",
+            if access == AccessMode::ReadWrite {
+                "read and write"
+            } else {
+                "read-only"
+            }
+        );
+    }
     println!(
         "Opening {} sign-in in your browser. Select the account you want to connect.",
         if google { "Google" } else { "Microsoft" }

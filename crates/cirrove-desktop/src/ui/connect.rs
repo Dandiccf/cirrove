@@ -32,6 +32,7 @@ struct Form {
     google_client_path: RefCell<Option<PathBuf>>,
     existing_google_account: Option<String>,
     writable: adw::SwitchRow,
+    google_disclosure: gtk::Label,
     sign_in: gtk::Button,
     spinner: gtk::Spinner,
     problem: gtk::Label,
@@ -196,6 +197,14 @@ pub(super) fn present(ui: &Rc<Window>) {
     page.add(&sign);
     let actions = adw::PreferencesGroup::new();
     let action_box = gtk::Box::new(gtk::Orientation::Vertical, 12);
+    let google_disclosure = gtk::Label::builder()
+        .label(gettext(
+            "Google grants account-wide Drive access: read-only, or read/write with Allow changes. Cirrove mounts only your chosen drive. Your name, email, file metadata and opened content stay local; credentials stay in your keyring. File edits go directly to Google. Removed connections keep local data until discarded.",
+        ))
+        .wrap(true)
+        .xalign(0.0)
+        .visible(false)
+        .build();
     let problem = gtk::Label::builder()
         .wrap(true)
         .xalign(0.0)
@@ -211,6 +220,7 @@ pub(super) fn present(ui: &Rc<Window>) {
     sign_in.set_sensitive(false);
     sign_row.append(&spinner);
     sign_row.append(&sign_in);
+    action_box.append(&google_disclosure);
     action_box.append(&problem);
     action_box.append(&sign_row);
     actions.add(&action_box);
@@ -247,6 +257,7 @@ pub(super) fn present(ui: &Rc<Window>) {
         google_client_path: RefCell::new(None),
         existing_google_account,
         writable,
+        google_disclosure,
         sign_in,
         spinner,
         problem,
@@ -259,10 +270,12 @@ pub(super) fn present(ui: &Rc<Window>) {
         let form = form.clone();
         form.provider.clone().connect_selected_notify(move |_| {
             let google = form.provider.selected() == 1;
+            form.dialog.set_content_height(if google { 800 } else { 660 });
             form.client.set_visible(!google);
             form.tenant.set_visible(!google);
             form.writable.set_visible(true);
             form.google_client.set_visible(google);
+            form.google_disclosure.set_visible(google);
             form.sign_in.set_label(&if google { gettext("Sign in with Google") } else { gettext("Sign in with Microsoft") });
             sign.set_title(&if google { gettext("Google sign-in") } else { gettext("Microsoft sign-in") });
             sign.set_description(Some(&if google {

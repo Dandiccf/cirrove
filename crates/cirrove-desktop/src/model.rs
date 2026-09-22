@@ -126,6 +126,7 @@ pub struct AccountCard {
     /// Whether the grant allows changes; a read-only drive shows as such.
     pub writable: bool,
     pub supports_writes: bool,
+    pub provider_id: &'static str,
     /// The app registration this account signed in through, so connecting a
     /// second drive can start from it rather than from an empty field.
     pub client_id: String,
@@ -553,6 +554,7 @@ impl Overview {
                     failed_uploads: status.map_or(0, |s| s.failed_uploads),
                     writable: account.access == cirrove_auth::AccessMode::ReadWrite,
                     supports_writes: true,
+                    provider_id: account.registration.provider_id(),
                     client_id: account.registration.client_id().to_owned(),
                     authority: account.registration.authority().to_owned(),
                     kept_offline: status

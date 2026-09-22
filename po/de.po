@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cirrove\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-22 11:43+0200\n"
+"POT-Creation-Date: 2026-09-22 17:45+0200\n"
 "PO-Revision-Date: 2026-09-14 09:00+0200\n"
 "Last-Translator: Cirrove contributors\n"
 "Language-Team: German\n"
@@ -28,7 +28,7 @@ msgid "Provider is limiting requests"
 msgstr "Der Anbieter drosselt die Anfragen"
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:27
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:522
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:530
 msgid "Sign in again"
 msgstr "Erneut anmelden"
 
@@ -129,97 +129,97 @@ msgstr ""
 "Warten darauf, dass der Dienst die gespeicherten Kontoeinstellungen "
 "übernimmt."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:170
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:171
 msgid "{} of {} files · {} of {}"
 msgstr "{} von {} Dateien · {} von {}"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:180
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1642
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:181
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1704
 msgid "Stopping…"
 msgstr "Wird gestoppt…"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:182
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:183
 msgid "Stopped after {} of {} files. Nothing is kept offline for it."
 msgstr "Nach {} von {} Dateien gestoppt. Nichts davon wird offline behalten."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:186
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:187
 msgid "Kept {} of {} files, then stopped: {}"
 msgstr "{} von {} Dateien behalten, dann abgebrochen: {}"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:261
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:529
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:262
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:537
 msgid "Mount"
 msgstr "Einhängen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:263
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:264
 msgid "Unmount"
 msgstr "Aushängen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:265
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:266
 msgid "Cancel mount"
 msgstr "Einhängen abbrechen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:310
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:311
 msgid "just now"
 msgstr "gerade eben"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:311
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:312
 msgid "1 minute ago"
 msgstr "vor 1 Minute"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:312
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:313
 msgid "{} minutes ago"
 msgstr "vor {} Minuten"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:313
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:314
 msgid "1 hour ago"
 msgstr "vor 1 Stunde"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:314
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:315
 msgid "{} hours ago"
 msgstr "vor {} Stunden"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:315
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:316
 msgid "yesterday"
 msgstr "gestern"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:316
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:317
 msgid "{} days ago"
 msgstr "vor {} Tagen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:317
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:318
 msgid "more than a week ago"
 msgstr "vor über einer Woche"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:331
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:332
 msgid "removed in the cloud"
 msgstr "in der Cloud entfernt"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:333
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:334
 msgid "changed in the cloud"
 msgstr "in der Cloud geändert"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:340
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:341
 msgid "saved here · in the cloud"
 msgstr "hier gespeichert · in der Cloud"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:341
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:342
 msgid "saved here · waiting to upload"
 msgstr "hier gespeichert · wartet auf das Hochladen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:343
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:344
 msgid "saved here · uploading"
 msgstr "hier gespeichert · wird hochgeladen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:348
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:349
 msgid "saved here · the cloud refused it"
 msgstr "hier gespeichert · die Cloud hat es abgelehnt"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:349
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:350
 msgid "saved here · upload failed"
 msgstr "hier gespeichert · Hochladen fehlgeschlagen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:358
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/model.rs:359
 msgid "{} · {} of {}"
 msgstr "{} · {} von {}"
 
@@ -374,116 +374,120 @@ msgstr "Verbindungen werden geladen …"
 msgid "Reading your saved accounts and service status."
 msgstr "Ihre gespeicherten Konten und der Zustand des Dienstes werden gelesen."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:229
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:230
 msgid "OneDrive setup guide"
 msgstr "OneDrive-Anleitung"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:238
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:234
+msgid "Google Drive setup guide"
+msgstr "Google-Drive-Anleitung"
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:246
 msgid "Interface preview · sample accounts"
 msgstr "Vorschau der Oberfläche · Beispielkonten"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:240
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:248
 msgid "Files download when opened · changes upload in the background"
 msgstr ""
 "Dateien werden beim Öffnen heruntergeladen · Änderungen werden im "
 "Hintergrund hochgeladen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:396
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:404
 msgid "Could not read connection status. Try again."
 msgstr ""
 "Der Zustand der Verbindung konnte nicht gelesen werden. Versuchen Sie es "
 "erneut."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:414
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:422
 msgid "No drives connected"
 msgstr "Keine Laufwerke verbunden"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:416
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:424
 msgid "Account settings unavailable"
 msgstr "Kontoeinstellungen nicht verfügbar"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:419
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:427
 msgid ""
-"Connect a OneDrive and its files appear in Files, downloaded as you open "
+"Connect a cloud drive and its files appear in Files, downloaded as you open "
 "them."
 msgstr ""
-"Verbinden Sie ein OneDrive, und seine Dateien erscheinen in Dateien – "
-"heruntergeladen, sobald Sie sie öffnen."
+"Verbinden Sie ein Cloud-Laufwerk. Seine Dateien erscheinen in Dateien und "
+"werden beim Öffnen heruntergeladen."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:489
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:497
 msgid "{} · {} · {}"
 msgstr "{} · {} · {}"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:493
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:813
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:501
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:821
 msgid "{} · {}"
 msgstr "{} · {}"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:534
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:542
 msgid "Connection status"
 msgstr "Zustand der Verbindung"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:539
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:547
 msgid "Location in Files"
 msgstr "Ort in Dateien"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:545
-msgid "Microsoft account"
-msgstr "Microsoft-Konto"
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:553
+msgid "Cloud account"
+msgstr "Cloud-Konto"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:551
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:559
 msgid "Access"
 msgstr "Zugriff"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:560
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:176
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:568
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:177
 msgid "Allow changes"
 msgstr "Änderungen erlauben"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:565
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:573
 msgid "Local cache"
 msgstr "Lokaler Zwischenspeicher"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:571
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:579
 msgid "Changes the cloud refused"
 msgstr "Von der Cloud abgelehnte Änderungen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:581
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:589
 msgid "Try again"
 msgstr "Erneut versuchen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:585
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:593
 msgid "Discard"
 msgstr "Verwerfen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:592
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:600
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:199
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:253
 msgid "Kept offline"
 msgstr "Offline behalten"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:603
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:611
 msgid "File…"
 msgstr "Datei …"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:608
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:616
 msgid "Folder…"
 msgstr "Ordner …"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:621
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:629
 msgid "Keep a file or folder offline"
 msgstr "Eine Datei oder einen Ordner offline behalten"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:635
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:643
 msgid "A wastebasket folder is in this drive"
 msgstr "In diesem Laufwerk liegt ein Papierkorb-Ordner"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:644
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1382
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:652
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1444
 msgid "Delete a file permanently"
 msgstr "Eine Datei endgültig löschen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:646
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:654
 msgid ""
 "Skips the drive's recycle bin, so there is no way back. An ordinary delete "
 "in any file manager is recoverable and stays that way."
@@ -491,38 +495,38 @@ msgstr ""
 "Umgeht den Papierkorb des Laufwerks – es gibt keinen Weg zurück. Ein "
 "gewöhnliches Löschen in jedem Dateimanager bleibt wiederherstellbar."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:652
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:660
 msgid "Choose a file…"
 msgstr "Datei auswählen …"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:658
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:666
 msgid "Remove this connection"
 msgstr "Diese Verbindung entfernen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:660
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:668
 msgid ""
 "Its sign-in and local index are set aside; nothing in the cloud is touched."
 msgstr ""
 "Ihre Anmeldung und der lokale Index werden beiseitegelegt; in der Cloud wird "
 "nichts angerührt."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:666
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:674
 msgid "Remove"
 msgstr "Entfernen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:684
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:692
 msgid "Saves that did not reach the cloud"
 msgstr "Speicherungen, die die Cloud nicht erreicht haben"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:691
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:699
 msgid "Keep both copies"
 msgstr "Beide Fassungen behalten"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:808
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:816
 msgid "Still waiting for service"
 msgstr "Warte weiterhin auf den Dienst"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:816
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:824
 msgid ""
 "The request is saved, but the service has not confirmed it. You can change "
 "the mount preference or check the service."
@@ -530,19 +534,27 @@ msgstr ""
 "Die Anfrage ist gespeichert, aber der Dienst hat sie noch nicht bestätigt. "
 "Sie können die Einhänge-Einstellung ändern oder den Dienst prüfen."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:874
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:851
+msgid "Google account"
+msgstr "Google-Konto"
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:853
+msgid "Microsoft account"
+msgstr "Microsoft-Konto"
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:890
 msgid "Up to {} GiB · downloaded as needed"
 msgstr "Bis zu {} GiB · wird bei Bedarf heruntergeladen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:886
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:902
 msgid "1 change"
 msgstr "1 Änderung"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:888
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:904
 msgid "{} changes"
 msgstr "{} Änderungen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:895
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:911
 msgid ""
 "{} that the cloud would not accept. The cloud has decided about these, so "
 "they are not re-sent; discarding removes the local copies and the cloud "
@@ -552,7 +564,7 @@ msgstr ""
 "sie werden also nicht erneut gesendet; Verwerfen entfernt die lokalen "
 "Kopien, die Cloud behält ihre Version."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:902
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:918
 msgid ""
 "{} that did not reach the cloud. Try again sends them once more; discarding "
 "removes the local copies and the cloud keeps its version."
@@ -560,7 +572,7 @@ msgstr ""
 "{}, die die Cloud nicht erreicht haben. „Erneut versuchen“ sendet sie noch "
 "einmal; Verwerfen entfernt die lokalen Kopien, die Cloud behält ihre Version."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:909
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:925
 msgid ""
 "{} that the cloud would not accept, {} of which are worth trying again. The "
 "rest the cloud has decided about and are not re-sent; discarding removes the "
@@ -571,12 +583,12 @@ msgstr ""
 "gesendet; Verwerfen entfernt die lokalen Kopien, die Cloud behält ihre "
 "Version."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:928
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:967
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:944
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:983
 msgid ", and {} more"
 msgstr ", und {} weitere"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:944
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:960
 msgid ""
 "{} did not reach the cloud. The file is on this computer; the cloud has an "
 "older version or none. Open the file and save it again to try once more."
@@ -585,15 +597,15 @@ msgstr ""
 "Cloud hat eine ältere Fassung oder keine. Öffnen Sie die Datei und speichern "
 "Sie sie erneut, um es noch einmal zu versuchen."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:947
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:963
 msgid "1 save"
 msgstr "1 Speicherung"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:949
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:965
 msgid "{} saves"
 msgstr "{} Speicherungen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:977
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:993
 msgid ""
 "{} was made by a file manager before Cirrove refused to hold one, and "
 "whatever is in it is still in your cloud drive. Nothing can be added to it "
@@ -603,7 +615,7 @@ msgstr ""
 "darin liegt, liegt weiterhin in Ihrem Cloud-Laufwerk. Hinzufügen lässt sich "
 "nichts mehr. Ob er verschwindet, entscheiden Sie — Cirrove tut es nicht."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:986
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1002
 msgid ""
 "Put your version beside the cloud's, under a new name, instead of losing one "
 "of them"
@@ -611,41 +623,41 @@ msgstr ""
 "Legt Ihre Fassung unter neuem Namen neben die der Cloud, statt eine der "
 "beiden zu verlieren"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1041
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1057
 msgid "Stop"
 msgstr "Stoppen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1043
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1059
 msgid "Dismiss"
 msgstr "Ausblenden"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1067
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1083
 msgid "{} · everything inside it"
 msgstr "{} · mit allem darin"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1075
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1091
 msgid "Stop keeping"
 msgstr "Nicht mehr behalten"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1098
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1114
 msgid "Keeping {} offline · {}"
 msgstr "{} wird offline behalten · {}"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1107
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1123
 msgid "{} items kept offline."
 msgstr "{} Einträge werden offline behalten."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1160
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1176
 msgid "Saving mount preference…"
 msgstr "Einhänge-Einstellung wird gespeichert …"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1208
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1224
 msgid "Cirrove is busy with this drive. Wait a moment and try again."
 msgstr ""
 "Cirrove ist mit diesem Laufwerk beschäftigt. Warten Sie einen Moment und "
 "versuchen Sie es erneut."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1211
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1227
 msgid ""
 "This connection is no longer configured. It may have been removed in another "
 "window."
@@ -653,7 +665,7 @@ msgstr ""
 "Diese Verbindung ist nicht mehr eingerichtet. Möglicherweise wurde sie in "
 "einem anderen Fenster entfernt."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1214
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1230
 msgid ""
 "Your saved connections could not be read, so the change was not made. Check "
 "the settings location, then try again."
@@ -662,7 +674,7 @@ msgstr ""
 "wurde nicht vorgenommen. Prüfen Sie den Speicherort der Einstellungen und "
 "versuchen Sie es erneut."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1217
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1233
 msgid ""
 "The change could not be saved. Check that the settings location is writable "
 "and has space, then try again."
@@ -670,60 +682,99 @@ msgstr ""
 "Die Änderung konnte nicht gespeichert werden. Prüfen Sie, ob der Speicherort "
 "beschreibbar ist und Platz hat, und versuchen Sie es erneut."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1224
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1240
 msgid ""
 "The task saving this change stopped unexpectedly. Retry or reopen Cirrove."
 msgstr ""
 "Der Vorgang, der diese Änderung speichert, wurde unerwartet beendet. "
 "Versuchen Sie es erneut oder öffnen Sie Cirrove neu."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1267
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1287
+msgid "read and write"
+msgstr "Lese- und Schreibzugriff"
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1289
+msgid "read-only"
+msgstr "nur Lesezugriff"
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1292
+msgid "Continue to Google sign-in?"
+msgstr "Mit der Google-Anmeldung fortfahren?"
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1295
+msgid ""
+"Google grants {} access to Drive files across your account. Cirrove mounts "
+"only the drive you chose. Your name, email, file names, metadata and opened "
+"content are stored locally; credentials stay in your desktop keyring. With "
+"write access, ordinary-file edits go directly to Google, not to a Cirrove "
+"server. Removing this connection retains recoverable local data until you "
+"discard it."
+msgstr ""
+"Google gewährt {} auf Drive-Dateien in Ihrem gesamten Konto. Cirrove bindet "
+"nur das von Ihnen gewählte Laufwerk ein. Ihr Name, Ihre E-Mail-Adresse, "
+"Dateinamen, Metadaten und geöffnete Inhalte werden lokal gespeichert; "
+"Anmeldedaten bleiben im Schlüsselbund Ihres Desktops. Bei Schreibzugriff "
+"werden Änderungen an gewöhnlichen Dateien direkt an Google gesendet, nicht "
+"an einen Cirrove-Server. Wenn Sie diese Verbindung entfernen, bleiben "
+"wiederherstellbare lokale Daten erhalten, bis Sie sie verwerfen."
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1300
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1497
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:818
+msgid "Cancel"
+msgstr "Abbrechen"
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1301
+msgid "Continue to Google"
+msgstr "Weiter zu Google"
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1324
 msgid "Signing in in your browser…"
 msgstr "Anmeldung läuft in Ihrem Browser …"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1299
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1361
 msgid "The sign-in did not finish: {}"
 msgstr "Die Anmeldung wurde nicht abgeschlossen: {}"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1300
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1362
 msgid "The sign-in did not finish."
 msgstr "Die Anmeldung wurde nicht abgeschlossen."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1318
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1380
 msgid "Releasing…"
 msgstr "Wird freigegeben …"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1347
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1409
 msgid "{} is still kept offline: {}"
 msgstr "{} wird weiterhin offline behalten: {}"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1351
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1413
 msgid "{} is no longer kept offline."
 msgstr "{} wird nicht mehr offline behalten."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1353
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1600
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1415
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1662
 msgid "{} was not kept offline."
 msgstr "{} wurde nicht offline behalten."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1356
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1418
 msgid "Could not release {}: {}"
 msgstr "{} konnte nicht freigegeben werden: {}"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1359
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1500
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1615
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1681
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1799
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1853
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1421
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1562
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1677
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1743
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1861
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1915
 msgid "The service did not answer."
 msgstr "Der Dienst hat nicht geantwortet."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1383
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1445
 msgid "Choose"
 msgstr "Auswählen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1420
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1482
 msgid ""
 "A folder cannot be deleted permanently: the cloud's delete is recursive and "
 "nothing can tell whether a file arrived in it a moment ago."
@@ -732,18 +783,18 @@ msgstr ""
 "wirkt rekursiv, und niemand kann sagen, ob eben noch eine Datei hineingelegt "
 "wurde."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1425
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1560
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1487
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1622
 msgid "Choose a file inside this drive's folder."
 msgstr "Wählen Sie eine Datei innerhalb des Ordners dieses Laufwerks."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1430
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1492
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:809
 #, python-brace-format
 msgid "Delete {} permanently?"
 msgstr "{} endgültig löschen?"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1432
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1494
 msgid ""
 "It does not go to the drive's recycle bin, and it cannot be recovered from "
 "this computer or from the cloud. Deleting it the ordinary way would be "
@@ -753,63 +804,58 @@ msgstr ""
 "Rechner noch aus der Cloud wiederhergestellt werden. Auf gewöhnlichem Weg "
 "gelöscht wäre sie wiederherstellbar."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1435
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:818
-msgid "Cancel"
-msgstr "Abbrechen"
-
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1436
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1498
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/packaging/nautilus/cirrove.py:818
 msgid "Delete permanently"
 msgstr "Endgültig löschen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1463
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1525
 msgid "Deleting permanently…"
 msgstr "Wird endgültig gelöscht …"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1490
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1552
 msgid "{} is gone. It was not put in the recycle bin."
 msgstr "{} ist weg. Die Datei wurde nicht in den Papierkorb gelegt."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1494
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1556
 msgid "Nothing was removed."
 msgstr "Es wurde nichts gelöscht."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1497
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1559
 msgid "Could not delete permanently: {}"
 msgstr "Endgültiges Löschen fehlgeschlagen: {}"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1571
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1633
 msgid "Keeping offline…"
 msgstr "Wird offline behalten …"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1669
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1731
 msgid "Stopping. {} will not be kept offline."
 msgstr "Wird gestoppt. {} wird nicht offline behalten."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1678
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1740
 msgid "Could not stop {}: {}"
 msgstr "{} konnte nicht gestoppt werden: {}"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1698
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1760
 msgid "Discarding refused changes…"
 msgstr "Abgelehnte Änderungen werden verworfen …"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1729
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1791
 msgid "Could not discard the refused changes."
 msgstr "Die abgelehnten Änderungen konnten nicht verworfen werden."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1759
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1821
 msgid "Keeping both copies…"
 msgstr "Beide Fassungen werden behalten …"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1784
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1846
 msgid "Copying {} save(s) to the cloud beside the version already there."
 msgstr ""
 "{} Speicherung(en) werden neben die bereits vorhandene Fassung in die Cloud "
 "kopiert."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1790
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1852
 msgid ""
 "Copying {} save(s) beside the version already there. {} could not be copied, "
 "because the file each was replacing is no longer in the drive."
@@ -818,19 +864,19 @@ msgstr ""
 "konnte(n) nicht kopiert werden, weil die jeweils ersetzte Datei nicht mehr "
 "im Laufwerk ist."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1796
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1858
 msgid "Could not keep both copies: {}"
 msgstr "Beide Fassungen konnten nicht behalten werden: {}"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1814
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1876
 msgid "Trying the refused changes again…"
 msgstr "Abgelehnte Änderungen werden erneut versucht…"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1837
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1899
 msgid "Trying {} change(s) again."
 msgstr "{} Änderung(en) werden erneut versucht."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1845
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1907
 msgid ""
 "Trying {} change(s) again. {} the cloud already decided about; those are not "
 "re-sent, because the file has moved on since. Discard them to let the drive "
@@ -841,23 +887,23 @@ msgstr ""
 "inzwischen weiterbewegt hat. Verwerfen Sie sie, damit das Laufwerk zeigt, "
 "was die Cloud hat."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1850
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1912
 msgid "Could not try again: {}"
 msgstr "Erneuter Versuch nicht möglich: {}"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1889
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1951
 msgid "Could not check this connection."
 msgstr "Diese Verbindung konnte nicht geprüft werden."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1935
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1997
 msgid "Removing…"
 msgstr "Wird entfernt …"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1956
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:2018
 msgid "Could not remove the connection."
 msgstr "Die Verbindung konnte nicht entfernt werden."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1987
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:2049
 msgid ""
 "This drive's folder is not there. It may have been unmounted; refresh and "
 "try again."
@@ -865,7 +911,7 @@ msgstr ""
 "Der Ordner dieses Laufwerks ist nicht da. Möglicherweise wurde es "
 "ausgehängt; aktualisieren Sie und versuchen Sie es erneut."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:1989
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui.rs:2051
 msgid ""
 "No application is set up to open a folder on this desktop. Install a file "
 "manager, or open the folder path yourself."
@@ -874,47 +920,47 @@ msgstr ""
 "eingerichtet. Installieren Sie eine Dateiverwaltung oder öffnen Sie den Pfad "
 "selbst."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:58
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:156
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:59
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:157
 msgid "Choose an empty folder"
 msgstr "Wählen Sie einen leeren Ordner"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:125
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:126
 msgid "Connect a drive"
 msgstr "Ein Laufwerk verbinden"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:140
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:141
 msgid "Drive"
 msgstr "Laufwerk"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:142
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:143
 msgid "A name for this connection, and the folder its files appear in."
 msgstr ""
 "Ein Name für diese Verbindung und der Ordner, in dem ihre Dateien erscheinen."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:146
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:147
 msgid "Provider"
 msgstr "Anbieter"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:149
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:150
 msgid "Google Drive"
 msgstr "Google Drive"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:153
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:154
 msgid "Name"
 msgstr "Name"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:155
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:156
 msgid "Folder in Files"
 msgstr "Ordner in Dateien"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:164
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:267
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:165
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:279
 msgid "Microsoft sign-in"
 msgstr "Microsoft-Anmeldung"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:165
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:270
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:166
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:282
 msgid ""
 "The application (client) ID of your app registration; the OneDrive setup "
 "guide explains where it comes from."
@@ -922,51 +968,60 @@ msgstr ""
 "Die Anwendungs-ID (Client-ID) Ihrer App-Registrierung; die OneDrive-"
 "Anleitung erklärt, woher sie kommt."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:168
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:169
 msgid "Application (client) ID"
 msgstr "Anwendungs-ID (Client-ID)"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:172
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:173
 msgid "Tenant"
 msgstr "Mandant"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:178
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:179
 msgid "Files saved in this drive are uploaded. Off, the drive is read-only."
 msgstr ""
 "In diesem Laufwerk gespeicherte Dateien werden hochgeladen. Aus bedeutet, "
 "das Laufwerk ist schreibgeschützt."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:182
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:183
 msgid "Use another Google OAuth app"
 msgstr "Andere Google-OAuth-App verwenden"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:184
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:185
 msgid "Using the Google app from an existing connection"
 msgstr "Google-App einer bestehenden Verbindung wird verwendet"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:186
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:187
 msgid "Using the Cirrove Google app (approved testers only for now)"
 msgstr ""
 "Cirrove-Google-App wird verwendet (derzeit nur für freigegebene Testkonten)"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:208
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:266
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:202
+msgid ""
+"Google grants account-wide Drive access: read-only, or read/write with Allow "
+"changes. Cirrove mounts only your chosen drive. Your name, email, file "
+"metadata and opened content stay local; credentials stay in your keyring. "
+"File edits go directly to Google. Removed connections keep local data until "
+"discarded."
+msgstr "Google erlaubt kontoweiten Drive-Zugriff: nur Lesen oder mit „Änderungen erlauben“ auch Schreiben. Cirrove bindet nur Ihr gewähltes Laufwerk ein. Name, E-Mail, Dateimetadaten und geöffnete Inhalte bleiben lokal; Anmeldedaten im Schlüsselbund. Dateiänderungen gehen direkt an Google. Entfernte Verbindungen behalten lokale Daten bis zum Verwerfen."
+
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:217
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:278
 msgid "Sign in with Microsoft"
 msgstr "Mit Microsoft anmelden"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:223
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:233
 msgid "Choose a drive"
 msgstr "Wählen Sie ein Laufwerk"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:266
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:278
 msgid "Sign in with Google"
 msgstr "Mit Google anmelden"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:267
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:279
 msgid "Google sign-in"
 msgstr "Google-Anmeldung"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:269
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:281
 msgid ""
 "My Drive and Shared Drives can be connected. Allow changes enables edits to "
 "ordinary files. Google Docs and Sheets appear as read-only export packages."
@@ -975,15 +1030,15 @@ msgstr ""
 "erlauben“ sind normale Dateien bearbeitbar. Google Docs und Sheets "
 "erscheinen als schreibgeschützte Exportpakete."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:279
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:291
 msgid "Google Desktop OAuth client JSON"
 msgstr "Google-OAuth-Client-JSON für Desktop-Apps"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:309
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:321
 msgid "Folder for this drive"
 msgstr "Ordner für dieses Laufwerk"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:374
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:386
 msgid ""
 "Your browser opens the Google sign-in. Choose the account there; this window "
 "continues when it is done."
@@ -991,7 +1046,7 @@ msgstr ""
 "Die Google-Anmeldung öffnet sich im Browser. Wähle dort das Konto aus; "
 "danach geht es in diesem Fenster weiter."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:375
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/google-native-docs/crates/cirrove-desktop/src/ui/connect.rs:387
 msgid ""
 "Your browser opens the Microsoft sign-in. Choose the account there; this "
 "window continues when it is done."
