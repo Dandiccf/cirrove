@@ -38,5 +38,16 @@
   },
   "diagnostic_registered_at_utc": "2026-09-22T20:25:00Z",
   "private_run_manifest_diagnostic": ".local-state/live-runs/google-native-additional-private-mount-fidelity-diagnostic-20260922/manifest.json",
-  "diagnostic_change": "Repeat the same fresh-state endpoint, but persist each completed kind immediately and split exact package lookup from package-child comparison. Publish only the resulting phase and existing safe counters if it fails."
+  "diagnostic_change": "Repeat the same fresh-state endpoint, but persist each completed kind immediately and split exact package lookup from package-child comparison. Publish only the resulting phase and existing safe counters if it fails.",
+  "third_attempt": {
+    "run_manifest": ".local-state/live-runs/google-native-additional-private-mount-fidelity-diagnostic-20260922/manifest.json",
+    "status": "failed_after_doc_exports",
+    "duration_seconds": 14.354,
+    "failure_phase": "sheet-package-children",
+    "observed": "The exact .gsheet identity was found. DOCX (6,826 bytes), PDF (19,128 bytes) and ODT (3,108,610 bytes) each passed repeat-hash, signature and marker checks. The normalized post-run index contained exactly XLSX, PDF, ODS and the browser link for the Sheet. Cleanup passed and the installed service remained unchanged."
+  },
+  "cached_restart_diagnostic": "A short PID-recorded restart of that private failed state exposed exactly ODS, PDF and XLSX as directories plus Open in Google.url as a regular file, then unmounted cleanly. This is debugging evidence, not a fresh-state measurement.",
+  "first_open_capture_registered_at_utc": "2026-09-22T20:42:00Z",
+  "private_run_manifest_first_open_capture": ".local-state/live-runs/google-native-additional-private-mount-fidelity-capture-20260922/manifest.json",
+  "first_open_capture_change": "Repeat the same fresh-state endpoint and persist the first visible package-child names and kinds before comparing them. No retry is added and the export assertions remain unchanged."
 }
