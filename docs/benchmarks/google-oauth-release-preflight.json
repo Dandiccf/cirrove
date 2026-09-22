@@ -1,0 +1,27 @@
+{
+  "kind": "Read-only Google Cloud Console release audit; a dated configuration observation, not a provider test or change to the Cloud project.",
+  "observed_at_utc": "2026-09-22T08:10:19Z",
+  "project": "Cirrove (Google Cloud project ID cirrove)",
+  "sources": {
+    "audience": "https://console.cloud.google.com/auth/audience?project=cirrove",
+    "branding": "https://console.cloud.google.com/auth/branding?project=cirrove",
+    "data_access": "https://console.cloud.google.com/auth/scopes?project=cirrove",
+    "verification": "https://console.cloud.google.com/auth/verification?project=cirrove",
+    "google_restricted_scope_policy": "https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification",
+    "google_verification_requirements": "https://support.google.com/cloud/answer/13464321"
+  },
+  "observed": {
+    "audience": "External, Publishing status Testing; 2 test users; the Publish app control is disabled and the console directs completion of Branding.",
+    "branding": "Application name and support/developer emails are present. The homepage, public privacy-policy link, terms link and authorized-domain list are empty in the visible configuration. The console's Branding completion gate is not satisfied.",
+    "data_access": "The restricted Drive-scope list contains drive.readonly only. Cirrove's current crates/cirrove-auth/src/google.rs requests drive.readonly for read-only connections and the full drive scope for writable connections; the latter is not declared on this screen.",
+    "verification": "The Verification Center says verification is not currently required because the app is in Testing. It does not show production restricted-scope approval.",
+    "api_services": "The Google Drive API is enabled. The Google Docs API and Google Sheets API showed Enable controls; a direct Docs API read returned SERVICE_DISABLED. No API was enabled during this audit."
+  },
+  "policy_implication": "Google says production apps should declare every requested scope and restricted Drive scopes require verification unless an exception applies. Its verification requirements call for a public homepage and privacy policy on a verified domain. This project remains suitable for the two listed testers, not general Google-account onboarding.",
+  "next_actions": [
+    "Choose a public, verified domain and publish a truthful Cirrove homepage and privacy policy before filling the Branding fields; the repository currently lists GitHub as its homepage and contains no public privacy policy.",
+    "Declare the full drive scope actually requested for writable connections, then prepare restricted-scope and brand verification evidence before publishing beyond testers.",
+    "Keep the Docs API activation and the registered native-revision probe separate; no Cloud project setting changes were made by this audit."
+  ],
+  "status": "production_oauth_blocked_by_branding_and_scope_verification"
+}

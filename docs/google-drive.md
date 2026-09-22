@@ -65,6 +65,14 @@ webhooks, resource-key transport and large-library/long-session acceptance are n
 claimed.
 There is no service-account or another client's credential import.
 
+The current Cirrove Google Cloud OAuth app is still limited to test users. A
+[read-only release preflight](benchmarks/google-oauth-release-preflight.json)
+records the 2026-09-22 console state: external Testing, incomplete public
+branding, and only `drive.readonly` declared although writable connections
+request full `drive`. Publishing for general users requires completing the
+public app identity and Google's scope verification; the bounded live tests
+above do not close that release gate.
+
 A bounded [native import probe](benchmarks/google-native-import-live.json) could
 replace the contents of one test Doc and Sheet and export the expected small
 DOCX/XLSX packages. Its conflict check failed: a stale native Doc media upload
