@@ -1,0 +1,19 @@
+{
+  "question": "After initial readiness, can a fresh private Shared Drive mount tolerate routine indexing intervals for one hour and then complete the first uncached read of the run-owned 85-byte file?",
+  "kind": "Pre-registered correction to the instantaneous-ready liveness gate; read-only, one account and one exact run-owned file.",
+  "registered_at_utc": "2026-09-22T17:34:23Z",
+  "source_revision": "e1468ab573dd932e397aaaacc34999cf1ab95495",
+  "prior_result": "google-shared-late-uncached-diagnostic-live.json failed after eight minutes only because the account summary was not ready; it did not retain the exact feed state. Cirrove sets a feed to indexing on every refresh and maps any non-ready feed to updating_or_offline.",
+  "private_run_manifest": ".local-state/live-runs/google-shared-late-refresh-tolerant-20260922/manifest.json",
+  "arms": [
+    "A: start the installed merged binary with fresh private account state, a private Shared Drive mount and btrfs-backed TMPDIR/SQLITE_TMPDIR; require an initial sample with account and all feeds ready",
+    "B: take 61 samples at 60-second intervals with no external traversal or content read; accept only feed states ready or indexing, require every last success younger than five minutes, and record safe feed-state names and numeric maximum age",
+    "C: fail immediately on sign_in_required, throttled, offline, rebuilding, unavailable, missing feeds, stale success, mount loss, save refusal, failed uploads or stuck changes",
+    "D: require an empty private content cache, read only the pre-registered run-owned file once through FUSE, and require its 85 bytes and private SHA-256",
+    "E: stop only the recorded private daemon PID and require its mount to disappear while the installed daemon PID and mount set remain unchanged"
+  ],
+  "endpoint": "Pass only if initial readiness holds, 61 samples span at least 3600 seconds with only ready/indexing feed states and fresh success, the cache is empty before the first content read, exact mounted bytes match, and cleanup preserves the installed baseline. Persist exact safe state enums and numeric age on failure, never account identifiers, tokens, URLs, cursors or provider bodies.",
+  "prediction": "The prior two long arms likely sampled the expected indexing phase of a normal refresh. Allowing only that transient state should let the session reach the late read; any other state will instead identify a real liveness failure.",
+  "limits": "One tiny file, one Workspace administrator and one Shared Drive. A pass does not establish large late downloads, restricted roles, 24-hour uptime, native document writeback or a memory trend.",
+  "status": "registered"
+}
