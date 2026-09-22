@@ -931,6 +931,9 @@ msgstr ""
 msgid "Google Desktop OAuth client"
 msgstr ""
 
+msgid "Using the Google app from an existing connection"
+msgstr ""
+
 msgid "Choose the private client JSON from Google Cloud Console"
 msgstr ""
 
@@ -946,7 +949,7 @@ msgstr ""
 msgid "Google Desktop OAuth client JSON"
 msgstr ""
 
-msgid "My Drive files can be changed when Allow changes is on. Google documents appear as browser links; exports and shared drives are not yet supported."
+msgid "My Drive files can be changed when Allow changes is on. Google Docs and Sheets open as read-only exports; Shared Drives are not yet supported."
 msgstr ""
 
 msgid "Your browser opens the Google sign-in. Choose the account there; this window continues when it is done."

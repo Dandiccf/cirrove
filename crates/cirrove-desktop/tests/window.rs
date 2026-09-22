@@ -75,6 +75,36 @@ fn provider_selector(widget: &gtk::Widget) -> Option<adw::ComboRow> {
     }
     None
 }
+fn entry_row(widget: &gtk::Widget, title: &str) -> Option<adw::EntryRow> {
+    if let Some(row) = widget.downcast_ref::<adw::EntryRow>()
+        && row.title() == title
+    {
+        return Some(row.clone());
+    }
+    let mut child = widget.first_child();
+    while let Some(current) = child {
+        if let Some(found) = entry_row(&current, title) {
+            return Some(found);
+        }
+        child = current.next_sibling();
+    }
+    None
+}
+fn action_row(widget: &gtk::Widget, title: &str) -> Option<adw::ActionRow> {
+    if let Some(row) = widget.downcast_ref::<adw::ActionRow>()
+        && row.title() == title
+    {
+        return Some(row.clone());
+    }
+    let mut child = widget.first_child();
+    while let Some(current) = child {
+        if let Some(found) = action_row(&current, title) {
+            return Some(found);
+        }
+        child = current.next_sibling();
+    }
+    None
+}
 fn displays_text(widget: &gtk::Widget, text: &str) -> bool {
     if let Some(label) = widget.downcast_ref::<gtk::Label>()
         && label.is_mapped()
@@ -994,6 +1024,73 @@ fn every_account_action_is_offered_from_the_window_and_only_where_it_applies() {
     runtime.shutdown_timeout(Duration::from_secs(1));
 }
 
+fn a_second_google_account_reuses_the_app_and_receives_a_default_folder() {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let sample = demo::snapshot().unwrap();
+    let mut settings = sample.settings.unwrap();
+    let account = &mut settings.accounts[0];
+    account.registration = cirrove_auth::AppRegistration::Google {
+        client_id: "123-fixture.apps.googleusercontent.com".into(),
+    };
+    account.identity.tenant_id.clear();
+    account.drive.drive_type = "my_drive".into();
+    account.root_id = account.drive.id.clone();
+    settings.validate().unwrap();
+    write_settings(&state, &settings);
+    let mut status = sample.status.unwrap();
+    status.accounts[0].provider = "googledrive".into();
+    let service = fake_service(&runtime, temp.path(), status);
+    let app = application("ReuseGoogleApp");
+    let ui = Window::new(
+        &app,
+        Backend::Live {
+            runtime: runtime.handle().clone(),
+            state,
+            socket: service.socket.clone(),
+        },
+    );
+    pump_until("existing Google account", || {
+        ui.current().is_some_and(|view| !view.accounts.is_empty())
+    });
+    let window = ui.window.upgrade().unwrap();
+    button(window.upcast_ref(), "Connect a drive")
+        .unwrap()
+        .emit_clicked();
+    pump_until("connect dialog", || {
+        entry_row(window.upcast_ref(), "Name").is_some()
+    });
+    entry_row(window.upcast_ref(), "Name")
+        .unwrap()
+        .set_text("Calista");
+    provider_selector(window.upcast_ref())
+        .unwrap()
+        .set_selected(1);
+    pump_until("reused Google app", || {
+        button(window.upcast_ref(), "Sign in with Google")
+            .is_some_and(|button| button.is_sensitive())
+    });
+    let folder = action_row(window.upcast_ref(), "Folder in Files").unwrap();
+    assert!(
+        folder
+            .subtitle()
+            .is_some_and(|subtitle| subtitle.ends_with("/Cloud/Cirrove-Calista"))
+    );
+    assert!(displays_text(
+        window.upcast_ref(),
+        "Using the Google app from an existing connection"
+    ));
+    window.close();
+    service.task.abort();
+    runtime.shutdown_timeout(Duration::from_secs(1));
+}
+
 /// What an account keeps offline, in the window, and taking one back.
 ///
 /// Pinning existed only in the CLI and the Files context menu, so the question
@@ -1280,6 +1377,10 @@ const SCENARIOS: &[(&str, fn())] = &[
     (
         "every_account_action_is_offered_from_the_window_and_only_where_it_applies",
         every_account_action_is_offered_from_the_window_and_only_where_it_applies,
+    ),
+    (
+        "a_second_google_account_reuses_the_app_and_receives_a_default_folder",
+        a_second_google_account_reuses_the_app_and_receives_a_default_folder,
     ),
     (
         "a_fetch_in_flight_shows_its_progress_and_can_be_stopped",
