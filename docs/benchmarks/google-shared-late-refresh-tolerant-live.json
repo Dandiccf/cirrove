@@ -15,5 +15,52 @@
   "endpoint": "Pass only if initial readiness holds, 61 samples span at least 3600 seconds with only ready/indexing feed states and fresh success, the cache is empty before the first content read, exact mounted bytes match, and cleanup preserves the installed baseline. Persist exact safe state enums and numeric age on failure, never account identifiers, tokens, URLs, cursors or provider bodies.",
   "prediction": "The prior two long arms likely sampled the expected indexing phase of a normal refresh. Allowing only that transient state should let the session reach the late read; any other state will instead identify a real liveness failure.",
   "limits": "One tiny file, one Workspace administrator and one Shared Drive. A pass does not establish large late downloads, restricted roles, 24-hour uptime, native document writeback or a memory trend.",
-  "status": "registered"
+  "status": "passed",
+  "observed_at_utc": "2026-09-22T18:48:20Z",
+  "observed": {
+    "status": "passed",
+    "startup_attempts_before_measurement": [
+      {
+        "result": "not_started",
+        "reason": "control socket path exceeded the Unix-domain socket length limit",
+        "samples": 0,
+        "cloud_session_started": false
+      },
+      {
+        "result": "not_started",
+        "reason": "short socket parent was not a private mode-0700 directory",
+        "samples": 0,
+        "cloud_session_started": false
+      }
+    ],
+    "sample_count": 61,
+    "duration_seconds": 3600.004,
+    "feed_state_counts": {
+      "ready": 60,
+      "indexing": 1
+    },
+    "account_summary_state_counts": {
+      "ready": 60,
+      "updating_or_offline": 1
+    },
+    "max_feed_success_age_seconds": 31.588,
+    "all_samples_mounted": true,
+    "rss_kib_range": [
+      23052,
+      24964
+    ],
+    "rss_kib_within_arm_spread": 1912,
+    "max_status_latency_ms": 4.603,
+    "cache_files_before_late_read": 0,
+    "late_read": {
+      "elapsed_seconds": 3601.352,
+      "latency_ms": 1344.658,
+      "bytes": 85,
+      "hash_match": true
+    },
+    "private_mount_gone": true,
+    "installed_daemon_and_mounts_unchanged": true
+  },
+  "interpretation": "The corrected liveness gate reached the registered endpoint. One sample caught the account summary as updating_or_offline while the only feed was the expected indexing state and its previous success was 31.588 seconds old; the remaining 60 samples were ready. This directly confirms that the prior instantaneous account-summary requirement could reject routine refresh work. After one hour with no content traversal, the private cache was empty and the first mounted read returned all 85 registered bytes with the expected SHA-256. The single run supports this exact read-only scenario only; its 1,912 KiB within-arm RSS spread is descriptive, not a memory-growth result.",
+  "next_probe": "Use this refresh-tolerant feed-state gate for future controlled Shared Drive sessions. The remaining release evidence should target restricted Shared Drive roles, larger late downloads and native Google document behavior as separate pre-registered questions."
 }
