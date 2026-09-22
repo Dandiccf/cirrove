@@ -931,6 +931,9 @@ msgstr ""
 msgid "Google Desktop OAuth client"
 msgstr ""
 
+msgid "Using the Google app from an existing connection"
+msgstr ""
+
 msgid "Choose the private client JSON from Google Cloud Console"
 msgstr ""
 

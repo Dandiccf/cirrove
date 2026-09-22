@@ -1049,6 +1049,9 @@ msgstr "Google Drive"
 msgid "Google Desktop OAuth client"
 msgstr "Google-OAuth-Client für Desktop-Apps"
 
+msgid "Using the Google app from an existing connection"
+msgstr "Google-App einer bestehenden Verbindung wird verwendet"
+
 msgid "Choose the private client JSON from Google Cloud Console"
 msgstr "Die private Client-JSON-Datei aus der Google Cloud Console auswählen"
 

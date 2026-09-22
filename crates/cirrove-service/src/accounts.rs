@@ -902,6 +902,35 @@ pub async fn begin_connect_google_with_access(
     )
     .await
 }
+/// Reuse only the OAuth application registration from another local Google
+/// connection. The new account still completes its own browser consent and
+/// receives a separate credential entry.
+pub async fn begin_connect_google_with_existing_app(
+    state: PathBuf,
+    label: String,
+    existing_account_id: String,
+    mount_path: PathBuf,
+    access: AccessMode,
+) -> Result<PendingConnection> {
+    let existing = Settings::load(&state)?
+        .accounts
+        .into_iter()
+        .find(|account| {
+            account.id == existing_account_id
+                && matches!(account.registration, AppRegistration::Google { .. })
+        })
+        .context("existing Google connection is no longer configured")?;
+    let secret = cirrove_auth::saved_client_secret(&DesktopVault, &existing.credential_id).await?;
+    begin_connect_with_secret(
+        state,
+        label,
+        existing.registration,
+        mount_path,
+        access,
+        secret,
+    )
+    .await
+}
 async fn begin_connect_with_secret(
     state: PathBuf,
     label: String,

@@ -13,7 +13,7 @@ use cirrove_auth::{AccessMode, AppRegistration};
 use cirrove_service::accounts::{self, PendingConnection};
 use gtk::{gio, glib};
 use std::{
-    cell::RefCell,
+    cell::{Cell, RefCell},
     path::{Path, PathBuf},
     rc::Rc,
 };
@@ -24,11 +24,13 @@ struct Form {
     name: adw::EntryRow,
     folder: adw::ActionRow,
     folder_path: RefCell<Option<PathBuf>>,
+    folder_is_custom: Cell<bool>,
     client: adw::EntryRow,
     tenant: adw::EntryRow,
     provider: adw::ComboRow,
     google_client: adw::ActionRow,
     google_client_path: RefCell<Option<PathBuf>>,
+    existing_google_account: Option<String>,
     writable: adw::SwitchRow,
     sign_in: gtk::Button,
     spinner: gtk::Spinner,
@@ -39,13 +41,32 @@ struct Form {
     busy: RefCell<bool>,
 }
 impl Form {
+    fn update_default_folder(&self) {
+        if self.folder_is_custom.get() {
+            self.check();
+            return;
+        }
+        let label = self.name.text();
+        let label = label.trim();
+        let path = accounts::valid_label(label).then(|| {
+            glib::home_dir()
+                .join("Cloud")
+                .join(format!("Cirrove-{label}"))
+        });
+        match &path {
+            Some(path) => self.folder.set_subtitle(&path.to_string_lossy()),
+            None => self.folder.set_subtitle(&gettext("Choose an empty folder")),
+        }
+        *self.folder_path.borrow_mut() = path;
+        self.check();
+    }
     /// Sign-in waits for something to sign in with: a usable name, a folder,
     /// and an application id. The button says so by staying grey.
     fn check(&self) {
         let ready = accounts::valid_label(self.name.text().trim())
             && self.folder_path.borrow().is_some()
             && if self.provider.selected() == 1 {
-                self.google_client_path.borrow().is_some()
+                self.google_client_path.borrow().is_some() || self.existing_google_account.is_some()
             } else {
                 !self.client.text().trim().is_empty() && !self.tenant.text().trim().is_empty()
             };
@@ -92,6 +113,15 @@ pub(super) fn present(ui: &Rc<Window>) {
                 .map(|account| (account.client_id.clone(), account.authority.clone()))
         })
         .unwrap_or_else(|| (String::new(), "common".to_owned()));
+    let existing_google_account = accounts::Settings::load(state)
+        .ok()
+        .and_then(|settings| {
+            settings
+                .accounts
+                .into_iter()
+                .find(|account| matches!(account.registration, AppRegistration::Google { .. }))
+        })
+        .map(|account| account.id);
 
     let dialog = adw::Dialog::builder()
         .title(gettext("Connect a drive"))
@@ -152,9 +182,11 @@ pub(super) fn present(ui: &Rc<Window>) {
         .build();
     let google_client = adw::ActionRow::builder()
         .title(gettext("Google Desktop OAuth client"))
-        .subtitle(gettext(
-            "Choose the private client JSON from Google Cloud Console",
-        ))
+        .subtitle(if existing_google_account.is_some() {
+            gettext("Using the Google app from an existing connection")
+        } else {
+            gettext("Choose the private client JSON from Google Cloud Console")
+        })
         .activatable(true)
         .visible(false)
         .build();
@@ -209,11 +241,13 @@ pub(super) fn present(ui: &Rc<Window>) {
         name,
         folder,
         folder_path: RefCell::new(None),
+        folder_is_custom: Cell::new(false),
         client,
         tenant,
         provider,
         google_client,
         google_client_path: RefCell::new(None),
+        existing_google_account,
         writable,
         sign_in,
         spinner,
@@ -259,7 +293,13 @@ pub(super) fn present(ui: &Rc<Window>) {
             });
         });
     }
-    for row in [&form.name, &form.client, &form.tenant] {
+    {
+        let form = form.clone();
+        form.name
+            .clone()
+            .connect_changed(move |_| form.update_default_folder());
+    }
+    for row in [&form.client, &form.tenant] {
         let form = form.clone();
         row.connect_changed(move |_| form.check());
     }
@@ -278,6 +318,7 @@ pub(super) fn present(ui: &Rc<Window>) {
                 {
                     form.folder.set_subtitle(&path.to_string_lossy());
                     *form.folder_path.borrow_mut() = Some(path);
+                    form.folder_is_custom.set(true);
                     form.check();
                 }
             });
@@ -320,6 +361,7 @@ fn begin(form: &Rc<Form>, ui: &Rc<Window>, runtime: &tokio::runtime::Handle, sta
     };
     let google = form.provider.selected() == 1;
     let google_client = form.google_client_path.borrow().clone();
+    let existing_google_account = form.existing_google_account.clone();
     let app = AppRegistration::Microsoft {
         client_id: form.client.text().trim().to_owned(),
         authority: form.tenant.text().trim().to_owned(),
@@ -342,15 +384,23 @@ fn begin(form: &Rc<Form>, ui: &Rc<Window>, runtime: &tokio::runtime::Handle, sta
         let result = tokio::runtime::Handle::current()
             .block_on(async move {
                 if google {
-                    accounts::begin_connect_google_with_access(
-                        state,
-                        label,
-                        google_client
-                            .ok_or_else(|| anyhow::anyhow!("choose a Google client JSON file"))?,
-                        folder,
-                        access,
-                    )
-                    .await
+                    if let Some(client_file) = google_client {
+                        accounts::begin_connect_google_with_access(
+                            state,
+                            label,
+                            client_file,
+                            folder,
+                            access,
+                        )
+                        .await
+                    } else if let Some(account_id) = existing_google_account {
+                        accounts::begin_connect_google_with_existing_app(
+                            state, label, account_id, folder, access,
+                        )
+                        .await
+                    } else {
+                        Err(anyhow::anyhow!("choose a Google client JSON file"))
+                    }
                 } else {
                     accounts::begin_connect(state, label, app, folder, access).await
                 }

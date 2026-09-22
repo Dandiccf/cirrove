@@ -119,6 +119,13 @@ ETag or raw provider body is written to logs or benchmark artifacts.
 
 ## Check or create your own Google app
 
+This is a **development-preview setup**, not a requirement intended for every
+Cirrove user. The OAuth client identifies the application, while each user still
+signs in and grants access in Google's browser flow. A public Cirrove release
+needs its own published Google OAuth app and Google's review for the Drive scopes
+it requests. The JSON below configures the app once on this machine; another
+Google account can reuse that app without selecting the file again.
+
 1. In [Google Cloud Console](https://console.cloud.google.com/), select a project
    you own for Cirrove, or create one. Under **APIs & Services**, enable **Google
    Drive API** for that project.
@@ -157,11 +164,13 @@ expires after seven days; signing in again is then expected. See
 Install the developer build first, following [Development](development.md).
 The 0.1.0 release does not include Google support.
 
-In the window, choose **Connect a drive → Provider → Google Drive**, select an
-empty mount folder and your private Desktop OAuth client JSON, choose whether
-**Allow changes** is enabled, then sign in in the browser. The drive-selection
-page offers **My Drive** and any Shared Drives visible to that account. You can
-also connect My Drive through the CLI:
+In the window, choose **Connect a drive → Provider → Google Drive**, enter a
+connection name and optionally change the proposed empty mount folder. For the
+first Google connection, select your private Desktop OAuth client JSON. Later
+connections reuse that app by default; choose a JSON file only to switch apps.
+Choose whether **Allow changes** is enabled, then sign in in the browser. The
+drive-selection page offers **My Drive** and any Shared Drives visible to that
+account. You can also connect through the CLI:
 
 ```sh
 cirrove connect-google --label google \
