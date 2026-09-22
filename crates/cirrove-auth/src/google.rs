@@ -8,6 +8,15 @@ use openidconnect::core::CoreIdToken;
 pub const CIRROVE_DESKTOP_CLIENT_ID: &str =
     "608639658219-mg7dhl8lappv8sstdlbv0k00vtoos9sl.apps.googleusercontent.com";
 
+/// Google's Desktop client secret cannot be kept confidential in an installed
+/// app. Supply it when building Cirrove; per-user OAuth grants still belong in
+/// each user's desktop keyring.
+pub fn bundled_desktop_client_secret() -> Option<SecretString> {
+    option_env!("CIRROVE_GOOGLE_DESKTOP_CLIENT_SECRET")
+        .filter(|secret| !secret.is_empty())
+        .map(|secret| SecretString::from(secret.to_owned()))
+}
+
 pub const SCOPES: &str = "openid email profile https://www.googleapis.com/auth/drive.readonly";
 /// A writable filesystem must be able to update existing files, not only files
 /// created by Cirrove. Google limits `drive.file` to app-created or explicitly
