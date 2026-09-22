@@ -78,7 +78,9 @@ drive** on the empty page). You need:
 
 - a **name** for the connection -- letters, digits, hyphens; it is what the
   command line calls the account;
-- an empty **folder** where the drive should appear in Files;
+- a **folder** where the drive should appear in Files. After you enter the name,
+  Cirrove suggests `~/Cloud/Cirrove-<name>` and creates it when you connect.
+  You can choose another empty folder if you prefer;
 - the **application (client) ID** of an Entra app registration. Cirrove does
   not ship one; the [OneDrive setup guide](onedrive-setup.md) walks through
   creating yours once. A second drive is prefilled with the first one's;
