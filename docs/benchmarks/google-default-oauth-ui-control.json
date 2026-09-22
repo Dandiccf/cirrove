@@ -1,0 +1,19 @@
+{
+  "question": "Does the first Google connection become actionable with Cirrove's own Desktop OAuth client ID and no user-supplied JSON file?",
+  "kind": "Pre-registered fail-before-fix native UI regression control; no Google API request or cloud mutation",
+  "registered_at_utc": "2026-09-22T09:00:15Z",
+  "baseline_revision": "0dc6786a95463889e8dea7a8e110e993155862d1",
+  "isolation": "The old UI code and the new window assertion are in .local-state/worktrees/google-default-oauth-negative. Its Cargo target must be separate from the feature worktree; neither test may compile while the one-hour Shared Drive measurement is running.",
+  "arms": [
+    "A: run only every_account_action_is_offered_from_the_window_and_only_where_it_applies with the new assertion against the pre-change UI; require failure because the Google sign-in button stays disabled without a JSON file",
+    "B: run the identical assertion against the changed UI; require a sensitive Sign in with Google button and a visible optional-app row, without opening a browser"
+  ],
+  "endpoint": "Count the regression control only if A fails at the expected first-account no-JSON assertion and B passes, each command executes exactly one selected native window scenario. Then run the full required repository check before committing. Synthetic UI evidence does not establish that an unlisted Google user can pass the Cloud app's Testing gate.",
+  "prediction": "A should fail on the disabled Google button; B should pass after the built-in client ID becomes the default. A separate real OAuth sign-in remains useful after the public Cloud app is ready.",
+  "result": {
+    "baseline": "In the separate negative-control worktree at the baseline revision, the single selected native-window scenario failed exactly at 'built-in Google app is ready': the first-account Google sign-in button stayed disabled without a client JSON. The runner reported 1 failed, 6 filtered out; exit 101.",
+    "changed": "In the feature worktree, the same single selected scenario passed: a valid name makes Google sign-in sensitive without a JSON file, and the optional-app row and Testing limitation appear. The runner reported 1 passed, 6 filtered out; exit 0. The scenario does not open a browser or prove Google admits an unlisted account.",
+    "commands": "Both worktrees ran cargo test -p cirrove-desktop --test window --locked every_account_action_is_offered_from_the_window_and_only_where_it_applies -- --ignored --test-threads=1, with distinct CARGO_TARGET_DIR values."
+  },
+  "status": "passed_fail_before_fix_control"
+}

@@ -1,0 +1,33 @@
+{
+  "question": "Does one isolated Cirrove Shared Drive mount remain usable and keep its feed ready during a one-hour session of repeated reads of a known run-owned file?",
+  "kind": "Pre-registered single-arm live duration probe; one run does not establish population reliability or a memory trend",
+  "registered_at_utc": "2026-09-22T08:37:22Z",
+  "source_revision": "0dc6786a95463889e8dea7a8e110e993155862d1",
+  "scope": "One Workspace administrator, one owned Shared Drive and one previously verified 85-byte test file. No cloud mutation. A fresh private daemon and FUSE mount; the installed daemon and its three mounts stay untouched.",
+  "arms": [
+    "A: sample the private daemon status and read the exact test file through FUSE once per minute for at least 60 minutes; record feed state, mount state, result latency and process RSS",
+    "B: after the 60-minute window ends, stop only the recorded private daemon PID and confirm its mount is gone while the installed daemon and its original mounts remain active"
+  ],
+  "endpoint": "Pass the bounded duration probe only with at least 61 successful samples spanning 60 minutes, every file hash matching the pre-registered SHA-256, every mount ready with no failed upload or stuck change, each feed success no older than five minutes, and private cleanup completed. On a failure record the first failing sample and preserve private state. RSS values are descriptive only; one arm cannot prove leak freedom.",
+  "prediction": "The existing read-only path should keep the small file readable while the Shared Drive poll feed stays ready, but token refresh or mount lifetime may reveal a failure outside the earlier short probes.",
+  "private_run_manifest": ".local-state/live-runs/google-shared-hour-session-20260922/manifest.json",
+  "first_attempt": "The private mount appeared, but the harness applied the ready/feed-success gate immediately and stopped before sample zero. Its own mount disappeared and the installed daemon and three mounts were unchanged. This does not answer the one-hour question; the failed manifest is retained.",
+  "followup_registered_at_utc": "2026-09-22T08:40:41Z",
+  "followup_correction": "Allow up to 120 seconds after the mount appears for the initial ready/feed-success observation before starting the one-hour clock. The 61-sample endpoint and all content checks remain unchanged.",
+  "followup_run_manifest": ".local-state/live-runs/google-shared-hour-session-20260922-retry1/manifest.json",
+  "followup_started_at_utc": "2026-09-22T08:41:28Z",
+  "temporary_filesystem_verified_at_utc": "2026-09-22T09:18:52Z",
+  "temporary_filesystem": "findmnt -T for the retry's private TMPDIR and SQLITE_TMPDIR resolved to /home on btrfs, not tmpfs; the actual private paths are recorded in the run manifest.",
+  "followup_supervisor_pid": 3055635,
+  "followup_daemon_pid": 3055654,
+  "result": {
+    "completed_at_utc": "2026-09-22T09:41:36Z",
+    "samples": 61,
+    "duration_seconds": 3600.01,
+    "content_and_feed": "All 61 numbered samples reported ready and mounted, matched the registered 85-byte file SHA-256, and passed the supervisor's no-save-refusal/no-failed-upload/no-stuck-change gate. Every sampled feed last-success value was fresh; an upper-bound reconstruction from completion time puts the maximum age at 32.3 seconds against the pre-registered 300-second limit.",
+    "private_cleanup": "The supervisor stopped only its recorded private daemon PID; its private FUSE mount disappeared. The installed cirroved service stayed active with PID 2764811 and its original OneDrive, GoogleDrive and Calista mounts unchanged, independently checked after completion.",
+    "descriptive_resources": "Within this single run, sample latency median was 9.492 ms and maximum 11.722 ms; private-daemon VmRSS ranged from 41132 to 42768 KiB, beginning at 41132 and ending at 42768 KiB. The 1636 KiB within-run spread is reported beside that change. One run with a repeatedly read small file cannot establish a memory trend or general provider reliability.",
+    "limit": "The repeated file may have been served from Cirrove's cache after the first read. Fresh feed success exercises ongoing provider metadata access, but this probe does not prove a late uncached content download, a restricted-role account or a 24-hour session."
+  },
+  "status": "passed_bounded_one_hour_session"
+}

@@ -440,6 +440,11 @@ rename and move, regular-file and observed-empty folder removal, stale-save conf
 preservation, restart and a separate pin/unpin check. Google's destination scan
 cannot provide atomic sibling-name reservation, and folder removal is not atomic
 POSIX `rmdir`; conflict handling preserves data around those provider limits.
-Shared drives and document exports require explicit capabilities. iCloud
-has a separate feasibility gate before feature parity is promised. Completion of
-OneDrive 1.0 does not claim either adapter is finished.
+Shared Drive selection and native Docs/Sheets read-only exports now have explicit
+capabilities and bounded live evidence. The reviewed branch passed one isolated
+Shared Drive mounted write without a local gate override. A separate isolated
+hour kept the Shared Drive ready with matching reads and fresh feed success, but
+restricted roles, late uncached reads, longer sessions, native writeback and
+public Google OAuth verification remain open. iCloud has a separate feasibility
+gate before feature parity is promised.
+Completion of OneDrive 1.0 does not claim either adapter is finished.

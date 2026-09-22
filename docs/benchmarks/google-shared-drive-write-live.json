@@ -1,0 +1,55 @@
+{
+  "question": "Can Cirrove's durable provider-neutral workers safely create, replace, rename and move only run-owned content in the Workspace Shared Drive?",
+  "kind": "Pre-registered bounded live functional validation, not a reliability or performance measurement.",
+  "authorization": "The owner requested all work needed to continue Google testing and authorized creation of Shared Drives. Mutations are confined to the dedicated Cirrove Test Shared Drive, in a new UUID-named validator folder; existing Workspace content is excluded.",
+  "registered_at_utc": "2026-09-22T06:19:15Z",
+  "scope": "A disabled write-granted validation account in separate local state. The installed Cirrove daemon and its three mounts remain untouched. Writable Shared Drive mounts remain blocked.",
+  "arms": [
+    "A: create a UUID-named folder through the durable mutation worker and verify its exact identity in the selected Shared Drive",
+    "B: create multipart and empty files through the durable transfer worker and verify exact bytes and identities",
+    "C: test current and stale conditional metadata, small content and resumable content updates on the run-owned binary file",
+    "D: replace, rename and move through the provider-neutral workers; verify exact receipts, bytes, nested folder ancestry and stale conflicts"
+  ],
+  "endpoint": "Pass only if all validator stages complete and exact-ID readback and stale-conflict checks hold. On any failure, record the completed stages, retain all run-owned remote items and local journal for diagnosis, and keep normal Shared Drive writes disabled.",
+  "prediction": "Drive-scoped creates and reads should work, but a Shared Drive-specific authorization or API response may expose an unsupported mutation path. A partial pass must not be reported as a complete write gate.",
+  "limits": "One account and drive with run-owned fixtures cannot establish cross-user behavior, mounted writeback or sustained reliability.",
+  "first_run": {
+    "status": "partial",
+    "binary_sha256": "c0dc2480f6271b14da9d2b89f394923cf8eef25b9f012afdfe74a8500421c36c",
+    "private_run_manifest": ".local-state/live-runs/google-shared-write-20260922/manifest.json",
+    "run_id": "8e9b5d04-e482-423a-940d-a0dc194a2588",
+    "observed": "The durable mutation worker created the exact run-owned folder. The transfer worker uploaded and byte-verified an 8 MiB + 13 byte multipart file and an empty file. The next v3 metadata precondition probe stopped before mutation because no strong ETag was returned.",
+    "interpretation": "Create and exact readback passed; conditional update, rename, move and recovery remain unverified. The old v3-only probe cannot close the write gate."
+  },
+  "followup_registered_at_utc": "2026-09-22T06:21:13Z",
+  "followup_arms": [
+    "E: use the existing exact-file Drive v2 metadata ETag probe; require current rename, stale 412 and original-name restoration",
+    "F: use the existing exact-file v2 resumable and provider-neutral worker probe; require conditional replacement, readback, restoration, rename, stale conflict and recovery"
+  ],
+  "followup_prediction": "The v2 ETag bridge may work as in My Drive, but Shared Drive v2 request parameters or authorization could differ. Any failed stage retains its local journal and remote fixture and leaves normal Shared Drive writes disabled.",
+  "followup_result": {
+    "v2_metadata_etag": "Passed on the exact run-owned file: current conditional rename succeeded, stale rename was rejected and the original name was restored.",
+    "v2_direct_content": "Passed: the final resumable commit rejected an intervening metadata change, a current session replaced content, a stale start failed and the original bytes and name were restored before the worker stage.",
+    "durable_worker": "The provider-neutral replacement reached VerifyRequired repeatedly and the bounded five-minute validator timed out. Its journal and checkpoint remain. An independent exact-ID read after timeout found the intended 8,388,655-byte worker payload with SHA-256 e9fffbdd05dacbbe81eb9d1542a7a7bb53326ccf5adc46dbc085de6e7d5c1d9e; the worker did not acknowledge or restore it. No rename, move or worker conflict stage was reached.",
+    "scope_confirmation": "Read-only v2 and v3 metadata agreed on item version 24, the expected parent and the Shared Drive collection after timeout. The installed daemon and its three mounts were not restarted.",
+    "interpretation": "The remote write committed, but durable recovery did not settle. This is a failed write-recovery gate, not a passed Shared Drive write test; normal Shared Drive writes stay disabled. The run-owned file and private journal remain for exact-evidence recovery."
+  },
+  "remaining": "Determine why the worker's saved upload session remains uncertain after a committed replacement; demonstrate journal recovery and restoration before considering writable Shared Drive mounts. One run cannot establish reliability.",
+  "recovery_candidate_registered_at_utc": "2026-09-22T06:39:27Z",
+  "recovery_diagnosis": "A read-only status probe of the retained resumable session returned HTTP 200 with v2 file version 19, while an independent exact-ID v3 read returned version 24 and the intended worker bytes. The worker treated an uncertain session inspection as a terminal attempt instead of invoking its exact-ID and SHA-256 reconciliation. A synthetic worker test failed before that fallback and passed after it was added.",
+  "recovery_arm": "Rerun the existing evidence-bound v2-content validator on the same retained run. It must first recognize only the deterministic worker payload, restore the original bytes and name, then repeat direct preconditions and worker replacement/restore/rename/stale-conflict checks with the new reconciliation fallback. Retain all journals on failure.",
+  "recovery_prediction": "The committed replacement should reconcile without a second upload; all later worker operations may still expose a separate Shared Drive-specific defect. No normal writable mount is enabled by this candidate alone.",
+  "recovery_result": {
+    "status": "passed_bounded_worker_probe",
+    "private_run_manifest": ".local-state/live-runs/google-shared-write-20260922/manifest.json",
+    "recovery_probe_id": "ede4184c-ed57-4faa-baa8-79e64ab55470",
+    "initial_exact_recovery": "The validator accepted only the known 8,388,655-byte worker payload, restored the deterministic original file in a new journal and verified it. The older journal is retained separately for audit; it was not silently rewritten.",
+    "direct_preconditions": "The v2 content probe again rejected an intervening change at final commit and a stale session, then restored original name and bytes.",
+    "workers": "Three transfer operations finished Uploaded in the new journal, including the evidence-bound restoration, new replacement and restoration. Two metadata mutations finished Applied (rename and name restoration), and the stale rename finished Conflict. Both new content transfers passed through VerifyRequired before exact reconciliation acknowledged them.",
+    "independent_readback": "A fresh direct adapter test found the original filename in the run-owned folder and read all 8,388,621 bytes in 4 MiB ranges. Its SHA-256 matched f2b52e75ce5cbb54368a9cdf6fa2a898efe2ba51ad28a1c3b4cbcc789eae23d0; the scoped change baseline also passed.",
+    "boundary": "The original failed journal remains retained in disabled private state. No installed daemon or ordinary mount was restarted, and no writable Shared Drive mount was enabled. One worker probe does not establish mounted writeback, crash replay of this old journal or general reliability."
+  },
+  "correction": "The initial five-minute timeout was a real failure, not a provider refusal. Google's saved session status kept returning an older v2 version after the exact remote file had advanced. The worker previously returned Uncertain from inspection without invoking its exact-ID and digest reconciliation. A synthetic test failed before the fallback and passed after it. The follow-up live run recovered the deterministic fixture and its new worker operations completed with correct receipts; the initial failed journal remains as evidence.",
+  "remaining": "Run a separate isolated writable mount and crash/restart test before allowing ordinary Shared Drive writes. Validate nested folder moves and deletion separately; this bounded follow-up covered create, content replace, rename and stale conflict. Broader permissions and sustained reliability remain open.",
+  "status": "bounded_worker_probe_passed_mount_gate_open"
+}

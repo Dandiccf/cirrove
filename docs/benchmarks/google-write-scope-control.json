@@ -1,0 +1,19 @@
+{
+  "question": "Can a grant containing drive.readonly plus drive.file be mistaken for permission to write an entire existing Drive collection?",
+  "kind": "Pre-registered fail-before-fix synthetic scope regression control; no Google API request or cloud mutation",
+  "registered_at_utc": "2026-09-22T09:04:22Z",
+  "baseline_revision": "0dc6786a95463889e8dea7a8e110e993155862d1",
+  "isolation": "The old grant validator with the new assertion is in .local-state/worktrees/google-default-oauth-negative. Each worktree uses its own Cargo target. Do not compile while the one-hour Shared Drive measurement is running.",
+  "arms": [
+    "A: run google_login_uses_pkce_loopback_offline_consent_and_explicit_scopes against the old validator; require failure on drive.readonly plus drive.file",
+    "B: run the same test against the changed validator; require rejection of that grant and acceptance of the full drive scope"
+  ],
+  "endpoint": "Count the correction only if A fails on the new scope assertion and B passes, with the expected test executed in each worktree. Then run the full repository check before committing.",
+  "prediction": "The old predicate accepts the combined limited scopes as writable; the corrected predicate requires the full drive scope for a writable whole-collection mount.",
+  "result": {
+    "baseline": "The single selected cirrove-auth unit test in the negative-control worktree failed at the new assertion: the old validator accepted openid plus drive.readonly plus drive.file for ReadWrite. The runner reported 1 failed, 13 filtered out; exit 101.",
+    "changed": "The same selected test in the feature worktree passed, rejecting that limited combination and accepting full drive. The runner reported 1 passed, 14 filtered out; exit 0. A separate synthetic refresh test for the public Desktop client without a client secret also passed (1 passed, 14 filtered out).",
+    "commands": "Both worktrees ran cargo test -p cirrove-auth --lib --locked google_login_uses_pkce_loopback_offline_consent_and_explicit_scopes -- --nocapture with distinct CARGO_TARGET_DIR values. The feature worktree additionally ran the filtered google_public_desktop_client_refreshes_without_a_client_secret test."
+  },
+  "status": "passed_fail_before_fix_control"
+}

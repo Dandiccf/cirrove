@@ -1,4 +1,4 @@
-//! Google Drive adapter for My Drive reads and explicitly consented writes.
+//! Google Drive adapter for selected My Drive or shared-drive collections.
 mod feed;
 mod files;
 #[cfg(test)]
@@ -6,7 +6,7 @@ mod tests;
 mod transport;
 mod upload;
 
-use cirrove_core::{ProviderError, RequestBudget, Scope, TokenSource};
+use cirrove_core::{CollectionInfo, ProviderError, RequestBudget, Scope, TokenSource};
 use reqwest::{Client, Url, redirect::Policy};
 use std::{collections::VecDeque, sync::Arc, time::Duration};
 use tokio::{sync::Mutex, time::Instant};
@@ -39,6 +39,7 @@ const MAX_TOKEN_BYTES: usize = 16 * 1024;
 pub struct GoogleDrive {
     account: String,
     collection: String,
+    shared_drive: bool,
     endpoint: Url,
     client: Client,
     tokens: Arc<dyn TokenSource>,
@@ -70,6 +71,18 @@ impl GoogleDrive {
         drive.settle_write_receipts = true;
         Ok(drive)
     }
+    /// Bind an authenticated provider to one drive selected at connection time.
+    /// The collection remains part of every cache, cursor and namespace identity.
+    pub fn for_collection(mut self, drive: &CollectionInfo) -> Result<Self, ProviderError> {
+        valid_id(&drive.id)?;
+        self.shared_drive = match drive.drive_type.as_str() {
+            "my_drive" => false,
+            "shared_drive" => true,
+            _ => return Err(ProviderError::Protocol("unsupported Google drive type")),
+        };
+        self.collection = drive.id.clone();
+        Ok(self)
+    }
     fn build(
         account: String,
         collection: String,
@@ -83,6 +96,7 @@ impl GoogleDrive {
         Ok(Self {
             account,
             collection,
+            shared_drive: false,
             endpoint,
             tokens,
             budget: RequestBudget::default(),
@@ -153,12 +167,31 @@ impl GoogleDrive {
         }
         Ok(())
     }
+    fn accepts_file(&self, file: &files::File) -> bool {
+        if self.shared_drive {
+            file.drive_id.as_deref() == Some(self.collection.as_str())
+        } else {
+            file.drive_id.is_none()
+        }
+    }
+    fn shared_drive_query(&self, url: &mut Url) {
+        if self.shared_drive {
+            url.query_pairs_mut()
+                .append_pair("supportsAllDrives", "true");
+        }
+    }
     fn url(&self, segments: &[&str]) -> Result<Url, ProviderError> {
         let mut url = self.endpoint.clone();
         url.path_segments_mut()
             .map_err(|_| ProviderError::Protocol("Google endpoint"))?
             .pop_if_empty()
             .extend(segments);
+        if self.shared_drive
+            && (segments == ["files"]
+                || matches!(segments, ["files", item] if *item != "generateIds"))
+        {
+            self.shared_drive_query(&mut url);
+        }
         Ok(url)
     }
 }

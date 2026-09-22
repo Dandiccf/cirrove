@@ -333,15 +333,18 @@ enum Command {
         #[arg(long, requires = "state_dir")]
         write_access: bool,
     },
-    /// Connect Google My Drive using your Desktop OAuth client JSON.
+    /// Connect Google My Drive or a Shared Drive with Cirrove's Desktop OAuth app.
     ConnectGoogle {
         #[arg(long)]
         label: String,
-        /// Private (chmod 600) client JSON downloaded from Google Cloud Console.
+        /// Optional private (chmod 600) JSON for a different Desktop OAuth app.
         #[arg(long)]
-        client_json: PathBuf,
+        client_json: Option<PathBuf>,
         #[arg(long)]
         mount_path: PathBuf,
+        /// Select an offered Shared Drive by ID; defaults to My Drive.
+        #[arg(long)]
+        drive_id: Option<String>,
         #[arg(long)]
         state_dir: Option<PathBuf>,
         /// Request full Drive consent and mount this connection read-write.
@@ -782,6 +785,7 @@ async fn main() -> Result<()> {
             label,
             client_json,
             mount_path,
+            drive_id,
             state_dir: state,
             write_access,
         } => {
@@ -791,25 +795,42 @@ async fn main() -> Result<()> {
             } else {
                 cirrove_auth::AccessMode::ReadOnly
             };
-            let pending = cirrove_service::accounts::begin_connect_google_with_access(
-                state,
-                label,
-                client_json,
-                mount_path,
-                access,
-            )
-            .await?;
+            let pending = if let Some(client_json) = client_json {
+                cirrove_service::accounts::begin_connect_google_with_access(
+                    state,
+                    label,
+                    client_json,
+                    mount_path,
+                    access,
+                )
+                .await?
+            } else {
+                cirrove_service::accounts::begin_connect(
+                    state,
+                    label,
+                    cirrove_auth::AppRegistration::Google {
+                        client_id: cirrove_auth::google::CIRROVE_DESKTOP_CLIENT_ID.into(),
+                    },
+                    mount_path,
+                    access,
+                )
+                .await?
+            };
             println!(
                 "Signed in: {} ({})",
                 pending.identity().display_name,
                 pending.identity().username
             );
-            let id = pending
-                .drives()
-                .first()
-                .context("Google returned no My Drive")?
-                .id
-                .clone();
+            let id = match drive_id {
+                Some(id) => id,
+                None => pending
+                    .drives()
+                    .iter()
+                    .find(|drive| drive.drive_type == "my_drive")
+                    .context("Google returned no My Drive; choose an offered --drive-id")?
+                    .id
+                    .clone(),
+            };
             let account = pending.finish(&id).await?;
             if write_access {
                 println!(

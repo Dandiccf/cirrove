@@ -102,13 +102,125 @@ async fn server(steps: Vec<Step>) -> (GoogleDrive, tokio::task::JoinHandle<()>) 
     )
 }
 
+fn shared_collection() -> CollectionInfo {
+    CollectionInfo {
+        id: "shared-root".into(),
+        name: "Team".into(),
+        drive_type: "shared_drive".into(),
+        web_url: String::new(),
+    }
+}
+
+fn shared_scope() -> Scope {
+    Scope {
+        collection: "shared-root".into(),
+        ..scope()
+    }
+}
+
+fn shared_file(version: &str) -> Value {
+    let mut value = file(version);
+    value["parents"] = json!(["shared-root"]);
+    value["driveId"] = json!("shared-root");
+    value
+}
+
+#[tokio::test]
+async fn lists_shared_drives_with_pagination_after_my_drive() {
+    let (provider, task) = server(vec![
+        json_step(
+            "/drive/v3/files/root",
+            json!({"id":"my-root","name":"My Drive","mimeType":"application/vnd.google-apps.folder","version":"1"}),
+        ),
+        json_step(
+            "/drive/v3/drives",
+            json!({"drives":[{"id":"shared-root","name":"Team"}],"nextPageToken":"page-2"}),
+        ),
+        Step {
+            path: "/drive/v3/drives",
+            query: vec![("pageToken", "page-2")],
+            status: 200,
+            body: serde_json::to_vec(&json!({"drives":[{"id":"other-root","name":"Other"}]})).unwrap(),
+            headers: "",
+        },
+    ])
+    .await;
+    let collections = provider
+        .collections(&CancellationToken::new())
+        .await
+        .unwrap();
+    assert_eq!(collections.len(), 3);
+    assert_eq!(collections[0].drive_type, "my_drive");
+    assert_eq!(collections[1].drive_type, "shared_drive");
+    task.await.unwrap();
+}
+
+#[tokio::test]
+async fn shared_drive_uses_its_own_feed_listing_and_content_scope() {
+    let mut start = json_step(
+        "/drive/v3/changes/startPageToken",
+        json!({"startPageToken":"start-shared"}),
+    );
+    start.query = vec![("driveId", "shared-root"), ("supportsAllDrives", "true")];
+    let mut listing = json_step("/drive/v3/files", json!({"files":[shared_file("1")]}));
+    listing.query = vec![
+        ("corpora", "drive"),
+        ("driveId", "shared-root"),
+        ("includeItemsFromAllDrives", "true"),
+        ("supportsAllDrives", "true"),
+    ];
+    let mut changes = json_step(
+        "/drive/v3/changes",
+        json!({"changes":[],"newStartPageToken":"next-shared"}),
+    );
+    changes.query = vec![("driveId", "shared-root"), ("supportsAllDrives", "true")];
+    let mut metadata = json_step("/drive/v3/files/same-id", shared_file("1"));
+    metadata.query = vec![("supportsAllDrives", "true")];
+    let mut root = json_step(
+        "/drive/v3/files/shared-root",
+        json!({
+            "id":"shared-root","name":"Team","mimeType":"application/vnd.google-apps.folder",
+            "version":"1","driveId":"shared-root"
+        }),
+    );
+    root.query = vec![("supportsAllDrives", "true")];
+    let (provider, task) = server(vec![start, listing, root, changes, metadata]).await;
+    let provider = provider.for_collection(&shared_collection()).unwrap();
+    let cancel = CancellationToken::new();
+    let first = provider
+        .changes(&shared_scope(), None, &cancel)
+        .await
+        .unwrap();
+    assert!(
+        matches!(&first.changes[0], cirrove_core::Change::Upsert(node) if node.parent_id.as_deref() == Some("shared-root"))
+    );
+    assert!(
+        matches!(&first.changes[1], cirrove_core::Change::Upsert(node) if node.id == "shared-root")
+    );
+    let second = provider
+        .changes(&shared_scope(), Some(first.checkpoint.cursor()), &cancel)
+        .await
+        .unwrap();
+    assert!(second.checkpoint.complete());
+    let node = provider
+        .node(&shared_scope(), "same-id", &cancel)
+        .await
+        .unwrap();
+    assert_eq!(node.size, 6);
+    task.await.unwrap();
+    assert!(matches!(
+        provider.node(&scope(), "same-id", &cancel).await,
+        Err(ProviderError::Permission)
+    ));
+}
+
 #[tokio::test]
 async fn baseline_frontier_precedes_scan_and_catchup_precedes_completion() {
     let mut second = json_step("/drive/v3/files", json!({"files":[]}));
     second.query.push(("pageToken", "listing-2"));
     let mut catchup = json_step(
         "/drive/v3/changes",
-        json!({"changes":[{"fileId":"same-id","file":file("2")}],"newStartPageToken":"settled"}),
+        json!({"changes":[{"changeType":"drive","driveId":"other-shared","removed":false},{"changeType":"file","fileId":"same-id","file":file("2")}],"newStartPageToken":"settled"}),
     );
     catchup.query.push(("pageToken", "before-scan"));
     let (p, task) = server(vec![
@@ -141,6 +253,11 @@ async fn baseline_frontier_precedes_scan_and_catchup_precedes_completion() {
         .await
         .unwrap();
     assert!(last.checkpoint.complete());
+    assert_eq!(
+        last.changes.len(),
+        1,
+        "My Drive ignores Shared Drive events"
+    );
     assert!(
         matches!(&last.changes[0], cirrove_core::Change::Upsert(n) if n.content_version.as_deref() == Some("google-revision:revision-2"))
     );

@@ -1,0 +1,25 @@
+{
+  "question": "Does the reviewed Shared Drive write-grant path mount the owned Workspace Shared Drive as writable without the earlier local-only gate bypass, and save one new run-owned file to the exact selected collection?",
+  "kind": "Pre-registered bounded live functional probe of the production branch; no benchmark or general reliability claim",
+  "registered_at_utc": "2026-09-22T08:25:36Z",
+  "source_revision": "2d55b20c177bbcde02fcaf6f36b338a19b72254c",
+  "authorization": "The owner requested creation of Shared Drive test objects and continuing Google validation. Only a new unique file inside the existing Cirrove Validation test folder may be written; existing content is not modified.",
+  "isolation": "Fresh private state and FUSE mount, reusing only the prior isolated Workspace test credential reference. The installed daemon, three user mounts, and their state are untouched. TMPDIR and SQLITE_TMPDIR are disk-backed under /home.",
+  "arms": [
+    "A: start the current branch's unmodified cirroved with the write-granted Shared Drive account and require a ready, writable private FUSE mount",
+    "B: create and fsync one uniquely named small file inside Cirrove Validation through that mount, require durable upload completion and compare exact item, parent, drive and SHA-256 through an independent read",
+    "C: stop only the private daemon by its recorded PID and verify its mount is gone while the installed daemon and ordinary mounts remain active"
+  ],
+  "endpoint": "Pass only if A, B and C all hold. On error, preserve the private state and run-owned cloud file for diagnosis. This does not test desktop sign-in/selection, restricted roles, sustained use or broad application compatibility.",
+  "prediction": "The current branch's write-grant gates should open the same bounded FUSE flow that previously passed with a local-only gate bypass. A failure would keep the gate unproven.",
+  "binary_sha256": "84ad95854b1433f8fd48675736c27ed44bcb0e279ec7ce797ab2399624d362ff",
+  "temporary_filesystem": "btrfs under /home; neither TMPDIR nor SQLITE_TMPDIR was tmpfs",
+  "private_run_manifest": ".local-state/live-runs/google-shared-production-gate-20260922/manifest.json",
+  "result": {
+    "arm_a": "The unmodified branch daemon opened one private FUSE mount and reported the Workspace Shared Drive account ready with no save refusal, failed upload or stuck change. No local gate bypass was present.",
+    "arm_b": "The mount created and fsynced cirrove-prod-gate-1ee2a73f8e62.txt (85 bytes) in the exact Cirrove Validation folder. Cirrove recent reported Uploaded. An independent scoped Google Drive query found exactly one item, ID 1CLkpOydauFXlJ0xoIb8qN2pU1-VQ9GaX, with parent 1CIRTxj6HXbMiDHFpJp9xrk3GGzKCYVTs and drive 0AKctiLFp0PRjUk9PVA. A separate media GET matched SHA-256 ea2037570aab781f3322349b55887cb4910ea576f2885fc3c1a47783c1dc8dd6.",
+    "arm_c": "Only the recorded private daemon PID was stopped. Its socket and mount disappeared. The installed daemon remained active at PID 2764811 with the original OneDrive, GoogleDrive and Calista mounts.",
+    "interpretation": "This closes the bounded no-bypass Shared Drive FUSE write-grant check for one Workspace administrator. It does not establish desktop Shared Drive selection, restricted-role behavior or general reliability. The test file remains in the dedicated test folder."
+  },
+  "status": "passed_bounded_production_gate"
+}

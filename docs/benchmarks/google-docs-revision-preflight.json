@@ -1,0 +1,17 @@
+{
+  "question": "Does the Google Docs API requiredRevisionId protect the content of the existing run-owned native test Doc when a second update uses a stale revision?",
+  "kind": "Pre-registered bounded live protocol probe; it does not enable native Cirrove writeback or establish document fidelity.",
+  "registered_at_utc": "2026-09-22T07:55:28Z",
+  "authorization_boundary": "The owner authorized continued Google testing on run-owned objects. This probe may modify only the exact Doc created in the Cirrove Validation folder by google-native-import-live.json. It must not touch existing Workspace content or the installed Cirrove mounts.",
+  "prerequisite": "The Google Docs API is currently disabled in the Cirrove Google Cloud project. Its project-level activation is a separate browser action and must be confirmed at action time before this live probe can start.",
+  "official_contract": "https://developers.google.com/workspace/docs/api/reference/rest/v1/documents/batchUpdate documents that requiredRevisionId rejects a request when it is no longer the latest revision.",
+  "arms": [
+    "A: confirm the exact run-owned Drive item ID, Shared Drive ID, parent folder and native Doc MIME; read its Docs revision ID without logging the opaque revision",
+    "B: insert one small unique marker through documents.batchUpdate with the current requiredRevisionId, then require a newer Docs revision and exported text containing that marker",
+    "C: insert a distinct marker using the stale original requiredRevisionId; require a rejected request and repeated exact-ID exports retaining B but excluding C"
+  ],
+  "endpoint": "Pass only if B succeeds, C is rejected, and repeated exact-ID readback shows the rejected marker was never applied. Any uncertainty fails closed and leaves native writeback disabled.",
+  "prediction": "The Docs-specific requiredRevisionId path should reject the stale update without changing content, unlike the observed Drive v2 native media upload. This is a hypothesis, not an implemented capability.",
+  "limits": "One small plain-text edit on one owned Doc cannot establish DOCX import, formatting fidelity, multi-tab behavior, concurrent collaboration, Sheets safety or large exports.",
+  "status": "registered_waiting_for_docs_api_activation"
+}

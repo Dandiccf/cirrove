@@ -1,6 +1,6 @@
 # Google Drive preview
 
-Google Drive is implemented as a **writable My Drive preview under validation**.
+Google Drive is implemented as a **writable My Drive and Shared Drive preview under validation**.
 An account connected with **Allow changes** uses Cirrove's shared FUSE namespace,
 durable journal, conflict handling, cache and offline pin jobs. A read-only grant
 still produces a read-only mount.
@@ -15,7 +15,8 @@ The bounded live record for these operations is
 
 ## What it presents
 
-- Files and folders from My Drive, with paginated listings and polled changes.
+- Files and folders from My Drive or one selected Shared Drive per connection,
+  with paginated listings and polled changes.
 - Ordinary binary files through bounded ranges. The adapter compares Google's
   binary `headRevisionId` before and after the download, and checks the response
   range and length before returning bytes to the cache. Sequential reads can use
@@ -42,10 +43,57 @@ The bounded live record for these operations is
   the application chose while that exact identity is acknowledged. This changes
   mounted presentation only; it never rewrites a remote name just to format it.
 
-Shared Drives, native document imports, exports over 10 MiB, PDF and other export
-formats, push webhooks, resource-key transport and large-library/long-session
-acceptance are not claimed.
+Shared Drive discovery and a separate collection are implemented with
+synthetic coverage and one bounded Workspace live run. The selected drive gets
+its own root, listing, change cursor, cache identity and mount. Root, folder,
+binary content, change-feed recovery, daemon restart and small native DOCX/XLSX
+exports passed in an isolated mount; see the [live record](benchmarks/google-shared-drive-live.json).
+An explicit write grant now permits ordinary binary-file changes in a selected
+Shared Drive preview. The bounded live evidence below covers one Workspace
+administrator and one owned drive; it does not establish general reliability.
+An isolated [write probe](benchmarks/google-shared-drive-write-live.json) created
+and read back a test folder and files. It exposed a stale Google session receipt
+that kept a committed replacement at `VerifyRequired`. Exact-ID and digest
+reconciliation now handles an uncertain session inspection; a bounded live
+follow-up restored the fixture and passed replacement, rename and stale-conflict
+worker checks. An [isolated mount probe](benchmarks/google-shared-writable-mount-live.json)
+then passed run-owned file creation and an interrupted 16 MiB upload across a
+private daemon restart. A second isolated mount passed rename, move, replace
+and trash on run-owned items. The reviewed production branch then passed a
+separate [no-bypass FUSE write probe](benchmarks/google-shared-production-gate-live.json):
+one new file was uploaded through the selected Shared Drive mount and verified
+by exact item, parent, collection and SHA-256 through an independent Drive read.
+An [isolated one-hour read session](benchmarks/google-shared-hour-session-live.json)
+then kept the selected drive ready with 61 matching reads and fresh change-feed
+success, and removed only its private mount. Restricted roles, late uncached
+reads and longer sessions remain open.
+Native document imports, exports over 10 MiB, PDF and other export formats, push
+webhooks, resource-key transport and large-library/long-session acceptance are not
+claimed.
 There is no service-account or another client's credential import.
+
+The current Cirrove Google Cloud OAuth app is still limited to test users. A
+[read-only release preflight](benchmarks/google-oauth-release-preflight.json)
+records the 2026-09-22 console state: external Testing, incomplete public
+branding, and only `drive.readonly` declared although writable connections
+request full `drive`. Publishing for general users requires completing the
+public app identity and Google's scope verification; the bounded live tests
+above do not close that release gate.
+The [verification preparation note](google-oauth-verification-prep.md) records
+the scope justification, demonstration sequence and missing operator inputs;
+it is not a submitted or approved Google application.
+
+A bounded [native import probe](benchmarks/google-native-import-live.json) could
+replace the contents of one test Doc and Sheet and export the expected small
+DOCX/XLSX packages. Its conflict check failed: a stale native Doc media upload
+returned HTTP 412, yet the rejected content appeared in later exports. That
+transport cannot safely implement native writeback. Native packages remain
+read-only while a revision-aware native path is investigated.
+An independent [GET-only export probe](benchmarks/google-native-extra-exports-live.json)
+also obtained valid PDF and OpenDocument exports from those two run-owned items
+without changing their versions. Cirrove does not yet present those additional
+formats in the mounted packages; their fidelity and large-export behavior remain
+untested.
 
 ## Write boundary found during the preview
 
@@ -92,14 +140,23 @@ are accepted only on the configured Google origin and upload path. Reconciliatio
 uses the exact prepared ID and hashes the exact file. No token, session URL, strong
 ETag or raw provider body is written to logs or benchmark artifacts.
 
-## Check or create your own Google app
+## Google sign-in and optional custom app
 
-This is a **development-preview setup**, not a requirement intended for every
-Cirrove user. The OAuth client identifies the application, while each user still
-signs in and grants access in Google's browser flow. A public Cirrove release
-needs its own published Google OAuth app and Google's review for the Drive scopes
-it requests. The JSON below configures the app once on this machine; another
-Google account can reuse that app without selecting the file again.
+Cirrove includes its public Google Desktop OAuth client ID. A new connection
+starts the browser sign-in without a JSON file; each Google account still grants
+access individually. The Cirrove Cloud app is currently in **Testing**, so only
+its approved test users can finish sign-in. A public release still needs the
+app's published branding and Google's review for the Drive scopes it requests.
+If Google shows `403 access_denied` and says Cirrove is still being tested,
+the Google account has not been admitted to this Cloud app's tester list. The
+developer must add that account in Google Auth Platform or complete the public
+verification; retrying with a different local folder does not change the
+Google-side gate. A custom Desktop OAuth app remains an option for a developer
+testing their own Cloud project, not a requirement for ordinary users.
+
+You can use a different Google Cloud app for development or private testing by
+choosing its Desktop OAuth client JSON in the connection window or passing
+`--client-json` to the CLI. For that optional route:
 
 1. In [Google Cloud Console](https://console.cloud.google.com/), select a project
    you own for Cirrove, or create one. Under **APIs & Services**, enable **Google
@@ -140,26 +197,31 @@ Install the developer build first, following [Development](development.md).
 The 0.1.0 release does not include Google support.
 
 In the window, choose **Connect a drive → Provider → Google Drive**, enter a
-connection name and optionally change the proposed empty mount folder. For the
-first Google connection, select your private Desktop OAuth client JSON. Later
-connections reuse that app by default; choose a JSON file only to switch apps.
+connection name and optionally change the proposed empty mount folder. The
+Cirrove Google app is selected automatically for the first connection; later
+connections reuse the app of an existing Google connection by default. Choose
+the optional JSON file only to use another app.
 Choose whether **Allow changes** is enabled, then sign in in the browser. The
-drive-selection page offers **My Drive**. You can also connect through the CLI:
+drive-selection page offers **My Drive** and any Shared Drives visible to that
+account. You can also connect through the CLI:
 
 ```sh
 cirrove connect-google --label google \
-  --client-json /absolute/path/to/cirrove-google-client.json \
   --mount-path /absolute/path/to/an/empty/folder \
   --write-access
 ```
 
+Add `--client-json /absolute/path/to/cirrove-google-client.json` only for a
+different Desktop OAuth app.
+
 Omit `--write-access` for a read-only connection. Reauthenticate an existing
 connection with `cirrove reauth google --write-access` or turn off writes with
-`--read-only`. The separate validator remains available for protocol probes:
+`--read-only`. To choose a Shared Drive in the CLI, add its ID from that drive's
+Google Drive URL as `--drive-id`; My Drive remains the default. The separate validator
+remains available for protocol probes:
 
 ```sh
 cirrove connect-google --label google-create-validation \
-  --client-json /absolute/path/to/cirrove-google-client.json \
   --mount-path /absolute/path/to/a/separate/empty/folder \
   --state-dir /absolute/path/to/private/validation-state \
   --write-access
@@ -531,3 +593,35 @@ results are in
 [`google-native-export-preflight.json`](benchmarks/google-native-export-preflight.json).
 This is evidence for two bounded readable exports on one account, not general
 format-fidelity or provider-reliability evidence.
+
+## Shared Drive preflight, 2026-09-21
+
+The adapter now lists Shared Drives visible to the signed-in user and can bind a
+read-only connection to one selected drive. Its listing and change requests use
+the drive ID and Google's shared-drive parameters; file reads stay within that
+collection. Synthetic provider and service tests cover discovery pagination,
+collection-scoped refresh, root and content caching, and conditional-write request
+shape. At this preflight stage, account validation refused a writable Shared
+Drive connection.
+
+A read-only query through the original personal Google account returned zero
+accessible Shared Drives. A separate Workspace account subsequently created an
+owned test drive and folder. The [2026-09-22 live run](benchmarks/google-shared-drive-live.json)
+read one binary fixture and small native Doc/Sheet exports through a separate
+read-only FUSE mount. It found and fixed a change-feed parser failure: Google
+also sends drive-level changes without `fileId`. After the fix, the isolated feed
+resumed its saved cursor and indexed a new external file before any mount listing.
+The test daemon was stopped without changing the installed daemon or its mounts.
+This is one bounded account/drive run. A later isolated
+[write probe](benchmarks/google-shared-drive-write-live.json) confirmed create,
+exact readback and direct v2 conditional operations in a new owned folder. A
+committed replacement initially failed to settle because its saved session
+reported a stale version. After the worker gained exact reconciliation for an
+uncertain inspection, a follow-up run restored the deterministic fixture and
+passed replacement, rename and stale-conflict checks. An isolated
+[mounted write probe](benchmarks/google-shared-writable-mount-live.json) then
+passed a small create and an interrupted 16 MiB upload, with exact cloud
+readback and no duplicate sibling after restart. The subsequent mounted
+mutation run passed rename, move, replace and trash for only run-owned content.
+Writable Shared Drive preview connections now require an explicit write grant;
+broader roles and long sessions remain unverified.

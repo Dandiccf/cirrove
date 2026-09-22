@@ -81,8 +81,9 @@ and controls; Dolphin's live desktop acceptance remains open.
   [Desktop](docs/desktop.md).
 - Durable upload snapshots, keyring-backed session checkpoints and bounded
   provider transfers. Conditional rename, move, folder creation and deletion
-  share durable ordering with uploads. Writable OneDrive and Google My Drive
-  connections use these workers; isolated validators remain available for
+  share durable ordering with uploads. Writable OneDrive and explicitly
+  granted Google My Drive and Shared Drive connections use these workers;
+  isolated validators remain available for
   controlled live checks.
 - Local working files and immutable save generations, with actual
   synthetic FUSE create/write/truncate/fsync and offline-restart checks. A new save
@@ -211,7 +212,7 @@ login can exercise it. See
 | `cirrove-core` | Provider-neutral identity, metadata/read/upload contracts, cancellation and request budgets |
 | `cirrove-store` | Transactional metadata, observations, persistent inodes and cache index |
 | `cirrove-onedrive` | Microsoft Graph metadata, version-checked ranged reads and experimental resumable uploads |
-| `cirrove-googledrive` | Google Drive v3 reads plus v2 conditional writes for writable My Drive mounts |
+| `cirrove-googledrive` | Google Drive v3 reads plus v2 conditional writes for writable My Drive and Shared Drive preview mounts |
 | `cirrove-auth` | Microsoft/Google browser authentication, shared keyring and refresh broker |
 | `cirrove-service` | Daemon, CLI, account workers, FUSE projection and content cache |
 | `cirrove-desktop` | Native account overview and asynchronous service controls |
@@ -222,17 +223,17 @@ Read [Architecture](docs/architecture.md), [Roadmap](docs/roadmap.md),
 The [distribution plan](docs/distribution.md) targets native Arch, Debian/Ubuntu
 and Fedora packages; these release/installability gates are not completed yet.
 
-Google Drive now has a [writable My Drive preview](docs/google-drive.md), including
-its own browser sign-in and the shared engine, journal, cache, pinning and kernel
-mount. A bounded live run passed create, edit, atomic replacement, rename, move,
-deletion, stale-write conflict preservation and daemon restart on one run-owned
-fixture. A second run added a 20 MiB-plus exact readback, LibreOffice ODT/DOCX
-saves, an external rename followed by a mounted edit, and natural-path pinning
-through the installed file-manager integration. This is functional evidence on
-one account, not a general reliability claim. Shared Drives and native Google
-document write-back remain outside the preview. Native Docs and Sheets can be
-opened as read-only package folders containing bounded DOCX/XLSX exports; the
-current Google export endpoint limits these artifacts to 10 MiB.
+Google Drive has a [writable My Drive and Shared Drive preview](docs/google-drive.md),
+including browser sign-in, the shared engine, journal, cache, pinning and kernel
+mount. Bounded My Drive runs covered ordinary file changes, stale-write conflicts,
+daemon restart, application saves and file-manager pinning. One Workspace Shared
+Drive run covered scoped discovery, change-feed recovery, binary reads and small
+native exports; isolated writable mounts then covered run-owned create, interrupted
+upload recovery, rename, move, replacement and trash. These are functional checks
+on one Workspace administrator and one owned drive, not a general reliability
+claim. Native Docs and Sheets remain read-only package folders with bounded
+DOCX/XLSX exports. A direct native Doc import conflict probe found that HTTP 412
+could still change its contents, so native write-back remains outside the preview.
 iCloud requires a separate compatibility assessment because its API situation
 differs. Cirrove does not copy or depend on Stratosync or rclone; lessons from
 those integrations inform the recovery tests.

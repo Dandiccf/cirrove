@@ -5,7 +5,8 @@
 mod fixture;
 use cirrove_auth::{AccessMode, AppRegistration, Identity};
 use cirrove_core::{
-    CancellationToken, Change, ChangePage, Checkpoint, CollectionInfo, Cursor, ReadProvider, Scope,
+    CancellationToken, Change, ChangePage, Checkpoint, CollectionInfo, Cursor, MetadataProvider,
+    ReadProvider, Scope,
 };
 use cirrove_googledrive::GoogleDrive;
 use cirrove_service::{
@@ -17,6 +18,7 @@ use cirrove_service::{
 };
 use cirrove_store::Store;
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use std::{
     path::PathBuf,
     sync::{
@@ -60,6 +62,266 @@ fn account(mount_path: PathBuf) -> Account {
         poll_seconds: 30,
         cache_bytes: 16 * 1024 * 1024,
     }
+}
+
+#[tokio::test]
+#[ignore = "reads an explicitly named Google account and Shared Drive"]
+async fn live_google_shared_drive_discovery() {
+    let label = std::env::var("CIRROVE_GOOGLE_LIVE_LABEL")
+        .expect("set CIRROVE_GOOGLE_LIVE_LABEL to the connected Workspace account label");
+    let expected_drive = std::env::var("CIRROVE_GOOGLE_SHARED_DRIVE_ID")
+        .expect("set CIRROVE_GOOGLE_SHARED_DRIVE_ID to the owned test drive ID");
+    let expected_folder = std::env::var("CIRROVE_GOOGLE_SHARED_TEST_FOLDER")
+        .expect("set CIRROVE_GOOGLE_SHARED_TEST_FOLDER to the owned test folder name");
+    let expected_file = std::env::var("CIRROVE_GOOGLE_SHARED_TEST_FILE")
+        .expect("set CIRROVE_GOOGLE_SHARED_TEST_FILE to the owned test file name");
+    let expected_sha256 = std::env::var("CIRROVE_GOOGLE_SHARED_TEST_SHA256")
+        .expect("set CIRROVE_GOOGLE_SHARED_TEST_SHA256 to the test file digest");
+    let state = cirrove_service::state_dir().unwrap();
+    let settings = Settings::load(&state).unwrap();
+    let google = settings
+        .accounts
+        .iter()
+        .find(|account| {
+            account.label == label && matches!(account.registration, AppRegistration::Google { .. })
+        })
+        .expect("named Google account is not connected");
+    let provider = cirrove_service::accounts::google_provider(google).unwrap();
+    let drives = provider
+        .collections(&CancellationToken::new())
+        .await
+        .unwrap();
+    let shared = drives
+        .iter()
+        .find(|drive| drive.id == expected_drive && drive.drive_type == "shared_drive")
+        .expect("test Shared Drive not discovered");
+    let provider = provider.as_ref().clone().for_collection(shared).unwrap();
+    let scope = Scope {
+        account: google.id.clone(),
+        provider: "googledrive".into(),
+        collection: shared.id.clone(),
+    };
+    let cancel = CancellationToken::new();
+    let root = provider.node(&scope, &shared.id, &cancel).await.unwrap();
+    assert_eq!(root.id, shared.id);
+    let mut cursor = None;
+    let mut found_folder = None;
+    loop {
+        let page = provider
+            .children(&scope, &root.id, cursor.as_ref(), &cancel)
+            .await
+            .unwrap();
+        found_folder = found_folder.or_else(|| {
+            page.nodes
+                .iter()
+                .find(|node| {
+                    node.name == format!("{expected_folder} [{}]", node.id)
+                        && node.parent_id.as_deref() == Some(shared.id.as_str())
+                        && node.kind == cirrove_core::NodeKind::Folder
+                })
+                .map(|node| node.id.clone())
+        });
+        match page.next {
+            Some(next) => cursor = Some(next),
+            None => break,
+        }
+    }
+    let found_folder = found_folder.expect("test folder not listed in the Shared Drive root");
+    let mut cursor = None;
+    let mut found_file = None;
+    loop {
+        let page = provider
+            .children(&scope, &found_folder, cursor.as_ref(), &cancel)
+            .await
+            .unwrap();
+        found_file = found_file.or_else(|| {
+            page.nodes
+                .iter()
+                .find(|node| {
+                    expected_file
+                        .rsplit_once('.')
+                        .is_some_and(|(stem, extension)| {
+                            node.name == format!("{stem} [{}].{extension}", node.id)
+                        })
+                        && node.parent_id.as_deref() == Some(found_folder.as_str())
+                        && node.kind == cirrove_core::NodeKind::File
+                })
+                .cloned()
+        });
+        match page.next {
+            Some(next) => cursor = Some(next),
+            None => break,
+        }
+    }
+    let found_file = found_file.expect("test file not listed in the Shared Drive folder");
+    let mut digest = Sha256::new();
+    let mut offset = 0;
+    while offset < found_file.size {
+        let length = u32::try_from((found_file.size - offset).min(4 * 1024 * 1024)).unwrap();
+        let bytes = provider
+            .read_range(&scope, &found_file, offset, length, &cancel)
+            .await
+            .unwrap();
+        assert_eq!(bytes.len(), length as usize);
+        digest.update(&bytes);
+        offset += u64::from(length);
+    }
+    assert_eq!(hex::encode(digest.finalize()), expected_sha256);
+    let foreign_scope = Scope {
+        collection: "another-collection".into(),
+        ..scope.clone()
+    };
+    assert!(matches!(
+        provider.node(&foreign_scope, &found_file.id, &cancel).await,
+        Err(cirrove_core::ProviderError::Permission)
+    ));
+    let mut checkpoint = None;
+    let mut baseline_has_folder = false;
+    let mut baseline_has_file = false;
+    for _ in 0..16 {
+        let page = provider
+            .changes(&scope, checkpoint.as_ref(), &cancel)
+            .await
+            .unwrap();
+        baseline_has_folder |= page
+            .changes
+            .iter()
+            .any(|change| matches!(change, Change::Upsert(node) if node.id == found_folder));
+        baseline_has_file |= page
+            .changes
+            .iter()
+            .any(|change| matches!(change, Change::Upsert(node) if node.id == found_file.id));
+        if page.checkpoint.complete() {
+            assert!(
+                baseline_has_folder,
+                "test folder absent from Shared Drive baseline"
+            );
+            assert!(
+                baseline_has_file,
+                "test file absent from Shared Drive baseline"
+            );
+            println!(
+                "Shared Drive discovery, scoped listing, exact bytes and change baseline passed"
+            );
+            return;
+        }
+        checkpoint = Some(page.checkpoint.cursor().clone());
+    }
+    panic!("Shared Drive baseline exceeded 16 pages");
+}
+
+#[tokio::test]
+async fn shared_drive_refresh_keeps_its_root_and_content_in_its_collection() {
+    use tokio::{
+        io::{AsyncReadExt, AsyncWriteExt},
+        net::TcpListener,
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    let task = tokio::spawn(async move {
+        loop {
+            let Ok((mut socket, _)) = listener.accept().await else {
+                break;
+            };
+            let mut request = Vec::new();
+            loop {
+                let mut chunk = [0; 2048];
+                let count = socket.read(&mut chunk).await.unwrap();
+                if count == 0 {
+                    break;
+                }
+                request.extend_from_slice(&chunk[..count]);
+                if request.windows(4).any(|w| w == b"\r\n\r\n") {
+                    break;
+                }
+                assert!(request.len() < 65536);
+            }
+            let request = String::from_utf8(request).unwrap();
+            let path = request.split_ascii_whitespace().nth(1).unwrap();
+            assert!(request.starts_with("GET "));
+            let route = path.split('?').next().unwrap();
+            let has = |key: &str, value: &str| path.contains(&format!("{key}={value}"));
+            let (status, extra_headers, body) = match route {
+                "/drive/v3/changes/startPageToken" => {
+                    assert!(has("driveId", "shared-root"));
+                    assert!(has("supportsAllDrives", "true"));
+                    (200, String::new(), serde_json::to_vec(&json!({"startPageToken":"first"})).unwrap())
+                }
+                "/drive/v3/files" => {
+                    assert!(has("corpora", "drive"));
+                    assert!(has("driveId", "shared-root"));
+                    assert!(has("supportsAllDrives", "true"));
+                    (200, String::new(), serde_json::to_vec(&json!({"files":[{"id":"shared-file","name":"report.txt","mimeType":"text/plain","parents":["shared-root"],"size":"6","version":"1","headRevisionId":"r1","driveId":"shared-root","capabilities":{"canDownload":true}}]})).unwrap())
+                }
+                "/drive/v3/files/shared-root" => {
+                    assert!(has("supportsAllDrives", "true"));
+                    (200, String::new(), serde_json::to_vec(&json!({"id":"shared-root","name":"Team","mimeType":"application/vnd.google-apps.folder","version":"1","driveId":"shared-root"})).unwrap())
+                }
+                "/drive/v3/changes" => {
+                    assert!(has("driveId", "shared-root"));
+                    (200, String::new(), serde_json::to_vec(&json!({"changes":[{"changeType":"drive","driveId":"shared-root","removed":false},{"changeType":"file","fileId":"shared-file","removed":false,"file":{"id":"shared-file","name":"report.txt","mimeType":"text/plain","parents":["shared-root"],"size":"6","version":"1","headRevisionId":"r1","driveId":"shared-root","capabilities":{"canDownload":true}}}],"newStartPageToken":"second"})).unwrap())
+                }
+                "/drive/v3/files/shared-file" if has("alt", "media") => {
+                    assert!(has("supportsAllDrives", "true"));
+                    (206, "Content-Range: bytes 0-5/6\r\n".into(), b"shared".to_vec())
+                }
+                "/drive/v3/files/shared-file" => {
+                    (200, String::new(), serde_json::to_vec(&json!({"id":"shared-file","name":"report.txt","mimeType":"text/plain","parents":["shared-root"],"size":"6","version":"1","headRevisionId":"r1","driveId":"shared-root","capabilities":{"canDownload":true}})).unwrap())
+                }
+                _ => panic!("unexpected synthetic request path"),
+            };
+            let header = format!(
+                "HTTP/1.1 {status} Synthetic\r\nContent-Length: {}\r\nConnection: close\r\n{extra_headers}\r\n",
+                body.len()
+            );
+            if socket.write_all(header.as_bytes()).await.is_ok() {
+                let _ = socket.write_all(&body).await;
+            }
+        }
+    });
+    let collection = CollectionInfo {
+        id: "shared-root".into(),
+        name: "Team".into(),
+        drive_type: "shared_drive".into(),
+        web_url: String::new(),
+    };
+    let provider = GoogleDrive::synthetic_loopback(
+        ACCOUNT.into(),
+        "shared-root".into(),
+        &format!("{origin}/drive/v3/"),
+    )
+    .unwrap()
+    .for_collection(&collection)
+    .unwrap();
+    let scope = Scope {
+        account: ACCOUNT.into(),
+        provider: "googledrive".into(),
+        collection: "shared-root".into(),
+    };
+    let cancel = CancellationToken::new();
+    let db = temp.path().join("metadata.db");
+    refresh(&provider, &scope, &db, false, &cancel, None)
+        .await
+        .unwrap();
+    let store = Store::open(&db).unwrap();
+    assert!(store.node(&scope, "shared-root").unwrap().is_some());
+    let node = store.node(&scope, "shared-file").unwrap().unwrap();
+    assert_eq!(node.parent_id.as_deref(), Some("shared-root"));
+    let cache = ContentCache::new(
+        temp.path().join("cache"),
+        temp.path().join("blocks.db"),
+        16 * 1024 * 1024,
+    )
+    .unwrap();
+    assert_eq!(
+        cache
+            .read(&provider, &scope, &node, 0, 6, &cancel)
+            .await
+            .unwrap(),
+        b"shared"
+    );
+    task.abort();
 }
 
 #[tokio::test]
@@ -227,6 +489,15 @@ fn settings_migrate_old_microsoft_in_memory_and_require_explicit_provider_in_v2(
         .validate()
         .expect("an enabled Google My Drive write connection is valid");
     assert!(cirrove_service::accounts::provider(&settings.accounts[0]).is_ok());
+    settings.accounts[0].drive.drive_type = "shared_drive".into();
+    settings
+        .validate()
+        .expect("a scoped Shared Drive write grant is valid");
+    assert!(cirrove_service::accounts::write_provider(&settings.accounts[0]).is_ok());
+    settings.accounts[0].access = AccessMode::ReadOnly;
+    settings
+        .validate()
+        .expect("a read-only shared drive is valid");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

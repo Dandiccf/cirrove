@@ -116,10 +116,14 @@ impl Settings {
             account.registration.validate()?;
             if matches!(account.registration, AppRegistration::Google { .. })
                 && (account.drive.id != account.root_id
+                    || !matches!(
+                        account.drive.drive_type.as_str(),
+                        "my_drive" | "shared_drive"
+                    )
                     || account.identity.subject.is_empty()
                     || !account.identity.tenant_id.is_empty())
             {
-                bail!("Google Drive requires My Drive");
+                bail!("invalid selected Google Drive");
             }
             if !valid_label(&account.label)
                 || uuid::Uuid::parse_str(&account.id).is_err()
@@ -536,6 +540,7 @@ pub async fn reauthenticate(
             AppRegistration::Google { .. } => {
                 let root =
                     GoogleDrive::new(original.id.clone(), original.drive.id.clone(), tokens)?
+                        .for_collection(&original.drive)?
                         .root(&CancellationToken::new())
                         .await?;
                 if root.id != original.root_id {
@@ -571,11 +576,14 @@ pub fn google_provider(account: &Account) -> Result<Arc<GoogleDrive>> {
         account.credential_id.clone(),
         Arc::new(DesktopVault),
     )?;
-    Ok(Arc::new(GoogleDrive::new(
-        account.id.clone(),
-        account.drive.id.clone(),
-        Arc::new(broker),
-    )?))
+    Ok(Arc::new(
+        GoogleDrive::new(
+            account.id.clone(),
+            account.drive.id.clone(),
+            Arc::new(broker),
+        )?
+        .for_collection(&account.drive)?,
+    ))
 }
 pub fn write_provider(account: &Account) -> Result<Arc<dyn crate::writable::WriteProvider>> {
     match account.registration {
@@ -808,8 +816,8 @@ impl PendingConnection {
                     .iter()
                     .find(|d| d.id == drive_id)
                     .cloned()
-                    .context("only My Drive is supported for Google")?;
-                let root = google.root(&cancel).await?;
+                    .context("Google drive was not offered at sign-in")?;
+                let root = google.clone().for_collection(&drive)?.root(&cancel).await?;
                 if root.id != drive.id {
                     bail!("Google root identity changed");
                 }
@@ -967,8 +975,8 @@ async fn begin_connect_with_secret(
         }
         AppRegistration::Google { .. } => {
             let google = GoogleDrive::new(id.clone(), "root".into(), tokens)?;
-            let drive = google.collection(&CancellationToken::new()).await?;
-            (ConnectionProvider::Google(google), vec![drive])
+            let drives = google.collections(&CancellationToken::new()).await?;
+            (ConnectionProvider::Google(google), drives)
         }
     };
     Ok(PendingConnection {
@@ -1795,6 +1803,7 @@ mod tests {
         };
         account.identity.tenant_id.clear();
         account.drive.id = "root-id".into();
+        account.drive.drive_type = "my_drive".into();
         account.root_id = "root-id".into();
         let mut settings = Settings {
             version: 2,
@@ -1807,6 +1816,30 @@ mod tests {
         settings
             .validate()
             .expect("an enabled Google My Drive write connection is valid");
+    }
+
+    #[test]
+    fn a_shared_drive_write_grant_can_enable_a_scoped_connection() {
+        let mut account = fixture_account(AccessMode::ReadWrite);
+        account.registration = AppRegistration::Google {
+            client_id: "123-fixture.apps.googleusercontent.com".into(),
+        };
+        account.identity.tenant_id.clear();
+        account.drive.id = "shared-drive-id".into();
+        account.drive.drive_type = "shared_drive".into();
+        account.root_id = "shared-drive-id".into();
+        let mut settings = Settings {
+            version: 2,
+            accounts: vec![account],
+        };
+        settings
+            .validate()
+            .expect("a disabled Shared Drive account may hold a write grant");
+        settings.accounts[0].enabled = true;
+        settings
+            .validate()
+            .expect("an enabled Shared Drive account may use its write grant");
+        assert!(write_provider(&settings.accounts[0]).is_ok());
     }
 
     fn fixture_account(access: AccessMode) -> Account {

@@ -96,6 +96,7 @@ struct Provider {
     fail_begin_once: AtomicBool,
     prepare_once: AtomicBool,
     fail_inspect_once: AtomicBool,
+    uncertain_inspect_when_committed: AtomicBool,
     restart_prepare_once: AtomicBool,
     complete_on_inspect_once: AtomicBool,
     require_reconcile_checkpoint: AtomicBool,
@@ -114,6 +115,7 @@ impl Provider {
             fail_begin_once: AtomicBool::new(false),
             prepare_once: AtomicBool::new(false),
             fail_inspect_once: AtomicBool::new(false),
+            uncertain_inspect_when_committed: AtomicBool::new(false),
             restart_prepare_once: AtomicBool::new(false),
             complete_on_inspect_once: AtomicBool::new(false),
             require_reconcile_checkpoint: AtomicBool::new(false),
@@ -187,6 +189,13 @@ impl UploadProvider for Provider {
             state.inspections += 1;
             if checkpoint.expose_secret() != SECRET {
                 return Err(UploadError::CheckpointInvalid);
+            }
+            if state.committed.is_some()
+                && self
+                    .uncertain_inspect_when_committed
+                    .swap(false, Ordering::SeqCst)
+            {
+                return Err(UploadError::Uncertain);
             }
             if state.committed.is_some() {
                 return Err(UploadError::SessionGone);
@@ -568,6 +577,37 @@ async fn a_lost_success_response_is_reconciled_without_uploading_twice() {
             .unwrap()
             .contains_key("unrelated-credential")
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_uncertain_committed_session_is_reconciled_without_uploading_twice() {
+    let temp = tempfile::tempdir().unwrap();
+    let (probe, provider, vault) = fixture();
+    let journal = journal(&temp.path().join("journal"), &probe);
+    let id = enqueue(&journal, "Saved.txt");
+    provider.lose_success.store(true, Ordering::SeqCst);
+    let worker = TransferWorker::new(
+        journal.clone(),
+        provider.clone(),
+        vault,
+        CancellationToken::new(),
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::VerifyRequired
+    );
+    journal.lock().unwrap().request_retry(id).unwrap();
+    provider
+        .uncertain_inspect_when_committed
+        .store(true, Ordering::SeqCst);
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+    let state = provider.state.lock().unwrap();
+    assert_eq!(state.begins, 1);
+    assert_eq!(state.reconciliations, 1);
+    assert_eq!(state.offsets, [0, 4, 8]);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

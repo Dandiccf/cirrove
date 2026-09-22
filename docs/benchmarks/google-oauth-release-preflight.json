@@ -1,0 +1,51 @@
+{
+  "kind": "Read-only Google Cloud Console release audit; a dated configuration observation, not a provider test or change to the Cloud project.",
+  "observed_at_utc": "2026-09-22T08:10:19Z",
+  "project": "Cirrove (Google Cloud project ID cirrove)",
+  "sources": {
+    "audience": "https://console.cloud.google.com/auth/audience?project=cirrove",
+    "branding": "https://console.cloud.google.com/auth/branding?project=cirrove",
+    "data_access": "https://console.cloud.google.com/auth/scopes?project=cirrove",
+    "verification": "https://console.cloud.google.com/auth/verification?project=cirrove",
+    "google_restricted_scope_policy": "https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification",
+    "google_verification_requirements": "https://support.google.com/cloud/answer/13464321",
+    "google_drive_terms": "https://developers.google.com/workspace/drive/api/terms",
+    "google_workspace_user_data_policy": "https://developers.google.com/workspace/workspace-api-user-data-developer-policy"
+  },
+  "observed": {
+    "audience": "External, Publishing status Testing; 2 test users; the Publish app control is disabled and the console directs completion of Branding.",
+    "branding": "Application name and support/developer emails are present. The homepage, public privacy-policy link, terms link and authorized-domain list are empty in the visible configuration. The console's Branding completion gate is not satisfied.",
+    "data_access": "The restricted Drive-scope list contains drive.readonly only. Cirrove's current crates/cirrove-auth/src/google.rs requests drive.readonly for read-only connections and the full drive scope for writable connections; the latter is not declared on this screen.",
+    "verification": "The Verification Center says verification is not currently required because the app is in Testing. It does not show production restricted-scope approval.",
+    "api_services": "The Google Drive API is enabled. The Google Docs API and Google Sheets API showed Enable controls; a direct Docs API read returned SERVICE_DISABLED. No API was enabled during this audit."
+  },
+  "observed_repo_hosting_at_utc": "2026-09-22T09:06:00Z",
+  "observed_repo_hosting": "The public Dandiccf/cirrove GitHub repository has an empty homepageUrl. The GitHub Pages API returned HTTP 404 for this repository. No published project site or privacy-policy URL can be inferred from the repository; an owner-controlled public domain and approved policy text are still needed for Google's branding gate.",
+  "policy_implication": "Google says production apps should declare every requested scope and restricted Drive scopes require verification unless an exception applies. Its verification requirements call for a public homepage and privacy policy on a verified domain. This project remains suitable for the two listed testers, not general Google-account onboarding.",
+  "code_data_flow_audit_at_utc": "2026-09-22T08:47:29Z",
+  "code_data_flow_audit": {
+    "source_scope": "Reviewed crates/cirrove-auth/src/google.rs, crates/cirrove-auth/src/lib.rs, crates/cirrove-service/src/accounts.rs, docs/architecture.md, docs/google-drive.md and docs/user-guide.md. This is a source inventory for a policy draft, not a legal approval or a network capture.",
+    "identity": "Google OIDC sign-in requests openid, email and profile; the verified subject, email address and display name are retained in local account settings. The userinfo endpoint is used to bind the access token to that subject.",
+    "drive_permissions": "A read-only connection requests drive.readonly. A connection with Allow changes requests the full drive scope and can read, create, replace, rename, move or trash ordinary files within its selected collection. Native Docs and Sheets are projected as read-only export packages.",
+    "local_storage": "OAuth credentials are kept in the desktop Secret Service, separate from non-secret account settings. Cirrove retains Drive metadata, names and identities in local SQLite state; content read on demand is held in a bounded disk cache; pending local edits and recovery data are held in the durable journal.",
+    "recipient_and_control": "The reviewed Google integration sends account and file requests to Google OAuth, identity and Drive endpoints. No application-operated collection endpoint was found in those modules; this is an inference from source review, not a verified statement about every build or deployment. User-initiated file changes go back to the selected Google collection. The diagnostics command creates a local bundle for the user to inspect before sharing.",
+    "removal": "Removing a connection sets local data aside under Cirrove's removed-state directory for recovery; explicit discard deletes that removed local data. Package uninstall alone leaves settings, keyring grants and cache in place. Google-side consent revocation is separate. These retention details must be stated accurately in a public policy."
+  },
+  "owner_inputs_needed": [
+    "A domain the owner controls and may verify for the public Cirrove homepage and privacy-policy URL.",
+    "The public operator/contact identity and final wording of the privacy policy and terms; these cannot be inferred from the code or a Workspace email address.",
+    "Approval to activate the Google Docs API before the registered native revision probe, because the Cloud Console action accepts API terms."
+  ],
+  "policy_review_questions": [
+    "Google lists platform-specific local sync apps as an allowed restricted-Drive-scope use case. Cirrove appears to fit that category because it projects a user's selected Drive to a local filesystem; this is an inference, not Google's approval.",
+    "Google's restricted-scope guide ties an independent security assessment to restricted data accessible from or through a third-party server, while its general verification guidance is broader. The reviewed Cirrove Google modules show a local desktop integration, but the applicable assessment requirement must be confirmed during Google's review rather than assumed away.",
+    "Cirrove retains versioned local cache blocks and optional offline pins. Google's Workspace user-data policy discusses permanent copies and cache lifetimes while its Drive terms explicitly permit local-sync applications. The retention model needs a product-specific policy review before a public submission; this audit does not resolve that interpretation."
+  ],
+  "next_actions": [
+    "Choose a public, verified domain and publish a truthful Cirrove homepage and privacy policy before filling the Branding fields; the repository currently lists GitHub as its homepage and contains no public privacy policy.",
+    "Declare the full drive scope actually requested for writable connections, then prepare restricted-scope and brand verification evidence before publishing beyond testers.",
+    "Review docs/google-oauth-verification-prep.md with the owner; it drafts scope justifications and an end-to-end demonstration sequence without claiming approval or supplying the missing public operator identity.",
+    "Keep the Docs API activation and the registered native-revision probe separate; no Cloud project setting changes were made by this audit."
+  ],
+  "status": "production_oauth_blocked_by_branding_and_scope_verification"
+}

@@ -4,7 +4,7 @@ Cirrove puts a cloud drive into Files without copying the cloud onto your
 disk. Files appear at once; their contents download when you open them and
 stay in a bounded local cache; changes you make upload in the background.
 What you want with you when there is no network, you mark once, and Cirrove
-keeps it. OneDrive is the first provider.
+keeps it. OneDrive and Google Drive are previews under validation.
 
 This is the guide for using it. Building it is in the [README](../README.md);
 what is finished and what is not is in the [milestones](product-milestones.md),
@@ -74,26 +74,38 @@ between, and the window works the whole time.
 ## Connecting a drive
 
 Open **Cirrove** from your application menu and press **+** (or **Connect a
-drive** on the empty page). You need:
+drive** on the empty page). Choose OneDrive or Google Drive, then provide:
 
 - a **name** for the connection -- letters, digits, hyphens; it is what the
   command line calls the account;
 - a **folder** where the drive should appear in Files. After you enter the name,
   Cirrove suggests `~/Cloud/Cirrove-<name>` and creates it when you connect.
   You can choose another empty folder if you prefer;
-- the **application (client) ID** of an Entra app registration. Cirrove does
-  not ship one; the [OneDrive setup guide](onedrive-setup.md) walks through
-  creating yours once. A second drive is prefilled with the first one's;
 - whether to **allow changes**. Off, the drive is read-only: you can open
   everything and change nothing. On, files you save in the drive are uploaded.
 
-**Sign in with Microsoft** opens your browser. Choose the account there, come
-back, and pick which of its drives to mount. That is it: the folder fills as
-you look into it.
+For **OneDrive**, enter the application (client) ID of an Entra app
+registration. Cirrove does not ship one; the [OneDrive setup guide](onedrive-setup.md)
+walks through creating yours once. A second OneDrive connection is prefilled
+from an existing one.
 
-From the command line the same is `cirrove connect --label <name>
---client-id <id> --mount-path <folder>`, which asks for the drive in the
-terminal.
+For **Google Drive**, no client JSON is needed for the normal sign-in. Cirrove
+uses its own Desktop OAuth app; **Use another Google OAuth app** is an optional
+development choice. The included app is currently in Google's Testing mode, so
+only approved test users can finish sign-in. The public release needs Google's
+app and Drive-scope review. See the [Google preview guide](google-drive.md).
+
+**Sign in with Microsoft** or **Sign in with Google** opens your browser.
+Choose the account there, return to Cirrove and select My Drive, a Shared Drive
+or another offered collection. The selected drive then appears in the local
+folder. That folder holds Cirrove's filesystem view and on-demand cache-backed
+files; it is not a new folder created inside your cloud account.
+
+From the command line, OneDrive uses `cirrove connect --label <name>
+--client-id <id> --mount-path <folder>`. Google Drive uses
+`cirrove connect-google --label <name> --mount-path <folder>`. The Google CLI
+selects My Drive by default; pass an offered `--drive-id` to select a Shared
+Drive. The window presents the available drives after browser sign-in.
 
 ## Files and what happens to them
 
@@ -106,6 +118,9 @@ uploads it in the background; the application that saved it is done as soon
 as the local write is. `cirrove status` shows how many changes are still on
 their way. Turning the machine off before they are sent does not lose them:
 they are written durably and resume at the next start.
+Google Docs and Sheets appear as read-only export packages; editing those
+native documents through Cirrove is not supported yet, even on a writable
+Google Drive connection.
 
 **Names.** OneDrive refuses some names Linux allows -- the characters
 `" * : < > ? \ |`, a trailing space or period, Windows device names such as
@@ -269,8 +284,10 @@ regret within the hour is recoverable. When you are sure, `cirrove local-data
 --discard-removed` deletes it and says how much it freed. That command can only
 ever delete the data of connections you have already removed; a drive you are
 still using is not reachable from it.
-Grants in the keyring are labelled Cirrove; remove them from the keyring, or
-revoke the application's consent in your Microsoft account settings.
+Grants in the keyring are labelled Cirrove; remove them from the keyring too.
+You can separately revoke consent in your Microsoft account settings or in
+your [Google Account's linked-app controls](https://support.google.com/accounts/answer/13533235).
+Removing a local connection does not itself revoke the provider's consent.
 
 Never delete data through a mounted drive's folder to "clean up": that
 deletes it in the cloud.

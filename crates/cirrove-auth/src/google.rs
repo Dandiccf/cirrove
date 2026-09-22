@@ -3,6 +3,11 @@
 use super::*;
 use openidconnect::core::CoreIdToken;
 
+/// Public Desktop OAuth client ID for Cirrove's Google project. The Cloud app
+/// remains limited to approved testers until its production review is complete.
+pub const CIRROVE_DESKTOP_CLIENT_ID: &str =
+    "608639658219-mg7dhl8lappv8sstdlbv0k00vtoos9sl.apps.googleusercontent.com";
+
 pub const SCOPES: &str = "openid email profile https://www.googleapis.com/auth/drive.readonly";
 /// A writable filesystem must be able to update existing files, not only files
 /// created by Cirrove. Google limits `drive.file` to app-created or explicitly
@@ -15,8 +20,7 @@ pub(super) fn validate_grant(access: AccessMode, granted: Option<&str>) -> Resul
         let scopes: Vec<_> = granted.split_ascii_whitespace().collect();
         let full = scopes.contains(&"https://www.googleapis.com/auth/drive");
         let readable = full || scopes.contains(&"https://www.googleapis.com/auth/drive.readonly");
-        let writable = full || scopes.contains(&"https://www.googleapis.com/auth/drive.file");
-        if !readable || (access == AccessMode::ReadWrite && !writable) {
+        if !readable || (access == AccessMode::ReadWrite && !full) {
             return Err(ProviderError::Authentication.into());
         }
         if !scopes.contains(&"openid") {
@@ -201,6 +205,13 @@ mod tests {
         );
         assert!(validate_grant(AccessMode::ReadOnly, Some(SCOPES)).is_ok());
         assert!(validate_grant(AccessMode::ReadWrite, Some(SCOPES)).is_err());
+        assert!(
+            validate_grant(
+                AccessMode::ReadWrite,
+                Some("openid https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file")
+            )
+            .is_err()
+        );
         assert!(validate_grant(AccessMode::ReadWrite, Some(WRITE_SCOPES)).is_ok());
         assert!(
             validate_grant(
