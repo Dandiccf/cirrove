@@ -1,7 +1,7 @@
 {
   "question": "Can a fresh isolated mount of the validated selected Shared Drive expose all six export formats for the two additional run-owned native fixtures and preserve their known marker content?",
   "kind": "Pre-registered correction to the installed-connection assumption; bounded read-only private-mount fidelity probe with no Google mutation.",
-  "registered_at_utc": "2026-09-22T20:02:00Z",
+  "registered_at_utc": "2026-09-22T19:56:42Z",
   "source_revision": "c70e1e63ee2ae68b8010266eac4f2c5b9811a04d",
   "prior_result": "google-native-additional-mount-fidelity-live.json failed before listing because the installed Calista connection is My Drive rather than the selected Shared Drive. No export or mutation was attempted.",
   "private_run_manifest": ".local-state/live-runs/google-native-additional-private-mount-fidelity-20260922/manifest.json",
@@ -16,7 +16,7 @@
   "endpoint": "Pass only if the fresh Shared Drive mount becomes ready, both exact packages expose all expected children, every format reads twice with the same hash and valid signature, every exported representation contains the registered marker, private cleanup succeeds, and the installed service remains healthy. A first-attempt failure remains recorded even if a later diagnostic succeeds.",
   "prediction": "The selected Shared Drive should index the retained fixtures and all six conversions should preserve the short marker. This run may instead expose conversion-specific loss, an export timeout or another cold-package regression.",
   "limits": "Two small fixtures on one Workspace administrator account cannot establish general formatting, formulas, charts, comments, suggestions, restricted roles, large-export behavior, collaborative write safety or public OAuth readiness.",
-  "status": "registered",
+  "status": "passed",
   "first_attempt": {
     "run_manifest": ".local-state/live-runs/google-native-additional-private-mount-fidelity-20260922/manifest.json",
     "status": "failed_before_provider_access",
@@ -25,7 +25,7 @@
     "failure_class": "RuntimeError",
     "cause": "The private test label contained spaces, which the account schema rejects. No listing, export or Google mutation occurred; private cleanup passed and the installed service remained unchanged."
   },
-  "retry_registered_at_utc": "2026-09-22T20:10:00Z",
+  "retry_registered_at_utc": "2026-09-22T20:12:37Z",
   "private_run_manifest_retry": ".local-state/live-runs/google-native-additional-private-mount-fidelity-retry-20260922/manifest.json",
   "retry_change": "Use an otherwise identical fresh private state with the schema-valid label Cirrove-native-fidelity-private. The question, source items, arms, endpoint and prediction are unchanged.",
   "second_attempt": {
@@ -36,7 +36,7 @@
     "failure_class": "RuntimeError",
     "observed": "The private mount became ready with 19 indexed items. The Doc package completed DOCX, PDF and ODT reads before the run failed in the still-coarse Sheet package phase. The post-run normalized index contains the exact Sheet identity under the expected parent with a .gsheet projected name. Cleanup passed and the installed service remained unchanged."
   },
-  "diagnostic_registered_at_utc": "2026-09-22T20:25:00Z",
+  "diagnostic_registered_at_utc": "2026-09-22T20:20:24Z",
   "private_run_manifest_diagnostic": ".local-state/live-runs/google-native-additional-private-mount-fidelity-diagnostic-20260922/manifest.json",
   "diagnostic_change": "Repeat the same fresh-state endpoint, but persist each completed kind immediately and split exact package lookup from package-child comparison. Publish only the resulting phase and existing safe counters if it fails.",
   "third_attempt": {
@@ -47,7 +47,7 @@
     "observed": "The exact .gsheet identity was found. DOCX (6,826 bytes), PDF (19,128 bytes) and ODT (3,108,610 bytes) each passed repeat-hash, signature and marker checks. The normalized post-run index contained exactly XLSX, PDF, ODS and the browser link for the Sheet. Cleanup passed and the installed service remained unchanged."
   },
   "cached_restart_diagnostic": "A short PID-recorded restart of that private failed state exposed exactly ODS, PDF and XLSX as directories plus Open in Google.url as a regular file, then unmounted cleanly. This is debugging evidence, not a fresh-state measurement.",
-  "first_open_capture_registered_at_utc": "2026-09-22T20:42:00Z",
+  "first_open_capture_registered_at_utc": "2026-09-22T20:30:43Z",
   "private_run_manifest_first_open_capture": ".local-state/live-runs/google-native-additional-private-mount-fidelity-capture-20260922/manifest.json",
   "first_open_capture_change": "Repeat the same fresh-state endpoint and persist the first visible package-child names and kinds before comparing them. No retry is added and the export assertions remain unchanged.",
   "fourth_attempt": {
@@ -56,7 +56,58 @@
     "duration_seconds": 14.974,
     "observed": "Both first-open child sets were exact: DOCX/ODT/PDF/browser link and XLSX/ODS/PDF/browser link. The failure came from a harness assertion that required the entire cache to remain empty after the Doc exports had intentionally populated it. No Cirrove package or provider defect was observed."
   },
-  "final_registered_at_utc": "2026-09-22T20:54:00Z",
+  "final_registered_at_utc": "2026-09-22T20:37:15Z",
   "private_run_manifest_final": ".local-state/live-runs/google-native-additional-private-mount-fidelity-final-20260922/manifest.json",
-  "final_change": "For each package listing, snapshot the private cache-file set immediately before listing and require the same set immediately afterwards. The initial cache must still be empty; all format, marker, repeat-hash, cleanup and installed-service assertions remain unchanged."
+  "final_change": "For each package listing, snapshot the private cache-file set immediately before listing and require the same set immediately afterwards. The initial cache must still be empty; all format, marker, repeat-hash, cleanup and installed-service assertions remain unchanged.",
+  "observed_at_utc": "2026-09-22T20:38:28.160129Z",
+  "observed": {
+    "status": "passed",
+    "duration_seconds": 21.556,
+    "indexed_items": 19,
+    "first_open_package_children": {
+      "doc": [
+        "DOCX",
+        "ODT",
+        "Open in Google.url",
+        "PDF"
+      ],
+      "sheet": [
+        "ODS",
+        "Open in Google.url",
+        "PDF",
+        "XLSX"
+      ]
+    },
+    "initial_cache_files": 0,
+    "package_listings_left_cache_unchanged": true,
+    "exports": {
+      "doc": {
+        "docx_bytes": 6826,
+        "pdf_bytes": 19128,
+        "odt_bytes": 3108611,
+        "first_read_seconds": {
+          "docx": 0.001,
+          "pdf": 0.001,
+          "odt": 0.002
+        }
+      },
+      "sheet": {
+        "xlsx_bytes": 5107,
+        "pdf_bytes": 21684,
+        "ods_bytes": 9038,
+        "first_read_seconds": {
+          "xlsx": 0.001,
+          "pdf": 0.001,
+          "ods": 0.001
+        }
+      }
+    },
+    "all_repeat_hashes_match": true,
+    "all_signatures_and_markers_match": true,
+    "private_mount_gone": true,
+    "installed_daemon_and_three_mounts_unchanged": true,
+    "installed_accounts_ready": 3
+  },
+  "interpretation": "The corrected fresh-state run reached the registered endpoint. Both exact native packages exposed all expected first-open children without materializing content; every selected export then read twice with matching hashes, valid container or PDF signatures and the private marker. The earlier failures remain recorded and were harness setup/assertion errors, not provider or Cirrove package failures. This supports the six small export paths for two additional run-owned Shared Drive fixtures only.",
+  "next_probe": "Keep native packages read-only. Remaining Google release work includes complex export fidelity, restricted Shared Drive roles, larger late uncached reads, safe native Sheets conflict handling and public OAuth verification."
 }

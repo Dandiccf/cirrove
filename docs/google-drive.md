@@ -69,8 +69,12 @@ then kept the selected drive ready with 61 matching reads and fresh change-feed
 success, and removed only its private mount. A separate
 [late-uncached-read attempt](benchmarks/google-shared-late-uncached-live.json)
 ran for an hour but could not execute its final read: an accidental traversal
-had filled the private cache. Restricted roles, late uncached reads and longer
-sessions remain open.
+had filled the private cache. Its
+[refresh-tolerant follow-up](benchmarks/google-shared-late-refresh-tolerant-live.json)
+then kept 60 of 61 samples ready, accepted one fresh indexing interval, retained
+an empty content cache for an hour and read the exact 85-byte fixture uncached
+in 1.345 seconds. Restricted roles, larger late reads and longer sessions remain
+open.
 Native document writeback, broader export fidelity, push webhooks, resource-key
 transport and large-library/long-session acceptance are not claimed.
 There is no service-account or another client's credential import.
@@ -110,7 +114,15 @@ hashes. Its first attempt failed at an unclassified local assertion before two
 passes. The [subsequent first-open probe](benchmarks/google-package-cold-open-live.json)
 passed on its first attempt after installing the cached-package correction for
 the same two items. This does not establish reliability across other items.
-Broader conversion fidelity remains untested.
+An additional
+[fresh Shared Drive mount probe](benchmarks/google-native-additional-private-mount-fidelity-live.json)
+then found a second run-owned Doc and Sheet by exact identity and read all six
+formats twice. DOCX, both PDFs, XLSX, ODT and ODS had valid signatures and each
+contained the registered marker; package listings themselves added no cache
+files. Earlier attempts in the same record preserve two setup mistakes and the
+overstrict cache assertion that diagnosed them. These four small native items
+still do not establish fidelity for complex formatting, formulas, charts,
+comments, suggestions or other accounts.
 A [persisted-cache regression](benchmarks/google-package-cache-upgrade-control.json)
 then reproduced one concrete route to stale package children across a service
 restart and corrected the first-open recheck. The original live assertion did
