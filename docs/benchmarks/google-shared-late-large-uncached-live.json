@@ -1,0 +1,21 @@
+{
+  "question": "After one hour of healthy refresh-tolerant operation, can a fresh private Shared Drive mount complete its first content read as an exact uncached 16,777,263-byte file?",
+  "kind": "Pre-registered read-only long-session probe against one retained run-owned binary fixture; no Google mutation.",
+  "registered_at_utc": "2026-09-22T21:09:07Z",
+  "source_revision": "aa9f1b89b96dc8667970df71dcab984134dd0184",
+  "installed_runtime_revision": "c70e1e63ee2ae68b8010266eac4f2c5b9811a04d",
+  "runtime_equivalence": "The commits between the installed runtime and source revision add only documentation and benchmark JSON; no runtime source or build input changed.",
+  "private_run_manifest": ".local-state/live-runs/google-shared-late-large-uncached-20260922/manifest.json",
+  "source_fixture": "The exact retained 16,777,263-byte run-owned Shared Drive file created by the earlier interrupted-upload mount probe. Its item, parent and SHA-256 remain only in private state.",
+  "arms": [
+    "A: start the installed merged daemon with fresh private account state, a separate Shared Drive mount and btrfs-backed TMPDIR/SQLITE_TMPDIR; require initial account and feed readiness while the installed daemon PID and three-mount set remain unchanged",
+    "B: take 61 samples at 60-second intervals after readiness; accept only ready or indexing feed states, require every last success younger than five minutes, and fail on mount loss, sign-in requirement, throttling, offline state, save refusal, failed uploads or stuck changes",
+    "C: perform no mount traversal or content read during the hour and require zero private content-cache files immediately before the endpoint",
+    "D: locate only the registered folder and exact file identity, read that 16,777,263-byte file once through FUSE, and require its private SHA-256",
+    "E: stop only the recorded private daemon PID, require its mount to disappear, and require the installed daemon PID, three mounts and account health to remain unchanged"
+  ],
+  "endpoint": "Pass only if the fresh mount becomes ready, all 61 samples span at least 3,600 seconds with healthy fresh feeds, the private cache is empty before the sole content read, all registered bytes and SHA-256 match, private cleanup succeeds, and the installed service remains healthy.",
+  "prediction": "The refresh-tolerant liveness gate should hold as in the 85-byte control, and the first 16 MiB read should complete with the registered digest. A timeout, stale feed, partial read, cache contamination or cleanup change fails the run.",
+  "limits": "One file, one Workspace administrator, one owned Shared Drive and one run per arm. A pass supports this direction only; it does not establish restricted-role behavior, 24-hour uptime, large-library memory stability, native writeback or public OAuth readiness.",
+  "status": "registered"
+}
