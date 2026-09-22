@@ -3,9 +3,10 @@
   "kind": "Pre-registered bounded live protocol probe; it does not enable native Cirrove writeback or establish document fidelity.",
   "registered_at_utc": "2026-09-22T07:55:28Z",
   "authorization_boundary": "The owner authorized continued Google testing on run-owned objects. This probe may modify only the exact Doc created in the Cirrove Validation folder by google-native-import-live.json. It must not touch existing Workspace content or the installed Cirrove mounts.",
-  "prerequisite": "The Google Docs API is currently disabled in the Cirrove Google Cloud project. Its project-level activation is a separate browser action and must be confirmed at action time before this live probe can start.",
+  "prerequisite_at_registration": "The Google Docs API was disabled in the Cirrove Google Cloud project. Its project-level activation required separate action-time confirmation before this live probe could start.",
   "api_console_recheck_at_utc": "2026-09-22T15:01:00Z",
   "api_console_recheck": "The docs.googleapis.com product page in the Cirrove Google Cloud project still displays 'Diese API aktivieren' and notes that using the product accepts Google APIs Terms of Service. No project setting was changed during this read-only recheck.",
+  "api_activation": "After explicit owner action-time approval on 2026-09-22, the Docs API was activated in the existing Cirrove project; the Cloud Console then displayed Status: Aktiviert. No additional OAuth scope or user JSON was needed for this probe.",
   "official_contract": "https://developers.google.com/workspace/docs/api/reference/rest/v1/documents/batchUpdate documents that requiredRevisionId rejects a request when it is no longer the latest revision.",
   "scope_preflight": "The official documents.get reference accepts drive.readonly and the documents.batchUpdate reference accepts the full drive scope already requested by Cirrove's writable Google connections. This probe needs the Docs API enabled in the existing project, but no additional OAuth scope: https://developers.google.com/workspace/docs/api/reference/rest/v1/documents/get ; https://developers.google.com/workspace/docs/api/reference/rest/v1/documents/batchUpdate .",
   "token_preflight": "The private probe refuses to start unless its saved access token has at least 300 seconds remaining. The observed token would expire before the separate one-hour Shared Drive run ends; recheck the keyring after that run and allow Cirrove's broker to refresh it rather than sending a native write with an about-to-expire grant.",
@@ -17,6 +18,15 @@
   ],
   "endpoint": "Pass only if B succeeds, C is rejected, and repeated exact-ID readback shows the rejected marker was never applied. Any uncertainty fails closed and leaves native writeback disabled.",
   "prediction": "The Docs-specific requiredRevisionId path should reject the stale update without changing content, unlike the observed Drive v2 native media upload. This is a hypothesis, not an implemented capability.",
-  "limits": "One small plain-text edit on one owned Doc cannot establish DOCX import, formatting fidelity, multi-tab behavior, concurrent collaboration, Sheets safety or large exports.",
-  "status": "registered_waiting_for_docs_api_activation"
+  "limits": "Two small plain-text edits on one owned Doc cannot establish DOCX import, formatting fidelity, multi-tab behavior, concurrent collaboration, Sheets safety or large exports. This direct API probe does not implement native document writeback in Cirrove.",
+  "observed_at_utc": "2026-09-22T16:18:10Z",
+  "observed": {
+    "first_attempt": "The first exact-item Drive metadata GET returned HTTP 404 because the private probe omitted supportsAllDrives=true. A read-only corrected GET returned HTTP 200 and matched the document ID, name, native MIME, Shared Drive, parent and untrashed state. No mutation occurred in that attempt.",
+    "second_attempt": "With the corrected metadata query, the current Docs requiredRevisionId batchUpdate returned HTTP 200 and Docs body later contained its winner marker. The probe stopped before its stale request because it required exact newline framing in a Drive text export; a read-only export contained the winner marker with normalized framing. This was a probe assertion error, not a provider conflict result.",
+    "final_attempt": "A distinct current Docs requiredRevisionId batchUpdate returned HTTP 200; a fresh Docs read reported a new revision and a Drive text export contained its winner marker. The stale batchUpdate using the original revision returned HTTP 400. Three further exact-item exports retained that winner and excluded the stale marker.",
+    "private_manifest": ".local-state/live-runs/google-docs-revision-20260922/manifest.json",
+    "token_and_response_handling": "The script required at least 300 seconds of access-token validity, exact Google HTTPS origins and no redirects; it recorded status codes, hashes and booleans, never tokens, revision IDs or raw provider bodies."
+  },
+  "interpretation": "For this one run-owned Google Doc, the Docs-specific requiredRevisionId path preserved winner content while rejecting a stale update. This is stronger evidence for that primitive than the failed Drive v2 native media If-Match probe, but it does not justify enabling native writeback. Cirrove's native Docs and Sheets packages remain read-only pending implementation and broader acceptance.",
+  "status": "bounded_docs_revision_conflict_pass"
 }

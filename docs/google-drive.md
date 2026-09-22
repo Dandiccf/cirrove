@@ -92,6 +92,13 @@ DOCX/XLSX packages. Its conflict check failed: a stale native Doc media upload
 returned HTTP 412, yet the rejected content appeared in later exports. That
 transport cannot safely implement native writeback. Native packages remain
 read-only while a revision-aware native path is investigated.
+A bounded [Docs API revision probe](benchmarks/google-docs-revision-preflight.json)
+then updated only the run-owned Doc with `requiredRevisionId`: its stale update
+returned HTTP 400, and three exports retained the winner without the stale
+marker. Two earlier probe attempts exposed a missing Shared Drive parameter and
+an overstrict newline assertion; both are recorded in the artifact. This is a
+direct API result, not an implemented Cirrove write path. Sheets has no proven
+equivalent conflict guard here, and both native package types remain read-only.
 An independent [GET-only export probe](benchmarks/google-native-extra-exports-live.json)
 also obtained valid PDF and OpenDocument exports from those two run-owned items
 without changing their versions. Cirrove now presents those formats in read-only
