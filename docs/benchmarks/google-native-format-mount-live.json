@@ -1,0 +1,26 @@
+{
+  "question": "Does the newly installed Google adapter expose and read each of the three format children of one existing native Doc and one existing native Sheet through the live FUSE mount?",
+  "kind": "Pre-registered read-only live mount probe; no Google mutation.",
+  "registered_at_utc": "2026-09-22T10:42:37Z",
+  "source_items": "One existing Doc in the connected Workspace My Drive and one existing Sheet in the connected personal My Drive, selected by exact item identity before the run; item names and IDs remain in a private manifest.",
+  "arms": [
+    "A: confirm the developer-installed daemon is running the merged binary and each selected parent is a native package in the expected account and collection",
+    "B: enumerate each package and require its three expected format children and browser link without changing any remote item",
+    "C: read each child through FUSE in bounded local staging, require the expected PDF or ZIP/OOXML/OpenDocument signature and an exact repeated hash from the same mount"
+  ],
+  "endpoint": "Six format children can be listed and read with exact repeated hashes. Any single failure is recorded without claiming all Google documents work.",
+  "prediction": "The selected small native Doc and Sheet should yield all six readable formats because the direct Drive export probe succeeded on two run-owned Shared Drive fixtures and synthetic package routing passed. Existing items may differ, so export size or API permissions can still fail.",
+  "limits": "One Doc and one Sheet are only a bounded smoke test. No text or spreadsheet content, name, ID, token or raw provider response is published. This does not establish conversion fidelity or large-export support.",
+  "private_run_manifest": ".local-state/live-runs/google-native-format-mount-20260922/manifest.json",
+  "temporary_filesystem": "btrfs under /home; TMPDIR and SQLITE_TMPDIR were private and not tmpfs",
+  "installed_binary": "Developer install from source commit 29aec1b, whose tree matched merged main 1ce402e; installed cirroved SHA-256 matched the release binary. The daemon was active, and the three pre-existing mounts were ready with zero failed uploads and zero stuck changes before the probe.",
+  "result": {
+    "first_attempt": "Failed after 5.4 seconds at an assertion; the initial diagnostic emitted only the exception class, so the exact failed assertion cannot be reconstructed. No conclusion is drawn from this attempt.",
+    "correction": "The private probe was changed to report a bounded phase on failure without exposing names, IDs or content. No source or mounted data was changed.",
+    "retries": "Two immediate subsequent attempts passed, each finding the six expected format children and browser links. All six read twice with identical SHA-256 per attempt and valid PDF, OOXML or OpenDocument signatures.",
+    "document_bytes": {"docx": 16448, "pdf": 121536, "odt": 3116649},
+    "spreadsheet_bytes": {"xlsx": 77197, "pdf": 88692, "ods": 28253},
+    "interpretation": "The installed mount can present and read these six exports for the selected two existing items. The first-attempt failure remains unexplained; this record cannot establish reliable cold opening after an install or for other Google items."
+  },
+  "status": "passed_on_two_retries_with_unexplained_initial_failure"
+}
