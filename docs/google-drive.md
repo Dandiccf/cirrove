@@ -71,6 +71,11 @@ DOCX/XLSX packages. Its conflict check failed: a stale native Doc media upload
 returned HTTP 412, yet the rejected content appeared in later exports. That
 transport cannot safely implement native writeback. Native packages remain
 read-only while a revision-aware native path is investigated.
+An independent [GET-only export probe](benchmarks/google-native-extra-exports-live.json)
+also obtained valid PDF and OpenDocument exports from those two run-owned items
+without changing their versions. Cirrove does not yet present those additional
+formats in the mounted packages; their fidelity and large-export behavior remain
+untested.
 
 ## Write boundary found during the preview
 

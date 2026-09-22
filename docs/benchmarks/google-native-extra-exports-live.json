@@ -1,0 +1,27 @@
+{
+  "question": "Can the existing run-owned native Doc and Sheet in the owned Shared Drive export PDF and OpenDocument representations through the current Drive grant without enabling another API?",
+  "kind": "Pre-registered GET-only live protocol probe; no Cirrove package behavior changes in this measurement.",
+  "registered_at_utc": "2026-09-22T07:58:38Z",
+  "source_items": "The exact Doc and Sheet created in the dedicated Cirrove Validation folder for google-native-import-live.json; no other Workspace item is addressed.",
+  "official_contract": "Google lists PDF and OpenDocument exports for native Docs and Sheets at https://developers.google.com/workspace/drive/api/guides/ref-export-formats.",
+  "arms": [
+    "A: verify exact item ID, native MIME, parent, selected Shared Drive and current version before any export",
+    "B: request PDF and ODT from the Doc and PDF and ODS from the Sheet; require HTTP 200, bounded bytes, valid PDF or OpenDocument package and the known run marker in the representation",
+    "C: read the exact metadata again and require unchanged versions and scope, proving the probe was read-only"
+  ],
+  "endpoint": "Each of the four bounded exports must have a valid format signature and expected marker; exact source versions must remain unchanged. Any failure is recorded per format and cannot be used as an implementation claim.",
+  "prediction": "The tiny run-owned fixtures should export in all four Google-listed formats under the existing Drive API grant; PDF text extraction or ODF XML may reveal conversion limits even when the request succeeds.",
+  "limits": "Two tiny fixtures cannot establish formatting, formulas, charts, accessibility, multi-sheet fidelity or exports near Google's size cap.",
+  "private_run_manifest": ".local-state/live-runs/google-native-extra-exports-20260922/manifest.json",
+  "temporary_filesystem": "btrfs under /home; private TMPDIR and SQLITE_TMPDIR were not tmpfs",
+  "result": {
+    "scope": "Both exact IDs, run-owned names, native MIME types, parent folder, selected Shared Drive and current versions matched before and after all requests.",
+    "doc_pdf": "HTTP 200; 19,330 bytes; pdfinfo accepted the PDF, pdftotext found the exact run marker.",
+    "doc_odt": "HTTP 200; 3,108,613 bytes; the ZIP package had the OpenDocument text MIME and intact entries, and content.xml contained the marker.",
+    "sheet_pdf": "HTTP 200; 21,731 bytes; pdfinfo accepted the PDF, pdftotext found the exact run marker.",
+    "sheet_ods": "HTTP 200; 9,031 bytes; the ZIP package had the OpenDocument spreadsheet MIME and intact entries, and content.xml contained the marker.",
+    "versions": "The exact Doc and Sheet metadata versions were unchanged after the four GET-only exports.",
+    "interpretation": "These four formats work for the tiny run-owned fixtures through the existing Drive API grant. Cirrove currently exposes only DOCX/XLSX in its native read-only packages; this probe does not add PDF or OpenDocument files to the mount."
+  },
+  "status": "passed_bounded_get_only_exports"
+}
