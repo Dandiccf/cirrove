@@ -47,14 +47,17 @@ synthetic coverage and one bounded Workspace live run. The selected drive gets
 its own root, listing, change cursor, cache identity and mount. Root, folder,
 binary content, change-feed recovery, daemon restart and small native DOCX/XLSX
 exports passed in an isolated mount; see the [live record](benchmarks/google-shared-drive-live.json).
-Shared Drive writes are blocked until a bounded live write-and-recovery run passes.
+Shared Drive writes remain blocked in ordinary connections while the bounded
+validation and review of mounted mutations continues.
 An isolated [write probe](benchmarks/google-shared-drive-write-live.json) created
 and read back a test folder and files. It exposed a stale Google session receipt
 that kept a committed replacement at `VerifyRequired`. Exact-ID and digest
 reconciliation now handles an uncertain session inspection; a bounded live
 follow-up restored the fixture and passed replacement, rename and stale-conflict
-worker checks. Writable mounts remain disabled pending their own live recovery
-test.
+worker checks. An [isolated mount probe](benchmarks/google-shared-writable-mount-live.json)
+then passed run-owned file creation and an interrupted 16 MiB upload across a
+private daemon restart. Normal writable mounts remain disabled pending wider
+mutation and permission coverage.
 Native document imports, exports over 10 MiB, PDF and other export formats, push
 webhooks, resource-key transport and large-library/long-session acceptance are not
 claimed.
@@ -559,5 +562,9 @@ exact readback and direct v2 conditional operations in a new owned folder. A
 committed replacement initially failed to settle because its saved session
 reported a stale version. After the worker gained exact reconciliation for an
 uncertain inspection, a follow-up run restored the deterministic fixture and
-passed replacement, rename and stale-conflict checks. Mounted writes and crash
-replay remain untested, so writable Shared Drive mounts stay disabled.
+passed replacement, rename and stale-conflict checks. An isolated
+[mounted write probe](benchmarks/google-shared-writable-mount-live.json) then
+passed a small create and an interrupted 16 MiB upload, with exact cloud
+readback and no duplicate sibling after restart. This one bounded run leaves
+broader mutation and permission behavior untested; normal writable Shared Drive
+mounts stay disabled.
