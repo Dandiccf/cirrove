@@ -27,5 +27,15 @@
   },
   "retry_registered_at_utc": "2026-09-22T21:20:33Z",
   "private_run_manifest_retry": ".local-state/live-runs/google-shared-late-large-uncached-retry-20260922/manifest.json",
-  "retry_change": "Start the otherwise identical supervisor in its own process session, then require its manifest-recorded PID to remain alive after the launcher returns. The question, fixture, arms, endpoint and prediction are unchanged."
+  "retry_change": "Start the otherwise identical supervisor in its own process session, then require its manifest-recorded PID to remain alive after the launcher returns. The question, fixture, arms, endpoint and prediction are unchanged.",
+  "second_attempt": {
+    "run_manifest": ".local-state/live-runs/google-shared-late-large-uncached-retry-20260922/manifest.json",
+    "status": "failed_before_measurement",
+    "sample_count": 0,
+    "content_read": false,
+    "cause": "The detached supervisor survived correctly, but the harness assumed the run-owned fixture folder was a root child. The fresh normalized index showed the exact file and folder unchanged one level below the dedicated validation folder. Cleanup passed and the installed service remained unchanged."
+  },
+  "path_retry_registered_at_utc": "2026-09-22T21:28:11Z",
+  "private_run_manifest_path_retry": ".local-state/live-runs/google-shared-late-large-uncached-path-retry-20260922/manifest.json",
+  "path_retry_change": "Use the complete exact identity ancestry retained in private state to perform two targeted directory lookups before the timer. Require an empty content cache after that metadata-only preflight. The question, fixture, sampling arm and content endpoint are unchanged."
 }
