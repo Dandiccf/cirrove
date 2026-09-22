@@ -27,15 +27,15 @@ The bounded live record for these operations is
 - Shortcut targets in the same user collection. Shared-drive targets remain
   unsupported. A shortcut requiring a resource key becomes a browser link.
 - Native Google Docs and Sheets as read-only `.gdoc` and `.gsheet` package
-  folders. Opening one materializes `Document.docx`, `Document.pdf`, and
-  `Document.odt`, or `Spreadsheet.xlsx`, `Spreadsheet.pdf`, and
-  `Spreadsheet.ods`, alongside `Open in Google.url`. Cirrove compares the
+  folders. Opening one lists `DOCX`, `PDF`, and `ODT` or `XLSX`, `PDF`, and
+  `ODS` format folders, alongside `Open in Google.url`. Entering a format folder
+  materializes only its selected `Document.*` or `Spreadsheet.*` export. Cirrove compares the
   numeric source version before and after export, hashes the exact generated
   artifact, and stages it into the ordinary durable content cache before
   publishing its size. Package ancestry refuses rename, removal and edits that
   would otherwise imply unsupported native-document import. Google's
-  `files.export` endpoint limits this path to 10 MiB per artifact; larger
-  exports and native write-back remain open.
+  `files.download` long-running path is bounded to 64 MiB per artifact in this
+  preview. Native write-back remains open.
 - Provider listings give every pre-existing name its complete item ID before the extension:
   `report [item-id].txt`. This initial policy is deliberately stable across
   pagination, rename, restart and duplicate sibling names. `/`, NUL and `%` are
@@ -66,11 +66,13 @@ one new file was uploaded through the selected Shared Drive mount and verified
 by exact item, parent, collection and SHA-256 through an independent Drive read.
 An [isolated one-hour read session](benchmarks/google-shared-hour-session-live.json)
 then kept the selected drive ready with 61 matching reads and fresh change-feed
-success, and removed only its private mount. Restricted roles, late uncached
-reads and longer sessions remain open.
-Native document imports, exports over 10 MiB, further export formats, push
-webhooks, resource-key transport and large-library/long-session acceptance are not
-claimed.
+success, and removed only its private mount. A separate
+[late-uncached-read attempt](benchmarks/google-shared-late-uncached-live.json)
+ran for an hour but could not execute its final read: an accidental traversal
+had filled the private cache. Restricted roles, late uncached reads and longer
+sessions remain open.
+Native document writeback, broader export fidelity, push webhooks, resource-key
+transport and large-library/long-session acceptance are not claimed.
 There is no service-account or another client's credential import.
 
 The current Cirrove Google Cloud OAuth app is still limited to test users. A
@@ -114,17 +116,18 @@ DOCX and XLSX from the existing test items after sending OAuth authorization to
 the validated Google download origin. A separate
 [large direct probe](benchmarks/google-native-lro-large-live.json) returned a
 valid 22,344,729-byte XLSX from one run-owned Shared Drive Sheet; `files.export`
-rejected that same format and item with `exportSizeLimitExceeded`. This transport
-is not yet wired into Cirrove. A
+rejected that same format and item with `exportSizeLimitExceeded`. A
 [format matrix](benchmarks/google-native-large-format-matrix-live.json) found
 that the same large Sheet took about 163 seconds to export as a 38.8 MB PDF and
 29 seconds as a 22.0 MB ODS. Google also advanced the source version across that
 read-only run; later metadata checks were stable, but the earlier change remains
-unclassified. Cirrove currently prepares all three formats when opening a native
-package, under a 60-second directory deadline. Simply replacing `files.export`
-with the long-running path would therefore not make this large package usable.
-Per-format background materialization, bounded memory and version handling
-remain implementation gates for exports over 10 MiB.
+unclassified. Cirrove now lists formats without exporting them and gives only a
+selected format folder a longer deadline. One
+[isolated mounted probe](benchmarks/google-native-format-folder-control.json)
+listed the large package without filling its content cache, then read valid
+22.3 MB XLSX, 38.8 MB PDF and 22.0 MB ODS artifacts independently. That one
+settled Sheet does not establish general conversion fidelity, other-account
+behavior or long-term memory stability.
 
 ## Write boundary found during the preview
 

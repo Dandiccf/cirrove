@@ -1,0 +1,28 @@
+{
+  "question": "After a one-hour ready Shared Drive session with metadata/feed checks but no content reads, does the first uncached FUSE read of an existing run-owned binary file succeed with the registered exact SHA-256?",
+  "kind": "Pre-registered isolated one-arm live duration probe; not a population reliability or memory trend claim.",
+  "registered_at_utc": "2026-09-22T12:51:48.110635+00:00",
+  "scope": "One Workspace administrator, one owned Shared Drive, the same 85-byte run-owned file and digest as google-shared-hour-session-live.json. Fresh private state and cache, private daemon/mount, no cloud mutation. The installed daemon and its three mounts remain untouched.",
+  "arms": [
+    "A: start a fresh private Cirrove state with only the selected Shared Drive account; prove its cache has no content block and wait for ready/feed success",
+    "B: sample the private mount and feed once per minute for at least 60 minutes without reading file content; keep no-save-refusal/no-failed-upload/no-stuck-change gate",
+    "C: at or after 60 minutes, verify the exact file was not cached, read it once through the private FUSE mount and require the pre-registered size and SHA-256; record latency and fresh feed success",
+    "D: stop only the recorded private daemon PID, confirm its private mount disappeared, and check the original installed daemon/mounts stayed active"
+  ],
+  "endpoint": "Pass only if at least 61 status/feed samples span 3600 seconds, the first and only file-content read occurs at or after 3600 seconds from an empty private content cache, its 85 bytes match the registered SHA-256, no feed is older than five minutes, private cleanup succeeds and installed mounts remain unchanged. On failure record the first failing sample and retain private evidence.",
+  "prediction": "The live token broker and Shared Drive content path should still serve an uncached file after the long metadata-only session, but a late token renewal or lost collection scope could fail.",
+  "limits": "One tiny file, one account and one run. This does not prove large uncached downloads, restricted roles, 24-hour uptime or a memory trend.",
+  "correction_and_failure": "Around minute 27, an unrelated rg --files inventory inadvertently traversed the private FUSE mount and received permission denied while entering a native package. The initial assessment that it had not cached content was wrong: 26 private cache files totaling 15,706,420 bytes have modification times from 13:19:39 to 13:20:52 UTC, coincident with that traversal. The old eager native-package listing stages export bytes while enumerating. The daemon RSS also rose from about 42 MiB to 78 MiB. This run cannot support a first-uncached-read or memory-trend claim. The correction is retained with the failed result rather than restarting or reinterpreting this arm.",
+  "result": {
+    "samples": 61,
+    "duration_seconds": 3600.007,
+    "ready_and_fresh_feed_throughout": true,
+    "cache_files_before_late_read": 26,
+    "cache_bytes_before_late_read": 15706420,
+    "late_content_read_performed": false,
+    "private_mount_removed": true,
+    "installed_daemon_and_three_mounts_unchanged": true,
+    "first_failed_gate": "The private content cache was not empty before the registered late read. The supervisor correctly refused to read the file."
+  },
+  "status": "failed_contaminated_uncached_read_gate"
+}

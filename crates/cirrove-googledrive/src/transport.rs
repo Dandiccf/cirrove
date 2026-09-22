@@ -1,5 +1,5 @@
 use super::*;
-use reqwest::{Response, StatusCode};
+use reqwest::{Method, Response, StatusCode};
 use secrecy::ExposeSecret;
 use serde::de::DeserializeOwned;
 
@@ -9,19 +9,99 @@ impl GoogleDrive {
         url: Url,
         range: Option<(u64, u64)>,
     ) -> Result<Response, ProviderError> {
+        self.response_inner(url, Method::GET, range, &self.client, true, false)
+            .await
+    }
+
+    pub(super) async fn post(&self, url: Url) -> Result<Response, ProviderError> {
+        self.response_inner(url, Method::POST, None, &self.client, true, false)
+            .await
+    }
+
+    fn valid_download_origin(&self, url: &Url) -> bool {
+        if !url.username().is_empty() || url.password().is_some() || url.fragment().is_some() {
+            return false;
+        }
+        // A synthetic provider may download only from its own loopback origin.
+        if self.endpoint.scheme() == "http" {
+            return url.origin() == self.endpoint.origin();
+        }
+        let Some(host) = url.host_str() else {
+            return false;
+        };
+        url.scheme() == "https"
+            && url.port().is_none_or(|port| port == 443)
+            && ["google.com", "googleapis.com", "googleusercontent.com"]
+                .iter()
+                .any(|domain| host == *domain || host.ends_with(&format!(".{domain}")))
+    }
+
+    pub(super) async fn download_response(&self, mut url: Url) -> Result<Response, ProviderError> {
+        let mut send_auth = true;
+        for _ in 0..5 {
+            if !self.valid_download_origin(&url) {
+                return Err(ProviderError::Permission);
+            }
+            let response = self
+                .response_inner(
+                    url,
+                    Method::GET,
+                    None,
+                    &self.download_client,
+                    send_auth,
+                    true,
+                )
+                .await?;
+            if !response.status().is_redirection() {
+                return Ok(response);
+            }
+            let location = response
+                .headers()
+                .get(reqwest::header::LOCATION)
+                .and_then(|value| value.to_str().ok())
+                .ok_or(ProviderError::Protocol(
+                    "Google download redirect lacks location",
+                ))?;
+            url = Url::parse(location)
+                .map_err(|_| ProviderError::Protocol("invalid Google download redirect"))?;
+            // A redirect target may be a signed URL, never send the bearer on it.
+            send_auth = false;
+        }
+        Err(ProviderError::Protocol(
+            "too many Google download redirects",
+        ))
+    }
+
+    async fn response_inner(
+        &self,
+        url: Url,
+        method: Method,
+        range: Option<(u64, u64)>,
+        client: &Client,
+        send_auth: bool,
+        allow_redirect: bool,
+    ) -> Result<Response, ProviderError> {
         if let Some(until) = *self.cooldown.lock().await
             && until > Instant::now()
         {
             return Err(ProviderError::Throttled(until - Instant::now()));
         }
         let mut response = None;
-        for attempt in 0..2 {
-            let token = self.tokens.access_token().await?;
-            let mut request = self
-                .client
-                .get(url.clone())
-                .bearer_auth(token.expose_secret())
+        for attempt in 0..if send_auth { 2 } else { 1 } {
+            let token = if send_auth {
+                Some(self.tokens.access_token().await?)
+            } else {
+                None
+            };
+            let mut request = client
+                .request(method.clone(), url.clone())
                 .header("Accept-Encoding", "identity");
+            if method == Method::POST {
+                request = request.header("Content-Type", "application/json").body("");
+            }
+            if let Some(token) = &token {
+                request = request.bearer_auth(token.expose_secret());
+            }
             if let Some((start, end)) = range {
                 request = request.header("Range", format!("bytes={start}-{end}"));
             }
@@ -29,8 +109,11 @@ impl GoogleDrive {
                 .send()
                 .await
                 .map_err(|_| ProviderError::Unavailable)?;
-            if reply.status() == StatusCode::UNAUTHORIZED && attempt == 0 {
-                self.tokens.invalidate(&token).await;
+            if reply.status() == StatusCode::UNAUTHORIZED
+                && attempt == 0
+                && let Some(token) = &token
+            {
+                self.tokens.invalidate(token).await;
                 continue;
             }
             response = Some(reply);
@@ -39,6 +122,7 @@ impl GoogleDrive {
         let response = response.ok_or(ProviderError::Authentication)?;
         match response.status() {
             StatusCode::OK | StatusCode::PARTIAL_CONTENT => Ok(response),
+            status if allow_redirect && status.is_redirection() => Ok(response),
             StatusCode::UNAUTHORIZED => Err(ProviderError::Authentication),
             StatusCode::NOT_FOUND => Err(ProviderError::NotFound),
             StatusCode::GONE => Err(ProviderError::CursorExpired),

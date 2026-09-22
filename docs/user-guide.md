@@ -118,9 +118,10 @@ uploads it in the background; the application that saved it is done as soon
 as the local write is. `cirrove status` shows how many changes are still on
 their way. Turning the machine off before they are sent does not lose them:
 they are written durably and resume at the next start.
-Google Docs and Sheets appear as read-only export packages; editing those
-native documents through Cirrove is not supported yet, even on a writable
-Google Drive connection.
+Google Docs and Sheets appear as read-only `.gdoc` and `.gsheet` packages.
+Open one, then choose its DOCX/PDF/ODT or XLSX/PDF/ODS folder to download
+that format. Editing the native document through Cirrove is not supported yet,
+even on a writable Google Drive connection.
 
 **Names.** OneDrive refuses some names Linux allows -- the characters
 `" * : < > ? \ |`, a trailing space or period, Windows device names such as

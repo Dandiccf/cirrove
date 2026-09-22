@@ -1858,28 +1858,33 @@ impl Engine {
         let cancel = self.cancel.child_token();
         // Dropping a timeout or an abandoned caller also cancels blocking SQL.
         let _cancel_on_drop = cancel.clone().drop_guard();
-        let deadline = std::time::Instant::now() + Duration::from_secs(60);
+        let db = self.db.clone();
+        let parent_scope = scope.clone();
+        let parent_id = parent.to_owned();
+        let parent_node = tokio::time::timeout(Duration::from_secs(10), async {
+            self.tasks
+                .spawn_blocking(move || Store::open(db)?.node(&parent_scope, &parent_id))
+                .await
+        })
+        .await
+        .map_err(|_| ProviderError::Unavailable)?
+        .map_err(|_| ProviderError::Unavailable)?
+        .map_err(|_| ProviderError::Unavailable)?;
+        let deadline =
+            std::time::Instant::now() + self.provider.directory_fetch_timeout(parent_node.as_ref());
         tokio::select! {biased; _=cancel.cancelled()=>Err(ProviderError::Cancelled),
-            result=tokio::time::timeout_at(deadline.into(),self.fetch_directory_inner(scope,parent,cancel.clone(),deadline))=>result.map_err(|_|ProviderError::Unavailable)?,
+            result=tokio::time::timeout_at(deadline.into(),self.fetch_directory_inner(scope,parent,parent_node,cancel.clone(),deadline))=>result.map_err(|_|ProviderError::Unavailable)?,
         }
     }
     async fn fetch_directory_inner(
         self: &Arc<Self>,
         scope: &Scope,
         parent: &str,
+        parent_node: Option<Node>,
         cancel: CancellationToken,
         deadline: std::time::Instant,
     ) -> Result<(), ProviderError> {
         use cirrove_store::DirectoryPublicationResult;
-        let db = self.db.clone();
-        let parent_scope = scope.clone();
-        let parent_id = parent.to_owned();
-        let parent_node = self
-            .tasks
-            .spawn_blocking(move || Store::open(db)?.node(&parent_scope, &parent_id))
-            .await
-            .map_err(|_| ProviderError::Unavailable)?
-            .map_err(|_| ProviderError::Unavailable)?;
         for _ in 0..3 {
             let permit = tokio::select! {biased;
                 _=cancel.cancelled()=>return Err(ProviderError::Cancelled),

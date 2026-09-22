@@ -10,6 +10,7 @@ use tokio::{
     net::TcpListener,
 };
 
+#[derive(Clone)]
 struct Step {
     path: &'static str,
     query: Vec<(&'static str, &'static str)>,
@@ -25,6 +26,29 @@ fn json_step(path: &'static str, body: Value) -> Step {
         body: serde_json::to_vec(&body).unwrap(),
         headers: "",
     }
+}
+fn completed_download(mime: &'static str, body: &[u8]) -> Vec<Step> {
+    vec![
+        Step {
+            path: "/drive/v3/files/same-id/download",
+            query: vec![("mimeType", mime)],
+            status: 200,
+            body: serde_json::to_vec(&json!({
+                "name":"operations/synthetic",
+                "done":true,
+                "response":{"downloadUri":"__ENDPOINT__fixture-download"}
+            }))
+            .unwrap(),
+            headers: "",
+        },
+        Step {
+            path: "/drive/v3/fixture-download",
+            query: vec![],
+            status: 200,
+            body: body.to_vec(),
+            headers: "",
+        },
+    ]
 }
 fn file(version: &str) -> Value {
     json!({"id":"same-id","name":"report.txt","mimeType":"text/plain","parents":["root-id"],"size":"6","version":version,"headRevisionId":format!("revision-{version}"),"capabilities":{"canDownload":true}})
@@ -43,6 +67,7 @@ async fn server(steps: Vec<Step>) -> (GoogleDrive, tokio::task::JoinHandle<()>) 
         listener.local_addr().unwrap()
     ))
     .unwrap();
+    let fixture_endpoint = endpoint.to_string();
     let task = tokio::spawn(async move {
         for step in steps {
             let (mut socket, _) = tokio::time::timeout(Duration::from_secs(5), listener.accept())
@@ -61,18 +86,26 @@ async fn server(steps: Vec<Step>) -> (GoogleDrive, tokio::task::JoinHandle<()>) 
                 }
             }
             let request = String::from_utf8(request).unwrap();
-            assert!(request.starts_with("GET "));
-            assert!(
-                request
-                    .to_ascii_lowercase()
-                    .contains("authorization: bearer synthetic-token")
-            );
+            let expected_method = if step.path.ends_with("/download") {
+                "POST "
+            } else {
+                "GET "
+            };
+            assert!(request.starts_with(expected_method));
             let url = Url::parse(&format!(
                 "http://fixture{}",
                 request.split_ascii_whitespace().nth(1).unwrap()
             ))
             .unwrap();
             assert_eq!(url.path(), step.path);
+            let has_auth = request
+                .to_ascii_lowercase()
+                .contains("authorization: bearer synthetic-token");
+            if url.path() == "/drive/v3/redirect-target" {
+                assert!(!has_auth);
+            } else {
+                assert!(has_auth);
+            }
             let query: std::collections::HashMap<_, _> = url.query_pairs().collect();
             for (key, value) in step.query {
                 assert_eq!(query.get(key).map(|v| v.as_ref()), Some(value));
@@ -80,14 +113,26 @@ async fn server(steps: Vec<Step>) -> (GoogleDrive, tokio::task::JoinHandle<()>) 
             if step.status == 206 {
                 assert!(request.to_ascii_lowercase().contains("range: bytes=1-3"));
             }
+            let body = if step
+                .body
+                .windows(b"__ENDPOINT__".len())
+                .any(|window| window == b"__ENDPOINT__")
+            {
+                String::from_utf8(step.body)
+                    .unwrap()
+                    .replace("__ENDPOINT__", &fixture_endpoint)
+                    .into_bytes()
+            } else {
+                step.body
+            };
             let reply = format!(
                 "HTTP/1.1 {} Synthetic\r\nContent-Length: {}\r\nConnection: close\r\n{}\r\n",
                 step.status,
-                step.body.len(),
-                step.headers
+                body.len(),
+                step.headers.replace("__ENDPOINT__", &fixture_endpoint)
             );
             socket.write_all(reply.as_bytes()).await.unwrap();
-            socket.write_all(&step.body).await.unwrap();
+            socket.write_all(&body).await.unwrap();
         }
     });
     (
@@ -491,52 +536,42 @@ async fn native_documents_expand_to_exact_versioned_exports_and_a_browser_link()
     assert_eq!(node.size, 0);
 
     let exported = b"synthetic-docx-content".to_vec();
-    let (p, task) = server(vec![
-        json_step("/drive/v3/files/same-id", doc.clone()),
-        Step {
-            path: "/drive/v3/files/same-id/export",
-            query: vec![(
-                "mimeType",
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            )],
-            status: 200,
-            body: exported.clone(),
-            headers: "",
-        },
-        json_step("/drive/v3/files/same-id", doc.clone()),
-        json_step("/drive/v3/files/same-id", doc.clone()),
-        Step {
-            path: "/drive/v3/files/same-id/export",
-            query: vec![("mimeType", "application/pdf")],
-            status: 200,
-            body: b"synthetic-pdf-content".to_vec(),
-            headers: "",
-        },
-        json_step("/drive/v3/files/same-id", doc.clone()),
-        json_step("/drive/v3/files/same-id", doc.clone()),
-        Step {
-            path: "/drive/v3/files/same-id/export",
-            query: vec![("mimeType", "application/vnd.oasis.opendocument.text")],
-            status: 200,
-            body: b"synthetic-odt-content".to_vec(),
-            headers: "",
-        },
-        json_step("/drive/v3/files/same-id", doc),
-    ])
-    .await;
+    let mut steps = Vec::new();
+    for (mime, bytes) in [
+        (
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            exported.as_slice(),
+        ),
+        ("application/pdf", b"synthetic-pdf-content".as_slice()),
+        (
+            "application/vnd.oasis.opendocument.text",
+            b"synthetic-odt-content".as_slice(),
+        ),
+    ] {
+        steps.push(json_step("/drive/v3/files/same-id", doc.clone()));
+        steps.extend(completed_download(mime, bytes));
+        steps.push(json_step("/drive/v3/files/same-id", doc.clone()));
+    }
+    let (p, task) = server(steps).await;
     let page = p
         .children_for_node(&scope(), &node, None, &CancellationToken::new())
         .await
         .unwrap();
     assert!(page.next.is_none());
     assert_eq!(page.nodes.len(), 4);
-    let export = page
+    let folder = page
         .nodes
         .iter()
-        .find(|child| child.name == "Document.docx")
+        .find(|child| child.name == "DOCX")
         .unwrap();
+    let export_page = p
+        .children_for_node(&scope(), folder, None, &CancellationToken::new())
+        .await
+        .unwrap();
+    let export = &export_page.nodes[0];
+    assert_eq!(export.name, "Document.docx");
     assert_eq!(export.size, exported.len() as u64);
-    assert_eq!(export.parent_id.as_deref(), Some("same-id"));
+    assert_eq!(export.parent_id.as_deref(), Some(folder.id.as_str()));
     assert!(
         export
             .content_version
@@ -556,12 +591,17 @@ async fn native_documents_expand_to_exact_versioned_exports_and_a_browser_link()
         .unwrap();
     assert_eq!(content, exported[1..]);
     for (name, expected) in [
-        ("Document.pdf", b"synthetic-pdf-content".as_slice()),
-        ("Document.odt", b"synthetic-odt-content".as_slice()),
+        ("PDF", b"synthetic-pdf-content".as_slice()),
+        ("ODT", b"synthetic-odt-content".as_slice()),
     ] {
-        let child = page.nodes.iter().find(|child| child.name == name).unwrap();
+        let folder = page.nodes.iter().find(|child| child.name == name).unwrap();
+        let selected = p
+            .children_for_node(&scope(), folder, None, &CancellationToken::new())
+            .await
+            .unwrap();
+        let child = &selected.nodes[0];
         assert_ne!(child.id, export.id);
-        assert_eq!(child.parent_id, export.parent_id);
+        assert_eq!(child.parent_id.as_deref(), Some(folder.id.as_str()));
         let staged = p
             .staged_content(&scope(), child, &CancellationToken::new())
             .await
@@ -599,6 +639,179 @@ async fn native_documents_expand_to_exact_versioned_exports_and_a_browser_link()
 }
 
 #[tokio::test]
+async fn native_package_listing_defers_exports_until_one_format_is_opened() {
+    let mut doc = file("1");
+    doc["mimeType"] = "application/vnd.google-apps.document".into();
+    doc.as_object_mut().unwrap().remove("headRevisionId");
+    let parent = serde_json::from_value::<files::File>(doc.clone())
+        .unwrap()
+        .node("root-id")
+        .unwrap();
+    let bytes = b"selected-docx-only".to_vec();
+    // Exactly one format is requested. A slow or oversized PDF must not hold
+    // the source package's directory listing or the selected DOCX open.
+    let (provider, task) = server(
+        [
+            vec![json_step("/drive/v3/files/same-id", doc.clone())],
+            completed_download(
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                &bytes,
+            ),
+            vec![json_step("/drive/v3/files/same-id", doc)],
+        ]
+        .concat(),
+    )
+    .await;
+    let top = provider
+        .children_for_node(&scope(), &parent, None, &CancellationToken::new())
+        .await
+        .unwrap();
+    assert_eq!(top.nodes.len(), 4);
+    let names: Vec<_> = top.nodes.iter().map(|child| child.name.as_str()).collect();
+    assert_eq!(names, ["DOCX", "PDF", "ODT", "Open in Google.url"]);
+    let selected = &top.nodes[0];
+    assert_eq!(selected.kind, cirrove_core::NodeKind::Folder);
+    assert!(selected.package);
+    assert_eq!(selected.parent_id.as_deref(), Some("same-id"));
+    assert_eq!(
+        provider.directory_fetch_timeout(Some(&parent)),
+        Duration::from_secs(60)
+    );
+    assert_eq!(
+        provider.directory_fetch_timeout(Some(selected)),
+        Duration::from_secs(360)
+    );
+    let page = provider
+        .children_for_node(&scope(), selected, None, &CancellationToken::new())
+        .await
+        .unwrap();
+    assert_eq!(page.nodes.len(), 1);
+    let export = &page.nodes[0];
+    assert_eq!(export.name, "Document.docx");
+    assert_eq!(export.parent_id.as_deref(), Some(selected.id.as_str()));
+    assert_eq!(export.size, bytes.len() as u64);
+    assert_eq!(
+        provider
+            .staged_content(&scope(), export, &CancellationToken::new())
+            .await
+            .unwrap()
+            .unwrap()
+            .as_ref(),
+        bytes.as_slice()
+    );
+    task.await.unwrap();
+}
+
+#[tokio::test]
+async fn native_download_strips_bearer_on_redirect() {
+    let mut doc = file("1");
+    doc["mimeType"] = "application/vnd.google-apps.document".into();
+    doc.as_object_mut().unwrap().remove("headRevisionId");
+    let parent = serde_json::from_value::<files::File>(doc.clone())
+        .unwrap()
+        .node("root-id")
+        .unwrap();
+    let mut steps = vec![json_step("/drive/v3/files/same-id", doc.clone())];
+    steps.extend(completed_download(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        b"ignored",
+    ));
+    steps[2].status = 302;
+    steps[2].body.clear();
+    steps[2].headers = "Location: __ENDPOINT__redirect-target\r\n";
+    steps.push(Step {
+        path: "/drive/v3/redirect-target",
+        query: vec![],
+        status: 200,
+        body: b"redirected-docx".to_vec(),
+        headers: "",
+    });
+    steps.push(json_step("/drive/v3/files/same-id", doc));
+    let (provider, task) = server(steps).await;
+    let top = provider
+        .children_for_node(&scope(), &parent, None, &CancellationToken::new())
+        .await
+        .unwrap();
+    let page = provider
+        .children_for_node(&scope(), &top.nodes[0], None, &CancellationToken::new())
+        .await
+        .unwrap();
+    assert_eq!(page.nodes[0].size, b"redirected-docx".len() as u64);
+    task.await.unwrap();
+}
+
+#[tokio::test]
+async fn native_download_refuses_a_non_google_uri() {
+    let mut doc = file("1");
+    doc["mimeType"] = "application/vnd.google-apps.document".into();
+    doc.as_object_mut().unwrap().remove("headRevisionId");
+    let parent = serde_json::from_value::<files::File>(doc.clone())
+        .unwrap()
+        .node("root-id")
+        .unwrap();
+    let (provider, task) = server(vec![
+        json_step("/drive/v3/files/same-id", doc),
+        json_step(
+            "/drive/v3/files/same-id/download",
+            json!({"name":"operations/synthetic","done":true,"response":{"downloadUri":"https://example.invalid/download"}}),
+        ),
+    ])
+    .await;
+    let top = provider
+        .children_for_node(&scope(), &parent, None, &CancellationToken::new())
+        .await
+        .unwrap();
+    assert!(matches!(
+        provider
+            .children_for_node(&scope(), &top.nodes[0], None, &CancellationToken::new())
+            .await,
+        Err(ProviderError::Permission)
+    ));
+    task.await.unwrap();
+}
+
+#[tokio::test]
+async fn native_download_polls_bounded_operation_before_publication() {
+    let mut sheet = file("3");
+    sheet["mimeType"] = "application/vnd.google-apps.spreadsheet".into();
+    sheet.as_object_mut().unwrap().remove("headRevisionId");
+    let parent = serde_json::from_value::<files::File>(sheet.clone())
+        .unwrap()
+        .node("root-id")
+        .unwrap();
+    let (provider, task) = server(vec![
+        json_step("/drive/v3/files/same-id", sheet.clone()),
+        json_step(
+            "/drive/v3/files/same-id/download",
+            json!({"name":"operations/synthetic","done":false}),
+        ),
+        json_step(
+            "/drive/v3/operations/synthetic",
+            json!({"name":"operations/synthetic","done":true,"response":{"downloadUri":"__ENDPOINT__fixture-download"}}),
+        ),
+        Step {
+            path: "/drive/v3/fixture-download",
+            query: vec![],
+            status: 200,
+            body: b"polled-xlsx".to_vec(),
+            headers: "",
+        },
+        json_step("/drive/v3/files/same-id", sheet),
+    ])
+    .await;
+    let top = provider
+        .children_for_node(&scope(), &parent, None, &CancellationToken::new())
+        .await
+        .unwrap();
+    let page = provider
+        .children_for_node(&scope(), &top.nodes[0], None, &CancellationToken::new())
+        .await
+        .unwrap();
+    assert_eq!(page.nodes[0].size, b"polled-xlsx".len() as u64);
+    task.await.unwrap();
+}
+
+#[tokio::test]
 async fn native_spreadsheets_expose_distinct_pdf_and_ods_bytes() {
     let mut sheet = file("1");
     sheet["mimeType"] = "application/vnd.google-apps.spreadsheet".into();
@@ -620,13 +833,7 @@ async fn native_spreadsheets_expose_distinct_pdf_and_ods_bytes() {
         ),
     ] {
         steps.push(json_step("/drive/v3/files/same-id", sheet.clone()));
-        steps.push(Step {
-            path: "/drive/v3/files/same-id/export",
-            query: vec![("mimeType", mime)],
-            status: 200,
-            body: content.to_vec(),
-            headers: "",
-        });
+        steps.extend(completed_download(mime, content));
         steps.push(json_step("/drive/v3/files/same-id", sheet.clone()));
     }
     let (provider, task) = server(steps).await;
@@ -635,12 +842,18 @@ async fn native_spreadsheets_expose_distinct_pdf_and_ods_bytes() {
         .await
         .unwrap();
     assert_eq!(page.nodes.len(), 4);
-    for (name, expected) in [
-        ("Spreadsheet.xlsx", b"synthetic-xlsx".as_slice()),
-        ("Spreadsheet.pdf", b"synthetic-sheet-pdf".as_slice()),
-        ("Spreadsheet.ods", b"synthetic-ods".as_slice()),
+    for (name, expected, output_name) in [
+        ("XLSX", b"synthetic-xlsx".as_slice(), "Spreadsheet.xlsx"),
+        ("PDF", b"synthetic-sheet-pdf".as_slice(), "Spreadsheet.pdf"),
+        ("ODS", b"synthetic-ods".as_slice(), "Spreadsheet.ods"),
     ] {
-        let child = page.nodes.iter().find(|child| child.name == name).unwrap();
+        let folder = page.nodes.iter().find(|child| child.name == name).unwrap();
+        let selected = provider
+            .children_for_node(&scope(), folder, None, &CancellationToken::new())
+            .await
+            .unwrap();
+        let child = &selected.nodes[0];
+        assert_eq!(child.name, output_name);
         assert_eq!(child.size, expected.len() as u64);
         let staged = provider
             .staged_content(&scope(), child, &CancellationToken::new())
@@ -656,9 +869,9 @@ async fn native_spreadsheets_expose_distinct_pdf_and_ods_bytes() {
             expected
         );
     }
-    assert_eq!(page.nodes[0].name, "Spreadsheet.xlsx");
-    assert_eq!(page.nodes[1].name, "Spreadsheet.pdf");
-    assert_eq!(page.nodes[2].name, "Spreadsheet.ods");
+    assert_eq!(page.nodes[0].name, "XLSX");
+    assert_eq!(page.nodes[1].name, "PDF");
+    assert_eq!(page.nodes[2].name, "ODS");
     assert_ne!(page.nodes[0].id, page.nodes[1].id);
     assert_ne!(page.nodes[1].id, page.nodes[2].id);
     task.await.unwrap();
@@ -675,24 +888,25 @@ async fn native_export_is_discarded_when_the_source_changes_during_materializati
         .unwrap()
         .node("root-id")
         .unwrap();
-    let (provider, task) = server(vec![
-        json_step("/drive/v3/files/same-id", before),
-        Step {
-            path: "/drive/v3/files/same-id/export",
-            query: vec![(
-                "mimeType",
+    let (provider, task) = server(
+        [
+            vec![json_step("/drive/v3/files/same-id", before)],
+            completed_download(
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            )],
-            status: 200,
-            body: b"stale-xlsx".to_vec(),
-            headers: "",
-        },
-        json_step("/drive/v3/files/same-id", after),
-    ])
+                b"stale-xlsx",
+            ),
+            vec![json_step("/drive/v3/files/same-id", after)],
+        ]
+        .concat(),
+    )
     .await;
+    let page = provider
+        .children_for_node(&scope(), &parent, None, &CancellationToken::new())
+        .await
+        .unwrap();
     assert!(matches!(
         provider
-            .children_for_node(&scope(), &parent, None, &CancellationToken::new())
+            .children_for_node(&scope(), &page.nodes[0], None, &CancellationToken::new())
             .await,
         Err(ProviderError::VersionChanged)
     ));
@@ -706,28 +920,25 @@ async fn native_export_preflight_compares_selected_bytes_without_exposing_identi
     doc["size"] = "777".into();
     doc.as_object_mut().unwrap().remove("headRevisionId");
     let exported = b"synthetic-docx".to_vec();
-    let steps = vec![
-        json_step(
-            "/drive/v3/files",
-            json!({"files":[doc.clone()],"incompleteSearch":false}),
+    let steps = [
+        vec![
+            json_step(
+                "/drive/v3/files",
+                json!({"files":[doc.clone()],"incompleteSearch":false}),
+            ),
+            json_step(
+                "/drive/v3/files/same-id/revisions",
+                json!({"revisions":[{"id":"revision-private"}]}),
+            ),
+            json_step("/drive/v3/files/same-id", doc.clone()),
+        ],
+        completed_download(
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            &exported,
         ),
-        json_step(
-            "/drive/v3/files/same-id/revisions",
-            json!({"revisions":[{"id":"revision-private"}]}),
-        ),
-        json_step("/drive/v3/files/same-id", doc.clone()),
-        Step {
-            path: "/drive/v3/files/same-id/export",
-            query: vec![(
-                "mimeType",
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            )],
-            status: 200,
-            body: exported.clone(),
-            headers: "",
-        },
-        json_step("/drive/v3/files/same-id", doc),
-    ];
+        vec![json_step("/drive/v3/files/same-id", doc)],
+    ]
+    .concat();
     let (provider, task) = server(steps).await;
     let report = provider
         .native_export_preflight(&CancellationToken::new())
