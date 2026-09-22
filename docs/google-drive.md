@@ -183,10 +183,22 @@ ETag or raw provider body is written to logs or benchmark artifacts.
 
 ## Google sign-in and optional custom app
 
-Cirrove includes its public Google Desktop OAuth client ID. A new connection
-starts the browser sign-in without a JSON file; each Google account still grants
-access individually. The Cirrove Cloud app is currently in **Testing**, so only
-its approved test users can finish sign-in. A public release still needs the
+Cirrove's official builds include the Google Desktop OAuth client registration.
+A new connection starts browser sign-in without a JSON file; each Google account
+still grants access individually. The build receives the Desktop client's
+`client_secret` through `CIRROVE_GOOGLE_DESKTOP_CLIENT_SECRET`. Google's token
+endpoint rejected an isolated sign-in without it; a refresh of one test grant
+returned HTTP 400 without it and HTTP 200 with it. This value is not a per-user
+key. Builds
+without it refuse the built-in Google sign-in before opening a browser, while
+the optional custom-client JSON route remains available. The Cirrove Cloud app
+is currently in **Testing**, so only its approved test users can finish sign-in.
+The build input keeps the app value out of the source tree; as with any installed
+Desktop OAuth client, it can be extracted from a distributed binary and must not
+be treated as a confidential user credential.
+The isolated control and its limits are recorded in the
+[public-client OAuth test](benchmarks/google-oauth-public-client-control.json).
+A public release still needs the
 app's published branding and Google's review for the Drive scopes it requests.
 If Google shows `403 access_denied` and says Cirrove is still being tested,
 the Google account has not been admitted to this Cloud app's tester list. The
