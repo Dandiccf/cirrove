@@ -16,5 +16,16 @@
   "endpoint": "Pass only if the fresh Shared Drive mount becomes ready, both exact packages expose all expected children, every format reads twice with the same hash and valid signature, every exported representation contains the registered marker, private cleanup succeeds, and the installed service remains healthy. A first-attempt failure remains recorded even if a later diagnostic succeeds.",
   "prediction": "The selected Shared Drive should index the retained fixtures and all six conversions should preserve the short marker. This run may instead expose conversion-specific loss, an export timeout or another cold-package regression.",
   "limits": "Two small fixtures on one Workspace administrator account cannot establish general formatting, formulas, charts, comments, suggestions, restricted roles, large-export behavior, collaborative write safety or public OAuth readiness.",
-  "status": "registered"
+  "status": "registered",
+  "first_attempt": {
+    "run_manifest": ".local-state/live-runs/google-native-additional-private-mount-fidelity-20260922/manifest.json",
+    "status": "failed_before_provider_access",
+    "duration_seconds": 180.323,
+    "failure_phase": "daemon-start",
+    "failure_class": "RuntimeError",
+    "cause": "The private test label contained spaces, which the account schema rejects. No listing, export or Google mutation occurred; private cleanup passed and the installed service remained unchanged."
+  },
+  "retry_registered_at_utc": "2026-09-22T20:10:00Z",
+  "private_run_manifest_retry": ".local-state/live-runs/google-native-additional-private-mount-fidelity-retry-20260922/manifest.json",
+  "retry_change": "Use an otherwise identical fresh private state with the schema-valid label Cirrove-native-fidelity-private. The question, source items, arms, endpoint and prediction are unchanged."
 }
