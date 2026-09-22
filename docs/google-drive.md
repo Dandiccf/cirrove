@@ -93,8 +93,13 @@ read-only while a revision-aware native path is investigated.
 An independent [GET-only export probe](benchmarks/google-native-extra-exports-live.json)
 also obtained valid PDF and OpenDocument exports from those two run-owned items
 without changing their versions. Cirrove now presents those formats in read-only
-packages; the direct live probe precedes this UI change, so mounted behavior,
-broader fidelity and large-export behavior remain untested.
+packages; the direct live probe preceded this UI change and did not test the mount.
+A subsequent [installed-mount read probe](benchmarks/google-native-format-mount-live.json)
+listed and read all six DOCX/XLSX, PDF and OpenDocument children for one
+existing Doc and one Sheet, with valid format signatures and matching repeat
+hashes. Its first attempt failed at an unclassified local assertion before two
+passes, so reliable cold opening after installation remains unproven.
+Broader fidelity and large-export behavior remain untested.
 
 ## Write boundary found during the preview
 

@@ -85,7 +85,8 @@ currently bundled; another project's client ID is never substituted.
       mounted and written through the reviewed branch without the earlier test
       override. Native Docs/Sheets remain read-only packages with DOCX/XLSX,
       PDF and OpenDocument exports. Direct GET-only PDF/OpenDocument exports
-      passed on two test items; mounted behavior still needs a live check.
+      passed on two test items; one installed-mount read probe passed twice
+      after an unexplained first-attempt assertion.
       Native writeback failed a stale-update integrity
       probe and remains disabled. One isolated Shared Drive hour completed 61
       matching reads with a fresh feed; restricted roles, late uncached reads,
