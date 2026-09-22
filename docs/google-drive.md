@@ -100,6 +100,11 @@ existing Doc and one Sheet, with valid format signatures and matching repeat
 hashes. Its first attempt failed at an unclassified local assertion before two
 passes, so reliable cold opening after installation remains unproven.
 Broader fidelity and large-export behavior remain untested.
+A [persisted-cache regression](benchmarks/google-package-cache-upgrade-control.json)
+then reproduced one concrete route to stale package children across a service
+restart and corrected the first-open recheck. The original live assertion did
+not identify its phase, so that synthetic control cannot retroactively assign
+it a cause; a fresh installed-mount cold-open check remains necessary.
 
 ## Write boundary found during the preview
 

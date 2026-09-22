@@ -237,6 +237,7 @@ pub struct Engine {
     feeds: RwLock<HashMap<String, Feed>>,
     health: RwLock<HashMap<String, FeedHealth>>,
     directories: StdMutex<HashMap<String, Weak<Mutex<()>>>>,
+    package_rechecks: StdMutex<HashSet<String>>,
     tasks: TaskTracker,
     directory_publications: Arc<tokio::sync::Semaphore>,
     discovery: Notify,
@@ -319,6 +320,7 @@ impl Engine {
             feeds: RwLock::new(HashMap::new()),
             health: RwLock::new(HashMap::new()),
             directories: StdMutex::new(HashMap::new()),
+            package_rechecks: StdMutex::new(HashSet::new()),
             tasks: TaskTracker::new(),
             directory_publications: Arc::new(tokio::sync::Semaphore::new(2)),
             discovery: Notify::new(),
@@ -1667,8 +1669,27 @@ impl Engine {
             .map_err(|_| ProviderError::Unavailable)?
             .map_err(|_| ProviderError::Unavailable)?;
         if let Some(node) = cached {
-            self.activity.touch(scope, parent);
-            return node.ok_or(ProviderError::NotFound);
+            if node.is_some() || !self.provider.refresh_cached_packages_on_first_open() {
+                self.activity.touch(scope, parent);
+                return node.ok_or(ProviderError::NotFound);
+            }
+            if !self.recheck_cached_package(scope, parent).await? {
+                self.activity.touch(scope, parent);
+                return Err(ProviderError::NotFound);
+            }
+            // A newly added package child may be absent from an older snapshot.
+            let db = self.db.clone();
+            let s = scope.clone();
+            let p = parent.to_owned();
+            let n = name.to_owned();
+            let updated = tokio::task::spawn_blocking(move || Store::open(db)?.child(&s, &p, &n))
+                .await
+                .map_err(|_| ProviderError::Unavailable)?
+                .map_err(|_| ProviderError::Unavailable)?;
+            if let Some(node) = updated {
+                self.activity.touch(scope, parent);
+                return node.ok_or(ProviderError::NotFound);
+            }
         }
         let name = name.to_owned();
         self.with_children(scope, parent, move |nodes| {
@@ -1709,6 +1730,7 @@ impl Engine {
         if scope.account != self.account.id || scope.provider != self.provider.provider_id() {
             return Err(ProviderError::Protocol("provider/account mismatch"));
         }
+        self.recheck_cached_package(scope, parent).await?;
         let (cached, consume) = self.consume_cached(scope, parent, consume).await?;
         if let Some(value) = cached {
             self.activity.touch(scope, parent);
@@ -1735,6 +1757,72 @@ impl Engine {
         result?;
         let (cached, _) = self.consume_cached(scope, parent, consume).await?;
         cached.ok_or(ProviderError::VersionChanged)
+    }
+    /// Refresh a generated package once per process before handing its cached
+    /// entries to a caller. A provider timeout leaves the old snapshot visible.
+    async fn recheck_cached_package(
+        self: &Arc<Self>,
+        scope: &Scope,
+        parent: &str,
+    ) -> Result<bool, ProviderError> {
+        if !self.provider.refresh_cached_packages_on_first_open() {
+            return Ok(false);
+        }
+        let db = self.db.clone();
+        let s = scope.clone();
+        let p = parent.to_owned();
+        let package =
+            tokio::task::spawn_blocking(move || Store::open(db)?.known_package_directory(&s, &p))
+                .await
+                .map_err(|_| ProviderError::Unavailable)?
+                .map_err(|_| ProviderError::Unavailable)?;
+        if !package {
+            return Ok(false);
+        }
+        let key =
+            serde_json::to_string(&(scope, parent)).map_err(|_| ProviderError::Unavailable)?;
+        let gate = self.directory_gate(&key)?;
+        let _guard = tokio::select! {biased;_=self.cancel.cancelled()=>return Err(ProviderError::Cancelled),g=gate.lock()=>g};
+        let first_open = {
+            let mut seen = self
+                .package_rechecks
+                .lock()
+                .map_err(|_| ProviderError::Unavailable)?;
+            if seen.contains(&key) {
+                false
+            } else {
+                if seen.len() >= 256 {
+                    seen.clear();
+                }
+                seen.insert(key.clone());
+                true
+            }
+        };
+        if first_open {
+            let result =
+                tokio::time::timeout(Duration::from_secs(10), self.fetch_directory(scope, parent))
+                    .await
+                    .unwrap_or(Err(ProviderError::Unavailable));
+            self.activity.touch(scope, parent);
+            self.activity.observed(
+                &crate::activity::DirectoryJob {
+                    scope: scope.clone(),
+                    parent: parent.into(),
+                },
+                &result,
+            );
+            match result {
+                Ok(()) | Err(ProviderError::Unavailable | ProviderError::Throttled(_)) => {}
+                Err(error) => {
+                    self.package_rechecks
+                        .lock()
+                        .map_err(|_| ProviderError::Unavailable)?
+                        .remove(&key);
+                    return Err(error);
+                }
+            }
+        }
+        Ok(true)
     }
     async fn consume_cached<T, F>(
         &self,

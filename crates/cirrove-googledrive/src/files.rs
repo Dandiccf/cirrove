@@ -988,6 +988,10 @@ impl ReadSession for GoogleReadSession {
 
 #[async_trait]
 impl ReadProvider for GoogleDrive {
+    fn refresh_cached_packages_on_first_open(&self) -> bool {
+        true
+    }
+
     async fn open_read_session(
         &self,
         scope: &Scope,

@@ -72,6 +72,11 @@ source were not byte-stable, the child revision includes the artifact SHA-256.
 The adapter hands those exact bytes to the service before directory publication;
 the normal verified block cache then owns later reads. No network await occurs in
 the SQLite publication transaction.
+The Google adapter rechecks a cached package once on its first open after each
+service start, since a Cirrove update can add export formats without a remote
+item change. The foreground recheck has a 10-second cap; a transient unavailable
+or throttled response leaves the previous cached children readable. Other
+provider packages keep their existing policy.
 
 Discovery follows indexed ancestry and starts one delta worker per linked drive.
 Reachable roots are persisted; obsolete subscriptions are removed only when the
