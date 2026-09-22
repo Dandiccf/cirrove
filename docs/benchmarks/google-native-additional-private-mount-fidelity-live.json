@@ -49,5 +49,14 @@
   "cached_restart_diagnostic": "A short PID-recorded restart of that private failed state exposed exactly ODS, PDF and XLSX as directories plus Open in Google.url as a regular file, then unmounted cleanly. This is debugging evidence, not a fresh-state measurement.",
   "first_open_capture_registered_at_utc": "2026-09-22T20:42:00Z",
   "private_run_manifest_first_open_capture": ".local-state/live-runs/google-native-additional-private-mount-fidelity-capture-20260922/manifest.json",
-  "first_open_capture_change": "Repeat the same fresh-state endpoint and persist the first visible package-child names and kinds before comparing them. No retry is added and the export assertions remain unchanged."
+  "first_open_capture_change": "Repeat the same fresh-state endpoint and persist the first visible package-child names and kinds before comparing them. No retry is added and the export assertions remain unchanged.",
+  "fourth_attempt": {
+    "run_manifest": ".local-state/live-runs/google-native-additional-private-mount-fidelity-capture-20260922/manifest.json",
+    "status": "failed_by_harness_assertion",
+    "duration_seconds": 14.974,
+    "observed": "Both first-open child sets were exact: DOCX/ODT/PDF/browser link and XLSX/ODS/PDF/browser link. The failure came from a harness assertion that required the entire cache to remain empty after the Doc exports had intentionally populated it. No Cirrove package or provider defect was observed."
+  },
+  "final_registered_at_utc": "2026-09-22T20:54:00Z",
+  "private_run_manifest_final": ".local-state/live-runs/google-native-additional-private-mount-fidelity-final-20260922/manifest.json",
+  "final_change": "For each package listing, snapshot the private cache-file set immediately before listing and require the same set immediately afterwards. The initial cache must still be empty; all format, marker, repeat-hash, cleanup and installed-service assertions remain unchanged."
 }
