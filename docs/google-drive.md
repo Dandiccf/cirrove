@@ -27,14 +27,15 @@ The bounded live record for these operations is
 - Shortcut targets in the same user collection. Shared-drive targets remain
   unsupported. A shortcut requiring a resource key becomes a browser link.
 - Native Google Docs and Sheets as read-only `.gdoc` and `.gsheet` package
-  folders. Opening one materializes the current document as `Document.docx` or
-  `Spreadsheet.xlsx`, alongside `Open in Google.url`. Cirrove compares the
+  folders. Opening one materializes `Document.docx`, `Document.pdf`, and
+  `Document.odt`, or `Spreadsheet.xlsx`, `Spreadsheet.pdf`, and
+  `Spreadsheet.ods`, alongside `Open in Google.url`. Cirrove compares the
   numeric source version before and after export, hashes the exact generated
   artifact, and stages it into the ordinary durable content cache before
   publishing its size. Package ancestry refuses rename, removal and edits that
   would otherwise imply unsupported native-document import. Google's
-  `files.export` endpoint limits this path to 10 MiB; PDF and other formats,
-  larger exports, and native write-back remain open.
+  `files.export` endpoint limits this path to 10 MiB per artifact; larger
+  exports and native write-back remain open.
 - Provider listings give every pre-existing name its complete item ID before the extension:
   `report [item-id].txt`. This initial policy is deliberately stable across
   pagination, rename, restart and duplicate sibling names. `/`, NUL and `%` are
@@ -67,7 +68,7 @@ An [isolated one-hour read session](benchmarks/google-shared-hour-session-live.j
 then kept the selected drive ready with 61 matching reads and fresh change-feed
 success, and removed only its private mount. Restricted roles, late uncached
 reads and longer sessions remain open.
-Native document imports, exports over 10 MiB, PDF and other export formats, push
+Native document imports, exports over 10 MiB, further export formats, push
 webhooks, resource-key transport and large-library/long-session acceptance are not
 claimed.
 There is no service-account or another client's credential import.
@@ -91,9 +92,9 @@ transport cannot safely implement native writeback. Native packages remain
 read-only while a revision-aware native path is investigated.
 An independent [GET-only export probe](benchmarks/google-native-extra-exports-live.json)
 also obtained valid PDF and OpenDocument exports from those two run-owned items
-without changing their versions. Cirrove does not yet present those additional
-formats in the mounted packages; their fidelity and large-export behavior remain
-untested.
+without changing their versions. Cirrove now presents those formats in read-only
+packages; the direct live probe precedes this UI change, so mounted behavior,
+broader fidelity and large-export behavior remain untested.
 
 ## Write boundary found during the preview
 
