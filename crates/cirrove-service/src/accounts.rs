@@ -120,8 +120,12 @@ impl Settings {
                         account.drive.drive_type.as_str(),
                         "my_drive" | "shared_drive"
                     )
+                    // A disabled account may hold the granted scope for an
+                    // isolated developer validator, but cannot become a
+                    // writable mount while the live recovery gate is open.
                     || (account.drive.drive_type == "shared_drive"
-                        && account.access == AccessMode::ReadWrite)
+                        && account.access == AccessMode::ReadWrite
+                        && account.enabled)
                     || account.identity.subject.is_empty()
                     || !account.identity.tenant_id.is_empty())
             {
@@ -1795,6 +1799,31 @@ mod tests {
         settings
             .validate()
             .expect("an enabled Google My Drive write connection is valid");
+    }
+
+    #[test]
+    fn a_shared_drive_write_grant_is_only_valid_for_disabled_validation_accounts() {
+        let mut account = fixture_account(AccessMode::ReadWrite);
+        account.registration = AppRegistration::Google {
+            client_id: "123-fixture.apps.googleusercontent.com".into(),
+        };
+        account.identity.tenant_id.clear();
+        account.drive.id = "shared-drive-id".into();
+        account.drive.drive_type = "shared_drive".into();
+        account.root_id = "shared-drive-id".into();
+        let mut settings = Settings {
+            version: 2,
+            accounts: vec![account],
+        };
+        settings
+            .validate()
+            .expect("a disabled validation account may hold a write grant");
+        settings.accounts[0].enabled = true;
+        assert!(
+            settings.validate().is_err(),
+            "writable mounts remain blocked"
+        );
+        assert!(write_provider(&settings.accounts[0]).is_err());
     }
 
     fn fixture_account(access: AccessMode) -> Account {

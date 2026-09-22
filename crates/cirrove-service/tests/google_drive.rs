@@ -154,17 +154,19 @@ async fn live_google_shared_drive_discovery() {
         }
     }
     let found_file = found_file.expect("test file not listed in the Shared Drive folder");
-    let bytes = provider
-        .read_range(
-            &scope,
-            &found_file,
-            0,
-            u32::try_from(found_file.size).unwrap(),
-            &cancel,
-        )
-        .await
-        .unwrap();
-    assert_eq!(hex::encode(Sha256::digest(&bytes)), expected_sha256);
+    let mut digest = Sha256::new();
+    let mut offset = 0;
+    while offset < found_file.size {
+        let length = u32::try_from((found_file.size - offset).min(4 * 1024 * 1024)).unwrap();
+        let bytes = provider
+            .read_range(&scope, &found_file, offset, length, &cancel)
+            .await
+            .unwrap();
+        assert_eq!(bytes.len(), length as usize);
+        digest.update(&bytes);
+        offset += u64::from(length);
+    }
+    assert_eq!(hex::encode(digest.finalize()), expected_sha256);
     let foreign_scope = Scope {
         collection: "another-collection".into(),
         ..scope.clone()

@@ -48,6 +48,10 @@ its own root, listing, change cursor, cache identity and mount. Root, folder,
 binary content, change-feed recovery, daemon restart and small native DOCX/XLSX
 exports passed in an isolated mount; see the [live record](benchmarks/google-shared-drive-live.json).
 Shared Drive writes are blocked until a bounded live write-and-recovery run passes.
+An isolated [write probe](benchmarks/google-shared-drive-write-live.json) created
+and read back a test folder and files, but its durable replacement stayed
+`VerifyRequired` after Google had changed the exact test file. This failed the
+recovery gate, so ordinary Shared Drive writes remain disabled.
 Native document imports, exports over 10 MiB, PDF and other export formats, push
 webhooks, resource-key transport and large-library/long-session acceptance are not
 claimed.
@@ -546,5 +550,9 @@ read-only FUSE mount. It found and fixed a change-feed parser failure: Google
 also sends drive-level changes without `fileId`. After the fix, the isolated feed
 resumed its saved cursor and indexed a new external file before any mount listing.
 The test daemon was stopped without changing the installed daemon or its mounts.
-This is one bounded account/drive run; Shared Drive writes and recovery remain
-unvalidated and disabled.
+This is one bounded account/drive run. A later isolated
+[write probe](benchmarks/google-shared-drive-write-live.json) confirmed create,
+exact readback and direct v2 conditional operations in a new owned folder. Its
+provider-neutral replacement committed remotely but did not settle in the
+local journal, so the Shared Drive write-recovery gate failed and writable
+mounts remain disabled.
