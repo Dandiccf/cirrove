@@ -37,5 +37,23 @@
   },
   "path_retry_registered_at_utc": "2026-09-22T21:28:11Z",
   "private_run_manifest_path_retry": ".local-state/live-runs/google-shared-late-large-uncached-path-retry-20260922/manifest.json",
-  "path_retry_change": "Use the complete exact identity ancestry retained in private state to perform two targeted directory lookups before the timer. Require an empty content cache after that metadata-only preflight. The question, fixture, sampling arm and content endpoint are unchanged."
+  "path_retry_change": "Use the complete exact identity ancestry retained in private state to perform two targeted directory lookups before the timer. Require an empty content cache after that metadata-only preflight. The question, fixture, sampling arm and content endpoint are unchanged.",
+  "third_attempt": {
+    "run_manifest": ".local-state/live-runs/google-shared-late-large-uncached-path-retry-20260922/manifest.json",
+    "status": "failed_at_endpoint_due_to_operator_contamination",
+    "sample_count": 61,
+    "duration_seconds": 3600.006,
+    "content_read": false,
+    "healthy_samples": {
+      "ready": 60,
+      "refresh_tolerant_indexing": 1
+    },
+    "cache_files_before_late_read": 59,
+    "cache_bytes_before_late_read": 143295821,
+    "cause": "An operator-issued recursive source search included the private .local-state run tree and traversed its FUSE mount between 2,606 and 2,719 seconds. That populated 59 content-cache files before the registered endpoint. The guard correctly refused to treat the target as uncached. The private mount disappeared, the installed daemon PID and mounts remained unchanged, and all three installed accounts remained ready.",
+    "interpretation": "The 61 healthy samples support one hour of refresh-tolerant Shared Drive liveness, but this attempt provides no large late-read result because the operator contaminated the cache."
+  },
+  "cache_clean_retry_registered_at_utc": "2026-09-22T22:37:02Z",
+  "private_run_manifest_cache_clean_retry": ".local-state/live-runs/google-shared-late-large-uncached-cache-clean-retry-20260922/manifest.json",
+  "cache_clean_retry_change": "Repeat the identical path-aware run from fresh private state and prohibit recursive searches, indexers or inspection commands from touching its run directory or mount until the supervisor reaches the endpoint. Poll only manifest.json and samples.jsonl by exact path. The question, fixture, arms, endpoint and prediction are unchanged."
 }
