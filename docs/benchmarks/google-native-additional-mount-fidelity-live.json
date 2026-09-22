@@ -1,0 +1,31 @@
+{
+  "question": "Can the installed Shared Drive mount expose all six export formats for the two additional run-owned native Doc/Sheet fixtures and preserve their known marker content across each applicable conversion?",
+  "kind": "Pre-registered bounded read-only installed-mount fidelity probe; no Google mutation.",
+  "registered_at_utc": "2026-09-22T19:43:00Z",
+  "source_revision": "c70e1e63ee2ae68b8010266eac4f2c5b9811a04d",
+  "private_run_manifest": ".local-state/live-runs/google-native-additional-mount-fidelity-20260922/manifest.json",
+  "source_items": "The exact additional run-owned Doc and Sheet created by google-native-additional-fixtures-live.json in the dedicated Shared Drive test folder. Their IDs, names and marker remain only in the private run state.",
+  "arms": [
+    "A: require the installed daemon and all three existing accounts to be ready, with the selected Shared Drive mount present and no failed uploads or stuck changes",
+    "B: locate only the exact registered parent and two exact run-owned identities through bounded root and parent listings; require .gdoc/.gsheet packages with the three expected format children and browser link",
+    "C: read DOCX, PDF and ODT for the Doc and XLSX, PDF and ODS for the Sheet twice through FUSE; require matching repeat SHA-256 values and valid format signatures",
+    "D: require the private marker in DOCX/XLSX/OpenDocument XML and in text extracted from both PDFs; publish only format byte counts and booleans",
+    "E: require the daemon PID, mount set and account health to remain unchanged after the read-only probe"
+  ],
+  "endpoint": "Pass only if both exact packages expose all expected children, every format reads twice with the same hash and valid signature, every exported representation contains the registered marker, and the installed service remains healthy. A first-attempt failure remains recorded even if a later diagnostic succeeds.",
+  "prediction": "The two extra fixtures should pass because direct DOCX/XLSX exports contained the marker and the installed adapter already materialized every format for one earlier Doc and Sheet. This run may expose conversion-specific loss or a package-cache regression on different items.",
+  "limits": "Two small fixtures on one Workspace administrator account cannot establish general formatting, formulas, charts, comments, suggestions, restricted roles, large-export behavior, collaborative write safety or public OAuth readiness.",
+  "status": "failed_before_listing",
+  "observed_at_utc": "2026-09-22T19:51:47Z",
+  "observed": {
+    "status": "failed_before_listing",
+    "failure_phase": "initial-health",
+    "failure_class": "AssertionError",
+    "exports_attempted": 0,
+    "cloud_mutations": 0,
+    "installed_accounts_ready": 3,
+    "installed_mounts_present": 3,
+    "cause": "The installed Calista Google connection is My Drive, not the selected Shared Drive that owns the exact additional fixtures; the exact collection comparison failed closed."
+  },
+  "next_probe": "Use fresh private state for the already validated selected Shared Drive connection, mount it in an isolated directory, then run the same exact-ID and marker-fidelity assertions. Preserve this failed precondition result."
+}
