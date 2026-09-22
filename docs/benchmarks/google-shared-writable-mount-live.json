@@ -23,5 +23,25 @@
     "interpretation": "This closes the bounded one-account mounted-create and interrupted-upload gate. It does not establish whether the second upload committed before or after SIGKILL, only that the journal completed or reconciled it after restart without a duplicate. The production Shared Drive write gates were not changed for this probe."
   },
   "remaining": "Before a general writable Shared Drive release, test conflict and rename/move/delete through an isolated mount, a second account or permission level, and a longer session. Keep the ordinary account read-only until the proposed production gate change is reviewed and installed separately.",
-  "status": "passed_bounded_mount_recovery"
+  "followup_registered_at_utc": "2026-09-22T07:09:13Z",
+  "followup_question": "Do the mounted Shared Drive rename, move, replacement and observed-empty delete paths preserve exact identities and bytes on run-owned objects?",
+  "followup_arms": [
+    "D: create a new UUID-named folder and binary file through a separate isolated writable mount, wait for exact uploaded identities, then rename the file and verify the exact ID did not change",
+    "E: create a nested destination folder, move the file into it, replace its bytes through the mount, and verify the same exact Google item, parent, name and SHA-256",
+    "F: delete only that run-owned file through the mount, verify its exact Google item is trashed, then remove the observed-empty run-owned folders and verify their exact IDs are trashed"
+  ],
+  "followup_endpoint": "Each mutation must reach the durable Applied or Uploaded state with zero stuck changes and independent exact-ID Google readback. A failed or uncertain operation is retained for review; no pre-existing item is changed. The installed daemon and normal Shared Drive write gate remain untouched.",
+  "followup_prediction": "The shared mutation path should handle run-owned rename and move, but Shared Drive trash and nested folder parent responses may differ from My Drive.",
+  "followup_private_run_manifest": ".local-state/live-runs/google-shared-mutations-20260922/manifest.json",
+  "followup_binary_sha256": "3ccf6c56e9815bbb0e935f6a915e7ec87ad3d0edd7e2366b48c4eada22669254",
+  "production_gate_control": "The enabled Shared Drive write-grant test failed on the pre-enable source with 'invalid selected Google Drive' and passed after the account validation and provider gates were changed. The live mount probes used a local-only binary with those same two gates opened. Desktop sign-in and selection with a Shared Drive write grant have not yet been exercised live.",
+  "followup_result": {
+    "status": "passed_bounded_mutations",
+    "arm_d": "The separate isolated mount created a UUID-named folder and a 32,773-byte binary file, then renamed the file. Independent Google API reads confirmed exact item, parent and Shared Drive IDs, original SHA-256 and unchanged item ID after rename.",
+    "arm_e": "The mount created a nested destination, moved the same file into it with a new name and replaced its content with 65,543 deterministic bytes. The transfer reached Uploaded. Independent exact-ID Google readback confirmed the same item, new parent and name, and replacement SHA-256.",
+    "arm_f": "The mount unlinked only the run-owned file, then removed the two observed-empty run-owned folders. Each mutation reached Applied. Independent Google API reads with exact IDs confirmed all three items were trashed in the selected Shared Drive.",
+    "private_final_state": "Ready, one private mount while running, two Uploaded transfer records, seven Applied mutation records, zero failed uploads and zero stuck changes. The private daemon stopped cleanly and its FUSE mount disappeared; the installed daemon and ordinary mounts were untouched.",
+    "boundary": "One Workspace administrator on one owned drive. Concurrent edits, restricted roles, long sessions and real application save patterns on Shared Drives remain unverified. A preview can expose writes with that stated limit; this record does not prove broad provider reliability."
+  },
+  "status": "passed_bounded_mounted_create_recovery_and_mutations"
 }

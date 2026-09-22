@@ -1,6 +1,6 @@
 # Google Drive preview
 
-Google Drive is implemented as a **writable My Drive preview under validation**.
+Google Drive is implemented as a **writable My Drive and Shared Drive preview under validation**.
 An account connected with **Allow changes** uses Cirrove's shared FUSE namespace,
 durable journal, conflict handling, cache and offline pin jobs. A read-only grant
 still produces a read-only mount.
@@ -15,7 +15,8 @@ The bounded live record for these operations is
 
 ## What it presents
 
-- Files and folders from My Drive, with paginated listings and polled changes.
+- Files and folders from My Drive or one selected Shared Drive per connection,
+  with paginated listings and polled changes.
 - Ordinary binary files through bounded ranges. The adapter compares Google's
   binary `headRevisionId` before and after the download, and checks the response
   range and length before returning bytes to the cache. Sequential reads can use
@@ -42,13 +43,14 @@ The bounded live record for these operations is
   the application chose while that exact identity is acknowledged. This changes
   mounted presentation only; it never rewrites a remote name just to format it.
 
-Shared Drive discovery and a separate read-only collection are implemented with
+Shared Drive discovery and a separate collection are implemented with
 synthetic coverage and one bounded Workspace live run. The selected drive gets
 its own root, listing, change cursor, cache identity and mount. Root, folder,
 binary content, change-feed recovery, daemon restart and small native DOCX/XLSX
 exports passed in an isolated mount; see the [live record](benchmarks/google-shared-drive-live.json).
-Shared Drive writes remain blocked in ordinary connections while the bounded
-validation and review of mounted mutations continues.
+An explicit write grant now permits ordinary binary-file changes in a selected
+Shared Drive preview. The bounded live evidence below covers one Workspace
+administrator and one owned drive; it does not establish general reliability.
 An isolated [write probe](benchmarks/google-shared-drive-write-live.json) created
 and read back a test folder and files. It exposed a stale Google session receipt
 that kept a committed replacement at `VerifyRequired`. Exact-ID and digest
@@ -56,8 +58,8 @@ reconciliation now handles an uncertain session inspection; a bounded live
 follow-up restored the fixture and passed replacement, rename and stale-conflict
 worker checks. An [isolated mount probe](benchmarks/google-shared-writable-mount-live.json)
 then passed run-owned file creation and an interrupted 16 MiB upload across a
-private daemon restart. Normal writable mounts remain disabled pending wider
-mutation and permission coverage.
+private daemon restart. A second isolated mount passed rename, move, replace
+and trash on run-owned items. Restricted roles and longer sessions remain open.
 Native document imports, exports over 10 MiB, PDF and other export formats, push
 webhooks, resource-key transport and large-library/long-session acceptance are not
 claimed.
@@ -151,7 +153,8 @@ The 0.1.0 release does not include Google support.
 In the window, choose **Connect a drive → Provider → Google Drive**, select an
 empty mount folder and your private Desktop OAuth client JSON, choose whether
 **Allow changes** is enabled, then sign in in the browser. The drive-selection
-page offers **My Drive**. You can also connect through the CLI:
+page offers **My Drive** and any Shared Drives visible to that account. You can
+also connect My Drive through the CLI:
 
 ```sh
 cirrove connect-google --label google \
@@ -162,7 +165,9 @@ cirrove connect-google --label google \
 
 Omit `--write-access` for a read-only connection. Reauthenticate an existing
 connection with `cirrove reauth google --write-access` or turn off writes with
-`--read-only`. The separate validator remains available for protocol probes:
+`--read-only`. To choose a Shared Drive in the CLI, add its `--drive-id` from
+the offered drive list; My Drive remains the default. The separate validator
+remains available for protocol probes:
 
 ```sh
 cirrove connect-google --label google-create-validation \
@@ -546,7 +551,8 @@ read-only connection to one selected drive. Its listing and change requests use
 the drive ID and Google's shared-drive parameters; file reads stay within that
 collection. Synthetic provider and service tests cover discovery pagination,
 collection-scoped refresh, root and content caching, and conditional-write request
-shape. Account validation refuses a writable Shared Drive connection.
+shape. At this preflight stage, account validation refused a writable Shared
+Drive connection.
 
 A read-only query through the original personal Google account returned zero
 accessible Shared Drives. A separate Workspace account subsequently created an
@@ -565,6 +571,7 @@ uncertain inspection, a follow-up run restored the deterministic fixture and
 passed replacement, rename and stale-conflict checks. An isolated
 [mounted write probe](benchmarks/google-shared-writable-mount-live.json) then
 passed a small create and an interrupted 16 MiB upload, with exact cloud
-readback and no duplicate sibling after restart. This one bounded run leaves
-broader mutation and permission behavior untested; normal writable Shared Drive
-mounts stay disabled.
+readback and no duplicate sibling after restart. The subsequent mounted
+mutation run passed rename, move, replace and trash for only run-owned content.
+Writable Shared Drive preview connections now require an explicit write grant;
+broader roles and long sessions remain unverified.

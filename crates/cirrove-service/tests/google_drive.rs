@@ -490,8 +490,10 @@ fn settings_migrate_old_microsoft_in_memory_and_require_explicit_provider_in_v2(
         .expect("an enabled Google My Drive write connection is valid");
     assert!(cirrove_service::accounts::provider(&settings.accounts[0]).is_ok());
     settings.accounts[0].drive.drive_type = "shared_drive".into();
-    assert!(settings.validate().is_err());
-    assert!(cirrove_service::accounts::write_provider(&settings.accounts[0]).is_err());
+    settings
+        .validate()
+        .expect("a scoped Shared Drive write grant is valid");
+    assert!(cirrove_service::accounts::write_provider(&settings.accounts[0]).is_ok());
     settings.accounts[0].access = AccessMode::ReadOnly;
     settings
         .validate()

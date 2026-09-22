@@ -13,7 +13,7 @@ tests against a synthetic provider and has never met the real service;
 | --- | --- | --- |
 | Microsoft work/school account (Entra tenant), single-tenant app registration | real -- the development account, in daily use | validation.md, the benchmarks |
 | Personal Microsoft account (`common` authority) | no | -- |
-| Multiple accounts mounted at once | fixture -- the manager, window and tray carry any number; one real account has ever been connected | manager and window tests |
+| Multiple accounts mounted at once | real -- OneDrive, personal Google My Drive and Workspace My Drive remained mounted together during the isolated Shared Drive runs | benchmarks/google-shared-drive-live.json; manager and window tests |
 | Browser sign-in with PKCE, token refresh at the token's lifetime | real | validation.md |
 | Consent disabled and re-enabled by an administrator | real -- shown as sign-in required, not as offline; recovery on re-enable | benchmarks/revoked-grant-and-reauthentication.json |
 | Sign-in again (reauthentication) from the CLI and the window | fixture -- the flow runs; nobody has completed a live re-sign-in through the window | window scenario; accounts tests |
@@ -93,11 +93,14 @@ My Drive listing, polled changes, bounded reads, duplicate names, offline cache
 reopen and OAuth guards have synthetic coverage. Native Google Docs and Sheets
 appear as read-only package folders with bounded DOCX/XLSX exports; one item of
 each type was checked live on the original account. Shared Drive discovery and
-a separate read-only collection have synthetic and one bounded Workspace live
+a separate collection have synthetic and one bounded Workspace live
 run: root, folder, binary content, feed recovery after a drive-level change,
 restart and small native exports passed in an isolated mount. See the
-[live record](benchmarks/google-shared-drive-live.json). Shared Drive writes
-remain disabled and unvalidated.
+[live record](benchmarks/google-shared-drive-live.json). Explicitly granted
+Shared Drive writes have bounded live create, crash/restart, rename, move,
+replacement and trash evidence from one isolated Workspace administrator;
+restricted roles and longer sessions remain unverified. See the
+[mounted record](benchmarks/google-shared-writable-mount-live.json).
 
 A bounded live writable run on one separate account completed binary file create,
 in-place edit, editor-style atomic replacement, file and folder rename/move,

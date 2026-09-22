@@ -1064,8 +1064,8 @@ msgstr "Google-Anmeldung"
 msgid "Google Desktop OAuth client JSON"
 msgstr "Google-OAuth-Client-JSON für Desktop-Apps"
 
-msgid "My Drive files can be changed when Allow changes is on. Google documents appear as browser links; exports and shared drives are not yet supported."
-msgstr "Dateien in „Meine Ablage“ können geändert werden, wenn „Änderungen erlauben“ aktiviert ist. Google-Dokumente erscheinen als Browserlinks; Exporte und geteilte Ablagen werden noch nicht unterstützt."
+msgid "My Drive and Shared Drives can be connected. Allow changes enables edits to ordinary files. Google Docs and Sheets appear as read-only export packages."
+msgstr "„Meine Ablage“ und geteilte Ablagen können verbunden werden. Mit „Änderungen erlauben“ sind normale Dateien bearbeitbar. Google Docs und Sheets erscheinen als schreibgeschützte Exportpakete."
 
 msgid "Your browser opens the Google sign-in. Choose the account there; this window continues when it is done."
 msgstr "Die Google-Anmeldung öffnet sich im Browser. Wähle dort das Konto aus; danach geht es in diesem Fenster weiter."

@@ -120,12 +120,6 @@ impl Settings {
                         account.drive.drive_type.as_str(),
                         "my_drive" | "shared_drive"
                     )
-                    // A disabled account may hold the granted scope for an
-                    // isolated developer validator, but cannot become a
-                    // writable mount while the live recovery gate is open.
-                    || (account.drive.drive_type == "shared_drive"
-                        && account.access == AccessMode::ReadWrite
-                        && account.enabled)
                     || account.identity.subject.is_empty()
                     || !account.identity.tenant_id.is_empty())
             {
@@ -594,9 +588,6 @@ pub fn google_provider(account: &Account) -> Result<Arc<GoogleDrive>> {
 pub fn write_provider(account: &Account) -> Result<Arc<dyn crate::writable::WriteProvider>> {
     match account.registration {
         AppRegistration::Microsoft { .. } => Ok(onedrive_provider(account)?),
-        AppRegistration::Google { .. } if account.drive.drive_type == "shared_drive" => {
-            bail!("Google shared-drive writes require live validation")
-        }
         AppRegistration::Google { .. } => Ok(google_provider(account)?),
     }
 }
@@ -826,9 +817,6 @@ impl PendingConnection {
                     .find(|d| d.id == drive_id)
                     .cloned()
                     .context("Google drive was not offered at sign-in")?;
-                if drive.drive_type == "shared_drive" && self.access == AccessMode::ReadWrite {
-                    bail!("Google shared drives are read-only until live write validation");
-                }
                 let root = google.clone().for_collection(&drive)?.root(&cancel).await?;
                 if root.id != drive.id {
                     bail!("Google root identity changed");
@@ -1802,7 +1790,7 @@ mod tests {
     }
 
     #[test]
-    fn a_shared_drive_write_grant_is_only_valid_for_disabled_validation_accounts() {
+    fn a_shared_drive_write_grant_can_enable_a_scoped_connection() {
         let mut account = fixture_account(AccessMode::ReadWrite);
         account.registration = AppRegistration::Google {
             client_id: "123-fixture.apps.googleusercontent.com".into(),
@@ -1817,13 +1805,12 @@ mod tests {
         };
         settings
             .validate()
-            .expect("a disabled validation account may hold a write grant");
+            .expect("a disabled Shared Drive account may hold a write grant");
         settings.accounts[0].enabled = true;
-        assert!(
-            settings.validate().is_err(),
-            "writable mounts remain blocked"
-        );
-        assert!(write_provider(&settings.accounts[0]).is_err());
+        settings
+            .validate()
+            .expect("an enabled Shared Drive account may use its write grant");
+        assert!(write_provider(&settings.accounts[0]).is_ok());
     }
 
     fn fixture_account(access: AccessMode) -> Account {

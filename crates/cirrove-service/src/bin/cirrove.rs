@@ -333,7 +333,7 @@ enum Command {
         #[arg(long, requires = "state_dir")]
         write_access: bool,
     },
-    /// Connect Google My Drive using your Desktop OAuth client JSON.
+    /// Connect Google My Drive or a Shared Drive using your Desktop OAuth client JSON.
     ConnectGoogle {
         #[arg(long)]
         label: String,
@@ -342,6 +342,9 @@ enum Command {
         client_json: PathBuf,
         #[arg(long)]
         mount_path: PathBuf,
+        /// Select an offered Shared Drive by ID; defaults to My Drive.
+        #[arg(long)]
+        drive_id: Option<String>,
         #[arg(long)]
         state_dir: Option<PathBuf>,
         /// Request full Drive consent and mount this connection read-write.
@@ -782,6 +785,7 @@ async fn main() -> Result<()> {
             label,
             client_json,
             mount_path,
+            drive_id,
             state_dir: state,
             write_access,
         } => {
@@ -804,12 +808,16 @@ async fn main() -> Result<()> {
                 pending.identity().display_name,
                 pending.identity().username
             );
-            let id = pending
-                .drives()
-                .first()
-                .context("Google returned no My Drive")?
-                .id
-                .clone();
+            let id = match drive_id {
+                Some(id) => id,
+                None => pending
+                    .drives()
+                    .iter()
+                    .find(|drive| drive.drive_type == "my_drive")
+                    .context("Google returned no My Drive; choose an offered --drive-id")?
+                    .id
+                    .clone(),
+            };
             let account = pending.finish(&id).await?;
             if write_access {
                 println!(

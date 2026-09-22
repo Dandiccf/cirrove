@@ -81,8 +81,9 @@ and controls; Dolphin's live desktop acceptance remains open.
   [Desktop](docs/desktop.md).
 - Durable upload snapshots, keyring-backed session checkpoints and bounded
   provider transfers. Conditional rename, move, folder creation and deletion
-  share durable ordering with uploads. Writable OneDrive and Google My Drive
-  connections use these workers; isolated validators remain available for
+  share durable ordering with uploads. Writable OneDrive and explicitly
+  granted Google My Drive and Shared Drive connections use these workers;
+  isolated validators remain available for
   controlled live checks.
 - Local working files and immutable save generations, with actual
   synthetic FUSE create/write/truncate/fsync and offline-restart checks. A new save

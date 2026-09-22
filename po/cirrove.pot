@@ -946,7 +946,7 @@ msgstr ""
 msgid "Google Desktop OAuth client JSON"
 msgstr ""
 
-msgid "My Drive files can be changed when Allow changes is on. Google documents appear as browser links; exports and shared drives are not yet supported."
+msgid "My Drive and Shared Drives can be connected. Allow changes enables edits to ordinary files. Google Docs and Sheets appear as read-only export packages."
 msgstr ""
 
 msgid "Your browser opens the Google sign-in. Choose the account there; this window continues when it is done."

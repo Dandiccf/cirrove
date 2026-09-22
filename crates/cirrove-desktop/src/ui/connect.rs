@@ -234,7 +234,7 @@ pub(super) fn present(ui: &Rc<Window>) {
             form.sign_in.set_label(&if google { gettext("Sign in with Google") } else { gettext("Sign in with Microsoft") });
             sign.set_title(&if google { gettext("Google sign-in") } else { gettext("Microsoft sign-in") });
             sign.set_description(Some(&if google {
-                gettext("My Drive files can be changed when Allow changes is on. Google documents appear as browser links; exports and shared drives are not yet supported.")
+                gettext("My Drive and Shared Drives can be connected. Allow changes enables edits to ordinary files. Google Docs and Sheets appear as read-only export packages.")
             } else { gettext("The application (client) ID of your app registration; the OneDrive setup guide explains where it comes from.") }));
             form.check();
         });
