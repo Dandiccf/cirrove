@@ -27,5 +27,16 @@
   },
   "retry_registered_at_utc": "2026-09-22T20:10:00Z",
   "private_run_manifest_retry": ".local-state/live-runs/google-native-additional-private-mount-fidelity-retry-20260922/manifest.json",
-  "retry_change": "Use an otherwise identical fresh private state with the schema-valid label Cirrove-native-fidelity-private. The question, source items, arms, endpoint and prediction are unchanged."
+  "retry_change": "Use an otherwise identical fresh private state with the schema-valid label Cirrove-native-fidelity-private. The question, source items, arms, endpoint and prediction are unchanged.",
+  "second_attempt": {
+    "run_manifest": ".local-state/live-runs/google-native-additional-private-mount-fidelity-retry-20260922/manifest.json",
+    "status": "failed_after_provider_access",
+    "duration_seconds": 15.156,
+    "failure_phase": "sheet-package-listing",
+    "failure_class": "RuntimeError",
+    "observed": "The private mount became ready with 19 indexed items. The Doc package completed DOCX, PDF and ODT reads before the run failed in the still-coarse Sheet package phase. The post-run normalized index contains the exact Sheet identity under the expected parent with a .gsheet projected name. Cleanup passed and the installed service remained unchanged."
+  },
+  "diagnostic_registered_at_utc": "2026-09-22T20:25:00Z",
+  "private_run_manifest_diagnostic": ".local-state/live-runs/google-native-additional-private-mount-fidelity-diagnostic-20260922/manifest.json",
+  "diagnostic_change": "Repeat the same fresh-state endpoint, but persist each completed kind immediately and split exact package lookup from package-child comparison. Publish only the resulting phase and existing safe counters if it fails."
 }
