@@ -447,4 +447,10 @@ hour kept the Shared Drive ready with matching reads and fresh feed success, but
 restricted roles, late uncached reads, longer sessions, native writeback and
 public Google OAuth verification remain open. iCloud has a separate feasibility
 gate before feature parity is promised.
+An installed first-open probe for one native Doc and Sheet passed after the
+cached-package correction. A direct `files.download` probe then exported a
+22.3 MB XLSX that the current `files.export` path rejected, but the same large
+Sheet's PDF took about 163 seconds. Cirrove's eager three-format package path
+still has a 60-second directory deadline, so large native exports remain an
+implementation and mounted-acceptance gate.
 Completion of OneDrive 1.0 does not claim either adapter is finished.
