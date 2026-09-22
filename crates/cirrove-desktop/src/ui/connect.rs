@@ -60,16 +60,14 @@ impl Form {
         *self.folder_path.borrow_mut() = path;
         self.check();
     }
-    /// Sign-in waits for something to sign in with: a usable name, a folder,
-    /// and an application id. The button says so by staying grey.
+    /// Sign-in waits for a usable name and folder. Microsoft also needs an
+    /// application ID; Google uses Cirrove's Desktop OAuth app by default.
     fn check(&self) {
         let ready = accounts::valid_label(self.name.text().trim())
             && self.folder_path.borrow().is_some()
-            && if self.provider.selected() == 1 {
-                self.google_client_path.borrow().is_some() || self.existing_google_account.is_some()
-            } else {
-                !self.client.text().trim().is_empty() && !self.tenant.text().trim().is_empty()
-            };
+            && (self.provider.selected() == 1
+                || (!self.client.text().trim().is_empty()
+                    && !self.tenant.text().trim().is_empty()));
         self.sign_in.set_sensitive(ready && !*self.busy.borrow());
     }
     fn set_busy(&self, busy: bool, message: &str) {
@@ -181,11 +179,11 @@ pub(super) fn present(ui: &Rc<Window>) {
         ))
         .build();
     let google_client = adw::ActionRow::builder()
-        .title(gettext("Google Desktop OAuth client"))
+        .title(gettext("Use another Google OAuth app"))
         .subtitle(if existing_google_account.is_some() {
             gettext("Using the Google app from an existing connection")
         } else {
-            gettext("Choose the private client JSON from Google Cloud Console")
+            gettext("Using the Cirrove Google app (approved testers only for now)")
         })
         .activatable(true)
         .visible(false)
@@ -399,7 +397,16 @@ fn begin(form: &Rc<Form>, ui: &Rc<Window>, runtime: &tokio::runtime::Handle, sta
                         )
                         .await
                     } else {
-                        Err(anyhow::anyhow!("choose a Google client JSON file"))
+                        accounts::begin_connect(
+                            state,
+                            label,
+                            AppRegistration::Google {
+                                client_id: cirrove_auth::google::CIRROVE_DESKTOP_CLIENT_ID.into(),
+                            },
+                            folder,
+                            access,
+                        )
+                        .await
                     }
                 } else {
                     accounts::begin_connect(state, label, app, folder, access).await

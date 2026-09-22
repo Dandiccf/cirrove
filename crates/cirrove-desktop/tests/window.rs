@@ -985,15 +985,26 @@ fn every_account_action_is_offered_from_the_window_and_only_where_it_applies() {
         button(window.upcast_ref(), "Sign in with Google").is_some()
     });
     assert!(button(window.upcast_ref(), "Sign in with Microsoft").is_none());
+    entry_row(window.upcast_ref(), "Name")
+        .unwrap()
+        .set_text("GooglePreview");
+    pump_until("built-in Google app is ready", || {
+        button(window.upcast_ref(), "Sign in with Google")
+            .is_some_and(|button| button.is_sensitive())
+    });
     assert!(
-        !button(window.upcast_ref(), "Sign in with Google")
+        button(window.upcast_ref(), "Sign in with Google")
             .unwrap()
             .is_sensitive(),
-        "a private Google client file is required"
+        "a first Google connection needs no client JSON"
     );
     assert!(displays_text(
         window.upcast_ref(),
-        "Google Desktop OAuth client"
+        "Use another Google OAuth app"
+    ));
+    assert!(displays_text(
+        window.upcast_ref(),
+        "Using the Cirrove Google app (approved testers only for now)"
     ));
     assert!(!displays_text(window.upcast_ref(), "Tenant"));
     if let Some(path) = std::env::var_os("CIRROVE_GOOGLE_DIALOG_SNAPSHOT") {

@@ -1144,11 +1144,12 @@ mod tests {
         Arc<std::sync::atomic::AtomicUsize>,
         tokio::task::JoinHandle<()>,
     ) {
-        broker_fixture_for(access, false).await
+        broker_fixture_for(access, false, false).await
     }
     async fn broker_fixture_for(
         access: AccessMode,
         google: bool,
+        google_secret: bool,
     ) -> (
         Arc<TokenBroker>,
         Arc<MemoryVault>,
@@ -1204,7 +1205,10 @@ mod tests {
                             }
                         );
                         if google {
-                            assert_eq!(form["client_secret"], "synthetic-client-secret");
+                            assert_eq!(
+                                form.get("client_secret").map(|value| value.as_ref()),
+                                google_secret.then_some("synthetic-client-secret")
+                            );
                         }
                         count.fetch_add(1, Ordering::SeqCst);
                         tokio::time::sleep(Duration::from_millis(30)).await;
@@ -1233,7 +1237,8 @@ mod tests {
                         expires_at: 0,
                         access,
                         provider: google.then(|| "googledrive".into()),
-                        client_secret: google.then(|| "synthetic-client-secret".into()),
+                        client_secret: (google && google_secret)
+                            .then(|| "synthetic-client-secret".into()),
                     })
                     .unwrap(),
                 ),
@@ -1321,7 +1326,7 @@ mod tests {
     async fn google_refresh_shares_rotation_stale_401_and_keyring_guards() {
         use std::sync::atomic::Ordering;
         let (broker, vault, requests, server) =
-            broker_fixture_for(AccessMode::ReadOnly, true).await;
+            broker_fixture_for(AccessMode::ReadOnly, true, true).await;
         let mut jobs = tokio::task::JoinSet::new();
         for _ in 0..16 {
             let broker = broker.clone();
@@ -1355,8 +1360,24 @@ mod tests {
         server.abort();
     }
     #[tokio::test]
+    async fn google_public_desktop_client_refreshes_without_a_client_secret() {
+        let (broker, vault, requests, server) =
+            broker_fixture_for(AccessMode::ReadOnly, true, false).await;
+        assert_eq!(
+            broker.access_token().await.unwrap().expose_secret(),
+            "synthetic-fresh"
+        );
+        assert_eq!(requests.load(std::sync::atomic::Ordering::SeqCst), 1);
+        let stored: Credentials =
+            serde_json::from_str(vault.load("key").await.unwrap().unwrap().expose_secret())
+                .unwrap();
+        assert_eq!(stored.provider.as_deref(), Some("googledrive"));
+        assert!(stored.client_secret.is_none());
+        server.abort();
+    }
+    #[tokio::test]
     async fn google_refresh_rejects_a_different_subject_and_foreign_credentials() {
-        let (broker, vault, _, server) = broker_fixture_for(AccessMode::ReadOnly, true).await;
+        let (broker, vault, _, server) = broker_fixture_for(AccessMode::ReadOnly, true, true).await;
         let mut broker = Arc::try_unwrap(broker).ok().unwrap();
         broker.identity.subject = "another-user".into();
         assert!(broker.access_token().await.is_err());

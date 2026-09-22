@@ -59,7 +59,14 @@ follow-up restored the fixture and passed replacement, rename and stale-conflict
 worker checks. An [isolated mount probe](benchmarks/google-shared-writable-mount-live.json)
 then passed run-owned file creation and an interrupted 16 MiB upload across a
 private daemon restart. A second isolated mount passed rename, move, replace
-and trash on run-owned items. Restricted roles and longer sessions remain open.
+and trash on run-owned items. The reviewed production branch then passed a
+separate [no-bypass FUSE write probe](benchmarks/google-shared-production-gate-live.json):
+one new file was uploaded through the selected Shared Drive mount and verified
+by exact item, parent, collection and SHA-256 through an independent Drive read.
+An [isolated one-hour read session](benchmarks/google-shared-hour-session-live.json)
+then kept the selected drive ready with 61 matching reads and fresh change-feed
+success, and removed only its private mount. Restricted roles, late uncached
+reads and longer sessions remain open.
 Native document imports, exports over 10 MiB, PDF and other export formats, push
 webhooks, resource-key transport and large-library/long-session acceptance are not
 claimed.
@@ -72,6 +79,9 @@ branding, and only `drive.readonly` declared although writable connections
 request full `drive`. Publishing for general users requires completing the
 public app identity and Google's scope verification; the bounded live tests
 above do not close that release gate.
+The [verification preparation note](google-oauth-verification-prep.md) records
+the scope justification, demonstration sequence and missing operator inputs;
+it is not a submitted or approved Google application.
 
 A bounded [native import probe](benchmarks/google-native-import-live.json) could
 replace the contents of one test Doc and Sheet and export the expected small
@@ -130,14 +140,23 @@ are accepted only on the configured Google origin and upload path. Reconciliatio
 uses the exact prepared ID and hashes the exact file. No token, session URL, strong
 ETag or raw provider body is written to logs or benchmark artifacts.
 
-## Check or create your own Google app
+## Google sign-in and optional custom app
 
-This is a **development-preview setup**, not a requirement intended for every
-Cirrove user. The OAuth client identifies the application, while each user still
-signs in and grants access in Google's browser flow. A public Cirrove release
-needs its own published Google OAuth app and Google's review for the Drive scopes
-it requests. The JSON below configures the app once on this machine; another
-Google account can reuse that app without selecting the file again.
+Cirrove includes its public Google Desktop OAuth client ID. A new connection
+starts the browser sign-in without a JSON file; each Google account still grants
+access individually. The Cirrove Cloud app is currently in **Testing**, so only
+its approved test users can finish sign-in. A public release still needs the
+app's published branding and Google's review for the Drive scopes it requests.
+If Google shows `403 access_denied` and says Cirrove is still being tested,
+the Google account has not been admitted to this Cloud app's tester list. The
+developer must add that account in Google Auth Platform or complete the public
+verification; retrying with a different local folder does not change the
+Google-side gate. A custom Desktop OAuth app remains an option for a developer
+testing their own Cloud project, not a requirement for ordinary users.
+
+You can use a different Google Cloud app for development or private testing by
+choosing its Desktop OAuth client JSON in the connection window or passing
+`--client-json` to the CLI. For that optional route:
 
 1. In [Google Cloud Console](https://console.cloud.google.com/), select a project
    you own for Cirrove, or create one. Under **APIs & Services**, enable **Google
@@ -178,19 +197,22 @@ Install the developer build first, following [Development](development.md).
 The 0.1.0 release does not include Google support.
 
 In the window, choose **Connect a drive → Provider → Google Drive**, enter a
-connection name and optionally change the proposed empty mount folder. For the
-first Google connection, select your private Desktop OAuth client JSON. Later
-connections reuse that app by default; choose a JSON file only to switch apps.
+connection name and optionally change the proposed empty mount folder. The
+Cirrove Google app is selected automatically for the first connection; later
+connections reuse the app of an existing Google connection by default. Choose
+the optional JSON file only to use another app.
 Choose whether **Allow changes** is enabled, then sign in in the browser. The
 drive-selection page offers **My Drive** and any Shared Drives visible to that
 account. You can also connect through the CLI:
 
 ```sh
 cirrove connect-google --label google \
-  --client-json /absolute/path/to/cirrove-google-client.json \
   --mount-path /absolute/path/to/an/empty/folder \
   --write-access
 ```
+
+Add `--client-json /absolute/path/to/cirrove-google-client.json` only for a
+different Desktop OAuth app.
 
 Omit `--write-access` for a read-only connection. Reauthenticate an existing
 connection with `cirrove reauth google --write-access` or turn off writes with
@@ -200,7 +222,6 @@ remains available for protocol probes:
 
 ```sh
 cirrove connect-google --label google-create-validation \
-  --client-json /absolute/path/to/cirrove-google-client.json \
   --mount-path /absolute/path/to/a/separate/empty/folder \
   --state-dir /absolute/path/to/private/validation-state \
   --write-access

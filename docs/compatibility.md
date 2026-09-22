@@ -99,8 +99,13 @@ restart and small native exports passed in an isolated mount. See the
 [live record](benchmarks/google-shared-drive-live.json). Explicitly granted
 Shared Drive writes have bounded live create, crash/restart, rename, move,
 replacement and trash evidence from one isolated Workspace administrator;
-restricted roles and longer sessions remain unverified. See the
-[mounted record](benchmarks/google-shared-writable-mount-live.json).
+the reviewed branch also passed a separate no-bypass writable FUSE create and
+independent exact-ID/hash readback. A separate one-hour private mount completed
+61 matching reads with a fresh Shared Drive feed and clean private shutdown.
+Restricted roles, late uncached reads and longer sessions remain unverified. See
+the [mounted record](benchmarks/google-shared-writable-mount-live.json),
+[no-bypass record](benchmarks/google-shared-production-gate-live.json) and
+[hour record](benchmarks/google-shared-hour-session-live.json).
 
 A bounded live writable run on one separate account completed binary file create,
 in-place edit, editor-style atomic replacement, file and folder rename/move,

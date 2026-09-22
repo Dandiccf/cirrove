@@ -79,14 +79,18 @@ currently bundled; another project's client ID is never substituted.
 
 ## 6 — Additional providers
 
-- [ ] Google Drive: [writable My Drive preview](google-drive.md) has bounded live
-      create, edit, rename, move, trash, conflict, installed-mount and pinning
-      evidence on one account. Shared Drive discovery and an isolated read-only
-      collection have synthetic coverage; live Workspace acceptance and writes
-      remain open. Bounded read-only DOCX/XLSX package exports for native
-      Docs/Sheets are implemented and checked on one existing item of each type;
-      native import/write-back, additional formats, exports over 10 MiB and
-      broader fidelity evidence remain open.
+- [ ] Google Drive: [writable My Drive and Shared Drive previews](google-drive.md)
+      have bounded live read, create, edit, rename, move, trash, conflict,
+      mounted-write and recovery evidence. A selected Shared Drive was also
+      mounted and written through the reviewed branch without the earlier test
+      override. Native Docs/Sheets remain read-only DOCX/XLSX packages; direct
+      GET-only PDF/OpenDocument exports passed on two test items but are not
+      mounted package formats. Native writeback failed a stale-update integrity
+      probe and remains disabled. One isolated Shared Drive hour completed 61
+      matching reads with a fresh feed; restricted roles, late uncached reads,
+      longer sessions, larger exports and broader fidelity remain open. The
+      Cirrove OAuth app is still in Testing and needs public branding and
+      Drive-scope verification before general Google-account onboarding.
 - [ ] iCloud feasibility, isolated compatibility adapter and visible limitations.
 
 Modern components do not establish production readiness. Sustained real-provider
