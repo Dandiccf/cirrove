@@ -1,0 +1,16 @@
+{
+  "kind": "Exploratory live OAuth control, not a pre-registered reliability measurement",
+  "observed_on_utc": "2026-09-22",
+  "scope": "One isolated read-only connection to a run-owned Shared Drive; installed Cirrove accounts, mounts and daemon were unchanged.",
+  "question": "Can Cirrove's built-in Google Desktop client connect without asking each user for a client JSON file?",
+  "observations": [
+    "The keyring reachability test passed on this machine.",
+    "Three isolated attempts using only the built-in client ID failed before account settings were saved. The final sanitized attempt opened the browser and ended with Cirrove's generic sign-in-required error after the callback.",
+    "The same client ID with the developer's private Desktop client JSON completed browser sign-in, discovered the run-owned Shared Drive and saved an isolated connection.",
+    "Using only that isolated control grant, a refresh request with the client ID but no client_secret returned HTTP 400 and Google's standard invalid_request code. The same refresh token and client ID with the Desktop client_secret returned HTTP 200 and an access token. Neither response body nor token was recorded.",
+    "A separately built Cirrove CLI with the app's client_secret supplied at build time completed a new browser sign-in without a client JSON file or runtime secret variable. Its isolated account settings contained exactly one read-only account, and its isolated keyring entry retained the refresh grant and app client secret for later refresh. No private mount was started and the installed daemon and three mounts remained present."
+  ],
+  "result": "This project's Desktop OAuth client needs its client_secret in the tested token requests. It is application registration material, not a per-user Google key. A test build with that value completed JSON-free sign-in; official packages still need their protected build input configured. Each user's grant remains in their local keyring.",
+  "limits": "This control proves one account and one isolated grant, not public OAuth verification or general provider reliability. Native Google Docs and Sheets writeback remain disabled.",
+  "private_manifest": ".local-state/live-runs/google-oauth-no-json-20260922-1620/manifest.json"
+}

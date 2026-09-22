@@ -953,6 +953,22 @@ async fn begin_connect_with_secret(
     secret: Option<secrecy::SecretString>,
 ) -> Result<PendingConnection> {
     app.validate()?;
+    let secret = if matches!(
+        &app,
+        AppRegistration::Google { client_id }
+            if client_id == cirrove_auth::google::CIRROVE_DESKTOP_CLIENT_ID
+    ) {
+        Some(
+            secret
+                .or_else(cirrove_auth::google::bundled_desktop_client_secret)
+                .context(
+                    "this build lacks Cirrove's Google Desktop OAuth client_secret; use an \
+                     official build or choose a custom Desktop OAuth client JSON",
+                )?,
+        )
+    } else {
+        secret
+    };
     if !valid_label(&label) {
         bail!("use a label of 1–48 letters, digits, hyphens or underscores");
     }
