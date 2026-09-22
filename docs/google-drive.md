@@ -49,9 +49,12 @@ binary content, change-feed recovery, daemon restart and small native DOCX/XLSX
 exports passed in an isolated mount; see the [live record](benchmarks/google-shared-drive-live.json).
 Shared Drive writes are blocked until a bounded live write-and-recovery run passes.
 An isolated [write probe](benchmarks/google-shared-drive-write-live.json) created
-and read back a test folder and files, but its durable replacement stayed
-`VerifyRequired` after Google had changed the exact test file. This failed the
-recovery gate, so ordinary Shared Drive writes remain disabled.
+and read back a test folder and files. It exposed a stale Google session receipt
+that kept a committed replacement at `VerifyRequired`. Exact-ID and digest
+reconciliation now handles an uncertain session inspection; a bounded live
+follow-up restored the fixture and passed replacement, rename and stale-conflict
+worker checks. Writable mounts remain disabled pending their own live recovery
+test.
 Native document imports, exports over 10 MiB, PDF and other export formats, push
 webhooks, resource-key transport and large-library/long-session acceptance are not
 claimed.
@@ -552,7 +555,9 @@ resumed its saved cursor and indexed a new external file before any mount listin
 The test daemon was stopped without changing the installed daemon or its mounts.
 This is one bounded account/drive run. A later isolated
 [write probe](benchmarks/google-shared-drive-write-live.json) confirmed create,
-exact readback and direct v2 conditional operations in a new owned folder. Its
-provider-neutral replacement committed remotely but did not settle in the
-local journal, so the Shared Drive write-recovery gate failed and writable
-mounts remain disabled.
+exact readback and direct v2 conditional operations in a new owned folder. A
+committed replacement initially failed to settle because its saved session
+reported a stale version. After the worker gained exact reconciliation for an
+uncertain inspection, a follow-up run restored the deterministic fixture and
+passed replacement, rename and stale-conflict checks. Mounted writes and crash
+replay remain untested, so writable Shared Drive mounts stay disabled.

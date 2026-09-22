@@ -35,5 +35,21 @@
     "interpretation": "The remote write committed, but durable recovery did not settle. This is a failed write-recovery gate, not a passed Shared Drive write test; normal Shared Drive writes stay disabled. The run-owned file and private journal remain for exact-evidence recovery."
   },
   "remaining": "Determine why the worker's saved upload session remains uncertain after a committed replacement; demonstrate journal recovery and restoration before considering writable Shared Drive mounts. One run cannot establish reliability.",
-  "status": "partial_failed_recovery_gate"
+  "recovery_candidate_registered_at_utc": "2026-09-22T06:39:27Z",
+  "recovery_diagnosis": "A read-only status probe of the retained resumable session returned HTTP 200 with v2 file version 19, while an independent exact-ID v3 read returned version 24 and the intended worker bytes. The worker treated an uncertain session inspection as a terminal attempt instead of invoking its exact-ID and SHA-256 reconciliation. A synthetic worker test failed before that fallback and passed after it was added.",
+  "recovery_arm": "Rerun the existing evidence-bound v2-content validator on the same retained run. It must first recognize only the deterministic worker payload, restore the original bytes and name, then repeat direct preconditions and worker replacement/restore/rename/stale-conflict checks with the new reconciliation fallback. Retain all journals on failure.",
+  "recovery_prediction": "The committed replacement should reconcile without a second upload; all later worker operations may still expose a separate Shared Drive-specific defect. No normal writable mount is enabled by this candidate alone.",
+  "recovery_result": {
+    "status": "passed_bounded_worker_probe",
+    "private_run_manifest": ".local-state/live-runs/google-shared-write-20260922/manifest.json",
+    "recovery_probe_id": "ede4184c-ed57-4faa-baa8-79e64ab55470",
+    "initial_exact_recovery": "The validator accepted only the known 8,388,655-byte worker payload, restored the deterministic original file in a new journal and verified it. The older journal is retained separately for audit; it was not silently rewritten.",
+    "direct_preconditions": "The v2 content probe again rejected an intervening change at final commit and a stale session, then restored original name and bytes.",
+    "workers": "Three transfer operations finished Uploaded in the new journal, including the evidence-bound restoration, new replacement and restoration. Two metadata mutations finished Applied (rename and name restoration), and the stale rename finished Conflict. Both new content transfers passed through VerifyRequired before exact reconciliation acknowledged them.",
+    "independent_readback": "A fresh direct adapter test found the original filename in the run-owned folder and read all 8,388,621 bytes in 4 MiB ranges. Its SHA-256 matched f2b52e75ce5cbb54368a9cdf6fa2a898efe2ba51ad28a1c3b4cbcc789eae23d0; the scoped change baseline also passed.",
+    "boundary": "The original failed journal remains retained in disabled private state. No installed daemon or ordinary mount was restarted, and no writable Shared Drive mount was enabled. One worker probe does not establish mounted writeback, crash replay of this old journal or general reliability."
+  },
+  "correction": "The initial five-minute timeout was a real failure, not a provider refusal. Google's saved session status kept returning an older v2 version after the exact remote file had advanced. The worker previously returned Uncertain from inspection without invoking its exact-ID and digest reconciliation. A synthetic test failed before the fallback and passed after it. The follow-up live run recovered the deterministic fixture and its new worker operations completed with correct receipts; the initial failed journal remains as evidence.",
+  "remaining": "Run a separate isolated writable mount and crash/restart test before allowing ordinary Shared Drive writes. Validate nested folder moves and deletion separately; this bounded follow-up covered create, content replace, rename and stale conflict. Broader permissions and sustained reliability remain open.",
+  "status": "bounded_worker_probe_passed_mount_gate_open"
 }

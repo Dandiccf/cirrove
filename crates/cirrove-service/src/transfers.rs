@@ -201,8 +201,15 @@ impl TransferWorker {
                         .await
                     {
                         Ok(step) => Some(step),
+                        // A saved session can report a stale success receipt
+                        // after the file has already advanced. Exact-ID and
+                        // digest reconciliation decides whether it committed;
+                        // an uncertain inspection must never trigger a blind
+                        // second upload.
                         Err(TransferError::Provider(
-                            UploadError::SessionGone | UploadError::CheckpointInvalid,
+                            UploadError::SessionGone
+                            | UploadError::CheckpointInvalid
+                            | UploadError::Uncertain,
                         )) => None,
                         Err(error) => return Err(error),
                     }
