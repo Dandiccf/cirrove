@@ -22,7 +22,7 @@
     "https://developers.google.com/workspace/drive/api/guides/ref-export-formats"
   ],
   "limits": "Two small fixtures on one Workspace administrator and one owned Shared Drive cannot establish fidelity for arbitrary documents, comments, suggestions, macros, external data, restricted roles, concurrent native writes, large exports or public OAuth readiness.",
-  "status": "registered_read_only_diagnostic_after_harness_failure",
+  "status": "registered_final_read_only_continuation_after_locale_correction",
   "attempts": [
     {
       "attempt": 1,
@@ -81,8 +81,41 @@
     {
       "attempt": 3,
       "private_manifest": ".local-state/live-runs/google-native-complex-fidelity-diagnostic-20260923/manifest.json",
-      "outcome": "registered_read_only_continuation",
-      "scope": "Reuse only the two exact attempt-2 fixture identities. Perform no creation or formatting; repeat API structure checks, all six direct exports and the fresh private mount. Trash only those two identities after every gate passes."
+      "outcome": "failed_local_locale_assertion_after_four_valid_exports",
+      "observed": {
+        "no_creation": true,
+        "no_formatting": true,
+        "exact_fixtures_reused": 2,
+        "api_structures_revalidated": true,
+        "direct_exports_passed": [
+          "docx",
+          "document_pdf",
+          "odt",
+          "xlsx"
+        ],
+        "sheet_pdf_diagnostic": {
+          "valid_pdf": true,
+          "marker": true,
+          "labels": true,
+          "localized_sum_61_comma_50": true,
+          "localized_average_20_comma_50": true
+        },
+        "sheet_ods_diagnostic": {
+          "valid_zip": true,
+          "valid_mimetype": true,
+          "marker": true,
+          "sum_formula": true,
+          "average_formula": true,
+          "chart_structure": true
+        }
+      },
+      "cause": "The corrected local assertion still required a decimal point, while this Workspace locale renders the two formula results as 61,50 and 20,50. The provider output is correct and the exact fixtures remain unchanged."
+    },
+    {
+      "attempt": 4,
+      "private_manifest": ".local-state/live-runs/google-native-complex-fidelity-final-20260923/manifest.json",
+      "outcome": "registered_read_only_final_continuation",
+      "scope": "Reuse the same exact two identities without creation or formatting. Accept either decimal point or decimal comma for the two known PDF results; all other API, six-format, mount, cleanup and installed-service gates stay unchanged."
     }
   ],
   "correction": {
@@ -94,5 +127,10 @@
     "harness_change": "Correct the sheet PDF expectations to 61.50 and 20.50.",
     "proof_before_retry": "A separate read-only PDF export found the marker, Total and Average labels and both correct numeric results.",
     "retry_rule": "Use a new private diagnostic directory, preserve attempt 2 unchanged and copy only its exact private fixture receipt."
+  },
+  "correction_after_attempt_3": {
+    "harness_change": "Accept 61.50 or 61,50 and 20.50 or 20,50 in the Sheet PDF text extraction.",
+    "proof_before_retry": "A read-only PDF diagnostic proved both localized results, and a separate read-only ODS diagnostic proved ZIP/mimetype, marker, both formulas and chart structure.",
+    "retry_rule": "Use a fourth new private directory, preserve attempts 1 through 3 unchanged, and reuse only the same exact private fixture receipt."
   }
 }
