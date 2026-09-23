@@ -1,0 +1,26 @@
+{
+  "question": "Can two newly created run-owned native Google fixtures preserve representative document formatting, spreadsheet formulas and a chart through Cirrove's six exported package formats and a fresh Shared Drive mount?",
+  "kind": "Pre-registered bounded live fixture-creation, direct-export and private-mount fidelity probe. It mutates only two new run-owned items in the dedicated Shared Drive validation folder.",
+  "authorization": "The owner asked Cirrove to create native Docs and Sheets test files and to do everything needed to continue Google testing. This probe may create, format, read and, after a complete pass, trash only its two newly recorded exact identities. It may not modify or remove any pre-existing cloud item.",
+  "registered_at_utc": "2026-09-23T00:34:30Z",
+  "source_revision": "6d4fcb012cf31bbfb4d3a7c585954400b57b5ee2",
+  "private_run_manifest": ".local-state/live-runs/google-native-complex-fidelity-20260923/manifest.json",
+  "arms": [
+    "A: require a fresh access token with the full Drive scope, confirm the exact dedicated validation parent and selected Shared Drive, and perform read-only Docs and Sheets API availability checks before creating anything",
+    "B: create one new native Doc and one new native Sheet under that exact parent, persist both exact identities before formatting, and refuse every request outside the Drive, Docs and Sheets HTTPS origins",
+    "C: use the Docs API to create a heading, bold text, italic text and a bulleted list; use the Sheets API to create a bold frozen header, currency-formatted numeric cells, SUM and AVERAGE formulas and one column chart",
+    "D: wait for two stable Drive versions, then export DOCX, PDF and ODT plus XLSX, PDF and ODS; require valid containers, all registered marker text, and format-appropriate structural evidence for the requested styles, formulas, frozen row and chart",
+    "E: start the installed merged daemon with fresh private state and a separate selected-Shared-Drive mount; locate only the exact parent and two exact fixture identities, read all six package children through FUSE, repeat the structural checks, then stop only the recorded private daemon",
+    "F: after every prior endpoint passes, trash only the two exact recorded fixtures, verify their exact trashed state, and require the installed daemon PID, three mounts and account health to remain unchanged"
+  ],
+  "endpoint": "Pass only if both API setup states are confirmed, both exact new items receive the registered native structure, all six direct exports and all six mounted exports pass their format-specific content and structure checks, the sources stay stable during each export phase, exact-ID cleanup succeeds, the private mount disappears, and the installed service remains unchanged. On any failure, retain created fixtures for inspection and record the failure before any retry.",
+  "prediction": "Small representative native structures should survive Google's DOCX/XLSX and OpenDocument conversions, while PDFs should preserve the visible marker text. The chart or a formula may expose a conversion-specific loss; such a loss fails the corresponding format rather than being averaged into a pass.",
+  "official_contracts": [
+    "https://developers.google.com/workspace/docs/api/reference/rest/v1/documents/request",
+    "https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/batchUpdate",
+    "https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/request",
+    "https://developers.google.com/workspace/drive/api/guides/ref-export-formats"
+  ],
+  "limits": "Two small fixtures on one Workspace administrator and one owned Shared Drive cannot establish fidelity for arbitrary documents, comments, suggestions, macros, external data, restricted roles, concurrent native writes, large exports or public OAuth readiness.",
+  "status": "registered"
+}
