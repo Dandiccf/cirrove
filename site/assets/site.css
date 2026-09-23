@@ -215,6 +215,7 @@ h3 { font-size: 1.25rem; }
 .document li { margin: 0.45rem 0; }
 .policy-meta { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; margin-top: 2.5rem; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: var(--line); }
 .policy-meta div { padding: 1rem 1.2rem; background: var(--surface); }
+.policy-meta div:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .policy-meta dt { color: var(--muted); font-size: 0.78rem; font-weight: 750; text-transform: uppercase; }
 .policy-meta dd { margin: 0.2rem 0 0; font-weight: 700; }
 .placeholder { color: #8a4f00; font-weight: 750; }

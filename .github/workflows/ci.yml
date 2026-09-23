@@ -210,6 +210,10 @@ jobs:
         run: python3 scripts/test-nautilus-extension.py
       - name: Nothing is reachable only through one file manager
         run: python3 scripts/test-file-manager-docs.py
+      - name: Google release evidence and the unpublished OAuth site stay coherent
+        run: |
+          python3 scripts/check-oauth-site.py
+          python3 scripts/google-release-gate.py
       - name: Every icon fills its own canvas, and every string can be translated
         run: |
           sudo apt-get update -qq

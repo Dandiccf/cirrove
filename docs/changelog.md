@@ -5,6 +5,36 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
 
 ## Unreleased
 
+- **Google Drive no longer needs a developer-supplied client file.** Official
+  packages carry Cirrove's Desktop OAuth registration, so a normal connection
+  starts in the browser and each Google account grants access for itself. A
+  custom client JSON remains an optional development path.
+- **Google My Drive can be used as a writable Linux folder.** Read-only remains
+  the default; turning on **Allow changes** enables ordinary-file creation,
+  saves, editor-style atomic replacement, folder creation, rename, move and
+  recoverable removal. Durable operations use exact Google identities and
+  version checks so a stale save becomes a visible conflict instead of silently
+  replacing someone else's change.
+- **More than one Google account can stay connected.** Each account has its own
+  mount, metadata, cache, journal and grant. A bounded release-closure run
+  repeated the same mounted create, replace, rename, move and cleanup workflow
+  on two simultaneous accounts with no failed or stuck change.
+- **Shared Drives can be selected explicitly.** Their listings, change cursors,
+  cache and writes stay inside the selected collection. Live validation covered
+  an administrator-owned drive; restricted-role behavior remains outside the
+  current claim.
+- **Google Docs and Sheets open as export packages.** A Doc offers DOCX, PDF and
+  ODT; a Sheet offers XLSX, PDF and ODS. Formats materialize only when opened,
+  including Google's longer-running export path for larger artifacts. Native
+  packages are read-only because the available import path did not preserve a
+  stale-write conflict safely.
+- **Files and Dolphin use the same provider-neutral controls for Google.** Mount
+  status, offline badges, Keep offline and release actions come from Cirrove's
+  daemon, alongside the existing OneDrive connections.
+- **Google's full Drive scope is now declared for opt-in write mode.** The app
+  still needs its public operator site and Google's production verification
+  before accounts outside the test-user list can sign in.
+
 ## 0.1.0 — 2026-09-18
 
 - **Your desktop's search no longer reports your files as damaged.** GNOME

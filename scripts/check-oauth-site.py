@@ -6,13 +6,14 @@ from __future__ import annotations
 import argparse
 from html.parser import HTMLParser
 from pathlib import Path
+import re
 import sys
 from urllib.parse import urlparse
 
 
 ROOT = Path(__file__).resolve().parent.parent
 SITE = ROOT / "site"
-PAGES = ("index.html", "privacy.html", "remove-data.html")
+PAGES = ("index.html", "privacy.html", "remove-data.html", "terms.html")
 PLACEHOLDERS = (
     "[OPERATOR LEGAL NAME]",
     "[CONTACT EMAIL]",
@@ -127,7 +128,11 @@ def main() -> int:
         page_sources[name] = page.read_text(encoding="utf-8")
         errors.extend(check_page(page, args.release))
 
-    required_index_links = ('href="privacy.html"', 'href="remove-data.html"')
+    required_index_links = (
+        'href="privacy.html"',
+        'href="remove-data.html"',
+        'href="terms.html"',
+    )
     for link in required_index_links:
         if link not in page_sources.get("index.html", ""):
             errors.append(f"index.html: required link is missing: {link}")
@@ -155,6 +160,32 @@ def main() -> int:
     ):
         if phrase not in removal:
             errors.append(f"remove-data.html: required removal step is missing: {phrase}")
+
+    terms = visible_text(page_sources.get("terms.html", ""))
+    for phrase in (
+        "Terms of use",
+        "Allow changes",
+        "pre-release software",
+        "Google's terms",
+        "privacy policy",
+        "data-removal guide",
+    ):
+        if phrase not in terms:
+            errors.append(f"terms.html: required term is missing: {phrase}")
+
+    if args.release:
+        cname = SITE / "CNAME"
+        if not cname.is_file():
+            errors.append("site/CNAME: operator-controlled custom domain is missing")
+        else:
+            host = cname.read_text(encoding="utf-8").strip()
+            if not re.fullmatch(
+                r"(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}",
+                host,
+            ):
+                errors.append("site/CNAME: custom domain is invalid")
+            elif host.lower().endswith("github.io"):
+                errors.append("site/CNAME: default GitHub Pages domains do not prove operator control")
 
     if errors:
         print("OAuth site check failed:", file=sys.stderr)
