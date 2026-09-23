@@ -22,7 +22,7 @@
     "https://developers.google.com/workspace/drive/api/guides/ref-export-formats"
   ],
   "limits": "Two small fixtures on one Workspace administrator and one owned Shared Drive cannot establish fidelity for arbitrary documents, comments, suggestions, macros, external data, restricted roles, concurrent native writes, large exports or public OAuth readiness.",
-  "status": "registered_retry_after_preflight_failure",
+  "status": "registered_read_only_diagnostic_after_harness_failure",
   "attempts": [
     {
       "attempt": 1,
@@ -40,12 +40,59 @@
     {
       "attempt": 2,
       "private_manifest": ".local-state/live-runs/google-native-complex-fidelity-retry-20260923/manifest.json",
-      "outcome": "registered_after_correction"
+      "outcome": "failed_local_assertion_after_fixture_structure_and_four_exports",
+      "observed": {
+        "preflight": {
+          "drive": true,
+          "docs_api": true,
+          "sheets_api": true
+        },
+        "exact_fixtures_created": 2,
+        "docs_structure": {
+          "heading": true,
+          "bold": true,
+          "italic": true,
+          "bullets": true
+        },
+        "sheets_structure": {
+          "bold_header": true,
+          "frozen_header": true,
+          "currency": true,
+          "formulas": 2,
+          "chart": true
+        },
+        "direct_exports_passed": [
+          "docx",
+          "document_pdf",
+          "odt",
+          "xlsx"
+        ],
+        "sheet_pdf_diagnostic": {
+          "valid_pdf": true,
+          "marker": true,
+          "labels": true,
+          "sum_61_50": true,
+          "average_20_50": true
+        },
+        "ods_not_reached": true
+      },
+      "cause": "The local PDF assertion used incorrect arithmetic: it expected 60.50 and 20.17 for values 10.25, 20.50 and 30.75. The correct sum and average are 61.50 and 20.50. The exact two fixtures remain retained and unchanged."
+    },
+    {
+      "attempt": 3,
+      "private_manifest": ".local-state/live-runs/google-native-complex-fidelity-diagnostic-20260923/manifest.json",
+      "outcome": "registered_read_only_continuation",
+      "scope": "Reuse only the two exact attempt-2 fixture identities. Perform no creation or formatting; repeat API structure checks, all six direct exports and the fresh private mount. Trash only those two identities after every gate passes."
     }
   ],
   "correction": {
     "google_cloud_change": "Enabled only sheets.googleapis.com in project Cirrove after the owner authorized the continued Google test and all steps needed for it.",
     "verification": "A fresh exact-sheet read-only spreadsheets.get returned HTTP 200 after activation.",
     "retry_rule": "Use a new private run directory and new fixture names; preserve the first failed manifest unchanged."
+  },
+  "correction_after_attempt_2": {
+    "harness_change": "Correct the sheet PDF expectations to 61.50 and 20.50.",
+    "proof_before_retry": "A separate read-only PDF export found the marker, Total and Average labels and both correct numeric results.",
+    "retry_rule": "Use a new private diagnostic directory, preserve attempt 2 unchanged and copy only its exact private fixture receipt."
   }
 }
