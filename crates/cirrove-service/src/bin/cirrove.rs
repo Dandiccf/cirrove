@@ -116,6 +116,10 @@ enum Command {
         label: String,
         #[arg(long, default_value = "3")]
         files: usize,
+        /// Largest ordinary file to compare through both paths. The bound keeps
+        /// this live check deliberate even when a drive contains large files.
+        #[arg(long, default_value = "1048576")]
+        max_file_bytes: u64,
         #[arg(long, default_value = "32")]
         shortcuts: usize,
         #[arg(long)]
@@ -595,11 +599,19 @@ async fn main() -> Result<()> {
         Command::ValidateGoogleRead {
             label,
             files,
+            max_file_bytes,
             shortcuts,
             state_dir: state,
         } => {
             let state = state.map(Ok).unwrap_or_else(state_dir)?;
-            cirrove_service::validation::google_read(&state, &label, files, shortcuts).await?;
+            cirrove_service::validation::google_read(
+                &state,
+                &label,
+                files,
+                max_file_bytes,
+                shortcuts,
+            )
+            .await?;
         }
         Command::InspectOnedriveRead {
             label,

@@ -2,7 +2,7 @@ use crate::accounts;
 use anyhow::{Context, Result, bail};
 use cirrove_auth::AppRegistration;
 use cirrove_core::{CancellationToken, Node, NodeKind, ProviderError, ReadProvider, Scope};
-use rusqlite::{Connection, OpenFlags, params};
+use cirrove_store::Store;
 use serde::Serialize;
 use std::{
     collections::HashMap,
@@ -11,7 +11,7 @@ use std::{
     time::Duration,
 };
 
-const MAX_FILE_BYTES: u64 = 1024 * 1024;
+const MAX_LIVE_FILE_BYTES: u64 = 64 * 1024 * 1024;
 const READ_CHUNK: u32 = 4 * 1024 * 1024;
 
 #[derive(Default, Serialize)]
@@ -43,10 +43,18 @@ pub async fn google_read(
     state: &Path,
     label: &str,
     max_files: usize,
+    max_file_bytes: u64,
     max_shortcuts: usize,
 ) -> Result<()> {
-    if max_files == 0 || max_files > 32 || max_shortcuts > 256 {
-        bail!("use 1..=32 files and at most 256 shortcut targets");
+    if max_files == 0
+        || max_files > 32
+        || max_file_bytes == 0
+        || max_file_bytes > MAX_LIVE_FILE_BYTES
+        || max_shortcuts > 256
+    {
+        bail!(
+            "use 1..=32 files, a per-file bound of 1..={MAX_LIVE_FILE_BYTES} bytes and at most 256 shortcut targets"
+        );
     }
     let account = accounts::Settings::load(state)?
         .accounts
@@ -62,15 +70,9 @@ pub async fn google_read(
         collection: account.drive.id.clone(),
     };
     let database = state.join("accounts").join(&account.id).join("metadata.db");
-    let key = serde_json::to_string(&scope)?;
+    let indexed_scope = scope.clone();
     let nodes = tokio::task::spawn_blocking(move || -> Result<Vec<Node>> {
-        let db = Connection::open_with_flags(
-            database,
-            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-        )?;
-        let mut query = db.prepare("SELECT body FROM nodes WHERE scope=?1 ORDER BY id")?;
-        let rows = query.query_map(params![key], |row| row.get::<_, String>(0))?;
-        rows.map(|row| Ok(serde_json::from_str(&row?)?)).collect()
+        Ok(Store::open(database)?.visible_nodes(&indexed_scope)?)
     })
     .await??;
     let provider = accounts::provider(&account)?;
@@ -83,14 +85,7 @@ pub async fn google_read(
 
     let mut candidates: Vec<_> = nodes
         .iter()
-        .filter(|node| {
-            node.kind == NodeKind::File
-                && node.target.is_none()
-                && node.size > 0
-                && node.size <= MAX_FILE_BYTES
-                && !node.name.ends_with(".url")
-                && node.content_revision().is_some()
-        })
+        .filter(|node| ordinary_binary_candidate(node, max_file_bytes))
         .filter_map(|node| path_for(&by_id, &scope.collection, node).map(|path| (node, path)))
         .collect();
     candidates.sort_by_key(|(node, _)| (node.size, node.id.as_str()));
@@ -177,6 +172,19 @@ pub async fn google_read(
     Ok(())
 }
 
+fn ordinary_binary_candidate(node: &Node, max_file_bytes: u64) -> bool {
+    node.kind == NodeKind::File
+        && node.target.is_none()
+        && !node.package
+        && node.size > 0
+        && node.size <= max_file_bytes
+        // Generated browser-link projections deliberately have no mutation
+        // precondition. Checking the typed metadata avoids relying on a `.url`
+        // suffix, which a collision-safe projected name may not end with.
+        && node.etag.is_some()
+        && node.content_revision().is_some()
+}
+
 async fn direct_bytes(
     provider: Arc<dyn ReadProvider>,
     scope: &Scope,
@@ -257,5 +265,17 @@ mod tests {
         assert!(path_for(&by_id, "root", &invalid).is_none());
         let orphan = node("orphan", Some("missing"), "file", NodeKind::File);
         assert!(path_for(&by_id, "root", &orphan).is_none());
+    }
+
+    #[test]
+    fn generated_browser_links_are_not_cloud_byte_candidates() {
+        let mut binary = node("binary", Some("root"), "file.bin", NodeKind::File);
+        binary.etag = Some("google-version:1".into());
+        binary.content_version = Some("google-revision:head".into());
+        assert!(ordinary_binary_candidate(&binary, 1024));
+
+        let mut link = node("link", Some("root"), "form.url [link]", NodeKind::File);
+        link.size = 100;
+        assert!(!ordinary_binary_candidate(&link, 1024));
     }
 }
