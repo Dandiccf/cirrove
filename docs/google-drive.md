@@ -1,6 +1,15 @@
 # Google Drive preview
 
 Google Drive is implemented as a **writable My Drive and Shared Drive preview under validation**.
+
+The GET-only `validate-google-read` diagnostic compares ordinary files through
+the direct adapter and the mounted path without printing names or identities. It
+uses a one-MiB per-file limit by default; `--max-file-bytes` can deliberately
+raise that bound to at most 64 MiB for a drive whose smallest ordinary files are
+larger. A second-account diagnostic used a four-MiB bound and matched two exact
+files across both paths; because that diagnostic was not registered before the
+run, its [record](benchmarks/google-second-account-read-diagnostic.json) is a
+troubleshooting result rather than a release gate.
 An account connected with **Allow changes** uses Cirrove's shared FUSE namespace,
 durable journal, conflict handling, cache and offline pin jobs. A read-only grant
 still produces a read-only mount.

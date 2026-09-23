@@ -1,0 +1,35 @@
+{
+  "kind": "Unregistered diagnostic; this is not evidence for a release gate",
+  "observed_at_utc": "2026-09-23T03:35:14Z",
+  "source_base": "d8eb5b12cd1d47dbeb8081a17aa58bc3e9e9c975",
+  "question": "Why did the bounded GET-only Google adapter-versus-mount validator find no comparable file in the second active My Drive connection?",
+  "privacy": "The run emitted only aggregate counts and byte totals. Account labels, identities, item IDs, paths, names, hashes, tokens and provider bodies were not recorded.",
+  "initial_result": {
+    "configured_file_limit_bytes": 1048576,
+    "indexed_items": 10,
+    "compared_files": 0,
+    "classification": "The connection had no eligible ordinary file at or below the fixed one-MiB validator limit. This was a harness boundary, not a provider or mount failure."
+  },
+  "change_under_test": {
+    "description": "Keep the one-MiB default but accept an explicit per-file limit from 1 byte through 64 MiB.",
+    "requested_limit_bytes": 4194304,
+    "invalid_limit_check": "67108865 bytes was refused before a live read."
+  },
+  "result": {
+    "exit": 0,
+    "compared_files": 2,
+    "compared_bytes": 5873464,
+    "changed_files": 0,
+    "unavailable_files": 0,
+    "direct_version_changes": 0,
+    "direct_missing_files": 0,
+    "direct_unavailable_files": 0,
+    "indexed_content_changes": 0,
+    "indexed_metadata_changes": 0,
+    "indexed_namespace_changes": 0,
+    "mounted_byte_mismatches": 0,
+    "mounted_unavailable_files": 0
+  },
+  "interpretation": "For these two exact ordinary files, the direct Google adapter bytes and mounted bytes matched. The diagnostic does not establish arbitrary-file reliability, provider-wide correctness or a release gate because its question and prediction were not registered before the run.",
+  "cloud_mutations": 0
+}

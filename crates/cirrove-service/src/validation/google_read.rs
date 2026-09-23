@@ -11,7 +11,7 @@ use std::{
     time::Duration,
 };
 
-const MAX_FILE_BYTES: u64 = 1024 * 1024;
+const MAX_LIVE_FILE_BYTES: u64 = 64 * 1024 * 1024;
 const READ_CHUNK: u32 = 4 * 1024 * 1024;
 
 #[derive(Default, Serialize)]
@@ -43,10 +43,18 @@ pub async fn google_read(
     state: &Path,
     label: &str,
     max_files: usize,
+    max_file_bytes: u64,
     max_shortcuts: usize,
 ) -> Result<()> {
-    if max_files == 0 || max_files > 32 || max_shortcuts > 256 {
-        bail!("use 1..=32 files and at most 256 shortcut targets");
+    if max_files == 0
+        || max_files > 32
+        || max_file_bytes == 0
+        || max_file_bytes > MAX_LIVE_FILE_BYTES
+        || max_shortcuts > 256
+    {
+        bail!(
+            "use 1..=32 files, a per-file bound of 1..={MAX_LIVE_FILE_BYTES} bytes and at most 256 shortcut targets"
+        );
     }
     let account = accounts::Settings::load(state)?
         .accounts
@@ -87,7 +95,7 @@ pub async fn google_read(
             node.kind == NodeKind::File
                 && node.target.is_none()
                 && node.size > 0
-                && node.size <= MAX_FILE_BYTES
+                && node.size <= max_file_bytes
                 && !node.name.ends_with(".url")
                 && node.content_revision().is_some()
         })
