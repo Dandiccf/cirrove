@@ -12,9 +12,11 @@
       does not mirror your whole drive to disk, by design.
     </p>
     <p>
-      The first provider is Microsoft OneDrive, with Google Drive and iCloud Drive
-      planned. Cirrove is an early preview: read-only mounts are the default, and
-      writing is an explicit opt-in per account.
+      Microsoft OneDrive and Google Drive are supported previews. Google My Drive
+      and Shared Drive connections can read ordinary files on demand, keep selected
+      content offline and, with explicit permission, save ordinary-file changes.
+      Native Google Docs and Sheets appear as read-only export packages. Read-only
+      mounts remain the default, and writing is an explicit opt-in per account.
     </p>
   </description>
   <launchable type="desktop-id">io.github.Dandiccf.Cirrove.desktop</launchable>
@@ -39,6 +41,7 @@
   <keywords>
     <keyword>cloud</keyword>
     <keyword>OneDrive</keyword>
+    <keyword>Google Drive</keyword>
     <keyword>FUSE</keyword>
     <keyword>mount</keyword>
   </keywords>

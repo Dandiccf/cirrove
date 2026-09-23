@@ -2,6 +2,12 @@
 
 Google Drive is implemented as a **writable My Drive and Shared Drive preview under validation**.
 
+The machine-readable [0.2.0 release gate](google-release-gate.json) separates
+implemented, live-checked behavior from the public OAuth, clean-package sign-in
+and publication work that still blocks a general release. Run
+`python3 scripts/google-release-gate.py` for the current report and add
+`--release` for the strict release check.
+
 The GET-only `validate-google-read` diagnostic compares ordinary files through
 the direct adapter and the mounted path without printing names or identities.
 It reads the effective local view, including newer foreground observations over

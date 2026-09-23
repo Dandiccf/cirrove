@@ -1,0 +1,165 @@
+{
+  "release": "0.2.0",
+  "provider": "Google Drive",
+  "product_scope": "Google My Drive and Shared Drive connections on Linux, with on-demand reads, offline pins and opt-in ordinary-file writes. Native Google Docs and Sheets are mounted as read-only export packages in this release candidate.",
+  "requirements": [
+    {
+      "id": "my-drive-read",
+      "summary": "My Drive metadata and ordinary bytes are readable through the shared mounted filesystem.",
+      "status": "closed",
+      "blocks_release": true,
+      "evidence": [
+        "docs/benchmarks/google-drive-first-connection.json",
+        "docs/benchmarks/google-second-account-read-diagnostic.json",
+        "docs/benchmarks/google-drive-live-acceptance-2.json"
+      ]
+    },
+    {
+      "id": "my-drive-write",
+      "summary": "Opt-in ordinary-file creates, saves, atomic replacements, renames, moves and recoverable removals work through a mounted My Drive.",
+      "status": "closed",
+      "blocks_release": true,
+      "evidence": [
+        "docs/benchmarks/google-drive-writable-mount.json",
+        "docs/benchmarks/google-two-account-write-closure-live.json"
+      ]
+    },
+    {
+      "id": "multiple-accounts",
+      "summary": "Two simultaneous Google accounts remain independently mounted, readable and writable.",
+      "status": "closed",
+      "blocks_release": true,
+      "evidence": [
+        "docs/benchmarks/google-second-account-read-diagnostic.json",
+        "docs/benchmarks/google-two-account-write-closure-live.json"
+      ]
+    },
+    {
+      "id": "shared-drive",
+      "summary": "A selected Shared Drive supports scoped discovery, refresh, ordinary reads and explicitly granted ordinary-file writes.",
+      "status": "closed",
+      "blocks_release": true,
+      "evidence": [
+        "docs/benchmarks/google-shared-drive-live.json",
+        "docs/benchmarks/google-shared-production-gate-live.json",
+        "docs/benchmarks/google-shared-writable-mount-live.json"
+      ]
+    },
+    {
+      "id": "native-export-packages",
+      "summary": "Native Docs and Sheets expose bounded, read-only DOCX/PDF/ODT and XLSX/PDF/ODS export packages through the mount.",
+      "status": "closed",
+      "blocks_release": true,
+      "evidence": [
+        "docs/benchmarks/google-native-format-folder-control.json",
+        "docs/benchmarks/google-native-complex-fidelity-live.json",
+        "docs/benchmarks/google-native-large-format-matrix-live.json"
+      ]
+    },
+    {
+      "id": "oauth-built-in-client",
+      "summary": "Official packages contain the Cirrove Desktop OAuth registration and need no per-user client JSON.",
+      "status": "closed",
+      "blocks_release": true,
+      "evidence": [
+        "docs/benchmarks/google-package-oauth-delivery-control.json",
+        "docs/benchmarks/google-default-oauth-ui-control.json"
+      ]
+    },
+    {
+      "id": "oauth-scope-declaration",
+      "summary": "Google Auth Platform has saved both drive.readonly and full drive scopes used by the two connection modes.",
+      "status": "closed",
+      "blocks_release": true,
+      "evidence": [
+        "docs/benchmarks/google-release-closure-audit.json"
+      ]
+    },
+    {
+      "id": "file-manager-integration",
+      "summary": "Provider-neutral Files and Dolphin surfaces expose Google mount state and offline pin controls.",
+      "status": "closed",
+      "blocks_release": true,
+      "evidence": [
+        "docs/adr/0010-file-managers-and-dolphin.md",
+        "docs/benchmarks/google-drive-live-acceptance-2.json"
+      ]
+    },
+    {
+      "id": "supported-boundary-approval",
+      "summary": "The 0.2.0 support boundary is explicitly approved: native Docs/Sheets stay read-only, restricted Shared Drive roles remain unclaimed, resource-key shortcuts stay browser links and Google changes use polling.",
+      "status": "open",
+      "blocks_release": true,
+      "next_action": "Obtain the owner's explicit approval of this documented 0.2.0 boundary or implement the rejected portions before release.",
+      "evidence": [
+        "docs/google-drive.md",
+        "docs/compatibility.md"
+      ]
+    },
+    {
+      "id": "public-oauth-site",
+      "summary": "A reviewed homepage, privacy policy, removal page and terms URL are public on an operator-controlled verified domain.",
+      "status": "open",
+      "blocks_release": true,
+      "next_action": "Supply the operator domain, legal identity, public contact, any required address and policy approval; publish the site and run scripts/check-oauth-site.py --release.",
+      "evidence": [
+        "site/README.md",
+        "docs/google-oauth-verification-prep.md"
+      ]
+    },
+    {
+      "id": "google-production-verification",
+      "summary": "Google has approved the public branding and restricted Drive scopes for users outside the test list.",
+      "status": "open",
+      "blocks_release": true,
+      "next_action": "After the public site is configured, record the end-to-end demonstration, submit verification and retain Google's decision without exposing account or credential data.",
+      "evidence": [
+        "docs/google-oauth-verification-prep.md",
+        "docs/benchmarks/google-release-closure-audit.json"
+      ]
+    },
+    {
+      "id": "release-package-google-login",
+      "summary": "The exact 0.2.0 release artifacts complete Google sign-in and a bounded mounted read on a clean supported desktop without a custom JSON file.",
+      "status": "open",
+      "blocks_release": true,
+      "next_action": "Build the 0.2.0 release candidate, install its packages in a clean supported VM and complete one owner-driven browser sign-in followed by an exact mounted read.",
+      "evidence": [
+        "docs/release-procedure.md",
+        "scripts/vm/README.md"
+      ]
+    },
+    {
+      "id": "tagged-release",
+      "summary": "Version 0.2.0 is tagged, packaged, attested, published and installed from the published artifacts.",
+      "status": "open",
+      "blocks_release": true,
+      "next_action": "After every preceding blocking gate closes, follow docs/release-procedure.md for v0.2.0 and verify the downloaded artifacts and installation.",
+      "evidence": [
+        "docs/release-procedure.md",
+        "docs/changelog.md"
+      ]
+    },
+    {
+      "id": "restricted-shared-drive-roles",
+      "summary": "Reader, commenter, contributor and content-manager Shared Drive roles have their own live acceptance matrix.",
+      "status": "deferred",
+      "blocks_release": false,
+      "rationale": "The current release claims one selected drive with permissions Google grants; it does not claim that every restricted role can write. One administrator-owned drive has live evidence, and the UI reports provider permission failures.",
+      "evidence": [
+        "docs/benchmarks/google-release-closure-audit.json"
+      ]
+    },
+    {
+      "id": "native-writeback",
+      "summary": "Exported native Google documents can be edited locally and written back without losing concurrent Google edits.",
+      "status": "deferred",
+      "blocks_release": false,
+      "rationale": "The candidate explicitly presents native documents as read-only export packages. The Drive media-import conflict probe changed content despite HTTP 412, so enabling that path would violate Cirrove's conflict-preservation contract.",
+      "evidence": [
+        "docs/benchmarks/google-native-import-live.json",
+        "docs/benchmarks/google-docs-revision-preflight.json"
+      ]
+    }
+  ]
+}

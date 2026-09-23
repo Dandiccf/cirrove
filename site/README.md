@@ -1,7 +1,7 @@
 # Cirrove OAuth website draft
 
 This directory is the reviewable, static draft for Cirrove's Google OAuth
-homepage and privacy-policy URLs. It is deliberately not deployed. Every page
+homepage, privacy-policy, removal and terms URLs. It is deliberately not deployed. Every page
 contains a visible draft banner and `noindex`; the privacy page still contains
 operator placeholders.
 
@@ -24,10 +24,14 @@ Before publication, the operator must:
 2. replace `[OPERATOR LEGAL NAME]`, `[CONTACT EMAIL]`, `[POSTAL ADDRESS IF
    REQUIRED]`, and `[EFFECTIVE DATE]` with approved public information;
 3. complete a legal and policy review of the retention and removal wording;
-4. remove the draft banners and `noindex` directives; and
-5. run `python3 scripts/check-oauth-site.py --release`, which intentionally
+4. add `site/CNAME` containing the verified custom domain, with no scheme or path;
+5. remove the draft banners and `noindex` directives; and
+6. run `python3 scripts/check-oauth-site.py --release`, which intentionally
    fails until those draft controls and placeholders are gone.
 
-The homepage and privacy-policy URL entered in Google Auth Platform must use
-that verified domain. Do not deploy this directory to the repository's default
-GitHub Pages subdomain and claim that the domain is operator-controlled.
+The homepage, privacy-policy and terms URLs entered in Google Auth Platform must
+use that verified domain. Do not deploy this directory to the repository's
+default GitHub Pages subdomain and claim that the domain is operator-controlled.
+After the release check passes, the manually dispatched `OAuth site` workflow
+deploys only this directory to GitHub Pages. It never publishes on an ordinary
+push, so an internal draft cannot become public merely by merging it.
