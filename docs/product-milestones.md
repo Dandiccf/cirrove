@@ -456,7 +456,14 @@ took about 163 seconds. Cirrove now lists native formats without exporting
 content; entering one selected format folder uses a bounded long-running
 download. An isolated mount read valid 22.3 MB XLSX, 38.8 MB PDF and 22.0 MB
 ODS artifacts independently from that one settled Sheet. Broader document
-fidelity and sustained memory behavior remain open.
+fidelity and sustained memory behavior remain open. A later small exact-fixture
+probe preserved a Doc heading, bold/italic text and bullets plus a Sheet's frozen
+bold header, currency format, SUM/AVERAGE formulas and column chart through all
+six direct exports and a fresh selected-Shared-Drive mount. The private mount
+cleaned up, the installed service remained unchanged, and only those two exact
+fixtures were trashed. This supplies representative structured-content evidence;
+arbitrary documents, comments, suggestions, macros, external data and concurrent
+native writes remain unproven.
 A separate direct Docs API probe on one run-owned native document passed a
 bounded stale-revision check: `requiredRevisionId` rejected the second update
 with HTTP 400 and three exports retained the winning content. Cirrove has not

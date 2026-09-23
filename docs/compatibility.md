@@ -92,7 +92,13 @@ FUSE mount. Read-only and read-write OAuth grants produce the matching mount mod
 My Drive listing, polled changes, bounded reads, duplicate names, offline cache
 reopen and OAuth guards have synthetic coverage. Native Google Docs and Sheets
 appear as read-only package folders with bounded DOCX/XLSX exports; one item of
-each type was checked live on the original account. Shared Drive discovery and
+each type was checked live on the original account. PDF and OpenDocument formats
+are also exposed. One exact Shared Drive Doc with heading, bold/italic text and
+bullets and one Sheet with a frozen bold header, currency formatting, two
+formulas and a column chart passed API readback, all six direct exports and all
+six repeatable reads through a fresh private mount. Only those two registered
+fixtures were then trashed. This is representative structured-content evidence,
+not arbitrary-document or native-writeback coverage. Shared Drive discovery and
 a separate collection have synthetic and one bounded Workspace live
 run: root, folder, binary content, feed recovery after a drive-level change,
 restart and small native exports passed in an isolated mount. See the

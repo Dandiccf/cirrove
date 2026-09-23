@@ -1,0 +1,210 @@
+{
+  "question": "Can two newly created run-owned native Google fixtures preserve representative document formatting, spreadsheet formulas and a chart through Cirrove's six exported package formats and a fresh Shared Drive mount?",
+  "kind": "Pre-registered bounded live fixture-creation, direct-export and private-mount fidelity probe. It mutates only two new run-owned items in the dedicated Shared Drive validation folder.",
+  "authorization": "The owner asked Cirrove to create native Docs and Sheets test files and to do everything needed to continue Google testing. This probe may create, format, read and, after a complete pass, trash only its two newly recorded exact identities. It may not modify or remove any pre-existing cloud item.",
+  "registered_at_utc": "2026-09-23T00:34:30Z",
+  "source_revision": "6d4fcb012cf31bbfb4d3a7c585954400b57b5ee2",
+  "private_run_manifest": ".local-state/live-runs/google-native-complex-fidelity-20260923/manifest.json",
+  "arms": [
+    "A: require a fresh access token with the full Drive scope, confirm the exact dedicated validation parent and selected Shared Drive, and perform read-only Docs and Sheets API availability checks before creating anything",
+    "B: create one new native Doc and one new native Sheet under that exact parent, persist both exact identities before formatting, and refuse every request outside the Drive, Docs and Sheets HTTPS origins",
+    "C: use the Docs API to create a heading, bold text, italic text and a bulleted list; use the Sheets API to create a bold frozen header, currency-formatted numeric cells, SUM and AVERAGE formulas and one column chart",
+    "D: wait for two stable Drive versions, then export DOCX, PDF and ODT plus XLSX, PDF and ODS; require valid containers, all registered marker text, and format-appropriate structural evidence for the requested styles, formulas, frozen row and chart",
+    "E: start the installed merged daemon with fresh private state and a separate selected-Shared-Drive mount; locate only the exact parent and two exact fixture identities, read all six package children through FUSE, repeat the structural checks, then stop only the recorded private daemon",
+    "F: after every prior endpoint passes, trash only the two exact recorded fixtures, verify their exact trashed state, and require the installed daemon PID, three mounts and account health to remain unchanged"
+  ],
+  "endpoint": "Pass only if both API setup states are confirmed, both exact new items receive the registered native structure, all six direct exports and all six mounted exports pass their format-specific content and structure checks, the sources stay stable during each export phase, exact-ID cleanup succeeds, the private mount disappears, and the installed service remains unchanged. On any failure, retain created fixtures for inspection and record the failure before any retry.",
+  "prediction": "Small representative native structures should survive Google's DOCX/XLSX and OpenDocument conversions, while PDFs should preserve the visible marker text. The chart or a formula may expose a conversion-specific loss; such a loss fails the corresponding format rather than being averaged into a pass.",
+  "official_contracts": [
+    "https://developers.google.com/workspace/docs/api/reference/rest/v1/documents/request",
+    "https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/batchUpdate",
+    "https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets/request",
+    "https://developers.google.com/workspace/drive/api/guides/ref-export-formats"
+  ],
+  "limits": "Two small fixtures on one Workspace administrator and one owned Shared Drive cannot establish fidelity for arbitrary documents, comments, suggestions, macros, external data, restricted roles, concurrent native writes, large exports or public OAuth readiness.",
+  "status": "passed_bounded_complex_native_fidelity",
+  "attempts": [
+    {
+      "attempt": 1,
+      "private_manifest": ".local-state/live-runs/google-native-complex-fidelity-20260923/manifest.json",
+      "outcome": "failed_before_fixture_creation",
+      "observed": {
+        "drive_parent_get": 200,
+        "docs_get": 200,
+        "sheets_get": 403,
+        "provider_reason": "SERVICE_DISABLED",
+        "fixtures_created": 0
+      },
+      "cause": "The Google Sheets API was disabled in the existing Cirrove Google Cloud project. The exact read-only preflight failed closed before any fixture creation."
+    },
+    {
+      "attempt": 2,
+      "private_manifest": ".local-state/live-runs/google-native-complex-fidelity-retry-20260923/manifest.json",
+      "outcome": "failed_local_assertion_after_fixture_structure_and_four_exports",
+      "observed": {
+        "preflight": {
+          "drive": true,
+          "docs_api": true,
+          "sheets_api": true
+        },
+        "exact_fixtures_created": 2,
+        "docs_structure": {
+          "heading": true,
+          "bold": true,
+          "italic": true,
+          "bullets": true
+        },
+        "sheets_structure": {
+          "bold_header": true,
+          "frozen_header": true,
+          "currency": true,
+          "formulas": 2,
+          "chart": true
+        },
+        "direct_exports_passed": [
+          "docx",
+          "document_pdf",
+          "odt",
+          "xlsx"
+        ],
+        "sheet_pdf_diagnostic": {
+          "valid_pdf": true,
+          "marker": true,
+          "labels": true,
+          "sum_61_50": true,
+          "average_20_50": true
+        },
+        "ods_not_reached": true
+      },
+      "cause": "The local PDF assertion used incorrect arithmetic: it expected 60.50 and 20.17 for values 10.25, 20.50 and 30.75. The correct sum and average are 61.50 and 20.50. The exact two fixtures remain retained and unchanged."
+    },
+    {
+      "attempt": 3,
+      "private_manifest": ".local-state/live-runs/google-native-complex-fidelity-diagnostic-20260923/manifest.json",
+      "outcome": "failed_local_locale_assertion_after_four_valid_exports",
+      "observed": {
+        "no_creation": true,
+        "no_formatting": true,
+        "exact_fixtures_reused": 2,
+        "api_structures_revalidated": true,
+        "direct_exports_passed": [
+          "docx",
+          "document_pdf",
+          "odt",
+          "xlsx"
+        ],
+        "sheet_pdf_diagnostic": {
+          "valid_pdf": true,
+          "marker": true,
+          "labels": true,
+          "localized_sum_61_comma_50": true,
+          "localized_average_20_comma_50": true
+        },
+        "sheet_ods_diagnostic": {
+          "valid_zip": true,
+          "valid_mimetype": true,
+          "marker": true,
+          "sum_formula": true,
+          "average_formula": true,
+          "chart_structure": true
+        }
+      },
+      "cause": "The corrected local assertion still required a decimal point, while this Workspace locale renders the two formula results as 61,50 and 20,50. The provider output is correct and the exact fixtures remain unchanged."
+    },
+    {
+      "attempt": 4,
+      "private_manifest": ".local-state/live-runs/google-native-complex-fidelity-final-20260923/manifest.json",
+      "outcome": "passed",
+      "observed": {
+        "no_creation_or_formatting_in_continuation": true,
+        "exact_fixtures_reused": 2,
+        "api_structure": {
+          "document": {
+            "heading": true,
+            "bold": true,
+            "italic": true,
+            "bulleted_paragraphs": 2
+          },
+          "spreadsheet": {
+            "bold_header": true,
+            "frozen_header": true,
+            "currency_format": true,
+            "sum_formula": true,
+            "average_formula": true,
+            "column_chart": true
+          }
+        },
+        "direct_exports": {
+          "docx": {
+            "bytes": 7005,
+            "structure_and_marker": true
+          },
+          "document_pdf": {
+            "bytes": 58278,
+            "signature_and_marker": true
+          },
+          "odt": {
+            "bytes": 3231968,
+            "structure_and_marker": true
+          },
+          "xlsx": {
+            "bytes": 6958,
+            "formulas_frozen_header_chart_style_and_marker": true
+          },
+          "spreadsheet_pdf": {
+            "bytes": 67951,
+            "signature_marker_labels_and_formula_results": true
+          },
+          "ods": {
+            "bytes": 15252,
+            "formulas_chart_structure_and_marker": true
+          }
+        },
+        "fresh_private_mount": {
+          "indexed_items": 21,
+          "duration_seconds": 21.855,
+          "six_first_reads_seconds": {
+            "docx": 0.001,
+            "document_pdf": 0.001,
+            "odt": 0.002,
+            "xlsx": 0.001,
+            "spreadsheet_pdf": 0.005,
+            "ods": 0.002
+          },
+          "all_repeat_hashes_match": true,
+          "all_structure_and_marker_checks_match": true,
+          "private_mount_gone": true
+        },
+        "cleanup": {
+          "exact_fixture_count": 2,
+          "trashed_verified": true
+        },
+        "installed_service": {
+          "pid_unchanged": true,
+          "mounts": 3,
+          "accounts_ready": 3,
+          "failed_uploads": 0,
+          "stuck_changes": 0
+        }
+      }
+    }
+  ],
+  "correction": {
+    "google_cloud_change": "Enabled only sheets.googleapis.com in project Cirrove after the owner authorized the continued Google test and all steps needed for it.",
+    "verification": "A fresh exact-sheet read-only spreadsheets.get returned HTTP 200 after activation.",
+    "retry_rule": "Use a new private run directory and new fixture names; preserve the first failed manifest unchanged."
+  },
+  "correction_after_attempt_2": {
+    "harness_change": "Correct the sheet PDF expectations to 61.50 and 20.50.",
+    "proof_before_retry": "A separate read-only PDF export found the marker, Total and Average labels and both correct numeric results.",
+    "retry_rule": "Use a new private diagnostic directory, preserve attempt 2 unchanged and copy only its exact private fixture receipt."
+  },
+  "correction_after_attempt_3": {
+    "harness_change": "Accept 61.50 or 61,50 and 20.50 or 20,50 in the Sheet PDF text extraction.",
+    "proof_before_retry": "A read-only PDF diagnostic proved both localized results, and a separate read-only ODS diagnostic proved ZIP/mimetype, marker, both formulas and chart structure.",
+    "retry_rule": "Use a fourth new private directory, preserve attempts 1 through 3 unchanged, and reuse only the same exact private fixture receipt."
+  },
+  "result": "One run-owned formatted Doc and one formula/chart Sheet passed API structure checks, all six direct exports and all six reads through a fresh selected-Shared-Drive mount. Only those two exact identities were then trashed. Attempts 1 through 3 preserve one disabled-API preflight and two local harness mistakes.",
+  "completed_at_utc": "2026-09-23T01:21:43Z",
+  "interpretation": "This closes the representative complex-format fidelity question for these two small Workspace fixtures: heading, bold, italic, bullets, frozen/bold header, currency cells, SUM/AVERAGE formulas and a column chart survived the applicable exports. It does not establish arbitrary-document fidelity, comments, suggestions, macros, external data, restricted roles, concurrent native writes, large-format fidelity or public OAuth readiness."
+}
