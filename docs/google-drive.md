@@ -24,6 +24,15 @@ identity and the current conditional version. A stale mounted save becomes a
 visible conflict and does not overwrite the independently changed Google item.
 The bounded live record for these operations is
 [`google-drive-writable-mount.json`](benchmarks/google-drive-writable-mount.json).
+A later [two-account closure run](benchmarks/google-two-account-write-closure-live.json)
+repeated the ordinary mounted workflow on both configured My Drive accounts after
+the full Drive scope was saved in Google Auth Platform. Both accounts created a
+folder and file, completed an editor-style atomic replacement, renamed and moved
+the file, and removed only their run-owned fixtures. All six uploads reached
+`Uploaded`, all sixteen namespace operations reached `Applied`, and both accounts
+finished mounted and ready with no failed upload or stuck change. This is bounded
+evidence for two accounts; it does not turn the preview into a general reliability
+claim.
 
 ## What it presents
 
@@ -96,12 +105,13 @@ transport and large-library/long-session acceptance are not claimed.
 There is no service-account or another client's credential import.
 
 The current Cirrove Google Cloud OAuth app is still limited to test users. A
-[read-only release preflight](benchmarks/google-oauth-release-preflight.json)
-records the 2026-09-22 console state: external Testing, incomplete public
-branding, and only `drive.readonly` declared although writable connections
-request full `drive`. Publishing for general users requires completing the
-public app identity and Google's scope verification; the bounded live tests
-above do not close that release gate.
+[release-closure audit](benchmarks/google-release-closure-audit.json) records the
+console state and its 2026-09-23 correction: both `drive` and `drive.readonly` are
+now saved in the restricted-scope declaration. Public branding still has no
+operator-controlled homepage, privacy-policy or terms URL and no authorized
+domain. Publishing for general users requires completing that public app identity
+and Google's scope verification; the bounded live tests above do not close that
+release gate.
 The [verification preparation note](google-oauth-verification-prep.md) records
 the scope justification, demonstration sequence and missing operator inputs;
 it is not a submitted or approved Google application.

@@ -1,0 +1,59 @@
+{
+  "question": "Do both currently configured Google My Drive connections complete the same ordinary provider-neutral save workflow after the full Drive scope was declared in Google Auth Platform?",
+  "kind": "Pre-registered, explicitly authorized bounded live cloud-mutation check through the installed Cirrove FUSE mounts.",
+  "authorization": "The owner explicitly approved updating and saving the full Google Drive scope, reminded the tester to cover both configured Google accounts, and had previously authorized bounded Google test mutations. Every mutation in this run is confined to one new UUID-named folder per account.",
+  "registered_before_run": true,
+  "registered_at": "2026-09-23T07:50:03+02:00",
+  "source_revision": "a19f7858bc807593f47c0064e4b4892de8040f6c",
+  "installed_daemon_sha256": "65bcc901f3e3e4c32d65188f02814e6f1e18d95240b55cb2b44bc0f2596a30b7",
+  "expected_duration_seconds": 360,
+  "registered_payloads": {
+    "account_a_initial": {
+      "bytes": 1310843,
+      "sha256": "2b955f087d7c20f7ba44c45ca1484b80f71377d0a1bc885041cc2cbcae23a4d2"
+    },
+    "account_a_replacement": {
+      "bytes": 1573199,
+      "sha256": "38761127c1807fb21494cf1f3befa1912f6c2de8c1f2e33f495a968e9562a496"
+    },
+    "account_b_initial": {
+      "bytes": 1310843,
+      "sha256": "5500e0c9ed87b2835384863077a39b3638e8ed5ca7799c23adc229d0ea3dc1ac"
+    },
+    "account_b_replacement": {
+      "bytes": 1573199,
+      "sha256": "5ff19e284eeab88885251417c297e8aba2f39a678a0de9429b2cb0b756a794f5"
+    }
+  },
+  "scope": "Two enabled writable Google My Drive mounts, identified only as account A and account B in this record. Each arm creates a fresh top-level folder and touches only descendants whose names and content are generated for this run. The installed daemon is not restarted.",
+  "arms": [
+    "Account A: create a folder and file, verify exact bytes through the mount, replace the file content using an editor-style temporary-file rename, rename and move it into a nested folder, then remove only the run-owned file and folders.",
+    "Account B: repeat the identical workflow with independently generated names and bytes.",
+    "After each durable step and after cleanup, require the account to remain mounted and ready with zero failed uploads and zero stuck changes."
+  ],
+  "prediction": "Both mounts will accept the same workflow, preserve exact bytes across replacement, rename and move, settle without a failed or stuck operation, and remove only their run-owned fixtures.",
+  "endpoint": "Pass only if both accounts start mounted, ready and read-write; every local operation is observable at its expected mount path with exact registered SHA-256; the daemon reports zero failed uploads and zero stuck changes after each workflow; and bounded exact-path cleanup leaves neither run-owned top-level folder visible.",
+  "limits": "This checks two My Drive accounts and ordinary binary-file operations through the installed filesystem. It does not establish public OAuth verification, restricted Shared Drive roles, arbitrary native Google document fidelity, concurrent native writeback, long-session reliability or large-library performance.",
+  "result": {
+    "status": "pass",
+    "started_at": "2026-09-23T07:55:27+02:00",
+    "completed_at": "2026-09-23T07:57:44+02:00",
+    "duration_seconds": 137,
+    "accounts_tested": 2,
+    "account_a": {
+      "initial_readback": "1,310,843 bytes matched the registered SHA-256",
+      "replacement_readback": "1,573,199 bytes matched the registered SHA-256 after atomic replacement, rename and move",
+      "journal_outcome": "three uploads reached Uploaded and eight namespace operations reached Applied",
+      "final_health": "mounted and ready with zero failed uploads and zero stuck changes"
+    },
+    "account_b": {
+      "initial_readback": "1,310,843 bytes matched the registered SHA-256",
+      "replacement_readback": "1,573,199 bytes matched the registered SHA-256 after atomic replacement, rename and move",
+      "journal_outcome": "three uploads reached Uploaded and eight namespace operations reached Applied",
+      "final_health": "mounted and ready with zero failed uploads and zero stuck changes"
+    },
+    "cleanup": "Each final file was unlinked by its exact run path, followed by exact removal of its empty nested and top-level folders. Neither UUID-named top-level folder remained visible in its mount.",
+    "oauth_configuration": "Immediately before this run, Google Auth Platform displayed both drive and drive.readonly in the saved restricted-scope list, disabled the Save control and reported that data-access changes were saved."
+  },
+  "status": "passed"
+}
