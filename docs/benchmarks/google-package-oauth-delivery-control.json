@@ -1,0 +1,76 @@
+{
+  "question": "Do the three package artifacts built on main with the protected Google Desktop OAuth build input contain the exact configured application registration, without requiring a user-supplied client JSON?",
+  "kind": "Offline release-artifact control. It downloads immutable artifacts from one completed GitHub Actions run and inspects extracted binaries without installing or executing them.",
+  "authorization": "The owner explicitly authorized storing the existing local Google Desktop OAuth client value as the repository Actions secret so PR #74 can produce JSON-free package builds, and asked Cirrove to continue everything needed for Google release testing.",
+  "registration_time_utc": "2026-09-23T03:03:00Z",
+  "source": {
+    "repository": "Dandiccf/cirrove",
+    "workflow_run": 35809278440,
+    "source_revision": "87c3d71f9ba607944c68f0c9225e4fdc420a5007",
+    "workflow_result": "success",
+    "artifact_names": [
+      "deb-packages",
+      "rpm-packages",
+      "arch-packages"
+    ]
+  },
+  "prediction": "Each artifact contains a Cirrove CLI binary with the public Desktop client ID and the exact protected build input. The protected value should occur in the binary but nowhere in command output or this artifact. The extracted CLI should answer --version without reading a client JSON.",
+  "procedure": [
+    "Download the three named artifacts into one new private run directory under .local-state; do not install a package or restart cirroved.",
+    "Extract each package into its own new directory and locate its packaged /usr/bin/cirrove.",
+    "Read the expected client ID and client secret only inside one local process from the existing private OAuth JSON, then compare their bytes with each binary. Emit only occurrence counts and booleans.",
+    "Run each extracted CLI with --version in an isolated empty XDG state/config/cache environment and assert success without a client JSON.",
+    "Record package digests, sizes, sanitized results and the installed-daemon identity before and after."
+  ],
+  "endpoint": "All three package families have exactly one tested CLI binary; each binary contains both expected registration values and returns its version successfully in the isolated environment. The installed daemon PID and executable identity remain unchanged.",
+  "limits": "This proves build-input delivery into these exact artifacts and a JSON-free local CLI startup only. It does not prove a browser sign-in from every distribution, secrecy of a distributed Desktop client value, Google verification, package installation, daemon upgrade or long-session provider reliability.",
+  "private_manifest": ".local-state/live-runs/google-package-oauth-delivery-20260923/manifest.json",
+  "attempts": [
+    {
+      "attempt": 1,
+      "result": "harness_failed_before_extraction",
+      "detail": "The registered dpkg-deb command was unavailable on the Arch host. No package binary had been extracted or inspected. The correction retained the same downloaded artifacts and used the installed bsdtar for all three container formats."
+    },
+    {
+      "attempt": 2,
+      "result": "passed",
+      "detail": "The corrected extraction found one core package and one /usr/bin/cirrove in every family. Each binary contained the expected public client ID once and the expected protected build input once. Each returned its version with exit code 0 in the empty private XDG environment."
+    }
+  ],
+  "results": {
+    "deb": {
+      "package_sha256": "5f5fe8f7c5eed3900058f37ba35a4c80408a82866758a3cc64df73835ba931c1",
+      "package_bytes": 12726136,
+      "binary_sha256": "05fd039317326766b81beedaf3892b08253bad4891c1810f209a7cb407e14738",
+      "binary_bytes": 23143800,
+      "client_id_occurrences": 1,
+      "protected_build_input_occurrences": 1,
+      "version_exit_code": 0,
+      "version_output": "cirrove-service 0.2.0-dev"
+    },
+    "rpm": {
+      "package_sha256": "8b9b7d4888e2051dc2e12a02b728c37867dfb09d67b6f02c688499fabce0e5d1",
+      "package_bytes": 12615113,
+      "binary_sha256": "c49dc3277ed0e4c070e9adcaf22e1ca2c3398f39c1b39ad897d050e7479d6342",
+      "binary_bytes": 23355168,
+      "client_id_occurrences": 1,
+      "protected_build_input_occurrences": 1,
+      "version_exit_code": 0,
+      "version_output": "cirrove-service 0.2.0-dev"
+    },
+    "arch": {
+      "package_sha256": "93a3ed1adb468b3dcff17c1e18c9412b03a5742227a077f6aedb437985047a90",
+      "package_bytes": 16248863,
+      "binary_sha256": "da02b925e8d36b9597e20e531e691fc17f04a0fd8c601bef0dc7a33d45961170",
+      "binary_bytes": 23278376,
+      "client_id_occurrences": 1,
+      "protected_build_input_occurrences": 1,
+      "version_exit_code": 0,
+      "version_output": "cirrove-service 0.2.0-dev"
+    },
+    "installed_daemon_unchanged": true
+  },
+  "interpretation": "All three successful main artifacts delivered the exact configured Google Desktop OAuth registration into their packaged CLI, and that CLI starts without a client JSON. The protected Desktop value is necessarily recoverable from a distributed binary and is application registration material rather than a per-user secret. Users still grant access individually; this result does not satisfy Google's branding or restricted-scope verification gates.",
+  "completed_at_utc": "2026-09-23T03:09:00Z",
+  "status": "passed_exact_release_artifact_delivery"
+}

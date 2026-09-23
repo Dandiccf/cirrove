@@ -226,6 +226,14 @@ Desktop OAuth client, it can be extracted from a distributed binary and must not
 be treated as a confidential user credential.
 The isolated control and its limits are recorded in the
 [public-client OAuth test](benchmarks/google-oauth-public-client-control.json).
+The subsequent
+[release-artifact control](benchmarks/google-package-oauth-delivery-control.json)
+downloaded the successful `main` workflow's DEB, RPM and Arch artifacts,
+extracted their CLIs without installing them, and found the exact configured
+client ID and protected build input once in each binary. All three CLIs answered
+`--version` in an empty XDG environment without a client JSON, while the
+installed daemon remained unchanged. That is bounded evidence for those exact
+artifacts; it is not a cross-distribution browser sign-in or Google verification.
 A public release still needs the
 app's published branding and Google's review for the Drive scopes it requests.
 If Google shows `403 access_denied` and says Cirrove is still being tested,

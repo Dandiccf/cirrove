@@ -15,6 +15,10 @@ every page carries a visible warning and `noindex`, and operator identity,
 contact, address and effective-date placeholders remain. The stricter
 `scripts/check-oauth-site.py --release` gate fails until those controls and
 placeholders have been resolved.
+The [2026-09-23 closure audit](benchmarks/google-release-closure-audit.json)
+records the current Cloud scope/branding state, packaged built-in OAuth result
+and anonymized Shared Drive role inventory so those remaining gates are not
+inferred from older setup notes.
 
 Google's [verification requirements](https://support.google.com/cloud/answer/13464321)
 call for a homepage on a verified domain, a linked privacy policy explaining
