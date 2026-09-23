@@ -1,0 +1,58 @@
+{
+  "question": "After the packaged built-in OAuth control and the internal website draft, which Google release gates are currently satisfied and which still require external action?",
+  "kind": "Read-only release-closure audit of repository, GitHub Actions, Google Auth Platform and one run-owned Shared Drive. No Cloud setting, Drive permission or provider item was changed.",
+  "observed_at_utc": "2026-09-23T03:00:00Z",
+  "repository": {
+    "oauth_site_pr": 79,
+    "oauth_site_merge_commit": "e32fe97a468e978757d3b95fdef9708e3692f495",
+    "oauth_site_state": "An internal static homepage, Google-data privacy page and data-removal guide are merged. Every page remains visibly marked as an internal draft, carries noindex and has unresolved operator placeholders. The release validator rejects it as designed.",
+    "package_build_input": "The repository Actions secret exists. A fresh main workflow and the exact-artifact control both passed without emitting the value.",
+    "package_workflow_run": 35809278440,
+    "package_workflow_result": "success"
+  },
+  "google_auth_platform": {
+    "publishing_status": "Testing",
+    "branding": {
+      "app_name_present": true,
+      "support_email_present": true,
+      "developer_email_present": true,
+      "homepage_url_present": false,
+      "privacy_policy_url_present": false,
+      "terms_url_present": false,
+      "authorized_domains": 0
+    },
+    "declared_non_sensitive_scopes": [
+      "openid",
+      "email",
+      "profile"
+    ],
+    "declared_restricted_drive_scopes": [
+      "drive.readonly"
+    ],
+    "required_but_not_declared_for_allow_changes": "drive",
+    "pending_change": "The exact full Drive scope was located and selected in the browser form, but neither the selection update nor the Cloud configuration was saved because expanding security-sensitive access requires action-time owner confirmation."
+  },
+  "shared_drive_role_inventory": {
+    "method": "One bounded Drive permissions.list request against the exact private test Shared Drive; response fields were restricted to type, role, deleted and pendingOwner. No raw response, identity, email, token or provider ID was printed or recorded.",
+    "active_permission_entries": 1,
+    "role_counts": {
+      "user:organizer": 1
+    },
+    "pending_owner_entries": 0,
+    "implication": "No second member with a reader, commenter, contributor, content-manager or other restricted role exists in this test drive. Restricted-role acceptance cannot be run until a second Workspace member is deliberately added."
+  },
+  "satisfied_now": [
+    "Built-in Desktop OAuth input reaches successful DEB, RPM and Arch artifacts.",
+    "A reviewable internal homepage, privacy policy and removal guide exist with an accidental-publication guard.",
+    "Read-only and write-mode scope justifications and the verification demonstration sequence are documented.",
+    "Google Docs and Sheets APIs are enabled and representative native export fidelity has bounded live evidence."
+  ],
+  "still_open": [
+    "Save the full Drive scope declaration after explicit action-time confirmation.",
+    "Choose and verify an operator-controlled domain, replace operator placeholders, review the policy text, publish the site and configure matching branding URLs.",
+    "Add a second Workspace member with deliberately restricted Shared Drive roles before running that role matrix.",
+    "Submit branding and restricted-scope verification to Google with an approved end-to-end demonstration; Google decides whether an external security assessment is required.",
+    "Broader arbitrary native-document fidelity and concurrent native writeback remain outside the currently implemented read-only native-package boundary."
+  ],
+  "status": "release_closure_advanced_but_external_gates_remain"
+}
