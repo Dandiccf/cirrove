@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="description" content="How the Cirrove desktop application accesses, uses, stores and shares Google user data.">
+    <title>Privacy policy — Cirrove</title>
+    <link rel="icon" href="assets/cirrove.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="assets/site.css">
+  </head>
+  <body>
+    <div class="draft-banner" role="status">
+      Internal review draft — incomplete operator details; do not publish.
+    </div>
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="Cirrove home">
+        <img src="assets/cirrove.svg" alt="" width="44" height="44">
+        <span>Cirrove</span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a href="index.html">Overview</a>
+        <a aria-current="page" href="privacy.html">Privacy</a>
+        <a href="remove-data.html">Remove data</a>
+        <a href="https://github.com/Dandiccf/cirrove">Source code</a>
+      </nav>
+    </header>
+
+    <main class="document">
+      <header class="document-header">
+        <p class="eyebrow">Policy draft</p>
+        <h1>Privacy policy</h1>
+        <p class="lede">
+          This page explains how the Cirrove Linux desktop application accesses,
+          uses, stores and shares Google user data.
+        </p>
+        <dl class="policy-meta">
+          <div><dt>Operator</dt><dd class="placeholder">[OPERATOR LEGAL NAME]</dd></div>
+          <div><dt>Contact</dt><dd class="placeholder">[CONTACT EMAIL]</dd></div>
+          <div><dt>Address</dt><dd class="placeholder">[POSTAL ADDRESS IF REQUIRED]</dd></div>
+          <div><dt>Effective date</dt><dd class="placeholder">[EFFECTIVE DATE]</dd></div>
+        </dl>
+      </header>
+
+      <section id="scope">
+        <h2>1. Scope</h2>
+        <p>
+          This policy covers Cirrove's handling of data through its Google Drive
+          connection. Cirrove is installed and runs on your Linux computer. The
+          source code is public, and the app communicates directly with Google's
+          APIs rather than sending your Drive content through a Cirrove-operated
+          server.
+        </p>
+      </section>
+
+      <section id="data-accessed">
+        <h2>2. Google data Cirrove accesses</h2>
+        <p>After you approve Google sign-in, Cirrove can receive:</p>
+        <ul>
+          <li>your Google account identifier, display name, profile image and email address;</li>
+          <li>the names and identifiers of My Drive and Shared Drives available to your account;</li>
+          <li>file and folder metadata in the collection you select, such as names, types, parents, sizes, modification times and provider versions;</li>
+          <li>file content that you open or ask Cirrove to keep offline; and</li>
+          <li>when <strong>Allow changes</strong> is enabled, ordinary-file content and metadata needed to create, replace, rename, move or trash items.</li>
+        </ul>
+        <p>
+          A read-only connection asks for the Google Drive read-only scope. A
+          connection with <strong>Allow changes</strong> asks for the full Drive
+          scope because a mounted filesystem must be able to update existing
+          files that were not created by Cirrove. Cirrove presents only the My
+          Drive or Shared Drive you select for that connection.
+        </p>
+      </section>
+
+      <section id="use">
+        <h2>3. How Cirrove uses Google data</h2>
+        <p>Cirrove uses the data only to provide the filesystem features you choose:</p>
+        <ul>
+          <li>identify the connected account and show it in the desktop interface;</li>
+          <li>list the selected drive as folders and files;</li>
+          <li>download file content when you open it or request offline availability;</li>
+          <li>export native Google Docs and Sheets as read-only packages; and</li>
+          <li>send ordinary-file changes back to Google when you explicitly allow changes.</li>
+        </ul>
+        <p>
+          Cirrove does not use Google user data for advertising, sale, credit
+          decisions, or training general-purpose artificial-intelligence or
+          machine-learning models.
+        </p>
+      </section>
+
+      <section id="storage">
+        <h2>4. Local storage and retention</h2>
+        <p>
+          Connection settings, account details, file names and metadata are kept
+          in Cirrove's local state on your computer. Downloaded content is kept
+          in a size-bounded local cache and is evicted as space is needed. Files
+          you choose to keep offline remain pinned until you release the pin or
+          remove the connection. Sign-in credentials are stored in your desktop
+          keyring.
+        </p>
+        <p>
+          Removing a connection sets its local data aside for recovery for one
+          hour. You can discard that removed data immediately with the command
+          described in the <a href="remove-data.html">data-removal guide</a>.
+          Uninstalling Cirrove alone does not remove local state or keyring
+          credentials.
+        </p>
+      </section>
+
+      <section id="sharing">
+        <h2>5. Sharing and transfers</h2>
+        <p>
+          Cirrove sends requests and user-directed file changes to Google to
+          provide the connected-drive feature. Cirrove does not operate a cloud
+          service that receives your Google Drive files and does not sell them or
+          transfer them to advertising platforms or data brokers. Files exposed
+          through the mounted folder can be opened by applications and users on
+          your computer according to your operating-system permissions.
+        </p>
+        <p>
+          Cirrove's use of information received from Google Workspace APIs
+          adheres to the Google User Data Policy, including the Limited Use
+          requirements.
+        </p>
+      </section>
+
+      <section id="security">
+        <h2>6. Security</h2>
+        <p>
+          Cirrove uses encrypted HTTPS connections to Google. OAuth tokens and
+          resumable-upload session credentials are stored in the desktop
+          keyring. Tokens, signed URLs, raw provider responses and file content
+          are not written to Cirrove's service logs.
+        </p>
+        <p>
+          Local metadata and cached file content are protected by your computer's
+          account and storage security. Cirrove does not add its own encryption
+          layer to those files; use full-disk encryption if your threat model
+          requires encrypted local storage.
+        </p>
+      </section>
+
+      <section id="control">
+        <h2>7. Your controls</h2>
+        <p>
+          You can make a connection read-only, release offline pins, remove a
+          connection and its local data, delete Cirrove's keyring grant, and
+          revoke Cirrove in your Google Account. The
+          <a href="remove-data.html">data-removal guide</a> gives the complete
+          sequence. Removing local data does not delete the corresponding files
+          from Google Drive.
+        </p>
+      </section>
+
+      <section id="changes">
+        <h2>8. Changes and contact</h2>
+        <p>
+          This policy will be updated when Cirrove's data handling changes. For
+          privacy questions or requests, contact
+          <span class="placeholder">[CONTACT EMAIL]</span>.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <div><strong>Cirrove</strong><p>Privacy policy draft for operator review.</p></div>
+      <div class="footer-links">
+        <a href="index.html">Overview</a>
+        <a href="remove-data.html">Remove data</a>
+        <a href="https://github.com/Dandiccf/cirrove">Source code</a>
+      </div>
+    </footer>
+  </body>
+</html>

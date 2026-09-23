@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="description" content="Cirrove brings a selected cloud drive into the Linux file manager as a local folder.">
+    <title>Cirrove — Your clouds, one filesystem</title>
+    <link rel="icon" href="assets/cirrove.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="assets/site.css">
+  </head>
+  <body>
+    <div class="draft-banner" role="status">
+      Internal review draft — do not publish or use for Google verification.
+    </div>
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="Cirrove home">
+        <img src="assets/cirrove.svg" alt="" width="44" height="44">
+        <span>Cirrove</span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a aria-current="page" href="index.html">Overview</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="remove-data.html">Remove data</a>
+        <a href="https://github.com/Dandiccf/cirrove">Source code</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Open-source Linux cloud filesystem</p>
+          <h1>Your clouds.<br><span>One filesystem.</span></h1>
+          <p class="lede">
+            Cirrove brings a cloud drive into the Linux file manager as a local
+            folder. File names appear quickly; content downloads when you open
+            it and can be kept available offline.
+          </p>
+          <div class="actions">
+            <a class="button primary" href="https://github.com/Dandiccf/cirrove">View the source</a>
+            <a class="button secondary" href="privacy.html">How Cirrove uses Google data</a>
+          </div>
+          <p class="status-note">
+            Pre-release preview under validation. There is no tagged public
+            release yet.
+          </p>
+        </div>
+        <div class="drive-card" aria-label="Example Cirrove connection">
+          <div class="card-topline">
+            <span class="provider-dot" aria-hidden="true"></span>
+            <span>Google Drive</span>
+            <span class="ready">Ready</span>
+          </div>
+          <div class="folder-row"><span aria-hidden="true">↳</span> My Drive</div>
+          <dl>
+            <div><dt>Open files</dt><dd>On demand</dd></div>
+            <div><dt>Offline files</dt><dd>Your choice</dd></div>
+            <div><dt>Changes</dt><dd>Explicit opt-in</dd></div>
+          </dl>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="google-heading">
+        <p class="eyebrow">Google Drive access</p>
+        <h2 id="google-heading">You choose the drive and the access mode</h2>
+        <div class="feature-grid">
+          <article>
+            <span class="step">01</span>
+            <h3>Select one collection</h3>
+            <p>
+              Each connection presents one Google My Drive or Shared Drive.
+              Cirrove indexes its names and metadata locally so the filesystem
+              remains responsive.
+            </p>
+          </article>
+          <article>
+            <span class="step">02</span>
+            <h3>Open or keep files</h3>
+            <p>
+              File bytes are fetched directly from Google when opened. You can
+              pin selected files or folders to the local cache for offline use.
+            </p>
+          </article>
+          <article>
+            <span class="step">03</span>
+            <h3>Allow changes only when needed</h3>
+            <p>
+              Read-only mode requests Drive read access. Turning on
+              <strong>Allow changes</strong> requests permission to create and
+              change ordinary files in the selected collection.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="split section">
+        <div>
+          <p class="eyebrow">Clear boundaries</p>
+          <h2>What the preview supports</h2>
+        </div>
+        <div class="boundary-list">
+          <p><strong>Ordinary files</strong> can be read and, when you opt in, created, saved, renamed, moved and moved to Google Drive's trash.</p>
+          <p><strong>Google Docs and Sheets</strong> appear as read-only export packages. Cirrove does not write back changes to native Google documents.</p>
+          <p><strong>Your files travel directly</strong> between this desktop app and Google. Cirrove does not operate a server that receives their contents.</p>
+        </div>
+      </section>
+
+      <section class="callout" aria-labelledby="control-heading">
+        <div>
+          <p class="eyebrow">Your control</p>
+          <h2 id="control-heading">See what stays local and remove it</h2>
+          <p>
+            Account details, metadata, cached content and sign-in credentials
+            stay on your computer. The removal guide explains how to remove a
+            connection, discard its local data, delete its keyring grant and
+            revoke Google access.
+          </p>
+        </div>
+        <a class="button secondary" href="remove-data.html">Read the removal guide</a>
+      </section>
+    </main>
+
+    <footer>
+      <div>
+        <strong>Cirrove</strong>
+        <p>Apache-2.0 open-source software for Linux.</p>
+      </div>
+      <div class="footer-links">
+        <a href="privacy.html">Privacy policy</a>
+        <a href="remove-data.html">Remove data</a>
+        <a href="https://github.com/Dandiccf/cirrove/issues">Support</a>
+        <span class="placeholder">[CONTACT EMAIL]</span>
+      </div>
+    </footer>
+  </body>
+</html>

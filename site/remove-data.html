@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="description" content="Remove Cirrove local data, credentials and Google account access.">
+    <title>Remove your data — Cirrove</title>
+    <link rel="icon" href="assets/cirrove.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="assets/site.css">
+  </head>
+  <body>
+    <div class="draft-banner" role="status">
+      Internal review draft — do not publish or use for Google verification.
+    </div>
+    <header class="site-header">
+      <a class="brand" href="index.html" aria-label="Cirrove home">
+        <img src="assets/cirrove.svg" alt="" width="44" height="44">
+        <span>Cirrove</span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a href="index.html">Overview</a>
+        <a href="privacy.html">Privacy</a>
+        <a aria-current="page" href="remove-data.html">Remove data</a>
+        <a href="https://github.com/Dandiccf/cirrove">Source code</a>
+      </nav>
+    </header>
+
+    <main class="document">
+      <header class="document-header">
+        <p class="eyebrow">Your control</p>
+        <h1>Remove Cirrove data and Google access</h1>
+        <p class="lede">
+          Local connection data, keyring credentials and Google's authorization
+          are separate. Complete each applicable step below.
+        </p>
+      </header>
+
+      <ol class="removal-steps">
+        <li>
+          <div class="step-number">1</div>
+          <div>
+            <h2>Remove the connection</h2>
+            <p>
+              In Cirrove, select the connection and choose <strong>Remove</strong>.
+              From a terminal, the equivalent command is:
+            </p>
+            <pre><code>cirrove forget &lt;name&gt;</code></pre>
+            <p>
+              Cirrove stops the connection and places its local state under the
+              removed-data area for one hour so an accidental removal is
+              recoverable. This does not delete files from Google Drive.
+            </p>
+          </div>
+        </li>
+        <li>
+          <div class="step-number">2</div>
+          <div>
+            <h2>Discard the removed local data</h2>
+            <p>Review the space in use, then permanently discard data only for connections already removed:</p>
+            <pre><code>cirrove local-data
+cirrove local-data --discard-removed</code></pre>
+            <p>
+              This removes Cirrove's local index, cached content and retained
+              working data for those removed connections.
+            </p>
+          </div>
+        </li>
+        <li>
+          <div class="step-number">3</div>
+          <div>
+            <h2>Delete the local sign-in grant</h2>
+            <p>
+              Open your desktop's password and keyring manager. Find credentials
+              labelled <strong>Cirrove</strong> for the removed connection and
+              delete them. Removing or uninstalling the app does not perform this
+              keyring step automatically.
+            </p>
+          </div>
+        </li>
+        <li>
+          <div class="step-number">4</div>
+          <div>
+            <h2>Revoke Google access</h2>
+            <p>
+              Open your
+              <a href="https://myaccount.google.com/connections">Google Account's third-party connections</a>,
+              select Cirrove and remove its access. This invalidates the Google-side
+              authorization independently of the local cleanup.
+            </p>
+          </div>
+        </li>
+      </ol>
+
+      <aside class="warning" aria-label="Cloud deletion warning">
+        <strong>Do not delete through the mounted drive to clean up Cirrove.</strong>
+        When changes are allowed, deleting items inside the mounted folder moves
+        those items to Google Drive's trash. Use the steps above for local cleanup.
+      </aside>
+
+      <section>
+        <h2>Uninstalling packages</h2>
+        <p>
+          Uninstalling removes Cirrove's installed program files. It does not by
+          itself remove connections, local state, cached content, pending changes,
+          keyring grants or Google's authorization. Perform the removal sequence
+          first if you want those items removed too.
+        </p>
+      </section>
+
+      <section>
+        <h2>Need help?</h2>
+        <p>
+          Read the complete
+          <a href="https://github.com/Dandiccf/cirrove/blob/main/docs/user-guide.md#removing-cirrove">Cirrove user guide</a>
+          or open a
+          <a href="https://github.com/Dandiccf/cirrove/issues">public support issue</a>
+          after removing private file names and account details. For private
+          requests, contact <span class="placeholder">[CONTACT EMAIL]</span>.
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <div><strong>Cirrove</strong><p>Local data and access removal guide.</p></div>
+      <div class="footer-links">
+        <a href="index.html">Overview</a>
+        <a href="privacy.html">Privacy policy</a>
+        <a href="https://github.com/Dandiccf/cirrove">Source code</a>
+      </div>
+    </footer>
+  </body>
+</html>
