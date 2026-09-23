@@ -73,8 +73,12 @@ had filled the private cache. Its
 [refresh-tolerant follow-up](benchmarks/google-shared-late-refresh-tolerant-live.json)
 then kept 60 of 61 samples ready, accepted one fresh indexing interval, retained
 an empty content cache for an hour and read the exact 85-byte fixture uncached
-in 1.345 seconds. Restricted roles, larger late reads and longer sessions remain
-open.
+in 1.345 seconds. A subsequent
+[large late-read probe](benchmarks/google-shared-late-large-uncached-live.json)
+kept the same refresh-tolerant one-hour shape on a fresh private mount and read
+the exact uncached 16,777,263-byte fixture in 5.247 seconds. Its first two setup
+attempts and one operator-contaminated cache attempt remain recorded beside the
+passing run. Restricted roles and longer sessions remain open.
 Native document writeback, broader export fidelity, push webhooks, resource-key
 transport and large-library/long-session acceptance are not claimed.
 There is no service-account or another client's credential import.
@@ -689,4 +693,6 @@ passed a small create and an interrupted 16 MiB upload, with exact cloud
 readback and no duplicate sibling after restart. The subsequent mounted
 mutation run passed rename, move, replace and trash for only run-owned content.
 Writable Shared Drive preview connections now require an explicit write grant;
-broader roles and long sessions remain unverified.
+one refresh-tolerant private mount also remained healthy for an hour and then
+read an exact uncached 16,777,263-byte fixture. Broader roles and longer sessions
+remain unverified.

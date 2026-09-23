@@ -1,0 +1,90 @@
+{
+  "question": "After one hour of healthy refresh-tolerant operation, can a fresh private Shared Drive mount complete its first content read as an exact uncached 16,777,263-byte file?",
+  "kind": "Pre-registered read-only long-session probe against one retained run-owned binary fixture; no Google mutation.",
+  "registered_at_utc": "2026-09-22T21:09:07Z",
+  "source_revision": "aa9f1b89b96dc8667970df71dcab984134dd0184",
+  "installed_runtime_revision": "c70e1e63ee2ae68b8010266eac4f2c5b9811a04d",
+  "runtime_equivalence": "The commits between the installed runtime and source revision add only documentation and benchmark JSON; no runtime source or build input changed.",
+  "private_run_manifest": ".local-state/live-runs/google-shared-late-large-uncached-20260922/manifest.json",
+  "source_fixture": "The exact retained 16,777,263-byte run-owned Shared Drive file created by the earlier interrupted-upload mount probe. Its item, parent and SHA-256 remain only in private state.",
+  "arms": [
+    "A: start the installed merged daemon with fresh private account state, a separate Shared Drive mount and btrfs-backed TMPDIR/SQLITE_TMPDIR; require initial account and feed readiness while the installed daemon PID and three-mount set remain unchanged",
+    "B: take 61 samples at 60-second intervals after readiness; accept only ready or indexing feed states, require every last success younger than five minutes, and fail on mount loss, sign-in requirement, throttling, offline state, save refusal, failed uploads or stuck changes",
+    "C: perform no mount traversal or content read during the hour and require zero private content-cache files immediately before the endpoint",
+    "D: locate only the registered folder and exact file identity, read that 16,777,263-byte file once through FUSE, and require its private SHA-256",
+    "E: stop only the recorded private daemon PID, require its mount to disappear, and require the installed daemon PID, three mounts and account health to remain unchanged"
+  ],
+  "endpoint": "Pass only if the fresh mount becomes ready, all 61 samples span at least 3,600 seconds with healthy fresh feeds, the private cache is empty before the sole content read, all registered bytes and SHA-256 match, private cleanup succeeds, and the installed service remains healthy.",
+  "prediction": "The refresh-tolerant liveness gate should hold as in the 85-byte control, and the first 16 MiB read should complete with the registered digest. A timeout, stale feed, partial read, cache contamination or cleanup change fails the run.",
+  "limits": "One file, one Workspace administrator, one owned Shared Drive and one run per arm. A pass supports this direction only; it does not establish restricted-role behavior, 24-hour uptime, large-library memory stability, native writeback or public OAuth readiness.",
+  "status": "passed",
+  "first_attempt": {
+    "run_manifest": ".local-state/live-runs/google-shared-late-large-uncached-20260922/manifest.json",
+    "status": "failed_before_measurement",
+    "sample_count": 0,
+    "content_read": false,
+    "cause": "The command-session cleanup terminated the background supervisor before readiness. Its separately started private daemon was stopped by the exact recorded PID; the private mount disappeared and the installed service remained untouched."
+  },
+  "retry_registered_at_utc": "2026-09-22T21:20:33Z",
+  "private_run_manifest_retry": ".local-state/live-runs/google-shared-late-large-uncached-retry-20260922/manifest.json",
+  "retry_change": "Start the otherwise identical supervisor in its own process session, then require its manifest-recorded PID to remain alive after the launcher returns. The question, fixture, arms, endpoint and prediction are unchanged.",
+  "second_attempt": {
+    "run_manifest": ".local-state/live-runs/google-shared-late-large-uncached-retry-20260922/manifest.json",
+    "status": "failed_before_measurement",
+    "sample_count": 0,
+    "content_read": false,
+    "cause": "The detached supervisor survived correctly, but the harness assumed the run-owned fixture folder was a root child. The fresh normalized index showed the exact file and folder unchanged one level below the dedicated validation folder. Cleanup passed and the installed service remained unchanged."
+  },
+  "path_retry_registered_at_utc": "2026-09-22T21:28:11Z",
+  "private_run_manifest_path_retry": ".local-state/live-runs/google-shared-late-large-uncached-path-retry-20260922/manifest.json",
+  "path_retry_change": "Use the complete exact identity ancestry retained in private state to perform two targeted directory lookups before the timer. Require an empty content cache after that metadata-only preflight. The question, fixture, sampling arm and content endpoint are unchanged.",
+  "third_attempt": {
+    "run_manifest": ".local-state/live-runs/google-shared-late-large-uncached-path-retry-20260922/manifest.json",
+    "status": "failed_at_endpoint_due_to_operator_contamination",
+    "sample_count": 61,
+    "duration_seconds": 3600.006,
+    "content_read": false,
+    "healthy_samples": {
+      "ready": 60,
+      "refresh_tolerant_indexing": 1
+    },
+    "cache_files_before_late_read": 59,
+    "cache_bytes_before_late_read": 143295821,
+    "cause": "An operator-issued recursive source search included the private .local-state run tree and traversed its FUSE mount between 2,606 and 2,719 seconds. That populated 59 content-cache files before the registered endpoint. The guard correctly refused to treat the target as uncached. The private mount disappeared, the installed daemon PID and mounts remained unchanged, and all three installed accounts remained ready.",
+    "interpretation": "The 61 healthy samples support one hour of refresh-tolerant Shared Drive liveness, but this attempt provides no large late-read result because the operator contaminated the cache."
+  },
+  "cache_clean_retry_registered_at_utc": "2026-09-22T22:37:02Z",
+  "private_run_manifest_cache_clean_retry": ".local-state/live-runs/google-shared-late-large-uncached-cache-clean-retry-20260922/manifest.json",
+  "cache_clean_retry_change": "Repeat the identical path-aware run from fresh private state and prohibit recursive searches, indexers or inspection commands from touching its run directory or mount until the supervisor reaches the endpoint. Poll only manifest.json and samples.jsonl by exact path. The question, fixture, arms, endpoint and prediction are unchanged.",
+  "completed_at_utc": "2026-09-22T23:45:14.348713Z",
+  "result": {
+    "run_manifest": ".local-state/live-runs/google-shared-late-large-uncached-cache-clean-retry-20260922/manifest.json",
+    "status": "passed",
+    "sample_count": 61,
+    "duration_seconds": 3600.004,
+    "healthy_samples": {
+      "ready": 60,
+      "refresh_tolerant_indexing": 1
+    },
+    "max_feed_success_age_seconds": 32.064,
+    "max_status_latency_ms": 4.106,
+    "rss_kib": {
+      "min": 23340,
+      "max": 24740,
+      "spread": 1400,
+      "median": 24404
+    },
+    "cache_files_before_late_read": 0,
+    "late_read": {
+      "elapsed_seconds": 3605.254,
+      "latency_ms": 5246.861,
+      "bytes": 16777263,
+      "hash_match": true
+    },
+    "private_mount_gone": true,
+    "installed_service_unchanged": true,
+    "installed_accounts_ready": 3
+  },
+  "interpretation": "The registered endpoint passed on one retained run-owned 16,777,263-byte file in one owned Shared Drive under one Workspace administrator. The fresh private mount tolerated one normal indexing interval, kept its content cache empty for one hour, returned exact bytes on its first late read, cleaned up only its private daemon and mount, and left the installed daemon, three mounts and accounts unchanged. This supports the bounded direction only.",
+  "remaining_limits": "Restricted Shared Drive roles, sessions longer than one hour, 24-hour and large-library stability, native Docs/Sheets writeback, complex native-format fidelity and public OAuth verification remain open."
+}

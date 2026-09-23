@@ -70,8 +70,9 @@ OAuth consent screen in English and the same scopes submitted for review.
    local-data discard, keyring grant removal and Google-side consent revocation.
 
 The recording is evidence for Google's review, not proof of provider reliability.
-Before recording, resolve the failed isolated Shared Drive duration probe and
-finish the repository checks in this branch. Do not
+The isolated Shared Drive duration and late uncached 16 MiB read probes are now
+recorded as bounded passes; finish the repository checks for the recording branch
+before recording. Do not
 include access tokens, refresh tokens, signed URLs, raw provider bodies or
 unrelated Drive content in the recording or its notes.
 

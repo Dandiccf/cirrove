@@ -102,10 +102,14 @@ replacement and trash evidence from one isolated Workspace administrator;
 the reviewed branch also passed a separate no-bypass writable FUSE create and
 independent exact-ID/hash readback. A separate one-hour private mount completed
 61 matching reads with a fresh Shared Drive feed and clean private shutdown.
-Restricted roles, late uncached reads and longer sessions remain unverified. See
+Another fresh private mount retained an empty content cache for one hour through
+one accepted indexing interval, then read an exact uncached 16,777,263-byte
+fixture in 5.247 seconds and shut down without changing the installed service.
+Restricted roles and longer sessions remain unverified. See
 the [mounted record](benchmarks/google-shared-writable-mount-live.json),
 [no-bypass record](benchmarks/google-shared-production-gate-live.json) and
-[hour record](benchmarks/google-shared-hour-session-live.json).
+[hour record](benchmarks/google-shared-hour-session-live.json), plus the
+[large late-read record](benchmarks/google-shared-late-large-uncached-live.json).
 
 A bounded live writable run on one separate account completed binary file create,
 in-place edit, editor-style atomic replacement, file and folder rename/move,
