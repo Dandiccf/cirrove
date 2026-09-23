@@ -7,6 +7,15 @@ the missing public branding and the scope mismatch. Do not submit or publish the
 app until the operator has supplied and approved the public identity, domain and
 policy text.
 
+The repository now contains a locally renderable internal website draft in
+[`site/`](../site/README.md): a product homepage, Google-data privacy policy and
+step-by-step data-removal page. `scripts/check-oauth-site.py` checks its local
+links and required disclosures. The draft remains deliberately unpublishable:
+every page carries a visible warning and `noindex`, and operator identity,
+contact, address and effective-date placeholders remain. The stricter
+`scripts/check-oauth-site.py --release` gate fails until those controls and
+placeholders have been resolved.
+
 Google's [verification requirements](https://support.google.com/cloud/answer/13464321)
 call for a homepage on a verified domain, a linked privacy policy explaining
 access, use, storage and sharing of Google data, and an end-to-end demonstration
