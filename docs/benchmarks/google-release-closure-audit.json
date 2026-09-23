@@ -1,14 +1,19 @@
 {
   "question": "After the packaged built-in OAuth control and the internal website draft, which Google release gates are currently satisfied and which still require external action?",
   "kind": "Read-only release-closure audit of repository, GitHub Actions, Google Auth Platform and one run-owned Shared Drive. No Cloud setting, Drive permission or provider item was changed.",
-  "observed_at_utc": "2026-09-23T03:00:00Z",
+  "observed_at_utc": "2026-09-23T04:41:42Z",
   "repository": {
     "oauth_site_pr": 79,
     "oauth_site_merge_commit": "e32fe97a468e978757d3b95fdef9708e3692f495",
     "oauth_site_state": "An internal static homepage, Google-data privacy page and data-removal guide are merged. Every page remains visibly marked as an internal draft, carries noindex and has unresolved operator placeholders. The release validator rejects it as designed.",
     "package_build_input": "The repository Actions secret exists. A fresh main workflow and the exact-artifact control both passed without emitting the value.",
     "package_workflow_run": 35809278440,
-    "package_workflow_result": "success"
+    "package_workflow_result": "success",
+    "effective_google_read_pr": 81,
+    "effective_google_read_merge_commit": "8f3ee696a93290f1b772c4b1f0c2608ead0ae94d",
+    "effective_google_read_result": "Two active My Drive connections completed the corrected bounded GET-only adapter-versus-mount comparison over ten exact ordinary files and 5,896,611 bytes with no byte mismatch, unavailable read, or content, metadata or namespace change. The unregistered diagnostic remains troubleshooting evidence rather than a release gate.",
+    "effective_google_read_main_workflow_run": 35819097454,
+    "effective_google_read_main_workflow_state_at_audit": "in_progress"
   },
   "google_auth_platform": {
     "publishing_status": "Testing",
@@ -30,7 +35,13 @@
       "drive.readonly"
     ],
     "required_but_not_declared_for_allow_changes": "drive",
-    "pending_change": "The exact full Drive scope was located and selected in the browser form, but neither the selection update nor the Cloud configuration was saved because expanding security-sensitive access requires action-time owner confirmation."
+    "pending_change": "The exact full Drive scope remains undeclared. A previous browser form selection was never applied or saved and that transient form is no longer open. Adding the scope and saving the Cloud configuration still require action-time owner confirmation.",
+    "cloud_api_services": {
+      "drive_api": "enabled",
+      "docs_api": "enabled",
+      "sheets_api": "enabled"
+    },
+    "read_only_console_recheck": "The live console still shows External / Testing, two test users, no homepage, privacy-policy or terms URL, zero authorized domains, and no production verification requirement while the app remains in Testing. No field was changed."
   },
   "shared_drive_role_inventory": {
     "method": "One bounded Drive permissions.list request against the exact private test Shared Drive; response fields were restricted to type, role, deleted and pendingOwner. No raw response, identity, email, token or provider ID was printed or recorded.",
