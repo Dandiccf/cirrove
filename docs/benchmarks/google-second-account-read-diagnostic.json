@@ -10,26 +10,53 @@
     "compared_files": 0,
     "classification": "The connection had no eligible ordinary file at or below the fixed one-MiB validator limit. This was a harness boundary, not a provider or mount failure."
   },
+  "corrections": [
+    {
+      "problem": "The first-account diagnostic selected generated Google browser-link projections when their collision-safe projected names did not end in .url.",
+      "cause": "The harness classified generated links by filename suffix instead of provider-neutral typed metadata.",
+      "change": "Select only ordinary files with no shortcut target or package marker and with both a mutation precondition and content revision."
+    },
+    {
+      "problem": "The first-account diagnostic initially reported eight indexed content and metadata changes although the mounted reads were current.",
+      "cause": "The harness queried only the completed nodes baseline and ignored newer foreground observations and observed absence records used by the mounted namespace.",
+      "change": "Read the effective visible store view by overlaying foreground observations on the completed baseline and filtering observed absences."
+    }
+  ],
   "change_under_test": {
     "description": "Keep the one-MiB default but accept an explicit per-file limit from 1 byte through 64 MiB.",
     "requested_limit_bytes": 4194304,
     "invalid_limit_check": "67108865 bytes was refused before a live read."
   },
-  "result": {
-    "exit": 0,
-    "compared_files": 2,
-    "compared_bytes": 5873464,
-    "changed_files": 0,
-    "unavailable_files": 0,
-    "direct_version_changes": 0,
-    "direct_missing_files": 0,
-    "direct_unavailable_files": 0,
-    "indexed_content_changes": 0,
-    "indexed_metadata_changes": 0,
-    "indexed_namespace_changes": 0,
-    "mounted_byte_mismatches": 0,
-    "mounted_unavailable_files": 0
+  "final_results_after_corrections": {
+    "first_active_connection": {
+      "exit": 0,
+      "compared_files": 8,
+      "compared_bytes": 23147,
+      "changed_files": 0,
+      "unavailable_files": 0,
+      "indexed_content_changes": 0,
+      "indexed_metadata_changes": 0,
+      "indexed_namespace_changes": 0,
+      "mounted_byte_mismatches": 0,
+      "mounted_unavailable_files": 0
+    },
+    "second_active_connection": {
+      "exit": 0,
+      "compared_files": 2,
+      "compared_bytes": 5873464,
+      "changed_files": 0,
+      "unavailable_files": 0,
+      "direct_version_changes": 0,
+      "direct_missing_files": 0,
+      "direct_unavailable_files": 0,
+      "indexed_content_changes": 0,
+      "indexed_metadata_changes": 0,
+      "indexed_namespace_changes": 0,
+      "mounted_byte_mismatches": 0,
+      "mounted_unavailable_files": 0
+    }
   },
-  "interpretation": "For these two exact ordinary files, the direct Google adapter bytes and mounted bytes matched. The diagnostic does not establish arbitrary-file reliability, provider-wide correctness or a release gate because its question and prediction were not registered before the run.",
+  "isolated_upgrade_probe": "A private, mutation-free current-daemon probe over a copied legacy baseline reached ready and read an exact bounded file through the isolated mount. Foreground observations overlaid the legacy baseline, confirming that raw nodes-table inspection was not the mounted view. No account, item, path or content identifiers are recorded here.",
+  "interpretation": "For these ten exact ordinary files across two active connections, the direct Google adapter bytes and mounted bytes matched after correcting the diagnostic. The result does not establish arbitrary-file reliability, provider-wide correctness or a release gate because its question and prediction were not registered before the run.",
   "cloud_mutations": 0
 }

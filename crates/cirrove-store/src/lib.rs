@@ -643,6 +643,26 @@ impl Store {
         let rows = query.query_map([Self::key(scope)?], |r| r.get::<_, String>(0))?;
         rows.map(|row| Ok(serde_json::from_str(&row?)?)).collect()
     }
+    /// Every currently visible node in a scope. Foreground observations take
+    /// precedence over the completed feed baseline, and observed absence hides
+    /// either source, matching [`Store::node`] for a whole-scope diagnostic.
+    pub fn visible_nodes(&self, scope: &Scope) -> Result<Vec<Node>> {
+        let mut query = self.db.prepare(
+            "SELECT body FROM (
+                SELECT scope,id,body FROM observed WHERE scope=?1
+                UNION ALL
+                SELECT n.scope,n.id,n.body FROM nodes n
+                WHERE n.scope=?1 AND NOT EXISTS(
+                    SELECT 1 FROM observed o WHERE o.scope=n.scope AND o.id=n.id)
+            ) current
+            WHERE NOT EXISTS(
+                SELECT 1 FROM observed_absent a
+                WHERE a.scope=current.scope AND a.id=current.id)
+            ORDER BY id",
+        )?;
+        let rows = query.query_map([Self::key(scope)?], |r| r.get::<_, String>(0))?;
+        rows.map(|row| Ok(serde_json::from_str(&row?)?)).collect()
+    }
     /// Follow only actual shortcuts' ancestry using the partial shortcut index.
     /// UNION deduplicates corrupt/cyclic parent references for each shortcut.
     pub fn shortcuts_under(&self, scope: &Scope, root: &str) -> Result<Vec<Node>> {
@@ -941,6 +961,45 @@ mod tests {
         .unwrap();
         assert_eq!(db.nodes(&s).unwrap().len(), 2);
         assert_eq!(db.cursor(&s).unwrap(), Some(Cursor("delta1".into())));
+    }
+
+    #[test]
+    fn visible_nodes_merge_foreground_observations_with_the_completed_baseline() {
+        let mut db = Store::open(":memory:").unwrap();
+        let s = scope("visible");
+        db.begin(&s, false).unwrap();
+        db.stage(
+            &s,
+            None,
+            &page(vec![node("updated"), node("removed")], true, "delta"),
+        )
+        .unwrap();
+
+        let Change::Upsert(mut updated) = node("updated") else {
+            unreachable!()
+        };
+        updated.name = "foreground".into();
+        let ticket = db.node_observation(&s, "updated").unwrap();
+        db.publish_node(&ticket, &updated).unwrap();
+
+        let ticket = db.node_observation(&s, "removed").unwrap();
+        db.publish_absence(&ticket).unwrap();
+
+        let Change::Upsert(fresh) = node("fresh") else {
+            unreachable!()
+        };
+        let ticket = db.node_observation(&s, "fresh").unwrap();
+        db.publish_node(&ticket, &fresh).unwrap();
+
+        let visible = db.visible_nodes(&s).unwrap();
+        assert_eq!(
+            visible
+                .iter()
+                .map(|node| (node.id.as_str(), node.name.as_str()))
+                .collect::<Vec<_>>(),
+            vec![("fresh", "fresh"), ("updated", "foreground")]
+        );
+        assert_eq!(db.nodes(&s).unwrap().len(), 2, "baseline stays intact");
     }
     #[test]
     fn reset_keeps_visible_baseline_until_complete_and_is_account_isolated() {
