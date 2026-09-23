@@ -1,7 +1,7 @@
 {
   "question": "After the packaged built-in OAuth control and the internal website draft, which Google release gates are currently satisfied and which still require external action?",
-  "kind": "Read-only release-closure audit of repository, GitHub Actions, Google Auth Platform and one run-owned Shared Drive. No Cloud setting, Drive permission or provider item was changed.",
-  "observed_at_utc": "2026-09-23T04:41:42Z",
+  "kind": "Release-closure audit of repository, GitHub Actions and Google Auth Platform, followed by one explicitly owner-authorized scope-declaration update. Live Drive mutations are recorded separately.",
+  "observed_at_utc": "2026-09-23T05:58:23Z",
   "repository": {
     "oauth_site_pr": 79,
     "oauth_site_merge_commit": "e32fe97a468e978757d3b95fdef9708e3692f495",
@@ -13,7 +13,8 @@
     "effective_google_read_merge_commit": "8f3ee696a93290f1b772c4b1f0c2608ead0ae94d",
     "effective_google_read_result": "Two active My Drive connections completed the corrected bounded GET-only adapter-versus-mount comparison over ten exact ordinary files and 5,896,611 bytes with no byte mismatch, unavailable read, or content, metadata or namespace change. The unregistered diagnostic remains troubleshooting evidence rather than a release gate.",
     "effective_google_read_main_workflow_run": 35819097454,
-    "effective_google_read_main_workflow_state_at_audit": "in_progress"
+    "effective_google_read_main_workflow_state_at_audit": "success",
+    "two_account_write_record": "google-two-account-write-closure-live.json: both configured My Drive accounts passed the preregistered mounted create, replace, rename, move and cleanup workflow."
   },
   "google_auth_platform": {
     "publishing_status": "Testing",
@@ -32,16 +33,16 @@
       "profile"
     ],
     "declared_restricted_drive_scopes": [
+      "drive",
       "drive.readonly"
     ],
-    "required_but_not_declared_for_allow_changes": "drive",
-    "pending_change": "The exact full Drive scope remains undeclared. A previous browser form selection was never applied or saved and that transient form is no longer open. Adding the scope and saving the Cloud configuration still require action-time owner confirmation.",
     "cloud_api_services": {
       "drive_api": "enabled",
       "docs_api": "enabled",
       "sheets_api": "enabled"
     },
-    "read_only_console_recheck": "The live console still shows External / Testing, two test users, no homepage, privacy-policy or terms URL, zero authorized domains, and no production verification requirement while the app remains in Testing. No field was changed."
+    "write_scope_declaration": "Saved. After Save, the restricted-scope list displayed both drive and drive.readonly, Save was disabled, the page reported no pending changes and the console notification said that data-access changes were saved.",
+    "post_save_console_recheck": "The app remains External / Testing with two test users. Homepage, privacy-policy and terms URLs remain unset and authorized domains remain zero."
   },
   "shared_drive_role_inventory": {
     "method": "One bounded Drive permissions.list request against the exact private test Shared Drive; response fields were restricted to type, role, deleted and pendingOwner. No raw response, identity, email, token or provider ID was printed or recorded.",
@@ -56,14 +57,23 @@
     "Built-in Desktop OAuth input reaches successful DEB, RPM and Arch artifacts.",
     "A reviewable internal homepage, privacy policy and removal guide exist with an accidental-publication guard.",
     "Read-only and write-mode scope justifications and the verification demonstration sequence are documented.",
-    "Google Docs and Sheets APIs are enabled and representative native export fidelity has bounded live evidence."
+    "Google Docs and Sheets APIs are enabled and representative native export fidelity has bounded live evidence.",
+    "The full drive scope is saved alongside drive.readonly in Google Auth Platform, and both configured My Drive accounts passed a bounded mounted write workflow afterward."
   ],
   "still_open": [
-    "Save the full Drive scope declaration after explicit action-time confirmation.",
     "Choose and verify an operator-controlled domain, replace operator placeholders, review the policy text, publish the site and configure matching branding URLs.",
     "Add a second Workspace member with deliberately restricted Shared Drive roles before running that role matrix.",
     "Submit branding and restricted-scope verification to Google with an approved end-to-end demonstration; Google decides whether an external security assessment is required.",
     "Broader arbitrary native-document fidelity and concurrent native writeback remain outside the currently implemented read-only native-package boundary."
   ],
-  "status": "release_closure_advanced_but_external_gates_remain"
+  "status": "release_closure_advanced_scope_saved_external_gates_remain",
+  "corrections": [
+    {
+      "at_utc": "2026-09-23T05:50:00Z",
+      "prior_claim": "The full Drive scope remained undeclared because the earlier form selection had not been applied or saved.",
+      "authorized_action": "The owner explicitly approved Update and Save. The full drive scope was added, the form was updated and the Cloud configuration was saved.",
+      "observed_result": "The saved restricted-scope list contains drive and drive.readonly; Save is disabled and the console confirmed that data-access changes were saved.",
+      "follow_up": "The preregistered two-account mounted write run passed on both configured My Drive accounts."
+    }
+  ]
 }
