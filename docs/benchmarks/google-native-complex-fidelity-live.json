@@ -22,5 +22,30 @@
     "https://developers.google.com/workspace/drive/api/guides/ref-export-formats"
   ],
   "limits": "Two small fixtures on one Workspace administrator and one owned Shared Drive cannot establish fidelity for arbitrary documents, comments, suggestions, macros, external data, restricted roles, concurrent native writes, large exports or public OAuth readiness.",
-  "status": "registered"
+  "status": "registered_retry_after_preflight_failure",
+  "attempts": [
+    {
+      "attempt": 1,
+      "private_manifest": ".local-state/live-runs/google-native-complex-fidelity-20260923/manifest.json",
+      "outcome": "failed_before_fixture_creation",
+      "observed": {
+        "drive_parent_get": 200,
+        "docs_get": 200,
+        "sheets_get": 403,
+        "provider_reason": "SERVICE_DISABLED",
+        "fixtures_created": 0
+      },
+      "cause": "The Google Sheets API was disabled in the existing Cirrove Google Cloud project. The exact read-only preflight failed closed before any fixture creation."
+    },
+    {
+      "attempt": 2,
+      "private_manifest": ".local-state/live-runs/google-native-complex-fidelity-retry-20260923/manifest.json",
+      "outcome": "registered_after_correction"
+    }
+  ],
+  "correction": {
+    "google_cloud_change": "Enabled only sheets.googleapis.com in project Cirrove after the owner authorized the continued Google test and all steps needed for it.",
+    "verification": "A fresh exact-sheet read-only spreadsheets.get returned HTTP 200 after activation.",
+    "retry_rule": "Use a new private run directory and new fixture names; preserve the first failed manifest unchanged."
+  }
 }
