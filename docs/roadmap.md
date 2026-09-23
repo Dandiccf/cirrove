@@ -87,6 +87,12 @@ currently bundled; another project's client ID is never substituted.
       PDF and OpenDocument exports. Direct GET-only PDF/OpenDocument exports
       passed on two test items; one installed-mount read probe passed twice
       after an unexplained first-attempt assertion.
+      A later exact-fixture probe preserved a Doc heading, bold/italic text and
+      bullets plus a Sheet's frozen bold header, currency format, SUM/AVERAGE
+      formulas and column chart through all six direct exports and a fresh
+      selected-Shared-Drive mount. Only the two registered fixtures were then
+      trashed. Arbitrary-document, comments/suggestions, macro and concurrent
+      native-write fidelity remain outside that bounded result.
       Native writeback failed a stale-update integrity
       probe and remains disabled. A subsequent installed first-open probe passed
       for the same Doc and Sheet after the cached-package correction. A direct

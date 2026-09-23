@@ -79,7 +79,7 @@ kept the same refresh-tolerant one-hour shape on a fresh private mount and read
 the exact uncached 16,777,263-byte fixture in 5.247 seconds. Its first two setup
 attempts and one operator-contaminated cache attempt remain recorded beside the
 passing run. Restricted roles and longer sessions remain open.
-Native document writeback, broader export fidelity, push webhooks, resource-key
+Native document writeback, arbitrary-document export fidelity, push webhooks, resource-key
 transport and large-library/long-session acceptance are not claimed.
 There is no service-account or another client's credential import.
 
@@ -124,9 +124,21 @@ then found a second run-owned Doc and Sheet by exact identity and read all six
 formats twice. DOCX, both PDFs, XLSX, ODT and ODS had valid signatures and each
 contained the registered marker; package listings themselves added no cache
 files. Earlier attempts in the same record preserve two setup mistakes and the
-overstrict cache assertion that diagnosed them. These four small native items
-still do not establish fidelity for complex formatting, formulas, charts,
-comments, suggestions or other accounts.
+overstrict cache assertion that diagnosed them. Those four small native items
+established marker preservation, not document structure fidelity.
+A subsequent
+[complex native fidelity probe](benchmarks/google-native-complex-fidelity-live.json)
+created one run-owned formatted Doc and one formula/chart Sheet in the selected
+Shared Drive. The Doc carried a heading, bold and italic text and bullets; the
+Sheet carried a bold frozen header, currency cells, SUM and AVERAGE formulas and
+a column chart. API readback, all six direct exports and all six reads through a
+fresh private mount preserved their applicable structure and registered marker;
+repeat mounted reads matched, the private mount disappeared, and only the two
+exact fixture identities were then trashed. The record also preserves a disabled
+Sheets API preflight and two local assertion mistakes before the bounded pass.
+This supports those representative structures on one Workspace administrator
+account. It does not establish arbitrary document fidelity, comments,
+suggestions, macros, external data, restricted roles or concurrent native writes.
 A [persisted-cache regression](benchmarks/google-package-cache-upgrade-control.json)
 then reproduced one concrete route to stale package children across a service
 restart and corrected the first-open recheck. The original live assertion did
