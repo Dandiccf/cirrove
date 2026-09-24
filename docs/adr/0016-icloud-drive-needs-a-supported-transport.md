@@ -25,6 +25,12 @@ rather than CloudKit. The direct Linux route is therefore technically plausible
 and deserves a measured feasibility spike. The Mac companion is a fallback for a
 future, separately scoped product, not Cirrove's planned iCloud route.
 
+Cirrove's iCloud implementation must be independent: no rclone executable,
+library, daemon, mounted filesystem, configuration or credentials in its runtime,
+build, tests or sign-in flow. Existing clients are research references and the
+Fedora mount is feasibility evidence only. Cirrove owns its protocol adapter,
+authentication, metadata, reads and (if proven safe) writes.
+
 Apple's [CloudKit](https://developer.apple.com/documentation/cloudkit) addresses an
 app's own containers and does not expose the person's general Drive tree.
 [File Provider](https://developer.apple.com/documentation/fileprovider) publishes an
@@ -81,9 +87,9 @@ the person to authenticate again. This is a proposed design, **not** a claim tha
 password-free renewal works for every Apple account. Rclone stores an obscured
 password in its config; [rclone itself says obscuring is not secure encryption](https://rclone.org/commands/rclone_obscure/).
 
-The first live spike may use a separately configured, isolated rclone instance to
-learn the transport without handling credentials in new Cirrove code. It must not
-read or change another client's existing config. No credentials, cookies, token
+The first live spike must use a Cirrove-owned native Rust probe and its own private
+credential store. It must not call rclone or read or change another client's
+configuration, credentials, mount or service. No credentials, cookies, token
 values, signed download URLs or raw response bodies enter the evidence artifact.
 
 ## Direct Linux architecture if the gates pass
@@ -118,13 +124,14 @@ integration can then remain shared.
 The first probe is isolated and read-only. It may inspect owned fixtures, but it
 must not mutate a cloud account without a separate explicit authorization.
 
-The Fedora/GNOME connection is already identified as rclone FUSE, so it can serve
-as a read-only behavioral baseline. Do not wrap its mounted path as a Cirrove
-provider: a filesystem path alone cannot supply Cirrove's account + collection +
-item identity, provider revision, and version-bound read contract, and nesting
-FUSE mounts would obscure ownership and recovery. The live probe should use an
-isolated test configuration and account, never the existing rclone configuration,
-mount or service.
+The Fedora/GNOME connection is already identified as rclone FUSE, so it establishes
+that direct Linux access is possible. Do not wrap, call or test through its mounted
+path: a filesystem path alone cannot supply Cirrove's account + collection + item
+identity, provider revision, and version-bound read contract, and nesting FUSE
+mounts would obscure ownership and recovery. The live probe must use Cirrove's
+native transport and independent sign-in, never the existing rclone configuration,
+mount or service. The same Apple account may be used only through that separate
+Cirrove sign-in; a new Apple account is not a prerequisite for the read probe.
 
 1. Reproduce account sign-in and re-sign-in for a dedicated test account, with and
    without Advanced Data Protection if accounts are available. Record only success,
@@ -143,7 +150,7 @@ mount or service.
    metadata or completed checkpoint when interrupted. Bound both memory and
    provider requests on a large synthetic tree before any live-scale claim.
 
-Completion means the read path can satisfy Cirrove's existing `MetadataProvider`
+Completion means Cirrove's own read path can satisfy its existing `MetadataProvider`
 and `ReadProvider` contracts with stable identity, verifiable bytes and honest
 freshness. A successful `rclone ls` alone is only evidence that login and listing
 work. If the transport cannot meet a gate, record the exact limitation and keep
@@ -167,14 +174,16 @@ exact bytes.
 ## Immediate implementation sequence
 
 1. Build a synthetic protocol fixture from documented observations of the open
-   clients. Keep it isolated from live accounts and from the current provider
-   crates. Do not add a dependency until its concrete use is known.
-2. Run a read-only transport probe with a separate private test configuration and
-   record the I0 results. This needs a test Apple Account and an interactive 2FA
-   step; the current Google and Microsoft accounts are unrelated.
-3. If I0 passes, add a native Rust adapter and vault-backed interactive sign-in,
-   keeping the web protocol isolated behind that provider crate. Validate it
-   through the shared engine and synthetic crash tests before a preview mount.
+   clients, without copying their implementation. Keep it isolated from live
+   accounts and from the current provider crates. Add only dependencies needed by
+   this concrete native probe.
+2. Implement a Cirrove-owned, read-only Rust transport probe with private vault
+   storage and interactive Apple sign-in/2FA. Run I0 through that probe and record
+   the results. The existing Apple account can be used after separate Cirrove
+   sign-in; the current Google and Microsoft accounts are unrelated.
+3. If I0 passes, integrate the native Rust adapter behind the existing provider
+   contracts. Validate it through the shared engine and synthetic crash tests
+   before a preview mount.
 4. Only then decide whether the maintenance cost of Apple's undocumented protocol
    is acceptable for a released Linux provider. If not, document the tested
    limitation and leave the feature experimental.

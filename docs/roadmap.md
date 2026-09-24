@@ -113,8 +113,9 @@ currently bundled; another project's client ID is never substituted.
       inspected as a working read/write example. An isolated, read-only probe must
       establish stable item identity, content revisions, bounded complete
       refresh, ranged reads and reauthentication before a Cirrove adapter or
-      account picker is added. Writes require separate conflict and recovery
-      evidence.
+      account picker is added. The probe and provider must be native Cirrove code,
+      with no rclone runtime, configuration or credential dependency. Writes
+      require separate conflict and recovery evidence.
 
 Modern components do not establish production readiness. Sustained real-provider
 use and independently reviewable recovery results remain release requirements.

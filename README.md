@@ -241,8 +241,8 @@ read/write through rclone FUSE. Cirrove will first validate stable identities, s
 refresh and account reauthentication in an isolated read-only probe. Its shared
 cache, pinning and FUSE engine are candidates for reuse if that gate passes;
 provider-side write conflicts and recovery remain a separate gate. Cirrove does
-not copy or depend on Stratosync or rclone; lessons from those integrations
-inform the recovery tests.
+not copy or depend on Stratosync or rclone at runtime, build time or in tests;
+lessons from those integrations inform the recovery tests.
 
 ## License
 
