@@ -116,7 +116,10 @@ fn main() -> Result<()> {
         if args.demo && let Some(mut view) = ui.current() {
             match args.demo_state.unwrap_or(DemoState::Connected) {
                 DemoState::Connected => (),
-                DemoState::Empty => view.accounts.clear(),
+                DemoState::Empty => {
+                    view.accounts.clear();
+                    view.activity.clear();
+                }
                 DemoState::ServiceOffline => {
                     view.service_reachable = false;
                     view.service_error = Some(ServiceFailure::Io(std::io::ErrorKind::NotFound));
@@ -163,7 +166,7 @@ fn main() -> Result<()> {
         if let Some(path) = args.snapshot.clone() {
             let window = ui.window.clone();
             if let Some(window) = window.upgrade() {
-                window.set_size_request(660, 620);
+                window.set_size_request(660, 540);
             }
             let app = app.clone();
             let failed = result.clone();

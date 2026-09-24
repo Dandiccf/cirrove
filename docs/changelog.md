@@ -5,6 +5,11 @@ are in the [ledger](acceptance-ledger.json); the engineering is in git.
 
 ## Unreleased
 
+- **A fresh desktop no longer needs manual keyring setup.** On the first
+  connection Cirrove creates the normal Login keyring through the desktop and
+  lets the desktop ask for its password before browser sign-in. The empty
+  first-launch window is now a compact connection card with a crisp system
+  icon instead of an oversized or missing application image.
 - **Google Drive no longer needs a developer-supplied client file.** Official
   packages carry Cirrove's Desktop OAuth registration, so a normal connection
   starts in the browser and each Google account grants access for itself. A

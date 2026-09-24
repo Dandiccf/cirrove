@@ -34,17 +34,15 @@ drive from the window, or with `systemctl --user enable --now cirroved`. The
 tray starts with your next login (it is an autostart entry); to have it now,
 run `cirrove-tray`.
 
-Sign-in grants are kept in your desktop keyring, so there has to be one that
-is unlocked. A machine that logs you in automatically has none: nobody typed a
-password to unlock it. Open *Passwords and Keys* and create the default
-("Login") keyring once, or log in with your password once, and connecting
-works from then on.
+Sign-in grants are kept in your desktop keyring. On a new desktop profile,
+Cirrove creates the ordinary default ("Login") collection when you first
+connect a drive. Your desktop owns the password prompt; Cirrove never receives
+the password. If the collection already exists but is locked, Cirrove asks the
+desktop to unlock it before opening the browser.
 
-Cirrove asks this **before** it opens the browser, not after. If the keyring is
-locked it asks your desktop to unlock it; if there is none at all it says so and
-names the package. It used to find out only once you had signed in and chosen a
-drive, which threw the whole sign-in away for a reason that had nothing to do
-with you.
+If no Secret Service is running, Cirrove stops before sign-in and names the
+package that supplies one. The packages recommend `gnome-keyring`; another
+desktop Secret Service works too.
 
 The tray icon needs a panel that shows StatusNotifierItems. GNOME needs the
 [AppIndicator extension](https://extensions.gnome.org/extension/615/appindicator-support/)

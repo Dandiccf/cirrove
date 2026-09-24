@@ -1,0 +1,35 @@
+{
+  "question": "Can a person complete the first Google connection from a Cirrove package on a clean supported Ubuntu desktop whose Secret Service is running but has no default collection?",
+  "kind": "Clean-VM package acceptance preflight. The same private Ubuntu 24.04.4 VM preserves the failing first-launch state for the corrected package retest.",
+  "authorization": "The owner asked for complete Google Drive release preparation, authorized Google read/write validation and asked Cirrove to handle the keyring setup during installation or first use.",
+  "registered_at_utc": "2026-09-24T02:53:13Z",
+  "source": {
+    "baseline_revision": "92de62a",
+    "baseline_package_version": "0.2.0~dev.r652.g92de62a-1",
+    "guest": "Ubuntu 24.04.4",
+    "private_manifest": "/home/dandiccf/Work/cirrove-vms-google-rc/run-manifest.json"
+  },
+  "preconditions": [
+    "The VM disk was created for this control; no Cirrove configuration, state, credentials or provider data were copied into it.",
+    "Before baseline installation, Cirrove packages, configuration, state, accounts and mounts were absent.",
+    "The baseline packages were downloaded from the successful main workflow for revision 92de62a and all nine package attestations passed verification.",
+    "The desktop Secret Service was reachable but had no default collection."
+  ],
+  "prediction": "The corrected package creates the ordinary default Login collection through Secret Service before OAuth, leaves any password prompt to the desktop, opens Google sign-in without a user-supplied client JSON, saves the grant, and mounts the selected drive. The empty first-launch view uses a compact card and a stock symbolic icon.",
+  "baseline": {
+    "result": "failed_before_browser",
+    "detail": "After choosing Google Drive with Allow changes, the packaged window reported that the desktop keyring had no default collection. No OAuth browser flow started and no Cirrove account or mount was created."
+  },
+  "procedure": [
+    "Build the corrected revision in GitHub Actions and verify the downloaded Debian package attestations.",
+    "Upgrade only the Cirrove packages in the preserved clean VM; do not copy a keyring, account file or credential into it.",
+    "Open Cirrove, choose Google Drive with the built-in OAuth application and complete the desktop-owned keyring prompt if shown.",
+    "The owner completes Google authentication in the browser and selects the Workspace test account's My Drive.",
+    "Verify one connected Google account, one Cirrove mount and one bounded ordinary-file read without recording account, collection or item identifiers.",
+    "Remove only any test object created by this run, if a mutation is needed; existing cloud content is never a cleanup target."
+  ],
+  "endpoint": "The corrected attested package passes first-use keyring creation, JSON-free browser sign-in, selected-drive connection and a bounded mounted read in the same VM where the baseline failed.",
+  "limits": "This is a development-package preflight for the exact failure and UI found during release preparation. It does not close the exact tagged 0.2.0 artifact gate, Google's production verification or public legal-site gates.",
+  "result": null,
+  "status": "registered_before_corrected_package_run"
+}

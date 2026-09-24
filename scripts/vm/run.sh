@@ -89,9 +89,19 @@ serve() {
   # The installer's answers, and the packages, on the gateway the guest sees.
   # One directory: the seed files at the top, pkgs/ beside them.
   local root="$dir/www"
-  rm -rf "$root"; mkdir -p "$root"
+  # Keep this additive. Developer machines can have live mounts, account state
+  # and measurement evidence nearby; booting a VM must never recursively remove
+  # a directory before discovering what it contains.
+  mkdir -p "$root"
   cp "$seed"/* "$root/"
-  ln -s "$vms/pkgs" "$root/pkgs"
+  if [[ -e $root/pkgs || -L $root/pkgs ]]; then
+    [[ -L $root/pkgs && $(readlink -f "$root/pkgs") == $(readlink -f "$vms/pkgs") ]] || {
+      echo "$root/pkgs exists and does not point to $vms/pkgs" >&2
+      exit 1
+    }
+  else
+    ln -s "$vms/pkgs" "$root/pkgs"
+  fi
   # One port per distro, so both machines can install at once.
   (cd "$root" && python3 -m http.server "$http_port" --bind 127.0.0.1 >"$dir/http.log" 2>&1 &
    echo $! > "$dir/http.pid")

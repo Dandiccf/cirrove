@@ -19,7 +19,7 @@ set -euo pipefail
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 distro=${1:?usage: unlock.sh <distro> [password]}
 password=${2:-cirrove}
-dir="$HOME/Work/cirrove-vms/$distro"
+dir="${CIRROVE_VMS:-$HOME/Work/cirrove-vms}/$distro"
 vm() { bash "$here/run.sh" "$distro" ssh "$@"; }
 
 locked() {

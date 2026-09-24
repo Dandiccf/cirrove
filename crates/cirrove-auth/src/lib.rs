@@ -16,7 +16,7 @@ use openidconnect::{
 };
 use reqwest::{Client, Url, redirect::Policy};
 use secrecy::{ExposeSecret, SecretString};
-use secret_service::{EncryptionType, SecretService};
+use secret_service::{Collection, EncryptionType, Error as SecretServiceError, SecretService};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -250,6 +250,30 @@ pub trait CredentialVault: Send + Sync {
 /// Only Cirrove-owned entries are ever searched, updated or removed.
 pub struct DesktopVault;
 
+async fn default_collection<'a>(service: &'a SecretService<'_>) -> Result<Collection<'a>> {
+    match service.get_default_collection().await {
+        Ok(collection) => Ok(collection),
+        Err(SecretServiceError::NoResult) => {
+            // A Secret Service can be running without a collection on a new
+            // desktop profile. Waiting until after OAuth to discover that loses
+            // the grant the person just made. Create the ordinary default
+            // collection while the sign-in action is in the foreground; the
+            // desktop owns any password prompt and Cirrove never sees it.
+            match service.create_collection("Login", "default").await {
+                Ok(collection) => Ok(collection),
+                // Another foreground request may have created it while this
+                // one was waiting on the desktop prompt. Prefer that completed
+                // collection over reporting a stale creation error.
+                Err(create_error) => service.get_default_collection().await.map_err(|_| {
+                    anyhow::anyhow!(create_error)
+                        .context("cannot create the desktop keyring used for sign-in")
+                }),
+            }
+        }
+        Err(error) => Err(error).context("cannot open the default desktop keyring"),
+    }
+}
+
 impl DesktopVault {
     /// Whether there is somewhere to keep a grant, asked before one is obtained.
     ///
@@ -278,12 +302,7 @@ impl DesktopVault {
         // that logs in automatically; on Arch there was no service at all.
         // Both end the same way -- a grant with nowhere to go, after the person
         // has done the work -- so both are asked about here.
-        let collection = service.get_default_collection().await.map_err(|_| {
-            anyhow::anyhow!(
-                "the desktop keyring has no default collection to keep a sign-in in. Open your \
-                 keyring application once to create one, then sign in again."
-            )
-        })?;
+        let collection = default_collection(&service).await?;
         if collection.is_locked().await.unwrap_or(false) {
             // Asking raises the desktop's own prompt, which is the right thing
             // to happen before a sign-in and the wrong thing to happen after.
@@ -364,11 +383,7 @@ async fn write_desktop_secret(key: &str, value: &SecretString) -> Result<()> {
     let ss = SecretService::connect(EncryptionType::Dh)
         .await
         .context("desktop Secret Service unavailable")?;
-    let collection = ss.get_default_collection().await.context(
-        "no default desktop keyring to keep the sign-in in. A machine that logs you in \
-             automatically unlocks none; open Passwords and Keys and create the Login keyring \
-             once, or log in with your password once",
-    )?;
+    let collection = default_collection(&ss).await?;
     if collection.is_locked().await? {
         collection
             .unlock()

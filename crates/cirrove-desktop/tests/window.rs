@@ -636,6 +636,7 @@ fn the_x11_window_class_is_the_application_id_a_shell_looks_for() {
         "Focus",
         "X11Identity",
         "FailureKinds",
+        "EmptyFirstLaunch",
         "Actions",
         "KeptOffline",
         "FetchInFlight",
@@ -779,6 +780,44 @@ fn every_failure_kind_reaches_the_window_with_its_own_words() {
         shared,
         vec![vec!["Io(NotFound)", "Io(ConnectionRefused)"]],
         "the only failures allowed to share words are the two that mean no daemon is listening"
+    );
+    window.close();
+}
+
+/// A first launch has no account rows to give the page its shape. Keep that
+/// state useful and compact, with an icon supplied by GTK itself: a package
+/// installed into a running desktop once showed an oversized missing-image
+/// placeholder here until the icon cache was reloaded.
+fn an_empty_first_launch_has_a_complete_connection_card() {
+    use cirrove_desktop::model::Overview;
+
+    let app = application("EmptyFirstLaunch");
+    let ui = Window::new(&app, Backend::Demo);
+    let window = ui.window.upgrade().unwrap();
+    window.present();
+
+    let mut view = Overview::from_snapshot(demo::snapshot().unwrap());
+    view.accounts.clear();
+    view.activity.clear();
+    ui.render(view);
+
+    pump_until("empty connection card", || {
+        displays_text(window.upcast_ref(), "No drives connected")
+            && displays_text_containing(
+                window.upcast_ref(),
+                "Connect a cloud drive and its files appear in Files",
+            )
+            && button(window.upcast_ref(), "Connect a drive").is_some()
+    });
+    let theme = gtk::IconTheme::for_display(&gtk::prelude::WidgetExt::display(&window));
+    assert!(
+        theme.has_icon("folder-remote-symbolic"),
+        "the empty state must use a stock icon available before package icon caches reload"
+    );
+    assert_eq!(
+        window.default_height(),
+        540,
+        "the empty settings window must not return to the oversized status-page layout"
     );
     window.close();
 }
@@ -1433,6 +1472,10 @@ const SCENARIOS: &[(&str, fn())] = &[
     (
         "every_failure_kind_reaches_the_window_with_its_own_words",
         every_failure_kind_reaches_the_window_with_its_own_words,
+    ),
+    (
+        "an_empty_first_launch_has_a_complete_connection_card",
+        an_empty_first_launch_has_a_complete_connection_card,
     ),
     (
         "native_window_keeps_focus_and_waits_for_service_mount_acknowledgement",
