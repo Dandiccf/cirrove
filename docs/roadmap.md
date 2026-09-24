@@ -107,7 +107,11 @@ currently bundled; another project's client ID is never substituted.
       remain open. The
       Cirrove OAuth app is still in Testing and needs public branding and
       Drive-scope verification before general Google-account onboarding.
-- [ ] iCloud feasibility, isolated compatibility adapter and visible limitations.
+- [ ] iCloud Drive: complete the [supported-transport feasibility gate](adr/0016-icloud-drive-needs-a-supported-transport.md).
+      Apple currently documents no general API for a person's existing Drive tree.
+      The first candidate is an explicitly paired, read-only macOS companion using
+      a user-selected folder; no provider or account UI is added until stable
+      identity, revision, refresh and materialization behavior pass milestone I0.
 
 Modern components do not establish production readiness. Sustained real-provider
 use and independently reviewable recovery results remain release requirements.
