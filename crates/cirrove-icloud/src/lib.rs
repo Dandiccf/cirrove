@@ -1,0 +1,775 @@
+//! Experimental, native, read-only iCloud Drive transport.
+//!
+//! This module never invokes or reads another cloud client. Apple does not
+//! publish a stable iCloud Drive API; keep it out of the mounted service until
+//! identity, revisions and complete enumeration are validated with a live account.
+
+use anyhow::{Context, Result, anyhow, bail};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
+use reqwest::{Client, Response, StatusCode, header::HeaderMap};
+use secrecy::{ExposeSecret, SecretString};
+use serde::Deserialize;
+use serde_json::json;
+use sha2::{Digest, Sha256};
+use srp::{Client as SrpClient, groups::G2048};
+use std::time::Duration;
+use url::Url;
+use uuid::Uuid;
+use zeroize::Zeroizing;
+
+const AUTH: &str = "https://idmsa.apple.com/appleauth/auth";
+const SETUP: &str = "https://setup.icloud.com/setup/ws/1";
+const ICLOUD_ORIGIN: &str = "https://www.icloud.com";
+// Public widget identifier embedded in the iCloud web authentication flow;
+// this is not an OAuth client secret or an rclone credential.
+const WEB_WIDGET_ID: &str = "d39ba9916b7251055b22c7f910e2ea796ee65e98b2ddecea8f5dde8d9d1a815d";
+const USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3.1 Safari/605.1.15";
+const ROOT_ID: &str = "FOLDER::com.apple.CloudDocs::root";
+const MAX_JSON: usize = 8 * 1024 * 1024;
+const MAX_FILE: usize = 16 * 1024 * 1024;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SignInStep {
+    Ready,
+    NeedsTrustedDeviceCode,
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+pub struct DriveEntry {
+    pub drivewsid: String,
+    #[serde(default)]
+    pub docwsid: String,
+    #[serde(default, rename = "item_id")]
+    pub item_id: String,
+    #[serde(default)]
+    pub zone: String,
+    pub name: String,
+    #[serde(default)]
+    pub extension: String,
+    #[serde(default, rename = "parentId")]
+    pub parent_id: String,
+    #[serde(default)]
+    pub etag: String,
+    #[serde(rename = "type")]
+    pub kind: String,
+    #[serde(default)]
+    pub size: u64,
+    #[serde(default)]
+    pub items: Vec<DriveEntry>,
+    #[serde(default, rename = "numberOfItems")]
+    pub number_of_items: Option<usize>,
+}
+
+impl DriveEntry {
+    pub fn display_name(&self) -> String {
+        if self.extension.is_empty() {
+            self.name.clone()
+        } else {
+            format!("{}.{}", self.name, self.extension)
+        }
+    }
+
+    pub fn is_folder(&self) -> bool {
+        matches!(
+            self.kind.as_str(),
+            "FOLDER" | "APP_CONTAINER" | "APP_LIBRARY"
+        )
+    }
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct AccountInfo {
+    webservices: std::collections::HashMap<String, WebService>,
+}
+
+#[derive(Debug, Deserialize)]
+struct WebService {
+    url: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct SrpChallenge {
+    iteration: u32,
+    salt: String,
+    protocol: String,
+    b: String,
+    c: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct DownloadLocation {
+    data_token: Option<DownloadToken>,
+    package_token: Option<DownloadToken>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DownloadToken {
+    url: String,
+}
+
+#[derive(Default)]
+struct SessionHeaders {
+    scnt: String,
+    session_id: String,
+    session_token: String,
+    trust_token: String,
+    account_country: String,
+    auth_attributes: String,
+}
+
+impl SessionHeaders {
+    fn absorb(&mut self, headers: &HeaderMap) {
+        for (name, field) in [
+            ("scnt", &mut self.scnt),
+            ("x-apple-id-session-id", &mut self.session_id),
+            ("x-apple-session-token", &mut self.session_token),
+            ("x-apple-twosv-trust-token", &mut self.trust_token),
+            ("x-apple-id-account-country", &mut self.account_country),
+            ("x-apple-auth-attributes", &mut self.auth_attributes),
+        ] {
+            if let Some(value) = headers.get(name).and_then(|value| value.to_str().ok()) {
+                field.clear();
+                field.push_str(value);
+            }
+        }
+    }
+}
+
+/// An in-memory session. No account password, cookies or tokens are written to disk.
+pub struct ICloudReadSession {
+    http: Client,
+    frame: String,
+    headers: SessionHeaders,
+    drive_endpoint: Option<Url>,
+    docs_endpoint: Option<Url>,
+}
+
+impl ICloudReadSession {
+    pub fn new() -> Result<Self> {
+        let http = Client::builder()
+            .cookie_store(true)
+            .redirect(reqwest::redirect::Policy::none())
+            .user_agent(USER_AGENT)
+            .timeout(Duration::from_secs(30))
+            .build()
+            .context("cannot create iCloud HTTP client")?;
+        Ok(Self {
+            http,
+            frame: format!("auth-{}", Uuid::new_v4()),
+            headers: SessionHeaders::default(),
+            drive_endpoint: None,
+            docs_endpoint: None,
+        })
+    }
+
+    /// Starts Apple's SRP sign-in. The password is only used for the proof and
+    /// is never sent, saved or included in an error.
+    pub async fn sign_in(&mut self, apple_id: &str, password: &SecretString) -> Result<SignInStep> {
+        let apple_id = apple_id.trim().to_lowercase();
+        if apple_id.is_empty() || apple_id.len() > 320 {
+            bail!("invalid Apple account identifier");
+        }
+        self.start_auth().await?;
+        self.federate(&apple_id).await?;
+
+        let mut secret = Zeroizing::new([0u8; 32]);
+        getrandom::fill(&mut secret[..]).map_err(|_| anyhow!("cannot create SRP secret"))?;
+        let srp = SrpClient::<G2048, Sha256>::new_with_options(false);
+        let a_pub = pad_2048(&srp.compute_public_ephemeral(&secret[..]))?;
+        let response = self
+            .auth_request(self.http.post(format!("{AUTH}/signin/init")).json(&json!({
+                "a": STANDARD.encode(a_pub),
+                "accountName": apple_id,
+                "protocols": ["s2k", "s2k_fo"]
+            })))
+            .await?;
+        if response.status() != StatusCode::OK {
+            bail!("Apple rejected the SRP initiation");
+        }
+        let challenge: SrpChallenge = read_json(response).await?;
+        let salt = STANDARD
+            .decode(&challenge.salt)
+            .context("invalid SRP salt")?;
+        let b_pub = STANDARD
+            .decode(&challenge.b)
+            .context("invalid SRP challenge")?;
+        let b_padded = pad_2048(&b_pub)?;
+        let derived = Zeroizing::new(derive_password(
+            password.expose_secret(),
+            &salt,
+            &challenge,
+        )?);
+        let verifier = srp
+            .process_reply(
+                &secret[..],
+                apple_id.as_bytes(),
+                &derived[..],
+                &salt,
+                &b_pub,
+            )
+            .map_err(|_| anyhow!("invalid SRP challenge"))?;
+        let (m1, m2) = apple_proofs(
+            apple_id.as_bytes(),
+            &salt,
+            &a_pub,
+            &b_padded,
+            verifier.key(),
+        )?;
+
+        let response = self
+            .auth_request(
+                self.http
+                    .post(format!("{AUTH}/signin/complete"))
+                    .query(&[("isRememberMeEnabled", "true")])
+                    .json(&json!({
+                        "accountName": apple_id,
+                        "m1": STANDARD.encode(m1),
+                        "m2": STANDARD.encode(m2),
+                        "c": challenge.c,
+                        "rememberMe": true,
+                        "trustTokens": []
+                    })),
+            )
+            .await?;
+        match response.status() {
+            StatusCode::OK => {
+                self.account_login().await?;
+                Ok(SignInStep::Ready)
+            }
+            StatusCode::CONFLICT => Ok(SignInStep::NeedsTrustedDeviceCode),
+            StatusCode::FORBIDDEN => bail!("Apple rejected the account sign-in"),
+            _ => bail!("Apple sign-in requires an unsupported account step"),
+        }
+    }
+
+    pub async fn request_trusted_device_code(&mut self) -> Result<()> {
+        let response = self
+            .auth_request(
+                self.http
+                    .put(format!("{AUTH}/verify/trusteddevice/securitycode")),
+            )
+            .await?;
+        if !response.status().is_success() {
+            bail!("Apple did not send a trusted-device code");
+        }
+        Ok(())
+    }
+
+    pub async fn verify_trusted_device_code(&mut self, code: &SecretString) -> Result<()> {
+        let value = code.expose_secret().trim();
+        if value.len() != 6 || !value.bytes().all(|byte| byte.is_ascii_digit()) {
+            bail!("enter the six-digit code shown on your trusted device");
+        }
+        let response = self
+            .auth_request(
+                self.http
+                    .post(format!("{AUTH}/verify/trusteddevice/securitycode"))
+                    .json(&json!({"securityCode": {"code": value}})),
+            )
+            .await?;
+        let accepted = response.status().is_success()
+            || (response.status() == StatusCode::CONFLICT
+                && !self.headers.session_token.is_empty());
+        if !accepted {
+            bail!("Apple did not accept the trusted-device code");
+        }
+        let response = self
+            .auth_request(self.http.get(format!("{AUTH}/2sv/trust")))
+            .await?;
+        if !response.status().is_success() {
+            bail!("Apple did not trust this sign-in session");
+        }
+        self.account_login().await
+    }
+
+    pub async fn list_folder(&mut self, folder_id: &str) -> Result<Vec<DriveEntry>> {
+        let endpoint = self
+            .drive_endpoint
+            .as_ref()
+            .context("iCloud sign-in is not complete")?;
+        if folder_id.is_empty() || folder_id.len() > 512 || folder_id.contains('/') {
+            bail!("invalid iCloud folder ID");
+        }
+        let url = endpoint
+            .join("retrieveItemDetailsInFolders")
+            .context("invalid iCloud Drive endpoint")?;
+        let response = self
+            .http
+            .post(url)
+            .header("origin", ICLOUD_ORIGIN)
+            .header("referer", format!("{ICLOUD_ORIGIN}/"))
+            .json(&json!([{
+                "drivewsid": folder_id,
+                "partialData": false,
+                "includeHierarchy": false
+            }]))
+            .send()
+            .await
+            .map_err(|_| anyhow!("iCloud Drive listing request failed"))?;
+        self.headers.absorb(response.headers());
+        if !response.status().is_success() {
+            bail!(
+                "iCloud Drive listing failed ({})",
+                response.status().as_u16()
+            );
+        }
+        let mut folders: Vec<DriveEntry> = read_json(response).await?;
+        if folders.len() != 1 || folders[0].drivewsid != folder_id {
+            bail!("iCloud Drive returned an unexpected folder identity");
+        }
+        let folder = folders.remove(0);
+        if let Some(total) = folder.number_of_items
+            && total != folder.items.len()
+        {
+            bail!("iCloud Drive returned an incomplete folder listing");
+        }
+        for item in &folder.items {
+            if item.drivewsid.is_empty() || item.name.is_empty() {
+                bail!("iCloud Drive returned an item without identity or name");
+            }
+        }
+        Ok(folder.items)
+    }
+
+    pub async fn list_root(&mut self) -> Result<Vec<DriveEntry>> {
+        self.list_folder(ROOT_ID).await
+    }
+
+    /// Fetch a small ordinary file by provider ID. This is an experimental
+    /// validation read, not yet the mounted version-bound `ReadProvider` path.
+    pub async fn read_small_file(&mut self, drive_id: &str) -> Result<Vec<u8>> {
+        let before = self.item_by_id(drive_id).await?;
+        if before.is_folder() || before.size > MAX_FILE as u64 || before.etag.is_empty() {
+            bail!("file is not eligible for the bounded read-only probe");
+        }
+        let (zone, doc_id) = split_file_id(drive_id)?;
+        let endpoint = self
+            .docs_endpoint
+            .as_ref()
+            .context("iCloud sign-in is not complete")?;
+        let url = endpoint
+            .join(&format!("ws/{zone}/download/by_id"))
+            .context("invalid iCloud document endpoint")?;
+        let response = self
+            .http
+            .get(url)
+            .query(&[("document_id", doc_id)])
+            .header("origin", ICLOUD_ORIGIN)
+            .header("referer", format!("{ICLOUD_ORIGIN}/"))
+            .send()
+            .await
+            .map_err(|_| anyhow!("iCloud download lookup failed"))?;
+        if !response.status().is_success() {
+            bail!(
+                "iCloud download lookup failed ({})",
+                response.status().as_u16()
+            );
+        }
+        let location: DownloadLocation = read_json(response).await?;
+        let signed = location
+            .data_token
+            .or(location.package_token)
+            .context("iCloud did not provide a download location")?;
+        let signed_url = checked_content_url(&signed.url)?;
+        let mut response = self
+            .http
+            .get(signed_url)
+            .send()
+            .await
+            .map_err(|_| anyhow!("iCloud content request failed"))?;
+        if !response.status().is_success() {
+            bail!(
+                "iCloud content request failed ({})",
+                response.status().as_u16()
+            );
+        }
+        let mut bytes = Vec::with_capacity(before.size as usize);
+        while let Some(chunk) = response
+            .chunk()
+            .await
+            .map_err(|_| anyhow!("iCloud content response was interrupted"))?
+        {
+            if bytes.len().saturating_add(chunk.len()) > MAX_FILE {
+                bail!("iCloud file exceeds the bounded probe limit");
+            }
+            bytes.extend_from_slice(&chunk);
+        }
+        let after = self.item_by_id(drive_id).await?;
+        if before.etag != after.etag
+            || before.size != after.size
+            || bytes.len() as u64 != before.size
+        {
+            bail!("iCloud file changed during the read or returned an unexpected size");
+        }
+        Ok(bytes)
+    }
+
+    async fn item_by_id(&mut self, drive_id: &str) -> Result<DriveEntry> {
+        let _ = split_file_id(drive_id)?;
+        let endpoint = self
+            .drive_endpoint
+            .as_ref()
+            .context("iCloud sign-in is not complete")?;
+        let url = endpoint
+            .join("retrieveItemDetails")
+            .context("invalid iCloud Drive endpoint")?;
+        let response = self
+            .http
+            .post(url)
+            .header("origin", ICLOUD_ORIGIN)
+            .header("referer", format!("{ICLOUD_ORIGIN}/"))
+            .json(&json!([{"items": [{
+                "drivewsid": drive_id,
+                "partialData": false,
+                "includeHierarchy": false
+            }]}]))
+            .send()
+            .await
+            .map_err(|_| anyhow!("iCloud item lookup failed"))?;
+        if !response.status().is_success() {
+            bail!("iCloud item lookup failed ({})", response.status().as_u16());
+        }
+        let items: Vec<DriveEntry> = read_json(response).await?;
+        match items.as_slice() {
+            [item] if item.drivewsid == drive_id => Ok(item.clone()),
+            _ => bail!("iCloud returned an unexpected item identity"),
+        }
+    }
+
+    async fn start_auth(&mut self) -> Result<()> {
+        let response = self
+            .http
+            .get(format!("{AUTH}/authorize/signin"))
+            .query(&[
+                ("frame_id", self.frame.as_str()),
+                ("language", "en_US"),
+                ("skVersion", "7"),
+                ("iframeId", self.frame.as_str()),
+                ("client_id", WEB_WIDGET_ID),
+                ("redirect_uri", ICLOUD_ORIGIN),
+                ("response_type", "code"),
+                ("response_mode", "web_message"),
+                ("state", self.frame.as_str()),
+                ("authVersion", "latest"),
+            ])
+            .send()
+            .await
+            .map_err(|_| anyhow!("cannot start Apple sign-in"))?;
+        self.headers.absorb(response.headers());
+        if response.status() != StatusCode::OK {
+            bail!("Apple sign-in could not start");
+        }
+        Ok(())
+    }
+
+    async fn federate(&mut self, apple_id: &str) -> Result<()> {
+        let response = self
+            .auth_request(
+                self.http
+                    .post(format!("{AUTH}/federate"))
+                    .query(&[("isRememberMeEnabled", "true")])
+                    .json(&json!({"accountName": apple_id, "rememberMe": true})),
+            )
+            .await?;
+        if response.status() != StatusCode::OK {
+            bail!("Apple account discovery failed");
+        }
+        Ok(())
+    }
+
+    async fn account_login(&mut self) -> Result<()> {
+        if self.headers.session_token.is_empty() {
+            bail!("Apple did not issue an account session");
+        }
+        let response = self
+            .http
+            .post(format!("{SETUP}/accountLogin"))
+            .header("origin", ICLOUD_ORIGIN)
+            .header("referer", format!("{ICLOUD_ORIGIN}/"))
+            .json(&json!({
+                "accountCountryCode": self.headers.account_country,
+                "dsWebAuthToken": self.headers.session_token,
+                "extended_login": true,
+                "trustToken": self.headers.trust_token
+            }))
+            .send()
+            .await
+            .map_err(|_| anyhow!("iCloud account session failed"))?;
+        self.headers.absorb(response.headers());
+        if !response.status().is_success() {
+            bail!(
+                "iCloud account session was rejected ({})",
+                response.status().as_u16()
+            );
+        }
+        let account: AccountInfo = read_json(response).await?;
+        let drive = account
+            .webservices
+            .get("drivews")
+            .context("this Apple account did not expose iCloud Drive")?;
+        let docs = account
+            .webservices
+            .get("docws")
+            .context("this Apple account did not expose iCloud documents")?;
+        self.drive_endpoint = Some(checked_drive_endpoint(&drive.url)?);
+        self.docs_endpoint = Some(checked_drive_endpoint(&docs.url)?);
+        Ok(())
+    }
+
+    async fn auth_request(&mut self, builder: reqwest::RequestBuilder) -> Result<Response> {
+        let builder = builder
+            .header("accept", "application/json")
+            .header("origin", "https://idmsa.apple.com")
+            .header("referer", "https://idmsa.apple.com/")
+            .header("x-apple-widget-key", WEB_WIDGET_ID)
+            .header("x-apple-oauth-client-id", WEB_WIDGET_ID)
+            .header("x-apple-oauth-client-type", "firstPartyAuth")
+            .header("x-apple-oauth-redirect-uri", ICLOUD_ORIGIN)
+            .header("x-apple-oauth-require-grant-code", "true")
+            .header("x-apple-oauth-response-mode", "web_message")
+            .header("x-apple-oauth-response-type", "code")
+            .header("x-apple-oauth-state", self.frame.as_str())
+            .header("x-apple-frame-id", self.frame.as_str())
+            .header("x-requested-with", "XMLHttpRequest")
+            .header("x-apple-mandate-security-upgrade", "0")
+            .header("x-apple-i-require-ue", "true")
+            .header(
+                "x-apple-i-fd-client-info",
+                format!("{{\"U\":\"{USER_AGENT}\",\"L\":\"en-US\",\"Z\":\"GMT-05:00\",\"V\":\"1.1\",\"F\":\"\"}}"),
+            );
+        let builder = if self.headers.scnt.is_empty() {
+            builder
+        } else {
+            builder.header("scnt", self.headers.scnt.as_str())
+        };
+        let builder = if self.headers.session_id.is_empty() {
+            builder
+        } else {
+            builder.header("x-apple-id-session-id", self.headers.session_id.as_str())
+        };
+        let builder = if self.headers.auth_attributes.is_empty() {
+            builder
+        } else {
+            builder.header(
+                "x-apple-auth-attributes",
+                self.headers.auth_attributes.as_str(),
+            )
+        };
+        let response = builder
+            .send()
+            .await
+            .map_err(|_| anyhow!("Apple sign-in network request failed"))?;
+        self.headers.absorb(response.headers());
+        Ok(response)
+    }
+}
+
+fn checked_drive_endpoint(raw: &str) -> Result<Url> {
+    let url = Url::parse(raw).map_err(|_| anyhow!("invalid iCloud Drive endpoint"))?;
+    let host = url
+        .host_str()
+        .context("iCloud Drive endpoint has no host")?;
+    if url.scheme() != "https"
+        || !(host == "icloud.com" || host.ends_with(".icloud.com"))
+        || url.username() != ""
+        || url.password().is_some()
+        || url.query().is_some()
+        || url.fragment().is_some()
+    {
+        bail!("iCloud Drive endpoint is outside Apple's expected domain");
+    }
+    Ok(url)
+}
+
+fn checked_content_url(raw: &str) -> Result<Url> {
+    let url = Url::parse(raw).map_err(|_| anyhow!("invalid iCloud content location"))?;
+    let host = url
+        .host_str()
+        .context("iCloud content location has no host")?;
+    if url.scheme() != "https"
+        || !(host == "icloud-content.com" || host.ends_with(".icloud-content.com"))
+        || url.username() != ""
+        || url.password().is_some()
+        || url.fragment().is_some()
+    {
+        bail!("iCloud content location is outside Apple's expected domain");
+    }
+    Ok(url)
+}
+
+fn split_file_id(id: &str) -> Result<(&str, &str)> {
+    let mut parts = id.split("::");
+    let (Some("FILE"), Some(zone), Some(doc_id), None) =
+        (parts.next(), parts.next(), parts.next(), parts.next())
+    else {
+        bail!("invalid iCloud file identity");
+    };
+    if zone.is_empty()
+        || zone.len() > 160
+        || !zone
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-' | b'_'))
+        || doc_id.is_empty()
+        || doc_id.len() > 256
+    {
+        bail!("invalid iCloud file identity");
+    }
+    Ok((zone, doc_id))
+}
+
+async fn read_json<T: serde::de::DeserializeOwned>(mut response: Response) -> Result<T> {
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|_| anyhow!("iCloud response was interrupted"))?
+    {
+        if bytes.len().saturating_add(chunk.len()) > MAX_JSON {
+            bail!("iCloud response exceeds the safe metadata limit");
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    serde_json::from_slice(&bytes).map_err(|_| anyhow!("invalid iCloud metadata response"))
+}
+
+fn derive_password(password: &str, salt: &[u8], challenge: &SrpChallenge) -> Result<[u8; 32]> {
+    if challenge.iteration == 0 || challenge.iteration > 1_000_000 || salt.is_empty() {
+        bail!("invalid Apple SRP parameters");
+    }
+    let digest = Sha256::digest(password.as_bytes());
+    let input = match challenge.protocol.as_str() {
+        "s2k" => digest.to_vec(),
+        "s2k_fo" => hex::encode(digest).into_bytes(),
+        _ => bail!("unsupported Apple SRP protocol"),
+    };
+    let mut output = [0u8; 32];
+    pbkdf2::pbkdf2_hmac::<Sha256>(&input, salt, challenge.iteration, &mut output);
+    Ok(output)
+}
+
+fn pad_2048(value: &[u8]) -> Result<[u8; 256]> {
+    if value.is_empty() || value.len() > 256 {
+        bail!("invalid SRP group value");
+    }
+    let mut padded = [0u8; 256];
+    padded[256 - value.len()..].copy_from_slice(value);
+    Ok(padded)
+}
+
+fn apple_proofs(
+    username: &[u8],
+    salt: &[u8],
+    a: &[u8; 256],
+    b: &[u8; 256],
+    premaster: &[u8],
+) -> Result<([u8; 32], [u8; 32])> {
+    // RFC 5054's 2048-bit N. Apple's variant hashes a fixed-width shared secret.
+    const N: &str = concat!(
+        "ac6bdb41324a9a9bf166de5e1389582faf72b6651987ee07fc3192943db56050",
+        "a37329cbb4a099ed8193e0757767a13dd52312ab4b03310dcd7f48a9da04fd50",
+        "e8083969edb767b0cf6095179a163ab3661a05fbd5faaaE82918a9962f0b93b8",
+        "55f97993ec975eeaa80d740adbf4ff747359d041d5c33ea71d281e446b14773b",
+        "ca97b43a23fb801676bd207a436c6481f1d2b9078717461a5b9d32e688f87748",
+        "544523b524b0d57d5ea77a2775d2ecfa032cfbdbf52fb3786160279004e57ae6",
+        "af874e7303ce53299ccc041c7bc308d82a5698f3a8d0c38271ae35f8e9dbfbb",
+        "694b5c803d89f7ae435de236d525f54759b65e372fcd68ef20fa7111f9e4aff73"
+    );
+    let n = hex::decode(N).context("invalid built-in SRP group")?;
+    if n.len() != 256 {
+        bail!("invalid built-in SRP group width");
+    }
+    let mut g = [0u8; 256];
+    g[255] = 2;
+    let hg = Sha256::digest(g);
+    let hn = Sha256::digest(n);
+    let mut xor = [0u8; 32];
+    for index in 0..32 {
+        xor[index] = hg[index] ^ hn[index];
+    }
+    let key = Sha256::digest(pad_2048(premaster)?);
+    let username_hash = Sha256::digest(username);
+    let m1 = Sha256::new()
+        .chain_update(xor)
+        .chain_update(username_hash)
+        .chain_update(salt)
+        .chain_update(a)
+        .chain_update(b)
+        .chain_update(key)
+        .finalize();
+    let m2 = Sha256::new()
+        .chain_update(a)
+        .chain_update(m1)
+        .chain_update(key)
+        .finalize();
+    Ok((m1.into(), m2.into()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_untrusted_drive_endpoint() {
+        assert!(checked_drive_endpoint("http://drivews.icloud.com/").is_err());
+        assert!(checked_drive_endpoint("https://drivews.icloud.com.evil.test/").is_err());
+        assert!(checked_drive_endpoint("https://example.com/").is_err());
+        assert!(checked_drive_endpoint("https://drivews.icloud.com/").is_ok());
+        assert!(checked_content_url("https://cvws.icloud-content.com/B/file?token=secret").is_ok());
+        assert!(checked_content_url("https://cvws.icloud-content.com.evil.test/B/file").is_err());
+    }
+
+    #[test]
+    fn password_derivation_rejects_unbounded_work_and_unknown_protocol() {
+        let mut challenge = SrpChallenge {
+            iteration: 1_000_001,
+            salt: String::new(),
+            protocol: "s2k".into(),
+            b: String::new(),
+            c: String::new(),
+        };
+        assert!(derive_password("secret", b"salt", &challenge).is_err());
+        challenge.iteration = 1;
+        challenge.protocol = "unknown".into();
+        assert!(derive_password("secret", b"salt", &challenge).is_err());
+    }
+
+    #[test]
+    fn folder_entry_retains_opaque_identity() -> Result<()> {
+        let entry: DriveEntry = serde_json::from_value(json!({
+            "drivewsid": "FOLDER::zone::opaque",
+            "name": "Example",
+            "type": "FOLDER",
+            "items": []
+        }))?;
+        assert_eq!(entry.drivewsid, "FOLDER::zone::opaque");
+        assert!(entry.is_folder());
+        Ok(())
+    }
+
+    #[test]
+    fn apple_proof_matches_independent_sha256_vector() -> Result<()> {
+        let a = pad_2048(&[2])?;
+        let b = pad_2048(&[3])?;
+        let (m1, m2) = apple_proofs(b"user@example.com", b"salt", &a, &b, &[1])?;
+        assert_eq!(
+            hex::encode(m1),
+            "a740d1d9c747fe9821d1a4f2b7d399b43af822b513482cc85682e41f4f4f551f"
+        );
+        assert_eq!(
+            hex::encode(m2),
+            "236d05a9a5c2ffd140a11d41bdc04aa08c197c4feab51d2a9c6b290e1486013f"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn file_id_is_opaque_but_cannot_choose_an_endpoint() -> Result<()> {
+        assert_eq!(
+            split_file_id("FILE::com.apple.CloudDocs::abc-123")?,
+            ("com.apple.CloudDocs", "abc-123")
+        );
+        assert!(split_file_id("FILE::evil/path::abc").is_err());
+        assert!(split_file_id("FOLDER::com.apple.CloudDocs::abc").is_err());
+        Ok(())
+    }
+}

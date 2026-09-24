@@ -242,7 +242,10 @@ refresh and account reauthentication in an isolated read-only probe. Its shared
 cache, pinning and FUSE engine are candidates for reuse if that gate passes;
 provider-side write conflicts and recovery remain a separate gate. Cirrove does
 not copy or depend on Stratosync or rclone at runtime, build time or in tests;
-lessons from those integrations inform the recovery tests.
+lessons from those integrations inform the recovery tests. A
+[native read-only protocol probe](docs/icloud-native-probe.md) is available for
+interactive validation, but it is not yet an installed drive or live-validated
+provider.
 
 ## License
 

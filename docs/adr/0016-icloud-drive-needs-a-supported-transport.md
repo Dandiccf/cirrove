@@ -121,6 +121,13 @@ integration can then remain shared.
 
 ## Milestone I0: direct Linux read feasibility
 
+A [native Rust read probe](../icloud-native-probe.md) now implements an
+interactive SRP/trusted-device sign-in, bounded root/folder listing and a bounded
+small-file read by opaque ID without any rclone dependency. Its SRP proof,
+endpoint validation and metadata parsing have local tests. It has **not** yet
+completed a live sign-in, so I0 remains open; this code is deliberately outside
+the installed service and account picker.
+
 The first probe is isolated and read-only. It may inspect owned fixtures, but it
 must not mutate a cloud account without a separate explicit authorization.
 
