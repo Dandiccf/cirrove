@@ -24,8 +24,11 @@ vm() { bash "$here/run.sh" "$distro" ssh "$@"; }
 
 locked() {
   vm 'export XDG_RUNTIME_DIR=/run/user/$(id -u) DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus
-      busctl --user introspect org.freedesktop.secrets /org/freedesktop/secrets/collection/login 2>/dev/null |
-        grep -q "\.Locked.*false"' 2>/dev/null
+      collection=$(busctl --user call org.freedesktop.secrets /org/freedesktop/secrets \
+        org.freedesktop.Secret.Service ReadAlias s default 2>/dev/null | cut -d\" -f2)
+      [ -n "$collection" ] && [ "$collection" != / ] &&
+        busctl --user get-property org.freedesktop.secrets "$collection" \
+          org.freedesktop.Secret.Collection Locked 2>/dev/null | grep -q "b false"' 2>/dev/null
 }
 
 if locked; then echo "keyring already unlocked"; exit 0; fi

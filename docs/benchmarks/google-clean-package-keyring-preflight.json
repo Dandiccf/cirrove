@@ -6,6 +6,14 @@
   "source": {
     "baseline_revision": "92de62a",
     "baseline_package_version": "0.2.0~dev.r652.g92de62a-1",
+    "functional_workflow_run": 35949622076,
+    "functional_head_revision": "7ccac1cd6055494ab602f02bd5990fff6319f579",
+    "functional_merge_revision": "51c3c876e4a299ad77e23770ae9de79d2e403153",
+    "functional_package_version": "0.2.0~dev.r654.g51c3c87-1",
+    "ui_follow_up_workflow_run": 35951506733,
+    "ui_follow_up_head_revision": "f5012f344ad467b3f35cab98d0a2dc7eb174e4ed",
+    "ui_follow_up_merge_revision": "19eb23d51f49085fdacbcd03e002f1b87bc50238",
+    "ui_follow_up_package_version": "0.2.0~dev.r655.g19eb23d-1",
     "guest": "Ubuntu 24.04.4",
     "private_manifest": "/home/dandiccf/Work/cirrove-vms-google-rc/run-manifest.json"
   },
@@ -30,6 +38,38 @@
   ],
   "endpoint": "The corrected attested package passes first-use keyring creation, JSON-free browser sign-in, selected-drive connection and a bounded mounted read in the same VM where the baseline failed.",
   "limits": "This is a development-package preflight for the exact failure and UI found during release preparation. It does not close the exact tagged 0.2.0 artifact gate, Google's production verification or public legal-site gates.",
-  "result": null,
-  "status": "registered_before_corrected_package_run"
+  "result": {
+    "package_provenance": {
+      "functional_core_sha256": "293b26d66826c486887c37b950feac5cbe8aad73b90dc4de3441ef06c3489d7b",
+      "functional_desktop_sha256": "9fe17b1a6258ff63043e34459c792e34a6451c183156403382d103c1311d7319",
+      "ui_follow_up_core_sha256": "378bbcdc5ebbcc56f5fe397daf2739786a7603538269bf1799f38a40b01a24a0",
+      "ui_follow_up_desktop_sha256": "73fa2d7c92d60d776d142cc99acdf212c40922a92acb1cdad0392388d8b73c4e",
+      "all_four_attestations_verified": true
+    },
+    "first_connection": {
+      "default_collection_before": "absent",
+      "desktop_owned_keyring_prompt_completed": true,
+      "default_collection_after": "present",
+      "custom_client_json_used": false,
+      "google_accounts_saved": 1,
+      "mounted_google_accounts": 1,
+      "final_provider_state": "ready",
+      "bounded_mounted_read_bytes": 4096
+    },
+    "interface": {
+      "empty_state_compact_stock_icon": "passed_visual_package_check",
+      "account_row_stock_icon": "passed_visual_package_check",
+      "missing_image_placeholders": 0
+    },
+    "restart": {
+      "automatic_login_left_password_keyring_locked": true,
+      "vm_helper_resolved_default_alias_instead_of_assuming_a_lowercase_object_path": true,
+      "ready_after_unlock_without_google_sign_in": true,
+      "mounted_accounts_after_unlock": 1
+    },
+    "cloud_mutations": 0
+  },
+  "interpretation": "The preserved clean VM first failed before OAuth with the baseline package and no default Secret Service collection. The corrected attested package created the Login collection through the desktop prompt, completed built-in-client Google sign-in, saved one account, mounted My Drive and read 4096 bytes through the mount. A visual follow-up found one remaining account-row icon-cache dependency; the second attested package replaced it with a stock icon and visibly rendered both first-launch and connected states without missing-image placeholders. After reboot, the VM's automatic login left its password keyring locked as expected; the corrected VM helper unlocked the collection by its default alias and the account returned to ready without another Google sign-in.",
+  "completed_at_utc": "2026-09-24T03:41:26Z",
+  "status": "passed_development_package_preflight"
 }

@@ -126,7 +126,8 @@
       "next_action": "Build the 0.2.0 release candidate, install its packages in a clean supported VM and complete one owner-driven browser sign-in followed by an exact mounted read.",
       "evidence": [
         "docs/release-procedure.md",
-        "scripts/vm/README.md"
+        "scripts/vm/README.md",
+        "docs/benchmarks/google-clean-package-keyring-preflight.json"
       ]
     },
     {
