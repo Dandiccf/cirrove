@@ -234,13 +234,15 @@ on one Workspace administrator and one owned drive, not a general reliability
 claim. Native Docs and Sheets remain read-only packages with bounded, selected
 DOCX/PDF/ODT or XLSX/PDF/ODS exports. A direct native Doc import conflict probe found that HTTP 412
 could still change its contents, so native write-back remains outside the preview.
-iCloud Drive has a [separate supported-transport feasibility gate](docs/adr/0016-icloud-drive-needs-a-supported-transport.md):
-Apple's documented CloudKit interfaces expose an app's own containers rather than
-a person's existing Drive tree. The first candidate is a read-only macOS companion
-restricted to a user-selected folder; it must prove stable identity, revisions,
-refresh and placeholder materialization before Cirrove adds a provider or account
-UI. Cirrove does not copy or depend on Stratosync or rclone; lessons from those
-integrations inform the recovery tests.
+iCloud Drive has a [direct Linux feasibility plan](docs/adr/0016-icloud-drive-needs-a-supported-transport.md).
+Existing Linux clients demonstrate access through Apple's undocumented web
+transport; a Fedora 44/GNOME installation was confirmed to mount iCloud Drive
+read/write through rclone FUSE. Cirrove will first validate stable identities, safe reads, complete
+refresh and account reauthentication in an isolated read-only probe. Its shared
+cache, pinning and FUSE engine are candidates for reuse if that gate passes;
+provider-side write conflicts and recovery remain a separate gate. Cirrove does
+not copy or depend on Stratosync or rclone; lessons from those integrations
+inform the recovery tests.
 
 ## License
 

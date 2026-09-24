@@ -1,198 +1,185 @@
-# 0016: iCloud Drive needs a supported transport before it gets an adapter
+# 0016: Explore a direct Linux iCloud Drive adapter against the web transport
 
-Status: proposed; feasibility boundary recorded on 2026-09-24.
+Status: proposed; corrected after surveying existing Linux clients and inspecting a
+working Fedora/GNOME installation on 2026-09-24.
 
-## The user-visible goal
+## Product goal and correction
 
-The desired product is the same one Cirrove offers for its other providers: a
-person connects an existing account and sees that account's existing files in a
-Linux filesystem. It is not enough to create a new Cirrove-only store that happens
-to consume the person's iCloud quota.
+Cirrove's goal is to show a person's **existing iCloud Drive files on Linux** in the
+same provider-neutral filesystem used for OneDrive and Google Drive. A requirement
+for a running Mac would not meet that goal. A Cirrove user has an existing
+Fedora/GNOME installation whose iCloud files are visible and writable in Files.
+Read-only inspection over Tailscale established that `~/iCloud` is a writable
+`fuse.rclone` mount from `icloud:`; `rclone-icloud.service` runs it. A separate
+`rclone-icloud-photos.service` exposes iCloud Photos read-only. The machine is
+Fedora 44 with GNOME 50.5 and rclone 1.74.3. This is first-hand evidence for a
+working Linux iCloud Drive mount, not evidence for a built-in GNOME provider or
+for Cirrove's own recovery guarantees. No credentials or cloud files were read.
 
-That distinction rules out an easy-looking implementation. Apple describes
-[CloudKit](https://developer.apple.com/documentation/cloudkit) as storage for an
-app's data in that app's iCloud containers. CloudKit JS likewise requires an
-existing CloudKit app, a configured container and an API token. Its databases are
-the app's databases. They do not expose the person's general iCloud Drive tree.
+The first version of this ADR proposed a macOS companion because Apple does not
+publish a general iCloud Drive file API. That conclusion about Apple's published
+APIs remains true, but it overlooked working Linux clients. Rclone has an iCloud
+Drive backend; pyicloud exposes listing, download, upload, rename and delete; and
+icloud-linux builds a local-first FUSE projection. They use iCloud's web transport
+rather than CloudKit. The direct Linux route is therefore technically plausible
+and deserves a measured feasibility spike. The Mac companion is a fallback for a
+future, separately scoped product, not Cirrove's planned iCloud route.
 
-Apple's [File Provider](https://developer.apple.com/documentation/fileprovider)
-framework points in the other direction: it lets an app publish the app's remote
-storage into Files or Finder. It does not give a Linux client a transport for
-reading Apple's iCloud Drive provider.
+Apple's [CloudKit](https://developer.apple.com/documentation/cloudkit) addresses an
+app's own containers and does not expose the person's general Drive tree.
+[File Provider](https://developer.apple.com/documentation/fileprovider) publishes an
+app's remote storage to Apple's file browsers. Neither is a substitute for the
+Drive transport the existing Linux clients use.
 
-Apple documents manual iCloud Drive upload and download through iCloud.com, but
-does not document that web application's private requests as a developer API.
-Apple's documented third-party authorization and app-specific-password flows
-cover Mail, Calendar and Contacts. No corresponding iCloud Drive authorization
-or file API is documented there.
+## What the existing implementations establish
 
-The resulting conclusion is deliberately narrower than saying that access is
-technically impossible: **as of this review, Apple publishes no general-purpose
-API with which Cirrove can enumerate and mount a person's existing iCloud Drive
-directly from Linux.** This is an inference from the boundaries of the published
-interfaces above, and must be rechecked before implementation because Apple can
-add an interface later.
+| Implementation | Evidence for existing Drive files | What Cirrove can learn |
+| --- | --- | --- |
+| [rclone iCloud Drive](https://rclone.org/iclouddrive/) | Direct Linux backend, FUSE mount and read/write operations | Current authentication and web request shape; opaque IDs and ETags in its [Drive backend](https://github.com/rclone/rclone/blob/master/backend/iclouddrive/iclouddrive.go) and [web transport](https://github.com/rclone/rclone/blob/master/backend/iclouddrive/api/drive.go) |
+| [pyicloud](https://github.com/picklepete/pyicloud#file-storage-icloud-drive) | Lists, streams and changes files under `api.drive` | Independent confirmation of direct access, but not Cirrove's identity or recovery guarantees |
+| [icloud-linux](https://github.com/IsmaeelAkram/icloud-linux) | Cached Linux FUSE filesystem with background sync | Usability patterns and conflict copies, not proof of Cirrove's provider contracts |
+| User's Fedora/GNOME installation | `findmnt` identifies `~/iCloud` as writable `fuse.rclone`, with an active rclone iCloud Drive service; Files shows it as a local mount | Gives Cirrove a real Linux behavior baseline, but not a reason to reuse another client's config or mount |
+| [GNOME Online Accounts](https://gnome.pages.gitlab.gnome.org/gnome-online-accounts/services.html) | The current published provider/service table has no Apple or iCloud Drive Files provider | Published upstream capabilities do not identify the backend of this user's working installation |
 
-## Routes considered
+The GNOME table is for its current upstream implementation. The inspected Fedora
+setup uses rclone FUSE, so the iCloud entry in Files does not imply a GOA iCloud
+provider. Do not inspect credentials, dump account configuration, or alter the
+existing rclone mounts or services. Apple's
+[third-party account authorization](https://support.apple.com/121539) describes
+Mail, Calendar and Contacts, which are different services from Drive files.
 
-| Route | Existing iCloud Drive files | Supported interface | Fits Cirrove now |
-| --- | --- | --- | --- |
-| CloudKit or CloudKit JS | No; only a Cirrove-owned app container | Yes | No |
-| File Provider extension | No; publishes Cirrove storage to Apple clients | Yes, on Apple platforms | No |
-| iCloud.com private requests or browser automation | Potentially | No documented API contract | Rejected |
-| App-specific password | No documented Drive service | Yes for named iCloud services such as Mail, Calendar and Contacts | No |
-| User-selected folder on a signed-in Mac | Yes, within the selected folder | Yes, through macOS file access | Candidate bridge |
-| Manual export or copy | A point-in-time copy | Yes | Import feature, not a provider |
+Rclone's backend is the most useful transport reference, but it is not a drop-in
+Cirrove provider. Its code gives Drive items `drivewsid`, `docwsid`, `item_id`,
+parent ID and ETag. It lists children through `retrieveItemDetailsInFolders`,
+obtains a download URL by item ID and can request byte ranges. The current code
+reports no content hash. It does not expose a Drive change cursor through the
+backend. Its `Update` first moves the old item to Trash and then uploads a new
+item, so its replacement behavior cannot be adopted for Cirrove's durable local
+save contract. Its rename, move and trash helpers can retry an ETag conflict with
+the new ETag when `force` is true; Cirrove must instead surface that conflict.
+These are source observations, not yet live Cirrove results.
 
-Calling a CloudKit-backed Cirrove container “iCloud Drive support” would give the
-wrong answer to the product question. Depending on private iCloud.com endpoints
-would also make authentication, two-factor prompts, protocol changes and account
-lockouts part of an interface Apple has not offered to developers. Cirrove will do
-neither.
+Recent [shared-folder failures](https://github.com/rclone/rclone/issues/9477) and
+[2FA failures](https://github.com/rclone/rclone/issues/9730) in rclone's own tracker
+show why each account class and operation needs evidence. These reports do not
+prove that all accounts fail.
 
-The EU interoperability-request process is worth monitoring, but its existence is
-not an API and does not remove this gate. Apple's currently documented Account
-Data Transfer API concerns App Store usage data, not a mounted iCloud Drive tree.
+## Authentication boundary
 
-## The candidate worth testing
+Rclone's current [configuration guide](https://rclone.org/iclouddrive/) says the
+web flow uses the ordinary Apple Account password, SRP and two-factor approval;
+app-specific passwords do not work for Drive. It reports a trust token valid for
+about 30 days, after which reauthentication is needed. Advanced Data Protection
+requires web access to be enabled and may require device approval for PCS cookies.
+This is not the browser OAuth grant Cirrove uses for Google and Microsoft.
 
-A small macOS companion can use the Apple-supported local iCloud Drive projection
-on a Mac that is already signed in. The person grants it one folder with
-`NSOpenPanel`; a security-scoped bookmark can preserve that choice across companion
-restarts. Cirrove pairs with that companion and consumes a narrow file service.
-Cirrove never receives an Apple Account password, browser cookie or two-factor
-code.
+Cirrove should implement an interactive, local authentication flow in which the
+password and 2FA code are never logged or sent to Cirrove's servers. The password
+is used in memory for the SRP exchange and discarded; the resulting session and
+trust material belong in the local Secret Service vault. A fresh challenge asks
+the person to authenticate again. This is a proposed design, **not** a claim that
+password-free renewal works for every Apple account. Rclone stores an obscured
+password in its config; [rclone itself says obscuring is not secure encryption](https://rclone.org/commands/rclone_obscure/).
+
+The first live spike may use a separately configured, isolated rclone instance to
+learn the transport without handling credentials in new Cirrove code. It must not
+read or change another client's existing config. No credentials, cookies, token
+values, signed download URLs or raw response bodies enter the evidence artifact.
+
+## Direct Linux architecture if the gates pass
 
 ```mermaid
 flowchart LR
     Apps[Linux applications] --> FUSE[Cirrove FUSE]
-    FUSE --> Adapter[iCloud bridge ReadProvider]
-    Adapter <-->|paired encrypted connection| Companion[macOS companion]
-    Companion -->|security-scoped selected folder| Local[iCloud Drive projection]
-    Local <--> Apple[Apple sync service]
+    FUSE --> Engine[Shared metadata cache, pinning and read engine]
+    Engine --> Adapter[Experimental iCloud ReadProvider]
+    Adapter --> Web[iCloud web transport]
+    Adapter --> Vault[Local Secret Service]
 ```
 
-This is a compatibility bridge, not a direct provider API. It requires a Mac that
-is online often enough to serve the selected folder. Files that macOS has evicted
-must be materialized before the companion can stream them; Apple exposes download
-status and a supported request to start that materialization. A Cirrove range read
-may therefore require macOS to download the whole remote file first.
+The adapter must return Cirrove's account + collection + item identity. Use Apple's
+opaque item ID and zone, not a path, and verify their stability over rename and
+move. Directory listing and change tracking must stage a complete bounded
+snapshot before publishing its metadata and cursor. If Apple offers no usable
+Drive change cursor, use a bounded, scheduled tree reconciliation with explicit
+freshness limits; never pretend it is an incremental feed. For large directories,
+prove pagination or a safe response bound before accepting the transport.
 
-The companion should use Apple's coordinated file APIs. A raw walk of
-`~/Library/Mobile Documents` is not the proposed contract: that path is an
-implementation detail, it bypasses explicit folder consent, and it does not by
-itself solve concurrent access or placeholder hydration.
+For reads, bind the item ID to a verified content revision. ETag, size and
+modification time are candidates, not yet a proven content lineage. A ranged read
+must reject a changed item before cache publication; an expiring download URL is
+transport material, never identity or a persisted cursor. If content revision
+cannot be established, return a clear error rather than serve bytes under a stale
+version key. The existing cache, offline pinning, desktop state and Dolphin
+integration can then remain shared.
 
-## Mapping to Cirrove's read contract
+## Milestone I0: direct Linux read feasibility
 
-The first spike must prove the following mapping before a provider crate, account
-type or settings UI is added.
+The first probe is isolated and read-only. It may inspect owned fixtures, but it
+must not mutate a cloud account without a separate explicit authorization.
 
-| Cirrove requirement | Candidate macOS evidence | Gate |
-| --- | --- | --- |
-| Account and collection | Companion installation identity plus the selected root's persistent identity | Must remain distinct for two companions and two selected roots |
-| Item identity independent of path | Volume identity plus `URLResourceKey.documentIdentifierKey` | Must be present and stable across restart, rename and move; Apple says support varies by volume |
-| Content revision | A serializable generation/version observation, checked before and after each coordinated read | Must change when bytes change and must not change for a metadata-only rename |
-| Initial metadata | Bounded enumeration below the selected root | Must represent dataless files without reading their contents |
-| Incremental changes | `NSMetadataQuery` updates or a bounded rescan with a committed checkpoint | Must detect create, change, rename, move and delete without losing the last complete snapshot |
-| Exact bytes | Materialize if needed, coordinate the read, then stream bounded ranges | Hash must equal a Finder copy of the same current version |
-| Cancellation and timeout | Cancel waiting materialization and network streaming without publishing partial bytes | Must leave the prior complete metadata and cache entry usable |
-| Permissions | Explicit user-selected root and persisted security-scoped bookmark | Reboot must not silently widen or lose access |
+The Fedora/GNOME connection is already identified as rclone FUSE, so it can serve
+as a read-only behavioral baseline. Do not wrap its mounted path as a Cirrove
+provider: a filesystem path alone cannot supply Cirrove's account + collection +
+item identity, provider revision, and version-bound read contract, and nesting
+FUSE mounts would obscure ownership and recovery. The live probe should use an
+isolated test configuration and account, never the existing rclone configuration,
+mount or service.
 
-`fileResourceIdentifierKey` is not sufficient: Apple documents that value as not
-persistent across system restarts. `documentIdentifierKey` is the promising
-candidate because Apple documents it as surviving restart, rename/move on a volume
-and safe-save replacement, while also warning that not every volume supports it.
-The feasibility probe must measure its actual behavior on iCloud Drive rather than
-assuming support.
+1. Reproduce account sign-in and re-sign-in for a dedicated test account, with and
+   without Advanced Data Protection if accounts are available. Record only success,
+   failure class and elapsed time.
+2. Enumerate the root, a normal folder, an app folder and a shared folder. Measure
+   page/response sizes and whether complete listing is possible.
+3. Check opaque item and zone IDs across a rename, move, restart and another-device
+   change using owned test fixtures. Any remote mutations for these cases require
+   separate authorization.
+4. Read an exact small and large file, including nonzero ranges; compare hashes
+   with a separately downloaded copy. Inject cancellation, stale metadata,
+   expired signed URL and interrupted response.
+5. Prove whether the ETag or another field distinguishes content changes from
+   metadata-only changes. A same-size replacement is mandatory.
+6. Establish a complete refresh method that does not lose the last visible
+   metadata or completed checkpoint when interrupted. Bound both memory and
+   provider requests on a large synthetic tree before any live-scale claim.
 
-Cirrove's normal identity remains `(account, provider, collection, item)`. A bridge
-must return opaque collection and item identifiers. Linux paths, Mac paths and file
-names remain presentation metadata and never become remote identity.
+Completion means the read path can satisfy Cirrove's existing `MetadataProvider`
+and `ReadProvider` contracts with stable identity, verifiable bytes and honest
+freshness. A successful `rclone ls` alone is only evidence that login and listing
+work. If the transport cannot meet a gate, record the exact limitation and keep
+iCloud out of Cirrove's account picker.
 
-## Read-only milestone I0
+## Writes require a separate gate
 
-The first milestone is **I0: prove a supported, read-only iCloud transport**. It is
-complete only when an isolated macOS probe records all of these results on a
-dedicated test folder:
+Rclone and pyicloud show that uploads, rename and deletion are possible. Their
+existence does not establish Cirrove's requirements for conflict preservation and
+crash recovery. In particular, rclone's current replace path trashes the old file
+before uploading the replacement, and its optional ETag conflict retry updates
+the precondition. Cirrove must not copy either behavior.
 
-1. The user selects the folder through `NSOpenPanel`, quits the probe, starts it
-   again and regains only that folder through a security-scoped bookmark.
-2. The probe records volume, document and generation identifiers for a directory,
-   a materialized file and a dataless file without recording their paths or names as
-   identity.
-3. Rename and move preserve the document identity. Replacing file bytes changes the
-   content revision. Reboot preserves both conclusions.
-4. A change made on a second Apple device reaches the probe as a bounded change or
-   appears in the next complete rescan. A deliberately interrupted rescan does not
-   replace the last complete snapshot.
-5. Opening a dataless file requests materialization, returns the exact current bytes
-   and can be cancelled. A failed or stale materialization publishes no cache block.
-6. A paired test client can list the selected root and read one file while requests
-   for a sibling directory and `..` are refused.
+Each intended write needs an owned remote test item, a demonstrated stale-write
+conflict, an interruption after the request but before its receipt, and exact-ID
+reconciliation. If the web transport cannot offer a conditional replacement with
+recoverable identity, the iCloud mount remains read-only. A local upload reaching
+HTTP success is not, by itself, proof that the intended remote item now owns the
+exact bytes.
 
-The probe is successful only if the evidence distinguishes provider behavior from
-the probe's own bookkeeping. Any remote creates, edits, moves or deletes used for
-the experiment need a separate, explicit authorization and must be confined to its
-owned test folder.
+## Immediate implementation sequence
 
-If I0 passes, the next change can add an `icloud-bridge` read adapter behind an
-experimental feature and run the existing provider contract tests. If persistent
-identity, revision checking or complete refresh cannot be established, the bridge
-does not become a Cirrove provider. A manual copy tool can still be considered under
-a different product name.
+1. Build a synthetic protocol fixture from documented observations of the open
+   clients. Keep it isolated from live accounts and from the current provider
+   crates. Do not add a dependency until its concrete use is known.
+2. Run a read-only transport probe with a separate private test configuration and
+   record the I0 results. This needs a test Apple Account and an interactive 2FA
+   step; the current Google and Microsoft accounts are unrelated.
+3. If I0 passes, add a native Rust adapter and vault-backed interactive sign-in,
+   keeping the web protocol isolated behind that provider crate. Validate it
+   through the shared engine and synthetic crash tests before a preview mount.
+4. Only then decide whether the maintenance cost of Apple's undocumented protocol
+   is acceptable for a released Linux provider. If not, document the tested
+   limitation and leave the feature experimental.
 
-## Writes are a later decision
-
-macOS offers coordinated local writes and reports unresolved ubiquitous-item
-conflicts, but that does not yet establish the provider-side compare-and-set and
-recovery evidence that Cirrove's write journal needs. The bridge starts read-only.
-Create, replace, rename, move and delete each need an explicitly authorized live
-probe and an exact post-interruption reconciliation rule before any writable mount
-is offered.
-
-In particular, a successful local filesystem call is not proof that Apple accepted
-the remote change. The bridge would need to distinguish “queued locally,” “uploaded,”
-“conflicted” and “confirmed remote,” and Cirrove must not acknowledge a durable
-provider receipt before the last state.
-
-## Security and data boundary
-
-- Pairing creates device credentials stored in the two operating systems' secret
-  stores. A short-lived pairing code is not an Apple credential.
-- The companion serves opaque item handles rooted in the selected directory. It
-  never accepts an arbitrary path from Linux and never follows a result outside the
-  selected root.
-- Transport is authenticated and encrypted. Revoking the pairing stops new reads;
-  removing a Cirrove account follows the existing local-cache retention rules.
-- Logs may contain operation names, counts and redacted identities. They do not
-  contain Apple credentials, security-scoped bookmarks, paths, file content or raw
-  framework/provider responses.
-- The first probe listens only on loopback. Network pairing is a second step after
-  the local identity and revision gates pass.
-
-## Evidence to retain
-
-I0 should produce a small, reviewable artifact under `docs/benchmarks/` before it
-runs: platform and macOS version, selected test topology, operations, expected
-identity/revision transitions, interruption points and hashes of owned fixture
-bytes. Secret bookmarks, paths and Apple Account identifiers stay outside the
-artifact. One passing run is a direction; repeat each identity and interruption arm
-before treating it as a result.
-
-## Official references
-
-- [CloudKit](https://developer.apple.com/documentation/cloudkit)
-- [CloudKit JS](https://developer.apple.com/documentation/cloudkitjs)
-- [CloudKit Web Services](https://developer.apple.com/library/archive/documentation/DataManagement/Conceptual/CloudKitWebServicesReference/index.html)
-- [File Provider](https://developer.apple.com/documentation/fileprovider)
-- [Accessing files from the macOS App Sandbox](https://developer.apple.com/documentation/security/accessing-files-from-the-macos-app-sandbox)
-- [NSOpenPanel](https://developer.apple.com/documentation/appkit/nsopenpanel)
-- [`documentIdentifierKey`](https://developer.apple.com/documentation/foundation/urlresourcekey/documentidentifierkey)
-- [iCloud download status](https://developer.apple.com/documentation/foundation/urlubiquitousitemdownloadingstatus)
-- [NSFileCoordinator](https://developer.apple.com/documentation/foundation/nsfilecoordinator)
-- [NSMetadataQuery](https://developer.apple.com/documentation/foundation/nsmetadataquery)
-- [Apple Account app-specific passwords](https://support.apple.com/102654)
-- [Upload and download files from iCloud Drive on iCloud.com](https://support.apple.com/guide/icloud/mmad632d1df2/icloud)
-- [EU interoperability requests](https://developer.apple.com/support/ios-interoperability/)
-- [Account Data Transfer API access](https://developer.apple.com/support/account-data-transfer-api)
+This is a direct Linux strategy. Its cost is ongoing compatibility work whenever
+Apple changes the web transport; no official stability promise exists. That cost
+must be measured alongside the benefit of using Cirrove's stronger cache, pinning
+and recovery machinery rather than maintaining a second filesystem.
