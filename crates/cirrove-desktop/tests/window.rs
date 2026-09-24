@@ -137,6 +137,22 @@ fn displays_text_containing(widget: &gtk::Widget, text: &str) -> bool {
     }
     false
 }
+fn displays_icon(widget: &gtk::Widget, name: &str) -> bool {
+    if let Some(image) = widget.downcast_ref::<gtk::Image>()
+        && image.is_mapped()
+        && image.icon_name().as_deref() == Some(name)
+    {
+        return true;
+    }
+    let mut child = widget.first_child();
+    while let Some(current) = child {
+        if displays_icon(&current, name) {
+            return true;
+        }
+        child = current.next_sibling();
+    }
+    false
+}
 /// Every mapped button of ours that shows an icon and no text. GTK's own
 /// window controls -- the close button it draws when there is no compositor
 /// to draw one, as under Xvfb -- are not ours to name and are skipped.
@@ -814,6 +830,10 @@ fn an_empty_first_launch_has_a_complete_connection_card() {
         theme.has_icon("folder-remote-symbolic"),
         "the empty state must use a stock icon available before package icon caches reload"
     );
+    assert!(
+        displays_icon(window.upcast_ref(), "folder-remote-symbolic"),
+        "the empty connection card must actually render the stock remote-folder icon"
+    );
     assert_eq!(
         window.default_height(),
         540,
@@ -868,6 +888,10 @@ fn every_account_action_is_offered_from_the_window_and_only_where_it_applies() {
         })
     });
     let window = ui.window.upgrade().unwrap();
+    assert!(
+        displays_icon(window.upcast_ref(), "folder-remote-symbolic"),
+        "connected account rows must not depend on a newly installed application icon cache"
+    );
     expand_all(window.upcast_ref());
     pump_until("accounts expanded", || {
         buttons(window.upcast_ref(), "Remove").len() == 2

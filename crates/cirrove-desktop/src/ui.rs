@@ -558,7 +558,11 @@ impl Window {
     }
     fn account_row(self: &Rc<Self>, id: &str) -> AccountRow {
         let row = adw::ExpanderRow::builder().use_markup(false).build();
-        let icon = gtk::Image::from_icon_name("io.github.Dandiccf.Cirrove-symbolic");
+        // Use a stock icon here for the same reason as the first-launch card:
+        // a desktop that was already running while the package was installed
+        // can retain an icon-theme cache without Cirrove's newly installed
+        // symbolic icon and draw a blurry missing-image placeholder.
+        let icon = gtk::Image::from_icon_name("folder-remote-symbolic");
         icon.set_pixel_size(32);
         icon.add_css_class("accent");
         row.add_prefix(&icon);
