@@ -14,15 +14,18 @@ import gi
 gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib  # noqa: E402
 
-LOGIN = "/org/freedesktop/secrets/collection/login"
-
 bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
 service = Gio.DBusProxy.new_sync(
     bus, 0, None, "org.freedesktop.secrets", "/org/freedesktop/secrets",
     "org.freedesktop.Secret.Service", None,
 )
+collection = service.call_sync(
+    "ReadAlias", GLib.Variant("(s)", ("default",)), 0, -1, None
+).unpack()[0]
+if collection == "/":
+    raise SystemExit("the desktop Secret Service has no default collection")
 unlocked, prompt = service.call_sync(
-    "Unlock", GLib.Variant("(ao)", ([LOGIN],)), 0, -1, None
+    "Unlock", GLib.Variant("(ao)", ([collection],)), 0, -1, None
 ).unpack()
 print("unlocked", unlocked, "prompt", prompt, flush=True)
 if prompt != "/":

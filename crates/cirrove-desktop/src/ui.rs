@@ -67,7 +67,10 @@ pub struct Window {
     /// What changed lately, across accounts; hidden while there is nothing.
     activity: adw::PreferencesGroup,
     activity_rows: RefCell<Vec<adw::ActionRow>>,
-    empty: adw::StatusPage,
+    empty: gtk::Box,
+    empty_icon: gtk::Image,
+    empty_title: gtk::Label,
+    empty_description: gtk::Label,
     settings_retry: gtk::Button,
     empty_connect: gtk::Button,
     banner: adw::Banner,
@@ -135,7 +138,7 @@ impl Window {
             .application(app)
             .title(gettext("Cirrove"))
             .default_width(660)
-            .default_height(620)
+            .default_height(540)
             .build();
         let toolbar = adw::ToolbarView::new();
         let header = adw::HeaderBar::new();
@@ -175,12 +178,12 @@ impl Window {
             .revealed(false)
             .build();
         toolbar.add_top_bar(&restart_notice);
-        let body = gtk::Box::new(gtk::Orientation::Vertical, 24);
-        body.set_margin_top(28);
-        body.set_margin_bottom(24);
+        let body = gtk::Box::new(gtk::Orientation::Vertical, 18);
+        body.set_margin_top(24);
+        body.set_margin_bottom(18);
         body.set_margin_start(24);
         body.set_margin_end(24);
-        let heading = gtk::Box::new(gtk::Orientation::Vertical, 8);
+        let heading = gtk::Box::new(gtk::Orientation::Vertical, 6);
         let title = gtk::Label::builder()
             .label(gettext("Your clouds, in Files"))
             .xalign(0.0)
@@ -206,11 +209,40 @@ impl Window {
             .visible(false)
             .build();
         body.append(&activity);
-        let empty = adw::StatusPage::builder()
-            .icon_name("io.github.Dandiccf.Cirrove-symbolic")
-            .title(gettext("Loading connections…"))
-            .description(gettext("Reading your saved accounts and service status."))
+        // A compact card belongs inside this settings page. AdwStatusPage is a
+        // whole-page widget: here it expanded between the heading and footer,
+        // and a newly installed icon theme could leave its oversized icon as a
+        // blurry missing-image placeholder until the desktop reloaded caches.
+        let empty = gtk::Box::new(gtk::Orientation::Vertical, 0);
+        empty.add_css_class("card");
+        let empty_content = gtk::Box::new(gtk::Orientation::Vertical, 12);
+        empty_content.set_margin_top(24);
+        empty_content.set_margin_bottom(24);
+        empty_content.set_margin_start(28);
+        empty_content.set_margin_end(28);
+        let empty_icon = gtk::Image::builder()
+            .icon_name("folder-remote-symbolic")
+            .pixel_size(48)
+            .halign(gtk::Align::Center)
             .build();
+        empty_icon.add_css_class("dim-label");
+        let empty_title = gtk::Label::builder()
+            .label(gettext("Loading connections…"))
+            .xalign(0.5)
+            .wrap(true)
+            .build();
+        empty_title.add_css_class("title-2");
+        let empty_description = gtk::Label::builder()
+            .label(gettext("Reading your saved accounts and service status."))
+            .xalign(0.5)
+            .justify(gtk::Justification::Center)
+            .max_width_chars(54)
+            .wrap(true)
+            .build();
+        empty_description.add_css_class("dim-label");
+        empty_content.append(&empty_icon);
+        empty_content.append(&empty_title);
+        empty_content.append(&empty_description);
         let empty_actions = gtk::Box::new(gtk::Orientation::Vertical, 12);
         empty_actions.set_halign(gtk::Align::Center);
         let empty_connect = gtk::Button::with_label("Connect a drive");
@@ -222,7 +254,8 @@ impl Window {
         settings_retry.add_css_class("pill");
         settings_retry.set_visible(false);
         empty_actions.append(&settings_retry);
-        empty.set_child(Some(&empty_actions));
+        empty_content.append(&empty_actions);
+        empty.append(&empty_content);
         body.append(&empty);
         let help = gtk::Box::new(gtk::Orientation::Horizontal, 16);
         let onedrive_help = gtk::LinkButton::with_label(
@@ -274,6 +307,9 @@ impl Window {
             activity,
             activity_rows: RefCell::new(Vec::new()),
             empty,
+            empty_icon,
+            empty_title,
+            empty_description,
             settings_retry,
             empty_connect,
             banner,
@@ -417,17 +453,23 @@ impl Window {
             .set_visible(!overview.settings_available || overview.accounts.is_empty());
         self.group
             .set_visible(overview.settings_available && !overview.accounts.is_empty());
-        self.empty
-            .set_title(&gettext(if overview.settings_available {
+        self.empty_title
+            .set_label(&gettext(if overview.settings_available {
                 n("No drives connected")
             } else {
                 n("Account settings unavailable")
+            }));
+        self.empty_icon
+            .set_icon_name(Some(if overview.settings_available {
+                "folder-remote-symbolic"
+            } else {
+                "dialog-warning-symbolic"
             }));
         let description = overview.settings_error.as_ref().map_or_else(
             || gettext("Connect a cloud drive and its files appear in Files, downloaded as you open them."),
             |error| gettext(error.description()),
         );
-        self.empty.set_description(Some(&description));
+        self.empty_description.set_label(&description);
         self.settings_retry
             .set_visible(overview.settings_error.is_some());
         self.empty_connect
@@ -516,7 +558,11 @@ impl Window {
     }
     fn account_row(self: &Rc<Self>, id: &str) -> AccountRow {
         let row = adw::ExpanderRow::builder().use_markup(false).build();
-        let icon = gtk::Image::from_icon_name("io.github.Dandiccf.Cirrove-symbolic");
+        // Use a stock icon here for the same reason as the first-launch card:
+        // a desktop that was already running while the package was installed
+        // can retain an icon-theme cache without Cirrove's newly installed
+        // symbolic icon and draw a blurry missing-image placeholder.
+        let icon = gtk::Image::from_icon_name("folder-remote-symbolic");
         icon.set_pixel_size(32);
         icon.add_css_class("accent");
         row.add_prefix(&icon);
