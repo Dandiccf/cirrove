@@ -30,6 +30,9 @@ cargo fmt --all -- --check
 
 step "clippy"
 cargo clippy --workspace --all-targets --locked -- -D warnings
+step "iCloud preview binary"
+cargo clippy -p cirrove-service --features icloud-probe \
+  --bin cirrove-icloud-mount-probe --locked -- -D warnings
 
 if [[ $fast != --fast ]]; then
   step "workspace tests"
