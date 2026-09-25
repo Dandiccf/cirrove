@@ -6,7 +6,10 @@
 
 use anyhow::{Context, Result, anyhow, bail};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use reqwest::{Client, Response, StatusCode, header::HeaderMap};
+use reqwest::{
+    Client, Response, StatusCode,
+    header::{CONTENT_RANGE, HeaderMap, RANGE},
+};
 use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
 use serde_json::json;
@@ -27,6 +30,7 @@ const USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleW
 const ROOT_ID: &str = "FOLDER::com.apple.CloudDocs::root";
 const MAX_JSON: usize = 8 * 1024 * 1024;
 const MAX_FILE: usize = 16 * 1024 * 1024;
+const MAX_RANGE: u32 = 4 * 1024 * 1024;
 const LISTING_TIMEOUT: Duration = Duration::from_secs(90);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -383,6 +387,102 @@ impl ICloudReadSession {
         if before.is_folder() || before.size > MAX_FILE as u64 || before.etag.is_empty() {
             bail!("file is not eligible for the bounded read-only probe");
         }
+        let signed_url = self.signed_download_url(drive_id).await?;
+        let mut response = self
+            .http
+            .get(signed_url)
+            .send()
+            .await
+            .map_err(|_| anyhow!("iCloud content request failed"))?;
+        if response.status() != StatusCode::OK {
+            bail!(
+                "iCloud content request failed ({})",
+                response.status().as_u16()
+            );
+        }
+        let mut bytes = Vec::with_capacity(before.size as usize);
+        while let Some(chunk) = response
+            .chunk()
+            .await
+            .map_err(|_| anyhow!("iCloud content response was interrupted"))?
+        {
+            if bytes.len().saturating_add(chunk.len()) > MAX_FILE {
+                bail!("iCloud file exceeds the bounded probe limit");
+            }
+            bytes.extend_from_slice(&chunk);
+        }
+        let after = self.item_for_read(drive_id, folder_id).await?;
+        if before.etag != after.etag
+            || before.size != after.size
+            || bytes.len() as u64 != before.size
+        {
+            bail!("iCloud file changed during the read or returned an unexpected size");
+        }
+        Ok(bytes)
+    }
+
+    /// Read one exact, bounded byte range while checking the enclosing file's
+    /// identity, ETag and size in its known parent folder on both sides.
+    pub async fn read_range_in_folder(
+        &mut self,
+        folder_id: &str,
+        drive_id: &str,
+        offset: u64,
+        length: u32,
+    ) -> Result<Vec<u8>> {
+        if length == 0 || length > MAX_RANGE {
+            bail!("iCloud range length is outside the probe limit");
+        }
+        let before = self.item_for_read(drive_id, Some(folder_id)).await?;
+        if before.is_folder() || before.etag.is_empty() {
+            bail!("file is not eligible for the bounded read-only probe");
+        }
+        let expected = before.size.saturating_sub(offset).min(u64::from(length));
+        if expected == 0 {
+            return Ok(Vec::new());
+        }
+        let end = offset
+            .checked_add(expected - 1)
+            .context("iCloud range overflow")?;
+        let signed_url = self.signed_download_url(drive_id).await?;
+        let mut response = self
+            .http
+            .get(signed_url)
+            .header(RANGE, format!("bytes={offset}-{end}"))
+            .send()
+            .await
+            .map_err(|_| anyhow!("iCloud range request failed"))?;
+        if response.status() != StatusCode::PARTIAL_CONTENT {
+            bail!("iCloud range request did not return partial content");
+        }
+        let content_range = response
+            .headers()
+            .get(CONTENT_RANGE)
+            .and_then(|value| value.to_str().ok())
+            .context("iCloud range response omitted Content-Range")?;
+        if !content_range_matches(content_range, offset, end, before.size) {
+            bail!("iCloud range response identified different bytes");
+        }
+        let mut bytes = Vec::with_capacity(expected as usize);
+        while let Some(chunk) = response
+            .chunk()
+            .await
+            .map_err(|_| anyhow!("iCloud range response was interrupted"))?
+        {
+            if bytes.len().saturating_add(chunk.len()) > expected as usize {
+                bail!("iCloud range response exceeded the requested length");
+            }
+            bytes.extend_from_slice(&chunk);
+        }
+        let after = self.item_for_read(drive_id, Some(folder_id)).await?;
+        if before.etag != after.etag || before.size != after.size || bytes.len() as u64 != expected
+        {
+            bail!("iCloud file changed during the range read or returned an unexpected size");
+        }
+        Ok(bytes)
+    }
+
+    async fn signed_download_url(&mut self, drive_id: &str) -> Result<Url> {
         let (zone, doc_id) = split_file_id(drive_id)?;
         let endpoint = self
             .docs_endpoint
@@ -411,38 +511,7 @@ impl ICloudReadSession {
             .data_token
             .or(location.package_token)
             .context("iCloud did not provide a download location")?;
-        let signed_url = checked_content_url(&signed.url)?;
-        let mut response = self
-            .http
-            .get(signed_url)
-            .send()
-            .await
-            .map_err(|_| anyhow!("iCloud content request failed"))?;
-        if !response.status().is_success() {
-            bail!(
-                "iCloud content request failed ({})",
-                response.status().as_u16()
-            );
-        }
-        let mut bytes = Vec::with_capacity(before.size as usize);
-        while let Some(chunk) = response
-            .chunk()
-            .await
-            .map_err(|_| anyhow!("iCloud content response was interrupted"))?
-        {
-            if bytes.len().saturating_add(chunk.len()) > MAX_FILE {
-                bail!("iCloud file exceeds the bounded probe limit");
-            }
-            bytes.extend_from_slice(&chunk);
-        }
-        let after = self.item_for_read(drive_id, folder_id).await?;
-        if before.etag != after.etag
-            || before.size != after.size
-            || bytes.len() as u64 != before.size
-        {
-            bail!("iCloud file changed during the read or returned an unexpected size");
-        }
-        Ok(bytes)
+        checked_content_url(&signed.url)
     }
 
     async fn item_for_read(
@@ -683,6 +752,23 @@ fn split_file_id(id: &str) -> Result<(&str, &str)> {
     Ok((zone, doc_id))
 }
 
+fn content_range_matches(value: &str, start: u64, end: u64, size: u64) -> bool {
+    let Some(range) = value.strip_prefix("bytes ") else {
+        return false;
+    };
+    let Some((bounds, total)) = range.split_once('/') else {
+        return false;
+    };
+    let Some((first, last)) = bounds.split_once('-') else {
+        return false;
+    };
+    matches!(
+        (first.parse::<u64>(), last.parse::<u64>(), total.parse::<u64>()),
+        (Ok(actual_start), Ok(actual_end), Ok(actual_size))
+            if actual_start == start && actual_end == end && actual_size == size
+    )
+}
+
 async fn read_json<T: serde::de::DeserializeOwned>(
     mut response: Response,
     stage: &'static str,
@@ -850,6 +936,21 @@ mod tests {
         assert!(entry.items.is_empty());
         assert_eq!(entry.size, 0);
         Ok(())
+    }
+
+    #[test]
+    fn content_range_requires_exact_bounds_and_file_size() {
+        assert!(content_range_matches("bytes 17-31/100", 17, 31, 100));
+        for value in [
+            "bytes 17-30/100",
+            "bytes 17-31/101",
+            "bytes */100",
+            "bytes 17-31/*",
+            "bytes 17-31/100, bytes 40-42/100",
+            "17-31/100",
+        ] {
+            assert!(!content_range_matches(value, 17, 31, 100));
+        }
     }
 
     #[test]

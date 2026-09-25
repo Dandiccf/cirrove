@@ -125,8 +125,10 @@ A [native Rust read probe](../icloud-native-probe.md) now implements an
 interactive SRP/trusted-device sign-in, bounded root/folder listing and a bounded
 small-file read by opaque ID without any rclone dependency. Its SRP proof,
 endpoint validation and metadata parsing have local tests. It has **not** yet
-completed a live sign-in, so I0 remains open; this code is deliberately outside
-the installed service and account picker.
+completed the full I0 gate. One real account has passed sign-in, root listing
+and a small file download through the native probe. Ranged reads, revision
+semantics, complete refresh, reauthentication and account-class coverage remain
+open. The probe is deliberately outside the installed service and account picker.
 
 The first probe is isolated and read-only. It may inspect owned fixtures, but it
 must not mutate a cloud account without a separate explicit authorization.

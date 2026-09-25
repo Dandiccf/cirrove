@@ -12,8 +12,8 @@ async fn main() -> Result<()> {
         .ok_or_else(|| anyhow::anyhow!("usage: cirrove-icloud-probe APPLE_ID [FOLDER_ID]"))?;
     let operation = args.next();
     let read_target = match operation.as_deref() {
-        Some("--read") | Some("--read-in") => {
-            let folder = if operation.as_deref() == Some("--read-in") {
+        Some("--read") | Some("--read-in") | Some("--range-in") => {
+            let folder = if operation.as_deref() != Some("--read") {
                 Some(
                     args.next()
                         .ok_or_else(|| anyhow::anyhow!("missing folder ID"))?,
@@ -24,16 +24,29 @@ async fn main() -> Result<()> {
             let item = args
                 .next()
                 .ok_or_else(|| anyhow::anyhow!("missing file ID"))?;
+            let range = if operation.as_deref() == Some("--range-in") {
+                let offset = args
+                    .next()
+                    .ok_or_else(|| anyhow::anyhow!("missing range offset"))?
+                    .parse::<u64>()?;
+                let length = args
+                    .next()
+                    .ok_or_else(|| anyhow::anyhow!("missing range length"))?
+                    .parse::<u32>()?;
+                Some((offset, length))
+            } else {
+                None
+            };
             let output = args
                 .next()
                 .ok_or_else(|| anyhow::anyhow!("missing output path"))?;
-            Some((folder, item, output))
+            Some((folder, item, output, range))
         }
         _ => None,
     };
     if args.next().is_some() {
         bail!(
-            "usage: cirrove-icloud-probe APPLE_ID [FOLDER_ID | --read FILE_ID OUTPUT | --read-in FOLDER_ID FILE_ID OUTPUT]"
+            "usage: cirrove-icloud-probe APPLE_ID [FOLDER_ID | --read FILE_ID OUTPUT | --read-in FOLDER_ID FILE_ID OUTPUT | --range-in FOLDER_ID FILE_ID OFFSET LENGTH OUTPUT]"
         );
     }
     let password =
@@ -48,8 +61,13 @@ async fn main() -> Result<()> {
             client.verify_trusted_device_code(&code).await?;
         }
     }
-    if let Some((folder_id, file_id, output)) = read_target {
-        let bytes = if let Some(folder_id) = folder_id {
+    if let Some((folder_id, file_id, output, range)) = read_target {
+        let bytes = if let (Some(folder_id), Some((offset, length))) = (folder_id.as_deref(), range)
+        {
+            client
+                .read_range_in_folder(folder_id, &file_id, offset, length)
+                .await?
+        } else if let Some(folder_id) = folder_id {
             client
                 .read_small_file_in_folder(&folder_id, &file_id)
                 .await?

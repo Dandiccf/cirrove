@@ -116,8 +116,9 @@ currently bundled; another project's client ID is never substituted.
       account picker is added. The probe and provider must be native Cirrove code,
       with no rclone runtime, configuration or credential dependency. Writes
       require separate conflict and recovery evidence. An
-      [experimental native read probe](icloud-native-probe.md) exists, but no
-      Apple-account live sign-in or mounted-provider result has passed yet.
+      [experimental native read probe](icloud-native-probe.md) passed sign-in,
+      root listing and one small file read against a real account. Ranged reads,
+      content-revision semantics and a mounted-provider result remain open.
 
 Modern components do not establish production readiness. Sustained real-provider
 use and independently reviewable recovery results remain release requirements.

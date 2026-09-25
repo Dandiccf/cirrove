@@ -36,6 +36,15 @@ for the live file tested here:
 CARGO_TARGET_DIR="$PWD/.target-icloud-probe" cargo run -p cirrove-icloud --bin cirrove-icloud-probe -- 'your-apple-id@example.com' --read 'FILE::zone::opaque-id' ./downloaded-file
 ```
 
+To test an exact nonzero byte range, use the known parent and pass decimal
+`OFFSET` and `LENGTH` (at most 4 MiB). The response must identify the exact
+requested bounds and full file size in `Content-Range`; a full-file response is
+rejected. The same parent listing checks ETag and size on both sides:
+
+```sh
+CARGO_TARGET_DIR="$PWD/.target-icloud-probe" cargo run -p cirrove-icloud --bin cirrove-icloud-probe -- 'your-apple-id@example.com' --range-in 'FOLDER::zone::parent-id' 'FILE::zone::opaque-id' 4096 8192 ./downloaded-range
+```
+
 Each invocation signs in again. Advanced Data Protection PCS approval, SMS-only
 2FA, session persistence, complete large-directory pagination, content revision
 semantics and installed FUSE integration are not yet implemented or validated.
@@ -56,3 +65,5 @@ single-file read-only observations, not proof of repeatability, general account
 compatibility or reliable content-version semantics. No Cirrove mount was created.
 The validation record contains no account identifier, file names, item IDs,
 tokens or response bodies.
+The exact-range path has local parser tests but awaits a live response and an
+independent byte-for-byte comparison with the previously saved file.
