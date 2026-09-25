@@ -25,6 +25,13 @@ const MAX_DEPTH: usize = 128;
 pub struct ICloudDrive {
     scope: Scope,
     session: Mutex<ICloudReadSession>,
+    index_mode: IndexMode,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum IndexMode {
+    FullSnapshot,
+    OnDemand,
 }
 
 impl ICloudDrive {
@@ -34,6 +41,26 @@ impl ICloudDrive {
         scope: Scope,
         apple_id: &str,
         snapshot: &SecretString,
+    ) -> Result<Self, ProviderError> {
+        Self::new(scope, apple_id, snapshot, IndexMode::FullSnapshot)
+    }
+
+    /// Seed the root immediately and fetch complete folders only when opened.
+    /// This bounds initial work for large accounts while the full snapshot
+    /// protocol remains available to the offline metadata probe.
+    pub fn on_demand_from_session_snapshot(
+        scope: Scope,
+        apple_id: &str,
+        snapshot: &SecretString,
+    ) -> Result<Self, ProviderError> {
+        Self::new(scope, apple_id, snapshot, IndexMode::OnDemand)
+    }
+
+    fn new(
+        scope: Scope,
+        apple_id: &str,
+        snapshot: &SecretString,
+        index_mode: IndexMode,
     ) -> Result<Self, ProviderError> {
         if scope.provider != PROVIDER_ID
             || scope.collection != COLLECTION
@@ -46,6 +73,7 @@ impl ICloudDrive {
         Ok(Self {
             scope,
             session: Mutex::new(session),
+            index_mode,
         })
     }
 
@@ -233,6 +261,19 @@ fn root() -> Change {
     Change::Upsert(root_node())
 }
 
+fn on_demand_page(cursor: Option<&Cursor>) -> Result<ChangePage, ProviderError> {
+    const READY: &str = "on-demand-root-ready";
+    let changes = match cursor {
+        None => vec![root()],
+        Some(value) if value.0 == READY => Vec::new(),
+        Some(_) => return Err(ProviderError::CursorExpired),
+    };
+    Ok(ChangePage {
+        changes,
+        checkpoint: Checkpoint::Complete(Cursor(READY.into())),
+    })
+}
+
 #[async_trait]
 impl MetadataProvider for ICloudDrive {
     fn provider_id(&self) -> &'static str {
@@ -240,7 +281,10 @@ impl MetadataProvider for ICloudDrive {
     }
 
     fn feed_mode(&self) -> FeedMode {
-        FeedMode::FullSnapshot
+        match self.index_mode {
+            IndexMode::FullSnapshot => FeedMode::FullSnapshot,
+            IndexMode::OnDemand => FeedMode::Incremental,
+        }
     }
 
     async fn changes(
@@ -250,6 +294,9 @@ impl MetadataProvider for ICloudDrive {
         cancel: &CancellationToken,
     ) -> Result<ChangePage, ProviderError> {
         self.check_scope(scope)?;
+        if self.index_mode == IndexMode::OnDemand {
+            return on_demand_page(cursor);
+        }
         if let Some(cursor) = cursor {
             let mut walk = Walk::decode(cursor, scope)?;
             let parent = walk
@@ -431,5 +478,19 @@ mod tests {
         assert_eq!(node.id, item.drivewsid);
         assert_eq!(node.parent_id.as_deref(), Some(ROOT_ID));
         assert!(nodes(ROOT_ID, vec![item.clone(), item]).is_err());
+    }
+
+    #[test]
+    fn on_demand_feed_seeds_root_once_and_rejects_other_cursors() {
+        let first = on_demand_page(None).unwrap();
+        assert_eq!(first.changes, vec![root()]);
+        let cursor = first.checkpoint.cursor().clone();
+        let repeat = on_demand_page(Some(&cursor)).unwrap();
+        assert!(repeat.changes.is_empty());
+        assert!(repeat.checkpoint.complete());
+        assert!(matches!(
+            on_demand_page(Some(&Cursor("unrelated".into()))),
+            Err(ProviderError::CursorExpired)
+        ));
     }
 }

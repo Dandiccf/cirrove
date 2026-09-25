@@ -96,6 +96,10 @@ progress only: ending at the page limit still means the tree is incomplete.
 The adapter also implements on-demand folder pages and bounded exact-range
 reads for the shared read contract. A mounted read checks the published node's
 ETag and size against the live parent listing before and after the range.
+For large accounts, its separate on-demand feed seeds only the root and lets
+the shared directory cache fetch complete folders as they are opened. This
+avoids making the 94,154-node incomplete scan a prerequisite for first
+navigation; it does not provide a complete offline account index.
 This path has synthetic checks but no live revision-change validation. Apple's
 ETag behavior, cold lookup of an unknown item, session retention and account
 scale still block installing it as a Cirrove drive.
