@@ -26,6 +26,11 @@ scripts/install-developer.sh --no-build # install what is already in target/rele
 scripts/switch-to-package.sh            # after pacman -U, move off the developer install
 ```
 
+In a separate worktree, set `CARGO_TARGET_DIR` to that worktree's own build
+directory when running `install-developer.sh` (including `--no-build`). The
+installer uses the same directory for Cargo binaries and optional Dolphin
+plugins, rather than picking up artifacts from another checkout.
+
 `install-developer.sh` puts the binaries in `~/.local/bin`, the unit in
 `~/.config/systemd/user`, the tray's autostart entry in `~/.config/autostart`,
 and the icons, desktop entry, metainfo and Files extension under
