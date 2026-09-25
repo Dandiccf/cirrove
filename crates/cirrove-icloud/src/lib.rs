@@ -718,35 +718,14 @@ impl ICloudReadSession {
             .checked_add(expected - 1)
             .context("iCloud range overflow")?;
         let signed_url = self.signed_download_url(drive_id).await?;
-        let mut response = self
+        let response = self
             .http
             .get(signed_url)
             .header(RANGE, format!("bytes={offset}-{end}"))
             .send()
             .await
             .map_err(|_| anyhow!("iCloud range request failed"))?;
-        if response.status() != StatusCode::PARTIAL_CONTENT {
-            bail!("iCloud range request did not return partial content");
-        }
-        let content_range = response
-            .headers()
-            .get(CONTENT_RANGE)
-            .and_then(|value| value.to_str().ok())
-            .context("iCloud range response omitted Content-Range")?;
-        if !content_range_matches(content_range, offset, end, before.size) {
-            bail!("iCloud range response identified different bytes");
-        }
-        let mut bytes = Vec::with_capacity(expected as usize);
-        while let Some(chunk) = response
-            .chunk()
-            .await
-            .map_err(|_| anyhow!("iCloud range response was interrupted"))?
-        {
-            if bytes.len().saturating_add(chunk.len()) > expected as usize {
-                bail!("iCloud range response exceeded the requested length");
-            }
-            bytes.extend_from_slice(&chunk);
-        }
+        let bytes = read_exact_range_response(response, offset, end, before.size).await?;
         let after = self.item_for_read(drive_id, Some(folder_id)).await?;
         check_expected_revision(&after, expected_revision)?;
         if before.etag != after.etag || before.size != after.size {
@@ -754,9 +733,6 @@ impl ICloudReadSession {
                 return Err(StaleRead.into());
             }
             bail!("iCloud file changed during the range read");
-        }
-        if bytes.len() as u64 != expected {
-            bail!("iCloud file changed during the range read or returned an unexpected size");
         }
         Ok(bytes)
     }
@@ -1057,6 +1033,50 @@ fn content_range_matches(value: &str, start: u64, end: u64, size: u64) -> bool {
     )
 }
 
+async fn read_exact_range_response(
+    mut response: Response,
+    offset: u64,
+    end: u64,
+    size: u64,
+) -> Result<Vec<u8>> {
+    if response.status() == StatusCode::OK && offset == 0 && end.checked_add(1) == Some(size) {
+        if response.headers().contains_key(CONTENT_RANGE) {
+            bail!("iCloud complete response carried an unexpected Content-Range");
+        }
+    } else if response.status() == StatusCode::PARTIAL_CONTENT {
+        let content_range = response
+            .headers()
+            .get(CONTENT_RANGE)
+            .and_then(|value| value.to_str().ok())
+            .context("iCloud range response omitted Content-Range")?;
+        if !content_range_matches(content_range, offset, end, size) {
+            bail!("iCloud range response identified different bytes");
+        }
+    } else {
+        bail!("iCloud range response did not identify the requested bytes");
+    }
+    let expected = end
+        .checked_sub(offset)
+        .and_then(|length| length.checked_add(1))
+        .and_then(|length| usize::try_from(length).ok())
+        .context("iCloud range exceeds memory bound")?;
+    let mut bytes = Vec::with_capacity(expected);
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|_| anyhow!("iCloud range response was interrupted"))?
+    {
+        if bytes.len().saturating_add(chunk.len()) > expected {
+            bail!("iCloud range response exceeded the requested length");
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    if bytes.len() != expected {
+        bail!("iCloud range response was shorter than requested");
+    }
+    Ok(bytes)
+}
+
 async fn read_json<T: serde::de::DeserializeOwned>(
     mut response: Response,
     stage: &'static str,
@@ -1161,6 +1181,36 @@ fn apple_proofs(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tokio::io::AsyncWriteExt;
+    use tokio::net::TcpListener;
+
+    async fn synthetic_range_response(
+        status: &'static str,
+        content_range: Option<&'static str>,
+        body: &'static [u8],
+    ) -> Result<Response> {
+        let listener = TcpListener::bind("127.0.0.1:0").await?;
+        let address = listener.local_addr()?;
+        tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.expect("fixture accepts a request");
+            let range = content_range
+                .map(|range| format!("Content-Range: {range}\r\n"))
+                .unwrap_or_default();
+            let headers = format!(
+                "HTTP/1.1 {status}\r\nContent-Length: {}\r\n{range}Connection: close\r\n\r\n",
+                body.len()
+            );
+            stream
+                .write_all(headers.as_bytes())
+                .await
+                .expect("fixture writes headers");
+            stream.write_all(body).await.expect("fixture writes body");
+        });
+        Ok(Client::new()
+            .get(format!("http://{address}/"))
+            .send()
+            .await?)
+    }
 
     #[test]
     fn trusted_device_push_retries_get_only_when_put_is_unsupported() {
@@ -1273,6 +1323,41 @@ mod tests {
         ] {
             assert!(!content_range_matches(value, 17, 31, 100));
         }
+    }
+
+    #[tokio::test]
+    async fn complete_file_response_may_be_ok_but_a_subrange_still_requires_partial_content()
+    -> Result<()> {
+        let full = synthetic_range_response("200 OK", None, b"ninebytes").await?;
+        assert_eq!(
+            read_exact_range_response(full, 0, 8, 9).await?,
+            b"ninebytes"
+        );
+
+        let ignored_range = synthetic_range_response("200 OK", None, b"ninebytes").await?;
+        assert!(
+            read_exact_range_response(ignored_range, 1, 8, 9)
+                .await
+                .is_err()
+        );
+
+        let unexpected_bytes = synthetic_range_response("200 OK", None, b"ninebytes!").await?;
+        assert!(
+            read_exact_range_response(unexpected_bytes, 0, 8, 9)
+                .await
+                .is_err()
+        );
+
+        let exact =
+            synthetic_range_response("206 Partial Content", Some("bytes 1-8/9"), b"inebytes")
+                .await?;
+        assert_eq!(
+            read_exact_range_response(exact, 1, 8, 9).await?,
+            b"inebytes"
+        );
+        let unproven = synthetic_range_response("206 Partial Content", None, b"inebytes").await?;
+        assert!(read_exact_range_response(unproven, 1, 8, 9).await.is_err());
+        Ok(())
     }
 
     #[test]

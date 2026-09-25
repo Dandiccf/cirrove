@@ -39,7 +39,9 @@ CARGO_TARGET_DIR="$PWD/.target-icloud-probe" cargo run -p cirrove-icloud --bin c
 To test an exact nonzero byte range, use the known parent and pass decimal
 `OFFSET` and `LENGTH` (at most 4 MiB). The response must identify the exact
 requested bounds and full file size in `Content-Range`; a full-file response is
-rejected. The same parent listing checks ETag and size on both sides:
+rejected for a proper subrange. When the request covers the entire file, an
+exact-size HTTP 200 response is also accepted. The same parent listing checks
+ETag and size on both sides:
 
 ```sh
 CARGO_TARGET_DIR="$PWD/.target-icloud-probe" cargo run -p cirrove-icloud --bin cirrove-icloud-probe -- 'your-apple-id@example.com' --range-in 'FOLDER::zone::parent-id' 'FILE::zone::opaque-id' 4096 8192 ./downloaded-range
