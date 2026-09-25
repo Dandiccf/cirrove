@@ -138,8 +138,10 @@ The service now has an internal read-only account constructor and a lazy
 Cirrove-keyring-backed adapter for a future persistent connection. They are not
 yet offered by the window or CLI, and no existing installation is migrated.
 Settings validation rejects writable iCloud accounts and roots other than the
-opaque Apple Drive root. A saved Apple session must still be tested across
-restarts and renewal before this becomes a normal connection choice.
+opaque Apple Drive root. The metadata feed requires the keyring session and a
+complete live root listing before publishing its synthetic root. A saved Apple
+session must still be tested across restarts and renewal before this becomes a
+normal connection choice.
 
 The keyring value contains Apple session cookies and tokens, never the password.
 The key is derived from the account identifier; a restored value is bound to that

@@ -12,8 +12,9 @@ use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
+use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, OnceCell};
 
 const PROVIDER_ID: &str = "icloud";
 const COLLECTION: &str = "drive";
@@ -27,6 +28,8 @@ pub struct ICloudDrive {
     scope: Scope,
     session: Mutex<SessionState>,
     index_mode: IndexMode,
+    keyring_backed: bool,
+    keyring_validated: OnceCell<()>,
 }
 
 enum SessionState {
@@ -34,6 +37,7 @@ enum SessionState {
     Keyring {
         apple_id: String,
         credential_id: String,
+        vault: Arc<dyn CredentialVault>,
     },
 }
 
@@ -81,6 +85,8 @@ impl ICloudDrive {
             scope,
             session: Mutex::new(SessionState::Ready(Box::new(session))),
             index_mode: IndexMode::OnDemand,
+            keyring_backed: false,
+            keyring_validated: OnceCell::new(),
         })
     }
 
@@ -91,6 +97,15 @@ impl ICloudDrive {
         scope: Scope,
         apple_id: String,
         credential_id: String,
+    ) -> Result<Self, ProviderError> {
+        Self::on_demand_from_vault(scope, apple_id, credential_id, Arc::new(DesktopVault))
+    }
+
+    fn on_demand_from_vault(
+        scope: Scope,
+        apple_id: String,
+        credential_id: String,
+        vault: Arc<dyn CredentialVault>,
     ) -> Result<Self, ProviderError> {
         if scope.provider != PROVIDER_ID
             || scope.collection != COLLECTION
@@ -105,8 +120,11 @@ impl ICloudDrive {
             session: Mutex::new(SessionState::Keyring {
                 apple_id,
                 credential_id,
+                vault,
             }),
             index_mode: IndexMode::OnDemand,
+            keyring_backed: true,
+            keyring_validated: OnceCell::new(),
         })
     }
 
@@ -128,6 +146,8 @@ impl ICloudDrive {
             scope,
             session: Mutex::new(SessionState::Ready(Box::new(session))),
             index_mode,
+            keyring_backed: false,
+            keyring_validated: OnceCell::new(),
         })
     }
 
@@ -137,9 +157,10 @@ impl ICloudDrive {
         if let SessionState::Keyring {
             apple_id,
             credential_id,
+            vault,
         } = state
         {
-            let saved = DesktopVault
+            let saved = vault
                 .load(credential_id)
                 .await
                 .map_err(|_| ProviderError::Authentication)?
@@ -373,6 +394,13 @@ impl MetadataProvider for ICloudDrive {
     ) -> Result<ChangePage, ProviderError> {
         self.check_scope(scope)?;
         if self.index_mode == IndexMode::OnDemand {
+            if self.keyring_backed {
+                self.keyring_validated
+                    .get_or_try_init(|| async {
+                        self.list_folder(ROOT_ID, cancel).await.map(|_| ())
+                    })
+                    .await?;
+            }
             return on_demand_page(cursor);
         }
         if let Some(cursor) = cursor {
@@ -504,6 +532,41 @@ impl ReadProvider for ICloudDrive {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    struct MissingVault;
+
+    #[async_trait]
+    impl CredentialVault for MissingVault {
+        async fn load(&self, _key: &str) -> anyhow::Result<Option<SecretString>> {
+            Ok(None)
+        }
+        async fn save(&self, _key: &str, _value: SecretString) -> anyhow::Result<()> {
+            panic!("read-only feed must not save credentials")
+        }
+        async fn remove(&self, _key: &str) -> anyhow::Result<()> {
+            panic!("read-only feed must not remove credentials")
+        }
+    }
+
+    #[tokio::test]
+    async fn keyring_feed_does_not_publish_root_without_a_session() {
+        let scope = Scope {
+            account: "account".into(),
+            provider: PROVIDER_ID.into(),
+            collection: COLLECTION.into(),
+        };
+        let drive = ICloudDrive::on_demand_from_vault(
+            scope.clone(),
+            "person@example.com".into(),
+            uuid::Uuid::new_v4().to_string(),
+            Arc::new(MissingVault),
+        )
+        .unwrap();
+        assert!(matches!(
+            drive.changes(&scope, None, &CancellationToken::new()).await,
+            Err(ProviderError::Authentication)
+        ));
+    }
 
     fn entry(id: &str, kind: &str) -> DriveEntry {
         DriveEntry {

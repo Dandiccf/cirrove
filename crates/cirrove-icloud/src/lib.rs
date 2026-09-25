@@ -1,8 +1,8 @@
 //! Experimental, native, read-only iCloud Drive transport.
 //!
 //! This module never invokes or reads another cloud client. Apple does not
-//! publish a stable iCloud Drive API; keep it out of the mounted service until
-//! identity, revisions and complete enumeration are validated with a live account.
+//! publish a stable iCloud Drive API. The service has an internal read-only
+//! account path, but normal connection UI and provider reliability remain unvalidated.
 
 mod provider;
 pub use provider::ICloudDrive;
