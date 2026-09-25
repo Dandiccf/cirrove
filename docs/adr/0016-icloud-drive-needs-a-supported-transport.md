@@ -129,8 +129,9 @@ completed the full I0 gate. One real account has passed sign-in, root listing
 and a small file download through the native probe. A nonzero range matched a
 saved complete file, and a keyring-backed session resumed in a separate process
 without another password or code prompt. Revision semantics, complete refresh,
-renewal after expiry and account-class coverage remain
-open. The probe is deliberately outside the installed service and account picker.
+renewal after expiry and account-class coverage remain open. An experimental
+read-only account path, command and desktop picker now exist on the draft branch,
+but no iCloud account has been mounted through the installed service.
 
 The first probe is isolated and read-only. It may inspect owned fixtures, but it
 must not mutate a cloud account without a separate explicit authorization.
@@ -192,9 +193,9 @@ exact bytes.
    storage and interactive Apple sign-in/2FA. Run I0 through that probe and record
    the results. The existing Apple account can be used after separate Cirrove
    sign-in; the current Google and Microsoft accounts are unrelated.
-3. If I0 passes, integrate the native Rust adapter behind the existing provider
-   contracts. Validate it through the shared engine and synthetic crash tests
-   before a preview mount.
+3. Continue validating the native Rust adapter behind the existing provider
+   contracts. Synthetic shared-engine tests pass, but the isolated preview mount
+   and installed account flow still need live evidence before a release claim.
 4. Only then decide whether the maintenance cost of Apple's undocumented protocol
    is acceptable for a released Linux provider. If not, document the tested
    limitation and leave the feature experimental.

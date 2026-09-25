@@ -2,7 +2,8 @@
 //!
 //! This module never invokes or reads another cloud client. Apple does not
 //! publish a stable iCloud Drive API. The service has an internal read-only
-//! account path, but normal connection UI and provider reliability remain unvalidated.
+//! account path and connection UI, but their live behavior and provider reliability
+//! remain unvalidated.
 
 mod provider;
 pub use provider::ICloudDrive;
