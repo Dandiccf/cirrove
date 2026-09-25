@@ -136,8 +136,10 @@ browsing; this is a validation tool, not an installed iCloud account flow.
 
 The service now has a read-only account constructor and a lazy
 Cirrove-keyring-backed adapter. The branch exposes an explicitly experimental
-`cirrove connect-icloud` terminal command; the window does not offer it yet,
-and no existing installation is migrated. For isolated validation, pass a
+`cirrove connect-icloud` terminal command and an iCloud choice in the
+connection window. The window collects the Apple password and code locally;
+its live behavior has not yet been validated. No existing installation is
+migrated. For isolated validation, pass a
 private test `--state-dir` instead of using the installed daemon's state.
 `cirrove reauth LABEL` repeats native Apple sign-in for a configured iCloud
 account without replacing its item index. Both commands request the regular

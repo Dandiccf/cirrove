@@ -892,12 +892,11 @@ impl Window {
             .set_visible(writing.is_some() || card.state.busy());
         row.location
             .set_subtitle(&card.mount_path.to_string_lossy());
-        row.identity
-            .set_title(&if card.provider_id == "googledrive" {
-                gettext("Google account")
-            } else {
-                gettext("Microsoft account")
-            });
+        row.identity.set_title(&match card.provider_id {
+            "googledrive" => gettext("Google account"),
+            "icloud" => gettext("Apple Account"),
+            _ => gettext("Microsoft account"),
+        });
         row.identity.set_subtitle(&card.username);
         row.access.set_subtitle(if card.writable {
             "Changes made in this drive are uploaded to the cloud."
@@ -1320,6 +1319,10 @@ impl Window {
         let Some(card) = self.card(id) else {
             return;
         };
+        if card.provider_id == "icloud" {
+            connect::present_icloud_reauth(self, id);
+            return;
+        }
         if card.provider_id == "googledrive" {
             let Some(window) = self.window.upgrade() else {
                 return;

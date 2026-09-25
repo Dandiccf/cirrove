@@ -1218,6 +1218,72 @@ fn a_second_google_account_reuses_the_app_and_receives_a_default_folder() {
     runtime.shutdown_timeout(Duration::from_secs(1));
 }
 
+fn icloud_connect_shows_local_sign_in_and_never_offers_writes() {
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let sample = demo::snapshot().unwrap();
+    write_settings(&state, &sample.settings.unwrap());
+    let service = fake_service(&runtime, temp.path(), sample.status.unwrap());
+    let app = application("ICloudConnect");
+    let ui = Window::new(
+        &app,
+        Backend::Live {
+            runtime: runtime.handle().clone(),
+            state,
+            socket: service.socket.clone(),
+        },
+    );
+    pump_until("window", || ui.current().is_some());
+    let window = ui.window.upgrade().unwrap();
+    button(window.upcast_ref(), "Connect a drive")
+        .unwrap()
+        .emit_clicked();
+    pump_until("connect dialog", || {
+        entry_row(window.upcast_ref(), "Name").is_some()
+    });
+    entry_row(window.upcast_ref(), "Name")
+        .unwrap()
+        .set_text("iCloudTest");
+    provider_selector(window.upcast_ref())
+        .unwrap()
+        .set_selected(2);
+    pump_until("iCloud fields", || {
+        button(window.upcast_ref(), "Sign in to iCloud").is_some()
+    });
+    let sign_in = button(window.upcast_ref(), "Sign in to iCloud").unwrap();
+    assert!(!sign_in.is_sensitive());
+    assert!(entry_row(window.upcast_ref(), "Apple Account email").is_some());
+    assert!(entry_row(window.upcast_ref(), "Apple Account password").is_some());
+    assert!(
+        !action_row(window.upcast_ref(), "Allow changes")
+            .unwrap()
+            .is_visible(),
+        "iCloud has no write implementation or grant"
+    );
+    entry_row(window.upcast_ref(), "Apple Account email")
+        .unwrap()
+        .set_text("person@example.invalid");
+    entry_row(window.upcast_ref(), "Apple Account password")
+        .unwrap()
+        .set_text("synthetic-password");
+    pump_until("iCloud sign-in ready", || sign_in.is_sensitive());
+    let folder = action_row(window.upcast_ref(), "Folder in Files").unwrap();
+    assert!(
+        folder
+            .subtitle()
+            .is_some_and(|subtitle| subtitle.ends_with("/Cloud/Cirrove-iCloudTest"))
+    );
+    window.close();
+    service.task.abort();
+    runtime.shutdown_timeout(Duration::from_secs(1));
+}
+
 /// What an account keeps offline, in the window, and taking one back.
 ///
 /// Pinning existed only in the CLI and the Files context menu, so the question
@@ -1512,6 +1578,10 @@ const SCENARIOS: &[(&str, fn())] = &[
     (
         "a_second_google_account_reuses_the_app_and_receives_a_default_folder",
         a_second_google_account_reuses_the_app_and_receives_a_default_folder,
+    ),
+    (
+        "icloud_connect_shows_local_sign_in_and_never_offers_writes",
+        icloud_connect_shows_local_sign_in_and_never_offers_writes,
     ),
     (
         "a_fetch_in_flight_shows_its_progress_and_can_be_stopped",

@@ -9,11 +9,13 @@ publish = false
 [dependencies]
 cirrove-service.workspace = true
 cirrove-auth.workspace = true
+cirrove-icloud = { path = "../cirrove-icloud" }
 anyhow.workspace = true
 clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
+secrecy.workspace = true
 futures-util.workspace = true
 zbus.workspace = true
 gtk = { package = "gtk4", version = "0.11", features = ["v4_14"] }

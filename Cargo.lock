@@ -407,6 +407,7 @@ version = "0.2.0-dev"
 dependencies = [
  "anyhow",
  "cirrove-auth",
+ "cirrove-icloud",
  "cirrove-service",
  "clap",
  "fs2",
@@ -414,6 +415,7 @@ dependencies = [
  "gettext-rs",
  "gtk4",
  "libadwaita",
+ "secrecy",
  "serde",
  "serde_json",
  "tempfile",
