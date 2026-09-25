@@ -2,9 +2,10 @@
 use anyhow::{Result, bail};
 use cirrove_auth::{CredentialVault, DesktopVault};
 use cirrove_core::{CancellationToken, Checkpoint, MetadataProvider, Scope};
-use cirrove_icloud::{ICloudDrive, ICloudReadSession, SignInStep, probe_session_key};
+use cirrove_icloud::{DriveEntry, ICloudDrive, ICloudReadSession, SignInStep, probe_session_key};
 use secrecy::SecretString;
-use std::{io::Write, path::Path};
+use sha2::{Digest, Sha256};
+use std::{io::Write, path::Path, time::Duration};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -58,6 +59,16 @@ async fn main() -> Result<()> {
         }
         _ => None,
     };
+    let revision_target = if operation.as_deref() == Some("--revision-check-in") {
+        Some((
+            args.next()
+                .ok_or_else(|| anyhow::anyhow!("missing folder ID"))?,
+            args.next()
+                .ok_or_else(|| anyhow::anyhow!("missing file ID"))?,
+        ))
+    } else {
+        None
+    };
     let trailing = args.next();
     if args.next().is_some()
         || trailing
@@ -70,7 +81,7 @@ async fn main() -> Result<()> {
             ))
     {
         bail!(
-            "usage: cirrove-icloud-probe APPLE_ID [FOLDER_ID | --read FILE_ID OUTPUT | --read-in FOLDER_ID FILE_ID OUTPUT | --range-in FOLDER_ID FILE_ID OFFSET LENGTH OUTPUT | --snapshot-pages LIMIT | --save-session | --resume-session] [--save-session | --resume-session]"
+            "usage: cirrove-icloud-probe APPLE_ID [FOLDER_ID | --read FILE_ID OUTPUT | --read-in FOLDER_ID FILE_ID OUTPUT | --range-in FOLDER_ID FILE_ID OFFSET LENGTH OUTPUT | --revision-check-in FOLDER_ID FILE_ID | --snapshot-pages LIMIT | --save-session | --resume-session] [--save-session | --resume-session]"
         );
     }
     let save_session = operation.as_deref() == Some("--save-session")
@@ -149,6 +160,10 @@ async fn main() -> Result<()> {
         println!("Snapshot page limit reached: {limit} pages, {items} metadata nodes; incomplete.");
         return Ok(());
     }
+    if let Some((folder_id, file_id)) = revision_target {
+        check_content_revision(&mut client, &folder_id, &file_id).await?;
+        return Ok(());
+    }
     if (save_session || resume_session) && operation.is_none() && read_target.is_none() {
         let count = client.list_root().await?.len();
         println!("iCloud probe session active; {count} root items.");
@@ -194,4 +209,65 @@ async fn main() -> Result<()> {
         );
     }
     Ok(())
+}
+
+fn unique_file(items: Vec<DriveEntry>, file_id: &str) -> Result<DriveEntry> {
+    let mut matches = items.into_iter().filter(|item| item.drivewsid == file_id);
+    let file = matches
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("test file is absent from its parent folder"))?;
+    if matches.next().is_some() || file.is_folder() || file.etag.is_empty() {
+        bail!("test file does not have one usable file identity and ETag");
+    }
+    Ok(file)
+}
+
+async fn check_content_revision(
+    client: &mut ICloudReadSession,
+    folder_id: &str,
+    file_id: &str,
+) -> Result<()> {
+    let (before, baseline) = capture_file(client, folder_id, file_id).await?;
+    println!(
+        "Baseline captured. Change the contents of this small test file in iCloud, wait for sync, then press Enter here."
+    );
+    let mut answer = String::new();
+    std::io::stdin().read_line(&mut answer)?;
+    let mut etag_changed_without_content = false;
+    for attempt in 0..6 {
+        let (after, content) = capture_file(client, folder_id, file_id).await?;
+        if content != baseline {
+            if after.etag == before.etag {
+                bail!(
+                    "Content changed, but the iCloud ETag did not; mounted caching remains unsafe"
+                );
+            }
+            println!(
+                "Content and ETag both changed in this one live test; the mounted cache still needs broader validation."
+            );
+            return Ok(());
+        }
+        etag_changed_without_content |= after.etag != before.etag;
+        if attempt < 5 {
+            tokio::time::sleep(Duration::from_secs(10)).await;
+        }
+    }
+    if etag_changed_without_content {
+        bail!("ETag changed, but file contents did not change during the test window");
+    }
+    bail!("No changed file contents were observed during the test window")
+}
+
+async fn capture_file(
+    client: &mut ICloudReadSession,
+    folder_id: &str,
+    file_id: &str,
+) -> Result<(DriveEntry, [u8; 32])> {
+    let before = unique_file(client.list_folder(folder_id).await?, file_id)?;
+    let bytes = client.read_small_file_in_folder(folder_id, file_id).await?;
+    let after = unique_file(client.list_folder(folder_id).await?, file_id)?;
+    if before.etag != after.etag || before.size != after.size || bytes.len() as u64 != after.size {
+        bail!("test file changed while its baseline was being captured");
+    }
+    Ok((after, Sha256::digest(bytes).into()))
 }

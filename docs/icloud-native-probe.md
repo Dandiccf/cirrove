@@ -45,6 +45,19 @@ rejected. The same parent listing checks ETag and size on both sides:
 CARGO_TARGET_DIR="$PWD/.target-icloud-probe" cargo run -p cirrove-icloud --bin cirrove-icloud-probe -- 'your-apple-id@example.com' --range-in 'FOLDER::zone::parent-id' 'FILE::zone::opaque-id' 4096 8192 ./downloaded-range
 ```
 
+To check whether a content edit changes Apple's ETag, choose a **small test
+file you own**, then run this in one terminal session:
+
+```sh
+CARGO_TARGET_DIR="$PWD/.target-icloud-probe" cargo run -p cirrove-icloud --bin cirrove-icloud-probe -- 'your-apple-id@example.com' --revision-check-in 'FOLDER::zone::parent-id' 'FILE::zone::opaque-id'
+```
+
+After it reports a baseline, change that test file's **contents** on
+iCloud.com and press Enter. The probe compares bounded content hashes and
+ETags for up to one minute. It prints neither the content, hashes nor IDs and
+does not modify the cloud file itself. One successful comparison is evidence
+for that one revision transition, not a guarantee for every iCloud file.
+
 By default, each invocation signs in again. Advanced Data Protection PCS approval, SMS-only
 2FA, complete large-directory pagination, content revision
 semantics and installed FUSE integration are not yet implemented or validated.
