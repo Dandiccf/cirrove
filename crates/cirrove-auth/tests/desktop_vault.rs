@@ -1,6 +1,56 @@
 use cirrove_auth::{CredentialVault, DesktopVault};
 use secrecy::{ExposeSecret, SecretString};
 
+/// Reproduce the size and process boundary of an iCloud session checkpoint
+/// without handling a real credential. The child gets only a synthetic key.
+#[tokio::test]
+#[ignore = "requires an unlocked desktop Secret Service; uses only a temporary synthetic entry"]
+async fn desktop_keyring_large_snapshot_survives_another_process() -> anyhow::Result<()> {
+    let key = format!("icloud-retention-test-{}", uuid::Uuid::new_v4());
+    let value = format!("synthetic-{}", "x".repeat(20_000));
+    let result = async {
+        DesktopVault
+            .save(&key, SecretString::from(value.clone()))
+            .await?;
+        let child = std::process::Command::new(std::env::current_exe()?)
+            .args([
+                "--ignored",
+                "--exact",
+                "desktop_keyring_large_snapshot_child",
+            ])
+            .env("CIRROVE_SYNTHETIC_KEYRING_TEST_KEY", &key)
+            .status()?;
+        anyhow::ensure!(child.success(), "independent keyring read failed");
+        let restored = DesktopVault.load(&key).await?;
+        anyhow::ensure!(
+            restored.is_some_and(|secret| secret.expose_secret() == value),
+            "synthetic entry changed after the independent read"
+        );
+        Ok::<_, anyhow::Error>(())
+    }
+    .await;
+    let cleanup = DesktopVault.remove(&key).await;
+    result?;
+    cleanup?;
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "runs only as the child of the large synthetic keyring test"]
+async fn desktop_keyring_large_snapshot_child() -> anyhow::Result<()> {
+    let Ok(key) = std::env::var("CIRROVE_SYNTHETIC_KEYRING_TEST_KEY") else {
+        return Ok(());
+    };
+    let restored = DesktopVault.load(&key).await?;
+    anyhow::ensure!(
+        restored.is_some_and(
+            |secret| secret.expose_secret() == format!("synthetic-{}", "x".repeat(20_000))
+        ),
+        "synthetic entry was absent or changed in a separate process"
+    );
+    Ok(())
+}
+
 #[tokio::test]
 #[ignore = "requires an unlocked desktop Secret Service; uses only a temporary synthetic entry"]
 async fn desktop_keyring_checkpoint_updates_survive_new_sessions() -> anyhow::Result<()> {
