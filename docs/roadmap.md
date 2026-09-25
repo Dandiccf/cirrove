@@ -110,16 +110,15 @@ currently bundled; another project's client ID is never substituted.
 - [ ] iCloud Drive: complete the [direct Linux read feasibility gate](adr/0016-icloud-drive-needs-a-supported-transport.md).
       Rclone and pyicloud demonstrate access to existing Drive files through
       Apple's undocumented web transport; a Fedora 44 rclone FUSE mount was
-      inspected as a working read/write example. An isolated, read-only probe must
-      establish stable item identity, content revisions, bounded complete
-      refresh, ranged reads and reauthentication before a Cirrove adapter or
-      account picker is added. The probe and provider must be native Cirrove code,
-      with no rclone runtime, configuration or credential dependency. Writes
-      require separate conflict and recovery evidence. An
-      [experimental native read probe](icloud-native-probe.md) passed sign-in,
-      root listing, one small file read, a nonzero range comparison and keyring
-      session resumption against a real account. Complete refresh, session renewal,
-      content-revision semantics and a mounted-provider result remain open.
+      inspected as a working read/write example. The native, read-only
+      [experimental adapter](icloud-native-probe.md) has signed in, listed and
+      read real files, mounted through Cirrove's normal service in isolated
+      state, restored its saved session across one service restart, and detected
+      one remote content change. It has no rclone runtime, configuration or
+      credential dependency. Sustained session retention and renewal,
+      account-scale enumeration, broader revision behavior and GUI sign-in
+      still need validation. Writes require separate conflict and recovery
+      evidence and remain unsupported.
 
 Modern components do not establish production readiness. Sustained real-provider
 use and independently reviewable recovery results remain release requirements.

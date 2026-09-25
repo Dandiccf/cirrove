@@ -157,9 +157,9 @@ Apple account password and trusted-device code in the local terminal; neither
 accepts a password as a command argument. The connection remains read-only.
 Settings validation rejects writable iCloud accounts and roots other than the
 opaque Apple Drive root. The metadata feed requires the keyring session and a
-complete live root listing before publishing its synthetic root. A saved Apple
-session must still be tested across restarts and renewal before this becomes a
-normal connection choice.
+complete live root listing before publishing its synthetic root. One isolated
+service restart has restored a newly saved session; expiry and renewal still
+need validation before this becomes a normal connection choice.
 
 The keyring value contains Apple session cookies and tokens, never the password.
 The key is derived from the account identifier; a restored value is bound to that
@@ -178,7 +178,8 @@ HTTP 400. A second read path used the file's known parent listing before and
 after downloading one ordinary file; it saved 135,295 bytes and the local file
 size matched. The file contents were not inspected. These are single-account,
 single-file read-only observations, not proof of repeatability, general account
-compatibility or reliable content-version semantics. No Cirrove mount was created.
+compatibility or reliable content-version semantics. No Cirrove mount was created
+at that stage.
 The validation record contains no account identifier, file names, item IDs,
 tokens or response bodies.
 The same account then saved a Cirrove-owned session in the desktop keyring. A
@@ -198,3 +199,20 @@ snapshot. The account has substantially more metadata than the first 32-page
 probe exposed; the total size and time to complete remain unknown. The current
 probe did not save a continuation across processes, and no partial tree was
 published to a Cirrove mount.
+
+On 2026-09-25, the experimental `connect-icloud` command saved a fresh
+read-only account in private test state. A separate `cirroved` instance with
+its own control socket mounted that account through the normal manager and
+FUSE path. The mounted root listed 30 entries. Two previously selected files
+read fully through the mount, with 19 and 135,295 bytes matching their visible
+sizes. A local create attempt returned `EROFS`; it did not reach Apple. After a
+clean service stop and restart, the same keyring-backed account mounted without
+another password or code prompt, listed 30 root entries and read the 19-byte
+test file again. This proves one isolated service lifecycle and two file reads,
+not long-term session retention, account-wide completeness, refresh latency or
+general file compatibility. The installed daemon and other mounts were not
+restarted or changed. After a user edit to the existing small test file on
+iCloud.com, the first mounted read rejected the old revision with `ESTALE`.
+Opening the root again and retrying read the new 42-byte version (previously
+19 bytes). This demonstrates rejection and recovery for one live content
+change, not a bound on refresh latency or behavior across concurrent edits.
