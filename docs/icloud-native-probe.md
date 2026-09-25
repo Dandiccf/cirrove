@@ -234,3 +234,13 @@ read fully. After a clean stop and restart, the new account mounted without
 another prompt and both checks passed again. The second test service and mount
 were then stopped. This validates one window-created account, not unattended
 renewal, long sessions or compatibility with other Apple accounts.
+
+On a later start on 2026-09-25, both private test states entered
+`sign_in_required` immediately. Their mounts could still display 30 cached root
+names; that was not evidence of a working Apple session. An exact search of
+Cirrove's desktop Secret Service entries found neither account's credential ID.
+The cause of their disappearance is not established. A short synthetic keyring
+entry survived a start and clean stop of the isolated service, so that lifecycle
+alone did not reproduce the loss. Both test services were stopped without
+touching the installed daemon. Durable session retention remains a beta gate;
+the successful immediate restarts above do not close it.
