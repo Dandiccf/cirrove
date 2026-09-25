@@ -286,7 +286,7 @@ jobs:
     steps:
       - name: Build tools, and the desktop libraries the desktop packages build against
         run: pacman -Syu --noconfirm --needed git rust cmake pkgconf gtk4 libadwaita fuse3 desktop-file-utils appstream qt6-base kio ki18n
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The package version carries the commit count.
           fetch-depth: 0
