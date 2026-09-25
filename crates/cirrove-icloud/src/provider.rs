@@ -642,6 +642,28 @@ mod tests {
         ));
     }
 
+    #[tokio::test]
+    async fn folder_without_announced_item_count_is_not_published() {
+        let endpoint = listing_fixture(
+            r#"[{"drivewsid":"FOLDER::com.apple.CloudDocs::root","name":"root","type":"FOLDER","items":[{"drivewsid":"FILE::zone::only-one","name":"One","type":"FILE","size":1,"etag":"revision"}]}]"#,
+        )
+        .await;
+        let mut session = ICloudReadSession::new().unwrap();
+        session.drive_endpoint = Some(url::Url::parse(&endpoint).unwrap());
+        let scope = Scope {
+            account: "synthetic-account".into(),
+            provider: PROVIDER_ID.into(),
+            collection: COLLECTION.into(),
+        };
+        let drive = ICloudDrive::on_demand_from_live_session(scope.clone(), session).unwrap();
+        assert!(matches!(
+            drive
+                .children(&scope, ROOT_ID, None, &CancellationToken::new())
+                .await,
+            Err(ProviderError::Protocol("incomplete iCloud folder listing"))
+        ));
+    }
+
     #[test]
     fn rejected_apple_session_requires_reauthentication() {
         for status in [

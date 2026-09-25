@@ -103,7 +103,8 @@ ETag and size against the live parent listing before and after the range.
 For large accounts, its separate on-demand feed seeds only the root and lets
 the shared directory cache fetch complete folders as they are opened. A listing
 whose announced item count does not match its returned children is reported as
-an incomplete provider response, rather than as an offline connection. This
+an incomplete provider response, rather than as an offline connection. A folder
+without an announced count is refused for the same reason. This
 avoids making the 94,154-node incomplete scan a prerequisite for first
 navigation; it does not provide a complete offline account index.
 This path has synthetic checks but no live revision-change validation. Apple's

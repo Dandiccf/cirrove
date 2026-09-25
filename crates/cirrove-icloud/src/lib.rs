@@ -604,9 +604,7 @@ impl ICloudReadSession {
             bail!("iCloud Drive returned an unexpected folder identity");
         }
         let folder = folders.remove(0);
-        if let Some(total) = folder.number_of_items
-            && total != folder.items.len()
-        {
+        if folder.number_of_items != Some(folder.items.len()) {
             return Err(IncompleteFolder.into());
         }
         for item in &folder.items {
