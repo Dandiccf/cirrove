@@ -512,12 +512,17 @@ impl ICloudReadSession {
     }
 
     pub async fn request_trusted_device_code(&mut self) -> Result<()> {
-        let response = self
+        let mut response = self
             .auth_request(
                 self.http
                     .put(format!("{AUTH}/verify/trusteddevice/securitycode")),
             )
             .await?;
+        if trusted_device_push_get_fallback(response.status()) {
+            response = self
+                .auth_request(self.http.get(format!("{AUTH}/verify/trusteddevice")))
+                .await?;
+        }
         if !response.status().is_success() {
             bail!("Apple did not send a trusted-device code");
         }
@@ -978,6 +983,10 @@ impl ICloudReadSession {
     }
 }
 
+fn trusted_device_push_get_fallback(status: StatusCode) -> bool {
+    status == StatusCode::METHOD_NOT_ALLOWED
+}
+
 fn checked_drive_endpoint(raw: &str) -> Result<Url> {
     let url = Url::parse(raw).map_err(|_| anyhow!("invalid iCloud Drive endpoint"))?;
     let host = url
@@ -1154,6 +1163,18 @@ fn apple_proofs(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn trusted_device_push_retries_get_only_when_put_is_unsupported() {
+        assert!(trusted_device_push_get_fallback(
+            StatusCode::METHOD_NOT_ALLOWED
+        ));
+        assert!(!trusted_device_push_get_fallback(StatusCode::OK));
+        assert!(!trusted_device_push_get_fallback(StatusCode::UNAUTHORIZED));
+        assert!(!trusted_device_push_get_fallback(
+            StatusCode::TOO_MANY_REQUESTS
+        ));
+    }
 
     #[test]
     fn rejects_untrusted_drive_endpoint() {
