@@ -1,7 +1,9 @@
 //! Read-only adapter. A folder is one staged metadata page; the parent stack is
 //! a bounded continuation, never a path-derived item identity.
 
-use crate::{DriveEntry, ICloudReadSession, MAX_RANGE, ROOT_ID, SessionRejected, StaleRead};
+use crate::{
+    DriveEntry, ICloudReadSession, IncompleteFolder, MAX_RANGE, ROOT_ID, SessionRejected, StaleRead,
+};
 use async_trait::async_trait;
 use cirrove_auth::{CredentialVault, DesktopVault};
 use cirrove_core::{
@@ -202,6 +204,8 @@ impl ICloudDrive {
 fn map_read_error(error: &anyhow::Error) -> ProviderError {
     if error.downcast_ref::<SessionRejected>().is_some() {
         ProviderError::Authentication
+    } else if error.downcast_ref::<IncompleteFolder>().is_some() {
+        ProviderError::Protocol("incomplete iCloud folder listing")
     } else if error.downcast_ref::<StaleRead>().is_some() {
         ProviderError::VersionChanged
     } else {
@@ -631,7 +635,7 @@ mod tests {
             drive
                 .children(&scope, ROOT_ID, None, &CancellationToken::new())
                 .await,
-            Err(ProviderError::Unavailable)
+            Err(ProviderError::Protocol("incomplete iCloud folder listing"))
         ));
     }
 

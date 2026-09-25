@@ -52,6 +52,17 @@ pub(crate) struct StaleRead;
 #[derive(Debug)]
 pub(crate) struct SessionRejected;
 
+#[derive(Debug)]
+pub(crate) struct IncompleteFolder;
+
+impl std::fmt::Display for IncompleteFolder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("iCloud Drive returned an incomplete folder listing")
+    }
+}
+
+impl std::error::Error for IncompleteFolder {}
+
 impl std::fmt::Display for SessionRejected {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("Apple rejected the saved iCloud session; sign in again")
@@ -591,7 +602,7 @@ impl ICloudReadSession {
         if let Some(total) = folder.number_of_items
             && total != folder.items.len()
         {
-            bail!("iCloud Drive returned an incomplete folder listing");
+            return Err(IncompleteFolder.into());
         }
         for item in &folder.items {
             if item.drivewsid.is_empty() || item.name.is_empty() {
