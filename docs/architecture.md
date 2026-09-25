@@ -121,6 +121,11 @@ The store stages paginated changes and advances the continuation in one transact
 Visible nodes and the completed cursor change together only on the terminal page.
 A replacement baseline is built alongside the last visible index. Interrupted work
 resumes; an expired cursor does not immediately empty a usable directory tree.
+Providers without a change feed can declare full-snapshot rounds. Each new round
+starts a replacement baseline, while a failed or interrupted round resumes its
+staged pages instead of discarding them. A completed snapshot cursor is never
+passed back as an incremental cursor. This shared contract is groundwork for the
+experimental iCloud adapter; it does not establish complete iCloud enumeration.
 
 Cold foreground listings are atomically recorded separately from the delta index.
 Metadata schema 4 introduced a persistent logical revision before each network

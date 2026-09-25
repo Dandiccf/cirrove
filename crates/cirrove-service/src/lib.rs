@@ -16,7 +16,7 @@ pub mod transfers;
 pub mod validation;
 pub mod writable;
 use anyhow::{Context, Result, bail};
-use cirrove_core::{CancellationToken, MetadataProvider, ProviderError, Scope};
+use cirrove_core::{CancellationToken, FeedMode, MetadataProvider, ProviderError, Scope};
 use cirrove_store::Store;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -261,13 +261,23 @@ pub async fn refresh(
 ) -> Result<u64> {
     let path = db_path.to_owned();
     let s = scope.clone();
-    let mut cursor =
-        tokio::task::spawn_blocking(move || Store::open(path)?.begin(&s, reset)).await??;
+    let mode = provider.feed_mode();
+    let mut cursor = tokio::task::spawn_blocking(move || {
+        let mut store = Store::open(path)?;
+        if reset {
+            store.begin(&s, true)
+        } else if mode == FeedMode::FullSnapshot {
+            store.begin_snapshot(&s)
+        } else {
+            store.begin(&s, false)
+        }
+    })
+    .await??;
     // Whether this refresh continues from a saved cursor, decided once: a
     // baseline can run to several pages, and every page after the first
     // carries a cursor too. The first version looked at the page and recorded
     // a whole drive's second page as activity.
-    let continuation = cursor.is_some() && !reset;
+    let continuation = mode == FeedMode::Incremental && cursor.is_some() && !reset;
     let mut pages = 0u64;
     loop {
         let page = provider.changes(scope, cursor.as_ref(), cancel).await?;
@@ -1600,6 +1610,72 @@ mod tests {
             store.begin(&scope, false).unwrap(),
             Some(cirrove_core::Cursor("resume-here".into()))
         );
+    }
+
+    struct SnapshotProvider(std::sync::atomic::AtomicUsize);
+    #[async_trait::async_trait]
+    impl MetadataProvider for SnapshotProvider {
+        fn provider_id(&self) -> &'static str {
+            "snapshot-fixture"
+        }
+        fn feed_mode(&self) -> FeedMode {
+            FeedMode::FullSnapshot
+        }
+        async fn changes(
+            &self,
+            _scope: &Scope,
+            cursor: Option<&cirrove_core::Cursor>,
+            _cancel: &CancellationToken,
+        ) -> std::result::Result<cirrove_core::ChangePage, ProviderError> {
+            if cursor.is_some() {
+                return Err(ProviderError::Protocol("completed snapshot was reused"));
+            }
+            let round = self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let id = format!("round-{round}");
+            Ok(cirrove_core::ChangePage {
+                changes: vec![cirrove_core::Change::Upsert(cirrove_core::Node {
+                    id: id.clone(),
+                    parent_id: None,
+                    name: id,
+                    kind: cirrove_core::NodeKind::File,
+                    size: 1,
+                    modified_unix: 0,
+                    etag: None,
+                    content_version: None,
+                    target: None,
+                    package: false,
+                })],
+                checkpoint: cirrove_core::Checkpoint::Complete(cirrove_core::Cursor(format!(
+                    "done-{round}"
+                ))),
+            })
+        }
+    }
+    #[tokio::test]
+    async fn coordinator_starts_a_new_snapshot_after_a_completed_round() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("metadata.db");
+        let scope = Scope {
+            account: "a".into(),
+            provider: "snapshot-fixture".into(),
+            collection: "d".into(),
+        };
+        let provider = SnapshotProvider(std::sync::atomic::AtomicUsize::new(0));
+        for round in 0..2 {
+            refresh(
+                &provider,
+                &scope,
+                &path,
+                false,
+                &CancellationToken::new(),
+                None,
+            )
+            .await
+            .unwrap();
+            let nodes = Store::open(&path).unwrap().nodes(&scope).unwrap();
+            assert_eq!(nodes.len(), 1);
+            assert_eq!(nodes[0].id, format!("round-{round}"));
+        }
     }
 }
 
