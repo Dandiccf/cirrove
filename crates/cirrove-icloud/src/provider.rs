@@ -281,7 +281,8 @@ impl Walk {
         if fingerprint(items)? != frame.fingerprint {
             return Err(ProviderError::CursorExpired);
         }
-        let folders: Vec<_> = items.iter().filter(|item| item.is_folder()).collect();
+        let mut folders: Vec<_> = items.iter().filter(|item| item.is_folder()).collect();
+        folders.sort_unstable_by(|left, right| left.drivewsid.cmp(&right.drivewsid));
         if frame.next_folder > folders.len() {
             return Err(ProviderError::Protocol("invalid iCloud folder position"));
         }
@@ -311,7 +312,9 @@ impl Walk {
 }
 
 fn fingerprint(items: &[DriveEntry]) -> Result<String, ProviderError> {
-    let value = serde_json::to_vec(items)
+    let mut ordered: Vec<_> = items.iter().collect();
+    ordered.sort_unstable_by(|left, right| left.drivewsid.cmp(&right.drivewsid));
+    let value = serde_json::to_vec(&ordered)
         .map_err(|_| ProviderError::Protocol("iCloud listing fingerprint"))?;
     Ok(hex::encode(Sha256::digest(value)))
 }
@@ -733,6 +736,33 @@ mod tests {
             resumed.next_folder(&changed),
             Err(ProviderError::CursorExpired)
         ));
+    }
+
+    #[test]
+    fn snapshot_cursor_survives_reordered_unchanged_listing() {
+        let scope = Scope {
+            account: "account".into(),
+            provider: PROVIDER_ID.into(),
+            collection: COLLECTION.into(),
+        };
+        let first = vec![
+            entry("FOLDER::zone::two", "FOLDER"),
+            entry("FILE::zone::note", "FILE"),
+            entry("FOLDER::zone::one", "FOLDER"),
+        ];
+        let mut reordered = first.clone();
+        reordered.reverse();
+        let mut walk = Walk::new(&scope, &first).unwrap();
+        assert_eq!(
+            walk.next_folder(&first).unwrap().as_deref(),
+            Some("FOLDER::zone::one")
+        );
+        let mut resumed = Walk::decode(&walk.encode().unwrap(), &scope).unwrap();
+        assert_eq!(
+            resumed.next_folder(&reordered).unwrap().as_deref(),
+            Some("FOLDER::zone::two")
+        );
+        assert!(resumed.next_folder(&first).unwrap().is_none());
     }
 
     #[test]

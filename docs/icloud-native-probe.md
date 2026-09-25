@@ -91,6 +91,9 @@ completed Cirrove index. The shared service now stages full-snapshot feeds and
 keeps the old visible index until a complete new round, but the iCloud adapter
 is not yet installed in that service. The isolated foreground mount below uses
 the separate on-demand path.
+The snapshot continuation visits folder IDs in stable order and fingerprints a
+canonicalized listing, so an unchanged folder can be returned in a different
+order without restarting the walk. Changed metadata still expires the cursor.
 The probe reports counts every 16 pages during a long scan. These lines are
 progress only: ending at the page limit still means the tree is incomplete.
 
