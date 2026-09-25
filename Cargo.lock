@@ -444,6 +444,7 @@ version = "0.2.0-dev"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
+ "cirrove-auth",
  "getrandom 0.3.4",
  "hex",
  "pbkdf2",

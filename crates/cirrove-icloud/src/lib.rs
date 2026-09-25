@@ -8,14 +8,21 @@ use anyhow::{Context, Result, anyhow, bail};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use reqwest::{
     Client, Response, StatusCode,
-    header::{CONTENT_RANGE, HeaderMap, RANGE},
+    cookie::{CookieStore, Jar},
+    header::{CONTENT_RANGE, HeaderMap, HeaderValue, RANGE},
 };
 use secrecy::{ExposeSecret, SecretString};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use srp::{Client as SrpClient, groups::G2048};
-use std::time::Duration;
+use std::{
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::Duration,
+};
 use url::Url;
 use uuid::Uuid;
 use zeroize::Zeroizing;
@@ -31,6 +38,9 @@ const ROOT_ID: &str = "FOLDER::com.apple.CloudDocs::root";
 const MAX_JSON: usize = 8 * 1024 * 1024;
 const MAX_FILE: usize = 16 * 1024 * 1024;
 const MAX_RANGE: u32 = 4 * 1024 * 1024;
+const MAX_SESSION_SNAPSHOT: usize = 128 * 1024;
+const MAX_COOKIE_RECORDS: usize = 128;
+const MAX_COOKIE_RECORD: usize = 4096;
 const LISTING_TIMEOUT: Duration = Duration::from_secs(90);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -121,7 +131,7 @@ struct DownloadToken {
     url: String,
 }
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 struct SessionHeaders {
     scnt: String,
     session_id: String,
@@ -129,6 +139,129 @@ struct SessionHeaders {
     trust_token: String,
     account_country: String,
     auth_attributes: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct CookieRecord {
+    source: String,
+    set_cookie: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct SessionSnapshot {
+    version: u8,
+    account_hash: String,
+    headers: SessionHeaders,
+    drive_endpoint: String,
+    docs_endpoint: String,
+    cookies: Vec<CookieRecord>,
+}
+
+#[derive(Default)]
+struct RecordingCookies {
+    jar: Jar,
+    records: Mutex<Vec<CookieRecord>>,
+    overflow: AtomicBool,
+}
+
+impl RecordingCookies {
+    fn records(&self) -> Result<Vec<CookieRecord>> {
+        if self.overflow.load(Ordering::Relaxed) {
+            bail!("iCloud session contains too many cookies to save safely");
+        }
+        let guard = self
+            .records
+            .lock()
+            .map_err(|_| anyhow!("iCloud cookie store is unavailable"))?;
+        Ok(guard
+            .iter()
+            .map(|record| CookieRecord {
+                source: record.source.clone(),
+                set_cookie: record.set_cookie.clone(),
+            })
+            .collect())
+    }
+
+    fn restore(&self, records: Vec<CookieRecord>) -> Result<()> {
+        if records.len() > MAX_COOKIE_RECORDS {
+            bail!("saved iCloud session has too many cookies");
+        }
+        for record in &records {
+            if record.set_cookie.len() > MAX_COOKIE_RECORD {
+                bail!("saved iCloud cookie exceeds limit");
+            }
+            let url = Url::parse(&record.source)
+                .map_err(|_| anyhow!("invalid saved iCloud cookie source"))?;
+            if !allowed_cookie_source(&url) || url.query().is_some() || url.fragment().is_some() {
+                bail!("saved iCloud cookie source is outside Apple authentication");
+            }
+            self.jar.add_cookie_str(&record.set_cookie, &url);
+        }
+        *self
+            .records
+            .lock()
+            .map_err(|_| anyhow!("iCloud cookie store is unavailable"))? = records;
+        Ok(())
+    }
+}
+
+impl CookieStore for RecordingCookies {
+    fn set_cookies(&self, cookie_headers: &mut dyn Iterator<Item = &HeaderValue>, url: &Url) {
+        let headers: Vec<_> = cookie_headers.cloned().collect();
+        self.jar.set_cookies(&mut headers.iter(), url);
+        if !allowed_cookie_source(url) {
+            return;
+        }
+        let mut source = url.clone();
+        source.set_query(None);
+        source.set_fragment(None);
+        let Ok(mut records) = self.records.lock() else {
+            self.overflow.store(true, Ordering::Relaxed);
+            return;
+        };
+        for header in headers {
+            let Ok(value) = header.to_str() else {
+                self.overflow.store(true, Ordering::Relaxed);
+                continue;
+            };
+            if value.len() > MAX_COOKIE_RECORD || records.len() >= MAX_COOKIE_RECORDS {
+                self.overflow.store(true, Ordering::Relaxed);
+                continue;
+            }
+            records.push(CookieRecord {
+                source: source.as_str().into(),
+                set_cookie: value.into(),
+            });
+        }
+    }
+
+    fn cookies(&self, url: &Url) -> Option<HeaderValue> {
+        self.jar.cookies(url)
+    }
+}
+
+fn allowed_cookie_source(url: &Url) -> bool {
+    url.scheme() == "https"
+        && url.port_or_known_default() == Some(443)
+        && url
+            .host_str()
+            .is_some_and(|host| host == "idmsa.apple.com" || host.ends_with(".icloud.com"))
+        && url.username().is_empty()
+        && url.password().is_none()
+}
+
+fn account_hash(apple_id: &str) -> Result<String> {
+    let normalized = apple_id.trim().to_lowercase();
+    if normalized.is_empty() || normalized.len() > 320 {
+        bail!("invalid Apple account identifier");
+    }
+    Ok(hex::encode(Sha256::digest(normalized.as_bytes())))
+}
+
+/// An account-specific Cirrove-owned keyring key without an address in its
+/// Secret Service attributes.
+pub fn probe_session_key(apple_id: &str) -> Result<String> {
+    Ok(format!("icloud-probe-{}", account_hash(apple_id)?))
 }
 
 impl SessionHeaders {
@@ -152,6 +285,8 @@ impl SessionHeaders {
 /// An in-memory session. No account password, cookies or tokens are written to disk.
 pub struct ICloudReadSession {
     http: Client,
+    cookies: Arc<RecordingCookies>,
+    account_hash: Option<String>,
     frame: String,
     headers: SessionHeaders,
     drive_endpoint: Option<Url>,
@@ -160,8 +295,9 @@ pub struct ICloudReadSession {
 
 impl ICloudReadSession {
     pub fn new() -> Result<Self> {
+        let cookies = Arc::new(RecordingCookies::default());
         let http = Client::builder()
-            .cookie_store(true)
+            .cookie_provider(cookies.clone())
             .redirect(reqwest::redirect::Policy::none())
             .user_agent(USER_AGENT)
             .timeout(Duration::from_secs(30))
@@ -169,11 +305,74 @@ impl ICloudReadSession {
             .context("cannot create iCloud HTTP client")?;
         Ok(Self {
             http,
+            cookies,
+            account_hash: None,
             frame: format!("auth-{}", Uuid::new_v4()),
             headers: SessionHeaders::default(),
             drive_endpoint: None,
             docs_endpoint: None,
         })
+    }
+
+    /// Serialize only Cirrove's Apple web session material for storage in the
+    /// desktop Secret Service. Never write this value to a normal file or log.
+    pub fn session_snapshot(&self) -> Result<SecretString> {
+        let drive = self
+            .drive_endpoint
+            .as_ref()
+            .context("iCloud sign-in is not complete")?;
+        let docs = self
+            .docs_endpoint
+            .as_ref()
+            .context("iCloud sign-in is not complete")?;
+        let snapshot = SessionSnapshot {
+            version: 1,
+            account_hash: self
+                .account_hash
+                .clone()
+                .context("iCloud account identity is not bound")?,
+            headers: SessionHeaders {
+                scnt: self.headers.scnt.clone(),
+                session_id: self.headers.session_id.clone(),
+                session_token: self.headers.session_token.clone(),
+                trust_token: self.headers.trust_token.clone(),
+                account_country: self.headers.account_country.clone(),
+                auth_attributes: self.headers.auth_attributes.clone(),
+            },
+            drive_endpoint: drive.to_string(),
+            docs_endpoint: docs.to_string(),
+            cookies: self.cookies.records()?,
+        };
+        let value = serde_json::to_string(&snapshot)?;
+        if value.len() > MAX_SESSION_SNAPSHOT {
+            bail!("iCloud session exceeds the safe keyring limit");
+        }
+        Ok(SecretString::from(value))
+    }
+
+    /// Reconstitute a keyring-backed session. A subsequent Apple request still
+    /// decides whether the session is valid; this does not claim renewal.
+    pub fn from_session_snapshot(value: &SecretString, apple_id: &str) -> Result<Self> {
+        if value.expose_secret().len() > MAX_SESSION_SNAPSHOT {
+            bail!("saved iCloud session exceeds limit");
+        }
+        let snapshot: SessionSnapshot = serde_json::from_str(value.expose_secret())
+            .map_err(|_| anyhow!("invalid saved iCloud session"))?;
+        if snapshot.version != 1
+            || snapshot.headers.session_token.is_empty()
+            || snapshot.account_hash != account_hash(apple_id)?
+        {
+            bail!("unsupported or incomplete saved iCloud session");
+        }
+        let drive = checked_drive_endpoint(&snapshot.drive_endpoint)?;
+        let docs = checked_drive_endpoint(&snapshot.docs_endpoint)?;
+        let mut session = Self::new()?;
+        session.cookies.restore(snapshot.cookies)?;
+        session.account_hash = Some(snapshot.account_hash);
+        session.headers = snapshot.headers;
+        session.drive_endpoint = Some(drive);
+        session.docs_endpoint = Some(docs);
+        Ok(session)
     }
 
     /// Starts Apple's SRP sign-in. The password is only used for the proof and
@@ -183,6 +382,7 @@ impl ICloudReadSession {
         if apple_id.is_empty() || apple_id.len() > 320 {
             bail!("invalid Apple account identifier");
         }
+        self.account_hash = Some(account_hash(&apple_id)?);
         self.start_auth().await?;
         self.federate(&apple_id).await?;
 
@@ -705,6 +905,7 @@ fn checked_drive_endpoint(raw: &str) -> Result<Url> {
         .host_str()
         .context("iCloud Drive endpoint has no host")?;
     if url.scheme() != "https"
+        || url.port_or_known_default() != Some(443)
         || !(host == "icloud.com" || host.ends_with(".icloud.com"))
         || url.username() != ""
         || url.password().is_some()
@@ -722,6 +923,7 @@ fn checked_content_url(raw: &str) -> Result<Url> {
         .host_str()
         .context("iCloud content location has no host")?;
     if url.scheme() != "https"
+        || url.port_or_known_default() != Some(443)
         || !(host == "icloud-content.com" || host.ends_with(".icloud-content.com"))
         || url.username() != ""
         || url.password().is_some()
@@ -951,6 +1153,39 @@ mod tests {
         ] {
             assert!(!content_range_matches(value, 17, 31, 100));
         }
+    }
+
+    #[test]
+    fn saved_session_restores_only_apple_cookies_and_rejects_other_hosts() -> Result<()> {
+        let mut session = ICloudReadSession::new()?;
+        session.account_hash = Some(account_hash("person@example.com")?);
+        session.headers.session_token = "synthetic-session-token".into();
+        session.drive_endpoint = Some(checked_drive_endpoint("https://p01-drivews.icloud.com/")?);
+        session.docs_endpoint = Some(checked_drive_endpoint("https://p01-docws.icloud.com/")?);
+        let source = Url::parse("https://setup.icloud.com/setup/ws/1/accountLogin")?;
+        let cookie = HeaderValue::from_static("synthetic=private-value; Path=/; Secure; HttpOnly");
+        session
+            .cookies
+            .set_cookies(&mut [&cookie].into_iter(), &source);
+        let snapshot = session.session_snapshot()?;
+        let restored = ICloudReadSession::from_session_snapshot(&snapshot, "person@example.com")?;
+        assert_eq!(
+            session.cookies.cookies(&source),
+            restored.cookies.cookies(&source)
+        );
+        let mut invalid: serde_json::Value = serde_json::from_str(snapshot.expose_secret())?;
+        invalid["cookies"][0]["source"] = "https://other.example/".into();
+        let invalid = SecretString::from(serde_json::to_string(&invalid)?);
+        assert!(ICloudReadSession::from_session_snapshot(&invalid, "person@example.com").is_err());
+        let mut invalid: serde_json::Value = serde_json::from_str(snapshot.expose_secret())?;
+        invalid["cookies"][0]["source"] = "https://setup.icloud.com:8443/".into();
+        let invalid = SecretString::from(serde_json::to_string(&invalid)?);
+        assert!(ICloudReadSession::from_session_snapshot(&invalid, "person@example.com").is_err());
+        assert!(
+            ICloudReadSession::from_session_snapshot(&snapshot, "someone-else@example.com")
+                .is_err()
+        );
+        Ok(())
     }
 
     #[test]

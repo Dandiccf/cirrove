@@ -45,12 +45,26 @@ rejected. The same parent listing checks ETag and size on both sides:
 CARGO_TARGET_DIR="$PWD/.target-icloud-probe" cargo run -p cirrove-icloud --bin cirrove-icloud-probe -- 'your-apple-id@example.com' --range-in 'FOLDER::zone::parent-id' 'FILE::zone::opaque-id' 4096 8192 ./downloaded-range
 ```
 
-Each invocation signs in again. Advanced Data Protection PCS approval, SMS-only
-2FA, session persistence, complete large-directory pagination, content revision
+By default, each invocation signs in again. Advanced Data Protection PCS approval, SMS-only
+2FA, complete large-directory pagination, content revision
 semantics and installed FUSE integration are not yet implemented or validated.
 The probe fails closed on these cases; it does not silently publish an incomplete
 directory or unverified file to Cirrove's cache. The existing Fedora iCloud mount
 is untouched.
+
+An experimental session checkpoint can now be saved in Cirrove's existing desktop
+Secret Service keyring and reopened without entering the Apple password again:
+
+```sh
+cirrove-icloud-probe 'your-apple-id@example.com' --save-session
+cirrove-icloud-probe 'your-apple-id@example.com' --resume-session
+```
+
+The keyring value contains Apple session cookies and tokens, never the password.
+The key is derived from the account identifier; a restored value is bound to that
+identifier and its service and cookie hosts are validated. This path has only a
+synthetic round-trip test so far. An expired or rejected session requires a new
+interactive sign-in; automatic renewal has not been established.
 
 ## Live validation
 

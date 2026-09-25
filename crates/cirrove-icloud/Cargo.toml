@@ -9,6 +9,7 @@ publish = false
 [dependencies]
 anyhow.workspace = true
 base64.workspace = true
+cirrove-auth.workspace = true
 hex.workspace = true
 reqwest = { workspace = true, features = ["cookies"] }
 secrecy.workspace = true

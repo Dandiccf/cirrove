@@ -1,6 +1,7 @@
 //! Temporary read-only protocol probe. No credentials or session are persisted.
 use anyhow::{Result, bail};
-use cirrove_icloud::{ICloudReadSession, SignInStep};
+use cirrove_auth::{CredentialVault, DesktopVault};
+use cirrove_icloud::{ICloudReadSession, SignInStep, probe_session_key};
 use secrecy::SecretString;
 use std::{io::Write, path::Path};
 
@@ -10,7 +11,7 @@ async fn main() -> Result<()> {
     let apple_id = args
         .next()
         .ok_or_else(|| anyhow::anyhow!("usage: cirrove-icloud-probe APPLE_ID [FOLDER_ID]"))?;
-    let operation = args.next();
+    let mut operation = args.next();
     let read_target = match operation.as_deref() {
         Some("--read") | Some("--read-in") | Some("--range-in") => {
             let folder = if operation.as_deref() != Some("--read") {
@@ -46,20 +47,44 @@ async fn main() -> Result<()> {
     };
     if args.next().is_some() {
         bail!(
-            "usage: cirrove-icloud-probe APPLE_ID [FOLDER_ID | --read FILE_ID OUTPUT | --read-in FOLDER_ID FILE_ID OUTPUT | --range-in FOLDER_ID FILE_ID OFFSET LENGTH OUTPUT]"
+            "usage: cirrove-icloud-probe APPLE_ID [FOLDER_ID | --read FILE_ID OUTPUT | --read-in FOLDER_ID FILE_ID OUTPUT | --range-in FOLDER_ID FILE_ID OFFSET LENGTH OUTPUT | --save-session | --resume-session]"
         );
     }
-    let password =
-        SecretString::new(rpassword::prompt_password("Apple account password: ")?.into());
-    let mut client = ICloudReadSession::new()?;
-    match client.sign_in(&apple_id, &password).await? {
-        SignInStep::Ready => {}
-        SignInStep::NeedsTrustedDeviceCode => {
-            client.request_trusted_device_code().await?;
-            let code =
-                SecretString::new(rpassword::prompt_password("Trusted-device code: ")?.into());
-            client.verify_trusted_device_code(&code).await?;
+    let save_session = operation.as_deref() == Some("--save-session");
+    let resume_session = operation.as_deref() == Some("--resume-session");
+    let vault = DesktopVault;
+    let mut client = if resume_session {
+        let key = probe_session_key(&apple_id)?;
+        let saved = vault
+            .load(&key)
+            .await?
+            .ok_or_else(|| anyhow::anyhow!("no saved iCloud probe session; sign in again"))?;
+        ICloudReadSession::from_session_snapshot(&saved, &apple_id)?
+    } else {
+        if save_session {
+            DesktopVault::reachable().await?;
         }
+        let password =
+            SecretString::new(rpassword::prompt_password("Apple account password: ")?.into());
+        let mut client = ICloudReadSession::new()?;
+        match client.sign_in(&apple_id, &password).await? {
+            SignInStep::Ready => {}
+            SignInStep::NeedsTrustedDeviceCode => {
+                client.request_trusted_device_code().await?;
+                let code =
+                    SecretString::new(rpassword::prompt_password("Trusted-device code: ")?.into());
+                client.verify_trusted_device_code(&code).await?;
+            }
+        }
+        client
+    };
+    if save_session {
+        let snapshot = client.session_snapshot()?;
+        vault.save(&probe_session_key(&apple_id)?, snapshot).await?;
+        println!("Saved the Cirrove iCloud probe session in the desktop keyring.");
+    }
+    if save_session || resume_session {
+        operation = None;
     }
     if let Some((folder_id, file_id, output, range)) = read_target {
         let bytes = if let (Some(folder_id), Some((offset, length))) = (folder_id.as_deref(), range)
