@@ -533,7 +533,22 @@ impl ReadProvider for ICloudDrive {
             result = async {
                 let mut state = self.session.lock().await;
                 let session = Self::active_session(&mut state).await?;
-                session.read_range_in_folder_for_revision(parent, &node.id, offset, length, Some((etag, node.size))).await.map_err(|error| map_read_error(&error))
+                session.read_range_in_folder_for_revision(parent, &node.id, offset, length, Some((etag, node.size))).await.map_err(|error| {
+                    if std::env::var_os("CIRROVE_ICLOUD_PROBE_DIAGNOSTICS").is_some() {
+                        // Only the fixed stage label is emitted, never provider bodies or URLs.
+                        let stage = match error.to_string().as_str() {
+                            "iCloud read: initial parent lookup" => "initial parent lookup",
+                            "iCloud read: initial revision check" => "initial revision check",
+                            "iCloud read: download lookup" => "download lookup",
+                            "iCloud read: content response" => "content response",
+                            "iCloud read: final parent lookup" => "final parent lookup",
+                            "iCloud read: final revision check" => "final revision check",
+                            _ => "other",
+                        };
+                        eprintln!("iCloud mounted read failed at: {stage}");
+                    }
+                    map_read_error(&error)
+                })
             } => result,
         }
     }

@@ -705,8 +705,12 @@ impl ICloudReadSession {
         if length == 0 || length > MAX_RANGE {
             bail!("iCloud range length is outside the probe limit");
         }
-        let before = self.item_for_read(drive_id, Some(folder_id)).await?;
-        check_expected_revision(&before, expected_revision)?;
+        let before = self
+            .item_for_read(drive_id, Some(folder_id))
+            .await
+            .context("iCloud read: initial parent lookup")?;
+        check_expected_revision(&before, expected_revision)
+            .context("iCloud read: initial revision check")?;
         if before.is_folder() || before.etag.is_empty() {
             bail!("file is not eligible for the bounded read-only probe");
         }
@@ -717,7 +721,10 @@ impl ICloudReadSession {
         let end = offset
             .checked_add(expected - 1)
             .context("iCloud range overflow")?;
-        let signed_url = self.signed_download_url(drive_id).await?;
+        let signed_url = self
+            .signed_download_url(drive_id)
+            .await
+            .context("iCloud read: download lookup")?;
         let response = self
             .http
             .get(signed_url)
@@ -725,9 +732,15 @@ impl ICloudReadSession {
             .send()
             .await
             .map_err(|_| anyhow!("iCloud range request failed"))?;
-        let bytes = read_exact_range_response(response, offset, end, before.size).await?;
-        let after = self.item_for_read(drive_id, Some(folder_id)).await?;
-        check_expected_revision(&after, expected_revision)?;
+        let bytes = read_exact_range_response(response, offset, end, before.size)
+            .await
+            .context("iCloud read: content response")?;
+        let after = self
+            .item_for_read(drive_id, Some(folder_id))
+            .await
+            .context("iCloud read: final parent lookup")?;
+        check_expected_revision(&after, expected_revision)
+            .context("iCloud read: final revision check")?;
         if before.etag != after.etag || before.size != after.size {
             if expected_revision.is_some() {
                 return Err(StaleRead.into());
@@ -1039,20 +1052,35 @@ async fn read_exact_range_response(
     end: u64,
     size: u64,
 ) -> Result<Vec<u8>> {
+    let diagnose = |reason: &'static str| {
+        if std::env::var_os("CIRROVE_ICLOUD_PROBE_DIAGNOSTICS").is_some() {
+            eprintln!("iCloud content response rejected: {reason}");
+        }
+    };
     if response.status() == StatusCode::OK && offset == 0 && end.checked_add(1) == Some(size) {
-        if response.headers().contains_key(CONTENT_RANGE) {
-            bail!("iCloud complete response carried an unexpected Content-Range");
+        if let Some(content_range) = response.headers().get(CONTENT_RANGE)
+            && !content_range
+                .to_str()
+                .is_ok_and(|value| content_range_matches(value, offset, end, size))
+        {
+            diagnose("complete response has mismatched Content-Range");
+            bail!("iCloud complete response identified different bytes");
         }
     } else if response.status() == StatusCode::PARTIAL_CONTENT {
         let content_range = response
             .headers()
             .get(CONTENT_RANGE)
             .and_then(|value| value.to_str().ok())
-            .context("iCloud range response omitted Content-Range")?;
+            .ok_or_else(|| {
+                diagnose("partial response lacks Content-Range");
+                anyhow!("iCloud range response omitted Content-Range")
+            })?;
         if !content_range_matches(content_range, offset, end, size) {
+            diagnose("partial response has mismatched Content-Range");
             bail!("iCloud range response identified different bytes");
         }
     } else {
+        diagnose("unexpected HTTP status or full response for partial range");
         bail!("iCloud range response did not identify the requested bytes");
     }
     let expected = end
@@ -1061,17 +1089,18 @@ async fn read_exact_range_response(
         .and_then(|length| usize::try_from(length).ok())
         .context("iCloud range exceeds memory bound")?;
     let mut bytes = Vec::with_capacity(expected);
-    while let Some(chunk) = response
-        .chunk()
-        .await
-        .map_err(|_| anyhow!("iCloud range response was interrupted"))?
-    {
+    while let Some(chunk) = response.chunk().await.map_err(|_| {
+        diagnose("response stream interrupted");
+        anyhow!("iCloud range response was interrupted")
+    })? {
         if bytes.len().saturating_add(chunk.len()) > expected {
+            diagnose("response exceeds requested length");
             bail!("iCloud range response exceeded the requested length");
         }
         bytes.extend_from_slice(&chunk);
     }
     if bytes.len() != expected {
+        diagnose("response shorter than requested");
         bail!("iCloud range response was shorter than requested");
     }
     Ok(bytes)
@@ -1332,6 +1361,21 @@ mod tests {
         assert_eq!(
             read_exact_range_response(full, 0, 8, 9).await?,
             b"ninebytes"
+        );
+
+        let full_with_range =
+            synthetic_range_response("200 OK", Some("bytes 0-8/9"), b"ninebytes").await?;
+        assert_eq!(
+            read_exact_range_response(full_with_range, 0, 8, 9).await?,
+            b"ninebytes"
+        );
+
+        let wrong_full_range =
+            synthetic_range_response("200 OK", Some("bytes 0-7/9"), b"ninebytes").await?;
+        assert!(
+            read_exact_range_response(wrong_full_range, 0, 8, 9)
+                .await
+                .is_err()
         );
 
         let ignored_range = synthetic_range_response("200 OK", None, b"ninebytes").await?;
