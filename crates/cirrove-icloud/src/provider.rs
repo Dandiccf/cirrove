@@ -536,6 +536,104 @@ impl ReadProvider for ICloudDrive {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+
+    async fn listing_fixture(body: &'static str) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut request = Vec::new();
+            loop {
+                let mut chunk = [0_u8; 4096];
+                let count = stream.read(&mut chunk).await.unwrap();
+                assert!(count > 0 && request.len() + count <= 16 * 1024);
+                request.extend_from_slice(&chunk[..count]);
+                let Some(header_end) = request.windows(4).position(|part| part == b"\r\n\r\n")
+                else {
+                    continue;
+                };
+                let header_end = header_end + 4;
+                let headers = std::str::from_utf8(&request[..header_end]).unwrap();
+                assert!(headers.starts_with("POST /retrieveItemDetailsInFolders HTTP/1.1"));
+                let content_length: usize = headers
+                    .lines()
+                    .find_map(|line| {
+                        line.to_ascii_lowercase()
+                            .strip_prefix("content-length: ")
+                            .and_then(|value| value.parse().ok())
+                    })
+                    .unwrap();
+                if request.len() - header_end < content_length {
+                    continue;
+                }
+                let payload: serde_json::Value =
+                    serde_json::from_slice(&request[header_end..header_end + content_length])
+                        .unwrap();
+                assert_eq!(payload[0]["drivewsid"], ROOT_ID);
+                assert_eq!(payload[0]["partialData"], false);
+                assert_eq!(payload[0]["includeHierarchy"], false);
+                break;
+            }
+            let reply = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+            stream.write_all(reply.as_bytes()).await.unwrap();
+        });
+        format!("http://{address}/")
+    }
+
+    #[tokio::test]
+    async fn complete_apple_folder_becomes_one_provider_directory_page() {
+        let endpoint = listing_fixture(
+            r#"[{"drivewsid":"FOLDER::com.apple.CloudDocs::root","name":"root","type":"FOLDER","numberOfItems":2,"items":[{"drivewsid":"FOLDER::zone::opaque-a","name":"Projects","type":"FOLDER","etag":"folder-revision"},{"drivewsid":"FILE::zone::opaque-b","name":"Report","extension":"txt","type":"FILE","size":3,"etag":"file-revision"}]}]"#,
+        )
+        .await;
+        let mut session = ICloudReadSession::new().unwrap();
+        session.drive_endpoint = Some(url::Url::parse(&endpoint).unwrap());
+        let scope = Scope {
+            account: "synthetic-account".into(),
+            provider: PROVIDER_ID.into(),
+            collection: COLLECTION.into(),
+        };
+        let drive = ICloudDrive::on_demand_from_live_session(scope.clone(), session).unwrap();
+        let page = drive
+            .children(&scope, ROOT_ID, None, &CancellationToken::new())
+            .await
+            .unwrap();
+        assert!(page.next.is_none());
+        assert_eq!(page.nodes.len(), 2);
+        assert_eq!(page.nodes[0].id, "FOLDER::zone::opaque-a");
+        assert_eq!(page.nodes[0].parent_id.as_deref(), Some(ROOT_ID));
+        assert_eq!(page.nodes[0].kind, NodeKind::Folder);
+        assert_eq!(page.nodes[1].name, "Report.txt");
+        assert_eq!(page.nodes[1].etag.as_deref(), Some("file-revision"));
+        assert_eq!(page.nodes[1].size, 3);
+    }
+
+    #[tokio::test]
+    async fn incomplete_apple_folder_is_not_published_as_a_complete_page() {
+        let endpoint = listing_fixture(
+            r#"[{"drivewsid":"FOLDER::com.apple.CloudDocs::root","name":"root","type":"FOLDER","numberOfItems":2,"items":[{"drivewsid":"FILE::zone::only-one","name":"One","type":"FILE","size":1,"etag":"revision"}]}]"#,
+        )
+        .await;
+        let mut session = ICloudReadSession::new().unwrap();
+        session.drive_endpoint = Some(url::Url::parse(&endpoint).unwrap());
+        let scope = Scope {
+            account: "synthetic-account".into(),
+            provider: PROVIDER_ID.into(),
+            collection: COLLECTION.into(),
+        };
+        let drive = ICloudDrive::on_demand_from_live_session(scope.clone(), session).unwrap();
+        assert!(matches!(
+            drive
+                .children(&scope, ROOT_ID, None, &CancellationToken::new())
+                .await,
+            Err(ProviderError::Unavailable)
+        ));
+    }
 
     #[test]
     fn rejected_apple_session_requires_reauthentication() {
