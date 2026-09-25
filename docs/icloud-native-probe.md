@@ -34,3 +34,13 @@ semantics and installed FUSE integration are not yet implemented or validated.
 The probe fails closed on these cases; it does not silently publish an incomplete
 directory or unverified file to Cirrove's cache. The existing Fedora iCloud mount
 is untouched.
+
+## Live validation
+
+On 2026-09-25, one account completed the password and trusted-device-code flow,
+and the native probe listed its iCloud Drive root with both files and folders.
+The first listing attempt hit the previous 30-second HTTP timeout; the retry
+with a 90-second listing limit succeeded. This is a single read-only root-listing
+observation, not proof of repeatability or general account compatibility. No file
+content was downloaded, and no Cirrove mount was created. The validation record
+contains no account identifier, file names, item IDs, tokens or response bodies.

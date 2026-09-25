@@ -27,6 +27,7 @@ const USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleW
 const ROOT_ID: &str = "FOLDER::com.apple.CloudDocs::root";
 const MAX_JSON: usize = 8 * 1024 * 1024;
 const MAX_FILE: usize = 16 * 1024 * 1024;
+const LISTING_TIMEOUT: Duration = Duration::from_secs(90);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SignInStep {
@@ -37,24 +38,25 @@ pub enum SignInStep {
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct DriveEntry {
     pub drivewsid: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_to_default")]
     pub docwsid: String,
-    #[serde(default, rename = "item_id")]
+    #[serde(default, rename = "item_id", deserialize_with = "null_to_default")]
     pub item_id: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_to_default")]
     pub zone: String,
+    #[serde(default, deserialize_with = "null_to_default")]
     pub name: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_to_default")]
     pub extension: String,
-    #[serde(default, rename = "parentId")]
+    #[serde(default, rename = "parentId", deserialize_with = "null_to_default")]
     pub parent_id: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_to_default")]
     pub etag: String,
     #[serde(rename = "type")]
     pub kind: String,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_to_default")]
     pub size: u64,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "null_to_default")]
     pub items: Vec<DriveEntry>,
     #[serde(default, rename = "numberOfItems")]
     pub number_of_items: Option<usize>,
@@ -79,12 +81,20 @@ impl DriveEntry {
 
 #[derive(Debug, Default, Deserialize)]
 struct AccountInfo {
-    webservices: std::collections::HashMap<String, WebService>,
+    webservices: std::collections::HashMap<String, Option<WebService>>,
 }
 
 #[derive(Debug, Deserialize)]
 struct WebService {
-    url: String,
+    url: Option<String>,
+}
+
+fn null_to_default<'de, D, T>(deserializer: D) -> std::result::Result<T, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: serde::Deserialize<'de> + Default,
+{
+    Ok(Option::<T>::deserialize(deserializer)?.unwrap_or_default())
 }
 
 #[derive(Debug, Deserialize)]
@@ -186,7 +196,7 @@ impl ICloudReadSession {
         if response.status() != StatusCode::OK {
             bail!("Apple rejected the SRP initiation");
         }
-        let challenge: SrpChallenge = read_json(response).await?;
+        let challenge: SrpChallenge = read_json(response, "Apple SRP challenge").await?;
         let salt = STANDARD
             .decode(&challenge.salt)
             .context("invalid SRP salt")?;
@@ -296,6 +306,7 @@ impl ICloudReadSession {
         let response = self
             .http
             .post(url)
+            .timeout(LISTING_TIMEOUT)
             .header("origin", ICLOUD_ORIGIN)
             .header("referer", format!("{ICLOUD_ORIGIN}/"))
             .json(&json!([{
@@ -305,7 +316,18 @@ impl ICloudReadSession {
             }]))
             .send()
             .await
-            .map_err(|_| anyhow!("iCloud Drive listing request failed"))?;
+            .map_err(|error| {
+                let reason = if error.is_timeout() {
+                    "timed out"
+                } else if error.is_connect() {
+                    "could not connect"
+                } else if error.is_request() {
+                    "could not send request"
+                } else {
+                    "network error"
+                };
+                anyhow!("iCloud Drive listing request failed ({reason})")
+            })?;
         self.headers.absorb(response.headers());
         if !response.status().is_success() {
             bail!(
@@ -313,7 +335,7 @@ impl ICloudReadSession {
                 response.status().as_u16()
             );
         }
-        let mut folders: Vec<DriveEntry> = read_json(response).await?;
+        let mut folders: Vec<DriveEntry> = read_json(response, "iCloud folder listing").await?;
         if folders.len() != 1 || folders[0].drivewsid != folder_id {
             bail!("iCloud Drive returned an unexpected folder identity");
         }
@@ -365,7 +387,7 @@ impl ICloudReadSession {
                 response.status().as_u16()
             );
         }
-        let location: DownloadLocation = read_json(response).await?;
+        let location: DownloadLocation = read_json(response, "iCloud download lookup").await?;
         let signed = location
             .data_token
             .or(location.package_token)
@@ -429,7 +451,7 @@ impl ICloudReadSession {
         if !response.status().is_success() {
             bail!("iCloud item lookup failed ({})", response.status().as_u16());
         }
-        let items: Vec<DriveEntry> = read_json(response).await?;
+        let items: Vec<DriveEntry> = read_json(response, "iCloud item lookup").await?;
         match items.as_slice() {
             [item] if item.drivewsid == drive_id => Ok(item.clone()),
             _ => bail!("iCloud returned an unexpected item identity"),
@@ -502,17 +524,21 @@ impl ICloudReadSession {
                 response.status().as_u16()
             );
         }
-        let account: AccountInfo = read_json(response).await?;
+        let account: AccountInfo = read_json(response, "iCloud account login").await?;
         let drive = account
             .webservices
             .get("drivews")
+            .and_then(Option::as_ref)
+            .and_then(|service| service.url.as_deref())
             .context("this Apple account did not expose iCloud Drive")?;
         let docs = account
             .webservices
             .get("docws")
+            .and_then(Option::as_ref)
+            .and_then(|service| service.url.as_deref())
             .context("this Apple account did not expose iCloud documents")?;
-        self.drive_endpoint = Some(checked_drive_endpoint(&drive.url)?);
-        self.docs_endpoint = Some(checked_drive_endpoint(&docs.url)?);
+        self.drive_endpoint = Some(checked_drive_endpoint(drive)?);
+        self.docs_endpoint = Some(checked_drive_endpoint(docs)?);
         Ok(())
     }
 
@@ -617,7 +643,10 @@ fn split_file_id(id: &str) -> Result<(&str, &str)> {
     Ok((zone, doc_id))
 }
 
-async fn read_json<T: serde::de::DeserializeOwned>(mut response: Response) -> Result<T> {
+async fn read_json<T: serde::de::DeserializeOwned>(
+    mut response: Response,
+    stage: &'static str,
+) -> Result<T> {
     let mut bytes = Vec::new();
     while let Some(chunk) = response
         .chunk()
@@ -629,7 +658,18 @@ async fn read_json<T: serde::de::DeserializeOwned>(mut response: Response) -> Re
         }
         bytes.extend_from_slice(&chunk);
     }
-    serde_json::from_slice(&bytes).map_err(|_| anyhow!("invalid iCloud metadata response"))
+    serde_json::from_slice(&bytes).map_err(|error| {
+        let kind = match error.classify() {
+            serde_json::error::Category::Data => "unexpected JSON shape",
+            serde_json::error::Category::Eof => "incomplete JSON",
+            serde_json::error::Category::Syntax if bytes.starts_with(b"<") => {
+                "HTML instead of JSON"
+            }
+            serde_json::error::Category::Syntax => "invalid JSON",
+            serde_json::error::Category::Io => "interrupted JSON",
+        };
+        anyhow!("invalid {stage} response ({kind})")
+    })
 }
 
 fn derive_password(password: &str, salt: &[u8], challenge: &SrpChallenge) -> Result<[u8; 32]> {
@@ -743,6 +783,32 @@ mod tests {
         }))?;
         assert_eq!(entry.drivewsid, "FOLDER::zone::opaque");
         assert!(entry.is_folder());
+        Ok(())
+    }
+
+    #[test]
+    fn optional_service_and_item_fields_may_be_null() -> Result<()> {
+        let account: AccountInfo = serde_json::from_value(json!({
+            "webservices": {
+                "drivews": {"url": "https://p01-drivews.icloud.com/"},
+                "unused": null
+            }
+        }))?;
+        assert!(
+            account
+                .webservices
+                .get("unused")
+                .is_some_and(Option::is_none)
+        );
+        let entry: DriveEntry = serde_json::from_value(json!({
+            "drivewsid": "FOLDER::com.apple.CloudDocs::root",
+            "type": "FOLDER",
+            "name": null,
+            "size": null,
+            "items": null
+        }))?;
+        assert!(entry.items.is_empty());
+        assert_eq!(entry.size, 0);
         Ok(())
     }
 
