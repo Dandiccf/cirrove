@@ -443,8 +443,10 @@ name = "cirrove-icloud"
 version = "0.2.0-dev"
 dependencies = [
  "anyhow",
+ "async-trait",
  "base64 0.23.1",
  "cirrove-auth",
+ "cirrove-core",
  "getrandom 0.3.4",
  "hex",
  "pbkdf2",

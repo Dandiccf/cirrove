@@ -1,7 +1,8 @@
 //! Temporary read-only protocol probe. Optional sessions live only in Cirrove's keyring.
 use anyhow::{Result, bail};
 use cirrove_auth::{CredentialVault, DesktopVault};
-use cirrove_icloud::{ICloudReadSession, SignInStep, probe_session_key};
+use cirrove_core::{CancellationToken, Checkpoint, MetadataProvider, Scope};
+use cirrove_icloud::{ICloudDrive, ICloudReadSession, SignInStep, probe_session_key};
 use secrecy::SecretString;
 use std::{io::Write, path::Path};
 
@@ -12,6 +13,18 @@ async fn main() -> Result<()> {
         .next()
         .ok_or_else(|| anyhow::anyhow!("usage: cirrove-icloud-probe APPLE_ID [FOLDER_ID]"))?;
     let mut operation = args.next();
+    let snapshot_limit = if operation.as_deref() == Some("--snapshot-pages") {
+        let value = args
+            .next()
+            .ok_or_else(|| anyhow::anyhow!("missing snapshot page limit"))?
+            .parse::<usize>()?;
+        if !(1..=1000).contains(&value) {
+            bail!("snapshot page limit must be between 1 and 1000");
+        }
+        Some(value)
+    } else {
+        None
+    };
     let read_target = match operation.as_deref() {
         Some("--read") | Some("--read-in") | Some("--range-in") => {
             let folder = if operation.as_deref() != Some("--read") {
@@ -57,7 +70,7 @@ async fn main() -> Result<()> {
             ))
     {
         bail!(
-            "usage: cirrove-icloud-probe APPLE_ID [FOLDER_ID | --read FILE_ID OUTPUT | --read-in FOLDER_ID FILE_ID OUTPUT | --range-in FOLDER_ID FILE_ID OFFSET LENGTH OUTPUT | --save-session | --resume-session] [--save-session | --resume-session]"
+            "usage: cirrove-icloud-probe APPLE_ID [FOLDER_ID | --read FILE_ID OUTPUT | --read-in FOLDER_ID FILE_ID OUTPUT | --range-in FOLDER_ID FILE_ID OFFSET LENGTH OUTPUT | --snapshot-pages LIMIT | --save-session | --resume-session] [--save-session | --resume-session]"
         );
     }
     let save_session = operation.as_deref() == Some("--save-session")
@@ -71,7 +84,9 @@ async fn main() -> Result<()> {
             .load(&key)
             .await?
             .ok_or_else(|| anyhow::anyhow!("no saved iCloud probe session; sign in again"))?;
-        ICloudReadSession::from_session_snapshot(&saved, &apple_id)?
+        ICloudReadSession::from_session_snapshot(&saved, &apple_id).map_err(|_| {
+            anyhow::anyhow!("saved iCloud probe session is unusable; sign in and save it again")
+        })?
     } else {
         if save_session {
             DesktopVault::reachable().await?;
@@ -100,6 +115,32 @@ async fn main() -> Result<()> {
         Some("--save-session" | "--resume-session")
     ) {
         operation = None;
+    }
+    if let Some(limit) = snapshot_limit {
+        let scope = Scope {
+            account: probe_session_key(&apple_id)?,
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        };
+        let snapshot = client.session_snapshot()?;
+        let provider = ICloudDrive::from_session_snapshot(scope.clone(), &apple_id, &snapshot)?;
+        let mut cursor = None;
+        let mut items = 0usize;
+        for page_index in 1..=limit {
+            let page = provider
+                .changes(&scope, cursor.as_ref(), &CancellationToken::new())
+                .await?;
+            items += page.changes.len();
+            match page.checkpoint {
+                Checkpoint::Complete(_) => {
+                    println!("Snapshot complete: {page_index} pages, {items} metadata nodes.");
+                    return Ok(());
+                }
+                Checkpoint::Continue(next) => cursor = Some(next),
+            }
+        }
+        println!("Snapshot page limit reached: {limit} pages, {items} metadata nodes; incomplete.");
+        return Ok(());
     }
     if (save_session || resume_session) && operation.is_none() && read_target.is_none() {
         let count = client.list_root().await?.len();

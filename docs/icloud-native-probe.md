@@ -65,6 +65,19 @@ so subsequent read tests can reuse the saved session without another password
 or trusted-device-code prompt. The standalone save/resume checks print only a
 root-item count, not item names or IDs.
 
+The experimental metadata adapter can walk at most the specified number of
+folder pages and print counts without exposing names or IDs:
+
+```sh
+cirrove-icloud-probe 'your-apple-id@example.com' --snapshot-pages 32 --resume-session
+```
+
+It preserves a bounded continuation between pages in memory for this probe. A
+page limit reports an incomplete scan; it never publishes a partial tree as a
+completed Cirrove index. The shared service now stages full-snapshot feeds and
+keeps the old visible index until a complete new round, but the iCloud adapter
+is not yet installed in that service or exposed as a mount.
+
 The keyring value contains Apple session cookies and tokens, never the password.
 The key is derived from the account identifier; a restored value is bound to that
 identifier and its service and cookie hosts are validated. An expired or rejected
@@ -91,3 +104,7 @@ items. Using that restored session, the probe read 8,192 bytes starting at offse
 Those bytes matched the same slice of the previously saved complete file byte for
 byte. This is a single-file, single-session observation; renewal after expiry and
 content-version behavior under concurrent changes remain untested.
+On a later scan attempt, the saved keyring entry returned zero bytes, so the
+live full-snapshot walk did not begin. A separate synthetic Secret Service
+write/read round-trip succeeded; the cause of the empty older entry remains
+unknown. Re-sign-in and retention across another process restart need validation.

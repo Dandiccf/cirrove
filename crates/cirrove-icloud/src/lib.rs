@@ -4,6 +4,9 @@
 //! publish a stable iCloud Drive API; keep it out of the mounted service until
 //! identity, revisions and complete enumeration are validated with a live account.
 
+mod provider;
+pub use provider::ICloudDrive;
+
 use anyhow::{Context, Result, anyhow, bail};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use reqwest::{
@@ -49,7 +52,7 @@ pub enum SignInStep {
     NeedsTrustedDeviceCode,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct DriveEntry {
     pub drivewsid: String,
     #[serde(default, deserialize_with = "null_to_default")]
