@@ -117,7 +117,8 @@ currently bundled; another project's client ID is never substituted.
       with no rclone runtime, configuration or credential dependency. Writes
       require separate conflict and recovery evidence. An
       [experimental native read probe](icloud-native-probe.md) passed sign-in,
-      root listing and one small file read against a real account. Ranged reads,
+      root listing, one small file read, a nonzero range comparison and keyring
+      session resumption against a real account. Complete refresh, session renewal,
       content-revision semantics and a mounted-provider result remain open.
 
 Modern components do not establish production readiness. Sustained real-provider

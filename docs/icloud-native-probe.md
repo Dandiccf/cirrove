@@ -60,11 +60,16 @@ cirrove-icloud-probe 'your-apple-id@example.com' --save-session
 cirrove-icloud-probe 'your-apple-id@example.com' --resume-session
 ```
 
+The `--resume-session` option can also follow a folder, file or range operation,
+so subsequent read tests can reuse the saved session without another password
+or trusted-device-code prompt. The standalone save/resume checks print only a
+root-item count, not item names or IDs.
+
 The keyring value contains Apple session cookies and tokens, never the password.
 The key is derived from the account identifier; a restored value is bound to that
-identifier and its service and cookie hosts are validated. This path has only a
-synthetic round-trip test so far. An expired or rejected session requires a new
-interactive sign-in; automatic renewal has not been established.
+identifier and its service and cookie hosts are validated. An expired or rejected
+session requires a new interactive sign-in; automatic renewal has not been
+established.
 
 ## Live validation
 
@@ -79,5 +84,10 @@ single-file read-only observations, not proof of repeatability, general account
 compatibility or reliable content-version semantics. No Cirrove mount was created.
 The validation record contains no account identifier, file names, item IDs,
 tokens or response bodies.
-The exact-range path has local parser tests but awaits a live response and an
-independent byte-for-byte comparison with the previously saved file.
+The same account then saved a Cirrove-owned session in the desktop keyring. A
+separate process restored it without a password or code prompt and listed 28 root
+items. Using that restored session, the probe read 8,192 bytes starting at offset
+4,096 and verified the exact range response and unchanged surrounding metadata.
+Those bytes matched the same slice of the previously saved complete file byte for
+byte. This is a single-file, single-session observation; renewal after expiry and
+content-version behavior under concurrent changes remain untested.

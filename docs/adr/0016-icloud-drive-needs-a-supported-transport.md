@@ -126,8 +126,10 @@ interactive SRP/trusted-device sign-in, bounded root/folder listing and a bounde
 small-file read by opaque ID without any rclone dependency. Its SRP proof,
 endpoint validation and metadata parsing have local tests. It has **not** yet
 completed the full I0 gate. One real account has passed sign-in, root listing
-and a small file download through the native probe. Ranged reads, revision
-semantics, complete refresh, reauthentication and account-class coverage remain
+and a small file download through the native probe. A nonzero range matched a
+saved complete file, and a keyring-backed session resumed in a separate process
+without another password or code prompt. Revision semantics, complete refresh,
+renewal after expiry and account-class coverage remain
 open. The probe is deliberately outside the installed service and account picker.
 
 The first probe is isolated and read-only. It may inspect owned fixtures, but it

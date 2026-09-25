@@ -1,4 +1,4 @@
-//! Temporary read-only protocol probe. No credentials or session are persisted.
+//! Temporary read-only protocol probe. Optional sessions live only in Cirrove's keyring.
 use anyhow::{Result, bail};
 use cirrove_auth::{CredentialVault, DesktopVault};
 use cirrove_icloud::{ICloudReadSession, SignInStep, probe_session_key};
@@ -45,13 +45,25 @@ async fn main() -> Result<()> {
         }
         _ => None,
     };
-    if args.next().is_some() {
+    let trailing = args.next();
+    if args.next().is_some()
+        || trailing
+            .as_deref()
+            .is_some_and(|value| !matches!(value, "--save-session" | "--resume-session"))
+        || (trailing.is_some()
+            && matches!(
+                operation.as_deref(),
+                Some("--save-session" | "--resume-session")
+            ))
+    {
         bail!(
-            "usage: cirrove-icloud-probe APPLE_ID [FOLDER_ID | --read FILE_ID OUTPUT | --read-in FOLDER_ID FILE_ID OUTPUT | --range-in FOLDER_ID FILE_ID OFFSET LENGTH OUTPUT | --save-session | --resume-session]"
+            "usage: cirrove-icloud-probe APPLE_ID [FOLDER_ID | --read FILE_ID OUTPUT | --read-in FOLDER_ID FILE_ID OUTPUT | --range-in FOLDER_ID FILE_ID OFFSET LENGTH OUTPUT | --save-session | --resume-session] [--save-session | --resume-session]"
         );
     }
-    let save_session = operation.as_deref() == Some("--save-session");
-    let resume_session = operation.as_deref() == Some("--resume-session");
+    let save_session = operation.as_deref() == Some("--save-session")
+        || trailing.as_deref() == Some("--save-session");
+    let resume_session = operation.as_deref() == Some("--resume-session")
+        || trailing.as_deref() == Some("--resume-session");
     let vault = DesktopVault;
     let mut client = if resume_session {
         let key = probe_session_key(&apple_id)?;
@@ -83,8 +95,16 @@ async fn main() -> Result<()> {
         vault.save(&probe_session_key(&apple_id)?, snapshot).await?;
         println!("Saved the Cirrove iCloud probe session in the desktop keyring.");
     }
-    if save_session || resume_session {
+    if matches!(
+        operation.as_deref(),
+        Some("--save-session" | "--resume-session")
+    ) {
         operation = None;
+    }
+    if (save_session || resume_session) && operation.is_none() && read_target.is_none() {
+        let count = client.list_root().await?.len();
+        println!("iCloud probe session active; {count} root items.");
+        return Ok(());
     }
     if let Some((folder_id, file_id, output, range)) = read_target {
         let bytes = if let (Some(folder_id), Some((offset, length))) = (folder_id.as_deref(), range)

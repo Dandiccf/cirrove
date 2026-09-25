@@ -244,9 +244,10 @@ provider-side write conflicts and recovery remain a separate gate. Cirrove does
 not copy or depend on Stratosync or rclone at runtime, build time or in tests;
 lessons from those integrations inform the recovery tests. A
 [native read-only protocol probe](docs/icloud-native-probe.md) is available for
-interactive validation. One real account has passed sign-in, root listing and a
-small file download through Cirrove's native transport. Ranged reads, refresh,
-reauthentication and the installed provider remain open.
+interactive validation. One real account has passed sign-in, root listing, a
+small file download, a nonzero byte-range comparison and keyring-backed session
+resumption through Cirrove's native transport. Complete refresh, session renewal,
+content-revision semantics and the installed provider remain open.
 
 ## License
 
