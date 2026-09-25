@@ -1,16 +1,17 @@
-//! Read-only metadata adapter. A folder is one staged page; the parent stack is
+//! Read-only adapter. A folder is one staged metadata page; the parent stack is
 //! a bounded continuation, never a path-derived item identity.
 
-use crate::{DriveEntry, ICloudReadSession, ROOT_ID};
+use crate::{DriveEntry, ICloudReadSession, MAX_RANGE, ROOT_ID, StaleRead};
 use async_trait::async_trait;
 use cirrove_core::{
-    CancellationToken, Change, ChangePage, Checkpoint, Cursor, FeedMode, MetadataProvider, Node,
-    NodeKind, ProviderError, Scope,
+    CancellationToken, Change, ChangePage, Checkpoint, Cursor, DirectoryPage, FeedMode,
+    MetadataProvider, Node, NodeKind, ProviderError, ReadProvider, Scope,
 };
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
+use std::time::Duration;
 use tokio::sync::Mutex;
 
 const PROVIDER_ID: &str = "icloud";
@@ -18,8 +19,9 @@ const COLLECTION: &str = "drive";
 const MAX_CURSOR: usize = 128 * 1024;
 const MAX_DEPTH: usize = 128;
 
-/// An experimental metadata-only iCloud adapter. It cannot be mounted until
-/// item lookups and version-bound range reads satisfy `ReadProvider`.
+/// An experimental iCloud adapter. Its exact-range guard is implemented, but
+/// Apple's ETag revision behavior is not yet proven, so it is not installed in
+/// the mounted service.
 pub struct ICloudDrive {
     scope: Scope,
     session: Mutex<ICloudReadSession>,
@@ -173,8 +175,8 @@ fn fingerprint(items: &[DriveEntry]) -> Result<String, ProviderError> {
     Ok(hex::encode(Sha256::digest(value)))
 }
 
-fn nodes(parent: &str, items: Vec<DriveEntry>) -> Result<Vec<Change>, ProviderError> {
-    let mut changes = Vec::with_capacity(items.len());
+fn directory_nodes(parent: &str, items: Vec<DriveEntry>) -> Result<Vec<Node>, ProviderError> {
+    let mut nodes = Vec::with_capacity(items.len());
     let mut seen = HashSet::new();
     for item in items {
         if !seen.insert(item.drivewsid.clone()) || item.drivewsid == ROOT_ID {
@@ -189,7 +191,7 @@ fn nodes(parent: &str, items: Vec<DriveEntry>) -> Result<Vec<Change>, ProviderEr
         if name.is_empty() || name.contains('/') {
             return Err(ProviderError::Protocol("invalid iCloud item name"));
         }
-        changes.push(Change::Upsert(Node {
+        nodes.push(Node {
             id: item.drivewsid,
             parent_id: Some(parent.into()),
             name,
@@ -200,13 +202,20 @@ fn nodes(parent: &str, items: Vec<DriveEntry>) -> Result<Vec<Change>, ProviderEr
             content_version: None,
             target: None,
             package: false,
-        }));
+        });
     }
-    Ok(changes)
+    Ok(nodes)
 }
 
-fn root() -> Change {
-    Change::Upsert(Node {
+fn nodes(parent: &str, items: Vec<DriveEntry>) -> Result<Vec<Change>, ProviderError> {
+    Ok(directory_nodes(parent, items)?
+        .into_iter()
+        .map(Change::Upsert)
+        .collect())
+}
+
+fn root_node() -> Node {
+    Node {
         id: ROOT_ID.into(),
         parent_id: None,
         name: "iCloud Drive".into(),
@@ -217,7 +226,11 @@ fn root() -> Change {
         content_version: None,
         target: None,
         package: false,
-    })
+    }
+}
+
+fn root() -> Change {
+    Change::Upsert(root_node())
 }
 
 #[async_trait]
@@ -274,6 +287,90 @@ impl MetadataProvider for ICloudDrive {
             changes,
             checkpoint: Checkpoint::Continue(walk.encode()?),
         })
+    }
+}
+
+#[async_trait]
+impl ReadProvider for ICloudDrive {
+    fn directory_fetch_timeout(&self, _parent: Option<&Node>) -> Duration {
+        // A live folder listing has already needed more than the shared 60 s
+        // default. The transport itself caps each request at 90 s.
+        Duration::from_secs(100)
+    }
+
+    async fn node(
+        &self,
+        scope: &Scope,
+        id: &str,
+        _cancel: &CancellationToken,
+    ) -> Result<Node, ProviderError> {
+        self.check_scope(scope)?;
+        // Apple rejected the individual-item endpoint in the live probe. The
+        // service already owns nodes it learned from a completed folder page;
+        // a cold unknown ID must not be guessed from a path.
+        if id == ROOT_ID {
+            Ok(root_node())
+        } else {
+            Err(ProviderError::Unavailable)
+        }
+    }
+
+    async fn children(
+        &self,
+        scope: &Scope,
+        parent: &str,
+        cursor: Option<&Cursor>,
+        cancel: &CancellationToken,
+    ) -> Result<DirectoryPage, ProviderError> {
+        self.check_scope(scope)?;
+        if cursor.is_some() || !parent.starts_with("FOLDER::") {
+            return Err(ProviderError::Protocol("invalid iCloud directory request"));
+        }
+        let nodes = directory_nodes(parent, self.list_folder(parent, cancel).await?)?;
+        Ok(DirectoryPage { nodes, next: None })
+    }
+
+    async fn read_range(
+        &self,
+        scope: &Scope,
+        node: &Node,
+        offset: u64,
+        length: u32,
+        cancel: &CancellationToken,
+    ) -> Result<Vec<u8>, ProviderError> {
+        self.check_scope(scope)?;
+        if node.kind != NodeKind::File || !node.id.starts_with("FILE::") {
+            return Err(ProviderError::Protocol("invalid iCloud file request"));
+        }
+        let parent = node
+            .parent_id
+            .as_deref()
+            .filter(|id| id.starts_with("FOLDER::"))
+            .ok_or(ProviderError::Protocol("iCloud file has no known parent"))?;
+        let etag = node
+            .etag
+            .as_deref()
+            .filter(|etag| !etag.is_empty())
+            .ok_or(ProviderError::Protocol("iCloud file has no revision"))?;
+        if length == 0 {
+            return Ok(Vec::new());
+        }
+        if length > MAX_RANGE {
+            return Err(ProviderError::Protocol("iCloud range exceeds limit"));
+        }
+        tokio::select! { biased;
+            _ = cancel.cancelled() => Err(ProviderError::Cancelled),
+            result = async {
+                let mut session = self.session.lock().await;
+                session.read_range_in_folder_for_revision(parent, &node.id, offset, length, Some((etag, node.size))).await
+            } => result.map_err(|error| {
+                if error.downcast_ref::<StaleRead>().is_some() {
+                    ProviderError::VersionChanged
+                } else {
+                    ProviderError::Unavailable
+                }
+            }),
+        }
     }
 }
 

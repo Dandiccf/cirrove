@@ -65,7 +65,7 @@ so subsequent read tests can reuse the saved session without another password
 or trusted-device-code prompt. The standalone save/resume checks print only a
 root-item count, not item names or IDs.
 
-The experimental metadata adapter can walk at most the specified number of
+The experimental adapter's metadata walker can walk at most the specified number of
 folder pages and print counts without exposing names or IDs:
 
 ```sh
@@ -77,6 +77,15 @@ page limit reports an incomplete scan; it never publishes a partial tree as a
 completed Cirrove index. The shared service now stages full-snapshot feeds and
 keeps the old visible index until a complete new round, but the iCloud adapter
 is not yet installed in that service or exposed as a mount.
+The probe reports counts every 16 pages during a long scan. These lines are
+progress only: ending at the page limit still means the tree is incomplete.
+
+The adapter also implements on-demand folder pages and bounded exact-range
+reads for the shared read contract. A mounted read checks the published node's
+ETag and size against the live parent listing before and after the range.
+This path has synthetic checks but no live revision-change validation. Apple's
+ETag behavior, cold lookup of an unknown item, session retention and account
+scale still block installing it as a Cirrove drive.
 
 The keyring value contains Apple session cookies and tokens, never the password.
 The key is derived from the account identifier; a restored value is bound to that
@@ -108,3 +117,9 @@ On a later scan attempt, the saved keyring entry returned zero bytes, so the
 live full-snapshot walk did not begin. A separate synthetic Secret Service
 write/read round-trip succeeded; the cause of the empty older entry remains
 unknown. Re-sign-in and retention across another process restart need validation.
+With a fresh interactive sign-in, a subsequent 256-page metadata walk reached
+94,154 nodes and then reported the configured page limit, not a completed
+snapshot. The account has substantially more metadata than the first 32-page
+probe exposed; the total size and time to complete remain unknown. The current
+probe did not save a continuation across processes, and no partial tree was
+published to a Cirrove mount.

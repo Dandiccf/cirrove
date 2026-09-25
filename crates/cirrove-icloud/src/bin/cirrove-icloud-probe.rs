@@ -136,7 +136,14 @@ async fn main() -> Result<()> {
                     println!("Snapshot complete: {page_index} pages, {items} metadata nodes.");
                     return Ok(());
                 }
-                Checkpoint::Continue(next) => cursor = Some(next),
+                Checkpoint::Continue(next) => {
+                    cursor = Some(next);
+                    if page_index % 16 == 0 && page_index < limit {
+                        eprintln!(
+                            "Snapshot scan: {page_index} pages, {items} metadata nodes; incomplete."
+                        );
+                    }
+                }
             }
         }
         println!("Snapshot page limit reached: {limit} pages, {items} metadata nodes; incomplete.");

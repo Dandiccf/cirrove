@@ -44,6 +44,18 @@ const MAX_RANGE: u32 = 4 * 1024 * 1024;
 const MAX_SESSION_SNAPSHOT: usize = 128 * 1024;
 const MAX_COOKIE_RECORDS: usize = 128;
 const MAX_COOKIE_RECORD: usize = 4096;
+
+#[derive(Debug)]
+pub(crate) struct StaleRead;
+
+impl std::fmt::Display for StaleRead {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("iCloud file no longer matches the requested revision")
+    }
+}
+
+impl std::error::Error for StaleRead {}
+
 const LISTING_TIMEOUT: Duration = Duration::from_secs(90);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -94,6 +106,15 @@ impl DriveEntry {
             "FOLDER" | "APP_CONTAINER" | "APP_LIBRARY"
         )
     }
+}
+
+fn check_expected_revision(entry: &DriveEntry, expected: Option<(&str, u64)>) -> Result<()> {
+    if let Some((etag, size)) = expected
+        && (etag.is_empty() || entry.is_folder() || entry.etag != etag || entry.size != size)
+    {
+        return Err(StaleRead.into());
+    }
+    Ok(())
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -633,10 +654,25 @@ impl ICloudReadSession {
         offset: u64,
         length: u32,
     ) -> Result<Vec<u8>> {
+        self.read_range_in_folder_for_revision(folder_id, drive_id, offset, length, None)
+            .await
+    }
+
+    /// The mounted cache may only receive bytes for the exact node revision it
+    /// requested. The caller supplies the metadata it already published.
+    pub(crate) async fn read_range_in_folder_for_revision(
+        &mut self,
+        folder_id: &str,
+        drive_id: &str,
+        offset: u64,
+        length: u32,
+        expected_revision: Option<(&str, u64)>,
+    ) -> Result<Vec<u8>> {
         if length == 0 || length > MAX_RANGE {
             bail!("iCloud range length is outside the probe limit");
         }
         let before = self.item_for_read(drive_id, Some(folder_id)).await?;
+        check_expected_revision(&before, expected_revision)?;
         if before.is_folder() || before.etag.is_empty() {
             bail!("file is not eligible for the bounded read-only probe");
         }
@@ -678,8 +714,14 @@ impl ICloudReadSession {
             bytes.extend_from_slice(&chunk);
         }
         let after = self.item_for_read(drive_id, Some(folder_id)).await?;
-        if before.etag != after.etag || before.size != after.size || bytes.len() as u64 != expected
-        {
+        check_expected_revision(&after, expected_revision)?;
+        if before.etag != after.etag || before.size != after.size {
+            if expected_revision.is_some() {
+                return Err(StaleRead.into());
+            }
+            bail!("iCloud file changed during the range read");
+        }
+        if bytes.len() as u64 != expected {
             bail!("iCloud file changed during the range read or returned an unexpected size");
         }
         Ok(bytes)
@@ -1114,6 +1156,28 @@ mod tests {
         }))?;
         assert_eq!(entry.drivewsid, "FOLDER::zone::opaque");
         assert!(entry.is_folder());
+        Ok(())
+    }
+
+    #[test]
+    fn mounted_range_guard_refuses_a_different_revision_or_size() -> Result<()> {
+        let mut entry: DriveEntry = serde_json::from_value(json!({
+            "drivewsid": "FILE::zone::opaque",
+            "name": "Example",
+            "type": "FILE",
+            "size": 12,
+            "etag": "revision-a"
+        }))?;
+        check_expected_revision(&entry, Some(("revision-a", 12)))?;
+        assert!(
+            check_expected_revision(&entry, Some(("revision-b", 12)))
+                .is_err_and(|error| error.downcast_ref::<StaleRead>().is_some())
+        );
+        entry.size = 13;
+        assert!(
+            check_expected_revision(&entry, Some(("revision-a", 12)))
+                .is_err_and(|error| error.downcast_ref::<StaleRead>().is_some())
+        );
         Ok(())
     }
 
