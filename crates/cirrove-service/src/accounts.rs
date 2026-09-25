@@ -586,6 +586,74 @@ pub async fn reauthenticate(
     }
     result
 }
+
+/// Replace only the native Apple session for an existing iCloud account.
+/// The caller signs in locally first; the account stays mounted until the new
+/// session and its Drive root have been validated.
+pub async fn reauthenticate_icloud_with_session(
+    state: PathBuf,
+    label: String,
+    mut session: ICloudReadSession,
+) -> Result<()> {
+    let original = Settings::load(&state)?
+        .accounts
+        .into_iter()
+        .find(|account| account.label == label)
+        .context("unknown account label")?;
+    if !matches!(original.registration, AppRegistration::ICloud) {
+        bail!("this operation requires an iCloud connection");
+    }
+    DesktopVault::reachable().await?;
+    session
+        .list_root()
+        .await
+        .context("iCloud Drive root is unavailable")?;
+    let snapshot = session.session_snapshot()?;
+    ICloudReadSession::from_session_snapshot(&snapshot, &original.identity.username)
+        .context("a different Apple account signed in")?;
+
+    let _operation = account_operation(&state, &original.id)?;
+    let was_enabled = interrupted_desired_state(&state, &original.id).unwrap_or(original.enabled);
+    write_restore_marker(&state, &original.id, was_enabled)?;
+    {
+        let _lock = config_lock(&state)?;
+        let mut settings = Settings::load(&state)?;
+        let account = settings
+            .accounts
+            .iter_mut()
+            .find(|account| account.id == original.id)
+            .context("account removed")?;
+        account.enabled = false;
+        settings.save(&state)?;
+    }
+    let desired = DesiredState {
+        state: state.clone(),
+        id: original.id.clone(),
+        enabled: was_enabled,
+        access: None,
+    };
+    let result = async {
+        let directory = state.join("accounts").join(&original.id);
+        let _owner = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+            loop {
+                if let Ok(owner) = account_lock(&directory) {
+                    break owner;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            }
+        })
+        .await
+        .context("account did not stop; close files in this mount and try again")?;
+        DesktopVault.save(&original.credential_id, snapshot).await
+    }
+    .await;
+    if result.is_ok() {
+        desired.settle(AccessMode::ReadOnly);
+    } else {
+        drop(desired);
+    }
+    result
+}
 pub fn provider(account: &Account) -> Result<Arc<dyn ReadProvider>> {
     match account.registration {
         AppRegistration::Microsoft { .. } => Ok(onedrive_provider(account)?),

@@ -88,6 +88,7 @@ fn report_pin_change(verb: &str, reply: &cirrove_service::PinReply) -> Result<()
 use cirrove_core::{
     CancellationToken, Change, ChangePage, Checkpoint, Cursor, Node, NodeKind, Scope,
 };
+use cirrove_icloud::{ICloudReadSession, SignInStep};
 use cirrove_onedrive::{OneDrive, StaticToken};
 use cirrove_service::{private_dir, refresh, socket_path, state_dir, status};
 use cirrove_store::Store;
@@ -98,6 +99,24 @@ use std::{
     path::PathBuf,
     sync::Arc,
 };
+
+async fn icloud_login(apple_id: &str) -> Result<ICloudReadSession> {
+    cirrove_auth::DesktopVault::reachable().await?;
+    let password =
+        SecretString::new(rpassword::prompt_password("Apple account password: ")?.into());
+    let mut session = ICloudReadSession::new()?;
+    match session.sign_in(apple_id, &password).await? {
+        SignInStep::Ready => {}
+        SignInStep::NeedsTrustedDeviceCode => {
+            session.request_trusted_device_code().await?;
+            let code =
+                SecretString::new(rpassword::prompt_password("Trusted-device code: ")?.into());
+            session.verify_trusted_device_code(&code).await?;
+        }
+    }
+    drop(password);
+    Ok(session)
+}
 
 #[derive(Parser)]
 #[command(
@@ -354,6 +373,17 @@ enum Command {
         /// Request full Drive consent and mount this connection read-write.
         #[arg(long)]
         write_access: bool,
+    },
+    /// Experimental read-only iCloud Drive connection using native Apple sign-in.
+    ConnectIcloud {
+        #[arg(long)]
+        label: String,
+        #[arg(long)]
+        apple_id: String,
+        #[arg(long)]
+        mount_path: PathBuf,
+        #[arg(long)]
+        state_dir: Option<PathBuf>,
     },
     /// List configured account identities and drive selections; no secrets.
     Accounts {
@@ -756,12 +786,29 @@ async fn main() -> Result<()> {
                 Some(path) => path,
                 None => state_dir()?,
             };
-            let access = match (write_access, read_only) {
-                (true, _) => Some(cirrove_auth::AccessMode::ReadWrite),
-                (_, true) => Some(cirrove_auth::AccessMode::ReadOnly),
-                _ => None,
-            };
-            cirrove_service::accounts::reauthenticate(state, label, access).await?;
+            let account = cirrove_service::accounts::Settings::load(&state)?
+                .accounts
+                .into_iter()
+                .find(|account| account.label == label)
+                .context("unknown account label")?;
+            if matches!(account.registration, cirrove_auth::AppRegistration::ICloud) {
+                if write_access {
+                    bail!("iCloud writes are not supported; sign in read-only");
+                }
+                let session = icloud_login(&account.identity.username).await?;
+                cirrove_service::accounts::reauthenticate_icloud_with_session(
+                    state, label, session,
+                )
+                .await?;
+                println!("iCloud is signed in again with read-only access.");
+            } else {
+                let access = match (write_access, read_only) {
+                    (true, _) => Some(cirrove_auth::AccessMode::ReadWrite),
+                    (_, true) => Some(cirrove_auth::AccessMode::ReadOnly),
+                    _ => None,
+                };
+                cirrove_service::accounts::reauthenticate(state, label, access).await?;
+            }
         }
         Command::Connect {
             label,
@@ -857,6 +904,36 @@ async fn main() -> Result<()> {
                     account.mount_path.display()
                 );
             }
+        }
+        Command::ConnectIcloud {
+            label,
+            apple_id,
+            mount_path,
+            state_dir: state,
+        } => {
+            let state = state.map(Ok).unwrap_or_else(state_dir)?;
+            if !cirrove_service::accounts::valid_label(&label) {
+                bail!("use a label of 1–48 letters, digits, hyphens or underscores");
+            }
+            cirrove_service::manager::validate_mount_directory(&mount_path)?;
+            let canonical_mount = std::fs::canonicalize(&mount_path)?;
+            if cirrove_service::accounts::Settings::load(&state)?
+                .accounts
+                .iter()
+                .any(|account| account.label == label || account.mount_path == canonical_mount)
+            {
+                bail!("this label or mount path is already configured");
+            }
+            let session = icloud_login(&apple_id).await?;
+            let account = cirrove_service::accounts::connect_icloud_with_session(
+                state, label, mount_path, apple_id, session,
+            )
+            .await?;
+            println!(
+                "Connected {} read-only at {}. This iCloud path remains experimental.",
+                account.label,
+                account.mount_path.display()
+            );
         }
         Command::Accounts { state_dir: state } => {
             let state = match state {

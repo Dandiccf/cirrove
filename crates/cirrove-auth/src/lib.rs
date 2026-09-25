@@ -413,8 +413,10 @@ async fn write_desktop_secret(key: &str, value: &SecretString) -> Result<()> {
             .create_item(
                 if key.starts_with("upload/") {
                     "Cirrove upload session"
+                } else if key.starts_with("icloud-probe-") {
+                    "Cirrove iCloud session"
                 } else {
-                    "Cirrove Microsoft account"
+                    "Cirrove cloud account"
                 },
                 attributes(key),
                 value.expose_secret().as_bytes(),

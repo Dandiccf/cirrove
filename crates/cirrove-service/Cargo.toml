@@ -13,7 +13,7 @@ publish = false
 # cirrove-onedrive's test-support feature.
 test-support = []
 # Developer-only, foreground iCloud mount. It is not part of release packages.
-icloud-probe = ["dep:rpassword"]
+icloud-probe = []
 
 [[bin]]
 name = "cirrove-icloud-mount-probe"
@@ -47,7 +47,7 @@ tokio-util.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 async-trait.workspace = true
-rpassword = { version = "7.4", optional = true }
+rpassword = "7.4"
 
 [dev-dependencies]
 # Self-dependency so the crate's own integration tests get test-support without

@@ -134,9 +134,15 @@ state for diagnosis; it does not edit an existing Fedora iCloud mount or the
 installed Cirrove service. The foreground process must remain running for
 browsing; this is a validation tool, not an installed iCloud account flow.
 
-The service now has an internal read-only account constructor and a lazy
-Cirrove-keyring-backed adapter for a future persistent connection. They are not
-yet offered by the window or CLI, and no existing installation is migrated.
+The service now has a read-only account constructor and a lazy
+Cirrove-keyring-backed adapter. The branch exposes an explicitly experimental
+`cirrove connect-icloud` terminal command; the window does not offer it yet,
+and no existing installation is migrated. For isolated validation, pass a
+private test `--state-dir` instead of using the installed daemon's state.
+`cirrove reauth LABEL` repeats native Apple sign-in for a configured iCloud
+account without replacing its item index. Both commands request the regular
+Apple account password and trusted-device code in the local terminal; neither
+accepts a password as a command argument. The connection remains read-only.
 Settings validation rejects writable iCloud accounts and roots other than the
 opaque Apple Drive root. The metadata feed requires the keyring session and a
 complete live root listing before publishing its synthetic root. A saved Apple
