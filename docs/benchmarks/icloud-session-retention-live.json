@@ -1,0 +1,27 @@
+{
+  "status": "registered_in_progress",
+  "date": "2026-09-25",
+  "question": "Does a freshly saved Cirrove iCloud web session remain in the desktop Secret Service and restore online reads after an isolated service restart and a delayed restart?",
+  "arms": [
+    "fresh sign-in, immediate separate keyring lookup and online mounted root/read",
+    "clean service stop and immediate restart, separate keyring lookup and online mounted root/read",
+    "at least 30 minutes after sign-in, clean service stop and restart, separate keyring lookup and online mounted root/read"
+  ],
+  "endpoint": "For each arm record only whether the exact Cirrove credential exists, whether service status is ready, root item count, and whether the previously chosen text file can be read through the mount. Do not record secret bytes, Apple bodies, cursor URLs, or file contents.",
+  "prediction": "The immediate arm will pass as before; the delayed arm may reproduce the missing keyring entry seen in two private states. One pass or failure identifies a direction, not a reliable retention rate.",
+  "environment": {
+    "state": "private isolated icloud-gui-connect-validation state",
+    "service_socket": "/run/user/1000/cirrove-icloud-gui-validation.sock",
+    "mount": "/home/dandiccf/Cloud/Cirrove-iCloudGuiValidation",
+    "tmpdir": "/home/dandiccf/.cache/cv-ic2",
+    "tmpdir_filesystem": "btrfs /home",
+    "service_binary_sha256": "01a3ceec412a10071e1e1fdb87d061f1dacdbf994b0ad04421c65469815438d2",
+    "desktop_binary_sha256": "4db7cb47be8d9ecf0680bac01a04c7572a574546610948a32650df7b521267fc",
+    "service_command": "./.target-icloud-feasibility/debug/cirroved --state-dir $PWD/.local-state/icloud-gui-connect-validation/state --socket /run/user/1000/cirrove-icloud-gui-validation.sock",
+    "desktop_command": "./.target-icloud-feasibility/debug/cirrove-desktop --state-dir $PWD/.local-state/icloud-gui-connect-validation/state --socket /run/user/1000/cirrove-icloud-gui-validation.sock",
+    "service_pid_at_registration": 3158905,
+    "desktop_pid_at_registration": 3159150,
+    "expected_duration_minutes": 35
+  },
+  "results": []
+}
