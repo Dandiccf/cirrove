@@ -11,19 +11,30 @@ async fn main() -> Result<()> {
         .next()
         .ok_or_else(|| anyhow::anyhow!("usage: cirrove-icloud-probe APPLE_ID [FOLDER_ID]"))?;
     let operation = args.next();
-    let read_target = if operation.as_deref() == Some("--read") {
-        let item = args
-            .next()
-            .ok_or_else(|| anyhow::anyhow!("missing file ID"))?;
-        let output = args
-            .next()
-            .ok_or_else(|| anyhow::anyhow!("missing output path"))?;
-        Some((item, output))
-    } else {
-        None
+    let read_target = match operation.as_deref() {
+        Some("--read") | Some("--read-in") => {
+            let folder = if operation.as_deref() == Some("--read-in") {
+                Some(
+                    args.next()
+                        .ok_or_else(|| anyhow::anyhow!("missing folder ID"))?,
+                )
+            } else {
+                None
+            };
+            let item = args
+                .next()
+                .ok_or_else(|| anyhow::anyhow!("missing file ID"))?;
+            let output = args
+                .next()
+                .ok_or_else(|| anyhow::anyhow!("missing output path"))?;
+            Some((folder, item, output))
+        }
+        _ => None,
     };
     if args.next().is_some() {
-        bail!("usage: cirrove-icloud-probe APPLE_ID [FOLDER_ID | --read FILE_ID OUTPUT]");
+        bail!(
+            "usage: cirrove-icloud-probe APPLE_ID [FOLDER_ID | --read FILE_ID OUTPUT | --read-in FOLDER_ID FILE_ID OUTPUT]"
+        );
     }
     let password =
         SecretString::new(rpassword::prompt_password("Apple account password: ")?.into());
@@ -37,8 +48,14 @@ async fn main() -> Result<()> {
             client.verify_trusted_device_code(&code).await?;
         }
     }
-    if let Some((file_id, output)) = read_target {
-        let bytes = client.read_small_file(&file_id).await?;
+    if let Some((folder_id, file_id, output)) = read_target {
+        let bytes = if let Some(folder_id) = folder_id {
+            client
+                .read_small_file_in_folder(&folder_id, &file_id)
+                .await?
+        } else {
+            client.read_small_file(&file_id).await?
+        };
         let output = Path::new(&output);
         let parent = output
             .parent()

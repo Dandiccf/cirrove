@@ -360,7 +360,26 @@ impl ICloudReadSession {
     /// Fetch a small ordinary file by provider ID. This is an experimental
     /// validation read, not yet the mounted version-bound `ReadProvider` path.
     pub async fn read_small_file(&mut self, drive_id: &str) -> Result<Vec<u8>> {
-        let before = self.item_by_id(drive_id).await?;
+        self.read_small_file_with_parent(drive_id, None).await
+    }
+
+    /// Validate a file through its known parent listing. This also covers
+    /// accounts where Apple's individual-item lookup rejects a valid Drive ID.
+    pub async fn read_small_file_in_folder(
+        &mut self,
+        folder_id: &str,
+        drive_id: &str,
+    ) -> Result<Vec<u8>> {
+        self.read_small_file_with_parent(drive_id, Some(folder_id))
+            .await
+    }
+
+    async fn read_small_file_with_parent(
+        &mut self,
+        drive_id: &str,
+        folder_id: Option<&str>,
+    ) -> Result<Vec<u8>> {
+        let before = self.item_for_read(drive_id, folder_id).await?;
         if before.is_folder() || before.size > MAX_FILE as u64 || before.etag.is_empty() {
             bail!("file is not eligible for the bounded read-only probe");
         }
@@ -416,7 +435,7 @@ impl ICloudReadSession {
             }
             bytes.extend_from_slice(&chunk);
         }
-        let after = self.item_by_id(drive_id).await?;
+        let after = self.item_for_read(drive_id, folder_id).await?;
         if before.etag != after.etag
             || before.size != after.size
             || bytes.len() as u64 != before.size
@@ -424,6 +443,27 @@ impl ICloudReadSession {
             bail!("iCloud file changed during the read or returned an unexpected size");
         }
         Ok(bytes)
+    }
+
+    async fn item_for_read(
+        &mut self,
+        drive_id: &str,
+        folder_id: Option<&str>,
+    ) -> Result<DriveEntry> {
+        if let Some(folder_id) = folder_id {
+            let matches: Vec<_> = self
+                .list_folder(folder_id)
+                .await?
+                .into_iter()
+                .filter(|item| item.drivewsid == drive_id)
+                .collect();
+            match matches.as_slice() {
+                [item] => Ok(item.clone()),
+                _ => bail!("iCloud folder did not contain exactly one matching file"),
+            }
+        } else {
+            self.item_by_id(drive_id).await
+        }
     }
 
     async fn item_by_id(&mut self, drive_id: &str) -> Result<DriveEntry> {

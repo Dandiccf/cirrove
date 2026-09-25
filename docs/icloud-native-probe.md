@@ -22,7 +22,15 @@ CARGO_TARGET_DIR="$PWD/.target-icloud-probe" cargo run -p cirrove-icloud --bin c
 The terminal prompts for the password and, when required, a trusted-device code.
 Neither is passed as a command argument or saved by this probe. It prints one
 line per root item: kind, size, opaque ID and name. To list a folder, pass its ID
-after the Apple account name. To save one listed file to a **new** local path:
+after the Apple account name. To save one listed file to a **new** local path,
+provide the ID of the folder that contained it:
+
+```sh
+CARGO_TARGET_DIR="$PWD/.target-icloud-probe" cargo run -p cirrove-icloud --bin cirrove-icloud-probe -- 'your-apple-id@example.com' --read-in 'FOLDER::zone::parent-id' 'FILE::zone::opaque-id' ./downloaded-file
+```
+
+The probe also has an individual-item lookup path, though it returned HTTP 400
+for the live file tested here:
 
 ```sh
 CARGO_TARGET_DIR="$PWD/.target-icloud-probe" cargo run -p cirrove-icloud --bin cirrove-icloud-probe -- 'your-apple-id@example.com' --read 'FILE::zone::opaque-id' ./downloaded-file
@@ -40,7 +48,11 @@ is untouched.
 On 2026-09-25, one account completed the password and trusted-device-code flow,
 and the native probe listed its iCloud Drive root with both files and folders.
 The first listing attempt hit the previous 30-second HTTP timeout; the retry
-with a 90-second listing limit succeeded. This is a single read-only root-listing
-observation, not proof of repeatability or general account compatibility. No file
-content was downloaded, and no Cirrove mount was created. The validation record
-contains no account identifier, file names, item IDs, tokens or response bodies.
+with a 90-second listing limit succeeded. An individual-file lookup then returned
+HTTP 400. A second read path used the file's known parent listing before and
+after downloading one ordinary file; it saved 135,295 bytes and the local file
+size matched. The file contents were not inspected. These are single-account,
+single-file read-only observations, not proof of repeatability, general account
+compatibility or reliable content-version semantics. No Cirrove mount was created.
+The validation record contains no account identifier, file names, item IDs,
+tokens or response bodies.
