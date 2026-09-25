@@ -130,7 +130,9 @@ device code. Before mounting, it requires a complete live root listing from
 Apple. It prints the isolated mount path only after FUSE starts. Open that
 folder in Files; press Ctrl+C in the same terminal to unmount. Do not remove a
 preview directory while it is mounted. Each run keeps a private manifest and
-state for diagnosis; it does not edit an existing Fedora iCloud mount or the
+state for diagnosis; an `exited` marker records every process exit, including
+failed sign-in, while `unmounted` records a completed mount shutdown. The probe
+does not edit an existing Fedora iCloud mount or the
 installed Cirrove service. The foreground process must remain running for
 browsing; this is a validation tool, not an installed iCloud account flow.
 

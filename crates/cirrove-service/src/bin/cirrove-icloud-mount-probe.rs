@@ -205,6 +205,23 @@ impl PreviewRun {
     }
 }
 
+impl Drop for PreviewRun {
+    fn drop(&mut self) {
+        // An early authentication or mount failure also ends this run. Keep
+        // the manifest immutable and mark its terminal state separately, so a
+        // later operator does not mistake a failed prompt for a live probe.
+        if let Ok(mut file) = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(self.root.join("exited"))
+        {
+            let _ = file.write_all(b"The foreground read-only probe exited.\n");
+            let _ = file.sync_all();
+        }
+    }
+}
+
 fn private_dir(path: &Path) -> Result<()> {
     if !path.exists() {
         std::fs::create_dir(path)?;
