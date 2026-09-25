@@ -1,7 +1,7 @@
 //! Read-only adapter. A folder is one staged metadata page; the parent stack is
 //! a bounded continuation, never a path-derived item identity.
 
-use crate::{DriveEntry, ICloudReadSession, MAX_RANGE, ROOT_ID, StaleRead};
+use crate::{DriveEntry, ICloudReadSession, MAX_RANGE, ROOT_ID, SessionRejected, StaleRead};
 use async_trait::async_trait;
 use cirrove_auth::{CredentialVault, DesktopVault};
 use cirrove_core::{
@@ -193,9 +193,19 @@ impl ICloudDrive {
             result = async {
                 let mut state = self.session.lock().await;
                 let session = Self::active_session(&mut state).await?;
-                session.list_folder(folder).await.map_err(|_| ProviderError::Unavailable)
+                session.list_folder(folder).await.map_err(|error| map_read_error(&error))
             } => result,
         }
+    }
+}
+
+fn map_read_error(error: &anyhow::Error) -> ProviderError {
+    if error.downcast_ref::<SessionRejected>().is_some() {
+        ProviderError::Authentication
+    } else if error.downcast_ref::<StaleRead>().is_some() {
+        ProviderError::VersionChanged
+    } else {
+        ProviderError::Unavailable
     }
 }
 
@@ -516,13 +526,7 @@ impl ReadProvider for ICloudDrive {
             result = async {
                 let mut state = self.session.lock().await;
                 let session = Self::active_session(&mut state).await?;
-                session.read_range_in_folder_for_revision(parent, &node.id, offset, length, Some((etag, node.size))).await.map_err(|error| {
-                    if error.downcast_ref::<StaleRead>().is_some() {
-                        ProviderError::VersionChanged
-                    } else {
-                        ProviderError::Unavailable
-                    }
-                })
+                session.read_range_in_folder_for_revision(parent, &node.id, offset, length, Some((etag, node.size))).await.map_err(|error| map_read_error(&error))
             } => result,
         }
     }
@@ -532,6 +536,25 @@ impl ReadProvider for ICloudDrive {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rejected_apple_session_requires_reauthentication() {
+        for status in [
+            reqwest::StatusCode::UNAUTHORIZED,
+            reqwest::StatusCode::FORBIDDEN,
+        ] {
+            let error = crate::drive_request_failure(status, "iCloud Drive listing");
+            assert!(matches!(
+                map_read_error(&error),
+                ProviderError::Authentication
+            ));
+        }
+        let error = crate::drive_request_failure(
+            reqwest::StatusCode::SERVICE_UNAVAILABLE,
+            "iCloud Drive listing",
+        );
+        assert!(matches!(map_read_error(&error), ProviderError::Unavailable));
+    }
 
     struct MissingVault;
 

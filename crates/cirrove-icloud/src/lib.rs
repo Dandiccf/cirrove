@@ -48,6 +48,25 @@ const MAX_COOKIE_RECORD: usize = 4096;
 #[derive(Debug)]
 pub(crate) struct StaleRead;
 
+#[derive(Debug)]
+pub(crate) struct SessionRejected;
+
+impl std::fmt::Display for SessionRejected {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Apple rejected the saved iCloud session; sign in again")
+    }
+}
+
+impl std::error::Error for SessionRejected {}
+
+fn drive_request_failure(status: StatusCode, stage: &'static str) -> anyhow::Error {
+    if matches!(status, StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN) {
+        SessionRejected.into()
+    } else {
+        anyhow!("{stage} failed ({})", status.as_u16())
+    }
+}
+
 impl std::fmt::Display for StaleRead {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("iCloud file no longer matches the requested revision")
@@ -558,10 +577,10 @@ impl ICloudReadSession {
             })?;
         self.headers.absorb(response.headers());
         if !response.status().is_success() {
-            bail!(
-                "iCloud Drive listing failed ({})",
-                response.status().as_u16()
-            );
+            return Err(drive_request_failure(
+                response.status(),
+                "iCloud Drive listing",
+            ));
         }
         let mut folders: Vec<DriveEntry> = read_json(response, "iCloud folder listing").await?;
         if folders.len() != 1 || folders[0].drivewsid != folder_id {
@@ -746,10 +765,10 @@ impl ICloudReadSession {
             .await
             .map_err(|_| anyhow!("iCloud download lookup failed"))?;
         if !response.status().is_success() {
-            bail!(
-                "iCloud download lookup failed ({})",
-                response.status().as_u16()
-            );
+            return Err(drive_request_failure(
+                response.status(),
+                "iCloud download lookup",
+            ));
         }
         let location: DownloadLocation = read_json(response, "iCloud download lookup").await?;
         let signed = location
@@ -803,7 +822,10 @@ impl ICloudReadSession {
             .await
             .map_err(|_| anyhow!("iCloud item lookup failed"))?;
         if !response.status().is_success() {
-            bail!("iCloud item lookup failed ({})", response.status().as_u16());
+            return Err(drive_request_failure(
+                response.status(),
+                "iCloud item lookup",
+            ));
         }
         let items: Vec<DriveEntry> = read_json(response, "iCloud item lookup").await?;
         match items.as_slice() {

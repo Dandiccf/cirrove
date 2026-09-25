@@ -1,6 +1,6 @@
 # Native iCloud Drive read probe
 
-This is an **experimental, read-only protocol probe**, not an installed Cirrove
+This is an **experimental, read-only integration**, not an installed Cirrove
 drive or a release claim. It uses Cirrove's own Rust HTTP and SRP implementation;
 it does not invoke rclone or inspect another client's configuration, credentials,
 mount or service. Apple's general iCloud Drive web protocol is undocumented and
@@ -154,8 +154,9 @@ normal connection choice.
 The keyring value contains Apple session cookies and tokens, never the password.
 The key is derived from the account identifier; a restored value is bound to that
 identifier and its service and cookie hosts are validated. An expired or rejected
-session requires a new interactive sign-in; automatic renewal has not been
-established.
+session requires a new interactive sign-in. Apple HTTP 401/403 responses from
+Drive metadata and download lookup now reach the service as authentication errors
+instead of generic temporary failures. Automatic renewal has not been established.
 
 ## Live validation
 
