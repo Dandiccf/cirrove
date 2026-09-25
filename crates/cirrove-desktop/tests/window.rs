@@ -1284,6 +1284,39 @@ fn icloud_connect_shows_local_sign_in_and_never_offers_writes() {
     runtime.shutdown_timeout(Duration::from_secs(1));
 }
 
+fn connected_icloud_account_can_sign_in_again_before_expiry() {
+    let app = application("ICloudReauthReady");
+    let ui = Window::new(&app, Backend::Demo);
+    let mut snapshot = demo::snapshot().unwrap();
+    let account = &mut snapshot.settings.as_mut().unwrap().accounts[0];
+    account.registration = cirrove_auth::AppRegistration::ICloud;
+    account.drive.name = "iCloud Drive".into();
+    account.access = cirrove_auth::AccessMode::ReadOnly;
+    snapshot.status.as_mut().unwrap().accounts[0].provider = "icloud".into();
+    ui.render(cirrove_desktop::model::Overview::from_snapshot(snapshot));
+    let window = ui.window.upgrade().unwrap();
+    window.present();
+    expand_all(window.upcast_ref());
+    assert!(displays_text(window.upcast_ref(), "iCloud Drive"));
+    let sign_in = buttons(window.upcast_ref(), "Sign in again");
+    assert_eq!(
+        sign_in.len(),
+        1,
+        "a connected iCloud account can renew its session"
+    );
+    assert!(sign_in[0].is_sensitive());
+    assert!(
+        !action_row(window.upcast_ref(), "Delete a file permanently")
+            .unwrap()
+            .is_visible()
+    );
+    assert!(!displays_text_containing(
+        window.upcast_ref(),
+        "changes upload in the background"
+    ));
+    window.close();
+}
+
 /// What an account keeps offline, in the window, and taking one back.
 ///
 /// Pinning existed only in the CLI and the Files context menu, so the question
@@ -1582,6 +1615,10 @@ const SCENARIOS: &[(&str, fn())] = &[
     (
         "icloud_connect_shows_local_sign_in_and_never_offers_writes",
         icloud_connect_shows_local_sign_in_and_never_offers_writes,
+    ),
+    (
+        "connected_icloud_account_can_sign_in_again_before_expiry",
+        connected_icloud_account_can_sign_in_again_before_expiry,
     ),
     (
         "a_fetch_in_flight_shows_its_progress_and_can_be_stopped",

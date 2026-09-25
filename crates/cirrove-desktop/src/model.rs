@@ -477,18 +477,15 @@ impl Overview {
                 AccountCard {
                     id: account.id.clone(),
                     label: account.label.clone(),
-                    title: format!(
-                        "{} · {}",
-                        if matches!(
-                            account.registration,
-                            cirrove_auth::AppRegistration::Google { .. }
-                        ) {
-                            "Google Drive"
-                        } else {
-                            "OneDrive"
-                        },
-                        account.drive.name
-                    ),
+                    title: match account.registration {
+                        cirrove_auth::AppRegistration::Google { .. } => {
+                            format!("Google Drive · {}", account.drive.name)
+                        }
+                        cirrove_auth::AppRegistration::Microsoft { .. } => {
+                            format!("OneDrive · {}", account.drive.name)
+                        }
+                        cirrove_auth::AppRegistration::ICloud => "iCloud Drive".into(),
+                    },
                     username: account.identity.username.clone(),
                     tenant: account.identity.tenant_id.clone(),
                     mount_path: account.mount_path.clone(),

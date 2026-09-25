@@ -48,6 +48,7 @@ struct AccountRow {
     /// would act on whatever is there now.
     retry: gtk::Button,
     keep_both: gtk::Button,
+    destruction: adw::ActionRow,
     destroy: gtk::Button,
     wastebasket: adw::ActionRow,
     unsent: adw::ActionRow,
@@ -278,7 +279,7 @@ impl Window {
             .label(gettext(if matches!(backend, Backend::Demo) {
                 n("Interface preview · sample accounts")
             } else {
-                n("Files download when opened · changes upload in the background")
+                n("Files download when opened")
             }))
             .xalign(0.0)
             .wrap(true)
@@ -842,6 +843,7 @@ impl Window {
             retry,
             unsent,
             keep_both,
+            destruction,
             destroy,
             wastebasket,
             remove,
@@ -883,8 +885,9 @@ impl Window {
         // Offered wherever the state says so, in the preview too: the preview
         // shows what the window does, and the actions themselves are what
         // check for a live service.
-        row.sign_in
-            .set_visible(card.state == ConnectionState::SignInRequired);
+        row.sign_in.set_visible(
+            card.state == ConnectionState::SignInRequired || card.provider_id == "icloud",
+        );
         row.sign_in.set_sensitive(idle);
         row.spinner
             .set_spinning(writing.is_some() || card.state.busy());
@@ -1040,6 +1043,8 @@ impl Window {
                 &[name],
             ));
         }
+        row.destruction
+            .set_visible(card.supports_writes && card.writable);
         row.destroy
             .set_sensitive(idle && card.mounted && card.writable);
         row.keep_both.set_sensitive(idle && card.failed_uploads > 0);
