@@ -3,6 +3,7 @@
 
 use crate::{DriveEntry, ICloudReadSession, MAX_RANGE, ROOT_ID, StaleRead};
 use async_trait::async_trait;
+use cirrove_auth::{CredentialVault, DesktopVault};
 use cirrove_core::{
     CancellationToken, Change, ChangePage, Checkpoint, Cursor, DirectoryPage, FeedMode,
     MetadataProvider, Node, NodeKind, ProviderError, ReadProvider, Scope,
@@ -20,12 +21,20 @@ const MAX_CURSOR: usize = 128 * 1024;
 const MAX_DEPTH: usize = 128;
 
 /// An experimental iCloud adapter. Its exact-range guard is implemented, but
-/// Apple's ETag revision behavior is not yet proven, so it is not installed in
-/// the mounted service.
+/// Apple's ETag revision behavior is not yet proven. The service can construct
+/// it for a saved read-only account; the window does not offer that flow yet.
 pub struct ICloudDrive {
     scope: Scope,
-    session: Mutex<ICloudReadSession>,
+    session: Mutex<SessionState>,
     index_mode: IndexMode,
+}
+
+enum SessionState {
+    Ready(Box<ICloudReadSession>),
+    Keyring {
+        apple_id: String,
+        credential_id: String,
+    },
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -70,7 +79,33 @@ impl ICloudDrive {
         }
         Ok(Self {
             scope,
-            session: Mutex::new(session),
+            session: Mutex::new(SessionState::Ready(Box::new(session))),
+            index_mode: IndexMode::OnDemand,
+        })
+    }
+
+    /// Defer the Secret Service request until a directory or file is opened.
+    /// Constructing a provider remains synchronous for the service manager;
+    /// neither secrets nor network requests enter its settings lock.
+    pub fn on_demand_from_keyring(
+        scope: Scope,
+        apple_id: String,
+        credential_id: String,
+    ) -> Result<Self, ProviderError> {
+        if scope.provider != PROVIDER_ID
+            || scope.collection != COLLECTION
+            || scope.account.is_empty()
+            || apple_id.trim().is_empty()
+            || uuid::Uuid::parse_str(&credential_id).is_err()
+        {
+            return Err(ProviderError::Permission);
+        }
+        Ok(Self {
+            scope,
+            session: Mutex::new(SessionState::Keyring {
+                apple_id,
+                credential_id,
+            }),
             index_mode: IndexMode::OnDemand,
         })
     }
@@ -91,9 +126,32 @@ impl ICloudDrive {
             .map_err(|_| ProviderError::Authentication)?;
         Ok(Self {
             scope,
-            session: Mutex::new(session),
+            session: Mutex::new(SessionState::Ready(Box::new(session))),
             index_mode,
         })
+    }
+
+    async fn active_session(
+        state: &mut SessionState,
+    ) -> Result<&mut ICloudReadSession, ProviderError> {
+        if let SessionState::Keyring {
+            apple_id,
+            credential_id,
+        } = state
+        {
+            let saved = DesktopVault
+                .load(credential_id)
+                .await
+                .map_err(|_| ProviderError::Authentication)?
+                .ok_or(ProviderError::Authentication)?;
+            let restored = ICloudReadSession::from_session_snapshot(&saved, apple_id)
+                .map_err(|_| ProviderError::Authentication)?;
+            *state = SessionState::Ready(Box::new(restored));
+        }
+        match state {
+            SessionState::Ready(session) => Ok(session),
+            SessionState::Keyring { .. } => Err(ProviderError::Authentication),
+        }
     }
 
     fn check_scope(&self, scope: &Scope) -> Result<(), ProviderError> {
@@ -112,9 +170,10 @@ impl ICloudDrive {
         tokio::select! { biased;
             _ = cancel.cancelled() => Err(ProviderError::Cancelled),
             result = async {
-                let mut session = self.session.lock().await;
-                session.list_folder(folder).await
-            } => result.map_err(|_| ProviderError::Unavailable),
+                let mut state = self.session.lock().await;
+                let session = Self::active_session(&mut state).await?;
+                session.list_folder(folder).await.map_err(|_| ProviderError::Unavailable)
+            } => result,
         }
     }
 }
@@ -427,15 +486,16 @@ impl ReadProvider for ICloudDrive {
         tokio::select! { biased;
             _ = cancel.cancelled() => Err(ProviderError::Cancelled),
             result = async {
-                let mut session = self.session.lock().await;
-                session.read_range_in_folder_for_revision(parent, &node.id, offset, length, Some((etag, node.size))).await
-            } => result.map_err(|error| {
-                if error.downcast_ref::<StaleRead>().is_some() {
-                    ProviderError::VersionChanged
-                } else {
-                    ProviderError::Unavailable
-                }
-            }),
+                let mut state = self.session.lock().await;
+                let session = Self::active_session(&mut state).await?;
+                session.read_range_in_folder_for_revision(parent, &node.id, offset, length, Some((etag, node.size))).await.map_err(|error| {
+                    if error.downcast_ref::<StaleRead>().is_some() {
+                        ProviderError::VersionChanged
+                    } else {
+                        ProviderError::Unavailable
+                    }
+                })
+            } => result,
         }
     }
 }

@@ -134,6 +134,13 @@ state for diagnosis; it does not edit an existing Fedora iCloud mount or the
 installed Cirrove service. The foreground process must remain running for
 browsing; this is a validation tool, not an installed iCloud account flow.
 
+The service now has an internal read-only account constructor and a lazy
+Cirrove-keyring-backed adapter for a future persistent connection. They are not
+yet offered by the window or CLI, and no existing installation is migrated.
+Settings validation rejects writable iCloud accounts and roots other than the
+opaque Apple Drive root. A saved Apple session must still be tested across
+restarts and renewal before this becomes a normal connection choice.
+
 The keyring value contains Apple session cookies and tokens, never the password.
 The key is derived from the account identifier; a restored value is bound to that
 identifier and its service and cookie hosts are validated. An expired or rejected
