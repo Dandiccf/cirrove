@@ -116,9 +116,9 @@ currently bundled; another project's client ID is never substituted.
       state, restored its saved session across one service restart, and detected
       one remote content change. It has no rclone runtime, configuration or
       credential dependency. Sustained session retention and renewal,
-      account-scale enumeration, broader revision behavior and creation of a
-      new account through the GUI still need validation. Re-sign-in through
-      the GUI passed once. Writes require separate conflict and recovery
+      account-scale enumeration and broader revision behavior still need
+      validation. Both first-time connection and re-sign-in through the GUI
+      passed once in isolated state. Writes require separate conflict and recovery
       evidence and remain unsupported.
 
 Modern components do not establish production readiness. Sustained real-provider

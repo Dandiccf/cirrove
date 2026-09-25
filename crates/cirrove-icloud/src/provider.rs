@@ -25,8 +25,8 @@ const MAX_DEPTH: usize = 128;
 
 /// An experimental iCloud adapter. Its exact-range guard is implemented, but
 /// Apple's ETag revision behavior needs broader validation. The service can
-/// construct it for a saved read-only account; the window's existing-account
-/// re-sign-in passed one live run, while new-account creation remains untested.
+/// construct it for a saved read-only account; window connection and
+/// re-sign-in each passed one isolated live run.
 pub struct ICloudDrive {
     scope: Scope,
     session: Mutex<SessionState>,

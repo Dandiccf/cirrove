@@ -148,8 +148,8 @@ The service now has a read-only account constructor and a lazy
 Cirrove-keyring-backed adapter. The branch exposes an explicitly experimental
 `cirrove connect-icloud` terminal command and an iCloud choice in the
 connection window. The window collects the Apple password and code locally;
-re-sign-in for an existing isolated account has passed live validation, while
-creating a new account through the window has not. No existing installation is
+both re-sign-in and creation of a new isolated account through the window have
+passed one live validation each. No existing installation is
 migrated. For isolated validation, pass a
 private test `--state-dir` instead of using the installed daemon's state.
 `cirrove reauth LABEL` repeats native Apple sign-in for a configured iCloud
@@ -225,3 +225,12 @@ remounted account listed its root and read the 42-byte test file. A subsequent
 service restart restored the new keyring session without another prompt and
 again listed 30 root entries and read that file. This checks one manual
 re-sign-in and restart, not automatic renewal after Apple expires a session.
+
+A second private test state exercised first-time account creation through the
+GTK connection window. Its default mount folder was new and empty. The user
+completed sign-in locally; the service showed one ready iCloud account and a
+read-only mount. The root listed 30 entries and the existing 42-byte test file
+read fully. After a clean stop and restart, the new account mounted without
+another prompt and both checks passed again. The second test service and mount
+were then stopped. This validates one window-created account, not unattended
+renewal, long sessions or compatibility with other Apple accounts.
