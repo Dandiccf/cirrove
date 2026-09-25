@@ -12,6 +12,13 @@ publish = false
 # cfg(test) module is invisible to them; this is the same shape as
 # cirrove-onedrive's test-support feature.
 test-support = []
+# Developer-only, foreground iCloud mount. It is not part of release packages.
+icloud-probe = ["dep:cirrove-icloud", "dep:rpassword"]
+
+[[bin]]
+name = "cirrove-icloud-mount-probe"
+path = "src/bin/cirrove-icloud-mount-probe.rs"
+required-features = ["icloud-probe"]
 
 [dependencies]
 cirrove-allocator.workspace = true
@@ -19,6 +26,7 @@ cirrove-core.workspace = true
 cirrove-store.workspace = true
 cirrove-onedrive.workspace = true
 cirrove-googledrive.workspace = true
+cirrove-icloud = { path = "../cirrove-icloud", optional = true }
 cirrove-auth.workspace = true
 uuid.workspace = true
 fs2.workspace = true
@@ -39,6 +47,7 @@ tokio-util.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 async-trait.workspace = true
+rpassword = { version = "7.4", optional = true }
 
 [dev-dependencies]
 # Self-dependency so the crate's own integration tests get test-support without

@@ -560,6 +560,7 @@ pub async fn reauthenticate(
                     bail!("Google root identity changed");
                 }
             }
+            AppRegistration::ICloud => bail!("iCloud uses native sign-in"),
         }
         save_credentials(&DesktopVault, &original.credential_id, &credentials).await?;
         Ok(())
@@ -577,6 +578,7 @@ pub fn provider(account: &Account) -> Result<Arc<dyn ReadProvider>> {
     match account.registration {
         AppRegistration::Microsoft { .. } => Ok(onedrive_provider(account)?),
         AppRegistration::Google { .. } => Ok(google_provider(account)?),
+        AppRegistration::ICloud => bail!("iCloud provider is not yet configured"),
     }
 }
 pub fn google_provider(account: &Account) -> Result<Arc<GoogleDrive>> {
@@ -602,6 +604,7 @@ pub fn write_provider(account: &Account) -> Result<Arc<dyn crate::writable::Writ
     match account.registration {
         AppRegistration::Microsoft { .. } => Ok(onedrive_provider(account)?),
         AppRegistration::Google { .. } => Ok(google_provider(account)?),
+        AppRegistration::ICloud => bail!("iCloud writes are not supported"),
     }
 }
 /// Microsoft-only validation and write workers must refuse other accounts before
@@ -1007,6 +1010,7 @@ async fn begin_connect_with_secret(
             let drives = google.collections(&CancellationToken::new()).await?;
             (ConnectionProvider::Google(google), drives)
         }
+        AppRegistration::ICloud => bail!("iCloud uses native sign-in"),
     };
     Ok(PendingConnection {
         state,

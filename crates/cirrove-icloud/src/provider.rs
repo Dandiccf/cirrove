@@ -56,6 +56,25 @@ impl ICloudDrive {
         Self::new(scope, apple_id, snapshot, IndexMode::OnDemand)
     }
 
+    /// An authenticated foreground probe can mount without persisting Apple
+    /// session material. The session disappears when that process exits.
+    pub fn on_demand_from_live_session(
+        scope: Scope,
+        session: ICloudReadSession,
+    ) -> Result<Self, ProviderError> {
+        if scope.provider != PROVIDER_ID
+            || scope.collection != COLLECTION
+            || scope.account.is_empty()
+        {
+            return Err(ProviderError::Permission);
+        }
+        Ok(Self {
+            scope,
+            session: Mutex::new(session),
+            index_mode: IndexMode::OnDemand,
+        })
+    }
+
     fn new(
         scope: Scope,
         apple_id: &str,

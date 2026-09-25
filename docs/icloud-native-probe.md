@@ -6,7 +6,7 @@ it does not invoke rclone or inspect another client's configuration, credentials
 mount or service. Apple's general iCloud Drive web protocol is undocumented and
 can change without notice.
 
-The probe offers an interactive Apple account sign-in, trusted-device code,
+The metadata probe offers an interactive Apple account sign-in, trusted-device code,
 root/folder listing by opaque Drive item ID, and downloads of ordinary files up
 to 16 MiB. A download checks the item's ID, ETag and size before and after the
 transfer, bounds memory, and refuses to overwrite a local destination. Those
@@ -89,7 +89,8 @@ It preserves a bounded continuation between pages in memory for this probe. A
 page limit reports an incomplete scan; it never publishes a partial tree as a
 completed Cirrove index. The shared service now stages full-snapshot feeds and
 keeps the old visible index until a complete new round, but the iCloud adapter
-is not yet installed in that service or exposed as a mount.
+is not yet installed in that service. The isolated foreground mount below uses
+the separate on-demand path.
 The probe reports counts every 16 pages during a long scan. These lines are
 progress only: ending at the page limit still means the tree is incomplete.
 
@@ -103,6 +104,34 @@ navigation; it does not provide a complete offline account index.
 This path has synthetic checks but no live revision-change validation. Apple's
 ETag behavior, cold lookup of an unknown item, session retention and account
 scale still block installing it as a Cirrove drive.
+
+## Isolated read-only File Manager mount
+
+The feature-gated foreground mount probe connects this adapter to Cirrove's
+shared Engine and FUSE filesystem without adding an account to the installed
+service. It creates private metadata and cache state under the **iCloud
+worktree's** `.local-state/icloud-mount-preview/`, not the running Cirrove
+installation. Its Apple session remains in the probe process and is discarded
+when that process exits. The mount is explicitly read-only; do not use it for
+files that have no other copy. A private disk-backed `TMPDIR` on the same
+filesystem as the worktree is required for SQLite spill files.
+
+From the iCloud worktree, after creating a private disk-backed temp directory:
+
+```sh
+export TMPDIR="$HOME/.cache/cv-ic2"
+export SQLITE_TMPDIR="$TMPDIR"
+CARGO_TARGET_DIR="$PWD/.target-icloud-feasibility" cargo run -p cirrove-service --features icloud-probe --bin cirrove-icloud-mount-probe -- 'your-apple-id@example.com'
+```
+
+Confirm `TMPDIR` is disk-backed with `findmnt -T "$TMPDIR"` before starting.
+The terminal prompts locally for the regular Apple account password and trusted
+device code. It prints the isolated mount path only after FUSE starts. Open that
+folder in Files; press Ctrl+C in the same terminal to unmount. Do not remove a
+preview directory while it is mounted. Each run keeps a private manifest and
+state for diagnosis; it does not edit an existing Fedora iCloud mount or the
+installed Cirrove service. The foreground process must remain running for
+browsing; this is a validation tool, not an installed iCloud account flow.
 
 The keyring value contains Apple session cookies and tokens, never the password.
 The key is derived from the account identifier; a restored value is bound to that

@@ -37,7 +37,7 @@ const ICLOUD_ORIGIN: &str = "https://www.icloud.com";
 // this is not an OAuth client secret or an rclone credential.
 const WEB_WIDGET_ID: &str = "d39ba9916b7251055b22c7f910e2ea796ee65e98b2ddecea8f5dde8d9d1a815d";
 const USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3.1 Safari/605.1.15";
-const ROOT_ID: &str = "FOLDER::com.apple.CloudDocs::root";
+pub const ROOT_ID: &str = "FOLDER::com.apple.CloudDocs::root";
 const MAX_JSON: usize = 8 * 1024 * 1024;
 const MAX_FILE: usize = 16 * 1024 * 1024;
 const MAX_RANGE: u32 = 4 * 1024 * 1024;
