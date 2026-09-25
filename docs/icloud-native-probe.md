@@ -126,7 +126,8 @@ CARGO_TARGET_DIR="$PWD/.target-icloud-feasibility" cargo run -p cirrove-service 
 
 Confirm `TMPDIR` is disk-backed with `findmnt -T "$TMPDIR"` before starting.
 The terminal prompts locally for the regular Apple account password and trusted
-device code. It prints the isolated mount path only after FUSE starts. Open that
+device code. Before mounting, it requires a complete live root listing from
+Apple. It prints the isolated mount path only after FUSE starts. Open that
 folder in Files; press Ctrl+C in the same terminal to unmount. Do not remove a
 preview directory while it is mounted. Each run keeps a private manifest and
 state for diagnosis; it does not edit an existing Fedora iCloud mount or the

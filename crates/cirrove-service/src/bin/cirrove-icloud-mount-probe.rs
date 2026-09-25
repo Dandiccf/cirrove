@@ -39,6 +39,13 @@ async fn main() -> Result<()> {
         }
     }
     drop(password);
+    // An on-demand feed seeds a synthetic root. Check the real root before
+    // reporting a usable mount, so an expired or rejected Apple session does
+    // not look like a successful connection.
+    session
+        .list_root()
+        .await
+        .context("iCloud Drive root is unavailable")?;
     let account = run.account(&apple_id);
     let scope = Scope {
         account: account.id.clone(),
