@@ -257,3 +257,26 @@ fresh processes immediately and after 5, 11 and 17 minutes, then removed it.
 All reads matched. That single control narrows, but does not explain, the
 real-session failure: larger snapshots, later keyring writes and intermittent
 Secret Service behavior remain possible.
+
+A second [live metadata-only monitor](benchmarks/icloud-keyring-transition-live.json)
+observed a renewed 11,645-byte iCloud session become zero bytes between 55 and
+75 seconds after it was saved. The keyring file was written in that interval,
+while the item's own modification time stayed at sign-in. This is a temporal
+association, not proof of which process or component caused the loss. Controls
+with a similarly sized, poorly compressible synthetic value survived as a
+[new item](benchmarks/icloud-entropy-keyring-control.json), as an
+[updated existing item](benchmarks/icloud-keyring-update-control.json), after
+a [separate keyring write](benchmarks/icloud-keyring-post-update-write-control.json),
+and when [recovering an empty item](benchmarks/icloud-keyring-empty-item-recovery-control.json).
+Each is one controlled run. None justifies declaring durable iCloud sessions
+fixed or enabling the beta by default.
+
+A [third GUI reauthentication](benchmarks/icloud-session-retention-third-live.json)
+initially retained a 11,649-byte value beyond two minutes, then fell to zero
+between 7:10:44 and 7:11:04 UTC, 8.1 minutes after sign-in. A keyring-file
+write again occurred inside that transition, while the item modification time
+remained at sign-in. The running service still reported `ready` because its
+session was in memory. This early retention failure ended the run before its
+planned delayed restart; the preceding 30-minute run already established the
+restart failure after the same zero-byte condition. The variable delay and
+negative synthetic controls leave the mechanism unresolved.

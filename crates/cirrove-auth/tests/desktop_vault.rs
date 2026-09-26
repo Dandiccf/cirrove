@@ -1,13 +1,47 @@
 use cirrove_auth::{CredentialVault, DesktopVault};
 use secrecy::{ExposeSecret, SecretString};
 
+fn synthetic_retention_value() -> anyhow::Result<String> {
+    Ok(
+        match std::env::var("CIRROVE_SYNTHETIC_KEYRING_PATTERN")
+            .as_deref()
+            .unwrap_or("repeated")
+        {
+            "empty" => String::new(),
+            "repeated" => format!("synthetic-{}", "x".repeat(20_000)),
+            "icloud_size_entropy" | "icloud_size_entropy_v2" => {
+                // The observed iCloud snapshot was 11,645 bytes. Use a matching,
+                // poorly compressible fixture without containing session material.
+                const ALPHABET: &[u8; 64] =
+                    b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+                let mut state = if std::env::var("CIRROVE_SYNTHETIC_KEYRING_PATTERN").as_deref()
+                    == Ok("icloud_size_entropy_v2")
+                {
+                    0xd1b5_4a32_d192_ed03_u64
+                } else {
+                    0x9e37_79b9_7f4a_7c15_u64
+                };
+                let mut value = String::with_capacity(11_645);
+                for _ in 0..11_645 {
+                    state ^= state << 13;
+                    state ^= state >> 7;
+                    state ^= state << 17;
+                    value.push(char::from(ALPHABET[(state & 63) as usize]));
+                }
+                value
+            }
+            _ => anyhow::bail!("unknown synthetic keyring pattern"),
+        },
+    )
+}
+
 /// Reproduce the size and process boundary of an iCloud session checkpoint
 /// without handling a real credential. The child gets only a synthetic key.
 #[tokio::test]
 #[ignore = "requires an unlocked desktop Secret Service; uses only a temporary synthetic entry"]
 async fn desktop_keyring_large_snapshot_survives_another_process() -> anyhow::Result<()> {
     let key = format!("icloud-retention-test-{}", uuid::Uuid::new_v4());
-    let value = format!("synthetic-{}", "x".repeat(20_000));
+    let value = synthetic_retention_value()?;
     let result = async {
         DesktopVault
             .save(&key, SecretString::from(value.clone()))
@@ -41,11 +75,10 @@ async fn desktop_keyring_large_snapshot_child() -> anyhow::Result<()> {
     let Ok(key) = std::env::var("CIRROVE_SYNTHETIC_KEYRING_TEST_KEY") else {
         return Ok(());
     };
+    let expected = synthetic_retention_value()?;
     let restored = DesktopVault.load(&key).await?;
     anyhow::ensure!(
-        restored.is_some_and(
-            |secret| secret.expose_secret() == format!("synthetic-{}", "x".repeat(20_000))
-        ),
+        restored.is_some_and(|secret| secret.expose_secret() == expected),
         "synthetic entry was absent or changed in a separate process"
     );
     Ok(())
@@ -64,7 +97,7 @@ async fn desktop_keyring_delayed_checkpoint_phase() -> anyhow::Result<()> {
         key.starts_with("icloud-retention-test-"),
         "refusing to use a non-synthetic key"
     );
-    let value = format!("synthetic-{}", "x".repeat(20_000));
+    let value = synthetic_retention_value()?;
     match std::env::var("CIRROVE_KEYRING_RETENTION_PHASE")?.as_str() {
         "save" => {
             DesktopVault.save(&key, SecretString::from(value)).await?;
