@@ -250,3 +250,10 @@ records the correction and the delayed restart after 30 minutes. That restart
 entered `sign_in_required` even though the FUSE mount still existed. The cause
 and failure rate are not established. Durable session retention remains a beta
 gate; the successful immediate restarts above do not close it.
+
+A separate [synthetic retention check](benchmarks/icloud-synthetic-keyring-retention.json)
+saved a 20,010-byte `DesktopVault` value under a unique test key, read it from
+fresh processes immediately and after 5, 11 and 17 minutes, then removed it.
+All reads matched. That single control narrows, but does not explain, the
+real-session failure: larger snapshots, later keyring writes and intermittent
+Secret Service behavior remain possible.
