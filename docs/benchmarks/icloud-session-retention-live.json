@@ -1,5 +1,5 @@
 {
-  "status": "registered_in_progress",
+  "status": "complete_delayed_restart_failed",
   "date": "2026-09-25",
   "question": "Does a freshly saved Cirrove iCloud web session remain in the desktop Secret Service and restore online reads after an isolated service restart and a delayed restart?",
   "arms": [
@@ -23,5 +23,72 @@
     "desktop_pid_at_registration": 3159150,
     "expected_duration_minutes": 35
   },
-  "results": []
+  "results": [
+    {
+      "arm": "fresh_sign_in",
+      "observed_at_utc": "2026-09-26T04:58:16Z",
+      "service_state": "ready",
+      "feed_state": "ready",
+      "root_entries": 30,
+      "test_file_size_bytes": 42,
+      "mounted_read_bytes": 42,
+      "keyring_item_present": true,
+      "keyring_value_nonempty": true
+    },
+    {
+      "arm": "immediate_restart",
+      "observed_at_utc": "2026-09-26T04:58:52Z",
+      "service_state": "ready",
+      "feed_state": "ready",
+      "root_entries": 30,
+      "test_file_size_bytes": 42,
+      "mounted_read_bytes": 42,
+      "additional_pdf_size_bytes": 135295,
+      "additional_pdf_read_bytes": 135295,
+      "keyring_item_present": true,
+      "keyring_value_nonempty": true
+    },
+    {
+      "arm": "delayed_restart",
+      "observed_at_utc_minute": "2026-09-26T05:27Z",
+      "minutes_since_sign_in": 30.2,
+      "service_state": "sign_in_required",
+      "feed_state": "sign_in_required",
+      "active_mounts": 1,
+      "online_root_read": false,
+      "previous_keyring_item_present": true,
+      "previous_keyring_value_nonempty": false
+    }
+  ],
+  "session_saved_at_utc": "2026-09-26T04:56:53Z",
+  "delayed_restart_not_before_utc": "2026-09-26T05:26:53Z",
+  "interpretation": "At 15.2 minutes the same unlocked Secret Service item still existed but its value read as zero bytes through libsecret. The running provider remained ready from its in-memory session. After the registered 30-minute delayed restart, service and feed were sign_in_required; a mounted path alone was not evidence of online access. Earlier zero-byte lookups were incorrectly described as missing items; both older iCloud items also remain present with zero-byte values. This run fails the durable-session beta gate. One run establishes this failure, not its rate or cause.",
+  "checkpoints": [
+    {
+      "at_utc": "2026-09-26T05:02:24Z",
+      "minutes_since_sign_in": 5.5,
+      "service_state": "ready",
+      "feed_state": "ready",
+      "keyring_item_present": true,
+      "keyring_value_nonempty": true
+    },
+    {
+      "at_utc": "2026-09-26T05:07:05Z",
+      "minutes_since_sign_in": 10.2,
+      "service_state": "ready",
+      "feed_state": "ready",
+      "keyring_item_present": true,
+      "keyring_value_nonempty": true
+    },
+    {
+      "at_utc": "2026-09-26T05:12:03Z",
+      "minutes_since_sign_in": 15.2,
+      "keyring_item_present": true,
+      "keyring_value_nonempty": false,
+      "keyring_value_bytes_via_libsecret": 0,
+      "keyring_collection_locked": false,
+      "service_state": "ready",
+      "feed_state": "ready"
+    }
+  ]
 }

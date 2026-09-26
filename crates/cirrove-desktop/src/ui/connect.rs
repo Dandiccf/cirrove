@@ -430,6 +430,14 @@ pub(super) fn present(ui: &Rc<Window>) {
             .clone()
             .connect_clicked(move |_| begin(&form, &ui, &runtime, &state));
     }
+    for row in [&form.apple_password, &form.apple_code] {
+        let form = form.clone();
+        row.connect_entry_activated(move |_| {
+            if form.provider.selected() == 2 && form.sign_in.is_sensitive() {
+                form.sign_in.emit_clicked();
+            }
+        });
+    }
     {
         let form = form.clone();
         let ui = ui.clone();
@@ -809,6 +817,14 @@ pub(super) fn present_icloud_reauth(ui: &Rc<Window>, id: &str) {
         let label = card.label.clone();
         form.button.clone().connect_clicked(move |_| {
             start_icloud_reauth(&form, &ui, &runtime, &state, &label, &apple_id);
+        });
+    }
+    for row in [&form.password, &form.code] {
+        let form = form.clone();
+        row.connect_entry_activated(move |_| {
+            if form.button.is_sensitive() {
+                form.button.emit_clicked();
+            }
         });
     }
     dialog.present(Some(&window));

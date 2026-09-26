@@ -238,9 +238,15 @@ renewal, long sessions or compatibility with other Apple accounts.
 On a later start on 2026-09-25, both private test states entered
 `sign_in_required` immediately. Their mounts could still display 30 cached root
 names; that was not evidence of a working Apple session. An exact search of
-Cirrove's desktop Secret Service entries found neither account's credential ID.
-The cause of their disappearance is not established. A short synthetic keyring
+Cirrove's desktop Secret Service entries initially appeared to find neither
+credential. That description was wrong: the lookup returned zero bytes, while
+both item identities remained present and unlocked. A short synthetic keyring
 entry survived a start and clean stop of the isolated service, so that lifecycle
-alone did not reproduce the loss. Both test services were stopped without
-touching the installed daemon. Durable session retention remains a beta gate;
-the successful immediate restarts above do not close it.
+alone did not reproduce the problem. On 2026-09-26 a fresh GUI re-sign-in and
+immediate restart passed, then the same keyring item's value read as zero bytes
+after 15 minutes while the running provider still used its in-memory session.
+The [registered retention check](benchmarks/icloud-session-retention-live.json)
+records the correction and the delayed restart after 30 minutes. That restart
+entered `sign_in_required` even though the FUSE mount still existed. The cause
+and failure rate are not established. Durable session retention remains a beta
+gate; the successful immediate restarts above do not close it.

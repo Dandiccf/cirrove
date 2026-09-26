@@ -51,6 +51,47 @@ async fn desktop_keyring_large_snapshot_child() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// A manual, three-process retention probe for the desktop Secret Service.
+/// `save` intentionally leaves its unique synthetic item in the keyring;
+/// always run `clear` for that same key after the delayed `check`.
+#[tokio::test]
+#[ignore = "manual delayed keyring retention probe with a unique synthetic key"]
+async fn desktop_keyring_delayed_checkpoint_phase() -> anyhow::Result<()> {
+    let Ok(key) = std::env::var("CIRROVE_SYNTHETIC_KEYRING_TEST_KEY") else {
+        return Ok(());
+    };
+    anyhow::ensure!(
+        key.starts_with("icloud-retention-test-"),
+        "refusing to use a non-synthetic key"
+    );
+    let value = format!("synthetic-{}", "x".repeat(20_000));
+    match std::env::var("CIRROVE_KEYRING_RETENTION_PHASE")?.as_str() {
+        "save" => {
+            DesktopVault.save(&key, SecretString::from(value)).await?;
+            anyhow::ensure!(
+                DesktopVault.load(&key).await?.is_some(),
+                "synthetic entry missing after save"
+            );
+        }
+        "check" => {
+            let restored = DesktopVault.load(&key).await?;
+            anyhow::ensure!(
+                restored.is_some_and(|secret| secret.expose_secret() == value),
+                "synthetic entry did not retain its value"
+            );
+        }
+        "clear" => {
+            DesktopVault.remove(&key).await?;
+            anyhow::ensure!(
+                DesktopVault.load(&key).await?.is_none(),
+                "synthetic entry remained after cleanup"
+            );
+        }
+        _ => anyhow::bail!("unknown synthetic retention phase"),
+    }
+    Ok(())
+}
+
 #[tokio::test]
 #[ignore = "requires an unlocked desktop Secret Service; uses only a temporary synthetic entry"]
 async fn desktop_keyring_checkpoint_updates_survive_new_sessions() -> anyhow::Result<()> {
