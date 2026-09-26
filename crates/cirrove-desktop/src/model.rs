@@ -477,18 +477,15 @@ impl Overview {
                 AccountCard {
                     id: account.id.clone(),
                     label: account.label.clone(),
-                    title: format!(
-                        "{} · {}",
-                        if matches!(
-                            account.registration,
-                            cirrove_auth::AppRegistration::Google { .. }
-                        ) {
-                            "Google Drive"
-                        } else {
-                            "OneDrive"
-                        },
-                        account.drive.name
-                    ),
+                    title: match account.registration {
+                        cirrove_auth::AppRegistration::Google { .. } => {
+                            format!("Google Drive · {}", account.drive.name)
+                        }
+                        cirrove_auth::AppRegistration::Microsoft { .. } => {
+                            format!("OneDrive · {}", account.drive.name)
+                        }
+                        cirrove_auth::AppRegistration::ICloud => "iCloud Drive".into(),
+                    },
                     username: account.identity.username.clone(),
                     tenant: account.identity.tenant_id.clone(),
                     mount_path: account.mount_path.clone(),
@@ -553,7 +550,7 @@ impl Overview {
                     wastebasket: status.and_then(|s| s.wastebasket.clone()),
                     failed_uploads: status.map_or(0, |s| s.failed_uploads),
                     writable: account.access == cirrove_auth::AccessMode::ReadWrite,
-                    supports_writes: true,
+                    supports_writes: account.registration.provider_id() != "icloud",
                     provider_id: account.registration.provider_id(),
                     client_id: account.registration.client_id().to_owned(),
                     authority: account.registration.authority().to_owned(),

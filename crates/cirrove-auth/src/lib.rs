@@ -87,17 +87,21 @@ pub enum AppRegistration {
     Google {
         client_id: String,
     },
+    /// Native Apple sign-in uses a keyring-backed web session, not OAuth.
+    ICloud,
 }
 impl AppRegistration {
     pub fn provider_id(&self) -> &'static str {
         match self {
             Self::Microsoft { .. } => "onedrive",
             Self::Google { .. } => "googledrive",
+            Self::ICloud => "icloud",
         }
     }
     pub fn client_id(&self) -> &str {
         match self {
             Self::Microsoft { client_id, .. } | Self::Google { client_id } => client_id,
+            Self::ICloud => "",
         }
     }
     /// Empty for providers without a Microsoft tenant selection. Retained for
@@ -106,6 +110,7 @@ impl AppRegistration {
         match self {
             Self::Microsoft { authority, .. } => authority,
             Self::Google { .. } => "",
+            Self::ICloud => "",
         }
     }
     pub fn validate(&self) -> Result<()> {
@@ -133,20 +138,22 @@ impl AppRegistration {
                     bail!("invalid Google client ID");
                 }
             }
+            Self::ICloud => {}
         }
         Ok(())
     }
-    fn endpoint(&self, path: &str) -> String {
+    fn endpoint(&self, path: &str) -> Result<String> {
         match self {
-            Self::Microsoft { authority, .. } => {
-                format!("https://login.microsoftonline.com/{authority}/oauth2/v2.0/{path}")
-            }
-            Self::Google { .. } => if path == "authorize" {
+            Self::Microsoft { authority, .. } => Ok(format!(
+                "https://login.microsoftonline.com/{authority}/oauth2/v2.0/{path}"
+            )),
+            Self::Google { .. } => Ok(if path == "authorize" {
                 "https://accounts.google.com/o/oauth2/v2/auth"
             } else {
                 "https://oauth2.googleapis.com/token"
             }
-            .into(),
+            .into()),
+            Self::ICloud => bail!("iCloud uses native sign-in, not OAuth"),
         }
     }
     fn scopes(&self, access: AccessMode) -> Result<&'static str> {
@@ -156,6 +163,7 @@ impl AppRegistration {
                 AccessMode::ReadOnly => google::SCOPES,
                 AccessMode::ReadWrite => google::WRITE_SCOPES,
             }),
+            Self::ICloud => bail!("iCloud uses native sign-in, not OAuth"),
         }
     }
     fn validate_grant(&self, access: AccessMode, granted: Option<&str>) -> Result<()> {
@@ -163,6 +171,7 @@ impl AppRegistration {
         match self {
             Self::Microsoft { .. } => access.validate_grant(granted),
             Self::Google { .. } => google::validate_grant(access, granted),
+            Self::ICloud => bail!("iCloud uses native sign-in, not OAuth"),
         }
     }
 }
@@ -404,8 +413,10 @@ async fn write_desktop_secret(key: &str, value: &SecretString) -> Result<()> {
             .create_item(
                 if key.starts_with("upload/") {
                     "Cirrove upload session"
+                } else if key.starts_with("icloud-probe-") {
+                    "Cirrove iCloud session"
                 } else {
-                    "Cirrove Microsoft account"
+                    "Cirrove cloud account"
                 },
                 attributes(key),
                 value.expose_secret().as_bytes(),
@@ -479,7 +490,7 @@ impl PendingLogin {
         let state = CsrfToken::new_random();
         let nonce = Nonce::new_random();
         let (challenge, verifier) = PkceCodeChallenge::new_random_sha256();
-        let mut url = Url::parse(&app.endpoint("authorize"))?;
+        let mut url = Url::parse(&app.endpoint("authorize")?)?;
         url.query_pairs_mut().extend_pairs([
             ("client_id", app.client_id()),
             ("response_type", "code"),
@@ -577,7 +588,7 @@ impl PendingLogin {
         }
         let reply: TokenReply = bounded_json(
             self.client
-                .post(self.app.endpoint("token"))
+                .post(self.app.endpoint("token")?)
                 .form(&form)
                 .send()
                 .await
@@ -830,7 +841,7 @@ impl TokenBroker {
     ) -> Result<Self> {
         app.validate()?;
         Ok(Self {
-            token_url: app.endpoint("token"),
+            token_url: app.endpoint("token")?,
             identity_url: match app {
                 AppRegistration::Microsoft { .. } => {
                     "https://graph.microsoft.com/v1.0/me?$select=id,displayName,userPrincipalName"
@@ -838,6 +849,7 @@ impl TokenBroker {
                 AppRegistration::Google { .. } => {
                     "https://openidconnect.googleapis.com/v1/userinfo"
                 }
+                AppRegistration::ICloud => bail!("iCloud does not use OAuth tokens"),
             }
             .into(),
             app,
@@ -914,6 +926,7 @@ impl TokenBroker {
                     bail!("refreshed token belongs to a different Google account");
                 }
             }
+            AppRegistration::ICloud => bail!("iCloud does not use OAuth tokens"),
         }
         let next = credentials_for(&self.app, reply, Some(previous), previous.access)?;
         // Persist rotation before using the new token; a keyring failure is visible.

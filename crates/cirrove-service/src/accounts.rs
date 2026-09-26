@@ -5,8 +5,9 @@ use cirrove_auth::{
     AccessMode, AppRegistration, CredentialVault, DesktopVault, Identity, PendingLogin,
     TokenBroker, save_credentials,
 };
-use cirrove_core::{CancellationToken, CollectionInfo as DriveInfo, ReadProvider};
+use cirrove_core::{CancellationToken, CollectionInfo as DriveInfo, ReadProvider, Scope};
 use cirrove_googledrive::GoogleDrive;
+use cirrove_icloud::{ICloudDrive, ICloudReadSession, ROOT_ID, probe_session_key};
 use cirrove_onedrive::{OneDrive, StaticToken};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -124,6 +125,17 @@ impl Settings {
                     || !account.identity.tenant_id.is_empty())
             {
                 bail!("invalid selected Google Drive");
+            }
+            if matches!(account.registration, AppRegistration::ICloud)
+                && (account.access != AccessMode::ReadOnly
+                    || account.drive.id != "drive"
+                    || account.drive.drive_type != "icloud_drive"
+                    || account.root_id != "FOLDER::com.apple.CloudDocs::root"
+                    || account.identity.username.is_empty()
+                    || !account.identity.tenant_id.is_empty()
+                    || !account.identity.graph_user_id.is_empty())
+            {
+                bail!("invalid read-only iCloud Drive");
             }
             if !valid_label(&account.label)
                 || uuid::Uuid::parse_str(&account.id).is_err()
@@ -560,6 +572,7 @@ pub async fn reauthenticate(
                     bail!("Google root identity changed");
                 }
             }
+            AppRegistration::ICloud => bail!("iCloud uses native sign-in"),
         }
         save_credentials(&DesktopVault, &original.credential_id, &credentials).await?;
         Ok(())
@@ -573,10 +586,90 @@ pub async fn reauthenticate(
     }
     result
 }
+
+/// Replace only the native Apple session for an existing iCloud account.
+/// The caller signs in locally first; the account stays mounted until the new
+/// session and its Drive root have been validated.
+pub async fn reauthenticate_icloud_with_session(
+    state: PathBuf,
+    label: String,
+    mut session: ICloudReadSession,
+) -> Result<()> {
+    let original = Settings::load(&state)?
+        .accounts
+        .into_iter()
+        .find(|account| account.label == label)
+        .context("unknown account label")?;
+    if !matches!(original.registration, AppRegistration::ICloud) {
+        bail!("this operation requires an iCloud connection");
+    }
+    DesktopVault::reachable().await?;
+    session
+        .list_root()
+        .await
+        .context("iCloud Drive root is unavailable")?;
+    let snapshot = session.session_snapshot()?;
+    ICloudReadSession::from_session_snapshot(&snapshot, &original.identity.username)
+        .context("a different Apple account signed in")?;
+
+    let _operation = account_operation(&state, &original.id)?;
+    let was_enabled = interrupted_desired_state(&state, &original.id).unwrap_or(original.enabled);
+    write_restore_marker(&state, &original.id, was_enabled)?;
+    {
+        let _lock = config_lock(&state)?;
+        let mut settings = Settings::load(&state)?;
+        let account = settings
+            .accounts
+            .iter_mut()
+            .find(|account| account.id == original.id)
+            .context("account removed")?;
+        account.enabled = false;
+        settings.save(&state)?;
+    }
+    let desired = DesiredState {
+        state: state.clone(),
+        id: original.id.clone(),
+        enabled: was_enabled,
+        access: None,
+    };
+    let result = async {
+        let directory = state.join("accounts").join(&original.id);
+        let _owner = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+            loop {
+                if let Ok(owner) = account_lock(&directory) {
+                    break owner;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            }
+        })
+        .await
+        .context("account did not stop; close files in this mount and try again")?;
+        DesktopVault.save(&original.credential_id, snapshot).await
+    }
+    .await;
+    if result.is_ok() {
+        desired.settle(AccessMode::ReadOnly);
+    } else {
+        drop(desired);
+    }
+    result
+}
 pub fn provider(account: &Account) -> Result<Arc<dyn ReadProvider>> {
     match account.registration {
         AppRegistration::Microsoft { .. } => Ok(onedrive_provider(account)?),
         AppRegistration::Google { .. } => Ok(google_provider(account)?),
+        AppRegistration::ICloud => {
+            let scope = Scope {
+                account: account.id.clone(),
+                provider: "icloud".into(),
+                collection: account.drive.id.clone(),
+            };
+            Ok(Arc::new(ICloudDrive::on_demand_from_keyring(
+                scope,
+                account.identity.username.clone(),
+                account.credential_id.clone(),
+            )?))
+        }
     }
 }
 pub fn google_provider(account: &Account) -> Result<Arc<GoogleDrive>> {
@@ -602,6 +695,7 @@ pub fn write_provider(account: &Account) -> Result<Arc<dyn crate::writable::Writ
     match account.registration {
         AppRegistration::Microsoft { .. } => Ok(onedrive_provider(account)?),
         AppRegistration::Google { .. } => Ok(google_provider(account)?),
+        AppRegistration::ICloud => bail!("iCloud writes are not supported"),
     }
 }
 /// Microsoft-only validation and write workers must refuse other accounts before
@@ -877,6 +971,86 @@ impl PendingConnection {
         Ok(account)
     }
 }
+/// Persist an already authenticated native Apple session as a read-only drive.
+/// The caller collects the password and trusted-device code locally; neither
+/// is passed here. Apple requests and keyring awaits finish before the shared
+/// settings lock is acquired.
+pub async fn connect_icloud_with_session(
+    state: PathBuf,
+    label: String,
+    mount_path: PathBuf,
+    apple_id: String,
+    mut session: ICloudReadSession,
+) -> Result<Account> {
+    if !valid_label(&label) {
+        bail!("use a label of 1–48 letters, digits, hyphens or underscores");
+    }
+    let apple_id = apple_id.trim().to_lowercase();
+    let subject = probe_session_key(&apple_id)?;
+    crate::manager::validate_mount_directory(&mount_path)?;
+    let mount_path = std::fs::canonicalize(mount_path)?;
+    {
+        let _lock = config_lock(&state)?;
+        let settings = Settings::load(&state)?;
+        if settings
+            .accounts
+            .iter()
+            .any(|account| account.label == label || account.mount_path == mount_path)
+        {
+            bail!("this label or mount path is already configured");
+        }
+    }
+    DesktopVault::reachable().await?;
+    session
+        .list_root()
+        .await
+        .context("iCloud Drive root is unavailable")?;
+    let snapshot = session.session_snapshot()?;
+    ICloudReadSession::from_session_snapshot(&snapshot, &apple_id)
+        .context("signed-in Apple account does not match the selected identifier")?;
+    let account = Account {
+        id: uuid::Uuid::new_v4().to_string(),
+        label,
+        registration: AppRegistration::ICloud,
+        identity: Identity {
+            tenant_id: String::new(),
+            subject,
+            username: apple_id,
+            graph_user_id: String::new(),
+            display_name: "iCloud Drive".into(),
+        },
+        credential_id: uuid::Uuid::new_v4().to_string(),
+        access: AccessMode::ReadOnly,
+        drive: DriveInfo {
+            id: "drive".into(),
+            name: "iCloud Drive".into(),
+            drive_type: "icloud_drive".into(),
+            web_url: "https://www.icloud.com/iclouddrive".into(),
+        },
+        root_id: ROOT_ID.into(),
+        mount_path,
+        enabled: true,
+        poll_seconds: 60,
+        cache_bytes: 5 * 1024 * 1024 * 1024,
+    };
+    DesktopVault.save(&account.credential_id, snapshot).await?;
+    let saved = (|| -> Result<()> {
+        let _lock = config_lock(&state)?;
+        let mut settings = Settings::load(&state)?;
+        if settings.accounts.iter().any(|existing| {
+            existing.label == account.label || existing.mount_path == account.mount_path
+        }) {
+            bail!("account settings changed during sign-in; try another label or path");
+        }
+        settings.accounts.push(account.clone());
+        settings.save(&state)
+    })();
+    if let Err(error) = saved {
+        let _ = DesktopVault.remove(&account.credential_id).await;
+        return Err(error);
+    }
+    Ok(account)
+}
 /// Check the label and mount path, sign in through the browser, and list the
 /// drives. The account is not saved until `PendingConnection::finish`.
 pub async fn begin_connect(
@@ -1007,6 +1181,7 @@ async fn begin_connect_with_secret(
             let drives = google.collections(&CancellationToken::new()).await?;
             (ConnectionProvider::Google(google), drives)
         }
+        AppRegistration::ICloud => bail!("iCloud uses native sign-in"),
     };
     Ok(PendingConnection {
         state,
@@ -1869,6 +2044,32 @@ mod tests {
             .validate()
             .expect("an enabled Shared Drive account may use its write grant");
         assert!(write_provider(&settings.accounts[0]).is_ok());
+    }
+
+    #[test]
+    fn icloud_settings_accept_only_its_read_only_drive_identity() {
+        let mut account = fixture_account(AccessMode::ReadOnly);
+        account.registration = AppRegistration::ICloud;
+        account.identity.tenant_id.clear();
+        account.identity.graph_user_id.clear();
+        account.drive.drive_type = "icloud_drive".into();
+        account.root_id = "FOLDER::com.apple.CloudDocs::root".into();
+        let mut settings = Settings {
+            version: 2,
+            accounts: vec![account],
+        };
+        settings.validate().expect("read-only iCloud drive");
+        settings.accounts[0].access = AccessMode::ReadWrite;
+        assert!(
+            settings.validate().is_err(),
+            "iCloud writes are not implemented"
+        );
+        settings.accounts[0].access = AccessMode::ReadOnly;
+        settings.accounts[0].root_id = "different-root".into();
+        assert!(
+            settings.validate().is_err(),
+            "root must keep provider identity"
+        );
     }
 
     fn fixture_account(access: AccessMode) -> Account {

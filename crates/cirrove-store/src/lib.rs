@@ -546,6 +546,35 @@ impl Store {
         tx.commit()?;
         Ok(cursor.map(Cursor))
     }
+    /// Start a replacement baseline only when no round is pending. Retrying an
+    /// interrupted scan keeps its staged rows and continuation; a completed
+    /// scan's cursor is never passed as a delta cursor to a snapshot provider.
+    pub fn begin_snapshot(&mut self, scope: &Scope) -> Result<Option<Cursor>> {
+        let key = Self::key(scope)?;
+        let gate = self.gate.clone();
+        let _write = hold(&gate);
+        let tx = self.db.transaction()?;
+        tx.execute("INSERT OR IGNORE INTO feeds(scope) VALUES(?1)", [&key])?;
+        let pending: bool =
+            tx.query_row("SELECT pending FROM feeds WHERE scope=?1", [&key], |r| {
+                r.get(0)
+            })?;
+        if !pending {
+            tx.execute("INSERT INTO rounds(scope,started) VALUES(?1,?2) ON CONFLICT(scope) DO UPDATE SET started=excluded.started",params![key,observations::advance(&tx)?])?;
+            tx.execute("DELETE FROM staged WHERE scope=?1", [&key])?;
+            tx.execute(
+                "UPDATE feeds SET pending=1,next_cursor=NULL,reset=1 WHERE scope=?1",
+                [&key],
+            )?;
+        }
+        let cursor = tx.query_row(
+            "SELECT next_cursor FROM feeds WHERE scope=?1",
+            [&key],
+            |r| r.get::<_, Option<String>>(0),
+        )?;
+        tx.commit()?;
+        Ok(cursor.map(Cursor))
+    }
     pub fn stage(
         &mut self,
         scope: &Scope,
@@ -961,6 +990,44 @@ mod tests {
         .unwrap();
         assert_eq!(db.nodes(&s).unwrap().len(), 2);
         assert_eq!(db.cursor(&s).unwrap(), Some(Cursor("delta1".into())));
+    }
+
+    #[test]
+    fn full_snapshot_retries_staged_pages_and_replaces_only_on_completion() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("metadata.db");
+        let s = scope("snapshot");
+        {
+            let mut db = Store::open(&path).unwrap();
+            assert_eq!(db.begin_snapshot(&s).unwrap(), None);
+            db.stage(&s, None, &page(vec![node("old")], true, "round-one"))
+                .unwrap();
+            assert_eq!(db.begin_snapshot(&s).unwrap(), None);
+            db.stage(&s, None, &page(vec![node("new")], false, "resume"))
+                .unwrap();
+            assert_eq!(db.nodes(&s).unwrap()[0].id, "old");
+        }
+        let mut db = Store::open(path).unwrap();
+        let continuation = db.begin_snapshot(&s).unwrap();
+        assert_eq!(continuation, Some(Cursor("resume".into())));
+        assert_eq!(db.nodes(&s).unwrap()[0].id, "old");
+        db.stage(
+            &s,
+            continuation.as_ref(),
+            &page(vec![node("last")], true, "round-two"),
+        )
+        .unwrap();
+        assert_eq!(
+            db.nodes(&s)
+                .unwrap()
+                .iter()
+                .map(|item| item.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["last", "new"]
+        );
+        assert_eq!(db.cursor(&s).unwrap(), Some(Cursor("round-two".into())));
+        assert_eq!(db.begin_snapshot(&s).unwrap(), None);
+        assert_eq!(db.nodes(&s).unwrap().len(), 2);
     }
 
     #[test]

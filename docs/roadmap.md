@@ -107,7 +107,19 @@ currently bundled; another project's client ID is never substituted.
       remain open. The
       Cirrove OAuth app is still in Testing and needs public branding and
       Drive-scope verification before general Google-account onboarding.
-- [ ] iCloud feasibility, isolated compatibility adapter and visible limitations.
+- [ ] iCloud Drive: complete the [direct Linux read feasibility gate](adr/0016-icloud-drive-needs-a-supported-transport.md).
+      Rclone and pyicloud demonstrate access to existing Drive files through
+      Apple's undocumented web transport; a Fedora 44 rclone FUSE mount was
+      inspected as a working read/write example. The native, read-only
+      [experimental adapter](icloud-native-probe.md) has signed in, listed and
+      read real files, mounted through Cirrove's normal service in isolated
+      state, restored its saved session across one service restart, and detected
+      one remote content change. It has no rclone runtime, configuration or
+      credential dependency. Sustained session retention and renewal,
+      account-scale enumeration and broader revision behavior still need
+      validation. Both first-time connection and re-sign-in through the GUI
+      passed once in isolated state. Writes require separate conflict and recovery
+      evidence and remain unsupported.
 
 Modern components do not establish production readiness. Sustained real-provider
 use and independently reviewable recovery results remain release requirements.

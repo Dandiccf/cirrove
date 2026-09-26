@@ -234,9 +234,20 @@ on one Workspace administrator and one owned drive, not a general reliability
 claim. Native Docs and Sheets remain read-only packages with bounded, selected
 DOCX/PDF/ODT or XLSX/PDF/ODS exports. A direct native Doc import conflict probe found that HTTP 412
 could still change its contents, so native write-back remains outside the preview.
-iCloud requires a separate compatibility assessment because its API situation
-differs. Cirrove does not copy or depend on Stratosync or rclone; lessons from
-those integrations inform the recovery tests.
+iCloud Drive has a [direct Linux feasibility plan](docs/adr/0016-icloud-drive-needs-a-supported-transport.md).
+Existing Linux clients demonstrate access through Apple's undocumented web
+transport; a Fedora 44/GNOME installation was confirmed to mount iCloud Drive
+read/write through rclone FUSE. Cirrove will first validate stable identities, safe reads, complete
+refresh and account reauthentication in an isolated read-only probe. Its shared
+cache, pinning and FUSE engine are candidates for reuse if that gate passes;
+provider-side write conflicts and recovery remain a separate gate. Cirrove does
+not copy or depend on Stratosync or rclone at runtime, build time or in tests;
+lessons from those integrations inform the recovery tests. A
+[native read-only protocol probe](docs/icloud-native-probe.md) is available for
+interactive validation. One real account has passed sign-in, root listing, a
+small file download, a nonzero byte-range comparison and keyring-backed session
+resumption through Cirrove's native transport. Complete refresh, session renewal,
+content-revision semantics and the installed provider remain open.
 
 ## License
 

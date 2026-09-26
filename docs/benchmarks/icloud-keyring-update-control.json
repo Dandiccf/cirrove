@@ -1,0 +1,48 @@
+{
+  "status": "complete_update_survived_without_later_file_write",
+  "date": "2026-09-26",
+  "question": "Does updating an existing Cirrove DesktopVault item with a distinct 11,645-byte poorly compressible value reproduce the real iCloud reauthentication loss after desktop keyring persistence?",
+  "arms": [
+    "create unique synthetic item with deterministic value A and verify",
+    "update the same item with distinct deterministic value B and verify immediately from a fresh process",
+    "verify B again at least 90 seconds later, recording whether the keyring file changed",
+    "remove only the synthetic item"
+  ],
+  "endpoint": "Record exact value equality and keyring file modification time only; never print either synthetic value or read a real credential. One run identifies a direction, not a failure rate.",
+  "prediction": "If the failure lies in persisting an update to an existing Secret Service item, B may become empty after the keyring file is next written. If B survives, that update path alone is insufficient to reproduce the real-session loss.",
+  "environment": {
+    "test_key": "icloud-retention-test-20260926-update-a",
+    "value_a_pattern": "icloud_size_entropy",
+    "value_b_pattern": "icloud_size_entropy_v2",
+    "test_binary_sha256": "bdc199b1b29fa056e2ad9215d0f3fbf5948683dd5cd015e47b77d06be47df939",
+    "test_binary": ".target-icloud-feasibility/debug/deps/desktop_vault-deeb3cdbbaac397e",
+    "test_command": "CIRROVE_SYNTHETIC_KEYRING_TEST_KEY=icloud-retention-test-20260926-update-a CIRROVE_SYNTHETIC_KEYRING_PATTERN=<icloud_size_entropy|icloud_size_entropy_v2> CIRROVE_KEYRING_RETENTION_PHASE=<save|check|clear> .target-icloud-feasibility/debug/deps/desktop_vault-deeb3cdbbaac397e --ignored --exact desktop_keyring_delayed_checkpoint_phase",
+    "tmpdir": "/home/dandiccf/.cache/cv-ic2",
+    "tmpdir_filesystem": "btrfs /home",
+    "expected_duration_minutes": 3,
+    "restriction": "No compilation during the control window; no daemon restart; clear the exact synthetic key on completion."
+  },
+  "results": [
+    {
+      "arm": "create_value_a",
+      "exact_value_match": true
+    },
+    {
+      "arm": "update_existing_item_to_value_b",
+      "observed_at_utc_minute": "2026-09-26T06:47Z",
+      "exact_value_match_immediately": true,
+      "keyring_file_last_mtime_at_utc": "2026-09-26T06:47:33Z"
+    },
+    {
+      "arm": "delayed_value_b_check",
+      "observed_at_utc_minute": "2026-09-26T06:51Z",
+      "exact_value_match": true,
+      "keyring_file_changed_since_update": false
+    },
+    {
+      "arm": "remove_only_synthetic_item",
+      "item_absent_after_cleanup": true
+    }
+  ],
+  "interpretation": "The synthetic existing-item update remained readable for about four minutes, but the keyring file was not written between the update and delayed check. This arm cannot decide whether a later file write would retain the updated value. The real iCloud item became empty in the same interval as a keyring-file write."
+}

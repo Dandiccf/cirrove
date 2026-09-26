@@ -127,6 +127,14 @@ pub struct ChangePage {
     pub checkpoint: Checkpoint,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FeedMode {
+    Incremental,
+    /// Every completed round replaces the collection's entire visible index.
+    /// A continuation belongs to the in-progress round, not a change feed.
+    FullSnapshot,
+}
+
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum ProviderError {
     #[error("remote file changed; reopen it to read the new version")]
@@ -155,6 +163,9 @@ pub enum ProviderError {
 #[async_trait]
 pub trait MetadataProvider: Send + Sync {
     fn provider_id(&self) -> &'static str;
+    fn feed_mode(&self) -> FeedMode {
+        FeedMode::Incremental
+    }
     /// Maintain one collection's notification session until cancellation, renewal
     /// or failure. Implementations report connected only after subscribing, and
     /// turn remote hints into `changed`; metadata is still fetched via `changes`.

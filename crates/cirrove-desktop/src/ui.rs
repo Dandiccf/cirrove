@@ -48,6 +48,7 @@ struct AccountRow {
     /// would act on whatever is there now.
     retry: gtk::Button,
     keep_both: gtk::Button,
+    destruction: adw::ActionRow,
     destroy: gtk::Button,
     wastebasket: adw::ActionRow,
     unsent: adw::ActionRow,
@@ -278,7 +279,7 @@ impl Window {
             .label(gettext(if matches!(backend, Backend::Demo) {
                 n("Interface preview · sample accounts")
             } else {
-                n("Files download when opened · changes upload in the background")
+                n("Files download when opened")
             }))
             .xalign(0.0)
             .wrap(true)
@@ -842,6 +843,7 @@ impl Window {
             retry,
             unsent,
             keep_both,
+            destruction,
             destroy,
             wastebasket,
             remove,
@@ -883,8 +885,9 @@ impl Window {
         // Offered wherever the state says so, in the preview too: the preview
         // shows what the window does, and the actions themselves are what
         // check for a live service.
-        row.sign_in
-            .set_visible(card.state == ConnectionState::SignInRequired);
+        row.sign_in.set_visible(
+            card.state == ConnectionState::SignInRequired || card.provider_id == "icloud",
+        );
         row.sign_in.set_sensitive(idle);
         row.spinner
             .set_spinning(writing.is_some() || card.state.busy());
@@ -892,12 +895,11 @@ impl Window {
             .set_visible(writing.is_some() || card.state.busy());
         row.location
             .set_subtitle(&card.mount_path.to_string_lossy());
-        row.identity
-            .set_title(&if card.provider_id == "googledrive" {
-                gettext("Google account")
-            } else {
-                gettext("Microsoft account")
-            });
+        row.identity.set_title(&match card.provider_id {
+            "googledrive" => gettext("Google account"),
+            "icloud" => gettext("Apple Account"),
+            _ => gettext("Microsoft account"),
+        });
         row.identity.set_subtitle(&card.username);
         row.access.set_subtitle(if card.writable {
             "Changes made in this drive are uploaded to the cloud."
@@ -1041,6 +1043,8 @@ impl Window {
                 &[name],
             ));
         }
+        row.destruction
+            .set_visible(card.supports_writes && card.writable);
         row.destroy
             .set_sensitive(idle && card.mounted && card.writable);
         row.keep_both.set_sensitive(idle && card.failed_uploads > 0);
@@ -1320,6 +1324,10 @@ impl Window {
         let Some(card) = self.card(id) else {
             return;
         };
+        if card.provider_id == "icloud" {
+            connect::present_icloud_reauth(self, id);
+            return;
+        }
         if card.provider_id == "googledrive" {
             let Some(window) = self.window.upgrade() else {
                 return;

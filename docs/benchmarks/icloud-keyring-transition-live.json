@@ -1,0 +1,56 @@
+{
+  "status": "complete_value_became_empty_after_keyring_file_write",
+  "date": "2026-09-26",
+  "question": "For a newly reauthenticated iCloud account, when does its exact Secret Service item change from a nonempty value to zero bytes, and does that coincide with a keyring file write?",
+  "arms": [
+    "pre-sign-in item length and modification time",
+    "fresh GUI re-sign-in, then 20-second read-only metadata samples for up to 35 minutes or until the first empty value"
+  ],
+  "endpoint": "Record only item count, value byte length, item modification time, lock status, keyring file modification time, and timestamp. Never record secret values, account identifier, file contents, provider bodies, tokens or URLs. A single run cannot establish cause or frequency.",
+  "prediction": "The exact item will become nonempty at sign-in, then may return zero bytes after roughly 15 minutes. Comparing item and keyring-file timestamps may reveal whether a later write coincides with the transition; coincidence alone is not causation.",
+  "environment": {
+    "state": "private isolated icloud-gui-connect-validation state",
+    "service_socket": "/run/user/1000/cirrove-icloud-gui-validation.sock",
+    "service_pid_at_registration": 3573781,
+    "desktop_pid_at_registration": 3159150,
+    "monitor_script_sha256": "9a23723e8c15d8cb8b70e216fe9dc9cf705b969d792532df06ce223f6da05334",
+    "monitor_command": "/usr/bin/python3 .local-state/icloud-gui-connect-validation/watch_keyring.py .local-state/icloud-gui-connect-validation/state .local-state/icloud-gui-connect-validation/keyring-watch.jsonl",
+    "private_output": ".local-state/icloud-gui-connect-validation/keyring-watch-after-signin.jsonl",
+    "tmpdir": "/home/dandiccf/.cache/cv-ic2",
+    "tmpdir_filesystem": "btrfs /home",
+    "expected_duration_minutes": 35,
+    "restriction": "Do not restart the isolated daemon during the monitor window; do not touch the regular Cirrove daemon or other cloud mounts."
+  },
+  "first_monitor_attempt": "The first 35-minute monitor expired before the person completed Apple sign-in. It observed only the pre-existing zero-byte item and is not an outcome arm. A new instance of the same script began immediately after sign-in; the isolated daemon was not restarted.",
+  "session_saved_at_utc": "2026-09-26T06:39:30Z",
+  "monitor_started_at_utc": "2026-09-26T06:40:05Z",
+  "results": [
+    {
+      "arm": "fresh_sign_in",
+      "observed_at_utc": "2026-09-26T06:40:05Z",
+      "item_count": 1,
+      "secret_bytes": 11645,
+      "item_locked": false,
+      "service_state": "ready",
+      "feed_state": "ready"
+    },
+    {
+      "arm": "second_sample",
+      "observed_at_utc": "2026-09-26T06:40:25Z",
+      "secret_bytes": 11645,
+      "keyring_file_mtime_changed": false
+    },
+    {
+      "arm": "first_empty_sample",
+      "observed_at_utc": "2026-09-26T06:40:45Z",
+      "secret_bytes": 0,
+      "item_count": 1,
+      "item_locked": false,
+      "item_modified_at_utc": "2026-09-26T06:39:30Z",
+      "keyring_file_mtime_at_utc": "2026-09-26T06:40:36Z",
+      "service_state": "ready",
+      "feed_state": "ready"
+    }
+  ],
+  "interpretation": "The 11,645-byte real iCloud session was nonempty at 35 and 55 seconds after save, then read as zero bytes at 75 seconds. The desktop keyring file was written between the last nonempty and first empty sample; the item's own modified time remained at sign-in. The running service retained a ready in-memory session. This temporal association does not identify which component wrote the file or why the value became empty. It reproduces the durable-session beta blocker without restarting the daemon."
+}
