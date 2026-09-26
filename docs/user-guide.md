@@ -34,10 +34,15 @@ drive from the window, or with `systemctl --user enable --now cirroved`. The
 tray starts with your next login (it is an autostart entry); to have it now,
 run `cirrove-tray`.
 
-Sign-in grants are kept in your desktop keyring. On a new desktop profile,
+Sign-in grants are kept in your desktop keyring.
+Experimental iCloud connections keep a short sealing key there and their
+encrypted web session in Cirrove's private local account data.
+On a new desktop profile,
 Cirrove creates the ordinary default ("Login") collection when you first
-connect a drive. Your desktop owns the password prompt; Cirrove never receives
-the password. If the collection already exists but is locked, Cirrove asks the
+connect a drive. Your desktop owns the keyring unlock prompt. For Microsoft
+and Google, Cirrove receives no account password; the experimental native
+iCloud flow asks for the Apple Account password in Cirrove's local window.
+If the collection already exists but is locked, Cirrove asks the
 desktop to unlock it before opening the browser.
 
 If no Secret Service is running, Cirrove stops before sign-in and names the

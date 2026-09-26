@@ -736,8 +736,27 @@ impl Store {
     /// other children. Outer None means unknown; Some(None) means known absent.
     /// The first name/identity-ordered match agrees with the listing API.
     pub fn child(&self, scope: &Scope, parent: &str, name: &str) -> Result<Option<Option<Node>>> {
+        self.child_with_mode(scope, parent, name, false)
+    }
+    /// For root-only feeds, only a published directory snapshot can establish
+    /// that a child is present or absent. A completed root cursor is insufficient.
+    pub fn child_from_snapshot(
+        &self,
+        scope: &Scope,
+        parent: &str,
+        name: &str,
+    ) -> Result<Option<Option<Node>>> {
+        self.child_with_mode(scope, parent, name, true)
+    }
+    fn child_with_mode(
+        &self,
+        scope: &Scope,
+        parent: &str,
+        name: &str,
+        require_snapshot: bool,
+    ) -> Result<Option<Option<Node>>> {
         let tx = self.db.unchecked_transaction()?;
-        let node = directories::child_on(&tx, scope, parent, name)?;
+        let node = directories::child_on(&tx, scope, parent, name, require_snapshot)?;
         tx.commit()?;
         Ok(node)
     }
@@ -752,8 +771,27 @@ impl Store {
         parent: &str,
         consume: impl FnOnce(&mut dyn Iterator<Item = Result<Node>>) -> T,
     ) -> Result<Option<T>> {
+        self.with_children_mode(scope, parent, consume, false)
+    }
+    /// Stream only a published directory snapshot; an unvisited folder is
+    /// unknown even when the feed has completed its root-only cursor.
+    pub fn with_snapshot_children<T>(
+        &self,
+        scope: &Scope,
+        parent: &str,
+        consume: impl FnOnce(&mut dyn Iterator<Item = Result<Node>>) -> T,
+    ) -> Result<Option<T>> {
+        self.with_children_mode(scope, parent, consume, true)
+    }
+    fn with_children_mode<T>(
+        &self,
+        scope: &Scope,
+        parent: &str,
+        consume: impl FnOnce(&mut dyn Iterator<Item = Result<Node>>) -> T,
+        require_snapshot: bool,
+    ) -> Result<Option<T>> {
         let tx = self.db.unchecked_transaction()?;
-        let result = directories::read_on(&tx, scope, parent, consume)?;
+        let result = directories::read_on(&tx, scope, parent, consume, require_snapshot)?;
         tx.commit()?;
         Ok(result)
     }

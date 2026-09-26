@@ -179,7 +179,7 @@ fn publish(
         |r| r.get(0),
     )?;
     if !current(tx, ticket, &[])? || newer {
-        let known = directories::read_on(tx, scope, parent, |_| ())?.is_some();
+        let known = directories::read_on(tx, scope, parent, |_| (), false)?.is_some();
         return Ok(DirectoryPublicationResult::Superseded { known });
     }
     // Canonicalize each visible Node independently. String comparison below is

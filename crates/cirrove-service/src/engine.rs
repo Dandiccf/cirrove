@@ -1664,10 +1664,18 @@ impl Engine {
         let s = scope.clone();
         let p = parent.to_owned();
         let n = name.to_owned();
-        let cached = tokio::task::spawn_blocking(move || Store::open(db)?.child(&s, &p, &n))
-            .await
-            .map_err(|_| ProviderError::Unavailable)?
-            .map_err(|_| ProviderError::Unavailable)?;
+        let require_snapshot = self.provider.unknown_directories_require_fetch();
+        let cached = tokio::task::spawn_blocking(move || {
+            let store = Store::open(db)?;
+            if require_snapshot {
+                store.child_from_snapshot(&s, &p, &n)
+            } else {
+                store.child(&s, &p, &n)
+            }
+        })
+        .await
+        .map_err(|_| ProviderError::Unavailable)?
+        .map_err(|_| ProviderError::Unavailable)?;
         if let Some(node) = cached {
             if node.is_some() || !self.provider.refresh_cached_packages_on_first_open() {
                 self.activity.touch(scope, parent);
@@ -1682,10 +1690,17 @@ impl Engine {
             let s = scope.clone();
             let p = parent.to_owned();
             let n = name.to_owned();
-            let updated = tokio::task::spawn_blocking(move || Store::open(db)?.child(&s, &p, &n))
-                .await
-                .map_err(|_| ProviderError::Unavailable)?
-                .map_err(|_| ProviderError::Unavailable)?;
+            let updated = tokio::task::spawn_blocking(move || {
+                let store = Store::open(db)?;
+                if require_snapshot {
+                    store.child_from_snapshot(&s, &p, &n)
+                } else {
+                    store.child(&s, &p, &n)
+                }
+            })
+            .await
+            .map_err(|_| ProviderError::Unavailable)?
+            .map_err(|_| ProviderError::Unavailable)?;
             if let Some(node) = updated {
                 self.activity.touch(scope, parent);
                 return node.ok_or(ProviderError::NotFound);
@@ -1840,11 +1855,15 @@ impl Engine {
         let db = self.db.clone();
         let scope = scope.clone();
         let parent = parent.to_owned();
+        let require_snapshot = self.provider.unknown_directories_require_fetch();
         tokio::task::spawn_blocking(move || {
             let store = Store::open(db).map_err(|_| ProviderError::Unavailable)?;
-            let result = store
-                .with_children(&scope, &parent, &mut consume)
-                .map_err(|_| ProviderError::Unavailable)?;
+            let result = if require_snapshot {
+                store.with_snapshot_children(&scope, &parent, &mut consume)
+            } else {
+                store.with_children(&scope, &parent, &mut consume)
+            }
+            .map_err(|_| ProviderError::Unavailable)?;
             Ok((result, consume))
         })
         .await

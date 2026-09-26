@@ -2,7 +2,8 @@
 //! a bounded continuation, never a path-derived item identity.
 
 use crate::{
-    DriveEntry, ICloudReadSession, IncompleteFolder, MAX_RANGE, ROOT_ID, SessionRejected, StaleRead,
+    DriveEntry, ICloudReadSession, IncompleteFolder, MAX_RANGE, ROOT_ID, SealedSessionVault,
+    SessionRejected, StaleRead,
 };
 use async_trait::async_trait;
 use cirrove_auth::{CredentialVault, DesktopVault};
@@ -14,6 +15,7 @@ use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashSet;
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{Mutex, OnceCell};
@@ -102,6 +104,18 @@ impl ICloudDrive {
         credential_id: String,
     ) -> Result<Self, ProviderError> {
         Self::on_demand_from_vault(scope, apple_id, credential_id, Arc::new(DesktopVault))
+    }
+
+    /// Use the account's private sealed session, with its short desktop key.
+    pub fn on_demand_from_sealed_session(
+        scope: Scope,
+        apple_id: String,
+        credential_id: String,
+        state: &Path,
+    ) -> Result<Self, ProviderError> {
+        let vault = SealedSessionVault::new(state, &scope.account)
+            .map_err(|_| ProviderError::Permission)?;
+        Self::on_demand_from_vault(scope, apple_id, credential_id, Arc::new(vault))
     }
 
     fn on_demand_from_vault(
@@ -463,6 +477,10 @@ impl MetadataProvider for ICloudDrive {
 
 #[async_trait]
 impl ReadProvider for ICloudDrive {
+    fn unknown_directories_require_fetch(&self) -> bool {
+        self.index_mode == IndexMode::OnDemand
+    }
+
     fn directory_fetch_timeout(&self, _parent: Option<&Node>) -> Duration {
         // A live folder listing has already needed more than the shared 60 s
         // default. The transport itself caps each request at 90 s.

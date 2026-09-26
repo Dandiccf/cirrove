@@ -162,8 +162,10 @@ complete live root listing before publishing its synthetic root. One isolated
 service restart has restored a newly saved session; expiry and renewal still
 need validation before this becomes a normal connection choice.
 
-The keyring value contains Apple session cookies and tokens, never the password.
-The key is derived from the account identifier; a restored value is bound to that
+The standalone probe's keyring value contains Apple session cookies and tokens,
+never the password. The service account flow now stores only a short sealing key
+in the keyring and the encrypted session in private account state. The probe key
+is derived from the account identifier; a restored value is bound to that
 identifier and its service and cookie hosts are validated. An expired or rejected
 session requires a new interactive sign-in. Apple HTTP 401/403 responses from
 Drive metadata and download lookup now reach the service as authentication errors
@@ -280,3 +282,29 @@ session was in memory. This early retention failure ended the run before its
 planned delayed restart; the preceding 30-minute run already established the
 restart failure after the same zero-byte condition. The variable delay and
 negative synthetic controls leave the mechanism unresolved.
+
+The next isolated build stores the large iCloud web session in an authenticated,
+encrypted `icloud-session.sealed` file under its private Cirrove account state
+directory. The desktop keyring holds only a newly generated 32-byte sealing
+key. The file is mode 0600, written atomically and bound to the account and
+credential identifiers; without the key, it cannot restore a session. Existing
+direct-keyring snapshots remain readable until foreground re-sign-in. A
+synthetic test models loss of large keyring values and checks roundtrip,
+missing key, legacy format and tampering. This is a mitigation candidate, not
+evidence that the real GNOME Keyring transition or Apple session expiry is
+fixed. A delayed isolated-service restart after fresh sign-in is still required
+before calling persistence reliable.
+
+A [cold live mount](benchmarks/icloud-cold-navigation-live.json) then exposed a
+navigation bug: the root-only on-demand feed had a completed cursor, and the
+shared store treated that as proof that every unvisited folder was empty. A
+first folder open returned zero entries immediately, or `ENOENT` for a nested
+path; a background refresh filled the directory later. The on-demand adapter
+now requires a completed directory snapshot before reporting a folder's
+contents or absence. In a [second cold run](benchmarks/icloud-cold-navigation-fix-live.json)
+under a private path, first opens returned all 42, 52 and 28 expected entries
+after 0.49, 0.46 and 0.47 seconds. GNOME `localsearch-3` independently crawled
+113 folders when an earlier rerun used a visible `~/Cloud` mount; that 114-second
+startup cannot measure Cirrove alone. The private-path run reached ready in
+11.2 seconds. These are bounded one-account observations, not a full-account
+indexing or latency guarantee.

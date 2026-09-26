@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cirrove\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-25 19:44+0200\n"
+"POT-Creation-Date: 2026-09-26 21:16+0200\n"
 "PO-Revision-Date: 2026-09-14 09:00+0200\n"
 "Last-Translator: Cirrove contributors\n"
 "Language-Team: German\n"
@@ -29,8 +29,8 @@ msgstr "Der Anbieter drosselt die Anfragen"
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/model.rs:27
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:577
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:769
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:893
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:777
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:909
 msgid "Sign in again"
 msgstr "Erneut anmelden"
 
@@ -539,7 +539,7 @@ msgid "Google account"
 msgstr "Google-Konto"
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui.rs:900
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:746
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:754
 msgid "Apple Account"
 msgstr "Apple-Konto"
 
@@ -990,12 +990,12 @@ msgid "Apple Account email"
 msgstr "E-Mail-Adresse des Apple-Kontos"
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:203
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:750
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:758
 msgid "Apple Account password"
 msgstr "Passwort des Apple-Kontos"
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:207
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:753
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:761
 msgid "Trusted-device code"
 msgstr "Code vom vertrauenswürdigen Gerät"
 
@@ -1035,15 +1035,17 @@ msgstr ""
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:247
 msgid ""
 "Experimental read-only iCloud Drive. Cirrove signs in with your Apple "
-"Account password and trusted-device code here, keeps only the resulting web "
-"session in your local keyring, and downloads file content when opened. "
-"Apple's Drive web protocol is undocumented; this connection is still under "
-"validation."
+"Account password and trusted-device code here, keeps a short key in your "
+"desktop keyring and the resulting web session encrypted in its private local "
+"account data, and downloads file content when opened. Apple's Drive web "
+"protocol is undocumented; this connection is still under validation."
 msgstr ""
 "Experimenteller, schreibgeschützter Zugriff auf iCloud Drive. Cirrove meldet "
 "Sie hier mit dem Passwort Ihres Apple-Kontos und einem Code von einem "
-"vertrauenswürdigen Gerät an, speichert nur die daraus entstandene Websitzung "
-"in Ihrem lokalen Schlüsselbund und lädt Dateiinhalte beim Öffnen herunter. "
+"vertrauenswürdigen Gerät an. Ein kurzer Schlüssel liegt in Ihrem Desktop-"
+"Schlüsselbund; die daraus entstandene Websitzung wird verschlüsselt in "
+"Cirroves privaten lokalen Kontodaten gespeichert. Dateiinhalte werden beim "
+"Öffnen heruntergeladen. "
 "Apples iCloud-Drive-Webprotokoll ist nicht dokumentiert; diese Verbindung "
 "wird noch geprüft."
 
@@ -1057,7 +1059,7 @@ msgid "Choose a drive"
 msgstr "Wählen Sie ein Laufwerk"
 
 #: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:340
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:614
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:622
 msgid "Sign in to iCloud"
 msgstr "Bei iCloud anmelden"
 
@@ -1099,7 +1101,7 @@ msgstr "Google-OAuth-Client-JSON für Desktop-Apps"
 msgid "Folder for this drive"
 msgstr "Ordner für dieses Laufwerk"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:477
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:485
 msgid ""
 "Your browser opens the Google sign-in. Choose the account there; this window "
 "continues when it is done."
@@ -1107,7 +1109,7 @@ msgstr ""
 "Die Google-Anmeldung öffnet sich im Browser. Wähle dort das Konto aus; "
 "danach geht es in diesem Fenster weiter."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:478
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:486
 msgid ""
 "Your browser opens the Microsoft sign-in. Choose the account there; this "
 "window continues when it is done."
@@ -1115,37 +1117,39 @@ msgstr ""
 "Die Microsoft-Anmeldung öffnet sich im Browser. Wähle dort das Konto aus; "
 "danach geht es in diesem Fenster weiter."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:558
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:840
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:566
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:856
 msgid "Signing in to iCloud…"
 msgstr "Anmeldung bei iCloud…"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:597
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:605
 msgid "Verify code and connect"
 msgstr "Code bestätigen und verbinden"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:617
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:896
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:625
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:912
 msgid "The iCloud sign-in did not finish."
 msgstr "Die iCloud-Anmeldung wurde nicht abgeschlossen."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:738
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:746
 msgid "Sign in to iCloud again"
 msgstr "Erneut bei iCloud anmelden"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:760
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:768
 msgid ""
-"Cirrove keeps only the resulting Apple web session in your local keyring. "
-"This iCloud drive stays read-only."
+"Cirrove keeps a short key in your desktop keyring and the Apple web session "
+"encrypted in its private local account data. This iCloud drive stays read-"
+"only."
 msgstr ""
-"Cirrove speichert nur die daraus entstandene Apple-Websitzung in Ihrem "
-"lokalen Schlüsselbund. Dieses iCloud-Laufwerk bleibt schreibgeschützt."
+"Cirrove speichert einen kurzen Schlüssel in Ihrem Desktop-Schlüsselbund und "
+"die Apple-Websitzung verschlüsselt in seinen privaten lokalen Kontodaten. "
+"Dieses iCloud-Laufwerk bleibt schreibgeschützt."
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:879
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:895
 msgid "Verify code"
 msgstr "Code bestätigen"
 
-#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:885
+#: /home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/crates/cirrove-desktop/src/ui/connect.rs:901
 msgid "iCloud is signed in again with read-only access."
 msgstr "iCloud wurde erneut mit Lesezugriff angemeldet."
 

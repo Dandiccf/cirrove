@@ -68,6 +68,7 @@ fn read_source(
     db: &Connection,
     key: &str,
     parent: &str,
+    require_snapshot: bool,
 ) -> Result<Option<(&'static str, Option<i64>)>> {
     let revision = db
         .query_row(
@@ -79,6 +80,9 @@ fn read_source(
     let sql = if revision.is_some() {
         SNAPSHOT_CHILDREN
     } else {
+        if require_snapshot {
+            return Ok(None);
+        }
         let complete = db
             .query_row(
                 "SELECT cursor IS NOT NULL FROM feeds WHERE scope=?1",
@@ -119,9 +123,10 @@ pub(super) fn child_on(
     scope: &Scope,
     parent: &str,
     name: &str,
+    require_snapshot: bool,
 ) -> Result<Option<Option<Node>>> {
     let key = Store::key(scope)?;
-    let Some((sql, revision)) = read_source(db, &key, parent)? else {
+    let Some((sql, revision)) = read_source(db, &key, parent, require_snapshot)? else {
         return Ok(None);
     };
     // Keep exactly the same overlay/absence ordering as READDIR. SQLite pushes
@@ -160,9 +165,10 @@ pub(super) fn read_on<T>(
     scope: &Scope,
     parent: &str,
     consume: impl FnOnce(&mut dyn Iterator<Item = Result<Node>>) -> T,
+    require_snapshot: bool,
 ) -> Result<Option<T>> {
     let key = Store::key(scope)?;
-    let Some((sql, revision)) = read_source(db, &key, parent)? else {
+    let Some((sql, revision)) = read_source(db, &key, parent, require_snapshot)? else {
         return Ok(None);
     };
     let mut statement = db.prepare(sql)?;
@@ -200,12 +206,18 @@ pub(super) fn visit_on(
     parent: &str,
     mut visit: impl FnMut(Node) -> Result<()>,
 ) -> Result<bool> {
-    Ok(read_on(db, scope, parent, |rows| {
-        for node in rows {
-            visit(node?)?;
-        }
-        Ok::<_, StoreError>(())
-    })?
+    Ok(read_on(
+        db,
+        scope,
+        parent,
+        |rows| {
+            for node in rows {
+                visit(node?)?;
+            }
+            Ok::<_, StoreError>(())
+        },
+        false,
+    )?
     .transpose()?
     .is_some())
 }

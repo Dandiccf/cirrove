@@ -2,7 +2,7 @@
 //! count as an ejection; mount directories are checked on every mount attempt.
 use crate::writable::WriteProvider;
 use crate::{
-    accounts::{Account, Settings, provider},
+    accounts::{Account, Settings},
     engine::{Engine, FeedHealth},
     filesystem::{CloudFs, CloudSession},
 };
@@ -611,10 +611,11 @@ impl Manager {
         state: PathBuf,
         cancel: CancellationToken,
     ) -> (Arc<Self>, tokio::task::JoinHandle<()>) {
+        let provider_state = state.clone();
         Self::start_with_providers(
             state,
             cancel,
-            Arc::new(provider),
+            Arc::new(move |account| crate::accounts::provider_with_state(account, &provider_state)),
             Some(Arc::new(crate::accounts::write_provider)),
         )
     }

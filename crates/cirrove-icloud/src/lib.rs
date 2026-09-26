@@ -6,7 +6,9 @@
 //! remain unvalidated.
 
 mod provider;
+mod sealed_session;
 pub use provider::ICloudDrive;
+pub use sealed_session::SealedSessionVault;
 
 use anyhow::{Context, Result, anyhow, bail};
 use base64::{Engine as _, engine::general_purpose::STANDARD};

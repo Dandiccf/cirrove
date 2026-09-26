@@ -7,7 +7,9 @@ use cirrove_auth::{
 };
 use cirrove_core::{CancellationToken, CollectionInfo as DriveInfo, ReadProvider, Scope};
 use cirrove_googledrive::GoogleDrive;
-use cirrove_icloud::{ICloudDrive, ICloudReadSession, ROOT_ID, probe_session_key};
+use cirrove_icloud::{
+    ICloudDrive, ICloudReadSession, ROOT_ID, SealedSessionVault, probe_session_key,
+};
 use cirrove_onedrive::{OneDrive, StaticToken};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -644,7 +646,9 @@ pub async fn reauthenticate_icloud_with_session(
         })
         .await
         .context("account did not stop; close files in this mount and try again")?;
-        DesktopVault.save(&original.credential_id, snapshot).await
+        SealedSessionVault::new(&state, &original.id)?
+            .save(&original.credential_id, snapshot)
+            .await
     }
     .await;
     if result.is_ok() {
@@ -655,6 +659,10 @@ pub async fn reauthenticate_icloud_with_session(
     result
 }
 pub fn provider(account: &Account) -> Result<Arc<dyn ReadProvider>> {
+    provider_with_state(account, &crate::state_dir()?)
+}
+
+pub fn provider_with_state(account: &Account, state: &Path) -> Result<Arc<dyn ReadProvider>> {
     match account.registration {
         AppRegistration::Microsoft { .. } => Ok(onedrive_provider(account)?),
         AppRegistration::Google { .. } => Ok(google_provider(account)?),
@@ -664,10 +672,11 @@ pub fn provider(account: &Account) -> Result<Arc<dyn ReadProvider>> {
                 provider: "icloud".into(),
                 collection: account.drive.id.clone(),
             };
-            Ok(Arc::new(ICloudDrive::on_demand_from_keyring(
+            Ok(Arc::new(ICloudDrive::on_demand_from_sealed_session(
                 scope,
                 account.identity.username.clone(),
                 account.credential_id.clone(),
+                state,
             )?))
         }
     }
@@ -1033,7 +1042,8 @@ pub async fn connect_icloud_with_session(
         poll_seconds: 60,
         cache_bytes: 5 * 1024 * 1024 * 1024,
     };
-    DesktopVault.save(&account.credential_id, snapshot).await?;
+    let sealed = SealedSessionVault::new(&state, &account.id)?;
+    sealed.save(&account.credential_id, snapshot).await?;
     let saved = (|| -> Result<()> {
         let _lock = config_lock(&state)?;
         let mut settings = Settings::load(&state)?;
@@ -1046,7 +1056,7 @@ pub async fn connect_icloud_with_session(
         settings.save(&state)
     })();
     if let Err(error) = saved {
-        let _ = DesktopVault.remove(&account.credential_id).await;
+        let _ = sealed.remove(&account.credential_id).await;
         return Err(error);
     }
     Ok(account)

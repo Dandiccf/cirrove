@@ -244,7 +244,7 @@ pub(super) fn present(ui: &Rc<Window>) {
         .build();
     let icloud_disclosure = gtk::Label::builder()
         .label(gettext(
-            "Experimental read-only iCloud Drive. Cirrove signs in with your Apple Account password and trusted-device code here, keeps only the resulting web session in your local keyring, and downloads file content when opened. Apple's Drive web protocol is undocumented; this connection is still under validation.",
+            "Experimental read-only iCloud Drive. Cirrove signs in with your Apple Account password and trusted-device code here, keeps a short key in your desktop keyring and the resulting web session encrypted in its private local account data, and downloads file content when opened. Apple's Drive web protocol is undocumented; this connection is still under validation.",
         ))
         .wrap(true)
         .xalign(0.0)
@@ -765,7 +765,7 @@ pub(super) fn present_icloud_reauth(ui: &Rc<Window>, id: &str) {
     group.add(&code);
     page.add(&group);
     let note = gtk::Label::builder()
-        .label(gettext("Cirrove keeps only the resulting Apple web session in your local keyring. This iCloud drive stays read-only."))
+        .label(gettext("Cirrove keeps a short key in your desktop keyring and the Apple web session encrypted in its private local account data. This iCloud drive stays read-only."))
         .wrap(true)
         .xalign(0.0)
         .build();

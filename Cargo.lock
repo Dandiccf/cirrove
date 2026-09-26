@@ -453,6 +453,7 @@ dependencies = [
  "hex",
  "pbkdf2",
  "reqwest",
+ "ring",
  "rpassword",
  "secrecy",
  "serde",

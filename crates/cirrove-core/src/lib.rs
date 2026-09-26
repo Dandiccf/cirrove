@@ -245,6 +245,13 @@ impl std::fmt::Display for NameProblem {
 /// Read-only filesystem operations, deliberately separate from change feeds.
 #[async_trait]
 pub trait ReadProvider: MetadataProvider {
+    /// A completed change feed may cover only the root, while other folders
+    /// become known through their own complete directory pages. In that case
+    /// an absent directory snapshot must trigger a foreground fetch, even if
+    /// the feed has a completed cursor.
+    fn unknown_directories_require_fetch(&self) -> bool {
+        false
+    }
     /// A generated package child can require a bounded provider conversion
     /// before its directory entry has a trustworthy size. Ordinary folders
     /// retain the service's short directory deadline.
