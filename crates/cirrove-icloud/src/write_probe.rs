@@ -16,6 +16,7 @@ pub struct ValidationFile {
     id: String,
     document_id: String,
     etag: String,
+    name: String,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -30,6 +31,15 @@ pub enum RenameProbeOutcome {
     StaleAccepted,
     StaleRejectedFreshAccepted,
     StaleRejectedFreshRejected,
+    Indeterminate,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum OccupiedNameOutcome {
+    RejectedBothIntact,
+    AcceptedDuplicateName,
+    ConflictRenamedBothIntact,
+    OriginalNoLongerListed,
     Indeterminate,
 }
 
@@ -111,7 +121,11 @@ fn exactly_one<T>(mut values: Vec<T>, stage: &'static str) -> Result<T> {
 }
 
 impl ICloudReadSession {
-    async fn upload_probe_bytes(&mut self, bytes: &[u8]) -> Result<(UploadSlot, UploadedFile)> {
+    async fn upload_probe_bytes(
+        &mut self,
+        name: &str,
+        bytes: &[u8],
+    ) -> Result<(UploadSlot, UploadedFile)> {
         let endpoint = self
             .docs_endpoint
             .as_ref()
@@ -123,7 +137,7 @@ impl ICloudReadSession {
             .header("origin", ICLOUD_ORIGIN)
             .header("referer", format!("{ICLOUD_ORIGIN}/"))
             .json(&json!({
-                "filename": PROBE_FILE,
+                "filename": name,
                 "type": "FILE",
                 "size": bytes.len().to_string(),
                 "content_type": "text/plain"
@@ -233,6 +247,37 @@ impl ICloudReadSession {
         folder: &ValidationFolder,
         bytes: &[u8],
     ) -> Result<ValidationFile> {
+        self.create_owned_file(folder, PROBE_FILE, bytes, true)
+            .await
+    }
+
+    /// A second, uniquely named upload, only beside this process's original
+    /// fixture. It cannot target an existing folder or overwrite a name.
+    pub async fn create_staged_file(
+        &mut self,
+        folder: &ValidationFolder,
+        original: &ValidationFile,
+        bytes: &[u8],
+    ) -> Result<ValidationFile> {
+        let children = self.list_folder(&folder.id).await?;
+        if children.len() != 1
+            || children[0].drivewsid != original.id
+            || children[0].display_name() != PROBE_FILE
+            || original.name != PROBE_FILE
+        {
+            bail!("iCloud validation folder does not contain only the original fixture");
+        }
+        let name = format!("staged-by-cirrove-{}.txt", Uuid::new_v4());
+        self.create_owned_file(folder, &name, bytes, false).await
+    }
+
+    async fn create_owned_file(
+        &mut self,
+        folder: &ValidationFolder,
+        name: &str,
+        bytes: &[u8],
+        require_empty: bool,
+    ) -> Result<ValidationFile> {
         let folder_id = folder.id.as_str();
         if bytes.is_empty()
             || bytes.len() > 4096
@@ -245,10 +290,13 @@ impl ICloudReadSession {
         }) {
             bail!("iCloud validation folder is no longer at the root");
         }
-        if !self.list_folder(folder_id).await?.is_empty() {
-            bail!("iCloud validation folder must be empty");
+        let before = self.list_folder(folder_id).await?;
+        if (require_empty && !before.is_empty())
+            || before.iter().any(|entry| entry.display_name() == name)
+        {
+            bail!("iCloud validation destination is occupied");
         }
-        let (slot, data) = self.upload_probe_bytes(bytes).await?;
+        let (slot, data) = self.upload_probe_bytes(name, bytes).await?;
         let starting_document_id = folder_id
             .rsplit("::")
             .next()
@@ -281,7 +329,7 @@ impl ICloudReadSession {
                 "document_id": slot.document_id,
                 "file_flags": {"is_executable": false, "is_hidden": false, "is_writable": true},
                 "mtime": now,
-                "path": {"path": PROBE_FILE, "starting_document_id": starting_document_id}
+                "path": {"path": name, "starting_document_id": starting_document_id}
             }))
             .send()
             .await
@@ -300,17 +348,14 @@ impl ICloudReadSession {
         let document = result
             .document
             .context("iCloud did not return the registered file")?;
-        if document.deleted
-            || document.name != PROBE_FILE
-            || document.document_id != slot.document_id
-        {
+        if document.deleted || document.name != name || document.document_id != slot.document_id {
             bail!("iCloud returned a different validation file");
         }
         let matches: Vec<_> = self
             .list_folder(folder_id)
             .await?
             .into_iter()
-            .filter(|entry| entry.display_name() == PROBE_FILE)
+            .filter(|entry| entry.display_name() == name)
             .collect();
         let entry = exactly_one(matches, "validation file listing")?;
         if entry.is_folder()
@@ -329,6 +374,7 @@ impl ICloudReadSession {
             id: entry.drivewsid,
             document_id: entry.docwsid,
             etag: entry.etag,
+            name: name.into(),
         })
     }
 
@@ -404,7 +450,7 @@ impl ICloudReadSession {
         bytes: &[u8],
         http_if_match: bool,
     ) -> Result<bool> {
-        let (_slot, data) = self.upload_probe_bytes(bytes).await?;
+        let (_slot, data) = self.upload_probe_bytes(PROBE_FILE, bytes).await?;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
             .as_millis() as u64;
@@ -718,6 +764,82 @@ impl ICloudReadSession {
             Ok(RenameProbeOutcome::StaleRejectedFreshRejected)
         } else {
             Ok(RenameProbeOutcome::Indeterminate)
+        }
+    }
+
+    /// Test the exact occupied-name handoff that a staged replacement would
+    /// need. Both items were created in this process and are independently
+    /// verified before the single rename request.
+    pub async fn probe_occupied_name_rename(
+        &mut self,
+        folder: &ValidationFolder,
+        original: &ValidationFile,
+        staged: &ValidationFile,
+        original_bytes: &[u8],
+        staged_bytes: &[u8],
+    ) -> Result<OccupiedNameOutcome> {
+        if original.id == staged.id
+            || original.name != PROBE_FILE
+            || !staged.name.starts_with("staged-by-cirrove-")
+            || original_bytes == staged_bytes
+        {
+            bail!("invalid staged validation pair");
+        }
+        let before = self.list_folder(&folder.id).await?;
+        if before.len() != 2
+            || !before.iter().any(|entry| {
+                entry.drivewsid == original.id && entry.display_name() == original.name
+            })
+            || !before
+                .iter()
+                .any(|entry| entry.drivewsid == staged.id && entry.display_name() == staged.name)
+            || self
+                .read_small_file_in_folder(&folder.id, &original.id)
+                .await?
+                != original_bytes
+            || self
+                .read_small_file_in_folder(&folder.id, &staged.id)
+                .await?
+                != staged_bytes
+        {
+            bail!("iCloud staged validation pair changed before the rename");
+        }
+        let accepted = self
+            .send_rename(&staged.id, &staged.etag, PROBE_FILE)
+            .await?;
+        let after = self.list_folder(&folder.id).await?;
+        let old = after.iter().find(|entry| entry.drivewsid == original.id);
+        let new = after.iter().find(|entry| entry.drivewsid == staged.id);
+        let Some(old) = old else {
+            return Ok(OccupiedNameOutcome::OriginalNoLongerListed);
+        };
+        let Some(new) = new else {
+            return Ok(OccupiedNameOutcome::Indeterminate);
+        };
+        if old.docwsid != original.document_id
+            || new.docwsid != staged.document_id
+            || self
+                .read_small_file_in_folder(&folder.id, &original.id)
+                .await?
+                != original_bytes
+            || self
+                .read_small_file_in_folder(&folder.id, &staged.id)
+                .await?
+                != staged_bytes
+        {
+            return Ok(OccupiedNameOutcome::Indeterminate);
+        }
+        if !accepted && old.display_name() == original.name && new.display_name() == staged.name {
+            Ok(OccupiedNameOutcome::RejectedBothIntact)
+        } else if accepted && old.display_name() == PROBE_FILE && new.display_name() == PROBE_FILE {
+            Ok(OccupiedNameOutcome::AcceptedDuplicateName)
+        } else if old.display_name() == PROBE_FILE
+            && new.display_name().starts_with("created-by-cirrove ")
+            && new.display_name().ends_with(".txt")
+        {
+            Ok(OccupiedNameOutcome::ConflictRenamedBothIntact)
+        } else {
+            Ok(OccupiedNameOutcome::Indeterminate)
         }
     }
 }

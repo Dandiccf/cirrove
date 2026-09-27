@@ -302,6 +302,13 @@ candidate*, not an implementable safe write protocol yet. The two rename trials
 show that the known ETag parameter does not provide the required conditional
 move of the old item. A design that uses it as a compare-and-swap is invalid:
 
+An [occupied-name probe](../benchmarks/icloud-occupied-name-2026-09-27.md)
+uploaded a separately identified staging file next to an owned original,
+then renamed the staged item to the original's occupied name. Apple kept both
+IDs and exact byte sequences and gave the staged item a numbered conflict
+suffix. This demonstrates one non-destructive collision outcome, not a way to
+install the new content at the original name without a race.
+
 1. Upload new bytes under a unique temporary name without touching the old
    item. Persist the new exact ID and upload receipt first, then read it back
    and verify its full hash.

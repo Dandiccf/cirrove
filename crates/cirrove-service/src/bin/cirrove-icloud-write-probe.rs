@@ -3,7 +3,8 @@
 use anyhow::{Context, Result, bail};
 use cirrove_auth::{AppRegistration, CredentialVault};
 use cirrove_icloud::{
-    ICloudReadSession, RenameProbeOutcome, SameIdUpdateOutcome, SealedSessionVault,
+    ICloudReadSession, OccupiedNameOutcome, RenameProbeOutcome, SameIdUpdateOutcome,
+    SealedSessionVault,
 };
 use cirrove_service::accounts::Settings;
 use std::path::Path;
@@ -18,8 +19,10 @@ async fn main() -> Result<()> {
         [flag] if flag == "--rename-conflict" => 3,
         [flag] if flag == "--metadata-rename" => 4,
         [flag] if flag == "--http-if-match" => 5,
+        [flag] if flag == "--occupied-name" => 6,
+        [flag] if flag == "--inspect-occupied" => 7,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --inspect-occupied]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -46,10 +49,38 @@ async fn main() -> Result<()> {
         .context("isolated iCloud validation session is missing; sign in again locally")?;
     let mut session =
         ICloudReadSession::from_session_snapshot(&snapshot, &account.identity.username)?;
-    session
+    let root = session
         .list_root()
         .await
         .context("saved iCloud session is not usable")?;
+    if mode == 7 {
+        for candidate in root.iter().filter(|entry| {
+            entry.is_folder()
+                && entry
+                    .display_name()
+                    .starts_with("Cirrove Write Validation-")
+        }) {
+            let children = session.list_folder(&candidate.drivewsid).await?;
+            if children.len() != 2 {
+                continue;
+            }
+            let labels: Vec<_> = children
+                .iter()
+                .map(|entry| {
+                    let name = entry.display_name();
+                    if name.starts_with("created-by-cirrove")
+                        || name.starts_with("staged-by-cirrove-")
+                    {
+                        name
+                    } else {
+                        "other".into()
+                    }
+                })
+                .collect();
+            println!("Two-item validation folder: {labels:?}");
+        }
+        return Ok(());
+    }
     let name = format!("Cirrove Write Validation-{}", Uuid::new_v4());
     let folder = session.create_validation_folder(&name).await?;
     println!(
@@ -154,6 +185,45 @@ async fn main() -> Result<()> {
             }
             RenameProbeOutcome::Indeterminate => {
                 bail!("metadata rename trial left an indeterminate fixture state");
+            }
+        }
+    }
+    if mode == 6 {
+        let staged_bytes = format!("Cirrove staged validation {}\n", Uuid::new_v4());
+        let staged = session
+            .create_staged_file(&folder, &file, staged_bytes.as_bytes())
+            .await?;
+        println!("Created and read back a second, separately identified staging file.");
+        let outcome = session
+            .probe_occupied_name_rename(
+                &folder,
+                &file,
+                &staged,
+                content.as_bytes(),
+                staged_bytes.as_bytes(),
+            )
+            .await?;
+        match outcome {
+            OccupiedNameOutcome::RejectedBothIntact => {
+                println!(
+                    "Occupied-name rename was rejected; both exact IDs and byte sequences remain."
+                );
+            }
+            OccupiedNameOutcome::AcceptedDuplicateName => {
+                println!("Occupied-name rename was accepted; two distinct IDs now share the name.");
+            }
+            OccupiedNameOutcome::ConflictRenamedBothIntact => {
+                println!(
+                    "Apple gave the staged file a conflict suffix; both exact IDs and bytes remain."
+                );
+            }
+            OccupiedNameOutcome::OriginalNoLongerListed => {
+                println!(
+                    "Occupied-name rename removed the original ID from the folder; no fallback may use it."
+                );
+            }
+            OccupiedNameOutcome::Indeterminate => {
+                bail!("occupied-name rename left an indeterminate fixture state");
             }
         }
     }
