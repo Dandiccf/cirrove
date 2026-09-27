@@ -11,6 +11,8 @@ mod sealed_session;
 mod write_probe;
 pub use provider::ICloudDrive;
 pub use sealed_session::SealedSessionVault;
+#[cfg(feature = "write-probe")]
+pub use write_probe::{RenameProbeOutcome, SameIdUpdateOutcome};
 
 use anyhow::{Context, Result, anyhow, bail};
 use base64::{Engine as _, engine::general_purpose::STANDARD};

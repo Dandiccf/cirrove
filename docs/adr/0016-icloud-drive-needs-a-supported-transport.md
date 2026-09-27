@@ -269,20 +269,48 @@ whether Apple retains the document/Drive ID and either rejects stale content or
 creates a separate conflict version. Do not infer semantics from the request's
 `allow_conflict` name; verify the final bytes and both identities independently.
 
-If that fails, a possible *non-atomic* but recoverable save protocol is:
+The [unchanged-base trial](../benchmarks/icloud-same-id-update-2026-09-27.md)
+found a same-ID update that returned exact revised bytes. The subsequent
+[stale-ETag trial](../benchmarks/icloud-stale-etag-2026-09-27.md) used the same
+request shape with `allow_conflict: false` and the original ETag after a first
+update. Apple accepted the stale request and exposed the second candidate
+bytes under the same ID. The direct same-ID route therefore fails Cirrove's
+conflict gate for this request shape and cannot be enabled for general writes.
+This is one account and one request shape, not a proof that every undocumented
+Apple mechanism lacks a conditional replacement.
+
+Two follow-up rename trials narrowed the namespace question. A rename with
+an ETag made stale by a content update was [accepted](../benchmarks/icloud-conditional-rename-2026-09-27.md).
+A metadata-only trial then renamed the file once, observed a new ETag, and
+submitted a second rename with the pre-rename ETag; that too was
+[accepted](../benchmarks/icloud-metadata-rename-etag-2026-09-27.md), with the
+same item ID and bytes. The known `renameItems` request shape therefore also
+fails the conditional namespace gate on this account. Rclone's branch for
+`ETAG_CONFLICT` cannot be treated as proof that every stale ETag is rejected.
+Cirrove must not wire these requests into its current conditional mutation
+contract.
+
+The following remains only a *non-atomic, conflict-preserving research
+candidate*, not an implementable safe write protocol yet. The two rename trials
+show that the known ETag parameter does not provide the required conditional
+move of the old item. A design that uses it as a compare-and-swap is invalid:
 
 1. Upload new bytes under a unique temporary name without touching the old
    item. Persist the new exact ID and upload receipt first, then read it back
    and verify its full hash.
-2. Read the old exact ID and ETag. Conditionally rename or move that item to a
-   unique recovery name. On an ETag conflict, retain both items and stop. Never
-   force-retry with a newer ETag.
+2. Re-read the old exact ID, revision and content. Any subsequent rename to a
+   recovery name is currently **unconditional** on that revision. It could
+   move a concurrent remote edit, so preserve that item as a recovery copy and
+   record this as a conflict, never assume the preflight protected it. A
+   genuinely conditional operation or an equivalent non-destructive mechanism
+   still needs to be found and proven before ordinary writeback is enabled.
 3. Move/rename the verified new item into the original name. If that fails or
    its response is lost, reconcile both exact IDs and preserve the old recovery
    item. Do not decide success by a matching path or file size.
-4. Retire the old recovery item only after the new name, ID and content are
-   confirmed and the recovery policy has been met. A crash at every transition
-   must be restartable without reuploading under an unknown identity.
+4. Never automatically retire the old recovery item under the currently known
+   request shapes. A crash at every transition must be restartable without
+   reuploading under an unknown identity; user-visible conflict resolution
+   would be required before any old version could be removed.
 
 This protocol has a visible interval when the original path is absent or held
 by another name, and concurrent clients may create a destination collision.
