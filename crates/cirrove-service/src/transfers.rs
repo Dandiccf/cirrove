@@ -271,6 +271,10 @@ impl TransferWorker {
         // retaining the provider identity saved inside its prepared checkpoint.
         // One transition per run bounds a provider that returns Prepared again.
         let mut prepared_allowed = true;
+        // A staged provider may need more than one externally visible commit
+        // (for example, moving the old iCloud ID to recovery before installing
+        // the new ID). Persist each phase checkpoint before its next request.
+        let mut commit_steps = 0u8;
         let mut payload = None;
         loop {
             if self.cancel.is_cancelled() {
@@ -306,6 +310,10 @@ impl TransferWorker {
                 }
                 UploadStep::Commit(checkpoint) => {
                     prepared_allowed = false;
+                    commit_steps = commit_steps.saturating_add(1);
+                    if commit_steps > 4 {
+                        return Err(UploadError::Invalid.into());
+                    }
                     self.checkpoint(record, checkpoint.clone(), request.size)
                         .await?;
                     let next = self
@@ -317,7 +325,9 @@ impl TransferWorker {
                         .await?;
                     if !matches!(
                         next,
-                        UploadStep::Complete(_) | UploadStep::HandoffComplete { .. }
+                        UploadStep::Commit(_)
+                            | UploadStep::Complete(_)
+                            | UploadStep::HandoffComplete { .. }
                     ) {
                         return Err(UploadError::Uncertain.into());
                     }

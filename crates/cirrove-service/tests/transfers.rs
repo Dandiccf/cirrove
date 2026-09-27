@@ -28,13 +28,16 @@ use tokio::sync::Notify;
 const DATA: &[u8] = b"abcdefghij";
 const SECRET: &str = "https://fixture.invalid/session?PRIVATE-CHECKPOINT";
 #[derive(Default)]
-struct LockProbe(Mutex<Weak<Mutex<UploadJournal>>>);
+struct LockProbe {
+    journal: Mutex<Weak<Mutex<UploadJournal>>>,
+    checkpoint_saves: Mutex<Vec<String>>,
+}
 impl LockProbe {
     fn attach(&self, journal: &Arc<Mutex<UploadJournal>>) {
-        *self.0.lock().unwrap() = Arc::downgrade(journal);
+        *self.journal.lock().unwrap() = Arc::downgrade(journal);
     }
     fn check(&self) {
-        if let Some(journal) = self.0.lock().unwrap().upgrade() {
+        if let Some(journal) = self.journal.lock().unwrap().upgrade() {
             assert!(
                 journal.try_lock().is_ok(),
                 "network or keyring call held the local journal lock"
@@ -61,6 +64,11 @@ impl CredentialVault for Vault {
         if self.fail_save.load(Ordering::SeqCst) {
             anyhow::bail!("PRIVATE-VAULT-ERROR");
         }
+        self.probe
+            .checkpoint_saves
+            .lock()
+            .unwrap()
+            .push(value.expose_secret().to_owned());
         self.values.lock().unwrap().insert(key.into(), value);
         if self.save_then_fail.swap(false, Ordering::SeqCst) {
             anyhow::bail!("PRIVATE-VAULT-ERROR");
@@ -106,6 +114,8 @@ struct Provider {
     handoff: AtomicBool,
     handoff_name: Mutex<Option<String>>,
     reserved_at_begin: AtomicBool,
+    staged_commits: AtomicBool,
+    commits: AtomicU64,
 }
 impl Provider {
     fn new(probe: Arc<LockProbe>) -> Self {
@@ -128,6 +138,8 @@ impl Provider {
             handoff: AtomicBool::new(false),
             handoff_name: Mutex::new(None),
             reserved_at_begin: AtomicBool::new(false),
+            staged_commits: AtomicBool::new(false),
+            commits: AtomicU64::new(0),
         }
     }
     fn more(&self, request: &UploadRequest) -> UploadStep {
@@ -196,7 +208,7 @@ impl UploadProvider for Provider {
     ) -> UploadResult<UploadStep> {
         self.probe.check();
         if self.handoff.load(Ordering::SeqCst) {
-            let journal = self.probe.0.lock().unwrap().upgrade().unwrap();
+            let journal = self.probe.journal.lock().unwrap().upgrade().unwrap();
             let reserved = journal
                 .lock()
                 .unwrap()
@@ -316,10 +328,29 @@ impl UploadProvider for Provider {
     async fn commit_upload(
         &self,
         request: &UploadRequest,
-        _: &SecretString,
+        checkpoint: &SecretString,
         _: &CancellationToken,
     ) -> UploadResult<UploadStep> {
         self.probe.check();
+        if self.staged_commits.load(Ordering::SeqCst) {
+            assert_eq!(
+                self.probe
+                    .checkpoint_saves
+                    .lock()
+                    .unwrap()
+                    .last()
+                    .map(String::as_str),
+                Some(checkpoint.expose_secret()),
+                "the next commit ran before its checkpoint reached the vault"
+            );
+            let stage = self.commits.fetch_add(1, Ordering::SeqCst);
+            if stage == 0 && checkpoint.expose_secret() == SECRET {
+                return Ok(UploadStep::Commit(SecretString::from("phase-two")));
+            }
+            if stage != 1 || checkpoint.expose_secret() != "phase-two" {
+                return Err(UploadError::CheckpointInvalid);
+            }
+        }
         if self.conflict_commit.load(Ordering::SeqCst) {
             return Err(UploadError::Conflict);
         }
@@ -367,6 +398,31 @@ impl UploadProvider for Provider {
             None => Reconciliation::Uncommitted,
         })
     }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn staged_replacement_persists_a_checkpoint_before_each_commit() {
+    let temp = tempfile::tempdir().unwrap();
+    let (probe, provider, vault) = fixture();
+    let journal = journal(&temp.path().join("journal"), &probe);
+    let id = enqueue(&journal, "Saved.txt");
+    provider.deferred.store(true, Ordering::SeqCst);
+    provider.staged_commits.store(true, Ordering::SeqCst);
+    let worker = TransferWorker::new(
+        journal.clone(),
+        provider.clone(),
+        vault,
+        CancellationToken::new(),
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+    assert_eq!(provider.commits.load(Ordering::SeqCst), 2);
+    assert_eq!(
+        journal.lock().unwrap().get(id).unwrap().state,
+        UploadState::Uploaded
+    );
 }
 fn journal(root: &Path, probe: &LockProbe) -> Arc<Mutex<UploadJournal>> {
     let result = Arc::new(Mutex::new(

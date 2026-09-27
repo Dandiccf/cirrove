@@ -449,6 +449,14 @@ all upload-part calls. This validates that one known-committed lost response
 can be reconciled without replay. It does not settle an in-flight request,
 content-slot interruption, or concurrent changes.
 
+The shared transfer worker can now persist and execute a bounded sequence of
+commit checkpoints. A synthetic two-phase test first failed at the second
+phase, then passed after each checkpoint was saved before its provider call.
+This is needed to put the old-ID recovery rename and new-ID installation under
+one durable replacement operation. The native iCloud replacement adapter and
+its live crash/conflict validation are still open; this worker change alone
+does not permit mounted writes.
+
 A feature-gated `ICloudOwnedFixtureRemove` now implements the shared
 `MutationProvider` contract for one small, newly created Cirrove fixture.
 It accepts only an exact prepared file identity, checks the observed ETag and
