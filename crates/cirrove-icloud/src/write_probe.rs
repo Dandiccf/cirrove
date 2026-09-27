@@ -401,6 +401,28 @@ impl ICloudReadSession {
         })
     }
 
+    /// Rebuild an owned fixture handle after a process restart, requiring the
+    /// exact ID to remain a UUID-named folder directly under this account root.
+    pub async fn validation_folder_at_root(&mut self, id: &str) -> Result<ValidationFolder> {
+        let root = self.list_root().await?;
+        let mut matches = root.iter().filter(|entry| {
+            entry.drivewsid == id
+                && entry.is_folder()
+                && entry
+                    .display_name()
+                    .strip_prefix(PROBE_PREFIX)
+                    .is_some_and(|suffix| Uuid::parse_str(suffix).is_ok())
+        });
+        let entry = matches.next().context("validation folder is absent")?;
+        if matches.next().is_some() {
+            bail!("validation folder identity is ambiguous");
+        }
+        Ok(ValidationFolder {
+            id: entry.drivewsid.clone(),
+            name: entry.display_name(),
+        })
+    }
+
     /// Upload at most 4 KiB into a folder just created by this process. No
     /// overwrite, rename, trash, or general path-based write is exposed.
     pub async fn create_validation_file(

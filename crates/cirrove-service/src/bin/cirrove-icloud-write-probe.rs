@@ -47,8 +47,10 @@ async fn main() -> Result<()> {
         [flag] if flag == "--inspect-trash" => 20,
         [flag] if flag == "--trash-restore-cycle" => 21,
         [flag] if flag == "--worker-create" => 22,
+        [flag] if flag == "--worker-discard-registration-receipt" => 23,
+        [flag] if flag == "--worker-resume-registration" => 24,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --inspect-occupied | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --inspect-occupied | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -147,12 +149,81 @@ async fn main() -> Result<()> {
         );
         return Ok(());
     }
+    let worker_recovery_directory = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../.local-state/icloud-worker-lost-receipt-validation");
+    if mode == 24 {
+        let journal = Arc::new(Mutex::new(UploadJournal::open(
+            &worker_recovery_directory,
+            &account.id,
+            8192,
+        )?));
+        let record = {
+            let guard = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock"))?;
+            let rows = guard.list(0, 2)?;
+            if rows.len() != 1 || rows[0].state != UploadState::VerifyRequired {
+                bail!("expected exactly one uncertain validation upload");
+            }
+            rows.into_iter()
+                .next()
+                .context("validation upload is absent")?
+        };
+        let UploadIntent::Create { parent, .. } = &record.intent else {
+            bail!("validation upload is not a create");
+        };
+        let folder = session.validation_folder_at_root(parent).await?;
+        let provider = Arc::new(
+            ICloudOwnedFixtureUpload::new(record.scope.clone(), session, folder)?
+                .reconciliation_only(),
+        );
+        let worker = TransferWorker::new(
+            journal.clone(),
+            provider,
+            Arc::new(DesktopVault),
+            CancellationToken::new(),
+        );
+        let mut result = None;
+        for _ in 0..4 {
+            if let Some(claimed) = worker.run_once().await? {
+                result = Some(claimed);
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        }
+        let result = result.context("uncertain validation upload was not claimed")?;
+        if result.id != record.id || result.state != UploadState::Uploaded || result.issue.is_some()
+        {
+            bail!("reconciled upload did not reach Uploaded");
+        }
+        let receipt = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock"))?
+            .get(record.id)?;
+        let remote = receipt
+            .remote
+            .context("reconciled upload lacks remote item")?;
+        if remote.id.is_empty()
+            || remote.parent_id.as_deref() != Some(parent.as_str())
+            || remote.size != record.size
+        {
+            bail!("reconciled upload has a mismatched remote receipt");
+        }
+        println!(
+            "Restarted worker reconciled the exact remote item and reached Uploaded without permitting another upload request. Operation: {}.",
+            record.id
+        );
+        return Ok(());
+    }
+    if mode == 23 && worker_recovery_directory.exists() {
+        bail!("lost-receipt validation journal already exists");
+    }
     let name = format!("Cirrove Write Validation-{}", Uuid::new_v4());
     let folder = session.create_validation_folder(&name).await?;
     println!(
         "Created and listed the isolated iCloud validation folder. Testing a small file upload."
     );
-    if mode == 22 {
+    if matches!(mode, 22 | 23) {
         let scope = Scope {
             account: account.id.clone(),
             provider: "icloud".into(),
@@ -160,10 +231,14 @@ async fn main() -> Result<()> {
         };
         let file_name = format!("staged-by-cirrove-{}.txt", Uuid::new_v4());
         let contents = format!("Cirrove worker validation {}\n", Uuid::new_v4());
-        let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
-            "../../.local-state/icloud-worker-create-{}",
-            Uuid::new_v4()
-        ));
+        let directory = if mode == 23 {
+            worker_recovery_directory
+        } else {
+            Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+                "../../.local-state/icloud-worker-create-{}",
+                Uuid::new_v4()
+            ))
+        };
         let journal = Arc::new(Mutex::new(UploadJournal::open(
             &directory,
             &account.id,
@@ -180,7 +255,11 @@ async fn main() -> Result<()> {
                 },
                 contents.as_bytes(),
             )?;
-        let provider = Arc::new(ICloudOwnedFixtureUpload::new(scope, session, folder)?);
+        let mut provider = ICloudOwnedFixtureUpload::new(scope, session, folder)?;
+        if mode == 23 {
+            provider = provider.with_discarded_registration_receipt();
+        }
+        let provider = Arc::new(provider);
         let worker = TransferWorker::new(
             journal.clone(),
             provider,
@@ -197,6 +276,15 @@ async fn main() -> Result<()> {
             record.id,
             directory.display()
         );
+        if mode == 23 {
+            if result.id != record.id || result.state != UploadState::VerifyRequired {
+                bail!("discarded registration receipt did not require verification");
+            }
+            println!(
+                "The uncertain registration is durably retained for a fresh-process inspection; no retry was made."
+            );
+            return Ok(());
+        }
         if let Some(issue) = result.issue {
             bail!("worker upload needs review: {issue}");
         }

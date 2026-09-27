@@ -11,6 +11,7 @@ use cirrove_core::{CancellationToken, Node, NodeKind, Scope};
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
@@ -34,6 +35,8 @@ pub struct ICloudOwnedFixtureUpload {
     scope: Scope,
     folder: ValidationFolder,
     session: Mutex<ICloudReadSession>,
+    discard_registration_receipt: AtomicBool,
+    reconciliation_only: bool,
 }
 
 impl ICloudOwnedFixtureUpload {
@@ -58,7 +61,23 @@ impl ICloudOwnedFixtureUpload {
             scope,
             folder,
             session: Mutex::new(session),
+            discard_registration_receipt: AtomicBool::new(false),
+            reconciliation_only: false,
         })
+    }
+
+    /// Deliberately lose one already-received registration response in the
+    /// foreground validation process. No normal service constructs this mode.
+    pub fn with_discarded_registration_receipt(self) -> Self {
+        self.discard_registration_receipt
+            .store(true, Ordering::Release);
+        self
+    }
+
+    /// A restarted validation process must reconcile; it must never upload.
+    pub fn reconciliation_only(mut self) -> Self {
+        self.reconciliation_only = true;
+        self
     }
 
     fn check_request(&self, request: &UploadRequest) -> UploadResult<()> {
@@ -226,6 +245,9 @@ impl UploadProvider for ICloudOwnedFixtureUpload {
         cancel: &CancellationToken,
     ) -> UploadResult<UploadStep> {
         self.check_checkpoint(request, checkpoint)?;
+        if self.reconciliation_only {
+            return Err(UploadError::Unsupported("reconciliation-only validation"));
+        }
         if offset != 0
             || bytes.len() as u64 != request.size
             || hex::encode(Sha256::digest(&bytes)) != request.sha256
@@ -247,7 +269,14 @@ impl UploadProvider for ICloudOwnedFixtureUpload {
             // An error after the request may mean Apple committed it; no replay
             // follows from a missing or delayed listing.
             session
-                .create_owned_file(&self.folder, name, &bytes, false, false)
+                .create_owned_file(
+                    &self.folder,
+                    name,
+                    &bytes,
+                    false,
+                    self.discard_registration_receipt
+                        .swap(false, Ordering::AcqRel),
+                )
                 .await
                 .map_err(|_| UploadError::Uncertain)?
                 .ok_or(UploadError::Uncertain)?
@@ -387,5 +416,24 @@ mod tests {
                 .await
                 .is_err()
         );
+    }
+
+    #[tokio::test]
+    async fn restarted_validation_cannot_send_an_upload_part() {
+        let (provider, request) = fixture();
+        let provider = provider.reconciliation_only();
+        let checkpoint = provider.checkpoint(&request).unwrap();
+        let error = provider
+            .upload_part(
+                &request,
+                &checkpoint,
+                0,
+                b"new".to_vec(),
+                &CancellationToken::new(),
+            )
+            .await
+            .err()
+            .unwrap();
+        assert!(matches!(error, UploadError::Unsupported(_)));
     }
 }

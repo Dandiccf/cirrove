@@ -436,8 +436,18 @@ worker commits the remote ID and ETag. The first
 the durable `Uploaded` state. A missing response leaves the operation uncertain;
 the adapter does not infer a safe retry from temporary absence. This is a
 staging-file building block, not an enabled writable mount: the bounded file
-size, in-flight response loss, restart reconciliation, `Replace`, directory
+size, in-flight response loss, broader restart coverage, `Replace`, directory
 mutation and recovery UI remain unvalidated or unimplemented.
+
+A further [two-process worker trial](../benchmarks/icloud-worker-lost-registration-2026-09-27.md)
+discarded an already received file-registration response after the shared
+worker had persisted its checkpoint. The first process stopped at
+`VerifyRequired`; a second process rebuilt the owned folder handle from its
+exact root ID, verified the single staged file and complete hash, and committed
+the same journal operation as `Uploaded`. The second process's adapter refused
+all upload-part calls. This validates that one known-committed lost response
+can be reconciled without replay. It does not settle an in-flight request,
+content-slot interruption, or concurrent changes.
 
 ## Immediate implementation sequence
 
