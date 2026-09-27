@@ -481,6 +481,17 @@ control succeeded. The full staged-replacement sequence, recovery binding
 in the shared journal, concurrent changes and retention are not yet proven.
 Do not enable mounted writes on this evidence alone.
 
+One [combined conditional-Trash handoff trial](../benchmarks/icloud-conditional-trash-handoff-2026-09-27.md)
+then exercised the entire owned-fixture sequence: a same-ID edit changed the
+old ETag; the stale Trash request refused it and preserved both full files;
+the current ETag moved only the old ID to recoverable, byte-readable Trash;
+and the staged ID took the original name while the old revised bytes remained
+in Trash. This is a more promising replacement primitive than unconditional
+old-file rename. It still needs a durable provider-neutral receipt for a
+Trash-backed backup, restart/response-loss and collision handling, and a
+live concurrent-edit test. The request pair has a visible interval without
+the original name, so it must not be presented as atomic POSIX replacement.
+
 A feature-gated `ICloudOwnedFixtureRemove` now implements the shared
 `MutationProvider` contract for one small, newly created Cirrove fixture.
 It accepts only an exact prepared file identity, checks the observed ETag and

@@ -64,8 +64,9 @@ async fn main() -> Result<()> {
         [flag] if flag == "--worker-discard-new-handoff-receipt" => 32,
         [flag] if flag == "--worker-reconcile-new-handoff" => 33,
         [flag] if flag == "--owned-trash-download" => 34,
+        [flag] if flag == "--conditional-trash-handoff" => 35,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -495,6 +496,27 @@ async fn main() -> Result<()> {
             .await?;
         println!(
             "Exact owned Trash item remained byte-readable with stable ETag and restore metadata."
+        );
+        return Ok(());
+    }
+    if mode == 35 {
+        let staged_bytes = format!("Cirrove conditional stage {}\n", Uuid::new_v4());
+        let revised_bytes = format!("Cirrove concurrent revision {}\n", Uuid::new_v4());
+        let staged = session
+            .create_staged_file(&folder, &file, staged_bytes.as_bytes())
+            .await?;
+        session
+            .probe_conditional_trash_handoff(
+                &folder,
+                &file,
+                &staged,
+                content.as_bytes(),
+                revised_bytes.as_bytes(),
+                staged_bytes.as_bytes(),
+            )
+            .await?;
+        println!(
+            "Stale ETag preserved both files; current ETag moved the old ID to byte-readable Trash and the staged ID reached the original name."
         );
         return Ok(());
     }

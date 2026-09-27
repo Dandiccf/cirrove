@@ -529,6 +529,153 @@ impl ICloudReadSession {
         Ok(())
     }
 
+    /// Probe a safer replacement sequence on one new two-file fixture:
+    /// reject a stale old-file ETag, then Trash the current old revision and
+    /// install the staged file. This is not an atomic or mounted write path.
+    pub async fn probe_conditional_trash_handoff(
+        &mut self,
+        folder: &ValidationFolder,
+        original: &ValidationFile,
+        staged: &ValidationFile,
+        original_bytes: &[u8],
+        revised_bytes: &[u8],
+        staged_bytes: &[u8],
+    ) -> Result<()> {
+        if original.name != PROBE_FILE
+            || !staged.name.starts_with("staged-by-cirrove-")
+            || original.id == staged.id
+            || original_bytes.is_empty()
+            || revised_bytes.is_empty()
+            || staged_bytes.is_empty()
+            || original_bytes.len() > 4096
+            || revised_bytes.len() > 4096
+            || staged_bytes.len() > 4096
+            || original_bytes == revised_bytes
+            || folder
+                .name
+                .strip_prefix(PROBE_PREFIX)
+                .is_none_or(|suffix| Uuid::parse_str(suffix).is_err())
+        {
+            bail!("invalid conditional Trash handoff fixture");
+        }
+        let before = self.list_folder(&folder.id).await?;
+        if before.len() != 2
+            || !before.iter().any(|entry| {
+                entry.drivewsid == original.id
+                    && entry.docwsid == original.document_id
+                    && entry.etag == original.etag
+                    && entry.display_name() == original.name
+            })
+            || !before.iter().any(|entry| {
+                entry.drivewsid == staged.id
+                    && entry.docwsid == staged.document_id
+                    && entry.etag == staged.etag
+                    && entry.display_name() == staged.name
+            })
+            || self
+                .read_small_file_in_folder(&folder.id, &original.id)
+                .await?
+                != original_bytes
+            || self
+                .read_small_file_in_folder(&folder.id, &staged.id)
+                .await?
+                != staged_bytes
+        {
+            bail!("conditional Trash handoff pair changed before update");
+        }
+        if self
+            .probe_same_id_update(folder, original, original_bytes, revised_bytes)
+            .await?
+            != SameIdUpdateOutcome::Updated
+        {
+            bail!("owned old-file revision did not advance exactly");
+        }
+        let revised = self.list_folder(&folder.id).await?;
+        let current = exactly_one(
+            revised
+                .iter()
+                .filter(|entry| entry.drivewsid == original.id)
+                .collect(),
+            "revised old file",
+        )?;
+        let current_etag = current.etag.clone();
+        if revised.len() != 2
+            || current_etag.is_empty()
+            || current_etag == original.etag
+            || !revised.iter().any(|entry| {
+                entry.drivewsid == staged.id
+                    && entry.etag == staged.etag
+                    && entry.display_name() == staged.name
+            })
+            || self
+                .read_small_file_in_folder(&folder.id, &original.id)
+                .await?
+                != revised_bytes
+            || self
+                .read_small_file_in_folder(&folder.id, &staged.id)
+                .await?
+                != staged_bytes
+        {
+            bail!("owned revision or staged file changed before conditional Trash");
+        }
+        if self.send_trash(&original.id, &original.etag).await? {
+            bail!("stale ETag unexpectedly moved the newer old-file revision");
+        }
+        let after_stale = self.list_folder(&folder.id).await?;
+        if after_stale.len() != 2
+            || !after_stale
+                .iter()
+                .any(|entry| entry.drivewsid == original.id && entry.etag == current_etag)
+            || !after_stale
+                .iter()
+                .any(|entry| entry.drivewsid == staged.id && entry.etag == staged.etag)
+            || self
+                .read_small_file_in_folder(&folder.id, &original.id)
+                .await?
+                != revised_bytes
+            || self
+                .read_small_file_in_folder(&folder.id, &staged.id)
+                .await?
+                != staged_bytes
+        {
+            bail!("stale Trash request did not preserve both exact files");
+        }
+        if !self.send_trash(&original.id, &current_etag).await? {
+            bail!("current ETag did not move the exact old file to Trash");
+        }
+        let after_trash = self.list_folder(&folder.id).await?;
+        if after_trash.len() != 1
+            || after_trash[0].drivewsid != staged.id
+            || after_trash[0].etag != staged.etag
+            || after_trash[0].display_name() != staged.name
+        {
+            bail!("conditional Trash did not leave the staged ID intact");
+        }
+        self.verify_owned_trash_bytes(original, revised_bytes)
+            .await?;
+        if !self
+            .send_rename(&staged.id, &staged.etag, PROBE_FILE)
+            .await?
+        {
+            bail!("staged ID was not installed after conditional Trash");
+        }
+        let final_items = self.list_folder(&folder.id).await?;
+        if final_items.len() != 1
+            || final_items[0].drivewsid != staged.id
+            || final_items[0].docwsid != staged.document_id
+            || final_items[0].display_name() != PROBE_FILE
+            || self
+                .read_small_file_in_folder(&folder.id, &staged.id)
+                .await?
+                != staged_bytes
+        {
+            bail!("conditional Trash handoff did not install the staged bytes");
+        }
+        self.verify_owned_trash_bytes(original, revised_bytes)
+            .await?;
+        Ok(())
+    }
+
     /// Reconcile by an exact parent ID and a UUID-reserved name, then bind
     /// the discovered remote ID only after full-byte verification. Absence is
     /// uncertain after a pending request and must not trigger a replay.
@@ -1220,6 +1367,17 @@ impl ICloudReadSession {
         {
             bail!("iCloud did not confirm the exact fixture in Trash");
         }
+        self.verify_owned_trash_bytes(file, bytes).await?;
+        Ok(())
+    }
+
+    /// The result of a completed conditional Trash step remains bound to the
+    /// exact item ID, full bytes and complete recovery metadata.
+    async fn verify_owned_trash_bytes(
+        &mut self,
+        file: &ValidationFile,
+        bytes: &[u8],
+    ) -> Result<()> {
         let (items, complete) = self.read_trash_items().await?;
         if !complete {
             bail!("iCloud Trash listing is incomplete");
