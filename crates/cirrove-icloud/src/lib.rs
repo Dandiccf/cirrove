@@ -6,6 +6,8 @@
 //! remain unvalidated.
 
 #[cfg(feature = "write-probe")]
+mod owned_handoff;
+#[cfg(feature = "write-probe")]
 mod owned_mutation;
 #[cfg(feature = "write-probe")]
 mod owned_upload;
@@ -13,6 +15,8 @@ mod provider;
 mod sealed_session;
 #[cfg(feature = "write-probe")]
 mod write_probe;
+#[cfg(feature = "write-probe")]
+pub use owned_handoff::ICloudOwnedFixtureHandoff;
 #[cfg(feature = "write-probe")]
 pub use owned_mutation::ICloudOwnedFixtureRemove;
 #[cfg(feature = "write-probe")]

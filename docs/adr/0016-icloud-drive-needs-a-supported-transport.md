@@ -452,10 +452,15 @@ content-slot interruption, or concurrent changes.
 The shared transfer worker can now persist and execute a bounded sequence of
 commit checkpoints. A synthetic two-phase test first failed at the second
 phase, then passed after each checkpoint was saved before its provider call.
-This is needed to put the old-ID recovery rename and new-ID installation under
-one durable replacement operation. The native iCloud replacement adapter and
-its live crash/conflict validation are still open; this worker change alone
-does not permit mounted writes.
+The feature-gated `ICloudOwnedFixtureHandoff` now uses these checkpoints for
+the old-ID recovery rename and new-ID installation. A single
+[live worker handoff](../benchmarks/icloud-worker-handoff-2026-09-27.md)
+published the new ID and retained the old ID as a hidden recovery object in
+the shared journal after reading and hashing both complete files. This was
+one owned fixture; response-loss, in-flight timeout, process-death and
+concurrent-edit behavior of this new adapter still need live validation.
+Apple's rename request can accept a stale ETag, so this does not permit
+mounted replacement or ordinary-file writes.
 
 A feature-gated `ICloudOwnedFixtureRemove` now implements the shared
 `MutationProvider` contract for one small, newly created Cirrove fixture.

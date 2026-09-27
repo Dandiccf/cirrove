@@ -42,6 +42,16 @@ pub struct ValidationFile {
     pub(crate) name: String,
 }
 
+impl ValidationFile {
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    pub fn etag(&self) -> &str {
+        &self.etag
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum SameIdUpdateOutcome {
     Updated,
@@ -85,21 +95,21 @@ pub enum HandoffOutcome {
 /// Non-secret exact identities and content hashes needed to reconcile a
 /// staged handoff after process death. The owning account is bound separately
 /// by the private validation journal.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct HandoffPlan {
-    version: u8,
-    folder_id: String,
-    folder_name: String,
-    original_id: String,
-    original_doc_id: String,
-    original_etag: String,
-    staged_id: String,
-    staged_doc_id: String,
-    staged_etag: String,
-    staged_name: String,
-    recovery_name: String,
-    original_sha256: String,
-    staged_sha256: String,
+    pub(crate) version: u8,
+    pub(crate) folder_id: String,
+    pub(crate) folder_name: String,
+    pub(crate) original_id: String,
+    pub(crate) original_doc_id: String,
+    pub(crate) original_etag: String,
+    pub(crate) staged_id: String,
+    pub(crate) staged_doc_id: String,
+    pub(crate) staged_etag: String,
+    pub(crate) staged_name: String,
+    pub(crate) recovery_name: String,
+    pub(crate) original_sha256: String,
+    pub(crate) staged_sha256: String,
 }
 
 /// A pre-request identity reservation for one unique staged upload. The
@@ -1550,6 +1560,28 @@ impl ICloudReadSession {
         original_bytes: &[u8],
         staged_bytes: &[u8],
     ) -> Result<HandoffPlan> {
+        self.prepare_durable_handoff_named(
+            folder,
+            original,
+            staged,
+            original_bytes,
+            staged_bytes,
+            format!("recovery-by-cirrove-{}.txt", Uuid::new_v4()),
+        )
+        .await
+    }
+
+    /// The shared transfer worker reserves this exact name in its journal
+    /// before the provider may submit either rename.
+    pub async fn prepare_durable_handoff_named(
+        &mut self,
+        folder: &ValidationFolder,
+        original: &ValidationFile,
+        staged: &ValidationFile,
+        original_bytes: &[u8],
+        staged_bytes: &[u8],
+        recovery_name: String,
+    ) -> Result<HandoffPlan> {
         if original.name != PROBE_FILE
             || !staged.name.starts_with("staged-by-cirrove-")
             || original.id == staged.id
@@ -1571,7 +1603,7 @@ impl ICloudReadSession {
             staged_doc_id: staged.document_id.clone(),
             staged_etag: staged.etag.clone(),
             staged_name: staged.name.clone(),
-            recovery_name: format!("recovery-by-cirrove-{}.txt", Uuid::new_v4()),
+            recovery_name,
             original_sha256: hex::encode(Sha256::digest(original_bytes)),
             staged_sha256: hex::encode(Sha256::digest(staged_bytes)),
         };
@@ -1643,6 +1675,71 @@ impl ICloudReadSession {
         })
     }
 
+    /// Construct the two journal receipts only after independently verifying
+    /// both exact IDs, names and complete bytes in the finished fixture.
+    pub(crate) async fn verified_handoff_nodes(
+        &mut self,
+        plan: &HandoffPlan,
+    ) -> Result<(cirrove_core::Node, cirrove_core::Node)> {
+        use cirrove_core::{Node, NodeKind};
+        if self.inspect_durable_handoff(plan).await? != HandoffObserved::Complete {
+            bail!("iCloud handoff has no complete two-ID receipt");
+        }
+        let entries = self.list_folder(&plan.folder_id).await?;
+        if entries.len() != 2 {
+            bail!("iCloud handoff receipt has an unexpected item count");
+        }
+        let old = exactly_one(
+            entries
+                .iter()
+                .filter(|entry| entry.drivewsid == plan.original_id)
+                .collect(),
+            "recovery receipt",
+        )?;
+        let current = exactly_one(
+            entries
+                .iter()
+                .filter(|entry| entry.drivewsid == plan.staged_id)
+                .collect(),
+            "current receipt",
+        )?;
+        if old.is_folder()
+            || current.is_folder()
+            || old.display_name() != plan.recovery_name
+            || current.display_name() != PROBE_FILE
+            || old.docwsid != plan.original_doc_id
+            || current.docwsid != plan.staged_doc_id
+            || old.etag.is_empty()
+            || current.etag.is_empty()
+            || hex::encode(Sha256::digest(
+                self.read_small_file_in_folder(&plan.folder_id, &old.drivewsid)
+                    .await?,
+            )) != plan.original_sha256
+            || hex::encode(Sha256::digest(
+                self.read_small_file_in_folder(&plan.folder_id, &current.drivewsid)
+                    .await?,
+            )) != plan.staged_sha256
+        {
+            bail!("iCloud handoff receipt changed or differs from the saved bytes");
+        }
+        let receipt = |entry: &DriveEntry, name: String| Node {
+            id: entry.drivewsid.clone(),
+            parent_id: Some(plan.folder_id.clone()),
+            name,
+            kind: NodeKind::File,
+            size: entry.size,
+            modified_unix: 0,
+            etag: Some(entry.etag.clone()),
+            content_version: Some(entry.etag.clone()),
+            target: None,
+            package: false,
+        };
+        Ok((
+            receipt(current, PROBE_FILE.into()),
+            receipt(old, plan.recovery_name.clone()),
+        ))
+    }
+
     pub async fn move_old_to_recovery(&mut self, plan: &HandoffPlan) -> Result<bool> {
         if self.inspect_durable_handoff(plan).await? != HandoffObserved::Prepared {
             bail!("old iCloud validation item is not in the prepared state");
@@ -1672,7 +1769,7 @@ impl HandoffPlan {
         old == self.original_etag && staged == self.staged_etag
     }
 
-    fn validate(&self) -> Result<()> {
+    pub(crate) fn validate(&self) -> Result<()> {
         let uuid_name = |name: &str, prefix: &str, suffix: &str| {
             name.strip_prefix(prefix)
                 .and_then(|middle| middle.strip_suffix(suffix))

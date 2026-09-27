@@ -8,11 +8,11 @@ use cirrove_auth::{AppRegistration, CredentialVault, DesktopVault};
 use cirrove_core::mutation::{
     MutationIntent, MutationProvider, MutationReceipt, MutationReconciliation, MutationRequest,
 };
-use cirrove_core::{CancellationToken, Scope};
+use cirrove_core::{CancellationToken, Node, NodeKind, Scope};
 use cirrove_icloud::{
-    HandoffOutcome, ICloudOwnedFixtureRemove, ICloudOwnedFixtureUpload, ICloudReadSession,
-    OccupiedNameOutcome, RenameProbeOutcome, SameIdUpdateOutcome, SealedSessionVault,
-    TrashProbeOutcome, TrashRestoreOutcome,
+    HandoffOutcome, ICloudOwnedFixtureHandoff, ICloudOwnedFixtureRemove, ICloudOwnedFixtureUpload,
+    ICloudReadSession, OccupiedNameOutcome, RenameProbeOutcome, SameIdUpdateOutcome,
+    SealedSessionVault, TrashProbeOutcome, TrashRestoreOutcome,
 };
 use cirrove_service::accounts::Settings;
 use cirrove_service::journal::{MutationState, UploadIntent, UploadJournal, UploadState};
@@ -57,8 +57,9 @@ async fn main() -> Result<()> {
         [flag] if flag == "--worker-owned-trash" => 26,
         [flag] if flag == "--worker-discard-trash-receipt" => 27,
         [flag] if flag == "--worker-resume-trash" => 28,
+        [flag] if flag == "--worker-owned-handoff" => 29,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --inspect-occupied | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --inspect-occupied | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -385,6 +386,122 @@ async fn main() -> Result<()> {
     println!(
         "Created and read back the isolated validation file byte for byte. The fixture remains in iCloud Drive."
     );
+    if mode == 29 {
+        let staged_bytes = format!("Cirrove worker handoff {}\n", Uuid::new_v4());
+        let staged = session
+            .create_staged_file(&folder, &file, staged_bytes.as_bytes())
+            .await?;
+        let scope = Scope {
+            account: account.id.clone(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        };
+        let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+            "../../.local-state/icloud-worker-handoff-{}",
+            Uuid::new_v4()
+        ));
+        let journal = Arc::new(Mutex::new(UploadJournal::open(
+            &directory,
+            &account.id,
+            8192,
+        )?));
+        let record = {
+            let mut guard = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock"))?;
+            let original = Node {
+                id: file.id().into(),
+                parent_id: Some(folder.id().into()),
+                name: "created-by-cirrove.txt".into(),
+                kind: NodeKind::File,
+                size: content.len() as u64,
+                modified_unix: 0,
+                etag: Some(file.etag().into()),
+                content_version: Some(file.etag().into()),
+                target: None,
+                package: false,
+            };
+            let working =
+                guard.create_working(scope.clone(), original, false, content.as_bytes())?;
+            guard.write_working(working.id, 0, staged_bytes.as_bytes())?;
+            guard.truncate_working(working.id, staged_bytes.len() as u64)?;
+            guard
+                .seal_working(working.id)?
+                .context("staged replacement was not sealed")?
+        };
+        if !matches!(&record.intent, UploadIntent::Replace { item, expected_etag } if item == file.id() && expected_etag == file.etag())
+            || record.size != staged_bytes.len() as u64
+        {
+            bail!("journal did not seal the expected fixture replacement");
+        }
+        let plan = session
+            .prepare_durable_handoff_named(
+                &folder,
+                &file,
+                &staged,
+                content.as_bytes(),
+                staged_bytes.as_bytes(),
+                format!("recovery-by-cirrove-{}.txt", record.id),
+            )
+            .await?;
+        let provider = Arc::new(ICloudOwnedFixtureHandoff::new(
+            scope.clone(),
+            record.id,
+            plan,
+            record.size,
+            session,
+        )?);
+        let worker = TransferWorker::new(
+            journal.clone(),
+            provider,
+            Arc::new(DesktopVault),
+            CancellationToken::new(),
+        );
+        for _ in 0..5 {
+            if let Some(result) = worker.run_once().await? {
+                if result.id != record.id {
+                    bail!("worker claimed a different fixture operation");
+                }
+                if result.state == UploadState::Uploaded {
+                    let guard = journal
+                        .lock()
+                        .map_err(|_| anyhow::anyhow!("journal lock"))?;
+                    let saved = guard.get(record.id)?;
+                    let remote = saved
+                        .remote
+                        .context("handoff lacks current remote receipt")?;
+                    if remote.id == file.id() || remote.id != staged.id() {
+                        bail!("handoff published the wrong current identity");
+                    }
+                    let backup = guard
+                        .namespace_by_remote(&scope, file.id())?
+                        .context("handoff lacks the old recovery identity")?;
+                    if !backup.unlinked
+                        || !backup.remote_owned
+                        || !backup.node.name.starts_with("recovery-by-cirrove-")
+                    {
+                        bail!("handoff recovery binding is not durable");
+                    }
+                    println!(
+                        "Shared worker published both exact iCloud identities as a durable replacement. Operation: {}.",
+                        record.id
+                    );
+                    return Ok(());
+                }
+                if result.state != UploadState::VerifyRequired {
+                    bail!(
+                        "worker handoff needs review; journal: {}",
+                        directory.display()
+                    );
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(4)).await;
+        }
+        bail!(
+            "worker handoff remains uncertain; inspect the retained journal at {}",
+            directory.display()
+        );
+    }
     if matches!(mode, 25..=27) {
         let scope = Scope {
             account: account.id.clone(),
