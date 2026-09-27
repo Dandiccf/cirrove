@@ -68,6 +68,22 @@ pub struct HandoffPlan {
     staged_sha256: String,
 }
 
+/// A pre-request identity reservation for one unique staged upload. The
+/// remote file ID is discovered only after Apple's registration request.
+#[derive(Serialize, Deserialize)]
+pub struct StagedRegistrationPlan {
+    version: u8,
+    folder_id: String,
+    folder_name: String,
+    original_id: String,
+    original_doc_id: String,
+    original_sha256: String,
+    staged_name: String,
+    staged_sha256: String,
+    staged_id: Option<String>,
+    staged_doc_id: Option<String>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HandoffObserved {
     Prepared,
@@ -280,8 +296,9 @@ impl ICloudReadSession {
         folder: &ValidationFolder,
         bytes: &[u8],
     ) -> Result<ValidationFile> {
-        self.create_owned_file(folder, PROBE_FILE, bytes, true)
+        self.create_owned_file(folder, PROBE_FILE, bytes, true, false)
             .await
+            .and_then(|file| file.context("iCloud validation file receipt was discarded"))
     }
 
     /// A second, uniquely named upload, only beside this process's original
@@ -301,7 +318,177 @@ impl ICloudReadSession {
             bail!("iCloud validation folder does not contain only the original fixture");
         }
         let name = format!("staged-by-cirrove-{}.txt", Uuid::new_v4());
-        self.create_owned_file(folder, &name, bytes, false).await
+        self.create_owned_file(folder, &name, bytes, false, false)
+            .await
+            .and_then(|file| file.context("iCloud staged file receipt was discarded"))
+    }
+
+    pub async fn prepare_staged_registration(
+        &mut self,
+        folder: &ValidationFolder,
+        original: &ValidationFile,
+        original_bytes: &[u8],
+        staged_bytes: &[u8],
+    ) -> Result<StagedRegistrationPlan> {
+        if original.name != PROBE_FILE
+            || original_bytes.is_empty()
+            || staged_bytes.is_empty()
+            || original_bytes.len() > 4096
+            || staged_bytes.len() > 4096
+        {
+            bail!("invalid staged iCloud registration fixture");
+        }
+        let mut plan = StagedRegistrationPlan {
+            version: 1,
+            folder_id: folder.id.clone(),
+            folder_name: folder.name.clone(),
+            original_id: original.id.clone(),
+            original_doc_id: original.document_id.clone(),
+            original_sha256: hex::encode(Sha256::digest(original_bytes)),
+            staged_name: format!("staged-by-cirrove-{}.txt", Uuid::new_v4()),
+            staged_sha256: hex::encode(Sha256::digest(staged_bytes)),
+            staged_id: None,
+            staged_doc_id: None,
+        };
+        if self.inspect_staged_registration(&mut plan).await? {
+            bail!("staged iCloud registration name was already present");
+        }
+        Ok(plan)
+    }
+
+    /// Deliberately discard the registration response after the request was
+    /// sent. The plan must have been durably saved before this call.
+    pub async fn send_staged_registration_discard_receipt(
+        &mut self,
+        plan: &mut StagedRegistrationPlan,
+        bytes: &[u8],
+    ) -> Result<()> {
+        plan.validate()?;
+        if plan.staged_id.is_some()
+            || hex::encode(Sha256::digest(bytes)) != plan.staged_sha256
+            || self.inspect_staged_registration(plan).await?
+        {
+            bail!("staged iCloud registration is no longer prepared");
+        }
+        let folder = ValidationFolder {
+            id: plan.folder_id.clone(),
+            name: plan.folder_name.clone(),
+        };
+        let receipt = self
+            .create_owned_file(&folder, &plan.staged_name, bytes, false, true)
+            .await?;
+        if receipt.is_some() {
+            bail!("staged registration receipt was unexpectedly retained");
+        }
+        Ok(())
+    }
+
+    /// Reconcile by an exact parent ID and a UUID-reserved name, then bind
+    /// the discovered remote ID only after full-byte verification. Absence is
+    /// uncertain after a pending request and must not trigger a replay.
+    pub async fn inspect_staged_registration(
+        &mut self,
+        plan: &mut StagedRegistrationPlan,
+    ) -> Result<bool> {
+        plan.validate()?;
+        if !self.list_root().await?.iter().any(|entry| {
+            entry.drivewsid == plan.folder_id
+                && entry.display_name() == plan.folder_name
+                && entry.is_folder()
+        }) {
+            bail!("staged iCloud parent identity changed");
+        }
+        let children = self.list_folder(&plan.folder_id).await?;
+        if children.is_empty() || children.len() > 2 {
+            bail!("staged iCloud parent has an unexpected item count");
+        }
+        let old = exactly_one(
+            children
+                .iter()
+                .filter(|entry| entry.drivewsid == plan.original_id)
+                .collect(),
+            "staged registration original",
+        )?;
+        if old.is_folder()
+            || old.docwsid != plan.original_doc_id
+            || old.display_name() != PROBE_FILE
+            || old.size > 4096
+            || hex::encode(Sha256::digest(
+                self.read_small_file_in_folder(&plan.folder_id, &plan.original_id)
+                    .await?,
+            )) != plan.original_sha256
+        {
+            bail!("staged iCloud original changed");
+        }
+        if children.len() == 1 {
+            if plan.staged_id.is_some() {
+                bail!("previously bound staged iCloud ID disappeared");
+            }
+            return Ok(false);
+        }
+        let stage = exactly_one(
+            children
+                .iter()
+                .filter(|entry| entry.display_name() == plan.staged_name)
+                .collect(),
+            "staged registration candidate",
+        )?;
+        if stage.is_folder()
+            || stage.drivewsid == plan.original_id
+            || stage.size > 4096
+            || plan
+                .staged_id
+                .as_ref()
+                .is_some_and(|id| id != &stage.drivewsid)
+            || plan
+                .staged_doc_id
+                .as_ref()
+                .is_some_and(|id| id != &stage.docwsid)
+            || hex::encode(Sha256::digest(
+                self.read_small_file_in_folder(&plan.folder_id, &stage.drivewsid)
+                    .await?,
+            )) != plan.staged_sha256
+        {
+            bail!("staged iCloud candidate identity or bytes differ");
+        }
+        plan.staged_id = Some(stage.drivewsid.clone());
+        plan.staged_doc_id = Some(stage.docwsid.clone());
+        Ok(true)
+    }
+
+    /// Convert a verified, bound registration checkpoint into the existing
+    /// two-ID handoff plan. No mutation occurs until the handoff plan is
+    /// separately fsynced by its journal.
+    pub async fn prepare_handoff_from_registration(
+        &mut self,
+        registration: &mut StagedRegistrationPlan,
+    ) -> Result<HandoffPlan> {
+        if !self.inspect_staged_registration(registration).await? {
+            bail!("staged registration is not visible for handoff");
+        }
+        let plan = HandoffPlan {
+            version: 1,
+            folder_id: registration.folder_id.clone(),
+            folder_name: registration.folder_name.clone(),
+            original_id: registration.original_id.clone(),
+            original_doc_id: registration.original_doc_id.clone(),
+            staged_id: registration
+                .staged_id
+                .clone()
+                .context("staged registration has no item identity")?,
+            staged_doc_id: registration
+                .staged_doc_id
+                .clone()
+                .context("staged registration has no document identity")?,
+            staged_name: registration.staged_name.clone(),
+            recovery_name: format!("recovery-by-cirrove-{}.txt", Uuid::new_v4()),
+            original_sha256: registration.original_sha256.clone(),
+            staged_sha256: registration.staged_sha256.clone(),
+        };
+        if self.inspect_durable_handoff(&plan).await? != HandoffObserved::Prepared {
+            bail!("registered staged file changed before handoff");
+        }
+        Ok(plan)
     }
 
     async fn create_owned_file(
@@ -310,7 +497,8 @@ impl ICloudReadSession {
         name: &str,
         bytes: &[u8],
         require_empty: bool,
-    ) -> Result<ValidationFile> {
+        discard_registration_receipt: bool,
+    ) -> Result<Option<ValidationFile>> {
         let folder_id = folder.id.as_str();
         if bytes.is_empty()
             || bytes.len() > 4096
@@ -367,6 +555,12 @@ impl ICloudReadSession {
             .send()
             .await
             .map_err(|_| anyhow!("iCloud validation file registration failed"))?;
+        if discard_registration_receipt {
+            // The response exists, but this process intentionally never parses
+            // it or learns the resulting remote item ID.
+            drop(response);
+            return Ok(None);
+        }
         if !response.status().is_success() {
             return Err(drive_request_failure(
                 response.status(),
@@ -403,12 +597,12 @@ impl ICloudReadSession {
         if readback != bytes {
             bail!("iCloud validation file readback differs from the upload");
         }
-        Ok(ValidationFile {
+        Ok(Some(ValidationFile {
             id: entry.drivewsid,
             document_id: entry.docwsid,
             etag: entry.etag,
             name: name.into(),
-        })
+        }))
     }
 
     /// One intentionally narrow experiment against the file created above.
@@ -1130,6 +1324,46 @@ impl HandoffPlan {
     }
 }
 
+impl StagedRegistrationPlan {
+    pub fn validate(&self) -> Result<()> {
+        let uuid_name = |name: &str, prefix: &str, suffix: &str| {
+            name.strip_prefix(prefix)
+                .and_then(|middle| middle.strip_suffix(suffix))
+                .is_some_and(|middle| Uuid::parse_str(middle).is_ok())
+        };
+        let digest = |value: &str| {
+            value.len() == 64
+                && value
+                    .bytes()
+                    .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+        };
+        let old = split_file_id(&self.original_id)?;
+        let bound = match (&self.staged_id, &self.staged_doc_id) {
+            (None, None) => true,
+            (Some(id), Some(document)) => {
+                let candidate = split_file_id(id)?;
+                candidate.0 == "com.apple.CloudDocs"
+                    && candidate.1 == document
+                    && id != &self.original_id
+            }
+            _ => false,
+        };
+        if self.version != 1
+            || !uuid_name(&self.folder_name, PROBE_PREFIX, "")
+            || !self.folder_id.starts_with("FOLDER::com.apple.CloudDocs::")
+            || !uuid_name(&self.staged_name, "staged-by-cirrove-", ".txt")
+            || old.0 != "com.apple.CloudDocs"
+            || old.1 != self.original_doc_id
+            || !digest(&self.original_sha256)
+            || !digest(&self.staged_sha256)
+            || !bound
+        {
+            bail!("invalid staged iCloud registration plan");
+        }
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod handoff_tests {
     use super::*;
@@ -1167,5 +1401,30 @@ mod handoff_tests {
         let mut unsafe_name = plan();
         unsafe_name.recovery_name = "important.txt".into();
         assert!(unsafe_name.validate().is_err());
+    }
+
+    #[test]
+    fn staged_registration_reservation_requires_a_matching_bound_identity() {
+        let mut plan = StagedRegistrationPlan {
+            version: 1,
+            folder_id: "FOLDER::com.apple.CloudDocs::folder-1".into(),
+            folder_name: format!("{PROBE_PREFIX}{}", Uuid::new_v4()),
+            original_id: "FILE::com.apple.CloudDocs::old-1".into(),
+            original_doc_id: "old-1".into(),
+            original_sha256: "a".repeat(64),
+            staged_name: format!("staged-by-cirrove-{}.txt", Uuid::new_v4()),
+            staged_sha256: "b".repeat(64),
+            staged_id: None,
+            staged_doc_id: None,
+        };
+        plan.validate().unwrap();
+        plan.staged_id = Some("FILE::com.apple.CloudDocs::new-1".into());
+        assert!(plan.validate().is_err());
+        plan.staged_doc_id = Some("new-1".into());
+        plan.validate().unwrap();
+        plan.staged_doc_id = Some("unrelated".into());
+        assert!(plan.validate().is_err());
+        plan.staged_id = Some("FILE::other.zone::unrelated".into());
+        assert!(plan.validate().is_err());
     }
 }

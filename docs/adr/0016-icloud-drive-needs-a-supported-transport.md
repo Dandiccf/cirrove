@@ -342,6 +342,25 @@ insufficient for normal writeback: the initial upload is not yet crash-safe,
 the two renames are not atomic or conditional, and concurrent edits were not
 exercised.
 
+A further [staged-registration trial](../benchmarks/icloud-lost-registration-receipt-2026-09-27.md)
+fsynced a unique name and full hash before the first upload request, then
+discarded the registration response after Apple replied. A fresh process
+found one matching candidate under the exact parent ID, checked both file
+hashes, bound the new remote ID and fsynced it without reuploading. This
+closes one post-response registration boundary in the isolated probe. It
+does not prove recovery from an in-flight timeout or an interrupted content
+slot upload, and this checkpoint is not yet integrated with the normal
+writeback journal or mounted filesystem.
+
+The [linked handoff trial](../benchmarks/icloud-reconciled-stage-handoff-2026-09-27.md)
+then took that remotely discovered and fsynced staged ID, verified both
+files again, fsynced a separate handoff plan and completed both renames
+without another upload. Both versions remained. This joins the two
+experimental recovery mechanisms for one owned fixture. It does not prove
+the entire sequence under simultaneous remote edits or arbitrary process
+death, and it does not satisfy Cirrove's existing same-ID replacement
+journal contract.
+
 1. Upload new bytes under a unique temporary name without touching the old
    item. Persist the new exact ID and upload receipt first, then read it back
    and verify its full hash.

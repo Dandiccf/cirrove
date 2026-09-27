@@ -10,7 +10,7 @@ use cirrove_icloud::{
     SameIdUpdateOutcome, SealedSessionVault,
 };
 use cirrove_service::accounts::Settings;
-use icloud_handoff_journal::Journal;
+use icloud_handoff_journal::{Journal, StageJournal};
 use std::path::Path;
 use uuid::Uuid;
 
@@ -32,8 +32,11 @@ async fn main() -> Result<()> {
         [flag] if flag == "--durable-resume-lost-old" => 12,
         [flag] if flag == "--durable-drop-new-receipt" => 13,
         [flag] if flag == "--durable-resume-lost-new" => 14,
+        [flag] if flag == "--durable-drop-registration-receipt" => 15,
+        [flag] if flag == "--durable-resume-registration" => 16,
+        [flag] if flag == "--durable-handoff-registered" => 17,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --inspect-occupied | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --inspect-occupied | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -95,6 +98,7 @@ async fn main() -> Result<()> {
     let journal_directory = Path::new(env!("CARGO_MANIFEST_DIR")).join(match mode {
         11 | 12 => "../../.local-state/icloud-lost-old-receipt-validation",
         13 | 14 => "../../.local-state/icloud-lost-new-receipt-validation",
+        15..=17 => "../../.local-state/icloud-lost-registration-receipt-validation",
         _ => "../../.local-state/icloud-durable-handoff-validation",
     });
     if matches!(mode, 10 | 12 | 14) {
@@ -102,6 +106,24 @@ async fn main() -> Result<()> {
         journal.resume(&mut session).await?;
         println!(
             "Durable iCloud validation handoff reconciled and completed; both versions remain."
+        );
+        return Ok(());
+    }
+    if mode == 16 {
+        let mut journal = StageJournal::load(&journal_directory, &account.id)?;
+        journal.resume(&mut session).await?;
+        println!(
+            "Staged iCloud file registration reconciled by exact parent, unique name, remote ID and full hash; no request was replayed."
+        );
+        return Ok(());
+    }
+    if mode == 17 {
+        let mut stage = StageJournal::load(&journal_directory, &account.id)?;
+        let plan = stage.prepare_handoff_plan(&mut session).await?;
+        let mut handoff = Journal::create(&journal_directory, &account.id, plan)?;
+        handoff.resume(&mut session).await?;
+        println!(
+            "Previously reconciled staged registration completed its durable two-ID handoff; both versions remain."
         );
         return Ok(());
     }
@@ -117,6 +139,25 @@ async fn main() -> Result<()> {
     println!(
         "Created and read back the isolated validation file byte for byte. The fixture remains in iCloud Drive."
     );
+    if mode == 15 {
+        let staged_bytes = format!("Cirrove registration validation {}\n", Uuid::new_v4());
+        let plan = session
+            .prepare_staged_registration(
+                &folder,
+                &file,
+                content.as_bytes(),
+                staged_bytes.as_bytes(),
+            )
+            .await?;
+        let mut journal = StageJournal::create(&journal_directory, &account.id, plan)?;
+        journal
+            .drop_registration_receipt(&mut session, staged_bytes.as_bytes())
+            .await?;
+        println!(
+            "Staged file registration request sent; its receipt was deliberately discarded. Start --durable-resume-registration in a new process."
+        );
+        return Ok(());
+    }
     if (1..=3).contains(&mode) || mode == 5 {
         let replacement = format!("Cirrove revised validation {}\n", Uuid::new_v4());
         let outcome = session
