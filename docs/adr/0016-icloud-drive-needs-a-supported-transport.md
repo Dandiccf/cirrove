@@ -96,6 +96,14 @@ credential store. It must not call rclone or read or change another client's
 configuration, credentials, mount or service. No credentials, cookies, token
 values, signed download URLs or raw response bodies enter the evidence artifact.
 
+On 2026-09-27, a feature-gated Cirrove probe using the isolated, saved
+`iCloudGuiValidation` session successfully created a uniquely named test folder
+and one small ordinary file in it, confirmed their returned provider identities,
+and read the file back byte for byte. The [pre-registered run artifact](../benchmarks/icloud-write-fixture-2026-09-27.md)
+records the scope and elapsed time. No pre-existing user item was changed. This
+supports the **new-file** request shape for one account; it says nothing yet
+about safe overwrite, conflict detection, delete, or long-term reliability.
+
 ## Direct Linux architecture if the gates pass
 
 ```mermaid

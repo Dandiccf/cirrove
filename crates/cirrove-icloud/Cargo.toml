@@ -6,6 +6,10 @@ rust-version.workspace = true
 license.workspace = true
 publish = false
 
+[features]
+# Explicitly invoked developer probe; never linked into the normal service.
+write-probe = []
+
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true

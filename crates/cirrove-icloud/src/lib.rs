@@ -7,6 +7,8 @@
 
 mod provider;
 mod sealed_session;
+#[cfg(feature = "write-probe")]
+mod write_probe;
 pub use provider::ICloudDrive;
 pub use sealed_session::SealedSessionVault;
 
