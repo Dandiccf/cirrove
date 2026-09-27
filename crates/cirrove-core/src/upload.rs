@@ -102,6 +102,13 @@ pub enum UploadStep {
     /// final commit makes them visible as the replacement file.
     Commit(SecretString),
     Complete(Node),
+    /// A staged replacement has installed a new item ID and retained the old
+    /// exact ID at its reserved recovery name. The provider must verify both
+    /// identities and exact content before returning this receipt.
+    HandoffComplete {
+        current: Node,
+        backup: Node,
+    },
 }
 impl std::fmt::Debug for UploadStep {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -110,11 +117,13 @@ impl std::fmt::Debug for UploadStep {
             Self::Continue(_) => "UploadStep::Continue([redacted])",
             Self::Commit(_) => "UploadStep::Commit([redacted])",
             Self::Complete(_) => "UploadStep::Complete([redacted])",
+            Self::HandoffComplete { .. } => "UploadStep::HandoffComplete([redacted])",
         })
     }
 }
 pub enum Reconciliation {
     Committed(Node),
+    HandoffCommitted { current: Node, backup: Node },
     Uncommitted,
     Conflict,
 }
@@ -132,6 +141,14 @@ pub enum Reconciliation {
 /// does not prove failure. Reconcile the remote target before restarting it.
 #[async_trait]
 pub trait UploadProvider: Send + Sync {
+    /// Pure, stable choice of an old-version recovery name for this operation.
+    /// The worker reserves it in the local journal before any provider call.
+    /// A provider returning `Some` must never mutate a replacement before that
+    /// reservation, and must return the same name after a process restart.
+    fn staged_recovery_name(&self, _operation: &str, _request: &UploadRequest) -> Option<String> {
+        None
+    }
+
     async fn begin_upload(
         &self,
         request: &UploadRequest,

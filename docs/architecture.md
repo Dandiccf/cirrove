@@ -845,18 +845,22 @@ application compatibility and real-provider mounted unlink acceptance remain ope
 
 ## Journal replacement of two local files
 
-The journal also has a separate, currently unconnected identity-handoff
+The journal also has a separate identity-handoff
 receipt for providers that stage a replacement under a **new** remote item ID.
 Before any provider handoff request, it reserves a hidden recovery object for
 the old ID. An independently verified two-ID receipt then commits the new
 binding, old recovery binding and upload completion in one SQLite transaction.
 The local file identity and retained edit bytes survive; a false or incomplete
 receipt leaves the operation pending. Reservation survives a process restart,
-and a successor uses the newly confirmed remote ID. This is the local
-publication primitive required by the experimental iCloud handoff, not a
-working iCloud upload worker: the provider transport still must durably stage
-bytes, reconcile in-flight requests, independently verify both identities and
-expose the retained recovery version before any iCloud write grant is offered.
+and a successor uses the newly confirmed remote ID. The shared transfer worker
+now reserves this object before any provider request and accepts a verified
+two-ID receipt on either the normal or reconciliation path. A synthetic worker
+run covers process death before reservation and a later lost success receipt
+without a replay. This is the local execution path required by the experimental
+iCloud handoff, not a working iCloud upload adapter: the native transport still
+must durably stage bytes, reconcile in-flight requests, independently verify
+both identities and expose the retained recovery version before any iCloud
+write grant is offered.
 
 Journal schema 10 adds completion prerequisites independently of the single
 content/ETag predecessor. Both upload and mutation selection, including explicit

@@ -45,7 +45,11 @@ impl UploadJournal {
             }
             return Ok(reservation.recovery_object);
         }
-        if record.state != UploadState::Uploading {
+        if record.state != UploadState::Uploading
+            && !(record.state == UploadState::Verifying
+                && record.session_key.is_none()
+                && record.transferred_bytes == 0)
+        {
             return Err(JournalError::Stale);
         }
         let owner = self

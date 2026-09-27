@@ -184,6 +184,15 @@ impl TransferWorker {
             size: record.size,
             sha256: record.sha256.clone(),
         };
+        if let Some(recovery_name) = self
+            .provider
+            .staged_recovery_name(&id.to_string(), &request)
+        {
+            // The provider is still untouched. Reserve the old-ID owner before
+            // begin, inspect or reconcile can make a remote request.
+            self.local(move |j| j.reserve_identity_handoff(id, attempt, recovery_name))
+                .await?;
+        }
         let mut saved_checkpoint = None;
         let mut step = if record.state == UploadState::Verifying {
             let checkpoint = self
@@ -238,6 +247,9 @@ impl TransferWorker {
                 .await?
             {
                 Reconciliation::Committed(node) => step = Some(UploadStep::Complete(node)),
+                Reconciliation::HandoffCommitted { current, backup } => {
+                    step = Some(UploadStep::HandoffComplete { current, backup });
+                }
                 Reconciliation::Conflict => return Err(UploadError::Conflict.into()),
                 Reconciliation::Uncommitted => {
                     // Keep the local snapshot. A new attempt will get a fresh
@@ -284,6 +296,14 @@ impl TransferWorker {
                     // durable receipt; this worker never deletes an edited file.
                     return Ok(UploadState::Uploaded);
                 }
+                UploadStep::HandoffComplete { current, backup } => {
+                    self.local(move |j| {
+                        j.acknowledge_identity_handoff(id, attempt, current, backup)
+                    })
+                    .await?;
+                    self.clean_checkpoint(id).await;
+                    return Ok(UploadState::Uploaded);
+                }
                 UploadStep::Commit(checkpoint) => {
                     prepared_allowed = false;
                     self.checkpoint(record, checkpoint.clone(), request.size)
@@ -295,7 +315,10 @@ impl TransferWorker {
                                 .commit_upload(&request, &checkpoint, &self.cancel),
                         )
                         .await?;
-                    if !matches!(next, UploadStep::Complete(_)) {
+                    if !matches!(
+                        next,
+                        UploadStep::Complete(_) | UploadStep::HandoffComplete { .. }
+                    ) {
                         return Err(UploadError::Uncertain.into());
                     }
                     next

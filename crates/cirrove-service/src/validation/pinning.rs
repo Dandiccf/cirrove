@@ -60,6 +60,9 @@ async fn place(
                 graph.commit_upload(&request, &checkpoint, cancel).await?
             }
             UploadStep::Complete(node) => return Ok(node),
+            UploadStep::HandoffComplete { .. } => {
+                anyhow::bail!("a new OneDrive pinning fixture returned a replacement receipt")
+            }
         };
     }
 }
