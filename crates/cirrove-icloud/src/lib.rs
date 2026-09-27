@@ -14,7 +14,8 @@ pub use sealed_session::SealedSessionVault;
 #[cfg(feature = "write-probe")]
 pub use write_probe::{
     HandoffObserved, HandoffOutcome, HandoffPlan, OccupiedNameOutcome, RenameProbeOutcome,
-    SameIdUpdateOutcome, StagedRegistrationPlan, ValidationFile, ValidationFolder,
+    SameIdUpdateOutcome, StagedRegistrationPlan, TrashProbeOutcome, ValidationFile,
+    ValidationFolder,
 };
 
 use anyhow::{Context, Result, anyhow, bail};

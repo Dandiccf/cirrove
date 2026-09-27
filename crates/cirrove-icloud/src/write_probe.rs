@@ -35,6 +35,15 @@ pub enum RenameProbeOutcome {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+pub enum TrashProbeOutcome {
+    StaleAcceptedAbsentFromParent,
+    StaleRejectedCurrentIntact,
+    StaleRejectedFreshAcceptedAbsentFromParent,
+    StaleRejectedFreshRejectedCurrentIntact,
+    Indeterminate,
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub enum OccupiedNameOutcome {
     RejectedBothIntact,
     AcceptedDuplicateName,
@@ -99,6 +108,16 @@ struct RenameReply {
 
 #[derive(Deserialize)]
 struct RenameResult {
+    status: String,
+}
+
+#[derive(Deserialize)]
+struct TrashReply {
+    items: Vec<TrashResult>,
+}
+
+#[derive(Deserialize)]
+struct TrashResult {
     status: String,
 }
 
@@ -799,6 +818,98 @@ impl ICloudReadSession {
             Ok(SameIdUpdateOutcome::RejectedUnchanged)
         } else {
             Ok(SameIdUpdateOutcome::Indeterminate)
+        }
+    }
+
+    /// On a fresh fixture only, ask whether a stale ETag prevents moving an
+    /// exact item ID out of its parent. The request is sent once and never
+    /// retried; absence from the parent does not by itself prove Trash state.
+    pub async fn probe_stale_etag_trash(
+        &mut self,
+        folder: &ValidationFolder,
+        file: &ValidationFile,
+        current_bytes: &[u8],
+        fresh_followup: bool,
+    ) -> Result<TrashProbeOutcome> {
+        if current_bytes.is_empty() || current_bytes.len() > 4096 || file.name != PROBE_FILE {
+            bail!("invalid iCloud trash validation fixture");
+        }
+        let before = self.list_folder(&folder.id).await?;
+        let entry = exactly_one(
+            before
+                .iter()
+                .filter(|entry| entry.drivewsid == file.id)
+                .collect(),
+            "trash base lookup",
+        )?;
+        if before.len() != 1
+            || entry.is_folder()
+            || entry.docwsid != file.document_id
+            || entry.display_name() != PROBE_FILE
+            || entry.etag.is_empty()
+            || entry.etag == file.etag
+            || self.read_small_file_in_folder(&folder.id, &file.id).await? != current_bytes
+        {
+            bail!("iCloud trash base is not the expected newer fixture");
+        }
+        let current_etag = entry.etag.clone();
+        let accepted = self.send_trash(&file.id, &file.etag).await?;
+        let after = self.list_folder(&folder.id).await?;
+        if accepted && after.iter().all(|entry| entry.drivewsid != file.id) {
+            return Ok(TrashProbeOutcome::StaleAcceptedAbsentFromParent);
+        }
+        if !accepted
+            && after.len() == 1
+            && after[0].drivewsid == file.id
+            && after[0].docwsid == file.document_id
+            && after[0].etag == current_etag
+            && self.read_small_file_in_folder(&folder.id, &file.id).await? == current_bytes
+        {
+            if !fresh_followup {
+                return Ok(TrashProbeOutcome::StaleRejectedCurrentIntact);
+            }
+            let fresh_accepted = self.send_trash(&file.id, &current_etag).await?;
+            let after_fresh = self.list_folder(&folder.id).await?;
+            if fresh_accepted && after_fresh.iter().all(|entry| entry.drivewsid != file.id) {
+                return Ok(TrashProbeOutcome::StaleRejectedFreshAcceptedAbsentFromParent);
+            }
+            if !fresh_accepted
+                && after_fresh.len() == 1
+                && after_fresh[0].drivewsid == file.id
+                && after_fresh[0].docwsid == file.document_id
+                && after_fresh[0].etag == current_etag
+                && self.read_small_file_in_folder(&folder.id, &file.id).await? == current_bytes
+            {
+                return Ok(TrashProbeOutcome::StaleRejectedFreshRejectedCurrentIntact);
+            }
+        }
+        Ok(TrashProbeOutcome::Indeterminate)
+    }
+
+    async fn send_trash(&mut self, item_id: &str, etag: &str) -> Result<bool> {
+        let endpoint = self
+            .drive_endpoint
+            .as_ref()
+            .context("iCloud sign-in is not complete")?
+            .join("moveItemsToTrash")?;
+        let response = self
+            .http
+            .post(endpoint)
+            .header("origin", ICLOUD_ORIGIN)
+            .header("referer", format!("{ICLOUD_ORIGIN}/"))
+            .json(&json!({"items": [{
+                "drivewsid": item_id,
+                "etag": etag,
+                "clientId": item_id
+            }]}))
+            .send()
+            .await
+            .map_err(|_| anyhow!("iCloud validation trash request failed"))?;
+        if response.status().is_success() {
+            let reply: TrashReply = read_json(response, "iCloud validation trash").await?;
+            Ok(exactly_one(reply.items, "trash")?.status == "OK")
+        } else {
+            Ok(false)
         }
     }
 

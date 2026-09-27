@@ -389,6 +389,18 @@ are reflected in the product and pass live conflict, crash, folder and account
 class validation. The preferred path remains a proven conditional in-place
 update if the Apple web transport offers one.
 
+An isolated [stale-ETag Trash trial](../benchmarks/icloud-stale-trash-2026-09-27.md)
+and [current-ETag control](../benchmarks/icloud-fresh-trash-control-2026-09-27.md)
+found a narrower conditional operation: after a confirmed same-ID content
+change, `moveItemsToTrash` refused the old ETag while preserving the newer
+bytes; the same fixture procedure then accepted the observed current ETag
+and the exact ID disappeared from its parent. This is one account and one
+run per arm. Absence from the parent is not independent proof of Trash
+recoverability. It does not make same-ID content updates or renames
+conditional, and normal deletion remains disabled until restart and
+response-loss reconciliation, concurrent-edit behavior and recovery are
+validated.
+
 ## Immediate implementation sequence
 
 1. Build a synthetic protocol fixture from documented observations of the open

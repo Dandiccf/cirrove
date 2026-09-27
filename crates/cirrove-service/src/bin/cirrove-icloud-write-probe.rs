@@ -7,7 +7,7 @@ use anyhow::{Context, Result, bail};
 use cirrove_auth::{AppRegistration, CredentialVault};
 use cirrove_icloud::{
     HandoffOutcome, ICloudReadSession, OccupiedNameOutcome, RenameProbeOutcome,
-    SameIdUpdateOutcome, SealedSessionVault,
+    SameIdUpdateOutcome, SealedSessionVault, TrashProbeOutcome,
 };
 use cirrove_service::accounts::Settings;
 use icloud_handoff_journal::{Journal, StageJournal};
@@ -35,8 +35,10 @@ async fn main() -> Result<()> {
         [flag] if flag == "--durable-drop-registration-receipt" => 15,
         [flag] if flag == "--durable-resume-registration" => 16,
         [flag] if flag == "--durable-handoff-registered" => 17,
+        [flag] if flag == "--stale-etag-trash" => 18,
+        [flag] if flag == "--stale-then-fresh-trash" => 19,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --inspect-occupied | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --inspect-occupied | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -139,6 +141,37 @@ async fn main() -> Result<()> {
     println!(
         "Created and read back the isolated validation file byte for byte. The fixture remains in iCloud Drive."
     );
+    if matches!(mode, 18 | 19) {
+        let revised = format!("Cirrove trash revision {}\n", Uuid::new_v4());
+        if session
+            .probe_same_id_update(&folder, &file, content.as_bytes(), revised.as_bytes())
+            .await?
+            != SameIdUpdateOutcome::Updated
+        {
+            bail!("iCloud did not establish the newer trash-test revision");
+        }
+        match session
+            .probe_stale_etag_trash(&folder, &file, revised.as_bytes(), mode == 19)
+            .await?
+        {
+            TrashProbeOutcome::StaleAcceptedAbsentFromParent => println!(
+                "Stale ETag was accepted for the exact test file; its ID is absent from the parent. This request shape is not conditional."
+            ),
+            TrashProbeOutcome::StaleRejectedCurrentIntact => println!(
+                "Stale ETag was rejected; the exact test file and newer bytes remain in its parent."
+            ),
+            TrashProbeOutcome::StaleRejectedFreshAcceptedAbsentFromParent => println!(
+                "Stale ETag was rejected, then current ETag was accepted; the exact test ID is absent from its parent."
+            ),
+            TrashProbeOutcome::StaleRejectedFreshRejectedCurrentIntact => println!(
+                "Both stale and current ETags were rejected; the exact test file remains intact."
+            ),
+            TrashProbeOutcome::Indeterminate => {
+                bail!("stale-ETag trash request left an indeterminate test fixture state")
+            }
+        }
+        return Ok(());
+    }
     if mode == 15 {
         let staged_bytes = format!("Cirrove registration validation {}\n", Uuid::new_v4());
         let plan = session
