@@ -1344,6 +1344,7 @@ mod tests {
             sha256: hex::encode(Sha256::digest(&bytes)),
             attempt: None,
             remote: Some(node),
+            identity_handoff: None,
             base: None,
             working_file: None,
             session_key: None,

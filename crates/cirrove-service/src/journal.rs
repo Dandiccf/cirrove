@@ -8,6 +8,7 @@ mod barriers;
 mod directories;
 mod generations;
 mod handoff;
+mod identity_handoff;
 mod mutations;
 mod namespace;
 mod preparation;
@@ -205,6 +206,10 @@ pub struct UploadRecord {
     /// An attempt token fences delayed results after restart or retry.
     pub attempt: Option<Uuid>,
     pub remote: Option<Node>,
+    /// Reserved old-ID owner for providers that install a separately uploaded
+    /// replacement under a new item ID. This is never inferred from a path.
+    #[serde(default)]
+    pub(crate) identity_handoff: Option<identity_handoff::Reservation>,
     /// A preceding save or namespace operation supplies the confirmed base version.
     #[serde(default)]
     pub base: Option<UploadBase>,
@@ -465,6 +470,7 @@ impl UploadJournal {
             sha256: hex::encode(hash.finalize()),
             attempt: None,
             remote: None,
+            identity_handoff: None,
             base: order.base,
             working_file: working.as_ref().and_then(GenerationCommit::working_id),
             session_key: None,
@@ -667,9 +673,12 @@ impl UploadJournal {
         mutations::queue_complete(&tx, record.id, record.state == UploadState::Uploaded)?;
         if record.state == UploadState::Uploaded
             && let Some(remote) = &record.remote
-            && !replacements::confirm(&tx, record.id, record.sequence, remote)?
         {
-            namespace::confirm(&tx, record.id, record.sequence, remote)?;
+            if record.identity_handoff.is_some() {
+                identity_handoff::confirm(&tx, record, remote)?;
+            } else if !replacements::confirm(&tx, record.id, record.sequence, remote)? {
+                namespace::confirm(&tx, record.id, record.sequence, remote)?;
+            }
         }
         tx.commit()?;
         #[cfg(feature = "test-support")]
@@ -817,6 +826,9 @@ impl UploadJournal {
     /// An uncertain receipt after restart needs a new fenced verification attempt.
     pub fn acknowledge(&mut self, id: Uuid, attempt: Uuid, mut remote: Node) -> Result<()> {
         let mut record = self.active_attempt(id, attempt)?;
+        if record.identity_handoff.is_some() {
+            return Err(JournalError::Intent);
+        }
         let identity_matches = match &record.intent {
             UploadIntent::Create { parent, name } => {
                 &remote.name == name && remote.parent_id.as_deref() == Some(parent.as_str())

@@ -74,6 +74,7 @@ impl UploadJournal {
             sha256: String::new(),
             attempt: None,
             remote: None,
+            identity_handoff: None,
             base: order.base,
             working_file: None,
             session_key: None,
