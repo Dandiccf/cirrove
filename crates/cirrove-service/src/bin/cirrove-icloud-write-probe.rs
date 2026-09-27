@@ -63,8 +63,9 @@ async fn main() -> Result<()> {
         [flag] if flag == "--worker-resume-handoff" => 31,
         [flag] if flag == "--worker-discard-new-handoff-receipt" => 32,
         [flag] if flag == "--worker-reconcile-new-handoff" => 33,
+        [flag] if flag == "--owned-trash-download" => 34,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -488,6 +489,15 @@ async fn main() -> Result<()> {
     println!(
         "Created and read back the isolated validation file byte for byte. The fixture remains in iCloud Drive."
     );
+    if mode == 34 {
+        session
+            .probe_owned_trash_download(&folder, &file, content.as_bytes())
+            .await?;
+        println!(
+            "Exact owned Trash item remained byte-readable with stable ETag and restore metadata."
+        );
+        return Ok(());
+    }
     if matches!(mode, 29 | 30 | 32) {
         let staged_bytes = format!("Cirrove worker handoff {}\n", Uuid::new_v4());
         let staged = session

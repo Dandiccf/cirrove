@@ -1182,6 +1182,119 @@ impl ICloudReadSession {
         })
     }
 
+    /// Check whether a recoverable old version can still be read by its
+    /// exact provider ID while it is in Trash. Only a new owned fixture is
+    /// eligible; neither restore nor permanent deletion is attempted.
+    pub async fn probe_owned_trash_download(
+        &mut self,
+        folder: &ValidationFolder,
+        file: &ValidationFile,
+        bytes: &[u8],
+    ) -> Result<()> {
+        if bytes.is_empty()
+            || bytes.len() > 4096
+            || file.name != PROBE_FILE
+            || folder
+                .name
+                .strip_prefix(PROBE_PREFIX)
+                .is_none_or(|suffix| Uuid::parse_str(suffix).is_err())
+        {
+            bail!("invalid iCloud Trash download fixture");
+        }
+        let before = self.list_folder(&folder.id).await?;
+        if before.len() != 1
+            || before[0].drivewsid != file.id
+            || before[0].docwsid != file.document_id
+            || before[0].display_name() != PROBE_FILE
+            || before[0].etag != file.etag
+            || self.read_small_file_in_folder(&folder.id, &file.id).await? != bytes
+        {
+            bail!("iCloud Trash download base changed");
+        }
+        if !self.send_trash(&file.id, &file.etag).await?
+            || self
+                .list_folder(&folder.id)
+                .await?
+                .iter()
+                .any(|entry| entry.drivewsid == file.id)
+        {
+            bail!("iCloud did not confirm the exact fixture in Trash");
+        }
+        let (items, complete) = self.read_trash_items().await?;
+        if !complete {
+            bail!("iCloud Trash listing is incomplete");
+        }
+        let item = exactly_one(
+            items
+                .iter()
+                .filter(|item| item.get("drivewsid").and_then(|id| id.as_str()) == Some(&file.id))
+                .collect(),
+            "owned file in Trash",
+        )?;
+        let etag = item
+            .get("etag")
+            .and_then(|etag| etag.as_str())
+            .filter(|etag| !etag.is_empty())
+            .context("iCloud Trash item has no ETag")?
+            .to_owned();
+        if item.get("size").and_then(|size| size.as_u64()) != Some(bytes.len() as u64)
+            || item.get("restorePath").is_none_or(|path| path.is_null())
+            || item
+                .get("docwsid")
+                .and_then(|id| id.as_str())
+                .is_some_and(|id| !id.is_empty() && id != file.document_id)
+        {
+            bail!("iCloud Trash item lacks the expected recoverable identity");
+        }
+        let signed_url = self.signed_download_url(&file.id).await?;
+        let mut response = self
+            .http
+            .get(signed_url)
+            .send()
+            .await
+            .map_err(|_| anyhow!("iCloud Trash content request failed"))?;
+        if response.status() != StatusCode::OK {
+            bail!(
+                "iCloud Trash content request failed ({})",
+                response.status().as_u16()
+            );
+        }
+        let mut received = Vec::with_capacity(bytes.len());
+        while let Some(chunk) = response
+            .chunk()
+            .await
+            .map_err(|_| anyhow!("iCloud Trash content response was interrupted"))?
+        {
+            if received.len().saturating_add(chunk.len()) > 4096 {
+                bail!("iCloud Trash file exceeds the bounded fixture limit");
+            }
+            received.extend_from_slice(&chunk);
+        }
+        if received != bytes {
+            bail!("iCloud Trash bytes differ from the original fixture");
+        }
+        let (after, complete) = self.read_trash_items().await?;
+        if !complete {
+            bail!("iCloud Trash listing became incomplete after the read");
+        }
+        let unchanged = exactly_one(
+            after
+                .iter()
+                .filter(|item| item.get("drivewsid").and_then(|id| id.as_str()) == Some(&file.id))
+                .collect(),
+            "owned file after Trash read",
+        )?;
+        if unchanged.get("etag").and_then(|value| value.as_str()) != Some(etag.as_str())
+            || unchanged.get("size").and_then(|value| value.as_u64()) != Some(bytes.len() as u64)
+            || unchanged
+                .get("restorePath")
+                .is_none_or(|path| path.is_null())
+        {
+            bail!("iCloud Trash item changed during the exact-ID read");
+        }
+        Ok(())
+    }
+
     async fn send_rename(&mut self, item_id: &str, etag: &str, name: &str) -> Result<bool> {
         let endpoint = self
             .drive_endpoint

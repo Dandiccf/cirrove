@@ -471,6 +471,16 @@ concurrent edits still need live validation.
 Apple's rename request can accept a stale ETag, so this does not permit
 mounted replacement or ordinary-file writes.
 
+A separate [owned-file Trash download trial](../benchmarks/icloud-trash-backup-read-2026-09-27.md)
+found that one ETag-bound, recoverable Trash item remained downloadable by
+its exact ID and byte-identical while complete Trash listings retained its
+ETag, size and restore metadata. This makes a conditional Trash step a
+plausible alternative to the unconditionally renamed old recovery copy:
+the stale-ETag Trash trial rejected a newer revision, while the current-ETag
+control succeeded. The full staged-replacement sequence, recovery binding
+in the shared journal, concurrent changes and retention are not yet proven.
+Do not enable mounted writes on this evidence alone.
+
 A feature-gated `ICloudOwnedFixtureRemove` now implements the shared
 `MutationProvider` contract for one small, newly created Cirrove fixture.
 It accepts only an exact prepared file identity, checks the observed ETag and
