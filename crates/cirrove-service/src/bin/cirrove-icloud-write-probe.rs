@@ -1,5 +1,8 @@
 //! Explicit, one-shot live mutation experiment against Cirrove-owned fixtures.
 //! This does not expose iCloud as a writable filesystem.
+#[path = "cirrove-icloud-write-probe/icloud_handoff_journal.rs"]
+mod icloud_handoff_journal;
+
 use anyhow::{Context, Result, bail};
 use cirrove_auth::{AppRegistration, CredentialVault};
 use cirrove_icloud::{
@@ -7,6 +10,7 @@ use cirrove_icloud::{
     SameIdUpdateOutcome, SealedSessionVault,
 };
 use cirrove_service::accounts::Settings;
+use icloud_handoff_journal::Journal;
 use std::path::Path;
 use uuid::Uuid;
 
@@ -22,8 +26,14 @@ async fn main() -> Result<()> {
         [flag] if flag == "--occupied-name" => 6,
         [flag] if flag == "--inspect-occupied" => 7,
         [flag] if flag == "--staged-handoff" => 8,
+        [flag] if flag == "--durable-stop-after-recovery" => 9,
+        [flag] if flag == "--durable-resume" => 10,
+        [flag] if flag == "--durable-drop-old-receipt" => 11,
+        [flag] if flag == "--durable-resume-lost-old" => 12,
+        [flag] if flag == "--durable-drop-new-receipt" => 13,
+        [flag] if flag == "--durable-resume-lost-new" => 14,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --inspect-occupied | --staged-handoff]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --inspect-occupied | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -80,6 +90,19 @@ async fn main() -> Result<()> {
                 .collect();
             println!("Two-item validation folder: {labels:?}");
         }
+        return Ok(());
+    }
+    let journal_directory = Path::new(env!("CARGO_MANIFEST_DIR")).join(match mode {
+        11 | 12 => "../../.local-state/icloud-lost-old-receipt-validation",
+        13 | 14 => "../../.local-state/icloud-lost-new-receipt-validation",
+        _ => "../../.local-state/icloud-durable-handoff-validation",
+    });
+    if matches!(mode, 10 | 12 | 14) {
+        let mut journal = Journal::load(&journal_directory, &account.id)?;
+        journal.resume(&mut session).await?;
+        println!(
+            "Durable iCloud validation handoff reconciled and completed; both versions remain."
+        );
         return Ok(());
     }
     let name = format!("Cirrove Write Validation-{}", Uuid::new_v4());
@@ -259,6 +282,38 @@ async fn main() -> Result<()> {
                     "staged handoff left an indeterminate fixture state; no request will be retried"
                 );
             }
+        }
+    }
+    if matches!(mode, 9 | 11 | 13) {
+        let staged_bytes = format!("Cirrove durable handoff {}\n", Uuid::new_v4());
+        let staged = session
+            .create_staged_file(&folder, &file, staged_bytes.as_bytes())
+            .await?;
+        let plan = session
+            .prepare_durable_handoff(
+                &folder,
+                &file,
+                &staged,
+                content.as_bytes(),
+                staged_bytes.as_bytes(),
+            )
+            .await?;
+        let mut journal = Journal::create(&journal_directory, &account.id, plan)?;
+        if mode == 9 {
+            journal.stop_after_recovery(&mut session).await?;
+            println!(
+                "Durable checkpoint saved after moving the old validation item to recovery. Start --durable-resume in a new process."
+            );
+        } else if mode == 11 {
+            journal.drop_old_rename_receipt(&mut session).await?;
+            println!(
+                "Old rename request sent; its receipt was deliberately discarded. Start --durable-resume-lost-old in a new process."
+            );
+        } else {
+            journal.drop_new_rename_receipt(&mut session).await?;
+            println!(
+                "New rename request sent; its receipt was deliberately discarded. Start --durable-resume-lost-new in a new process."
+            );
         }
     }
     Ok(())

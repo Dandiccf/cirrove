@@ -318,6 +318,30 @@ ETag precondition, and has no durable restart checkpoint. The result is
 feasibility evidence for preserving both versions, not permission to expose
 normal iCloud writeback.
 
+An initial [durable handoff trial](../benchmarks/icloud-durable-handoff-2026-09-27.md)
+persisted account-bound exact IDs and full hashes before the first rename,
+stopped a process after the old item reached its recovery name, and completed
+the second rename in a new process after independent reconciliation. Both
+versions survived. This is an isolated process-boundary result, not yet a
+lost-response or power-loss result by itself, and the staged upload itself
+still lacks a checkpoint before its first mutating request.
+
+A separate [lost old-rename receipt trial](../benchmarks/icloud-lost-old-receipt-2026-09-27.md)
+left `old_rename_pending` after Apple accepted the request. A fresh process
+reconciled both exact IDs and full hashes, recognized the committed rename,
+completed the staged handoff, and retained both versions. This validates one
+deliberately lost receipt after a completed request. It does not cover a
+request still in flight or make either rename conditional.
+
+The [second-rename receipt trial](../benchmarks/icloud-lost-new-receipt-2026-09-27.md)
+likewise left `new_rename_pending` after sending the request. A fresh process
+verified that both exact IDs and hashes had reached the target and recovery
+names, then closed the checkpoint without resending the request. This covers
+both deliberate post-response receipt-loss boundaries once each. It remains
+insufficient for normal writeback: the initial upload is not yet crash-safe,
+the two renames are not atomic or conditional, and concurrent edits were not
+exercised.
+
 1. Upload new bytes under a unique temporary name without touching the old
    item. Persist the new exact ID and upload receipt first, then read it back
    and verify its full hash.

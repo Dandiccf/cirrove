@@ -50,6 +50,32 @@ pub enum HandoffOutcome {
     Indeterminate,
 }
 
+/// Non-secret exact identities and content hashes needed to reconcile a
+/// staged handoff after process death. The owning account is bound separately
+/// by the private validation journal.
+#[derive(Serialize, Deserialize)]
+pub struct HandoffPlan {
+    version: u8,
+    folder_id: String,
+    folder_name: String,
+    original_id: String,
+    original_doc_id: String,
+    staged_id: String,
+    staged_doc_id: String,
+    staged_name: String,
+    recovery_name: String,
+    original_sha256: String,
+    staged_sha256: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HandoffObserved {
+    Prepared,
+    OldAtRecovery,
+    Complete,
+    Diverged,
+}
+
 #[derive(Deserialize)]
 struct RenameReply {
     items: Vec<RenameResult>,
@@ -950,5 +976,196 @@ impl ICloudReadSession {
         } else {
             Ok(HandoffOutcome::Indeterminate)
         }
+    }
+
+    pub async fn prepare_durable_handoff(
+        &mut self,
+        folder: &ValidationFolder,
+        original: &ValidationFile,
+        staged: &ValidationFile,
+        original_bytes: &[u8],
+        staged_bytes: &[u8],
+    ) -> Result<HandoffPlan> {
+        if original.name != PROBE_FILE
+            || !staged.name.starts_with("staged-by-cirrove-")
+            || original.id == staged.id
+            || original_bytes.is_empty()
+            || staged_bytes.is_empty()
+            || original_bytes.len() > 4096
+            || staged_bytes.len() > 4096
+        {
+            bail!("invalid durable iCloud validation pair");
+        }
+        let plan = HandoffPlan {
+            version: 1,
+            folder_id: folder.id.clone(),
+            folder_name: folder.name.clone(),
+            original_id: original.id.clone(),
+            original_doc_id: original.document_id.clone(),
+            staged_id: staged.id.clone(),
+            staged_doc_id: staged.document_id.clone(),
+            staged_name: staged.name.clone(),
+            recovery_name: format!("recovery-by-cirrove-{}.txt", Uuid::new_v4()),
+            original_sha256: hex::encode(Sha256::digest(original_bytes)),
+            staged_sha256: hex::encode(Sha256::digest(staged_bytes)),
+        };
+        if self.inspect_durable_handoff(&plan).await? != HandoffObserved::Prepared {
+            bail!("durable iCloud validation pair changed during preparation");
+        }
+        Ok(plan)
+    }
+
+    /// Read-only reconciliation by account-bound item IDs and full content
+    /// hashes. Names describe phase but never establish identity alone.
+    pub async fn inspect_durable_handoff(&mut self, plan: &HandoffPlan) -> Result<HandoffObserved> {
+        plan.validate()?;
+        if !self.list_root().await?.iter().any(|entry| {
+            entry.drivewsid == plan.folder_id
+                && entry.display_name() == plan.folder_name
+                && entry.is_folder()
+        }) {
+            return Ok(HandoffObserved::Diverged);
+        }
+        let items = self.list_folder(&plan.folder_id).await?;
+        if items.len() != 2 {
+            return Ok(HandoffObserved::Diverged);
+        }
+        let old = items
+            .iter()
+            .find(|entry| entry.drivewsid == plan.original_id);
+        let new = items.iter().find(|entry| entry.drivewsid == plan.staged_id);
+        let (Some(old), Some(new)) = (old, new) else {
+            return Ok(HandoffObserved::Diverged);
+        };
+        if old.is_folder()
+            || new.is_folder()
+            || old.docwsid != plan.original_doc_id
+            || new.docwsid != plan.staged_doc_id
+            || old.size > 4096
+            || new.size > 4096
+        {
+            return Ok(HandoffObserved::Diverged);
+        }
+        let old_bytes = self
+            .read_small_file_in_folder(&plan.folder_id, &plan.original_id)
+            .await?;
+        let new_bytes = self
+            .read_small_file_in_folder(&plan.folder_id, &plan.staged_id)
+            .await?;
+        if hex::encode(Sha256::digest(&old_bytes)) != plan.original_sha256
+            || hex::encode(Sha256::digest(&new_bytes)) != plan.staged_sha256
+        {
+            return Ok(HandoffObserved::Diverged);
+        }
+        let (old_name, new_name) = (old.display_name(), new.display_name());
+        Ok(if old_name == PROBE_FILE && new_name == plan.staged_name {
+            HandoffObserved::Prepared
+        } else if old_name == plan.recovery_name && new_name == plan.staged_name {
+            HandoffObserved::OldAtRecovery
+        } else if old_name == plan.recovery_name && new_name == PROBE_FILE {
+            HandoffObserved::Complete
+        } else {
+            HandoffObserved::Diverged
+        })
+    }
+
+    pub async fn move_old_to_recovery(&mut self, plan: &HandoffPlan) -> Result<bool> {
+        if self.inspect_durable_handoff(plan).await? != HandoffObserved::Prepared {
+            bail!("old iCloud validation item is not in the prepared state");
+        }
+        let items = self.list_folder(&plan.folder_id).await?;
+        let old = items
+            .iter()
+            .find(|entry| entry.drivewsid == plan.original_id)
+            .context("old iCloud validation item disappeared")?;
+        self.send_rename(&plan.original_id, &old.etag, &plan.recovery_name)
+            .await
+    }
+
+    pub async fn move_staged_to_target(&mut self, plan: &HandoffPlan) -> Result<bool> {
+        if self.inspect_durable_handoff(plan).await? != HandoffObserved::OldAtRecovery {
+            bail!("staged iCloud validation item is not ready for handoff");
+        }
+        let items = self.list_folder(&plan.folder_id).await?;
+        let staged = items
+            .iter()
+            .find(|entry| entry.drivewsid == plan.staged_id)
+            .context("staged iCloud validation item disappeared")?;
+        self.send_rename(&plan.staged_id, &staged.etag, PROBE_FILE)
+            .await
+    }
+}
+
+impl HandoffPlan {
+    fn validate(&self) -> Result<()> {
+        let uuid_name = |name: &str, prefix: &str, suffix: &str| {
+            name.strip_prefix(prefix)
+                .and_then(|middle| middle.strip_suffix(suffix))
+                .is_some_and(|middle| Uuid::parse_str(middle).is_ok())
+        };
+        let digest = |value: &str| {
+            value.len() == 64
+                && value
+                    .bytes()
+                    .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+        };
+        let old = split_file_id(&self.original_id)?;
+        let new = split_file_id(&self.staged_id)?;
+        if self.version != 1
+            || !uuid_name(&self.folder_name, PROBE_PREFIX, "")
+            || !self.folder_id.starts_with("FOLDER::com.apple.CloudDocs::")
+            || !uuid_name(&self.staged_name, "staged-by-cirrove-", ".txt")
+            || !uuid_name(&self.recovery_name, "recovery-by-cirrove-", ".txt")
+            || self.original_id == self.staged_id
+            || old.0 != "com.apple.CloudDocs"
+            || new.0 != "com.apple.CloudDocs"
+            || old.1 != self.original_doc_id
+            || new.1 != self.staged_doc_id
+            || !digest(&self.original_sha256)
+            || !digest(&self.staged_sha256)
+        {
+            bail!("invalid durable iCloud handoff plan");
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod handoff_tests {
+    use super::*;
+
+    fn plan() -> HandoffPlan {
+        HandoffPlan {
+            version: 1,
+            folder_id: "FOLDER::com.apple.CloudDocs::folder-1".into(),
+            folder_name: format!("{PROBE_PREFIX}{}", Uuid::new_v4()),
+            original_id: "FILE::com.apple.CloudDocs::old-1".into(),
+            original_doc_id: "old-1".into(),
+            staged_id: "FILE::com.apple.CloudDocs::new-1".into(),
+            staged_doc_id: "new-1".into(),
+            staged_name: format!("staged-by-cirrove-{}.txt", Uuid::new_v4()),
+            recovery_name: format!("recovery-by-cirrove-{}.txt", Uuid::new_v4()),
+            original_sha256: "a".repeat(64),
+            staged_sha256: "b".repeat(64),
+        }
+    }
+
+    #[test]
+    fn persisted_handoff_cannot_retarget_another_item_or_unowned_name() {
+        let value = plan();
+        value.validate().unwrap();
+        let bytes = serde_json::to_vec(&value).unwrap();
+        let restored: HandoffPlan = serde_json::from_slice(&bytes).unwrap();
+        restored.validate().unwrap();
+
+        let mut foreign = plan();
+        foreign.original_id = "FILE::other.zone::old-1".into();
+        assert!(foreign.validate().is_err());
+        let mut swapped = plan();
+        swapped.staged_doc_id = "unrelated".into();
+        assert!(swapped.validate().is_err());
+        let mut unsafe_name = plan();
+        unsafe_name.recovery_name = "important.txt".into();
+        assert!(unsafe_name.validate().is_err());
     }
 }
