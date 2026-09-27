@@ -15,6 +15,10 @@ Read-only inspection over Tailscale established that `~/iCloud` is a writable
 Fedora 44 with GNOME 50.5 and rclone 1.74.3. This is first-hand evidence for a
 working Linux iCloud Drive mount, not evidence for a built-in GNOME provider or
 for Cirrove's own recovery guarantees. No credentials or cloud files were read.
+The 2026-09-27 read-only follow-up confirmed that the service still runs and
+uses `--vfs-cache-mode full`, `--dir-cache-time 1h` and `--poll-interval 0`.
+Only those allowlisted flags were read from the process command line; its
+configuration, credentials, cache and mounted data were not inspected.
 
 The first version of this ADR proposed a macOS companion because Apple does not
 publish a general iCloud Drive file API. That conclusion about Apple's published
@@ -235,6 +239,53 @@ labelled create-new-only experiment may still be possible, but it is not full
 write support. Apple's general Drive web transport has no published stability
 contract, so even a passing single-account test remains experimental until
 repeated and account-class validation is complete.
+
+### Refined route if the web transport has no in-place overwrite
+
+The Fedora machine's actual rclone version,
+[1.74.3](https://github.com/rclone/rclone/blob/v1.74.3/backend/iclouddrive/iclouddrive.go),
+trashes the previous remote item before beginning an upload. Its VFS `full`
+mode makes editor writes locally compatible and [writes them back after close](https://rclone.org/commands/rclone_mount/);
+that is not a remote compare-and-swap. [pyicloud](https://github.com/picklepete/pyicloud/blob/master/pyicloud/services/drive.py)
+only implements a new-file `add_file` upload; [icloud-linux](https://github.com/IsmaeelAkram/icloud-linux/blob/master/driver.py)
+also deletes the old remote item before uploading its dirty file. The independent
+[idrive-cli notes](https://github.com/nktknshn/idrive-cli#upload) explicitly say
+the web path cannot overwrite and remove the old item first. None of these
+sources proves that a safer private request is impossible, but none supplies
+the same-ID conditional replacement Cirrove currently requires either.
+
+Before attempting a fallback, run a disabled, run-owned probe of Apple's
+`update/documents` request. Try an existing document ID with conflict creation
+disabled, and compare unchanged versus deliberately stale revisions. Check
+whether Apple retains the document/Drive ID and either rejects stale content or
+creates a separate conflict version. Do not infer semantics from the request's
+`allow_conflict` name; verify the final bytes and both identities independently.
+
+If that fails, a possible *non-atomic* but recoverable save protocol is:
+
+1. Upload new bytes under a unique temporary name without touching the old
+   item. Persist the new exact ID and upload receipt first, then read it back
+   and verify its full hash.
+2. Read the old exact ID and ETag. Conditionally rename or move that item to a
+   unique recovery name. On an ETag conflict, retain both items and stop. Never
+   force-retry with a newer ETag.
+3. Move/rename the verified new item into the original name. If that fails or
+   its response is lost, reconcile both exact IDs and preserve the old recovery
+   item. Do not decide success by a matching path or file size.
+4. Retire the old recovery item only after the new name, ID and content are
+   confirmed and the recovery policy has been met. A crash at every transition
+   must be restartable without reuploading under an unknown identity.
+
+This protocol has a visible interval when the original path is absent or held
+by another name, and concurrent clients may create a destination collision.
+It also changes the remote item ID. Cirrove's current upload journal explicitly
+requires `UploadIntent::Replace` to acknowledge the *same* remote ID, so this
+fallback needs a new, provider-neutral identity-handoff operation and mounted
+application tests. It could preserve both versions without pretending to offer
+atomic POSIX replacement; it cannot be called full parity until its limitations
+are reflected in the product and pass live conflict, crash, folder and account
+class validation. The preferred path remains a proven conditional in-place
+update if the Apple web transport offers one.
 
 ## Immediate implementation sequence
 
