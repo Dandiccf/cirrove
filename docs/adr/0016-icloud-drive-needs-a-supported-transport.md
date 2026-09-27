@@ -183,6 +183,59 @@ recoverable identity, the iCloud mount remains read-only. A local upload reachin
 HTTP success is not, by itself, proof that the intended remote item now owns the
 exact bytes.
 
+### Write gate after the native read preview (2026-09-27)
+
+The native iCloud adapter currently implements only `MetadataProvider` and
+`ReadProvider`. Cirrove's durable `UploadProvider` and `MutationProvider` workers
+already exist. The iCloud work is to prove and implement their provider-specific
+contracts, while every iCloud account remains read-only.
+
+Current upstream [transport code](https://github.com/rclone/rclone/blob/master/backend/iclouddrive/api/drive.go)
+demonstrates `createFolders`, `renameItems`, `moveItems`,
+`moveItemsToTrash`, `/upload/web`, and `/update/documents`. The
+namespace calls carry an item ETag and can report `ETAG_CONFLICT`. Rclone's
+optional `force` path retries with the newer ETag; Cirrove must instead retain
+the local intent as a conflict. Its [file replacement path](https://github.com/rclone/rclone/blob/master/backend/iclouddrive/iclouddrive.go)
+trashes the existing
+item before a new upload, and the document update request uses `add_file` with
+`allow_conflict: true` and no original-item ETag. Neither path proves a safe
+same-identity, conditional content replacement. These are source-code
+observations, not live Cirrove mutation evidence.
+
+Advance through these gates in order, using only Cirrove-owned test items in an
+isolated account state. A cloud-mutating live run needs separate explicit task
+authorization and a registered measurement protocol:
+
+1. Add a native, disabled write transport and synthetic fault fixtures. Validate
+   exact account/zone/item IDs, response status, ETag conflicts, bounded uploads,
+   signed URL validation, and cancellation. Persist the upload identity/session
+   checkpoint before any mutating request. Do not add a UI write toggle yet.
+2. On a run-owned fixture, test creation of a new file and folder, then resolve
+   an intentionally lost response by exact identity and exact content bytes. A
+   same-name sibling is never sufficient proof of success.
+3. Determine whether an existing file can be replaced in place under a stale
+   revision precondition. Test an unchanged base, a different-device edit before
+   commit, a same-size content change, and a response lost after commit. Confirm
+   identity and full content hash independently. A preflight ETag read is
+   insufficient if the commit itself ignores the stale precondition.
+4. Test exact-ID conditional rename, move and trash, including stale ETags,
+   destination collisions, repeated requests and interrupted receipts. Folder
+   removal must verify emptiness and acknowledge that a list-then-delete window
+   may remain non-atomic; never implement it as unchecked recursive trash.
+5. Connect only proven operations to the existing journal and FUSE writer in a
+   disabled, isolated mount. Exercise ordinary editor atomic saves, offline
+   restart, conflicting remote edits, quota/permission errors, expired sign-in,
+   large files and shared/app folders. Preserve local bytes until a verified
+   receipt; demonstrate recovery after process death at every boundary.
+
+The decisive gate is step 3. If Apple's web transport cannot atomically refuse
+a stale content replacement and reconcile an uncertain result by stable identity,
+Cirrove must not offer general writable iCloud mounts. A narrower, explicitly
+labelled create-new-only experiment may still be possible, but it is not full
+write support. Apple's general Drive web transport has no published stability
+contract, so even a passing single-account test remains experimental until
+repeated and account-class validation is complete.
+
 ## Immediate implementation sequence
 
 1. Build a synthetic protocol fixture from documented observations of the open
