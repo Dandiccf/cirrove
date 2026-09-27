@@ -462,8 +462,12 @@ one owned fixture. A further
 stopped the first worker at `VerifyRequired` after discarding an already
 received result. A fresh process loaded the exact saved checkpoint, verified
 both IDs and full hashes, and completed only the second rename before the
-shared journal published both identities. The second rename's lost result,
-in-flight timeouts and concurrent edits still need live validation.
+shared journal published both identities. A separate
+[two-process new-rename response-loss run](../benchmarks/icloud-worker-lost-new-rename-2026-09-27.md)
+discarded the already received second result. Its fresh-process adapter
+refused all rename calls, verified the exact finished IDs and full hashes,
+and committed both identities without replay. In-flight timeouts and
+concurrent edits still need live validation.
 Apple's rename request can accept a stale ETag, so this does not permit
 mounted replacement or ordinary-file writes.
 

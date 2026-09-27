@@ -40,6 +40,8 @@ pub struct ICloudOwnedFixtureHandoff {
     staged_size: u64,
     session: Mutex<ICloudReadSession>,
     discard_old_receipt: AtomicBool,
+    discard_new_receipt: AtomicBool,
+    reconciliation_only: bool,
 }
 
 impl ICloudOwnedFixtureHandoff {
@@ -67,6 +69,8 @@ impl ICloudOwnedFixtureHandoff {
             staged_size,
             session: Mutex::new(session),
             discard_old_receipt: AtomicBool::new(false),
+            discard_new_receipt: AtomicBool::new(false),
+            reconciliation_only: false,
         })
     }
 
@@ -97,6 +101,17 @@ impl ICloudOwnedFixtureHandoff {
     /// One-shot validation fault after Apple has responded to the old rename.
     pub fn with_discarded_old_receipt(self) -> Self {
         self.discard_old_receipt.store(true, Ordering::Release);
+        self
+    }
+
+    pub fn with_discarded_new_receipt(self) -> Self {
+        self.discard_new_receipt.store(true, Ordering::Release);
+        self
+    }
+
+    /// A restarted verifier cannot send either rename in this validation mode.
+    pub fn reconciliation_only(mut self) -> Self {
+        self.reconciliation_only = true;
         self
     }
 
@@ -255,6 +270,9 @@ impl UploadProvider for ICloudOwnedFixtureHandoff {
         cancel: &CancellationToken,
     ) -> UploadResult<UploadStep> {
         let phase = self.check_checkpoint(request, checkpoint)?;
+        if self.reconciliation_only {
+            return Err(UploadError::Unsupported("reconciliation-only validation"));
+        }
         if cancel.is_cancelled() {
             return Err(UploadError::Uncertain);
         }
@@ -296,11 +314,14 @@ impl UploadProvider for ICloudOwnedFixtureHandoff {
                 {
                     return Err(UploadError::Conflict);
                 }
-                if !session
+                let accepted = session
                     .move_staged_to_target(&self.plan)
                     .await
-                    .map_err(|_| UploadError::Uncertain)?
-                {
+                    .map_err(|_| UploadError::Uncertain)?;
+                if self.discard_new_receipt.swap(false, Ordering::AcqRel) {
+                    return Err(UploadError::Uncertain);
+                }
+                if !accepted {
                     return Err(UploadError::Uncertain);
                 }
                 drop(session);
@@ -424,5 +445,27 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[tokio::test]
+    async fn restarted_verifier_cannot_send_either_rename() {
+        let (provider, request) = fixture();
+        let checkpoint = provider.checkpoint(Phase::InstallNew).unwrap();
+        let mut session = ICloudReadSession::new().unwrap();
+        session.account_hash = Some("synthetic-account".into());
+        let verifier = ICloudOwnedFixtureHandoff::from_checkpoint(
+            &request,
+            provider.operation,
+            &checkpoint,
+            session,
+        )
+        .unwrap()
+        .reconciliation_only();
+        let error = verifier
+            .commit_upload(&request, &checkpoint, &CancellationToken::new())
+            .await
+            .err()
+            .unwrap();
+        assert!(matches!(error, UploadError::Unsupported(_)));
     }
 }
