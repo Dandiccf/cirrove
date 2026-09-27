@@ -308,3 +308,14 @@ after 0.49, 0.46 and 0.47 seconds. GNOME `localsearch-3` independently crawled
 startup cannot measure Cirrove alone. The private-path run reached ready in
 11.2 seconds. These are bounded one-account observations, not a full-account
 indexing or latency guarantee.
+
+The next adapter change removes a per-account network queue from read-only
+folder and range requests. It forks only the read-side HTTP session, sharing
+the cookie jar and connection pool while retaining the original session for
+authentication and checkpoint ownership. At most four requests can be in
+flight per account. A [synthetic transport control](benchmarks/icloud-parallel-folder-reads.json)
+failed before the change because a second folder request could not reach the
+fixture while the first awaited its response, then passed with both requests
+in flight. This is a concurrency regression check, not a measured improvement
+against Apple. Provider rate limits, live folder latency and session behavior
+under simultaneous reads remain open.

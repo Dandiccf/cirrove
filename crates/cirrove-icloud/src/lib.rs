@@ -351,6 +351,21 @@ pub struct ICloudReadSession {
 }
 
 impl ICloudReadSession {
+    /// A mounted read shares the live cookie jar and HTTP connection pool, but
+    /// keeps response headers local to that request. Authentication and saved
+    /// session ownership remain with the original session.
+    pub(crate) fn read_only_fork(&self) -> Self {
+        Self {
+            http: self.http.clone(),
+            cookies: self.cookies.clone(),
+            account_hash: None,
+            frame: String::new(),
+            headers: SessionHeaders::default(),
+            drive_endpoint: self.drive_endpoint.clone(),
+            docs_endpoint: self.docs_endpoint.clone(),
+        }
+    }
+
     pub fn new() -> Result<Self> {
         let cookies = Arc::new(RecordingCookies::default());
         let http = Client::builder()

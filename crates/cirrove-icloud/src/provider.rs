@@ -18,7 +18,7 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{Mutex, OnceCell};
+use tokio::sync::{Mutex, OnceCell, Semaphore};
 
 const PROVIDER_ID: &str = "icloud";
 const COLLECTION: &str = "drive";
@@ -35,6 +35,7 @@ pub struct ICloudDrive {
     index_mode: IndexMode,
     keyring_backed: bool,
     keyring_validated: OnceCell<()>,
+    reads: Semaphore,
 }
 
 enum SessionState {
@@ -92,6 +93,7 @@ impl ICloudDrive {
             index_mode: IndexMode::OnDemand,
             keyring_backed: false,
             keyring_validated: OnceCell::new(),
+            reads: Semaphore::new(4),
         })
     }
 
@@ -142,6 +144,7 @@ impl ICloudDrive {
             index_mode: IndexMode::OnDemand,
             keyring_backed: true,
             keyring_validated: OnceCell::new(),
+            reads: Semaphore::new(4),
         })
     }
 
@@ -165,6 +168,7 @@ impl ICloudDrive {
             index_mode,
             keyring_backed: false,
             keyring_validated: OnceCell::new(),
+            reads: Semaphore::new(4),
         })
     }
 
@@ -208,8 +212,11 @@ impl ICloudDrive {
         tokio::select! { biased;
             _ = cancel.cancelled() => Err(ProviderError::Cancelled),
             result = async {
-                let mut state = self.session.lock().await;
-                let session = Self::active_session(&mut state).await?;
+                let _permit = self.reads.acquire().await.map_err(|_| ProviderError::Unavailable)?;
+                let mut session = {
+                    let mut state = self.session.lock().await;
+                    Self::active_session(&mut state).await?.read_only_fork()
+                };
                 session.list_folder(folder).await.map_err(|error| map_read_error(&error))
             } => result,
         }
@@ -550,8 +557,11 @@ impl ReadProvider for ICloudDrive {
         tokio::select! { biased;
             _ = cancel.cancelled() => Err(ProviderError::Cancelled),
             result = async {
-                let mut state = self.session.lock().await;
-                let session = Self::active_session(&mut state).await?;
+                let _permit = self.reads.acquire().await.map_err(|_| ProviderError::Unavailable)?;
+                let mut session = {
+                    let mut state = self.session.lock().await;
+                    Self::active_session(&mut state).await?.read_only_fork()
+                };
                 session.read_range_in_folder_for_revision(parent, &node.id, offset, length, Some((etag, node.size))).await.map_err(|error| {
                     if std::env::var_os("CIRROVE_ICLOUD_PROBE_DIAGNOSTICS").is_some() {
                         // Only the fixed stage label is emitted, never provider bodies or URLs.
@@ -579,6 +589,61 @@ mod tests {
     use super::*;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpListener;
+
+    #[tokio::test]
+    async fn independent_folder_requests_reach_apple_without_serial_network_waits() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let endpoint = format!("http://{}/", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move {
+            let mut peers = Vec::new();
+            for _ in 0..2 {
+                let (mut peer, _) = listener.accept().await.unwrap();
+                let mut request = Vec::new();
+                loop {
+                    let mut chunk = [0; 4096];
+                    let count = peer.read(&mut chunk).await.unwrap();
+                    assert!(count > 0 && request.len() + count < 16 * 1024);
+                    request.extend_from_slice(&chunk[..count]);
+                    if request.windows(4).any(|part| part == b"\r\n\r\n") {
+                        break;
+                    }
+                }
+                peers.push(peer);
+            }
+            let body = format!(
+                "[{{\"drivewsid\":\"{ROOT_ID}\",\"type\":\"FOLDER\",\"numberOfItems\":0,\"items\":[]}}]"
+            );
+            let reply = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+            for mut peer in peers {
+                peer.write_all(reply.as_bytes()).await.unwrap();
+            }
+        });
+        let mut session = ICloudReadSession::new().unwrap();
+        session.drive_endpoint = Some(url::Url::parse(&endpoint).unwrap());
+        assert!(session.read_only_fork().session_snapshot().is_err());
+        let scope = Scope {
+            account: "synthetic-account".into(),
+            provider: PROVIDER_ID.into(),
+            collection: COLLECTION.into(),
+        };
+        let drive = ICloudDrive::on_demand_from_live_session(scope.clone(), session).unwrap();
+        let cancel = CancellationToken::new();
+        let result = tokio::time::timeout(Duration::from_secs(2), async {
+            tokio::try_join!(
+                drive.children(&scope, ROOT_ID, None, &cancel),
+                drive.children(&scope, ROOT_ID, None, &cancel)
+            )
+        })
+        .await;
+        assert!(
+            matches!(result, Ok(Ok(_))),
+            "folder requests were serialized"
+        );
+        server.await.unwrap();
+    }
 
     async fn listing_fixture(body: &'static str) -> String {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
