@@ -2,6 +2,7 @@
 //! A hidden recovery object owns the former item after a verified handoff;
 //! no provider request runs while either SQLite transaction is held.
 use super::*;
+use cirrove_core::upload::RecoveryLocation;
 use rusqlite::Transaction;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -9,6 +10,8 @@ pub(crate) struct Reservation {
     recovery_object: Uuid,
     old_item: String,
     recovery_name: String,
+    #[serde(default)]
+    trash_parent: Option<String>,
     #[serde(default)]
     backup: Option<Node>,
 }
@@ -21,8 +24,12 @@ impl UploadJournal {
         &mut self,
         id: Uuid,
         attempt: Uuid,
-        recovery_name: String,
+        location: RecoveryLocation,
     ) -> Result<Uuid> {
+        let (recovery_name, trash_parent) = match location {
+            RecoveryLocation::Sibling { name } => (name, None),
+            RecoveryLocation::Trash { local_name, parent } => (local_name, Some(parent)),
+        };
         let mut record = self.active_attempt(id, attempt)?;
         let UploadIntent::Replace {
             item,
@@ -35,6 +42,7 @@ impl UploadJournal {
             let recovery = self.namespace_object(reservation.recovery_object)?;
             if reservation.old_item != *item
                 || reservation.recovery_name != recovery_name
+                || reservation.trash_parent != trash_parent
                 || reservation.backup.is_some()
                 || recovery.scope != record.scope
                 || !recovery.unlinked
@@ -80,6 +88,12 @@ impl UploadJournal {
         if recovery_name == old.name {
             return Err(JournalError::Intent);
         }
+        if trash_parent
+            .as_ref()
+            .is_some_and(|parent| parent.is_empty() || old.parent_id.as_ref() == Some(parent))
+        {
+            return Err(JournalError::Intent);
+        }
         let replacement: bool = self.db.query_row(
             "SELECT EXISTS(SELECT 1 FROM file_replacements WHERE id=?1)",
             [id.to_string()],
@@ -115,6 +129,7 @@ impl UploadJournal {
             recovery_object,
             old_item: item.clone(),
             recovery_name,
+            trash_parent,
             backup: None,
         });
         let tx = self.db.transaction()?;
@@ -153,7 +168,7 @@ impl UploadJournal {
             || current.size != record.size
             || current.content_revision().is_none()
             || backup.id != reservation.old_item
-            || backup.name != reservation.recovery_name
+            || !backup_location_matches(reservation, &backup, current.parent_id.as_ref())
             || backup.kind != NodeKind::File
             || backup.target.is_some()
             || backup.content_revision().is_none()
@@ -200,8 +215,7 @@ pub(super) fn confirm(tx: &Transaction<'_>, record: &UploadRecord, current: &Nod
             .is_none_or(|node| node.id != old.id)
         || old.id != reservation.old_item
         || backup.id != old.id
-        || backup.name != reservation.recovery_name
-        || backup.parent_id != old.parent_id
+        || !backup_location_matches(reservation, backup, old.parent_id.as_ref())
         || current.parent_id != old.parent_id
         || current.name != old.name
         || current.id == old.id
@@ -222,7 +236,9 @@ pub(super) fn confirm(tx: &Transaction<'_>, record: &UploadRecord, current: &Nod
     recovery.remote = Some(backup.clone());
     recovery.remote_owned = true;
     recovery.remote_sequence = record.sequence;
-    recovery.node.name = backup.name.clone();
+    if reservation.trash_parent.is_none() {
+        recovery.node.name = backup.name.clone();
+    }
     recovery.node.size = backup.size;
     recovery.node.etag = backup.etag.clone();
     recovery.node.content_version = backup.content_version.clone();
@@ -232,4 +248,21 @@ pub(super) fn confirm(tx: &Transaction<'_>, record: &UploadRecord, current: &Nod
         .checked_add(1)
         .ok_or(JournalError::Quota)?;
     namespace::save(tx, &recovery)
+}
+
+fn backup_location_matches(
+    reservation: &Reservation,
+    backup: &Node,
+    original_parent: Option<&String>,
+) -> bool {
+    match &reservation.trash_parent {
+        Some(parent) => {
+            backup.parent_id.as_ref() == Some(parent)
+                && original_parent != Some(parent)
+                && !backup.name.is_empty()
+        }
+        None => {
+            backup.parent_id.as_ref() == original_parent && backup.name == reservation.recovery_name
+        }
+    }
 }

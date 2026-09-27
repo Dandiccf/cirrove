@@ -3,8 +3,8 @@
 use async_trait::async_trait;
 use cirrove_auth::CredentialVault;
 use cirrove_core::upload::{
-    Reconciliation, Result as UploadResult, UploadError, UploadIntent, UploadProgress,
-    UploadProvider, UploadRequest, UploadStep,
+    Reconciliation, RecoveryLocation, Result as UploadResult, UploadError, UploadIntent,
+    UploadProgress, UploadProvider, UploadRequest, UploadStep,
 };
 use cirrove_core::{CancellationToken, Node, NodeKind, ProviderError, Scope};
 use cirrove_service::{
@@ -112,6 +112,7 @@ struct Provider {
     pause_offset: AtomicU64,
     entered: Notify,
     handoff: AtomicBool,
+    trash_handoff: AtomicBool,
     handoff_name: Mutex<Option<String>>,
     reserved_at_begin: AtomicBool,
     staged_commits: AtomicBool,
@@ -136,6 +137,7 @@ impl Provider {
             pause_offset: AtomicU64::new(u64::MAX),
             entered: Notify::new(),
             handoff: AtomicBool::new(false),
+            trash_handoff: AtomicBool::new(false),
             handoff_name: Mutex::new(None),
             reserved_at_begin: AtomicBool::new(false),
             staged_commits: AtomicBool::new(false),
@@ -182,6 +184,10 @@ impl Provider {
         current.id = format!("staged-{item}");
         let mut backup = Self::node(request);
         backup.name = recovery_name;
+        if self.trash_handoff.load(Ordering::SeqCst) {
+            backup.parent_id = Some("trash-root".into());
+            backup.name = "Saved.txt".into();
+        }
         backup.size = 3;
         backup.etag = Some("renamed-old".into());
         backup.content_version = Some("old-content".into());
@@ -190,6 +196,22 @@ impl Provider {
 }
 #[async_trait]
 impl UploadProvider for Provider {
+    fn staged_recovery_location(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+    ) -> Option<RecoveryLocation> {
+        let name = self.staged_recovery_name(operation, request)?;
+        if self.trash_handoff.load(Ordering::SeqCst) {
+            Some(RecoveryLocation::Trash {
+                local_name: name,
+                parent: "trash-root".into(),
+            })
+        } else {
+            Some(RecoveryLocation::Sibling { name })
+        }
+    }
+
     fn staged_recovery_name(&self, operation: &str, request: &UploadRequest) -> Option<String> {
         if !self.handoff.load(Ordering::SeqCst)
             || !matches!(request.intent, UploadIntent::Replace { .. })
@@ -411,7 +433,7 @@ async fn staged_replacement_persists_a_checkpoint_before_each_commit() {
     let worker = TransferWorker::new(
         journal.clone(),
         provider.clone(),
-        vault,
+        vault.clone(),
         CancellationToken::new(),
     );
     assert_eq!(
@@ -474,10 +496,20 @@ fn fixture() -> (Arc<LockProbe>, Arc<Provider>, Arc<Vault>) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn staged_two_id_receipt_is_reserved_before_network_and_reconciled_after_loss() {
+    staged_two_id_receipt(false).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn trash_backed_two_id_receipt_survives_lost_response() {
+    staged_two_id_receipt(true).await;
+}
+
+async fn staged_two_id_receipt(trash: bool) {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("journal");
     let (probe, provider, vault) = fixture();
     provider.handoff.store(true, Ordering::SeqCst);
+    provider.trash_handoff.store(trash, Ordering::SeqCst);
     provider.lose_success.store(true, Ordering::SeqCst);
     let first_journal = journal(&root, &probe);
     let upload = {
@@ -516,7 +548,7 @@ async fn staged_two_id_receipt_is_reserved_before_network_and_reconciled_after_l
     let worker = TransferWorker::new(
         journal.clone(),
         provider.clone(),
-        vault,
+        vault.clone(),
         CancellationToken::new(),
     );
     assert_eq!(
@@ -529,6 +561,15 @@ async fn staged_two_id_receipt_is_reserved_before_network_and_reconciled_after_l
         UploadState::VerifyRequired
     );
     assert!(provider.reserved_at_begin.load(Ordering::SeqCst));
+    drop(worker);
+    drop(journal);
+    let journal = self::journal(&root, &probe);
+    let worker = TransferWorker::new(
+        journal.clone(),
+        provider.clone(),
+        vault,
+        CancellationToken::new(),
+    );
     {
         let mut journal = journal.lock().unwrap();
         journal.request_retry(upload.id).unwrap();
@@ -549,6 +590,14 @@ async fn staged_two_id_receipt_is_reserved_before_network_and_reconciled_after_l
     assert_eq!(current.node.id, "old-item");
     assert!(backup.unlinked);
     assert!(backup.remote_owned);
+    if trash {
+        assert_eq!(
+            backup.remote.as_ref().unwrap().parent_id.as_deref(),
+            Some("trash-root")
+        );
+        assert_eq!(backup.remote.as_ref().unwrap().name, "Saved.txt");
+        assert_eq!(backup.node.name, format!("recovery-{}.txt", upload.id));
+    }
     assert_eq!(journal.get(upload.id).unwrap().state, UploadState::Uploaded);
     assert_eq!(provider.state.lock().unwrap().begins, 1);
     assert_eq!(provider.state.lock().unwrap().reconciliations, 2);

@@ -1,6 +1,6 @@
 //! A staged provider replacement must publish both identities or neither.
 #![allow(clippy::unwrap_used)]
-use cirrove_core::{Node, NodeKind, Scope};
+use cirrove_core::{Node, NodeKind, Scope, upload::RecoveryLocation};
 use cirrove_service::journal::{UploadJournal, UploadState};
 use std::os::unix::fs::PermissionsExt;
 
@@ -32,6 +32,10 @@ fn open(root: &std::path::Path) -> UploadJournal {
     UploadJournal::open(root, &scope().account, 4096).unwrap()
 }
 
+fn sibling(name: &str) -> RecoveryLocation {
+    RecoveryLocation::Sibling { name: name.into() }
+}
+
 #[test]
 fn staged_replacement_keeps_old_identity_and_stable_local_file_after_restart() {
     let root = tempfile::tempdir().unwrap();
@@ -46,7 +50,7 @@ fn staged_replacement_keeps_old_identity_and_stable_local_file_after_restart() {
     assert_eq!(claimed.id, upload.id);
     let attempt = claimed.attempt.unwrap();
     let recovery = journal
-        .reserve_identity_handoff(upload.id, attempt, "recovery-cirrove.txt".into())
+        .reserve_identity_handoff(upload.id, attempt, sibling("recovery-cirrove.txt"))
         .unwrap();
     assert!(!journal.namespace_object(recovery).unwrap().remote_owned);
     let backup = file("old-item", "recovery-cirrove.txt", "renamed-old", 3);
@@ -125,7 +129,7 @@ fn incorrect_backup_receipt_does_not_partially_transfer_either_identity() {
     let upload = journal.seal_working(working.id).unwrap().unwrap();
     let attempt = journal.claim_next().unwrap().unwrap().attempt.unwrap();
     let recovery = journal
-        .reserve_identity_handoff(upload.id, attempt, "recovery-cirrove.txt".into())
+        .reserve_identity_handoff(upload.id, attempt, sibling("recovery-cirrove.txt"))
         .unwrap();
     let current = file("new-item", "report.txt", "new-version", 4);
     let wrong = file("old-item", "other-name.txt", "renamed-old", 3);
@@ -177,7 +181,7 @@ fn reserved_recovery_survives_process_death_before_receipt() {
         .reserve_identity_handoff(
             upload.id,
             first.attempt.unwrap(),
-            "recovery-cirrove.txt".into(),
+            sibling("recovery-cirrove.txt"),
         )
         .unwrap();
     drop(journal);
@@ -191,13 +195,13 @@ fn reserved_recovery_survives_process_death_before_receipt() {
     let attempt = verification.attempt.unwrap();
     assert_eq!(
         journal
-            .reserve_identity_handoff(upload.id, attempt, "recovery-cirrove.txt".into())
+            .reserve_identity_handoff(upload.id, attempt, sibling("recovery-cirrove.txt"))
             .unwrap(),
         recovery
     );
     assert!(
         journal
-            .reserve_identity_handoff(upload.id, attempt, "different-name.txt".into())
+            .reserve_identity_handoff(upload.id, attempt, sibling("different-name.txt"))
             .is_err()
     );
     journal

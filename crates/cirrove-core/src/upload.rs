@@ -128,6 +128,14 @@ pub enum Reconciliation {
     Conflict,
 }
 
+/// Recovery identity reserved before a two-ID replacement touches the provider.
+/// A Trash parent is an opaque provider collection ID, never a local path.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RecoveryLocation {
+    Sibling { name: String },
+    Trash { local_name: String, parent: String },
+}
+
 /// A caller persists every returned checkpoint before advancing the upload.
 /// `Prepared` may be returned by `begin_upload`, or once during recovery when a
 /// session is gone but its durable provider identity can start a replacement.
@@ -141,6 +149,14 @@ pub enum Reconciliation {
 /// does not prove failure. Reconcile the remote target before restarting it.
 #[async_trait]
 pub trait UploadProvider: Send + Sync {
+    fn staged_recovery_location(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+    ) -> Option<RecoveryLocation> {
+        self.staged_recovery_name(operation, request)
+            .map(|name| RecoveryLocation::Sibling { name })
+    }
     /// Pure, stable choice of an old-version recovery name for this operation.
     /// The worker reserves it in the local journal before any provider call.
     /// A provider returning `Some` must never mutate a replacement before that

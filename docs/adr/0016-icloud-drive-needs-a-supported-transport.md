@@ -492,6 +492,16 @@ Trash-backed backup, restart/response-loss and collision handling, and a
 live concurrent-edit test. The request pair has a visible interval without
 the original name, so it must not be presented as atomic POSIX replacement.
 
+The shared upload journal can now reserve an opaque Trash parent before the
+first provider call and atomically publish the new current ID with the old
+exact ID bound to that Trash parent. A synthetic lost-response test first
+failed under the previous same-folder-only check and then passed with a
+freshly reopened journal; the existing renamed-sibling path still passes.
+This is a durable *journal representation*, not a live iCloud upload adapter:
+no normal iCloud write is enabled. The native adapter must still produce a
+verified receipt and reconcile each uncertain phase against exact remote IDs
+before this path can be considered for a mounted replacement.
+
 A feature-gated `ICloudOwnedFixtureRemove` now implements the shared
 `MutationProvider` contract for one small, newly created Cirrove fixture.
 It accepts only an exact prepared file identity, checks the observed ETag and

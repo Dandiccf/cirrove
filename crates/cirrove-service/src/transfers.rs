@@ -184,13 +184,13 @@ impl TransferWorker {
             size: record.size,
             sha256: record.sha256.clone(),
         };
-        if let Some(recovery_name) = self
+        if let Some(location) = self
             .provider
-            .staged_recovery_name(&id.to_string(), &request)
+            .staged_recovery_location(&id.to_string(), &request)
         {
             // The provider is still untouched. Reserve the old-ID owner before
             // begin, inspect or reconcile can make a remote request.
-            self.local(move |j| j.reserve_identity_handoff(id, attempt, recovery_name))
+            self.local(move |j| j.reserve_identity_handoff(id, attempt, location))
                 .await?;
         }
         let mut saved_checkpoint = None;
