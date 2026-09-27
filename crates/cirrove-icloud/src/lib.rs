@@ -5,10 +5,14 @@
 //! account path and connection UI, but their live behavior and provider reliability
 //! remain unvalidated.
 
+#[cfg(feature = "write-probe")]
+mod owned_upload;
 mod provider;
 mod sealed_session;
 #[cfg(feature = "write-probe")]
 mod write_probe;
+#[cfg(feature = "write-probe")]
+pub use owned_upload::ICloudOwnedFixtureUpload;
 pub use provider::ICloudDrive;
 pub use sealed_session::SealedSessionVault;
 #[cfg(feature = "write-probe")]

@@ -426,6 +426,19 @@ provider identity and actual name, expose any collision, and never assume
 that restoring from Trash recreates the old pathname. It still needs
 response-loss and restart validation before deletion can be enabled.
 
+The feature-gated native `ICloudOwnedFixtureUpload` now implements the shared
+`UploadProvider` for one small `Create` inside a freshly created Cirrove-owned
+validation folder. It binds a checkpoint to account, collection, folder,
+unique name, size and SHA-256 before network mutation. Its successful path
+re-lists the exact parent and reads back complete bytes before the shared
+worker commits the remote ID and ETag. The first
+[live worker trial](../benchmarks/icloud-worker-create-2026-09-27.md) reached
+the durable `Uploaded` state. A missing response leaves the operation uncertain;
+the adapter does not infer a safe retry from temporary absence. This is a
+staging-file building block, not an enabled writable mount: the bounded file
+size, in-flight response loss, restart reconciliation, `Replace`, directory
+mutation and recovery UI remain unvalidated or unimplemented.
+
 ## Immediate implementation sequence
 
 1. Build a synthetic protocol fixture from documented observations of the open

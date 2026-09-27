@@ -25,15 +25,21 @@ pub enum TrashRestoreOutcome {
 /// Unforgeable by callers outside this module; obtained only after creating
 /// and listing a fresh fixture through this session.
 pub struct ValidationFolder {
-    id: String,
-    name: String,
+    pub(crate) id: String,
+    pub(crate) name: String,
+}
+
+impl ValidationFolder {
+    pub fn id(&self) -> &str {
+        &self.id
+    }
 }
 
 pub struct ValidationFile {
-    id: String,
-    document_id: String,
-    etag: String,
-    name: String,
+    pub(crate) id: String,
+    pub(crate) document_id: String,
+    pub(crate) etag: String,
+    pub(crate) name: String,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -610,7 +616,7 @@ impl ICloudReadSession {
         Ok(plan)
     }
 
-    async fn create_owned_file(
+    pub(crate) async fn create_owned_file(
         &mut self,
         folder: &ValidationFolder,
         name: &str,

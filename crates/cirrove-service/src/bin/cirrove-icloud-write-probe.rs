@@ -4,14 +4,21 @@
 mod icloud_handoff_journal;
 
 use anyhow::{Context, Result, bail};
-use cirrove_auth::{AppRegistration, CredentialVault};
+use cirrove_auth::{AppRegistration, CredentialVault, DesktopVault};
+use cirrove_core::{CancellationToken, Scope};
 use cirrove_icloud::{
-    HandoffOutcome, ICloudReadSession, OccupiedNameOutcome, RenameProbeOutcome,
-    SameIdUpdateOutcome, SealedSessionVault, TrashProbeOutcome, TrashRestoreOutcome,
+    HandoffOutcome, ICloudOwnedFixtureUpload, ICloudReadSession, OccupiedNameOutcome,
+    RenameProbeOutcome, SameIdUpdateOutcome, SealedSessionVault, TrashProbeOutcome,
+    TrashRestoreOutcome,
 };
 use cirrove_service::accounts::Settings;
+use cirrove_service::journal::{UploadIntent, UploadJournal, UploadState};
+use cirrove_service::transfers::TransferWorker;
 use icloud_handoff_journal::{Journal, StageJournal};
-use std::path::Path;
+use std::{
+    path::Path,
+    sync::{Arc, Mutex},
+};
 use uuid::Uuid;
 
 #[tokio::main]
@@ -39,8 +46,9 @@ async fn main() -> Result<()> {
         [flag] if flag == "--stale-then-fresh-trash" => 19,
         [flag] if flag == "--inspect-trash" => 20,
         [flag] if flag == "--trash-restore-cycle" => 21,
+        [flag] if flag == "--worker-create" => 22,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --inspect-occupied | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --inspect-occupied | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -144,6 +152,69 @@ async fn main() -> Result<()> {
     println!(
         "Created and listed the isolated iCloud validation folder. Testing a small file upload."
     );
+    if mode == 22 {
+        let scope = Scope {
+            account: account.id.clone(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        };
+        let file_name = format!("staged-by-cirrove-{}.txt", Uuid::new_v4());
+        let contents = format!("Cirrove worker validation {}\n", Uuid::new_v4());
+        let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+            "../../.local-state/icloud-worker-create-{}",
+            Uuid::new_v4()
+        ));
+        let journal = Arc::new(Mutex::new(UploadJournal::open(
+            &directory,
+            &account.id,
+            8192,
+        )?));
+        let record = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock"))?
+            .enqueue(
+                scope.clone(),
+                UploadIntent::Create {
+                    parent: folder.id().to_owned(),
+                    name: file_name,
+                },
+                contents.as_bytes(),
+            )?;
+        let provider = Arc::new(ICloudOwnedFixtureUpload::new(scope, session, folder)?);
+        let worker = TransferWorker::new(
+            journal.clone(),
+            provider,
+            Arc::new(DesktopVault),
+            CancellationToken::new(),
+        );
+        let result = worker
+            .run_once()
+            .await?
+            .context("worker did not claim upload")?;
+        println!(
+            "Worker upload state: {:?}; operation: {}; journal: {}. The owned fixture remains in iCloud Drive.",
+            result.state,
+            record.id,
+            directory.display()
+        );
+        if let Some(issue) = result.issue {
+            bail!("worker upload needs review: {issue}");
+        }
+        if result.id != record.id || result.state != UploadState::Uploaded {
+            bail!("worker upload did not reach its durable uploaded state");
+        }
+        let receipt = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock"))?
+            .get(record.id)?;
+        let remote = receipt
+            .remote
+            .context("uploaded journal receipt lacks remote item")?;
+        if remote.id.is_empty() || remote.size != record.size {
+            bail!("uploaded journal receipt lacks the expected remote identity");
+        }
+        return Ok(());
+    }
     let content = format!("Cirrove write validation {}\n", Uuid::new_v4());
     let file = session
         .create_validation_file(&folder, content.as_bytes())
