@@ -290,6 +290,13 @@ fails the conditional namespace gate on this account. Rclone's branch for
 Cirrove must not wire these requests into its current conditional mutation
 contract.
 
+A separate [HTTP `If-Match` trial](../benchmarks/icloud-http-if-match-2026-09-27.md)
+put the stale ETag in a standard conditional header as well as the JSON body.
+Apple still accepted the same-ID content update and exposed the candidate
+bytes under the original ID. This closes another plausible request variant
+for this account. The next write work must preserve versions independently
+of any assumed web-API ETag enforcement; direct overwrite remains disabled.
+
 The following remains only a *non-atomic, conflict-preserving research
 candidate*, not an implementable safe write protocol yet. The two rename trials
 show that the known ETag parameter does not provide the required conditional

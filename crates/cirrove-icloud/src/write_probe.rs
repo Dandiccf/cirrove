@@ -366,7 +366,7 @@ impl ICloudReadSession {
             bail!("iCloud validation base has changed");
         }
         let accepted = self
-            .send_same_id_update(&folder.id, &file.document_id, &file.etag, new_bytes)
+            .send_same_id_update(&folder.id, &file.document_id, &file.etag, new_bytes, false)
             .await?;
         let after = self.list_folder(&folder.id).await?;
         let original: Vec<_> = after
@@ -402,6 +402,7 @@ impl ICloudReadSession {
         document_id: &str,
         etag: &str,
         bytes: &[u8],
+        http_if_match: bool,
     ) -> Result<bool> {
         let (_slot, data) = self.upload_probe_bytes(bytes).await?;
         let now = std::time::SystemTime::now()
@@ -416,7 +417,7 @@ impl ICloudReadSession {
             .as_ref()
             .context("iCloud sign-in is not complete")?
             .join("ws/com.apple.CloudDocs/update/documents")?;
-        let response = self
+        let mut request = self
             .http
             .post(endpoint)
             .header("origin", ICLOUD_ORIGIN)
@@ -438,7 +439,15 @@ impl ICloudReadSession {
                 "file_flags": {"is_executable": false, "is_hidden": false, "is_writable": true},
                 "mtime": now,
                 "path": {"path": PROBE_FILE, "starting_document_id": starting_document_id}
-            }))
+            }));
+        if http_if_match {
+            let tag = etag.trim_matches('"');
+            if tag.is_empty() || tag.contains('"') || tag.contains('\n') || tag.contains('\r') {
+                bail!("iCloud ETag cannot be sent as an HTTP precondition");
+            }
+            request = request.header(reqwest::header::IF_MATCH, format!("\"{tag}\""));
+        }
+        let response = request
             .send()
             .await
             .map_err(|_| anyhow!("iCloud same-ID update request failed"))?;
@@ -465,6 +474,7 @@ impl ICloudReadSession {
         file: &ValidationFile,
         current_bytes: &[u8],
         candidate_bytes: &[u8],
+        http_if_match: bool,
     ) -> Result<SameIdUpdateOutcome> {
         if current_bytes.is_empty()
             || current_bytes.len() != candidate_bytes.len()
@@ -490,7 +500,13 @@ impl ICloudReadSession {
         }
         let current_etag = entry.etag.clone();
         let accepted = self
-            .send_same_id_update(&folder.id, &file.document_id, &file.etag, candidate_bytes)
+            .send_same_id_update(
+                &folder.id,
+                &file.document_id,
+                &file.etag,
+                candidate_bytes,
+                http_if_match,
+            )
             .await?;
         let after = self.list_folder(&folder.id).await?;
         let same_name: Vec<_> = after

@@ -17,8 +17,9 @@ async fn main() -> Result<()> {
         [flag] if flag == "--stale-etag" => 2,
         [flag] if flag == "--rename-conflict" => 3,
         [flag] if flag == "--metadata-rename" => 4,
+        [flag] if flag == "--http-if-match" => 5,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -61,7 +62,7 @@ async fn main() -> Result<()> {
     println!(
         "Created and read back the isolated validation file byte for byte. The fixture remains in iCloud Drive."
     );
-    if (1..=3).contains(&mode) {
+    if (1..=3).contains(&mode) || mode == 5 {
         let replacement = format!("Cirrove revised validation {}\n", Uuid::new_v4());
         let outcome = session
             .probe_same_id_update(&folder, &file, content.as_bytes(), replacement.as_bytes())
@@ -79,16 +80,22 @@ async fn main() -> Result<()> {
                 );
             }
         }
-        if mode == 2 {
+        if mode == 2 || mode == 5 {
             let mut candidate = replacement.as_bytes().to_vec();
             candidate[0] = b'X';
             let outcome = session
-                .probe_stale_etag_update(&folder, &file, replacement.as_bytes(), &candidate)
+                .probe_stale_etag_update(
+                    &folder,
+                    &file,
+                    replacement.as_bytes(),
+                    &candidate,
+                    mode == 5,
+                )
                 .await?;
             match outcome {
                 SameIdUpdateOutcome::Updated => {
                     println!(
-                        "Stale ETag was accepted; this request shape cannot protect existing edits."
+                        "Stale ETag was accepted despite the selected precondition; this request shape cannot protect existing edits."
                     );
                 }
                 SameIdUpdateOutcome::RejectedUnchanged => {
