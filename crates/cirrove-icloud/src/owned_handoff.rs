@@ -10,6 +10,7 @@ use cirrove_core::upload::{
 use cirrove_core::{CancellationToken, Scope};
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
@@ -38,6 +39,7 @@ pub struct ICloudOwnedFixtureHandoff {
     plan: HandoffPlan,
     staged_size: u64,
     session: Mutex<ICloudReadSession>,
+    discard_old_receipt: AtomicBool,
 }
 
 impl ICloudOwnedFixtureHandoff {
@@ -64,7 +66,38 @@ impl ICloudOwnedFixtureHandoff {
             plan,
             staged_size,
             session: Mutex::new(session),
+            discard_old_receipt: AtomicBool::new(false),
         })
+    }
+
+    /// Rebuild an exact fixture from the previously saved worker checkpoint.
+    /// The request and account must still match before any remote observation.
+    pub fn from_checkpoint(
+        request: &UploadRequest,
+        operation: Uuid,
+        checkpoint: &SecretString,
+        session: ICloudReadSession,
+    ) -> UploadResult<Self> {
+        if checkpoint.expose_secret().len() > MAX_CHECKPOINT {
+            return Err(UploadError::CheckpointInvalid);
+        }
+        let saved: Checkpoint = serde_json::from_str(checkpoint.expose_secret())
+            .map_err(|_| UploadError::CheckpointInvalid)?;
+        let provider = Self::new(
+            request.scope.clone(),
+            operation,
+            saved.plan,
+            saved.size,
+            session,
+        )?;
+        provider.check_checkpoint(request, checkpoint)?;
+        Ok(provider)
+    }
+
+    /// One-shot validation fault after Apple has responded to the old rename.
+    pub fn with_discarded_old_receipt(self) -> Self {
+        self.discard_old_receipt.store(true, Ordering::Release);
+        self
     }
 
     fn check_request(&self, request: &UploadRequest) -> UploadResult<()> {
@@ -236,10 +269,14 @@ impl UploadProvider for ICloudOwnedFixtureHandoff {
                 {
                     return Err(UploadError::Conflict);
                 }
-                if !session
+                let accepted = session
                     .move_old_to_recovery(&self.plan)
                     .await
-                    .map_err(|_| UploadError::Uncertain)?
+                    .map_err(|_| UploadError::Uncertain)?;
+                if self.discard_old_receipt.swap(false, Ordering::AcqRel) {
+                    return Err(UploadError::Uncertain);
+                }
+                if !accepted
                     || session
                         .inspect_durable_handoff(&self.plan)
                         .await
@@ -360,5 +397,32 @@ mod tests {
         altered["plan"]["staged_id"] = "FILE::com.apple.CloudDocs::foreign".into();
         let altered = SecretString::from(serde_json::to_string(&altered).unwrap());
         assert!(provider.check_checkpoint(&request, &altered).is_err());
+
+        let mut restarted_session = ICloudReadSession::new().unwrap();
+        restarted_session.account_hash = Some("synthetic-account".into());
+        let restarted = ICloudOwnedFixtureHandoff::from_checkpoint(
+            &request,
+            provider.operation,
+            &first,
+            restarted_session,
+        )
+        .unwrap();
+        assert_eq!(
+            restarted.check_checkpoint(&request, &first).unwrap(),
+            Phase::MoveOld
+        );
+        let mut different_account = request.clone();
+        different_account.scope.account = Uuid::new_v4().to_string();
+        let mut foreign_session = ICloudReadSession::new().unwrap();
+        foreign_session.account_hash = Some("synthetic-account".into());
+        assert!(
+            ICloudOwnedFixtureHandoff::from_checkpoint(
+                &different_account,
+                provider.operation,
+                &first,
+                foreign_session,
+            )
+            .is_err()
+        );
     }
 }

@@ -8,6 +8,7 @@ use cirrove_auth::{AppRegistration, CredentialVault, DesktopVault};
 use cirrove_core::mutation::{
     MutationIntent, MutationProvider, MutationReceipt, MutationReconciliation, MutationRequest,
 };
+use cirrove_core::upload::UploadRequest;
 use cirrove_core::{CancellationToken, Node, NodeKind, Scope};
 use cirrove_icloud::{
     HandoffOutcome, ICloudOwnedFixtureHandoff, ICloudOwnedFixtureRemove, ICloudOwnedFixtureUpload,
@@ -58,8 +59,10 @@ async fn main() -> Result<()> {
         [flag] if flag == "--worker-discard-trash-receipt" => 27,
         [flag] if flag == "--worker-resume-trash" => 28,
         [flag] if flag == "--worker-owned-handoff" => 29,
+        [flag] if flag == "--worker-discard-old-handoff-receipt" => 30,
+        [flag] if flag == "--worker-resume-handoff" => 31,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --inspect-occupied | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -90,6 +93,86 @@ async fn main() -> Result<()> {
         .list_root()
         .await
         .context("saved iCloud session is not usable")?;
+    let handoff_recovery_directory = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../.local-state/icloud-worker-handoff-lost-old-validation");
+    if mode == 30 && handoff_recovery_directory.exists() {
+        bail!("lost old-rename validation journal already exists");
+    }
+    if mode == 31 {
+        if !handoff_recovery_directory.exists() {
+            bail!("lost old-rename validation journal is absent");
+        }
+        let journal = Arc::new(Mutex::new(UploadJournal::open(
+            &handoff_recovery_directory,
+            &account.id,
+            8192,
+        )?));
+        let record = {
+            let guard = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock"))?;
+            let records = guard.list(0, 2)?;
+            if records.len() != 1 || records[0].state != UploadState::VerifyRequired {
+                bail!("expected exactly one uncertain handoff upload");
+            }
+            records
+                .into_iter()
+                .next()
+                .context("handoff upload is absent")?
+        };
+        let request = UploadRequest {
+            scope: record.scope.clone(),
+            intent: record.intent.clone(),
+            size: record.size,
+            sha256: record.sha256.clone(),
+        };
+        let UploadIntent::Replace { item, .. } = &record.intent else {
+            bail!("uncertain handoff is not a replacement");
+        };
+        let vault = Arc::new(DesktopVault);
+        let checkpoint = vault
+            .load(&format!("upload/{}", record.id))
+            .await?
+            .context("uncertain handoff lacks its saved checkpoint")?;
+        let provider = Arc::new(ICloudOwnedFixtureHandoff::from_checkpoint(
+            &request,
+            record.id,
+            &checkpoint,
+            session,
+        )?);
+        let worker =
+            TransferWorker::new(journal.clone(), provider, vault, CancellationToken::new());
+        for _ in 0..5 {
+            if let Some(result) = worker.run_once().await? {
+                if result.id != record.id {
+                    bail!("restarted worker claimed a different handoff");
+                }
+                if result.state == UploadState::Uploaded {
+                    let guard = journal
+                        .lock()
+                        .map_err(|_| anyhow::anyhow!("journal lock"))?;
+                    let saved = guard.get(record.id)?;
+                    if saved.remote.as_ref().is_none_or(|node| node.id == *item)
+                        || guard
+                            .namespace_by_remote(&record.scope, item)?
+                            .is_none_or(|backup| !backup.unlinked || !backup.remote_owned)
+                    {
+                        bail!("restarted handoff lacks its exact two-ID receipt");
+                    }
+                    println!(
+                        "Restarted worker completed the old-then-new handoff without replaying the old rename. Operation: {}.",
+                        record.id
+                    );
+                    return Ok(());
+                }
+                if result.state != UploadState::VerifyRequired {
+                    bail!("restarted handoff needs review");
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(4)).await;
+        }
+        bail!("restarted handoff remains uncertain; no rename was blindly replayed");
+    }
     if mode == 20 {
         let listing = session.inspect_trash_listing().await?;
         println!(
@@ -386,7 +469,7 @@ async fn main() -> Result<()> {
     println!(
         "Created and read back the isolated validation file byte for byte. The fixture remains in iCloud Drive."
     );
-    if mode == 29 {
+    if matches!(mode, 29 | 30) {
         let staged_bytes = format!("Cirrove worker handoff {}\n", Uuid::new_v4());
         let staged = session
             .create_staged_file(&folder, &file, staged_bytes.as_bytes())
@@ -396,10 +479,14 @@ async fn main() -> Result<()> {
             provider: "icloud".into(),
             collection: "drive".into(),
         };
-        let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
-            "../../.local-state/icloud-worker-handoff-{}",
-            Uuid::new_v4()
-        ));
+        let directory = if mode == 30 {
+            handoff_recovery_directory
+        } else {
+            Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+                "../../.local-state/icloud-worker-handoff-{}",
+                Uuid::new_v4()
+            ))
+        };
         let journal = Arc::new(Mutex::new(UploadJournal::open(
             &directory,
             &account.id,
@@ -444,19 +531,47 @@ async fn main() -> Result<()> {
                 format!("recovery-by-cirrove-{}.txt", record.id),
             )
             .await?;
-        let provider = Arc::new(ICloudOwnedFixtureHandoff::new(
-            scope.clone(),
-            record.id,
-            plan,
-            record.size,
-            session,
-        )?);
+        let mut provider =
+            ICloudOwnedFixtureHandoff::new(scope.clone(), record.id, plan, record.size, session)?;
+        if mode == 30 {
+            provider = provider.with_discarded_old_receipt();
+        }
+        let provider = Arc::new(provider);
         let worker = TransferWorker::new(
             journal.clone(),
             provider,
             Arc::new(DesktopVault),
             CancellationToken::new(),
         );
+        if mode == 30 {
+            let result = worker
+                .run_once()
+                .await?
+                .context("worker did not claim the handoff")?;
+            if result.id != record.id || result.state != UploadState::VerifyRequired {
+                bail!("discarded old-rename receipt did not retain verification state");
+            }
+            let guard = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock"))?;
+            let saved = guard.get(record.id)?;
+            let reserved = guard.namespace_objects()?.iter().any(|object| {
+                object.unlinked
+                    && !object.remote_owned
+                    && object
+                        .remote
+                        .as_ref()
+                        .is_some_and(|node| node.id == file.id())
+            });
+            if saved.session_key.is_none() || !reserved {
+                bail!("uncertain handoff lost its checkpoint or recovery reservation");
+            }
+            println!(
+                "Old rename response discarded; shared worker retained VerifyRequired and its recovery reservation. Operation: {}.",
+                record.id
+            );
+            return Ok(());
+        }
         for _ in 0..5 {
             if let Some(result) = worker.run_once().await? {
                 if result.id != record.id {

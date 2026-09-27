@@ -457,8 +457,13 @@ the old-ID recovery rename and new-ID installation. A single
 [live worker handoff](../benchmarks/icloud-worker-handoff-2026-09-27.md)
 published the new ID and retained the old ID as a hidden recovery object in
 the shared journal after reading and hashing both complete files. This was
-one owned fixture; response-loss, in-flight timeout, process-death and
-concurrent-edit behavior of this new adapter still need live validation.
+one owned fixture. A further
+[two-process old-rename response-loss run](../benchmarks/icloud-worker-lost-old-rename-2026-09-27.md)
+stopped the first worker at `VerifyRequired` after discarding an already
+received result. A fresh process loaded the exact saved checkpoint, verified
+both IDs and full hashes, and completed only the second rename before the
+shared journal published both identities. The second rename's lost result,
+in-flight timeouts and concurrent edits still need live validation.
 Apple's rename request can accept a stale ETag, so this does not permit
 mounted replacement or ordinary-file writes.
 
