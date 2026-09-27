@@ -5,11 +5,14 @@ mod icloud_handoff_journal;
 
 use anyhow::{Context, Result, bail};
 use cirrove_auth::{AppRegistration, CredentialVault, DesktopVault};
+use cirrove_core::mutation::{
+    MutationIntent, MutationProvider, MutationReceipt, MutationReconciliation, MutationRequest,
+};
 use cirrove_core::{CancellationToken, Scope};
 use cirrove_icloud::{
-    HandoffOutcome, ICloudOwnedFixtureUpload, ICloudReadSession, OccupiedNameOutcome,
-    RenameProbeOutcome, SameIdUpdateOutcome, SealedSessionVault, TrashProbeOutcome,
-    TrashRestoreOutcome,
+    HandoffOutcome, ICloudOwnedFixtureRemove, ICloudOwnedFixtureUpload, ICloudReadSession,
+    OccupiedNameOutcome, RenameProbeOutcome, SameIdUpdateOutcome, SealedSessionVault,
+    TrashProbeOutcome, TrashRestoreOutcome,
 };
 use cirrove_service::accounts::Settings;
 use cirrove_service::journal::{UploadIntent, UploadJournal, UploadState};
@@ -49,8 +52,9 @@ async fn main() -> Result<()> {
         [flag] if flag == "--worker-create" => 22,
         [flag] if flag == "--worker-discard-registration-receipt" => 23,
         [flag] if flag == "--worker-resume-registration" => 24,
+        [flag] if flag == "--owned-file-trash-adapter" => 25,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --inspect-occupied | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --inspect-occupied | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -310,6 +314,49 @@ async fn main() -> Result<()> {
     println!(
         "Created and read back the isolated validation file byte for byte. The fixture remains in iCloud Drive."
     );
+    if mode == 25 {
+        let scope = Scope {
+            account: account.id.clone(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        };
+        let provider = ICloudOwnedFixtureRemove::new(
+            scope.clone(),
+            session,
+            folder,
+            file,
+            content.as_bytes(),
+        )?;
+        let request = MutationRequest {
+            scope,
+            intent: MutationIntent::RemoveFile {
+                before: provider.before_node(),
+            },
+        };
+        let cancel = CancellationToken::new();
+        let prepared = provider
+            .prepare_mutation(&request, &cancel)
+            .await?
+            .context("owned trash mutation lacks prepared identity")?;
+        let receipt = provider
+            .mutate_prepared(&request, Some(&prepared), &cancel)
+            .await?;
+        if !request.accepts(&receipt) || !matches!(receipt, MutationReceipt::Removed { .. }) {
+            bail!("owned trash mutation lacks an exact receipt");
+        }
+        if !matches!(
+            provider
+                .reconcile_prepared_mutation(&request, Some(&prepared), &cancel)
+                .await?,
+            MutationReconciliation::Applied(MutationReceipt::Removed { .. })
+        ) {
+            bail!("owned trash mutation cannot be reconciled");
+        }
+        println!(
+            "Owned-file mutation adapter moved the exact test item to recoverable Trash and independently reconciled the receipt."
+        );
+        return Ok(());
+    }
     if mode == 21 {
         match session
             .probe_trash_restore_cycle(&folder, &file, content.as_bytes())

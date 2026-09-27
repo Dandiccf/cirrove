@@ -231,7 +231,7 @@ impl ICloudReadSession {
         })
     }
 
-    async fn read_trash_items(&mut self) -> Result<(Vec<serde_json::Value>, bool)> {
+    pub(crate) async fn read_trash_items(&mut self) -> Result<(Vec<serde_json::Value>, bool)> {
         let endpoint = self
             .drive_endpoint
             .as_ref()
@@ -1014,7 +1014,7 @@ impl ICloudReadSession {
         Ok(TrashProbeOutcome::Indeterminate)
     }
 
-    async fn send_trash(&mut self, item_id: &str, etag: &str) -> Result<bool> {
+    pub(crate) async fn send_trash(&mut self, item_id: &str, etag: &str) -> Result<bool> {
         let endpoint = self
             .drive_endpoint
             .as_ref()

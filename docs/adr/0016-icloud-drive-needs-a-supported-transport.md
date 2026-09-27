@@ -449,6 +449,25 @@ all upload-part calls. This validates that one known-committed lost response
 can be reconciled without replay. It does not settle an in-flight request,
 content-slot interruption, or concurrent changes.
 
+A feature-gated `ICloudOwnedFixtureRemove` now implements the shared
+`MutationProvider` contract for one small, newly created Cirrove fixture.
+It accepts only an exact prepared file identity, checks the observed ETag and
+full bytes, sends one `moveItemsToTrash`, and recognizes success only when the
+exact ID is absent from its parent and present with a restore path in a
+complete Trash listing. An unchanged item after an uncertain response is
+`Indeterminate`, never permission to resend. A one-run
+[live adapter trial](../benchmarks/icloud-owned-trash-adapter-2026-09-27.md)
+returned and independently reconciled `Removed`. It took over three minutes,
+and the adapter is not wired to the mounted service. Response loss, other
+account classes, folders, permanent deletion and restore remain open.
+
+Reviewing another contemporary [Linux iCloud client implementation](https://github.com/IsmaeelAkram/icloud-linux/blob/master/driver.py#L1419-L1433)
+did not reveal a conditional replacement primitive: its file-sync path
+attempts to delete the old node, ignores that delete's exception, then
+uploads the local bytes under the same name. That implementation is useful
+evidence of API usage, but this sequence cannot meet Cirrove's durable
+conflict-preservation contract.
+
 ## Immediate implementation sequence
 
 1. Build a synthetic protocol fixture from documented observations of the open
