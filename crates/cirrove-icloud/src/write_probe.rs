@@ -43,6 +43,13 @@ pub enum OccupiedNameOutcome {
     Indeterminate,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum HandoffOutcome {
+    BothPreservedAtTargetAndRecovery,
+    RecoveryMovedStagingUnchanged,
+    Indeterminate,
+}
+
 #[derive(Deserialize)]
 struct RenameReply {
     items: Vec<RenameResult>,
@@ -840,6 +847,108 @@ impl ICloudReadSession {
             Ok(OccupiedNameOutcome::ConflictRenamedBothIntact)
         } else {
             Ok(OccupiedNameOutcome::Indeterminate)
+        }
+    }
+
+    /// Stage -> recovery -> target, but only for two new fixtures. No remote
+    /// item is deleted. This tests protocol observability, not atomicity.
+    pub async fn probe_staged_handoff(
+        &mut self,
+        folder: &ValidationFolder,
+        original: &ValidationFile,
+        staged: &ValidationFile,
+        original_bytes: &[u8],
+        staged_bytes: &[u8],
+    ) -> Result<HandoffOutcome> {
+        if original.id == staged.id
+            || original.name != PROBE_FILE
+            || !staged.name.starts_with("staged-by-cirrove-")
+            || original_bytes == staged_bytes
+        {
+            bail!("invalid staged handoff pair");
+        }
+        let before = self.list_folder(&folder.id).await?;
+        if before.len() != 2
+            || !before.iter().any(|entry| {
+                entry.drivewsid == original.id && entry.display_name() == original.name
+            })
+            || !before
+                .iter()
+                .any(|entry| entry.drivewsid == staged.id && entry.display_name() == staged.name)
+            || self
+                .read_small_file_in_folder(&folder.id, &original.id)
+                .await?
+                != original_bytes
+            || self
+                .read_small_file_in_folder(&folder.id, &staged.id)
+                .await?
+                != staged_bytes
+        {
+            bail!("iCloud staged handoff pair changed before the first rename");
+        }
+        let recovery_name = format!("recovery-by-cirrove-{}.txt", Uuid::new_v4());
+        let first_accepted = self
+            .send_rename(&original.id, &original.etag, &recovery_name)
+            .await?;
+        let after_first = self.list_folder(&folder.id).await?;
+        let old = after_first
+            .iter()
+            .find(|entry| entry.drivewsid == original.id);
+        let new = after_first
+            .iter()
+            .find(|entry| entry.drivewsid == staged.id);
+        let (Some(old), Some(new)) = (old, new) else {
+            return Ok(HandoffOutcome::Indeterminate);
+        };
+        if !first_accepted
+            || old.display_name() != recovery_name
+            || new.display_name() != staged.name
+            || old.docwsid != original.document_id
+            || new.docwsid != staged.document_id
+            || self
+                .read_small_file_in_folder(&folder.id, &original.id)
+                .await?
+                != original_bytes
+            || self
+                .read_small_file_in_folder(&folder.id, &staged.id)
+                .await?
+                != staged_bytes
+        {
+            return Ok(HandoffOutcome::Indeterminate);
+        }
+        let second_accepted = self
+            .send_rename(&staged.id, &staged.etag, PROBE_FILE)
+            .await?;
+        let after_second = self.list_folder(&folder.id).await?;
+        let old = after_second
+            .iter()
+            .find(|entry| entry.drivewsid == original.id);
+        let new = after_second
+            .iter()
+            .find(|entry| entry.drivewsid == staged.id);
+        let (Some(old), Some(new)) = (old, new) else {
+            return Ok(HandoffOutcome::Indeterminate);
+        };
+        if old.display_name() != recovery_name
+            || old.docwsid != original.document_id
+            || new.docwsid != staged.document_id
+            || self
+                .read_small_file_in_folder(&folder.id, &original.id)
+                .await?
+                != original_bytes
+            || self
+                .read_small_file_in_folder(&folder.id, &staged.id)
+                .await?
+                != staged_bytes
+        {
+            return Ok(HandoffOutcome::Indeterminate);
+        }
+        if second_accepted && new.display_name() == PROBE_FILE {
+            Ok(HandoffOutcome::BothPreservedAtTargetAndRecovery)
+        } else if !second_accepted && new.display_name() == staged.name {
+            Ok(HandoffOutcome::RecoveryMovedStagingUnchanged)
+        } else {
+            Ok(HandoffOutcome::Indeterminate)
         }
     }
 }

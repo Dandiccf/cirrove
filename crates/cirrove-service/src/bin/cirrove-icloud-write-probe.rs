@@ -3,8 +3,8 @@
 use anyhow::{Context, Result, bail};
 use cirrove_auth::{AppRegistration, CredentialVault};
 use cirrove_icloud::{
-    ICloudReadSession, OccupiedNameOutcome, RenameProbeOutcome, SameIdUpdateOutcome,
-    SealedSessionVault,
+    HandoffOutcome, ICloudReadSession, OccupiedNameOutcome, RenameProbeOutcome,
+    SameIdUpdateOutcome, SealedSessionVault,
 };
 use cirrove_service::accounts::Settings;
 use std::path::Path;
@@ -21,8 +21,9 @@ async fn main() -> Result<()> {
         [flag] if flag == "--http-if-match" => 5,
         [flag] if flag == "--occupied-name" => 6,
         [flag] if flag == "--inspect-occupied" => 7,
+        [flag] if flag == "--staged-handoff" => 8,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --inspect-occupied]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --inspect-occupied | --staged-handoff]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -224,6 +225,39 @@ async fn main() -> Result<()> {
             }
             OccupiedNameOutcome::Indeterminate => {
                 bail!("occupied-name rename left an indeterminate fixture state");
+            }
+        }
+    }
+    if mode == 8 {
+        let staged_bytes = format!("Cirrove staged handoff {}\n", Uuid::new_v4());
+        let staged = session
+            .create_staged_file(&folder, &file, staged_bytes.as_bytes())
+            .await?;
+        println!("Created and read back a second, separately identified staging file.");
+        let outcome = session
+            .probe_staged_handoff(
+                &folder,
+                &file,
+                &staged,
+                content.as_bytes(),
+                staged_bytes.as_bytes(),
+            )
+            .await?;
+        match outcome {
+            HandoffOutcome::BothPreservedAtTargetAndRecovery => {
+                println!(
+                    "Staged handoff reached the original name; both exact IDs and bytes remain, with the old file under recovery."
+                );
+            }
+            HandoffOutcome::RecoveryMovedStagingUnchanged => {
+                println!(
+                    "Old file moved to recovery; staged file remained under its unique name. Both IDs and bytes remain."
+                );
+            }
+            HandoffOutcome::Indeterminate => {
+                bail!(
+                    "staged handoff left an indeterminate fixture state; no request will be retried"
+                );
             }
         }
     }

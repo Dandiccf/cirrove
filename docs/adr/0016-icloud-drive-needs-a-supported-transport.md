@@ -309,6 +309,15 @@ IDs and exact byte sequences and gave the staged item a numbered conflict
 suffix. This demonstrates one non-destructive collision outcome, not a way to
 install the new content at the original name without a race.
 
+A separate [staged-handoff probe](../benchmarks/icloud-staged-handoff-2026-09-27.md)
+then moved the owned old file to a unique recovery name, verified both IDs
+and byte strings, moved the staged file to the vacated original name, and
+verified both again. That sequence worked once without deleting either
+version. It still has a visible gap at the original name, has no enforced
+ETag precondition, and has no durable restart checkpoint. The result is
+feasibility evidence for preserving both versions, not permission to expose
+normal iCloud writeback.
+
 1. Upload new bytes under a unique temporary name without touching the old
    item. Persist the new exact ID and upload receipt first, then read it back
    and verify its full hash.
