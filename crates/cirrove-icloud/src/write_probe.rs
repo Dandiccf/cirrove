@@ -86,8 +86,10 @@ pub struct HandoffPlan {
     folder_name: String,
     original_id: String,
     original_doc_id: String,
+    original_etag: String,
     staged_id: String,
     staged_doc_id: String,
+    staged_etag: String,
     staged_name: String,
     recovery_name: String,
     original_sha256: String,
@@ -103,11 +105,13 @@ pub struct StagedRegistrationPlan {
     folder_name: String,
     original_id: String,
     original_doc_id: String,
+    original_etag: String,
     original_sha256: String,
     staged_name: String,
     staged_sha256: String,
     staged_id: Option<String>,
     staged_doc_id: Option<String>,
+    staged_etag: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -441,16 +445,18 @@ impl ICloudReadSession {
             bail!("invalid staged iCloud registration fixture");
         }
         let mut plan = StagedRegistrationPlan {
-            version: 1,
+            version: 2,
             folder_id: folder.id.clone(),
             folder_name: folder.name.clone(),
             original_id: original.id.clone(),
             original_doc_id: original.document_id.clone(),
+            original_etag: original.etag.clone(),
             original_sha256: hex::encode(Sha256::digest(original_bytes)),
             staged_name: format!("staged-by-cirrove-{}.txt", Uuid::new_v4()),
             staged_sha256: hex::encode(Sha256::digest(staged_bytes)),
             staged_id: None,
             staged_doc_id: None,
+            staged_etag: None,
         };
         if self.inspect_staged_registration(&mut plan).await? {
             bail!("staged iCloud registration name was already present");
@@ -513,6 +519,7 @@ impl ICloudReadSession {
         )?;
         if old.is_folder()
             || old.docwsid != plan.original_doc_id
+            || old.etag != plan.original_etag
             || old.display_name() != PROBE_FILE
             || old.size > 4096
             || hex::encode(Sha256::digest(
@@ -546,6 +553,10 @@ impl ICloudReadSession {
                 .staged_doc_id
                 .as_ref()
                 .is_some_and(|id| id != &stage.docwsid)
+            || plan
+                .staged_etag
+                .as_ref()
+                .is_some_and(|etag| etag != &stage.etag)
             || hex::encode(Sha256::digest(
                 self.read_small_file_in_folder(&plan.folder_id, &stage.drivewsid)
                     .await?,
@@ -555,6 +566,7 @@ impl ICloudReadSession {
         }
         plan.staged_id = Some(stage.drivewsid.clone());
         plan.staged_doc_id = Some(stage.docwsid.clone());
+        plan.staged_etag = Some(stage.etag.clone());
         Ok(true)
     }
 
@@ -569,11 +581,12 @@ impl ICloudReadSession {
             bail!("staged registration is not visible for handoff");
         }
         let plan = HandoffPlan {
-            version: 1,
+            version: 2,
             folder_id: registration.folder_id.clone(),
             folder_name: registration.folder_name.clone(),
             original_id: registration.original_id.clone(),
             original_doc_id: registration.original_doc_id.clone(),
+            original_etag: registration.original_etag.clone(),
             staged_id: registration
                 .staged_id
                 .clone()
@@ -582,6 +595,10 @@ impl ICloudReadSession {
                 .staged_doc_id
                 .clone()
                 .context("staged registration has no document identity")?,
+            staged_etag: registration
+                .staged_etag
+                .clone()
+                .context("staged registration has no item revision")?,
             staged_name: registration.staged_name.clone(),
             recovery_name: format!("recovery-by-cirrove-{}.txt", Uuid::new_v4()),
             original_sha256: registration.original_sha256.clone(),
@@ -1502,13 +1519,15 @@ impl ICloudReadSession {
             bail!("invalid durable iCloud validation pair");
         }
         let plan = HandoffPlan {
-            version: 1,
+            version: 2,
             folder_id: folder.id.clone(),
             folder_name: folder.name.clone(),
             original_id: original.id.clone(),
             original_doc_id: original.document_id.clone(),
+            original_etag: original.etag.clone(),
             staged_id: staged.id.clone(),
             staged_doc_id: staged.document_id.clone(),
+            staged_etag: staged.etag.clone(),
             staged_name: staged.name.clone(),
             recovery_name: format!("recovery-by-cirrove-{}.txt", Uuid::new_v4()),
             original_sha256: hex::encode(Sha256::digest(original_bytes)),
@@ -1564,9 +1583,17 @@ impl ICloudReadSession {
         }
         let (old_name, new_name) = (old.display_name(), new.display_name());
         Ok(if old_name == PROBE_FILE && new_name == plan.staged_name {
-            HandoffObserved::Prepared
+            if plan.revisions_match_prepared(&old.etag, &new.etag) {
+                HandoffObserved::Prepared
+            } else {
+                HandoffObserved::Diverged
+            }
         } else if old_name == plan.recovery_name && new_name == plan.staged_name {
-            HandoffObserved::OldAtRecovery
+            if plan.staged_etag == new.etag {
+                HandoffObserved::OldAtRecovery
+            } else {
+                HandoffObserved::Diverged
+            }
         } else if old_name == plan.recovery_name && new_name == PROBE_FILE {
             HandoffObserved::Complete
         } else {
@@ -1578,12 +1605,10 @@ impl ICloudReadSession {
         if self.inspect_durable_handoff(plan).await? != HandoffObserved::Prepared {
             bail!("old iCloud validation item is not in the prepared state");
         }
-        let items = self.list_folder(&plan.folder_id).await?;
-        let old = items
-            .iter()
-            .find(|entry| entry.drivewsid == plan.original_id)
-            .context("old iCloud validation item disappeared")?;
-        self.send_rename(&plan.original_id, &old.etag, &plan.recovery_name)
+        // Never refresh the precondition to a newer remote revision. Apple's
+        // web rename may ignore a stale ETag, but a known intervening edit must
+        // stop this research operation before its first mutating request.
+        self.send_rename(&plan.original_id, &plan.original_etag, &plan.recovery_name)
             .await
     }
 
@@ -1591,17 +1616,20 @@ impl ICloudReadSession {
         if self.inspect_durable_handoff(plan).await? != HandoffObserved::OldAtRecovery {
             bail!("staged iCloud validation item is not ready for handoff");
         }
-        let items = self.list_folder(&plan.folder_id).await?;
-        let staged = items
-            .iter()
-            .find(|entry| entry.drivewsid == plan.staged_id)
-            .context("staged iCloud validation item disappeared")?;
-        self.send_rename(&plan.staged_id, &staged.etag, PROBE_FILE)
+        self.send_rename(&plan.staged_id, &plan.staged_etag, PROBE_FILE)
             .await
     }
 }
 
+fn valid_etag(etag: &str) -> bool {
+    !etag.is_empty() && etag.len() <= 4096 && !etag.contains(['\0', '\r', '\n'])
+}
+
 impl HandoffPlan {
+    fn revisions_match_prepared(&self, old: &str, staged: &str) -> bool {
+        old == self.original_etag && staged == self.staged_etag
+    }
+
     fn validate(&self) -> Result<()> {
         let uuid_name = |name: &str, prefix: &str, suffix: &str| {
             name.strip_prefix(prefix)
@@ -1616,7 +1644,7 @@ impl HandoffPlan {
         };
         let old = split_file_id(&self.original_id)?;
         let new = split_file_id(&self.staged_id)?;
-        if self.version != 1
+        if self.version != 2
             || !uuid_name(&self.folder_name, PROBE_PREFIX, "")
             || !self.folder_id.starts_with("FOLDER::com.apple.CloudDocs::")
             || !uuid_name(&self.staged_name, "staged-by-cirrove-", ".txt")
@@ -1628,6 +1656,8 @@ impl HandoffPlan {
             || new.1 != self.staged_doc_id
             || !digest(&self.original_sha256)
             || !digest(&self.staged_sha256)
+            || !valid_etag(&self.original_etag)
+            || !valid_etag(&self.staged_etag)
         {
             bail!("invalid durable iCloud handoff plan");
         }
@@ -1649,17 +1679,18 @@ impl StagedRegistrationPlan {
                     .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
         };
         let old = split_file_id(&self.original_id)?;
-        let bound = match (&self.staged_id, &self.staged_doc_id) {
-            (None, None) => true,
-            (Some(id), Some(document)) => {
+        let bound = match (&self.staged_id, &self.staged_doc_id, &self.staged_etag) {
+            (None, None, None) => true,
+            (Some(id), Some(document), Some(etag)) => {
                 let candidate = split_file_id(id)?;
                 candidate.0 == "com.apple.CloudDocs"
                     && candidate.1 == document
                     && id != &self.original_id
+                    && valid_etag(etag)
             }
             _ => false,
         };
-        if self.version != 1
+        if self.version != 2
             || !uuid_name(&self.folder_name, PROBE_PREFIX, "")
             || !self.folder_id.starts_with("FOLDER::com.apple.CloudDocs::")
             || !uuid_name(&self.staged_name, "staged-by-cirrove-", ".txt")
@@ -1667,6 +1698,7 @@ impl StagedRegistrationPlan {
             || old.1 != self.original_doc_id
             || !digest(&self.original_sha256)
             || !digest(&self.staged_sha256)
+            || !valid_etag(&self.original_etag)
             || !bound
         {
             bail!("invalid staged iCloud registration plan");
@@ -1676,18 +1708,21 @@ impl StagedRegistrationPlan {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod handoff_tests {
     use super::*;
 
     fn plan() -> HandoffPlan {
         HandoffPlan {
-            version: 1,
+            version: 2,
             folder_id: "FOLDER::com.apple.CloudDocs::folder-1".into(),
             folder_name: format!("{PROBE_PREFIX}{}", Uuid::new_v4()),
             original_id: "FILE::com.apple.CloudDocs::old-1".into(),
             original_doc_id: "old-1".into(),
+            original_etag: "old-revision".into(),
             staged_id: "FILE::com.apple.CloudDocs::new-1".into(),
             staged_doc_id: "new-1".into(),
+            staged_etag: "staged-revision".into(),
             staged_name: format!("staged-by-cirrove-{}.txt", Uuid::new_v4()),
             recovery_name: format!("recovery-by-cirrove-{}.txt", Uuid::new_v4()),
             original_sha256: "a".repeat(64),
@@ -1712,26 +1747,44 @@ mod handoff_tests {
         let mut unsafe_name = plan();
         unsafe_name.recovery_name = "important.txt".into();
         assert!(unsafe_name.validate().is_err());
+        let mut legacy = plan();
+        legacy.version = 1;
+        assert!(legacy.validate().is_err());
+        let mut invalid_revision = plan();
+        invalid_revision.original_etag = "new\nline".into();
+        assert!(invalid_revision.validate().is_err());
+    }
+
+    #[test]
+    fn durable_handoff_refuses_changed_revisions_even_when_bytes_match() {
+        let plan = plan();
+        assert!(plan.revisions_match_prepared("old-revision", "staged-revision"));
+        assert!(!plan.revisions_match_prepared("foreign-revision", "staged-revision"));
+        assert!(!plan.revisions_match_prepared("old-revision", "foreign-revision"));
     }
 
     #[test]
     fn staged_registration_reservation_requires_a_matching_bound_identity() {
         let mut plan = StagedRegistrationPlan {
-            version: 1,
+            version: 2,
             folder_id: "FOLDER::com.apple.CloudDocs::folder-1".into(),
             folder_name: format!("{PROBE_PREFIX}{}", Uuid::new_v4()),
             original_id: "FILE::com.apple.CloudDocs::old-1".into(),
             original_doc_id: "old-1".into(),
+            original_etag: "old-revision".into(),
             original_sha256: "a".repeat(64),
             staged_name: format!("staged-by-cirrove-{}.txt", Uuid::new_v4()),
             staged_sha256: "b".repeat(64),
             staged_id: None,
             staged_doc_id: None,
+            staged_etag: None,
         };
         plan.validate().unwrap();
         plan.staged_id = Some("FILE::com.apple.CloudDocs::new-1".into());
         assert!(plan.validate().is_err());
         plan.staged_doc_id = Some("new-1".into());
+        assert!(plan.validate().is_err());
+        plan.staged_etag = Some("staged-revision".into());
         plan.validate().unwrap();
         plan.staged_doc_id = Some("unrelated".into());
         assert!(plan.validate().is_err());

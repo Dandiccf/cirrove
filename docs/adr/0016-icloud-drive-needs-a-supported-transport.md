@@ -361,6 +361,18 @@ the entire sequence under simultaneous remote edits or arbitrary process
 death, and it does not satisfy Cirrove's existing same-ID replacement
 journal contract.
 
+The isolated handoff checkpoint now records the original and staged item
+ETags alongside their IDs and full hashes. Reconciliation refuses a prepared
+handoff if either revision changed, even when a concurrent edit left the same
+bytes; it also refuses the second rename if the staged revision changed while
+the old item was at its recovery name. Rename requests retain the recorded
+ETag instead of silently refreshing it. This closes detectable revision drift
+in the probe, but Apple's tested rename endpoint can accept a stale ETag. A
+change between the final read and rename remains a race, so this is not a
+conditional write protocol and does not enable mounted writes. Older
+version-1 handoff checkpoints lack the frozen revisions and cannot authorize
+further mutations.
+
 1. Upload new bytes under a unique temporary name without touching the old
    item. Persist the new exact ID and upload receipt first, then read it back
    and verify its full hash.

@@ -374,16 +374,18 @@ mod tests {
         let path = temp.path().join("stage");
         let account = Uuid::new_v4().to_string();
         let plan: StagedRegistrationPlan = serde_json::from_value(json!({
-            "version": 1,
+            "version": 2,
             "folder_id": "FOLDER::com.apple.CloudDocs::folder-1",
             "folder_name": format!("Cirrove Write Validation-{}", Uuid::new_v4()),
             "original_id": "FILE::com.apple.CloudDocs::old-1",
             "original_doc_id": "old-1",
+            "original_etag": "old-revision",
             "original_sha256": "a".repeat(64),
             "staged_name": format!("staged-by-cirrove-{}.txt", Uuid::new_v4()),
             "staged_sha256": "b".repeat(64),
             "staged_id": null,
-            "staged_doc_id": null
+            "staged_doc_id": null,
+            "staged_etag": null
         }))
         .unwrap();
         let mut journal = StageJournal::create(&path, &account, plan).unwrap();
@@ -409,13 +411,15 @@ mod tests {
         let path = temp.path().join("handoff");
         let account = Uuid::new_v4().to_string();
         let plan: HandoffPlan = serde_json::from_value(json!({
-            "version": 1,
+            "version": 2,
             "folder_id": "FOLDER::com.apple.CloudDocs::folder-1",
             "folder_name": format!("Cirrove Write Validation-{}", Uuid::new_v4()),
             "original_id": "FILE::com.apple.CloudDocs::old-1",
             "original_doc_id": "old-1",
+            "original_etag": "old-revision",
             "staged_id": "FILE::com.apple.CloudDocs::new-1",
             "staged_doc_id": "new-1",
+            "staged_etag": "staged-revision",
             "staged_name": format!("staged-by-cirrove-{}.txt", Uuid::new_v4()),
             "recovery_name": format!("recovery-by-cirrove-{}.txt", Uuid::new_v4()),
             "original_sha256": "a".repeat(64),
