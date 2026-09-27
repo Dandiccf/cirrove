@@ -7,7 +7,7 @@ use anyhow::{Context, Result, bail};
 use cirrove_auth::{AppRegistration, CredentialVault};
 use cirrove_icloud::{
     HandoffOutcome, ICloudReadSession, OccupiedNameOutcome, RenameProbeOutcome,
-    SameIdUpdateOutcome, SealedSessionVault, TrashProbeOutcome,
+    SameIdUpdateOutcome, SealedSessionVault, TrashProbeOutcome, TrashRestoreOutcome,
 };
 use cirrove_service::accounts::Settings;
 use icloud_handoff_journal::{Journal, StageJournal};
@@ -37,8 +37,10 @@ async fn main() -> Result<()> {
         [flag] if flag == "--durable-handoff-registered" => 17,
         [flag] if flag == "--stale-etag-trash" => 18,
         [flag] if flag == "--stale-then-fresh-trash" => 19,
+        [flag] if flag == "--inspect-trash" => 20,
+        [flag] if flag == "--trash-restore-cycle" => 21,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --inspect-occupied | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --inspect-occupied | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -69,6 +71,14 @@ async fn main() -> Result<()> {
         .list_root()
         .await
         .context("saved iCloud session is not usable")?;
+    if mode == 20 {
+        let listing = session.inspect_trash_listing().await?;
+        println!(
+            "Trash metadata: {} entries, complete count: {}, restore-path entries: {}.",
+            listing.entries, listing.complete, listing.entries_with_restore_path
+        );
+        return Ok(());
+    }
     if mode == 7 {
         for candidate in root.iter().filter(|entry| {
             entry.is_folder()
@@ -141,6 +151,32 @@ async fn main() -> Result<()> {
     println!(
         "Created and read back the isolated validation file byte for byte. The fixture remains in iCloud Drive."
     );
+    if mode == 21 {
+        match session
+            .probe_trash_restore_cycle(&folder, &file, content.as_bytes())
+            .await?
+        {
+            TrashRestoreOutcome::RestoredSameIdAndBytes => println!(
+                "The exact test ID entered Trash and returned to its parent with the same ID and bytes."
+            ),
+            TrashRestoreOutcome::RestoredNewIdAndBytes => println!(
+                "The test file returned from Trash with a new item ID; its document ID and bytes match."
+            ),
+            TrashRestoreOutcome::RestoredNewDocumentIdAndBytes => println!(
+                "The test bytes returned from Trash, but the document ID changed; the original name remains."
+            ),
+            TrashRestoreOutcome::RestoredDifferentNameAndBytes => println!(
+                "The test bytes and document ID returned from Trash, but the displayed name changed."
+            ),
+            TrashRestoreOutcome::RestoredDifferentDocumentIdAndNameWithBytes => println!(
+                "The test bytes returned from Trash, but both document ID and displayed name changed."
+            ),
+            TrashRestoreOutcome::Indeterminate(stage) => {
+                bail!("iCloud Trash restore stopped uncertain at {stage}; no request was replayed")
+            }
+        }
+        return Ok(());
+    }
     if matches!(mode, 18 | 19) {
         let revised = format!("Cirrove trash revision {}\n", Uuid::new_v4());
         if session

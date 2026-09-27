@@ -4,6 +4,23 @@ use super::*;
 
 const PROBE_PREFIX: &str = "Cirrove Write Validation-";
 const PROBE_FILE: &str = "created-by-cirrove.txt";
+const TRASH_ROOT: &str = "FOLDER::com.apple.CloudDocs::TRASH_ROOT";
+
+pub struct TrashListingProbe {
+    pub entries: usize,
+    pub complete: bool,
+    pub entries_with_restore_path: usize,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum TrashRestoreOutcome {
+    RestoredSameIdAndBytes,
+    RestoredNewIdAndBytes,
+    RestoredNewDocumentIdAndBytes,
+    RestoredDifferentNameAndBytes,
+    RestoredDifferentDocumentIdAndNameWithBytes,
+    Indeterminate(&'static str),
+}
 
 /// Unforgeable by callers outside this module; obtained only after creating
 /// and listing a fresh fixture through this session.
@@ -189,6 +206,72 @@ fn exactly_one<T>(mut values: Vec<T>, stage: &'static str) -> Result<T> {
 }
 
 impl ICloudReadSession {
+    /// Bounded read-only inspection of Apple's special Trash root. It may
+    /// lack the ordinary folder `type` field, so this deliberately avoids
+    /// treating it as a normal mounted directory.
+    pub async fn inspect_trash_listing(&mut self) -> Result<TrashListingProbe> {
+        let (items, complete) = self.read_trash_items().await?;
+        Ok(TrashListingProbe {
+            entries: items.len(),
+            complete,
+            entries_with_restore_path: items
+                .iter()
+                .filter(|item| item.get("restorePath").is_some_and(|path| !path.is_null()))
+                .count(),
+        })
+    }
+
+    async fn read_trash_items(&mut self) -> Result<(Vec<serde_json::Value>, bool)> {
+        let endpoint = self
+            .drive_endpoint
+            .as_ref()
+            .context("iCloud sign-in is not complete")?
+            .join("retrieveItemDetailsInFolders")?;
+        let response = self
+            .http
+            .post(endpoint)
+            .timeout(LISTING_TIMEOUT)
+            .header("origin", ICLOUD_ORIGIN)
+            .header("referer", format!("{ICLOUD_ORIGIN}/"))
+            .json(&json!([{"drivewsid": TRASH_ROOT, "partialData": false}]))
+            .send()
+            .await
+            .map_err(|_| anyhow!("iCloud validation Trash listing request failed"))?;
+        if !response.status().is_success() {
+            return Err(drive_request_failure(
+                response.status(),
+                "iCloud validation Trash listing",
+            ));
+        }
+        let folders: serde_json::Value =
+            read_json(response, "iCloud validation Trash listing").await?;
+        let folder = folders
+            .as_array()
+            .filter(|folders| folders.len() == 1)
+            .and_then(|folders| folders.first())
+            .context("iCloud Trash listing returned an unexpected envelope")?;
+        let returned_root = folder.get("drivewsid").and_then(|value| value.as_str());
+        if !matches!(returned_root, Some(TRASH_ROOT | "TRASH_ROOT")) {
+            bail!("iCloud Trash listing returned a different root ID");
+        }
+        let items = folder
+            .get("items")
+            .and_then(|value| value.as_array())
+            .context("iCloud Trash listing has no item array")?;
+        if items.iter().any(|item| {
+            item.get("drivewsid")
+                .and_then(|value| value.as_str())
+                .is_none_or(str::is_empty)
+        }) {
+            bail!("iCloud Trash listing contains an item without ID");
+        }
+        let complete = folder
+            .get("numberOfItems")
+            .and_then(|value| value.as_u64())
+            .is_some_and(|count| count == items.len() as u64);
+        Ok((items.clone(), complete))
+    }
+
     async fn upload_probe_bytes(
         &mut self,
         name: &str,
@@ -911,6 +994,123 @@ impl ICloudReadSession {
         } else {
             Ok(false)
         }
+    }
+
+    /// Exercise recoverable deletion on one newly created fixture. Every
+    /// remote request is sent once; an uncertain result stops for inspection.
+    pub async fn probe_trash_restore_cycle(
+        &mut self,
+        folder: &ValidationFolder,
+        file: &ValidationFile,
+        bytes: &[u8],
+    ) -> Result<TrashRestoreOutcome> {
+        if bytes.is_empty() || bytes.len() > 4096 || file.name != PROBE_FILE {
+            bail!("invalid iCloud Trash restore validation fixture");
+        }
+        let before = self.list_folder(&folder.id).await?;
+        if before.len() != 1
+            || before[0].drivewsid != file.id
+            || before[0].docwsid != file.document_id
+            || before[0].display_name() != PROBE_FILE
+            || before[0].etag != file.etag
+            || self.read_small_file_in_folder(&folder.id, &file.id).await? != bytes
+        {
+            bail!("iCloud Trash restore base changed");
+        }
+        let accepted = self.send_trash(&file.id, &file.etag).await?;
+        if !accepted
+            || self
+                .list_folder(&folder.id)
+                .await?
+                .iter()
+                .any(|entry| entry.drivewsid == file.id)
+        {
+            return Ok(TrashRestoreOutcome::Indeterminate("trash_not_confirmed"));
+        }
+        let (trash, complete) = self.read_trash_items().await?;
+        if !complete {
+            return Ok(TrashRestoreOutcome::Indeterminate(
+                "trash_listing_incomplete",
+            ));
+        }
+        let candidate = exactly_one(
+            trash
+                .iter()
+                .filter(|item| {
+                    item.get("drivewsid").and_then(|id| id.as_str()) == Some(file.id.as_str())
+                })
+                .collect(),
+            "validation item in Trash",
+        )?;
+        let etag = candidate
+            .get("etag")
+            .and_then(|etag| etag.as_str())
+            .filter(|etag| !etag.is_empty())
+            .context("iCloud Trash item has no ETag")?;
+        if candidate
+            .get("restorePath")
+            .is_none_or(|path| path.is_null())
+            || candidate
+                .get("docwsid")
+                .and_then(|doc| doc.as_str())
+                .is_some_and(|doc| !doc.is_empty() && doc != file.document_id)
+        {
+            bail!("iCloud Trash item lacks expected recovery identity");
+        }
+        let endpoint = self
+            .drive_endpoint
+            .as_ref()
+            .context("iCloud sign-in is not complete")?
+            .join("putBackItemsFromTrash")?;
+        let response = self
+            .http
+            .post(endpoint)
+            .header("origin", ICLOUD_ORIGIN)
+            .header("referer", format!("{ICLOUD_ORIGIN}/"))
+            .json(&json!({"items": [{"drivewsid": file.id, "etag": etag}]}))
+            .send()
+            .await
+            .map_err(|_| anyhow!("iCloud validation Trash restore request failed"))?;
+        let restored = if response.status().is_success() {
+            let reply: TrashReply = read_json(response, "iCloud validation Trash restore").await?;
+            exactly_one(reply.items, "Trash restore")?.status == "OK"
+        } else {
+            false
+        };
+        let after = self.list_folder(&folder.id).await?;
+        if !restored {
+            return Ok(TrashRestoreOutcome::Indeterminate("restore_not_accepted"));
+        }
+        if after.len() != 1 {
+            return Ok(TrashRestoreOutcome::Indeterminate("restore_parent_count"));
+        }
+        let item = &after[0];
+        if item.is_folder() {
+            return Ok(TrashRestoreOutcome::Indeterminate("restore_kind"));
+        }
+        if self
+            .read_small_file_in_folder(&folder.id, &item.drivewsid)
+            .await?
+            != bytes
+        {
+            return Ok(TrashRestoreOutcome::Indeterminate("restore_bytes"));
+        }
+        let same_document = item.docwsid == file.document_id;
+        let same_name = item.display_name() == PROBE_FILE;
+        if !same_document && !same_name {
+            return Ok(TrashRestoreOutcome::RestoredDifferentDocumentIdAndNameWithBytes);
+        }
+        if !same_document {
+            return Ok(TrashRestoreOutcome::RestoredNewDocumentIdAndBytes);
+        }
+        if !same_name {
+            return Ok(TrashRestoreOutcome::RestoredDifferentNameAndBytes);
+        }
+        Ok(if item.drivewsid == file.id {
+            TrashRestoreOutcome::RestoredSameIdAndBytes
+        } else {
+            TrashRestoreOutcome::RestoredNewIdAndBytes
+        })
     }
 
     async fn send_rename(&mut self, item_id: &str, etag: &str, name: &str) -> Result<bool> {

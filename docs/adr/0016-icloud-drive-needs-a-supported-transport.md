@@ -401,6 +401,19 @@ conditional, and normal deletion remains disabled until restart and
 response-loss reconciliation, concurrent-edit behavior and recovery are
 validated.
 
+A [bounded special-Trash listing](../benchmarks/icloud-trash-listing-2026-09-27.md)
+returned a complete item array with restore metadata. The first
+[owned-file restore cycle](../benchmarks/icloud-trash-restore-cycle-2026-09-27.md)
+stopped indeterminate after a successful restore response because its
+combined metadata check failed. A separate
+[identity follow-up](../benchmarks/icloud-trash-restored-identity-2026-09-27.md)
+confirmed that the restored file's document ID and complete bytes matched,
+while Apple changed its displayed name. The Drive ID after that restore was
+not classified. A normal implementation must reconcile the returned
+provider identity and actual name, expose any collision, and never assume
+that restoring from Trash recreates the old pathname. It still needs
+response-loss and restart validation before deletion can be enabled.
+
 ## Immediate implementation sequence
 
 1. Build a synthetic protocol fixture from documented observations of the open
