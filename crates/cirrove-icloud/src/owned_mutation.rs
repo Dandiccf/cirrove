@@ -8,6 +8,7 @@ use cirrove_core::mutation::{
 };
 use cirrove_core::{CancellationToken, Node, NodeKind, Scope};
 use sha2::{Digest, Sha256};
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
@@ -22,8 +23,10 @@ pub struct ICloudOwnedFixtureRemove {
     folder: ValidationFolder,
     file: ValidationFile,
     before: Node,
-    sha256: String,
+    sha256: Option<String>,
     session: Mutex<ICloudReadSession>,
+    discard_trash_receipt: AtomicBool,
+    reconciliation_only: bool,
 }
 
 impl ICloudOwnedFixtureRemove {
@@ -45,6 +48,7 @@ impl ICloudOwnedFixtureRemove {
                 .is_none_or(|suffix| Uuid::parse_str(suffix).is_err())
             || file.name != "created-by-cirrove.txt"
             || !file.id.starts_with("FILE::com.apple.CloudDocs::")
+            || file.document_id.is_empty()
             || file.id.rsplit("::").next() != Some(file.document_id.as_str())
             || file.etag.is_empty()
             || bytes.is_empty()
@@ -69,9 +73,66 @@ impl ICloudOwnedFixtureRemove {
             folder,
             file,
             before,
-            sha256: hex::encode(Sha256::digest(bytes)),
+            sha256: Some(hex::encode(Sha256::digest(bytes))),
             session: Mutex::new(session),
+            discard_trash_receipt: AtomicBool::new(false),
+            reconciliation_only: false,
         })
+    }
+
+    /// A fresh validation process can reconstruct only the read-only side
+    /// from the durable mutation request. It cannot issue another Trash call.
+    pub fn for_reconciliation(
+        scope: Scope,
+        session: ICloudReadSession,
+        folder: ValidationFolder,
+        before: Node,
+    ) -> MutationResult<Self> {
+        let document_id = before.id.rsplit("::").next().unwrap_or_default().to_owned();
+        let file = ValidationFile {
+            id: before.id.clone(),
+            document_id,
+            etag: before.etag.clone().ok_or(MutationError::Invalid)?,
+            name: before.name.clone(),
+        };
+        if scope.account.is_empty()
+            || scope.provider != "icloud"
+            || scope.collection != "drive"
+            || session.account_hash.is_none()
+            || !folder.id.starts_with("FOLDER::com.apple.CloudDocs::")
+            || folder
+                .name
+                .strip_prefix("Cirrove Write Validation-")
+                .is_none_or(|suffix| Uuid::parse_str(suffix).is_err())
+            || before.parent_id.as_deref() != Some(folder.id.as_str())
+            || before.kind != NodeKind::File
+            || before.target.is_some()
+            || before.package
+            || before.size == 0
+            || before.size > 4096
+            || file.name != "created-by-cirrove.txt"
+            || !file.id.starts_with("FILE::com.apple.CloudDocs::")
+            || file.document_id.is_empty()
+            || file.id.rsplit("::").next() != Some(file.document_id.as_str())
+            || file.etag.is_empty()
+        {
+            return Err(MutationError::Invalid);
+        }
+        Ok(Self {
+            scope,
+            folder,
+            file,
+            before,
+            sha256: None,
+            session: Mutex::new(session),
+            discard_trash_receipt: AtomicBool::new(false),
+            reconciliation_only: true,
+        })
+    }
+
+    pub fn with_discarded_trash_receipt(self) -> Self {
+        self.discard_trash_receipt.store(true, Ordering::Release);
+        self
     }
 
     pub fn before_node(&self) -> Node {
@@ -119,12 +180,14 @@ impl ICloudOwnedFixtureRemove {
             {
                 return Err(MutationError::Conflict);
             }
-            let bytes = session
-                .read_small_file_in_folder(&self.folder.id, &self.file.id)
-                .await
-                .map_err(|_| MutationError::Uncertain)?;
-            if hex::encode(Sha256::digest(bytes)) != self.sha256 {
-                return Err(MutationError::Conflict);
+            if let Some(expected) = &self.sha256 {
+                let bytes = session
+                    .read_small_file_in_folder(&self.folder.id, &self.file.id)
+                    .await
+                    .map_err(|_| MutationError::Uncertain)?;
+                if hex::encode(Sha256::digest(bytes)) != *expected {
+                    return Err(MutationError::Conflict);
+                }
             }
             return Ok(Observation::AtParent);
         }
@@ -169,6 +232,9 @@ impl MutationProvider for ICloudOwnedFixtureRemove {
         cancel: &CancellationToken,
     ) -> MutationResult<Option<String>> {
         self.check(request, None)?;
+        if self.reconciliation_only {
+            return Err(MutationError::Unsupported("reconciliation-only validation"));
+        }
         if cancel.is_cancelled() {
             return Err(MutationError::Uncertain);
         }
@@ -195,6 +261,9 @@ impl MutationProvider for ICloudOwnedFixtureRemove {
         cancel: &CancellationToken,
     ) -> MutationResult<MutationReceipt> {
         self.check(request, prepared_item)?;
+        if self.reconciliation_only {
+            return Err(MutationError::Unsupported("reconciliation-only validation"));
+        }
         if prepared_item != Some(self.file.id.as_str()) {
             return Err(MutationError::Invalid);
         }
@@ -204,13 +273,20 @@ impl MutationProvider for ICloudOwnedFixtureRemove {
         if !matches!(self.observe().await?, Observation::AtParent) {
             return Err(MutationError::Conflict);
         }
-        let accepted = self
-            .session
-            .lock()
-            .await
-            .send_trash(&self.file.id, &self.file.etag)
-            .await
-            .map_err(|_| MutationError::Uncertain)?;
+        let accepted = {
+            let mut session = self.session.lock().await;
+            if self.discard_trash_receipt.swap(false, Ordering::AcqRel) {
+                session
+                    .send_trash_without_receipt(&self.file.id, &self.file.etag)
+                    .await
+                    .map_err(|_| MutationError::Uncertain)?;
+                return Err(MutationError::Uncertain);
+            }
+            session
+                .send_trash(&self.file.id, &self.file.etag)
+                .await
+                .map_err(|_| MutationError::Uncertain)?
+        };
         if !accepted {
             return Err(MutationError::Uncertain);
         }
@@ -332,6 +408,36 @@ mod tests {
                     Some(&provider.file.id),
                     &CancellationToken::new()
                 )
+                .await
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn restarted_fixture_can_reconcile_but_cannot_delete_again() {
+        let (provider, request) = fixture();
+        let mut session = ICloudReadSession::new().unwrap();
+        session.account_hash = Some("synthetic-account".into());
+        let folder = ValidationFolder {
+            id: provider.folder.id.clone(),
+            name: provider.folder.name.clone(),
+        };
+        let restarted = ICloudOwnedFixtureRemove::for_reconciliation(
+            request.scope.clone(),
+            session,
+            folder,
+            provider.before_node(),
+        )
+        .unwrap();
+        let error = restarted
+            .mutate_prepared(&request, Some(&provider.file.id), &CancellationToken::new())
+            .await
+            .err()
+            .unwrap();
+        assert!(matches!(error, MutationError::Unsupported(_)));
+        assert!(
+            restarted
+                .prepare_mutation(&request, &CancellationToken::new())
                 .await
                 .is_err()
         );

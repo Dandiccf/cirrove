@@ -15,7 +15,8 @@ use cirrove_icloud::{
     TrashProbeOutcome, TrashRestoreOutcome,
 };
 use cirrove_service::accounts::Settings;
-use cirrove_service::journal::{UploadIntent, UploadJournal, UploadState};
+use cirrove_service::journal::{MutationState, UploadIntent, UploadJournal, UploadState};
+use cirrove_service::mutations::MutationWorker;
 use cirrove_service::transfers::TransferWorker;
 use icloud_handoff_journal::{Journal, StageJournal};
 use std::{
@@ -53,8 +54,11 @@ async fn main() -> Result<()> {
         [flag] if flag == "--worker-discard-registration-receipt" => 23,
         [flag] if flag == "--worker-resume-registration" => 24,
         [flag] if flag == "--owned-file-trash-adapter" => 25,
+        [flag] if flag == "--worker-owned-trash" => 26,
+        [flag] if flag == "--worker-discard-trash-receipt" => 27,
+        [flag] if flag == "--worker-resume-trash" => 28,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --inspect-occupied | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --inspect-occupied | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -219,8 +223,75 @@ async fn main() -> Result<()> {
         );
         return Ok(());
     }
+    let trash_recovery_directory = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../.local-state/icloud-worker-trash-lost-receipt-validation");
+    if mode == 28 {
+        let journal = Arc::new(Mutex::new(UploadJournal::open(
+            &trash_recovery_directory,
+            &account.id,
+            8192,
+        )?));
+        let record = {
+            let guard = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock"))?;
+            let rows = guard.list_mutations(0, 2)?;
+            if rows.len() != 1 || rows[0].state != MutationState::VerifyRequired {
+                bail!("expected exactly one uncertain Trash mutation");
+            }
+            rows.into_iter()
+                .next()
+                .context("Trash mutation is absent")?
+        };
+        let MutationIntent::RemoveFile { before } = &record.request.intent else {
+            bail!("uncertain Trash mutation is not a file removal");
+        };
+        if record.prepared_item.as_deref() != Some(before.id.as_str()) {
+            bail!("uncertain Trash mutation lacks its exact prepared identity");
+        }
+        let parent = before
+            .parent_id
+            .as_deref()
+            .context("Trash source has no parent")?;
+        let folder = session.validation_folder_at_root(parent).await?;
+        let provider = Arc::new(ICloudOwnedFixtureRemove::for_reconciliation(
+            record.request.scope.clone(),
+            session,
+            folder,
+            before.clone(),
+        )?);
+        let worker = MutationWorker::new(journal.clone(), provider, CancellationToken::new());
+        for _ in 0..4 {
+            if let Some(result) = worker.run_once().await? {
+                if result.id != record.id
+                    || result.state != MutationState::Applied
+                    || result.issue.is_some()
+                {
+                    bail!("restarted Trash worker could not reconcile exact removal");
+                }
+                let saved = journal
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("journal lock"))?
+                    .mutation(record.id)?;
+                if !matches!(saved.receipt, Some(MutationReceipt::Removed { item }) if item == before.id)
+                {
+                    bail!("restarted Trash worker saved a different receipt");
+                }
+                println!(
+                    "Restarted worker reconciled the exact Trash item without permitting another delete request. Operation: {}.",
+                    record.id
+                );
+                return Ok(());
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        }
+        bail!("uncertain Trash mutation was not claimed for verification");
+    }
     if mode == 23 && worker_recovery_directory.exists() {
         bail!("lost-receipt validation journal already exists");
+    }
+    if mode == 27 && trash_recovery_directory.exists() {
+        bail!("lost Trash receipt validation journal already exists");
     }
     let name = format!("Cirrove Write Validation-{}", Uuid::new_v4());
     let folder = session.create_validation_folder(&name).await?;
@@ -314,19 +385,23 @@ async fn main() -> Result<()> {
     println!(
         "Created and read back the isolated validation file byte for byte. The fixture remains in iCloud Drive."
     );
-    if mode == 25 {
+    if matches!(mode, 25..=27) {
         let scope = Scope {
             account: account.id.clone(),
             provider: "icloud".into(),
             collection: "drive".into(),
         };
-        let provider = ICloudOwnedFixtureRemove::new(
+        let mut provider = ICloudOwnedFixtureRemove::new(
             scope.clone(),
             session,
             folder,
             file,
             content.as_bytes(),
         )?;
+        if mode == 27 {
+            provider = provider.with_discarded_trash_receipt();
+        }
+        let provider = Arc::new(provider);
         let request = MutationRequest {
             scope,
             intent: MutationIntent::RemoveFile {
@@ -334,6 +409,84 @@ async fn main() -> Result<()> {
             },
         };
         let cancel = CancellationToken::new();
+        if matches!(mode, 26 | 27) {
+            let directory = if mode == 27 {
+                trash_recovery_directory
+            } else {
+                Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+                    "../../.local-state/icloud-worker-trash-{}",
+                    Uuid::new_v4()
+                ))
+            };
+            let journal = Arc::new(Mutex::new(UploadJournal::open(
+                &directory,
+                &account.id,
+                8192,
+            )?));
+            let queued = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock"))?
+                .enqueue_mutation(request.clone())?;
+            let worker = MutationWorker::new(journal.clone(), provider, cancel);
+            if mode == 27 {
+                let result = worker
+                    .run_once()
+                    .await?
+                    .context("worker did not claim Trash mutation")?;
+                if result.id != queued.id || result.state != MutationState::VerifyRequired {
+                    bail!("discarded Trash receipt did not require verification");
+                }
+                let saved = journal
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("journal lock"))?
+                    .mutation(queued.id)?;
+                if saved.prepared_item.as_deref()
+                    != request.intent.before().map(|node| node.id.as_str())
+                {
+                    bail!("uncertain Trash mutation lost its prepared identity");
+                }
+                println!(
+                    "Trash receipt deliberately discarded; exact prepared identity retained as VerifyRequired. Operation: {}.",
+                    queued.id
+                );
+                return Ok(());
+            }
+            for _ in 0..6 {
+                if let Some(result) = worker.run_once().await? {
+                    println!(
+                        "Worker trash state: {:?}; operation: {}.",
+                        result.state, queued.id
+                    );
+                    if result.id != queued.id {
+                        bail!("worker claimed a different validation mutation");
+                    }
+                    if result.state == MutationState::Applied {
+                        let record = journal
+                            .lock()
+                            .map_err(|_| anyhow::anyhow!("journal lock"))?
+                            .mutation(queued.id)?;
+                        if record.prepared_item.as_deref()
+                            != request.intent.before().map(|node| node.id.as_str())
+                            || !matches!(record.receipt, Some(MutationReceipt::Removed { .. }))
+                        {
+                            bail!("worker trash receipt lacks its prepared exact identity");
+                        }
+                        println!(
+                            "The shared mutation journal committed the recoverable Trash receipt."
+                        );
+                        return Ok(());
+                    }
+                    if result.state != MutationState::VerifyRequired {
+                        bail!("worker trash mutation needs review");
+                    }
+                }
+                tokio::time::sleep(std::time::Duration::from_secs(4)).await;
+            }
+            bail!(
+                "worker trash mutation remains uncertain; inspect the retained journal at {}",
+                directory.display()
+            );
+        }
         let prepared = provider
             .prepare_mutation(&request, &cancel)
             .await?

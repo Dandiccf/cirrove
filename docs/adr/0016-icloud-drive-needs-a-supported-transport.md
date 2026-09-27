@@ -458,8 +458,16 @@ complete Trash listing. An unchanged item after an uncertain response is
 `Indeterminate`, never permission to resend. A one-run
 [live adapter trial](../benchmarks/icloud-owned-trash-adapter-2026-09-27.md)
 returned and independently reconciled `Removed`. It took over three minutes,
-and the adapter is not wired to the mounted service. Response loss, other
-account classes, folders, permanent deletion and restore remain open.
+and the adapter is not wired to the mounted service. The shared mutation
+worker then completed a [durable owned-file Trash trial](../benchmarks/icloud-worker-trash-2026-09-27.md)
+after a journal fix that binds a `Removed` receipt to its exact prepared ID.
+In a [two-process lost-response trial](../benchmarks/icloud-worker-lost-trash-receipt-2026-09-27.md),
+the first process discarded an already received Trash response and retained
+`VerifyRequired`; the second reconciled that exact ID in complete Trash
+metadata and committed `Applied` without permission to send another delete.
+Both are single-fixture results. In-flight timeouts, concurrent edits, other
+account classes, folders, permanent deletion and restore remain open; normal
+iCloud mounts remain read-only.
 
 Reviewing another contemporary [Linux iCloud client implementation](https://github.com/IsmaeelAkram/icloud-linux/blob/master/driver.py#L1419-L1433)
 did not reveal a conditional replacement primitive: its file-sync path

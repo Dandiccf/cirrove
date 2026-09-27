@@ -87,6 +87,37 @@ fn journal(root: &std::path::Path) -> UploadJournal {
     }
 }
 #[test]
+fn prepared_file_removal_accepts_only_its_exact_removed_identity() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut journal = journal(&tmp.path().join("journal"));
+    let request = MutationRequest {
+        scope: scope(),
+        intent: MutationIntent::RemoveFile { before: before() },
+    };
+    let queued = journal.enqueue_mutation(request).unwrap();
+    let claimed = journal.claim_mutation().unwrap().unwrap();
+    let attempt = claimed.attempt.unwrap();
+    journal
+        .record_prepared_mutation(queued.id, attempt, "file".into())
+        .unwrap();
+    assert_eq!(
+        journal
+            .acknowledge_mutation(
+                queued.id,
+                attempt,
+                MutationReceipt::Removed {
+                    item: "file".into(),
+                },
+            )
+            .unwrap(),
+        MutationState::Applied
+    );
+    assert_eq!(
+        journal.mutation(queued.id).unwrap().state,
+        MutationState::Applied
+    );
+}
+#[test]
 fn uploads_and_namespace_changes_share_item_and_destination_ordering() {
     let tmp = tempfile::tempdir().unwrap();
     let mut j = journal(&tmp.path().join("journal"));

@@ -1014,14 +1014,13 @@ impl ICloudReadSession {
         Ok(TrashProbeOutcome::Indeterminate)
     }
 
-    pub(crate) async fn send_trash(&mut self, item_id: &str, etag: &str) -> Result<bool> {
+    async fn trash_response(&mut self, item_id: &str, etag: &str) -> Result<Response> {
         let endpoint = self
             .drive_endpoint
             .as_ref()
             .context("iCloud sign-in is not complete")?
             .join("moveItemsToTrash")?;
-        let response = self
-            .http
+        self.http
             .post(endpoint)
             .header("origin", ICLOUD_ORIGIN)
             .header("referer", format!("{ICLOUD_ORIGIN}/"))
@@ -1032,7 +1031,22 @@ impl ICloudReadSession {
             }]}))
             .send()
             .await
-            .map_err(|_| anyhow!("iCloud validation trash request failed"))?;
+            .map_err(|_| anyhow!("iCloud validation trash request failed"))
+    }
+
+    pub(crate) async fn send_trash_without_receipt(
+        &mut self,
+        item_id: &str,
+        etag: &str,
+    ) -> Result<()> {
+        // A deliberate fault: the request may have committed, but no response
+        // status or item body is consumed by this process.
+        drop(self.trash_response(item_id, etag).await?);
+        Ok(())
+    }
+
+    pub(crate) async fn send_trash(&mut self, item_id: &str, etag: &str) -> Result<bool> {
+        let response = self.trash_response(item_id, etag).await?;
         if response.status().is_success() {
             let reply: TrashReply = read_json(response, "iCloud validation trash").await?;
             Ok(exactly_one(reply.items, "trash")?.status == "OK")

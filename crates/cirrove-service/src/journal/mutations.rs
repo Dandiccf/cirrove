@@ -423,7 +423,10 @@ impl UploadJournal {
             return Err(JournalError::Corrupt);
         }
         if let Some(prepared) = &record.prepared_item
-            && !matches!(&receipt, MutationReceipt::Upsert(node) if &node.id == prepared)
+            && !match &receipt {
+                MutationReceipt::Upsert(node) => &node.id == prepared,
+                MutationReceipt::Removed { item } => item == prepared,
+            }
         {
             return Err(JournalError::Corrupt);
         }
