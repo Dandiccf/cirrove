@@ -32,7 +32,16 @@ struct OwnedChild {
     sha256: String,
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+struct OwnedNestedChild {
+    id: String,
+    name: String,
+    etag: String,
+    file: OwnedChild,
+}
+
 const CHILD_PREFIX: &str = "cirrove-owned-child-v1:";
+const NESTED_CHILD_PREFIX: &str = "cirrove-owned-nested-child-v1:";
 
 pub struct ICloudOwnedFixtureFolderMove {
     scope: Scope,
@@ -40,6 +49,7 @@ pub struct ICloudOwnedFixtureFolderMove {
     destination: ValidationFolder,
     before: Node,
     child: Option<OwnedChild>,
+    nested_child: Option<OwnedNestedChild>,
     session: Mutex<ICloudReadSession>,
     discard_response: AtomicBool,
     reconciliation_only: bool,
@@ -110,6 +120,44 @@ impl ICloudOwnedFixtureFolderMove {
         Ok(adapter)
     }
 
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_with_grandchild(
+        scope: Scope,
+        session: ICloudReadSession,
+        source: ValidationFolder,
+        destination: ValidationFolder,
+        outer: ValidationFolder,
+        outer_etag: String,
+        inner: &ValidationFolder,
+        inner_etag: &str,
+        file: &ValidationFile,
+        bytes: &[u8],
+    ) -> MutationResult<Self> {
+        if bytes.is_empty() || bytes.len() > 4096 || inner_etag.is_empty() {
+            return Err(MutationError::Invalid);
+        }
+        let nested = OwnedNestedChild {
+            id: inner.id.clone(),
+            name: inner.name.clone(),
+            etag: inner_etag.to_owned(),
+            file: OwnedChild {
+                id: file.id.clone(),
+                document_id: file.document_id.clone(),
+                etag: file.etag.clone(),
+                name: file.name.clone(),
+                size: bytes.len() as u64,
+                sha256: hex::encode(Sha256::digest(bytes)),
+            },
+        };
+        let mut adapter = Self::new(scope, session, source, destination, outer, outer_etag)?;
+        adapter.before.content_version = Some(format!(
+            "{NESTED_CHILD_PREFIX}{}",
+            serde_json::to_string(&nested).map_err(|_| MutationError::Invalid)?
+        ));
+        adapter.nested_child = Some(nested);
+        Ok(adapter)
+    }
+
     fn from_before(
         scope: Scope,
         session: ICloudReadSession,
@@ -118,28 +166,42 @@ impl ICloudOwnedFixtureFolderMove {
         before: Node,
         reconciliation_only: bool,
     ) -> MutationResult<Self> {
-        let child = match before.content_version.as_deref() {
-            None => None,
-            Some(encoded) => {
+        let (child, nested_child) = match before.content_version.as_deref() {
+            None => (None, None),
+            Some(encoded) if encoded.starts_with(CHILD_PREFIX) => {
                 let payload = encoded
                     .strip_prefix(CHILD_PREFIX)
                     .ok_or(MutationError::Invalid)?;
                 let child: OwnedChild =
                     serde_json::from_str(payload).map_err(|_| MutationError::Invalid)?;
-                if child.id.is_empty()
-                    || child.document_id.is_empty()
-                    || child.etag.is_empty()
-                    || child.name != "created-by-cirrove.txt"
-                    || child.size == 0
-                    || child.size > 4096
-                    || child.sha256.len() != 64
-                    || !child.sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
+                if !Self::valid_child(&child)
                     || serde_json::to_string(&child).map_err(|_| MutationError::Invalid)? != payload
                 {
                     return Err(MutationError::Invalid);
                 }
-                Some(child)
+                (Some(child), None)
             }
+            Some(encoded) if encoded.starts_with(NESTED_CHILD_PREFIX) => {
+                let payload = encoded
+                    .strip_prefix(NESTED_CHILD_PREFIX)
+                    .ok_or(MutationError::Invalid)?;
+                let nested: OwnedNestedChild =
+                    serde_json::from_str(payload).map_err(|_| MutationError::Invalid)?;
+                if !nested.id.starts_with("FOLDER::com.apple.CloudDocs::")
+                    || nested
+                        .name
+                        .strip_prefix("Cirrove Nested Move-")
+                        .is_none_or(|suffix| Uuid::parse_str(suffix).is_err())
+                    || nested.etag.is_empty()
+                    || !Self::valid_child(&nested.file)
+                    || serde_json::to_string(&nested).map_err(|_| MutationError::Invalid)?
+                        != payload
+                {
+                    return Err(MutationError::Invalid);
+                }
+                (None, Some(nested))
+            }
+            Some(_) => return Err(MutationError::Invalid),
         };
         if scope.account.is_empty()
             || scope.provider != "icloud"
@@ -175,10 +237,22 @@ impl ICloudOwnedFixtureFolderMove {
             destination,
             before,
             child,
+            nested_child,
             session: Mutex::new(session),
             discard_response: AtomicBool::new(false),
             reconciliation_only,
         })
+    }
+
+    fn valid_child(child: &OwnedChild) -> bool {
+        !child.id.is_empty()
+            && !child.document_id.is_empty()
+            && !child.etag.is_empty()
+            && child.name == "created-by-cirrove.txt"
+            && child.size > 0
+            && child.size <= 4096
+            && child.sha256.len() == 64
+            && child.sha256.bytes().all(|byte| byte.is_ascii_hexdigit())
     }
 
     pub fn before_node(&self) -> Node {
@@ -199,6 +273,30 @@ impl ICloudOwnedFixtureFolderMove {
                 && child.etag == etag
                 && child.size == size
                 && child.sha256 == sha256
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn matches_nested_record(
+        &self,
+        inner_id: &str,
+        inner_name: &str,
+        inner_etag: &str,
+        file_id: &str,
+        document_id: &str,
+        etag: &str,
+        size: u64,
+        sha256: &str,
+    ) -> bool {
+        self.nested_child.as_ref().is_some_and(|nested| {
+            nested.id == inner_id
+                && nested.name == inner_name
+                && nested.etag == inner_etag
+                && nested.file.id == file_id
+                && nested.file.document_id == document_id
+                && nested.file.etag == etag
+                && nested.file.size == size
+                && nested.file.sha256 == sha256
         })
     }
 
@@ -251,8 +349,45 @@ impl ICloudOwnedFixtureFolderMove {
             .list_folder(&self.before.id)
             .await
             .map_err(|_| MutationError::Uncertain)?;
+        let mut grandchild_etag_unchanged = true;
+        if let Some(inner) = &self.nested_child {
+            if nested.len() != 1
+                || nested[0].drivewsid != inner.id
+                || nested[0].display_name() != inner.name
+                || nested[0].parent_id != self.before.id
+                || !nested[0].is_folder()
+            {
+                return Ok(Observation::Conflict);
+            }
+            let children = session
+                .list_folder(&inner.id)
+                .await
+                .map_err(|_| MutationError::Uncertain)?;
+            let file = &inner.file;
+            if children.len() != 1
+                || children[0].drivewsid != file.id
+                || children[0].docwsid != file.document_id
+                || children[0].display_name() != file.name
+                || children[0].parent_id != inner.id
+                || children[0].is_folder()
+                || children[0].size != file.size
+            {
+                return Ok(Observation::Conflict);
+            }
+            grandchild_etag_unchanged = children[0].etag == file.etag;
+            let bytes = session
+                .read_small_file_in_folder(&inner.id, &file.id)
+                .await
+                .map_err(|_| MutationError::Uncertain)?;
+            if bytes.len() as u64 != file.size || hex::encode(Sha256::digest(&bytes)) != file.sha256
+            {
+                return Ok(Observation::Conflict);
+            }
+        }
         match &self.child {
-            None if !nested.is_empty() => return Ok(Observation::Conflict),
+            None if self.nested_child.is_none() && !nested.is_empty() => {
+                return Ok(Observation::Conflict);
+            }
             Some(child) => {
                 if nested.len() != 1
                     || nested[0].drivewsid != child.id
@@ -297,6 +432,12 @@ impl ICloudOwnedFixtureFolderMove {
                     .child
                     .as_ref()
                     .is_some_and(|child| nested[0].etag != child.etag)
+                || self.nested_child.as_ref().is_some_and(|inner| {
+                    nested[0].etag != inner.etag
+                        || inner.id == self.before.id
+                        || inner.file.id == self.before.id
+                })
+                || !grandchild_etag_unchanged
             {
                 return Ok(Observation::Conflict);
             }
@@ -593,6 +734,78 @@ mod tests {
                     &request,
                     Some(&provider.before.id),
                     &CancellationToken::new()
+                )
+                .await,
+            Err(MutationError::Unsupported(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn two_level_manifest_survives_restart_without_enabling_a_second_move() {
+        let (empty, _) = fixture();
+        let mut session = ICloudReadSession::new().unwrap();
+        session.account_hash = Some("synthetic-account".into());
+        let inner = ValidationFolder {
+            id: format!("FOLDER::com.apple.CloudDocs::{}", Uuid::new_v4()),
+            name: format!("Cirrove Nested Move-{}", Uuid::new_v4()),
+        };
+        let file = ValidationFile {
+            id: format!("FILE::com.apple.CloudDocs::{}", Uuid::new_v4()),
+            document_id: format!("doc-{}", Uuid::new_v4()),
+            etag: "file-etag".into(),
+            name: "created-by-cirrove.txt".into(),
+        };
+        let provider = ICloudOwnedFixtureFolderMove::new_with_grandchild(
+            empty.scope.clone(),
+            session,
+            empty.source.clone(),
+            empty.destination.clone(),
+            ValidationFolder {
+                id: empty.before.id.clone(),
+                name: empty.before.name.clone(),
+            },
+            empty.before.etag.clone().unwrap(),
+            &inner,
+            "inner-etag",
+            &file,
+            b"test bytes",
+        )
+        .unwrap();
+        let request = MutationRequest {
+            scope: provider.scope.clone(),
+            intent: MutationIntent::Relocate {
+                before: provider.before_node(),
+                parent: provider.destination.id.clone(),
+                name: provider.before.name.clone(),
+            },
+        };
+        let mut session = ICloudReadSession::new().unwrap();
+        session.account_hash = Some("synthetic-account".into());
+        let restarted = ICloudOwnedFixtureFolderMove::for_reconciliation(
+            request.scope.clone(),
+            session,
+            provider.source.clone(),
+            provider.destination.clone(),
+            provider.before_node(),
+        )
+        .unwrap();
+        assert_eq!(restarted.nested_child, provider.nested_child);
+        assert!(!restarted.matches_nested_record(
+            &inner.id,
+            &inner.name,
+            "wrong-etag",
+            &file.id,
+            &file.document_id,
+            &file.etag,
+            10,
+            &hex::encode(Sha256::digest(b"test bytes")),
+        ));
+        assert!(matches!(
+            restarted
+                .mutate_prepared(
+                    &request,
+                    Some(&provider.before.id),
+                    &CancellationToken::new(),
                 )
                 .await,
             Err(MutationError::Unsupported(_))

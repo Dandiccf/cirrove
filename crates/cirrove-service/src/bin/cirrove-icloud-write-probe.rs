@@ -93,6 +93,8 @@ struct TwoLevelFolderMoveFixture {
     base: PopulatedFolderMoveFixture,
     inner_id: String,
     inner_name: String,
+    #[serde(default)]
+    inner_etag: String,
 }
 
 fn two_level_folder_move_fixture_directory() -> PathBuf {
@@ -260,6 +262,8 @@ async fn main() -> Result<()> {
         [flag, _run_id] if flag == "--worker-reconcile-populated-folder-move" => 82,
         [flag] if flag == "--two-level-folder-move" => 83,
         [flag, _run_id] if flag == "--inspect-two-level-folder-move" => 84,
+        [flag] if flag == "--worker-discard-two-level-folder-move-response" => 85,
+        [flag, _run_id] if flag == "--worker-reconcile-two-level-folder-move" => 86,
         _ => bail!(
             "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --stale-etag-move | --fresh-etag-move | --metadata-stale-move | --occupied-move-name | --inspect-occupied-move | --inspect-owned-folder ID | --reconcile-occupied-move UUID | --worker-owned-move | --worker-discard-move-response | --worker-reconcile-move UUID | --worker-move-collision-race | --empty-folder-move | --inspect-empty-folder-move UUID | --worker-discard-folder-move-response | --worker-reconcile-folder-move UUID | --populated-folder-move | --inspect-populated-folder-move UUID | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create | --worker-streamed-binary-create | --worker-streamed-lost-registration | --worker-reconcile-streamed-registration | --worker-streamed-lost-content | --worker-retry-streamed-content | --worker-create-folder | --worker-discard-folder-receipt | --worker-reconcile-folder | --worker-discard-empty-folder-trash | --worker-reconcile-empty-folder-trash]"
         ),
@@ -292,6 +296,110 @@ async fn main() -> Result<()> {
         .list_root()
         .await
         .context("saved iCloud session is not usable")?;
+    if mode == 86 {
+        let run_id = Uuid::parse_str(&arguments[1]).context("invalid two-level run ID")?;
+        let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+            "../../.local-state/icloud-worker-two-level-folder-move-{run_id}"
+        ));
+        let fixture: TwoLevelFolderMoveFixture =
+            serde_json::from_slice(&fs::read(directory.join("fixture.json"))?)?;
+        let base = &fixture.base;
+        if base.account_id != account.id || fixture.inner_etag.is_empty() {
+            bail!("two-level move record belongs to another account or is incomplete");
+        }
+        let source = session.validation_folder_at_root(&base.source_id).await?;
+        let destination = session
+            .validation_folder_at_root(&base.destination_id)
+            .await?;
+        if source.name() != base.source_name
+            || destination.name() != base.destination_name
+            || source.id() == destination.id()
+        {
+            bail!("recorded two-level parent identity changed");
+        }
+        let journal = Arc::new(Mutex::new(UploadJournal::open(
+            &directory,
+            &account.id,
+            8192,
+        )?));
+        let record = {
+            let guard = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock"))?;
+            let rows = guard.list_mutations(0, 2)?;
+            if rows.len() != 1 || rows[0].state != MutationState::VerifyRequired {
+                bail!("expected exactly one uncertain two-level folder move");
+            }
+            rows.into_iter().next().context("two-level move missing")?
+        };
+        let MutationIntent::Relocate {
+            before,
+            parent,
+            name,
+        } = &record.request.intent
+        else {
+            bail!("uncertain mutation is not a folder move");
+        };
+        if record.request.scope.account != account.id
+            || before.kind != NodeKind::Folder
+            || before.id != base.nested_id
+            || before.name != base.nested_name
+            || before.etag.as_deref() != Some(base.nested_etag.as_str())
+            || before.parent_id.as_deref() != Some(source.id())
+            || parent != destination.id()
+            || name != &base.nested_name
+            || record.prepared_item.as_deref() != Some(before.id.as_str())
+        {
+            bail!("uncertain two-level move lacks its exact prepared identity");
+        }
+        let provider = ICloudOwnedFixtureFolderMove::for_reconciliation(
+            record.request.scope.clone(),
+            session,
+            source,
+            destination,
+            before.clone(),
+        )?;
+        if !provider.matches_nested_record(
+            &fixture.inner_id,
+            &fixture.inner_name,
+            &fixture.inner_etag,
+            &base.file_id,
+            &base.file_document_id,
+            &base.file_etag,
+            base.file_size,
+            &base.file_sha256,
+        ) {
+            bail!("journal subtree identity differs from synced fixture record");
+        }
+        let worker = MutationWorker::new(
+            journal.clone(),
+            Arc::new(provider),
+            CancellationToken::new(),
+        );
+        let result = worker
+            .run_once()
+            .await?
+            .context("two-level folder move was not claimed")?;
+        let saved = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock"))?
+            .mutation(record.id)?;
+        if result.id != record.id
+            || result.state != MutationState::Applied
+            || result.issue.is_some()
+            || !saved
+                .receipt
+                .as_ref()
+                .is_some_and(|receipt| record.request.accepts(receipt))
+        {
+            bail!("restarted worker could not reconcile exact two-level folder move");
+        }
+        println!(
+            "Restarted worker reconciled exact two-level tree and file bytes without another move. Operation: {}.",
+            record.id
+        );
+        return Ok(());
+    }
     if mode == 84 {
         let run_id = Uuid::parse_str(&arguments[1]).context("invalid two-level run ID")?;
         let path = two_level_folder_move_fixture_directory().join(format!("{run_id}.json"));
@@ -1879,7 +1987,7 @@ async fn main() -> Result<()> {
     let name = format!("Cirrove Write Validation-{}", Uuid::new_v4());
     let folder = session.create_validation_folder(&name).await?;
     println!("Created and listed the isolated iCloud validation folder.");
-    if mode == 83 {
+    if matches!(mode, 83 | 85) {
         let destination = session
             .create_validation_folder(&format!("Cirrove Write Validation-{}", Uuid::new_v4()))
             .await?;
@@ -1901,6 +2009,15 @@ async fn main() -> Result<()> {
             bail!("two-level outer folder lost its exact source identity");
         }
         let outer_etag = source_items[0].etag.clone();
+        let outer_items = session.list_folder(outer.id()).await?;
+        if outer_items.len() != 1
+            || outer_items[0].drivewsid != inner.id()
+            || outer_items[0].display_name() != inner.name()
+            || outer_items[0].etag.is_empty()
+        {
+            bail!("two-level inner folder lost its exact identity");
+        }
+        let inner_etag = outer_items[0].etag.clone();
         let fixture = TwoLevelFolderMoveFixture {
             base: PopulatedFolderMoveFixture {
                 account_id: account.id.clone(),
@@ -1919,7 +2036,83 @@ async fn main() -> Result<()> {
             },
             inner_id: inner.id().to_owned(),
             inner_name: inner.name().to_owned(),
+            inner_etag: inner_etag.clone(),
         };
+        if mode == 85 {
+            let scope = Scope {
+                account: account.id.clone(),
+                provider: "icloud".into(),
+                collection: "drive".into(),
+            };
+            let provider = ICloudOwnedFixtureFolderMove::new_with_grandchild(
+                scope.clone(),
+                session,
+                folder,
+                destination.clone(),
+                outer,
+                outer_etag,
+                &inner,
+                &inner_etag,
+                &file,
+                bytes.as_bytes(),
+            )?;
+            let request = MutationRequest {
+                scope,
+                intent: MutationIntent::Relocate {
+                    before: provider.before_node(),
+                    parent: destination.id().to_owned(),
+                    name: outer_name,
+                },
+            };
+            let run_id = Uuid::new_v4();
+            let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+                "../../.local-state/icloud-worker-two-level-folder-move-{run_id}"
+            ));
+            let journal = Arc::new(Mutex::new(UploadJournal::open(
+                &directory,
+                &account.id,
+                8192,
+            )?));
+            let mut fixture_file = OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(directory.join("fixture.json"))?;
+            fixture_file.write_all(&serde_json::to_vec_pretty(&fixture)?)?;
+            fixture_file.write_all(b"\n")?;
+            fixture_file.sync_all()?;
+            fs::File::open(&directory)?.sync_all()?;
+            let queued = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock"))?
+                .enqueue_mutation(request.clone())?;
+            println!(
+                "Owned two-level folder move journal recorded as {run_id} before the request."
+            );
+            let worker = MutationWorker::new(
+                journal.clone(),
+                Arc::new(provider.with_discarded_response()),
+                CancellationToken::new(),
+            );
+            let result = worker
+                .run_once()
+                .await?
+                .context("two-level folder move was not claimed")?;
+            let saved = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock"))?
+                .mutation(queued.id)?;
+            if result.id != queued.id
+                || result.state != MutationState::VerifyRequired
+                || saved.prepared_item.as_deref()
+                    != request.intent.before().map(|node| node.id.as_str())
+            {
+                bail!("discarded two-level move response lost prepared identity");
+            }
+            println!(
+                "Two-level folder move response deliberately discarded; run --worker-reconcile-two-level-folder-move {run_id} in a new process."
+            );
+            return Ok(());
+        }
         let run_id = save_two_level_folder_move_fixture(&fixture)?;
         println!(
             "Two-level folder identities and full digest recorded as {run_id} before the request."
