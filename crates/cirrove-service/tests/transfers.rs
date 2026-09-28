@@ -118,6 +118,7 @@ struct Provider {
     staged_commits: AtomicBool,
     commits: AtomicU64,
     stream: AtomicBool,
+    stream_staged: AtomicBool,
     streams: AtomicU64,
 }
 impl Provider {
@@ -145,6 +146,7 @@ impl Provider {
             staged_commits: AtomicBool::new(false),
             commits: AtomicU64::new(0),
             stream: AtomicBool::new(false),
+            stream_staged: AtomicBool::new(false),
             streams: AtomicU64::new(0),
         }
     }
@@ -379,6 +381,9 @@ impl UploadProvider for Provider {
         let node = Self::node(request);
         let mut state = self.state.lock().unwrap();
         state.data = data;
+        if self.stream_staged.load(Ordering::SeqCst) {
+            return Ok(UploadStep::Commit(SecretString::from(SECRET)));
+        }
         state.committed = Some(node.clone());
         drop(state);
         if self.lose_success.swap(false, Ordering::SeqCst) {
@@ -393,6 +398,24 @@ impl UploadProvider for Provider {
         _: &CancellationToken,
     ) -> UploadResult<UploadStep> {
         self.probe.check();
+        if self.stream_staged.load(Ordering::SeqCst) {
+            assert_eq!(
+                self.probe
+                    .checkpoint_saves
+                    .lock()
+                    .unwrap()
+                    .last()
+                    .map(String::as_str),
+                Some(checkpoint.expose_secret()),
+                "registration started before its receipt checkpoint was saved"
+            );
+            let node = Self::node(request);
+            self.state.lock().unwrap().committed = Some(node.clone());
+            if self.lose_success.swap(false, Ordering::SeqCst) {
+                return Err(UploadError::Uncertain);
+            }
+            return Ok(UploadStep::Complete(node));
+        }
         if self.staged_commits.load(Ordering::SeqCst) {
             assert_eq!(
                 self.probe
@@ -889,6 +912,46 @@ async fn sealed_stream_saves_checkpoint_and_reconciles_lost_receipt_without_rese
     provider.lose_success.store(true, Ordering::SeqCst);
     let first = journal(&root, &probe);
     let id = enqueue(&first, "stream.bin");
+    let worker = TransferWorker::new(
+        first.clone(),
+        provider.clone(),
+        vault.clone(),
+        CancellationToken::new(),
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::VerifyRequired
+    );
+    assert_eq!(provider.streams.load(Ordering::SeqCst), 1);
+    drop(worker);
+    drop(first);
+    let restarted = journal(&root, &probe);
+    restarted.lock().unwrap().request_retry(id).unwrap();
+    let worker = TransferWorker::new(
+        restarted.clone(),
+        provider.clone(),
+        vault,
+        CancellationToken::new(),
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+    assert_eq!(provider.streams.load(Ordering::SeqCst), 1);
+    assert_eq!(provider.state.lock().unwrap().reconciliations, 1);
+    assert_local(&restarted, id);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn streamed_content_receipt_is_persisted_before_registration_and_reconciles() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let (probe, provider, vault) = fixture();
+    provider.stream.store(true, Ordering::SeqCst);
+    provider.stream_staged.store(true, Ordering::SeqCst);
+    provider.lose_success.store(true, Ordering::SeqCst);
+    let first = journal(&root, &probe);
+    let id = enqueue(&first, "streamed-phase.bin");
     let worker = TransferWorker::new(
         first.clone(),
         provider.clone(),

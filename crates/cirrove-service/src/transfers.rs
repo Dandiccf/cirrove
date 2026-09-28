@@ -387,7 +387,7 @@ impl TransferWorker {
                                 .upload_stream(&request, &checkpoint, file, &self.cancel),
                         )
                         .await?;
-                    if !matches!(next, UploadStep::Complete(_)) {
+                    if !matches!(next, UploadStep::Commit(_) | UploadStep::Complete(_)) {
                         return Err(UploadError::Uncertain.into());
                     }
                     next

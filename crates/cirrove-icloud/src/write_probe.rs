@@ -193,7 +193,7 @@ struct Uploaded {
     file: UploadedFile,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub(crate) struct UploadedFile {
     receipt: String,
     #[serde(rename = "fileChecksum")]
@@ -203,6 +203,12 @@ pub(crate) struct UploadedFile {
     #[serde(rename = "wrappingKey")]
     wrapping_key: String,
     size: u64,
+}
+
+impl UploadedFile {
+    pub(crate) fn valid_for(&self, size: u64) -> bool {
+        self.size == size && !self.receipt.is_empty() && !self.signature.is_empty()
+    }
 }
 
 #[derive(Deserialize)]

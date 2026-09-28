@@ -84,8 +84,12 @@ async fn main() -> Result<()> {
         [flag] if flag == "--worker-ordinary-name-collision" => 51,
         [flag] if flag == "--worker-bounded-binary-create" => 52,
         [flag] if flag == "--worker-streamed-binary-create" => 53,
+        [flag] if flag == "--worker-streamed-lost-registration" => 54,
+        [flag] if flag == "--worker-reconcile-streamed-registration" => 55,
+        [flag] if flag == "--worker-streamed-lost-content" => 56,
+        [flag] if flag == "--worker-retry-streamed-content" => 57,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create | --worker-streamed-binary-create]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create | --worker-streamed-binary-create | --worker-streamed-lost-registration | --worker-reconcile-streamed-registration | --worker-streamed-lost-content | --worker-retry-streamed-content]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -408,8 +412,107 @@ async fn main() -> Result<()> {
         .join("../../.local-state/icloud-worker-lost-receipt-validation");
     let reserved_create_directory = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../.local-state/icloud-worker-reserved-create-validation");
-    if matches!(mode, 24 | 49) {
-        let recovery_directory = if mode == 49 {
+    let streamed_registration_directory = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../.local-state/icloud-worker-streamed-registration-validation");
+    let streamed_content_directory = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../.local-state/icloud-worker-streamed-content-validation");
+    if mode == 57 {
+        let journal = Arc::new(Mutex::new(UploadJournal::open(
+            &streamed_content_directory,
+            &account.id,
+            64 * 1024 * 1024,
+        )?));
+        let record = {
+            let guard = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock"))?;
+            let rows = guard.list(0, 2)?;
+            if rows.len() != 1 || rows[0].state != UploadState::VerifyRequired {
+                bail!("expected exactly one uncertain streamed content upload");
+            }
+            rows.into_iter()
+                .next()
+                .context("streamed content upload is absent")?
+        };
+        let UploadIntent::Create { parent, .. } = &record.intent else {
+            bail!("streamed content operation is not a create");
+        };
+        let folder = session.validation_folder_at_root(parent).await?;
+        let provider = Arc::new(ICloudOwnedFixtureUpload::new(
+            record.scope.clone(),
+            session,
+            folder,
+        )?);
+        let request = UploadRequest {
+            scope: record.scope.clone(),
+            intent: record.intent.clone(),
+            size: record.size,
+            sha256: record.sha256.clone(),
+        };
+        let checkpoint = DesktopVault
+            .load(&format!("upload/{}", record.id))
+            .await?
+            .context("content upload checkpoint is missing")?;
+        if provider.content_receipt_saved(&request, &checkpoint)? {
+            bail!("content receipt unexpectedly reached the vault");
+        }
+        let abandoned_id = provider
+            .reserved_document_id(&request, &checkpoint)?
+            .context("content upload lacks its allocated document ID")?;
+        let worker = TransferWorker::new(
+            journal.clone(),
+            provider,
+            Arc::new(DesktopVault),
+            CancellationToken::new(),
+        );
+        let first = worker
+            .run_once()
+            .await?
+            .context("uncertain content was not claimed")?;
+        if first.id != record.id || first.state != UploadState::Pending {
+            bail!("content-only uncertainty was not classified as uncommitted");
+        }
+        let mut second = None;
+        for _ in 0..4 {
+            if let Some(result) = worker.run_once().await? {
+                second = Some(result);
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        }
+        let second = second.context("fresh-slot retry was not claimed")?;
+        if second.id != record.id || second.state != UploadState::Uploaded || second.issue.is_some()
+        {
+            bail!("fresh-slot retry did not reach Uploaded");
+        }
+        let remote = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock"))?
+            .get(record.id)?
+            .remote
+            .context("retry has no remote receipt")?;
+        if remote.id.rsplit("::").next() == Some(abandoned_id.as_str())
+            || remote.parent_id.as_deref() != Some(parent.as_str())
+            || remote.size != record.size
+        {
+            bail!("retry reused the uncertain slot or returned a wrong item");
+        }
+        let mut verify =
+            ICloudReadSession::from_session_snapshot(&snapshot, &account.identity.username)?;
+        let items = verify.list_folder(parent).await?;
+        if items.len() != 1 || items[0].drivewsid != remote.id || items[0].docwsid == abandoned_id {
+            bail!("uncertain content slot became a visible second file");
+        }
+        println!(
+            "A fresh slot completed the exact 20 MiB file after a discarded content response; the abandoned document ID is not visible. Operation: {}.",
+            record.id
+        );
+        return Ok(());
+    }
+    if matches!(mode, 24 | 49 | 55) {
+        let recovery_directory = if mode == 55 {
+            streamed_registration_directory.clone()
+        } else if mode == 49 {
             reserved_create_directory.clone()
         } else {
             worker_recovery_directory.clone()
@@ -417,7 +520,7 @@ async fn main() -> Result<()> {
         let journal = Arc::new(Mutex::new(UploadJournal::open(
             &recovery_directory,
             &account.id,
-            8192,
+            if mode == 55 { 64 * 1024 * 1024 } else { 8192 },
         )?));
         let record = {
             let guard = journal
@@ -437,7 +540,7 @@ async fn main() -> Result<()> {
         let folder = session.validation_folder_at_root(parent).await?;
         let provider = ICloudOwnedFixtureUpload::new(record.scope.clone(), session, folder)?
             .reconciliation_only();
-        let reserved_id = if mode == 49 {
+        let reserved_id = if matches!(mode, 49 | 55) {
             let request = UploadRequest {
                 scope: record.scope.clone(),
                 intent: record.intent.clone(),
@@ -448,6 +551,9 @@ async fn main() -> Result<()> {
                 .load(&format!("upload/{}", record.id))
                 .await?
                 .context("reserved create checkpoint is missing")?;
+            if mode == 55 && !provider.content_receipt_saved(&request, &checkpoint)? {
+                bail!("streamed registration lacks the saved content receipt");
+            }
             Some(
                 provider
                     .reserved_document_id(&request, &checkpoint)?
@@ -694,7 +800,7 @@ async fn main() -> Result<()> {
     let name = format!("Cirrove Write Validation-{}", Uuid::new_v4());
     let folder = session.create_validation_folder(&name).await?;
     println!("Created and listed the isolated iCloud validation folder.");
-    if matches!(mode, 22 | 23 | 48 | 50 | 52 | 53) {
+    if matches!(mode, 22 | 23 | 48 | 50 | 52 | 53 | 54 | 56) {
         let scope = Scope {
             account: account.id.clone(),
             provider: "icloud".into(),
@@ -702,14 +808,17 @@ async fn main() -> Result<()> {
         };
         let file_name = if mode == 50 {
             "Résumé 2026 final.txt".to_owned()
-        } else if matches!(mode, 52 | 53) {
-            format!("Cirrove payload {}MiB.bin", if mode == 53 { 20 } else { 1 })
+        } else if matches!(mode, 52 | 53 | 54 | 56) {
+            format!(
+                "Cirrove payload {}MiB.bin",
+                if matches!(mode, 53 | 54 | 56) { 20 } else { 1 }
+            )
         } else {
             format!("staged-by-cirrove-{}.txt", Uuid::new_v4())
         };
-        let contents = if matches!(mode, 52 | 53) {
+        let contents = if matches!(mode, 52 | 53 | 54 | 56) {
             let mut state = u64::from_le_bytes(Uuid::new_v4().as_bytes()[..8].try_into()?);
-            let size = if mode == 53 {
+            let size = if matches!(mode, 53 | 54 | 56) {
                 20 * 1024 * 1024
             } else {
                 1024 * 1024
@@ -729,6 +838,10 @@ async fn main() -> Result<()> {
             worker_recovery_directory
         } else if mode == 48 {
             reserved_create_directory
+        } else if mode == 54 {
+            streamed_registration_directory
+        } else if mode == 56 {
+            streamed_content_directory
         } else {
             Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
                 "../../.local-state/icloud-worker-create-{}",
@@ -738,7 +851,7 @@ async fn main() -> Result<()> {
         let journal = Arc::new(Mutex::new(UploadJournal::open(
             &directory,
             &account.id,
-            if mode == 53 {
+            if matches!(mode, 53 | 54 | 56) {
                 64 * 1024 * 1024
             } else if mode == 52 {
                 8 * 1024 * 1024
@@ -758,8 +871,10 @@ async fn main() -> Result<()> {
                 contents.as_slice(),
             )?;
         let mut provider = ICloudOwnedFixtureUpload::new(scope, session, folder)?;
-        if matches!(mode, 23 | 48) {
+        if matches!(mode, 23 | 48 | 54) {
             provider = provider.with_discarded_registration_receipt();
+        } else if mode == 56 {
+            provider = provider.with_discarded_content_receipt();
         }
         let provider = Arc::new(provider);
         let worker = TransferWorker::new(
@@ -778,11 +893,11 @@ async fn main() -> Result<()> {
             record.id,
             directory.display()
         );
-        if matches!(mode, 23 | 48) {
+        if matches!(mode, 23 | 48 | 54 | 56) {
             if result.id != record.id || result.state != UploadState::VerifyRequired {
                 bail!("discarded registration receipt did not require verification");
             }
-            if mode == 48 {
+            if matches!(mode, 48 | 54 | 56) {
                 let request = UploadRequest {
                     scope: record.scope.clone(),
                     intent: record.intent.clone(),
@@ -796,10 +911,19 @@ async fn main() -> Result<()> {
                 provider
                     .reserved_document_id(&request, &checkpoint)?
                     .context("create checkpoint lacks its allocated document ID")?;
+                if provider.content_receipt_saved(&request, &checkpoint)? != (mode == 54) {
+                    bail!("content receipt checkpoint has the wrong phase");
+                }
             }
-            println!(
-                "The uncertain registration is durably retained for a fresh-process inspection; no retry was made."
-            );
+            if mode == 56 {
+                println!(
+                    "The content-only uncertainty is durably retained; no registration or retry was sent."
+                );
+            } else {
+                println!(
+                    "The uncertain registration is durably retained for a fresh-process inspection; no retry was made."
+                );
+            }
             return Ok(());
         }
         if let Some(issue) = result.issue {
@@ -819,7 +943,7 @@ async fn main() -> Result<()> {
             || remote.size != record.size
             || (mode == 50 && remote.name != "Résumé 2026 final.txt")
             || (mode == 52 && remote.name != "Cirrove payload 1MiB.bin")
-            || (mode == 53 && remote.name != "Cirrove payload 20MiB.bin")
+            || (matches!(mode, 53 | 54 | 56) && remote.name != "Cirrove payload 20MiB.bin")
         {
             bail!("uploaded journal receipt lacks the expected remote identity");
         }

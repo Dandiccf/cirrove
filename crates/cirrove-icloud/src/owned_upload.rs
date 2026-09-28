@@ -3,7 +3,7 @@
 //! replayed merely because a later listing does not yet show the file.
 use super::{
     DriveEntry, ICloudReadSession, ValidationFolder, checked_content_url,
-    write_probe::{MAX_OWNED_UPLOAD, UploadSlot},
+    write_probe::{MAX_OWNED_UPLOAD, UploadSlot, UploadedFile},
 };
 use async_trait::async_trait;
 use cirrove_core::upload::{
@@ -36,6 +36,9 @@ struct CreateCheckpoint {
     sha256: String,
     /// Assigned before any visible registration and held only in the vault.
     slot: Option<UploadSlot>,
+    /// Saved after content transfer and before registration is ever sent.
+    #[serde(default)]
+    receipt: Option<UploadedFile>,
 }
 
 /// Only accepts a `ValidationFolder` returned by this authenticated session's
@@ -45,6 +48,7 @@ pub struct ICloudOwnedFixtureUpload {
     folder: ValidationFolder,
     session: Mutex<ICloudReadSession>,
     discard_registration_receipt: AtomicBool,
+    discard_content_receipt: AtomicBool,
     reconciliation_only: bool,
 }
 
@@ -71,6 +75,7 @@ impl ICloudOwnedFixtureUpload {
             folder,
             session: Mutex::new(session),
             discard_registration_receipt: AtomicBool::new(false),
+            discard_content_receipt: AtomicBool::new(false),
             reconciliation_only: false,
         })
     }
@@ -80,6 +85,13 @@ impl ICloudOwnedFixtureUpload {
     pub fn with_discarded_registration_receipt(self) -> Self {
         self.discard_registration_receipt
             .store(true, Ordering::Release);
+        self
+    }
+
+    /// Drop an accepted content response before its receipt is checkpointed.
+    /// Only the isolated validator constructs this mode; add_file is not sent.
+    pub fn with_discarded_content_receipt(self) -> Self {
+        self.discard_content_receipt.store(true, Ordering::Release);
         self
     }
 
@@ -100,6 +112,17 @@ impl ICloudOwnedFixtureUpload {
             .check_checkpoint(request, checkpoint)?
             .slot
             .map(|slot| slot.document_id))
+    }
+
+    pub fn content_receipt_saved(
+        &self,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+    ) -> UploadResult<bool> {
+        Ok(self
+            .check_checkpoint(request, checkpoint)?
+            .receipt
+            .is_some())
     }
 
     fn check_request(&self, request: &UploadRequest) -> UploadResult<()> {
@@ -123,18 +146,35 @@ impl ICloudOwnedFixtureUpload {
         request: &UploadRequest,
         slot: Option<UploadSlot>,
     ) -> UploadResult<SecretString> {
+        self.checkpoint_with_receipt(request, slot, None)
+    }
+
+    fn checkpoint_with_receipt(
+        &self,
+        request: &UploadRequest,
+        slot: Option<UploadSlot>,
+        receipt: Option<UploadedFile>,
+    ) -> UploadResult<SecretString> {
         self.check_request(request)?;
         let UploadIntent::Create { parent, name } = &request.intent else {
             return Err(UploadError::Invalid);
         };
         let checkpoint = CreateCheckpoint {
-            version: 2,
+            // v2's small-file path can register in the same call as content
+            // upload. Only v3's split stream proves a missing receipt means
+            // add_file was never sent.
+            version: if request.size > MAX_OWNED_UPLOAD as u64 {
+                3
+            } else {
+                2
+            },
             scope: request.scope.clone(),
             parent: parent.clone(),
             name: name.clone(),
             size: request.size,
             sha256: request.sha256.clone(),
             slot,
+            receipt,
         };
         let text = serde_json::to_string(&checkpoint).map_err(|_| UploadError::Invalid)?;
         if text.len() > MAX_CHECKPOINT {
@@ -157,12 +197,18 @@ impl ICloudOwnedFixtureUpload {
         let UploadIntent::Create { parent, name } = &request.intent else {
             return Err(UploadError::Invalid);
         };
-        if saved.version != 2
+        if !matches!(saved.version, 2 | 3)
             || saved.scope != request.scope
             || saved.parent != *parent
             || saved.name != *name
             || saved.size != request.size
             || saved.sha256 != request.sha256
+            || (saved.version == 3 && request.size <= MAX_OWNED_UPLOAD as u64)
+            || (saved.version == 2 && saved.receipt.is_some())
+            || saved
+                .receipt
+                .as_ref()
+                .is_some_and(|receipt| saved.slot.is_none() || !receipt.valid_for(request.size))
             || saved.slot.as_ref().is_some_and(|slot| {
                 slot.document_id.is_empty()
                     || slot.document_id.len() > 256
@@ -399,7 +445,11 @@ impl UploadProvider for ICloudOwnedFixtureUpload {
     ) -> UploadResult<UploadStep> {
         let saved = self.check_checkpoint(request, checkpoint)?;
         let slot = saved.slot.ok_or(UploadError::CheckpointInvalid)?;
-        if self.reconciliation_only || request.size <= MAX_OWNED_UPLOAD as u64 {
+        if self.reconciliation_only
+            || saved.version != 3
+            || saved.receipt.is_some()
+            || request.size <= MAX_OWNED_UPLOAD as u64
+        {
             return Err(UploadError::Invalid);
         }
         let expected_size = request.size;
@@ -436,6 +486,69 @@ impl UploadProvider for ICloudOwnedFixtureUpload {
         let UploadIntent::Create { name, .. } = &request.intent else {
             return Err(UploadError::Invalid);
         };
+        let receipt = {
+            let mut session = self.session.lock().await;
+            if !session
+                .list_root()
+                .await
+                .map_err(|_| UploadError::Uncertain)?
+                .iter()
+                .any(|entry| {
+                    entry.drivewsid == self.folder.id
+                        && entry.display_name() == self.folder.name
+                        && entry.is_folder()
+                })
+            {
+                return Err(UploadError::Conflict);
+            }
+            if session
+                .list_folder(&self.folder.id)
+                .await
+                .map_err(|_| UploadError::Uncertain)?
+                .iter()
+                .any(|entry| entry.display_name() == *name)
+            {
+                return Err(UploadError::Conflict);
+            }
+            session
+                .upload_stream_to_slot(&slot, name, file, request.size)
+                .await
+                .map_err(|_| UploadError::Uncertain)?
+        };
+        if self.discard_content_receipt.swap(false, Ordering::AcqRel) {
+            return Err(UploadError::Uncertain);
+        }
+        // The shared worker saves this receipt in the vault before it invokes
+        // commit_upload. A lost content response cannot have registered a file.
+        Ok(UploadStep::Commit(self.checkpoint_with_receipt(
+            request,
+            Some(slot),
+            Some(receipt),
+        )?))
+    }
+
+    async fn commit_upload(
+        &self,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+        cancel: &CancellationToken,
+    ) -> UploadResult<UploadStep> {
+        let saved = self.check_checkpoint(request, checkpoint)?;
+        let slot = saved.slot.ok_or(UploadError::CheckpointInvalid)?;
+        let receipt = saved.receipt.ok_or(UploadError::CheckpointInvalid)?;
+        if saved.version != 3 || self.reconciliation_only || request.size <= MAX_OWNED_UPLOAD as u64
+        {
+            return Err(UploadError::Invalid);
+        }
+        if cancel.is_cancelled() {
+            return Err(UploadError::Uncertain);
+        }
+        if let Some(node) = self.observed(request, &slot.document_id).await? {
+            return Ok(UploadStep::Complete(node));
+        }
+        let UploadIntent::Create { name, .. } = &request.intent else {
+            return Err(UploadError::Invalid);
+        };
         let created = {
             let mut session = self.session.lock().await;
             if !session
@@ -460,10 +573,6 @@ impl UploadProvider for ICloudOwnedFixtureUpload {
             {
                 return Err(UploadError::Conflict);
             }
-            let receipt = session
-                .upload_stream_to_slot(&slot, name, file, request.size)
-                .await
-                .map_err(|_| UploadError::Uncertain)?;
             session
                 .register_owned_file(
                     &self.folder,
@@ -492,15 +601,6 @@ impl UploadProvider for ICloudOwnedFixtureUpload {
         Ok(UploadStep::Complete(node))
     }
 
-    async fn commit_upload(
-        &self,
-        _: &UploadRequest,
-        _: &SecretString,
-        _: &CancellationToken,
-    ) -> UploadResult<UploadStep> {
-        Err(UploadError::Invalid)
-    }
-
     async fn reconcile_upload(
         &self,
         request: &UploadRequest,
@@ -512,10 +612,17 @@ impl UploadProvider for ICloudOwnedFixtureUpload {
         let Some(slot) = saved.slot else {
             return Ok(Reconciliation::Uncommitted);
         };
-        self.observed(request, &slot.document_id)
-            .await?
-            .map(Reconciliation::Committed)
-            .ok_or(UploadError::Uncertain)
+        let observed = self.observed(request, &slot.document_id).await?;
+        if let Some(node) = observed {
+            return Ok(Reconciliation::Committed(node));
+        }
+        if saved.version == 3 && saved.receipt.is_none() {
+            // In v3 the content-only phase never sends add_file. Its signed
+            // slot may hold orphaned bytes, but no visible item was created.
+            // A later attempt allocates a fresh slot and document identity.
+            return Ok(Reconciliation::Uncommitted);
+        }
+        Err(UploadError::Uncertain)
     }
 }
 
@@ -658,6 +765,42 @@ mod tests {
         assert!(provider.check_checkpoint(&changed, &saved).is_err());
     }
 
+    #[test]
+    fn streamed_content_receipt_is_private_and_bound_to_the_request() {
+        let (provider, mut request) = fixture();
+        request.size = 20 * 1024 * 1024;
+        let allocated = slot();
+        let receipt: UploadedFile = serde_json::from_value(serde_json::json!({
+            "receipt": "private-content-receipt",
+            "fileChecksum": "private-signature",
+            "referenceChecksum": "reference",
+            "wrappingKey": "wrapping",
+            "size": request.size,
+        }))
+        .unwrap();
+        let saved = provider
+            .checkpoint_with_receipt(&request, Some(allocated.clone()), Some(receipt))
+            .unwrap();
+        let checked = provider.check_checkpoint(&request, &saved).unwrap();
+        assert_eq!(checked.version, 3);
+        assert!(checked.receipt.is_some());
+        assert!(
+            !format!("{:?}", UploadStep::Commit(saved.clone())).contains("private-content-receipt")
+        );
+        let mut changed = request.clone();
+        changed.sha256 = hex::encode(Sha256::digest(b"other"));
+        assert!(provider.check_checkpoint(&changed, &saved).is_err());
+        let mut forged: serde_json::Value = serde_json::from_str(saved.expose_secret()).unwrap();
+        forged["receipt"]["size"] = serde_json::json!(1);
+        let forged = SecretString::from(forged.to_string());
+        assert!(provider.check_checkpoint(&request, &forged).is_err());
+        let mut legacy: serde_json::Value = serde_json::from_str(saved.expose_secret()).unwrap();
+        legacy["version"] = serde_json::json!(2);
+        legacy.as_object_mut().unwrap().remove("receipt");
+        let legacy = SecretString::from(legacy.to_string());
+        assert!(provider.check_checkpoint(&request, &legacy).is_ok());
+    }
+
     #[tokio::test]
     async fn create_checkpoint_is_bound_to_scope_name_and_bytes_before_network() {
         let (provider, request) = fixture();
@@ -674,6 +817,13 @@ mod tests {
                 .unwrap()
                 .slot
                 .is_none()
+        );
+        assert_eq!(
+            provider
+                .check_checkpoint(&request, &checkpoint)
+                .unwrap()
+                .version,
+            2
         );
         let with_slot = provider.checkpoint(&request, Some(slot())).unwrap();
         assert!(provider.check_checkpoint(&request, &with_slot).is_ok());
