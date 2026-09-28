@@ -14,6 +14,8 @@ mod owned_handoff;
 #[cfg(feature = "write-probe")]
 mod owned_mounted_replace;
 #[cfg(feature = "write-probe")]
+mod owned_move;
+#[cfg(feature = "write-probe")]
 mod owned_mutation;
 #[cfg(feature = "write-probe")]
 mod owned_upload;
@@ -29,6 +31,8 @@ pub use owned_folder_remove::ICloudOwnedFixtureFolderRemove;
 pub use owned_handoff::ICloudOwnedFixtureHandoff;
 #[cfg(feature = "write-probe")]
 pub use owned_mounted_replace::ICloudOwnedMountedReplace;
+#[cfg(feature = "write-probe")]
+pub use owned_move::ICloudOwnedFixtureMove;
 #[cfg(feature = "write-probe")]
 pub use owned_mutation::ICloudOwnedFixtureRemove;
 #[cfg(feature = "write-probe")]

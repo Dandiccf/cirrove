@@ -1767,7 +1767,12 @@ impl ICloudReadSession {
         Ok(item.status == "OK")
     }
 
-    async fn send_move(&mut self, item_id: &str, etag: &str, destination: &str) -> Result<bool> {
+    pub(crate) async fn send_move(
+        &mut self,
+        item_id: &str,
+        etag: &str,
+        destination: &str,
+    ) -> Result<bool> {
         let endpoint = self
             .drive_endpoint
             .as_ref()
