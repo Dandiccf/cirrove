@@ -13,11 +13,15 @@ use cirrove_core::{
 };
 use cirrove_icloud::{
     ICloudDrive, ICloudOwnedFixtureFolderCreate, ICloudOwnedFixtureFolderRemove,
-    ICloudOwnedFixtureUpload, ICloudReadSession, ValidationFolder,
+    ICloudOwnedFixtureRemove, ICloudOwnedFixtureUpload, ICloudReadSession, ValidationFolder,
 };
 use cirrove_service::journal::{MutationState, UploadJournal, UploadState};
 use secrecy::SecretString;
-use std::{collections::HashSet, fs::File, sync::Mutex};
+use std::{
+    collections::HashSet,
+    fs::File,
+    sync::{Arc, Mutex},
+};
 
 pub struct Fixture {
     pub scope: Scope,
@@ -33,6 +37,7 @@ pub struct RemovalContext {
     pub folder: ValidationFolder,
     pub apple_id: String,
     pub snapshot: SecretString,
+    pub journal: Arc<Mutex<UploadJournal>>,
 }
 
 impl Fixture {
@@ -166,12 +171,108 @@ impl Fixture {
         )
     }
 
+    fn guard_remove_file(
+        &self,
+        request: &MutationRequest,
+    ) -> cirrove_core::mutation::Result<(Node, String)> {
+        request.validate()?;
+        let MutationIntent::RemoveFile { before } = &request.intent else {
+            return Err(MutationError::Invalid);
+        };
+        if request.scope != self.scope
+            || before.kind != NodeKind::File
+            || before.parent_id.as_deref() != Some(&self.root.id)
+            || !self.owns(&request.scope, &before.id)
+        {
+            return Err(MutationError::Invalid);
+        }
+        let journal = self
+            .removal
+            .journal
+            .lock()
+            .map_err(|_| MutationError::Uncertain)?;
+        let mut after = 0;
+        let mut digest = None;
+        loop {
+            let rows = journal
+                .list(after, 256)
+                .map_err(|_| MutationError::Uncertain)?;
+            if rows.is_empty() {
+                break;
+            }
+            for row in &rows {
+                if row.remote.as_ref().is_some_and(|node| node.id == before.id) {
+                    let node = row.remote.as_ref().ok_or(MutationError::Invalid)?;
+                    if row.state != UploadState::Uploaded
+                        || !confirmed_file(
+                            &self.scope,
+                            &self.root.id,
+                            &row.scope,
+                            &row.intent,
+                            node,
+                        )
+                        || node.parent_id != before.parent_id
+                        || node.name != before.name
+                        || node.kind != before.kind
+                        || node.size != before.size
+                        || node.etag != before.etag
+                        || row.size != before.size
+                        || row.sha256.len() != 64
+                        || digest.replace(row.sha256.clone()).is_some()
+                    {
+                        return Err(MutationError::Invalid);
+                    }
+                }
+            }
+            after = rows.last().expect("nonempty page").sequence;
+            if after > 100_000 {
+                return Err(MutationError::Invalid);
+            }
+        }
+        Ok((before.clone(), digest.ok_or(MutationError::Invalid)?))
+    }
+
+    fn file_remover(
+        &self,
+        before: Node,
+        digest: String,
+    ) -> cirrove_core::mutation::Result<ICloudOwnedFixtureRemove> {
+        let session = ICloudReadSession::from_session_snapshot(
+            &self.removal.snapshot,
+            &self.removal.apple_id,
+        )
+        .map_err(|_| MutationError::Uncertain)?;
+        ICloudOwnedFixtureRemove::from_confirmed_upload(
+            self.scope.clone(),
+            session,
+            self.removal.folder.clone(),
+            before,
+            digest,
+        )
+    }
+
     fn removed_receipt(
         &self,
         request: &MutationRequest,
         receipt: &MutationReceipt,
     ) -> cirrove_core::mutation::Result<()> {
         let before = self.guard_remove_folder(request)?;
+        if !request.accepts(receipt) {
+            return Err(MutationError::Uncertain);
+        }
+        self.owned
+            .lock()
+            .map_err(|_| MutationError::Uncertain)?
+            .remove(&before.id);
+        Ok(())
+    }
+
+    fn removed_file_receipt(
+        &self,
+        request: &MutationRequest,
+        receipt: &MutationReceipt,
+    ) -> cirrove_core::mutation::Result<()> {
+        let (before, _) = self.guard_remove_file(request)?;
         if !request.accepts(receipt) {
             return Err(MutationError::Uncertain);
         }
@@ -282,6 +383,12 @@ pub fn restored_owned(
                         && owned.contains(&before.id),
                     "non-fixture folder removal in isolated journal"
                 ),
+                MutationIntent::RemoveFile { before } => ensure!(
+                    before.parent_id.as_deref() == Some(root)
+                        && before.kind == NodeKind::File
+                        && owned.contains(&before.id),
+                    "non-fixture file removal in isolated journal"
+                ),
                 _ => anyhow::bail!("unsupported mutation in isolated journal"),
             }
             if row.state == MutationState::Applied {
@@ -303,7 +410,8 @@ pub fn restored_owned(
                     (
                         MutationIntent::RemoveFolder { before },
                         MutationReceipt::Removed { item },
-                    ) => {
+                    )
+                    | (MutationIntent::RemoveFile { before }, MutationReceipt::Removed { item }) => {
                         ensure!(
                             item == &before.id && row.request.accepts(receipt),
                             "removed folder receipt does not match its owned identity"
@@ -580,6 +688,12 @@ impl MutationProvider for Fixture {
                 let before = self.guard_remove_folder(r)?;
                 self.remover(before)?.prepare_mutation(r, c).await
             }
+            MutationIntent::RemoveFile { .. } => {
+                let (before, digest) = self.guard_remove_file(r)?;
+                self.file_remover(before, digest)?
+                    .prepare_mutation(r, c)
+                    .await
+            }
             _ => Err(MutationError::Unsupported(
                 "isolated iCloud fixture operation",
             )),
@@ -627,6 +741,15 @@ impl MutationProvider for Fixture {
                 self.removed_receipt(r, &receipt)?;
                 Ok(receipt)
             }
+            MutationIntent::RemoveFile { .. } => {
+                let (before, digest) = self.guard_remove_file(r)?;
+                let receipt = self
+                    .file_remover(before, digest)?
+                    .mutate_prepared(r, prepared, c)
+                    .await?;
+                self.removed_file_receipt(r, &receipt)?;
+                Ok(receipt)
+            }
             _ => Err(MutationError::Unsupported(
                 "isolated iCloud fixture operation",
             )),
@@ -659,6 +782,17 @@ impl MutationProvider for Fixture {
                     .await?;
                 if let MutationReconciliation::Applied(receipt) = &result {
                     self.removed_receipt(r, receipt)?;
+                }
+                Ok(result)
+            }
+            MutationIntent::RemoveFile { .. } => {
+                let (before, digest) = self.guard_remove_file(r)?;
+                let result = self
+                    .file_remover(before, digest)?
+                    .reconcile_prepared_mutation(r, prepared, c)
+                    .await?;
+                if let MutationReconciliation::Applied(receipt) = &result {
+                    self.removed_file_receipt(r, receipt)?;
                 }
                 Ok(result)
             }

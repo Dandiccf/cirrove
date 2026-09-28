@@ -30,6 +30,25 @@ pub struct ICloudOwnedFixtureRemove {
 }
 
 impl ICloudOwnedFixtureRemove {
+    /// Delete only an exact file identity already confirmed by this fixture's
+    /// durable upload receipt. The caller must match `before` and the digest
+    /// against that receipt before constructing this provider.
+    pub fn from_confirmed_upload(
+        scope: Scope,
+        session: ICloudReadSession,
+        folder: ValidationFolder,
+        before: Node,
+        sha256: String,
+    ) -> MutationResult<Self> {
+        if sha256.len() != 64 || !sha256.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            return Err(MutationError::Invalid);
+        }
+        let mut provider = Self::for_reconciliation(scope, session, folder, before)?;
+        provider.sha256 = Some(sha256.to_ascii_lowercase());
+        provider.reconciliation_only = false;
+        Ok(provider)
+    }
+
     pub fn new(
         scope: Scope,
         session: ICloudReadSession,
@@ -109,8 +128,11 @@ impl ICloudOwnedFixtureRemove {
             || before.target.is_some()
             || before.package
             || before.size == 0
-            || before.size > 4096
-            || file.name != "created-by-cirrove.txt"
+            || before.size > 16 * 1024 * 1024
+            || file.name.is_empty()
+            || file.name.len() > 255
+            || matches!(file.name.as_str(), "." | "..")
+            || file.name.contains(['/', '\0'])
             || !file.id.starts_with("FILE::com.apple.CloudDocs::")
             || file.document_id.is_empty()
             || file.id.rsplit("::").next() != Some(file.document_id.as_str())
@@ -440,6 +462,24 @@ mod tests {
                 .prepare_mutation(&request, &CancellationToken::new())
                 .await
                 .is_err()
+        );
+    }
+
+    #[test]
+    fn mounted_file_can_be_reconstructed_from_its_confirmed_node() {
+        let (provider, request) = fixture();
+        let mut before = provider.before_node();
+        before.name = "Mounted Create.txt".into();
+        before.size = 43;
+        let mut session = ICloudReadSession::new().unwrap();
+        session.account_hash = Some("synthetic-account".into());
+        let folder = ValidationFolder {
+            id: provider.folder.id.clone(),
+            name: provider.folder.name.clone(),
+        };
+        assert!(
+            ICloudOwnedFixtureRemove::for_reconciliation(request.scope, session, folder, before)
+                .is_ok()
         );
     }
 }
