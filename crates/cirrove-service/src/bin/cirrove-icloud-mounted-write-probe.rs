@@ -139,6 +139,25 @@ if data != expected:
     sys.exit(1)
 "#;
 
+const APP_RENAME_NESTED_FILE: &str = r#"
+import os, sys
+mount = sys.argv[1]
+folder = os.path.join(mount, 'Mounted Folder')
+os.rename(os.path.join(folder, 'Mounted Renamed Again.txt'), os.path.join(folder, 'Nested Renamed.txt'))
+assert not os.path.exists(os.path.join(folder, 'Mounted Renamed Again.txt'))
+with open(os.path.join(folder, 'Nested Renamed.txt'), 'rb') as f:
+    assert f.read() == b'Cirrove isolated mounted iCloud validation\n'
+"#;
+
+const APP_READ_NESTED_RENAMED_FILE: &str = r#"
+import os, sys
+mount = sys.argv[1]
+folder = os.path.join(mount, 'Mounted Folder')
+assert not os.path.exists(os.path.join(folder, 'Mounted Renamed Again.txt'))
+with open(os.path.join(folder, 'Nested Renamed.txt'), 'rb') as f:
+    assert f.read() == b'Cirrove isolated mounted iCloud validation\n'
+"#;
+
 const APP_REMOVE_FOLDER: &str = r#"
 import os, sys
 mount = sys.argv[1]
@@ -327,6 +346,18 @@ async fn main() -> Result<()> {
     let after_move_file = args
         .first()
         .is_some_and(|flag| flag == "--resume-after-file-move");
+    let rename_nested_file = args
+        .first()
+        .is_some_and(|flag| flag == "--rename-nested-file");
+    let after_nested_rename = args
+        .first()
+        .is_some_and(|flag| flag == "--resume-after-nested-rename");
+    let inspect_nested_rename = args
+        .first()
+        .is_some_and(|flag| flag == "--inspect-nested-rename");
+    let retry_failed_nested = args
+        .first()
+        .is_some_and(|flag| flag == "--retry-failed-nested");
     let (
         resume,
         remove_folder,
@@ -362,7 +393,11 @@ async fn main() -> Result<()> {
                 || flag == "--rename-file-again"
                 || flag == "--resume-after-file-rename-again"
                 || flag == "--move-file"
-                || flag == "--resume-after-file-move" =>
+                || flag == "--resume-after-file-move"
+                || flag == "--rename-nested-file"
+                || flag == "--resume-after-nested-rename"
+                || flag == "--inspect-nested-rename"
+                || flag == "--retry-failed-nested" =>
         {
             (
                 Some(Uuid::parse_str(id).context("invalid fixture run ID")?),
@@ -447,7 +482,7 @@ async fn main() -> Result<()> {
             true,
         ),
         _ => bail!(
-            "usage: cirrove-icloud-mounted-write-probe [--resume RUN_UUID | --rename-folder RUN_UUID | --resume-after-rename RUN_UUID | --rename-file RUN_UUID | --resume-after-file-rename RUN_UUID | --rename-file-again RUN_UUID | --resume-after-file-rename-again RUN_UUID | --move-file RUN_UUID | --resume-after-file-move RUN_UUID | --remove-folder RUN_UUID | --resume-after-remove RUN_UUID | --remove-file RUN_UUID | --resume-after-file-remove RUN_UUID | --replace RUN_UUID | --resume-after-replace RUN_UUID | --large-create | --large-replace RUN_UUID | --large-resume-after-replace RUN_UUID]"
+            "usage: cirrove-icloud-mounted-write-probe [--resume RUN_UUID | --rename-folder RUN_UUID | --resume-after-rename RUN_UUID | --rename-file RUN_UUID | --resume-after-file-rename RUN_UUID | --rename-file-again RUN_UUID | --resume-after-file-rename-again RUN_UUID | --move-file RUN_UUID | --resume-after-file-move RUN_UUID | --rename-nested-file RUN_UUID | --resume-after-nested-rename RUN_UUID | --inspect-nested-rename RUN_UUID | --retry-failed-nested RUN_UUID | --remove-folder RUN_UUID | --resume-after-remove RUN_UUID | --remove-file RUN_UUID | --resume-after-file-remove RUN_UUID | --replace RUN_UUID | --resume-after-replace RUN_UUID | --large-create | --large-replace RUN_UUID | --large-resume-after-replace RUN_UUID]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -564,6 +599,12 @@ async fn main() -> Result<()> {
         },
         owned,
     ));
+    if inspect_nested_rename {
+        return provider.inspect_failed_nested_rename().await;
+    }
+    if retry_failed_nested {
+        provider.retry_failed_nested_rename().await?;
+    }
     let mut config = account.clone();
     config.enabled = false;
     config.access = AccessMode::ReadWrite;
@@ -602,6 +643,10 @@ async fn main() -> Result<()> {
                     APP_MOVE_FILE
                 } else if after_move_file {
                     APP_READ_MOVED_FILE
+                } else if rename_nested_file {
+                    APP_RENAME_NESTED_FILE
+                } else if after_nested_rename || retry_failed_nested {
+                    APP_READ_NESTED_RENAMED_FILE
                 } else if replace_file {
                     if large_file {
                         APP_LARGE_REPLACE
@@ -659,7 +704,9 @@ async fn main() -> Result<()> {
                     .any(|r| matches!(r.state, MutationState::Failed | MutationState::Conflict)),
                 "mounted folder create requires review"
             );
-            let expected = if move_file || after_move_file {
+            let expected = if rename_nested_file || after_nested_rename || retry_failed_nested {
+                5
+            } else if move_file || after_move_file {
                 4
             } else if remove_file
                 || after_file_remove
@@ -685,8 +732,11 @@ async fn main() -> Result<()> {
         };
         let mut independent = ICloudReadSession::from_session_snapshot(&snapshot, apple_id)?;
         let children = independent.list_folder(folder.id()).await?;
-        let moved = move_file || after_move_file;
-        let expected_file_name = if moved || rename_file_again || after_rename_file_again {
+        let nested_renamed = rename_nested_file || after_nested_rename || retry_failed_nested;
+        let moved = move_file || after_move_file || nested_renamed;
+        let expected_file_name = if nested_renamed {
+            "Nested Renamed.txt"
+        } else if moved || rename_file_again || after_rename_file_again {
             "Mounted Renamed Again.txt"
         } else if rename_file || after_rename_file {
             "Mounted Renamed.txt"
@@ -775,12 +825,27 @@ async fn main() -> Result<()> {
                 };
                 ensure!(
                     moved_file.id == uploaded.id
-                        && moved_file.name == expected_file_name
+                        && moved_file.name == "Mounted Renamed Again.txt"
                         && moved_file.parent_id.as_deref()
                             == created_folder.map(|folder| folder.drivewsid.as_str())
                         && !children.iter().any(|entry| entry.drivewsid == uploaded.id),
                     "moved file lost its exact identity or remains at the source"
                 );
+                if nested_renamed {
+                    let Some(MutationReceipt::Upsert(renamed)) = mutations[4].receipt.as_ref()
+                    else {
+                        bail!("nested rename lacks a confirmed upsert receipt");
+                    };
+                    ensure!(
+                        renamed.id == uploaded.id
+                            && renamed.name == expected_file_name
+                            && renamed.parent_id == moved_file.parent_id
+                            && nested_children.as_ref().is_some_and(|entries| !entries
+                                .iter()
+                                .any(|entry| entry.display_name() == "Mounted Renamed Again.txt")),
+                        "nested rename lost identity or left its old name"
+                    );
+                }
             }
             if rename_file || after_rename_file || rename_file_again || after_rename_file_again {
                 let rename_index = if rename_file_again || after_rename_file_again {
@@ -920,6 +985,12 @@ async fn main() -> Result<()> {
                 "conditional file move into owned folder"
             } else if after_move_file {
                 "remount after file move"
+            } else if rename_nested_file {
+                "conditional rename inside owned folder"
+            } else if after_nested_rename {
+                "remount after nested file rename"
+            } else if retry_failed_nested {
+                "retry of unsent nested rename"
             } else if replace_file {
                 "two-ID replacement"
             } else if after_replace {

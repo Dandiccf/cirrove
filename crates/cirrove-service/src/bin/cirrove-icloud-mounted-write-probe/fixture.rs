@@ -350,7 +350,6 @@ impl Fixture {
         };
         if request.scope != self.scope
             || before.kind != NodeKind::File
-            || before.parent_id.as_deref() != Some(&self.root.id)
             || !self.owns(&request.scope, &before.id)
         {
             return Err(MutationError::Invalid);
@@ -360,6 +359,10 @@ impl Fixture {
             .journal
             .lock()
             .map_err(|_| MutationError::Uncertain)?;
+        let parent = before.parent_id.as_deref().ok_or(MutationError::Invalid)?;
+        if parent != self.root.id {
+            confirmed_owned_child_folder(&journal, &self.scope, &self.root.id, parent)?;
+        }
         let digest = confirmed_current_file_digest(&journal, &self.scope, &self.root.id, before)?;
         Ok((before.clone(), digest))
     }
@@ -398,8 +401,7 @@ impl Fixture {
         };
         if request.scope != self.scope
             || before.kind != NodeKind::File
-            || before.parent_id.as_deref() != Some(&self.root.id)
-            || parent != &self.root.id
+            || before.parent_id.as_deref() != Some(parent)
             || before.name == *name
         {
             return Err(MutationError::Invalid);
@@ -419,29 +421,62 @@ impl Fixture {
         digest: String,
         reconciliation_only: bool,
     ) -> cirrove_core::mutation::Result<ICloudOwnedFixtureFileRename> {
+        let parent = before.parent_id.as_deref().ok_or(MutationError::Invalid)?;
+        let child = if parent == self.root.id {
+            None
+        } else {
+            let journal = self
+                .removal
+                .journal
+                .lock()
+                .map_err(|_| MutationError::Uncertain)?;
+            Some(confirmed_owned_child_folder(
+                &journal,
+                &self.scope,
+                &self.root.id,
+                parent,
+            )?)
+        };
         let session = ICloudReadSession::from_session_snapshot(
             &self.removal.snapshot,
             &self.removal.apple_id,
         )
         .map_err(|_| MutationError::Uncertain)?;
-        if reconciliation_only {
-            ICloudOwnedFixtureFileRename::for_reconciliation(
+        match (reconciliation_only, child) {
+            (true, Some(child)) => ICloudOwnedFixtureFileRename::for_reconciliation_in_child(
+                self.scope.clone(),
+                session,
+                self.removal.folder.clone(),
+                child,
+                before,
+                target_name,
+                digest,
+            ),
+            (false, Some(child)) => ICloudOwnedFixtureFileRename::in_child(
+                self.scope.clone(),
+                session,
+                self.removal.folder.clone(),
+                child,
+                before,
+                target_name,
+                digest,
+            ),
+            (true, None) => ICloudOwnedFixtureFileRename::for_reconciliation(
                 self.scope.clone(),
                 session,
                 self.removal.folder.clone(),
                 before,
                 target_name,
                 digest,
-            )
-        } else {
-            ICloudOwnedFixtureFileRename::new(
+            ),
+            (false, None) => ICloudOwnedFixtureFileRename::new(
                 self.scope.clone(),
                 session,
                 self.removal.folder.clone(),
                 before,
                 target_name,
                 digest,
-            )
+            ),
         }
     }
 
@@ -545,6 +580,58 @@ impl Fixture {
             .lock()
             .map_err(|_| MutationError::Uncertain)?
             .remove(&before.id);
+        Ok(())
+    }
+
+    pub async fn inspect_failed_nested_rename(&self) -> anyhow::Result<()> {
+        let request = {
+            let journal = self
+                .removal
+                .journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock unavailable"))?;
+            let rows = journal.list_mutations(0, 16)?;
+            let row = rows.last().ok_or_else(|| anyhow::anyhow!("no mutation"))?;
+            ensure!(
+                row.state == MutationState::Failed,
+                "last mutation is not failed"
+            );
+            row.request.clone()
+        };
+        let (before, digest) = self
+            .guard_rename_file(&request)
+            .map_err(|_| anyhow::anyhow!("nested rename refused by fixture guard"))?;
+        println!("nested rename fixture guard passed");
+        let MutationIntent::Relocate { name, .. } = &request.intent else {
+            anyhow::bail!("last mutation is not relocation");
+        };
+        let adapter = self
+            .file_renamer(before, name.clone(), digest, false)
+            .map_err(|_| anyhow::anyhow!("nested rename adapter construction refused"))?;
+        println!("nested rename adapter construction passed");
+        adapter
+            .prepare_mutation(&request, &CancellationToken::new())
+            .await
+            .map_err(|_| anyhow::anyhow!("nested rename read-only preflight refused"))?;
+        println!("nested rename read-only preflight passed");
+        Ok(())
+    }
+
+    pub async fn retry_failed_nested_rename(&self) -> anyhow::Result<()> {
+        self.inspect_failed_nested_rename().await?;
+        let mut journal = self
+            .removal
+            .journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock unavailable"))?;
+        let rows = journal.list_mutations(0, 16)?;
+        let row = rows.last().ok_or_else(|| anyhow::anyhow!("no mutation"))?;
+        ensure!(
+            row.state == MutationState::Failed && row.prepared_item.is_none(),
+            "only an unsent failed mutation may be retried"
+        );
+        journal.request_mutation_retry(row.id)?;
+        println!("unsent nested rename queued for read-only reconciliation");
         Ok(())
     }
 }
@@ -667,12 +754,15 @@ fn confirmed_current_file_digest(
                     || !same_file_version(prior, &current)
                     || !row.request.accepts(receipt)
                     || updated.id != current.id
-                    || updated.parent_id.as_deref() != Some(root)
                     || updated.kind != NodeKind::File
                     || updated.size != current.size
                     || updated.etag.as_deref().is_none_or(str::is_empty)
                 {
                     return Err(MutationError::Invalid);
+                }
+                let parent = updated.parent_id.as_deref().ok_or(MutationError::Invalid)?;
+                if parent != root {
+                    confirmed_owned_child_folder(journal, scope, root, parent)?;
                 }
                 current = updated.clone();
             }
@@ -843,15 +933,22 @@ pub fn restored_owned(
                     parent,
                     name,
                 } => ensure!(
-                    before.parent_id.as_deref() == Some(root)
-                        && ((before.kind == NodeKind::Folder
-                            && parent == root
-                            && before.name == "Mounted Folder"
-                            && name == "Mounted Renamed")
-                            || (before.kind == NodeKind::File
-                                && ((parent == root && before.name != *name)
-                                    || (owned_folders.contains(parent) && before.name == *name))
-                                && row.request.validate().is_ok()))
+                    ((before.kind == NodeKind::Folder
+                        && before.parent_id.as_deref() == Some(root)
+                        && parent == root
+                        && before.name == "Mounted Folder"
+                        && name == "Mounted Renamed")
+                        || (before.kind == NodeKind::File
+                            && ((before.parent_id.as_deref() == Some(root)
+                                && parent == root
+                                && before.name != *name)
+                                || (before.parent_id.as_deref() == Some(root)
+                                    && owned_folders.contains(parent)
+                                    && before.name == *name)
+                                || (before.parent_id.as_deref() == Some(parent)
+                                    && owned_folders.contains(parent)
+                                    && before.name != *name))
+                            && row.request.validate().is_ok()))
                         && owned.contains(&before.id),
                     "non-fixture rename in isolated journal"
                 ),
@@ -1031,11 +1128,11 @@ mod tests {
                 MutationReceipt::Upsert(folder.clone()),
             )
             .unwrap();
-        journal
+        let move_record = journal
             .enqueue_mutation(MutationRequest {
                 scope: scope.clone(),
                 intent: MutationIntent::Relocate {
-                    before: file,
+                    before: file.clone(),
                     parent: folder.id.clone(),
                     name: "Mounted Create.txt".into(),
                 },
@@ -1044,6 +1141,24 @@ mod tests {
         let owned = restored_owned(&journal, &scope, "fixture-root").unwrap();
         assert!(owned.contains(&folder.id));
         assert!(owned.contains("file-a"));
+        let claimed = journal.claim_mutation().unwrap().unwrap();
+        journal
+            .record_prepared_mutation(move_record.id, claimed.attempt.unwrap(), file.id.clone())
+            .unwrap();
+        let mut moved = file;
+        moved.parent_id = Some(folder.id);
+        moved.etag = Some("moved-etag".into());
+        journal
+            .acknowledge_mutation(
+                move_record.id,
+                claimed.attempt.unwrap(),
+                MutationReceipt::Upsert(moved.clone()),
+            )
+            .unwrap();
+        assert_eq!(
+            confirmed_current_file_digest(&journal, &scope, "fixture-root", &moved).unwrap(),
+            hex::encode(Sha256::digest(b"ab"))
+        );
     }
 
     #[test]
@@ -1388,7 +1503,7 @@ impl MutationProvider for Fixture {
                         .await
                 }
                 NodeKind::File => {
-                    if parent == &self.root.id {
+                    if before.parent_id.as_deref() == Some(parent) {
                         let (before, digest) = self.guard_rename_file(r)?;
                         self.file_renamer(before, name.clone(), digest, false)?
                             .prepare_mutation(r, c)
@@ -1468,7 +1583,7 @@ impl MutationProvider for Fixture {
                             .await?
                     }
                     NodeKind::File => {
-                        if parent == &self.root.id {
+                        if before.parent_id.as_deref() == Some(parent) {
                             let (before, digest) = self.guard_rename_file(r)?;
                             self.file_renamer(before, name.clone(), digest, false)?
                                 .mutate_prepared(r, prepared, c)
@@ -1541,11 +1656,14 @@ impl MutationProvider for Fixture {
                             .await?
                     }
                     NodeKind::File => {
-                        if parent == &self.root.id {
+                        if before.parent_id.as_deref() == Some(parent) {
                             let (before, digest) = self.guard_rename_file(r)?;
-                            self.file_renamer(before, name.clone(), digest, true)?
-                                .reconcile_prepared_mutation(r, prepared, c)
-                                .await?
+                            let adapter = self.file_renamer(before, name.clone(), digest, true)?;
+                            if prepared.is_some() {
+                                adapter.reconcile_prepared_mutation(r, prepared, c).await?
+                            } else {
+                                adapter.reconcile_mutation(r, c).await?
+                            }
                         } else {
                             let (before, destination, digest) = self.guard_move_file(r)?;
                             self.file_mover(before, destination, digest, true)?

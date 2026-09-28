@@ -22,6 +22,7 @@ enum Observation {
 pub struct ICloudOwnedFixtureFileRename {
     scope: Scope,
     root: ValidationFolder,
+    parent: Option<Node>,
     before: Node,
     target_name: String,
     digest: String,
@@ -39,7 +40,16 @@ impl ICloudOwnedFixtureFileRename {
         target_name: String,
         digest: String,
     ) -> MutationResult<Self> {
-        Self::build(scope, session, root, before, target_name, digest, false)
+        Self::build(
+            scope,
+            session,
+            root,
+            None,
+            before,
+            target_name,
+            digest,
+            false,
+        )
     }
 
     pub fn for_reconciliation(
@@ -50,7 +60,58 @@ impl ICloudOwnedFixtureFileRename {
         target_name: String,
         digest: String,
     ) -> MutationResult<Self> {
-        Self::build(scope, session, root, before, target_name, digest, true)
+        Self::build(
+            scope,
+            session,
+            root,
+            None,
+            before,
+            target_name,
+            digest,
+            true,
+        )
+    }
+
+    pub fn in_child(
+        scope: Scope,
+        session: ICloudReadSession,
+        root: ValidationFolder,
+        parent: Node,
+        before: Node,
+        target_name: String,
+        digest: String,
+    ) -> MutationResult<Self> {
+        Self::build(
+            scope,
+            session,
+            root,
+            Some(parent),
+            before,
+            target_name,
+            digest,
+            false,
+        )
+    }
+
+    pub fn for_reconciliation_in_child(
+        scope: Scope,
+        session: ICloudReadSession,
+        root: ValidationFolder,
+        parent: Node,
+        before: Node,
+        target_name: String,
+        digest: String,
+    ) -> MutationResult<Self> {
+        Self::build(
+            scope,
+            session,
+            root,
+            Some(parent),
+            before,
+            target_name,
+            digest,
+            true,
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -58,11 +119,15 @@ impl ICloudOwnedFixtureFileRename {
         scope: Scope,
         session: ICloudReadSession,
         root: ValidationFolder,
+        parent: Option<Node>,
         before: Node,
         target_name: String,
         digest: String,
         reconciliation_only: bool,
     ) -> MutationResult<Self> {
+        let parent_id = parent
+            .as_ref()
+            .map_or(root.id.as_str(), |node| node.id.as_str());
         if scope.account.is_empty()
             || scope.provider != "icloud"
             || scope.collection != "drive"
@@ -72,8 +137,16 @@ impl ICloudOwnedFixtureFileRename {
                 .name
                 .strip_prefix("Cirrove Write Validation-")
                 .is_none_or(|suffix| Uuid::parse_str(suffix).is_err())
+            || parent.as_ref().is_some_and(|node| {
+                !node.id.starts_with("FOLDER::com.apple.CloudDocs::")
+                    || node.parent_id.as_deref() != Some(root.id.as_str())
+                    || node.name != "Mounted Folder"
+                    || node.kind != NodeKind::Folder
+                    || node.target.is_some()
+                    || node.package
+            })
             || !before.id.starts_with("FILE::com.apple.CloudDocs::")
-            || before.parent_id.as_deref() != Some(root.id.as_str())
+            || before.parent_id.as_deref() != Some(parent_id)
             || !fixture_name(&before.name)
             || !fixture_name(&target_name)
             || before.name == target_name
@@ -91,6 +164,7 @@ impl ICloudOwnedFixtureFileRename {
         Ok(Self {
             scope,
             root,
+            parent,
             before,
             target_name,
             digest: digest.to_ascii_lowercase(),
@@ -105,11 +179,17 @@ impl ICloudOwnedFixtureFileRename {
         self
     }
 
+    fn parent_id(&self) -> &str {
+        self.parent
+            .as_ref()
+            .map_or(self.root.id.as_str(), |node| node.id.as_str())
+    }
+
     fn check(&self, request: &MutationRequest, prepared: Option<&str>) -> MutationResult<()> {
         request.validate()?;
         if request.scope != self.scope
             || !matches!(&request.intent, MutationIntent::Relocate { before, parent, name }
-                if before == &self.before && parent == &self.root.id && name == &self.target_name)
+                if before == &self.before && parent == self.parent_id() && name == &self.target_name)
             || prepared.is_some_and(|id| id != self.before.id)
         {
             return Err(MutationError::Invalid);
@@ -135,8 +215,28 @@ impl ICloudOwnedFixtureFileRename {
         {
             return Ok(Observation::Unknown);
         }
+        if let Some(parent) = &self.parent {
+            let root_children = session
+                .list_folder(&self.root.id)
+                .await
+                .map_err(|_| MutationError::Uncertain)?;
+            if root_children
+                .iter()
+                .filter(|entry| {
+                    entry.drivewsid == parent.id
+                        && entry.display_name() == parent.name
+                        && entry.is_folder()
+                        && entry.parent_id == self.root.id
+                })
+                .count()
+                != 1
+            {
+                return Ok(Observation::Unknown);
+            }
+        }
+        let parent_id = self.parent_id();
         let children = session
-            .list_folder(&self.root.id)
+            .list_folder(parent_id)
             .await
             .map_err(|_| MutationError::Uncertain)?;
         let exact: Vec<_> = children
@@ -148,7 +248,7 @@ impl ICloudOwnedFixtureFileRename {
         }
         let entry = exact[0];
         if entry.is_folder()
-            || entry.parent_id != self.root.id
+            || entry.parent_id != parent_id
             || entry.docwsid != self.before.id.rsplit("::").next().unwrap_or_default()
             || entry.size != self.before.size
             || children.iter().any(|other| {
@@ -158,7 +258,7 @@ impl ICloudOwnedFixtureFileRename {
             return Ok(Observation::Conflict);
         }
         let bytes = session
-            .read_small_file_in_folder(&self.root.id, &self.before.id)
+            .read_small_file_in_folder(parent_id, &self.before.id)
             .await
             .map_err(|_| MutationError::Uncertain)?;
         if bytes.len() as u64 != self.before.size
@@ -175,7 +275,7 @@ impl ICloudOwnedFixtureFileRename {
         if entry.display_name() == self.target_name && !entry.etag.is_empty() {
             return Ok(Observation::AtDestination(Node {
                 id: entry.drivewsid.clone(),
-                parent_id: Some(self.root.id.clone()),
+                parent_id: Some(parent_id.to_owned()),
                 name: self.target_name.clone(),
                 kind: NodeKind::File,
                 size: entry.size,
@@ -273,10 +373,23 @@ impl MutationProvider for ICloudOwnedFixtureFileRename {
 
     async fn reconcile_mutation(
         &self,
-        _: &MutationRequest,
-        _: &CancellationToken,
+        request: &MutationRequest,
+        cancel: &CancellationToken,
     ) -> MutationResult<MutationReconciliation> {
-        Ok(MutationReconciliation::Indeterminate)
+        self.check(request, None)?;
+        if cancel.is_cancelled() {
+            return Err(MutationError::Uncertain);
+        }
+        // This adapter always persists the exact file ID before its first
+        // mutating request. Without that prepared ID, only a read-only proof
+        // that the original version is still at the source permits retry.
+        match self.observe().await? {
+            Observation::AtSource => Ok(MutationReconciliation::Uncommitted),
+            Observation::AtDestination(_) | Observation::Conflict => {
+                Ok(MutationReconciliation::Conflict)
+            }
+            Observation::Unknown => Ok(MutationReconciliation::Indeterminate),
+        }
     }
 
     async fn reconcile_prepared_mutation(
@@ -305,6 +418,85 @@ impl MutationProvider for ICloudOwnedFixtureFileRename {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn nested_rename_requires_confirmed_parent_and_never_replays_after_restart() {
+        let mut session = ICloudReadSession::new().unwrap();
+        session.account_hash = Some("synthetic-account".into());
+        let scope = Scope {
+            account: Uuid::new_v4().to_string(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        };
+        let root = ValidationFolder {
+            id: format!("FOLDER::com.apple.CloudDocs::{}", Uuid::new_v4()),
+            name: format!("Cirrove Write Validation-{}", Uuid::new_v4()),
+        };
+        let parent = Node {
+            id: format!("FOLDER::com.apple.CloudDocs::{}", Uuid::new_v4()),
+            parent_id: Some(root.id.clone()),
+            name: "Mounted Folder".into(),
+            kind: NodeKind::Folder,
+            size: 0,
+            modified_unix: 0,
+            etag: Some("folder-etag".into()),
+            content_version: None,
+            target: None,
+            package: false,
+        };
+        let before = Node {
+            id: format!("FILE::com.apple.CloudDocs::{}", Uuid::new_v4()),
+            parent_id: Some(parent.id.clone()),
+            name: "Mounted Renamed Again.txt".into(),
+            kind: NodeKind::File,
+            size: 4,
+            modified_unix: 0,
+            etag: Some("file-etag".into()),
+            content_version: None,
+            target: None,
+            package: false,
+        };
+        let mut foreign = parent.clone();
+        foreign.parent_id = Some("another-root".into());
+        assert!(
+            ICloudOwnedFixtureFileRename::in_child(
+                scope.clone(),
+                session,
+                root.clone(),
+                foreign,
+                before.clone(),
+                "Nested Renamed.txt".into(),
+                hex::encode(Sha256::digest(b"test")),
+            )
+            .is_err()
+        );
+        let mut session = ICloudReadSession::new().unwrap();
+        session.account_hash = Some("synthetic-account".into());
+        let restarted = ICloudOwnedFixtureFileRename::for_reconciliation_in_child(
+            scope.clone(),
+            session,
+            root,
+            parent.clone(),
+            before.clone(),
+            "Nested Renamed.txt".into(),
+            hex::encode(Sha256::digest(b"test")),
+        )
+        .unwrap();
+        let request = MutationRequest {
+            scope,
+            intent: MutationIntent::Relocate {
+                before: before.clone(),
+                parent: parent.id,
+                name: "Nested Renamed.txt".into(),
+            },
+        };
+        assert!(matches!(
+            restarted
+                .mutate_prepared(&request, Some(&before.id), &CancellationToken::new())
+                .await,
+            Err(MutationError::Unsupported(_))
+        ));
+    }
 
     #[test]
     fn confirmed_file_can_be_renamed_again_without_losing_identity() {
