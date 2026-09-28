@@ -36,6 +36,8 @@ jobs:
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Compile the experimental iCloud mount probe
         run: cargo clippy -p cirrove-service --features icloud-probe --bin cirrove-icloud-mount-probe --locked -- -D warnings
+      - name: Check the isolated iCloud write probe
+        run: cargo clippy -p cirrove-service --features icloud-write-probe --bin cirrove-icloud-write-probe --locked -- -D warnings
       - name: Credential round trip against a throwaway Secret Service
         # The vault has one integration test and nothing ran it: dbus-run-session
         # was already here for the desktop step, but a session bus is not a Secret
@@ -53,6 +55,8 @@ jobs:
       - name: No acceptance box is ticked without a test asserting it
         run: python3 scripts/acceptance-ledger.py
       - run: cargo test --workspace --locked
+      - name: Feature-gated iCloud write adapter tests
+        run: cargo test -p cirrove-icloud --features write-probe --locked
       # Package-specific feature resolution can rebuild dependencies. Keep that
       # compilation outside the native window's unchanged runtime deadline.
       - name: Build native desktop test

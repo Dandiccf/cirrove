@@ -3,7 +3,7 @@
 //! replayed merely because a later listing does not yet show the file.
 use super::{
     DriveEntry, ICloudReadSession, ValidationFolder, checked_content_url,
-    write_probe::{MAX_OWNED_UPLOAD, UploadSlot, UploadedFile},
+    write_probe::{MAX_OWNED_UPLOAD, OwnedRegistration, UploadSlot, UploadedFile},
 };
 use async_trait::async_trait;
 use cirrove_core::upload::{
@@ -554,16 +554,17 @@ impl UploadProvider for ICloudOwnedFixtureUpload {
                 return Err(UploadError::Conflict);
             }
             session
-                .register_owned_file(
-                    &self.folder,
+                .register_owned_file(OwnedRegistration {
+                    folder: &self.folder,
                     name,
-                    &slot,
-                    receipt,
-                    request.size,
-                    None,
-                    self.discard_registration_receipt
+                    slot: &slot,
+                    data: receipt,
+                    size: request.size,
+                    expected_bytes: None,
+                    discard_receipt: self
+                        .discard_registration_receipt
                         .swap(false, Ordering::AcqRel),
-                )
+                })
                 .await
                 .map_err(|_| UploadError::Uncertain)?
                 .ok_or(UploadError::Uncertain)?

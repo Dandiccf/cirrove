@@ -205,6 +205,16 @@ pub(crate) struct UploadedFile {
     size: u64,
 }
 
+pub(crate) struct OwnedRegistration<'a> {
+    pub(crate) folder: &'a ValidationFolder,
+    pub(crate) name: &'a str,
+    pub(crate) slot: &'a UploadSlot,
+    pub(crate) data: UploadedFile,
+    pub(crate) size: u64,
+    pub(crate) expected_bytes: Option<&'a [u8]>,
+    pub(crate) discard_receipt: bool,
+}
+
 impl UploadedFile {
     pub(crate) fn valid_for(&self, size: u64) -> bool {
         self.size == size && !self.receipt.is_empty() && !self.signature.is_empty()
@@ -927,28 +937,31 @@ impl ICloudReadSession {
             Some(slot) => (slot.clone(), self.upload_to_slot(slot, name, bytes).await?),
             None => self.upload_probe_bytes(name, bytes).await?,
         };
-        self.register_owned_file(
+        self.register_owned_file(OwnedRegistration {
             folder,
             name,
-            &slot,
+            slot: &slot,
             data,
-            bytes.len() as u64,
-            Some(bytes),
-            discard_registration_receipt,
-        )
+            size: bytes.len() as u64,
+            expected_bytes: Some(bytes),
+            discard_receipt: discard_registration_receipt,
+        })
         .await
     }
 
     pub(crate) async fn register_owned_file(
         &mut self,
-        folder: &ValidationFolder,
-        name: &str,
-        slot: &UploadSlot,
-        data: UploadedFile,
-        size: u64,
-        expected_bytes: Option<&[u8]>,
-        discard_registration_receipt: bool,
+        registration: OwnedRegistration<'_>,
     ) -> Result<Option<ValidationFile>> {
+        let OwnedRegistration {
+            folder,
+            name,
+            slot,
+            data,
+            size,
+            expected_bytes,
+            discard_receipt,
+        } = registration;
         let folder_id = folder.id.as_str();
         let starting_document_id = folder_id
             .rsplit("::")
@@ -987,7 +1000,7 @@ impl ICloudReadSession {
             .send()
             .await
             .map_err(|_| anyhow!("iCloud validation file registration failed"))?;
-        if discard_registration_receipt {
+        if discard_receipt {
             // The response exists, but this process intentionally never parses
             // it or learns the resulting remote item ID.
             drop(response);
