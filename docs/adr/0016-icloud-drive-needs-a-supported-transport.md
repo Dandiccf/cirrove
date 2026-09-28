@@ -516,7 +516,12 @@ then reached `Uploaded` through the shared worker, with both bindings
 confirmed after reopening SQLite. This one run supports the narrowed request
 sequence; it does not establish repeatability. No normal iCloud write is
 enabled; concurrent edits after the initial precondition, collisions,
-response loss, folder writes and Trash retention remain unresolved.
+folder writes and Trash retention remain unresolved. One further
+[two-process live trial](../benchmarks/icloud-worker-lost-conditional-trash-receipt-2026-09-28.md)
+discarded the old Trash response after the request, retained
+`VerifyRequired`, then reconciled the old exact ID and published both IDs
+in a fresh process without sending Trash again. A lost staged-rename
+response and in-flight Trash timeout remain untested.
 
 A feature-gated `ICloudOwnedFixtureRemove` now implements the shared
 `MutationProvider` contract for one small, newly created Cirrove fixture.
