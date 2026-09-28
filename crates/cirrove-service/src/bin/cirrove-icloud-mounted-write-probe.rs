@@ -192,6 +192,13 @@ async fn verify_large_bytes(
         actual_hash == hex::encode(expected_hash.finalize()),
         "remote file bytes differ from mounted write"
     );
+    let streamed_hash = session
+        .hash_file_in_folder_for_revision(folder_id, file_id, etag, size)
+        .await?;
+    ensure!(
+        streamed_hash == actual_hash,
+        "streamed iCloud verification differs from independent ranges"
+    );
     let after = session.list_folder(folder_id).await?;
     ensure!(
         after

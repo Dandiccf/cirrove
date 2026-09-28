@@ -612,14 +612,20 @@ ID with a restore path in Trash without another mutation. The write arm's
 separate validator exited nonzero because its Trash predicate was inverted;
 that correction and two failed read-only checks remain in the same artifact.
 The isolated mounted replacement adapter subsequently gained a 32 MiB bound:
-active files are SHA-256 checked in revision-bound 4 MiB ranges, and the exact
-old ID in Trash is hashed as a bounded stream. A later
+active files and the exact old ID in Trash are SHA-256 checked as bounded
+streams, with exact revision and size observations around each active-file
+download. A later
 [5-to-6-MiB mounted replacement](../benchmarks/icloud-mounted-large-replace-2026-09-28.md)
 passed with a fresh read-only remount. The one replacement arm took over
 eight minutes; it gives a functional result, not a reliability or throughput
 claim. The rest of the size range is not live-validated.
+A subsequent
+[read-only live check](../benchmarks/icloud-streamed-verification-2026-09-28.md)
+matched the new single-download stream against independent 4 MiB ranges for
+the existing 6 MiB file. The complete hash, exact ETag and size checks remain;
+replacement-phase latency after this change has not been measured.
 This is bounded functional evidence, not proof of atomicity, timeout recovery
-before Apple's response, concurrency safety, large-file support or ordinary
+before Apple's response, concurrency safety, other large-file sizes or ordinary
 iCloud write reliability. Normal iCloud mounts remain read-only.
 
 Reviewing another contemporary [Linux iCloud client implementation](https://github.com/IsmaeelAkram/icloud-linux/blob/master/driver.py#L1419-L1433)

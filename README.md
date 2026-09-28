@@ -243,8 +243,8 @@ file and folder creation, recoverable deletion and one two-ID file replacement
 through the shared journals and workers; the
 [mounted replacement record](docs/benchmarks/icloud-mounted-replace-2026-09-28.md)
 keeps its validator failures alongside the successful read-only remount.
-The isolated replacement code can verify up to 32 MiB per file in bounded
-ranges, including a streaming hash of its Trash backup. One
+The isolated replacement code can verify up to 32 MiB per file with bounded
+streaming hashes, including its Trash backup. One
 [5-to-6-MiB live replacement](docs/benchmarks/icloud-mounted-large-replace-2026-09-28.md)
 and fresh-process read-only remount passed, but the replacement arm took over
 eight minutes. Normal iCloud connections remain read-only while network

@@ -799,40 +799,54 @@ impl ICloudReadSession {
         Ok(bytes)
     }
 
-    /// Hash a bounded file without retaining its contents. Every range is
-    /// checked against the same published revision, and the final metadata
-    /// observation catches a change between two otherwise valid ranges.
+    /// Hash a bounded file without retaining its contents. The complete
+    /// response and both metadata observations must agree on one revision.
+    /// Unlike range-by-range verification, this needs only one download
+    /// lookup, while the expected full digest still detects mixed contents.
     #[cfg(feature = "write-probe")]
-    pub(crate) async fn hash_file_in_folder_for_revision(
+    pub async fn hash_file_in_folder_for_revision(
         &mut self,
         folder_id: &str,
         drive_id: &str,
         etag: &str,
         size: u64,
     ) -> Result<String> {
-        const HASH_CHUNK: u32 = 4 * 1024 * 1024;
         const MAX_HASH_FILE: u64 = 32 * 1024 * 1024;
         if etag.is_empty() || size == 0 || size > MAX_HASH_FILE {
             bail!("iCloud file is outside the bounded verification limit");
         }
+        let before = self.item_for_read(drive_id, Some(folder_id)).await?;
+        if before.is_folder() || before.etag != etag || before.size != size {
+            bail!("iCloud file changed before bounded verification");
+        }
+        let signed_url = self.signed_download_url(drive_id).await?;
+        let mut response = self
+            .http
+            .get(signed_url)
+            .send()
+            .await
+            .map_err(|_| anyhow!("iCloud verification download failed"))?;
+        if response.status() != StatusCode::OK {
+            bail!(
+                "iCloud verification download failed ({})",
+                response.status().as_u16()
+            );
+        }
         let mut hash = Sha256::new();
-        let mut offset = 0;
-        while offset < size {
-            let length = (size - offset).min(u64::from(HASH_CHUNK)) as u32;
-            let bytes = self
-                .read_range_in_folder_for_revision(
-                    folder_id,
-                    drive_id,
-                    offset,
-                    length,
-                    Some((etag, size)),
-                )
-                .await?;
-            if bytes.len() != length as usize {
-                bail!("iCloud range returned an unexpected size");
+        let mut received = 0u64;
+        while let Some(chunk) = response
+            .chunk()
+            .await
+            .map_err(|_| anyhow!("iCloud verification download interrupted"))?
+        {
+            received = received.saturating_add(chunk.len() as u64);
+            if received > size {
+                bail!("iCloud verification download exceeded the expected size");
             }
-            hash.update(bytes);
-            offset += u64::from(length);
+            hash.update(&chunk);
+        }
+        if received != size {
+            bail!("iCloud verification download was incomplete");
         }
         let after = self.item_for_read(drive_id, Some(folder_id)).await?;
         if after.is_folder() || after.etag != etag || after.size != size {
