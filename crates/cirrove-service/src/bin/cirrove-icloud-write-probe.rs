@@ -229,6 +229,8 @@ async fn main() -> Result<()> {
         [flag, _run_id] if flag == "--worker-reconcile-folder-move" => 78,
         [flag] if flag == "--populated-folder-move" => 79,
         [flag, _run_id] if flag == "--inspect-populated-folder-move" => 80,
+        [flag] if flag == "--worker-discard-populated-folder-move-response" => 81,
+        [flag, _run_id] if flag == "--worker-reconcile-populated-folder-move" => 82,
         _ => bail!(
             "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --stale-etag-move | --fresh-etag-move | --metadata-stale-move | --occupied-move-name | --inspect-occupied-move | --inspect-owned-folder ID | --reconcile-occupied-move UUID | --worker-owned-move | --worker-discard-move-response | --worker-reconcile-move UUID | --worker-move-collision-race | --empty-folder-move | --inspect-empty-folder-move UUID | --worker-discard-folder-move-response | --worker-reconcile-folder-move UUID | --populated-folder-move | --inspect-populated-folder-move UUID | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create | --worker-streamed-binary-create | --worker-streamed-lost-registration | --worker-reconcile-streamed-registration | --worker-streamed-lost-content | --worker-retry-streamed-content | --worker-create-folder | --worker-discard-folder-receipt | --worker-reconcile-folder | --worker-discard-empty-folder-trash | --worker-reconcile-empty-folder-trash]"
         ),
@@ -261,6 +263,105 @@ async fn main() -> Result<()> {
         .list_root()
         .await
         .context("saved iCloud session is not usable")?;
+    if mode == 82 {
+        let run_id = Uuid::parse_str(&arguments[1]).context("invalid populated-move run ID")?;
+        let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+            "../../.local-state/icloud-worker-populated-folder-move-{run_id}"
+        ));
+        let fixture: PopulatedFolderMoveFixture =
+            serde_json::from_slice(&fs::read(directory.join("fixture.json"))?)?;
+        if fixture.account_id != account.id {
+            bail!("populated-folder move record belongs to a different account");
+        }
+        let source = session
+            .validation_folder_at_root(&fixture.source_id)
+            .await?;
+        let destination = session
+            .validation_folder_at_root(&fixture.destination_id)
+            .await?;
+        if source.name() != fixture.source_name
+            || destination.name() != fixture.destination_name
+            || source.id() == destination.id()
+        {
+            bail!("recorded populated-move parent identity changed");
+        }
+        let journal = Arc::new(Mutex::new(UploadJournal::open(
+            &directory,
+            &account.id,
+            8192,
+        )?));
+        let record = {
+            let guard = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock"))?;
+            let rows = guard.list_mutations(0, 2)?;
+            if rows.len() != 1 || rows[0].state != MutationState::VerifyRequired {
+                bail!("expected exactly one uncertain populated-folder move");
+            }
+            rows.into_iter().next().context("populated move missing")?
+        };
+        let MutationIntent::Relocate {
+            before,
+            parent,
+            name,
+        } = &record.request.intent
+        else {
+            bail!("uncertain mutation is not a folder move");
+        };
+        if record.request.scope.account != account.id
+            || before.kind != NodeKind::Folder
+            || before.id != fixture.nested_id
+            || before.name != fixture.nested_name
+            || before.etag.as_deref() != Some(fixture.nested_etag.as_str())
+            || before.parent_id.as_deref() != Some(source.id())
+            || parent != destination.id()
+            || name != &fixture.nested_name
+            || record.prepared_item.as_deref() != Some(before.id.as_str())
+        {
+            bail!("uncertain populated move lacks its exact prepared identity");
+        }
+        let provider = ICloudOwnedFixtureFolderMove::for_reconciliation(
+            record.request.scope.clone(),
+            session,
+            source,
+            destination,
+            before.clone(),
+        )?;
+        if !provider.matches_child_record(
+            &fixture.file_id,
+            &fixture.file_document_id,
+            &fixture.file_etag,
+            fixture.file_size,
+            &fixture.file_sha256,
+        ) {
+            bail!("journal child identity differs from synced fixture record");
+        }
+        let provider = Arc::new(provider);
+        let worker = MutationWorker::new(journal.clone(), provider, CancellationToken::new());
+        let result = worker
+            .run_once()
+            .await?
+            .context("populated-folder move was not claimed")?;
+        let saved = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock"))?
+            .mutation(record.id)?;
+        if result.id != record.id
+            || result.state != MutationState::Applied
+            || result.issue.is_some()
+            || !saved
+                .receipt
+                .as_ref()
+                .is_some_and(|receipt| record.request.accepts(receipt))
+        {
+            bail!("restarted worker could not reconcile exact populated-folder move");
+        }
+        println!(
+            "Restarted worker reconciled exact folder and child bytes without another move. Operation: {}.",
+            record.id
+        );
+        return Ok(());
+    }
     if mode == 80 {
         let run_id = Uuid::parse_str(&arguments[1]).context("invalid populated-move run ID")?;
         let path = populated_folder_move_fixture_directory().join(format!("{run_id}.json"));
@@ -1678,7 +1779,7 @@ async fn main() -> Result<()> {
     let name = format!("Cirrove Write Validation-{}", Uuid::new_v4());
     let folder = session.create_validation_folder(&name).await?;
     println!("Created and listed the isolated iCloud validation folder.");
-    if mode == 79 {
+    if matches!(mode, 79 | 81) {
         let destination = session
             .create_validation_folder(&format!("Cirrove Write Validation-{}", Uuid::new_v4()))
             .await?;
@@ -1714,6 +1815,79 @@ async fn main() -> Result<()> {
             file_size: bytes.len() as u64,
             file_sha256: hex::encode(sha2::Sha256::digest(bytes.as_bytes())),
         };
+        if mode == 81 {
+            let scope = Scope {
+                account: account.id.clone(),
+                provider: "icloud".into(),
+                collection: "drive".into(),
+            };
+            let provider = ICloudOwnedFixtureFolderMove::new_with_child(
+                scope.clone(),
+                session,
+                folder,
+                destination.clone(),
+                nested,
+                nested_etag,
+                &file,
+                bytes.as_bytes(),
+            )?;
+            let request = MutationRequest {
+                scope,
+                intent: MutationIntent::Relocate {
+                    before: provider.before_node(),
+                    parent: destination.id().to_owned(),
+                    name: nested_name,
+                },
+            };
+            let run_id = Uuid::new_v4();
+            let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+                "../../.local-state/icloud-worker-populated-folder-move-{run_id}"
+            ));
+            let journal = Arc::new(Mutex::new(UploadJournal::open(
+                &directory,
+                &account.id,
+                8192,
+            )?));
+            let mut fixture_file = OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(directory.join("fixture.json"))?;
+            fixture_file.write_all(&serde_json::to_vec_pretty(&fixture)?)?;
+            fixture_file.write_all(b"\n")?;
+            fixture_file.sync_all()?;
+            fs::File::open(&directory)?.sync_all()?;
+            let queued = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock"))?
+                .enqueue_mutation(request.clone())?;
+            println!(
+                "Owned populated-folder move journal recorded as {run_id} before the request."
+            );
+            let worker = MutationWorker::new(
+                journal.clone(),
+                Arc::new(provider.with_discarded_response()),
+                CancellationToken::new(),
+            );
+            let result = worker
+                .run_once()
+                .await?
+                .context("populated-folder move was not claimed")?;
+            let saved = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock"))?
+                .mutation(queued.id)?;
+            if result.id != queued.id
+                || result.state != MutationState::VerifyRequired
+                || saved.prepared_item.as_deref()
+                    != request.intent.before().map(|node| node.id.as_str())
+            {
+                bail!("discarded populated-folder move response lost prepared identity");
+            }
+            println!(
+                "Populated-folder move response deliberately discarded; run --worker-reconcile-populated-folder-move {run_id} in a new process."
+            );
+            return Ok(());
+        }
         let run_id = save_populated_folder_move_fixture(&fixture)?;
         println!(
             "Populated-folder move identities and full digest recorded as {run_id} before the request."
