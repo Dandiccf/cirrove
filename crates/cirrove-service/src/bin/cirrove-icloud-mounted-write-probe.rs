@@ -6,6 +6,7 @@ mod fixture;
 use anyhow::{Context, Result, bail, ensure};
 use cirrove_auth::{AccessMode, AppRegistration, CredentialVault, DesktopVault};
 use cirrove_core::mutation::MutationReceipt;
+use cirrove_core::upload::UploadIntent;
 use cirrove_core::{Node, NodeKind, Scope};
 use cirrove_icloud::{
     ICloudDrive, ICloudOwnedFixtureFolderCreate, ICloudOwnedFixtureUpload, ICloudReadSession,
@@ -87,15 +88,42 @@ assert not os.path.exists(os.path.join(mount, 'Mounted Folder'))
 assert not os.path.exists(os.path.join(mount, 'Mounted Create.txt'))
 "#;
 
+const APP_REPLACE: &str = r#"
+import os, sys
+path = os.path.join(sys.argv[1], 'Mounted Create.txt')
+fd = os.open(path, os.O_WRONLY | os.O_TRUNC)
+try:
+    assert os.write(fd, b'Cirrove isolated mounted replacement\n') == 37
+    os.fsync(fd)
+finally:
+    os.close(fd)
+"#;
+
+const APP_READ_REPLACED: &str = r#"
+import os, sys
+mount = sys.argv[1]
+with open(os.path.join(mount, 'Mounted Create.txt'), 'rb') as f:
+    assert f.read() == b'Cirrove isolated mounted replacement\n'
+assert os.path.isdir(os.path.join(mount, 'Mounted Folder'))
+"#;
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let args: Vec<_> = std::env::args().skip(1).collect();
-    let (resume, remove_folder, after_remove, remove_file, after_file_remove) = match args
-        .as_slice()
-    {
-        [] => (None, false, false, false, false),
+    let (
+        resume,
+        remove_folder,
+        after_remove,
+        remove_file,
+        after_file_remove,
+        replace_file,
+        after_replace,
+    ) = match args.as_slice() {
+        [] => (None, false, false, false, false, false, false),
         [flag, id] if flag == "--resume" => (
             Some(Uuid::parse_str(id).context("invalid fixture run ID")?),
+            false,
+            false,
             false,
             false,
             false,
@@ -107,11 +135,15 @@ async fn main() -> Result<()> {
             false,
             false,
             false,
+            false,
+            false,
         ),
         [flag, id] if flag == "--resume-after-remove" => (
             Some(Uuid::parse_str(id).context("invalid fixture run ID")?),
             false,
             true,
+            false,
+            false,
             false,
             false,
         ),
@@ -121,6 +153,8 @@ async fn main() -> Result<()> {
             false,
             true,
             false,
+            false,
+            false,
         ),
         [flag, id] if flag == "--resume-after-file-remove" => (
             Some(Uuid::parse_str(id).context("invalid fixture run ID")?),
@@ -128,9 +162,29 @@ async fn main() -> Result<()> {
             false,
             false,
             true,
+            false,
+            false,
+        ),
+        [flag, id] if flag == "--replace" => (
+            Some(Uuid::parse_str(id).context("invalid fixture run ID")?),
+            false,
+            false,
+            false,
+            false,
+            true,
+            false,
+        ),
+        [flag, id] if flag == "--resume-after-replace" => (
+            Some(Uuid::parse_str(id).context("invalid fixture run ID")?),
+            false,
+            false,
+            false,
+            false,
+            false,
+            true,
         ),
         _ => bail!(
-            "usage: cirrove-icloud-mounted-write-probe [--resume RUN_UUID | --remove-folder RUN_UUID | --resume-after-remove RUN_UUID | --remove-file RUN_UUID | --resume-after-file-remove RUN_UUID]"
+            "usage: cirrove-icloud-mounted-write-probe [--resume RUN_UUID | --remove-folder RUN_UUID | --resume-after-remove RUN_UUID | --remove-file RUN_UUID | --resume-after-file-remove RUN_UUID | --replace RUN_UUID | --resume-after-replace RUN_UUID]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -269,6 +323,10 @@ async fn main() -> Result<()> {
                 "-c",
                 if remove_folder {
                     APP_REMOVE_FOLDER
+                } else if replace_file {
+                    APP_REPLACE
+                } else if after_replace {
+                    APP_READ_REPLACED
                 } else if remove_file {
                     APP_REMOVE_FILE
                 } else if after_file_remove {
@@ -300,7 +358,8 @@ async fn main() -> Result<()> {
                     .any(|r| matches!(r.state, UploadState::Failed | UploadState::Conflict)),
                 "mounted upload requires review"
             );
-            if rows.len() == 1 && rows[0].state == UploadState::Uploaded {
+            let expected = if replace_file || after_replace { 2 } else { 1 };
+            if rows.len() == expected && rows.iter().all(|r| r.state == UploadState::Uploaded) {
                 break rows;
             }
             tokio::time::sleep(Duration::from_millis(200)).await;
@@ -337,6 +396,30 @@ async fn main() -> Result<()> {
             .remote
             .as_ref()
             .context("uploaded journal record lacks remote identity")?;
+        let current = if replace_file || after_replace {
+            let replaced = uploads[1]
+                .remote
+                .as_ref()
+                .context("replacement journal record lacks remote identity")?;
+            ensure!(
+                matches!(&uploads[1].intent, UploadIntent::Replace { item, expected_etag }
+                    if item == &uploaded.id && Some(expected_etag.as_str()) == uploaded.etag.as_deref()),
+                "replacement intent is not bound to the original receipt"
+            );
+            ensure!(
+                replaced.id != uploaded.id
+                    && replaced.name == uploaded.name
+                    && replaced.parent_id == uploaded.parent_id,
+                "replacement did not install a new ID at the same name and parent"
+            );
+            ensure!(
+                independent.exact_item_in_trash(&uploaded.id).await?,
+                "old replacement ID is not uniquely recoverable in Trash"
+            );
+            replaced
+        } else {
+            uploaded
+        };
         ensure!(
             uploaded.parent_id.as_deref() == Some(folder.id()),
             "uploaded receipt belongs to another parent"
@@ -355,7 +438,7 @@ async fn main() -> Result<()> {
             );
         } else {
             ensure!(
-                file.is_some_and(|entry| entry.drivewsid == uploaded.id),
+                file.is_some_and(|entry| entry.drivewsid == current.id),
                 "independent file identity differs from uploaded receipt"
             );
         }
@@ -392,15 +475,25 @@ async fn main() -> Result<()> {
                 .read_small_file_in_folder(folder.id(), &file.drivewsid)
                 .await?;
             ensure!(
-                bytes == b"Cirrove isolated mounted iCloud validation\n",
+                bytes
+                    == if replace_file || after_replace {
+                        b"Cirrove isolated mounted replacement\n".as_slice()
+                    } else {
+                        b"Cirrove isolated mounted iCloud validation\n".as_slice()
+                    },
                 "remote file bytes differ from mounted write"
             );
+            let receipt = if replace_file || after_replace {
+                &uploads[1]
+            } else {
+                &uploads[0]
+            };
             ensure!(
-                uploads[0].sha256 == hex::encode(Sha256::digest(&bytes)),
+                receipt.sha256 == hex::encode(Sha256::digest(&bytes)),
                 "journal digest differs from independent read"
             );
             ensure!(
-                uploads[0].size == bytes.len() as u64,
+                receipt.size == bytes.len() as u64,
                 "journal size differs from independent read"
             );
         }
@@ -408,6 +501,10 @@ async fn main() -> Result<()> {
             "Mounted fixture verified after {} by independent iCloud listing and journal receipts.",
             if remove_folder {
                 "recoverable folder removal"
+            } else if replace_file {
+                "two-ID replacement"
+            } else if after_replace {
+                "remount after replacement"
             } else if remove_file {
                 "recoverable file removal"
             } else if after_file_remove {
@@ -422,8 +519,9 @@ async fn main() -> Result<()> {
         );
         Ok::<(), anyhow::Error>(())
     };
+    let deadline = if replace_file { 900 } else { 360 };
     let result = tokio::select! {
-        result = tokio::time::timeout(Duration::from_secs(360), check) =>
+        result = tokio::time::timeout(Duration::from_secs(deadline), check) =>
             result.map_err(|_| anyhow::anyhow!("mounted iCloud validation timed out; fixture and journal retained"))?,
         _ = tokio::signal::ctrl_c() => Err(anyhow::anyhow!("mounted iCloud validation interrupted; fixture and journal retained")),
     };

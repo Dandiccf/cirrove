@@ -586,8 +586,8 @@ exact ID is absent from its parent and present with a restore path in a
 complete Trash listing. An unchanged item after an uncertain response is
 `Indeterminate`, never permission to resend. A one-run
 [live adapter trial](../benchmarks/icloud-owned-trash-adapter-2026-09-27.md)
-returned and independently reconciled `Removed`. It took over three minutes,
-and the adapter is not wired to the mounted service. The shared mutation
+returned and independently reconciled `Removed`. It took over three minutes;
+at the time of that trial the adapter was not wired to the mounted service. The shared mutation
 worker then completed a [durable owned-file Trash trial](../benchmarks/icloud-worker-trash-2026-09-27.md)
 after a journal fix that binds a `Removed` receipt to its exact prepared ID.
 In a [two-process lost-response trial](../benchmarks/icloud-worker-lost-trash-receipt-2026-09-27.md),
@@ -597,6 +597,23 @@ metadata and committed `Applied` without permission to send another delete.
 Both are single-fixture results. In-flight timeouts, concurrent edits, other
 account classes, folders, permanent deletion and restore remain open; normal
 iCloud mounts remain read-only.
+
+Later feature-gated mounted trials now cover
+[Create](../benchmarks/icloud-mounted-create-2026-09-28.md),
+[empty-folder Trash](../benchmarks/icloud-mounted-empty-folder-trash-2026-09-28.md),
+[file Trash](../benchmarks/icloud-mounted-file-trash-2026-09-28.md), and one
+[two-ID file replacement](../benchmarks/icloud-mounted-replace-2026-09-28.md)
+inside new Cirrove-owned validation folders. The replacement stages the sealed
+save bytes through the shared upload worker, checkpoints Apple's allocated
+document identity and content receipt, conditionally moves the old exact ID to
+recoverable Trash, then installs the staged exact ID under the original name.
+A fresh process read the new bytes through FUSE and independently found the old
+ID with a restore path in Trash without another mutation. The write arm's
+separate validator exited nonzero because its Trash predicate was inverted;
+that correction and two failed read-only checks remain in the same artifact.
+This is bounded functional evidence, not proof of atomicity, timeout recovery
+before Apple's response, concurrency safety, large-file support or ordinary
+iCloud write reliability. Normal iCloud mounts remain read-only.
 
 Reviewing another contemporary [Linux iCloud client implementation](https://github.com/IsmaeelAkram/icloud-linux/blob/master/driver.py#L1419-L1433)
 did not reveal a conditional replacement primitive: its file-sync path

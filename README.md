@@ -237,17 +237,21 @@ could still change its contents, so native write-back remains outside the previe
 iCloud Drive has a [direct Linux feasibility plan](docs/adr/0016-icloud-drive-needs-a-supported-transport.md).
 Existing Linux clients demonstrate access through Apple's undocumented web
 transport; a Fedora 44/GNOME installation was confirmed to mount iCloud Drive
-read/write through rclone FUSE. Cirrove will first validate stable identities, safe reads, complete
-refresh and account reauthentication in an isolated read-only probe. Its shared
-cache, pinning and FUSE engine are candidates for reuse if that gate passes;
-provider-side write conflicts and recovery remain a separate gate. Cirrove does
+read/write through rclone FUSE. Cirrove now has an experimental native read-only
+mount. Feature-gated, isolated FUSE validation has also exercised Cirrove-owned
+file and folder creation, recoverable deletion and one two-ID file replacement
+through the shared journals and workers; the
+[mounted replacement record](docs/benchmarks/icloud-mounted-replace-2026-09-28.md)
+keeps its validator failures alongside the successful read-only remount.
+Normal iCloud connections remain read-only while network interruption,
+concurrent edits, larger files and application behavior are unverified. Cirrove does
 not copy or depend on Stratosync or rclone at runtime, build time or in tests;
 lessons from those integrations inform the recovery tests. A
 [native read-only protocol probe](docs/icloud-native-probe.md) is available for
 interactive validation. One real account has passed sign-in, root listing, a
 small file download, a nonzero byte-range comparison and keyring-backed session
-resumption through Cirrove's native transport. Complete refresh, session renewal,
-content-revision semantics and the installed provider remain open.
+resumption through Cirrove's native transport. Complete refresh and long-session
+provider reliability remain open.
 
 ## License
 

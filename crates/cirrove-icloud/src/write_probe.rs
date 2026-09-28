@@ -330,6 +330,35 @@ impl ICloudReadSession {
         Ok((items.clone(), complete))
     }
 
+    /// Independent validation of one exact Trash identity, without exposing
+    /// provider response bodies to the caller.
+    pub async fn exact_item_in_trash(&mut self, id: &str) -> Result<bool> {
+        if id.is_empty() || !id.starts_with("FILE::com.apple.CloudDocs::") {
+            bail!("invalid iCloud validation Trash identity");
+        }
+        let (items, complete) = self.read_trash_items().await?;
+        if !complete {
+            bail!("iCloud validation Trash listing is incomplete");
+        }
+        let matches: Vec<_> = items
+            .iter()
+            .filter(|item| item.get("drivewsid").and_then(|value| value.as_str()) == Some(id))
+            .collect();
+        if matches.len() != 1 {
+            bail!(
+                "iCloud validation Trash has {} matches for the exact file ID",
+                matches.len()
+            );
+        }
+        if matches[0]
+            .get("restorePath")
+            .is_none_or(|path| path.is_null())
+        {
+            bail!("iCloud validation Trash item lacks a restore path");
+        }
+        Ok(true)
+    }
+
     async fn upload_probe_bytes(
         &mut self,
         name: &str,
