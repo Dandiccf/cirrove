@@ -1,10 +1,7 @@
 //! Two-ID replacement of one Cirrove-owned fixture through the shared worker.
 //! Apple rename is not conditional, so this is deliberately unavailable to the
 //! ordinary mount. Every uncertain phase requires exact-ID reconciliation.
-use super::{
-    HandoffObserved, HandoffPlan, ICloudReadSession,
-    write_probe::{PROBE_FILE, TRASH_ROOT},
-};
+use super::{HandoffObserved, HandoffPlan, ICloudReadSession, write_probe::TRASH_ROOT};
 use async_trait::async_trait;
 use cirrove_core::upload::{
     Reconciliation, RecoveryLocation, Result as UploadResult, UploadError, UploadIntent,
@@ -480,7 +477,11 @@ impl UploadProvider for ICloudOwnedFixtureHandoff {
                     RecoveryMode::Rename => session.move_staged_to_target(&self.plan).await,
                     RecoveryMode::Trash => {
                         session
-                            .send_rename(&self.plan.staged_id, &self.plan.staged_etag, PROBE_FILE)
+                            .send_rename(
+                                &self.plan.staged_id,
+                                &self.plan.staged_etag,
+                                &self.plan.target_name,
+                            )
                             .await
                     }
                 }
@@ -545,6 +546,7 @@ mod tests {
             staged_etag: "new-etag".into(),
             staged_name: format!("staged-by-cirrove-{}.txt", Uuid::new_v4()),
             recovery_name: format!("recovery-by-cirrove-{operation}.txt"),
+            target_name: "created-by-cirrove.txt".into(),
             original_sha256: hex::encode(Sha256::digest(b"old")),
             staged_sha256: hex::encode(Sha256::digest(b"new")),
         };
