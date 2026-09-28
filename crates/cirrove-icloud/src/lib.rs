@@ -8,6 +8,8 @@
 #[cfg(feature = "write-probe")]
 mod owned_folder;
 #[cfg(feature = "write-probe")]
+mod owned_folder_move;
+#[cfg(feature = "write-probe")]
 mod owned_folder_remove;
 #[cfg(feature = "write-probe")]
 mod owned_handoff;
@@ -25,6 +27,8 @@ mod sealed_session;
 mod write_probe;
 #[cfg(feature = "write-probe")]
 pub use owned_folder::ICloudOwnedFixtureFolderCreate;
+#[cfg(feature = "write-probe")]
+pub use owned_folder_move::ICloudOwnedFixtureFolderMove;
 #[cfg(feature = "write-probe")]
 pub use owned_folder_remove::ICloudOwnedFixtureFolderRemove;
 #[cfg(feature = "write-probe")]

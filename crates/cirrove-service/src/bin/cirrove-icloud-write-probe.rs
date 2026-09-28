@@ -12,10 +12,11 @@ use cirrove_core::upload::UploadRequest;
 use cirrove_core::{CancellationToken, Node, NodeKind, Scope};
 use cirrove_icloud::{
     EmptyFolderMoveOutcome, HandoffOutcome, ICloudOwnedFixtureFolderCreate,
-    ICloudOwnedFixtureFolderRemove, ICloudOwnedFixtureHandoff, ICloudOwnedFixtureMove,
-    ICloudOwnedFixtureRemove, ICloudOwnedFixtureUpload, ICloudOwnedMovePause, ICloudReadSession,
-    MoveCollisionOutcome, MoveProbeOutcome, OccupiedNameOutcome, RenameProbeOutcome,
-    SameIdUpdateOutcome, SealedSessionVault, TrashProbeOutcome, TrashRestoreOutcome,
+    ICloudOwnedFixtureFolderMove, ICloudOwnedFixtureFolderRemove, ICloudOwnedFixtureHandoff,
+    ICloudOwnedFixtureMove, ICloudOwnedFixtureRemove, ICloudOwnedFixtureUpload,
+    ICloudOwnedMovePause, ICloudReadSession, MoveCollisionOutcome, MoveProbeOutcome,
+    OccupiedNameOutcome, RenameProbeOutcome, SameIdUpdateOutcome, SealedSessionVault,
+    TrashProbeOutcome, TrashRestoreOutcome,
 };
 use cirrove_service::accounts::Settings;
 use cirrove_service::journal::{MutationState, UploadIntent, UploadJournal, UploadState};
@@ -187,8 +188,10 @@ async fn main() -> Result<()> {
         [flag] if flag == "--worker-move-collision-race" => 73,
         [flag] if flag == "--empty-folder-move" => 75,
         [flag, _run_id] if flag == "--inspect-empty-folder-move" => 76,
+        [flag] if flag == "--worker-discard-folder-move-response" => 77,
+        [flag, _run_id] if flag == "--worker-reconcile-folder-move" => 78,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --stale-etag-move | --fresh-etag-move | --metadata-stale-move | --occupied-move-name | --inspect-occupied-move | --inspect-owned-folder ID | --reconcile-occupied-move UUID | --worker-owned-move | --worker-discard-move-response | --worker-reconcile-move UUID | --worker-move-collision-race | --empty-folder-move | --inspect-empty-folder-move UUID | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create | --worker-streamed-binary-create | --worker-streamed-lost-registration | --worker-reconcile-streamed-registration | --worker-streamed-lost-content | --worker-retry-streamed-content | --worker-create-folder | --worker-discard-folder-receipt | --worker-reconcile-folder | --worker-discard-empty-folder-trash | --worker-reconcile-empty-folder-trash]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --stale-etag-move | --fresh-etag-move | --metadata-stale-move | --occupied-move-name | --inspect-occupied-move | --inspect-owned-folder ID | --reconcile-occupied-move UUID | --worker-owned-move | --worker-discard-move-response | --worker-reconcile-move UUID | --worker-move-collision-race | --empty-folder-move | --inspect-empty-folder-move UUID | --worker-discard-folder-move-response | --worker-reconcile-folder-move UUID | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create | --worker-streamed-binary-create | --worker-streamed-lost-registration | --worker-reconcile-streamed-registration | --worker-streamed-lost-content | --worker-retry-streamed-content | --worker-create-folder | --worker-discard-folder-receipt | --worker-reconcile-folder | --worker-discard-empty-folder-trash | --worker-reconcile-empty-folder-trash]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -219,6 +222,94 @@ async fn main() -> Result<()> {
         .list_root()
         .await
         .context("saved iCloud session is not usable")?;
+    if mode == 78 {
+        let run_id = Uuid::parse_str(&arguments[1]).context("invalid folder-move run ID")?;
+        let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+            "../../.local-state/icloud-worker-folder-move-{run_id}"
+        ));
+        let fixture: EmptyFolderMoveFixture =
+            serde_json::from_slice(&fs::read(directory.join("fixture.json"))?)?;
+        if fixture.account_id != account.id {
+            bail!("folder-move record belongs to a different account");
+        }
+        let source = session
+            .validation_folder_at_root(&fixture.source_id)
+            .await?;
+        let destination = session
+            .validation_folder_at_root(&fixture.destination_id)
+            .await?;
+        if source.name() != fixture.source_name
+            || destination.name() != fixture.destination_name
+            || source.id() == destination.id()
+        {
+            bail!("recorded folder-move parent identity changed");
+        }
+        let journal = Arc::new(Mutex::new(UploadJournal::open(
+            &directory,
+            &account.id,
+            8192,
+        )?));
+        let record = {
+            let guard = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock"))?;
+            let rows = guard.list_mutations(0, 2)?;
+            if rows.len() != 1 || rows[0].state != MutationState::VerifyRequired {
+                bail!("expected exactly one uncertain folder move");
+            }
+            rows.into_iter().next().context("folder move missing")?
+        };
+        let MutationIntent::Relocate {
+            before,
+            parent,
+            name,
+        } = &record.request.intent
+        else {
+            bail!("uncertain mutation is not a folder move");
+        };
+        if before.kind != NodeKind::Folder
+            || before.id != fixture.nested_id
+            || before.name != fixture.nested_name
+            || before.etag.as_deref() != Some(fixture.nested_etag.as_str())
+            || before.parent_id.as_deref() != Some(source.id())
+            || parent != destination.id()
+            || name != &fixture.nested_name
+            || record.prepared_item.as_deref() != Some(before.id.as_str())
+        {
+            bail!("uncertain folder move lacks its exact prepared identity");
+        }
+        let provider = Arc::new(ICloudOwnedFixtureFolderMove::for_reconciliation(
+            record.request.scope.clone(),
+            session,
+            source,
+            destination,
+            before.clone(),
+        )?);
+        let worker = MutationWorker::new(journal.clone(), provider, CancellationToken::new());
+        let result = worker
+            .run_once()
+            .await?
+            .context("folder move was not claimed")?;
+        let saved = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock"))?
+            .mutation(record.id)?;
+        if result.id != record.id
+            || result.state != MutationState::Applied
+            || result.issue.is_some()
+            || !saved
+                .receipt
+                .as_ref()
+                .is_some_and(|receipt| record.request.accepts(receipt))
+        {
+            bail!("restarted worker could not reconcile exact empty-folder move");
+        }
+        println!(
+            "Restarted worker reconciled exact empty-folder move without another request. Operation: {}.",
+            record.id
+        );
+        return Ok(());
+    }
     if mode == 76 {
         let run_id = Uuid::parse_str(&arguments[1]).context("invalid folder-move run ID")?;
         let path = empty_folder_move_fixture_directory().join(format!("{run_id}.json"));
@@ -1478,6 +1569,89 @@ async fn main() -> Result<()> {
     let name = format!("Cirrove Write Validation-{}", Uuid::new_v4());
     let folder = session.create_validation_folder(&name).await?;
     println!("Created and listed the isolated iCloud validation folder.");
+    if mode == 77 {
+        let destination = session
+            .create_validation_folder(&format!("Cirrove Write Validation-{}", Uuid::new_v4()))
+            .await?;
+        let nested_name = format!("Cirrove Nested Move-{}", Uuid::new_v4());
+        let (nested, etag) = session
+            .create_empty_nested_move_fixture(&folder, &nested_name)
+            .await?;
+        let fixture = EmptyFolderMoveFixture {
+            account_id: account.id.clone(),
+            source_id: folder.id().to_owned(),
+            source_name: folder.name().to_owned(),
+            destination_id: destination.id().to_owned(),
+            destination_name: destination.name().to_owned(),
+            nested_id: nested.id().to_owned(),
+            nested_name: nested.name().to_owned(),
+            nested_etag: etag.clone(),
+        };
+        let scope = Scope {
+            account: account.id.clone(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        };
+        let provider = ICloudOwnedFixtureFolderMove::new(
+            scope.clone(),
+            session,
+            folder,
+            destination.clone(),
+            nested,
+            etag,
+        )?;
+        let request = MutationRequest {
+            scope,
+            intent: MutationIntent::Relocate {
+                before: provider.before_node(),
+                parent: destination.id().to_owned(),
+                name: nested_name,
+            },
+        };
+        let run_id = Uuid::new_v4();
+        let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+            "../../.local-state/icloud-worker-folder-move-{run_id}"
+        ));
+        let journal = Arc::new(Mutex::new(UploadJournal::open(
+            &directory,
+            &account.id,
+            8192,
+        )?));
+        let mut fixture_file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(directory.join("fixture.json"))?;
+        fixture_file.write_all(&serde_json::to_vec_pretty(&fixture)?)?;
+        fixture_file.write_all(b"\n")?;
+        fixture_file.sync_all()?;
+        fs::File::open(&directory)?.sync_all()?;
+        let queued = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock"))?
+            .enqueue_mutation(request.clone())?;
+        println!("Owned empty-folder move journal recorded as {run_id} before the request.");
+        let provider = Arc::new(provider.with_discarded_response());
+        let worker = MutationWorker::new(journal.clone(), provider, CancellationToken::new());
+        let result = worker
+            .run_once()
+            .await?
+            .context("empty-folder move was not claimed")?;
+        let saved = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock"))?
+            .mutation(queued.id)?;
+        if result.id != queued.id
+            || result.state != MutationState::VerifyRequired
+            || saved.prepared_item.as_deref()
+                != request.intent.before().map(|node| node.id.as_str())
+        {
+            bail!("discarded empty-folder move response lost prepared identity");
+        }
+        println!(
+            "Empty-folder move response deliberately discarded; run --worker-reconcile-folder-move {run_id} in a new process."
+        );
+        return Ok(());
+    }
     if mode == 75 {
         let destination = session
             .create_validation_folder(&format!("Cirrove Write Validation-{}", Uuid::new_v4()))
