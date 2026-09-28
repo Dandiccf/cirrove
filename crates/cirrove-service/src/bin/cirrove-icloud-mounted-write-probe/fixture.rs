@@ -15,7 +15,8 @@ use cirrove_core::{
 use cirrove_icloud::{
     ICloudDrive, ICloudOwnedFixtureFileRename, ICloudOwnedFixtureFolderCreate,
     ICloudOwnedFixtureFolderRemove, ICloudOwnedFixtureFolderRename, ICloudOwnedFixtureRemove,
-    ICloudOwnedFixtureUpload, ICloudOwnedMountedReplace, ICloudReadSession, ValidationFolder,
+    ICloudOwnedFixtureUpload, ICloudOwnedMountedFileMove, ICloudOwnedMountedReplace,
+    ICloudReadSession, ValidationFolder,
 };
 use cirrove_service::journal::{MutationState, UploadJournal, UploadRecord, UploadState};
 use secrecy::SecretString;
@@ -444,6 +445,77 @@ impl Fixture {
         }
     }
 
+    fn guard_move_file(
+        &self,
+        request: &MutationRequest,
+    ) -> cirrove_core::mutation::Result<(Node, Node, String)> {
+        request.validate()?;
+        let MutationIntent::Relocate {
+            before,
+            parent,
+            name,
+        } = &request.intent
+        else {
+            return Err(MutationError::Invalid);
+        };
+        if request.scope != self.scope
+            || before.kind != NodeKind::File
+            || before.parent_id.as_deref() != Some(&self.root.id)
+            || parent == &self.root.id
+            || name != &before.name
+            || !self.owns(&request.scope, parent)
+        {
+            return Err(MutationError::Invalid);
+        }
+        let (before, digest) = self.guard_remove_file(&MutationRequest {
+            scope: request.scope.clone(),
+            intent: MutationIntent::RemoveFile {
+                before: before.clone(),
+            },
+        })?;
+        let journal = self
+            .removal
+            .journal
+            .lock()
+            .map_err(|_| MutationError::Uncertain)?;
+        let destination =
+            confirmed_owned_child_folder(&journal, &self.scope, &self.root.id, parent)?;
+        Ok((before, destination, digest))
+    }
+
+    fn file_mover(
+        &self,
+        before: Node,
+        destination: Node,
+        digest: String,
+        reconciliation_only: bool,
+    ) -> cirrove_core::mutation::Result<ICloudOwnedMountedFileMove> {
+        let session = ICloudReadSession::from_session_snapshot(
+            &self.removal.snapshot,
+            &self.removal.apple_id,
+        )
+        .map_err(|_| MutationError::Uncertain)?;
+        if reconciliation_only {
+            ICloudOwnedMountedFileMove::for_reconciliation(
+                self.scope.clone(),
+                session,
+                self.removal.folder.clone(),
+                destination,
+                before,
+                digest,
+            )
+        } else {
+            ICloudOwnedMountedFileMove::new(
+                self.scope.clone(),
+                session,
+                self.removal.folder.clone(),
+                destination,
+                before,
+                digest,
+            )
+        }
+    }
+
     fn removed_receipt(
         &self,
         request: &MutationRequest,
@@ -475,6 +547,60 @@ impl Fixture {
             .remove(&before.id);
         Ok(())
     }
+}
+
+fn confirmed_owned_child_folder(
+    journal: &UploadJournal,
+    scope: &Scope,
+    root: &str,
+    id: &str,
+) -> cirrove_core::mutation::Result<Node> {
+    let mut after = 0;
+    let mut folder = None;
+    loop {
+        let rows = journal
+            .list_mutations(after, 256)
+            .map_err(|_| MutationError::Uncertain)?;
+        if rows.is_empty() {
+            break;
+        }
+        for row in &rows {
+            if row.state == MutationState::Applied {
+                match (&row.request.intent, row.receipt.as_ref()) {
+                    (
+                        MutationIntent::CreateFolder { parent, name },
+                        Some(MutationReceipt::Upsert(node)),
+                    ) if node.id == id => {
+                        let valid = row.request.scope == *scope
+                            && parent == root
+                            && name == "Mounted Folder"
+                            && node.name == *name
+                            && node.parent_id.as_deref() == Some(root)
+                            && node.kind == NodeKind::Folder
+                            && node.target.is_none()
+                            && !node.package;
+                        if !valid {
+                            return Err(MutationError::Invalid);
+                        }
+                        if folder.replace(node.clone()).is_some() {
+                            return Err(MutationError::Invalid);
+                        }
+                    }
+                    _ => {}
+                }
+                if let MutationIntent::RemoveFolder { before } = &row.request.intent
+                    && before.id == id
+                {
+                    return Err(MutationError::Invalid);
+                }
+            }
+        }
+        after = rows.last().expect("nonempty page").sequence;
+        if after > 100_000 {
+            return Err(MutationError::Invalid);
+        }
+    }
+    folder.ok_or(MutationError::Invalid)
 }
 
 fn confirmed_current_file_digest(
@@ -642,6 +768,7 @@ pub fn restored_owned(
     root: &str,
 ) -> Result<HashSet<String>> {
     let mut owned = HashSet::new();
+    let mut owned_folders = HashSet::new();
     let mut after = 0;
     loop {
         let rows = journal.list(after, 256)?;
@@ -717,12 +844,13 @@ pub fn restored_owned(
                     name,
                 } => ensure!(
                     before.parent_id.as_deref() == Some(root)
-                        && parent == root
                         && ((before.kind == NodeKind::Folder
+                            && parent == root
                             && before.name == "Mounted Folder"
                             && name == "Mounted Renamed")
                             || (before.kind == NodeKind::File
-                                && before.name != *name
+                                && ((parent == root && before.name != *name)
+                                    || (owned_folders.contains(parent) && before.name == *name))
                                 && row.request.validate().is_ok()))
                         && owned.contains(&before.id),
                     "non-fixture rename in isolated journal"
@@ -743,15 +871,23 @@ pub fn restored_owned(
                             owned.insert(node.id.clone()),
                             "duplicate remote identity in isolated journal"
                         );
+                        owned_folders.insert(node.id.clone());
                     }
                     (
                         MutationIntent::RemoveFolder { before },
                         MutationReceipt::Removed { item },
-                    )
-                    | (MutationIntent::RemoveFile { before }, MutationReceipt::Removed { item }) => {
+                    ) => {
                         ensure!(
                             item == &before.id && row.request.accepts(receipt),
                             "removed folder receipt does not match its owned identity"
+                        );
+                        owned.remove(item);
+                        owned_folders.remove(item);
+                    }
+                    (MutationIntent::RemoveFile { before }, MutationReceipt::Removed { item }) => {
+                        ensure!(
+                            item == &before.id && row.request.accepts(receipt),
+                            "removed file receipt does not match its owned identity"
                         );
                         owned.remove(item);
                     }
@@ -854,6 +990,60 @@ mod tests {
             confirmed_current_file_digest(&journal, &scope, "fixture-root", &original).is_err(),
             "the old version must not authorize another edit"
         );
+    }
+
+    #[test]
+    fn owned_nested_destination_survives_journal_restore() {
+        let private = tempfile::tempdir().unwrap();
+        let mut journal =
+            UploadJournal::open(&private.path().join("journal"), "account-a", 1024 * 1024).unwrap();
+        let scope = scope();
+        let file = node("file-a", NodeKind::File, "Mounted Create.txt");
+        let upload = journal
+            .enqueue(
+                scope.clone(),
+                UploadIntent::Create {
+                    parent: "fixture-root".into(),
+                    name: file.name.clone(),
+                },
+                b"ab".as_slice(),
+            )
+            .unwrap();
+        let claimed = journal.claim_next().unwrap().unwrap();
+        journal
+            .acknowledge(upload.id, claimed.attempt.unwrap(), file.clone())
+            .unwrap();
+        let folder = node("folder-a", NodeKind::Folder, "Mounted Folder");
+        let create = journal
+            .enqueue_mutation(MutationRequest {
+                scope: scope.clone(),
+                intent: MutationIntent::CreateFolder {
+                    parent: "fixture-root".into(),
+                    name: folder.name.clone(),
+                },
+            })
+            .unwrap();
+        let claimed = journal.claim_mutation().unwrap().unwrap();
+        journal
+            .acknowledge_mutation(
+                create.id,
+                claimed.attempt.unwrap(),
+                MutationReceipt::Upsert(folder.clone()),
+            )
+            .unwrap();
+        journal
+            .enqueue_mutation(MutationRequest {
+                scope: scope.clone(),
+                intent: MutationIntent::Relocate {
+                    before: file,
+                    parent: folder.id.clone(),
+                    name: "Mounted Create.txt".into(),
+                },
+            })
+            .unwrap();
+        let owned = restored_owned(&journal, &scope, "fixture-root").unwrap();
+        assert!(owned.contains(&folder.id));
+        assert!(owned.contains("file-a"));
     }
 
     #[test]
@@ -960,10 +1150,30 @@ impl ReadProvider for Fixture {
             .read
             .children(scope, &self.root.id, None, cancel)
             .await?;
-        page.nodes
-            .into_iter()
+        if let Some(node) = page
+            .nodes
+            .iter()
             .find(|node| node.id == id && node.parent_id.as_ref() == Some(&self.root.id))
-            .ok_or(ProviderError::Unavailable)
+        {
+            return Ok(node.clone());
+        }
+        // A confirmed move may put an owned file one level below the test
+        // root. Resolve its exact parent ID; never search by a path/name.
+        for folder in page.nodes.iter().filter(|node| {
+            node.kind == NodeKind::Folder
+                && node.parent_id.as_ref() == Some(&self.root.id)
+                && self.owns(scope, &node.id)
+        }) {
+            let nested = self.read.children(scope, &folder.id, None, cancel).await?;
+            if let Some(node) = nested
+                .nodes
+                .into_iter()
+                .find(|node| node.id == id && node.parent_id.as_ref() == Some(&folder.id))
+            {
+                return Ok(node);
+            }
+        }
+        Err(ProviderError::Unavailable)
     }
 
     async fn children(
@@ -1001,11 +1211,21 @@ impl ReadProvider for Fixture {
         length: u32,
         cancel: &CancellationToken,
     ) -> Result<Vec<u8>, ProviderError> {
-        if !self.owns(scope, &node.id)
-            || node.id == self.root.id
-            || node.parent_id.as_ref() != Some(&self.root.id)
-        {
+        if !self.owns(scope, &node.id) || node.id == self.root.id {
             return Err(ProviderError::Permission);
+        }
+        if node.parent_id.as_ref() != Some(&self.root.id) {
+            let Some(parent) = node.parent_id.as_deref() else {
+                return Err(ProviderError::Permission);
+            };
+            if !self.owns(scope, parent) {
+                return Err(ProviderError::Permission);
+            }
+            let folder = self.node(scope, parent, cancel).await?;
+            if folder.kind != NodeKind::Folder || folder.parent_id.as_deref() != Some(&self.root.id)
+            {
+                return Err(ProviderError::Permission);
+            }
         }
         self.read
             .read_range(scope, node, offset, length, cancel)
@@ -1156,7 +1376,11 @@ impl MutationProvider for Fixture {
                     .prepare_mutation(r, c)
                     .await
             }
-            MutationIntent::Relocate { before, name, .. } => match before.kind {
+            MutationIntent::Relocate {
+                before,
+                parent,
+                name,
+            } => match before.kind {
                 NodeKind::Folder => {
                     let before = self.guard_rename_folder(r)?;
                     self.folder_renamer(before, false)?
@@ -1164,10 +1388,17 @@ impl MutationProvider for Fixture {
                         .await
                 }
                 NodeKind::File => {
-                    let (before, digest) = self.guard_rename_file(r)?;
-                    self.file_renamer(before, name.clone(), digest, false)?
-                        .prepare_mutation(r, c)
-                        .await
+                    if parent == &self.root.id {
+                        let (before, digest) = self.guard_rename_file(r)?;
+                        self.file_renamer(before, name.clone(), digest, false)?
+                            .prepare_mutation(r, c)
+                            .await
+                    } else {
+                        let (before, destination, digest) = self.guard_move_file(r)?;
+                        self.file_mover(before, destination, digest, false)?
+                            .prepare_mutation(r, c)
+                            .await
+                    }
                 }
                 NodeKind::Shortcut => Err(MutationError::Invalid),
             },
@@ -1224,7 +1455,11 @@ impl MutationProvider for Fixture {
                 self.removed_file_receipt(r, &receipt)?;
                 Ok(receipt)
             }
-            MutationIntent::Relocate { before, name, .. } => {
+            MutationIntent::Relocate {
+                before,
+                parent,
+                name,
+            } => {
                 let receipt = match before.kind {
                     NodeKind::Folder => {
                         let before = self.guard_rename_folder(r)?;
@@ -1233,10 +1468,17 @@ impl MutationProvider for Fixture {
                             .await?
                     }
                     NodeKind::File => {
-                        let (before, digest) = self.guard_rename_file(r)?;
-                        self.file_renamer(before, name.clone(), digest, false)?
-                            .mutate_prepared(r, prepared, c)
-                            .await?
+                        if parent == &self.root.id {
+                            let (before, digest) = self.guard_rename_file(r)?;
+                            self.file_renamer(before, name.clone(), digest, false)?
+                                .mutate_prepared(r, prepared, c)
+                                .await?
+                        } else {
+                            let (before, destination, digest) = self.guard_move_file(r)?;
+                            self.file_mover(before, destination, digest, false)?
+                                .mutate_prepared(r, prepared, c)
+                                .await?
+                        }
                     }
                     NodeKind::Shortcut => return Err(MutationError::Invalid),
                 };
@@ -1286,7 +1528,11 @@ impl MutationProvider for Fixture {
                 }
                 Ok(result)
             }
-            MutationIntent::Relocate { before, name, .. } => {
+            MutationIntent::Relocate {
+                before,
+                parent,
+                name,
+            } => {
                 let result = match before.kind {
                     NodeKind::Folder => {
                         let before = self.guard_rename_folder(r)?;
@@ -1295,10 +1541,17 @@ impl MutationProvider for Fixture {
                             .await?
                     }
                     NodeKind::File => {
-                        let (before, digest) = self.guard_rename_file(r)?;
-                        self.file_renamer(before, name.clone(), digest, true)?
-                            .reconcile_prepared_mutation(r, prepared, c)
-                            .await?
+                        if parent == &self.root.id {
+                            let (before, digest) = self.guard_rename_file(r)?;
+                            self.file_renamer(before, name.clone(), digest, true)?
+                                .reconcile_prepared_mutation(r, prepared, c)
+                                .await?
+                        } else {
+                            let (before, destination, digest) = self.guard_move_file(r)?;
+                            self.file_mover(before, destination, digest, true)?
+                                .reconcile_prepared_mutation(r, prepared, c)
+                                .await?
+                        }
                     }
                     NodeKind::Shortcut => return Err(MutationError::Invalid),
                 };

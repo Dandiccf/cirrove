@@ -59,6 +59,10 @@ impl Writeback {
         let mut node = file.node.clone();
         if let Some(remote) = object.and_then(|o| o.remote.as_ref()) {
             node.id = remote.id.clone();
+            // A local directory identity can differ from its confirmed
+            // provider identity after a move. Providers that address file
+            // bytes by both item and parent need the remote parent here.
+            node.parent_id = remote.parent_id.clone();
         }
         // Registration and switching to working bytes use the same short lock.
         // The token is a counter, not a filesystem lock held during network I/O.

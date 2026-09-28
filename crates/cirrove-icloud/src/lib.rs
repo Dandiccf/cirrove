@@ -18,6 +18,8 @@ mod owned_folder_rename;
 #[cfg(feature = "write-probe")]
 mod owned_handoff;
 #[cfg(feature = "write-probe")]
+mod owned_mounted_file_move;
+#[cfg(feature = "write-probe")]
 mod owned_mounted_replace;
 #[cfg(feature = "write-probe")]
 mod owned_move;
@@ -41,6 +43,8 @@ pub use owned_folder_remove::ICloudOwnedFixtureFolderRemove;
 pub use owned_folder_rename::ICloudOwnedFixtureFolderRename;
 #[cfg(feature = "write-probe")]
 pub use owned_handoff::ICloudOwnedFixtureHandoff;
+#[cfg(feature = "write-probe")]
+pub use owned_mounted_file_move::ICloudOwnedMountedFileMove;
 #[cfg(feature = "write-probe")]
 pub use owned_mounted_replace::ICloudOwnedMountedReplace;
 #[cfg(feature = "write-probe")]

@@ -239,15 +239,19 @@ Existing Linux clients demonstrate access through Apple's undocumented web
 transport; a Fedora 44/GNOME installation was confirmed to mount iCloud Drive
 read/write through rclone FUSE. Cirrove now has an experimental native read-only
 mount. Feature-gated, isolated FUSE validation has also exercised Cirrove-owned
-file and folder creation, recoverable deletion and one two-ID file replacement
-through the shared journals and workers; the
+file and folder creation, recoverable deletion, conditional rename, one
+cross-folder file move and one two-ID file replacement through the shared
+journals and workers; the
 [mounted replacement record](docs/benchmarks/icloud-mounted-replace-2026-09-28.md)
 keeps its validator failures alongside the successful read-only remount.
 The isolated replacement code can verify up to 32 MiB per file with bounded
 streaming hashes, including its Trash backup. One
 [5-to-6-MiB live replacement](docs/benchmarks/icloud-mounted-large-replace-2026-09-28.md)
 and fresh-process read-only remount passed, but the replacement arm took over
-eight minutes. Normal iCloud connections remain read-only while network
+eight minutes. The
+[mounted file-move record](docs/benchmarks/icloud-mounted-file-move-2026-09-29.md)
+also retains the failed first remount and its shared read-path correction.
+Normal iCloud connections remain read-only while network
 interruption, concurrent edits, broader file sizes and application behavior
 are unverified. Cirrove does
 not copy or depend on Stratosync or rclone at runtime, build time or in tests;
