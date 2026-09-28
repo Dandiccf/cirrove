@@ -59,6 +59,8 @@ jobs:
       - run: cargo test --workspace --locked
       - name: Feature-gated iCloud write adapter tests
         run: cargo test -p cirrove-icloud --features write-probe --locked
+      - name: Feature-gated mounted iCloud ownership tests
+        run: cargo test -p cirrove-service --features icloud-write-probe --bin cirrove-icloud-mounted-write-probe --locked
       # Package-specific feature resolution can rebuild dependencies. Keep that
       # compilation outside the native window's unchanged runtime deadline.
       - name: Build native desktop test

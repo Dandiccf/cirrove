@@ -1,4 +1,5 @@
 //! The only writable iCloud namespace here is a freshly created Cirrove test folder.
+use anyhow::{Result, ensure};
 use cirrove_core::mutation::{
     MutationError, MutationIntent, MutationProvider, MutationReceipt, MutationReconciliation,
     MutationRequest,
@@ -11,6 +12,7 @@ use cirrove_core::{
     Node, NodeKind, ProviderError, ReadProvider, Scope,
 };
 use cirrove_icloud::{ICloudDrive, ICloudOwnedFixtureFolderCreate, ICloudOwnedFixtureUpload};
+use cirrove_service::journal::{MutationState, UploadJournal, UploadState};
 use secrecy::SecretString;
 use std::{collections::HashSet, fs::File, sync::Mutex};
 
@@ -30,6 +32,7 @@ impl Fixture {
         read: ICloudDrive,
         upload: ICloudOwnedFixtureUpload,
         folders: ICloudOwnedFixtureFolderCreate,
+        owned: HashSet<String>,
     ) -> Self {
         Self {
             scope,
@@ -37,7 +40,7 @@ impl Fixture {
             read,
             upload,
             folders,
-            owned: Mutex::new(HashSet::new()),
+            owned: Mutex::new(owned),
         }
     }
 
@@ -113,6 +116,205 @@ impl Fixture {
             .map_err(|_| MutationError::Uncertain)?
             .insert(node.id.clone());
         Ok(())
+    }
+}
+
+fn confirmed_file(
+    scope: &Scope,
+    root: &str,
+    request_scope: &Scope,
+    intent: &UploadIntent,
+    node: &Node,
+) -> bool {
+    let UploadIntent::Create { parent, name } = intent else {
+        return false;
+    };
+    request_scope == scope
+        && parent == root
+        && !node.id.is_empty()
+        && node.kind == NodeKind::File
+        && node.parent_id.as_deref() == Some(root)
+        && &node.name == name
+        && node.etag.as_ref().is_some_and(|etag| !etag.is_empty())
+        && node.target.is_none()
+        && !node.package
+}
+
+fn confirmed_folder(
+    scope: &Scope,
+    root: &str,
+    request: &MutationRequest,
+    receipt: &MutationReceipt,
+) -> bool {
+    request.scope == *scope
+        && matches!(&request.intent, MutationIntent::CreateFolder { parent, .. } if parent == root)
+        && request.accepts(receipt)
+        && matches!(receipt, MutationReceipt::Upsert(node)
+            if node.kind == NodeKind::Folder && !node.id.is_empty() && node.target.is_none() && !node.package)
+}
+
+/// Recover only identities whose durable, successful receipts belong to this
+/// exact account, collection and run-owned root. An uncertain operation stays
+/// under the shared worker's reconciliation instead of becoming readable by a
+/// same-name guess. No provider request occurs while the journal is read.
+pub fn restored_owned(
+    journal: &UploadJournal,
+    scope: &Scope,
+    root: &str,
+) -> Result<HashSet<String>> {
+    let mut owned = HashSet::new();
+    let mut after = 0;
+    loop {
+        let rows = journal.list(after, 256)?;
+        if rows.is_empty() {
+            break;
+        }
+        for row in &rows {
+            ensure!(
+                row.scope == *scope,
+                "foreign account in isolated upload journal"
+            );
+            ensure!(
+                matches!(&row.intent, UploadIntent::Create { parent, .. } if parent == root),
+                "non-fixture upload in isolated journal"
+            );
+            if row.state == UploadState::Uploaded {
+                let node = row
+                    .remote
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("uploaded fixture lacks remote receipt"))?;
+                ensure!(
+                    confirmed_file(scope, root, &row.scope, &row.intent, node),
+                    "uploaded fixture receipt does not match its create intent"
+                );
+                ensure!(
+                    owned.insert(node.id.clone()),
+                    "duplicate remote identity in isolated journal"
+                );
+            }
+        }
+        after = rows.last().expect("nonempty page").sequence;
+        ensure!(after <= 100_000, "isolated fixture journal exceeds bound");
+    }
+    after = 0;
+    loop {
+        let rows = journal.list_mutations(after, 256)?;
+        if rows.is_empty() {
+            break;
+        }
+        for row in &rows {
+            ensure!(
+                row.request.scope == *scope,
+                "foreign account in isolated mutation journal"
+            );
+            ensure!(
+                matches!(&row.request.intent, MutationIntent::CreateFolder { parent, .. } if parent == root),
+                "non-fixture mutation in isolated journal"
+            );
+            if row.state == MutationState::Applied {
+                let receipt = row
+                    .receipt
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("applied folder lacks remote receipt"))?;
+                ensure!(
+                    confirmed_folder(scope, root, &row.request, receipt),
+                    "applied folder receipt does not match its create intent"
+                );
+                let MutationReceipt::Upsert(node) = receipt else {
+                    unreachable!("confirmed folder is an upsert")
+                };
+                ensure!(
+                    owned.insert(node.id.clone()),
+                    "duplicate remote identity in isolated journal"
+                );
+            }
+        }
+        after = rows.last().expect("nonempty page").sequence;
+        ensure!(after <= 100_000, "isolated fixture journal exceeds bound");
+    }
+    Ok(owned)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn scope() -> Scope {
+        Scope {
+            account: "account-a".into(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        }
+    }
+
+    fn node(id: &str, kind: NodeKind, name: &str) -> Node {
+        Node {
+            id: id.into(),
+            parent_id: Some("fixture-root".into()),
+            name: name.into(),
+            kind,
+            size: 2,
+            modified_unix: 0,
+            etag: Some("etag".into()),
+            content_version: None,
+            target: None,
+            package: false,
+        }
+    }
+
+    #[test]
+    fn recovered_ids_require_exact_scope_parent_intent_and_receipt() {
+        let scope = scope();
+        let file = node("file-a", NodeKind::File, "Owned.txt");
+        let intent = UploadIntent::Create {
+            parent: "fixture-root".into(),
+            name: "Owned.txt".into(),
+        };
+        assert!(confirmed_file(
+            &scope,
+            "fixture-root",
+            &scope,
+            &intent,
+            &file
+        ));
+        let foreign = Scope {
+            account: "other-account".into(),
+            ..scope.clone()
+        };
+        assert!(!confirmed_file(
+            &scope,
+            "fixture-root",
+            &foreign,
+            &intent,
+            &file
+        ));
+        assert!(!confirmed_file(
+            &scope,
+            "other-root",
+            &scope,
+            &intent,
+            &file
+        ));
+        let request = MutationRequest {
+            scope: scope.clone(),
+            intent: MutationIntent::CreateFolder {
+                parent: "fixture-root".into(),
+                name: "Owned Folder".into(),
+            },
+        };
+        let folder = node("folder-a", NodeKind::Folder, "Owned Folder");
+        assert!(confirmed_folder(
+            &scope,
+            "fixture-root",
+            &request,
+            &MutationReceipt::Upsert(folder.clone())
+        ));
+        assert!(!confirmed_folder(
+            &scope,
+            "other-root",
+            &request,
+            &MutationReceipt::Upsert(folder)
+        ));
     }
 }
 

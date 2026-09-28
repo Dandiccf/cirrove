@@ -76,7 +76,10 @@ directories on btrfs. The local fixture is retained in the private
 repeats were recorded, so this is still only functional evidence.
 
 The mount adapter currently admits only file Create and folder Create directly
-inside the fresh test root. Its in-memory allowlist is not reconstructed from
-the durable journal after a process restart. Ordinary user iCloud mounts remain
-read-only; replacement, deletion, nested writes, restart reconciliation and
-external concurrent edits need mounted acceptance before enabling them.
+inside the fresh test root. At the time of these runs, its in-memory allowlist
+was not reconstructed after restart. A later isolated remount now reconstructs
+confirmed IDs from the durable journal; see
+[the restart artifact](icloud-mounted-restart-2026-09-28.md). Ordinary user
+iCloud mounts remain read-only; replacement, deletion, nested writes,
+uncertain-operation restart reconciliation and external concurrent edits need
+mounted acceptance before enabling them.

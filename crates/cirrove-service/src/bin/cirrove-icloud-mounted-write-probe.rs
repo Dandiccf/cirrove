@@ -3,7 +3,7 @@
 #[path = "cirrove-icloud-mounted-write-probe/fixture.rs"]
 mod fixture;
 
-use anyhow::{Context, Result, ensure};
+use anyhow::{Context, Result, bail, ensure};
 use cirrove_auth::{AccessMode, AppRegistration, CredentialVault, DesktopVault};
 use cirrove_core::mutation::MutationReceipt;
 use cirrove_core::{Node, NodeKind, Scope};
@@ -18,7 +18,7 @@ use cirrove_service::{
     private_dir,
     writable::WritableSession,
 };
-use fixture::Fixture;
+use fixture::{Fixture, restored_owned};
 use sha2::{Digest, Sha256};
 use std::{
     path::Path,
@@ -41,8 +41,24 @@ finally:
 os.mkdir(os.path.join(mount, 'Mounted Folder'))
 "#;
 
+const APP_READ: &str = r#"
+import os, sys
+mount = sys.argv[1]
+with open(os.path.join(mount, 'Mounted Create.txt'), 'rb') as f:
+    assert f.read() == b'Cirrove isolated mounted iCloud validation\n'
+assert os.path.isdir(os.path.join(mount, 'Mounted Folder'))
+"#;
+
 #[tokio::main]
 async fn main() -> Result<()> {
+    let args: Vec<_> = std::env::args().skip(1).collect();
+    let resume = match args.as_slice() {
+        [] => None,
+        [flag, id] if flag == "--resume" => {
+            Some(Uuid::parse_str(id).context("invalid fixture run ID")?)
+        }
+        _ => bail!("usage: cirrove-icloud-mounted-write-probe [--resume RUN_UUID]"),
+    };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../.local-state/icloud-gui-connect-validation/state")
         .canonicalize()
@@ -68,19 +84,41 @@ async fn main() -> Result<()> {
         .context("isolated iCloud session missing; sign in locally")?;
     let apple_id = &account.identity.username;
     let mut creator = ICloudReadSession::from_session_snapshot(&snapshot, apple_id)?;
-    creator
+    let root_entries = creator
         .list_root()
         .await
         .context("isolated iCloud session is not usable")?;
 
-    let run = Uuid::new_v4();
+    let run = resume.unwrap_or_else(Uuid::new_v4);
     let run_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join(format!("../../.local-state/icloud-mounted-write-{run}"));
+    if resume.is_some() {
+        ensure!(
+            run_dir.is_dir(),
+            "isolated fixture run directory is missing"
+        );
+    }
     private_dir(&run_dir)?;
-    let folder = creator
-        .create_validation_folder(&format!("Cirrove Write Validation-{run}"))
-        .await
-        .context("creating the dedicated iCloud test folder")?;
+    let folder = if resume.is_some() {
+        let name = format!("Cirrove Write Validation-{run}");
+        let matches: Vec<_> = root_entries
+            .iter()
+            .filter(|entry| entry.is_folder() && entry.display_name() == name)
+            .collect();
+        ensure!(
+            matches.len() == 1,
+            "exact test folder is not uniquely present in iCloud root"
+        );
+        creator
+            .validation_folder_at_root(&matches[0].drivewsid)
+            .await
+            .context("saved fixture folder identity is no longer valid")?
+    } else {
+        creator
+            .create_validation_folder(&format!("Cirrove Write Validation-{run}"))
+            .await
+            .context("creating the dedicated iCloud test folder")?
+    };
     let scope = Scope {
         account: account.id.clone(),
         provider: "icloud".into(),
@@ -98,6 +136,17 @@ async fn main() -> Result<()> {
         target: None,
         package: false,
     };
+    let journal = UploadJournal::open(&run_dir.join("journal"), &account.id, 64 * 1024 * 1024)?;
+    let owned = restored_owned(&journal, &scope, folder.id())?;
+    if resume.is_some() {
+        ensure!(!owned.is_empty(), "fixture has no confirmed IDs to restore");
+    } else {
+        ensure!(
+            owned.is_empty(),
+            "new fixture journal already owns remote IDs"
+        );
+    }
+    let journal = Arc::new(Mutex::new(journal));
     let provider = Arc::new(Fixture::new(
         scope.clone(),
         root,
@@ -113,6 +162,7 @@ async fn main() -> Result<()> {
             folder.clone(),
             Arc::new(DesktopVault),
         )?,
+        owned,
     ));
     let mut config = account.clone();
     config.enabled = false;
@@ -123,11 +173,6 @@ async fn main() -> Result<()> {
     config.cache_bytes = 64 * 1024 * 1024;
     private_dir(&config.mount_path)?;
     let engine = Engine::new(config, provider.clone(), run_dir.join("engine")).await?;
-    let journal = Arc::new(Mutex::new(UploadJournal::open(
-        &run_dir.join("journal"),
-        &account.id,
-        64 * 1024 * 1024,
-    )?));
     let session =
         WritableSession::mount(engine.clone(), journal, provider, Arc::new(DesktopVault)).await?;
     println!(
@@ -137,7 +182,7 @@ async fn main() -> Result<()> {
     let check = async {
         let filename = "Mounted Create.txt";
         let output = tokio::process::Command::new("python3")
-            .args(["-c", APP])
+            .args(["-c", if resume.is_some() { APP_READ } else { APP }])
             .arg(&engine.account.mount_path)
             .arg(filename)
             .kill_on_drop(true)
@@ -146,7 +191,7 @@ async fn main() -> Result<()> {
             .context("running separate FUSE write process")?;
         ensure!(
             output.status.success(),
-            "FUSE write process failed; evidence retained"
+            "FUSE application process failed; evidence retained"
         );
         let uploads = loop {
             let rows = session.uploads(0, 16).await?;
@@ -216,7 +261,12 @@ async fn main() -> Result<()> {
             "journal size differs from independent read"
         );
         println!(
-            "Mounted file and folder create verified by independent iCloud listing and full-byte read."
+            "Mounted file and folder verified after {} by independent iCloud listing and full-byte read.",
+            if resume.is_some() {
+                "remount"
+            } else {
+                "create"
+            }
         );
         Ok::<(), anyhow::Error>(())
     };

@@ -44,6 +44,8 @@ if [[ $fast != --fast ]]; then
   step "workspace tests"
   cargo test --workspace --locked
   cargo test -p cirrove-icloud --features write-probe --locked
+  cargo test -p cirrove-service --features icloud-write-probe \
+    --bin cirrove-icloud-mounted-write-probe --locked
 
   # The tests that mount. CI runs these and this script did not, which is how a
   # change that made pinning asynchronous reached CI twice in one day: the
