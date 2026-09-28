@@ -612,7 +612,7 @@ impl UploadJournal {
     /// A metadata-only relocation, or a relocation of the same object's working
     /// bytes. The caller checks the remote destination listing outside this lock;
     /// local entries and the eventual conditional provider call refuse collisions.
-    pub fn relocate_namespace_file(
+    pub fn relocate_namespace_item(
         &mut self,
         id: Uuid,
         revision: u64,
@@ -623,11 +623,22 @@ impl UploadJournal {
         if object.revision != revision || object.follows_remote || object.unlinked {
             return Err(JournalError::Stale);
         }
-        if object.node.kind != NodeKind::File {
-            return Err(JournalError::Intent);
-        }
-        if let Some(working) = object.working_file {
-            return self.relocate_working(working, parent, name);
+        match object.node.kind {
+            NodeKind::File => {
+                if let Some(working) = object.working_file {
+                    return self.relocate_working(working, parent, name);
+                }
+            }
+            NodeKind::Folder => {
+                // The journal can rename a folder entry in place. Moving its
+                // subtree between parents needs a separate ancestry protocol.
+                if object.node.parent_id.as_deref() != Some(parent.as_str())
+                    || object.working_file.is_some()
+                {
+                    return Err(JournalError::Intent);
+                }
+            }
+            NodeKind::Shortcut => return Err(JournalError::Intent),
         }
         let request = MutationRequest {
             scope: object.scope.clone(),

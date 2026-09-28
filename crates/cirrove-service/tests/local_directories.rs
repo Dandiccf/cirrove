@@ -319,7 +319,7 @@ fn moving_a_new_file_waits_for_both_its_upload_and_its_destination_folder() {
         let save = child(&mut j, "root", "first.txt");
         let object = j.namespace_for_operation(save.id).unwrap().unwrap();
         let movement = j
-            .relocate_namespace_file(
+            .relocate_namespace_item(
                 object.id,
                 object.revision,
                 parent.node.id.clone(),

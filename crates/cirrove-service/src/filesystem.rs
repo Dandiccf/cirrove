@@ -1459,7 +1459,21 @@ impl Filesystem for CloudFs {
                     .find(|n| n.name == name)
                     .cloned()
                     .ok_or(Errno::ENOENT)?;
-                if source.kind != NodeKind::File || source.target.is_some() {
+                if !matches!(source.kind, NodeKind::File | NodeKind::Folder)
+                    || source.target.is_some()
+                {
+                    return Err(Errno::EOPNOTSUPP);
+                }
+                // Moving a directory between parents also moves its whole
+                // subtree. The shared namespace currently journals only the
+                // directory entry, so allow folder renames in place until
+                // ancestor relocation is represented durably.
+                if source.kind == NodeKind::Folder && parent.id != destination.id {
+                    return Err(Errno::EOPNOTSUPP);
+                }
+                if source.kind == NodeKind::Folder
+                    && !inner.engine.provider.supports_same_parent_folder_rename()
+                {
                     return Err(Errno::EOPNOTSUPP);
                 }
                 let _lease = writer
@@ -1487,6 +1501,9 @@ impl Filesystem for CloudFs {
                 {
                     if flags.contains(RenameFlags::RENAME_NOREPLACE) || victim.name != newname {
                         return Err(Errno::EEXIST);
+                    }
+                    if source.kind == NodeKind::Folder {
+                        return Err(Errno::EOPNOTSUPP);
                     }
                     if victim.kind == NodeKind::Folder {
                         return Err(Errno::EISDIR);

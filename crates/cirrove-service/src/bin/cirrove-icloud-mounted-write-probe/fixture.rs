@@ -14,8 +14,8 @@ use cirrove_core::{
 };
 use cirrove_icloud::{
     ICloudDrive, ICloudOwnedFixtureFolderCreate, ICloudOwnedFixtureFolderRemove,
-    ICloudOwnedFixtureRemove, ICloudOwnedFixtureUpload, ICloudOwnedMountedReplace,
-    ICloudReadSession, ValidationFolder,
+    ICloudOwnedFixtureFolderRename, ICloudOwnedFixtureRemove, ICloudOwnedFixtureUpload,
+    ICloudOwnedMountedReplace, ICloudReadSession, ValidationFolder,
 };
 use cirrove_service::journal::{MutationState, UploadJournal, UploadRecord, UploadState};
 use secrecy::SecretString;
@@ -264,6 +264,62 @@ impl Fixture {
             return Err(MutationError::Invalid);
         }
         Ok(before.clone())
+    }
+
+    fn guard_rename_folder(
+        &self,
+        request: &MutationRequest,
+    ) -> cirrove_core::mutation::Result<Node> {
+        request.validate()?;
+        let MutationIntent::Relocate {
+            before,
+            parent,
+            name,
+        } = &request.intent
+        else {
+            return Err(MutationError::Invalid);
+        };
+        if request.scope != self.scope
+            || before.kind != NodeKind::Folder
+            || before.parent_id.as_deref() != Some(&self.root.id)
+            || parent != &self.root.id
+            || before.name != "Mounted Folder"
+            || name != "Mounted Renamed"
+            || before.id == self.root.id
+            || !self.owns(&request.scope, &before.id)
+        {
+            return Err(MutationError::Invalid);
+        }
+        Ok(before.clone())
+    }
+
+    fn folder_renamer(
+        &self,
+        before: Node,
+        reconciliation_only: bool,
+    ) -> cirrove_core::mutation::Result<ICloudOwnedFixtureFolderRename> {
+        let session = ICloudReadSession::from_session_snapshot(
+            &self.removal.snapshot,
+            &self.removal.apple_id,
+        )
+        .map_err(|_| MutationError::Uncertain)?;
+        if reconciliation_only {
+            ICloudOwnedFixtureFolderRename::for_reconciliation(
+                self.scope.clone(),
+                session,
+                self.removal.folder.clone(),
+                before,
+                "Mounted Renamed".into(),
+            )
+        } else {
+            ICloudOwnedFixtureFolderRename::new(
+                self.scope.clone(),
+                session,
+                self.removal.folder.clone(),
+                before,
+                "Mounted Renamed".into(),
+            )
+        }
     }
 
     fn remover(
@@ -531,7 +587,19 @@ pub fn restored_owned(
                         && owned.contains(&before.id),
                     "non-fixture file removal in isolated journal"
                 ),
-                _ => anyhow::bail!("unsupported mutation in isolated journal"),
+                MutationIntent::Relocate {
+                    before,
+                    parent,
+                    name,
+                } => ensure!(
+                    before.parent_id.as_deref() == Some(root)
+                        && parent == root
+                        && before.kind == NodeKind::Folder
+                        && before.name == "Mounted Folder"
+                        && name == "Mounted Renamed"
+                        && owned.contains(&before.id),
+                    "non-fixture folder rename in isolated journal"
+                ),
             }
             if row.state == MutationState::Applied {
                 let receipt = row
@@ -559,6 +627,14 @@ pub fn restored_owned(
                             "removed folder receipt does not match its owned identity"
                         );
                         owned.remove(item);
+                    }
+                    (MutationIntent::Relocate { before, .. }, MutationReceipt::Upsert(node)) => {
+                        ensure!(
+                            row.request.accepts(receipt)
+                                && node.id == before.id
+                                && owned.contains(&node.id),
+                            "renamed folder receipt does not retain its owned identity"
+                        )
                     }
                     _ => anyhow::bail!("unexpected folder receipt in isolated journal"),
                 }
@@ -678,6 +754,10 @@ impl MetadataProvider for Fixture {
 #[async_trait::async_trait]
 impl ReadProvider for Fixture {
     fn unknown_directories_require_fetch(&self) -> bool {
+        true
+    }
+
+    fn supports_same_parent_folder_rename(&self) -> bool {
         true
     }
 
@@ -893,9 +973,12 @@ impl MutationProvider for Fixture {
                     .prepare_mutation(r, c)
                     .await
             }
-            _ => Err(MutationError::Unsupported(
-                "isolated iCloud fixture operation",
-            )),
+            MutationIntent::Relocate { .. } => {
+                let before = self.guard_rename_folder(r)?;
+                self.folder_renamer(before, false)?
+                    .prepare_mutation(r, c)
+                    .await
+            }
         }
     }
     async fn mutate(
@@ -949,9 +1032,15 @@ impl MutationProvider for Fixture {
                 self.removed_file_receipt(r, &receipt)?;
                 Ok(receipt)
             }
-            _ => Err(MutationError::Unsupported(
-                "isolated iCloud fixture operation",
-            )),
+            MutationIntent::Relocate { .. } => {
+                let before = self.guard_rename_folder(r)?;
+                let receipt = self
+                    .folder_renamer(before, false)?
+                    .mutate_prepared(r, prepared, c)
+                    .await?;
+                self.folder_receipt(r, &receipt)?;
+                Ok(receipt)
+            }
         }
     }
     async fn reconcile_operation(
@@ -995,9 +1084,17 @@ impl MutationProvider for Fixture {
                 }
                 Ok(result)
             }
-            _ => Err(MutationError::Unsupported(
-                "isolated iCloud fixture operation",
-            )),
+            MutationIntent::Relocate { .. } => {
+                let before = self.guard_rename_folder(r)?;
+                let result = self
+                    .folder_renamer(before, true)?
+                    .reconcile_prepared_mutation(r, prepared, c)
+                    .await?;
+                if let MutationReconciliation::Applied(receipt) = &result {
+                    self.folder_receipt(r, receipt)?;
+                }
+                Ok(result)
+            }
         }
     }
 }

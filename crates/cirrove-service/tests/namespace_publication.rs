@@ -203,7 +203,7 @@ fn rollback_and_clock_exhaustion_never_expose_an_unpublished_namespace_change() 
     )
     .unwrap();
     assert!(
-        j.relocate_namespace_file(
+        j.relocate_namespace_item(
             original.id,
             original.revision,
             "root".into(),

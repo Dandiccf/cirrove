@@ -660,7 +660,7 @@ impl Writeback {
                 {
                     return Err(JournalError::Stale);
                 }
-                j.relocate_namespace_file(object.id, object.revision, parent, name)?;
+                j.relocate_namespace_item(object.id, object.revision, parent, name)?;
                 j.namespace_object(object.id)
             })
             .await?;

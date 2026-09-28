@@ -272,6 +272,12 @@ pub trait ReadProvider: MetadataProvider {
     fn name_problem(&self, _name: &str) -> Option<NameProblem> {
         None
     }
+    /// Opt into same-parent folder renames through the writable namespace.
+    /// The default keeps existing providers' folder behavior unchanged while
+    /// an adapter validates conditional rename and recovery end to end.
+    fn supports_same_parent_folder_rename(&self) -> bool {
+        false
+    }
     /// Read-path counters, for adapters that keep them. `None` means the adapter
     /// does not count, which is not the same as counting zero.
     fn read_path_counters(&self) -> Option<ReadPathCounters> {

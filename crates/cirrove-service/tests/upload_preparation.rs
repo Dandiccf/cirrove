@@ -150,7 +150,7 @@ fn a_source_move_receipt_is_distinct_from_the_target_content_base() {
         .observe_namespace_file(scope(), node("target", "document", "target-original"))
         .unwrap();
     let moved = j
-        .relocate_namespace_file(src.id, src.revision, "root".into(), "renamed-temp".into())
+        .relocate_namespace_item(src.id, src.revision, "root".into(), "renamed-temp".into())
         .unwrap();
     let src = j.namespace_object(src.id).unwrap();
     let r = j
