@@ -117,6 +117,8 @@ struct Provider {
     reserved_at_begin: AtomicBool,
     staged_commits: AtomicBool,
     commits: AtomicU64,
+    stream: AtomicBool,
+    streams: AtomicU64,
 }
 impl Provider {
     fn new(probe: Arc<LockProbe>) -> Self {
@@ -142,12 +144,17 @@ impl Provider {
             reserved_at_begin: AtomicBool::new(false),
             staged_commits: AtomicBool::new(false),
             commits: AtomicU64::new(0),
+            stream: AtomicBool::new(false),
+            streams: AtomicU64::new(0),
         }
     }
     fn more(&self, request: &UploadRequest) -> UploadStep {
         let offset = self.state.lock().unwrap().data.len() as u64;
         if offset == request.size {
             return UploadStep::Commit(SecretString::from(SECRET));
+        }
+        if self.stream.load(Ordering::SeqCst) {
+            return UploadStep::Stream(SecretString::from(SECRET));
         }
         UploadStep::Continue(UploadProgress {
             checkpoint: SecretString::from(SECRET),
@@ -346,6 +353,38 @@ impl UploadProvider for Provider {
         } else {
             Ok(self.more(request))
         }
+    }
+    async fn upload_stream(
+        &self,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+        mut file: std::fs::File,
+        _: &CancellationToken,
+    ) -> UploadResult<UploadStep> {
+        self.probe.check();
+        self.streams.fetch_add(1, Ordering::SeqCst);
+        assert_eq!(
+            self.probe
+                .checkpoint_saves
+                .lock()
+                .unwrap()
+                .last()
+                .map(String::as_str),
+            Some(checkpoint.expose_secret()),
+            "stream started before its checkpoint was saved"
+        );
+        let mut data = Vec::new();
+        file.read_to_end(&mut data).unwrap();
+        assert_eq!(data.len() as u64, request.size);
+        let node = Self::node(request);
+        let mut state = self.state.lock().unwrap();
+        state.data = data;
+        state.committed = Some(node.clone());
+        drop(state);
+        if self.lose_success.swap(false, Ordering::SeqCst) {
+            return Err(UploadError::Uncertain);
+        }
+        Ok(UploadStep::Complete(node))
     }
     async fn commit_upload(
         &self,
@@ -839,6 +878,45 @@ async fn a_lost_success_response_is_reconciled_without_uploading_twice() {
             .unwrap()
             .contains_key("unrelated-credential")
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn sealed_stream_saves_checkpoint_and_reconciles_lost_receipt_without_resending() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let (probe, provider, vault) = fixture();
+    provider.stream.store(true, Ordering::SeqCst);
+    provider.lose_success.store(true, Ordering::SeqCst);
+    let first = journal(&root, &probe);
+    let id = enqueue(&first, "stream.bin");
+    let worker = TransferWorker::new(
+        first.clone(),
+        provider.clone(),
+        vault.clone(),
+        CancellationToken::new(),
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::VerifyRequired
+    );
+    assert_eq!(provider.streams.load(Ordering::SeqCst), 1);
+    drop(worker);
+    drop(first);
+    let restarted = journal(&root, &probe);
+    restarted.lock().unwrap().request_retry(id).unwrap();
+    let worker = TransferWorker::new(
+        restarted.clone(),
+        provider.clone(),
+        vault,
+        CancellationToken::new(),
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+    assert_eq!(provider.streams.load(Ordering::SeqCst), 1);
+    assert_eq!(provider.state.lock().unwrap().reconciliations, 1);
+    assert_local(&restarted, id);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

@@ -3,6 +3,7 @@ use crate::{CancellationToken, Node, ProviderError, Scope};
 use async_trait::async_trait;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
+use std::fs::File;
 
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum UploadError {
@@ -98,6 +99,10 @@ pub enum UploadStep {
     /// asks the provider to start or recover a mutating upload session.
     Prepared(SecretString),
     Continue(UploadProgress),
+    /// Send the sealed journal payload through a bounded-memory provider stream.
+    /// Persist this checkpoint before handing the file to the provider. A lost
+    /// result is uncertain and must be reconciled before any further mutation.
+    Stream(SecretString),
     /// Bytes are staged remotely; persist this checkpoint before the conditional
     /// final commit makes them visible as the replacement file.
     Commit(SecretString),
@@ -115,6 +120,7 @@ impl std::fmt::Debug for UploadStep {
         f.write_str(match self {
             Self::Prepared(_) => "UploadStep::Prepared([redacted])",
             Self::Continue(_) => "UploadStep::Continue([redacted])",
+            Self::Stream(_) => "UploadStep::Stream([redacted])",
             Self::Commit(_) => "UploadStep::Commit([redacted])",
             Self::Complete(_) => "UploadStep::Complete([redacted])",
             Self::HandoffComplete { .. } => "UploadStep::HandoffComplete([redacted])",
@@ -184,6 +190,15 @@ pub trait UploadProvider: Send + Sync {
         bytes: Vec<u8>,
         cancel: &CancellationToken,
     ) -> Result<UploadStep>;
+    async fn upload_stream(
+        &self,
+        _request: &UploadRequest,
+        _checkpoint: &SecretString,
+        _payload: File,
+        _cancel: &CancellationToken,
+    ) -> Result<UploadStep> {
+        Err(UploadError::Unsupported("streaming upload"))
+    }
     async fn commit_upload(
         &self,
         request: &UploadRequest,

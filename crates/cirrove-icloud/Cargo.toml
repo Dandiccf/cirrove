@@ -17,13 +17,14 @@ base64.workspace = true
 cirrove-auth.workspace = true
 cirrove-core.workspace = true
 hex.workspace = true
-reqwest = { workspace = true, features = ["cookies"] }
+reqwest = { workspace = true, features = ["cookies", "stream"] }
 secrecy.workspace = true
 ring.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 tokio.workspace = true
+tokio-util = { workspace = true, features = ["io"] }
 url.workspace = true
 uuid.workspace = true
 getrandom = "0.3"

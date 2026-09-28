@@ -14,11 +14,16 @@ use cirrove_core::{CancellationToken, Node, NodeKind, Scope};
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::{
+    fs::File,
+    io::{Read, Seek, SeekFrom},
+    sync::atomic::{AtomicBool, Ordering},
+};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-const MAX_OWNED_FILE: u64 = MAX_OWNED_UPLOAD as u64;
+const MAX_OWNED_FILE: u64 = 32 * 1024 * 1024;
+const VERIFY_RANGE: u32 = 4 * 1024 * 1024;
 const MAX_CHECKPOINT: usize = 8192;
 
 #[derive(Serialize, Deserialize)]
@@ -241,13 +246,30 @@ impl ICloudOwnedFixtureUpload {
             return Ok(None);
         };
         let node = self.node(entry, request, expected_doc_id)?;
-        let bytes = session
-            .read_small_file_in_folder(&self.folder.id, &node.id)
-            .await
-            .map_err(|_| UploadError::Uncertain)?;
-        if bytes.len() as u64 != request.size
-            || hex::encode(Sha256::digest(bytes)) != request.sha256
-        {
+        let mut hash = Sha256::new();
+        let mut offset = 0;
+        while offset < request.size {
+            let length = (request.size - offset).min(u64::from(VERIFY_RANGE)) as u32;
+            let bytes = session
+                .read_range_in_folder_for_revision(
+                    &self.folder.id,
+                    &node.id,
+                    offset,
+                    length,
+                    Some((
+                        node.etag.as_deref().ok_or(UploadError::Conflict)?,
+                        request.size,
+                    )),
+                )
+                .await
+                .map_err(|_| UploadError::Uncertain)?;
+            if bytes.len() != length as usize {
+                return Err(UploadError::Conflict);
+            }
+            hash.update(bytes);
+            offset += u64::from(length);
+        }
+        if hex::encode(hash.finalize()) != request.sha256 {
             return Err(UploadError::Conflict);
         }
         Ok(Some(node))
@@ -290,11 +312,16 @@ impl UploadProvider for ICloudOwnedFixtureUpload {
                 .allocate_upload_slot(name, request.size)
                 .await
                 .map_err(|_| UploadError::Uncertain)?;
-            return Ok(UploadStep::Continue(UploadProgress {
-                checkpoint: self.checkpoint(request, Some(slot))?,
-                offset: 0,
-                length: request.size as u32,
-            }));
+            let checkpoint = self.checkpoint(request, Some(slot))?;
+            return Ok(if request.size > MAX_OWNED_UPLOAD as u64 {
+                UploadStep::Stream(checkpoint)
+            } else {
+                UploadStep::Continue(UploadProgress {
+                    checkpoint,
+                    offset: 0,
+                    length: request.size as u32,
+                })
+            });
         };
         self.observed(request, &slot.document_id)
             .await?
@@ -316,6 +343,7 @@ impl UploadProvider for ICloudOwnedFixtureUpload {
             return Err(UploadError::Unsupported("reconciliation-only validation"));
         }
         if offset != 0
+            || request.size > MAX_OWNED_UPLOAD as u64
             || bytes.len() as u64 != request.size
             || hex::encode(Sha256::digest(&bytes)) != request.sha256
         {
@@ -344,6 +372,108 @@ impl UploadProvider for ICloudOwnedFixtureUpload {
                     self.discard_registration_receipt
                         .swap(false, Ordering::AcqRel),
                     Some(&slot),
+                )
+                .await
+                .map_err(|_| UploadError::Uncertain)?
+                .ok_or(UploadError::Uncertain)?
+        };
+        if created.document_id != slot.document_id {
+            return Err(UploadError::Conflict);
+        }
+        let node = self
+            .observed(request, &slot.document_id)
+            .await?
+            .ok_or(UploadError::Uncertain)?;
+        if node.id != created.id || node.etag.as_deref() != Some(created.etag.as_str()) {
+            return Err(UploadError::Conflict);
+        }
+        Ok(UploadStep::Complete(node))
+    }
+
+    async fn upload_stream(
+        &self,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+        file: File,
+        cancel: &CancellationToken,
+    ) -> UploadResult<UploadStep> {
+        let saved = self.check_checkpoint(request, checkpoint)?;
+        let slot = saved.slot.ok_or(UploadError::CheckpointInvalid)?;
+        if self.reconciliation_only || request.size <= MAX_OWNED_UPLOAD as u64 {
+            return Err(UploadError::Invalid);
+        }
+        let expected_size = request.size;
+        let expected_hash = request.sha256.clone();
+        let file = tokio::task::spawn_blocking(move || {
+            let mut file = file;
+            if file.metadata().map_err(|_| UploadError::Invalid)?.len() != expected_size {
+                return Err(UploadError::Invalid);
+            }
+            let mut hash = Sha256::new();
+            let mut buffer = [0u8; 64 * 1024];
+            loop {
+                let read = file.read(&mut buffer).map_err(|_| UploadError::Invalid)?;
+                if read == 0 {
+                    break;
+                }
+                hash.update(&buffer[..read]);
+            }
+            if hex::encode(hash.finalize()) != expected_hash {
+                return Err(UploadError::Invalid);
+            }
+            file.seek(SeekFrom::Start(0))
+                .map_err(|_| UploadError::Invalid)?;
+            Ok(file)
+        })
+        .await
+        .map_err(|_| UploadError::Invalid)??;
+        if cancel.is_cancelled() {
+            return Err(UploadError::Uncertain);
+        }
+        if let Some(node) = self.observed(request, &slot.document_id).await? {
+            return Ok(UploadStep::Complete(node));
+        }
+        let UploadIntent::Create { name, .. } = &request.intent else {
+            return Err(UploadError::Invalid);
+        };
+        let created = {
+            let mut session = self.session.lock().await;
+            if !session
+                .list_root()
+                .await
+                .map_err(|_| UploadError::Uncertain)?
+                .iter()
+                .any(|entry| {
+                    entry.drivewsid == self.folder.id
+                        && entry.display_name() == self.folder.name
+                        && entry.is_folder()
+                })
+            {
+                return Err(UploadError::Conflict);
+            }
+            if session
+                .list_folder(&self.folder.id)
+                .await
+                .map_err(|_| UploadError::Uncertain)?
+                .iter()
+                .any(|entry| entry.display_name() == *name)
+            {
+                return Err(UploadError::Conflict);
+            }
+            let receipt = session
+                .upload_stream_to_slot(&slot, name, file, request.size)
+                .await
+                .map_err(|_| UploadError::Uncertain)?;
+            session
+                .register_owned_file(
+                    &self.folder,
+                    name,
+                    &slot,
+                    receipt,
+                    request.size,
+                    None,
+                    self.discard_registration_receipt
+                        .swap(false, Ordering::AcqRel),
                 )
                 .await
                 .map_err(|_| UploadError::Uncertain)?
@@ -497,7 +627,7 @@ mod tests {
     }
 
     #[test]
-    fn a_multi_mib_binary_create_is_bounded_before_network() {
+    fn a_streamed_binary_create_is_bounded_before_network() {
         let (provider, mut request) = fixture();
         request.size = 1024 * 1024;
         request.intent = UploadIntent::Create {
@@ -505,8 +635,27 @@ mod tests {
             name: "Cirrove payload 1MiB.bin".into(),
         };
         assert!(provider.check_request(&request).is_ok());
-        request.size = 4 * 1024 * 1024 + 1;
+        request.size = 20 * 1024 * 1024;
+        assert!(provider.check_request(&request).is_ok());
+        request.size = MAX_OWNED_FILE + 1;
         assert!(provider.check_request(&request).is_err());
+    }
+
+    #[test]
+    fn streamed_create_checkpoint_preserves_exact_allocated_identity() {
+        let (provider, mut request) = fixture();
+        request.size = 20 * 1024 * 1024;
+        let allocated = slot();
+        let saved = provider
+            .checkpoint(&request, Some(allocated.clone()))
+            .unwrap();
+        assert_eq!(
+            provider.reserved_document_id(&request, &saved).unwrap(),
+            Some(allocated.document_id)
+        );
+        let mut changed = request.clone();
+        changed.size += 1;
+        assert!(provider.check_checkpoint(&changed, &saved).is_err());
     }
 
     #[tokio::test]

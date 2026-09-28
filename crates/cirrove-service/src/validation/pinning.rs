@@ -56,6 +56,9 @@ async fn place(
                     )
                     .await?
             }
+            UploadStep::Stream(_) => {
+                anyhow::bail!("the OneDrive pinning validator received a streaming upload")
+            }
             UploadStep::Commit(checkpoint) => {
                 graph.commit_upload(&request, &checkpoint, cancel).await?
             }

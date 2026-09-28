@@ -376,6 +376,22 @@ impl TransferWorker {
                     }
                     next
                 }
+                UploadStep::Stream(checkpoint) => {
+                    prepared_allowed = false;
+                    self.checkpoint(record, checkpoint.clone(), 0).await?;
+                    let file = self.local(move |j| j.payload(id)).await?;
+                    let next = self
+                        .remote(
+                            Duration::from_secs(900),
+                            self.provider
+                                .upload_stream(&request, &checkpoint, file, &self.cancel),
+                        )
+                        .await?;
+                    if !matches!(next, UploadStep::Complete(_)) {
+                        return Err(UploadError::Uncertain.into());
+                    }
+                    next
+                }
             };
         }
     }

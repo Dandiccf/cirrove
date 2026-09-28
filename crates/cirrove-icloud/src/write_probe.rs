@@ -1,6 +1,8 @@
 //! Deliberately narrow live-write experiment. Only a new, probe-named folder
 //! and a new file inside that folder can be created. This is not WriteProvider.
 use super::*;
+use std::fs::File;
+use tokio_util::io::ReaderStream;
 
 const PROBE_PREFIX: &str = "Cirrove Write Validation-";
 pub(crate) const PROBE_FILE: &str = "created-by-cirrove.txt";
@@ -192,7 +194,7 @@ struct Uploaded {
 }
 
 #[derive(Deserialize)]
-struct UploadedFile {
+pub(crate) struct UploadedFile {
     receipt: String,
     #[serde(rename = "fileChecksum")]
     signature: String,
@@ -377,6 +379,42 @@ impl ICloudReadSession {
         let data = uploaded.file;
         if data.size != bytes.len() as u64 || data.receipt.is_empty() || data.signature.is_empty() {
             bail!("iCloud upload receipt is incomplete");
+        }
+        Ok(data)
+    }
+
+    pub(crate) async fn upload_stream_to_slot(
+        &mut self,
+        slot: &UploadSlot,
+        name: &str,
+        file: File,
+        size: u64,
+    ) -> Result<UploadedFile> {
+        let upload_url = checked_content_url(&slot.url)?;
+        let body = reqwest::Body::wrap_stream(ReaderStream::with_capacity(
+            tokio::fs::File::from_std(file),
+            64 * 1024,
+        ));
+        let response = self
+            .http
+            .post(upload_url)
+            .header("content-type", content_type_for_name(name))
+            .header(reqwest::header::CONTENT_LENGTH, size)
+            .body(body)
+            .send()
+            .await
+            .map_err(|_| anyhow!("iCloud validation streamed content upload failed"))?;
+        if !response.status().is_success() {
+            return Err(drive_request_failure(
+                response.status(),
+                "iCloud validation streamed content upload",
+            ));
+        }
+        let uploaded: Uploaded =
+            read_json(response, "iCloud validation streamed content upload").await?;
+        let data = uploaded.file;
+        if data.size != size || data.receipt.is_empty() || data.signature.is_empty() {
+            bail!("iCloud streamed upload receipt is incomplete");
         }
         Ok(data)
     }
@@ -874,6 +912,29 @@ impl ICloudReadSession {
             Some(slot) => (slot.clone(), self.upload_to_slot(slot, name, bytes).await?),
             None => self.upload_probe_bytes(name, bytes).await?,
         };
+        self.register_owned_file(
+            folder,
+            name,
+            &slot,
+            data,
+            bytes.len() as u64,
+            Some(bytes),
+            discard_registration_receipt,
+        )
+        .await
+    }
+
+    pub(crate) async fn register_owned_file(
+        &mut self,
+        folder: &ValidationFolder,
+        name: &str,
+        slot: &UploadSlot,
+        data: UploadedFile,
+        size: u64,
+        expected_bytes: Option<&[u8]>,
+        discard_registration_receipt: bool,
+    ) -> Result<Option<ValidationFile>> {
+        let folder_id = folder.id.as_str();
         let starting_document_id = folder_id
             .rsplit("::")
             .next()
@@ -941,17 +1002,16 @@ impl ICloudReadSession {
             .filter(|entry| entry.display_name() == name)
             .collect();
         let entry = exactly_one(matches, "validation file listing")?;
-        if entry.is_folder()
-            || entry.docwsid != document.document_id
-            || entry.size != bytes.len() as u64
-        {
+        if entry.is_folder() || entry.docwsid != document.document_id || entry.size != size {
             bail!("iCloud validation file listing differs from the upload");
         }
-        let readback = self
-            .read_small_file_in_folder(folder_id, &entry.drivewsid)
-            .await?;
-        if readback != bytes {
-            bail!("iCloud validation file readback differs from the upload");
+        if let Some(bytes) = expected_bytes {
+            let readback = self
+                .read_small_file_in_folder(folder_id, &entry.drivewsid)
+                .await?;
+            if readback != bytes {
+                bail!("iCloud validation file readback differs from the upload");
+            }
         }
         Ok(Some(ValidationFile {
             id: entry.drivewsid,

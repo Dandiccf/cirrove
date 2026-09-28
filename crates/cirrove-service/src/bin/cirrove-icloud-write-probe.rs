@@ -83,8 +83,9 @@ async fn main() -> Result<()> {
         [flag] if flag == "--worker-ordinary-name-create" => 50,
         [flag] if flag == "--worker-ordinary-name-collision" => 51,
         [flag] if flag == "--worker-bounded-binary-create" => 52,
+        [flag] if flag == "--worker-streamed-binary-create" => 53,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create | --worker-streamed-binary-create]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -692,10 +693,8 @@ async fn main() -> Result<()> {
     }
     let name = format!("Cirrove Write Validation-{}", Uuid::new_v4());
     let folder = session.create_validation_folder(&name).await?;
-    println!(
-        "Created and listed the isolated iCloud validation folder. Testing a small file upload."
-    );
-    if matches!(mode, 22 | 23 | 48 | 50 | 52) {
+    println!("Created and listed the isolated iCloud validation folder.");
+    if matches!(mode, 22 | 23 | 48 | 50 | 52 | 53) {
         let scope = Scope {
             account: account.id.clone(),
             provider: "icloud".into(),
@@ -703,15 +702,20 @@ async fn main() -> Result<()> {
         };
         let file_name = if mode == 50 {
             "Résumé 2026 final.txt".to_owned()
-        } else if mode == 52 {
-            "Cirrove payload 1MiB.bin".to_owned()
+        } else if matches!(mode, 52 | 53) {
+            format!("Cirrove payload {}MiB.bin", if mode == 53 { 20 } else { 1 })
         } else {
             format!("staged-by-cirrove-{}.txt", Uuid::new_v4())
         };
-        let contents = if mode == 52 {
+        let contents = if matches!(mode, 52 | 53) {
             let mut state = u64::from_le_bytes(Uuid::new_v4().as_bytes()[..8].try_into()?);
-            let mut bytes = Vec::with_capacity(1024 * 1024);
-            for _ in 0..1024 * 1024 {
+            let size = if mode == 53 {
+                20 * 1024 * 1024
+            } else {
+                1024 * 1024
+            };
+            let mut bytes = Vec::with_capacity(size);
+            for _ in 0..size {
                 state ^= state << 13;
                 state ^= state >> 7;
                 state ^= state << 17;
@@ -734,7 +738,13 @@ async fn main() -> Result<()> {
         let journal = Arc::new(Mutex::new(UploadJournal::open(
             &directory,
             &account.id,
-            if mode == 52 { 8 * 1024 * 1024 } else { 8192 },
+            if mode == 53 {
+                64 * 1024 * 1024
+            } else if mode == 52 {
+                8 * 1024 * 1024
+            } else {
+                8192
+            },
         )?));
         let record = journal
             .lock()
@@ -809,6 +819,7 @@ async fn main() -> Result<()> {
             || remote.size != record.size
             || (mode == 50 && remote.name != "Résumé 2026 final.txt")
             || (mode == 52 && remote.name != "Cirrove payload 1MiB.bin")
+            || (mode == 53 && remote.name != "Cirrove payload 20MiB.bin")
         {
             bail!("uploaded journal receipt lacks the expected remote identity");
         }
