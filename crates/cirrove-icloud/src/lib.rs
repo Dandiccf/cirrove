@@ -799,6 +799,48 @@ impl ICloudReadSession {
         Ok(bytes)
     }
 
+    /// Hash a bounded file without retaining its contents. Every range is
+    /// checked against the same published revision, and the final metadata
+    /// observation catches a change between two otherwise valid ranges.
+    #[cfg(feature = "write-probe")]
+    pub(crate) async fn hash_file_in_folder_for_revision(
+        &mut self,
+        folder_id: &str,
+        drive_id: &str,
+        etag: &str,
+        size: u64,
+    ) -> Result<String> {
+        const HASH_CHUNK: u32 = 4 * 1024 * 1024;
+        const MAX_HASH_FILE: u64 = 32 * 1024 * 1024;
+        if etag.is_empty() || size == 0 || size > MAX_HASH_FILE {
+            bail!("iCloud file is outside the bounded verification limit");
+        }
+        let mut hash = Sha256::new();
+        let mut offset = 0;
+        while offset < size {
+            let length = (size - offset).min(u64::from(HASH_CHUNK)) as u32;
+            let bytes = self
+                .read_range_in_folder_for_revision(
+                    folder_id,
+                    drive_id,
+                    offset,
+                    length,
+                    Some((etag, size)),
+                )
+                .await?;
+            if bytes.len() != length as usize {
+                bail!("iCloud range returned an unexpected size");
+            }
+            hash.update(bytes);
+            offset += u64::from(length);
+        }
+        let after = self.item_for_read(drive_id, Some(folder_id)).await?;
+        if after.is_folder() || after.etag != etag || after.size != size {
+            bail!("iCloud file changed during bounded verification");
+        }
+        Ok(hex::encode(hash.finalize()))
+    }
+
     async fn signed_download_url(&mut self, drive_id: &str) -> Result<Url> {
         let (zone, doc_id) = split_file_id(drive_id)?;
         let endpoint = self

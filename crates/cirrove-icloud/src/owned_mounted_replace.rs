@@ -16,7 +16,7 @@ use std::fs::File;
 use uuid::Uuid;
 
 const MAX_CHECKPOINT: usize = 32 * 1024;
-const MAX_FIXTURE_FILE: u64 = 4096;
+const MAX_FIXTURE_FILE: u64 = 32 * 1024 * 1024;
 
 #[derive(Serialize, Deserialize)]
 enum Phase {

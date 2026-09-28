@@ -2178,20 +2178,25 @@ impl ICloudReadSession {
             || new.is_folder()
             || old.docwsid != plan.original_doc_id
             || new.docwsid != plan.staged_doc_id
-            || old.size > 4096
-            || new.size > 4096
+            || old.size == 0
+            || new.size == 0
+            || old.size > 32 * 1024 * 1024
+            || new.size > 32 * 1024 * 1024
         {
             return Ok(HandoffObserved::Diverged);
         }
-        let old_bytes = self
-            .read_small_file_in_folder(&plan.folder_id, &plan.original_id)
+        let old_hash = self
+            .hash_file_in_folder_for_revision(
+                &plan.folder_id,
+                &plan.original_id,
+                &old.etag,
+                old.size,
+            )
             .await?;
-        let new_bytes = self
-            .read_small_file_in_folder(&plan.folder_id, &plan.staged_id)
+        let new_hash = self
+            .hash_file_in_folder_for_revision(&plan.folder_id, &plan.staged_id, &new.etag, new.size)
             .await?;
-        if hex::encode(Sha256::digest(&old_bytes)) != plan.original_sha256
-            || hex::encode(Sha256::digest(&new_bytes)) != plan.staged_sha256
-        {
+        if old_hash != plan.original_sha256 || new_hash != plan.staged_sha256 {
             return Ok(HandoffObserved::Diverged);
         }
         let (old_name, new_name) = (old.display_name(), new.display_name());
@@ -2238,14 +2243,22 @@ impl ICloudReadSession {
             || current.docwsid != plan.staged_doc_id
             || old.etag.is_empty()
             || current.etag.is_empty()
-            || hex::encode(Sha256::digest(
-                self.read_small_file_in_folder(&plan.folder_id, &old.drivewsid)
-                    .await?,
-            )) != plan.original_sha256
-            || hex::encode(Sha256::digest(
-                self.read_small_file_in_folder(&plan.folder_id, &current.drivewsid)
-                    .await?,
-            )) != plan.staged_sha256
+        {
+            bail!("iCloud handoff receipt changed or differs from the saved bytes");
+        }
+        if self
+            .hash_file_in_folder_for_revision(&plan.folder_id, &old.drivewsid, &old.etag, old.size)
+            .await?
+            != plan.original_sha256
+            || self
+                .hash_file_in_folder_for_revision(
+                    &plan.folder_id,
+                    &current.drivewsid,
+                    &current.etag,
+                    current.size,
+                )
+                .await?
+                != plan.staged_sha256
         {
             bail!("iCloud handoff receipt changed or differs from the saved bytes");
         }
@@ -2298,7 +2311,7 @@ impl ICloudReadSession {
         let size = item
             .get("size")
             .and_then(|value| value.as_u64())
-            .filter(|size| *size > 0 && *size <= 4096)
+            .filter(|size| *size > 0 && *size <= 32 * 1024 * 1024)
             .context("iCloud Trash backup exceeds the fixture limit")?;
         let base_name = item
             .get("name")
@@ -2338,19 +2351,20 @@ impl ICloudReadSession {
                 response.status().as_u16()
             );
         }
-        let mut bytes = Vec::with_capacity(size as usize);
+        let mut received = 0u64;
+        let mut hash = Sha256::new();
         while let Some(chunk) = response
             .chunk()
             .await
             .map_err(|_| anyhow!("iCloud Trash backup download interrupted"))?
         {
-            if bytes.len().saturating_add(chunk.len()) > 4096 {
+            received = received.saturating_add(chunk.len() as u64);
+            if received > size {
                 bail!("iCloud Trash backup exceeds the fixture limit");
             }
-            bytes.extend_from_slice(&chunk);
+            hash.update(&chunk);
         }
-        if bytes.len() as u64 != size || hex::encode(Sha256::digest(&bytes)) != plan.original_sha256
-        {
+        if received != size || hex::encode(hash.finalize()) != plan.original_sha256 {
             bail!("iCloud Trash backup differs from the saved fixture bytes");
         }
         let (again, complete) = self.read_trash_items().await?;
@@ -2435,15 +2449,23 @@ impl ICloudReadSession {
                 None,
             ));
         }
-        let staged_bytes = self
-            .read_small_file_in_folder(&plan.folder_id, &plan.staged_id)
-            .await?;
         if staged.is_folder()
             || staged.drivewsid != plan.staged_id
             || staged.docwsid != plan.staged_doc_id
-            || staged.size > 4096
-            || staged.size != staged_bytes.len() as u64
-            || hex::encode(Sha256::digest(&staged_bytes)) != plan.staged_sha256
+            || staged.size == 0
+            || staged.size > 32 * 1024 * 1024
+        {
+            return Ok((HandoffObserved::Diverged, None));
+        }
+        if self
+            .hash_file_in_folder_for_revision(
+                &plan.folder_id,
+                &plan.staged_id,
+                &staged.etag,
+                staged.size,
+            )
+            .await?
+            != plan.staged_sha256
         {
             return Ok((HandoffObserved::Diverged, None));
         }

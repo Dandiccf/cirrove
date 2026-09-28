@@ -72,7 +72,7 @@ impl ICloudOwnedFixtureHandoff {
             || scope.collection != "drive"
             || session.account_hash.is_none()
             || staged_size == 0
-            || staged_size > 4096
+            || staged_size > 32 * 1024 * 1024
             || plan.validate().is_err()
         {
             return Err(UploadError::Invalid);

@@ -611,6 +611,10 @@ A fresh process read the new bytes through FUSE and independently found the old
 ID with a restore path in Trash without another mutation. The write arm's
 separate validator exited nonzero because its Trash predicate was inverted;
 that correction and two failed read-only checks remain in the same artifact.
+The isolated mounted replacement adapter subsequently gained a 32 MiB bound:
+active files are SHA-256 checked in revision-bound 4 MiB ranges, and the exact
+old ID in Trash is hashed as a bounded stream. This is a code path and test
+limit, not live evidence of a large iCloud replacement.
 This is bounded functional evidence, not proof of atomicity, timeout recovery
 before Apple's response, concurrency safety, large-file support or ordinary
 iCloud write reliability. Normal iCloud mounts remain read-only.
