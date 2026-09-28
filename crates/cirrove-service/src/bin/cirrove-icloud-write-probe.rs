@@ -159,7 +159,6 @@ async fn main() -> Result<()> {
                 record.request.scope.clone(),
                 session,
                 folder,
-                record.id,
                 Arc::new(DesktopVault),
             )?
             .reconciliation_only(),
@@ -1033,13 +1032,8 @@ async fn main() -> Result<()> {
             .lock()
             .map_err(|_| anyhow::anyhow!("journal lock"))?
             .enqueue_mutation(request.clone())?;
-        let mut provider = ICloudOwnedFixtureFolderCreate::new(
-            scope,
-            session,
-            folder,
-            queued.id,
-            Arc::new(DesktopVault),
-        )?;
+        let mut provider =
+            ICloudOwnedFixtureFolderCreate::new(scope, session, folder, Arc::new(DesktopVault))?;
         if mode == 59 {
             provider = provider.with_discarded_receipt();
         }

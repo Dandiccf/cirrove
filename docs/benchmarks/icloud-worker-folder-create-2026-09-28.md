@@ -46,3 +46,33 @@ record binary SHA-256
 `0da7e418dc8754c6bb3d31dfae235566f223da5285f81a13d9018460dc7c7802`
 and btrfs-backed temporary storage. These are one injected lost-response arm,
 not proof of all crash timings or mounted folder creation.
+
+## Operation-aware worker arm, registered before the run
+
+The shared mutation worker now supplies its durable operation ID to the
+provider. The owned-folder adapter derives its keyring checkpoint from that
+ID at call time, rather than requiring an adapter instance constructed for a
+single operation. This permits one adapter to serve successive folder-create
+requests in the same owned test parent without mixing their identities.
+
+Question: does a newly started worker still create and publish one exact
+folder identity through the new operation-aware call path? One fresh
+UUID-named Cirrove-owned validation folder in `iCloudGuiValidation` may receive
+one new `Nested Cirrove folder`. Prediction: the journal reaches `Applied`
+with the same scope, parent and name, and an independent SQLite reopening
+finds one exact remote ID. The binary SHA-256, process ID, command, expected
+duration and btrfs-backed TMPDIR/SQLITE_TMPDIR are recorded privately before
+the run. No compilation overlaps this single functional arm. It does not
+establish mounted writes or repeatability across accounts.
+
+Observed: the isolated process exited zero. Worker operation
+`6433a231-5926-4979-b01d-cb330da553e6` reached `Applied`. An independent
+read-only SQLite reopening found one `upsert` receipt for
+`FOLDER::com.apple.CloudDocs::B00CE01C-AF3A-4D0E-B6FB-C1B1193183EB` under
+parent `FOLDER::com.apple.CloudDocs::F8D857B6-8394-4BD3-9CE8-23BF69AAA0C3`
+with name `Nested Cirrove folder`. The private manifest records binary
+SHA-256 `e52698b11513700e3d862d0d3a4ca31a3578e1c565b021d5eca37101a4c98aa3`
+and btrfs-backed temporary storage. A synthetic unit test separately confirms
+that one adapter instance keeps two operation IDs and their distinct allocated
+folder IDs in separate checkpoints. This single live operation does not prove
+arbitrary concurrent folder creates or mounted writes.

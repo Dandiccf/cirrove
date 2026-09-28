@@ -31,7 +31,6 @@ struct FolderCheckpoint {
 pub struct ICloudOwnedFixtureFolderCreate {
     scope: Scope,
     parent: ValidationFolder,
-    operation: Uuid,
     vault: Arc<dyn CredentialVault>,
     session: Mutex<ICloudReadSession>,
     discard_receipt: AtomicBool,
@@ -43,7 +42,6 @@ impl ICloudOwnedFixtureFolderCreate {
         scope: Scope,
         session: ICloudReadSession,
         parent: ValidationFolder,
-        operation: Uuid,
         vault: Arc<dyn CredentialVault>,
     ) -> MutationResult<Self> {
         if scope.account.is_empty()
@@ -61,7 +59,6 @@ impl ICloudOwnedFixtureFolderCreate {
         Ok(Self {
             scope,
             parent,
-            operation,
             vault,
             session: Mutex::new(session),
             discard_receipt: AtomicBool::new(false),
@@ -79,11 +76,8 @@ impl ICloudOwnedFixtureFolderCreate {
         self
     }
 
-    fn key(&self) -> String {
-        format!(
-            "icloud-folder-create/{}/{}",
-            self.scope.account, self.operation
-        )
+    fn key(&self, operation: Uuid) -> String {
+        format!("icloud-folder-create/{}/{operation}", self.scope.account)
     }
 
     fn check_request<'a>(&self, request: &'a MutationRequest) -> MutationResult<&'a str> {
@@ -105,6 +99,7 @@ impl ICloudOwnedFixtureFolderCreate {
 
     fn check_checkpoint(
         &self,
+        operation: Uuid,
         request: &MutationRequest,
         value: &SecretString,
     ) -> MutationResult<String> {
@@ -115,7 +110,7 @@ impl ICloudOwnedFixtureFolderCreate {
         let saved: FolderCheckpoint =
             serde_json::from_str(value.expose_secret()).map_err(|_| MutationError::Invalid)?;
         if saved.version != 1
-            || saved.operation != self.operation
+            || saved.operation != operation
             || saved.scope != self.scope
             || saved.parent != self.parent.id
             || saved.name != name
@@ -195,11 +190,16 @@ impl ICloudOwnedFixtureFolderCreate {
         Ok(None)
     }
 
-    async fn save_identity(&self, request: &MutationRequest, id: &str) -> MutationResult<()> {
+    async fn save_identity(
+        &self,
+        operation: Uuid,
+        request: &MutationRequest,
+        id: &str,
+    ) -> MutationResult<()> {
         let name = self.check_request(request)?;
         let saved = FolderCheckpoint {
             version: 1,
-            operation: self.operation,
+            operation,
             scope: self.scope.clone(),
             parent: self.parent.id.clone(),
             name: name.into(),
@@ -207,31 +207,41 @@ impl ICloudOwnedFixtureFolderCreate {
         };
         let value = serde_json::to_string(&saved).map_err(|_| MutationError::Invalid)?;
         self.vault
-            .save(&self.key(), SecretString::from(value))
+            .save(&self.key(operation), SecretString::from(value))
             .await
             .map_err(|_| MutationError::Uncertain)
     }
 
-    async fn saved_identity(&self, request: &MutationRequest) -> MutationResult<Option<String>> {
+    async fn saved_identity(
+        &self,
+        operation: Uuid,
+        request: &MutationRequest,
+    ) -> MutationResult<Option<String>> {
         let Some(value) = self
             .vault
-            .load(&self.key())
+            .load(&self.key(operation))
             .await
             .map_err(|_| MutationError::Uncertain)?
         else {
             return Ok(None);
         };
-        self.check_checkpoint(request, &value).map(Some)
+        self.check_checkpoint(operation, request, &value).map(Some)
     }
 }
 
 #[async_trait]
 impl MutationProvider for ICloudOwnedFixtureFolderCreate {
-    async fn mutate(
+    async fn mutate_operation(
         &self,
+        operation: &str,
         request: &MutationRequest,
+        prepared_item: Option<&str>,
         cancel: &CancellationToken,
     ) -> MutationResult<MutationReceipt> {
+        let operation = Uuid::parse_str(operation).map_err(|_| MutationError::Invalid)?;
+        if prepared_item.is_some() {
+            return Err(MutationError::Invalid);
+        }
         let name = self.check_request(request)?;
         if self.reconciliation_only {
             return Err(MutationError::Unsupported("reconciliation-only validation"));
@@ -241,7 +251,7 @@ impl MutationProvider for ICloudOwnedFixtureFolderCreate {
         }
         // A prior ID means the remote call may already have succeeded. Never
         // issue another create in that case, even if a listing is delayed.
-        if self.saved_identity(request).await?.is_some() {
+        if self.saved_identity(operation, request).await?.is_some() {
             return Err(MutationError::Uncertain);
         }
         self.observe_parent().await?;
@@ -256,7 +266,7 @@ impl MutationProvider for ICloudOwnedFixtureFolderCreate {
                 .await
                 .map_err(|_| MutationError::Uncertain)?
         };
-        self.save_identity(request, &id).await?;
+        self.save_identity(operation, request, &id).await?;
         if self.discard_receipt.swap(false, Ordering::AcqRel) {
             return Err(MutationError::Uncertain);
         }
@@ -267,13 +277,19 @@ impl MutationProvider for ICloudOwnedFixtureFolderCreate {
         Ok(MutationReceipt::Upsert(node))
     }
 
-    async fn reconcile_mutation(
+    async fn reconcile_operation(
         &self,
+        operation: &str,
         request: &MutationRequest,
+        prepared_item: Option<&str>,
         _cancel: &CancellationToken,
     ) -> MutationResult<MutationReconciliation> {
+        let operation = Uuid::parse_str(operation).map_err(|_| MutationError::Invalid)?;
+        if prepared_item.is_some() {
+            return Err(MutationError::Invalid);
+        }
         let name = self.check_request(request)?;
-        let Some(id) = self.saved_identity(request).await? else {
+        let Some(id) = self.saved_identity(operation, request).await? else {
             // A name match is not an identity proof. The request might have
             // reached Apple before its response was lost.
             return Ok(MutationReconciliation::Indeterminate);
@@ -286,6 +302,22 @@ impl MutationProvider for ICloudOwnedFixtureFolderCreate {
             Err(MutationError::Conflict) => Ok(MutationReconciliation::Conflict),
             Err(error) => Err(error),
         }
+    }
+
+    async fn mutate(
+        &self,
+        _: &MutationRequest,
+        _: &CancellationToken,
+    ) -> MutationResult<MutationReceipt> {
+        Err(MutationError::Unsupported("durable operation ID required"))
+    }
+
+    async fn reconcile_mutation(
+        &self,
+        _: &MutationRequest,
+        _: &CancellationToken,
+    ) -> MutationResult<MutationReconciliation> {
+        Ok(MutationReconciliation::Indeterminate)
     }
 }
 
@@ -346,7 +378,6 @@ mod tests {
             scope,
             session,
             parent,
-            Uuid::new_v4(),
             Arc::new(MemoryVault::default()),
         )
         .unwrap();
@@ -356,9 +387,15 @@ mod tests {
     #[tokio::test]
     async fn no_allocated_id_never_treats_a_name_as_a_receipt() {
         let (provider, request) = fixture();
+        let operation = Uuid::new_v4();
         assert!(matches!(
             provider
-                .reconcile_mutation(&request, &CancellationToken::new())
+                .reconcile_operation(
+                    &operation.to_string(),
+                    &request,
+                    None,
+                    &CancellationToken::new(),
+                )
                 .await
                 .unwrap(),
             MutationReconciliation::Indeterminate
@@ -366,25 +403,82 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn folder_checkpoint_is_tied_to_the_worker_operation() {
+        let (provider, request) = fixture();
+        let operation = Uuid::new_v4();
+        let other = Uuid::new_v4();
+        let id = format!("FOLDER::com.apple.CloudDocs::{}", Uuid::new_v4());
+        provider
+            .save_identity(operation, &request, &id)
+            .await
+            .unwrap();
+        assert!(matches!(
+            provider
+                .mutate_operation("not-a-uuid", &request, None, &CancellationToken::new())
+                .await,
+            Err(MutationError::Invalid)
+        ));
+        assert!(matches!(
+            provider
+                .reconcile_operation("not-a-uuid", &request, None, &CancellationToken::new())
+                .await,
+            Err(MutationError::Invalid)
+        ));
+        assert_eq!(
+            provider.saved_identity(other, &request).await.unwrap(),
+            None
+        );
+        let other_id = format!("FOLDER::com.apple.CloudDocs::{}", Uuid::new_v4());
+        provider
+            .save_identity(other, &request, &other_id)
+            .await
+            .unwrap();
+        assert_eq!(
+            provider.saved_identity(operation, &request).await.unwrap(),
+            Some(id)
+        );
+        assert_eq!(
+            provider.saved_identity(other, &request).await.unwrap(),
+            Some(other_id)
+        );
+    }
+
+    #[tokio::test]
     async fn saved_identity_is_bound_to_operation_account_and_parent() {
         let (provider, request) = fixture();
+        let operation = Uuid::new_v4();
         let id = format!("FOLDER::com.apple.CloudDocs::{}", Uuid::new_v4());
-        provider.save_identity(&request, &id).await.unwrap();
-        assert_eq!(provider.saved_identity(&request).await.unwrap(), Some(id));
+        provider
+            .save_identity(operation, &request, &id)
+            .await
+            .unwrap();
+        assert_eq!(
+            provider.saved_identity(operation, &request).await.unwrap(),
+            Some(id)
+        );
 
         let mut other = request.clone();
         other.scope.account = Uuid::new_v4().to_string();
-        assert!(provider.saved_identity(&other).await.is_err());
+        assert!(provider.saved_identity(operation, &other).await.is_err());
         let MutationIntent::CreateFolder { parent, .. } = &mut other.intent else {
             unreachable!()
         };
         *parent = "FOLDER::com.apple.CloudDocs::other".into();
-        assert!(provider.saved_identity(&other).await.is_err());
+        assert!(provider.saved_identity(operation, &other).await.is_err());
 
-        let saved = provider.vault.load(&provider.key()).await.unwrap().unwrap();
+        let saved = provider
+            .vault
+            .load(&provider.key(operation))
+            .await
+            .unwrap()
+            .unwrap();
         let mut checkpoint: FolderCheckpoint = serde_json::from_str(saved.expose_secret()).unwrap();
         checkpoint.operation = Uuid::new_v4();
         let forged = SecretString::from(serde_json::to_string(&checkpoint).unwrap());
-        assert!(provider.check_checkpoint(&request, &forged).is_err());
+        assert!(
+            provider
+                .check_checkpoint(operation, &request, &forged)
+                .is_err()
+        );
     }
 }

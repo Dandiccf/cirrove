@@ -261,6 +261,18 @@ pub trait MutationProvider: Send + Sync {
         }
         self.mutate(request, cancel).await
     }
+    /// Execute with the durable journal operation ID. A provider may use this
+    /// ID to save a response-only item identity before it returns a receipt.
+    /// Existing providers that do not need it retain their prepared contract.
+    async fn mutate_operation(
+        &self,
+        _operation: &str,
+        request: &MutationRequest,
+        prepared_item: Option<&str>,
+        cancel: &CancellationToken,
+    ) -> Result<MutationReceipt> {
+        self.mutate_prepared(request, prepared_item, cancel).await
+    }
     async fn reconcile_mutation(
         &self,
         request: &MutationRequest,
@@ -280,5 +292,17 @@ pub trait MutationProvider: Send + Sync {
             return Err(MutationError::Invalid);
         }
         self.reconcile_mutation(request, cancel).await
+    }
+    /// Reconcile the same durable operation after an uncertain response or a
+    /// process restart. The default preserves existing provider behavior.
+    async fn reconcile_operation(
+        &self,
+        _operation: &str,
+        request: &MutationRequest,
+        prepared_item: Option<&str>,
+        cancel: &CancellationToken,
+    ) -> Result<MutationReconciliation> {
+        self.reconcile_prepared_mutation(request, prepared_item, cancel)
+            .await
     }
 }

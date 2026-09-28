@@ -117,15 +117,18 @@ impl MutationWorker {
                 }
             }
         }
+        let operation = id.to_string();
         let result = if record.state == MutationState::Verifying {
-            self.remote(self.provider.reconcile_prepared_mutation(
+            self.remote(self.provider.reconcile_operation(
+                &operation,
                 &record.request,
                 record.prepared_item.as_deref(),
                 &self.cancel,
             ))
             .await
         } else {
-            self.remote(self.provider.mutate_prepared(
+            self.remote(self.provider.mutate_operation(
+                &operation,
                 &record.request,
                 record.prepared_item.as_deref(),
                 &self.cancel,

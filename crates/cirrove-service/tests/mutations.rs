@@ -255,6 +255,7 @@ struct Provider {
     preparations: AtomicUsize,
     mutations: AtomicUsize,
     checks: AtomicUsize,
+    observed_operations: Mutex<Vec<String>>,
     journal: Weak<Mutex<UploadJournal>>,
     entered: tokio::sync::Notify,
 }
@@ -270,6 +271,46 @@ impl Provider {
 }
 #[async_trait]
 impl MutationProvider for Provider {
+    async fn mutate_operation(
+        &self,
+        operation: &str,
+        r: &MutationRequest,
+        prepared_item: Option<&str>,
+        c: &CancellationToken,
+    ) -> Result<MutationReceipt> {
+        if self.mode == "operation_lost" {
+            self.unlocked();
+            assert!(prepared_item.is_none());
+            self.observed_operations
+                .lock()
+                .unwrap()
+                .push(operation.into());
+            self.mutations.fetch_add(1, Ordering::SeqCst);
+            return Err(MutationError::Uncertain);
+        }
+        self.mutate_prepared(r, prepared_item, c).await
+    }
+
+    async fn reconcile_operation(
+        &self,
+        operation: &str,
+        r: &MutationRequest,
+        prepared_item: Option<&str>,
+        c: &CancellationToken,
+    ) -> Result<MutationReconciliation> {
+        if self.mode == "operation_lost" {
+            self.unlocked();
+            assert!(prepared_item.is_none());
+            self.observed_operations
+                .lock()
+                .unwrap()
+                .push(operation.into());
+            self.checks.fetch_add(1, Ordering::SeqCst);
+            return Ok(MutationReconciliation::Applied(receipt(r)));
+        }
+        self.reconcile_prepared_mutation(r, prepared_item, c).await
+    }
+
     async fn prepare_mutation(
         &self,
         _: &MutationRequest,
@@ -359,9 +400,40 @@ fn provider(mode: &'static str, j: &Arc<Mutex<UploadJournal>>) -> Arc<Provider> 
         preparations: AtomicUsize::new(0),
         mutations: AtomicUsize::new(0),
         checks: AtomicUsize::new(0),
+        observed_operations: Mutex::new(Vec::new()),
         journal: Arc::downgrade(j),
         entered: tokio::sync::Notify::new(),
     })
+}
+
+#[tokio::test]
+async fn worker_passes_the_same_durable_operation_id_to_apply_and_reconcile() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("journal");
+    let j = Arc::new(Mutex::new(journal(&root)));
+    let record = j.lock().unwrap().enqueue_mutation(request()).unwrap();
+    let p = provider("operation_lost", &j);
+    let worker = MutationWorker::new(j.clone(), p.clone(), CancellationToken::new());
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        MutationState::VerifyRequired
+    );
+    drop(worker);
+    drop(j);
+
+    let j = Arc::new(Mutex::new(journal(&root)));
+    j.lock().unwrap().request_mutation_retry(record.id).unwrap();
+    let worker = MutationWorker::new(j.clone(), p.clone(), CancellationToken::new());
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        MutationState::Applied
+    );
+    assert_eq!(
+        *p.observed_operations.lock().unwrap(),
+        vec![record.id.to_string(), record.id.to_string()]
+    );
+    assert_eq!(p.mutations.load(Ordering::SeqCst), 1);
+    assert_eq!(p.checks.load(Ordering::SeqCst), 1);
 }
 
 #[tokio::test]
