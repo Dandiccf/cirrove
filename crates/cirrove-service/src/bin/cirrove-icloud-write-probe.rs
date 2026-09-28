@@ -20,6 +20,7 @@ use cirrove_service::journal::{MutationState, UploadIntent, UploadJournal, Uploa
 use cirrove_service::mutations::MutationWorker;
 use cirrove_service::transfers::TransferWorker;
 use icloud_handoff_journal::{Journal, StageJournal};
+use sha2::Digest;
 use std::{
     path::Path,
     sync::{Arc, Mutex},
@@ -79,8 +80,10 @@ async fn main() -> Result<()> {
         [flag] if flag == "--worker-resume-timed-out-conditional-trash" => 47,
         [flag] if flag == "--worker-reserved-create-lost-receipt" => 48,
         [flag] if flag == "--worker-reconcile-reserved-create" => 49,
+        [flag] if flag == "--worker-ordinary-name-create" => 50,
+        [flag] if flag == "--worker-ordinary-name-collision" => 51,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -566,18 +569,142 @@ async fn main() -> Result<()> {
     if mode == 27 && trash_recovery_directory.exists() {
         bail!("lost Trash receipt validation journal already exists");
     }
+    if mode == 51 {
+        let base = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../.local-state")
+            .canonicalize()?;
+        let prior_directory =
+            std::path::PathBuf::from(std::env::var("CIRROVE_ICLOUD_PRIOR_CREATE_JOURNAL")?)
+                .canonicalize()?;
+        if prior_directory.parent() != Some(base.as_path())
+            || !prior_directory
+                .file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with("icloud-worker-create-"))
+        {
+            bail!("prior create journal is outside the isolated fixture state");
+        }
+        let prior = UploadJournal::open(&prior_directory, &account.id, 8192)?;
+        let rows = prior.list(0, 2)?;
+        if rows.len() != 1 || rows[0].state != UploadState::Uploaded {
+            bail!("prior owned filename fixture is absent");
+        }
+        let original = &rows[0];
+        let UploadIntent::Create { parent, name } = &original.intent else {
+            bail!("prior fixture is not a created file");
+        };
+        if name != "Résumé 2026 final.txt"
+            || original.scope.account != account.id
+            || original.scope.provider != "icloud"
+            || original.scope.collection != "drive"
+        {
+            bail!("prior fixture has the wrong account or name");
+        }
+        let old = original
+            .remote
+            .as_ref()
+            .context("prior fixture has no remote identity")?;
+        let folder = session.validation_folder_at_root(parent).await?;
+        let initial = session.list_folder(folder.id()).await?;
+        if initial.len() != 1
+            || initial[0].drivewsid != old.id
+            || initial[0].display_name() != *name
+            || hex::encode(sha2::Sha256::digest(
+                session
+                    .read_small_file_in_folder(folder.id(), &old.id)
+                    .await?,
+            )) != original.sha256
+        {
+            bail!("prior owned filename fixture changed");
+        }
+        let contents = format!("Cirrove collision validation {}\n", Uuid::new_v4());
+        let directory = base.join(format!("icloud-worker-collision-{}", Uuid::new_v4()));
+        let journal = Arc::new(Mutex::new(UploadJournal::open(
+            &directory,
+            &account.id,
+            8192,
+        )?));
+        let record = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock"))?
+            .enqueue(
+                original.scope.clone(),
+                original.intent.clone(),
+                contents.as_bytes(),
+            )?;
+        let provider = Arc::new(ICloudOwnedFixtureUpload::new(
+            original.scope.clone(),
+            session,
+            folder,
+        )?);
+        let worker = TransferWorker::new(
+            journal.clone(),
+            provider.clone(),
+            Arc::new(DesktopVault),
+            CancellationToken::new(),
+        );
+        let result = worker
+            .run_once()
+            .await?
+            .context("collision worker did not run")?;
+        if result.id != record.id || result.state != UploadState::Conflict {
+            bail!("occupied owned filename did not stop as a conflict");
+        }
+        let saved = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock"))?
+            .get(record.id)?;
+        if saved.remote.is_some() || saved.state != UploadState::Conflict {
+            bail!("occupied filename was incorrectly acknowledged");
+        }
+        let request = UploadRequest {
+            scope: record.scope.clone(),
+            intent: record.intent.clone(),
+            size: record.size,
+            sha256: record.sha256.clone(),
+        };
+        let checkpoint = DesktopVault
+            .load(&format!("upload/{}", record.id))
+            .await?
+            .context("collision checkpoint was not saved")?;
+        let reserved_id = provider
+            .reserved_document_id(&request, &checkpoint)?
+            .context("collision lacks its allocated document ID")?;
+        let mut verify =
+            ICloudReadSession::from_session_snapshot(&snapshot, &account.identity.username)?;
+        let after = verify.list_folder(parent).await?;
+        if after.len() != 1
+            || after[0].drivewsid != old.id
+            || after[0].display_name() != *name
+            || after[0].docwsid == reserved_id
+            || hex::encode(sha2::Sha256::digest(
+                verify.read_small_file_in_folder(parent, &old.id).await?,
+            )) != original.sha256
+        {
+            bail!("occupied filename or original bytes changed");
+        }
+        println!(
+            "The existing owned filename and full bytes remained intact; a different reserved create identity stopped at Conflict. Operation: {}.",
+            record.id
+        );
+        return Ok(());
+    }
     let name = format!("Cirrove Write Validation-{}", Uuid::new_v4());
     let folder = session.create_validation_folder(&name).await?;
     println!(
         "Created and listed the isolated iCloud validation folder. Testing a small file upload."
     );
-    if matches!(mode, 22 | 23 | 48) {
+    if matches!(mode, 22 | 23 | 48 | 50) {
         let scope = Scope {
             account: account.id.clone(),
             provider: "icloud".into(),
             collection: "drive".into(),
         };
-        let file_name = format!("staged-by-cirrove-{}.txt", Uuid::new_v4());
+        let file_name = if mode == 50 {
+            "Résumé 2026 final.txt".to_owned()
+        } else {
+            format!("staged-by-cirrove-{}.txt", Uuid::new_v4())
+        };
         let contents = format!("Cirrove worker validation {}\n", Uuid::new_v4());
         let directory = if mode == 23 {
             worker_recovery_directory
@@ -663,7 +790,10 @@ async fn main() -> Result<()> {
         let remote = receipt
             .remote
             .context("uploaded journal receipt lacks remote item")?;
-        if remote.id.is_empty() || remote.size != record.size {
+        if remote.id.is_empty()
+            || remote.size != record.size
+            || (mode == 50 && remote.name != "Résumé 2026 final.txt")
+        {
             bail!("uploaded journal receipt lacks the expected remote identity");
         }
         return Ok(());

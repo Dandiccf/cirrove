@@ -112,7 +112,20 @@ that item even if its bytes match. In one
 the first process discarded a registration response, and the second matched
 the saved exact document ID and full bytes without replaying an upload or
 registration. This closes a receipt-identity flaw in the small owned-fixture
-path; it does not yet support arbitrary names, large files or mounted writes.
+path; that trial did not cover ordinary names, large files or mounted writes.
+The owned-fixture Create worker now accepts ordinary Linux filenames up to
+255 UTF-8 bytes within its new Cirrove test folder, while retaining exact
+parent and allocated-document-ID checks. One
+[live Unicode/space filename trial](../benchmarks/icloud-worker-ordinary-name-create-2026-09-28.md)
+created and independently verified `Résumé 2026 final.txt` through that
+worker. It confirms this name shape on one account, not all legal names,
+existing folders, collisions or general mounted writes.
+The same owned folder then supplied a
+[controlled occupied-name trial](../benchmarks/icloud-worker-ordinary-name-collision-2026-09-28.md):
+a second Create with different bytes and a different reserved document ID
+stopped at `Conflict`. The existing exact ID and full bytes stayed intact,
+and the second journal retained its payload without a remote receipt. A
+collision arriving during an in-flight registration is still unverified.
 
 ## Direct Linux architecture if the gates pass
 

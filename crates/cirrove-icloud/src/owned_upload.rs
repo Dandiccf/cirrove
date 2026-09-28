@@ -17,7 +17,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-const NAME_PREFIX: &str = "staged-by-cirrove-";
 const MAX_OWNED_FILE: u64 = 4096;
 const MAX_CHECKPOINT: usize = 8192;
 
@@ -106,10 +105,7 @@ impl ICloudOwnedFixtureUpload {
             || parent != &self.folder.id
             || request.size == 0
             || request.size > MAX_OWNED_FILE
-            || name
-                .strip_prefix(NAME_PREFIX)
-                .and_then(|id| id.strip_suffix(".txt"))
-                .is_none_or(|id| Uuid::parse_str(id).is_err())
+            || name.len() > 255
         {
             return Err(UploadError::Invalid);
         }
@@ -409,7 +405,7 @@ mod tests {
             id: "FOLDER::com.apple.CloudDocs::fixture".into(),
             name: format!("Cirrove Write Validation-{}", Uuid::new_v4()),
         };
-        let name = format!("{NAME_PREFIX}{}.txt", Uuid::new_v4());
+        let name = format!("staged-by-cirrove-{}.txt", Uuid::new_v4());
         let request = UploadRequest {
             scope: scope.clone(),
             intent: UploadIntent::Create {
@@ -482,6 +478,21 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn ordinary_unicode_name_is_allowed_only_in_the_owned_folder() {
+        let (provider, mut request) = fixture();
+        let UploadIntent::Create { name, .. } = &mut request.intent else {
+            panic!("expected create fixture");
+        };
+        *name = "Résumé 2026 final.txt".into();
+        assert!(provider.check_request(&request).is_ok());
+        let UploadIntent::Create { parent, .. } = &mut request.intent else {
+            panic!("expected create fixture");
+        };
+        *parent = "FOLDER::com.apple.CloudDocs::other".into();
+        assert!(provider.check_request(&request).is_err());
     }
 
     #[tokio::test]
