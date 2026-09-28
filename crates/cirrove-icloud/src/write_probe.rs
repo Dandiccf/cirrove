@@ -91,6 +91,15 @@ pub enum MoveProbeOutcome {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+pub enum MoveCollisionOutcome {
+    RejectedBothIntact,
+    DuplicateNameAfterMove,
+    RenamedOnCollision,
+    DestinationDisplaced,
+    Indeterminate,
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub enum TrashProbeOutcome {
     StaleAcceptedAbsentFromParent,
     StaleRejectedCurrentIntact,
@@ -1782,6 +1791,130 @@ impl ICloudReadSession {
         let reply: RenameReply = read_json(response, "iCloud validation move").await?;
         let item = exactly_one(reply.items, "move")?;
         Ok(item.status == "OK")
+    }
+
+    /// Test a current-ETag move into a distinct owned file's occupied name.
+    /// Only exact IDs and complete bytes establish the disposition of each
+    /// item; an HTTP response or a name alone cannot do so.
+    pub async fn probe_occupied_move_name(
+        &mut self,
+        source: &ValidationFolder,
+        destination: &ValidationFolder,
+        moving: &ValidationFile,
+        moving_bytes: &[u8],
+        occupant: &ValidationFile,
+        occupant_bytes: &[u8],
+    ) -> Result<MoveCollisionOutcome> {
+        if source.id == destination.id
+            || moving.id == occupant.id
+            || moving.name != occupant.name
+            || moving_bytes.is_empty()
+            || occupant_bytes.is_empty()
+            || moving_bytes.len() > 4096
+            || occupant_bytes.len() > 4096
+        {
+            bail!("invalid occupied move fixture");
+        }
+        let root = self.list_root().await?;
+        for folder in [source, destination] {
+            if root
+                .iter()
+                .filter(|entry| {
+                    entry.drivewsid == folder.id
+                        && entry.display_name() == folder.name
+                        && entry.is_folder()
+                })
+                .count()
+                != 1
+            {
+                bail!("occupied move folder identity changed");
+            }
+        }
+        let source_before = self.list_folder(&source.id).await?;
+        let destination_before = self.list_folder(&destination.id).await?;
+        if source_before.len() != 1
+            || destination_before.len() != 1
+            || source_before[0].drivewsid != moving.id
+            || source_before[0].docwsid != moving.document_id
+            || source_before[0].display_name() != moving.name
+            || source_before[0].etag != moving.etag
+            || destination_before[0].drivewsid != occupant.id
+            || destination_before[0].docwsid != occupant.document_id
+            || destination_before[0].display_name() != occupant.name
+            || destination_before[0].etag != occupant.etag
+            || self
+                .read_small_file_in_folder(&source.id, &moving.id)
+                .await?
+                != moving_bytes
+            || self
+                .read_small_file_in_folder(&destination.id, &occupant.id)
+                .await?
+                != occupant_bytes
+        {
+            bail!("occupied move fixture changed before request");
+        }
+        let accepted = self
+            .send_move(&moving.id, &moving.etag, &destination.id)
+            .await?;
+        let source_after = self.list_folder(&source.id).await?;
+        let destination_after = self.list_folder(&destination.id).await?;
+        let moving_at_source = source_after.iter().find(|item| item.drivewsid == moving.id);
+        let moving_at_destination = destination_after
+            .iter()
+            .find(|item| item.drivewsid == moving.id);
+        let occupant_at_destination = destination_after
+            .iter()
+            .find(|item| item.drivewsid == occupant.id);
+        if !accepted
+            && source_after.len() == 1
+            && destination_after.len() == 1
+            && moving_at_source.is_some_and(|item| {
+                item.docwsid == moving.document_id
+                    && item.display_name() == moving.name
+                    && item.etag == moving.etag
+            })
+            && occupant_at_destination.is_some_and(|item| {
+                item.docwsid == occupant.document_id
+                    && item.display_name() == occupant.name
+                    && item.etag == occupant.etag
+            })
+            && self
+                .read_small_file_in_folder(&source.id, &moving.id)
+                .await?
+                == moving_bytes
+            && self
+                .read_small_file_in_folder(&destination.id, &occupant.id)
+                .await?
+                == occupant_bytes
+        {
+            return Ok(MoveCollisionOutcome::RejectedBothIntact);
+        }
+        if source_after.is_empty()
+            && moving_at_destination.is_some_and(|item| item.docwsid == moving.document_id)
+            && self
+                .read_small_file_in_folder(&destination.id, &moving.id)
+                .await?
+                == moving_bytes
+        {
+            if destination_after.len() == 2
+                && occupant_at_destination.is_some_and(|item| {
+                    item.docwsid == occupant.document_id && item.display_name() == occupant.name
+                })
+                && self
+                    .read_small_file_in_folder(&destination.id, &occupant.id)
+                    .await?
+                    == occupant_bytes
+            {
+                if moving_at_destination.is_some_and(|item| item.display_name() == moving.name) {
+                    return Ok(MoveCollisionOutcome::DuplicateNameAfterMove);
+                }
+                return Ok(MoveCollisionOutcome::RenamedOnCollision);
+            }
+            if accepted && occupant_at_destination.is_none() {
+                return Ok(MoveCollisionOutcome::DestinationDisplaced);
+            }
+        }
+        Ok(MoveCollisionOutcome::Indeterminate)
     }
 
     /// A single stale-ETag move between two new Cirrove-owned root folders.
