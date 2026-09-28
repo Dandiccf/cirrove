@@ -522,6 +522,13 @@ discarded the old Trash response after the request, retained
 `VerifyRequired`, then reconciled the old exact ID and published both IDs
 in a fresh process without sending Trash again. A lost staged-rename
 response and in-flight Trash timeout remain untested.
+Another [two-process live trial](../benchmarks/icloud-worker-lost-conditional-rename-receipt-2026-09-28.md)
+discarded the staged-rename response after Apple was contacted, then
+reopened the same journal in a reconciliation-only process. It verified
+both full byte streams and published the current/Trash identities without
+either mutation being resent. An in-flight timeout before Apple's response
+and external concurrent edits are still open; this does not enable general
+iCloud writes.
 
 A feature-gated `ICloudOwnedFixtureRemove` now implements the shared
 `MutationProvider` contract for one small, newly created Cirrove fixture.

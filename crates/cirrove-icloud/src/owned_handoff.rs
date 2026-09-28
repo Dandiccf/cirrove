@@ -139,6 +139,13 @@ impl ICloudOwnedFixtureHandoff {
         self
     }
 
+    /// True only while a configured one-shot fault has not yet reached the
+    /// staged rename response. The live probe uses this to distinguish an
+    /// earlier uncertain phase from the intended lost-response exercise.
+    pub fn new_receipt_discard_pending(&self) -> bool {
+        self.discard_new_receipt.load(Ordering::Acquire)
+    }
+
     /// Read-only phase inspection of this exact owned fixture. It never
     /// advances the worker or sends a mutation request.
     pub async fn inspect_owned_fixture(&self) -> anyhow::Result<HandoffObserved> {
@@ -590,23 +597,26 @@ mod tests {
 
     #[tokio::test]
     async fn restarted_verifier_cannot_send_either_rename() {
-        let (provider, request) = fixture();
-        let checkpoint = provider.checkpoint(Phase::InstallNew).unwrap();
-        let mut session = ICloudReadSession::new().unwrap();
-        session.account_hash = Some("synthetic-account".into());
-        let verifier = ICloudOwnedFixtureHandoff::from_checkpoint(
-            &request,
-            provider.operation,
-            &checkpoint,
-            session,
-        )
-        .unwrap()
-        .reconciliation_only();
-        let error = verifier
-            .commit_upload(&request, &checkpoint, &CancellationToken::new())
-            .await
-            .err()
-            .unwrap();
-        assert!(matches!(error, UploadError::Unsupported(_)));
+        for mode in [RecoveryMode::Rename, RecoveryMode::Trash] {
+            let (mut provider, request) = fixture();
+            provider.recovery_mode = mode;
+            let checkpoint = provider.checkpoint(Phase::InstallNew).unwrap();
+            let mut session = ICloudReadSession::new().unwrap();
+            session.account_hash = Some("synthetic-account".into());
+            let verifier = ICloudOwnedFixtureHandoff::from_checkpoint(
+                &request,
+                provider.operation,
+                &checkpoint,
+                session,
+            )
+            .unwrap()
+            .reconciliation_only();
+            let error = verifier
+                .commit_upload(&request, &checkpoint, &CancellationToken::new())
+                .await
+                .err()
+                .unwrap();
+            assert!(matches!(error, UploadError::Unsupported(_)));
+        }
     }
 }
