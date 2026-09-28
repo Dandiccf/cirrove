@@ -75,8 +75,10 @@ async fn main() -> Result<()> {
         [flag] if flag == "--worker-discard-conditional-rename-receipt" => 43,
         [flag] if flag == "--worker-reconcile-conditional-rename" => 44,
         [flag] if flag == "--worker-intervening-edit-before-trash" => 45,
+        [flag] if flag == "--worker-timeout-after-conditional-trash" => 46,
+        [flag] if flag == "--worker-resume-timed-out-conditional-trash" => 47,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -115,6 +117,8 @@ async fn main() -> Result<()> {
         .join("../../.local-state/icloud-worker-conditional-trash-lost-validation");
     let conditional_rename_recovery_directory = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../.local-state/icloud-worker-conditional-rename-lost-validation");
+    let conditional_trash_timeout_directory = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../.local-state/icloud-worker-conditional-trash-timeout-validation");
     if mode == 30 && handoff_recovery_directory.exists() {
         bail!("lost old-rename validation journal already exists");
     }
@@ -126,6 +130,9 @@ async fn main() -> Result<()> {
     }
     if mode == 43 && conditional_rename_recovery_directory.exists() {
         bail!("lost conditional-rename validation journal already exists");
+    }
+    if mode == 46 && conditional_trash_timeout_directory.exists() {
+        bail!("timed-out conditional-Trash validation journal already exists");
     }
     if matches!(mode, 39 | 41 | 42) {
         let base = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -194,13 +201,15 @@ async fn main() -> Result<()> {
         }
         return Ok(());
     }
-    if matches!(mode, 31 | 33 | 38 | 40 | 44) {
+    if matches!(mode, 31 | 33 | 38 | 40 | 44 | 47) {
         let recovery_directory = if mode == 31 {
             handoff_recovery_directory
         } else if mode == 38 {
             conditional_trash_recovery_directory
         } else if mode == 44 {
             conditional_rename_recovery_directory
+        } else if mode == 47 {
+            conditional_trash_timeout_directory
         } else if mode == 40 {
             let base = Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("../../.local-state")
@@ -279,7 +288,7 @@ async fn main() -> Result<()> {
                             .is_none_or(|backup| {
                                 !backup.unlinked
                                     || !backup.remote_owned
-                                    || (matches!(mode, 38 | 40 | 44)
+                                    || (matches!(mode, 38 | 40 | 44 | 47)
                                         && backup
                                             .remote
                                             .as_ref()
@@ -294,7 +303,7 @@ async fn main() -> Result<()> {
                             "Read-only restarted worker reconciled the complete conditional Trash handoff without another rename or Trash request. Operation: {}.",
                             record.id
                         );
-                    } else if matches!(mode, 38 | 40) {
+                    } else if matches!(mode, 38 | 40 | 47) {
                         println!(
                             "Restarted worker reconciled the conditional Trash handoff and published both exact IDs without a second Trash request. Operation: {}.",
                             record.id
@@ -646,7 +655,7 @@ async fn main() -> Result<()> {
         );
         return Ok(());
     }
-    if matches!(mode, 29 | 30 | 32 | 36 | 37 | 43 | 45) {
+    if matches!(mode, 29 | 30 | 32 | 36 | 37 | 43 | 45 | 46) {
         let staged_bytes = format!("Cirrove worker handoff {}\n", Uuid::new_v4());
         let staged = session
             .create_staged_file(&folder, &file, staged_bytes.as_bytes())
@@ -661,6 +670,7 @@ async fn main() -> Result<()> {
             32 => handoff_new_recovery_directory,
             37 => conditional_trash_recovery_directory,
             43 => conditional_rename_recovery_directory,
+            46 => conditional_trash_timeout_directory,
             _ => Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
                 "../../.local-state/icloud-worker-handoff-{}",
                 Uuid::new_v4()
@@ -710,7 +720,7 @@ async fn main() -> Result<()> {
                 format!("recovery-by-cirrove-{}.txt", record.id),
             )
             .await?;
-        let mut provider = if matches!(mode, 36 | 37 | 43 | 45) {
+        let mut provider = if matches!(mode, 36 | 37 | 43 | 45 | 46) {
             ICloudOwnedFixtureHandoff::new_conditional_trash(
                 scope.clone(),
                 record.id,
@@ -727,6 +737,8 @@ async fn main() -> Result<()> {
             provider = provider.with_discarded_new_receipt();
         } else if mode == 45 {
             provider = provider.with_intervening_old_edit();
+        } else if mode == 46 {
+            provider = provider.with_delayed_old_receipt();
         }
         let provider = Arc::new(provider);
         let worker = TransferWorker::new(
@@ -767,13 +779,16 @@ async fn main() -> Result<()> {
             );
             return Ok(());
         }
-        if matches!(mode, 30 | 32 | 37) {
+        if matches!(mode, 30 | 32 | 37 | 46) {
             let result = worker
                 .run_once()
                 .await?
                 .context("worker did not claim the handoff")?;
             if result.id != record.id || result.state != UploadState::VerifyRequired {
                 bail!("discarded rename receipt did not retain verification state");
+            }
+            if mode == 46 && !provider.old_receipt_delay_started() {
+                bail!("worker stopped before the accepted Trash response was held");
             }
             let guard = journal
                 .lock()
@@ -790,7 +805,12 @@ async fn main() -> Result<()> {
             if saved.session_key.is_none() || !reserved {
                 bail!("uncertain handoff lost its checkpoint or recovery reservation");
             }
-            if mode == 37 {
+            if mode == 46 {
+                println!(
+                    "Accepted conditional Trash response held past the worker deadline; VerifyRequired retains the exact-ID recovery reservation. Operation: {}.",
+                    record.id
+                );
+            } else if mode == 37 {
                 println!(
                     "Conditional Trash response discarded; the shared worker retained VerifyRequired and its exact-ID recovery reservation. Operation: {}.",
                     record.id

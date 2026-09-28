@@ -537,6 +537,13 @@ persisted `Conflict` without a replacement receipt. This proves that one
 deliberately injected race is fenced in the current request path. It does
 not establish protection after Apple accepts a request, across other client
 edits, or for ordinary mounted writes.
+The shared worker's deadline is also now exercised in one
+[two-process owned-fixture trial](../benchmarks/icloud-worker-deadline-after-trash-2026-09-28.md):
+Apple accepted the conditional Trash request, the adapter held its answer
+past the 125-second worker deadline, and a fresh process verified and
+completed the handoff without resending Trash. This covers cancellation of
+the provider future after Apple has answered the adapter, not a transport
+timeout before Apple's response or an unresolved server-side request.
 
 A feature-gated `ICloudOwnedFixtureRemove` now implements the shared
 `MutationProvider` contract for one small, newly created Cirrove fixture.

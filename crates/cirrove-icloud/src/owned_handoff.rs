@@ -53,6 +53,8 @@ pub struct ICloudOwnedFixtureHandoff {
     staged_size: u64,
     session: Mutex<ICloudReadSession>,
     discard_old_receipt: AtomicBool,
+    delay_old_receipt_past_worker_deadline: AtomicBool,
+    old_receipt_delay_started: AtomicBool,
     discard_new_receipt: AtomicBool,
     inject_intervening_edit: AtomicBool,
     stale_trash_refusal_verified: AtomicBool,
@@ -85,6 +87,8 @@ impl ICloudOwnedFixtureHandoff {
             staged_size,
             session: Mutex::new(session),
             discard_old_receipt: AtomicBool::new(false),
+            delay_old_receipt_past_worker_deadline: AtomicBool::new(false),
+            old_receipt_delay_started: AtomicBool::new(false),
             discard_new_receipt: AtomicBool::new(false),
             inject_intervening_edit: AtomicBool::new(false),
             stale_trash_refusal_verified: AtomicBool::new(false),
@@ -136,6 +140,19 @@ impl ICloudOwnedFixtureHandoff {
     pub fn with_discarded_old_receipt(self) -> Self {
         self.discard_old_receipt.store(true, Ordering::Release);
         self
+    }
+
+    /// Validation only: hold an accepted Trash response beyond the shared
+    /// worker's 125-second provider deadline. The worker cancels this future;
+    /// a fresh process must reconcile the exact old ID before proceeding.
+    pub fn with_delayed_old_receipt(self) -> Self {
+        self.delay_old_receipt_past_worker_deadline
+            .store(true, Ordering::Release);
+        self
+    }
+
+    pub fn old_receipt_delay_started(&self) -> bool {
+        self.old_receipt_delay_started.load(Ordering::Acquire)
     }
 
     pub fn with_discarded_new_receipt(self) -> Self {
@@ -427,6 +444,16 @@ impl UploadProvider for ICloudOwnedFixtureHandoff {
                     }
                 }
                 .map_err(|_| UploadError::Uncertain)?;
+                if accepted
+                    && self.recovery_mode == RecoveryMode::Trash
+                    && self
+                        .delay_old_receipt_past_worker_deadline
+                        .swap(false, Ordering::AcqRel)
+                {
+                    self.old_receipt_delay_started
+                        .store(true, Ordering::Release);
+                    tokio::time::sleep(std::time::Duration::from_secs(130)).await;
+                }
                 if self.discard_old_receipt.swap(false, Ordering::AcqRel) {
                     return Err(UploadError::Uncertain);
                 }
