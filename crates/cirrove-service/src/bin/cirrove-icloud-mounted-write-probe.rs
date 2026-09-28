@@ -96,6 +96,25 @@ with open(os.path.join(mount, 'Mounted Renamed.txt'), 'rb') as f:
 assert os.path.isdir(os.path.join(mount, 'Mounted Folder'))
 "#;
 
+const APP_RENAME_FILE_AGAIN: &str = r#"
+import os, sys
+mount = sys.argv[1]
+os.rename(os.path.join(mount, 'Mounted Renamed.txt'), os.path.join(mount, 'Mounted Renamed Again.txt'))
+assert not os.path.exists(os.path.join(mount, 'Mounted Renamed.txt'))
+with open(os.path.join(mount, 'Mounted Renamed Again.txt'), 'rb') as f:
+    assert f.read() == b'Cirrove isolated mounted iCloud validation\n'
+assert os.path.isdir(os.path.join(mount, 'Mounted Folder'))
+"#;
+
+const APP_READ_RENAMED_FILE_AGAIN: &str = r#"
+import os, sys
+mount = sys.argv[1]
+assert not os.path.exists(os.path.join(mount, 'Mounted Renamed.txt'))
+with open(os.path.join(mount, 'Mounted Renamed Again.txt'), 'rb') as f:
+    assert f.read() == b'Cirrove isolated mounted iCloud validation\n'
+assert os.path.isdir(os.path.join(mount, 'Mounted Folder'))
+"#;
+
 const APP_REMOVE_FOLDER: &str = r#"
 import os, sys
 mount = sys.argv[1]
@@ -274,6 +293,12 @@ async fn main() -> Result<()> {
     let after_rename_file = args
         .first()
         .is_some_and(|flag| flag == "--resume-after-file-rename");
+    let rename_file_again = args
+        .first()
+        .is_some_and(|flag| flag == "--rename-file-again");
+    let after_rename_file_again = args
+        .first()
+        .is_some_and(|flag| flag == "--resume-after-file-rename-again");
     let (
         resume,
         remove_folder,
@@ -303,15 +328,22 @@ async fn main() -> Result<()> {
             false,
             false,
         ),
-        [flag, id] if flag == "--rename-file" || flag == "--resume-after-file-rename" => (
-            Some(Uuid::parse_str(id).context("invalid fixture run ID")?),
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-        ),
+        [flag, id]
+            if flag == "--rename-file"
+                || flag == "--resume-after-file-rename"
+                || flag == "--rename-file-again"
+                || flag == "--resume-after-file-rename-again" =>
+        {
+            (
+                Some(Uuid::parse_str(id).context("invalid fixture run ID")?),
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+            )
+        }
         [flag, id] if flag == "--remove-folder" => (
             Some(Uuid::parse_str(id).context("invalid fixture run ID")?),
             true,
@@ -385,7 +417,7 @@ async fn main() -> Result<()> {
             true,
         ),
         _ => bail!(
-            "usage: cirrove-icloud-mounted-write-probe [--resume RUN_UUID | --rename-folder RUN_UUID | --resume-after-rename RUN_UUID | --rename-file RUN_UUID | --resume-after-file-rename RUN_UUID | --remove-folder RUN_UUID | --resume-after-remove RUN_UUID | --remove-file RUN_UUID | --resume-after-file-remove RUN_UUID | --replace RUN_UUID | --resume-after-replace RUN_UUID | --large-create | --large-replace RUN_UUID | --large-resume-after-replace RUN_UUID]"
+            "usage: cirrove-icloud-mounted-write-probe [--resume RUN_UUID | --rename-folder RUN_UUID | --resume-after-rename RUN_UUID | --rename-file RUN_UUID | --resume-after-file-rename RUN_UUID | --rename-file-again RUN_UUID | --resume-after-file-rename-again RUN_UUID | --remove-folder RUN_UUID | --resume-after-remove RUN_UUID | --remove-file RUN_UUID | --resume-after-file-remove RUN_UUID | --replace RUN_UUID | --resume-after-replace RUN_UUID | --large-create | --large-replace RUN_UUID | --large-resume-after-replace RUN_UUID]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -532,6 +564,10 @@ async fn main() -> Result<()> {
                     APP_RENAME_FILE
                 } else if after_rename_file {
                     APP_READ_RENAMED_FILE
+                } else if rename_file_again {
+                    APP_RENAME_FILE_AGAIN
+                } else if after_rename_file_again {
+                    APP_READ_RENAMED_FILE_AGAIN
                 } else if replace_file {
                     if large_file {
                         APP_LARGE_REPLACE
@@ -589,19 +625,21 @@ async fn main() -> Result<()> {
                     .any(|r| matches!(r.state, MutationState::Failed | MutationState::Conflict)),
                 "mounted folder create requires review"
             );
-            let expected = if remove_file || after_file_remove {
-                3
-            } else if remove_folder
-                || after_remove
-                || rename_folder
-                || after_rename_folder
-                || rename_file
-                || after_rename_file
-            {
-                2
-            } else {
-                1
-            };
+            let expected =
+                if remove_file || after_file_remove || rename_file_again || after_rename_file_again
+                {
+                    3
+                } else if remove_folder
+                    || after_remove
+                    || rename_folder
+                    || after_rename_folder
+                    || rename_file
+                    || after_rename_file
+                {
+                    2
+                } else {
+                    1
+                };
             if rows.len() == expected && rows.iter().all(|r| r.state == MutationState::Applied) {
                 break rows;
             }
@@ -609,7 +647,9 @@ async fn main() -> Result<()> {
         };
         let mut independent = ICloudReadSession::from_session_snapshot(&snapshot, apple_id)?;
         let children = independent.list_folder(folder.id()).await?;
-        let expected_file_name = if rename_file || after_rename_file {
+        let expected_file_name = if rename_file_again || after_rename_file_again {
+            "Mounted Renamed Again.txt"
+        } else if rename_file || after_rename_file {
             "Mounted Renamed.txt"
         } else {
             filename
@@ -674,17 +714,28 @@ async fn main() -> Result<()> {
                 file.is_some_and(|entry| entry.drivewsid == current.id),
                 "independent file identity differs from uploaded receipt"
             );
-            if rename_file || after_rename_file {
-                let Some(MutationReceipt::Upsert(renamed)) = mutations[1].receipt.as_ref() else {
+            if rename_file || after_rename_file || rename_file_again || after_rename_file_again {
+                let rename_index = if rename_file_again || after_rename_file_again {
+                    2
+                } else {
+                    1
+                };
+                let Some(MutationReceipt::Upsert(renamed)) =
+                    mutations[rename_index].receipt.as_ref()
+                else {
                     bail!("file rename lacks a confirmed upsert receipt");
                 };
                 ensure!(
                     renamed.id == uploaded.id
-                        && renamed.name == "Mounted Renamed.txt"
+                        && renamed.name == expected_file_name
                         && renamed.parent_id.as_deref() == Some(folder.id())
                         && !children
                             .iter()
-                            .any(|entry| entry.display_name() == "Mounted Create.txt"),
+                            .any(|entry| entry.display_name() == "Mounted Create.txt")
+                        && (!(rename_file_again || after_rename_file_again)
+                            || !children
+                                .iter()
+                                .any(|entry| entry.display_name() == "Mounted Renamed.txt")),
                     "renamed file lost its exact identity or source name remains"
                 );
             }
@@ -785,6 +836,10 @@ async fn main() -> Result<()> {
                 "conditional file rename"
             } else if after_rename_file {
                 "remount after file rename"
+            } else if rename_file_again {
+                "second conditional file rename"
+            } else if after_rename_file_again {
+                "remount after second file rename"
             } else if replace_file {
                 "two-ID replacement"
             } else if after_replace {

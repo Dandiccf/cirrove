@@ -74,8 +74,9 @@ impl ICloudOwnedFixtureFileRename {
                 .is_none_or(|suffix| Uuid::parse_str(suffix).is_err())
             || !before.id.starts_with("FILE::com.apple.CloudDocs::")
             || before.parent_id.as_deref() != Some(root.id.as_str())
-            || before.name != "Mounted Create.txt"
-            || target_name != "Mounted Renamed.txt"
+            || !fixture_name(&before.name)
+            || !fixture_name(&target_name)
+            || before.name == target_name
             || before.kind != NodeKind::File
             || before.target.is_some()
             || before.package
@@ -189,6 +190,13 @@ impl ICloudOwnedFixtureFileRename {
     }
 }
 
+fn fixture_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 255
+        && !matches!(name, "." | "..")
+        && !name.contains(['/', '\0', '\r', '\n'])
+}
+
 #[async_trait]
 impl MutationProvider for ICloudOwnedFixtureFileRename {
     async fn prepare_mutation(
@@ -297,6 +305,44 @@ impl MutationProvider for ICloudOwnedFixtureFileRename {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn confirmed_file_can_be_renamed_again_without_losing_identity() {
+        let mut session = ICloudReadSession::new().unwrap();
+        session.account_hash = Some("synthetic-account".into());
+        let scope = Scope {
+            account: Uuid::new_v4().to_string(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        };
+        let root = ValidationFolder {
+            id: format!("FOLDER::com.apple.CloudDocs::{}", Uuid::new_v4()),
+            name: format!("Cirrove Write Validation-{}", Uuid::new_v4()),
+        };
+        let before = Node {
+            id: format!("FILE::com.apple.CloudDocs::{}", Uuid::new_v4()),
+            parent_id: Some(root.id.clone()),
+            name: "Mounted Renamed.txt".into(),
+            kind: NodeKind::File,
+            size: 4,
+            modified_unix: 0,
+            etag: Some("current-etag".into()),
+            content_version: None,
+            target: None,
+            package: false,
+        };
+        assert!(
+            ICloudOwnedFixtureFileRename::new(
+                scope,
+                session,
+                root,
+                before,
+                "Mounted Renamed Again.txt".into(),
+                hex::encode(Sha256::digest(b"test")),
+            )
+            .is_ok()
+        );
+    }
 
     #[tokio::test]
     async fn file_rename_requires_prepared_identity_and_restart_never_resends() {

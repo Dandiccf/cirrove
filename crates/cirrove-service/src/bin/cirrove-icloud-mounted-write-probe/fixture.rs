@@ -359,45 +359,8 @@ impl Fixture {
             .journal
             .lock()
             .map_err(|_| MutationError::Uncertain)?;
-        let mut after = 0;
-        let mut digest = None;
-        loop {
-            let rows = journal
-                .list(after, 256)
-                .map_err(|_| MutationError::Uncertain)?;
-            if rows.is_empty() {
-                break;
-            }
-            for row in &rows {
-                if row.remote.as_ref().is_some_and(|node| node.id == before.id) {
-                    let node = row.remote.as_ref().ok_or(MutationError::Invalid)?;
-                    if row.state != UploadState::Uploaded
-                        || !confirmed_file(
-                            &self.scope,
-                            &self.root.id,
-                            &row.scope,
-                            &row.intent,
-                            node,
-                        )
-                        || node.parent_id != before.parent_id
-                        || node.name != before.name
-                        || node.kind != before.kind
-                        || node.size != before.size
-                        || node.etag != before.etag
-                        || row.size != before.size
-                        || row.sha256.len() != 64
-                        || digest.replace(row.sha256.clone()).is_some()
-                    {
-                        return Err(MutationError::Invalid);
-                    }
-                }
-            }
-            after = rows.last().expect("nonempty page").sequence;
-            if after > 100_000 {
-                return Err(MutationError::Invalid);
-            }
-        }
-        Ok((before.clone(), digest.ok_or(MutationError::Invalid)?))
+        let digest = confirmed_current_file_digest(&journal, &self.scope, &self.root.id, before)?;
+        Ok((before.clone(), digest))
     }
 
     fn file_remover(
@@ -436,8 +399,7 @@ impl Fixture {
             || before.kind != NodeKind::File
             || before.parent_id.as_deref() != Some(&self.root.id)
             || parent != &self.root.id
-            || before.name != "Mounted Create.txt"
-            || name != "Mounted Renamed.txt"
+            || before.name == *name
         {
             return Err(MutationError::Invalid);
         }
@@ -452,6 +414,7 @@ impl Fixture {
     fn file_renamer(
         &self,
         before: Node,
+        target_name: String,
         digest: String,
         reconciliation_only: bool,
     ) -> cirrove_core::mutation::Result<ICloudOwnedFixtureFileRename> {
@@ -466,7 +429,7 @@ impl Fixture {
                 session,
                 self.removal.folder.clone(),
                 before,
-                "Mounted Renamed.txt".into(),
+                target_name,
                 digest,
             )
         } else {
@@ -475,7 +438,7 @@ impl Fixture {
                 session,
                 self.removal.folder.clone(),
                 before,
-                "Mounted Renamed.txt".into(),
+                target_name,
                 digest,
             )
         }
@@ -512,6 +475,105 @@ impl Fixture {
             .remove(&before.id);
         Ok(())
     }
+}
+
+fn confirmed_current_file_digest(
+    journal: &UploadJournal,
+    scope: &Scope,
+    root: &str,
+    before: &Node,
+) -> cirrove_core::mutation::Result<String> {
+    let mut after = 0;
+    let mut digest = None;
+    let mut current = None;
+    loop {
+        let rows = journal
+            .list(after, 256)
+            .map_err(|_| MutationError::Uncertain)?;
+        if rows.is_empty() {
+            break;
+        }
+        for row in &rows {
+            if row.remote.as_ref().is_some_and(|node| node.id == before.id) {
+                let node = row.remote.as_ref().ok_or(MutationError::Invalid)?;
+                if row.state != UploadState::Uploaded
+                    || !confirmed_file(scope, root, &row.scope, &row.intent, node)
+                    || node.kind != before.kind
+                    || node.size != before.size
+                    || row.size != before.size
+                    || row.sha256.len() != 64
+                    || digest.replace(row.sha256.clone()).is_some()
+                    || current.replace(node.clone()).is_some()
+                {
+                    return Err(MutationError::Invalid);
+                }
+            }
+        }
+        after = rows.last().expect("nonempty page").sequence;
+        if after > 100_000 {
+            return Err(MutationError::Invalid);
+        }
+    }
+    let mut current = current.ok_or(MutationError::Invalid)?;
+    after = 0;
+    loop {
+        let rows = journal
+            .list_mutations(after, 256)
+            .map_err(|_| MutationError::Uncertain)?;
+        if rows.is_empty() {
+            break;
+        }
+        for row in &rows {
+            if let MutationIntent::RemoveFile { before: removed } = &row.request.intent
+                && removed.id == before.id
+                && row.state == MutationState::Applied
+            {
+                return Err(MutationError::Invalid);
+            }
+            if let MutationIntent::Relocate { before: prior, .. } = &row.request.intent
+                && prior.id == before.id
+                && row.state == MutationState::Applied
+            {
+                let Some(receipt @ MutationReceipt::Upsert(updated)) = row.receipt.as_ref() else {
+                    return Err(MutationError::Invalid);
+                };
+                if row.request.scope != *scope
+                    || !same_file_version(prior, &current)
+                    || !row.request.accepts(receipt)
+                    || updated.id != current.id
+                    || updated.parent_id.as_deref() != Some(root)
+                    || updated.kind != NodeKind::File
+                    || updated.size != current.size
+                    || updated.etag.as_deref().is_none_or(str::is_empty)
+                {
+                    return Err(MutationError::Invalid);
+                }
+                current = updated.clone();
+            }
+        }
+        after = rows.last().expect("nonempty page").sequence;
+        if after > 100_000 {
+            return Err(MutationError::Invalid);
+        }
+    }
+    if !same_file_version(&current, before) {
+        return Err(MutationError::Invalid);
+    }
+    digest.ok_or(MutationError::Invalid)
+}
+
+fn same_file_version(left: &Node, right: &Node) -> bool {
+    left.id == right.id
+        && left.parent_id == right.parent_id
+        && left.name == right.name
+        && left.kind == NodeKind::File
+        && right.kind == NodeKind::File
+        && left.size == right.size
+        && left.etag == right.etag
+        && left.target.is_none()
+        && right.target.is_none()
+        && !left.package
+        && !right.package
 }
 
 fn confirmed_file(
@@ -660,8 +722,8 @@ pub fn restored_owned(
                             && before.name == "Mounted Folder"
                             && name == "Mounted Renamed")
                             || (before.kind == NodeKind::File
-                                && before.name == "Mounted Create.txt"
-                                && name == "Mounted Renamed.txt"))
+                                && before.name != *name
+                                && row.request.validate().is_ok()))
                         && owned.contains(&before.id),
                     "non-fixture rename in isolated journal"
                 ),
@@ -714,6 +776,7 @@ pub fn restored_owned(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sha2::{Digest, Sha256};
 
     fn scope() -> Scope {
         Scope {
@@ -736,6 +799,61 @@ mod tests {
             target: None,
             package: false,
         }
+    }
+
+    #[test]
+    fn a_second_edit_follows_the_confirmed_rename_receipt() {
+        let private = tempfile::tempdir().unwrap();
+        let mut journal =
+            UploadJournal::open(&private.path().join("journal"), "account-a", 1024 * 1024).unwrap();
+        let scope = scope();
+        let original = node("file-a", NodeKind::File, "Mounted Create.txt");
+        let upload = journal
+            .enqueue(
+                scope.clone(),
+                UploadIntent::Create {
+                    parent: "fixture-root".into(),
+                    name: original.name.clone(),
+                },
+                b"ab".as_slice(),
+            )
+            .unwrap();
+        let claimed = journal.claim_next().unwrap().unwrap();
+        journal
+            .acknowledge(upload.id, claimed.attempt.unwrap(), original.clone())
+            .unwrap();
+        let mut renamed = original.clone();
+        renamed.name = "Mounted Renamed.txt".into();
+        renamed.etag = Some("renamed-etag".into());
+        let queued = journal
+            .enqueue_mutation(MutationRequest {
+                scope: scope.clone(),
+                intent: MutationIntent::Relocate {
+                    before: original.clone(),
+                    parent: "fixture-root".into(),
+                    name: renamed.name.clone(),
+                },
+            })
+            .unwrap();
+        let claimed = journal.claim_mutation().unwrap().unwrap();
+        journal
+            .record_prepared_mutation(queued.id, claimed.attempt.unwrap(), original.id.clone())
+            .unwrap();
+        journal
+            .acknowledge_mutation(
+                queued.id,
+                claimed.attempt.unwrap(),
+                MutationReceipt::Upsert(renamed.clone()),
+            )
+            .unwrap();
+        assert_eq!(
+            confirmed_current_file_digest(&journal, &scope, "fixture-root", &renamed).unwrap(),
+            hex::encode(Sha256::digest(b"ab"))
+        );
+        assert!(
+            confirmed_current_file_digest(&journal, &scope, "fixture-root", &original).is_err(),
+            "the old version must not authorize another edit"
+        );
     }
 
     #[test]
@@ -1038,7 +1156,7 @@ impl MutationProvider for Fixture {
                     .prepare_mutation(r, c)
                     .await
             }
-            MutationIntent::Relocate { before, .. } => match before.kind {
+            MutationIntent::Relocate { before, name, .. } => match before.kind {
                 NodeKind::Folder => {
                     let before = self.guard_rename_folder(r)?;
                     self.folder_renamer(before, false)?
@@ -1047,7 +1165,7 @@ impl MutationProvider for Fixture {
                 }
                 NodeKind::File => {
                     let (before, digest) = self.guard_rename_file(r)?;
-                    self.file_renamer(before, digest, false)?
+                    self.file_renamer(before, name.clone(), digest, false)?
                         .prepare_mutation(r, c)
                         .await
                 }
@@ -1106,7 +1224,7 @@ impl MutationProvider for Fixture {
                 self.removed_file_receipt(r, &receipt)?;
                 Ok(receipt)
             }
-            MutationIntent::Relocate { before, .. } => {
+            MutationIntent::Relocate { before, name, .. } => {
                 let receipt = match before.kind {
                     NodeKind::Folder => {
                         let before = self.guard_rename_folder(r)?;
@@ -1116,7 +1234,7 @@ impl MutationProvider for Fixture {
                     }
                     NodeKind::File => {
                         let (before, digest) = self.guard_rename_file(r)?;
-                        self.file_renamer(before, digest, false)?
+                        self.file_renamer(before, name.clone(), digest, false)?
                             .mutate_prepared(r, prepared, c)
                             .await?
                     }
@@ -1168,7 +1286,7 @@ impl MutationProvider for Fixture {
                 }
                 Ok(result)
             }
-            MutationIntent::Relocate { before, .. } => {
+            MutationIntent::Relocate { before, name, .. } => {
                 let result = match before.kind {
                     NodeKind::Folder => {
                         let before = self.guard_rename_folder(r)?;
@@ -1178,7 +1296,7 @@ impl MutationProvider for Fixture {
                     }
                     NodeKind::File => {
                         let (before, digest) = self.guard_rename_file(r)?;
-                        self.file_renamer(before, digest, true)?
+                        self.file_renamer(before, name.clone(), digest, true)?
                             .reconcile_prepared_mutation(r, prepared, c)
                             .await?
                     }
