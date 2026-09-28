@@ -8,8 +8,11 @@ use cirrove_core::mutation::{
 };
 use cirrove_core::{CancellationToken, Node, NodeKind, Scope};
 use sha2::{Digest, Sha256};
-use std::sync::atomic::{AtomicBool, Ordering};
-use tokio::sync::Mutex;
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
+use tokio::sync::{Mutex, Notify};
 use uuid::Uuid;
 
 enum Observation {
@@ -17,6 +20,24 @@ enum Observation {
     Moved(Node),
     Conflict,
     Unknown,
+}
+
+/// A test-only pause after the worker's final free-destination check.
+/// It lets another owned fixture occupy the name before the move request.
+#[derive(Default)]
+pub struct ICloudOwnedMovePause {
+    ready: Notify,
+    proceed: Notify,
+}
+
+impl ICloudOwnedMovePause {
+    pub async fn reached(&self) {
+        self.ready.notified().await;
+    }
+
+    pub fn resume(&self) {
+        self.proceed.notify_one();
+    }
 }
 
 pub struct ICloudOwnedFixtureMove {
@@ -28,6 +49,7 @@ pub struct ICloudOwnedFixtureMove {
     session: Mutex<ICloudReadSession>,
     reconciliation_only: bool,
     discard_response: AtomicBool,
+    before_send_pause: Option<Arc<ICloudOwnedMovePause>>,
 }
 
 impl ICloudOwnedFixtureMove {
@@ -117,6 +139,7 @@ impl ICloudOwnedFixtureMove {
             session: Mutex::new(session),
             reconciliation_only,
             discard_response: AtomicBool::new(false),
+            before_send_pause: None,
         })
     }
 
@@ -126,6 +149,11 @@ impl ICloudOwnedFixtureMove {
 
     pub fn with_discarded_response(self) -> Self {
         self.discard_response.store(true, Ordering::Release);
+        self
+    }
+
+    pub fn with_pause_before_send(mut self, pause: Arc<ICloudOwnedMovePause>) -> Self {
+        self.before_send_pause = Some(pause);
         self
     }
 
@@ -294,6 +322,10 @@ impl MutationProvider for ICloudOwnedFixtureMove {
         }
         if !matches!(self.observe().await?, Observation::SourceIntact) {
             return Err(MutationError::Conflict);
+        }
+        if let Some(pause) = &self.before_send_pause {
+            pause.ready.notify_one();
+            pause.proceed.notified().await;
         }
         let accepted = {
             let mut session = self.session.lock().await;

@@ -32,7 +32,7 @@ pub use owned_handoff::ICloudOwnedFixtureHandoff;
 #[cfg(feature = "write-probe")]
 pub use owned_mounted_replace::ICloudOwnedMountedReplace;
 #[cfg(feature = "write-probe")]
-pub use owned_move::ICloudOwnedFixtureMove;
+pub use owned_move::{ICloudOwnedFixtureMove, ICloudOwnedMovePause};
 #[cfg(feature = "write-probe")]
 pub use owned_mutation::ICloudOwnedFixtureRemove;
 #[cfg(feature = "write-probe")]

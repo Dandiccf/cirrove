@@ -13,9 +13,9 @@ use cirrove_core::{CancellationToken, Node, NodeKind, Scope};
 use cirrove_icloud::{
     HandoffOutcome, ICloudOwnedFixtureFolderCreate, ICloudOwnedFixtureFolderRemove,
     ICloudOwnedFixtureHandoff, ICloudOwnedFixtureMove, ICloudOwnedFixtureRemove,
-    ICloudOwnedFixtureUpload, ICloudReadSession, MoveCollisionOutcome, MoveProbeOutcome,
-    OccupiedNameOutcome, RenameProbeOutcome, SameIdUpdateOutcome, SealedSessionVault,
-    TrashProbeOutcome, TrashRestoreOutcome,
+    ICloudOwnedFixtureUpload, ICloudOwnedMovePause, ICloudReadSession, MoveCollisionOutcome,
+    MoveProbeOutcome, OccupiedNameOutcome, RenameProbeOutcome, SameIdUpdateOutcome,
+    SealedSessionVault, TrashProbeOutcome, TrashRestoreOutcome,
 };
 use cirrove_service::accounts::Settings;
 use cirrove_service::journal::{MutationState, UploadIntent, UploadJournal, UploadState};
@@ -29,6 +29,7 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
+    time::Duration,
 };
 use uuid::Uuid;
 
@@ -151,8 +152,9 @@ async fn main() -> Result<()> {
         [flag] if flag == "--worker-owned-move" => 70,
         [flag] if flag == "--worker-discard-move-response" => 71,
         [flag, _run_id] if flag == "--worker-reconcile-move" => 72,
+        [flag] if flag == "--worker-move-collision-race" => 73,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --stale-etag-move | --fresh-etag-move | --metadata-stale-move | --occupied-move-name | --inspect-occupied-move | --inspect-owned-folder ID | --reconcile-occupied-move UUID | --worker-owned-move | --worker-discard-move-response | --worker-reconcile-move UUID | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create | --worker-streamed-binary-create | --worker-streamed-lost-registration | --worker-reconcile-streamed-registration | --worker-streamed-lost-content | --worker-retry-streamed-content | --worker-create-folder | --worker-discard-folder-receipt | --worker-reconcile-folder | --worker-discard-empty-folder-trash | --worker-reconcile-empty-folder-trash]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --stale-etag-move | --fresh-etag-move | --metadata-stale-move | --occupied-move-name | --inspect-occupied-move | --inspect-owned-folder ID | --reconcile-occupied-move UUID | --worker-owned-move | --worker-discard-move-response | --worker-reconcile-move UUID | --worker-move-collision-race | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create | --worker-streamed-binary-create | --worker-streamed-lost-registration | --worker-reconcile-streamed-registration | --worker-streamed-lost-content | --worker-retry-streamed-content | --worker-create-folder | --worker-discard-folder-receipt | --worker-reconcile-folder | --worker-discard-empty-folder-trash | --worker-reconcile-empty-folder-trash]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -1626,7 +1628,7 @@ async fn main() -> Result<()> {
     println!(
         "Created and read back the isolated validation file byte for byte. The fixture remains in iCloud Drive."
     );
-    if matches!(mode, 70 | 71) {
+    if matches!(mode, 70 | 71 | 73) {
         let destination = session
             .create_validation_folder(&format!("Cirrove Write Validation-{}", Uuid::new_v4()))
             .await?;
@@ -1679,6 +1681,80 @@ async fn main() -> Result<()> {
             .map_err(|_| anyhow::anyhow!("journal lock"))?
             .enqueue_mutation(request.clone())?;
         println!("Owned move journal recorded as {run_id} before the one-shot request.");
+        if mode == 73 {
+            let pause = Arc::new(ICloudOwnedMovePause::default());
+            let provider = Arc::new(provider.with_pause_before_send(pause.clone()));
+            let worker = MutationWorker::new(journal.clone(), provider, CancellationToken::new());
+            let task = tokio::spawn(async move { worker.run_once().await });
+            if tokio::time::timeout(Duration::from_secs(240), pause.reached())
+                .await
+                .is_err()
+            {
+                task.abort();
+                let _ = task.await;
+                bail!("owned move did not reach the controlled pre-request pause");
+            }
+            let occupant_bytes = format!("Cirrove move race occupant {}\n", Uuid::new_v4());
+            let mut collision_session =
+                ICloudReadSession::from_session_snapshot(&snapshot, &account.identity.username)?;
+            let occupant_result = collision_session
+                .create_validation_file(&destination, occupant_bytes.as_bytes())
+                .await;
+            pause.resume();
+            let result = task.await??.context("owned race move not claimed")?;
+            let occupant = occupant_result?;
+            let saved = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock"))?
+                .mutation(queued.id)?;
+            if result.id != queued.id
+                || result.state == MutationState::Applied
+                || saved.receipt.is_some()
+                || saved.prepared_item.as_deref()
+                    != request.intent.before().map(|node| node.id.as_str())
+            {
+                bail!("occupied destination was incorrectly acknowledged as the requested move");
+            }
+            let mut verify =
+                ICloudReadSession::from_session_snapshot(&snapshot, &account.identity.username)?;
+            let source = verify.list_folder(folder.id()).await?;
+            let destination_items = verify.list_folder(destination.id()).await?;
+            let moving_id = &request.intent.before().context("missing moved file")?.id;
+            let occupant_at_destination = destination_items.iter().find(|entry| {
+                entry.drivewsid == occupant.id() && entry.display_name() == "created-by-cirrove.txt"
+            });
+            let occupant_intact = occupant_at_destination.is_some()
+                && verify
+                    .read_small_file_in_folder(destination.id(), occupant.id())
+                    .await?
+                    == occupant_bytes.as_bytes();
+            let moved_at_destination = destination_items
+                .iter()
+                .find(|entry| &entry.drivewsid == moving_id);
+            let moved_with_new_name = source.is_empty()
+                && destination_items.len() == 2
+                && moved_at_destination
+                    .is_some_and(|entry| entry.display_name() != "created-by-cirrove.txt")
+                && verify
+                    .read_small_file_in_folder(destination.id(), moving_id)
+                    .await?
+                    == content.as_bytes();
+            let rejected_intact = source.len() == 1
+                && destination_items.len() == 1
+                && source[0].drivewsid == *moving_id
+                && verify
+                    .read_small_file_in_folder(folder.id(), moving_id)
+                    .await?
+                    == content.as_bytes();
+            if !occupant_intact || !(moved_with_new_name || rejected_intact) {
+                bail!("occupied move race left an indeterminate owned fixture state");
+            }
+            println!(
+                "Occupied move race retained both exact IDs and bytes, produced no accepted receipt, and left journal state {:?}; moved with new name: {}.",
+                result.state, moved_with_new_name
+            );
+            return Ok(());
+        }
         let provider = Arc::new(if mode == 71 {
             provider.with_discarded_response()
         } else {
