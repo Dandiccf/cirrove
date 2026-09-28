@@ -323,6 +323,16 @@ fails the conditional namespace gate on this account. Rclone's branch for
 Cirrove must not wire these requests into its current conditional mutation
 contract.
 
+An isolated [moveItems trial](../benchmarks/icloud-stale-move-2026-09-28.md)
+then found a narrower contrast: a content-stale ETag was rejected with the
+newer exact ID and bytes intact at the source, while a separate fresh-ETag
+control moved the same ID and bytes to an empty destination. A third arm
+renamed the source, observed a newer metadata ETag, and found that the old
+ETag was rejected by `moveItems` while preserving the renamed ID and bytes.
+This is one run per arm. Destination collision, lost response, concurrent
+client and folder moves have not been validated, so the shared mounted
+Relocate contract remains disabled for iCloud.
+
 A separate [HTTP `If-Match` trial](../benchmarks/icloud-http-if-match-2026-09-27.md)
 put the stale ETag in a standard conditional header as well as the JSON body.
 Apple still accepted the same-ID content update and exposed the candidate

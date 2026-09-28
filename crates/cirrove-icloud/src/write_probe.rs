@@ -84,6 +84,13 @@ pub enum RenameProbeOutcome {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+pub enum MoveProbeOutcome {
+    StaleAccepted,
+    StaleRejectedCurrentIntact,
+    Indeterminate,
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub enum TrashProbeOutcome {
     StaleAcceptedAbsentFromParent,
     StaleRejectedCurrentIntact,
@@ -1749,6 +1756,273 @@ impl ICloudReadSession {
         let reply: RenameReply = read_json(response, "iCloud validation rename").await?;
         let item = exactly_one(reply.items, "rename")?;
         Ok(item.status == "OK")
+    }
+
+    async fn send_move(&mut self, item_id: &str, etag: &str, destination: &str) -> Result<bool> {
+        let endpoint = self
+            .drive_endpoint
+            .as_ref()
+            .context("iCloud sign-in is not complete")?
+            .join("moveItems")?;
+        let response = self
+            .http
+            .post(endpoint)
+            .header("origin", ICLOUD_ORIGIN)
+            .header("referer", format!("{ICLOUD_ORIGIN}/"))
+            .json(&json!({
+                "destinationDrivewsId": destination,
+                "items": [{"drivewsid": item_id, "etag": etag, "clientId": item_id}]
+            }))
+            .send()
+            .await
+            .map_err(|_| anyhow!("iCloud validation move request failed"))?;
+        if !response.status().is_success() {
+            return Ok(false);
+        }
+        let reply: RenameReply = read_json(response, "iCloud validation move").await?;
+        let item = exactly_one(reply.items, "move")?;
+        Ok(item.status == "OK")
+    }
+
+    /// A single stale-ETag move between two new Cirrove-owned root folders.
+    /// The caller has already established a newer same-ID content revision.
+    /// Never retry a possibly accepted move, even when its response is lost.
+    pub async fn probe_stale_etag_move(
+        &mut self,
+        source: &ValidationFolder,
+        destination: &ValidationFolder,
+        file: &ValidationFile,
+        revised: &[u8],
+    ) -> Result<MoveProbeOutcome> {
+        if source.id == destination.id || revised.is_empty() || revised.len() > 4096 {
+            bail!("invalid owned move fixture");
+        }
+        let root = self.list_root().await?;
+        for folder in [source, destination] {
+            let matches: Vec<_> = root
+                .iter()
+                .filter(|entry| {
+                    entry.drivewsid == folder.id
+                        && entry.display_name() == folder.name
+                        && entry.is_folder()
+                })
+                .collect();
+            if matches.len() != 1 {
+                bail!("owned move folder identity changed");
+            }
+        }
+        let before_source = self.list_folder(&source.id).await?;
+        let before_destination = self.list_folder(&destination.id).await?;
+        let current = exactly_one(
+            before_source
+                .iter()
+                .filter(|entry| entry.drivewsid == file.id)
+                .collect(),
+            "owned move source",
+        )?;
+        if before_source.len() != 1
+            || !before_destination.is_empty()
+            || current.is_folder()
+            || current.docwsid != file.document_id
+            || current.display_name() != file.name
+            || current.etag.is_empty()
+            || current.etag == file.etag
+            || self.read_small_file_in_folder(&source.id, &file.id).await? != revised
+        {
+            bail!("owned move fixture changed before stale request");
+        }
+        let current_etag = current.etag.clone();
+        let accepted = self
+            .send_move(&file.id, &file.etag, &destination.id)
+            .await?;
+        let after_source = self.list_folder(&source.id).await?;
+        let after_destination = self.list_folder(&destination.id).await?;
+        if accepted {
+            if !after_source.is_empty() || after_destination.len() != 1 {
+                return Ok(MoveProbeOutcome::Indeterminate);
+            }
+            let moved = &after_destination[0];
+            if moved.drivewsid == file.id
+                && moved.docwsid == file.document_id
+                && moved.display_name() == file.name
+                && !moved.is_folder()
+                && self
+                    .read_small_file_in_folder(&destination.id, &file.id)
+                    .await?
+                    == revised
+            {
+                return Ok(MoveProbeOutcome::StaleAccepted);
+            }
+        } else if after_source.len() == 1 && after_destination.is_empty() {
+            let intact = &after_source[0];
+            if intact.drivewsid == file.id
+                && intact.docwsid == file.document_id
+                && intact.display_name() == file.name
+                && intact.etag == current_etag
+                && self.read_small_file_in_folder(&source.id, &file.id).await? == revised
+            {
+                return Ok(MoveProbeOutcome::StaleRejectedCurrentIntact);
+            }
+        }
+        Ok(MoveProbeOutcome::Indeterminate)
+    }
+
+    /// Fresh-ETag control in a different new fixture. Return `false` only
+    /// when both exact IDs and full bytes prove the rejected move did nothing.
+    pub async fn probe_fresh_etag_move(
+        &mut self,
+        source: &ValidationFolder,
+        destination: &ValidationFolder,
+        file: &ValidationFile,
+        content: &[u8],
+    ) -> Result<bool> {
+        if source.id == destination.id || content.is_empty() || content.len() > 4096 {
+            bail!("invalid owned move control");
+        }
+        let root = self.list_root().await?;
+        for folder in [source, destination] {
+            if root
+                .iter()
+                .filter(|entry| {
+                    entry.drivewsid == folder.id
+                        && entry.display_name() == folder.name
+                        && entry.is_folder()
+                })
+                .count()
+                != 1
+            {
+                bail!("owned move control folder identity changed");
+            }
+        }
+        let before_source = self.list_folder(&source.id).await?;
+        let before_destination = self.list_folder(&destination.id).await?;
+        if before_source.len() != 1
+            || !before_destination.is_empty()
+            || before_source[0].drivewsid != file.id
+            || before_source[0].docwsid != file.document_id
+            || before_source[0].display_name() != file.name
+            || before_source[0].etag != file.etag
+            || self.read_small_file_in_folder(&source.id, &file.id).await? != content
+        {
+            bail!("owned move control changed before request");
+        }
+        let accepted = self
+            .send_move(&file.id, &file.etag, &destination.id)
+            .await?;
+        let after_source = self.list_folder(&source.id).await?;
+        let after_destination = self.list_folder(&destination.id).await?;
+        if accepted {
+            if after_source.is_empty()
+                && after_destination.len() == 1
+                && after_destination[0].drivewsid == file.id
+                && after_destination[0].docwsid == file.document_id
+                && after_destination[0].display_name() == file.name
+                && !after_destination[0].etag.is_empty()
+                && self
+                    .read_small_file_in_folder(&destination.id, &file.id)
+                    .await?
+                    == content
+            {
+                return Ok(true);
+            }
+        } else if after_source.len() == 1
+            && after_destination.is_empty()
+            && after_source[0].drivewsid == file.id
+            && after_source[0].docwsid == file.document_id
+            && after_source[0].display_name() == file.name
+            && after_source[0].etag == file.etag
+            && self.read_small_file_in_folder(&source.id, &file.id).await? == content
+        {
+            return Ok(false);
+        }
+        bail!("owned move control ended indeterminate")
+    }
+
+    /// Make the source ETag stale by an acknowledged metadata-only rename,
+    /// then send exactly one move with the original ETag. This tests the
+    /// namespace conflict that a content-only stale trial cannot establish.
+    pub async fn probe_metadata_stale_move(
+        &mut self,
+        source: &ValidationFolder,
+        destination: &ValidationFolder,
+        file: &ValidationFile,
+        content: &[u8],
+    ) -> Result<MoveProbeOutcome> {
+        const RENAMED: &str = "renamed-before-move.txt";
+        if source.id == destination.id || content.is_empty() || content.len() > 4096 {
+            bail!("invalid metadata move fixture");
+        }
+        let root = self.list_root().await?;
+        for folder in [source, destination] {
+            if root
+                .iter()
+                .filter(|entry| {
+                    entry.drivewsid == folder.id
+                        && entry.display_name() == folder.name
+                        && entry.is_folder()
+                })
+                .count()
+                != 1
+            {
+                bail!("metadata move folder identity changed");
+            }
+        }
+        let before_source = self.list_folder(&source.id).await?;
+        if before_source.len() != 1
+            || !self.list_folder(&destination.id).await?.is_empty()
+            || before_source[0].drivewsid != file.id
+            || before_source[0].docwsid != file.document_id
+            || before_source[0].display_name() != file.name
+            || before_source[0].etag != file.etag
+            || self.read_small_file_in_folder(&source.id, &file.id).await? != content
+        {
+            bail!("metadata move fixture changed before rename");
+        }
+        if !self.send_rename(&file.id, &file.etag, RENAMED).await? {
+            bail!("metadata move setup rename was rejected");
+        }
+        let renamed = self.list_folder(&source.id).await?;
+        if renamed.len() != 1
+            || renamed[0].drivewsid != file.id
+            || renamed[0].docwsid != file.document_id
+            || renamed[0].display_name() != RENAMED
+            || renamed[0].etag.is_empty()
+            || renamed[0].etag == file.etag
+            || !self.list_folder(&destination.id).await?.is_empty()
+            || self.read_small_file_in_folder(&source.id, &file.id).await? != content
+        {
+            bail!("metadata move setup did not establish a newer ETag");
+        }
+        let current_etag = renamed[0].etag.clone();
+        let accepted = self
+            .send_move(&file.id, &file.etag, &destination.id)
+            .await?;
+        let after_source = self.list_folder(&source.id).await?;
+        let after_destination = self.list_folder(&destination.id).await?;
+        if accepted {
+            if after_source.is_empty()
+                && after_destination.len() == 1
+                && after_destination[0].drivewsid == file.id
+                && after_destination[0].docwsid == file.document_id
+                && after_destination[0].display_name() == RENAMED
+                && self
+                    .read_small_file_in_folder(&destination.id, &file.id)
+                    .await?
+                    == content
+            {
+                return Ok(MoveProbeOutcome::StaleAccepted);
+            }
+        } else if after_source.len() == 1
+            && after_destination.is_empty()
+            && after_source[0].drivewsid == file.id
+            && after_source[0].docwsid == file.document_id
+            && after_source[0].display_name() == RENAMED
+            && after_source[0].etag == current_etag
+            && self.read_small_file_in_folder(&source.id, &file.id).await? == content
+        {
+            return Ok(MoveProbeOutcome::StaleRejectedCurrentIntact);
+        }
+        Ok(MoveProbeOutcome::Indeterminate)
     }
 
     /// First submit the original stale ETag for a rename, then the newly

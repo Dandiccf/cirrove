@@ -13,8 +13,8 @@ use cirrove_core::{CancellationToken, Node, NodeKind, Scope};
 use cirrove_icloud::{
     HandoffOutcome, ICloudOwnedFixtureFolderCreate, ICloudOwnedFixtureFolderRemove,
     ICloudOwnedFixtureHandoff, ICloudOwnedFixtureRemove, ICloudOwnedFixtureUpload,
-    ICloudReadSession, OccupiedNameOutcome, RenameProbeOutcome, SameIdUpdateOutcome,
-    SealedSessionVault, TrashProbeOutcome, TrashRestoreOutcome,
+    ICloudReadSession, MoveProbeOutcome, OccupiedNameOutcome, RenameProbeOutcome,
+    SameIdUpdateOutcome, SealedSessionVault, TrashProbeOutcome, TrashRestoreOutcome,
 };
 use cirrove_service::accounts::Settings;
 use cirrove_service::journal::{MutationState, UploadIntent, UploadJournal, UploadState};
@@ -94,8 +94,11 @@ async fn main() -> Result<()> {
         [flag] if flag == "--worker-reconcile-folder" => 60,
         [flag] if flag == "--worker-discard-empty-folder-trash" => 61,
         [flag] if flag == "--worker-reconcile-empty-folder-trash" => 62,
+        [flag] if flag == "--stale-etag-move" => 63,
+        [flag] if flag == "--fresh-etag-move" => 64,
+        [flag] if flag == "--metadata-stale-move" => 65,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create | --worker-streamed-binary-create | --worker-streamed-lost-registration | --worker-reconcile-streamed-registration | --worker-streamed-lost-content | --worker-retry-streamed-content | --worker-create-folder | --worker-discard-folder-receipt | --worker-reconcile-folder | --worker-discard-empty-folder-trash | --worker-reconcile-empty-folder-trash]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --stale-etag-move | --fresh-etag-move | --metadata-stale-move | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create | --worker-streamed-binary-create | --worker-streamed-lost-registration | --worker-reconcile-streamed-registration | --worker-streamed-lost-content | --worker-retry-streamed-content | --worker-create-folder | --worker-discard-folder-receipt | --worker-reconcile-folder | --worker-discard-empty-folder-trash | --worker-reconcile-empty-folder-trash]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -1240,6 +1243,72 @@ async fn main() -> Result<()> {
     println!(
         "Created and read back the isolated validation file byte for byte. The fixture remains in iCloud Drive."
     );
+    if mode == 65 {
+        let destination = session
+            .create_validation_folder(&format!("Cirrove Write Validation-{}", Uuid::new_v4()))
+            .await?;
+        match session
+            .probe_metadata_stale_move(&folder, &destination, &file, content.as_bytes())
+            .await?
+        {
+            MoveProbeOutcome::StaleAccepted => println!(
+                "Metadata-stale ETag move was accepted; this moveItems shape cannot protect a newer namespace revision."
+            ),
+            MoveProbeOutcome::StaleRejectedCurrentIntact => println!(
+                "Metadata-stale ETag move was rejected; the renamed exact ID and bytes remain in the source."
+            ),
+            MoveProbeOutcome::Indeterminate => {
+                bail!("metadata-stale move left an indeterminate owned fixture state")
+            }
+        }
+        return Ok(());
+    }
+    if mode == 64 {
+        let destination = session
+            .create_validation_folder(&format!("Cirrove Write Validation-{}", Uuid::new_v4()))
+            .await?;
+        if session
+            .probe_fresh_etag_move(&folder, &destination, &file, content.as_bytes())
+            .await?
+        {
+            println!(
+                "Fresh ETag move was accepted; the exact ID and full bytes appear only in the destination."
+            );
+        } else {
+            println!(
+                "Fresh ETag move was rejected; the exact ID and full bytes remain only in the source."
+            );
+        }
+        return Ok(());
+    }
+    if mode == 63 {
+        let destination = session
+            .create_validation_folder(&format!("Cirrove Write Validation-{}", Uuid::new_v4()))
+            .await?;
+        let revised = format!("Cirrove move revision {}\n", Uuid::new_v4());
+        if session
+            .probe_same_id_update(&folder, &file, content.as_bytes(), revised.as_bytes())
+            .await?
+            != SameIdUpdateOutcome::Updated
+        {
+            bail!("owned move fixture did not establish a newer revision");
+        }
+        match session
+            .probe_stale_etag_move(&folder, &destination, &file, revised.as_bytes())
+            .await?
+        {
+            MoveProbeOutcome::StaleAccepted => println!(
+                "Stale ETag move was accepted; this moveItems request cannot protect a newer revision."
+            ),
+            MoveProbeOutcome::StaleRejectedCurrentIntact => println!(
+                "Stale ETag move was rejected; the newer exact ID and bytes remain in the source."
+            ),
+            MoveProbeOutcome::Indeterminate => {
+                bail!("stale-ETag move left an indeterminate owned fixture state")
+            }
+        }
+        return Ok(());
+    }
     if mode == 34 {
         session
             .probe_owned_trash_download(&folder, &file, content.as_bytes())
