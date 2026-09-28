@@ -7,8 +7,8 @@ use super::{
 };
 use async_trait::async_trait;
 use cirrove_core::upload::{
-    Reconciliation, Result as UploadResult, UploadError, UploadIntent, UploadProgress,
-    UploadProvider, UploadRequest, UploadStep,
+    Reconciliation, Result as UploadResult, UploadError, UploadIntent, UploadProvider,
+    UploadRequest, UploadStep,
 };
 use cirrove_core::{CancellationToken, Node, NodeKind, Scope};
 use secrecy::{ExposeSecret, SecretString};
@@ -160,14 +160,9 @@ impl ICloudOwnedFixtureUpload {
             return Err(UploadError::Invalid);
         };
         let checkpoint = CreateCheckpoint {
-            // v2's small-file path can register in the same call as content
-            // upload. Only v3's split stream proves a missing receipt means
-            // add_file was never sent.
-            version: if request.size > MAX_OWNED_UPLOAD as u64 {
-                3
-            } else {
-                2
-            },
+            // Legacy v2 can register in the same call as content upload.
+            // Every newly started worker Create uses v3's split stream.
+            version: 3,
             scope: request.scope.clone(),
             parent: parent.clone(),
             name: name.clone(),
@@ -203,7 +198,6 @@ impl ICloudOwnedFixtureUpload {
             || saved.name != *name
             || saved.size != request.size
             || saved.sha256 != request.sha256
-            || (saved.version == 3 && request.size <= MAX_OWNED_UPLOAD as u64)
             || (saved.version == 2 && saved.receipt.is_some())
             || saved
                 .receipt
@@ -358,16 +352,7 @@ impl UploadProvider for ICloudOwnedFixtureUpload {
                 .allocate_upload_slot(name, request.size)
                 .await
                 .map_err(|_| UploadError::Uncertain)?;
-            let checkpoint = self.checkpoint(request, Some(slot))?;
-            return Ok(if request.size > MAX_OWNED_UPLOAD as u64 {
-                UploadStep::Stream(checkpoint)
-            } else {
-                UploadStep::Continue(UploadProgress {
-                    checkpoint,
-                    offset: 0,
-                    length: request.size as u32,
-                })
-            });
+            return Ok(UploadStep::Stream(self.checkpoint(request, Some(slot))?));
         };
         self.observed(request, &slot.document_id)
             .await?
@@ -445,11 +430,7 @@ impl UploadProvider for ICloudOwnedFixtureUpload {
     ) -> UploadResult<UploadStep> {
         let saved = self.check_checkpoint(request, checkpoint)?;
         let slot = saved.slot.ok_or(UploadError::CheckpointInvalid)?;
-        if self.reconciliation_only
-            || saved.version != 3
-            || saved.receipt.is_some()
-            || request.size <= MAX_OWNED_UPLOAD as u64
-        {
+        if self.reconciliation_only || saved.version != 3 || saved.receipt.is_some() {
             return Err(UploadError::Invalid);
         }
         let expected_size = request.size;
@@ -536,8 +517,7 @@ impl UploadProvider for ICloudOwnedFixtureUpload {
         let saved = self.check_checkpoint(request, checkpoint)?;
         let slot = saved.slot.ok_or(UploadError::CheckpointInvalid)?;
         let receipt = saved.receipt.ok_or(UploadError::CheckpointInvalid)?;
-        if saved.version != 3 || self.reconciliation_only || request.size <= MAX_OWNED_UPLOAD as u64
-        {
+        if saved.version != 3 || self.reconciliation_only {
             return Err(UploadError::Invalid);
         }
         if cancel.is_cancelled() {
@@ -823,8 +803,14 @@ mod tests {
                 .check_checkpoint(&request, &checkpoint)
                 .unwrap()
                 .version,
-            2
+            3
         );
+        let mut legacy: serde_json::Value =
+            serde_json::from_str(checkpoint.expose_secret()).unwrap();
+        legacy["version"] = serde_json::json!(2);
+        legacy.as_object_mut().unwrap().remove("receipt");
+        let legacy = SecretString::from(legacy.to_string());
+        assert!(provider.check_checkpoint(&request, &legacy).is_ok());
         let with_slot = provider.checkpoint(&request, Some(slot())).unwrap();
         assert!(provider.check_checkpoint(&request, &with_slot).is_ok());
         let mut other = request.clone();

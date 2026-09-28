@@ -11,8 +11,8 @@ registration preserve an exact content receipt in the credential vault before
 registration, and allow an uncertain content-only phase to use a fresh slot
 without creating duplicate visible files? The earlier combined stream could
 not distinguish an accepted content POST from a sent registration when its
-response was lost. The legacy small-file and old v2 checkpoints remain
-conservative; only a new v3 streamed checkpoint without a receipt proves this
+response was lost. Old v2 checkpoints remain conservative; only a new v3
+streamed checkpoint without a receipt proves this
 client did not send `add_file`.
 
 Arm A deliberately discards an already received registration response after
@@ -68,3 +68,30 @@ past a worker deadline, nor continuous process termination at every
 instruction boundary. It also does not establish general mounted writes or
 cross-account reliability. The earlier v2 combined flow never interprets a
 missing receipt as permission to retry.
+
+## Additional small-file arm, registered before the run
+
+The first two arms covered 20 MiB files. A new feature-gated worker now uses
+the same v3 split content/registration flow for **all newly started Create
+operations**, including small files; previously the 1 MiB worker used v2's
+combined request. Question: can the shared worker create a 1 MiB binary
+through that v3 path with an exact-ID/full-content receipt? One new
+UUID-named Cirrove-owned folder and a generated `Cirrove payload 1MiB.bin`
+are permitted in `iCloudGuiValidation`. Prediction: `Uploaded` for exactly
+1,048,576 bytes, with the journal digest matching its retained payload.
+The endpoint is an independently reopened SQLite record. One arm does not
+prove broad small-file reliability or network-timeout behavior. A private
+manifest precedes the process with binary SHA-256, PID, expected duration
+and disk-backed TMPDIR/SQLITE_TMPDIR; no compilation runs alongside it.
+
+The small-file arm exited zero. Operation
+`d250a317-294b-48b7-8182-23e24b9519c0` reached `Uploaded` for remote ID
+`FILE::com.apple.CloudDocs::73BF3046-47F7-44EA-88DB-4E4AF57F1AD6` and
+1,048,576 bytes. Independent read-only SQLite reopening found the exact
+`.bin` name and local snapshot SHA-256
+`024773c66123e648f4dd385c21daabaad2bbd65de17f47fd55d13a7f63465598`,
+matching the journal. The private manifest records binary SHA-256
+`b1a867687c5bf9e7027054988f6c209ec35b51530fbfc1e1e2214df59ecdc971`
+and btrfs temporary storage. This single success does not prove retries or
+all small-file types, but it exercises the new v3 path below the old 4 MiB
+threshold.
