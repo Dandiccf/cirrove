@@ -528,7 +528,15 @@ reopened the same journal in a reconciliation-only process. It verified
 both full byte streams and published the current/Trash identities without
 either mutation being resent. An in-flight timeout before Apple's response
 and external concurrent edits are still open; this does not enable general
-iCloud writes.
+iCloud writes. A subsequent
+[intervening-edit worker trial](../benchmarks/icloud-worker-intervening-edit-2026-09-28.md)
+changed the owned original after the worker's prepared observation and
+before its conditional Trash request. Apple refused the saved stale ETag;
+both exact IDs and full bytes stayed in the fixture folder, and the worker
+persisted `Conflict` without a replacement receipt. This proves that one
+deliberately injected race is fenced in the current request path. It does
+not establish protection after Apple accepts a request, across other client
+edits, or for ordinary mounted writes.
 
 A feature-gated `ICloudOwnedFixtureRemove` now implements the shared
 `MutationProvider` contract for one small, newly created Cirrove fixture.

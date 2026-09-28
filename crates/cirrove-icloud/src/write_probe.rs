@@ -973,6 +973,95 @@ impl ICloudReadSession {
         }
     }
 
+    /// Exercise the exact race between the worker's prepared observation and
+    /// its old-ID Trash request. Only the fresh, named two-file fixture is
+    /// eligible. A rejected stale request must leave both exact IDs readable.
+    pub(crate) async fn probe_intervening_edit_rejects_trash(
+        &mut self,
+        plan: &HandoffPlan,
+    ) -> Result<()> {
+        plan.validate()?;
+        let original = self
+            .read_small_file_in_folder(&plan.folder_id, &plan.original_id)
+            .await?;
+        if original.is_empty()
+            || original.len() > 4096
+            || hex::encode(Sha256::digest(&original)) != plan.original_sha256
+        {
+            bail!("iCloud concurrent-edit fixture differs from saved bytes");
+        }
+        let mut revised = original.clone();
+        revised[0] ^= 1;
+        let folder = ValidationFolder {
+            id: plan.folder_id.clone(),
+            name: plan.folder_name.clone(),
+        };
+        let file = ValidationFile {
+            id: plan.original_id.clone(),
+            document_id: plan.original_doc_id.clone(),
+            etag: plan.original_etag.clone(),
+            name: PROBE_FILE.into(),
+        };
+        if self
+            .probe_same_id_update(&folder, &file, &original, &revised)
+            .await?
+            != SameIdUpdateOutcome::Updated
+        {
+            bail!("iCloud intervening update was not confirmed");
+        }
+        // Send exactly the stale ETag captured by the worker. Never retry with
+        // the newly observed ETag, even when Apple rejects this request.
+        let accepted = self
+            .send_trash(&plan.original_id, &plan.original_etag)
+            .await?;
+        let items = self.list_folder(&plan.folder_id).await?;
+        if accepted || items.len() != 2 {
+            bail!("iCloud stale Trash did not preserve the two-file fixture");
+        }
+        let old = exactly_one(
+            items
+                .iter()
+                .filter(|item| item.drivewsid == plan.original_id)
+                .collect(),
+            "concurrent-edit old ID",
+        )?;
+        let staged = exactly_one(
+            items
+                .iter()
+                .filter(|item| item.drivewsid == plan.staged_id)
+                .collect(),
+            "concurrent-edit staged ID",
+        )?;
+        if old.is_folder()
+            || old.docwsid != plan.original_doc_id
+            || old.display_name() != PROBE_FILE
+            || old.etag == plan.original_etag
+            || staged.is_folder()
+            || staged.docwsid != plan.staged_doc_id
+            || staged.etag != plan.staged_etag
+            || staged.display_name() != plan.staged_name
+            || self
+                .read_small_file_in_folder(&plan.folder_id, &plan.original_id)
+                .await?
+                != revised
+            || hex::encode(Sha256::digest(
+                self.read_small_file_in_folder(&plan.folder_id, &plan.staged_id)
+                    .await?,
+            )) != plan.staged_sha256
+        {
+            bail!("iCloud concurrent-edit fixture identities or bytes changed");
+        }
+        let (trash, complete) = self.read_trash_items().await?;
+        if !complete
+            || trash.iter().any(|item| {
+                item.get("drivewsid").and_then(|id| id.as_str()) == Some(plan.original_id.as_str())
+            })
+        {
+            bail!("iCloud stale Trash left the old ID in an uncertain location");
+        }
+        Ok(())
+    }
+
     async fn send_same_id_update(
         &mut self,
         folder_id: &str,

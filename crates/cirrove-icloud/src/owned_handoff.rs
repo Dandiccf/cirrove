@@ -54,6 +54,8 @@ pub struct ICloudOwnedFixtureHandoff {
     session: Mutex<ICloudReadSession>,
     discard_old_receipt: AtomicBool,
     discard_new_receipt: AtomicBool,
+    inject_intervening_edit: AtomicBool,
+    stale_trash_refusal_verified: AtomicBool,
     reconciliation_only: bool,
     recovery_mode: RecoveryMode,
 }
@@ -84,6 +86,8 @@ impl ICloudOwnedFixtureHandoff {
             session: Mutex::new(session),
             discard_old_receipt: AtomicBool::new(false),
             discard_new_receipt: AtomicBool::new(false),
+            inject_intervening_edit: AtomicBool::new(false),
+            stale_trash_refusal_verified: AtomicBool::new(false),
             reconciliation_only: false,
             recovery_mode: RecoveryMode::Rename,
         })
@@ -137,6 +141,17 @@ impl ICloudOwnedFixtureHandoff {
     pub fn with_discarded_new_receipt(self) -> Self {
         self.discard_new_receipt.store(true, Ordering::Release);
         self
+    }
+
+    /// Validation only: change the owned old fixture after the worker's last
+    /// prepared observation, immediately before its conditional Trash call.
+    pub fn with_intervening_old_edit(self) -> Self {
+        self.inject_intervening_edit.store(true, Ordering::Release);
+        self
+    }
+
+    pub fn stale_trash_refusal_verified(&self) -> bool {
+        self.stale_trash_refusal_verified.load(Ordering::Acquire)
     }
 
     /// True only while a configured one-shot fault has not yet reached the
@@ -390,6 +405,17 @@ impl UploadProvider for ICloudOwnedFixtureHandoff {
                 }
                 .map_err(|_| UploadError::Uncertain)?;
                 if before != HandoffObserved::Prepared {
+                    return Err(UploadError::Conflict);
+                }
+                if self.recovery_mode == RecoveryMode::Trash
+                    && self.inject_intervening_edit.swap(false, Ordering::AcqRel)
+                {
+                    session
+                        .probe_intervening_edit_rejects_trash(&self.plan)
+                        .await
+                        .map_err(|_| UploadError::Uncertain)?;
+                    self.stale_trash_refusal_verified
+                        .store(true, Ordering::Release);
                     return Err(UploadError::Conflict);
                 }
                 let accepted = match self.recovery_mode {

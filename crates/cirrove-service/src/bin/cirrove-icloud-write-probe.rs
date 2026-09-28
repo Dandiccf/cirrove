@@ -74,6 +74,7 @@ async fn main() -> Result<()> {
         [flag] if flag == "--publish-conditional-trash-receipt" => 42,
         [flag] if flag == "--worker-discard-conditional-rename-receipt" => 43,
         [flag] if flag == "--worker-reconcile-conditional-rename" => 44,
+        [flag] if flag == "--worker-intervening-edit-before-trash" => 45,
         _ => bail!(
             "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename]"
         ),
@@ -645,7 +646,7 @@ async fn main() -> Result<()> {
         );
         return Ok(());
     }
-    if matches!(mode, 29 | 30 | 32 | 36 | 37 | 43) {
+    if matches!(mode, 29 | 30 | 32 | 36 | 37 | 43 | 45) {
         let staged_bytes = format!("Cirrove worker handoff {}\n", Uuid::new_v4());
         let staged = session
             .create_staged_file(&folder, &file, staged_bytes.as_bytes())
@@ -709,7 +710,7 @@ async fn main() -> Result<()> {
                 format!("recovery-by-cirrove-{}.txt", record.id),
             )
             .await?;
-        let mut provider = if matches!(mode, 36 | 37 | 43) {
+        let mut provider = if matches!(mode, 36 | 37 | 43 | 45) {
             ICloudOwnedFixtureHandoff::new_conditional_trash(
                 scope.clone(),
                 record.id,
@@ -724,6 +725,8 @@ async fn main() -> Result<()> {
             provider = provider.with_discarded_old_receipt();
         } else if matches!(mode, 32 | 43) {
             provider = provider.with_discarded_new_receipt();
+        } else if mode == 45 {
+            provider = provider.with_intervening_old_edit();
         }
         let provider = Arc::new(provider);
         let worker = TransferWorker::new(
@@ -732,6 +735,38 @@ async fn main() -> Result<()> {
             Arc::new(DesktopVault),
             CancellationToken::new(),
         );
+        if mode == 45 {
+            let result = worker
+                .run_once()
+                .await?
+                .context("worker did not claim the concurrent-edit fixture")?;
+            if result.id != record.id
+                || result.state != UploadState::Conflict
+                || !provider.stale_trash_refusal_verified()
+            {
+                bail!("concurrent-edit trial did not stop at a verified stale Trash refusal");
+            }
+            let guard = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock"))?;
+            let saved = guard.get(record.id)?;
+            let reserved = guard.namespace_objects()?.iter().any(|object| {
+                object.unlinked
+                    && !object.remote_owned
+                    && object
+                        .remote
+                        .as_ref()
+                        .is_some_and(|node| node.id == file.id())
+            });
+            if saved.remote.is_some() || saved.session_key.is_none() || !reserved {
+                bail!("concurrent-edit conflict lost its local checkpoint or old-ID reservation");
+            }
+            println!(
+                "Intervening edit changed the old exact ID; stale conditional Trash refused it. Both remote versions remain byte-readable; worker retained Conflict without publishing a replacement. Operation: {}.",
+                record.id
+            );
+            return Ok(());
+        }
         if matches!(mode, 30 | 32 | 37) {
             let result = worker
                 .run_once()

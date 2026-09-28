@@ -856,11 +856,15 @@ and a successor uses the newly confirmed remote ID. The shared transfer worker
 now reserves this object before any provider request and accepts a verified
 two-ID receipt on either the normal or reconciliation path. A synthetic worker
 run covers process death before reservation and a later lost success receipt
-without a replay. This is the local execution path required by the experimental
-iCloud handoff, not a working iCloud upload adapter: the native transport still
-must durably stage bytes, reconcile in-flight requests, independently verify
-both identities and expose the retained recovery version before any iCloud
-write grant is offered.
+without a replay. A feature-gated iCloud owned-fixture adapter has since
+completed one conditional Trash-backed handoff through this worker, and
+separate live trials reconciled lost Trash and rename responses without a
+mutation replay. An injected same-ID edit between the worker's prepared
+observation and conditional Trash request was refused at the saved ETag and
+remained a local conflict. These are narrow fixture results, not a general
+iCloud upload adapter: ordinary iCloud mounts remain read-only while
+in-flight timeouts, collision handling, recovery retention and broader file
+and folder operations remain unresolved.
 
 Journal schema 10 adds completion prerequisites independently of the single
 content/ETag predecessor. Both upload and mutation selection, including explicit
