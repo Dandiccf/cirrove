@@ -738,6 +738,160 @@ impl ICloudReadSession {
         .context("populated-folder fixture registration was not confirmed")
     }
 
+    /// Create one second-level folder and file, exclusively within a fresh
+    /// Cirrove-owned move fixture. A caller must persist all returned exact
+    /// identities before attempting to move the outer folder.
+    pub async fn create_grandchild_move_fixture(
+        &mut self,
+        source: &ValidationFolder,
+        outer: &ValidationFolder,
+        name: &str,
+        bytes: &[u8],
+    ) -> Result<(ValidationFolder, ValidationFile)> {
+        if bytes.is_empty()
+            || bytes.len() > 4096
+            || name
+                .strip_prefix("Cirrove Nested Move-")
+                .is_none_or(|suffix| Uuid::parse_str(suffix).is_err())
+            || self.validation_folder_at_root(&source.id).await?.name != source.name
+        {
+            bail!("invalid two-level move fixture");
+        }
+        let source_items = self.list_folder(&source.id).await?;
+        if source_items.len() != 1
+            || source_items[0].drivewsid != outer.id
+            || source_items[0].display_name() != outer.name
+            || source_items[0].parent_id != source.id
+            || !source_items[0].is_folder()
+            || !self.list_folder(&outer.id).await?.is_empty()
+        {
+            bail!("outer move fixture is not empty under its exact parent");
+        }
+        let inner_id = self.create_folder_request(&outer.id, name).await?;
+        let outer_items = self.list_folder(&outer.id).await?;
+        if outer_items.len() != 1
+            || outer_items[0].drivewsid != inner_id
+            || outer_items[0].display_name() != name
+            || outer_items[0].parent_id != outer.id
+            || !outer_items[0].is_folder()
+            || !self.list_folder(&inner_id).await?.is_empty()
+        {
+            bail!("inner move fixture was not listed under its exact ID");
+        }
+        let inner = ValidationFolder {
+            id: inner_id,
+            name: name.to_owned(),
+        };
+        let (slot, data) = self.upload_probe_bytes(PROBE_FILE, bytes).await?;
+        let file = self
+            .register_owned_file(OwnedRegistration {
+                folder: &inner,
+                name: PROBE_FILE,
+                slot: &slot,
+                data,
+                size: bytes.len() as u64,
+                expected_bytes: Some(bytes),
+                discard_receipt: false,
+            })
+            .await?
+            .context("two-level fixture registration was not confirmed")?;
+        Ok((inner, file))
+    }
+
+    /// Probe one conditional move of a two-level, Cirrove-owned subtree.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn probe_two_level_folder_move(
+        &mut self,
+        source: &ValidationFolder,
+        destination: &ValidationFolder,
+        outer: &ValidationFolder,
+        outer_etag: &str,
+        inner: &ValidationFolder,
+        file: &ValidationFile,
+        bytes: &[u8],
+    ) -> Result<PopulatedFolderMoveOutcome> {
+        if source.id == destination.id
+            || outer_etag.is_empty()
+            || file.name != PROBE_FILE
+            || bytes.is_empty()
+            || bytes.len() > 4096
+        {
+            bail!("invalid two-level folder move request");
+        }
+        for parent in [source, destination] {
+            if self.validation_folder_at_root(&parent.id).await?.name != parent.name {
+                bail!("two-level move parent identity changed");
+            }
+        }
+        let source_before = self.list_folder(&source.id).await?;
+        let outer_before = self.list_folder(&outer.id).await?;
+        let inner_before = self.list_folder(&inner.id).await?;
+        if source_before.len() != 1
+            || source_before[0].drivewsid != outer.id
+            || source_before[0].display_name() != outer.name
+            || source_before[0].parent_id != source.id
+            || source_before[0].etag != outer_etag
+            || !source_before[0].is_folder()
+            || outer_before.len() != 1
+            || outer_before[0].drivewsid != inner.id
+            || outer_before[0].display_name() != inner.name
+            || outer_before[0].parent_id != outer.id
+            || !outer_before[0].is_folder()
+            || inner_before.len() != 1
+            || inner_before[0].drivewsid != file.id
+            || inner_before[0].docwsid != file.document_id
+            || inner_before[0].display_name() != file.name
+            || inner_before[0].parent_id != inner.id
+            || inner_before[0].etag != file.etag
+            || inner_before[0].size != bytes.len() as u64
+            || self.read_small_file_in_folder(&inner.id, &file.id).await? != bytes
+            || !self.list_folder(&destination.id).await?.is_empty()
+        {
+            bail!("two-level folder move preflight changed");
+        }
+        let accepted = self
+            .send_move(&outer.id, outer_etag, &destination.id)
+            .await?;
+        let source_after = self.list_folder(&source.id).await?;
+        let destination_after = self.list_folder(&destination.id).await?;
+        let outer_after = self.list_folder(&outer.id).await?;
+        let inner_after = self.list_folder(&inner.id).await?;
+        let tree_intact = outer_after.len() == 1
+            && outer_after[0].drivewsid == inner.id
+            && outer_after[0].display_name() == inner.name
+            && outer_after[0].parent_id == outer.id
+            && outer_after[0].is_folder()
+            && inner_after.len() == 1
+            && inner_after[0].drivewsid == file.id
+            && inner_after[0].docwsid == file.document_id
+            && inner_after[0].display_name() == file.name
+            && inner_after[0].parent_id == inner.id
+            && inner_after[0].size == bytes.len() as u64
+            && self.read_small_file_in_folder(&inner.id, &file.id).await? == bytes;
+        if accepted
+            && source_after.is_empty()
+            && destination_after.len() == 1
+            && destination_after[0].drivewsid == outer.id
+            && destination_after[0].display_name() == outer.name
+            && destination_after[0].parent_id == destination.id
+            && destination_after[0].is_folder()
+            && tree_intact
+        {
+            return Ok(PopulatedFolderMoveOutcome::MovedExactTree);
+        }
+        if !accepted
+            && source_after.len() == 1
+            && source_after[0].drivewsid == outer.id
+            && source_after[0].etag == outer_etag
+            && source_after[0].parent_id == source.id
+            && destination_after.is_empty()
+            && tree_intact
+        {
+            return Ok(PopulatedFolderMoveOutcome::RejectedIntact);
+        }
+        Ok(PopulatedFolderMoveOutcome::Indeterminate)
+    }
+
     /// Move one newly created nested folder containing exactly its own file.
     /// The exact identities and expected bytes must be saved before this call.
     pub async fn probe_populated_nested_folder_move(
