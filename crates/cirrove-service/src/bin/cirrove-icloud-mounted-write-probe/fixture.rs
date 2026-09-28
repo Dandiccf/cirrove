@@ -1,4 +1,4 @@
-//! The only writable iCloud namespace here is a freshly created Cirrove test folder.
+//! The only writable iCloud namespace here is a freshly created Cirrove test tree.
 use anyhow::{Result, ensure};
 use cirrove_core::mutation::{
     MutationError, MutationIntent, MutationProvider, MutationReceipt, MutationReconciliation,
@@ -21,7 +21,7 @@ use cirrove_icloud::{
 use cirrove_service::journal::{MutationState, UploadJournal, UploadRecord, UploadState};
 use secrecy::SecretString;
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     fs::File,
     sync::{Arc, Mutex},
 };
@@ -31,10 +31,11 @@ pub struct Fixture {
     pub scope: Scope,
     pub root: Node,
     pub read: ICloudDrive,
-    pub upload: ICloudOwnedFixtureUpload,
+    pub upload: Arc<ICloudOwnedFixtureUpload>,
     pub folders: ICloudOwnedFixtureFolderCreate,
     removal: RemovalContext,
     owned: Mutex<HashSet<String>>,
+    child_uploads: Mutex<HashMap<String, Arc<ICloudOwnedFixtureUpload>>>,
 }
 
 pub struct RemovalContext {
@@ -58,10 +59,11 @@ impl Fixture {
             scope,
             root,
             read,
-            upload,
+            upload: Arc::new(upload),
             folders,
             removal,
             owned: Mutex::new(owned),
+            child_uploads: Mutex::new(HashMap::new()),
         }
     }
 
@@ -71,12 +73,65 @@ impl Fixture {
     }
 
     fn guard_upload(&self, request: &UploadRequest) -> cirrove_core::upload::Result<()> {
-        if request.scope != self.scope
-            || !matches!(&request.intent, UploadIntent::Create { parent, .. } if parent == &self.root.id)
-        {
+        if request.scope != self.scope {
             return Err(UploadError::Invalid);
         }
-        request.validate()
+        request.validate()?;
+        let UploadIntent::Create { parent, .. } = &request.intent else {
+            return Err(UploadError::Invalid);
+        };
+        if parent != &self.root.id {
+            let journal = self
+                .removal
+                .journal
+                .lock()
+                .map_err(|_| UploadError::Uncertain)?;
+            confirmed_owned_child_folder(&journal, &self.scope, &self.root.id, parent)
+                .map_err(|_| UploadError::Invalid)?;
+        }
+        Ok(())
+    }
+
+    fn uploader(
+        &self,
+        request: &UploadRequest,
+    ) -> cirrove_core::upload::Result<Arc<ICloudOwnedFixtureUpload>> {
+        self.guard_upload(request)?;
+        let UploadIntent::Create { parent, .. } = &request.intent else {
+            return Err(UploadError::Invalid);
+        };
+        if parent == &self.root.id {
+            return Ok(self.upload.clone());
+        }
+        let mut uploads = self
+            .child_uploads
+            .lock()
+            .map_err(|_| UploadError::Uncertain)?;
+        if let Some(upload) = uploads.get(parent) {
+            return Ok(upload.clone());
+        }
+        let child = {
+            let journal = self
+                .removal
+                .journal
+                .lock()
+                .map_err(|_| UploadError::Uncertain)?;
+            confirmed_owned_child_folder(&journal, &self.scope, &self.root.id, parent)
+                .map_err(|_| UploadError::Invalid)?
+        };
+        let session = ICloudReadSession::from_session_snapshot(
+            &self.removal.snapshot,
+            &self.removal.apple_id,
+        )
+        .map_err(|_| UploadError::Uncertain)?;
+        let upload = Arc::new(ICloudOwnedFixtureUpload::in_confirmed_child(
+            self.scope.clone(),
+            session,
+            self.removal.folder.clone(),
+            child,
+        )?);
+        uploads.insert(parent.clone(), upload.clone());
+        Ok(upload)
     }
 
     fn upload_step(
@@ -99,12 +154,12 @@ impl Fixture {
         request: &UploadRequest,
         node: &Node,
     ) -> cirrove_core::upload::Result<()> {
-        let UploadIntent::Create { name, .. } = &request.intent else {
+        let UploadIntent::Create { parent, name } = &request.intent else {
             return Err(UploadError::Invalid);
         };
         if node.kind != NodeKind::File
             || node.target.is_some()
-            || node.parent_id.as_ref() != Some(&self.root.id)
+            || node.parent_id.as_ref() != Some(parent)
             || &node.name != name
         {
             return Err(UploadError::Uncertain);
@@ -709,8 +764,14 @@ fn confirmed_current_file_digest(
         for row in &rows {
             if row.remote.as_ref().is_some_and(|node| node.id == before.id) {
                 let node = row.remote.as_ref().ok_or(MutationError::Invalid)?;
+                let UploadIntent::Create { parent, .. } = &row.intent else {
+                    return Err(MutationError::Invalid);
+                };
+                if parent != root {
+                    confirmed_owned_child_folder(journal, scope, root, parent)?;
+                }
                 if row.state != UploadState::Uploaded
-                    || !confirmed_file(scope, root, &row.scope, &row.intent, node)
+                    || !confirmed_file(scope, parent, &row.scope, &row.intent, node)
                     || node.kind != before.kind
                     || node.size != before.size
                     || row.size != before.size
@@ -875,8 +936,16 @@ pub fn restored_owned(
                     .remote
                     .as_ref()
                     .ok_or_else(|| anyhow::anyhow!("uploaded fixture lacks remote receipt"))?;
+                let parent = match &row.intent {
+                    UploadIntent::Create { parent, .. } if parent != root => {
+                        confirmed_owned_child_folder(journal, scope, root, parent)
+                            .map_err(|_| anyhow::anyhow!("unconfirmed nested upload parent"))?;
+                        parent.as_str()
+                    }
+                    _ => root,
+                };
                 ensure!(
-                    confirmed_current_file(scope, root, row, node),
+                    confirmed_current_file(scope, parent, row, node),
                     "uploaded fixture receipt does not match its intent"
                 );
                 if let UploadIntent::Replace { item, .. } = &row.intent {
@@ -890,8 +959,14 @@ pub fn restored_owned(
                     "duplicate remote identity in isolated journal"
                 );
             } else {
+                if let UploadIntent::Create { parent, .. } = &row.intent
+                    && parent != root
+                {
+                    confirmed_owned_child_folder(journal, scope, root, parent)
+                        .map_err(|_| anyhow::anyhow!("unconfirmed pending upload parent"))?;
+                }
                 ensure!(
-                    matches!(&row.intent, UploadIntent::Create { parent, .. } if parent == root)
+                    matches!(&row.intent, UploadIntent::Create { .. })
                         || matches!(&row.intent, UploadIntent::Replace { item, .. } if owned.contains(item)),
                     "non-fixture pending upload in isolated journal"
                 );
@@ -1162,6 +1237,59 @@ mod tests {
     }
 
     #[test]
+    fn nested_create_requires_applied_parent_and_restores_exact_receipt() {
+        let private = tempfile::tempdir().unwrap();
+        let mut journal =
+            UploadJournal::open(&private.path().join("journal"), "account-a", 1024 * 1024).unwrap();
+        let scope = scope();
+        let folder = node("folder-a", NodeKind::Folder, "Mounted Folder");
+        let file = Node {
+            parent_id: Some(folder.id.clone()),
+            ..node("file-nested", NodeKind::File, "Nested Create.txt")
+        };
+        let upload = journal
+            .enqueue(
+                scope.clone(),
+                UploadIntent::Create {
+                    parent: folder.id.clone(),
+                    name: file.name.clone(),
+                },
+                b"ab".as_slice(),
+            )
+            .unwrap();
+        assert!(restored_owned(&journal, &scope, "fixture-root").is_err());
+        let create = journal
+            .enqueue_mutation(MutationRequest {
+                scope: scope.clone(),
+                intent: MutationIntent::CreateFolder {
+                    parent: "fixture-root".into(),
+                    name: folder.name.clone(),
+                },
+            })
+            .unwrap();
+        let claimed = journal.claim_mutation().unwrap().unwrap();
+        journal
+            .acknowledge_mutation(
+                create.id,
+                claimed.attempt.unwrap(),
+                MutationReceipt::Upsert(folder.clone()),
+            )
+            .unwrap();
+        assert!(restored_owned(&journal, &scope, "fixture-root").is_ok());
+        let claimed = journal.claim_next().unwrap().unwrap();
+        journal
+            .acknowledge(upload.id, claimed.attempt.unwrap(), file.clone())
+            .unwrap();
+        let owned = restored_owned(&journal, &scope, "fixture-root").unwrap();
+        assert!(owned.contains(&folder.id));
+        assert!(owned.contains(&file.id));
+        assert_eq!(
+            confirmed_current_file_digest(&journal, &scope, "fixture-root", &file).unwrap(),
+            hex::encode(Sha256::digest(b"ab"))
+        );
+    }
+
+    #[test]
     fn recovered_ids_require_exact_scope_parent_intent_and_receipt() {
         let scope = scope();
         let file = node("file-a", NodeKind::File, "Owned.txt");
@@ -1370,8 +1498,7 @@ impl UploadProvider for Fixture {
     ) -> cirrove_core::upload::Result<UploadStep> {
         match &r.intent {
             UploadIntent::Create { .. } => {
-                self.guard_upload(r)?;
-                self.upload_step(r, self.upload.begin_upload(r, c).await?)
+                self.upload_step(r, self.uploader(r)?.begin_upload(r, c).await?)
             }
             UploadIntent::Replace { .. } => {
                 self.upload_step(r, self.replacement(r)?.begin_upload(r, c).await?)
@@ -1386,8 +1513,7 @@ impl UploadProvider for Fixture {
     ) -> cirrove_core::upload::Result<UploadStep> {
         match &r.intent {
             UploadIntent::Create { .. } => {
-                self.guard_upload(r)?;
-                self.upload_step(r, self.upload.inspect_upload(r, s, c).await?)
+                self.upload_step(r, self.uploader(r)?.inspect_upload(r, s, c).await?)
             }
             UploadIntent::Replace { .. } => {
                 self.upload_step(r, self.replacement(r)?.inspect_upload(r, s, c).await?)
@@ -1404,8 +1530,7 @@ impl UploadProvider for Fixture {
     ) -> cirrove_core::upload::Result<UploadStep> {
         match &r.intent {
             UploadIntent::Create { .. } => {
-                self.guard_upload(r)?;
-                self.upload_step(r, self.upload.upload_part(r, s, o, b, c).await?)
+                self.upload_step(r, self.uploader(r)?.upload_part(r, s, o, b, c).await?)
             }
             UploadIntent::Replace { .. } => {
                 self.upload_step(r, self.replacement(r)?.upload_part(r, s, o, b, c).await?)
@@ -1421,8 +1546,7 @@ impl UploadProvider for Fixture {
     ) -> cirrove_core::upload::Result<UploadStep> {
         match &r.intent {
             UploadIntent::Create { .. } => {
-                self.guard_upload(r)?;
-                self.upload_step(r, self.upload.upload_stream(r, s, f, c).await?)
+                self.upload_step(r, self.uploader(r)?.upload_stream(r, s, f, c).await?)
             }
             UploadIntent::Replace { .. } => {
                 self.upload_step(r, self.replacement(r)?.upload_stream(r, s, f, c).await?)
@@ -1437,8 +1561,7 @@ impl UploadProvider for Fixture {
     ) -> cirrove_core::upload::Result<UploadStep> {
         match &r.intent {
             UploadIntent::Create { .. } => {
-                self.guard_upload(r)?;
-                self.upload_step(r, self.upload.commit_upload(r, s, c).await?)
+                self.upload_step(r, self.uploader(r)?.commit_upload(r, s, c).await?)
             }
             UploadIntent::Replace { .. } => {
                 self.upload_step(r, self.replacement(r)?.commit_upload(r, s, c).await?)
@@ -1452,10 +1575,7 @@ impl UploadProvider for Fixture {
         c: &CancellationToken,
     ) -> cirrove_core::upload::Result<Reconciliation> {
         let result = match &r.intent {
-            UploadIntent::Create { .. } => {
-                self.guard_upload(r)?;
-                self.upload.reconcile_upload(r, s, c).await?
-            }
+            UploadIntent::Create { .. } => self.uploader(r)?.reconcile_upload(r, s, c).await?,
             UploadIntent::Replace { .. } => self.replacement(r)?.reconcile_upload(r, s, c).await?,
         };
         match &result {

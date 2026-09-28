@@ -45,6 +45,7 @@ struct CreateCheckpoint {
 /// live fixture creation. It is not constructed by the ordinary daemon.
 pub struct ICloudOwnedFixtureUpload {
     scope: Scope,
+    root: ValidationFolder,
     folder: ValidationFolder,
     session: Mutex<ICloudReadSession>,
     discard_registration_receipt: AtomicBool,
@@ -72,12 +73,77 @@ impl ICloudOwnedFixtureUpload {
         }
         Ok(Self {
             scope,
+            root: folder.clone(),
             folder,
             session: Mutex::new(session),
             discard_registration_receipt: AtomicBool::new(false),
             discard_content_receipt: AtomicBool::new(false),
             reconciliation_only: false,
         })
+    }
+
+    /// The caller has confirmed this child through an applied, exact-ID
+    /// folder-create receipt in the private validation journal.
+    pub fn in_confirmed_child(
+        scope: Scope,
+        session: ICloudReadSession,
+        root: ValidationFolder,
+        child: Node,
+    ) -> UploadResult<Self> {
+        if child.kind != NodeKind::Folder
+            || child.parent_id.as_deref() != Some(root.id.as_str())
+            || child.name != "Mounted Folder"
+            || !child.id.starts_with("FOLDER::com.apple.CloudDocs::")
+            || child.target.is_some()
+            || child.package
+        {
+            return Err(UploadError::Invalid);
+        }
+        let mut upload = Self::new(scope, session, root)?;
+        upload.folder = ValidationFolder {
+            id: child.id,
+            name: child.name,
+        };
+        Ok(upload)
+    }
+
+    async fn verify_parent(&self, session: &mut ICloudReadSession) -> UploadResult<()> {
+        let root = session
+            .list_root()
+            .await
+            .map_err(|_| UploadError::Uncertain)?;
+        if root
+            .iter()
+            .filter(|entry| {
+                entry.drivewsid == self.root.id
+                    && entry.display_name() == self.root.name
+                    && entry.is_folder()
+            })
+            .count()
+            != 1
+        {
+            return Err(UploadError::Conflict);
+        }
+        if self.folder.id != self.root.id {
+            let children = session
+                .list_folder(&self.root.id)
+                .await
+                .map_err(|_| UploadError::Uncertain)?;
+            if children
+                .iter()
+                .filter(|entry| {
+                    entry.drivewsid == self.folder.id
+                        && entry.display_name() == self.folder.name
+                        && entry.parent_id == self.root.id
+                        && entry.is_folder()
+                })
+                .count()
+                != 1
+            {
+                return Err(UploadError::Conflict);
+            }
+        }
+        Ok(())
     }
 
     /// Deliberately lose one already-received registration response in the
@@ -278,6 +344,7 @@ impl ICloudOwnedFixtureUpload {
             return Err(UploadError::Invalid);
         };
         let mut session = self.session.lock().await;
+        self.verify_parent(&mut session).await?;
         let items = session
             .list_folder(&self.folder.id)
             .await
@@ -391,6 +458,9 @@ impl UploadProvider for ICloudOwnedFixtureUpload {
         };
         let created = {
             let mut session = self.session.lock().await;
+            if self.folder.id != self.root.id {
+                return Err(UploadError::Unsupported("legacy nested validation upload"));
+            }
             // This method independently checks the exact parent and full bytes.
             // An error after the request may mean Apple committed it; no replay
             // follows from a missing or delayed listing.
@@ -469,19 +539,7 @@ impl UploadProvider for ICloudOwnedFixtureUpload {
         };
         let receipt = {
             let mut session = self.session.lock().await;
-            if !session
-                .list_root()
-                .await
-                .map_err(|_| UploadError::Uncertain)?
-                .iter()
-                .any(|entry| {
-                    entry.drivewsid == self.folder.id
-                        && entry.display_name() == self.folder.name
-                        && entry.is_folder()
-                })
-            {
-                return Err(UploadError::Conflict);
-            }
+            self.verify_parent(&mut session).await?;
             if session
                 .list_folder(&self.folder.id)
                 .await
@@ -531,19 +589,7 @@ impl UploadProvider for ICloudOwnedFixtureUpload {
         };
         let created = {
             let mut session = self.session.lock().await;
-            if !session
-                .list_root()
-                .await
-                .map_err(|_| UploadError::Uncertain)?
-                .iter()
-                .any(|entry| {
-                    entry.drivewsid == self.folder.id
-                        && entry.display_name() == self.folder.name
-                        && entry.is_folder()
-                })
-            {
-                return Err(UploadError::Conflict);
-            }
+            self.verify_parent(&mut session).await?;
             if session
                 .list_folder(&self.folder.id)
                 .await
@@ -712,6 +758,68 @@ mod tests {
         };
         *parent = "FOLDER::com.apple.CloudDocs::other".into();
         assert!(provider.check_request(&request).is_err());
+    }
+
+    #[test]
+    fn child_upload_requires_the_confirmed_parent_identity() {
+        let (root_upload, mut request) = fixture();
+        let child = Node {
+            id: format!("FOLDER::com.apple.CloudDocs::{}", Uuid::new_v4()),
+            parent_id: Some(root_upload.root.id.clone()),
+            name: "Mounted Folder".into(),
+            kind: NodeKind::Folder,
+            size: 0,
+            modified_unix: 0,
+            etag: Some("folder-etag".into()),
+            content_version: None,
+            target: None,
+            package: false,
+        };
+        let UploadIntent::Create { parent, .. } = &mut request.intent else {
+            panic!("expected create fixture");
+        };
+        *parent = child.id.clone();
+        assert!(root_upload.check_request(&request).is_err());
+        let mut session = ICloudReadSession::new().unwrap();
+        session.account_hash = Some("synthetic-account".into());
+        let nested = ICloudOwnedFixtureUpload::in_confirmed_child(
+            request.scope.clone(),
+            session,
+            root_upload.root.clone(),
+            child.clone(),
+        )
+        .unwrap();
+        assert!(nested.check_request(&request).is_ok());
+        let mut wrong_parent = child;
+        wrong_parent.parent_id = Some("another-root".into());
+        let mut session = ICloudReadSession::new().unwrap();
+        session.account_hash = Some("synthetic-account".into());
+        assert!(
+            ICloudOwnedFixtureUpload::in_confirmed_child(
+                request.scope.clone(),
+                session,
+                root_upload.root.clone(),
+                wrong_parent,
+            )
+            .is_err()
+        );
+        let entry: DriveEntry = serde_json::from_value(serde_json::json!({
+            "drivewsid": "FILE::com.apple.CloudDocs::expected-document",
+            "docwsid": "expected-document",
+            "name": "staged-by-cirrove",
+            "extension": "txt",
+            "type": "FILE",
+            "size": request.size,
+            "etag": "file-etag"
+        }))
+        .unwrap();
+        // Receipt identity is relative to the confirmed child, never the root.
+        let UploadIntent::Create { name, .. } = &mut request.intent else {
+            panic!("expected create fixture");
+        };
+        *name = "staged-by-cirrove.txt".into();
+        let node = nested.node(&entry, &request, "expected-document").unwrap();
+        assert_eq!(node.parent_id.as_deref(), Some(nested.folder.id.as_str()));
     }
 
     #[test]
