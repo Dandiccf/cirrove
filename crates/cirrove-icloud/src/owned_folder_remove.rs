@@ -46,7 +46,10 @@ impl ICloudOwnedFixtureFolderRemove {
             || before.kind != NodeKind::Folder
             || !before.id.starts_with("FOLDER::com.apple.CloudDocs::")
             || before.id == parent.id
-            || before.name != "Nested Cirrove folder"
+            || before.name.is_empty()
+            || before.name.len() > 255
+            || matches!(before.name.as_str(), "." | "..")
+            || before.name.contains(['/', '\0'])
             || before.etag.as_deref().is_none_or(str::is_empty)
             || before.target.is_some()
             || before.package
@@ -365,6 +368,24 @@ mod tests {
         };
         before.id = format!("FOLDER::com.apple.CloudDocs::{}", Uuid::new_v4());
         assert!(provider.check(&other, Some(&entry.drivewsid)).is_err());
+    }
+
+    #[test]
+    fn mounted_owned_folder_name_is_accepted_without_weakening_identity() {
+        let (provider, _, _) = fixture();
+        let mut session = ICloudReadSession::new().unwrap();
+        session.account_hash = Some("synthetic-account".into());
+        let mut before = provider.before.clone();
+        before.name = "Mounted Folder".into();
+        assert!(
+            ICloudOwnedFixtureFolderRemove::new(
+                provider.scope.clone(),
+                session,
+                provider.parent.clone(),
+                before
+            )
+            .is_ok()
+        );
     }
 
     #[tokio::test]

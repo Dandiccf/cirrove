@@ -18,7 +18,7 @@ use cirrove_service::{
     private_dir,
     writable::WritableSession,
 };
-use fixture::{Fixture, restored_owned};
+use fixture::{Fixture, RemovalContext, restored_owned};
 use sha2::{Digest, Sha256};
 use std::{
     path::Path,
@@ -49,15 +49,49 @@ with open(os.path.join(mount, 'Mounted Create.txt'), 'rb') as f:
 assert os.path.isdir(os.path.join(mount, 'Mounted Folder'))
 "#;
 
+const APP_REMOVE_FOLDER: &str = r#"
+import os, sys
+mount = sys.argv[1]
+try:
+    os.rmdir(os.path.join(mount, 'Mounted Folder'))
+except OSError as error:
+    print(f'rmdir_errno={error.errno}', file=sys.stderr)
+    sys.exit(1)
+with open(os.path.join(mount, 'Mounted Create.txt'), 'rb') as f:
+    assert f.read() == b'Cirrove isolated mounted iCloud validation\n'
+"#;
+
+const APP_READ_REMOVED: &str = r#"
+import os, sys
+mount = sys.argv[1]
+with open(os.path.join(mount, 'Mounted Create.txt'), 'rb') as f:
+    assert f.read() == b'Cirrove isolated mounted iCloud validation\n'
+assert not os.path.exists(os.path.join(mount, 'Mounted Folder'))
+"#;
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let args: Vec<_> = std::env::args().skip(1).collect();
-    let resume = match args.as_slice() {
-        [] => None,
-        [flag, id] if flag == "--resume" => {
-            Some(Uuid::parse_str(id).context("invalid fixture run ID")?)
-        }
-        _ => bail!("usage: cirrove-icloud-mounted-write-probe [--resume RUN_UUID]"),
+    let (resume, remove_folder, after_remove) = match args.as_slice() {
+        [] => (None, false, false),
+        [flag, id] if flag == "--resume" => (
+            Some(Uuid::parse_str(id).context("invalid fixture run ID")?),
+            false,
+            false,
+        ),
+        [flag, id] if flag == "--remove-folder" => (
+            Some(Uuid::parse_str(id).context("invalid fixture run ID")?),
+            true,
+            false,
+        ),
+        [flag, id] if flag == "--resume-after-remove" => (
+            Some(Uuid::parse_str(id).context("invalid fixture run ID")?),
+            false,
+            true,
+        ),
+        _ => bail!(
+            "usage: cirrove-icloud-mounted-write-probe [--resume RUN_UUID | --remove-folder RUN_UUID | --resume-after-remove RUN_UUID]"
+        ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../.local-state/icloud-gui-connect-validation/state")
@@ -162,6 +196,11 @@ async fn main() -> Result<()> {
             folder.clone(),
             Arc::new(DesktopVault),
         )?,
+        RemovalContext {
+            folder: folder.clone(),
+            apple_id: apple_id.clone(),
+            snapshot: snapshot.clone(),
+        },
         owned,
     ));
     let mut config = account.clone();
@@ -182,7 +221,18 @@ async fn main() -> Result<()> {
     let check = async {
         let filename = "Mounted Create.txt";
         let output = tokio::process::Command::new("python3")
-            .args(["-c", if resume.is_some() { APP_READ } else { APP }])
+            .args([
+                "-c",
+                if remove_folder {
+                    APP_REMOVE_FOLDER
+                } else if after_remove {
+                    APP_READ_REMOVED
+                } else if resume.is_some() {
+                    APP_READ
+                } else {
+                    APP
+                },
+            ])
             .arg(&engine.account.mount_path)
             .arg(filename)
             .kill_on_drop(true)
@@ -191,7 +241,8 @@ async fn main() -> Result<()> {
             .context("running separate FUSE write process")?;
         ensure!(
             output.status.success(),
-            "FUSE application process failed; evidence retained"
+            "FUSE application process failed ({}); evidence retained",
+            String::from_utf8_lossy(&output.stderr[..output.stderr.len().min(64)])
         );
         let uploads = loop {
             let rows = session.uploads(0, 16).await?;
@@ -214,7 +265,8 @@ async fn main() -> Result<()> {
                     .any(|r| matches!(r.state, MutationState::Failed | MutationState::Conflict)),
                 "mounted folder create requires review"
             );
-            if rows.len() == 1 && rows[0].state == MutationState::Applied {
+            let expected = if remove_folder || after_remove { 2 } else { 1 };
+            if rows.len() == expected && rows.iter().all(|r| r.state == MutationState::Applied) {
                 break rows;
             }
             tokio::time::sleep(Duration::from_millis(200)).await;
@@ -227,8 +279,7 @@ async fn main() -> Result<()> {
             .context("independent iCloud listing does not contain mounted file")?;
         let created_folder = children
             .iter()
-            .find(|entry| entry.display_name() == "Mounted Folder" && entry.is_folder())
-            .context("independent iCloud listing does not contain mounted folder")?;
+            .find(|entry| entry.display_name() == "Mounted Folder" && entry.is_folder());
         let uploaded = uploads[0]
             .remote
             .as_ref()
@@ -241,10 +292,29 @@ async fn main() -> Result<()> {
             anyhow::bail!("folder mutation lacks a remote upsert receipt");
         };
         ensure!(
-            created.id == created_folder.drivewsid
-                && created.parent_id.as_deref() == Some(folder.id()),
-            "independent folder identity differs from mutation receipt"
+            created.parent_id.as_deref() == Some(folder.id()),
+            "folder creation receipt has a different parent"
         );
+        if remove_folder || after_remove {
+            ensure!(
+                created_folder.is_none(),
+                "removed folder remains in independent parent listing"
+            );
+            let Some(MutationReceipt::Removed { item }) = mutations[1].receipt.as_ref() else {
+                bail!("folder removal lacks a confirmed receipt");
+            };
+            ensure!(
+                item == &created.id,
+                "folder removal receipt names another item"
+            );
+        } else {
+            let listed = created_folder
+                .context("independent iCloud listing does not contain mounted folder")?;
+            ensure!(
+                created.id == listed.drivewsid,
+                "independent folder identity differs from mutation receipt"
+            );
+        }
         let bytes = independent
             .read_small_file_in_folder(folder.id(), &file.drivewsid)
             .await?;
@@ -261,8 +331,12 @@ async fn main() -> Result<()> {
             "journal size differs from independent read"
         );
         println!(
-            "Mounted file and folder verified after {} by independent iCloud listing and full-byte read.",
-            if resume.is_some() {
+            "Mounted fixture verified after {} by independent iCloud listing and full-byte read.",
+            if remove_folder {
+                "recoverable folder removal"
+            } else if after_remove {
+                "remount after removal"
+            } else if resume.is_some() {
                 "remount"
             } else {
                 "create"
