@@ -63,6 +63,10 @@ impl ValidationFile {
         &self.id
     }
 
+    pub fn document_id(&self) -> &str {
+        &self.document_id
+    }
+
     pub fn etag(&self) -> &str {
         &self.etag
     }
@@ -93,6 +97,13 @@ pub enum MoveProbeOutcome {
 #[derive(Debug, PartialEq, Eq)]
 pub enum EmptyFolderMoveOutcome {
     MovedExactId,
+    RejectedIntact,
+    Indeterminate,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum PopulatedFolderMoveOutcome {
+    MovedExactTree,
     RejectedIntact,
     Indeterminate,
 }
@@ -684,6 +695,124 @@ impl ICloudReadSession {
             return Ok(EmptyFolderMoveOutcome::RejectedIntact);
         }
         Ok(EmptyFolderMoveOutcome::Indeterminate)
+    }
+
+    /// Register one small file in the newly created, still-empty nested move
+    /// fixture. This is deliberately separate from the root-only file helper.
+    pub async fn create_file_in_nested_move_fixture(
+        &mut self,
+        source: &ValidationFolder,
+        nested: &ValidationFolder,
+        bytes: &[u8],
+    ) -> Result<ValidationFile> {
+        if bytes.is_empty()
+            || bytes.len() > 4096
+            || nested
+                .name
+                .strip_prefix("Cirrove Nested Move-")
+                .is_none_or(|suffix| Uuid::parse_str(suffix).is_err())
+            || self.validation_folder_at_root(&source.id).await?.name != source.name
+        {
+            bail!("invalid populated-folder move fixture");
+        }
+        let source_items = self.list_folder(&source.id).await?;
+        if source_items.len() != 1
+            || source_items[0].drivewsid != nested.id
+            || source_items[0].display_name() != nested.name
+            || !source_items[0].is_folder()
+            || !self.list_folder(&nested.id).await?.is_empty()
+        {
+            bail!("nested move fixture is not empty under its exact parent");
+        }
+        let (slot, data) = self.upload_probe_bytes(PROBE_FILE, bytes).await?;
+        self.register_owned_file(OwnedRegistration {
+            folder: nested,
+            name: PROBE_FILE,
+            slot: &slot,
+            data,
+            size: bytes.len() as u64,
+            expected_bytes: Some(bytes),
+            discard_receipt: false,
+        })
+        .await?
+        .context("populated-folder fixture registration was not confirmed")
+    }
+
+    /// Move one newly created nested folder containing exactly its own file.
+    /// The exact identities and expected bytes must be saved before this call.
+    pub async fn probe_populated_nested_folder_move(
+        &mut self,
+        source: &ValidationFolder,
+        destination: &ValidationFolder,
+        nested: &ValidationFolder,
+        nested_etag: &str,
+        file: &ValidationFile,
+        bytes: &[u8],
+    ) -> Result<PopulatedFolderMoveOutcome> {
+        if source.id == destination.id
+            || nested_etag.is_empty()
+            || file.name != PROBE_FILE
+            || file.etag.is_empty()
+            || bytes.is_empty()
+            || bytes.len() > 4096
+        {
+            bail!("invalid populated-folder move request");
+        }
+        for folder in [source, destination] {
+            if self.validation_folder_at_root(&folder.id).await?.name != folder.name {
+                bail!("populated-folder move parent identity changed");
+            }
+        }
+        let source_before = self.list_folder(&source.id).await?;
+        let nested_before = self.list_folder(&nested.id).await?;
+        if source_before.len() != 1
+            || source_before[0].drivewsid != nested.id
+            || source_before[0].display_name() != nested.name
+            || source_before[0].etag != nested_etag
+            || !source_before[0].is_folder()
+            || nested_before.len() != 1
+            || nested_before[0].drivewsid != file.id
+            || nested_before[0].docwsid != file.document_id
+            || nested_before[0].display_name() != file.name
+            || nested_before[0].etag != file.etag
+            || nested_before[0].size != bytes.len() as u64
+            || self.read_small_file_in_folder(&nested.id, &file.id).await? != bytes
+            || !self.list_folder(&destination.id).await?.is_empty()
+        {
+            bail!("populated-folder move preflight changed");
+        }
+        let accepted = self
+            .send_move(&nested.id, nested_etag, &destination.id)
+            .await?;
+        let source_after = self.list_folder(&source.id).await?;
+        let destination_after = self.list_folder(&destination.id).await?;
+        let nested_after = self.list_folder(&nested.id).await?;
+        let file_intact = nested_after.len() == 1
+            && nested_after[0].drivewsid == file.id
+            && nested_after[0].docwsid == file.document_id
+            && nested_after[0].display_name() == file.name
+            && nested_after[0].size == bytes.len() as u64
+            && self.read_small_file_in_folder(&nested.id, &file.id).await? == bytes;
+        if accepted
+            && source_after.is_empty()
+            && destination_after.len() == 1
+            && destination_after[0].drivewsid == nested.id
+            && destination_after[0].display_name() == nested.name
+            && destination_after[0].is_folder()
+            && file_intact
+        {
+            return Ok(PopulatedFolderMoveOutcome::MovedExactTree);
+        }
+        if !accepted
+            && source_after.len() == 1
+            && source_after[0].drivewsid == nested.id
+            && source_after[0].display_name() == nested.name
+            && destination_after.is_empty()
+            && file_intact
+        {
+            return Ok(PopulatedFolderMoveOutcome::RejectedIntact);
+        }
+        Ok(PopulatedFolderMoveOutcome::Indeterminate)
     }
 
     /// Upload at most 4 KiB into a folder just created by this process. No

@@ -15,8 +15,8 @@ use cirrove_icloud::{
     ICloudOwnedFixtureFolderMove, ICloudOwnedFixtureFolderRemove, ICloudOwnedFixtureHandoff,
     ICloudOwnedFixtureMove, ICloudOwnedFixtureRemove, ICloudOwnedFixtureUpload,
     ICloudOwnedMovePause, ICloudReadSession, MoveCollisionOutcome, MoveProbeOutcome,
-    OccupiedNameOutcome, RenameProbeOutcome, SameIdUpdateOutcome, SealedSessionVault,
-    TrashProbeOutcome, TrashRestoreOutcome,
+    OccupiedNameOutcome, PopulatedFolderMoveOutcome, RenameProbeOutcome, SameIdUpdateOutcome,
+    SealedSessionVault, TrashProbeOutcome, TrashRestoreOutcome,
 };
 use cirrove_service::accounts::Settings;
 use cirrove_service::journal::{MutationState, UploadIntent, UploadJournal, UploadState};
@@ -69,6 +69,43 @@ struct EmptyFolderMoveFixture {
     nested_id: String,
     nested_name: String,
     nested_etag: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct PopulatedFolderMoveFixture {
+    account_id: String,
+    source_id: String,
+    source_name: String,
+    destination_id: String,
+    destination_name: String,
+    nested_id: String,
+    nested_name: String,
+    nested_etag: String,
+    file_id: String,
+    file_document_id: String,
+    file_etag: String,
+    file_size: u64,
+    file_sha256: String,
+}
+
+fn populated_folder_move_fixture_directory() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../.local-state/icloud-populated-folder-move-fixtures")
+}
+
+fn save_populated_folder_move_fixture(fixture: &PopulatedFolderMoveFixture) -> Result<Uuid> {
+    let directory = populated_folder_move_fixture_directory();
+    fs::create_dir_all(&directory)?;
+    let id = Uuid::new_v4();
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(directory.join(format!("{id}.json")))?;
+    file.write_all(&serde_json::to_vec_pretty(fixture)?)?;
+    file.write_all(b"\n")?;
+    file.sync_all()?;
+    fs::File::open(directory)?.sync_all()?;
+    Ok(id)
 }
 
 fn empty_folder_move_fixture_directory() -> PathBuf {
@@ -190,8 +227,10 @@ async fn main() -> Result<()> {
         [flag, _run_id] if flag == "--inspect-empty-folder-move" => 76,
         [flag] if flag == "--worker-discard-folder-move-response" => 77,
         [flag, _run_id] if flag == "--worker-reconcile-folder-move" => 78,
+        [flag] if flag == "--populated-folder-move" => 79,
+        [flag, _run_id] if flag == "--inspect-populated-folder-move" => 80,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --stale-etag-move | --fresh-etag-move | --metadata-stale-move | --occupied-move-name | --inspect-occupied-move | --inspect-owned-folder ID | --reconcile-occupied-move UUID | --worker-owned-move | --worker-discard-move-response | --worker-reconcile-move UUID | --worker-move-collision-race | --empty-folder-move | --inspect-empty-folder-move UUID | --worker-discard-folder-move-response | --worker-reconcile-folder-move UUID | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create | --worker-streamed-binary-create | --worker-streamed-lost-registration | --worker-reconcile-streamed-registration | --worker-streamed-lost-content | --worker-retry-streamed-content | --worker-create-folder | --worker-discard-folder-receipt | --worker-reconcile-folder | --worker-discard-empty-folder-trash | --worker-reconcile-empty-folder-trash]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --stale-etag-move | --fresh-etag-move | --metadata-stale-move | --occupied-move-name | --inspect-occupied-move | --inspect-owned-folder ID | --reconcile-occupied-move UUID | --worker-owned-move | --worker-discard-move-response | --worker-reconcile-move UUID | --worker-move-collision-race | --empty-folder-move | --inspect-empty-folder-move UUID | --worker-discard-folder-move-response | --worker-reconcile-folder-move UUID | --populated-folder-move | --inspect-populated-folder-move UUID | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create | --worker-streamed-binary-create | --worker-streamed-lost-registration | --worker-reconcile-streamed-registration | --worker-streamed-lost-content | --worker-retry-streamed-content | --worker-create-folder | --worker-discard-folder-receipt | --worker-reconcile-folder | --worker-discard-empty-folder-trash | --worker-reconcile-empty-folder-trash]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -222,6 +261,76 @@ async fn main() -> Result<()> {
         .list_root()
         .await
         .context("saved iCloud session is not usable")?;
+    if mode == 80 {
+        let run_id = Uuid::parse_str(&arguments[1]).context("invalid populated-move run ID")?;
+        let path = populated_folder_move_fixture_directory().join(format!("{run_id}.json"));
+        let fixture: PopulatedFolderMoveFixture = serde_json::from_slice(&fs::read(path)?)?;
+        if fixture.account_id != account.id
+            || fixture.source_id == fixture.destination_id
+            || fixture.file_size == 0
+            || fixture.file_size > 4096
+            || fixture.file_sha256.len() != 64
+            || !fixture
+                .file_sha256
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit())
+            || fixture
+                .nested_name
+                .strip_prefix("Cirrove Nested Move-")
+                .is_none_or(|suffix| Uuid::parse_str(suffix).is_err())
+        {
+            bail!("invalid populated-folder move record");
+        }
+        let source = session
+            .validation_folder_at_root(&fixture.source_id)
+            .await?;
+        let destination = session
+            .validation_folder_at_root(&fixture.destination_id)
+            .await?;
+        if source.name() != fixture.source_name
+            || destination.name() != fixture.destination_name
+            || source.id() == destination.id()
+        {
+            bail!("recorded populated-move parent identity changed");
+        }
+        let source_items = session.list_folder(source.id()).await?;
+        let destination_items = session.list_folder(destination.id()).await?;
+        let nested_items = session.list_folder(&fixture.nested_id).await?;
+        if nested_items.len() != 1
+            || nested_items[0].drivewsid != fixture.file_id
+            || nested_items[0].docwsid != fixture.file_document_id
+            || nested_items[0].display_name() != "created-by-cirrove.txt"
+            || nested_items[0].size != fixture.file_size
+            || nested_items[0].is_folder()
+            || hex::encode(sha2::Sha256::digest(
+                session
+                    .read_small_file_in_folder(&fixture.nested_id, &fixture.file_id)
+                    .await?,
+            )) != fixture.file_sha256
+        {
+            bail!("nested file ID or full bytes changed after folder move");
+        }
+        if source_items.is_empty()
+            && destination_items.len() == 1
+            && destination_items[0].drivewsid == fixture.nested_id
+            && destination_items[0].display_name() == fixture.nested_name
+            && destination_items[0].is_folder()
+        {
+            println!(
+                "Read-only restart found the exact folder and file IDs at destination with full bytes intact."
+            );
+        } else if source_items.len() == 1
+            && source_items[0].drivewsid == fixture.nested_id
+            && source_items[0].display_name() == fixture.nested_name
+            && source_items[0].etag == fixture.nested_etag
+            && destination_items.is_empty()
+        {
+            println!("Read-only restart found the populated folder unchanged at source.");
+        } else {
+            bail!("populated-folder move remains indeterminate by exact IDs");
+        }
+        return Ok(());
+    }
     if mode == 78 {
         let run_id = Uuid::parse_str(&arguments[1]).context("invalid folder-move run ID")?;
         let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
@@ -1569,6 +1678,69 @@ async fn main() -> Result<()> {
     let name = format!("Cirrove Write Validation-{}", Uuid::new_v4());
     let folder = session.create_validation_folder(&name).await?;
     println!("Created and listed the isolated iCloud validation folder.");
+    if mode == 79 {
+        let destination = session
+            .create_validation_folder(&format!("Cirrove Write Validation-{}", Uuid::new_v4()))
+            .await?;
+        let nested_name = format!("Cirrove Nested Move-{}", Uuid::new_v4());
+        let (nested, _) = session
+            .create_empty_nested_move_fixture(&folder, &nested_name)
+            .await?;
+        let bytes = format!("Cirrove nested move file {}\n", Uuid::new_v4());
+        let file = session
+            .create_file_in_nested_move_fixture(&folder, &nested, bytes.as_bytes())
+            .await?;
+        let source_items = session.list_folder(folder.id()).await?;
+        if source_items.len() != 1
+            || source_items[0].drivewsid != nested.id()
+            || source_items[0].display_name() != nested.name()
+            || source_items[0].etag.is_empty()
+        {
+            bail!("populated folder no longer has its exact source identity");
+        }
+        let nested_etag = source_items[0].etag.clone();
+        let fixture = PopulatedFolderMoveFixture {
+            account_id: account.id.clone(),
+            source_id: folder.id().to_owned(),
+            source_name: folder.name().to_owned(),
+            destination_id: destination.id().to_owned(),
+            destination_name: destination.name().to_owned(),
+            nested_id: nested.id().to_owned(),
+            nested_name: nested.name().to_owned(),
+            nested_etag: nested_etag.clone(),
+            file_id: file.id().to_owned(),
+            file_document_id: file.document_id().to_owned(),
+            file_etag: file.etag().to_owned(),
+            file_size: bytes.len() as u64,
+            file_sha256: hex::encode(sha2::Sha256::digest(bytes.as_bytes())),
+        };
+        let run_id = save_populated_folder_move_fixture(&fixture)?;
+        println!(
+            "Populated-folder move identities and full digest recorded as {run_id} before the request."
+        );
+        match session
+            .probe_populated_nested_folder_move(
+                &folder,
+                &destination,
+                &nested,
+                &nested_etag,
+                &file,
+                bytes.as_bytes(),
+            )
+            .await?
+        {
+            PopulatedFolderMoveOutcome::MovedExactTree => println!(
+                "One conditional folder move retained the exact folder and file IDs and full bytes at destination."
+            ),
+            PopulatedFolderMoveOutcome::RejectedIntact => println!(
+                "Populated-folder move was rejected; exact folder and file bytes remain at source."
+            ),
+            PopulatedFolderMoveOutcome::Indeterminate => {
+                bail!("populated-folder move left an indeterminate owned fixture state")
+            }
+        }
+        return Ok(());
+    }
     if mode == 77 {
         let destination = session
             .create_validation_folder(&format!("Cirrove Write Validation-{}", Uuid::new_v4()))
