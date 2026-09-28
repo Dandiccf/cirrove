@@ -6,6 +6,8 @@
 //! remain unvalidated.
 
 #[cfg(feature = "write-probe")]
+mod owned_file_rename;
+#[cfg(feature = "write-probe")]
 mod owned_folder;
 #[cfg(feature = "write-probe")]
 mod owned_folder_move;
@@ -27,6 +29,8 @@ mod provider;
 mod sealed_session;
 #[cfg(feature = "write-probe")]
 mod write_probe;
+#[cfg(feature = "write-probe")]
+pub use owned_file_rename::ICloudOwnedFixtureFileRename;
 #[cfg(feature = "write-probe")]
 pub use owned_folder::ICloudOwnedFixtureFolderCreate;
 #[cfg(feature = "write-probe")]

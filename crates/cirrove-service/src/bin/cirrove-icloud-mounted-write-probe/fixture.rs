@@ -13,9 +13,9 @@ use cirrove_core::{
     Node, NodeKind, ProviderError, ReadProvider, Scope,
 };
 use cirrove_icloud::{
-    ICloudDrive, ICloudOwnedFixtureFolderCreate, ICloudOwnedFixtureFolderRemove,
-    ICloudOwnedFixtureFolderRename, ICloudOwnedFixtureRemove, ICloudOwnedFixtureUpload,
-    ICloudOwnedMountedReplace, ICloudReadSession, ValidationFolder,
+    ICloudDrive, ICloudOwnedFixtureFileRename, ICloudOwnedFixtureFolderCreate,
+    ICloudOwnedFixtureFolderRemove, ICloudOwnedFixtureFolderRename, ICloudOwnedFixtureRemove,
+    ICloudOwnedFixtureUpload, ICloudOwnedMountedReplace, ICloudReadSession, ValidationFolder,
 };
 use cirrove_service::journal::{MutationState, UploadJournal, UploadRecord, UploadState};
 use secrecy::SecretString;
@@ -419,6 +419,68 @@ impl Fixture {
         )
     }
 
+    fn guard_rename_file(
+        &self,
+        request: &MutationRequest,
+    ) -> cirrove_core::mutation::Result<(Node, String)> {
+        request.validate()?;
+        let MutationIntent::Relocate {
+            before,
+            parent,
+            name,
+        } = &request.intent
+        else {
+            return Err(MutationError::Invalid);
+        };
+        if request.scope != self.scope
+            || before.kind != NodeKind::File
+            || before.parent_id.as_deref() != Some(&self.root.id)
+            || parent != &self.root.id
+            || before.name != "Mounted Create.txt"
+            || name != "Mounted Renamed.txt"
+        {
+            return Err(MutationError::Invalid);
+        }
+        self.guard_remove_file(&MutationRequest {
+            scope: request.scope.clone(),
+            intent: MutationIntent::RemoveFile {
+                before: before.clone(),
+            },
+        })
+    }
+
+    fn file_renamer(
+        &self,
+        before: Node,
+        digest: String,
+        reconciliation_only: bool,
+    ) -> cirrove_core::mutation::Result<ICloudOwnedFixtureFileRename> {
+        let session = ICloudReadSession::from_session_snapshot(
+            &self.removal.snapshot,
+            &self.removal.apple_id,
+        )
+        .map_err(|_| MutationError::Uncertain)?;
+        if reconciliation_only {
+            ICloudOwnedFixtureFileRename::for_reconciliation(
+                self.scope.clone(),
+                session,
+                self.removal.folder.clone(),
+                before,
+                "Mounted Renamed.txt".into(),
+                digest,
+            )
+        } else {
+            ICloudOwnedFixtureFileRename::new(
+                self.scope.clone(),
+                session,
+                self.removal.folder.clone(),
+                before,
+                "Mounted Renamed.txt".into(),
+                digest,
+            )
+        }
+    }
+
     fn removed_receipt(
         &self,
         request: &MutationRequest,
@@ -594,11 +656,14 @@ pub fn restored_owned(
                 } => ensure!(
                     before.parent_id.as_deref() == Some(root)
                         && parent == root
-                        && before.kind == NodeKind::Folder
-                        && before.name == "Mounted Folder"
-                        && name == "Mounted Renamed"
+                        && ((before.kind == NodeKind::Folder
+                            && before.name == "Mounted Folder"
+                            && name == "Mounted Renamed")
+                            || (before.kind == NodeKind::File
+                                && before.name == "Mounted Create.txt"
+                                && name == "Mounted Renamed.txt"))
                         && owned.contains(&before.id),
-                    "non-fixture folder rename in isolated journal"
+                    "non-fixture rename in isolated journal"
                 ),
             }
             if row.state == MutationState::Applied {
@@ -973,12 +1038,21 @@ impl MutationProvider for Fixture {
                     .prepare_mutation(r, c)
                     .await
             }
-            MutationIntent::Relocate { .. } => {
-                let before = self.guard_rename_folder(r)?;
-                self.folder_renamer(before, false)?
-                    .prepare_mutation(r, c)
-                    .await
-            }
+            MutationIntent::Relocate { before, .. } => match before.kind {
+                NodeKind::Folder => {
+                    let before = self.guard_rename_folder(r)?;
+                    self.folder_renamer(before, false)?
+                        .prepare_mutation(r, c)
+                        .await
+                }
+                NodeKind::File => {
+                    let (before, digest) = self.guard_rename_file(r)?;
+                    self.file_renamer(before, digest, false)?
+                        .prepare_mutation(r, c)
+                        .await
+                }
+                NodeKind::Shortcut => Err(MutationError::Invalid),
+            },
         }
     }
     async fn mutate(
@@ -1032,12 +1106,22 @@ impl MutationProvider for Fixture {
                 self.removed_file_receipt(r, &receipt)?;
                 Ok(receipt)
             }
-            MutationIntent::Relocate { .. } => {
-                let before = self.guard_rename_folder(r)?;
-                let receipt = self
-                    .folder_renamer(before, false)?
-                    .mutate_prepared(r, prepared, c)
-                    .await?;
+            MutationIntent::Relocate { before, .. } => {
+                let receipt = match before.kind {
+                    NodeKind::Folder => {
+                        let before = self.guard_rename_folder(r)?;
+                        self.folder_renamer(before, false)?
+                            .mutate_prepared(r, prepared, c)
+                            .await?
+                    }
+                    NodeKind::File => {
+                        let (before, digest) = self.guard_rename_file(r)?;
+                        self.file_renamer(before, digest, false)?
+                            .mutate_prepared(r, prepared, c)
+                            .await?
+                    }
+                    NodeKind::Shortcut => return Err(MutationError::Invalid),
+                };
                 self.folder_receipt(r, &receipt)?;
                 Ok(receipt)
             }
@@ -1084,12 +1168,22 @@ impl MutationProvider for Fixture {
                 }
                 Ok(result)
             }
-            MutationIntent::Relocate { .. } => {
-                let before = self.guard_rename_folder(r)?;
-                let result = self
-                    .folder_renamer(before, true)?
-                    .reconcile_prepared_mutation(r, prepared, c)
-                    .await?;
+            MutationIntent::Relocate { before, .. } => {
+                let result = match before.kind {
+                    NodeKind::Folder => {
+                        let before = self.guard_rename_folder(r)?;
+                        self.folder_renamer(before, true)?
+                            .reconcile_prepared_mutation(r, prepared, c)
+                            .await?
+                    }
+                    NodeKind::File => {
+                        let (before, digest) = self.guard_rename_file(r)?;
+                        self.file_renamer(before, digest, true)?
+                            .reconcile_prepared_mutation(r, prepared, c)
+                            .await?
+                    }
+                    NodeKind::Shortcut => return Err(MutationError::Invalid),
+                };
                 if let MutationReconciliation::Applied(receipt) = &result {
                     self.folder_receipt(r, receipt)?;
                 }
