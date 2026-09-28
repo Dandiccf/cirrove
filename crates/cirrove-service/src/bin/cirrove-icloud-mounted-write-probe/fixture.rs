@@ -427,18 +427,45 @@ impl Fixture {
         before: Node,
         digest: String,
     ) -> cirrove_core::mutation::Result<ICloudOwnedFixtureRemove> {
+        let parent = before.parent_id.as_deref().ok_or(MutationError::Invalid)?;
+        let child = if parent == self.root.id {
+            None
+        } else {
+            let journal = self
+                .removal
+                .journal
+                .lock()
+                .map_err(|_| MutationError::Uncertain)?;
+            Some(confirmed_owned_child_folder(
+                &journal,
+                &self.scope,
+                &self.root.id,
+                parent,
+            )?)
+        };
         let session = ICloudReadSession::from_session_snapshot(
             &self.removal.snapshot,
             &self.removal.apple_id,
         )
         .map_err(|_| MutationError::Uncertain)?;
-        ICloudOwnedFixtureRemove::from_confirmed_upload(
-            self.scope.clone(),
-            session,
-            self.removal.folder.clone(),
-            before,
-            digest,
-        )
+        if let Some(child) = child {
+            ICloudOwnedFixtureRemove::from_confirmed_upload_in_child(
+                self.scope.clone(),
+                session,
+                self.removal.folder.clone(),
+                child,
+                before,
+                digest,
+            )
+        } else {
+            ICloudOwnedFixtureRemove::from_confirmed_upload(
+                self.scope.clone(),
+                session,
+                self.removal.folder.clone(),
+                before,
+                digest,
+            )
+        }
     }
 
     fn guard_rename_file(
@@ -998,7 +1025,10 @@ pub fn restored_owned(
                     "non-fixture folder removal in isolated journal"
                 ),
                 MutationIntent::RemoveFile { before } => ensure!(
-                    before.parent_id.as_deref() == Some(root)
+                    before
+                        .parent_id
+                        .as_deref()
+                        .is_some_and(|parent| parent == root || owned_folders.contains(parent))
                         && before.kind == NodeKind::File
                         && owned.contains(&before.id),
                     "non-fixture file removal in isolated journal"
@@ -1287,6 +1317,36 @@ mod tests {
             confirmed_current_file_digest(&journal, &scope, "fixture-root", &file).unwrap(),
             hex::encode(Sha256::digest(b"ab"))
         );
+        let remove = journal
+            .enqueue_mutation(MutationRequest {
+                scope: scope.clone(),
+                intent: MutationIntent::RemoveFile {
+                    before: file.clone(),
+                },
+            })
+            .unwrap();
+        assert!(
+            restored_owned(&journal, &scope, "fixture-root")
+                .unwrap()
+                .contains(&file.id)
+        );
+        let claimed = journal.claim_mutation().unwrap().unwrap();
+        journal
+            .record_prepared_mutation(remove.id, claimed.attempt.unwrap(), file.id.clone())
+            .unwrap();
+        journal
+            .acknowledge_mutation(
+                remove.id,
+                claimed.attempt.unwrap(),
+                MutationReceipt::Removed {
+                    item: file.id.clone(),
+                },
+            )
+            .unwrap();
+        let owned = restored_owned(&journal, &scope, "fixture-root").unwrap();
+        assert!(owned.contains(&folder.id));
+        assert!(!owned.contains(&file.id));
+        assert!(confirmed_current_file_digest(&journal, &scope, "fixture-root", &file).is_err());
     }
 
     #[test]

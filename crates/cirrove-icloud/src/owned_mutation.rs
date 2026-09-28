@@ -20,6 +20,7 @@ enum Observation {
 
 pub struct ICloudOwnedFixtureRemove {
     scope: Scope,
+    root: ValidationFolder,
     folder: ValidationFolder,
     file: ValidationFile,
     before: Node,
@@ -44,6 +45,25 @@ impl ICloudOwnedFixtureRemove {
             return Err(MutationError::Invalid);
         }
         let mut provider = Self::for_reconciliation(scope, session, folder, before)?;
+        provider.sha256 = Some(sha256.to_ascii_lowercase());
+        provider.reconciliation_only = false;
+        Ok(provider)
+    }
+
+    /// Delete a journal-confirmed upload inside a journal-confirmed child
+    /// folder. The caller must prove both receipts before construction.
+    pub fn from_confirmed_upload_in_child(
+        scope: Scope,
+        session: ICloudReadSession,
+        root: ValidationFolder,
+        child: Node,
+        before: Node,
+        sha256: String,
+    ) -> MutationResult<Self> {
+        if sha256.len() != 64 || !sha256.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            return Err(MutationError::Invalid);
+        }
+        let mut provider = Self::for_reconciliation_in_child(scope, session, root, child, before)?;
         provider.sha256 = Some(sha256.to_ascii_lowercase());
         provider.reconciliation_only = false;
         Ok(provider)
@@ -89,6 +109,7 @@ impl ICloudOwnedFixtureRemove {
         };
         Ok(Self {
             scope,
+            root: folder.clone(),
             folder,
             file,
             before,
@@ -107,6 +128,44 @@ impl ICloudOwnedFixtureRemove {
         folder: ValidationFolder,
         before: Node,
     ) -> MutationResult<Self> {
+        Self::build_reconciliation(scope, session, folder.clone(), folder, before)
+    }
+
+    pub fn for_reconciliation_in_child(
+        scope: Scope,
+        session: ICloudReadSession,
+        root: ValidationFolder,
+        child: Node,
+        before: Node,
+    ) -> MutationResult<Self> {
+        if child.parent_id.as_deref() != Some(root.id.as_str())
+            || child.kind != NodeKind::Folder
+            || child.name != "Mounted Folder"
+            || !child.id.starts_with("FOLDER::com.apple.CloudDocs::")
+            || child.target.is_some()
+            || child.package
+        {
+            return Err(MutationError::Invalid);
+        }
+        Self::build_reconciliation(
+            scope,
+            session,
+            root,
+            ValidationFolder {
+                id: child.id,
+                name: child.name,
+            },
+            before,
+        )
+    }
+
+    fn build_reconciliation(
+        scope: Scope,
+        session: ICloudReadSession,
+        root: ValidationFolder,
+        folder: ValidationFolder,
+        before: Node,
+    ) -> MutationResult<Self> {
         let document_id = before.id.rsplit("::").next().unwrap_or_default().to_owned();
         let file = ValidationFile {
             id: before.id.clone(),
@@ -118,8 +177,8 @@ impl ICloudOwnedFixtureRemove {
             || scope.provider != "icloud"
             || scope.collection != "drive"
             || session.account_hash.is_none()
-            || !folder.id.starts_with("FOLDER::com.apple.CloudDocs::")
-            || folder
+            || !root.id.starts_with("FOLDER::com.apple.CloudDocs::")
+            || root
                 .name
                 .strip_prefix("Cirrove Write Validation-")
                 .is_none_or(|suffix| Uuid::parse_str(suffix).is_err())
@@ -142,6 +201,7 @@ impl ICloudOwnedFixtureRemove {
         }
         Ok(Self {
             scope,
+            root,
             folder,
             file,
             before,
@@ -179,11 +239,30 @@ impl ICloudOwnedFixtureRemove {
             .await
             .map_err(|_| MutationError::Uncertain)?;
         if !root.iter().any(|entry| {
-            entry.drivewsid == self.folder.id
-                && entry.display_name() == self.folder.name
+            entry.drivewsid == self.root.id
+                && entry.display_name() == self.root.name
                 && entry.is_folder()
         }) {
             return Err(MutationError::Uncertain);
+        }
+        if self.folder.id != self.root.id {
+            let children = session
+                .list_folder(&self.root.id)
+                .await
+                .map_err(|_| MutationError::Uncertain)?;
+            if children
+                .iter()
+                .filter(|entry| {
+                    entry.drivewsid == self.folder.id
+                        && entry.display_name() == self.folder.name
+                        && entry.parent_id == self.root.id
+                        && entry.is_folder()
+                })
+                .count()
+                != 1
+            {
+                return Err(MutationError::Conflict);
+            }
         }
         let children = session
             .list_folder(&self.folder.id)
@@ -432,6 +511,79 @@ mod tests {
                 )
                 .await
                 .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn nested_remove_requires_exact_child_and_prepared_file_id() {
+        let (root_provider, _) = fixture();
+        let child = Node {
+            id: format!("FOLDER::com.apple.CloudDocs::{}", Uuid::new_v4()),
+            parent_id: Some(root_provider.root.id.clone()),
+            name: "Mounted Folder".into(),
+            kind: NodeKind::Folder,
+            size: 0,
+            modified_unix: 0,
+            etag: Some("folder-etag".into()),
+            content_version: None,
+            target: None,
+            package: false,
+        };
+        let before = Node {
+            parent_id: Some(child.id.clone()),
+            name: "Nested Created.txt".into(),
+            ..root_provider.before_node()
+        };
+        let mut session = ICloudReadSession::new().unwrap();
+        session.account_hash = Some("synthetic-account".into());
+        let nested = ICloudOwnedFixtureRemove::from_confirmed_upload_in_child(
+            root_provider.scope.clone(),
+            session,
+            root_provider.root.clone(),
+            child.clone(),
+            before.clone(),
+            hex::encode(Sha256::digest(b"old")),
+        )
+        .unwrap();
+        let request = MutationRequest {
+            scope: root_provider.scope.clone(),
+            intent: MutationIntent::RemoveFile {
+                before: before.clone(),
+            },
+        };
+        assert!(nested.check(&request, Some(&before.id)).is_ok());
+        assert!(nested.check(&request, Some("another-file")).is_err());
+        let restarted = ICloudOwnedFixtureRemove::for_reconciliation_in_child(
+            root_provider.scope.clone(),
+            {
+                let mut session = ICloudReadSession::new().unwrap();
+                session.account_hash = Some("synthetic-account".into());
+                session
+            },
+            root_provider.root.clone(),
+            child.clone(),
+            before.clone(),
+        )
+        .unwrap();
+        assert!(matches!(
+            restarted
+                .mutate_prepared(&request, Some(&before.id), &CancellationToken::new())
+                .await,
+            Err(MutationError::Unsupported(_))
+        ));
+        let mut foreign = child;
+        foreign.parent_id = Some("foreign-root".into());
+        let mut session = ICloudReadSession::new().unwrap();
+        session.account_hash = Some("synthetic-account".into());
+        assert!(
+            ICloudOwnedFixtureRemove::for_reconciliation_in_child(
+                root_provider.scope,
+                session,
+                root_provider.root,
+                foreign,
+                before,
+            )
+            .is_err()
         );
     }
 

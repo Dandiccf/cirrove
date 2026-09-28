@@ -183,6 +183,25 @@ with open(os.path.join(folder, 'Nested Created.txt'), 'rb') as f:
     assert f.read() == b'Cirrove nested iCloud create validation\n'
 "#;
 
+const APP_REMOVE_NESTED_FILE: &str = r#"
+import os, sys
+mount = sys.argv[1]
+folder = os.path.join(mount, 'Mounted Folder')
+os.unlink(os.path.join(folder, 'Nested Created.txt'))
+assert not os.path.exists(os.path.join(folder, 'Nested Created.txt'))
+with open(os.path.join(folder, 'Nested Renamed.txt'), 'rb') as f:
+    assert f.read() == b'Cirrove isolated mounted iCloud validation\n'
+"#;
+
+const APP_READ_NESTED_REMOVED: &str = r#"
+import os, sys
+mount = sys.argv[1]
+folder = os.path.join(mount, 'Mounted Folder')
+assert not os.path.exists(os.path.join(folder, 'Nested Created.txt'))
+with open(os.path.join(folder, 'Nested Renamed.txt'), 'rb') as f:
+    assert f.read() == b'Cirrove isolated mounted iCloud validation\n'
+"#;
+
 const APP_REMOVE_FOLDER: &str = r#"
 import os, sys
 mount = sys.argv[1]
@@ -389,6 +408,12 @@ async fn main() -> Result<()> {
     let after_nested_create = args
         .first()
         .is_some_and(|flag| flag == "--resume-after-nested-create");
+    let remove_nested_file = args
+        .first()
+        .is_some_and(|flag| flag == "--remove-nested-file");
+    let after_nested_remove = args
+        .first()
+        .is_some_and(|flag| flag == "--resume-after-nested-remove");
     let (
         resume,
         remove_folder,
@@ -430,7 +455,9 @@ async fn main() -> Result<()> {
                 || flag == "--inspect-nested-rename"
                 || flag == "--retry-failed-nested"
                 || flag == "--create-nested-file"
-                || flag == "--resume-after-nested-create" =>
+                || flag == "--resume-after-nested-create"
+                || flag == "--remove-nested-file"
+                || flag == "--resume-after-nested-remove" =>
         {
             (
                 Some(Uuid::parse_str(id).context("invalid fixture run ID")?),
@@ -515,7 +542,7 @@ async fn main() -> Result<()> {
             true,
         ),
         _ => bail!(
-            "usage: cirrove-icloud-mounted-write-probe [--resume RUN_UUID | --rename-folder RUN_UUID | --resume-after-rename RUN_UUID | --rename-file RUN_UUID | --resume-after-file-rename RUN_UUID | --rename-file-again RUN_UUID | --resume-after-file-rename-again RUN_UUID | --move-file RUN_UUID | --resume-after-file-move RUN_UUID | --rename-nested-file RUN_UUID | --resume-after-nested-rename RUN_UUID | --inspect-nested-rename RUN_UUID | --retry-failed-nested RUN_UUID | --create-nested-file RUN_UUID | --resume-after-nested-create RUN_UUID | --remove-folder RUN_UUID | --resume-after-remove RUN_UUID | --remove-file RUN_UUID | --resume-after-file-remove RUN_UUID | --replace RUN_UUID | --resume-after-replace RUN_UUID | --large-create | --large-replace RUN_UUID | --large-resume-after-replace RUN_UUID]"
+            "usage: cirrove-icloud-mounted-write-probe [--resume RUN_UUID | --rename-folder RUN_UUID | --resume-after-rename RUN_UUID | --rename-file RUN_UUID | --resume-after-file-rename RUN_UUID | --rename-file-again RUN_UUID | --resume-after-file-rename-again RUN_UUID | --move-file RUN_UUID | --resume-after-file-move RUN_UUID | --rename-nested-file RUN_UUID | --resume-after-nested-rename RUN_UUID | --inspect-nested-rename RUN_UUID | --retry-failed-nested RUN_UUID | --create-nested-file RUN_UUID | --resume-after-nested-create RUN_UUID | --remove-nested-file RUN_UUID | --resume-after-nested-remove RUN_UUID | --remove-folder RUN_UUID | --resume-after-remove RUN_UUID | --remove-file RUN_UUID | --resume-after-file-remove RUN_UUID | --replace RUN_UUID | --resume-after-replace RUN_UUID | --large-create | --large-replace RUN_UUID | --large-resume-after-replace RUN_UUID]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -684,6 +711,10 @@ async fn main() -> Result<()> {
                     APP_CREATE_NESTED_FILE
                 } else if after_nested_create {
                     APP_READ_NESTED_CREATED_FILE
+                } else if remove_nested_file {
+                    APP_REMOVE_NESTED_FILE
+                } else if after_nested_remove {
+                    APP_READ_NESTED_REMOVED
                 } else if replace_file {
                     if large_file {
                         APP_LARGE_REPLACE
@@ -727,12 +758,17 @@ async fn main() -> Result<()> {
                     .any(|r| matches!(r.state, UploadState::Failed | UploadState::Conflict)),
                 "mounted upload requires review"
             );
-            let expected =
-                if replace_file || after_replace || create_nested_file || after_nested_create {
-                    2
-                } else {
-                    1
-                };
+            let expected = if replace_file
+                || after_replace
+                || create_nested_file
+                || after_nested_create
+                || remove_nested_file
+                || after_nested_remove
+            {
+                2
+            } else {
+                1
+            };
             if rows.len() == expected && rows.iter().all(|r| r.state == UploadState::Uploaded) {
                 break rows;
             }
@@ -746,7 +782,9 @@ async fn main() -> Result<()> {
                     .any(|r| matches!(r.state, MutationState::Failed | MutationState::Conflict)),
                 "mounted folder create requires review"
             );
-            let expected = if rename_nested_file
+            let expected = if remove_nested_file || after_nested_remove {
+                6
+            } else if rename_nested_file
                 || after_nested_rename
                 || retry_failed_nested
                 || create_nested_file
@@ -783,7 +821,9 @@ async fn main() -> Result<()> {
             || after_nested_rename
             || retry_failed_nested
             || create_nested_file
-            || after_nested_create;
+            || after_nested_create
+            || remove_nested_file
+            || after_nested_remove;
         let moved = move_file || after_move_file || nested_renamed;
         let expected_file_name = if nested_renamed {
             "Nested Renamed.txt"
@@ -1050,6 +1090,30 @@ async fn main() -> Result<()> {
                 "nested uploaded bytes differ from the mounted write"
             );
         }
+        if remove_nested_file || after_nested_remove {
+            let parent = created_folder.context("nested removal parent is absent")?;
+            let uploaded = uploads[1]
+                .remote
+                .as_ref()
+                .context("nested upload lacks exact receipt")?;
+            ensure!(
+                matches!(&uploads[1].intent, UploadIntent::Create { parent: id, name }
+                    if id == &parent.drivewsid && name == "Nested Created.txt")
+                    && uploaded.parent_id.as_deref() == Some(parent.drivewsid.as_str())
+                    && nested_children.as_ref().is_some_and(|entries| !entries
+                        .iter()
+                        .any(|entry| entry.drivewsid == uploaded.id
+                            || entry.display_name() == "Nested Created.txt")),
+                "nested removed file remains in the independent parent listing"
+            );
+            let Some(MutationReceipt::Removed { item }) = mutations[5].receipt.as_ref() else {
+                bail!("nested file removal lacks a confirmed receipt");
+            };
+            ensure!(
+                item == &uploaded.id && independent.exact_item_in_trash(item).await?,
+                "nested removal did not retain its exact ID in recoverable Trash"
+            );
+        }
         println!(
             "Mounted fixture verified after {} by independent iCloud listing and journal receipts.",
             if remove_folder {
@@ -1080,6 +1144,10 @@ async fn main() -> Result<()> {
                 "nested file create"
             } else if after_nested_create {
                 "remount after nested file create"
+            } else if remove_nested_file {
+                "recoverable nested file removal"
+            } else if after_nested_remove {
+                "remount after nested file removal"
             } else if replace_file {
                 "two-ID replacement"
             } else if after_replace {
