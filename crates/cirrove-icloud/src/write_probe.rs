@@ -91,6 +91,13 @@ pub enum MoveProbeOutcome {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+pub enum EmptyFolderMoveOutcome {
+    MovedExactId,
+    RejectedIntact,
+    Indeterminate,
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub enum MoveCollisionOutcome {
     RejectedBothIntact,
     DuplicateNameAfterMove,
@@ -579,6 +586,104 @@ impl ICloudReadSession {
             id: entry.drivewsid.clone(),
             name: entry.display_name(),
         })
+    }
+
+    /// Create one empty nested folder in a fresh UUID-named validation parent.
+    /// The returned exact ID and ETag must be persisted before a later move.
+    pub async fn create_empty_nested_move_fixture(
+        &mut self,
+        parent: &ValidationFolder,
+        name: &str,
+    ) -> Result<(ValidationFolder, String)> {
+        const PREFIX: &str = "Cirrove Nested Move-";
+        if parent
+            .name
+            .strip_prefix(PROBE_PREFIX)
+            .is_none_or(|suffix| Uuid::parse_str(suffix).is_err())
+            || name
+                .strip_prefix(PREFIX)
+                .is_none_or(|suffix| Uuid::parse_str(suffix).is_err())
+            || self.validation_folder_at_root(&parent.id).await?.name != parent.name
+            || !self.list_folder(&parent.id).await?.is_empty()
+        {
+            bail!("invalid nested iCloud move fixture parent");
+        }
+        let id = self.create_folder_request(&parent.id, name).await?;
+        let listed = self.list_folder(&parent.id).await?;
+        if listed.len() != 1
+            || listed[0].drivewsid != id
+            || listed[0].display_name() != name
+            || !listed[0].is_folder()
+            || listed[0].etag.is_empty()
+            || !self.list_folder(&id).await?.is_empty()
+        {
+            bail!("nested iCloud move fixture was not listed under its exact ID");
+        }
+        Ok((
+            ValidationFolder {
+                id,
+                name: name.to_owned(),
+            },
+            listed[0].etag.clone(),
+        ))
+    }
+
+    /// Send one conditional move for a newly created empty nested folder.
+    /// A follow-up process must independently check both exact parents.
+    pub async fn probe_empty_nested_folder_move(
+        &mut self,
+        source: &ValidationFolder,
+        destination: &ValidationFolder,
+        nested: &ValidationFolder,
+        etag: &str,
+    ) -> Result<EmptyFolderMoveOutcome> {
+        if source.id == destination.id
+            || nested.id == source.id
+            || nested.id == destination.id
+            || etag.is_empty()
+        {
+            bail!("invalid empty-folder move fixture");
+        }
+        for folder in [source, destination] {
+            if self.validation_folder_at_root(&folder.id).await?.name != folder.name {
+                bail!("empty-folder move parent identity changed");
+            }
+        }
+        let before = self.list_folder(&source.id).await?;
+        if before.len() != 1
+            || before[0].drivewsid != nested.id
+            || before[0].display_name() != nested.name
+            || before[0].etag != etag
+            || !before[0].is_folder()
+            || !self.list_folder(&nested.id).await?.is_empty()
+            || !self.list_folder(&destination.id).await?.is_empty()
+        {
+            bail!("empty-folder move preflight changed");
+        }
+        let accepted = self.send_move(&nested.id, etag, &destination.id).await?;
+        let source_after = self.list_folder(&source.id).await?;
+        let destination_after = self.list_folder(&destination.id).await?;
+        let nested_empty = self.list_folder(&nested.id).await?.is_empty();
+        if accepted
+            && source_after.is_empty()
+            && destination_after.len() == 1
+            && destination_after[0].drivewsid == nested.id
+            && destination_after[0].display_name() == nested.name
+            && destination_after[0].is_folder()
+            && nested_empty
+        {
+            return Ok(EmptyFolderMoveOutcome::MovedExactId);
+        }
+        if !accepted
+            && source_after.len() == 1
+            && source_after[0].drivewsid == nested.id
+            && source_after[0].display_name() == nested.name
+            && destination_after.is_empty()
+            && nested_empty
+        {
+            return Ok(EmptyFolderMoveOutcome::RejectedIntact);
+        }
+        Ok(EmptyFolderMoveOutcome::Indeterminate)
     }
 
     /// Upload at most 4 KiB into a folder just created by this process. No
