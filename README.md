@@ -243,11 +243,13 @@ file and folder creation, recoverable deletion and one two-ID file replacement
 through the shared journals and workers; the
 [mounted replacement record](docs/benchmarks/icloud-mounted-replace-2026-09-28.md)
 keeps its validator failures alongside the successful read-only remount.
-The isolated replacement code can now verify up to 32 MiB per file in bounded
-ranges, including a streaming hash of its Trash backup; this larger path has not
-yet been exercised against iCloud. Normal iCloud connections remain read-only
-while network interruption, concurrent edits, larger files and application
-behavior are unverified. Cirrove does
+The isolated replacement code can verify up to 32 MiB per file in bounded
+ranges, including a streaming hash of its Trash backup. One
+[5-to-6-MiB live replacement](docs/benchmarks/icloud-mounted-large-replace-2026-09-28.md)
+and fresh-process read-only remount passed, but the replacement arm took over
+eight minutes. Normal iCloud connections remain read-only while network
+interruption, concurrent edits, broader file sizes and application behavior
+are unverified. Cirrove does
 not copy or depend on Stratosync or rclone at runtime, build time or in tests;
 lessons from those integrations inform the recovery tests. A
 [native read-only protocol probe](docs/icloud-native-probe.md) is available for

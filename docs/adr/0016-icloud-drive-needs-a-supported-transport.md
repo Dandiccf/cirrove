@@ -613,8 +613,11 @@ separate validator exited nonzero because its Trash predicate was inverted;
 that correction and two failed read-only checks remain in the same artifact.
 The isolated mounted replacement adapter subsequently gained a 32 MiB bound:
 active files are SHA-256 checked in revision-bound 4 MiB ranges, and the exact
-old ID in Trash is hashed as a bounded stream. This is a code path and test
-limit, not live evidence of a large iCloud replacement.
+old ID in Trash is hashed as a bounded stream. A later
+[5-to-6-MiB mounted replacement](../benchmarks/icloud-mounted-large-replace-2026-09-28.md)
+passed with a fresh read-only remount. The one replacement arm took over
+eight minutes; it gives a functional result, not a reliability or throughput
+claim. The rest of the size range is not live-validated.
 This is bounded functional evidence, not proof of atomicity, timeout recovery
 before Apple's response, concurrency safety, large-file support or ordinary
 iCloud write reliability. Normal iCloud mounts remain read-only.

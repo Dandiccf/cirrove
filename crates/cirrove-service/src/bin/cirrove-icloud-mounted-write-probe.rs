@@ -107,9 +107,112 @@ with open(os.path.join(mount, 'Mounted Create.txt'), 'rb') as f:
 assert os.path.isdir(os.path.join(mount, 'Mounted Folder'))
 "#;
 
+const APP_LARGE_CREATE: &str = r#"
+import os, sys
+mount = sys.argv[1]
+path = os.path.join(mount, 'Mounted Create.txt')
+piece = bytes(range(256)) * 256
+fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+try:
+    for _ in range(80):
+        view = memoryview(piece)
+        while view:
+            view = view[os.write(fd, view):]
+    os.fsync(fd)
+finally:
+    os.close(fd)
+os.mkdir(os.path.join(mount, 'Mounted Folder'))
+"#;
+
+const APP_LARGE_REPLACE: &str = r#"
+import os, sys
+path = os.path.join(sys.argv[1], 'Mounted Create.txt')
+piece = bytes(reversed(range(256))) * 256
+fd = os.open(path, os.O_WRONLY | os.O_TRUNC)
+try:
+    for _ in range(96):
+        view = memoryview(piece)
+        while view:
+            view = view[os.write(fd, view):]
+    os.fsync(fd)
+finally:
+    os.close(fd)
+"#;
+
+const APP_LARGE_READ_REPLACED: &str = r#"
+import os, sys
+mount = sys.argv[1]
+piece = bytes(reversed(range(256))) * 256
+with open(os.path.join(mount, 'Mounted Create.txt'), 'rb') as file:
+    for _ in range(96):
+        assert file.read(len(piece)) == piece
+    assert file.read(1) == b''
+assert os.path.isdir(os.path.join(mount, 'Mounted Folder'))
+"#;
+
+async fn verify_large_bytes(
+    session: &mut ICloudReadSession,
+    folder_id: &str,
+    file_id: &str,
+    etag: &str,
+    size: u64,
+    replaced: bool,
+) -> Result<(String, u64)> {
+    let count = if replaced { 96 } else { 80 };
+    let piece: Vec<u8> = if replaced {
+        (0..=255).rev().cycle().take(64 * 1024).collect()
+    } else {
+        (0..=255).cycle().take(64 * 1024).collect()
+    };
+    let expected_size = count * piece.len() as u64;
+    ensure!(
+        size == expected_size,
+        "independent iCloud file size differs"
+    );
+    let mut expected_hash = Sha256::new();
+    for _ in 0..count {
+        expected_hash.update(&piece);
+    }
+    let mut actual_hash = Sha256::new();
+    let mut offset = 0;
+    while offset < size {
+        let length = (size - offset).min(4 * 1024 * 1024) as u32;
+        let bytes = session
+            .read_range_in_folder(folder_id, file_id, offset, length)
+            .await?;
+        ensure!(
+            bytes.len() == length as usize,
+            "iCloud range was incomplete"
+        );
+        actual_hash.update(&bytes);
+        offset += u64::from(length);
+    }
+    let actual_hash = hex::encode(actual_hash.finalize());
+    ensure!(
+        actual_hash == hex::encode(expected_hash.finalize()),
+        "remote file bytes differ from mounted write"
+    );
+    let after = session.list_folder(folder_id).await?;
+    ensure!(
+        after
+            .iter()
+            .filter(|entry| entry.drivewsid == file_id)
+            .count()
+            == 1
+            && after.iter().any(|entry| {
+                entry.drivewsid == file_id && entry.etag == etag && entry.size == size
+            }),
+        "iCloud file changed during independent read"
+    );
+    Ok((actual_hash, size))
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let args: Vec<_> = std::env::args().skip(1).collect();
+    let large_file = args
+        .first()
+        .is_some_and(|flag| flag.starts_with("--large-"));
     let (
         resume,
         remove_folder,
@@ -120,6 +223,7 @@ async fn main() -> Result<()> {
         after_replace,
     ) = match args.as_slice() {
         [] => (None, false, false, false, false, false, false),
+        [flag] if flag == "--large-create" => (None, false, false, false, false, false, false),
         [flag, id] if flag == "--resume" => (
             Some(Uuid::parse_str(id).context("invalid fixture run ID")?),
             false,
@@ -174,6 +278,15 @@ async fn main() -> Result<()> {
             true,
             false,
         ),
+        [flag, id] if flag == "--large-replace" => (
+            Some(Uuid::parse_str(id).context("invalid fixture run ID")?),
+            false,
+            false,
+            false,
+            false,
+            true,
+            false,
+        ),
         [flag, id] if flag == "--resume-after-replace" => (
             Some(Uuid::parse_str(id).context("invalid fixture run ID")?),
             false,
@@ -183,8 +296,17 @@ async fn main() -> Result<()> {
             false,
             true,
         ),
+        [flag, id] if flag == "--large-resume-after-replace" => (
+            Some(Uuid::parse_str(id).context("invalid fixture run ID")?),
+            false,
+            false,
+            false,
+            false,
+            false,
+            true,
+        ),
         _ => bail!(
-            "usage: cirrove-icloud-mounted-write-probe [--resume RUN_UUID | --remove-folder RUN_UUID | --resume-after-remove RUN_UUID | --remove-file RUN_UUID | --resume-after-file-remove RUN_UUID | --replace RUN_UUID | --resume-after-replace RUN_UUID]"
+            "usage: cirrove-icloud-mounted-write-probe [--resume RUN_UUID | --remove-folder RUN_UUID | --resume-after-remove RUN_UUID | --remove-file RUN_UUID | --resume-after-file-remove RUN_UUID | --replace RUN_UUID | --resume-after-replace RUN_UUID | --large-create | --large-replace RUN_UUID | --large-resume-after-replace RUN_UUID]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -324,9 +446,17 @@ async fn main() -> Result<()> {
                 if remove_folder {
                     APP_REMOVE_FOLDER
                 } else if replace_file {
-                    APP_REPLACE
+                    if large_file {
+                        APP_LARGE_REPLACE
+                    } else {
+                        APP_REPLACE
+                    }
                 } else if after_replace {
-                    APP_READ_REPLACED
+                    if large_file {
+                        APP_LARGE_READ_REPLACED
+                    } else {
+                        APP_READ_REPLACED
+                    }
                 } else if remove_file {
                     APP_REMOVE_FILE
                 } else if after_file_remove {
@@ -336,7 +466,7 @@ async fn main() -> Result<()> {
                 } else if resume.is_some() {
                     APP_READ
                 } else {
-                    APP
+                    if large_file { APP_LARGE_CREATE } else { APP }
                 },
             ])
             .arg(&engine.account.mount_path)
@@ -471,29 +601,42 @@ async fn main() -> Result<()> {
         }
         if !remove_file && !after_file_remove {
             let file = file.context("independent iCloud listing does not contain mounted file")?;
-            let bytes = independent
-                .read_small_file_in_folder(folder.id(), &file.drivewsid)
-                .await?;
-            ensure!(
-                bytes
-                    == if replace_file || after_replace {
-                        b"Cirrove isolated mounted replacement\n".as_slice()
-                    } else {
-                        b"Cirrove isolated mounted iCloud validation\n".as_slice()
-                    },
-                "remote file bytes differ from mounted write"
-            );
+            let (digest, size) = if large_file {
+                verify_large_bytes(
+                    &mut independent,
+                    folder.id(),
+                    &file.drivewsid,
+                    &file.etag,
+                    file.size,
+                    replace_file || after_replace,
+                )
+                .await?
+            } else {
+                let bytes = independent
+                    .read_small_file_in_folder(folder.id(), &file.drivewsid)
+                    .await?;
+                ensure!(
+                    bytes
+                        == if replace_file || after_replace {
+                            b"Cirrove isolated mounted replacement\n".as_slice()
+                        } else {
+                            b"Cirrove isolated mounted iCloud validation\n".as_slice()
+                        },
+                    "remote file bytes differ from mounted write"
+                );
+                (hex::encode(Sha256::digest(&bytes)), bytes.len() as u64)
+            };
             let receipt = if replace_file || after_replace {
                 &uploads[1]
             } else {
                 &uploads[0]
             };
             ensure!(
-                receipt.sha256 == hex::encode(Sha256::digest(&bytes)),
+                receipt.sha256 == digest,
                 "journal digest differs from independent read"
             );
             ensure!(
-                receipt.size == bytes.len() as u64,
+                receipt.size == size,
                 "journal size differs from independent read"
             );
         }
