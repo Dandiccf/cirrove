@@ -11,9 +11,10 @@ use cirrove_core::mutation::{
 use cirrove_core::upload::UploadRequest;
 use cirrove_core::{CancellationToken, Node, NodeKind, Scope};
 use cirrove_icloud::{
-    HandoffOutcome, ICloudOwnedFixtureHandoff, ICloudOwnedFixtureRemove, ICloudOwnedFixtureUpload,
-    ICloudReadSession, OccupiedNameOutcome, RenameProbeOutcome, SameIdUpdateOutcome,
-    SealedSessionVault, TrashProbeOutcome, TrashRestoreOutcome,
+    HandoffOutcome, ICloudOwnedFixtureFolderCreate, ICloudOwnedFixtureHandoff,
+    ICloudOwnedFixtureRemove, ICloudOwnedFixtureUpload, ICloudReadSession, OccupiedNameOutcome,
+    RenameProbeOutcome, SameIdUpdateOutcome, SealedSessionVault, TrashProbeOutcome,
+    TrashRestoreOutcome,
 };
 use cirrove_service::accounts::Settings;
 use cirrove_service::journal::{MutationState, UploadIntent, UploadJournal, UploadState};
@@ -88,8 +89,11 @@ async fn main() -> Result<()> {
         [flag] if flag == "--worker-reconcile-streamed-registration" => 55,
         [flag] if flag == "--worker-streamed-lost-content" => 56,
         [flag] if flag == "--worker-retry-streamed-content" => 57,
+        [flag] if flag == "--worker-create-folder" => 58,
+        [flag] if flag == "--worker-discard-folder-receipt" => 59,
+        [flag] if flag == "--worker-reconcile-folder" => 60,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create | --worker-streamed-binary-create | --worker-streamed-lost-registration | --worker-reconcile-streamed-registration | --worker-streamed-lost-content | --worker-retry-streamed-content]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create | --worker-streamed-binary-create | --worker-streamed-lost-registration | --worker-reconcile-streamed-registration | --worker-streamed-lost-content | --worker-retry-streamed-content | --worker-create-folder | --worker-discard-folder-receipt | --worker-reconcile-folder]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -120,6 +124,74 @@ async fn main() -> Result<()> {
         .list_root()
         .await
         .context("saved iCloud session is not usable")?;
+    let folder_recovery_directory = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../.local-state/icloud-worker-folder-lost-receipt-validation");
+    if mode == 59 && folder_recovery_directory.exists() {
+        bail!("lost folder receipt validation journal already exists");
+    }
+    if mode == 60 {
+        let journal = Arc::new(Mutex::new(UploadJournal::open(
+            &folder_recovery_directory,
+            &account.id,
+            8192,
+        )?));
+        let record = {
+            let guard = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock"))?;
+            let records = guard.list_mutations(0, 2)?;
+            if records.len() != 1 || records[0].state != MutationState::VerifyRequired {
+                bail!("expected exactly one uncertain folder creation");
+            }
+            records
+                .into_iter()
+                .next()
+                .context("folder mutation missing")?
+        };
+        let MutationIntent::CreateFolder { parent, .. } = &record.request.intent else {
+            bail!("uncertain mutation is not a folder creation");
+        };
+        let folder = session.validation_folder_at_root(parent).await?;
+        let provider = Arc::new(
+            ICloudOwnedFixtureFolderCreate::new(
+                record.request.scope.clone(),
+                session,
+                folder,
+                record.id,
+                Arc::new(DesktopVault),
+            )?
+            .reconciliation_only(),
+        );
+        let worker = MutationWorker::new(journal.clone(), provider, CancellationToken::new());
+        let result = worker
+            .run_once()
+            .await?
+            .context("folder mutation was not claimed")?;
+        if result.id != record.id
+            || result.state != MutationState::Applied
+            || result.issue.is_some()
+        {
+            bail!("restarted worker could not reconcile the exact folder ID");
+        }
+        let saved = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock"))?
+            .mutation(record.id)?;
+        let Some(MutationReceipt::Upsert(node)) = saved.receipt else {
+            bail!("restarted folder mutation lacks its exact receipt");
+        };
+        if !record
+            .request
+            .accepts(&MutationReceipt::Upsert(node.clone()))
+        {
+            bail!("restarted folder receipt does not match the request");
+        }
+        println!(
+            "Restarted worker reconciled the saved exact folder ID without another create request. Operation: {}.",
+            record.id
+        );
+        return Ok(());
+    }
     let handoff_recovery_directory = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../.local-state/icloud-worker-handoff-lost-old-validation");
     let handoff_new_recovery_directory = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -800,6 +872,93 @@ async fn main() -> Result<()> {
     let name = format!("Cirrove Write Validation-{}", Uuid::new_v4());
     let folder = session.create_validation_folder(&name).await?;
     println!("Created and listed the isolated iCloud validation folder.");
+    if matches!(mode, 58 | 59) {
+        let directory = if mode == 59 {
+            folder_recovery_directory
+        } else {
+            Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+                "../../.local-state/icloud-worker-folder-{}",
+                Uuid::new_v4()
+            ))
+        };
+        let scope = Scope {
+            account: account.id.clone(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        };
+        let request = MutationRequest {
+            scope: scope.clone(),
+            intent: MutationIntent::CreateFolder {
+                parent: folder.id().into(),
+                name: "Nested Cirrove folder".into(),
+            },
+        };
+        let journal = Arc::new(Mutex::new(UploadJournal::open(
+            &directory,
+            &account.id,
+            8192,
+        )?));
+        let queued = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock"))?
+            .enqueue_mutation(request.clone())?;
+        let mut provider = ICloudOwnedFixtureFolderCreate::new(
+            scope,
+            session,
+            folder,
+            queued.id,
+            Arc::new(DesktopVault),
+        )?;
+        if mode == 59 {
+            provider = provider.with_discarded_receipt();
+        }
+        let worker = MutationWorker::new(
+            journal.clone(),
+            Arc::new(provider),
+            CancellationToken::new(),
+        );
+        let result = worker
+            .run_once()
+            .await?
+            .context("folder creation was not claimed")?;
+        if result.id != queued.id {
+            bail!("worker claimed a different folder mutation");
+        }
+        let saved = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock"))?
+            .mutation(queued.id)?;
+        if mode == 59 {
+            if result.state != MutationState::VerifyRequired
+                || DesktopVault
+                    .load(&format!(
+                        "icloud-folder-create/{}/{}",
+                        account.id, queued.id
+                    ))
+                    .await?
+                    .is_none()
+            {
+                bail!("discarded folder receipt did not preserve the exact ID for verification");
+            }
+            println!(
+                "Folder response deliberately discarded after saving the allocated ID; journal retained VerifyRequired. Operation: {}.",
+                queued.id
+            );
+        } else if result.state == MutationState::Applied
+            && saved
+                .receipt
+                .as_ref()
+                .is_some_and(|receipt| request.accepts(receipt))
+        {
+            println!(
+                "Shared worker created and confirmed the nested folder by exact ID. Operation: {}.",
+                queued.id
+            );
+        } else {
+            bail!("owned folder creation did not receive an exact worker receipt");
+        }
+        return Ok(());
+    }
     if matches!(mode, 22 | 23 | 48 | 50 | 52 | 53 | 54 | 56) {
         let scope = Scope {
             account: account.id.clone(),

@@ -436,6 +436,26 @@ impl ICloudReadSession {
         if root.iter().any(|entry| entry.display_name() == name) {
             bail!("iCloud validation folder already exists");
         }
+        let created = self.create_folder_request(ROOT_ID, name).await?;
+        let listed = self.list_root().await?;
+        if !listed.iter().any(|entry| {
+            entry.drivewsid == created && entry.display_name() == name && entry.is_folder()
+        }) {
+            bail!("iCloud did not list the created validation folder");
+        }
+        Ok(ValidationFolder {
+            id: created,
+            name: name.into(),
+        })
+    }
+
+    /// Return only Apple's allocated item identity. A missing response cannot
+    /// be recovered from a matching display name, and this call must not retry.
+    pub(crate) async fn create_folder_request(
+        &mut self,
+        parent: &str,
+        name: &str,
+    ) -> Result<String> {
         let endpoint = self
             .drive_endpoint
             .as_ref()
@@ -447,7 +467,7 @@ impl ICloudReadSession {
             .header("origin", ICLOUD_ORIGIN)
             .header("referer", format!("{ICLOUD_ORIGIN}/"))
             .json(&json!({
-                "destinationDrivewsId": ROOT_ID,
+                "destinationDrivewsId": parent,
                 "folders": [{
                     "clientId": format!("FOLDER::UNKNOWN_ZONE::TempId-{}", Uuid::new_v4()),
                     "name": name
@@ -470,18 +490,7 @@ impl ICloudReadSession {
         {
             bail!("iCloud did not confirm the validation folder identity");
         }
-        let listed = self.list_root().await?;
-        if !listed.iter().any(|entry| {
-            entry.drivewsid == created.drivewsid
-                && entry.display_name() == name
-                && entry.is_folder()
-        }) {
-            bail!("iCloud did not list the created validation folder");
-        }
-        Ok(ValidationFolder {
-            id: created.drivewsid,
-            name: name.into(),
-        })
+        Ok(created.drivewsid)
     }
 
     /// Rebuild an owned fixture handle after a process restart, requiring the
