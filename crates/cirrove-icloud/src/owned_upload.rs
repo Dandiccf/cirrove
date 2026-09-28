@@ -2,7 +2,8 @@
 //! This remains feature-gated: uncertain Apple content-slot requests are never
 //! replayed merely because a later listing does not yet show the file.
 use super::{
-    DriveEntry, ICloudReadSession, ValidationFolder, checked_content_url, write_probe::UploadSlot,
+    DriveEntry, ICloudReadSession, ValidationFolder, checked_content_url,
+    write_probe::{MAX_OWNED_UPLOAD, UploadSlot},
 };
 use async_trait::async_trait;
 use cirrove_core::upload::{
@@ -17,7 +18,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-const MAX_OWNED_FILE: u64 = 4096;
+const MAX_OWNED_FILE: u64 = MAX_OWNED_UPLOAD as u64;
 const MAX_CHECKPOINT: usize = 8192;
 
 #[derive(Serialize, Deserialize)]
@@ -492,6 +493,19 @@ mod tests {
             panic!("expected create fixture");
         };
         *parent = "FOLDER::com.apple.CloudDocs::other".into();
+        assert!(provider.check_request(&request).is_err());
+    }
+
+    #[test]
+    fn a_multi_mib_binary_create_is_bounded_before_network() {
+        let (provider, mut request) = fixture();
+        request.size = 1024 * 1024;
+        request.intent = UploadIntent::Create {
+            parent: provider.folder.id.clone(),
+            name: "Cirrove payload 1MiB.bin".into(),
+        };
+        assert!(provider.check_request(&request).is_ok());
+        request.size = 4 * 1024 * 1024 + 1;
         assert!(provider.check_request(&request).is_err());
     }
 

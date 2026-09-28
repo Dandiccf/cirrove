@@ -5,6 +5,15 @@ use super::*;
 const PROBE_PREFIX: &str = "Cirrove Write Validation-";
 pub(crate) const PROBE_FILE: &str = "created-by-cirrove.txt";
 pub(crate) const TRASH_ROOT: &str = "FOLDER::com.apple.CloudDocs::TRASH_ROOT";
+pub(crate) const MAX_OWNED_UPLOAD: usize = 4 * 1024 * 1024;
+
+fn content_type_for_name(name: &str) -> &'static str {
+    if name.ends_with(".txt") {
+        "text/plain"
+    } else {
+        "application/octet-stream"
+    }
+}
 
 pub struct TrashListingProbe {
     pub entries: usize,
@@ -298,7 +307,7 @@ impl ICloudReadSession {
         bytes: &[u8],
     ) -> Result<(UploadSlot, UploadedFile)> {
         let slot = self.allocate_upload_slot(name, bytes.len() as u64).await?;
-        let data = self.upload_to_slot(&slot, bytes).await?;
+        let data = self.upload_to_slot(&slot, name, bytes).await?;
         Ok((slot, data))
     }
 
@@ -321,7 +330,7 @@ impl ICloudReadSession {
                 "filename": name,
                 "type": "FILE",
                 "size": size.to_string(),
-                "content_type": "text/plain"
+                "content_type": content_type_for_name(name)
             }))
             .send()
             .await
@@ -343,12 +352,17 @@ impl ICloudReadSession {
         Ok(slot)
     }
 
-    async fn upload_to_slot(&mut self, slot: &UploadSlot, bytes: &[u8]) -> Result<UploadedFile> {
+    async fn upload_to_slot(
+        &mut self,
+        slot: &UploadSlot,
+        name: &str,
+        bytes: &[u8],
+    ) -> Result<UploadedFile> {
         let upload_url = checked_content_url(&slot.url)?;
         let response = self
             .http
             .post(upload_url)
-            .header("content-type", "text/plain")
+            .header("content-type", content_type_for_name(name))
             .body(bytes.to_vec())
             .send()
             .await
@@ -840,7 +854,7 @@ impl ICloudReadSession {
     ) -> Result<Option<ValidationFile>> {
         let folder_id = folder.id.as_str();
         if bytes.is_empty()
-            || bytes.len() > 4096
+            || bytes.len() > reserved_slot.map_or(4096, |_| MAX_OWNED_UPLOAD)
             || !folder_id.starts_with("FOLDER::com.apple.CloudDocs::")
         {
             bail!("invalid iCloud validation upload");
@@ -857,7 +871,7 @@ impl ICloudReadSession {
             bail!("iCloud validation destination is occupied");
         }
         let (slot, data) = match reserved_slot {
-            Some(slot) => (slot.clone(), self.upload_to_slot(slot, bytes).await?),
+            Some(slot) => (slot.clone(), self.upload_to_slot(slot, name, bytes).await?),
             None => self.upload_probe_bytes(name, bytes).await?,
         };
         let starting_document_id = folder_id

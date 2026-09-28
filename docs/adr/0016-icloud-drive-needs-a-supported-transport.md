@@ -126,6 +126,16 @@ a second Create with different bytes and a different reserved document ID
 stopped at `Conflict`. The existing exact ID and full bytes stayed intact,
 and the second journal retained its payload without a remote receipt. A
 collision arriving during an in-flight registration is still unverified.
+The reserved-document Create worker now has a 4 MiB per-file validation
+ceiling and selects `application/octet-stream` for non-text filenames;
+older direct probes retain their 4 KiB cap. A first 1 MiB trial stopped
+locally because the probe journal still had an 8 KiB quota, before any
+content request. After recording that correction and raising only the
+isolated journal quota, one
+[owned binary-file trial](../benchmarks/icloud-worker-bounded-binary-create-2026-09-28.md)
+uploaded and verified a full 1 MiB `.bin` file through the shared worker.
+This does not establish streaming, files above 4 MiB, other MIME types or
+ordinary mounted writes.
 
 ## Direct Linux architecture if the gates pass
 
