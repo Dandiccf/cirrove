@@ -22,12 +22,49 @@ use cirrove_service::journal::{MutationState, UploadIntent, UploadJournal, Uploa
 use cirrove_service::mutations::MutationWorker;
 use cirrove_service::transfers::TransferWorker;
 use icloud_handoff_journal::{Journal, StageJournal};
+use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use std::{
-    path::Path,
+    fs::{self, OpenOptions},
+    io::Write,
+    path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
 use uuid::Uuid;
+
+#[derive(Serialize, Deserialize)]
+struct OccupiedMoveFixture {
+    account_id: String,
+    source_folder_id: String,
+    source_folder_name: String,
+    destination_folder_id: String,
+    destination_folder_name: String,
+    moving_file_id: String,
+    moving_file_etag: String,
+    moving_sha256: String,
+    moving_size: u64,
+    occupant_file_id: String,
+    occupant_file_etag: String,
+    occupant_sha256: String,
+    occupant_size: u64,
+}
+
+fn occupied_move_fixture_directory() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.local-state/icloud-occupied-move-fixtures")
+}
+
+fn save_occupied_move_fixture(fixture: &OccupiedMoveFixture) -> Result<Uuid> {
+    let directory = occupied_move_fixture_directory();
+    fs::create_dir_all(&directory)?;
+    let id = Uuid::new_v4();
+    let path = directory.join(format!("{id}.json"));
+    let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
+    file.write_all(&serde_json::to_vec_pretty(fixture)?)?;
+    file.write_all(b"\n")?;
+    file.sync_all()?;
+    fs::File::open(directory)?.sync_all()?;
+    Ok(id)
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -102,8 +139,9 @@ async fn main() -> Result<()> {
         [flag] if flag == "--occupied-move-name" => 66,
         [flag] if flag == "--inspect-occupied-move" => 67,
         [flag, _folder_id] if flag == "--inspect-owned-folder" => 68,
+        [flag, _run_id] if flag == "--reconcile-occupied-move" => 69,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --stale-etag-move | --fresh-etag-move | --metadata-stale-move | --occupied-move-name | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create | --worker-streamed-binary-create | --worker-streamed-lost-registration | --worker-reconcile-streamed-registration | --worker-streamed-lost-content | --worker-retry-streamed-content | --worker-create-folder | --worker-discard-folder-receipt | --worker-reconcile-folder | --worker-discard-empty-folder-trash | --worker-reconcile-empty-folder-trash]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --stale-etag-move | --fresh-etag-move | --metadata-stale-move | --occupied-move-name | --inspect-occupied-move | --inspect-owned-folder ID | --reconcile-occupied-move UUID | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create | --worker-streamed-binary-create | --worker-streamed-lost-registration | --worker-reconcile-streamed-registration | --worker-streamed-lost-content | --worker-retry-streamed-content | --worker-create-folder | --worker-discard-folder-receipt | --worker-reconcile-folder | --worker-discard-empty-folder-trash | --worker-reconcile-empty-folder-trash]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -134,6 +172,150 @@ async fn main() -> Result<()> {
         .list_root()
         .await
         .context("saved iCloud session is not usable")?;
+    if mode == 69 {
+        let run_id = Uuid::parse_str(&arguments[1]).context("invalid occupied-move run ID")?;
+        let path = occupied_move_fixture_directory().join(format!("{run_id}.json"));
+        let fixture: OccupiedMoveFixture = serde_json::from_slice(&fs::read(path)?)?;
+        if fixture.account_id != account.id
+            || fixture.source_folder_id == fixture.destination_folder_id
+            || fixture.moving_file_id == fixture.occupant_file_id
+            || ![&fixture.source_folder_id, &fixture.destination_folder_id]
+                .iter()
+                .all(|id| id.starts_with("FOLDER::com.apple.CloudDocs::"))
+            || ![&fixture.moving_file_id, &fixture.occupant_file_id]
+                .iter()
+                .all(|id| id.starts_with("FILE::com.apple.CloudDocs::"))
+            || ![
+                &fixture.source_folder_name,
+                &fixture.destination_folder_name,
+            ]
+            .iter()
+            .all(|name| {
+                name.strip_prefix("Cirrove Write Validation-")
+                    .is_some_and(|suffix| Uuid::parse_str(suffix).is_ok())
+            })
+            || fixture.moving_size == 0
+            || fixture.moving_size > 4096
+            || fixture.occupant_size == 0
+            || fixture.occupant_size > 4096
+            || [
+                fixture.moving_sha256.as_str(),
+                fixture.occupant_sha256.as_str(),
+            ]
+            .iter()
+            .any(|hash| hash.len() != 64 || !hash.bytes().all(|b| b.is_ascii_hexdigit()))
+        {
+            bail!("invalid owned occupied-move fixture record");
+        }
+        for (id, name) in [
+            (&fixture.source_folder_id, &fixture.source_folder_name),
+            (
+                &fixture.destination_folder_id,
+                &fixture.destination_folder_name,
+            ),
+        ] {
+            if root
+                .iter()
+                .filter(|entry| {
+                    entry.drivewsid == *id && entry.display_name() == **name && entry.is_folder()
+                })
+                .count()
+                != 1
+            {
+                bail!("recorded owned folder identity changed");
+            }
+        }
+        let source = session.list_folder(&fixture.source_folder_id).await?;
+        let destination = session.list_folder(&fixture.destination_folder_id).await?;
+        let at_source: Vec<_> = source
+            .iter()
+            .filter(|entry| entry.drivewsid == fixture.moving_file_id)
+            .collect();
+        let at_destination: Vec<_> = destination
+            .iter()
+            .filter(|entry| entry.drivewsid == fixture.moving_file_id)
+            .collect();
+        let occupant: Vec<_> = destination
+            .iter()
+            .filter(|entry| entry.drivewsid == fixture.occupant_file_id)
+            .collect();
+        if at_source.len() > 1 || at_destination.len() > 1 || occupant.len() > 1 {
+            bail!("duplicate exact file identity in occupied-move listing");
+        }
+        let source_hash = if let Some(entry) = at_source.first() {
+            Some((
+                entry,
+                hex::encode(sha2::Sha256::digest(
+                    session
+                        .read_small_file_in_folder(&fixture.source_folder_id, &entry.drivewsid)
+                        .await?,
+                )),
+            ))
+        } else {
+            None
+        };
+        let destination_hash = if let Some(entry) = at_destination.first() {
+            Some((
+                entry,
+                hex::encode(sha2::Sha256::digest(
+                    session
+                        .read_small_file_in_folder(&fixture.destination_folder_id, &entry.drivewsid)
+                        .await?,
+                )),
+            ))
+        } else {
+            None
+        };
+        let occupant_hash = if let Some(entry) = occupant.first() {
+            Some((
+                entry,
+                hex::encode(sha2::Sha256::digest(
+                    session
+                        .read_small_file_in_folder(&fixture.destination_folder_id, &entry.drivewsid)
+                        .await?,
+                )),
+            ))
+        } else {
+            None
+        };
+        let occupant_intact = occupant_hash.as_ref().is_some_and(|(entry, hash)| {
+            !entry.is_folder()
+                && entry.size == fixture.occupant_size
+                && entry.etag == fixture.occupant_file_etag
+                && entry.display_name() == "created-by-cirrove.txt"
+                && *hash == fixture.occupant_sha256
+        });
+        let source_intact = source_hash.as_ref().is_some_and(|(entry, hash)| {
+            !entry.is_folder()
+                && entry.size == fixture.moving_size
+                && entry.etag == fixture.moving_file_etag
+                && entry.display_name() == "created-by-cirrove.txt"
+                && *hash == fixture.moving_sha256
+        });
+        let destination_intact = destination_hash.as_ref().is_some_and(|(entry, hash)| {
+            !entry.is_folder()
+                && entry.size == fixture.moving_size
+                && *hash == fixture.moving_sha256
+        });
+        if source.len() == 1 && destination.len() == 1 && source_intact && occupant_intact {
+            println!("Recorded occupied move did not change either exact file ID or bytes.");
+        } else if source.is_empty()
+            && destination.len() == 2
+            && destination_intact
+            && occupant_intact
+        {
+            let moved_name = destination_hash
+                .as_ref()
+                .map(|(entry, _)| entry.display_name())
+                .context("moved item missing")?;
+            println!(
+                "Recorded occupied move kept both exact IDs and bytes; moving name={moved_name}"
+            );
+        } else {
+            bail!("recorded occupied move remains indeterminate by exact IDs and bytes");
+        }
+        return Ok(());
+    }
     if mode == 68 {
         let folder_id = &arguments[1];
         let folder = root
@@ -1361,6 +1543,23 @@ async fn main() -> Result<()> {
         let occupant = session
             .create_validation_file(&destination, occupant_bytes.as_bytes())
             .await?;
+        let fixture = OccupiedMoveFixture {
+            account_id: account.id.clone(),
+            source_folder_id: folder.id().to_owned(),
+            source_folder_name: folder.name().to_owned(),
+            destination_folder_id: destination.id().to_owned(),
+            destination_folder_name: destination.name().to_owned(),
+            moving_file_id: file.id().to_owned(),
+            moving_file_etag: file.etag().to_owned(),
+            moving_sha256: hex::encode(sha2::Sha256::digest(content.as_bytes())),
+            moving_size: content.len() as u64,
+            occupant_file_id: occupant.id().to_owned(),
+            occupant_file_etag: occupant.etag().to_owned(),
+            occupant_sha256: hex::encode(sha2::Sha256::digest(occupant_bytes.as_bytes())),
+            occupant_size: occupant_bytes.len() as u64,
+        };
+        let run_id = save_occupied_move_fixture(&fixture)?;
+        println!("Occupied-move fixture recorded as {run_id} before the one-shot request.");
         match session
             .probe_occupied_move_name(
                 &folder,
