@@ -36,6 +36,9 @@ cargo clippy -p cirrove-service --features icloud-probe \
 step "iCloud isolated write probe"
 cargo clippy -p cirrove-service --features icloud-write-probe \
   --bin cirrove-icloud-write-probe --locked -- -D warnings
+step "iCloud isolated mounted write probe"
+cargo clippy -p cirrove-service --features icloud-write-probe \
+  --bin cirrove-icloud-mounted-write-probe --locked -- -D warnings
 
 if [[ $fast != --fast ]]; then
   step "workspace tests"

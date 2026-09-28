@@ -35,6 +35,7 @@ pub enum TrashRestoreOutcome {
 
 /// Unforgeable by callers outside this module; obtained only after creating
 /// and listing a fresh fixture through this session.
+#[derive(Clone)]
 pub struct ValidationFolder {
     pub(crate) id: String,
     pub(crate) name: String,
@@ -43,6 +44,10 @@ pub struct ValidationFolder {
 impl ValidationFolder {
     pub fn id(&self) -> &str {
         &self.id
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
     }
 }
 

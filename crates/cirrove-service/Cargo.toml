@@ -26,6 +26,11 @@ name = "cirrove-icloud-write-probe"
 path = "src/bin/cirrove-icloud-write-probe.rs"
 required-features = ["icloud-write-probe"]
 
+[[bin]]
+name = "cirrove-icloud-mounted-write-probe"
+path = "src/bin/cirrove-icloud-mounted-write-probe.rs"
+required-features = ["icloud-write-probe"]
+
 [dependencies]
 cirrove-allocator.workspace = true
 cirrove-core.workspace = true

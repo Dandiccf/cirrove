@@ -38,6 +38,8 @@ jobs:
         run: cargo clippy -p cirrove-service --features icloud-probe --bin cirrove-icloud-mount-probe --locked -- -D warnings
       - name: Check the isolated iCloud write probe
         run: cargo clippy -p cirrove-service --features icloud-write-probe --bin cirrove-icloud-write-probe --locked -- -D warnings
+      - name: Check the isolated mounted iCloud write probe
+        run: cargo clippy -p cirrove-service --features icloud-write-probe --bin cirrove-icloud-mounted-write-probe --locked -- -D warnings
       - name: Credential round trip against a throwaway Secret Service
         # The vault has one integration test and nothing ran it: dbus-run-session
         # was already here for the desktop step, but a session bus is not a Secret
