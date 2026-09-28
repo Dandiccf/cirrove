@@ -1,11 +1,14 @@
 //! Two-ID replacement of one Cirrove-owned fixture through the shared worker.
 //! Apple rename is not conditional, so this is deliberately unavailable to the
 //! ordinary mount. Every uncertain phase requires exact-ID reconciliation.
-use super::{HandoffObserved, HandoffPlan, ICloudReadSession};
+use super::{
+    HandoffObserved, HandoffPlan, ICloudReadSession,
+    write_probe::{PROBE_FILE, TRASH_ROOT},
+};
 use async_trait::async_trait;
 use cirrove_core::upload::{
-    Reconciliation, Result as UploadResult, UploadError, UploadIntent, UploadProvider,
-    UploadRequest, UploadStep,
+    Reconciliation, RecoveryLocation, Result as UploadResult, UploadError, UploadIntent,
+    UploadProvider, UploadRequest, UploadStep,
 };
 use cirrove_core::{CancellationToken, Scope};
 use secrecy::{ExposeSecret, SecretString};
@@ -23,6 +26,14 @@ enum Phase {
     InstallNew,
 }
 
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+enum RecoveryMode {
+    #[default]
+    Rename,
+    Trash,
+}
+
 #[derive(Deserialize, Serialize)]
 struct Checkpoint {
     version: u8,
@@ -30,6 +41,8 @@ struct Checkpoint {
     operation: Uuid,
     size: u64,
     phase: Phase,
+    #[serde(default)]
+    recovery_mode: RecoveryMode,
     plan: HandoffPlan,
 }
 
@@ -42,6 +55,7 @@ pub struct ICloudOwnedFixtureHandoff {
     discard_old_receipt: AtomicBool,
     discard_new_receipt: AtomicBool,
     reconciliation_only: bool,
+    recovery_mode: RecoveryMode,
 }
 
 impl ICloudOwnedFixtureHandoff {
@@ -71,7 +85,22 @@ impl ICloudOwnedFixtureHandoff {
             discard_old_receipt: AtomicBool::new(false),
             discard_new_receipt: AtomicBool::new(false),
             reconciliation_only: false,
+            recovery_mode: RecoveryMode::Rename,
         })
+    }
+
+    /// Only for a new Cirrove-owned two-file fixture. Ordinary mounts never
+    /// construct this upload provider.
+    pub fn new_conditional_trash(
+        scope: Scope,
+        operation: Uuid,
+        plan: HandoffPlan,
+        staged_size: u64,
+        session: ICloudReadSession,
+    ) -> UploadResult<Self> {
+        let mut provider = Self::new(scope, operation, plan, staged_size, session)?;
+        provider.recovery_mode = RecoveryMode::Trash;
+        Ok(provider)
     }
 
     /// Rebuild an exact fixture from the previously saved worker checkpoint.
@@ -87,13 +116,14 @@ impl ICloudOwnedFixtureHandoff {
         }
         let saved: Checkpoint = serde_json::from_str(checkpoint.expose_secret())
             .map_err(|_| UploadError::CheckpointInvalid)?;
-        let provider = Self::new(
+        let mut provider = Self::new(
             request.scope.clone(),
             operation,
             saved.plan,
             saved.size,
             session,
         )?;
+        provider.recovery_mode = saved.recovery_mode;
         provider.check_checkpoint(request, checkpoint)?;
         Ok(provider)
     }
@@ -107,6 +137,28 @@ impl ICloudOwnedFixtureHandoff {
     pub fn with_discarded_new_receipt(self) -> Self {
         self.discard_new_receipt.store(true, Ordering::Release);
         self
+    }
+
+    /// Read-only phase inspection of this exact owned fixture. It never
+    /// advances the worker or sends a mutation request.
+    pub async fn inspect_owned_fixture(&self) -> anyhow::Result<HandoffObserved> {
+        let mut session = self.session.lock().await;
+        match self.recovery_mode {
+            RecoveryMode::Rename => session.inspect_durable_handoff(&self.plan).await,
+            RecoveryMode::Trash => session.inspect_durable_trash_handoff(&self.plan).await,
+        }
+    }
+
+    /// Read-only full receipt construction for diagnosing a finished owned
+    /// fixture; the returned IDs and bytes are never printed by the probe.
+    pub async fn inspect_owned_receipt(
+        &self,
+    ) -> anyhow::Result<(cirrove_core::Node, cirrove_core::Node)> {
+        let mut session = self.session.lock().await;
+        match self.recovery_mode {
+            RecoveryMode::Rename => session.verified_handoff_nodes(&self.plan).await,
+            RecoveryMode::Trash => session.verified_trash_handoff_nodes(&self.plan).await,
+        }
     }
 
     /// A restarted verifier cannot send either rename in this validation mode.
@@ -142,6 +194,7 @@ impl ICloudOwnedFixtureHandoff {
             operation: self.operation,
             size: self.staged_size,
             phase,
+            recovery_mode: self.recovery_mode,
             plan: self.plan.clone(),
         };
         let text = serde_json::to_string(&value).map_err(|_| UploadError::Invalid)?;
@@ -166,6 +219,7 @@ impl ICloudOwnedFixtureHandoff {
             || saved.scope != self.scope
             || saved.operation != self.operation
             || saved.size != self.staged_size
+            || saved.recovery_mode != self.recovery_mode
             || saved.plan.version != self.plan.version
             || saved.plan.folder_id != self.plan.folder_id
             || saved.plan.folder_name != self.plan.folder_name
@@ -186,31 +240,74 @@ impl ICloudOwnedFixtureHandoff {
     }
 
     async fn observed(&self) -> UploadResult<HandoffObserved> {
-        self.session
-            .lock()
-            .await
-            .inspect_durable_handoff(&self.plan)
-            .await
-            .map_err(|_| UploadError::Uncertain)
+        let mut session = self.session.lock().await;
+        match self.recovery_mode {
+            RecoveryMode::Rename => session.inspect_durable_handoff(&self.plan).await,
+            RecoveryMode::Trash => session.inspect_durable_trash_handoff(&self.plan).await,
+        }
+        .map_err(|_| UploadError::Uncertain)
     }
 
     async fn receipt(&self) -> UploadResult<UploadStep> {
-        let (current, backup) = self
-            .session
-            .lock()
-            .await
-            .verified_handoff_nodes(&self.plan)
-            .await
-            .map_err(|_| UploadError::Uncertain)?;
+        let mut session = self.session.lock().await;
+        let (current, backup) = match self.recovery_mode {
+            RecoveryMode::Rename => session.verified_handoff_nodes(&self.plan).await,
+            RecoveryMode::Trash => session.verified_trash_handoff_nodes(&self.plan).await,
+        }
+        .map_err(|_| UploadError::Uncertain)?;
         if current.size != self.staged_size {
             return Err(UploadError::Conflict);
         }
         Ok(UploadStep::HandoffComplete { current, backup })
     }
+
+    async fn observed_with_receipt(&self) -> UploadResult<(HandoffObserved, Option<UploadStep>)> {
+        if self.recovery_mode == RecoveryMode::Trash {
+            let (state, nodes) = self
+                .session
+                .lock()
+                .await
+                .inspect_trash_handoff_with_receipt(&self.plan)
+                .await
+                .map_err(|_| UploadError::Uncertain)?;
+            let receipt = nodes
+                .map(|(current, backup)| {
+                    if current.size != self.staged_size {
+                        Err(UploadError::Conflict)
+                    } else {
+                        Ok(UploadStep::HandoffComplete { current, backup })
+                    }
+                })
+                .transpose()?;
+            return Ok((state, receipt));
+        }
+        let state = self.observed().await?;
+        let receipt = if state == HandoffObserved::Complete {
+            Some(self.receipt().await?)
+        } else {
+            None
+        };
+        Ok((state, receipt))
+    }
 }
 
 #[async_trait]
 impl UploadProvider for ICloudOwnedFixtureHandoff {
+    fn staged_recovery_location(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+    ) -> Option<RecoveryLocation> {
+        let name = self.staged_recovery_name(operation, request)?;
+        Some(match self.recovery_mode {
+            RecoveryMode::Rename => RecoveryLocation::Sibling { name },
+            RecoveryMode::Trash => RecoveryLocation::Trash {
+                local_name: name,
+                parent: TRASH_ROOT.into(),
+            },
+        })
+    }
+
     fn staged_recovery_name(&self, operation: &str, request: &UploadRequest) -> Option<String> {
         if operation != self.operation.to_string() || self.check_request(request).is_err() {
             return None;
@@ -240,8 +337,9 @@ impl UploadProvider for ICloudOwnedFixtureHandoff {
         _: &CancellationToken,
     ) -> UploadResult<UploadStep> {
         let phase = self.check_checkpoint(request, checkpoint)?;
-        match (phase, self.observed().await?) {
-            (_, HandoffObserved::Complete) => self.receipt().await,
+        let (state, receipt) = self.observed_with_receipt().await?;
+        match (phase, state) {
+            (_, HandoffObserved::Complete) => receipt.ok_or(UploadError::Uncertain),
             (Phase::MoveOld, HandoffObserved::OldAtRecovery) => {
                 Ok(UploadStep::Commit(self.checkpoint(Phase::InstallNew)?))
             }
@@ -279,45 +377,54 @@ impl UploadProvider for ICloudOwnedFixtureHandoff {
         let mut session = self.session.lock().await;
         match phase {
             Phase::MoveOld => {
-                if session
-                    .inspect_durable_handoff(&self.plan)
-                    .await
-                    .map_err(|_| UploadError::Uncertain)?
-                    != HandoffObserved::Prepared
-                {
+                let before = match self.recovery_mode {
+                    RecoveryMode::Rename => session.inspect_durable_handoff(&self.plan).await,
+                    RecoveryMode::Trash => session.inspect_durable_trash_handoff(&self.plan).await,
+                }
+                .map_err(|_| UploadError::Uncertain)?;
+                if before != HandoffObserved::Prepared {
                     return Err(UploadError::Conflict);
                 }
-                let accepted = session
-                    .move_old_to_recovery(&self.plan)
-                    .await
-                    .map_err(|_| UploadError::Uncertain)?;
+                let accepted = match self.recovery_mode {
+                    RecoveryMode::Rename => session.move_old_to_recovery(&self.plan).await,
+                    RecoveryMode::Trash => {
+                        session
+                            .send_trash(&self.plan.original_id, &self.plan.original_etag)
+                            .await
+                    }
+                }
+                .map_err(|_| UploadError::Uncertain)?;
                 if self.discard_old_receipt.swap(false, Ordering::AcqRel) {
                     return Err(UploadError::Uncertain);
                 }
-                if !accepted
-                    || session
-                        .inspect_durable_handoff(&self.plan)
-                        .await
-                        .map_err(|_| UploadError::Uncertain)?
-                        != HandoffObserved::OldAtRecovery
-                {
+                let after = match self.recovery_mode {
+                    RecoveryMode::Rename => session.inspect_durable_handoff(&self.plan).await,
+                    RecoveryMode::Trash => session.inspect_durable_trash_handoff(&self.plan).await,
+                }
+                .map_err(|_| UploadError::Uncertain)?;
+                if !accepted || after != HandoffObserved::OldAtRecovery {
                     return Err(UploadError::Uncertain);
                 }
                 Ok(UploadStep::Commit(self.checkpoint(Phase::InstallNew)?))
             }
             Phase::InstallNew => {
-                if session
-                    .inspect_durable_handoff(&self.plan)
-                    .await
-                    .map_err(|_| UploadError::Uncertain)?
-                    != HandoffObserved::OldAtRecovery
-                {
+                let before = match self.recovery_mode {
+                    RecoveryMode::Rename => session.inspect_durable_handoff(&self.plan).await,
+                    RecoveryMode::Trash => session.inspect_durable_trash_handoff(&self.plan).await,
+                }
+                .map_err(|_| UploadError::Uncertain)?;
+                if before != HandoffObserved::OldAtRecovery {
                     return Err(UploadError::Conflict);
                 }
-                let accepted = session
-                    .move_staged_to_target(&self.plan)
-                    .await
-                    .map_err(|_| UploadError::Uncertain)?;
+                let accepted = match self.recovery_mode {
+                    RecoveryMode::Rename => session.move_staged_to_target(&self.plan).await,
+                    RecoveryMode::Trash => {
+                        session
+                            .send_rename(&self.plan.staged_id, &self.plan.staged_etag, PROBE_FILE)
+                            .await
+                    }
+                }
+                .map_err(|_| UploadError::Uncertain)?;
                 if self.discard_new_receipt.swap(false, Ordering::AcqRel) {
                     return Err(UploadError::Uncertain);
                 }
@@ -337,9 +444,10 @@ impl UploadProvider for ICloudOwnedFixtureHandoff {
         _: &CancellationToken,
     ) -> UploadResult<Reconciliation> {
         self.check_checkpoint(request, checkpoint.ok_or(UploadError::CheckpointInvalid)?)?;
-        match self.observed().await? {
+        let (state, receipt) = self.observed_with_receipt().await?;
+        match state {
             HandoffObserved::Complete => {
-                let UploadStep::HandoffComplete { current, backup } = self.receipt().await? else {
+                let Some(UploadStep::HandoffComplete { current, backup }) = receipt else {
                     return Err(UploadError::Uncertain);
                 };
                 Ok(Reconciliation::HandoffCommitted { current, backup })
@@ -445,6 +553,39 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn conditional_trash_checkpoint_reserves_exact_trash_parent_across_restart() {
+        let (mut provider, request) = fixture();
+        provider.recovery_mode = RecoveryMode::Trash;
+        let checkpoint = provider.checkpoint(Phase::MoveOld).unwrap();
+        assert_eq!(
+            provider.staged_recovery_location(&provider.operation.to_string(), &request),
+            Some(RecoveryLocation::Trash {
+                local_name: provider.plan.recovery_name.clone(),
+                parent: TRASH_ROOT.into(),
+            })
+        );
+        let mut session = ICloudReadSession::new().unwrap();
+        session.account_hash = Some("synthetic-account".into());
+        let resumed = ICloudOwnedFixtureHandoff::from_checkpoint(
+            &request,
+            provider.operation,
+            &checkpoint,
+            session,
+        )
+        .unwrap();
+        assert_eq!(resumed.recovery_mode, RecoveryMode::Trash);
+        assert_eq!(
+            resumed.check_checkpoint(&request, &checkpoint).unwrap(),
+            Phase::MoveOld
+        );
+        let mut altered: serde_json::Value =
+            serde_json::from_str(checkpoint.expose_secret()).unwrap();
+        altered["recovery_mode"] = "rename".into();
+        let altered = SecretString::from(serde_json::to_string(&altered).unwrap());
+        assert!(resumed.check_checkpoint(&request, &altered).is_err());
     }
 
     #[tokio::test]

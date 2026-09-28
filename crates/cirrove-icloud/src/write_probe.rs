@@ -3,8 +3,8 @@
 use super::*;
 
 const PROBE_PREFIX: &str = "Cirrove Write Validation-";
-const PROBE_FILE: &str = "created-by-cirrove.txt";
-const TRASH_ROOT: &str = "FOLDER::com.apple.CloudDocs::TRASH_ROOT";
+pub(crate) const PROBE_FILE: &str = "created-by-cirrove.txt";
+pub(crate) const TRASH_ROOT: &str = "FOLDER::com.apple.CloudDocs::TRASH_ROOT";
 
 pub struct TrashListingProbe {
     pub entries: usize,
@@ -1453,7 +1453,12 @@ impl ICloudReadSession {
         Ok(())
     }
 
-    async fn send_rename(&mut self, item_id: &str, etag: &str, name: &str) -> Result<bool> {
+    pub(crate) async fn send_rename(
+        &mut self,
+        item_id: &str,
+        etag: &str,
+        name: &str,
+    ) -> Result<bool> {
         let endpoint = self
             .drive_endpoint
             .as_ref()
@@ -2009,6 +2014,231 @@ impl ICloudReadSession {
             receipt(current, PROBE_FILE.into()),
             receipt(old, plan.recovery_name.clone()),
         ))
+    }
+
+    /// Exact-ID, full-byte observation of the former owned fixture in Trash.
+    /// An incomplete listing, changed ETag or lost restore metadata yields no
+    /// receipt. The Trash parent is deliberately kept separate from its local
+    /// hidden recovery alias.
+    async fn verified_trash_backup_node(
+        &mut self,
+        plan: &HandoffPlan,
+    ) -> Result<cirrove_core::Node> {
+        use cirrove_core::{Node, NodeKind};
+        let (items, complete) = self.read_trash_items().await?;
+        if !complete {
+            bail!("iCloud Trash listing is incomplete");
+        }
+        let item = exactly_one(
+            items
+                .iter()
+                .filter(|item| {
+                    item.get("drivewsid").and_then(|id| id.as_str()) == Some(&plan.original_id)
+                })
+                .collect(),
+            "handoff backup in Trash",
+        )?;
+        let etag = item
+            .get("etag")
+            .and_then(|value| value.as_str())
+            .filter(|value| valid_etag(value))
+            .context("iCloud Trash backup lacks an ETag")?
+            .to_owned();
+        let size = item
+            .get("size")
+            .and_then(|value| value.as_u64())
+            .filter(|size| *size > 0 && *size <= 4096)
+            .context("iCloud Trash backup exceeds the fixture limit")?;
+        let base_name = item
+            .get("name")
+            .and_then(|value| value.as_str())
+            .filter(|value| !value.is_empty())
+            .context("iCloud Trash backup lacks a name")?;
+        let extension = item
+            .get("extension")
+            .and_then(|value| value.as_str())
+            .unwrap_or("");
+        let actual_name = if extension.is_empty() {
+            base_name.to_owned()
+        } else {
+            format!("{base_name}.{extension}")
+        };
+        if actual_name.len() > 255 || actual_name.contains(['/', '\\', '\0', '\r', '\n']) {
+            bail!("iCloud Trash backup has an invalid name");
+        }
+        if item.get("restorePath").is_none_or(|path| path.is_null())
+            || item
+                .get("docwsid")
+                .and_then(|id| id.as_str())
+                .is_some_and(|id| !id.is_empty() && id != plan.original_doc_id)
+        {
+            bail!("iCloud Trash backup lacks its recovery identity");
+        }
+        let signed_url = self.signed_download_url(&plan.original_id).await?;
+        let mut response = self
+            .http
+            .get(signed_url)
+            .send()
+            .await
+            .map_err(|_| anyhow!("iCloud Trash backup download failed"))?;
+        if response.status() != StatusCode::OK {
+            bail!(
+                "iCloud Trash backup download failed ({})",
+                response.status().as_u16()
+            );
+        }
+        let mut bytes = Vec::with_capacity(size as usize);
+        while let Some(chunk) = response
+            .chunk()
+            .await
+            .map_err(|_| anyhow!("iCloud Trash backup download interrupted"))?
+        {
+            if bytes.len().saturating_add(chunk.len()) > 4096 {
+                bail!("iCloud Trash backup exceeds the fixture limit");
+            }
+            bytes.extend_from_slice(&chunk);
+        }
+        if bytes.len() as u64 != size || hex::encode(Sha256::digest(&bytes)) != plan.original_sha256
+        {
+            bail!("iCloud Trash backup differs from the saved fixture bytes");
+        }
+        let (again, complete) = self.read_trash_items().await?;
+        if !complete {
+            bail!("iCloud Trash listing changed during backup verification");
+        }
+        let unchanged = exactly_one(
+            again
+                .iter()
+                .filter(|item| {
+                    item.get("drivewsid").and_then(|id| id.as_str()) == Some(&plan.original_id)
+                })
+                .collect(),
+            "handoff backup after read",
+        )?;
+        if unchanged.get("etag").and_then(|value| value.as_str()) != Some(&etag)
+            || unchanged.get("size").and_then(|value| value.as_u64()) != Some(size)
+            || unchanged.get("name").and_then(|value| value.as_str()) != Some(base_name)
+            || unchanged
+                .get("extension")
+                .and_then(|value| value.as_str())
+                .unwrap_or("")
+                != extension
+            || unchanged
+                .get("restorePath")
+                .is_none_or(|path| path.is_null())
+        {
+            bail!("iCloud Trash backup changed during exact-ID read");
+        }
+        Ok(Node {
+            id: plan.original_id.clone(),
+            parent_id: Some(TRASH_ROOT.into()),
+            name: actual_name,
+            kind: NodeKind::File,
+            size,
+            modified_unix: 0,
+            etag: Some(etag.clone()),
+            content_version: Some(etag),
+            target: None,
+            package: false,
+        })
+    }
+
+    pub(crate) async fn inspect_durable_trash_handoff(
+        &mut self,
+        plan: &HandoffPlan,
+    ) -> Result<HandoffObserved> {
+        Ok(self.inspect_trash_handoff_with_receipt(plan).await?.0)
+    }
+
+    /// One bounded observation supplies both the phase and, when complete,
+    /// its verified receipt. The shared worker must not repeat full Trash
+    /// downloads three times inside one provider deadline.
+    pub(crate) async fn inspect_trash_handoff_with_receipt(
+        &mut self,
+        plan: &HandoffPlan,
+    ) -> Result<(
+        HandoffObserved,
+        Option<(cirrove_core::Node, cirrove_core::Node)>,
+    )> {
+        use cirrove_core::{Node, NodeKind};
+        plan.validate()?;
+        if !self.list_root().await?.iter().any(|entry| {
+            entry.drivewsid == plan.folder_id
+                && entry.display_name() == plan.folder_name
+                && entry.is_folder()
+        }) {
+            return Ok((HandoffObserved::Diverged, None));
+        }
+        let items = self.list_folder(&plan.folder_id).await?;
+        if items.len() == 2 {
+            let state = self.inspect_durable_handoff(plan).await?;
+            return Ok((
+                if state == HandoffObserved::Prepared {
+                    HandoffObserved::Prepared
+                } else {
+                    HandoffObserved::Diverged
+                },
+                None,
+            ));
+        }
+        if items.len() != 1 {
+            return Ok((HandoffObserved::Diverged, None));
+        }
+        let staged = &items[0];
+        let staged_bytes = self
+            .read_small_file_in_folder(&plan.folder_id, &plan.staged_id)
+            .await?;
+        if staged.is_folder()
+            || staged.drivewsid != plan.staged_id
+            || staged.docwsid != plan.staged_doc_id
+            || staged.size > 4096
+            || staged.size != staged_bytes.len() as u64
+            || hex::encode(Sha256::digest(&staged_bytes)) != plan.staged_sha256
+        {
+            return Ok((HandoffObserved::Diverged, None));
+        }
+        let backup = self.verified_trash_backup_node(plan).await?;
+        let still_staged = exactly_one(
+            self.list_folder(&plan.folder_id).await?,
+            "staged fixture after Trash read",
+        )?;
+        if still_staged.drivewsid != staged.drivewsid
+            || still_staged.docwsid != staged.docwsid
+            || still_staged.etag != staged.etag
+            || still_staged.size != staged.size
+            || still_staged.display_name() != staged.display_name()
+        {
+            return Ok((HandoffObserved::Diverged, None));
+        }
+        if staged.display_name() == plan.staged_name && staged.etag == plan.staged_etag {
+            return Ok((HandoffObserved::OldAtRecovery, None));
+        }
+        if staged.display_name() != PROBE_FILE || !valid_etag(&staged.etag) {
+            return Ok((HandoffObserved::Diverged, None));
+        }
+        let current = Node {
+            id: staged.drivewsid.clone(),
+            parent_id: Some(plan.folder_id.clone()),
+            name: staged.display_name(),
+            kind: NodeKind::File,
+            size: staged.size,
+            modified_unix: 0,
+            etag: Some(staged.etag.clone()),
+            content_version: Some(staged.etag.clone()),
+            target: None,
+            package: false,
+        };
+        Ok((HandoffObserved::Complete, Some((current, backup))))
+    }
+
+    pub(crate) async fn verified_trash_handoff_nodes(
+        &mut self,
+        plan: &HandoffPlan,
+    ) -> Result<(cirrove_core::Node, cirrove_core::Node)> {
+        self.inspect_trash_handoff_with_receipt(plan)
+            .await?
+            .1
+            .context("iCloud Trash handoff has no complete receipt")
     }
 
     pub async fn move_old_to_recovery(&mut self, plan: &HandoffPlan) -> Result<bool> {

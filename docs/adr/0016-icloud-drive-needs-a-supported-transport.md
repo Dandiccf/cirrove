@@ -497,10 +497,26 @@ first provider call and atomically publish the new current ID with the old
 exact ID bound to that Trash parent. A synthetic lost-response test first
 failed under the previous same-folder-only check and then passed with a
 freshly reopened journal; the existing renamed-sibling path still passes.
-This is a durable *journal representation*, not a live iCloud upload adapter:
-no normal iCloud write is enabled. The native adapter must still produce a
-verified receipt and reconcile each uncertain phase against exact remote IDs
-before this path can be considered for a mounted replacement.
+The feature-gated owned-fixture adapter now selects this location in its
+restartable checkpoint, conditionally sends one Trash request for the saved
+old ETag, and only issues the staged rename after exact-ID Trash and full-byte
+verification. Its final receipt requires a complete Trash listing, stable
+ETag/size/restore metadata and full hashes of both IDs. The first
+[live shared-worker trial](../benchmarks/icloud-worker-conditional-trash-2026-09-28.md)
+reached both remote phases but left the worker at `VerifyRequired`. An exact-ID
+read-only inspection found that Trash changes the item's displayed name; the
+adapter now retains the actual stable Trash name rather than assuming the old
+folder name. A later read-only receipt passed all identity, size and revision
+checks, and the ordinary journal transaction atomically published both IDs
+without another cloud mutation. The worker's repeated full Trash verification
+inside one provider deadline was then reduced to one observation supplying
+both phase and receipt. A fresh
+[owned-fixture end-to-end run](../benchmarks/icloud-worker-conditional-trash-one-pass-2026-09-28.md)
+then reached `Uploaded` through the shared worker, with both bindings
+confirmed after reopening SQLite. This one run supports the narrowed request
+sequence; it does not establish repeatability. No normal iCloud write is
+enabled; concurrent edits after the initial precondition, collisions,
+response loss, folder writes and Trash retention remain unresolved.
 
 A feature-gated `ICloudOwnedFixtureRemove` now implements the shared
 `MutationProvider` contract for one small, newly created Cirrove fixture.
