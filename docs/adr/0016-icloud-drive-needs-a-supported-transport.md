@@ -103,6 +103,16 @@ and read the file back byte for byte. The [pre-registered run artifact](../bench
 records the scope and elapsed time. No pre-existing user item was changed. This
 supports the **new-file** request shape for one account; it says nothing yet
 about safe overwrite, conflict detection, delete, or long-term reliability.
+The feature-gated shared-worker create path now persists Apple's allocated
+document ID and signed content slot in its encrypted checkpoint before any
+visible file registration. A synthetic test first demonstrated that the old
+name-and-byte rule could accept a foreign same-name document; it now rejects
+that item even if its bytes match. In one
+[two-process owned-file trial](../benchmarks/icloud-worker-reserved-create-identity-2026-09-28.md),
+the first process discarded a registration response, and the second matched
+the saved exact document ID and full bytes without replaying an upload or
+registration. This closes a receipt-identity flaw in the small owned-fixture
+path; it does not yet support arbitrary names, large files or mounted writes.
 
 ## Direct Linux architecture if the gates pass
 

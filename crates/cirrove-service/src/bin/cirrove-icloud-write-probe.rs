@@ -77,8 +77,10 @@ async fn main() -> Result<()> {
         [flag] if flag == "--worker-intervening-edit-before-trash" => 45,
         [flag] if flag == "--worker-timeout-after-conditional-trash" => 46,
         [flag] if flag == "--worker-resume-timed-out-conditional-trash" => 47,
+        [flag] if flag == "--worker-reserved-create-lost-receipt" => 48,
+        [flag] if flag == "--worker-reconcile-reserved-create" => 49,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -399,9 +401,16 @@ async fn main() -> Result<()> {
     }
     let worker_recovery_directory = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../.local-state/icloud-worker-lost-receipt-validation");
-    if mode == 24 {
+    let reserved_create_directory = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../.local-state/icloud-worker-reserved-create-validation");
+    if matches!(mode, 24 | 49) {
+        let recovery_directory = if mode == 49 {
+            reserved_create_directory.clone()
+        } else {
+            worker_recovery_directory.clone()
+        };
         let journal = Arc::new(Mutex::new(UploadJournal::open(
-            &worker_recovery_directory,
+            &recovery_directory,
             &account.id,
             8192,
         )?));
@@ -421,10 +430,28 @@ async fn main() -> Result<()> {
             bail!("validation upload is not a create");
         };
         let folder = session.validation_folder_at_root(parent).await?;
-        let provider = Arc::new(
-            ICloudOwnedFixtureUpload::new(record.scope.clone(), session, folder)?
-                .reconciliation_only(),
-        );
+        let provider = ICloudOwnedFixtureUpload::new(record.scope.clone(), session, folder)?
+            .reconciliation_only();
+        let reserved_id = if mode == 49 {
+            let request = UploadRequest {
+                scope: record.scope.clone(),
+                intent: record.intent.clone(),
+                size: record.size,
+                sha256: record.sha256.clone(),
+            };
+            let checkpoint = DesktopVault
+                .load(&format!("upload/{}", record.id))
+                .await?
+                .context("reserved create checkpoint is missing")?;
+            Some(
+                provider
+                    .reserved_document_id(&request, &checkpoint)?
+                    .context("create checkpoint lacks its allocated document ID")?,
+            )
+        } else {
+            None
+        };
+        let provider = Arc::new(provider);
         let worker = TransferWorker::new(
             journal.clone(),
             provider,
@@ -454,6 +481,9 @@ async fn main() -> Result<()> {
         if remote.id.is_empty()
             || remote.parent_id.as_deref() != Some(parent.as_str())
             || remote.size != record.size
+            || reserved_id
+                .as_ref()
+                .is_some_and(|id| remote.id.rsplit("::").next() != Some(id.as_str()))
         {
             bail!("reconciled upload has a mismatched remote receipt");
         }
@@ -530,6 +560,9 @@ async fn main() -> Result<()> {
     if mode == 23 && worker_recovery_directory.exists() {
         bail!("lost-receipt validation journal already exists");
     }
+    if mode == 48 && reserved_create_directory.exists() {
+        bail!("reserved create validation journal already exists");
+    }
     if mode == 27 && trash_recovery_directory.exists() {
         bail!("lost Trash receipt validation journal already exists");
     }
@@ -538,7 +571,7 @@ async fn main() -> Result<()> {
     println!(
         "Created and listed the isolated iCloud validation folder. Testing a small file upload."
     );
-    if matches!(mode, 22 | 23) {
+    if matches!(mode, 22 | 23 | 48) {
         let scope = Scope {
             account: account.id.clone(),
             provider: "icloud".into(),
@@ -548,6 +581,8 @@ async fn main() -> Result<()> {
         let contents = format!("Cirrove worker validation {}\n", Uuid::new_v4());
         let directory = if mode == 23 {
             worker_recovery_directory
+        } else if mode == 48 {
+            reserved_create_directory
         } else {
             Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
                 "../../.local-state/icloud-worker-create-{}",
@@ -571,13 +606,13 @@ async fn main() -> Result<()> {
                 contents.as_bytes(),
             )?;
         let mut provider = ICloudOwnedFixtureUpload::new(scope, session, folder)?;
-        if mode == 23 {
+        if matches!(mode, 23 | 48) {
             provider = provider.with_discarded_registration_receipt();
         }
         let provider = Arc::new(provider);
         let worker = TransferWorker::new(
             journal.clone(),
-            provider,
+            provider.clone(),
             Arc::new(DesktopVault),
             CancellationToken::new(),
         );
@@ -591,9 +626,24 @@ async fn main() -> Result<()> {
             record.id,
             directory.display()
         );
-        if mode == 23 {
+        if matches!(mode, 23 | 48) {
             if result.id != record.id || result.state != UploadState::VerifyRequired {
                 bail!("discarded registration receipt did not require verification");
+            }
+            if mode == 48 {
+                let request = UploadRequest {
+                    scope: record.scope.clone(),
+                    intent: record.intent.clone(),
+                    size: record.size,
+                    sha256: record.sha256.clone(),
+                };
+                let checkpoint = DesktopVault
+                    .load(&format!("upload/{}", record.id))
+                    .await?
+                    .context("reserved create checkpoint was not saved")?;
+                provider
+                    .reserved_document_id(&request, &checkpoint)?
+                    .context("create checkpoint lacks its allocated document ID")?;
             }
             println!(
                 "The uncertain registration is durably retained for a fresh-process inspection; no retry was made."

@@ -1,7 +1,9 @@
 //! A worker-driven native upload into one freshly created Cirrove test folder.
 //! This remains feature-gated: uncertain Apple content-slot requests are never
 //! replayed merely because a later listing does not yet show the file.
-use super::{DriveEntry, ICloudReadSession, ValidationFolder};
+use super::{
+    DriveEntry, ICloudReadSession, ValidationFolder, checked_content_url, write_probe::UploadSlot,
+};
 use async_trait::async_trait;
 use cirrove_core::upload::{
     Reconciliation, Result as UploadResult, UploadError, UploadIntent, UploadProgress,
@@ -17,7 +19,7 @@ use uuid::Uuid;
 
 const NAME_PREFIX: &str = "staged-by-cirrove-";
 const MAX_OWNED_FILE: u64 = 4096;
-const MAX_CHECKPOINT: usize = 4096;
+const MAX_CHECKPOINT: usize = 8192;
 
 #[derive(Serialize, Deserialize)]
 struct CreateCheckpoint {
@@ -27,6 +29,8 @@ struct CreateCheckpoint {
     name: String,
     size: u64,
     sha256: String,
+    /// Assigned before any visible registration and held only in the vault.
+    slot: Option<UploadSlot>,
 }
 
 /// Only accepts a `ValidationFolder` returned by this authenticated session's
@@ -80,6 +84,19 @@ impl ICloudOwnedFixtureUpload {
         self
     }
 
+    /// Exposes only the opaque document identity for the isolated validator;
+    /// the slot URL stays in the vault and is never printed or logged.
+    pub fn reserved_document_id(
+        &self,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+    ) -> UploadResult<Option<String>> {
+        Ok(self
+            .check_checkpoint(request, checkpoint)?
+            .slot
+            .map(|slot| slot.document_id))
+    }
+
     fn check_request(&self, request: &UploadRequest) -> UploadResult<()> {
         request.validate()?;
         let UploadIntent::Create { parent, name } = &request.intent else {
@@ -99,18 +116,23 @@ impl ICloudOwnedFixtureUpload {
         Ok(())
     }
 
-    fn checkpoint(&self, request: &UploadRequest) -> UploadResult<SecretString> {
+    fn checkpoint(
+        &self,
+        request: &UploadRequest,
+        slot: Option<UploadSlot>,
+    ) -> UploadResult<SecretString> {
         self.check_request(request)?;
         let UploadIntent::Create { parent, name } = &request.intent else {
             return Err(UploadError::Invalid);
         };
         let checkpoint = CreateCheckpoint {
-            version: 1,
+            version: 2,
             scope: request.scope.clone(),
             parent: parent.clone(),
             name: name.clone(),
             size: request.size,
             sha256: request.sha256.clone(),
+            slot,
         };
         let text = serde_json::to_string(&checkpoint).map_err(|_| UploadError::Invalid)?;
         if text.len() > MAX_CHECKPOINT {
@@ -123,7 +145,7 @@ impl ICloudOwnedFixtureUpload {
         &self,
         request: &UploadRequest,
         checkpoint: &SecretString,
-    ) -> UploadResult<()> {
+    ) -> UploadResult<CreateCheckpoint> {
         self.check_request(request)?;
         if checkpoint.expose_secret().len() > MAX_CHECKPOINT {
             return Err(UploadError::CheckpointInvalid);
@@ -133,19 +155,29 @@ impl ICloudOwnedFixtureUpload {
         let UploadIntent::Create { parent, name } = &request.intent else {
             return Err(UploadError::Invalid);
         };
-        if saved.version != 1
+        if saved.version != 2
             || saved.scope != request.scope
             || saved.parent != *parent
             || saved.name != *name
             || saved.size != request.size
             || saved.sha256 != request.sha256
+            || saved.slot.as_ref().is_some_and(|slot| {
+                slot.document_id.is_empty()
+                    || slot.document_id.len() > 256
+                    || checked_content_url(&slot.url).is_err()
+            })
         {
             return Err(UploadError::CheckpointInvalid);
         }
-        Ok(())
+        Ok(saved)
     }
 
-    fn node(&self, entry: &DriveEntry, request: &UploadRequest) -> UploadResult<Node> {
+    fn node(
+        &self,
+        entry: &DriveEntry,
+        request: &UploadRequest,
+        expected_doc_id: &str,
+    ) -> UploadResult<Node> {
         let UploadIntent::Create { name, .. } = &request.intent else {
             return Err(UploadError::Invalid);
         };
@@ -154,6 +186,7 @@ impl ICloudOwnedFixtureUpload {
             || !entry.drivewsid.starts_with("FILE::com.apple.CloudDocs::")
             || entry.docwsid.is_empty()
             || entry.drivewsid.rsplit("::").next() != Some(entry.docwsid.as_str())
+            || entry.docwsid != expected_doc_id
             || entry.display_name() != *name
             || entry.size != request.size
             || entry.etag.is_empty()
@@ -174,8 +207,31 @@ impl ICloudOwnedFixtureUpload {
         })
     }
 
+    fn select_candidate<'a>(
+        items: &'a [DriveEntry],
+        name: &str,
+        expected_doc_id: &str,
+    ) -> UploadResult<Option<&'a DriveEntry>> {
+        let mut matches = items
+            .iter()
+            .filter(|entry| entry.docwsid == expected_doc_id);
+        let candidate = matches.next();
+        if matches.next().is_some()
+            || items
+                .iter()
+                .any(|entry| entry.display_name() == name && entry.docwsid != expected_doc_id)
+        {
+            return Err(UploadError::Conflict);
+        }
+        Ok(candidate)
+    }
+
     /// `None` is uncertain, not proof that an in-flight registration failed.
-    async fn observed(&self, request: &UploadRequest) -> UploadResult<Option<Node>> {
+    async fn observed(
+        &self,
+        request: &UploadRequest,
+        expected_doc_id: &str,
+    ) -> UploadResult<Option<Node>> {
         let UploadIntent::Create { name, .. } = &request.intent else {
             return Err(UploadError::Invalid);
         };
@@ -184,14 +240,10 @@ impl ICloudOwnedFixtureUpload {
             .list_folder(&self.folder.id)
             .await
             .map_err(|_| UploadError::Uncertain)?;
-        let mut matches = items.iter().filter(|entry| entry.display_name() == *name);
-        let Some(entry) = matches.next() else {
+        let Some(entry) = Self::select_candidate(&items, name, expected_doc_id)? else {
             return Ok(None);
         };
-        if matches.next().is_some() {
-            return Err(UploadError::Conflict);
-        }
-        let node = self.node(entry, request)?;
+        let node = self.node(entry, request, expected_doc_id)?;
         let bytes = session
             .read_small_file_in_folder(&self.folder.id, &node.id)
             .await
@@ -215,12 +267,9 @@ impl UploadProvider for ICloudOwnedFixtureUpload {
         if cancel.is_cancelled() {
             return Err(UploadError::Uncertain);
         }
-        let checkpoint = self.checkpoint(request)?;
-        Ok(UploadStep::Continue(UploadProgress {
-            checkpoint,
-            offset: 0,
-            length: request.size as u32,
-        }))
+        // Save the operation identity before asking Apple for a content slot.
+        // Slot allocation alone cannot make a file visible in Drive.
+        Ok(UploadStep::Prepared(self.checkpoint(request, None)?))
     }
 
     async fn inspect_upload(
@@ -229,8 +278,28 @@ impl UploadProvider for ICloudOwnedFixtureUpload {
         checkpoint: &SecretString,
         _: &CancellationToken,
     ) -> UploadResult<UploadStep> {
-        self.check_checkpoint(request, checkpoint)?;
-        self.observed(request)
+        let saved = self.check_checkpoint(request, checkpoint)?;
+        let Some(slot) = saved.slot else {
+            if self.reconciliation_only {
+                return Err(UploadError::Uncertain);
+            }
+            let UploadIntent::Create { name, .. } = &request.intent else {
+                return Err(UploadError::Invalid);
+            };
+            let slot = self
+                .session
+                .lock()
+                .await
+                .allocate_upload_slot(name, request.size)
+                .await
+                .map_err(|_| UploadError::Uncertain)?;
+            return Ok(UploadStep::Continue(UploadProgress {
+                checkpoint: self.checkpoint(request, Some(slot))?,
+                offset: 0,
+                length: request.size as u32,
+            }));
+        };
+        self.observed(request, &slot.document_id)
             .await?
             .map(UploadStep::Complete)
             .ok_or(UploadError::Uncertain)
@@ -244,7 +313,8 @@ impl UploadProvider for ICloudOwnedFixtureUpload {
         bytes: Vec<u8>,
         cancel: &CancellationToken,
     ) -> UploadResult<UploadStep> {
-        self.check_checkpoint(request, checkpoint)?;
+        let saved = self.check_checkpoint(request, checkpoint)?;
+        let slot = saved.slot.ok_or(UploadError::CheckpointInvalid)?;
         if self.reconciliation_only {
             return Err(UploadError::Unsupported("reconciliation-only validation"));
         }
@@ -257,7 +327,7 @@ impl UploadProvider for ICloudOwnedFixtureUpload {
         if cancel.is_cancelled() {
             return Err(UploadError::Uncertain);
         }
-        if let Some(node) = self.observed(request).await? {
+        if let Some(node) = self.observed(request, &slot.document_id).await? {
             return Ok(UploadStep::Complete(node));
         }
         let UploadIntent::Create { name, .. } = &request.intent else {
@@ -269,20 +339,24 @@ impl UploadProvider for ICloudOwnedFixtureUpload {
             // An error after the request may mean Apple committed it; no replay
             // follows from a missing or delayed listing.
             session
-                .create_owned_file(
+                .create_owned_file_with_slot(
                     &self.folder,
                     name,
                     &bytes,
                     false,
                     self.discard_registration_receipt
                         .swap(false, Ordering::AcqRel),
+                    Some(&slot),
                 )
                 .await
                 .map_err(|_| UploadError::Uncertain)?
                 .ok_or(UploadError::Uncertain)?
         };
+        if created.document_id != slot.document_id {
+            return Err(UploadError::Conflict);
+        }
         let node = self
-            .observed(request)
+            .observed(request, &slot.document_id)
             .await?
             .ok_or(UploadError::Uncertain)?;
         if node.id != created.id || node.etag.as_deref() != Some(created.etag.as_str()) {
@@ -306,8 +380,12 @@ impl UploadProvider for ICloudOwnedFixtureUpload {
         checkpoint: Option<&SecretString>,
         _: &CancellationToken,
     ) -> UploadResult<Reconciliation> {
-        self.check_checkpoint(request, checkpoint.ok_or(UploadError::CheckpointInvalid)?)?;
-        self.observed(request)
+        let saved =
+            self.check_checkpoint(request, checkpoint.ok_or(UploadError::CheckpointInvalid)?)?;
+        let Some(slot) = saved.slot else {
+            return Ok(Reconciliation::Uncommitted);
+        };
+        self.observed(request, &slot.document_id)
             .await?
             .map(Reconciliation::Committed)
             .ok_or(UploadError::Uncertain)
@@ -347,28 +425,90 @@ mod tests {
         )
     }
 
+    fn slot() -> UploadSlot {
+        UploadSlot {
+            url: "https://example.icloud-content.com/upload".into(),
+            document_id: "expected-document".into(),
+        }
+    }
+
+    #[test]
+    fn same_name_foreign_document_cannot_be_a_create_receipt() {
+        let (provider, request) = fixture();
+        let UploadIntent::Create { name, .. } = &request.intent else {
+            panic!("expected create fixture");
+        };
+        let entry: DriveEntry = serde_json::from_value(serde_json::json!({
+            "drivewsid": "FILE::com.apple.CloudDocs::foreign",
+            "docwsid": "foreign",
+            "name": name.strip_suffix(".txt").unwrap(),
+            "extension": "txt",
+            "type": "FILE",
+            "size": request.size,
+            "etag": "\"foreign\""
+        }))
+        .unwrap();
+        assert!(
+            provider
+                .node(&entry, &request, "expected-document")
+                .is_err()
+        );
+        assert!(
+            ICloudOwnedFixtureUpload::select_candidate(&[entry.clone()], name, "expected-document")
+                .is_err()
+        );
+        let mut expected = entry.clone();
+        expected.drivewsid = "FILE::com.apple.CloudDocs::expected-document".into();
+        expected.docwsid = "expected-document".into();
+        assert!(
+            provider
+                .node(&expected, &request, "expected-document")
+                .is_ok()
+        );
+        assert!(
+            ICloudOwnedFixtureUpload::select_candidate(
+                &[expected.clone()],
+                name,
+                "expected-document"
+            )
+            .unwrap()
+            .is_some()
+        );
+        assert!(
+            ICloudOwnedFixtureUpload::select_candidate(
+                &[expected, entry],
+                name,
+                "expected-document"
+            )
+            .is_err()
+        );
+    }
+
     #[tokio::test]
     async fn create_checkpoint_is_bound_to_scope_name_and_bytes_before_network() {
         let (provider, request) = fixture();
-        let UploadStep::Continue(step) = provider
+        let UploadStep::Prepared(checkpoint) = provider
             .begin_upload(&request, &CancellationToken::new())
             .await
             .unwrap()
         else {
-            panic!("expected one bounded upload part");
+            panic!("expected a durable preparation before slot allocation");
         };
-        assert_eq!(step.length, 3);
         assert!(
             provider
-                .check_checkpoint(&request, &step.checkpoint)
-                .is_ok()
+                .check_checkpoint(&request, &checkpoint)
+                .unwrap()
+                .slot
+                .is_none()
         );
+        let with_slot = provider.checkpoint(&request, Some(slot())).unwrap();
+        assert!(provider.check_checkpoint(&request, &with_slot).is_ok());
         let mut other = request.clone();
         other.sha256 = hex::encode(Sha256::digest(b"old"));
-        assert!(provider.check_checkpoint(&other, &step.checkpoint).is_err());
+        assert!(provider.check_checkpoint(&other, &with_slot).is_err());
         let mut other = request.clone();
         other.scope.account = "different".into();
-        assert!(provider.check_checkpoint(&other, &step.checkpoint).is_err());
+        assert!(provider.check_checkpoint(&other, &with_slot).is_err());
         let mut other = request.clone();
         other.intent = UploadIntent::Replace {
             item: "existing".into(),
@@ -385,7 +525,7 @@ mod tests {
     #[tokio::test]
     async fn malformed_or_mismatched_upload_never_contacts_apple() {
         let (provider, request) = fixture();
-        let checkpoint = provider.checkpoint(&request).unwrap();
+        let checkpoint = provider.checkpoint(&request, Some(slot())).unwrap();
         assert!(
             provider
                 .upload_part(
@@ -422,7 +562,7 @@ mod tests {
     async fn restarted_validation_cannot_send_an_upload_part() {
         let (provider, request) = fixture();
         let provider = provider.reconciliation_only();
-        let checkpoint = provider.checkpoint(&request).unwrap();
+        let checkpoint = provider.checkpoint(&request, Some(slot())).unwrap();
         let error = provider
             .upload_part(
                 &request,

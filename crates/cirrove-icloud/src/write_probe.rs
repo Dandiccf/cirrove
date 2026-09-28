@@ -170,10 +170,10 @@ struct FolderCreated {
     status: String,
 }
 
-#[derive(Deserialize)]
-struct UploadSlot {
-    url: String,
-    document_id: String,
+#[derive(Clone, Deserialize, Serialize)]
+pub(crate) struct UploadSlot {
+    pub(crate) url: String,
+    pub(crate) document_id: String,
 }
 
 #[derive(Deserialize)]
@@ -297,6 +297,16 @@ impl ICloudReadSession {
         name: &str,
         bytes: &[u8],
     ) -> Result<(UploadSlot, UploadedFile)> {
+        let slot = self.allocate_upload_slot(name, bytes.len() as u64).await?;
+        let data = self.upload_to_slot(&slot, bytes).await?;
+        Ok((slot, data))
+    }
+
+    pub(crate) async fn allocate_upload_slot(
+        &mut self,
+        name: &str,
+        size: u64,
+    ) -> Result<UploadSlot> {
         let endpoint = self
             .docs_endpoint
             .as_ref()
@@ -310,7 +320,7 @@ impl ICloudReadSession {
             .json(&json!({
                 "filename": name,
                 "type": "FILE",
-                "size": bytes.len().to_string(),
+                "size": size.to_string(),
                 "content_type": "text/plain"
             }))
             .send()
@@ -329,6 +339,11 @@ impl ICloudReadSession {
         if slot.document_id.is_empty() || slot.document_id.len() > 256 {
             bail!("iCloud upload allocation lacks a document identity");
         }
+        checked_content_url(&slot.url)?;
+        Ok(slot)
+    }
+
+    async fn upload_to_slot(&mut self, slot: &UploadSlot, bytes: &[u8]) -> Result<UploadedFile> {
         let upload_url = checked_content_url(&slot.url)?;
         let response = self
             .http
@@ -349,7 +364,7 @@ impl ICloudReadSession {
         if data.size != bytes.len() as u64 || data.receipt.is_empty() || data.signature.is_empty() {
             bail!("iCloud upload receipt is incomplete");
         }
-        Ok((slot, data))
+        Ok(data)
     }
 
     /// Create a unique fixture at the root. The caller must keep its returned ID;
@@ -803,6 +818,26 @@ impl ICloudReadSession {
         require_empty: bool,
         discard_registration_receipt: bool,
     ) -> Result<Option<ValidationFile>> {
+        self.create_owned_file_with_slot(
+            folder,
+            name,
+            bytes,
+            require_empty,
+            discard_registration_receipt,
+            None,
+        )
+        .await
+    }
+
+    pub(crate) async fn create_owned_file_with_slot(
+        &mut self,
+        folder: &ValidationFolder,
+        name: &str,
+        bytes: &[u8],
+        require_empty: bool,
+        discard_registration_receipt: bool,
+        reserved_slot: Option<&UploadSlot>,
+    ) -> Result<Option<ValidationFile>> {
         let folder_id = folder.id.as_str();
         if bytes.is_empty()
             || bytes.len() > 4096
@@ -821,7 +856,10 @@ impl ICloudReadSession {
         {
             bail!("iCloud validation destination is occupied");
         }
-        let (slot, data) = self.upload_probe_bytes(name, bytes).await?;
+        let (slot, data) = match reserved_slot {
+            Some(slot) => (slot.clone(), self.upload_to_slot(slot, bytes).await?),
+            None => self.upload_probe_bytes(name, bytes).await?,
+        };
         let starting_document_id = folder_id
             .rsplit("::")
             .next()
