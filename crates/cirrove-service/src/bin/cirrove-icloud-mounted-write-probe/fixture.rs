@@ -83,6 +83,7 @@ pub struct Fixture {
     removal: RemovalContext,
     owned: Mutex<HashSet<String>>,
     child_uploads: Mutex<HashMap<String, Arc<ICloudFileCreate>>>,
+    replacements: Mutex<HashMap<Uuid, Arc<ICloudOwnedMountedReplace>>>,
 }
 
 pub struct RemovalContext {
@@ -112,6 +113,7 @@ impl Fixture {
             removal,
             owned: Mutex::new(owned),
             child_uploads: Mutex::new(HashMap::new()),
+            replacements: Mutex::new(HashMap::new()),
         }
     }
 
@@ -263,7 +265,7 @@ impl Fixture {
     fn replacement(
         &self,
         request: &UploadRequest,
-    ) -> cirrove_core::upload::Result<ICloudOwnedMountedReplace> {
+    ) -> cirrove_core::upload::Result<Arc<ICloudOwnedMountedReplace>> {
         let journal = self
             .removal
             .journal
@@ -302,17 +304,13 @@ impl Fixture {
         self.replacement_for_operation(request, &operation)
     }
 
-    fn replacement_for_operation(
+    fn replacement_operation(
         &self,
         request: &UploadRequest,
         operation: &str,
-    ) -> cirrove_core::upload::Result<ICloudOwnedMountedReplace> {
+    ) -> cirrove_core::upload::Result<Uuid> {
         request.validate()?;
-        let UploadIntent::Replace {
-            item,
-            expected_etag,
-        } = &request.intent
-        else {
+        let UploadIntent::Replace { item, .. } = &request.intent else {
             return Err(UploadError::Invalid);
         };
         if request.scope != self.scope || !self.owns(&request.scope, item) {
@@ -334,6 +332,62 @@ impl Fixture {
         {
             return Err(UploadError::Invalid);
         }
+        Ok(operation)
+    }
+
+    fn replacement_from_checkpoint(
+        &self,
+        request: &UploadRequest,
+        operation: &str,
+        checkpoint: &SecretString,
+    ) -> cirrove_core::upload::Result<Arc<ICloudOwnedMountedReplace>> {
+        let id = self.replacement_operation(request, operation)?;
+        let restored = ICloudOwnedMountedReplace::from_sealed_checkpoint(
+            request,
+            id,
+            checkpoint,
+            ICloudSealedSignIn {
+                apple_id: self.removal.apple_id.clone(),
+                credential_id: self.removal.credential_id.clone(),
+            },
+            &self.removal.state,
+        )?;
+        let Some(restored) = restored else {
+            return self.replacement_for_operation(request, operation);
+        };
+        if !self.owns(&request.scope, restored.parent_id()) {
+            return Err(UploadError::Invalid);
+        }
+        let restored = Arc::new(restored);
+        self.replacements
+            .lock()
+            .map_err(|_| UploadError::Uncertain)?
+            .insert(id, restored.clone());
+        Ok(restored)
+    }
+
+    fn replacement_for_operation(
+        &self,
+        request: &UploadRequest,
+        operation: &str,
+    ) -> cirrove_core::upload::Result<Arc<ICloudOwnedMountedReplace>> {
+        let operation = self.replacement_operation(request, operation)?;
+        if let Some(saved) = self
+            .replacements
+            .lock()
+            .map_err(|_| UploadError::Uncertain)?
+            .get(&operation)
+            .cloned()
+        {
+            return Ok(saved);
+        }
+        let UploadIntent::Replace {
+            item,
+            expected_etag,
+        } = &request.intent
+        else {
+            return Err(UploadError::Invalid);
+        };
         let store = Store::open(&self.removal.metadata_db).map_err(|_| UploadError::Uncertain)?;
         let chain = store
             .node_chain_to_root(&self.scope, item, &self.root.id)
@@ -358,7 +412,7 @@ impl Fixture {
         } else {
             chain[1].clone()
         };
-        ICloudOwnedMountedReplace::from_sealed_session_for_existing(
+        let replacement = Arc::new(ICloudOwnedMountedReplace::from_sealed_session_for_existing(
             self.scope.clone(),
             folder,
             original,
@@ -368,7 +422,12 @@ impl Fixture {
                 credential_id: self.removal.credential_id.clone(),
             },
             &self.removal.state,
-        )
+        )?);
+        self.replacements
+            .lock()
+            .map_err(|_| UploadError::Uncertain)?
+            .insert(operation, replacement.clone());
+        Ok(replacement)
     }
 
     fn guard_folder(&self, request: &MutationRequest) -> cirrove_core::mutation::Result<()> {
@@ -1772,9 +1831,8 @@ impl UploadProvider for Fixture {
         let UploadIntent::Replace { .. } = &request.intent else {
             return None;
         };
-        self.replacement_for_operation(request, operation)
-            .ok()?
-            .staged_recovery_location(operation, request)
+        let operation = self.replacement_operation(request, operation).ok()?;
+        Some(ICloudOwnedMountedReplace::recovery_location(operation))
     }
 
     async fn begin_upload_for_operation(
@@ -1813,7 +1871,7 @@ impl UploadProvider for Fixture {
                 let phase = ReplacementPhase::start("inspect");
                 let result = async {
                     let step = self
-                        .replacement_for_operation(r, operation)?
+                        .replacement_from_checkpoint(r, operation, s)?
                         .inspect_upload(r, s, c)
                         .await?;
                     self.upload_step_for_operation(r, step, Some(operation))
@@ -1839,7 +1897,7 @@ impl UploadProvider for Fixture {
                 let phase = ReplacementPhase::start("part");
                 let result = async {
                     let step = self
-                        .replacement_for_operation(r, operation)?
+                        .replacement_from_checkpoint(r, operation, s)?
                         .upload_part(r, s, offset, bytes, c)
                         .await?;
                     self.upload_step_for_operation(r, step, Some(operation))
@@ -1864,7 +1922,7 @@ impl UploadProvider for Fixture {
                 let phase = ReplacementPhase::start("stream");
                 let result = async {
                     let step = self
-                        .replacement_for_operation(r, operation)?
+                        .replacement_from_checkpoint(r, operation, s)?
                         .upload_stream(r, s, file, c)
                         .await?;
                     self.upload_step_for_operation(r, step, Some(operation))
@@ -1888,7 +1946,7 @@ impl UploadProvider for Fixture {
                 let phase = ReplacementPhase::start("commit");
                 let result = async {
                     let step = self
-                        .replacement_for_operation(r, operation)?
+                        .replacement_from_checkpoint(r, operation, s)?
                         .commit_upload(r, s, c)
                         .await?;
                     self.upload_step_for_operation(r, step, Some(operation))
@@ -1911,10 +1969,11 @@ impl UploadProvider for Fixture {
         };
         let phase = ReplacementPhase::start("reconcile");
         let result = async {
-            let result = self
-                .replacement_for_operation(r, operation)?
-                .reconcile_upload(r, s, c)
-                .await?;
+            let replacement = match s {
+                Some(checkpoint) => self.replacement_from_checkpoint(r, operation, checkpoint)?,
+                None => self.replacement_for_operation(r, operation)?,
+            };
+            let result = replacement.reconcile_upload(r, s, c).await?;
             match &result {
                 Reconciliation::Committed(node) => self.upload_receipt(r, node)?,
                 Reconciliation::HandoffCommitted { current, backup } => {

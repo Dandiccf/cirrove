@@ -494,6 +494,7 @@ async fn main() -> Result<()> {
     let after_nested_replace = args
         .first()
         .is_some_and(|flag| flag == "--resume-after-nested-replace");
+    let finish_replace = args.first().is_some_and(|flag| flag == "--finish-replace");
     let finish_nested_replace = args
         .first()
         .is_some_and(|flag| flag == "--finish-nested-replace");
@@ -597,7 +598,7 @@ async fn main() -> Result<()> {
             false,
             false,
         ),
-        [flag, id] if flag == "--replace" => (
+        [flag, id] if flag == "--replace" || flag == "--finish-replace" => (
             Some(Uuid::parse_str(id).context("invalid fixture run ID")?),
             false,
             false,
@@ -634,7 +635,7 @@ async fn main() -> Result<()> {
             true,
         ),
         _ => bail!(
-            "usage: cirrove-icloud-mounted-write-probe [--resume RUN_UUID | --prepare-folder-move RUN_UUID | --move-folder RUN_UUID | --resume-after-folder-move RUN_UUID | --rename-folder RUN_UUID | --resume-after-rename RUN_UUID | --rename-file RUN_UUID | --resume-after-file-rename RUN_UUID | --rename-file-again RUN_UUID | --resume-after-file-rename-again RUN_UUID | --move-file RUN_UUID | --resume-after-file-move RUN_UUID | --rename-nested-file RUN_UUID | --resume-after-nested-rename RUN_UUID | --inspect-nested-rename RUN_UUID | --retry-failed-nested RUN_UUID | --create-nested-file RUN_UUID | --resume-after-nested-create RUN_UUID | --remove-nested-file RUN_UUID | --resume-after-nested-remove RUN_UUID | --create-nested-replace-source RUN_UUID | --replace-nested-source RUN_UUID | --finish-nested-replace RUN_UUID | --resume-after-nested-replace RUN_UUID | --remove-folder RUN_UUID | --resume-after-remove RUN_UUID | --remove-file RUN_UUID | --resume-after-file-remove RUN_UUID | --replace RUN_UUID | --resume-after-replace RUN_UUID | --large-create | --large-replace RUN_UUID | --large-resume-after-replace RUN_UUID]"
+            "usage: cirrove-icloud-mounted-write-probe [--resume RUN_UUID | --prepare-folder-move RUN_UUID | --move-folder RUN_UUID | --resume-after-folder-move RUN_UUID | --rename-folder RUN_UUID | --resume-after-rename RUN_UUID | --rename-file RUN_UUID | --resume-after-file-rename RUN_UUID | --rename-file-again RUN_UUID | --resume-after-file-rename-again RUN_UUID | --move-file RUN_UUID | --resume-after-file-move RUN_UUID | --rename-nested-file RUN_UUID | --resume-after-nested-rename RUN_UUID | --inspect-nested-rename RUN_UUID | --retry-failed-nested RUN_UUID | --create-nested-file RUN_UUID | --resume-after-nested-create RUN_UUID | --remove-nested-file RUN_UUID | --resume-after-nested-remove RUN_UUID | --create-nested-replace-source RUN_UUID | --replace-nested-source RUN_UUID | --finish-nested-replace RUN_UUID | --resume-after-nested-replace RUN_UUID | --remove-folder RUN_UUID | --resume-after-remove RUN_UUID | --remove-file RUN_UUID | --resume-after-file-remove RUN_UUID | --replace RUN_UUID | --finish-replace RUN_UUID | --resume-after-replace RUN_UUID | --large-create | --large-replace RUN_UUID | --large-resume-after-replace RUN_UUID]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -715,6 +716,15 @@ async fn main() -> Result<()> {
         package: false,
     };
     let journal = UploadJournal::open(&run_dir.join("journal"), &account.id, 64 * 1024 * 1024)?;
+    if finish_replace {
+        let rows = journal.list(0, 16)?;
+        ensure!(
+            rows.len() == 2
+                && rows[0].state == UploadState::Uploaded
+                && matches!(rows[1].intent, UploadIntent::Replace { .. }),
+            "finish-replace requires the existing two-upload replacement fixture"
+        );
+    }
     if inspect_replace_phase {
         return inspect_saved_replace_phase(
             &journal,
@@ -1076,75 +1086,77 @@ async fn main() -> Result<()> {
             return Ok::<(), anyhow::Error>(());
         }
         let filename = "Mounted Create.txt";
-        let output = tokio::process::Command::new("python3")
-            .args([
-                "-c",
-                if remove_folder {
-                    APP_REMOVE_FOLDER
-                } else if rename_folder {
-                    APP_RENAME_FOLDER
-                } else if after_rename_folder {
-                    APP_READ_RENAMED
-                } else if rename_file {
-                    APP_RENAME_FILE
-                } else if after_rename_file {
-                    APP_READ_RENAMED_FILE
-                } else if rename_file_again {
-                    APP_RENAME_FILE_AGAIN
-                } else if after_rename_file_again {
-                    APP_READ_RENAMED_FILE_AGAIN
-                } else if move_file {
-                    APP_MOVE_FILE
-                } else if after_move_file {
-                    APP_READ_MOVED_FILE
-                } else if rename_nested_file {
-                    APP_RENAME_NESTED_FILE
-                } else if after_nested_rename || retry_failed_nested {
-                    APP_READ_NESTED_RENAMED_FILE
-                } else if create_nested_file {
-                    APP_CREATE_NESTED_FILE
-                } else if after_nested_create {
-                    APP_READ_NESTED_CREATED_FILE
-                } else if remove_nested_file {
-                    APP_REMOVE_NESTED_FILE
-                } else if after_nested_remove {
-                    APP_READ_NESTED_REMOVED
-                } else if replace_file {
-                    if large_file {
-                        APP_LARGE_REPLACE
+        if !finish_replace {
+            let output = tokio::process::Command::new("python3")
+                .args([
+                    "-c",
+                    if remove_folder {
+                        APP_REMOVE_FOLDER
+                    } else if rename_folder {
+                        APP_RENAME_FOLDER
+                    } else if after_rename_folder {
+                        APP_READ_RENAMED
+                    } else if rename_file {
+                        APP_RENAME_FILE
+                    } else if after_rename_file {
+                        APP_READ_RENAMED_FILE
+                    } else if rename_file_again {
+                        APP_RENAME_FILE_AGAIN
+                    } else if after_rename_file_again {
+                        APP_READ_RENAMED_FILE_AGAIN
+                    } else if move_file {
+                        APP_MOVE_FILE
+                    } else if after_move_file {
+                        APP_READ_MOVED_FILE
+                    } else if rename_nested_file {
+                        APP_RENAME_NESTED_FILE
+                    } else if after_nested_rename || retry_failed_nested {
+                        APP_READ_NESTED_RENAMED_FILE
+                    } else if create_nested_file {
+                        APP_CREATE_NESTED_FILE
+                    } else if after_nested_create {
+                        APP_READ_NESTED_CREATED_FILE
+                    } else if remove_nested_file {
+                        APP_REMOVE_NESTED_FILE
+                    } else if after_nested_remove {
+                        APP_READ_NESTED_REMOVED
+                    } else if replace_file {
+                        if large_file {
+                            APP_LARGE_REPLACE
+                        } else {
+                            APP_REPLACE
+                        }
+                    } else if after_replace {
+                        if large_file {
+                            APP_LARGE_READ_REPLACED
+                        } else {
+                            APP_READ_REPLACED
+                        }
+                    } else if remove_file {
+                        APP_REMOVE_FILE
+                    } else if after_file_remove {
+                        APP_READ_ALL_REMOVED
+                    } else if after_remove {
+                        APP_READ_REMOVED
+                    } else if resume.is_some() {
+                        APP_READ
                     } else {
-                        APP_REPLACE
-                    }
-                } else if after_replace {
-                    if large_file {
-                        APP_LARGE_READ_REPLACED
-                    } else {
-                        APP_READ_REPLACED
-                    }
-                } else if remove_file {
-                    APP_REMOVE_FILE
-                } else if after_file_remove {
-                    APP_READ_ALL_REMOVED
-                } else if after_remove {
-                    APP_READ_REMOVED
-                } else if resume.is_some() {
-                    APP_READ
-                } else {
-                    if large_file { APP_LARGE_CREATE } else { APP }
-                },
-            ])
-            .arg(&engine.account.mount_path)
-            .arg(filename)
-            .kill_on_drop(true)
-            .output()
-            .await
-            .context("running separate FUSE write process")?;
-        ensure!(
-            output.status.success(),
-            "FUSE application process failed ({}); evidence retained",
-            String::from_utf8_lossy(&output.stderr[..output.stderr.len().min(512)])
-        );
-        if replace_file {
+                        if large_file { APP_LARGE_CREATE } else { APP }
+                    },
+                ])
+                .arg(&engine.account.mount_path)
+                .arg(filename)
+                .kill_on_drop(true)
+                .output()
+                .await
+                .context("running separate FUSE write process")?;
+            ensure!(
+                output.status.success(),
+                "FUSE application process failed ({}); evidence retained",
+                String::from_utf8_lossy(&output.stderr[..output.stderr.len().min(512)])
+            );
+        }
+        if replace_file && !finish_replace {
             eprintln!(
                 "replacement timing: FUSE save returned {:.1}s",
                 started.elapsed().as_secs_f64()

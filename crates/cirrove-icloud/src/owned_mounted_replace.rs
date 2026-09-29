@@ -38,6 +38,10 @@ struct Checkpoint {
     original_id: String,
     original_etag: String,
     #[serde(default)]
+    folder: Option<Node>,
+    #[serde(default)]
+    original: Option<Node>,
+    #[serde(default)]
     original_sha256: String,
     size: u64,
     sha256: String,
@@ -181,6 +185,50 @@ impl ICloudOwnedMountedReplace {
         )
     }
 
+    /// Restore a mutation's captured source after it has left the active index.
+    /// Only an authenticated, per-operation sealed checkpoint may be supplied.
+    /// Legacy checkpoints return None and still require the original index entry.
+    pub fn from_sealed_checkpoint(
+        request: &UploadRequest,
+        operation: Uuid,
+        checkpoint: &SecretString,
+        sign_in: ICloudSealedSignIn,
+        state: &Path,
+    ) -> UploadResult<Option<Self>> {
+        if checkpoint.expose_secret().len() > MAX_CHECKPOINT {
+            return Err(UploadError::CheckpointInvalid);
+        }
+        let saved: Checkpoint = serde_json::from_str(checkpoint.expose_secret())
+            .map_err(|_| UploadError::CheckpointInvalid)?;
+        request.validate()?;
+        if saved.scope != request.scope
+            || saved.operation != operation
+            || saved.size != request.size
+            || saved.sha256 != request.sha256
+            || !matches!(&request.intent, UploadIntent::Replace { item, expected_etag }
+                if item == &saved.original_id && expected_etag == &saved.original_etag)
+        {
+            return Err(UploadError::CheckpointInvalid);
+        }
+        if saved.version == 1 {
+            return Ok(None);
+        }
+        if saved.version != 2 {
+            return Err(UploadError::CheckpointInvalid);
+        }
+        let provider = Self::from_sealed_session_with_digest(
+            request.scope.clone(),
+            saved.folder.ok_or(UploadError::CheckpointInvalid)?,
+            saved.original.ok_or(UploadError::CheckpointInvalid)?,
+            Some(saved.original_sha256),
+            operation,
+            sign_in,
+            state,
+        )?;
+        provider.check_checkpoint(request, checkpoint)?;
+        Ok(Some(provider))
+    }
+
     fn from_sealed_session_with_digest(
         scope: Scope,
         folder: Node,
@@ -320,11 +368,13 @@ impl ICloudOwnedMountedReplace {
             return Err(UploadError::Invalid);
         }
         let value = Checkpoint {
-            version: 1,
+            version: 2,
             scope: self.scope.clone(),
             operation: self.operation,
             original_id: self.original.id.clone(),
             original_etag: self.original.etag.clone().ok_or(UploadError::Invalid)?,
+            folder: Some(self.folder.clone()),
+            original: Some(self.original.clone()),
             original_sha256: original_sha256.into(),
             size: request.size,
             sha256: request.sha256.clone(),
@@ -360,7 +410,10 @@ impl ICloudOwnedMountedReplace {
                 .original_sha256
                 .as_deref()
                 .is_some_and(|known| known != original_sha256)
-            || saved.version != 1
+            || !matches!(saved.version, 1 | 2)
+            || (saved.version == 2
+                && (saved.folder.as_ref() != Some(&self.folder)
+                    || saved.original.as_ref() != Some(&self.original)))
             || saved.scope != self.scope
             || saved.operation != self.operation
             || saved.original_id != self.original.id
@@ -925,6 +978,54 @@ mod tests {
         assert_eq!(saved_digest, digest);
         assert_eq!(inner, "prepared");
 
+        let restored = ICloudOwnedMountedReplace::from_sealed_checkpoint(
+            &request,
+            operation,
+            &checkpoint,
+            sign_in(),
+            state.path(),
+        )
+        .expect("checkpoint-only reconstruction")
+        .expect("captured source");
+        assert_eq!(restored.folder, folder);
+        assert_eq!(restored.original, original);
+        assert_eq!(restored.original_sha256.as_deref(), Some(digest.as_str()));
+        assert!(
+            ICloudOwnedMountedReplace::from_sealed_checkpoint(
+                &request,
+                Uuid::new_v4(),
+                &checkpoint,
+                sign_in(),
+                state.path(),
+            )
+            .is_err()
+        );
+        let mut foreign = request.clone();
+        foreign.scope.account = Uuid::new_v4().to_string();
+        assert!(
+            ICloudOwnedMountedReplace::from_sealed_checkpoint(
+                &foreign,
+                operation,
+                &checkpoint,
+                sign_in(),
+                state.path(),
+            )
+            .is_err()
+        );
+        let mut incomplete: serde_json::Value =
+            serde_json::from_str(checkpoint.expose_secret()).unwrap();
+        incomplete.as_object_mut().unwrap().remove("original");
+        assert!(
+            ICloudOwnedMountedReplace::from_sealed_checkpoint(
+                &request,
+                operation,
+                &SecretString::from(incomplete.to_string()),
+                sign_in(),
+                state.path(),
+            )
+            .is_err()
+        );
+
         let mut value: serde_json::Value =
             serde_json::from_str(checkpoint.expose_secret()).expect("synthetic fixture");
         value["original_sha256"] = serde_json::Value::String("c".repeat(64));
@@ -940,6 +1041,7 @@ mod tests {
         )
         .expect("synthetic fixture");
         assert!(known.check_checkpoint(&request, &altered).is_err());
+        value["version"] = 1.into();
         value
             .as_object_mut()
             .expect("synthetic fixture")

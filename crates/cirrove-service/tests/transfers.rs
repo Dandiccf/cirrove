@@ -118,6 +118,7 @@ struct Provider {
     handoff_name: Mutex<Option<String>>,
     reserved_at_begin: AtomicBool,
     staged_commits: AtomicBool,
+    staged_commit_steps: AtomicU64,
     commits: AtomicU64,
     inspection_timeout_ms: AtomicU64,
     inspection_pending: AtomicBool,
@@ -153,6 +154,7 @@ impl Provider {
             handoff_name: Mutex::new(None),
             reserved_at_begin: AtomicBool::new(false),
             staged_commits: AtomicBool::new(false),
+            staged_commit_steps: AtomicU64::new(2),
             commits: AtomicU64::new(0),
             inspection_timeout_ms: AtomicU64::new(125_000),
             inspection_pending: AtomicBool::new(false),
@@ -473,11 +475,20 @@ impl UploadProvider for Provider {
                 "the next commit ran before its checkpoint reached the vault"
             );
             let stage = self.commits.fetch_add(1, Ordering::SeqCst);
-            if stage == 0 && checkpoint.expose_secret() == SECRET {
-                return Ok(UploadStep::Commit(SecretString::from("phase-two")));
-            }
-            if stage != 1 || checkpoint.expose_secret() != "phase-two" {
+            let steps = self.staged_commit_steps.load(Ordering::SeqCst);
+            let expected = if stage == 0 {
+                SECRET.into()
+            } else {
+                format!("phase-{}", stage + 1)
+            };
+            if stage >= steps || checkpoint.expose_secret() != expected {
                 return Err(UploadError::CheckpointInvalid);
+            }
+            if stage + 1 < steps {
+                return Ok(UploadStep::Commit(SecretString::from(format!(
+                    "phase-{}",
+                    stage + 2
+                ))));
             }
         }
         if self.conflict_commit.load(Ordering::SeqCst) {
@@ -655,27 +666,30 @@ async fn provider_inspection_deadline_preserves_uncertain_upload_without_replay(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn staged_replacement_persists_a_checkpoint_before_each_commit() {
-    let temp = tempfile::tempdir().unwrap();
-    let (probe, provider, vault) = fixture();
-    let journal = journal(&temp.path().join("journal"), &probe);
-    let id = enqueue(&journal, "Saved.txt");
-    provider.deferred.store(true, Ordering::SeqCst);
-    provider.staged_commits.store(true, Ordering::SeqCst);
-    let worker = TransferWorker::new(
-        journal.clone(),
-        provider.clone(),
-        vault.clone(),
-        CancellationToken::new(),
-    );
-    assert_eq!(
-        worker.run_once().await.unwrap().unwrap().state,
-        UploadState::Uploaded
-    );
-    assert_eq!(provider.commits.load(Ordering::SeqCst), 2);
-    assert_eq!(
-        journal.lock().unwrap().get(id).unwrap().state,
-        UploadState::Uploaded
-    );
+    for steps in [2, 4] {
+        let temp = tempfile::tempdir().unwrap();
+        let (probe, provider, vault) = fixture();
+        let journal = journal(&temp.path().join("journal"), &probe);
+        let id = enqueue(&journal, "Saved.txt");
+        provider.deferred.store(true, Ordering::SeqCst);
+        provider.staged_commits.store(true, Ordering::SeqCst);
+        provider.staged_commit_steps.store(steps, Ordering::SeqCst);
+        let worker = TransferWorker::new(
+            journal.clone(),
+            provider.clone(),
+            vault.clone(),
+            CancellationToken::new(),
+        );
+        assert_eq!(
+            worker.run_once().await.unwrap().unwrap().state,
+            UploadState::Uploaded
+        );
+        assert_eq!(provider.commits.load(Ordering::SeqCst), steps);
+        assert_eq!(
+            journal.lock().unwrap().get(id).unwrap().state,
+            UploadState::Uploaded
+        );
+    }
 }
 fn journal(root: &Path, probe: &LockProbe) -> Arc<Mutex<UploadJournal>> {
     let result = Arc::new(Mutex::new(

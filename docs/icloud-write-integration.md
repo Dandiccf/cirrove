@@ -62,6 +62,27 @@ an ordinary account implementation; it is not a claim that writes are ready.
   [read-only audit](benchmarks/icloud-retained-replacement-audit-2026-09-29.md)
   confirmed the retained fixture still has its original in Trash and its
   staging name in the test folder. That fixture has not been repaired.
+  New handoff checkpoint version 2 now separates read-only `InspectInstall`
+  from potentially sent `InstallInspected`. A restart may redo the former's
+  full integrity checks; the latter and legacy `InstallNew` remain uncertain
+  unless a complete receipt is independently observed. The worker persists
+  the potentially-sent boundary before the rename. This does not make the
+  Apple rename conditional or resolve its concurrent-editor race.
+  Outer replacement checkpoint version 2 also captures the original and parent
+  nodes alongside the original digest. Inspection, commit and reconciliation
+  reconstruct from that sealed snapshot, rather than requiring the old ID to
+  remain in the active metadata index after Trash. The isolated factory keeps
+  this exact per-operation context for receipt validation. Cross-account,
+  operation, source and payload bindings are checked before use. Version 1
+  retains its previous index requirement. The
+  [restart experiment](benchmarks/icloud-install-preflight-restart-2026-09-29.md)
+  records the failed first live attempt and the separately registered follow-up.
+  The corrected follow-up passed one controlled interruption during read-only
+  preflight, fresh-process completion and another mounted read. Both upload
+  receipts are durable despite the original ID being absent from the active
+  index; one failed attempt records the deliberate interruption. The older
+  ambiguous partial fixtures remain retained, and no broader reliability claim
+  follows from this single run.
   General account-wide operation routing and acceptance are still missing.
 - `ICloudFileCreate` refuses empty files and files over 32 MiB. The zero-byte
   live experiment did not establish a safe successful upload. Content uses

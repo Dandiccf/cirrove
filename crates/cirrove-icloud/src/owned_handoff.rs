@@ -60,7 +60,13 @@ impl Drop for HandoffTiming {
 #[serde(rename_all = "snake_case")]
 enum Phase {
     MoveOld,
+    // Legacy checkpoint: the full preflight or the rename may have run.
     InstallNew,
+    // Version 2: this commit performs reads only, so restart may repeat it.
+    InspectInstall,
+    // Version 2: the full preflight completed before this marker was saved.
+    // On restart this is potentially sent, never permission to replay rename.
+    InstallInspected,
 }
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
@@ -265,7 +271,7 @@ impl ICloudOwnedFixtureHandoff {
 
     fn checkpoint(&self, phase: Phase) -> UploadResult<SecretString> {
         let value = Checkpoint {
-            version: 1,
+            version: 2,
             scope: self.scope.clone(),
             operation: self.operation,
             size: self.staged_size,
@@ -291,7 +297,11 @@ impl ICloudOwnedFixtureHandoff {
         }
         let saved: Checkpoint = serde_json::from_str(checkpoint.expose_secret())
             .map_err(|_| UploadError::CheckpointInvalid)?;
-        if saved.version != 1
+        if !matches!(saved.version, 1 | 2)
+            || (saved.version == 1
+                && matches!(saved.phase, Phase::InspectInstall | Phase::InstallInspected))
+            || (self.recovery_mode != RecoveryMode::Trash
+                && matches!(saved.phase, Phase::InspectInstall | Phase::InstallInspected))
             || saved.scope != self.scope
             || saved.operation != self.operation
             || saved.size != self.staged_size
@@ -315,6 +325,37 @@ impl ICloudOwnedFixtureHandoff {
             return Err(UploadError::CheckpointInvalid);
         }
         Ok(saved.phase)
+    }
+
+    fn next_install_phase(&self) -> Phase {
+        if self.recovery_mode == RecoveryMode::Trash {
+            Phase::InspectInstall
+        } else {
+            Phase::InstallNew
+        }
+    }
+
+    fn step_after_inspection(
+        &self,
+        phase: Phase,
+        state: HandoffObserved,
+        receipt: Option<UploadStep>,
+    ) -> UploadResult<UploadStep> {
+        match (phase, state) {
+            (_, HandoffObserved::Complete) => receipt.ok_or(UploadError::Uncertain),
+            (Phase::MoveOld, HandoffObserved::OldAtRecovery) => Ok(UploadStep::Commit(
+                self.checkpoint(self.next_install_phase())?,
+            )),
+            (Phase::InspectInstall, HandoffObserved::OldAtRecovery) => {
+                // Inspection itself just completed the full preflight. Persist
+                // the potentially-sent boundary before permitting the rename.
+                Ok(UploadStep::Commit(
+                    self.checkpoint(Phase::InstallInspected)?,
+                ))
+            }
+            (_, HandoffObserved::Diverged) => Err(UploadError::Conflict),
+            _ => Err(UploadError::Uncertain),
+        }
     }
 
     async fn observed(&self) -> UploadResult<HandoffObserved> {
@@ -418,14 +459,7 @@ impl UploadProvider for ICloudOwnedFixtureHandoff {
     ) -> UploadResult<UploadStep> {
         let phase = self.check_checkpoint(request, checkpoint)?;
         let (state, receipt) = self.observed_with_receipt().await?;
-        match (phase, state) {
-            (_, HandoffObserved::Complete) => receipt.ok_or(UploadError::Uncertain),
-            (Phase::MoveOld, HandoffObserved::OldAtRecovery) => {
-                Ok(UploadStep::Commit(self.checkpoint(Phase::InstallNew)?))
-            }
-            (_, HandoffObserved::Diverged) => Err(UploadError::Conflict),
-            _ => Err(UploadError::Uncertain),
-        }
+        self.step_after_inspection(phase, state, receipt)
     }
 
     async fn upload_part(
@@ -512,18 +546,38 @@ impl UploadProvider for ICloudOwnedFixtureHandoff {
                 if !accepted || after != HandoffObserved::OldAtRecovery {
                     return Err(UploadError::Uncertain);
                 }
-                Ok(UploadStep::Commit(self.checkpoint(Phase::InstallNew)?))
+                Ok(UploadStep::Commit(
+                    self.checkpoint(self.next_install_phase())?,
+                ))
             }
-            Phase::InstallNew => {
-                let timing = HandoffTiming::start("install new preflight");
-                let before = match self.recovery_mode {
-                    RecoveryMode::Rename => session.inspect_durable_handoff(&self.plan).await,
-                    RecoveryMode::Trash => session.inspect_durable_trash_handoff(&self.plan).await,
-                };
+            Phase::InspectInstall => {
+                let timing = HandoffTiming::start("install read-only preflight");
+                let before = session.inspect_durable_trash_handoff(&self.plan).await;
                 timing.finish(before.is_ok());
                 let before = before.map_err(|_| UploadError::Uncertain)?;
                 if before != HandoffObserved::OldAtRecovery {
                     return Err(UploadError::Conflict);
+                }
+                // The worker persists this new marker before calling commit again.
+                // This arm has sent no mutation, including if its future is dropped.
+                Ok(UploadStep::Commit(
+                    self.checkpoint(Phase::InstallInspected)?,
+                ))
+            }
+            Phase::InstallNew | Phase::InstallInspected => {
+                if phase == Phase::InstallNew {
+                    let timing = HandoffTiming::start("install new preflight");
+                    let before = match self.recovery_mode {
+                        RecoveryMode::Rename => session.inspect_durable_handoff(&self.plan).await,
+                        RecoveryMode::Trash => {
+                            session.inspect_durable_trash_handoff(&self.plan).await
+                        }
+                    };
+                    timing.finish(before.is_ok());
+                    let before = before.map_err(|_| UploadError::Uncertain)?;
+                    if before != HandoffObserved::OldAtRecovery {
+                        return Err(UploadError::Conflict);
+                    }
                 }
                 let timing = HandoffTiming::start("install new request");
                 let accepted = match self.recovery_mode {
@@ -710,6 +764,127 @@ mod tests {
         altered["recovery_mode"] = "rename".into();
         let altered = SecretString::from(serde_json::to_string(&altered).unwrap());
         assert!(resumed.check_checkpoint(&request, &altered).is_err());
+    }
+
+    #[test]
+    fn restart_repeats_only_read_only_install_preflight() {
+        let (mut provider, request) = fixture();
+        provider.recovery_mode = RecoveryMode::Trash;
+        for phase in [
+            Phase::InspectInstall,
+            Phase::InstallInspected,
+            Phase::InstallNew,
+        ] {
+            let checkpoint = provider.checkpoint(phase).unwrap();
+            let mut session = ICloudReadSession::new().unwrap();
+            session.account_hash = Some("synthetic-account".into());
+            let resumed = ICloudOwnedFixtureHandoff::from_checkpoint(
+                &request,
+                provider.operation,
+                &checkpoint,
+                session,
+            )
+            .unwrap();
+            let saved = resumed.check_checkpoint(&request, &checkpoint).unwrap();
+            let next = resumed.step_after_inspection(saved, HandoffObserved::OldAtRecovery, None);
+            if phase == Phase::InspectInstall {
+                let UploadStep::Commit(ready) =
+                    next.expect("unsent read-only preflight must resume")
+                else {
+                    panic!("expected a persisted mutation boundary");
+                };
+                assert_eq!(
+                    resumed.check_checkpoint(&request, &ready).unwrap(),
+                    Phase::InstallInspected
+                );
+            } else {
+                assert!(matches!(next, Err(UploadError::Uncertain)));
+            }
+            assert!(matches!(
+                resumed.step_after_inspection(saved, HandoffObserved::Diverged, None),
+                Err(UploadError::Conflict)
+            ));
+            assert!(matches!(
+                resumed.step_after_inspection(saved, HandoffObserved::Complete, None),
+                Err(UploadError::Uncertain)
+            ));
+        }
+    }
+
+    #[tokio::test]
+    async fn interrupted_install_preflight_sends_only_a_metadata_read() {
+        use std::time::Duration;
+        use tokio::io::AsyncReadExt;
+        use tokio::net::TcpListener;
+
+        let (mut provider, request) = fixture();
+        provider.recovery_mode = RecoveryMode::Trash;
+        let checkpoint = provider.checkpoint(Phase::InspectInstall).unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        provider.session.lock().await.drive_endpoint =
+            Some(url::Url::parse(&format!("http://{}/", listener.local_addr().unwrap())).unwrap());
+        let (seen, received) = tokio::sync::oneshot::channel();
+        let (release, released) = tokio::sync::oneshot::channel();
+        let server = tokio::spawn(async move {
+            let (mut peer, _) = listener.accept().await.unwrap();
+            let mut bytes = Vec::new();
+            while !bytes.windows(4).any(|part| part == b"\r\n\r\n") {
+                let mut chunk = [0; 4096];
+                let n = peer.read(&mut chunk).await.unwrap();
+                assert!(n > 0 && bytes.len() + n < 16 * 1024);
+                bytes.extend_from_slice(&chunk[..n]);
+            }
+            assert!(bytes.starts_with(b"POST /retrieveItemDetailsInFolders HTTP/1.1\r\n"));
+            seen.send(()).unwrap();
+            released.await.unwrap();
+            assert!(
+                tokio::time::timeout(Duration::from_millis(50), listener.accept())
+                    .await
+                    .is_err()
+            );
+        });
+        let cancel = CancellationToken::new();
+        {
+            let commit = provider.commit_upload(&request, &checkpoint, &cancel);
+            tokio::pin!(commit);
+            tokio::select! {
+                result = &mut commit => panic!("preflight returned before metadata: {result:?}"),
+                result = tokio::time::timeout(Duration::from_secs(2), received) => {
+                    result.unwrap().unwrap();
+                }
+            }
+            // Drop the in-flight read exactly as a worker deadline or shutdown would.
+        }
+        release.send(()).unwrap();
+        server.await.unwrap();
+        assert_eq!(
+            provider.check_checkpoint(&request, &checkpoint).unwrap(),
+            Phase::InspectInstall
+        );
+        // The dropped future must also release the session for later inspection.
+        assert!(provider.session.try_lock().is_ok());
+    }
+
+    #[test]
+    fn legacy_checkpoints_cannot_claim_a_read_only_phase() {
+        let (mut provider, request) = fixture();
+        provider.recovery_mode = RecoveryMode::Trash;
+        for phase in [
+            Phase::MoveOld,
+            Phase::InstallNew,
+            Phase::InspectInstall,
+            Phase::InstallInspected,
+        ] {
+            let checkpoint = provider.checkpoint(phase).unwrap();
+            let mut value: serde_json::Value =
+                serde_json::from_str(checkpoint.expose_secret()).unwrap();
+            value["version"] = 1.into();
+            let legacy = SecretString::from(serde_json::to_string(&value).unwrap());
+            assert_eq!(
+                provider.check_checkpoint(&request, &legacy).is_ok(),
+                matches!(phase, Phase::MoveOld | Phase::InstallNew)
+            );
+        }
     }
 
     #[tokio::test]
