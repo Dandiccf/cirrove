@@ -18,6 +18,11 @@ struct TrashResult {
     status: String,
 }
 
+#[derive(Deserialize)]
+struct RenameReply {
+    items: Vec<TrashResult>,
+}
+
 fn classify_trash(status: StatusCode, result: Option<&str>) -> Result<bool> {
     if status.is_success() {
         return match result {
@@ -32,7 +37,65 @@ fn classify_trash(status: StatusCode, result: Option<&str>) -> Result<bool> {
     Err(anyhow!("iCloud conditional Trash result is uncertain"))
 }
 
+fn classify_rename(status: StatusCode, result: Option<&str>) -> Result<bool> {
+    if status.is_success() {
+        return match result {
+            Some("OK") => Ok(true),
+            Some(_) => Ok(false),
+            None => Err(anyhow!("iCloud conditional rename receipt is incomplete")),
+        };
+    }
+    if matches!(status.as_u16(), 400 | 404 | 409 | 412) {
+        return Ok(false);
+    }
+    Err(anyhow!("iCloud conditional rename result is uncertain"))
+}
+
 impl ICloudReadSession {
+    pub(crate) async fn send_rename(
+        &mut self,
+        item_id: &str,
+        etag: &str,
+        name: &str,
+    ) -> Result<bool> {
+        if !(item_id.starts_with("FILE::com.apple.CloudDocs::")
+            || item_id.starts_with("FOLDER::com.apple.CloudDocs::"))
+            || item_id.rsplit("::").next().is_none_or(str::is_empty)
+            || etag.is_empty()
+            || etag.len() > 4096
+            || etag.contains(['\r', '\n', '*'])
+            || name.is_empty()
+            || name.len() > 255
+            || matches!(name, "." | "..")
+            || name.contains(['/', '\0', '\r', '\n'])
+        {
+            bail!("invalid iCloud conditional rename identity");
+        }
+        let endpoint = self
+            .drive_endpoint
+            .as_ref()
+            .context("iCloud sign-in is not complete")?
+            .join("renameItems")?;
+        let response = self
+            .http
+            .post(endpoint)
+            .header("origin", ICLOUD_ORIGIN)
+            .header("referer", format!("{ICLOUD_ORIGIN}/"))
+            .json(&json!({"items": [{"drivewsid": item_id, "name": name, "etag": etag}]}))
+            .send()
+            .await
+            .map_err(|_| anyhow!("iCloud conditional rename outcome is uncertain"))?;
+        let status = response.status();
+        if !status.is_success() {
+            return classify_rename(status, None);
+        }
+        let reply: RenameReply = read_json(response, "iCloud conditional rename").await?;
+        if reply.items.len() != 1 {
+            return Err(anyhow!("iCloud conditional rename receipt is incomplete"));
+        }
+        classify_rename(status, Some(&reply.items[0].status))
+    }
+
     /// Bounded read-only inventory of Apple's special Trash root. A missing
     /// item is evidence only when the returned item count proves completeness.
     pub(crate) async fn read_trash_items(&mut self) -> Result<(Vec<serde_json::Value>, bool)> {
@@ -152,5 +215,14 @@ mod tests {
         assert!(classify_trash(StatusCode::TOO_MANY_REQUESTS, None).is_err());
         assert!(classify_trash(StatusCode::INTERNAL_SERVER_ERROR, None).is_err());
         assert!(classify_trash(StatusCode::OK, None).is_err());
+    }
+
+    #[test]
+    fn conditional_rename_does_not_treat_throttling_as_a_clean_refusal() {
+        assert!(classify_rename(StatusCode::OK, Some("OK")).unwrap());
+        assert!(!classify_rename(StatusCode::CONFLICT, None).unwrap());
+        assert!(classify_rename(StatusCode::TOO_MANY_REQUESTS, None).is_err());
+        assert!(classify_rename(StatusCode::BAD_GATEWAY, None).is_err());
+        assert!(classify_rename(StatusCode::OK, None).is_err());
     }
 }

@@ -2035,34 +2035,6 @@ impl ICloudReadSession {
         Ok(())
     }
 
-    pub(crate) async fn send_rename(
-        &mut self,
-        item_id: &str,
-        etag: &str,
-        name: &str,
-    ) -> Result<bool> {
-        let endpoint = self
-            .drive_endpoint
-            .as_ref()
-            .context("iCloud sign-in is not complete")?
-            .join("renameItems")?;
-        let response = self
-            .http
-            .post(endpoint)
-            .header("origin", ICLOUD_ORIGIN)
-            .header("referer", format!("{ICLOUD_ORIGIN}/"))
-            .json(&json!({"items": [{"drivewsid": item_id, "name": name, "etag": etag}]}))
-            .send()
-            .await
-            .map_err(|_| anyhow!("iCloud validation rename request failed"))?;
-        if !response.status().is_success() {
-            return Ok(false);
-        }
-        let reply: RenameReply = read_json(response, "iCloud validation rename").await?;
-        let item = exactly_one(reply.items, "rename")?;
-        Ok(item.status == "OK")
-    }
-
     pub(crate) async fn send_move(
         &mut self,
         item_id: &str,

@@ -13,7 +13,7 @@ use cirrove_core::{
     Node, NodeKind, ProviderError, ReadProvider, Scope,
 };
 use cirrove_icloud::{
-    ICloudDrive, ICloudFileTrash, ICloudOwnedFixtureFileRename, ICloudOwnedFixtureFolderCreate,
+    ICloudDrive, ICloudFileRename, ICloudFileTrash, ICloudOwnedFixtureFolderCreate,
     ICloudOwnedFixtureFolderRemove, ICloudOwnedFixtureFolderRename, ICloudOwnedFixtureUpload,
     ICloudOwnedMountedFileMove, ICloudOwnedMountedReplace, ICloudReadSession, ValidationFolder,
 };
@@ -469,64 +469,29 @@ impl Fixture {
         target_name: String,
         digest: String,
         reconciliation_only: bool,
-    ) -> cirrove_core::mutation::Result<ICloudOwnedFixtureFileRename> {
+    ) -> cirrove_core::mutation::Result<ICloudFileRename> {
         let parent = before.parent_id.as_deref().ok_or(MutationError::Invalid)?;
-        let child = if parent == self.root.id {
-            None
-        } else {
+        if parent != self.root.id {
             let journal = self
                 .removal
                 .journal
                 .lock()
                 .map_err(|_| MutationError::Uncertain)?;
-            Some(confirmed_owned_child_folder(
-                &journal,
-                &self.scope,
-                &self.root.id,
-                parent,
-            )?)
-        };
-        let session = ICloudReadSession::from_session_snapshot(
-            &self.removal.snapshot,
-            &self.removal.apple_id,
-        )
-        .map_err(|_| MutationError::Uncertain)?;
-        match (reconciliation_only, child) {
-            (true, Some(child)) => ICloudOwnedFixtureFileRename::for_reconciliation_in_child(
-                self.scope.clone(),
-                session,
-                self.removal.folder.clone(),
-                child,
-                before,
-                target_name,
-                digest,
-            ),
-            (false, Some(child)) => ICloudOwnedFixtureFileRename::in_child(
-                self.scope.clone(),
-                session,
-                self.removal.folder.clone(),
-                child,
-                before,
-                target_name,
-                digest,
-            ),
-            (true, None) => ICloudOwnedFixtureFileRename::for_reconciliation(
-                self.scope.clone(),
-                session,
-                self.removal.folder.clone(),
-                before,
-                target_name,
-                digest,
-            ),
-            (false, None) => ICloudOwnedFixtureFileRename::new(
-                self.scope.clone(),
-                session,
-                self.removal.folder.clone(),
-                before,
-                target_name,
-                digest,
-            ),
+            confirmed_owned_child_folder(&journal, &self.scope, &self.root.id, parent)?;
         }
+        let adapter = ICloudFileRename::from_session_snapshot(
+            self.scope.clone(),
+            &self.removal.apple_id,
+            &self.removal.snapshot,
+            before,
+            target_name,
+            digest,
+        )?;
+        Ok(if reconciliation_only {
+            adapter.reconciliation_only()
+        } else {
+            adapter
+        })
     }
 
     fn guard_move_file(
