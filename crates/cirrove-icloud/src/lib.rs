@@ -842,7 +842,6 @@ impl ICloudReadSession {
     /// response and both metadata observations must agree on one revision.
     /// Unlike range-by-range verification, this needs only one download
     /// lookup, while the expected full digest still detects mixed contents.
-    #[cfg(feature = "write-probe")]
     pub async fn hash_file_in_folder_for_revision(
         &mut self,
         folder_id: &str,
@@ -851,41 +850,43 @@ impl ICloudReadSession {
         size: u64,
     ) -> Result<String> {
         const MAX_HASH_FILE: u64 = 32 * 1024 * 1024;
-        if etag.is_empty() || size == 0 || size > MAX_HASH_FILE {
+        if etag.is_empty() || size > MAX_HASH_FILE {
             bail!("iCloud file is outside the bounded verification limit");
         }
         let before = self.item_for_read(drive_id, Some(folder_id)).await?;
         if before.is_folder() || before.etag != etag || before.size != size {
             bail!("iCloud file changed before bounded verification");
         }
-        let signed_url = self.signed_download_url(drive_id).await?;
-        let mut response = self
-            .http
-            .get(signed_url)
-            .send()
-            .await
-            .map_err(|_| anyhow!("iCloud verification download failed"))?;
-        if response.status() != StatusCode::OK {
-            bail!(
-                "iCloud verification download failed ({})",
-                response.status().as_u16()
-            );
-        }
         let mut hash = Sha256::new();
-        let mut received = 0u64;
-        while let Some(chunk) = response
-            .chunk()
-            .await
-            .map_err(|_| anyhow!("iCloud verification download interrupted"))?
-        {
-            received = received.saturating_add(chunk.len() as u64);
-            if received > size {
-                bail!("iCloud verification download exceeded the expected size");
+        if size > 0 {
+            let signed_url = self.signed_download_url(drive_id).await?;
+            let mut response = self
+                .http
+                .get(signed_url)
+                .send()
+                .await
+                .map_err(|_| anyhow!("iCloud verification download failed"))?;
+            if response.status() != StatusCode::OK {
+                bail!(
+                    "iCloud verification download failed ({})",
+                    response.status().as_u16()
+                );
             }
-            hash.update(&chunk);
-        }
-        if received != size {
-            bail!("iCloud verification download was incomplete");
+            let mut received = 0u64;
+            while let Some(chunk) = response
+                .chunk()
+                .await
+                .map_err(|_| anyhow!("iCloud verification download interrupted"))?
+            {
+                received = received.saturating_add(chunk.len() as u64);
+                if received > size {
+                    bail!("iCloud verification download exceeded the expected size");
+                }
+                hash.update(&chunk);
+            }
+            if received != size {
+                bail!("iCloud verification download was incomplete");
+            }
         }
         let after = self.item_for_read(drive_id, Some(folder_id)).await?;
         if after.is_folder() || after.etag != etag || after.size != size {

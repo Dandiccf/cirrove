@@ -212,33 +212,19 @@ impl ICloudFileTrash {
             {
                 return Ok(Observation::Conflict);
             }
-            if let Some(expected) = &self.expected_sha256 {
-                let mut hash = Sha256::new();
-                let mut offset = 0;
-                while offset < self.before.size {
-                    let length = (self.before.size - offset).min(4 * 1024 * 1024) as u32;
-                    let bytes = session
-                        .read_range_in_folder_for_revision(
-                            parent,
-                            &self.before.id,
-                            offset,
-                            length,
-                            Some((
-                                self.before.etag.as_deref().ok_or(MutationError::Invalid)?,
-                                self.before.size,
-                            )),
-                        )
-                        .await
-                        .map_err(|_| MutationError::Uncertain)?;
-                    if bytes.len() != length as usize {
-                        return Ok(Observation::Conflict);
-                    }
-                    hash.update(bytes);
-                    offset += u64::from(length);
-                }
-                if hex::encode(hash.finalize()) != *expected {
-                    return Ok(Observation::Conflict);
-                }
+            if let Some(expected) = &self.expected_sha256
+                && session
+                    .hash_file_in_folder_for_revision(
+                        parent,
+                        &self.before.id,
+                        self.before.etag.as_deref().ok_or(MutationError::Invalid)?,
+                        self.before.size,
+                    )
+                    .await
+                    .map_err(|_| MutationError::Uncertain)?
+                    != *expected
+            {
+                return Ok(Observation::Conflict);
             }
             return Ok(Observation::Present);
         }

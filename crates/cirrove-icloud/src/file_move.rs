@@ -9,6 +9,7 @@ use cirrove_core::mutation::{
 };
 use cirrove_core::{CancellationToken, Node, NodeKind, Scope};
 use secrecy::SecretString;
+#[cfg(test)]
 use sha2::{Digest, Sha256};
 use std::{path::Path, sync::Arc};
 use tokio::sync::Mutex;
@@ -196,27 +197,11 @@ impl ICloudFileMove {
         parent: &str,
         etag: &str,
     ) -> MutationResult<bool> {
-        let mut hash = Sha256::new();
-        let mut offset = 0;
-        while offset < self.before.size {
-            let length = (self.before.size - offset).min(4 * 1024 * 1024) as u32;
-            let bytes = session
-                .read_range_in_folder_for_revision(
-                    parent,
-                    &self.before.id,
-                    offset,
-                    length,
-                    Some((etag, self.before.size)),
-                )
-                .await
-                .map_err(|_| MutationError::Uncertain)?;
-            if bytes.len() != length as usize {
-                return Ok(false);
-            }
-            hash.update(bytes);
-            offset += u64::from(length);
-        }
-        Ok(hex::encode(hash.finalize()) == self.expected_sha256)
+        Ok(session
+            .hash_file_in_folder_for_revision(parent, &self.before.id, etag, self.before.size)
+            .await
+            .map_err(|_| MutationError::Uncertain)?
+            == self.expected_sha256)
     }
 
     async fn observe(&self) -> MutationResult<Observation> {

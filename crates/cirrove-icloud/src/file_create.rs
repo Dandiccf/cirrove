@@ -25,7 +25,6 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 const MAX_FILE: u64 = 32 * 1024 * 1024;
-const VERIFY_RANGE: u32 = 4 * 1024 * 1024;
 const MAX_CHECKPOINT: usize = 8192;
 
 enum SessionState {
@@ -351,30 +350,17 @@ impl ICloudFileCreate {
             return Ok(None);
         };
         let node = self.node(entry, request, document_id)?;
-        let mut hash = Sha256::new();
-        let mut offset = 0;
-        while offset < request.size {
-            let length = (request.size - offset).min(u64::from(VERIFY_RANGE)) as u32;
-            let bytes = session
-                .read_range_in_folder_for_revision(
-                    &self.parent.id,
-                    &node.id,
-                    offset,
-                    length,
-                    Some((
-                        node.etag.as_deref().ok_or(UploadError::Conflict)?,
-                        request.size,
-                    )),
-                )
-                .await
-                .map_err(|_| UploadError::Uncertain)?;
-            if bytes.len() != length as usize {
-                return Err(UploadError::Conflict);
-            }
-            hash.update(bytes);
-            offset += u64::from(length);
-        }
-        if hex::encode(hash.finalize()) != request.sha256 {
+        if session
+            .hash_file_in_folder_for_revision(
+                &self.parent.id,
+                &node.id,
+                node.etag.as_deref().ok_or(UploadError::Conflict)?,
+                request.size,
+            )
+            .await
+            .map_err(|_| UploadError::Uncertain)?
+            != request.sha256
+        {
             return Err(UploadError::Conflict);
         }
         Ok(Some(node))
