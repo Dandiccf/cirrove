@@ -38,8 +38,22 @@ an ordinary account implementation; it is not a claim that writes are ready.
   mounted replacement and fresh-process read passed the operation-ID path;
   a repeated phase-timed arm put about 466 seconds between local FUSE save
   and upload confirmation, then about 30 seconds in the independent Trash
-  check. The journal retained two failed attempts but not their causes, so
-  the wait inside the upload worker still needs narrower diagnosis.
+  check. A subsequent provider-phase run found two handoff commits dropped
+  at the worker's exact 125-second limit; inspections of 67.6 and 98.7
+  seconds recovered the advanced remote state. The journal retained two
+  failed attempts. Inner timing then located both cancellations in full
+  postflight/receipt verification; the Apple mutation requests completed in
+  19.7 and 2.2 seconds. A phase-split experiment failed when a preflight alone
+  exceeded 125 seconds and the saved InstallNew phase could not safely
+  advance from OldAtRecovery. That experiment was reverted, and its owned
+  fixture remains `verify_required` as a recovery gate. The worker now
+  accepts a provider-specific commit deadline; the isolated replacement
+  requests 300 seconds while retaining all original checks. One fresh live
+  replacement and remount passed with zero failed attempts; commits took
+  153.2 and 193.7 seconds and upload confirmation took 398.0 seconds. This
+  avoids premature deadline drops in that run but does not resolve the
+  retained recovery case or establish stable latency. Other providers keep
+  their 125-second default.
   General account-wide operation routing and acceptance are still missing.
 - `ICloudFileCreate` refuses empty files and files over 32 MiB. The zero-byte
   live experiment did not establish a safe successful upload. Content uses

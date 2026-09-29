@@ -344,7 +344,7 @@ impl TransferWorker {
                         .await?;
                     let next = self
                         .remote(
-                            Duration::from_secs(125),
+                            self.provider.commit_timeout(&request),
                             self.provider.commit_upload_for_operation(
                                 &operation,
                                 &request,

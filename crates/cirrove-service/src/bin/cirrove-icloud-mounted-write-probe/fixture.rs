@@ -25,8 +25,54 @@ use std::{
     fs::File,
     path::PathBuf,
     sync::{Arc, Mutex},
+    time::{Duration, Instant},
 };
 use uuid::Uuid;
+
+/// Probe-only phase timing. A dropped future is reported separately from a
+/// completed provider error; neither case prints provider responses or IDs.
+struct ReplacementPhase {
+    name: &'static str,
+    started: Instant,
+    finished: bool,
+}
+
+impl ReplacementPhase {
+    fn start(name: &'static str) -> Self {
+        eprintln!("replacement provider {name}: start");
+        Self {
+            name,
+            started: Instant::now(),
+            finished: false,
+        }
+    }
+
+    fn finish<T>(
+        mut self,
+        result: cirrove_core::upload::Result<T>,
+    ) -> cirrove_core::upload::Result<T> {
+        self.finished = true;
+        eprintln!(
+            "replacement provider {}: end {:.1}s success={}",
+            self.name,
+            self.started.elapsed().as_secs_f64(),
+            result.is_ok()
+        );
+        result
+    }
+}
+
+impl Drop for ReplacementPhase {
+    fn drop(&mut self) {
+        if !self.finished {
+            eprintln!(
+                "replacement provider {}: dropped {:.1}s",
+                self.name,
+                self.started.elapsed().as_secs_f64()
+            );
+        }
+    }
+}
 
 pub struct Fixture {
     pub scope: Scope,
@@ -1703,6 +1749,16 @@ impl ReadProvider for Fixture {
 
 #[async_trait::async_trait]
 impl UploadProvider for Fixture {
+    fn commit_timeout(&self, request: &UploadRequest) -> Duration {
+        // Full before/after Trash backup verification exceeded the default
+        // deadline in registered live runs. Keep every integrity check.
+        Duration::from_secs(if matches!(request.intent, UploadIntent::Replace { .. }) {
+            300
+        } else {
+            125
+        })
+    }
+
     fn staged_recovery_location(
         &self,
         operation: &str,
@@ -1724,13 +1780,18 @@ impl UploadProvider for Fixture {
     ) -> cirrove_core::upload::Result<UploadStep> {
         match &r.intent {
             UploadIntent::Create { .. } => self.begin_upload(r, c).await,
-            UploadIntent::Replace { .. } => self.upload_step_for_operation(
-                r,
-                self.replacement_for_operation(r, operation)?
-                    .begin_upload(r, c)
-                    .await?,
-                Some(operation),
-            ),
+            UploadIntent::Replace { .. } => {
+                let phase = ReplacementPhase::start("begin");
+                let result = async {
+                    let step = self
+                        .replacement_for_operation(r, operation)?
+                        .begin_upload(r, c)
+                        .await?;
+                    self.upload_step_for_operation(r, step, Some(operation))
+                }
+                .await;
+                phase.finish(result)
+            }
         }
     }
 
@@ -1743,13 +1804,18 @@ impl UploadProvider for Fixture {
     ) -> cirrove_core::upload::Result<UploadStep> {
         match &r.intent {
             UploadIntent::Create { .. } => self.inspect_upload(r, s, c).await,
-            UploadIntent::Replace { .. } => self.upload_step_for_operation(
-                r,
-                self.replacement_for_operation(r, operation)?
-                    .inspect_upload(r, s, c)
-                    .await?,
-                Some(operation),
-            ),
+            UploadIntent::Replace { .. } => {
+                let phase = ReplacementPhase::start("inspect");
+                let result = async {
+                    let step = self
+                        .replacement_for_operation(r, operation)?
+                        .inspect_upload(r, s, c)
+                        .await?;
+                    self.upload_step_for_operation(r, step, Some(operation))
+                }
+                .await;
+                phase.finish(result)
+            }
         }
     }
 
@@ -1764,13 +1830,18 @@ impl UploadProvider for Fixture {
     ) -> cirrove_core::upload::Result<UploadStep> {
         match &r.intent {
             UploadIntent::Create { .. } => self.upload_part(r, s, offset, bytes, c).await,
-            UploadIntent::Replace { .. } => self.upload_step_for_operation(
-                r,
-                self.replacement_for_operation(r, operation)?
-                    .upload_part(r, s, offset, bytes, c)
-                    .await?,
-                Some(operation),
-            ),
+            UploadIntent::Replace { .. } => {
+                let phase = ReplacementPhase::start("part");
+                let result = async {
+                    let step = self
+                        .replacement_for_operation(r, operation)?
+                        .upload_part(r, s, offset, bytes, c)
+                        .await?;
+                    self.upload_step_for_operation(r, step, Some(operation))
+                }
+                .await;
+                phase.finish(result)
+            }
         }
     }
 
@@ -1784,13 +1855,18 @@ impl UploadProvider for Fixture {
     ) -> cirrove_core::upload::Result<UploadStep> {
         match &r.intent {
             UploadIntent::Create { .. } => self.upload_stream(r, s, file, c).await,
-            UploadIntent::Replace { .. } => self.upload_step_for_operation(
-                r,
-                self.replacement_for_operation(r, operation)?
-                    .upload_stream(r, s, file, c)
-                    .await?,
-                Some(operation),
-            ),
+            UploadIntent::Replace { .. } => {
+                let phase = ReplacementPhase::start("stream");
+                let result = async {
+                    let step = self
+                        .replacement_for_operation(r, operation)?
+                        .upload_stream(r, s, file, c)
+                        .await?;
+                    self.upload_step_for_operation(r, step, Some(operation))
+                }
+                .await;
+                phase.finish(result)
+            }
         }
     }
 
@@ -1803,13 +1879,18 @@ impl UploadProvider for Fixture {
     ) -> cirrove_core::upload::Result<UploadStep> {
         match &r.intent {
             UploadIntent::Create { .. } => self.commit_upload(r, s, c).await,
-            UploadIntent::Replace { .. } => self.upload_step_for_operation(
-                r,
-                self.replacement_for_operation(r, operation)?
-                    .commit_upload(r, s, c)
-                    .await?,
-                Some(operation),
-            ),
+            UploadIntent::Replace { .. } => {
+                let phase = ReplacementPhase::start("commit");
+                let result = async {
+                    let step = self
+                        .replacement_for_operation(r, operation)?
+                        .commit_upload(r, s, c)
+                        .await?;
+                    self.upload_step_for_operation(r, step, Some(operation))
+                }
+                .await;
+                phase.finish(result)
+            }
         }
     }
 
@@ -1823,18 +1904,23 @@ impl UploadProvider for Fixture {
         let UploadIntent::Replace { .. } = &r.intent else {
             return self.reconcile_upload(r, s, c).await;
         };
-        let result = self
-            .replacement_for_operation(r, operation)?
-            .reconcile_upload(r, s, c)
-            .await?;
-        match &result {
-            Reconciliation::Committed(node) => self.upload_receipt(r, node)?,
-            Reconciliation::HandoffCommitted { current, backup } => {
-                self.replace_receipt(r, current, backup, Some(operation))?;
+        let phase = ReplacementPhase::start("reconcile");
+        let result = async {
+            let result = self
+                .replacement_for_operation(r, operation)?
+                .reconcile_upload(r, s, c)
+                .await?;
+            match &result {
+                Reconciliation::Committed(node) => self.upload_receipt(r, node)?,
+                Reconciliation::HandoffCommitted { current, backup } => {
+                    self.replace_receipt(r, current, backup, Some(operation))?;
+                }
+                _ => {}
             }
-            _ => {}
+            Ok(result)
         }
-        Ok(result)
+        .await;
+        phase.finish(result)
     }
 
     async fn begin_upload(

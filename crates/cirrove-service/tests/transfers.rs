@@ -119,6 +119,8 @@ struct Provider {
     reserved_at_begin: AtomicBool,
     staged_commits: AtomicBool,
     commits: AtomicU64,
+    commit_timeout_ms: AtomicU64,
+    commit_delay_ms: AtomicU64,
     stream: AtomicBool,
     stream_staged: AtomicBool,
     streams: AtomicU64,
@@ -149,6 +151,8 @@ impl Provider {
             reserved_at_begin: AtomicBool::new(false),
             staged_commits: AtomicBool::new(false),
             commits: AtomicU64::new(0),
+            commit_timeout_ms: AtomicU64::new(125_000),
+            commit_delay_ms: AtomicU64::new(0),
             stream: AtomicBool::new(false),
             stream_staged: AtomicBool::new(false),
             streams: AtomicU64::new(0),
@@ -209,6 +213,10 @@ impl Provider {
 }
 #[async_trait]
 impl UploadProvider for Provider {
+    fn commit_timeout(&self, _: &UploadRequest) -> Duration {
+        Duration::from_millis(self.commit_timeout_ms.load(Ordering::SeqCst))
+    }
+
     async fn begin_upload_for_operation(
         &self,
         operation: &str,
@@ -416,6 +424,12 @@ impl UploadProvider for Provider {
         _: &CancellationToken,
     ) -> UploadResult<UploadStep> {
         self.probe.check();
+        let delay = self.commit_delay_ms.load(Ordering::SeqCst);
+        if delay == u64::MAX {
+            std::future::pending::<()>().await;
+        } else if delay > 0 {
+            tokio::time::sleep(Duration::from_millis(delay)).await;
+        }
         if self.stream_staged.load(Ordering::SeqCst) {
             assert_eq!(
                 self.probe
@@ -528,6 +542,48 @@ async fn duplicate_upload_requests_keep_their_distinct_operation_ids() {
         *provider.operation_begins.lock().unwrap(),
         vec![first.to_string(), second.to_string()]
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn provider_commit_deadline_preserves_checkpoint_and_payload_for_recovery() {
+    let temp = tempfile::tempdir().unwrap();
+    let (probe, provider, vault) = fixture();
+    let journal = journal(&temp.path().join("journal"), &probe);
+    let id = enqueue(&journal, "Saved.txt");
+    provider.deferred.store(true, Ordering::SeqCst);
+    provider.commit_timeout_ms.store(10, Ordering::SeqCst);
+    provider.commit_delay_ms.store(u64::MAX, Ordering::SeqCst);
+    let worker = TransferWorker::new(
+        journal.clone(),
+        provider.clone(),
+        vault,
+        CancellationToken::new(),
+    );
+    let result = tokio::time::timeout(Duration::from_secs(2), worker.run_once())
+        .await
+        .expect("worker ignored the provider commit deadline")
+        .unwrap()
+        .unwrap();
+    assert_eq!(result.state, UploadState::VerifyRequired);
+    assert!(
+        journal
+            .lock()
+            .unwrap()
+            .get(id)
+            .unwrap()
+            .session_key
+            .is_some()
+    );
+    assert!(provider.state.lock().unwrap().committed.is_none());
+    assert_local(&journal, id);
+    provider.commit_delay_ms.store(0, Ordering::SeqCst);
+    journal.lock().unwrap().request_retry(id).unwrap();
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+    assert_eq!(provider.state.lock().unwrap().begins, 1);
+    assert_local(&journal, id);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

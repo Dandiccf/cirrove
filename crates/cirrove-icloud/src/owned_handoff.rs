@@ -11,10 +11,50 @@ use cirrove_core::{CancellationToken, Scope};
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Instant;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
 const MAX_CHECKPOINT: usize = 8192;
+
+/// Isolated-probe timing only. A dropped future has no known provider result.
+struct HandoffTiming {
+    phase: &'static str,
+    started: Instant,
+    finished: bool,
+}
+
+impl HandoffTiming {
+    fn start(phase: &'static str) -> Self {
+        eprintln!("iCloud handoff {phase}: start");
+        Self {
+            phase,
+            started: Instant::now(),
+            finished: false,
+        }
+    }
+
+    fn finish(mut self, success: bool) {
+        self.finished = true;
+        eprintln!(
+            "iCloud handoff {}: end {:.1}s success={success}",
+            self.phase,
+            self.started.elapsed().as_secs_f64()
+        );
+    }
+}
+
+impl Drop for HandoffTiming {
+    fn drop(&mut self) {
+        if !self.finished {
+            eprintln!(
+                "iCloud handoff {}: dropped {:.1}s",
+                self.phase,
+                self.started.elapsed().as_secs_f64()
+            );
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -301,13 +341,15 @@ impl ICloudOwnedFixtureHandoff {
 
     async fn observed_with_receipt(&self) -> UploadResult<(HandoffObserved, Option<UploadStep>)> {
         if self.recovery_mode == RecoveryMode::Trash {
-            let (state, nodes) = self
+            let timing = HandoffTiming::start("inspect with receipt");
+            let observation = self
                 .session
                 .lock()
                 .await
                 .inspect_trash_handoff_with_receipt(&self.plan)
-                .await
-                .map_err(|_| UploadError::Uncertain)?;
+                .await;
+            timing.finish(observation.is_ok());
+            let (state, nodes) = observation.map_err(|_| UploadError::Uncertain)?;
             let receipt = nodes
                 .map(|(current, backup)| {
                     if current.size != self.staged_size {
@@ -415,11 +457,13 @@ impl UploadProvider for ICloudOwnedFixtureHandoff {
         let mut session = self.session.lock().await;
         match phase {
             Phase::MoveOld => {
+                let timing = HandoffTiming::start("move old preflight");
                 let before = match self.recovery_mode {
                     RecoveryMode::Rename => session.inspect_durable_handoff(&self.plan).await,
                     RecoveryMode::Trash => session.inspect_durable_trash_handoff(&self.plan).await,
-                }
-                .map_err(|_| UploadError::Uncertain)?;
+                };
+                timing.finish(before.is_ok());
+                let before = before.map_err(|_| UploadError::Uncertain)?;
                 if before != HandoffObserved::Prepared {
                     return Err(UploadError::Conflict);
                 }
@@ -434,6 +478,7 @@ impl UploadProvider for ICloudOwnedFixtureHandoff {
                         .store(true, Ordering::Release);
                     return Err(UploadError::Conflict);
                 }
+                let timing = HandoffTiming::start("move old request");
                 let accepted = match self.recovery_mode {
                     RecoveryMode::Rename => session.move_old_to_recovery(&self.plan).await,
                     RecoveryMode::Trash => {
@@ -441,8 +486,9 @@ impl UploadProvider for ICloudOwnedFixtureHandoff {
                             .send_trash(&self.plan.original_id, &self.plan.original_etag)
                             .await
                     }
-                }
-                .map_err(|_| UploadError::Uncertain)?;
+                };
+                timing.finish(accepted.is_ok());
+                let accepted = accepted.map_err(|_| UploadError::Uncertain)?;
                 if accepted
                     && self.recovery_mode == RecoveryMode::Trash
                     && self
@@ -456,25 +502,30 @@ impl UploadProvider for ICloudOwnedFixtureHandoff {
                 if self.discard_old_receipt.swap(false, Ordering::AcqRel) {
                     return Err(UploadError::Uncertain);
                 }
+                let timing = HandoffTiming::start("move old postflight");
                 let after = match self.recovery_mode {
                     RecoveryMode::Rename => session.inspect_durable_handoff(&self.plan).await,
                     RecoveryMode::Trash => session.inspect_durable_trash_handoff(&self.plan).await,
-                }
-                .map_err(|_| UploadError::Uncertain)?;
+                };
+                timing.finish(after.is_ok());
+                let after = after.map_err(|_| UploadError::Uncertain)?;
                 if !accepted || after != HandoffObserved::OldAtRecovery {
                     return Err(UploadError::Uncertain);
                 }
                 Ok(UploadStep::Commit(self.checkpoint(Phase::InstallNew)?))
             }
             Phase::InstallNew => {
+                let timing = HandoffTiming::start("install new preflight");
                 let before = match self.recovery_mode {
                     RecoveryMode::Rename => session.inspect_durable_handoff(&self.plan).await,
                     RecoveryMode::Trash => session.inspect_durable_trash_handoff(&self.plan).await,
-                }
-                .map_err(|_| UploadError::Uncertain)?;
+                };
+                timing.finish(before.is_ok());
+                let before = before.map_err(|_| UploadError::Uncertain)?;
                 if before != HandoffObserved::OldAtRecovery {
                     return Err(UploadError::Conflict);
                 }
+                let timing = HandoffTiming::start("install new request");
                 let accepted = match self.recovery_mode {
                     RecoveryMode::Rename => session.move_staged_to_target(&self.plan).await,
                     RecoveryMode::Trash => {
@@ -486,8 +537,9 @@ impl UploadProvider for ICloudOwnedFixtureHandoff {
                             )
                             .await
                     }
-                }
-                .map_err(|_| UploadError::Uncertain)?;
+                };
+                timing.finish(accepted.is_ok());
+                let accepted = accepted.map_err(|_| UploadError::Uncertain)?;
                 if self.discard_new_receipt.swap(false, Ordering::AcqRel) {
                     return Err(UploadError::Uncertain);
                 }
@@ -495,7 +547,10 @@ impl UploadProvider for ICloudOwnedFixtureHandoff {
                     return Err(UploadError::Uncertain);
                 }
                 drop(session);
-                self.receipt().await
+                let timing = HandoffTiming::start("install new receipt");
+                let receipt = self.receipt().await;
+                timing.finish(receipt.is_ok());
+                receipt
             }
         }
     }

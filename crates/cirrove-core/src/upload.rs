@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
+use std::time::Duration;
 
 #[derive(Clone, Debug, thiserror::Error)]
 pub enum UploadError {
@@ -256,6 +257,11 @@ pub trait UploadProvider: Send + Sync {
         checkpoint: &SecretString,
         cancel: &CancellationToken,
     ) -> Result<UploadStep>;
+    /// A bounded provider-specific deadline for commit and its required
+    /// readback. The default preserves the existing worker behavior.
+    fn commit_timeout(&self, _request: &UploadRequest) -> Duration {
+        Duration::from_secs(125)
+    }
     async fn commit_upload_for_operation(
         &self,
         _operation: &str,
