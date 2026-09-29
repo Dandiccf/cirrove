@@ -630,12 +630,34 @@ impl UploadJournal {
                 }
             }
             NodeKind::Folder => {
-                // The journal can rename a folder entry in place. Moving its
-                // subtree between parents needs a separate ancestry protocol.
-                if object.node.parent_id.as_deref() != Some(parent.as_str())
-                    || object.working_file.is_some()
-                {
+                if object.working_file.is_some() {
                     return Err(JournalError::Intent);
+                }
+                if object.node.parent_id.as_deref() != Some(parent.as_str()) {
+                    // The destination must be a captured folder in this scope.
+                    // Follow its local ancestry before changing the source so a
+                    // move cannot put a folder below itself (or a broken route).
+                    let mut ancestor = parent.clone();
+                    let mut visited = std::collections::HashSet::new();
+                    for _ in 0..128 {
+                        if ancestor == object.node.id || !visited.insert(ancestor.clone()) {
+                            return Err(JournalError::Intent);
+                        }
+                        let Some(folder) = self.namespace_by_local(&object.scope, &ancestor)?
+                        else {
+                            if ancestor == parent {
+                                return Err(JournalError::Intent);
+                            }
+                            break;
+                        };
+                        if folder.node.kind != NodeKind::Folder || folder.unlinked {
+                            return Err(JournalError::Intent);
+                        }
+                        ancestor = folder.node.parent_id.ok_or(JournalError::Intent)?;
+                    }
+                    if visited.len() == 128 {
+                        return Err(JournalError::Quota);
+                    }
                 }
             }
             NodeKind::Shortcut => return Err(JournalError::Intent),

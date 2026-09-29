@@ -99,6 +99,97 @@ fn same_parent_folder_rename_keeps_identity_and_rejects_parent_move() {
 }
 
 #[test]
+fn cross_parent_folder_move_retains_local_descendant_route_after_restart() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("journal");
+    let mut j = open(&path, 4096);
+    let mut source = node("source", "Source", 0);
+    source.kind = NodeKind::Folder;
+    source.content_version = None;
+    let mut destination = node("destination", "Destination", 0);
+    destination.kind = NodeKind::Folder;
+    destination.content_version = None;
+    let mut moved = node("moved", "Moved", 0);
+    moved.kind = NodeKind::Folder;
+    moved.parent_id = Some(source.id.clone());
+    moved.content_version = None;
+    let mut child = node("child", "Child", 0);
+    child.kind = NodeKind::Folder;
+    child.parent_id = Some(moved.id.clone());
+    child.content_version = None;
+    j.capture_namespace_ancestors(vec![
+        (scope(), source.clone()),
+        (scope(), destination.clone()),
+        (scope(), moved.clone()),
+        (scope(), child.clone()),
+    ])
+    .unwrap();
+    let object = j.observe_namespace_file(scope(), moved.clone()).unwrap();
+    let mut local = node("", "pending.txt", 0);
+    local.parent_id = Some(child.id.clone());
+    local.etag = None;
+    local.content_version = None;
+    let working = j.create_working(scope(), local, true, &b""[..]).unwrap();
+    j.write_working(working.id, 0, b"saved before move")
+        .unwrap();
+    j.seal_working(working.id).unwrap();
+
+    let queued = j
+        .relocate_namespace_item(
+            object.id,
+            object.revision,
+            destination.id.clone(),
+            moved.name.clone(),
+        )
+        .unwrap();
+    assert_eq!(queued.request.intent.before(), Some(&moved));
+    drop(j);
+
+    let mut j = open(&path, 4096);
+    let root = j.namespace_overlay(&scope(), "root", vec![]).unwrap();
+    assert!(root.nodes.iter().any(|entry| entry.id == destination.id));
+    assert!(!root.nodes.iter().any(|entry| entry.id == source.id));
+    let at_source = j
+        .namespace_overlay(&scope(), &source.id, vec![moved.clone()])
+        .unwrap();
+    assert!(at_source.nodes.is_empty());
+    let at_destination = j
+        .namespace_overlay(&scope(), &destination.id, vec![])
+        .unwrap();
+    assert_eq!(at_destination.nodes.len(), 1);
+    assert_eq!(at_destination.nodes[0].id, moved.id);
+    assert_eq!(
+        at_destination.nodes[0].parent_id.as_deref(),
+        Some(destination.id.as_str())
+    );
+    assert_eq!(
+        j.namespace_overlay(&scope(), &moved.id, vec![])
+            .unwrap()
+            .nodes[0]
+            .id,
+        child.id
+    );
+    assert_eq!(
+        j.namespace_overlay(&scope(), &child.id, vec![])
+            .unwrap()
+            .nodes[0]
+            .name,
+        "pending.txt"
+    );
+
+    let moved_object = j.namespace_object(object.id).unwrap();
+    assert!(matches!(
+        j.relocate_namespace_item(
+            moved_object.id,
+            moved_object.revision,
+            child.id,
+            "Cycle".into(),
+        ),
+        Err(JournalError::Intent)
+    ));
+}
+
+#[test]
 fn huge_online_only_file_moves_without_working_bytes_and_survives_restart() {
     let tmp = tempfile::tempdir().unwrap();
     let path = tmp.path().join("journal");
