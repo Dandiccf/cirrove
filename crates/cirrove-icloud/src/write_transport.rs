@@ -5,6 +5,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use reqwest::{Response, StatusCode};
 use serde::Deserialize;
 use serde_json::json;
+use uuid::Uuid;
 
 pub(crate) const TRASH_ROOT: &str = "FOLDER::com.apple.CloudDocs::TRASH_ROOT";
 
@@ -21,6 +22,18 @@ struct TrashResult {
 #[derive(Deserialize)]
 struct RenameReply {
     items: Vec<TrashResult>,
+}
+
+#[derive(Deserialize)]
+struct FolderReply {
+    folders: Vec<FolderCreated>,
+}
+
+#[derive(Deserialize)]
+struct FolderCreated {
+    drivewsid: String,
+    name: String,
+    status: String,
 }
 
 fn classify_trash(status: StatusCode, result: Option<&str>) -> Result<bool> {
@@ -66,6 +79,69 @@ fn classify_move(status: StatusCode, result: Option<&str>) -> Result<bool> {
 }
 
 impl ICloudReadSession {
+    /// Return only Apple's allocated identity. Losing this response leaves
+    /// creation indeterminate; a matching name is not an identity receipt.
+    pub(crate) async fn create_folder_request(
+        &mut self,
+        parent: &str,
+        name: &str,
+    ) -> Result<String> {
+        if !parent.starts_with("FOLDER::com.apple.CloudDocs::")
+            || parent.rsplit("::").next().is_none_or(str::is_empty)
+            || name.is_empty()
+            || name.len() > 255
+            || matches!(name, "." | "..")
+            || name.contains(['/', '\0', '\r', '\n'])
+        {
+            bail!("invalid iCloud folder creation request");
+        }
+        let endpoint = self
+            .drive_endpoint
+            .as_ref()
+            .context("iCloud sign-in is not complete")?;
+        let url = endpoint.join("createFolders")?;
+        let response = self
+            .http
+            .post(url)
+            .header("origin", ICLOUD_ORIGIN)
+            .header("referer", format!("{ICLOUD_ORIGIN}/"))
+            .json(&json!({
+                "destinationDrivewsId": parent,
+                "folders": [{
+                    "clientId": format!("FOLDER::UNKNOWN_ZONE::TempId-{}", Uuid::new_v4()),
+                    "name": name
+                }]
+            }))
+            .send()
+            .await
+            .map_err(|_| anyhow!("iCloud folder creation outcome is uncertain"))?;
+        if !response.status().is_success() {
+            return Err(drive_request_failure(
+                response.status(),
+                "iCloud folder creation",
+            ));
+        }
+        let reply: FolderReply = read_json(response, "iCloud folder creation").await?;
+        if reply.folders.len() != 1 {
+            bail!("iCloud folder creation returned an unexpected result count");
+        }
+        let created = &reply.folders[0];
+        if created.status != "OK"
+            || created.name != name
+            || !created
+                .drivewsid
+                .starts_with("FOLDER::com.apple.CloudDocs::")
+            || created
+                .drivewsid
+                .rsplit("::")
+                .next()
+                .is_none_or(str::is_empty)
+        {
+            bail!("iCloud folder creation lacks a confirmed identity");
+        }
+        Ok(created.drivewsid.clone())
+    }
+
     pub(crate) async fn send_move(
         &mut self,
         item_id: &str,

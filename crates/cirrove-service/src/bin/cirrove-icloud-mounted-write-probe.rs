@@ -9,7 +9,7 @@ use cirrove_core::mutation::MutationReceipt;
 use cirrove_core::upload::UploadIntent;
 use cirrove_core::{Node, NodeKind, Scope};
 use cirrove_icloud::{
-    ICloudDrive, ICloudFileCreate, ICloudOwnedFixtureFolderCreate, ICloudReadSession, ROOT_ID,
+    ICloudDrive, ICloudFileCreate, ICloudFolderCreate, ICloudReadSession, ROOT_ID,
     SealedSessionVault,
 };
 use cirrove_service::{
@@ -644,11 +644,17 @@ async fn main() -> Result<()> {
         scope.clone(),
         root,
         ICloudDrive::on_demand_from_session_snapshot(scope.clone(), apple_id, &snapshot)?,
-        ICloudFileCreate::from_session_snapshot(scope.clone(), apple_id, &snapshot, upload_parent)?,
-        ICloudOwnedFixtureFolderCreate::new(
+        ICloudFileCreate::from_session_snapshot(
+            scope.clone(),
+            apple_id,
+            &snapshot,
+            upload_parent.clone(),
+        )?,
+        ICloudFolderCreate::from_session_snapshot(
             scope,
-            ICloudReadSession::from_session_snapshot(&snapshot, apple_id)?,
-            folder.clone(),
+            apple_id,
+            &snapshot,
+            upload_parent,
             Arc::new(DesktopVault),
         )?,
         RemovalContext {

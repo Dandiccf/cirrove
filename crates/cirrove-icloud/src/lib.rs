@@ -9,6 +9,7 @@ mod file_create;
 mod file_move;
 mod file_rename;
 mod file_trash;
+mod folder_create;
 #[cfg(feature = "write-probe")]
 mod owned_file_rename;
 #[cfg(feature = "write-probe")]
@@ -41,6 +42,7 @@ pub use file_create::ICloudFileCreate;
 pub use file_move::ICloudFileMove;
 pub use file_rename::ICloudFileRename;
 pub use file_trash::ICloudFileTrash;
+pub use folder_create::ICloudFolderCreate;
 #[cfg(feature = "write-probe")]
 pub use owned_file_rename::ICloudOwnedFixtureFileRename;
 #[cfg(feature = "write-probe")]

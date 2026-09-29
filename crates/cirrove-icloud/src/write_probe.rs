@@ -203,18 +203,6 @@ struct TrashResult {
     status: String,
 }
 
-#[derive(Deserialize)]
-struct FolderReply {
-    folders: Vec<FolderCreated>,
-}
-
-#[derive(Deserialize)]
-struct FolderCreated {
-    drivewsid: String,
-    name: String,
-    status: String,
-}
-
 pub(crate) struct OwnedRegistration<'a> {
     pub(crate) folder: &'a ValidationFolder,
     pub(crate) name: &'a str,
@@ -362,50 +350,6 @@ impl ICloudReadSession {
             id: created,
             name: name.into(),
         })
-    }
-
-    /// Return only Apple's allocated item identity. A missing response cannot
-    /// be recovered from a matching display name, and this call must not retry.
-    pub(crate) async fn create_folder_request(
-        &mut self,
-        parent: &str,
-        name: &str,
-    ) -> Result<String> {
-        let endpoint = self
-            .drive_endpoint
-            .as_ref()
-            .context("iCloud sign-in is not complete")?;
-        let url = endpoint.join("createFolders")?;
-        let response = self
-            .http
-            .post(url)
-            .header("origin", ICLOUD_ORIGIN)
-            .header("referer", format!("{ICLOUD_ORIGIN}/"))
-            .json(&json!({
-                "destinationDrivewsId": parent,
-                "folders": [{
-                    "clientId": format!("FOLDER::UNKNOWN_ZONE::TempId-{}", Uuid::new_v4()),
-                    "name": name
-                }]
-            }))
-            .send()
-            .await
-            .map_err(|_| anyhow!("iCloud validation folder request failed"))?;
-        if !response.status().is_success() {
-            return Err(drive_request_failure(
-                response.status(),
-                "iCloud validation folder creation",
-            ));
-        }
-        let reply: FolderReply = read_json(response, "iCloud validation folder creation").await?;
-        let created = exactly_one(reply.folders, "folder creation")?;
-        if created.status != "OK"
-            || created.name != name
-            || !created.drivewsid.starts_with("FOLDER::")
-        {
-            bail!("iCloud did not confirm the validation folder identity");
-        }
-        Ok(created.drivewsid)
     }
 
     /// Rebuild an owned fixture handle after a process restart, requiring the

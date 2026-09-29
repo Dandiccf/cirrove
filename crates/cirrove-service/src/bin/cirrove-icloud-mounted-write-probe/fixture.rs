@@ -14,7 +14,7 @@ use cirrove_core::{
 };
 use cirrove_icloud::{
     ICloudDrive, ICloudFileCreate, ICloudFileMove, ICloudFileRename, ICloudFileTrash,
-    ICloudOwnedFixtureFolderCreate, ICloudOwnedFixtureFolderRemove, ICloudOwnedFixtureFolderRename,
+    ICloudFolderCreate, ICloudOwnedFixtureFolderRemove, ICloudOwnedFixtureFolderRename,
     ICloudOwnedMountedReplace, ICloudReadSession, ValidationFolder,
 };
 use cirrove_service::journal::{MutationState, UploadJournal, UploadRecord, UploadState};
@@ -31,7 +31,7 @@ pub struct Fixture {
     pub root: Node,
     pub read: ICloudDrive,
     pub upload: Arc<ICloudFileCreate>,
-    pub folders: ICloudOwnedFixtureFolderCreate,
+    pub folders: ICloudFolderCreate,
     removal: RemovalContext,
     owned: Mutex<HashSet<String>>,
     child_uploads: Mutex<HashMap<String, Arc<ICloudFileCreate>>>,
@@ -50,7 +50,7 @@ impl Fixture {
         root: Node,
         read: ICloudDrive,
         upload: ICloudFileCreate,
-        folders: ICloudOwnedFixtureFolderCreate,
+        folders: ICloudFolderCreate,
         removal: RemovalContext,
         owned: HashSet<String>,
     ) -> Self {
