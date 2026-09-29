@@ -1,9 +1,11 @@
-//! Journal-checkpointed staging and two-ID replacement for one owned mount fixture.
-//! Ordinary iCloud accounts never construct this feature-gated provider.
+//! Journal-checkpointed staging and two-ID replacement. Account grants remain
+//! gated until the normal router and live acceptance cover this path.
 use super::{
-    HandoffPlan, ICloudFileCreate, ICloudOwnedFixtureHandoff, ICloudReadSession, ROOT_ID,
-    SealedSessionVault, ValidationFolder, write_probe::TRASH_ROOT,
+    HandoffPlan, ICloudFileCreate, ICloudHandoff, ICloudReadSession, ROOT_ID, SealedSessionVault,
+    write_transport::TRASH_ROOT,
 };
+#[cfg(feature = "write-probe")]
+use crate::ValidationFolder;
 use async_trait::async_trait;
 use cirrove_auth::CredentialVault;
 use cirrove_core::upload::{
@@ -48,7 +50,7 @@ struct Checkpoint {
     phase: Phase,
 }
 
-pub struct ICloudOwnedMountedReplace {
+pub struct ICloudFileReplace {
     scope: Scope,
     folder: Node,
     original: Node,
@@ -77,7 +79,7 @@ pub struct ICloudSealedSignIn {
     pub credential_id: String,
 }
 
-impl ICloudOwnedMountedReplace {
+impl ICloudFileReplace {
     pub fn parent_id(&self) -> &str {
         &self.folder.id
     }
@@ -89,6 +91,7 @@ impl ICloudOwnedMountedReplace {
         }
     }
 
+    #[cfg(feature = "write-probe")]
     pub fn new(
         scope: Scope,
         folder: ValidationFolder,
@@ -298,9 +301,13 @@ impl ICloudOwnedMountedReplace {
             || folder.kind != NodeKind::Folder
             || !folder.id.starts_with("FOLDER::com.apple.CloudDocs::")
             || folder.id.rsplit("::").next().is_none_or(str::is_empty)
-            || !folder.parent_id.as_deref().is_some_and(|parent| {
-                parent.starts_with("FOLDER::com.apple.CloudDocs::") && parent != folder.id
-            })
+            || if folder.id == ROOT_ID {
+                folder.parent_id.is_some()
+            } else {
+                !folder.parent_id.as_deref().is_some_and(|parent| {
+                    parent.starts_with("FOLDER::com.apple.CloudDocs::") && parent != folder.id
+                })
+            }
             || folder.name.is_empty()
             || folder.name.len() > 255
             || matches!(folder.name.as_str(), "." | "..")
@@ -426,7 +433,7 @@ impl ICloudOwnedMountedReplace {
         if let Phase::Handoff { plan, .. } = &saved.phase {
             plan.validate()
                 .map_err(|_| UploadError::CheckpointInvalid)?;
-            if Some(plan.folder_parent()) != self.folder.parent_id.as_deref()
+            if plan.folder_parent() != self.folder.parent_id.as_deref().unwrap_or_default()
                 || plan.folder_id != self.folder.id
                 || plan.folder_name != self.folder.name
                 || plan.original_id != self.original.id
@@ -474,13 +481,9 @@ impl ICloudOwnedMountedReplace {
         Ok(session)
     }
 
-    async fn handoff(
-        &self,
-        plan: HandoffPlan,
-        size: u64,
-    ) -> UploadResult<ICloudOwnedFixtureHandoff> {
+    async fn handoff(&self, plan: HandoffPlan, size: u64) -> UploadResult<ICloudHandoff> {
         let session = self.load_session().await?;
-        ICloudOwnedFixtureHandoff::new_conditional_trash(
+        ICloudHandoff::new_conditional_trash(
             self.scope.clone(),
             self.operation,
             plan,
@@ -495,33 +498,35 @@ impl ICloudOwnedMountedReplace {
     /// neither reserved name was created. A name alone is never a receipt.
     async fn observe_original_before_staging(&self) -> UploadResult<Option<String>> {
         let mut session = self.load_session().await?;
-        let parent = self
-            .folder
-            .parent_id
-            .as_deref()
-            .ok_or(UploadError::Invalid)?;
-        let parent_items = session
-            .list_folder(parent)
-            .await
-            .map_err(|_| UploadError::Uncertain)?;
-        if parent_items
-            .iter()
-            .filter(|entry| entry.drivewsid == self.folder.id)
-            .count()
-            != 1
-            || parent_items
+        if self.folder.id != ROOT_ID {
+            let parent = self
+                .folder
+                .parent_id
+                .as_deref()
+                .ok_or(UploadError::Invalid)?;
+            let parent_items = session
+                .list_folder(parent)
+                .await
+                .map_err(|_| UploadError::Uncertain)?;
+            if parent_items
                 .iter()
-                .filter(|entry| entry.display_name() == self.folder.name)
+                .filter(|entry| entry.drivewsid == self.folder.id)
                 .count()
                 != 1
-            || !parent_items.iter().any(|entry| {
-                entry.drivewsid == self.folder.id
-                    && entry.parent_id == parent
-                    && entry.display_name() == self.folder.name
-                    && entry.is_folder()
-            })
-        {
-            return Ok(None);
+                || parent_items
+                    .iter()
+                    .filter(|entry| entry.display_name() == self.folder.name)
+                    .count()
+                    != 1
+                || !parent_items.iter().any(|entry| {
+                    entry.drivewsid == self.folder.id
+                        && entry.parent_id == parent
+                        && entry.display_name() == self.folder.name
+                        && entry.is_folder()
+                })
+            {
+                return Ok(None);
+            }
         }
         let observe = |items: &[crate::DriveEntry]| -> Option<String> {
             let matching: Vec<_> = items
@@ -598,8 +603,8 @@ impl ICloudOwnedMountedReplace {
             return Err(UploadError::Conflict);
         }
         let plan = HandoffPlan {
-            version: 3,
-            folder_parent_id: self.folder.parent_id.clone().ok_or(UploadError::Invalid)?,
+            version: if self.folder.id == ROOT_ID { 4 } else { 3 },
+            folder_parent_id: self.folder.parent_id.clone().unwrap_or_default(),
             folder_id: self.folder.id.clone(),
             folder_name: self.folder.name.clone(),
             original_id: self.original.id.clone(),
@@ -708,7 +713,7 @@ impl ICloudOwnedMountedReplace {
 }
 
 #[async_trait]
-impl UploadProvider for ICloudOwnedMountedReplace {
+impl UploadProvider for ICloudFileReplace {
     fn staged_recovery_location(
         &self,
         operation: &str,
@@ -915,6 +920,101 @@ mod tests {
     }
 
     #[test]
+    fn root_replacement_plan_and_checkpoint_restore_without_an_invented_parent() {
+        let state = tempfile::tempdir().expect("synthetic fixture");
+        let scope = Scope {
+            account: Uuid::new_v4().to_string(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        };
+        let folder = node(ROOT_ID.into(), None, "iCloud Drive", NodeKind::Folder);
+        let original = node(
+            "FILE::com.apple.CloudDocs::original".into(),
+            Some(ROOT_ID.into()),
+            "Original.txt",
+            NodeKind::File,
+        );
+        let operation = Uuid::new_v4();
+        let sign_in = || ICloudSealedSignIn {
+            apple_id: "fixture@example.invalid".into(),
+            credential_id: Uuid::new_v4().to_string(),
+        };
+        let provider = ICloudFileReplace::from_sealed_session_in_folder(
+            scope.clone(),
+            folder.clone(),
+            original.clone(),
+            "a".repeat(64),
+            operation,
+            sign_in(),
+            state.path(),
+        )
+        .expect("root fixture");
+        let request = UploadRequest {
+            scope: scope.clone(),
+            intent: UploadIntent::Replace {
+                item: original.id.clone(),
+                expected_etag: original.etag.clone().expect("fixture"),
+            },
+            size: 1,
+            sha256: "b".repeat(64),
+        };
+        let staged = node(
+            "FILE::com.apple.CloudDocs::staged".into(),
+            Some(ROOT_ID.into()),
+            &provider.stage_name,
+            NodeKind::File,
+        );
+        let plan = provider
+            .plan(&request, &staged, &"a".repeat(64))
+            .expect("root plan");
+        assert_eq!(plan.version, 4);
+        assert!(plan.folder_parent_id.is_empty());
+        let checkpoint = provider
+            .checkpoint(
+                &request,
+                &"a".repeat(64),
+                Phase::Handoff {
+                    inner: "synthetic-inner".into(),
+                    plan: Box::new(plan.clone()),
+                },
+            )
+            .expect("fixture");
+        let restored = ICloudFileReplace::from_sealed_checkpoint(
+            &request,
+            operation,
+            &checkpoint,
+            sign_in(),
+            state.path(),
+        )
+        .expect("fixture")
+        .expect("captured source");
+        assert_eq!(restored.parent_id(), ROOT_ID);
+        let mut wrong = plan.clone();
+        wrong.version = 3;
+        assert!(wrong.validate().is_err());
+        wrong.folder_parent_id = "FOLDER::com.apple.CloudDocs::invented-parent".into();
+        assert!(wrong.validate().is_err());
+        wrong = plan;
+        wrong.folder_parent_id = ROOT_ID.into();
+        assert!(wrong.validate().is_err());
+        let invalid_root = Node {
+            parent_id: Some(ROOT_ID.into()),
+            ..folder
+        };
+        assert!(
+            ICloudFileReplace::from_sealed_session_for_existing(
+                scope,
+                invalid_root,
+                original,
+                operation,
+                sign_in(),
+                state.path()
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
     fn existing_file_checkpoint_keeps_original_digest_across_reconstruction() {
         let state = tempfile::tempdir().expect("synthetic fixture");
         let scope = Scope {
@@ -940,7 +1040,7 @@ mod tests {
             credential_id: Uuid::new_v4().to_string(),
         };
         let make = || {
-            ICloudOwnedMountedReplace::from_sealed_session_for_existing(
+            ICloudFileReplace::from_sealed_session_for_existing(
                 scope.clone(),
                 folder.clone(),
                 original.clone(),
@@ -978,7 +1078,7 @@ mod tests {
         assert_eq!(saved_digest, digest);
         assert_eq!(inner, "prepared");
 
-        let restored = ICloudOwnedMountedReplace::from_sealed_checkpoint(
+        let restored = ICloudFileReplace::from_sealed_checkpoint(
             &request,
             operation,
             &checkpoint,
@@ -991,7 +1091,7 @@ mod tests {
         assert_eq!(restored.original, original);
         assert_eq!(restored.original_sha256.as_deref(), Some(digest.as_str()));
         assert!(
-            ICloudOwnedMountedReplace::from_sealed_checkpoint(
+            ICloudFileReplace::from_sealed_checkpoint(
                 &request,
                 Uuid::new_v4(),
                 &checkpoint,
@@ -1003,7 +1103,7 @@ mod tests {
         let mut foreign = request.clone();
         foreign.scope.account = Uuid::new_v4().to_string();
         assert!(
-            ICloudOwnedMountedReplace::from_sealed_checkpoint(
+            ICloudFileReplace::from_sealed_checkpoint(
                 &foreign,
                 operation,
                 &checkpoint,
@@ -1013,10 +1113,13 @@ mod tests {
             .is_err()
         );
         let mut incomplete: serde_json::Value =
-            serde_json::from_str(checkpoint.expose_secret()).unwrap();
-        incomplete.as_object_mut().unwrap().remove("original");
+            serde_json::from_str(checkpoint.expose_secret()).expect("synthetic fixture");
+        incomplete
+            .as_object_mut()
+            .expect("synthetic fixture")
+            .remove("original");
         assert!(
-            ICloudOwnedMountedReplace::from_sealed_checkpoint(
+            ICloudFileReplace::from_sealed_checkpoint(
                 &request,
                 operation,
                 &SecretString::from(incomplete.to_string()),
@@ -1030,7 +1133,7 @@ mod tests {
             serde_json::from_str(checkpoint.expose_secret()).expect("synthetic fixture");
         value["original_sha256"] = serde_json::Value::String("c".repeat(64));
         let altered = SecretString::from(value.to_string());
-        let known = ICloudOwnedMountedReplace::from_sealed_session_in_folder(
+        let known = ICloudFileReplace::from_sealed_session_in_folder(
             request.scope.clone(),
             folder,
             original,

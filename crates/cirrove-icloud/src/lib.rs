@@ -13,6 +13,7 @@ mod folder_create;
 mod folder_move;
 mod folder_rename;
 mod folder_trash;
+mod handoff_transport;
 #[cfg(feature = "write-probe")]
 mod owned_file_rename;
 #[cfg(feature = "write-probe")]
@@ -23,11 +24,9 @@ mod owned_folder_move;
 mod owned_folder_remove;
 #[cfg(feature = "write-probe")]
 mod owned_folder_rename;
-#[cfg(feature = "write-probe")]
 mod owned_handoff;
 #[cfg(feature = "write-probe")]
 mod owned_mounted_file_move;
-#[cfg(feature = "write-probe")]
 mod owned_mounted_replace;
 #[cfg(feature = "write-probe")]
 mod owned_move;
@@ -49,6 +48,7 @@ pub use folder_create::ICloudFolderCreate;
 pub use folder_move::ICloudFolderMove;
 pub use folder_rename::ICloudFolderRename;
 pub use folder_trash::ICloudFolderTrash;
+pub use handoff_transport::{HandoffObserved, HandoffPlan};
 #[cfg(feature = "write-probe")]
 pub use owned_file_rename::ICloudOwnedFixtureFileRename;
 #[cfg(feature = "write-probe")]
@@ -60,11 +60,13 @@ pub use owned_folder_remove::ICloudOwnedFixtureFolderRemove;
 #[cfg(feature = "write-probe")]
 pub use owned_folder_rename::ICloudOwnedFixtureFolderRename;
 #[cfg(feature = "write-probe")]
-pub use owned_handoff::ICloudOwnedFixtureHandoff;
+pub use owned_handoff::ICloudHandoff as ICloudOwnedFixtureHandoff;
+pub use owned_handoff::ICloudHandoff;
 #[cfg(feature = "write-probe")]
 pub use owned_mounted_file_move::ICloudOwnedMountedFileMove;
 #[cfg(feature = "write-probe")]
-pub use owned_mounted_replace::{ICloudOwnedMountedReplace, ICloudSealedSignIn};
+pub use owned_mounted_replace::ICloudFileReplace as ICloudOwnedMountedReplace;
+pub use owned_mounted_replace::{ICloudFileReplace, ICloudSealedSignIn};
 #[cfg(feature = "write-probe")]
 pub use owned_move::{ICloudOwnedFixtureMove, ICloudOwnedMovePause};
 #[cfg(feature = "write-probe")]
@@ -77,10 +79,10 @@ pub use sealed_session::{
 };
 #[cfg(feature = "write-probe")]
 pub use write_probe::{
-    EmptyFolderMoveOutcome, HandoffObserved, HandoffOutcome, HandoffPlan, MoveCollisionOutcome,
-    MoveProbeOutcome, OccupiedNameOutcome, PopulatedFolderMoveOutcome, RenameProbeOutcome,
-    SameIdUpdateOutcome, StagedRegistrationPlan, TrashListingProbe, TrashProbeOutcome,
-    TrashRestoreOutcome, ValidationFile, ValidationFolder,
+    EmptyFolderMoveOutcome, HandoffOutcome, MoveCollisionOutcome, MoveProbeOutcome,
+    OccupiedNameOutcome, PopulatedFolderMoveOutcome, RenameProbeOutcome, SameIdUpdateOutcome,
+    StagedRegistrationPlan, TrashListingProbe, TrashProbeOutcome, TrashRestoreOutcome,
+    ValidationFile, ValidationFolder,
 };
 
 use anyhow::{Context, Result, anyhow, bail};

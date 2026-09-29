@@ -217,6 +217,34 @@ impl CreateEnvelope {
 
 #[async_trait]
 impl UploadProvider for ICloudWriteProvider {
+    fn staged_recovery_location(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+    ) -> Option<cirrove_core::upload::RecoveryLocation> {
+        if !matches!(request.intent, UploadIntent::Replace { .. }) {
+            return None;
+        }
+        let operation = self.validate_operation(operation, request).ok()?;
+        Some(cirrove_icloud::ICloudFileReplace::recovery_location(
+            operation,
+        ))
+    }
+
+    fn inspection_timeout(&self, request: &UploadRequest) -> std::time::Duration {
+        self.commit_timeout(request)
+    }
+
+    fn commit_timeout(&self, request: &UploadRequest) -> std::time::Duration {
+        // Full integrity verification exceeded the default in the registered
+        // owned-replacement runs. Keep those checks and their tested deadline.
+        std::time::Duration::from_secs(if matches!(request.intent, UploadIntent::Replace { .. }) {
+            300
+        } else {
+            125
+        })
+    }
+
     fn begin_is_mutation_free_until_checkpoint(&self, request: &UploadRequest) -> bool {
         request.scope == self.scope && matches!(request.intent, UploadIntent::Create { .. })
     }
@@ -231,6 +259,13 @@ impl UploadProvider for ICloudWriteProvider {
         request: &UploadRequest,
         cancel: &CancellationToken,
     ) -> Result<UploadStep> {
+        if matches!(request.intent, UploadIntent::Replace { .. }) {
+            return self
+                .replacement(operation, request, None)
+                .await?
+                .begin_upload(request, cancel)
+                .await;
+        }
         let operation = self.validate_operation(operation, request)?;
         let UploadIntent::Create { parent, .. } = &request.intent else {
             return Err(UploadError::Unsupported("account-wide iCloud replacement"));
@@ -263,6 +298,13 @@ impl UploadProvider for ICloudWriteProvider {
         checkpoint: &SecretString,
         cancel: &CancellationToken,
     ) -> Result<UploadStep> {
+        if matches!(request.intent, UploadIntent::Replace { .. }) {
+            return self
+                .replacement(operation, request, Some(checkpoint))
+                .await?
+                .inspect_upload(request, checkpoint, cancel)
+                .await;
+        }
         let (saved, adapter) = self.restore(operation, request, checkpoint)?;
         let step = adapter
             .inspect_upload(request, &SecretString::from(saved.inner.clone()), cancel)
@@ -287,6 +329,13 @@ impl UploadProvider for ICloudWriteProvider {
         payload: File,
         cancel: &CancellationToken,
     ) -> Result<UploadStep> {
+        if matches!(request.intent, UploadIntent::Replace { .. }) {
+            return self
+                .replacement(operation, request, Some(checkpoint))
+                .await?
+                .upload_stream(request, checkpoint, payload, cancel)
+                .await;
+        }
         let (saved, adapter) = self.restore(operation, request, checkpoint)?;
         let step = adapter
             .upload_stream(
@@ -315,6 +364,13 @@ impl UploadProvider for ICloudWriteProvider {
         checkpoint: &SecretString,
         cancel: &CancellationToken,
     ) -> Result<UploadStep> {
+        if matches!(request.intent, UploadIntent::Replace { .. }) {
+            return self
+                .replacement(operation, request, Some(checkpoint))
+                .await?
+                .commit_upload(request, checkpoint, cancel)
+                .await;
+        }
         let (saved, adapter) = self.restore(operation, request, checkpoint)?;
         let step = adapter
             .commit_upload(request, &SecretString::from(saved.inner.clone()), cancel)
@@ -336,6 +392,13 @@ impl UploadProvider for ICloudWriteProvider {
         checkpoint: Option<&SecretString>,
         cancel: &CancellationToken,
     ) -> Result<Reconciliation> {
+        if matches!(request.intent, UploadIntent::Replace { .. }) {
+            return self
+                .replacement(operation, request, checkpoint)
+                .await?
+                .reconcile_upload(request, checkpoint, cancel)
+                .await;
+        }
         let checkpoint = checkpoint.ok_or(UploadError::Uncertain)?;
         let (saved, adapter) = self.restore(operation, request, checkpoint)?;
         adapter
@@ -345,6 +408,7 @@ impl UploadProvider for ICloudWriteProvider {
 }
 
 mod folders;
+mod replacements;
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]

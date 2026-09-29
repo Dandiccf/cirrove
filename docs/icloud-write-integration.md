@@ -16,8 +16,8 @@ an ordinary account implementation; it is not a claim that writes are ready.
   iCloud selects sealed operation checkpoints and other providers keep
   `DesktopVault`. The production factory now selects the context-aware iCloud
   router, but settings still reject writable iCloud before this path is reached.
-  The router implements new-file uploads, simple folder operations and
-  rename/move/Trash of regular files up to 32 MiB; replacement,
+  The router implements new-file uploads, staged replacement, simple folder
+  operations and rename/move/Trash of regular files up to 32 MiB;
   combined move/rename and live acceptance
   remain open.
   A synthetic FUSE regression covers ownership at construction, writer
@@ -62,7 +62,7 @@ an ordinary account implementation; it is not a claim that writes are ready.
   or malformed digests are refused, and cancelled hashing publishes no plan.
   The existing 32 MiB verification limit still applies; transient or changed
   remote content during hashing currently surfaces as uncertain preparation.
-  Replacement, combined move/rename and live acceptance remain open.
+  Combined move/rename and live acceptance remain open.
   The mounted validator
   supplies those nodes from a bounded test tree and its owned journal.
   Folder-create receipts in that validator now use a separate sealed on-disk
@@ -73,8 +73,12 @@ an ordinary account implementation; it is not a claim that writes are ready.
   upload-namespace substitution, invalid keys and legacy receipt preservation.
   Removing the authentication binding makes the substitution test fail; this
   storage check is not live acceptance of account-wide folder operations.
-- The two-ID replacement and conditional Trash handoff still have
-  `write-probe`-gated, owned-fixture types. Their constructor requires an
+- The two-ID replacement and conditional Trash handoff now have normal-build
+  `ICloudFileReplace` and `ICloudHandoff` types. Exact-identity inspections and
+  receipt checks were extracted from the large write-probe module into shared
+  transport code; fixture creation and intervening-edit injection remain gated.
+  Existing probe names remain feature-gated aliases for compatibility. Their
+  constructor requires an
   exact source node, folder and operation. An existing-file constructor now
   computes the original SHA-256 through a version-checked remote read and
   persists it in the sealed checkpoint; one owned mounted fixture passed this
@@ -137,7 +141,21 @@ an ordinary account implementation; it is not a claim that writes are ready.
   index; one failed attempt records the deliberate interruption. The older
   ambiguous partial fixtures remain retained, and no broader reliability claim
   follows from this single run.
-  General account-wide operation routing and acceptance are still missing.
+  Root replacements use handoff plan version 4 with no invented parent. Older
+  nested plans keep their existing meaning. The new root restoration test first
+  failed because a remaining checkpoint comparison required a parent; the
+  corrected comparison preserves the explicit root identity and rejects an
+  invented parent. Normal-build and probe tests cover both paths. The account
+  router now dispatches replacement begin, inspection, streaming, commit and
+  reconciliation. A fresh operation resolves the original and its plain-folder
+  ancestry in one scoped SQLite snapshot, checks the expected ETag, and reserves
+  the exact operation's Trash recovery location through the journal contract.
+  Checkpoint-bearing calls restore the captured source without consulting the
+  active index. The router retains the tested 300-second inspection and commit
+  deadlines for full integrity readback. Synthetic root and nested cases prove
+  checkpoint restoration after the index changes and reject cross-operation,
+  cross-account and malformed checkpoints. Live acceptance of this account-wide
+  router remains open; prior owned-fixture runs do not close that gate.
 - `ICloudFileCreate` refuses empty files and files over 32 MiB. The zero-byte
   live experiment did not establish a safe successful upload. Content uses
   one streamed HTTP POST per file, not resumable network chunks; a lost POST

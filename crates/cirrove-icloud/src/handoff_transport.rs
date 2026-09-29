@@ -1,0 +1,704 @@
+//! Exact-identity staged replacement inspection shared by the normal adapter
+//! and isolated probes. No fixture creation or uncontrolled update helpers live here.
+use super::*;
+use crate::write_transport::TRASH_ROOT;
+// Version-2 checkpoint compatibility; new plans do not rely on fixture names.
+const PROBE_PREFIX: &str = "Cirrove Write Validation-";
+const PROBE_FILE: &str = "created-by-cirrove.txt";
+
+fn valid_etag(etag: &str) -> bool {
+    !etag.is_empty() && etag.len() <= 4096 && !etag.contains(['\0', '\r', '\n'])
+}
+fn exactly_one<T>(mut values: Vec<T>, stage: &'static str) -> Result<T> {
+    if values.len() != 1 {
+        bail!("iCloud {stage} returned an unexpected result count");
+    }
+    Ok(values.remove(0))
+}
+/// Non-secret exact identities and content hashes needed to reconcile a
+/// staged handoff after process death. The owning account is bound separately
+/// by the private validation journal.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct HandoffPlan {
+    pub(crate) version: u8,
+    #[serde(default = "default_handoff_parent_id")]
+    pub(crate) folder_parent_id: String,
+    pub(crate) folder_id: String,
+    pub(crate) folder_name: String,
+    pub(crate) original_id: String,
+    pub(crate) original_doc_id: String,
+    pub(crate) original_etag: String,
+    pub(crate) staged_id: String,
+    pub(crate) staged_doc_id: String,
+    pub(crate) staged_etag: String,
+    pub(crate) staged_name: String,
+    pub(crate) recovery_name: String,
+    #[serde(default = "default_handoff_target_name")]
+    pub(crate) target_name: String,
+    pub(crate) original_sha256: String,
+    pub(crate) staged_sha256: String,
+}
+
+fn default_handoff_target_name() -> String {
+    PROBE_FILE.into()
+}
+
+fn default_handoff_parent_id() -> String {
+    String::new()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HandoffObserved {
+    Prepared,
+    OldAtRecovery,
+    Complete,
+    Diverged,
+}
+
+impl ICloudReadSession {
+    pub async fn inspect_durable_handoff(&mut self, plan: &HandoffPlan) -> Result<HandoffObserved> {
+        plan.validate()?;
+        if plan.folder_id != ROOT_ID
+            && !plan.folder_present(&self.list_folder(plan.folder_parent()).await?)
+        {
+            return Ok(HandoffObserved::Diverged);
+        }
+        let items = self.list_folder(&plan.folder_id).await?;
+        let Some((Some(old), new)) = plan.select_active(&items) else {
+            return Ok(HandoffObserved::Diverged);
+        };
+        if old.is_folder()
+            || new.is_folder()
+            || old.docwsid != plan.original_doc_id
+            || new.docwsid != plan.staged_doc_id
+            || old.size == 0
+            || new.size == 0
+            || old.size > 32 * 1024 * 1024
+            || new.size > 32 * 1024 * 1024
+        {
+            return Ok(HandoffObserved::Diverged);
+        }
+        let old_hash = self
+            .hash_file_in_folder_for_revision(
+                &plan.folder_id,
+                &plan.original_id,
+                &old.etag,
+                old.size,
+            )
+            .await?;
+        let new_hash = self
+            .hash_file_in_folder_for_revision(&plan.folder_id, &plan.staged_id, &new.etag, new.size)
+            .await?;
+        if old_hash != plan.original_sha256 || new_hash != plan.staged_sha256 {
+            return Ok(HandoffObserved::Diverged);
+        }
+        let (old_name, new_name) = (old.display_name(), new.display_name());
+        Ok(
+            if old_name == plan.target_name && new_name == plan.staged_name {
+                if plan.revisions_match_prepared(&old.etag, &new.etag) {
+                    HandoffObserved::Prepared
+                } else {
+                    HandoffObserved::Diverged
+                }
+            } else if old_name == plan.recovery_name && new_name == plan.staged_name {
+                if plan.staged_etag == new.etag {
+                    HandoffObserved::OldAtRecovery
+                } else {
+                    HandoffObserved::Diverged
+                }
+            } else if old_name == plan.recovery_name && new_name == plan.target_name {
+                HandoffObserved::Complete
+            } else {
+                HandoffObserved::Diverged
+            },
+        )
+    }
+
+    /// Construct the two journal receipts only after independently verifying
+    /// both exact IDs, names and complete bytes in the finished fixture.
+    pub async fn verified_handoff_nodes(
+        &mut self,
+        plan: &HandoffPlan,
+    ) -> Result<(cirrove_core::Node, cirrove_core::Node)> {
+        use cirrove_core::{Node, NodeKind};
+        if self.inspect_durable_handoff(plan).await? != HandoffObserved::Complete {
+            bail!("iCloud handoff has no complete two-ID receipt");
+        }
+        let entries = self.list_folder(&plan.folder_id).await?;
+        let Some((Some(old), current)) = plan.select_active(&entries) else {
+            bail!("iCloud handoff receipt has ambiguous owned identities or names");
+        };
+        if old.is_folder()
+            || current.is_folder()
+            || old.display_name() != plan.recovery_name
+            || current.display_name() != plan.target_name
+            || old.docwsid != plan.original_doc_id
+            || current.docwsid != plan.staged_doc_id
+            || old.etag.is_empty()
+            || current.etag.is_empty()
+        {
+            bail!("iCloud handoff receipt changed or differs from the saved bytes");
+        }
+        if self
+            .hash_file_in_folder_for_revision(&plan.folder_id, &old.drivewsid, &old.etag, old.size)
+            .await?
+            != plan.original_sha256
+            || self
+                .hash_file_in_folder_for_revision(
+                    &plan.folder_id,
+                    &current.drivewsid,
+                    &current.etag,
+                    current.size,
+                )
+                .await?
+                != plan.staged_sha256
+        {
+            bail!("iCloud handoff receipt changed or differs from the saved bytes");
+        }
+        let receipt = |entry: &DriveEntry, name: String| Node {
+            id: entry.drivewsid.clone(),
+            parent_id: Some(plan.folder_id.clone()),
+            name,
+            kind: NodeKind::File,
+            size: entry.size,
+            modified_unix: 0,
+            etag: Some(entry.etag.clone()),
+            content_version: Some(entry.etag.clone()),
+            target: None,
+            package: false,
+        };
+        Ok((
+            receipt(current, plan.target_name.clone()),
+            receipt(old, plan.recovery_name.clone()),
+        ))
+    }
+
+    /// Exact-ID, full-byte observation of the former owned fixture in Trash.
+    /// An incomplete listing, changed ETag or lost restore metadata yields no
+    /// receipt. The Trash parent is deliberately kept separate from its local
+    /// hidden recovery alias.
+    async fn verified_trash_backup_node(
+        &mut self,
+        plan: &HandoffPlan,
+    ) -> Result<cirrove_core::Node> {
+        use cirrove_core::{Node, NodeKind};
+        let (items, complete) = self.read_trash_items().await?;
+        if !complete {
+            bail!("iCloud Trash listing is incomplete");
+        }
+        let item = exactly_one(
+            items
+                .iter()
+                .filter(|item| {
+                    item.get("drivewsid").and_then(|id| id.as_str()) == Some(&plan.original_id)
+                })
+                .collect(),
+            "handoff backup in Trash",
+        )?;
+        let etag = item
+            .get("etag")
+            .and_then(|value| value.as_str())
+            .filter(|value| valid_etag(value))
+            .context("iCloud Trash backup lacks an ETag")?
+            .to_owned();
+        let size = item
+            .get("size")
+            .and_then(|value| value.as_u64())
+            .filter(|size| *size > 0 && *size <= 32 * 1024 * 1024)
+            .context("iCloud Trash backup exceeds the fixture limit")?;
+        let base_name = item
+            .get("name")
+            .and_then(|value| value.as_str())
+            .filter(|value| !value.is_empty())
+            .context("iCloud Trash backup lacks a name")?;
+        let extension = item
+            .get("extension")
+            .and_then(|value| value.as_str())
+            .unwrap_or("");
+        let actual_name = if extension.is_empty() {
+            base_name.to_owned()
+        } else {
+            format!("{base_name}.{extension}")
+        };
+        if actual_name.len() > 255 || actual_name.contains(['/', '\\', '\0', '\r', '\n']) {
+            bail!("iCloud Trash backup has an invalid name");
+        }
+        if item.get("restorePath").is_none_or(|path| path.is_null())
+            || item
+                .get("docwsid")
+                .and_then(|id| id.as_str())
+                .is_some_and(|id| !id.is_empty() && id != plan.original_doc_id)
+        {
+            bail!("iCloud Trash backup lacks its recovery identity");
+        }
+        let signed_url = self.signed_download_url(&plan.original_id).await?;
+        let mut response = self
+            .http
+            .get(signed_url)
+            .send()
+            .await
+            .map_err(|_| anyhow!("iCloud Trash backup download failed"))?;
+        if response.status() != StatusCode::OK {
+            bail!(
+                "iCloud Trash backup download failed ({})",
+                response.status().as_u16()
+            );
+        }
+        let mut received = 0u64;
+        let mut hash = Sha256::new();
+        while let Some(chunk) = response
+            .chunk()
+            .await
+            .map_err(|_| anyhow!("iCloud Trash backup download interrupted"))?
+        {
+            received = received.saturating_add(chunk.len() as u64);
+            if received > size {
+                bail!("iCloud Trash backup exceeds the fixture limit");
+            }
+            hash.update(&chunk);
+        }
+        if received != size || hex::encode(hash.finalize()) != plan.original_sha256 {
+            bail!("iCloud Trash backup differs from the saved fixture bytes");
+        }
+        let (again, complete) = self.read_trash_items().await?;
+        if !complete {
+            bail!("iCloud Trash listing changed during backup verification");
+        }
+        let unchanged = exactly_one(
+            again
+                .iter()
+                .filter(|item| {
+                    item.get("drivewsid").and_then(|id| id.as_str()) == Some(&plan.original_id)
+                })
+                .collect(),
+            "handoff backup after read",
+        )?;
+        if unchanged.get("etag").and_then(|value| value.as_str()) != Some(&etag)
+            || unchanged.get("size").and_then(|value| value.as_u64()) != Some(size)
+            || unchanged.get("name").and_then(|value| value.as_str()) != Some(base_name)
+            || unchanged
+                .get("extension")
+                .and_then(|value| value.as_str())
+                .unwrap_or("")
+                != extension
+            || unchanged
+                .get("restorePath")
+                .is_none_or(|path| path.is_null())
+        {
+            bail!("iCloud Trash backup changed during exact-ID read");
+        }
+        Ok(Node {
+            id: plan.original_id.clone(),
+            parent_id: Some(TRASH_ROOT.into()),
+            name: actual_name,
+            kind: NodeKind::File,
+            size,
+            modified_unix: 0,
+            etag: Some(etag.clone()),
+            content_version: Some(etag),
+            target: None,
+            package: false,
+        })
+    }
+
+    pub(crate) async fn inspect_durable_trash_handoff(
+        &mut self,
+        plan: &HandoffPlan,
+    ) -> Result<HandoffObserved> {
+        Ok(self.inspect_trash_handoff_with_receipt(plan).await?.0)
+    }
+
+    /// One bounded observation supplies both the phase and, when complete,
+    /// its verified receipt. The shared worker must not repeat full Trash
+    /// downloads three times inside one provider deadline.
+    pub(crate) async fn inspect_trash_handoff_with_receipt(
+        &mut self,
+        plan: &HandoffPlan,
+    ) -> Result<(
+        HandoffObserved,
+        Option<(cirrove_core::Node, cirrove_core::Node)>,
+    )> {
+        use cirrove_core::{Node, NodeKind};
+        plan.validate()?;
+        if plan.folder_id != ROOT_ID
+            && !plan.folder_present(&self.list_folder(plan.folder_parent()).await?)
+        {
+            return Ok((HandoffObserved::Diverged, None));
+        }
+        let items = self.list_folder(&plan.folder_id).await?;
+        let Some((old, staged)) = plan.select_active(&items) else {
+            return Ok((HandoffObserved::Diverged, None));
+        };
+        if old.is_some() {
+            let state = self.inspect_durable_handoff(plan).await?;
+            return Ok((
+                if state == HandoffObserved::Prepared {
+                    HandoffObserved::Prepared
+                } else {
+                    HandoffObserved::Diverged
+                },
+                None,
+            ));
+        }
+        if staged.is_folder()
+            || staged.drivewsid != plan.staged_id
+            || staged.docwsid != plan.staged_doc_id
+            || staged.size == 0
+            || staged.size > 32 * 1024 * 1024
+        {
+            return Ok((HandoffObserved::Diverged, None));
+        }
+        if self
+            .hash_file_in_folder_for_revision(
+                &plan.folder_id,
+                &plan.staged_id,
+                &staged.etag,
+                staged.size,
+            )
+            .await?
+            != plan.staged_sha256
+        {
+            return Ok((HandoffObserved::Diverged, None));
+        }
+        let backup = self.verified_trash_backup_node(plan).await?;
+        let later = self.list_folder(&plan.folder_id).await?;
+        let Some((None, still_staged)) = plan.select_active(&later) else {
+            return Ok((HandoffObserved::Diverged, None));
+        };
+        if still_staged.drivewsid != staged.drivewsid
+            || still_staged.docwsid != staged.docwsid
+            || still_staged.etag != staged.etag
+            || still_staged.size != staged.size
+            || still_staged.display_name() != staged.display_name()
+        {
+            return Ok((HandoffObserved::Diverged, None));
+        }
+        if staged.display_name() == plan.staged_name && staged.etag == plan.staged_etag {
+            return Ok((HandoffObserved::OldAtRecovery, None));
+        }
+        if staged.display_name() != plan.target_name || !valid_etag(&staged.etag) {
+            return Ok((HandoffObserved::Diverged, None));
+        }
+        let current = Node {
+            id: staged.drivewsid.clone(),
+            parent_id: Some(plan.folder_id.clone()),
+            name: staged.display_name(),
+            kind: NodeKind::File,
+            size: staged.size,
+            modified_unix: 0,
+            etag: Some(staged.etag.clone()),
+            content_version: Some(staged.etag.clone()),
+            target: None,
+            package: false,
+        };
+        Ok((HandoffObserved::Complete, Some((current, backup))))
+    }
+
+    pub async fn verified_trash_handoff_nodes(
+        &mut self,
+        plan: &HandoffPlan,
+    ) -> Result<(cirrove_core::Node, cirrove_core::Node)> {
+        self.inspect_trash_handoff_with_receipt(plan)
+            .await?
+            .1
+            .context("iCloud Trash handoff has no complete receipt")
+    }
+
+    pub async fn move_old_to_recovery(&mut self, plan: &HandoffPlan) -> Result<bool> {
+        if self.inspect_durable_handoff(plan).await? != HandoffObserved::Prepared {
+            bail!("old iCloud validation item is not in the prepared state");
+        }
+        // Never refresh the precondition to a newer remote revision. Apple's
+        // web rename may ignore a stale ETag, but a known intervening edit must
+        // stop this research operation before its first mutating request.
+        self.send_rename(&plan.original_id, &plan.original_etag, &plan.recovery_name)
+            .await
+    }
+
+    pub async fn move_staged_to_target(&mut self, plan: &HandoffPlan) -> Result<bool> {
+        if self.inspect_durable_handoff(plan).await? != HandoffObserved::OldAtRecovery {
+            bail!("staged iCloud validation item is not ready for handoff");
+        }
+        self.send_rename(&plan.staged_id, &plan.staged_etag, &plan.target_name)
+            .await
+    }
+}
+impl HandoffPlan {
+    pub(crate) fn folder_parent(&self) -> &str {
+        if self.folder_parent_id.is_empty() && self.version == 2 {
+            ROOT_ID
+        } else {
+            &self.folder_parent_id
+        }
+    }
+
+    pub(crate) fn folder_present(&self, entries: &[DriveEntry]) -> bool {
+        entries
+            .iter()
+            .filter(|entry| entry.drivewsid == self.folder_id)
+            .count()
+            == 1
+            && entries
+                .iter()
+                .filter(|entry| entry.display_name() == self.folder_name)
+                .count()
+                == 1
+            && entries.iter().any(|entry| {
+                entry.drivewsid == self.folder_id
+                    && entry.parent_id == self.folder_parent()
+                    && entry.display_name() == self.folder_name
+                    && entry.is_folder()
+            })
+    }
+
+    /// Keep unrelated siblings visible while refusing duplicate identities or
+    /// another item occupying any name used by this two-ID handoff.
+    pub(crate) fn select_active<'a>(
+        &self,
+        items: &'a [DriveEntry],
+    ) -> Option<(Option<&'a DriveEntry>, &'a DriveEntry)> {
+        let mut old = items
+            .iter()
+            .filter(|entry| entry.drivewsid == self.original_id);
+        let original = old.next();
+        if old.next().is_some() {
+            return None;
+        }
+        let mut staged = items
+            .iter()
+            .filter(|entry| entry.drivewsid == self.staged_id);
+        let new = staged.next()?;
+        if staged.next().is_some()
+            || items.iter().any(|entry| {
+                entry.drivewsid != self.original_id
+                    && entry.drivewsid != self.staged_id
+                    && [
+                        self.target_name.as_str(),
+                        self.staged_name.as_str(),
+                        self.recovery_name.as_str(),
+                    ]
+                    .contains(&entry.display_name().as_str())
+            })
+        {
+            return None;
+        }
+        Some((original, new))
+    }
+
+    pub(crate) fn revisions_match_prepared(&self, old: &str, staged: &str) -> bool {
+        old == self.original_etag && staged == self.staged_etag
+    }
+
+    pub(crate) fn validate(&self) -> Result<()> {
+        let uuid_name = |name: &str, prefix: &str, suffix: &str| {
+            name.strip_prefix(prefix)
+                .and_then(|middle| middle.strip_suffix(suffix))
+                .is_some_and(|middle| Uuid::parse_str(middle).is_ok())
+        };
+        let digest = |value: &str| {
+            value.len() == 64
+                && value
+                    .bytes()
+                    .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+        };
+        let old = split_file_id(&self.original_id)?;
+        let new = split_file_id(&self.staged_id)?;
+        let valid_parent = self
+            .folder_parent_id
+            .starts_with("FOLDER::com.apple.CloudDocs::")
+            && self
+                .folder_parent_id
+                .rsplit("::")
+                .next()
+                .is_some_and(|id| !id.is_empty());
+        let valid_folder_name = !self.folder_name.is_empty()
+            && self.folder_name.len() <= 255
+            && !matches!(self.folder_name.as_str(), "." | "..")
+            && !self.folder_name.contains(['/', '\0', '\r', '\n']);
+        let valid_version = match self.version {
+            2 => self.folder_parent() == ROOT_ID && uuid_name(&self.folder_name, PROBE_PREFIX, ""),
+            3 => valid_parent && valid_folder_name && self.folder_parent_id != self.folder_id,
+            4 => self.folder_id == ROOT_ID && self.folder_parent_id.is_empty() && valid_folder_name,
+            _ => false,
+        };
+        if !valid_version
+            || (self.folder_id == ROOT_ID && self.version != 4)
+            || !self.folder_id.starts_with("FOLDER::com.apple.CloudDocs::")
+            || self.folder_id.rsplit("::").next().is_none_or(str::is_empty)
+            || !uuid_name(&self.staged_name, "staged-by-cirrove-", ".txt")
+            || !uuid_name(&self.recovery_name, "recovery-by-cirrove-", ".txt")
+            || self.target_name.is_empty()
+            || self.target_name.len() > 255
+            || matches!(self.target_name.as_str(), "." | "..")
+            || self.target_name.contains(['/', '\0', '\r', '\n'])
+            || self.target_name == self.staged_name
+            || self.target_name == self.recovery_name
+            || self.original_id == self.staged_id
+            || old.0 != "com.apple.CloudDocs"
+            || new.0 != "com.apple.CloudDocs"
+            || old.1 != self.original_doc_id
+            || new.1 != self.staged_doc_id
+            || !digest(&self.original_sha256)
+            || !digest(&self.staged_sha256)
+            || !valid_etag(&self.original_etag)
+            || !valid_etag(&self.staged_etag)
+        {
+            bail!("invalid durable iCloud handoff plan");
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+    fn plan() -> HandoffPlan {
+        HandoffPlan {
+            version: 2,
+            folder_parent_id: ROOT_ID.into(),
+            folder_id: "FOLDER::com.apple.CloudDocs::folder-1".into(),
+            folder_name: format!("{PROBE_PREFIX}{}", Uuid::new_v4()),
+            original_id: "FILE::com.apple.CloudDocs::old-1".into(),
+            original_doc_id: "old-1".into(),
+            original_etag: "old-revision".into(),
+            staged_id: "FILE::com.apple.CloudDocs::new-1".into(),
+            staged_doc_id: "new-1".into(),
+            staged_etag: "staged-revision".into(),
+            staged_name: format!("staged-by-cirrove-{}.txt", Uuid::new_v4()),
+            recovery_name: format!("recovery-by-cirrove-{}.txt", Uuid::new_v4()),
+            target_name: PROBE_FILE.into(),
+            original_sha256: "a".repeat(64),
+            staged_sha256: "b".repeat(64),
+        }
+    }
+
+    #[test]
+    fn persisted_handoff_cannot_retarget_another_item_or_unowned_name() {
+        let value = plan();
+        value.validate().unwrap();
+        let bytes = serde_json::to_vec(&value).unwrap();
+        let restored: HandoffPlan = serde_json::from_slice(&bytes).unwrap();
+        restored.validate().unwrap();
+
+        let mut foreign = plan();
+        foreign.original_id = "FILE::other.zone::old-1".into();
+        assert!(foreign.validate().is_err());
+        let mut swapped = plan();
+        swapped.staged_doc_id = "unrelated".into();
+        assert!(swapped.validate().is_err());
+        let mut unsafe_name = plan();
+        unsafe_name.recovery_name = "important.txt".into();
+        assert!(unsafe_name.validate().is_err());
+        let mut legacy = plan();
+        legacy.version = 1;
+        assert!(legacy.validate().is_err());
+        let mut invalid_revision = plan();
+        invalid_revision.original_etag = "new\nline".into();
+        assert!(invalid_revision.validate().is_err());
+    }
+
+    #[test]
+    fn nested_handoff_binds_its_actual_parent_and_rejects_legacy_retargeting() {
+        let mut stored = serde_json::to_value(plan()).unwrap();
+        stored["version"] = serde_json::json!(3);
+        stored["folder_name"] = serde_json::json!("Correspondence");
+        stored["folder_parent_id"] = serde_json::json!("FOLDER::com.apple.CloudDocs::parent-1");
+        let nested: HandoffPlan = serde_json::from_value(stored.clone()).unwrap();
+        nested.validate().unwrap();
+        let folder = |id: &str, parent: &str, name: &str| -> DriveEntry {
+            serde_json::from_value(serde_json::json!({
+                "drivewsid": id,
+                "parentId": parent,
+                "name": name,
+                "type": "FOLDER"
+            }))
+            .unwrap()
+        };
+        let matching = folder(
+            &nested.folder_id,
+            nested.folder_parent(),
+            &nested.folder_name,
+        );
+        assert!(nested.folder_present(std::slice::from_ref(&matching)));
+        assert!(
+            !nested.folder_present(&[folder(&nested.folder_id, ROOT_ID, &nested.folder_name,)])
+        );
+        assert!(!nested.folder_present(&[
+            matching,
+            folder(
+                "FOLDER::com.apple.CloudDocs::foreign",
+                nested.folder_parent(),
+                &nested.folder_name,
+            ),
+        ]));
+
+        let mut missing_parent = stored.clone();
+        missing_parent
+            .as_object_mut()
+            .unwrap()
+            .remove("folder_parent_id");
+        let missing_parent: HandoffPlan = serde_json::from_value(missing_parent).unwrap();
+        assert!(missing_parent.validate().is_err());
+
+        stored["version"] = serde_json::json!(2);
+        let retargeted_legacy: HandoffPlan = serde_json::from_value(stored).unwrap();
+        assert!(retargeted_legacy.validate().is_err());
+    }
+
+    #[test]
+    fn handoff_checkpoint_keeps_its_actual_target_name() {
+        let mut stored = serde_json::to_value(plan()).unwrap();
+        stored["target_name"] = serde_json::json!("Mounted Create.txt");
+        let restored: HandoffPlan = serde_json::from_value(stored).unwrap();
+        restored.validate().unwrap();
+        let again = serde_json::to_value(restored).unwrap();
+        assert_eq!(again["target_name"], "Mounted Create.txt");
+
+        let mut legacy = again.clone();
+        legacy.as_object_mut().unwrap().remove("target_name");
+        let legacy: HandoffPlan = serde_json::from_value(legacy).unwrap();
+        assert_eq!(legacy.target_name, PROBE_FILE);
+
+        let mut unsafe_name: HandoffPlan = serde_json::from_value(again).unwrap();
+        unsafe_name.target_name = "../other-account.txt".into();
+        assert!(unsafe_name.validate().is_err());
+    }
+
+    #[test]
+    fn unrelated_siblings_are_allowed_but_name_collisions_are_not() {
+        let plan = plan();
+        let entry = |id: &str, name: &str| -> DriveEntry {
+            serde_json::from_value(serde_json::json!({
+                "drivewsid": id,
+                "docwsid": id.rsplit("::").next().unwrap(),
+                "name": name,
+                "type": "FILE",
+                "etag": "revision",
+                "size": 3
+            }))
+            .unwrap()
+        };
+        let old = entry(&plan.original_id, &plan.target_name);
+        let staged = entry(&plan.staged_id, &plan.staged_name);
+        let other = entry("FILE::com.apple.CloudDocs::other", "Unrelated.txt");
+        assert!(
+            plan.select_active(&[old.clone(), staged.clone(), other])
+                .is_some()
+        );
+        let collision = entry("FILE::com.apple.CloudDocs::other", &plan.target_name);
+        assert!(
+            plan.select_active(&[old.clone(), staged.clone(), collision])
+                .is_none()
+        );
+        assert!(plan.select_active(&[old.clone(), old, staged]).is_none());
+    }
+
+    #[test]
+    fn durable_handoff_refuses_changed_revisions_even_when_bytes_match() {
+        let plan = plan();
+        assert!(plan.revisions_match_prepared("old-revision", "staged-revision"));
+        assert!(!plan.revisions_match_prepared("foreign-revision", "staged-revision"));
+        assert!(!plan.revisions_match_prepared("old-revision", "foreign-revision"));
+    }
+}

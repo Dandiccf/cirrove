@@ -1,7 +1,7 @@
-//! Two-ID replacement of one Cirrove-owned fixture through the shared worker.
-//! Apple rename is not conditional, so this is deliberately unavailable to the
-//! ordinary mount. Every uncertain phase requires exact-ID reconciliation.
-use super::{HandoffObserved, HandoffPlan, ICloudReadSession, write_probe::TRASH_ROOT};
+//! Two-ID replacement through the shared worker. Ordinary write grants remain
+//! gated: Apple rename is not conditional. Uncertain phases require exact-ID
+//! reconciliation; fault injection is available only to isolated probes.
+use super::{HandoffObserved, HandoffPlan, ICloudReadSession, write_transport::TRASH_ROOT};
 use async_trait::async_trait;
 use cirrove_core::upload::{
     Reconciliation, RecoveryLocation, Result as UploadResult, UploadError, UploadIntent,
@@ -11,6 +11,7 @@ use cirrove_core::{CancellationToken, Scope};
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
+#[cfg(feature = "write-probe")]
 use std::time::Instant;
 use tokio::sync::Mutex;
 use uuid::Uuid;
@@ -18,12 +19,14 @@ use uuid::Uuid;
 const MAX_CHECKPOINT: usize = 8192;
 
 /// Isolated-probe timing only. A dropped future has no known provider result.
+#[cfg(feature = "write-probe")]
 struct HandoffTiming {
     phase: &'static str,
     started: Instant,
     finished: bool,
 }
 
+#[cfg(feature = "write-probe")]
 impl HandoffTiming {
     fn start(phase: &'static str) -> Self {
         eprintln!("iCloud handoff {phase}: start");
@@ -44,6 +47,7 @@ impl HandoffTiming {
     }
 }
 
+#[cfg(feature = "write-probe")]
 impl Drop for HandoffTiming {
     fn drop(&mut self) {
         if !self.finished {
@@ -54,6 +58,16 @@ impl Drop for HandoffTiming {
             );
         }
     }
+}
+
+#[cfg(not(feature = "write-probe"))]
+struct HandoffTiming;
+#[cfg(not(feature = "write-probe"))]
+impl HandoffTiming {
+    fn start(_: &'static str) -> Self {
+        Self
+    }
+    fn finish(self, _: bool) {}
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -89,7 +103,7 @@ struct Checkpoint {
     plan: HandoffPlan,
 }
 
-pub struct ICloudOwnedFixtureHandoff {
+pub struct ICloudHandoff {
     scope: Scope,
     operation: Uuid,
     plan: HandoffPlan,
@@ -99,13 +113,15 @@ pub struct ICloudOwnedFixtureHandoff {
     delay_old_receipt_past_worker_deadline: AtomicBool,
     old_receipt_delay_started: AtomicBool,
     discard_new_receipt: AtomicBool,
+    #[cfg(feature = "write-probe")]
     inject_intervening_edit: AtomicBool,
+    #[cfg(feature = "write-probe")]
     stale_trash_refusal_verified: AtomicBool,
     reconciliation_only: bool,
     recovery_mode: RecoveryMode,
 }
 
-impl ICloudOwnedFixtureHandoff {
+impl ICloudHandoff {
     pub fn new(
         scope: Scope,
         operation: Uuid,
@@ -133,7 +149,9 @@ impl ICloudOwnedFixtureHandoff {
             delay_old_receipt_past_worker_deadline: AtomicBool::new(false),
             old_receipt_delay_started: AtomicBool::new(false),
             discard_new_receipt: AtomicBool::new(false),
+            #[cfg(feature = "write-probe")]
             inject_intervening_edit: AtomicBool::new(false),
+            #[cfg(feature = "write-probe")]
             stale_trash_refusal_verified: AtomicBool::new(false),
             reconciliation_only: false,
             recovery_mode: RecoveryMode::Rename,
@@ -180,6 +198,7 @@ impl ICloudOwnedFixtureHandoff {
     }
 
     /// One-shot validation fault after Apple has responded to the old rename.
+    #[cfg(feature = "write-probe")]
     pub fn with_discarded_old_receipt(self) -> Self {
         self.discard_old_receipt.store(true, Ordering::Release);
         self
@@ -188,16 +207,19 @@ impl ICloudOwnedFixtureHandoff {
     /// Validation only: hold an accepted Trash response beyond the shared
     /// worker's 125-second provider deadline. The worker cancels this future;
     /// a fresh process must reconcile the exact old ID before proceeding.
+    #[cfg(feature = "write-probe")]
     pub fn with_delayed_old_receipt(self) -> Self {
         self.delay_old_receipt_past_worker_deadline
             .store(true, Ordering::Release);
         self
     }
 
+    #[cfg(feature = "write-probe")]
     pub fn old_receipt_delay_started(&self) -> bool {
         self.old_receipt_delay_started.load(Ordering::Acquire)
     }
 
+    #[cfg(feature = "write-probe")]
     pub fn with_discarded_new_receipt(self) -> Self {
         self.discard_new_receipt.store(true, Ordering::Release);
         self
@@ -205,11 +227,13 @@ impl ICloudOwnedFixtureHandoff {
 
     /// Validation only: change the owned old fixture after the worker's last
     /// prepared observation, immediately before its conditional Trash call.
+    #[cfg(feature = "write-probe")]
     pub fn with_intervening_old_edit(self) -> Self {
         self.inject_intervening_edit.store(true, Ordering::Release);
         self
     }
 
+    #[cfg(feature = "write-probe")]
     pub fn stale_trash_refusal_verified(&self) -> bool {
         self.stale_trash_refusal_verified.load(Ordering::Acquire)
     }
@@ -217,6 +241,7 @@ impl ICloudOwnedFixtureHandoff {
     /// True only while a configured one-shot fault has not yet reached the
     /// staged rename response. The live probe uses this to distinguish an
     /// earlier uncertain phase from the intended lost-response exercise.
+    #[cfg(feature = "write-probe")]
     pub fn new_receipt_discard_pending(&self) -> bool {
         self.discard_new_receipt.load(Ordering::Acquire)
     }
@@ -413,7 +438,7 @@ impl ICloudOwnedFixtureHandoff {
 }
 
 #[async_trait]
-impl UploadProvider for ICloudOwnedFixtureHandoff {
+impl UploadProvider for ICloudHandoff {
     fn staged_recovery_location(
         &self,
         operation: &str,
@@ -501,6 +526,7 @@ impl UploadProvider for ICloudOwnedFixtureHandoff {
                 if before != HandoffObserved::Prepared {
                     return Err(UploadError::Conflict);
                 }
+                #[cfg(feature = "write-probe")]
                 if self.recovery_mode == RecoveryMode::Trash
                     && self.inject_intervening_edit.swap(false, Ordering::AcqRel)
                 {
@@ -636,7 +662,7 @@ mod tests {
     use super::*;
     use sha2::{Digest, Sha256};
 
-    fn fixture() -> (ICloudOwnedFixtureHandoff, UploadRequest) {
+    fn fixture() -> (ICloudHandoff, UploadRequest) {
         let mut session = ICloudReadSession::new().unwrap();
         session.account_hash = Some("synthetic-account".into());
         let operation = Uuid::new_v4();
@@ -672,7 +698,7 @@ mod tests {
             sha256: plan.staged_sha256.clone(),
         };
         (
-            ICloudOwnedFixtureHandoff::new(scope, operation, plan, 3, session).unwrap(),
+            ICloudHandoff::new(scope, operation, plan, 3, session).unwrap(),
             request,
         )
     }
@@ -707,13 +733,9 @@ mod tests {
 
         let mut restarted_session = ICloudReadSession::new().unwrap();
         restarted_session.account_hash = Some("synthetic-account".into());
-        let restarted = ICloudOwnedFixtureHandoff::from_checkpoint(
-            &request,
-            provider.operation,
-            &first,
-            restarted_session,
-        )
-        .unwrap();
+        let restarted =
+            ICloudHandoff::from_checkpoint(&request, provider.operation, &first, restarted_session)
+                .unwrap();
         assert_eq!(
             restarted.check_checkpoint(&request, &first).unwrap(),
             Phase::MoveOld
@@ -723,7 +745,7 @@ mod tests {
         let mut foreign_session = ICloudReadSession::new().unwrap();
         foreign_session.account_hash = Some("synthetic-account".into());
         assert!(
-            ICloudOwnedFixtureHandoff::from_checkpoint(
+            ICloudHandoff::from_checkpoint(
                 &different_account,
                 provider.operation,
                 &first,
@@ -747,13 +769,9 @@ mod tests {
         );
         let mut session = ICloudReadSession::new().unwrap();
         session.account_hash = Some("synthetic-account".into());
-        let resumed = ICloudOwnedFixtureHandoff::from_checkpoint(
-            &request,
-            provider.operation,
-            &checkpoint,
-            session,
-        )
-        .unwrap();
+        let resumed =
+            ICloudHandoff::from_checkpoint(&request, provider.operation, &checkpoint, session)
+                .unwrap();
         assert_eq!(resumed.recovery_mode, RecoveryMode::Trash);
         assert_eq!(
             resumed.check_checkpoint(&request, &checkpoint).unwrap(),
@@ -778,13 +796,9 @@ mod tests {
             let checkpoint = provider.checkpoint(phase).unwrap();
             let mut session = ICloudReadSession::new().unwrap();
             session.account_hash = Some("synthetic-account".into());
-            let resumed = ICloudOwnedFixtureHandoff::from_checkpoint(
-                &request,
-                provider.operation,
-                &checkpoint,
-                session,
-            )
-            .unwrap();
+            let resumed =
+                ICloudHandoff::from_checkpoint(&request, provider.operation, &checkpoint, session)
+                    .unwrap();
             let saved = resumed.check_checkpoint(&request, &checkpoint).unwrap();
             let next = resumed.step_after_inspection(saved, HandoffObserved::OldAtRecovery, None);
             if phase == Phase::InspectInstall {
@@ -895,14 +909,10 @@ mod tests {
             let checkpoint = provider.checkpoint(Phase::InstallNew).unwrap();
             let mut session = ICloudReadSession::new().unwrap();
             session.account_hash = Some("synthetic-account".into());
-            let verifier = ICloudOwnedFixtureHandoff::from_checkpoint(
-                &request,
-                provider.operation,
-                &checkpoint,
-                session,
-            )
-            .unwrap()
-            .reconciliation_only();
+            let verifier =
+                ICloudHandoff::from_checkpoint(&request, provider.operation, &checkpoint, session)
+                    .unwrap()
+                    .reconciliation_only();
             let error = verifier
                 .commit_upload(&request, &checkpoint, &CancellationToken::new())
                 .await
