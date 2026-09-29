@@ -366,10 +366,11 @@ impl Fixture {
         before: Node,
         reconciliation_only: bool,
     ) -> cirrove_core::mutation::Result<ICloudFolderRename> {
-        let adapter = ICloudFolderRename::from_session_snapshot(
+        let adapter = ICloudFolderRename::from_sealed_session(
             self.scope.clone(),
-            &self.removal.apple_id,
-            &self.removal.snapshot,
+            self.removal.apple_id.clone(),
+            self.removal.credential_id.clone(),
+            &self.removal.state,
             before,
             "Mounted Renamed".into(),
         )?;
@@ -423,10 +424,11 @@ impl Fixture {
         destination: Node,
         reconciliation_only: bool,
     ) -> cirrove_core::mutation::Result<ICloudFolderMove> {
-        let adapter = ICloudFolderMove::from_session_snapshot(
+        let adapter = ICloudFolderMove::from_sealed_session(
             self.scope.clone(),
-            &self.removal.apple_id,
-            &self.removal.snapshot,
+            self.removal.apple_id.clone(),
+            self.removal.credential_id.clone(),
+            &self.removal.state,
             before,
             destination,
         )?;
@@ -438,10 +440,11 @@ impl Fixture {
     }
 
     fn remover(&self, before: Node) -> cirrove_core::mutation::Result<ICloudFolderTrash> {
-        ICloudFolderTrash::from_session_snapshot(
+        ICloudFolderTrash::from_sealed_session(
             self.scope.clone(),
-            &self.removal.apple_id,
-            &self.removal.snapshot,
+            self.removal.apple_id.clone(),
+            self.removal.credential_id.clone(),
+            &self.removal.state,
             before,
         )
     }
@@ -478,10 +481,11 @@ impl Fixture {
         before: Node,
         digest: String,
     ) -> cirrove_core::mutation::Result<ICloudFileTrash> {
-        ICloudFileTrash::from_session_snapshot(
+        ICloudFileTrash::from_sealed_session(
             self.scope.clone(),
-            &self.removal.apple_id,
-            &self.removal.snapshot,
+            self.removal.apple_id.clone(),
+            self.removal.credential_id.clone(),
+            &self.removal.state,
             before,
         )
         .and_then(|provider| provider.with_expected_sha256(digest))
@@ -531,10 +535,11 @@ impl Fixture {
                 .map_err(|_| MutationError::Uncertain)?;
             confirmed_owned_child_folder(&journal, &self.scope, &self.root.id, parent)?;
         }
-        let adapter = ICloudFileRename::from_session_snapshot(
+        let adapter = ICloudFileRename::from_sealed_session(
             self.scope.clone(),
-            &self.removal.apple_id,
-            &self.removal.snapshot,
+            self.removal.apple_id.clone(),
+            self.removal.credential_id.clone(),
+            &self.removal.state,
             before,
             target_name,
             digest,
@@ -591,10 +596,11 @@ impl Fixture {
         digest: String,
         reconciliation_only: bool,
     ) -> cirrove_core::mutation::Result<ICloudFileMove> {
-        let adapter = ICloudFileMove::from_session_snapshot(
+        let adapter = ICloudFileMove::from_sealed_session(
             self.scope.clone(),
-            &self.removal.apple_id,
-            &self.removal.snapshot,
+            self.removal.apple_id.clone(),
+            self.removal.credential_id.clone(),
+            &self.removal.state,
             before,
             destination,
             digest,
