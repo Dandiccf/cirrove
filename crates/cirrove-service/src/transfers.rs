@@ -223,6 +223,24 @@ impl TransferWorker {
                         Err(error) => return Err(error),
                     }
                 }
+                None if record.session_key.is_none()
+                    && self
+                        .provider
+                        .begin_is_mutation_free_until_checkpoint(&request) =>
+                {
+                    // This provider's begin returned no remote side effect, and
+                    // the journal never confirmed a checkpoint. A checkpoint
+                    // saved just before a failed journal update also precedes
+                    // every remote mutation. A *recorded* key that later went
+                    // missing must instead remain uncertain.
+                    self.clean_checkpoint(id).await;
+                    self.local(move |j| {
+                        j.stop_attempt(id, attempt, UploadState::VerifyRequired)?;
+                        j.retry_verified_uncommitted(id)
+                    })
+                    .await?;
+                    return Ok(UploadState::Pending);
+                }
                 None => None,
             }
         } else {

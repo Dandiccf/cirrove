@@ -109,6 +109,7 @@ struct Provider {
     restart_prepare_once: AtomicBool,
     complete_on_inspect_once: AtomicBool,
     require_reconcile_checkpoint: AtomicBool,
+    mutation_free_begin: AtomicBool,
     pause_offset: AtomicU64,
     entered: Notify,
     handoff: AtomicBool,
@@ -137,6 +138,7 @@ impl Provider {
             restart_prepare_once: AtomicBool::new(false),
             complete_on_inspect_once: AtomicBool::new(false),
             require_reconcile_checkpoint: AtomicBool::new(false),
+            mutation_free_begin: AtomicBool::new(false),
             pause_offset: AtomicU64::new(u64::MAX),
             entered: Notify::new(),
             handoff: AtomicBool::new(false),
@@ -205,6 +207,10 @@ impl Provider {
 }
 #[async_trait]
 impl UploadProvider for Provider {
+    fn begin_is_mutation_free_until_checkpoint(&self, _request: &UploadRequest) -> bool {
+        self.mutation_free_begin.load(Ordering::SeqCst)
+    }
+
     fn staged_recovery_location(
         &self,
         operation: &str,
@@ -1049,6 +1055,87 @@ async fn no_bytes_are_uploaded_until_the_checkpoint_is_saved_and_lost_save_repli
         }
         assert_local(&j, id);
     }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn mutation_free_preflight_restarts_only_when_no_checkpoint_was_ever_recorded() {
+    let temp = tempfile::tempdir().unwrap();
+    let (probe, provider, vault) = fixture();
+    let journal = journal(&temp.path().join("never-recorded"), &probe);
+    let id = enqueue(&journal, "New.txt");
+    provider.mutation_free_begin.store(true, Ordering::SeqCst);
+    provider
+        .require_reconcile_checkpoint
+        .store(true, Ordering::SeqCst);
+    provider.prepare_once.store(true, Ordering::SeqCst);
+    vault.fail_save.store(true, Ordering::SeqCst);
+    let worker = TransferWorker::new(
+        journal.clone(),
+        provider.clone(),
+        vault.clone(),
+        CancellationToken::new(),
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::VerifyRequired
+    );
+    assert!(
+        journal
+            .lock()
+            .unwrap()
+            .get(id)
+            .unwrap()
+            .session_key
+            .is_none()
+    );
+    vault.fail_save.store(false, Ordering::SeqCst);
+    journal.lock().unwrap().request_retry(id).unwrap();
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Pending
+    );
+    assert_eq!(provider.state.lock().unwrap().reconciliations, 0);
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+
+    let (probe, provider, vault) = fixture();
+    let journal = self::journal(&temp.path().join("checkpoint-lost"), &probe);
+    let id = enqueue(&journal, "Old.txt");
+    provider.mutation_free_begin.store(true, Ordering::SeqCst);
+    provider
+        .require_reconcile_checkpoint
+        .store(true, Ordering::SeqCst);
+    provider.prepare_once.store(true, Ordering::SeqCst);
+    provider.fail_inspect_once.store(true, Ordering::SeqCst);
+    let worker = TransferWorker::new(
+        journal.clone(),
+        provider.clone(),
+        vault.clone(),
+        CancellationToken::new(),
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::VerifyRequired
+    );
+    assert!(
+        journal
+            .lock()
+            .unwrap()
+            .get(id)
+            .unwrap()
+            .session_key
+            .is_some()
+    );
+    vault.values.lock().unwrap().clear();
+    journal.lock().unwrap().request_retry(id).unwrap();
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::VerifyRequired
+    );
+    assert_eq!(provider.state.lock().unwrap().begins, 1);
+    assert_eq!(provider.state.lock().unwrap().reconciliations, 1);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

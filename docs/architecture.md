@@ -866,6 +866,14 @@ iCloud upload adapter: ordinary iCloud mounts remain read-only while
 in-flight timeouts, collision handling, recovery retention and broader file
 and folder operations remain unresolved.
 
+The normal-build iCloud file-create adapter's `begin_upload` only returns a
+prepared checkpoint; it sends no Apple request. The shared worker may return
+such a create to Pending after a missing checkpoint only if SQLite never
+recorded one. A checkpoint once recorded but later absent from the keyring is
+an uncertain remote outcome and remains in verification. The provider opts
+into this narrowly defined pre-checkpoint behavior; other providers retain
+their existing reconciliation path.
+
 Journal schema 10 adds completion prerequisites independently of the single
 content/ETag predecessor. Both upload and mutation selection, including explicit
 upload verification, wait for every prerequisite. Edges must reference older

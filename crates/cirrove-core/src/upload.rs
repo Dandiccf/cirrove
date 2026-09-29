@@ -155,6 +155,14 @@ pub enum RecoveryLocation {
 /// does not prove failure. Reconcile the remote target before restarting it.
 #[async_trait]
 pub trait UploadProvider: Send + Sync {
+    /// True only if `begin_upload` cannot contact or mutate the provider before
+    /// returning a checkpoint. When the journal has never recorded a checkpoint
+    /// and the vault has none, the worker can then retry that preflight safely.
+    /// A lost vault entry after a recorded checkpoint never qualifies.
+    fn begin_is_mutation_free_until_checkpoint(&self, _request: &UploadRequest) -> bool {
+        false
+    }
+
     fn staged_recovery_location(
         &self,
         operation: &str,

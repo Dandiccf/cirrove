@@ -369,6 +369,10 @@ impl ICloudFileCreate {
 
 #[async_trait]
 impl UploadProvider for ICloudFileCreate {
+    fn begin_is_mutation_free_until_checkpoint(&self, request: &UploadRequest) -> bool {
+        self.check_request(request).is_ok()
+    }
+
     async fn begin_upload(
         &self,
         request: &UploadRequest,
@@ -586,5 +590,63 @@ impl UploadProvider for ICloudFileCreate {
             return Ok(Reconciliation::Uncommitted);
         }
         Err(UploadError::Uncertain)
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn create_preflight_is_mutation_free_but_lost_checkpoint_remains_uncertain() {
+        let state = tempfile::tempdir().unwrap();
+        let scope = Scope {
+            account: Uuid::new_v4().to_string(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        };
+        let parent = Node {
+            id: "FOLDER::com.apple.CloudDocs::owned-parent".into(),
+            parent_id: Some(ROOT_ID.into()),
+            name: "Owned".into(),
+            kind: NodeKind::Folder,
+            size: 0,
+            modified_unix: 0,
+            etag: None,
+            content_version: None,
+            target: None,
+            package: false,
+        };
+        let provider = ICloudFileCreate::from_sealed_session(
+            scope.clone(),
+            "test@example.invalid".into(),
+            Uuid::new_v4().to_string(),
+            state.path(),
+            parent.clone(),
+        )
+        .unwrap();
+        let request = UploadRequest {
+            scope,
+            intent: UploadIntent::Create {
+                parent: parent.id,
+                name: "New.txt".into(),
+            },
+            size: 1,
+            sha256: hex::encode(Sha256::digest(b"x")),
+        };
+        assert!(matches!(
+            provider
+                .begin_upload(&request, &CancellationToken::new())
+                .await,
+            Ok(UploadStep::Prepared(_))
+        ));
+        assert!(provider.begin_is_mutation_free_until_checkpoint(&request));
+        assert!(matches!(
+            provider
+                .reconcile_upload(&request, None, &CancellationToken::new())
+                .await,
+            Err(UploadError::CheckpointInvalid)
+        ));
     }
 }
