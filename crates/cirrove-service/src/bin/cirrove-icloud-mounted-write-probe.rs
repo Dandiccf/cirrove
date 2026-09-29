@@ -728,21 +728,25 @@ async fn main() -> Result<()> {
         scope.clone(),
         root,
         ICloudDrive::on_demand_from_session_snapshot(scope.clone(), apple_id, &snapshot)?,
-        ICloudFileCreate::from_session_snapshot(
+        ICloudFileCreate::from_sealed_session(
             scope.clone(),
-            apple_id,
-            &snapshot,
+            apple_id.clone(),
+            account.credential_id.clone(),
+            &state,
             upload_parent.clone(),
         )?,
-        ICloudFolderCreate::from_session_snapshot(
+        ICloudFolderCreate::from_sealed_session(
             scope,
-            apple_id,
-            &snapshot,
+            apple_id.clone(),
+            account.credential_id.clone(),
+            &state,
             upload_parent,
             Arc::new(DesktopVault),
         )?,
         RemovalContext {
             apple_id: apple_id.clone(),
+            credential_id: account.credential_id.clone(),
+            state: state.clone(),
             snapshot: snapshot.clone(),
             journal: journal.clone(),
         },

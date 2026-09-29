@@ -22,6 +22,7 @@ use secrecy::SecretString;
 use std::{
     collections::{HashMap, HashSet},
     fs::File,
+    path::PathBuf,
     sync::{Arc, Mutex},
 };
 use uuid::Uuid;
@@ -39,6 +40,8 @@ pub struct Fixture {
 
 pub struct RemovalContext {
     pub apple_id: String,
+    pub credential_id: String,
+    pub state: PathBuf,
     pub snapshot: SecretString,
     pub journal: Arc<Mutex<UploadJournal>>,
 }
@@ -117,10 +120,11 @@ impl Fixture {
             confirmed_owned_child_folder(&journal, &self.scope, &self.root.id, parent)
                 .map_err(|_| UploadError::Invalid)?
         };
-        let upload = Arc::new(ICloudFileCreate::from_session_snapshot(
+        let upload = Arc::new(ICloudFileCreate::from_sealed_session(
             self.scope.clone(),
-            &self.removal.apple_id,
-            &self.removal.snapshot,
+            self.removal.apple_id.clone(),
+            self.removal.credential_id.clone(),
+            &self.removal.state,
             child,
         )?);
         uploads.insert(parent.clone(), upload.clone());
