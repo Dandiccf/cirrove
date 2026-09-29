@@ -1,4 +1,5 @@
 use super::*;
+mod relocations;
 use crate::journal::MutationState;
 use cirrove_core::mutation::{MutationIntent, Result as MutationResult};
 use cirrove_icloud::{
@@ -383,6 +384,9 @@ impl MutationProvider for ICloudWriteProvider {
         request: &MutationRequest,
         cancel: &CancellationToken,
     ) -> MutationResult<Option<String>> {
+        if relocations::combined(request) {
+            return self.prepare_combined(operation, request, cancel).await;
+        }
         let operation = self.mutation_operation(operation, request)?;
         let saved = match self.saved_plan(operation, request, None).await? {
             Some(saved) if saved.phase == PlanPhase::Prepared => saved,
@@ -435,6 +439,11 @@ impl MutationProvider for ICloudWriteProvider {
         prepared: Option<&str>,
         cancel: &CancellationToken,
     ) -> MutationResult<MutationReceipt> {
+        if relocations::combined(request) {
+            return self
+                .mutate_combined(operation, request, prepared, cancel)
+                .await;
+        }
         let operation = self.mutation_operation(operation, request)?;
         let mut saved = self
             .saved_plan(operation, request, prepared)
@@ -474,6 +483,11 @@ impl MutationProvider for ICloudWriteProvider {
         prepared: Option<&str>,
         cancel: &CancellationToken,
     ) -> MutationResult<MutationReconciliation> {
+        if relocations::combined(request) {
+            return self
+                .reconcile_combined(operation, request, prepared, cancel)
+                .await;
+        }
         let operation = self.mutation_operation(operation, request)?;
         let Some(saved) = self.saved_plan(operation, request, prepared).await? else {
             return Ok(MutationReconciliation::Indeterminate);

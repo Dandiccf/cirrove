@@ -33,7 +33,27 @@ struct FolderReply {
 struct FolderCreated {
     drivewsid: String,
     name: String,
+    #[serde(default, deserialize_with = "crate::null_to_default")]
+    extension: String,
     status: String,
+}
+
+impl FolderCreated {
+    fn confirmed_identity(&self, name: &str) -> Result<String> {
+        let display_name = if self.extension.is_empty() {
+            self.name.clone()
+        } else {
+            format!("{}.{}", self.name, self.extension)
+        };
+        if self.status != "OK"
+            || display_name != name
+            || !self.drivewsid.starts_with("FOLDER::com.apple.CloudDocs::")
+            || self.drivewsid.rsplit("::").next().is_none_or(str::is_empty)
+        {
+            bail!("iCloud folder creation lacks a confirmed identity");
+        }
+        Ok(self.drivewsid.clone())
+    }
 }
 
 fn classify_trash(status: StatusCode, result: Option<&str>) -> Result<bool> {
@@ -126,20 +146,7 @@ impl ICloudReadSession {
             bail!("iCloud folder creation returned an unexpected result count");
         }
         let created = &reply.folders[0];
-        if created.status != "OK"
-            || created.name != name
-            || !created
-                .drivewsid
-                .starts_with("FOLDER::com.apple.CloudDocs::")
-            || created
-                .drivewsid
-                .rsplit("::")
-                .next()
-                .is_none_or(str::is_empty)
-        {
-            bail!("iCloud folder creation lacks a confirmed identity");
-        }
-        Ok(created.drivewsid.clone())
+        created.confirmed_identity(name)
     }
 
     pub(crate) async fn send_move(
@@ -341,6 +348,51 @@ impl ICloudReadSession {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn folder_creation_receipt_reconstructs_split_extensions() {
+        for (base, extension, expected) in [
+            ("Combined", "txt", "Combined.txt"),
+            ("Archive.tar", "gz", "Archive.tar.gz"),
+            ("Plain", "", "Plain"),
+        ] {
+            let receipt: FolderCreated = serde_json::from_value(json!({
+                "drivewsid":"FOLDER::com.apple.CloudDocs::fixture",
+                "name":base,"extension":extension,"status":"OK"
+            }))
+            .unwrap();
+            assert_eq!(
+                receipt.confirmed_identity(expected).unwrap(),
+                "FOLDER::com.apple.CloudDocs::fixture"
+            );
+            assert!(receipt.confirmed_identity("different").is_err());
+        }
+    }
+
+    #[test]
+    fn folder_creation_receipt_keeps_identity_and_status_guards() {
+        let base = json!({"drivewsid":"FOLDER::com.apple.CloudDocs::fixture",
+            "name":"Plain","status":"OK"});
+        for extension in [None, Some(serde_json::Value::Null)] {
+            let mut value = base.clone();
+            if let Some(extension) = extension {
+                value["extension"] = extension;
+            }
+            let receipt: FolderCreated = serde_json::from_value(value).unwrap();
+            assert!(receipt.confirmed_identity("Plain").is_ok());
+        }
+        for (field, invalid) in [
+            ("status", "CONFLICT"),
+            ("drivewsid", "FILE::com.apple.CloudDocs::fixture"),
+            ("drivewsid", "FOLDER::com.apple.CloudDocs::"),
+            ("extension", "txt"),
+        ] {
+            let mut value = base.clone();
+            value[field] = json!(invalid);
+            let receipt: FolderCreated = serde_json::from_value(value).unwrap();
+            assert!(receipt.confirmed_identity("Plain").is_err());
+        }
+    }
 
     #[test]
     fn conditional_trash_distinguishes_refusal_from_uncertain_transport() {

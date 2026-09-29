@@ -814,7 +814,7 @@ impl Writeback {
     pub async fn seal_all(&self) -> Result<()> {
         // Continue across per-file failures so every dirty working descriptor
         // receives fsync, even if one snapshot cannot fit in the remaining quota.
-        let (files, failed) = self
+        let failed = self
             .local(|j| {
                 let files = j.working_files()?;
                 let mut failed = false;
@@ -823,12 +823,13 @@ impl Writeback {
                         failed = true;
                     }
                 }
-                Ok((j.working_files()?, failed))
+                Ok(failed)
             })
             .await?;
-        for file in files {
-            self.publish(file).await?;
-        }
+        // A clean uploaded working file may be retired after releasing the
+        // journal lock. Shutdown needs the current namespace snapshot, not a
+        // working descriptor for every file that existed before that handoff.
+        self.refresh_projection().await?;
         self.wake.notify_waiters();
         if failed { Err(Errno::EIO) } else { Ok(()) }
     }

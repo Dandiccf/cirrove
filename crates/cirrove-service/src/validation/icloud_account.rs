@@ -102,8 +102,10 @@ pub async fn icloud_account_uploads(run: Uuid) -> Result<()> {
     Ok(())
 }
 
+mod mounted;
+pub use mounted::icloud_account_mounted;
 mod namespace;
-pub use namespace::icloud_account_namespace;
+pub use namespace::{icloud_account_combined, icloud_account_namespace};
 
 struct Fixture {
     state: std::path::PathBuf,
@@ -192,6 +194,51 @@ async fn prepare(run: Uuid, kind: &str) -> Result<Fixture> {
         parent,
         run_dir,
     })
+}
+
+/// Read-only diagnosis of the retained combined-relocation setup fixture.
+/// Never opens a worker or sends a mutation; names alone are not receipts.
+pub async fn icloud_account_combined_inspect(run: Uuid) -> Result<()> {
+    let dir = std::env::current_dir()?
+        .join(".local-state")
+        .join(format!("icloud-account-combined-{run}"));
+    let account: Account = serde_json::from_slice(&std::fs::read(dir.join("account.json"))?)?;
+    let root: Node = serde_json::from_slice(&std::fs::read(dir.join("owned-folder.json"))?)?;
+    ensure!(
+        root.name == format!("Cirrove Write Validation-{run}")
+            && root.parent_id.as_deref() == Some(ROOT_ID)
+            && root.kind == NodeKind::Folder
+            && !root.package
+            && root.target.is_none(),
+        "not a recorded owned validation root"
+    );
+    let snapshot = SealedSessionVault::new(&dir.join("state"), &account.id)?
+        .load(&account.credential_id)
+        .await?
+        .context("isolated session unavailable")?;
+    let mut remote =
+        ICloudReadSession::from_session_snapshot(&snapshot, &account.identity.username)?;
+    let entries = remote.list_folder(&root.id).await?;
+    let summary: Vec<_> = ["Destination", "Combined.txt"]
+        .into_iter()
+        .map(|name| {
+            let matching: Vec<_> = entries
+                .iter()
+                .filter(|entry| entry.display_name() == name)
+                .collect();
+            serde_json::json!({"expected_name": name, "matches": matching.len(),
+            "folders": matching.iter().filter(|entry| entry.is_folder()).count(),
+            "split_extension": matching.iter().filter(|entry| !entry.extension.is_empty()).count(),
+            "correct_parent": matching.iter().all(|entry| entry.parent_id == root.id)})
+        })
+        .collect();
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&serde_json::json!({"run":run,
+        "read_only":true,"total_children":entries.len(),"observations":summary,
+        "name_matches_are_not_mutation_receipts":true}))?
+    );
+    Ok(())
 }
 
 async fn engine(

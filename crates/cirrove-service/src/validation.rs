@@ -3,7 +3,10 @@
 #[cfg(feature = "icloud-write-probe")]
 mod icloud_account;
 #[cfg(feature = "icloud-write-probe")]
-pub use icloud_account::{icloud_account_namespace, icloud_account_uploads};
+pub use icloud_account::{
+    icloud_account_combined, icloud_account_combined_inspect, icloud_account_mounted,
+    icloud_account_namespace, icloud_account_uploads,
+};
 mod catchup;
 mod freshness;
 mod google_read;

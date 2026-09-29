@@ -1,0 +1,256 @@
+use super::*;
+use crate::writable::WritableSession;
+use cirrove_core::{
+    Change, ChangePage, Checkpoint, Cursor, DirectoryPage, MetadataProvider, ProviderError,
+    ReadProvider,
+};
+use std::{sync::OnceLock, time::Duration};
+mod guard;
+use guard::{Guarded, Owned};
+
+struct View {
+    scope: Scope,
+    root: Node,
+    read: ICloudDrive,
+    owned: OnceLock<Owned>,
+}
+impl View {
+    fn nodes(
+        &self,
+        scope: &Scope,
+    ) -> std::result::Result<std::collections::HashMap<String, Node>, ProviderError> {
+        if scope != &self.scope {
+            return Err(ProviderError::Permission);
+        }
+        self.owned
+            .get()
+            .ok_or(ProviderError::Unavailable)?
+            .nodes()
+            .map_err(|_| ProviderError::Unavailable)
+    }
+}
+#[async_trait::async_trait]
+impl MetadataProvider for View {
+    fn provider_id(&self) -> &'static str {
+        "icloud"
+    }
+    async fn changes(
+        &self,
+        scope: &Scope,
+        _: Option<&Cursor>,
+        _: &CancellationToken,
+    ) -> std::result::Result<ChangePage, ProviderError> {
+        self.nodes(scope)?;
+        Ok(ChangePage {
+            changes: vec![Change::Upsert(self.root.clone())],
+            checkpoint: Checkpoint::Complete(Cursor("owned-account-mount".into())),
+        })
+    }
+}
+#[async_trait::async_trait]
+impl ReadProvider for View {
+    fn unknown_directories_require_fetch(&self) -> bool {
+        true
+    }
+    fn supports_same_parent_folder_rename(&self) -> bool {
+        true
+    }
+    fn supports_cross_parent_folder_move(&self) -> bool {
+        true
+    }
+    async fn node(
+        &self,
+        scope: &Scope,
+        id: &str,
+        c: &CancellationToken,
+    ) -> std::result::Result<Node, ProviderError> {
+        let nodes = self.nodes(scope)?;
+        let node = nodes.get(id).ok_or(ProviderError::Permission)?;
+        if id == self.root.id {
+            return Ok(self.root.clone());
+        }
+        let parent = node.parent_id.as_deref().ok_or(ProviderError::Permission)?;
+        if !nodes.contains_key(parent) {
+            return Err(ProviderError::Permission);
+        }
+        self.read
+            .children(scope, parent, None, c)
+            .await?
+            .nodes
+            .into_iter()
+            .find(|node| node.id == id)
+            .ok_or(ProviderError::NotFound)
+    }
+    async fn children(
+        &self,
+        scope: &Scope,
+        parent: &str,
+        cursor: Option<&Cursor>,
+        c: &CancellationToken,
+    ) -> std::result::Result<DirectoryPage, ProviderError> {
+        if !self
+            .nodes(scope)?
+            .get(parent)
+            .is_some_and(|node| node.kind == NodeKind::Folder)
+        {
+            return Err(ProviderError::Permission);
+        }
+        let mut page = self.read.children(scope, parent, cursor, c).await?;
+        let nodes = self.nodes(scope)?;
+        page.nodes.retain(|node| {
+            nodes.contains_key(&node.id)
+                && node.parent_id.as_deref() == Some(parent)
+                && !node.package
+                && node.target.is_none()
+        });
+        Ok(page)
+    }
+    async fn read_range(
+        &self,
+        scope: &Scope,
+        node: &Node,
+        offset: u64,
+        length: u32,
+        c: &CancellationToken,
+    ) -> std::result::Result<Vec<u8>, ProviderError> {
+        if !self
+            .nodes(scope)?
+            .get(&node.id)
+            .is_some_and(|known| known.kind == NodeKind::File)
+        {
+            return Err(ProviderError::Permission);
+        }
+        self.read.read_range(scope, node, offset, length, c).await
+    }
+}
+
+async fn mount(f: &Fixture) -> Result<WritableSession> {
+    let read = Arc::new(View {
+        scope: f.scope.clone(),
+        root: f.parent.clone(),
+        read: ICloudDrive::on_demand_from_session_snapshot(
+            f.scope.clone(),
+            &f.account.identity.username,
+            &f.snapshot,
+        )?,
+        owned: OnceLock::new(),
+    });
+    let mut view = f.account.clone();
+    // Only this freshly owned subtree is exposed by the mount. Keep the real
+    // parent in the metadata index for the account router's ancestry checks.
+    view.root_id = f.parent.id.clone();
+    view.mount_path = f.run_dir.join("mount");
+    view.poll_seconds = 3600;
+    private_dir(&view.mount_path)?;
+    let engine = Engine::new(view, read.clone(), f.state.clone()).await?;
+    let context = WriteContext::open(&engine, &f.state).await?;
+    Store::open(context.metadata_db())?.observe_node(&f.scope, &f.parent)?;
+    let owned = Owned {
+        scope: f.scope.clone(),
+        root: f.parent.clone(),
+        journal: context.journal(),
+    };
+    read.owned
+        .set(owned.clone())
+        .map_err(|_| anyhow::anyhow!("ownership already initialized"))?;
+    // Writer sees the real account root; Engine's mount view is a subtree.
+    let provider = Arc::new(Guarded {
+        inner: ICloudWriteProvider::new(&f.account, &context)?,
+        owned,
+    });
+    Ok(WritableSession::mount(engine, context.journal(), provider, context.checkpoints()).await?)
+}
+
+const APP: &str = r#"
+import os,sys
+path=os.path.join(sys.argv[1], 'Account Router.txt')
+mode=sys.argv[2]
+expected=b'Cirrove account-router replacement\n' if mode in ('replace','read') else b'Cirrove account-router original\n'
+if mode != 'read':
+    flags=os.O_WRONLY | (os.O_CREAT | os.O_EXCL if mode == 'create' else os.O_TRUNC)
+    fd=os.open(path,flags,0o600)
+    try:
+        assert os.write(fd,expected)==len(expected)
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+with open(path,'rb') as f:
+    assert f.read()==expected
+"#;
+
+async fn app(f: &Fixture, mode: &str) -> Result<()> {
+    let output = tokio::process::Command::new("python3")
+        .arg("-c")
+        .arg(APP)
+        .arg(f.run_dir.join("mount"))
+        .arg(mode)
+        .kill_on_drop(true)
+        .output()
+        .await?;
+    ensure!(
+        output.status.success(),
+        "mounted application failed; state retained"
+    );
+    Ok(())
+}
+
+async fn uploaded(session: &WritableSession, count: usize) -> Result<Node> {
+    tokio::time::timeout(Duration::from_secs(900), async {
+        loop {
+            let rows = session.uploads(0, 16).await?;
+            ensure!(
+                !rows
+                    .iter()
+                    .any(|row| matches!(row.state, UploadState::Failed | UploadState::Conflict)),
+                "mounted write requires review"
+            );
+            if rows.len() == count && rows.iter().all(|row| row.state == UploadState::Uploaded) {
+                return rows
+                    .last()
+                    .and_then(|row| row.remote.clone())
+                    .context("missing mounted receipt");
+            }
+            tokio::time::sleep(Duration::from_millis(250)).await;
+        }
+    })
+    .await
+    .context("mounted transfer deadline; state retained")?
+}
+
+pub async fn icloud_account_mounted(run: Uuid) -> Result<()> {
+    let f = prepare(run, "mounted").await?;
+    let session = mount(&f).await?;
+    let result: Result<()> = async {
+        app(&f, "create").await?;
+        let original = uploaded(&session, 1).await?;
+        verify(&f.snapshot, &f.account, &f.parent, &original, FIRST).await?;
+        record(&f.run_dir.join("create-verified.json"), &original)?;
+        println!("Account mount: FUSE create and independent digest verified");
+        app(&f, "replace").await?;
+        let current = uploaded(&session, 2).await?;
+        verify(&f.snapshot, &f.account, &f.parent, &current, SECOND).await?;
+        let mut remote =
+            ICloudReadSession::from_session_snapshot(&f.snapshot, &f.account.identity.username)?;
+        ensure!(
+            current.id != original.id && remote.exact_item_in_trash(&original.id).await?,
+            "mounted replacement recovery not verified"
+        );
+        record(&f.run_dir.join("replace-verified.json"), &current)?;
+        Ok(())
+    }
+    .await;
+    let shutdown = session.shutdown().await;
+    result?;
+    shutdown?;
+    let reopened = mount(&f).await?;
+    let result = app(&f, "read").await;
+    let shutdown = reopened.shutdown().await;
+    result?;
+    shutdown?;
+    record(
+        &f.run_dir.join("passed.json"),
+        &serde_json::json!({"run":run,"mounted_create":true,"mounted_replace":true,"independent_digest":true,"original_in_trash":true,"read_after_remount":true}),
+    )?;
+    println!("Account mount: FUSE replacement, recovery and remounted read verified");
+    Ok(())
+}

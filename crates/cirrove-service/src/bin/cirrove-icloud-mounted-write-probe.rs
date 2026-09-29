@@ -439,6 +439,22 @@ async fn main() -> Result<()> {
     {
         return cirrove_service::validation::icloud_account_namespace(Uuid::parse_str(run)?).await;
     }
+    if let [flag, run] = args.as_slice()
+        && flag == "--account-mounted"
+    {
+        return cirrove_service::validation::icloud_account_mounted(Uuid::parse_str(run)?).await;
+    }
+    if let [flag, run] = args.as_slice()
+        && flag == "--account-combined"
+    {
+        return cirrove_service::validation::icloud_account_combined(Uuid::parse_str(run)?).await;
+    }
+    if let [flag, run] = args.as_slice()
+        && flag == "--inspect-account-combined"
+    {
+        return cirrove_service::validation::icloud_account_combined_inspect(Uuid::parse_str(run)?)
+            .await;
+    }
     let large_file = args
         .first()
         .is_some_and(|flag| flag.starts_with("--large-"));

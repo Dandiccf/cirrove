@@ -222,6 +222,13 @@ async fn mutate(
     let provider = Arc::new(ICloudWriteProvider::new(&f.account, &context)?);
     let worker = MutationWorker::new(context.journal(), provider, CancellationToken::new());
     let result = worker.run_once().await?.context("mutation not selected")?;
+    // Preserve bounded worker diagnostics before a failed arm stops. The journal
+    // intentionally stores state, not the issue returned by this worker call.
+    record(
+        &f.run_dir.join(format!("mutation-result-{}.json", row.id)),
+        &serde_json::json!({"operation":row.id,"state":format!("{:?}", result.state),
+            "issue":result.issue}),
+    )?;
     ensure!(
         result.id == row.id && result.state == MutationState::Applied,
         "namespace operation did not complete; retained for inspection, no replay"
@@ -348,6 +355,152 @@ async fn refresh(f: &Fixture, known: &mut [Node], id: &str) -> Result<Node> {
     );
     *old = current.clone();
     Ok(current)
+}
+
+/// Both naive orderings collide: the old name exists at the destination, and
+/// the final name exists at the source. Only the original exact ID may change.
+pub async fn icloud_account_combined(run: Uuid) -> Result<()> {
+    let f = prepare(run, "combined").await?;
+    let mut known = vec![f.parent.clone()];
+    let mut destination = create_owned_folder(&f, &mut known, &f.parent.id, "Destination").await?;
+    let source_blocker = create_owned_folder(&f, &mut known, &f.parent.id, "Combined.txt").await?;
+    let original = transfer(
+        &f.state,
+        &f.account,
+        &f.scope,
+        &f.snapshot,
+        &f.parent,
+        None,
+        FIRST,
+    )
+    .await?;
+    known.push(original.clone());
+    let blocker = transfer(
+        &f.state,
+        &f.account,
+        &f.scope,
+        &f.snapshot,
+        &destination,
+        None,
+        SECOND,
+    )
+    .await?;
+    known.push(blocker.clone());
+    destination = refresh(&f, &mut known, &destination.id).await?;
+    let moved = mutate(
+        &f,
+        &mut known,
+        MutationIntent::Relocate {
+            before: original.clone(),
+            parent: destination.id.clone(),
+            name: "Combined.txt".into(),
+        },
+    )
+    .await?
+    .context("combined file receipt")?;
+    let mut remote =
+        ICloudReadSession::from_session_snapshot(&f.snapshot, &f.account.identity.username)?;
+    let digest = remote
+        .hash_file_in_folder_for_revision(
+            &destination.id,
+            &moved.id,
+            moved.etag.as_deref().context("combined file revision")?,
+            moved.size,
+        )
+        .await?;
+    ensure!(
+        moved.id == original.id && digest == hex::encode(Sha256::digest(FIRST)),
+        "combined file identity/content changed"
+    );
+    verify(&f.snapshot, &f.account, &destination, &blocker, SECOND).await?;
+    refresh(&f, &mut known, &source_blocker.id).await?;
+    record(&f.run_dir.join("combined-file-verified.json"), &moved)?;
+    println!("Account router: combined file relocation passed both name collisions");
+
+    let mut source_folder =
+        create_owned_folder(&f, &mut known, &f.parent.id, "Folder Source").await?;
+    let destination_blocker =
+        create_owned_folder(&f, &mut known, &destination.id, "Folder Source").await?;
+    let folder_source_blocker =
+        create_owned_folder(&f, &mut known, &f.parent.id, "Folder Target").await?;
+    let child = transfer(
+        &f.state,
+        &f.account,
+        &f.scope,
+        &f.snapshot,
+        &source_folder,
+        None,
+        FIRST,
+    )
+    .await?;
+    known.push(child.clone());
+    source_folder = refresh(&f, &mut known, &source_folder.id).await?;
+    destination = refresh(&f, &mut known, &destination.id).await?;
+    let moved_folder = mutate(
+        &f,
+        &mut known,
+        MutationIntent::Relocate {
+            before: source_folder.clone(),
+            parent: destination.id.clone(),
+            name: "Folder Target".into(),
+        },
+    )
+    .await?
+    .context("combined folder receipt")?;
+    ensure!(
+        moved_folder.id == source_folder.id,
+        "combined folder changed identity"
+    );
+    verify(&f.snapshot, &f.account, &moved_folder, &child, FIRST).await?;
+    refresh(&f, &mut known, &destination_blocker.id).await?;
+    refresh(&f, &mut known, &folder_source_blocker.id).await?;
+    record(
+        &f.run_dir.join("combined-folder-verified.json"),
+        &moved_folder,
+    )?;
+    let reopened = engine(&f.state, &f.account, &f.scope, &f.snapshot).await?;
+    let context = WriteContext::open(&reopened, &f.state).await?;
+    let journal = context.journal();
+    let journal = journal
+        .lock()
+        .map_err(|_| anyhow::anyhow!("journal lock failed"))?;
+    let mutations = journal.list_mutations(0, 16)?;
+    let uploads = journal.list(0, 8)?;
+    ensure!(
+        mutations.len() == 7
+            && mutations
+                .iter()
+                .all(|row| row.state == MutationState::Applied),
+        "combined mutation receipts missing after reopen"
+    );
+    ensure!(
+        uploads.len() == 3 && uploads.iter().all(|row| row.state == UploadState::Uploaded),
+        "combined fixture uploads missing after reopen"
+    );
+    record(
+        &f.run_dir.join("passed.json"),
+        &serde_json::json!({"run":run,"combined_file":true,"combined_populated_folder":true,"both_naive_orderings_blocked":true,"independent_digests":true,"reopened_journal":true,"mounted":false}),
+    )?;
+    println!("Account router: combined populated-folder relocation and journal reopening verified");
+    Ok(())
+}
+
+async fn create_owned_folder(
+    f: &Fixture,
+    known: &mut Vec<Node>,
+    parent: &str,
+    name: &str,
+) -> Result<Node> {
+    mutate(
+        f,
+        known,
+        MutationIntent::CreateFolder {
+            parent: parent.into(),
+            name: name.into(),
+        },
+    )
+    .await?
+    .context("owned folder creation receipt")
 }
 
 #[cfg(test)]

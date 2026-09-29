@@ -18,8 +18,8 @@ an ordinary account implementation; it is not a claim that writes are ready.
   router, but settings still reject writable iCloud before this path is reached.
   The router implements new-file uploads, staged replacement, simple folder
   operations and rename/move/Trash of regular files up to 32 MiB;
-  combined move/rename and live acceptance
-  remain open.
+  combined move/rename now has a durable three-step implementation; its live
+  acceptance remains open.
   A synthetic FUSE regression covers ownership at construction, writer
   failure after ejection, and a later successful writable remount. A writer
   error no longer silently selects a read-only mount. Published old write
@@ -62,7 +62,8 @@ an ordinary account implementation; it is not a claim that writes are ready.
   or malformed digests are refused, and cancelled hashing publishes no plan.
   The existing 32 MiB verification limit still applies; transient or changed
   remote content during hashing currently surfaces as uncertain preparation.
-  Combined move/rename and live acceptance remain open.
+  Combined move/rename is routed through a separate sealed three-step plan;
+  its live acceptance remains open.
   The mounted validator
   supplies those nodes from a bounded test tree and its owned journal.
   Folder-create receipts in that validator now use a separate sealed on-disk
@@ -185,12 +186,46 @@ the gap between fixture-specific adapters and the normal account router for the
 recorded cases. FUSE application behavior, root replacement, combined move/rename,
 empty/large files, concurrent changes and general release acceptance remain open.
 
-## Required implementation sequence
+A first [mounted account-router arm](benchmarks/icloud-account-router-mounted-2026-09-30.md)
+also passed FUSE create, truncate/replace, independent remote verification and
+reading after unmount/remount in 524.468 seconds. Its authorization wrapper admits
+only confirmed in-tree test identities and delegates the regular writer unchanged.
+This is not an installed-daemon or general mounted-operation release gate.
+
+## Combined move and rename
+
+The account router now dispatches requests that change both parent and name to a
+[three-step durable relocation](benchmarks/icloud-combined-relocation-2026-09-30.md):
+rename to an operation-specific temporary name, move the same ID, then rename
+to the final name. Every child has a persisted Ready/Sent boundary and captured
+current node. Receipts advance and seal that node before another child can run.
+Sent stages reconcile without dispatch; ambiguous observations require review.
+A confirmed intermediate step is not reported as the final operation's success.
+Recovery never reconstructs a later step from a changed metadata index.
+The source content digest is captured once for files and revalidated by each
+existing child adapter. Descendant destinations are refused before plan storage.
+Synthetic file/folder tests pass; deleting the pre-dispatch save makes the
+marker-order assertion fail. One fresh live account-router arm passed both
+file and populated-folder combined relocation with both naive orderings blocked,
+independent content checks and reopening all seven mutation/three upload receipts.
+Its 348.028-second duration is a single functional observation. The first arm
+stopped during dotted-folder setup. Inspection exposed a receipt-parser gap:
+names were not reconstructed from the separate extension; the parser correction has a failing-before
+regression and the fresh arm confirms dotted-folder creation. The retained failed
+arm was not replayed. Combined FUSE and live interruption acceptance remain
+open. Conflicts may leave a temporary name/location; recovery UI must represent
+that before general release. No server-side atomicity is claimed.
+
+## Implementation and acceptance sequence
+
+Steps 1–3 below describe the now-implemented regular router's invariants, within
+its documented item/size limits. The account-router and first mounted arms above
+exercise part of step 4; they do not close all of it. Step 5 remains disabled.
 
 1. Use the new owned `WriteContext` to construct the iCloud write factory.
    The account state, metadata index, shared journal and sealed upload vault
-   are now available after Engine establishes ownership. An operation
-   router must still resolve `Scope(account, collection, item)` against the indexed
+   are now available after Engine establishes ownership. The operation
+   router must resolve `Scope(account, collection, item)` against the indexed
    node and its parent chain, then independently re-observe the exact parent,
    name, ID and ETag before any Apple mutation. Never infer identity from a
    path or a duplicate name. SQLite lookups must end before network awaits.
