@@ -21,10 +21,12 @@ an ordinary account implementation; it is not a claim that writes are ready.
   supplies those nodes from a bounded test tree and its owned journal.
 - The two-ID replacement and conditional Trash handoff still have
   `write-probe`-gated, owned-fixture types. Their constructor requires an
-  original SHA-256 from a prior confirmed fixture upload. A pre-existing
-  iCloud file has no such journal row. The upload request carries item ID and
-  ETag but neither parent nor original digest. A restart after moving the old
-  item to Trash cannot recompute that digest from the visible folder.
+  exact source node, folder and operation. An existing-file constructor now
+  computes the original SHA-256 through a version-checked remote read and
+  persists it in the sealed checkpoint; one owned mounted fixture passed this
+  path. The validator still obtains the source node from its owned journal.
+  A pre-existing file in a normal account has no such journal row. The upload
+  request carries item ID and ETag but neither parent nor original digest.
 - `ICloudFileCreate` refuses empty files and files over 32 MiB. The zero-byte
   live experiment did not establish a safe successful upload. Content uses
   one streamed HTTP POST per file, not resumable network chunks; a lost POST
@@ -38,12 +40,13 @@ an ordinary account implementation; it is not a claim that writes are ready.
    node and its parent chain, then independently re-observe the exact parent,
    name, ID and ETag before any Apple mutation. Never infer identity from a
    path or a duplicate name. SQLite lookups must end before network awaits.
-2. Replace the fixture-only source-digest assumption with a durable
-   mutation-free preflight. For an existing file, hash the exact original
-   revision through the read transport and checkpoint that digest together
-   with source ID, ETag, parent and target operation before allocating or
-   registering staged content. Reopening a replacement must rebuild solely
-   from the journal and sealed checkpoint even if the old ID is in Trash.
+2. Extend the now-tested mutation-free original-hash preflight beyond the
+   owned validator. The account-wide router must obtain the exact source
+   node and parent from persisted metadata, then checkpoint the independently
+   verified digest together with source ID, ETag, parent and target operation
+   before allocating or registering staged content. Reopening a replacement
+   must rebuild solely from the journal and sealed checkpoint even if the old
+   ID is in Trash.
    A missing or corrupt checkpoint after a recorded mutation remains
    `verify_required`, never an automatic fresh upload.
 3. Route Create, Replace, folder Create, file/folder relocate and recoverable

@@ -37,6 +37,8 @@ struct Checkpoint {
     operation: Uuid,
     original_id: String,
     original_etag: String,
+    #[serde(default)]
+    original_sha256: String,
     size: u64,
     sha256: String,
     phase: Phase,
@@ -46,7 +48,7 @@ pub struct ICloudOwnedMountedReplace {
     scope: Scope,
     folder: Node,
     original: Node,
-    original_sha256: String,
+    original_sha256: Option<String>,
     operation: Uuid,
     stage_name: String,
     recovery_name: String,
@@ -126,7 +128,7 @@ impl ICloudOwnedMountedReplace {
         apple_id: String,
         snapshot: SecretString,
     ) -> UploadResult<Self> {
-        Self::check_identity(&scope, &folder, &original, &original_sha256)?;
+        Self::check_identity(&scope, &folder, &original, Some(&original_sha256))?;
         let stage = ICloudFileCreate::from_session_snapshot(
             scope.clone(),
             &apple_id,
@@ -137,7 +139,7 @@ impl ICloudOwnedMountedReplace {
             scope,
             folder,
             original,
-            original_sha256,
+            Some(original_sha256),
             operation,
             SessionSource::Snapshot { apple_id, snapshot },
             stage,
@@ -153,7 +155,42 @@ impl ICloudOwnedMountedReplace {
         sign_in: ICloudSealedSignIn,
         state: &Path,
     ) -> UploadResult<Self> {
-        Self::check_identity(&scope, &folder, &original, &original_sha256)?;
+        Self::from_sealed_session_with_digest(
+            scope,
+            folder,
+            original,
+            Some(original_sha256),
+            operation,
+            sign_in,
+            state,
+        )
+    }
+
+    /// Existing files have no prior Cirrove upload receipt. Obtain their
+    /// original digest from a version-checked remote read before staging.
+    pub fn from_sealed_session_for_existing(
+        scope: Scope,
+        folder: Node,
+        original: Node,
+        operation: Uuid,
+        sign_in: ICloudSealedSignIn,
+        state: &Path,
+    ) -> UploadResult<Self> {
+        Self::from_sealed_session_with_digest(
+            scope, folder, original, None, operation, sign_in, state,
+        )
+    }
+
+    fn from_sealed_session_with_digest(
+        scope: Scope,
+        folder: Node,
+        original: Node,
+        original_sha256: Option<String>,
+        operation: Uuid,
+        sign_in: ICloudSealedSignIn,
+        state: &Path,
+    ) -> UploadResult<Self> {
+        Self::check_identity(&scope, &folder, &original, original_sha256.as_deref())?;
         if sign_in.apple_id.trim().is_empty() || Uuid::parse_str(&sign_in.credential_id).is_err() {
             return Err(UploadError::Invalid);
         }
@@ -185,7 +222,7 @@ impl ICloudOwnedMountedReplace {
         scope: Scope,
         folder: Node,
         original: Node,
-        original_sha256: String,
+        original_sha256: Option<String>,
         operation: Uuid,
         session: SessionSource,
         stage: ICloudFileCreate,
@@ -207,14 +244,8 @@ impl ICloudOwnedMountedReplace {
         scope: &Scope,
         folder: &Node,
         original: &Node,
-        original_sha256: &str,
+        original_sha256: Option<&str>,
     ) -> UploadResult<()> {
-        let valid_digest = |hash: &str| {
-            hash.len() == 64
-                && hash
-                    .bytes()
-                    .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
-        };
         if scope.account.is_empty()
             || folder.kind != NodeKind::Folder
             || !folder.id.starts_with("FOLDER::com.apple.CloudDocs::")
@@ -241,7 +272,7 @@ impl ICloudOwnedMountedReplace {
             || original.name.contains(['/', '\0', '\r', '\n'])
             || original.target.is_some()
             || original.package
-            || !valid_digest(original_sha256)
+            || original_sha256.is_some_and(|digest| !Self::valid_digest(digest))
         {
             return Err(UploadError::Invalid);
         }
@@ -273,14 +304,28 @@ impl ICloudOwnedMountedReplace {
         }
     }
 
-    fn checkpoint(&self, request: &UploadRequest, phase: Phase) -> UploadResult<SecretString> {
+    fn checkpoint(
+        &self,
+        request: &UploadRequest,
+        original_sha256: &str,
+        phase: Phase,
+    ) -> UploadResult<SecretString> {
         self.check_request(request)?;
+        if !Self::valid_digest(original_sha256)
+            || self
+                .original_sha256
+                .as_deref()
+                .is_some_and(|known| known != original_sha256)
+        {
+            return Err(UploadError::Invalid);
+        }
         let value = Checkpoint {
             version: 1,
             scope: self.scope.clone(),
             operation: self.operation,
             original_id: self.original.id.clone(),
             original_etag: self.original.etag.clone().ok_or(UploadError::Invalid)?,
+            original_sha256: original_sha256.into(),
             size: request.size,
             sha256: request.sha256.clone(),
             phase,
@@ -296,14 +341,26 @@ impl ICloudOwnedMountedReplace {
         &self,
         request: &UploadRequest,
         checkpoint: &SecretString,
-    ) -> UploadResult<Phase> {
+    ) -> UploadResult<(String, Phase)> {
         self.check_request(request)?;
         if checkpoint.expose_secret().len() > MAX_CHECKPOINT {
             return Err(UploadError::CheckpointInvalid);
         }
         let saved: Checkpoint = serde_json::from_str(checkpoint.expose_secret())
             .map_err(|_| UploadError::CheckpointInvalid)?;
-        if saved.version != 1
+        let original_sha256 = if saved.original_sha256.is_empty() {
+            self.original_sha256
+                .clone()
+                .ok_or(UploadError::CheckpointInvalid)?
+        } else {
+            saved.original_sha256.clone()
+        };
+        if !Self::valid_digest(&original_sha256)
+            || self
+                .original_sha256
+                .as_deref()
+                .is_some_and(|known| known != original_sha256)
+            || saved.version != 1
             || saved.scope != self.scope
             || saved.operation != self.operation
             || saved.original_id != self.original.id
@@ -321,7 +378,7 @@ impl ICloudOwnedMountedReplace {
                 || plan.folder_name != self.folder.name
                 || plan.original_id != self.original.id
                 || plan.original_etag != saved.original_etag
-                || plan.original_sha256 != self.original_sha256
+                || plan.original_sha256 != original_sha256
                 || plan.target_name != self.original.name
                 || plan.staged_name != self.stage_name
                 || plan.recovery_name != self.recovery_name
@@ -330,7 +387,14 @@ impl ICloudOwnedMountedReplace {
                 return Err(UploadError::CheckpointInvalid);
             }
         }
-        Ok(saved.phase)
+        Ok((original_sha256, saved.phase))
+    }
+
+    fn valid_digest(hash: &str) -> bool {
+        hash.len() == 64
+            && hash
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
     }
 
     async fn load_session(&self) -> UploadResult<ICloudReadSession> {
@@ -376,7 +440,7 @@ impl ICloudOwnedMountedReplace {
     /// no allocated staged identity. Before permitting a new attempt, prove
     /// that the exact old revision still occupies its confirmed folder and
     /// neither reserved name was created. A name alone is never a receipt.
-    async fn inspect_without_checkpoint(&self) -> UploadResult<Reconciliation> {
+    async fn observe_original_before_staging(&self) -> UploadResult<Option<String>> {
         let mut session = self.load_session().await?;
         let parent = self
             .folder
@@ -404,7 +468,7 @@ impl ICloudOwnedMountedReplace {
                     && entry.is_folder()
             })
         {
-            return Ok(Reconciliation::Conflict);
+            return Ok(None);
         }
         let observe = |items: &[crate::DriveEntry]| -> Option<String> {
             let matching: Vec<_> = items
@@ -435,9 +499,9 @@ impl ICloudOwnedMountedReplace {
             .await
             .map_err(|_| UploadError::Uncertain)?;
         let Some(etag) = observe(&first) else {
-            return Ok(Reconciliation::Conflict);
+            return Ok(None);
         };
-        if session
+        let digest = session
             .hash_file_in_folder_for_revision(
                 &self.folder.id,
                 &self.original.id,
@@ -445,22 +509,30 @@ impl ICloudOwnedMountedReplace {
                 self.original.size,
             )
             .await
-            .map_err(|_| UploadError::Uncertain)?
-            != self.original_sha256
+            .map_err(|_| UploadError::Uncertain)?;
+        if self
+            .original_sha256
+            .as_deref()
+            .is_some_and(|known| known != digest)
         {
-            return Ok(Reconciliation::Conflict);
+            return Ok(None);
         }
         let second = session
             .list_folder(&self.folder.id)
             .await
             .map_err(|_| UploadError::Uncertain)?;
         if observe(&second).as_deref() != Some(etag.as_str()) {
-            return Ok(Reconciliation::Conflict);
+            return Ok(None);
         }
-        Ok(Reconciliation::Uncommitted)
+        Ok(Some(digest))
     }
 
-    fn plan(&self, request: &UploadRequest, staged: &Node) -> UploadResult<HandoffPlan> {
+    fn plan(
+        &self,
+        request: &UploadRequest,
+        staged: &Node,
+        original_sha256: &str,
+    ) -> UploadResult<HandoffPlan> {
         if staged.kind != NodeKind::File
             || staged.parent_id.as_deref() != Some(self.folder.id.as_str())
             || staged.name != self.stage_name
@@ -492,7 +564,7 @@ impl ICloudOwnedMountedReplace {
             staged_name: self.stage_name.clone(),
             recovery_name: self.recovery_name.clone(),
             target_name: self.original.name.clone(),
-            original_sha256: self.original_sha256.clone(),
+            original_sha256: original_sha256.into(),
             staged_sha256: request.sha256.clone(),
         };
         plan.validate().map_err(|_| UploadError::Invalid)?;
@@ -502,24 +574,28 @@ impl ICloudOwnedMountedReplace {
     async fn wrap_stage(
         &self,
         request: &UploadRequest,
+        original_sha256: &str,
         step: UploadStep,
         cancel: &CancellationToken,
     ) -> UploadResult<UploadStep> {
         Ok(match step {
             UploadStep::Prepared(inner) => UploadStep::Prepared(self.checkpoint(
                 request,
+                original_sha256,
                 Phase::Stage {
                     inner: inner.expose_secret().into(),
                 },
             )?),
             UploadStep::Stream(inner) => UploadStep::Stream(self.checkpoint(
                 request,
+                original_sha256,
                 Phase::Stage {
                     inner: inner.expose_secret().into(),
                 },
             )?),
             UploadStep::Commit(inner) => UploadStep::Commit(self.checkpoint(
                 request,
+                original_sha256,
                 Phase::Stage {
                     inner: inner.expose_secret().into(),
                 },
@@ -527,6 +603,7 @@ impl ICloudOwnedMountedReplace {
             UploadStep::Continue(progress) => UploadStep::Continue(UploadProgress {
                 checkpoint: self.checkpoint(
                     request,
+                    original_sha256,
                     Phase::Stage {
                         inner: progress.checkpoint.expose_secret().into(),
                     },
@@ -535,13 +612,14 @@ impl ICloudOwnedMountedReplace {
                 length: progress.length,
             }),
             UploadStep::Complete(staged) => {
-                let plan = self.plan(request, &staged)?;
+                let plan = self.plan(request, &staged, original_sha256)?;
                 let handoff = self.handoff(plan.clone(), request.size).await?;
                 let UploadStep::Commit(inner) = handoff.begin_upload(request, cancel).await? else {
                     return Err(UploadError::Uncertain);
                 };
                 UploadStep::Commit(self.checkpoint(
                     request,
+                    original_sha256,
                     Phase::Handoff {
                         inner: inner.expose_secret().into(),
                         plan: Box::new(plan),
@@ -558,9 +636,11 @@ impl ICloudOwnedMountedReplace {
         plan: HandoffPlan,
         step: UploadStep,
     ) -> UploadResult<UploadStep> {
+        let original_sha256 = plan.original_sha256.clone();
         Ok(match step {
             UploadStep::Commit(inner) => UploadStep::Commit(self.checkpoint(
                 request,
+                &original_sha256,
                 Phase::Handoff {
                     inner: inner.expose_secret().into(),
                     plan: Box::new(plan),
@@ -593,8 +673,16 @@ impl UploadProvider for ICloudOwnedMountedReplace {
         c: &CancellationToken,
     ) -> UploadResult<UploadStep> {
         self.check_request(r)?;
+        let original_sha256 = match &self.original_sha256 {
+            Some(digest) => digest.clone(),
+            None => self
+                .observe_original_before_staging()
+                .await?
+                .ok_or(UploadError::Conflict)?,
+        };
         self.wrap_stage(
             r,
+            &original_sha256,
             self.stage.begin_upload(&self.stage_request(r), c).await?,
             c,
         )
@@ -608,9 +696,10 @@ impl UploadProvider for ICloudOwnedMountedReplace {
         c: &CancellationToken,
     ) -> UploadResult<UploadStep> {
         match self.check_checkpoint(r, checkpoint)? {
-            Phase::Stage { inner } => {
+            (original_sha256, Phase::Stage { inner }) => {
                 self.wrap_stage(
                     r,
+                    &original_sha256,
                     self.stage
                         .inspect_upload(&self.stage_request(r), &SecretString::from(inner), c)
                         .await?,
@@ -618,7 +707,7 @@ impl UploadProvider for ICloudOwnedMountedReplace {
                 )
                 .await
             }
-            Phase::Handoff { inner, plan } => {
+            (_, Phase::Handoff { inner, plan }) => {
                 let handoff = self.handoff(*plan.clone(), r.size).await?;
                 self.wrap_handoff(
                     r,
@@ -639,11 +728,13 @@ impl UploadProvider for ICloudOwnedMountedReplace {
         bytes: Vec<u8>,
         c: &CancellationToken,
     ) -> UploadResult<UploadStep> {
-        let Phase::Stage { inner } = self.check_checkpoint(r, checkpoint)? else {
+        let (original_sha256, Phase::Stage { inner }) = self.check_checkpoint(r, checkpoint)?
+        else {
             return Err(UploadError::CheckpointInvalid);
         };
         self.wrap_stage(
             r,
+            &original_sha256,
             self.stage
                 .upload_part(
                     &self.stage_request(r),
@@ -665,11 +756,13 @@ impl UploadProvider for ICloudOwnedMountedReplace {
         file: File,
         c: &CancellationToken,
     ) -> UploadResult<UploadStep> {
-        let Phase::Stage { inner } = self.check_checkpoint(r, checkpoint)? else {
+        let (original_sha256, Phase::Stage { inner }) = self.check_checkpoint(r, checkpoint)?
+        else {
             return Err(UploadError::CheckpointInvalid);
         };
         self.wrap_stage(
             r,
+            &original_sha256,
             self.stage
                 .upload_stream(&self.stage_request(r), &SecretString::from(inner), file, c)
                 .await?,
@@ -685,9 +778,10 @@ impl UploadProvider for ICloudOwnedMountedReplace {
         c: &CancellationToken,
     ) -> UploadResult<UploadStep> {
         match self.check_checkpoint(r, checkpoint)? {
-            Phase::Stage { inner } => {
+            (original_sha256, Phase::Stage { inner }) => {
                 self.wrap_stage(
                     r,
+                    &original_sha256,
                     self.stage
                         .commit_upload(&self.stage_request(r), &SecretString::from(inner), c)
                         .await?,
@@ -695,7 +789,7 @@ impl UploadProvider for ICloudOwnedMountedReplace {
                 )
                 .await
             }
-            Phase::Handoff { inner, plan } => {
+            (_, Phase::Handoff { inner, plan }) => {
                 let handoff = self.handoff(*plan.clone(), r.size).await?;
                 self.wrap_handoff(
                     r,
@@ -719,10 +813,14 @@ impl UploadProvider for ICloudOwnedMountedReplace {
             if c.is_cancelled() {
                 return Err(UploadError::Uncertain);
             }
-            return self.inspect_without_checkpoint().await;
+            return Ok(if self.observe_original_before_staging().await?.is_some() {
+                Reconciliation::Uncommitted
+            } else {
+                Reconciliation::Conflict
+            });
         }
         match self.check_checkpoint(r, checkpoint.ok_or(UploadError::CheckpointInvalid)?)? {
-            Phase::Stage { inner } => match self
+            (_, Phase::Stage { inner }) => match self
                 .stage
                 .reconcile_upload(&self.stage_request(r), Some(&SecretString::from(inner)), c)
                 .await?
@@ -734,12 +832,122 @@ impl UploadProvider for ICloudOwnedMountedReplace {
                 Reconciliation::Committed(_) => Err(UploadError::Uncertain),
                 Reconciliation::HandoffCommitted { .. } => Err(UploadError::Invalid),
             },
-            Phase::Handoff { inner, plan } => {
+            (_, Phase::Handoff { inner, plan }) => {
                 self.handoff(*plan, r.size)
                     .await?
                     .reconcile_upload(r, Some(&SecretString::from(inner)), c)
                     .await
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn node(id: String, parent: Option<String>, name: &str, kind: NodeKind) -> Node {
+        Node {
+            id,
+            parent_id: parent,
+            name: name.into(),
+            kind,
+            size: 1,
+            modified_unix: 0,
+            etag: Some("original-etag".into()),
+            content_version: None,
+            target: None,
+            package: false,
+        }
+    }
+
+    #[test]
+    fn existing_file_checkpoint_keeps_original_digest_across_reconstruction() {
+        let state = tempfile::tempdir().expect("synthetic fixture");
+        let scope = Scope {
+            account: Uuid::new_v4().to_string(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        };
+        let folder = node(
+            "FOLDER::com.apple.CloudDocs::parent".into(),
+            Some(ROOT_ID.into()),
+            "Owned",
+            NodeKind::Folder,
+        );
+        let original = node(
+            "FILE::com.apple.CloudDocs::original".into(),
+            Some(folder.id.clone()),
+            "Original.txt",
+            NodeKind::File,
+        );
+        let operation = Uuid::new_v4();
+        let sign_in = || ICloudSealedSignIn {
+            apple_id: "fixture@example.invalid".into(),
+            credential_id: Uuid::new_v4().to_string(),
+        };
+        let make = || {
+            ICloudOwnedMountedReplace::from_sealed_session_for_existing(
+                scope.clone(),
+                folder.clone(),
+                original.clone(),
+                operation,
+                sign_in(),
+                state.path(),
+            )
+            .expect("synthetic fixture")
+        };
+        let request = UploadRequest {
+            scope: scope.clone(),
+            intent: UploadIntent::Replace {
+                item: original.id.clone(),
+                expected_etag: original.etag.clone().expect("synthetic fixture"),
+            },
+            size: 2,
+            sha256: "b".repeat(64),
+        };
+        let digest = "a".repeat(64);
+        let checkpoint = make()
+            .checkpoint(
+                &request,
+                &digest,
+                Phase::Stage {
+                    inner: "prepared".into(),
+                },
+            )
+            .expect("synthetic fixture");
+        let (saved_digest, Phase::Stage { inner }) = make()
+            .check_checkpoint(&request, &checkpoint)
+            .expect("synthetic fixture")
+        else {
+            panic!("synthetic checkpoint phase");
+        };
+        assert_eq!(saved_digest, digest);
+        assert_eq!(inner, "prepared");
+
+        let mut value: serde_json::Value =
+            serde_json::from_str(checkpoint.expose_secret()).expect("synthetic fixture");
+        value["original_sha256"] = serde_json::Value::String("c".repeat(64));
+        let altered = SecretString::from(value.to_string());
+        let known = ICloudOwnedMountedReplace::from_sealed_session_in_folder(
+            request.scope.clone(),
+            folder,
+            original,
+            digest,
+            operation,
+            sign_in(),
+            state.path(),
+        )
+        .expect("synthetic fixture");
+        assert!(known.check_checkpoint(&request, &altered).is_err());
+        value
+            .as_object_mut()
+            .expect("synthetic fixture")
+            .remove("original_sha256");
+        let legacy = SecretString::from(value.to_string());
+        let (restored, _) = known
+            .check_checkpoint(&request, &legacy)
+            .expect("existing fixture checkpoint remains readable");
+        assert_eq!(restored, "a".repeat(64));
     }
 }

@@ -276,14 +276,13 @@ impl Fixture {
                 return Err(UploadError::Invalid);
             }
         }
-        let (original, original_sha, folder) = source.ok_or(UploadError::Invalid)?;
+        let (original, _confirmed_original_sha, folder) = source.ok_or(UploadError::Invalid)?;
         let operation: Uuid = operation.ok_or(UploadError::Invalid)?;
         drop(journal);
-        ICloudOwnedMountedReplace::from_sealed_session_in_folder(
+        ICloudOwnedMountedReplace::from_sealed_session_for_existing(
             self.scope.clone(),
             folder,
             original,
-            original_sha,
             operation,
             ICloudSealedSignIn {
                 apple_id: self.removal.apple_id.clone(),
