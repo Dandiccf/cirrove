@@ -1,7 +1,7 @@
 //! Journal-checkpointed staging and two-ID replacement for one owned mount fixture.
 //! Ordinary iCloud accounts never construct this feature-gated provider.
 use super::{
-    HandoffPlan, ICloudOwnedFixtureHandoff, ICloudOwnedFixtureUpload, ICloudReadSession,
+    HandoffPlan, ICloudFileCreate, ICloudOwnedFixtureHandoff, ICloudReadSession, ROOT_ID,
     ValidationFolder, write_probe::TRASH_ROOT,
 };
 use async_trait::async_trait;
@@ -51,7 +51,7 @@ pub struct ICloudOwnedMountedReplace {
     recovery_name: String,
     apple_id: String,
     snapshot: SecretString,
-    stage: ICloudOwnedFixtureUpload,
+    stage: ICloudFileCreate,
 }
 
 impl ICloudOwnedMountedReplace {
@@ -71,9 +71,24 @@ impl ICloudOwnedMountedReplace {
         apple_id: String,
         snapshot: SecretString,
     ) -> UploadResult<Self> {
-        let session = ICloudReadSession::from_session_snapshot(&snapshot, &apple_id)
-            .map_err(|_| UploadError::Uncertain)?;
-        let stage = ICloudOwnedFixtureUpload::new(scope.clone(), session, folder.clone())?;
+        let stage_parent = Node {
+            id: folder.id().into(),
+            parent_id: Some(ROOT_ID.into()),
+            name: folder.name().into(),
+            kind: NodeKind::Folder,
+            size: 0,
+            modified_unix: 0,
+            etag: None,
+            content_version: None,
+            target: None,
+            package: false,
+        };
+        let stage = ICloudFileCreate::from_session_snapshot(
+            scope.clone(),
+            &apple_id,
+            &snapshot,
+            stage_parent,
+        )?;
         let valid_digest = |hash: &str| {
             hash.len() == 64
                 && hash
