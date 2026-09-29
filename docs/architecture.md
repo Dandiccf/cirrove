@@ -652,6 +652,23 @@ recovery and sustained real-provider application editing remain acceptance gates
 
 ## Experimental writable-session ownership
 
+The account manager opens Engine and takes its account owner lock before
+constructing a write provider. `WriteFactory` receives an account-local
+`WriteContext` containing the private state root, metadata index path, shared
+upload journal and checkpoint vault. The mounted filesystem and both transfer
+workers use that same journal; providers must not open a competing journal.
+Factory code resolves metadata in scoped snapshots and releases SQLite before
+network I/O. iCloud's selected upload vault seals per-operation checkpoints on
+disk; other providers retain the existing desktop keyring backend. Selecting
+storage does not enable iCloud writes: settings and its production factory still
+refuse them pending account-wide routing and acceptance.
+
+An ejected writable mount drains its workers and drops the published write
+control before rebuilding this context, so old references do not keep its journal
+lock alive. A provider-construction failure leaves the mount unavailable and
+retryable; it does not silently mount the account read-only and hide local edits.
+Successful remount publishes the new write control for service operations.
+
 `WritableSession` owns a test engine, its FUSE session, two upload workers, one
 conditional namespace worker and one local-copy maintenance worker. Successful
 sealing, relocation and confirmed receipts

@@ -140,7 +140,59 @@ pub type ProviderFactory = Arc<dyn Fn(&Account) -> Result<Arc<dyn ReadProvider>>
 /// Kept separate from `ProviderFactory` rather than folded into it because the
 /// deterministic providers the tests inject supply reads only. A mount they drive
 /// stays read-only, which is the honest outcome, instead of failing to start.
-pub type WriteFactory = Arc<dyn Fn(&Account) -> Result<Arc<dyn WriteProvider>> + Send + Sync>;
+pub type WriteFactory =
+    Arc<dyn Fn(&Account, &WriteContext) -> Result<Arc<dyn WriteProvider>> + Send + Sync>;
+
+/// Account-local write state, opened only after Engine has acquired ownership.
+/// Factories and workers share this exact journal and checkpoint vault. In
+/// particular, a provider must not open a second journal to resolve operations.
+/// The metadata path is for scoped snapshots; release SQLite before network I/O.
+pub struct WriteContext {
+    state: PathBuf,
+    metadata_db: PathBuf,
+    journal: Arc<std::sync::Mutex<crate::journal::UploadJournal>>,
+    checkpoints: Arc<dyn cirrove_auth::CredentialVault>,
+}
+
+impl WriteContext {
+    pub fn state(&self) -> &Path {
+        &self.state
+    }
+
+    pub fn metadata_db(&self) -> &Path {
+        &self.metadata_db
+    }
+
+    pub fn journal(&self) -> Arc<std::sync::Mutex<crate::journal::UploadJournal>> {
+        self.journal.clone()
+    }
+
+    pub fn checkpoints(&self) -> Arc<dyn cirrove_auth::CredentialVault> {
+        self.checkpoints.clone()
+    }
+
+    async fn open(engine: &Engine, state: &Path) -> Result<Self> {
+        let owner = engine.account.id.clone();
+        let directory = state.join("accounts").join(&owner).join("journal");
+        let journal = tokio::task::spawn_blocking(move || {
+            crate::journal::UploadJournal::open(&directory, &owner, 64 * 1024 * 1024)
+        })
+        .await??;
+        let checkpoints: Arc<dyn cirrove_auth::CredentialVault> = match engine.account.registration
+        {
+            cirrove_auth::AppRegistration::ICloud => Arc::new(
+                cirrove_icloud::SealedUploadCheckpointVault::new(state, &engine.account.id)?,
+            ),
+            _ => Arc::new(cirrove_auth::DesktopVault),
+        };
+        Ok(Self {
+            state: state.to_owned(),
+            metadata_db: engine.db.clone(),
+            journal: Arc::new(std::sync::Mutex::new(journal)),
+            checkpoints,
+        })
+    }
+}
 pub struct Manager {
     pub status: RwLock<Vec<AccountStatus>>,
     /// Changes to `status`, as edges, for desktop clients that cannot poll.
@@ -616,7 +668,9 @@ impl Manager {
             state,
             cancel,
             Arc::new(move |account| crate::accounts::provider_with_state(account, &provider_state)),
-            Some(Arc::new(crate::accounts::write_provider)),
+            Some(Arc::new(|account, _context| {
+                crate::accounts::write_provider(account)
+            })),
         )
     }
     /// The same account lifecycle is used for production and deterministic providers.
@@ -794,6 +848,10 @@ impl Manager {
                                         // before it is detached rather than left
                                         // running against a mount nobody can reach.
                                         // The engine is not cancelled: it survives.
+                                        // Drop the published control as well: it owns
+                                        // the old journal and must not pin its lock
+                                        // across the new account write context.
+                                        self.writers.write().await.remove(&account.id);
                                         if let Some(writers) = active.writers.take()
                                             && let Err(error) = writers.drain().await
                                         {
@@ -808,19 +866,24 @@ impl Manager {
                                             })
                                             .await;
                                         }
-                                        let writable = match writes.as_ref() {
-                                            Some(writes)
-                                                if active.config.access
-                                                    == cirrove_auth::AccessMode::ReadWrite =>
-                                            {
-                                                writes(&active.config).ok()
-                                            }
-                                            _ => None,
-                                        };
-                                        match mount_checked(active.engine.clone(), &state, writable)
-                                            .await
-                                        {
+                                        let remounted = async {
+                                            let writable = prepare_write(
+                                                &active.engine,
+                                                &state,
+                                                writes.as_ref(),
+                                            )
+                                            .await?;
+                                            mount_checked(active.engine.clone(), writable).await
+                                        }
+                                        .await;
+                                        match remounted {
                                             Ok((session, workers)) => {
+                                                if let Some(writers) = &workers {
+                                                    self.writers.write().await.insert(
+                                                        account.id.clone(),
+                                                        writers.control(),
+                                                    );
+                                                }
                                                 active.session = Some(session);
                                                 active.writers = workers;
                                                 active.mount_error = None;
@@ -911,25 +974,24 @@ impl Manager {
         writes: Option<&WriteFactory>,
     ) -> Result<Running> {
         let graph = factory(&account)?;
-        // A write grant is what selects a writable mount, and it is the only
-        // thing that does. Without one, or without a provider that can write,
-        // this is the read-only mount it has always been.
-        let writable = match writes {
-            Some(writes) if account.access == cirrove_auth::AccessMode::ReadWrite => {
-                Some(writes(&account)?)
-            }
-            _ => None,
-        };
         let engine = Engine::new(account.clone(), graph, state.clone()).await?;
+        // The grant selects write mode; ownership and the index must exist
+        // before a factory can resolve identities or retain operation state.
+        let writable = match prepare_write(&engine, &state, writes).await {
+            Ok(prepared) => prepared,
+            Err(error) => {
+                engine.stop().await;
+                return Err(error);
+            }
+        };
         if let Err(error) = engine.start().await {
             engine.stop().await;
             return Err(error);
         }
-        let (session, writers, mount_error) =
-            match mount_checked(engine.clone(), &state, writable).await {
-                Ok((session, writers)) => (Some(session), writers, None),
-                Err(error) => (None, None, Some(mount_error(&error))),
-            };
+        let (session, writers, mount_error) = match mount_checked(engine.clone(), writable).await {
+            Ok((session, writers)) => (Some(session), writers, None),
+            Err(error) => (None, None, Some(mount_error(&error))),
+        };
         Ok(Running {
             config: account,
             engine,
@@ -947,16 +1009,30 @@ fn mount_error(error: &anyhow::Error) -> String {
     }
     "mount unavailable; directory must be empty and unmounted".into()
 }
+async fn prepare_write(
+    engine: &Engine,
+    state: &Path,
+    writes: Option<&WriteFactory>,
+) -> Result<Option<(Arc<dyn WriteProvider>, WriteContext)>> {
+    let Some(writes) =
+        writes.filter(|_| engine.account.access == cirrove_auth::AccessMode::ReadWrite)
+    else {
+        return Ok(None);
+    };
+    let context = WriteContext::open(engine, state).await?;
+    let provider = writes(&engine.account, &context)?;
+    Ok(Some((provider, context)))
+}
+
 async fn mount_checked(
     engine: Arc<Engine>,
-    state: &Path,
-    writable: Option<Arc<dyn WriteProvider>>,
+    writable: Option<(Arc<dyn WriteProvider>, WriteContext)>,
 ) -> Result<(CloudSession, Option<crate::writable::WriteWorkers>)> {
     let path = engine.account.mount_path.clone();
     recover_disconnected_mount(&engine.account).await?;
     // CloudFs captures this async runtime, while filesystem checks and the FUSE
     // handshake execute on a blocking worker.
-    let Some(provider) = writable else {
+    let Some((provider, context)) = writable else {
         let fs = CloudFs::new(engine)?;
         let session = tokio::task::spawn_blocking(move || {
             validate_mount_directory(&path)?;
@@ -965,19 +1041,7 @@ async fn mount_checked(
         .await??;
         return Ok((session, None));
     };
-    // The journal lives beside the account's index and cache, because it holds
-    // the same kind of thing: local state that belongs to exactly this account
-    // and must not outlive it.
-    let directory = state
-        .join("accounts")
-        .join(&engine.account.id)
-        .join("journal");
-    let owner = engine.account.id.clone();
-    let journal = tokio::task::spawn_blocking(move || {
-        crate::journal::UploadJournal::open(&directory, &owner, 64 * 1024 * 1024)
-    })
-    .await??;
-    let journal = Arc::new(std::sync::Mutex::new(journal));
+    let journal = context.journal();
     let fs = CloudFs::new_experimental_writable(engine.clone(), journal.clone()).await?;
     let control = fs.write_control()?;
     let session = tokio::task::spawn_blocking(move || {
@@ -989,7 +1053,7 @@ async fn mount_checked(
         control,
         journal,
         provider,
-        Arc::new(cirrove_auth::DesktopVault),
+        context.checkpoints(),
         &engine.cancel,
     );
     Ok((session, Some(workers)))

@@ -3798,7 +3798,33 @@ async fn real_manager_mounts_writable_only_for_an_account_with_a_write_grant() {
         let reads = cloud.clone();
         let writes = cloud.clone();
         let read_factory: ProviderFactory = Arc::new(move |_| Ok(reads.clone()));
-        let write_factory: WriteFactory = Arc::new(move |_| Ok(writes.clone()));
+        let factory_state = state.clone();
+        let refuse_writes = Arc::new(AtomicBool::new(false));
+        let factory_refusal = refuse_writes.clone();
+        let write_factory: WriteFactory = Arc::new(move |account, context| {
+            let directory = factory_state.join("accounts").join(&account.id);
+            assert_eq!(context.state(), factory_state);
+            assert_eq!(context.metadata_db(), directory.join("metadata.db"));
+            assert!(context.journal().try_lock().is_ok());
+            assert!(
+                UploadJournal::open(&directory.join("journal"), &account.id, 64 * 1024 * 1024)
+                    .is_err(),
+                "write factory was given an unopened or foreign journal"
+            );
+            assert!(
+                directory.join("metadata.db").is_file(),
+                "write factory ran before account storage was opened"
+            );
+            assert!(
+                cirrove_service::accounts::account_lock(&directory).is_err(),
+                "write factory ran without the account owner lock"
+            );
+            anyhow::ensure!(
+                !factory_refusal.load(Ordering::SeqCst),
+                "synthetic writer unavailable"
+            );
+            Ok(writes.clone())
+        });
         let cancel = CancellationToken::new();
         let (manager, worker) = Manager::start_with_providers(
             state.clone(),
@@ -3909,11 +3935,62 @@ async fn real_manager_mounts_writable_only_for_an_account_with_a_write_grant() {
                 "visible path did not unpin: {unpinned:?}"
             );
         }
+        // An unavailable writer must not silently remount a granted account
+        // read-only and hide journal-backed edits. Clean up before asserting.
+        let remount_result: anyhow::Result<()> = async {
+            if !writable {
+                return Ok(());
+            }
+            refuse_writes.store(true, Ordering::SeqCst);
+            let unmounted = tokio::process::Command::new("fusermount3")
+                .args(["-u", "-z", "--"])
+                .arg(&mount)
+                .status()
+                .await?;
+            anyhow::ensure!(unmounted.success(), "synthetic ejection failed");
+            tokio::time::timeout(Duration::from_secs(20), async {
+                loop {
+                    let rows = manager.status.read().await;
+                    if rows
+                        .first()
+                        .is_some_and(|row| !row.mounted && row.state.contains("mount unavailable"))
+                    {
+                        break;
+                    }
+                    drop(rows);
+                    tokio::time::sleep(Duration::from_millis(20)).await;
+                }
+            })
+            .await
+            .map_err(|_| anyhow::anyhow!("writer failure was hidden by a readonly fallback"))?;
+            refuse_writes.store(false, Ordering::SeqCst);
+            tokio::time::timeout(Duration::from_secs(20), async {
+                loop {
+                    if manager
+                        .status
+                        .read()
+                        .await
+                        .first()
+                        .is_some_and(|row| row.mounted)
+                    {
+                        break;
+                    }
+                    tokio::time::sleep(Duration::from_millis(20)).await;
+                }
+            })
+            .await
+            .map_err(|_| anyhow::anyhow!("writer did not recover after remount"))?;
+            let path = mount.join("after-remount");
+            tokio::task::spawn_blocking(move || std::fs::create_dir(path)).await??;
+            Ok(())
+        }
+        .await;
         cancel.cancel();
         let _ = tokio::time::timeout(Duration::from_secs(20), worker).await;
         if let Some(server) = control_server {
             let _ = tokio::time::timeout(Duration::from_secs(5), server).await;
         }
+        remount_result.unwrap();
     }
 }
 

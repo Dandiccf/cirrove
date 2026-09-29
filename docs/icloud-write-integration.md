@@ -9,8 +9,18 @@ an ordinary account implementation; it is not a claim that writes are ready.
 
 - `Settings::validate` rejects writable iCloud accounts, and
   `accounts::write_provider` refuses iCloud. The desktop hides its write
-  control. The manager's write factory receives only `Account`; its generic
-  worker uses `DesktopVault` for upload checkpoints.
+  control. The manager's write factory now receives `Account` and an owned
+  `WriteContext`: private state root, account metadata index, shared journal
+  and checkpoint vault. Engine has acquired the account lock before this
+  context is opened. The upload workers use the same journal and vault;
+  iCloud selects sealed operation checkpoints and other providers keep
+  `DesktopVault`. The production factory still refuses iCloud until the
+  account-wide router and acceptance gates are implemented.
+  A synthetic FUSE regression covers ownership at construction, writer
+  failure after ejection, and a later successful writable remount. A writer
+  error no longer silently selects a read-only mount. Published old write
+  controls are released before rebuilding the journal and replaced after
+  a successful remount.
 - Normal `ICloudDrive` resolves a cold directory by listing its parent. Its
   single-item `ReadProvider::node` deliberately cannot fetch a cold non-root
   ID because Apple's item endpoint failed in the live probe. A path string
@@ -91,9 +101,10 @@ an ordinary account implementation; it is not a claim that writes are ready.
 
 ## Required implementation sequence
 
-1. Give the iCloud write factory the account's private state and metadata
-   index after the engine has established account ownership. An operation
-   router must resolve `Scope(account, collection, item)` against the indexed
+1. Use the new owned `WriteContext` to construct the iCloud write factory.
+   The account state, metadata index, shared journal and sealed upload vault
+   are now available after Engine establishes ownership. An operation
+   router must still resolve `Scope(account, collection, item)` against the indexed
    node and its parent chain, then independently re-observe the exact parent,
    name, ID and ETag before any Apple mutation. Never infer identity from a
    path or a duplicate name. SQLite lookups must end before network awaits.
