@@ -253,7 +253,9 @@ eight minutes. The
 also retains the failed first remount and its shared read-path correction.
 Normal iCloud connections remain read-only while network
 interruption, concurrent edits, broader file sizes and application behavior
-are unverified. Cirrove does
+are unverified. A [zero-byte file creation trial](docs/benchmarks/icloud-empty-file-create-2026-09-29.md)
+also stopped before a content receipt in two isolated attempts, so empty-file
+uploads remain unsupported. Cirrove does
 not copy or depend on Stratosync or rclone at runtime, build time or in tests;
 lessons from those integrations inform the recovery tests. A
 [native read-only protocol probe](docs/icloud-native-probe.md) is available for
