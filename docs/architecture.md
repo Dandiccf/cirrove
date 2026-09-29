@@ -866,6 +866,13 @@ iCloud upload adapter: ordinary iCloud mounts remain read-only while
 in-flight timeouts, collision handling, recovery retention and broader file
 and folder operations remain unresolved.
 
+The [iCloud write integration boundary](icloud-write-integration.md) records
+the remaining account-wide routing problem: existing files lack a fixture
+journal row with their original digest, and the normal read adapter cannot
+fetch an unknown item ID without its parent listing. The production writer
+must bind the indexed account/collection/item identity and checkpoint an
+independently verified original revision before staging a replacement.
+
 The normal-build iCloud file-create adapter's `begin_upload` only returns a
 prepared checkpoint; it sends no Apple request. The shared worker may return
 such a create to Pending after a missing checkpoint only if SQLite never
