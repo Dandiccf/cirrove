@@ -201,7 +201,7 @@ impl TransferWorker {
                     saved_checkpoint = Some(checkpoint.clone());
                     match self
                         .remote(
-                            Duration::from_secs(125),
+                            self.provider.inspection_timeout(&request),
                             self.provider.inspect_upload_for_operation(
                                 &operation,
                                 &request,
@@ -307,7 +307,7 @@ impl TransferWorker {
                     prepared_allowed = false;
                     self.checkpoint(record, checkpoint.clone(), 0).await?;
                     self.remote(
-                        Duration::from_secs(125),
+                        self.provider.inspection_timeout(&request),
                         self.provider.inspect_upload_for_operation(
                             &operation,
                             &request,

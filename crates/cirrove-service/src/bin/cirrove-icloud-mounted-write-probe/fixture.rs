@@ -1749,6 +1749,11 @@ impl ReadProvider for Fixture {
 
 #[async_trait::async_trait]
 impl UploadProvider for Fixture {
+    fn inspection_timeout(&self, request: &UploadRequest) -> Duration {
+        // Resuming a handoff repeats the same full integrity checks as commit.
+        self.commit_timeout(request)
+    }
+
     fn commit_timeout(&self, request: &UploadRequest) -> Duration {
         // Full before/after Trash backup verification exceeded the default
         // deadline in registered live runs. Keep every integrity check.

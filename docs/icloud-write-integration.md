@@ -53,7 +53,15 @@ an ordinary account implementation; it is not a claim that writes are ready.
   153.2 and 193.7 seconds and upload confirmation took 398.0 seconds. This
   avoids premature deadline drops in that run but does not resolve the
   retained recovery case or establish stable latency. Other providers keep
-  their 125-second default.
+  their 125-second default. Checkpoint inspection now has a separate
+  provider deadline too: the isolated replacement requests 300 seconds for
+  its full integrity readback. A negative-control worker test proved the
+  old fixed limit ignored this setting; the corrected worker preserves the
+  checkpoint and payload through an inspection timeout and uncertain
+  reconciliation, then resumes without starting a second upload. A
+  [read-only audit](benchmarks/icloud-retained-replacement-audit-2026-09-29.md)
+  confirmed the retained fixture still has its original in Trash and its
+  staging name in the test folder. That fixture has not been repaired.
   General account-wide operation routing and acceptance are still missing.
 - `ICloudFileCreate` refuses empty files and files over 32 MiB. The zero-byte
   live experiment did not establish a safe successful upload. Content uses

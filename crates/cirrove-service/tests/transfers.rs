@@ -119,6 +119,9 @@ struct Provider {
     reserved_at_begin: AtomicBool,
     staged_commits: AtomicBool,
     commits: AtomicU64,
+    inspection_timeout_ms: AtomicU64,
+    inspection_pending: AtomicBool,
+    reconciliation_uncertain: AtomicBool,
     commit_timeout_ms: AtomicU64,
     commit_delay_ms: AtomicU64,
     stream: AtomicBool,
@@ -151,6 +154,9 @@ impl Provider {
             reserved_at_begin: AtomicBool::new(false),
             staged_commits: AtomicBool::new(false),
             commits: AtomicU64::new(0),
+            inspection_timeout_ms: AtomicU64::new(125_000),
+            inspection_pending: AtomicBool::new(false),
+            reconciliation_uncertain: AtomicBool::new(false),
             commit_timeout_ms: AtomicU64::new(125_000),
             commit_delay_ms: AtomicU64::new(0),
             stream: AtomicBool::new(false),
@@ -213,6 +219,10 @@ impl Provider {
 }
 #[async_trait]
 impl UploadProvider for Provider {
+    fn inspection_timeout(&self, _: &UploadRequest) -> Duration {
+        Duration::from_millis(self.inspection_timeout_ms.load(Ordering::SeqCst))
+    }
+
     fn commit_timeout(&self, _: &UploadRequest) -> Duration {
         Duration::from_millis(self.commit_timeout_ms.load(Ordering::SeqCst))
     }
@@ -301,6 +311,9 @@ impl UploadProvider for Provider {
         _: &CancellationToken,
     ) -> UploadResult<UploadStep> {
         self.probe.check();
+        if self.inspection_pending.load(Ordering::SeqCst) {
+            std::future::pending::<()>().await;
+        }
         {
             let mut state = self.state.lock().unwrap();
             state.inspections += 1;
@@ -490,6 +503,9 @@ impl UploadProvider for Provider {
         self.probe.check();
         let mut state = self.state.lock().unwrap();
         state.reconciliations += 1;
+        if self.reconciliation_uncertain.load(Ordering::SeqCst) {
+            return Err(UploadError::Uncertain);
+        }
         state.reconciliation_had_checkpoint =
             checkpoint.is_some_and(|value| value.expose_secret() == SECRET);
         if self.require_reconcile_checkpoint.load(Ordering::SeqCst)
@@ -577,6 +593,57 @@ async fn provider_commit_deadline_preserves_checkpoint_and_payload_for_recovery(
     assert!(provider.state.lock().unwrap().committed.is_none());
     assert_local(&journal, id);
     provider.commit_delay_ms.store(0, Ordering::SeqCst);
+    journal.lock().unwrap().request_retry(id).unwrap();
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+    assert_eq!(provider.state.lock().unwrap().begins, 1);
+    assert_local(&journal, id);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn provider_inspection_deadline_preserves_uncertain_upload_without_replay() {
+    let temp = tempfile::tempdir().unwrap();
+    let (probe, provider, vault) = fixture();
+    let journal = journal(&temp.path().join("journal"), &probe);
+    let id = enqueue(&journal, "Saved.txt");
+    provider.deferred.store(true, Ordering::SeqCst);
+    provider.commit_timeout_ms.store(10, Ordering::SeqCst);
+    provider.commit_delay_ms.store(u64::MAX, Ordering::SeqCst);
+    let worker = TransferWorker::new(
+        journal.clone(),
+        provider.clone(),
+        vault,
+        CancellationToken::new(),
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::VerifyRequired
+    );
+    let checkpoint = journal.lock().unwrap().get(id).unwrap().session_key;
+    assert!(checkpoint.is_some());
+    provider.commit_delay_ms.store(0, Ordering::SeqCst);
+    provider.inspection_timeout_ms.store(10, Ordering::SeqCst);
+    provider.inspection_pending.store(true, Ordering::SeqCst);
+    provider
+        .reconciliation_uncertain
+        .store(true, Ordering::SeqCst);
+    journal.lock().unwrap().request_retry(id).unwrap();
+    let result = tokio::time::timeout(Duration::from_secs(2), worker.run_once())
+        .await
+        .expect("worker ignored the provider inspection deadline")
+        .unwrap()
+        .unwrap();
+    assert_eq!(result.state, UploadState::VerifyRequired);
+    assert_eq!(
+        journal.lock().unwrap().get(id).unwrap().session_key,
+        checkpoint
+    );
+    assert_eq!(provider.state.lock().unwrap().begins, 1);
+    assert!(provider.state.lock().unwrap().committed.is_none());
+    assert_local(&journal, id);
+    provider.inspection_pending.store(false, Ordering::SeqCst);
     journal.lock().unwrap().request_retry(id).unwrap();
     assert_eq!(
         worker.run_once().await.unwrap().unwrap().state,

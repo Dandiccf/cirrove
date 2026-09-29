@@ -202,6 +202,11 @@ pub trait UploadProvider: Send + Sync {
         checkpoint: &SecretString,
         cancel: &CancellationToken,
     ) -> Result<UploadStep>;
+    /// Deadline for inspecting a persisted checkpoint, including any required
+    /// integrity readback. Expiry never authorizes replaying a remote mutation.
+    fn inspection_timeout(&self, _request: &UploadRequest) -> Duration {
+        Duration::from_secs(125)
+    }
     async fn inspect_upload_for_operation(
         &self,
         _operation: &str,
