@@ -349,7 +349,11 @@ mod tests {
     fn only_exact_owned_folder_and_etag_pass_parent_guard() {
         let (provider, request, entry) = fixture();
         assert!(provider.check(&request, Some(&entry.drivewsid)).is_ok());
-        assert!(provider.check_at_parent(&[entry.clone()]).unwrap());
+        assert!(
+            provider
+                .check_at_parent(std::slice::from_ref(&entry))
+                .unwrap()
+        );
         let mut changed = entry.clone();
         changed.etag = "new-revision".into();
         assert!(matches!(

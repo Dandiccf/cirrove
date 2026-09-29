@@ -6,7 +6,7 @@ use tokio_util::io::ReaderStream;
 
 const PROBE_PREFIX: &str = "Cirrove Write Validation-";
 pub(crate) const PROBE_FILE: &str = "created-by-cirrove.txt";
-pub(crate) const TRASH_ROOT: &str = "FOLDER::com.apple.CloudDocs::TRASH_ROOT";
+pub(crate) use crate::write_transport::TRASH_ROOT;
 pub(crate) const MAX_OWNED_UPLOAD: usize = 4 * 1024 * 1024;
 
 fn content_type_for_name(name: &str) -> &'static str {
@@ -311,57 +311,6 @@ impl ICloudReadSession {
                 .filter(|item| item.get("restorePath").is_some_and(|path| !path.is_null()))
                 .count(),
         })
-    }
-
-    pub(crate) async fn read_trash_items(&mut self) -> Result<(Vec<serde_json::Value>, bool)> {
-        let endpoint = self
-            .drive_endpoint
-            .as_ref()
-            .context("iCloud sign-in is not complete")?
-            .join("retrieveItemDetailsInFolders")?;
-        let response = self
-            .http
-            .post(endpoint)
-            .timeout(LISTING_TIMEOUT)
-            .header("origin", ICLOUD_ORIGIN)
-            .header("referer", format!("{ICLOUD_ORIGIN}/"))
-            .json(&json!([{"drivewsid": TRASH_ROOT, "partialData": false}]))
-            .send()
-            .await
-            .map_err(|_| anyhow!("iCloud validation Trash listing request failed"))?;
-        if !response.status().is_success() {
-            return Err(drive_request_failure(
-                response.status(),
-                "iCloud validation Trash listing",
-            ));
-        }
-        let folders: serde_json::Value =
-            read_json(response, "iCloud validation Trash listing").await?;
-        let folder = folders
-            .as_array()
-            .filter(|folders| folders.len() == 1)
-            .and_then(|folders| folders.first())
-            .context("iCloud Trash listing returned an unexpected envelope")?;
-        let returned_root = folder.get("drivewsid").and_then(|value| value.as_str());
-        if !matches!(returned_root, Some(TRASH_ROOT | "TRASH_ROOT")) {
-            bail!("iCloud Trash listing returned a different root ID");
-        }
-        let items = folder
-            .get("items")
-            .and_then(|value| value.as_array())
-            .context("iCloud Trash listing has no item array")?;
-        if items.iter().any(|item| {
-            item.get("drivewsid")
-                .and_then(|value| value.as_str())
-                .is_none_or(str::is_empty)
-        }) {
-            bail!("iCloud Trash listing contains an item without ID");
-        }
-        let complete = folder
-            .get("numberOfItems")
-            .and_then(|value| value.as_u64())
-            .is_some_and(|count| count == items.len() as u64);
-        Ok((items.clone(), complete))
     }
 
     /// Independent validation of one exact Trash identity, without exposing
@@ -1843,47 +1792,6 @@ impl ICloudReadSession {
             }
         }
         Ok(TrashProbeOutcome::Indeterminate)
-    }
-
-    async fn trash_response(&mut self, item_id: &str, etag: &str) -> Result<Response> {
-        let endpoint = self
-            .drive_endpoint
-            .as_ref()
-            .context("iCloud sign-in is not complete")?
-            .join("moveItemsToTrash")?;
-        self.http
-            .post(endpoint)
-            .header("origin", ICLOUD_ORIGIN)
-            .header("referer", format!("{ICLOUD_ORIGIN}/"))
-            .json(&json!({"items": [{
-                "drivewsid": item_id,
-                "etag": etag,
-                "clientId": item_id
-            }]}))
-            .send()
-            .await
-            .map_err(|_| anyhow!("iCloud validation trash request failed"))
-    }
-
-    pub(crate) async fn send_trash_without_receipt(
-        &mut self,
-        item_id: &str,
-        etag: &str,
-    ) -> Result<()> {
-        // A deliberate fault: the request may have committed, but no response
-        // status or item body is consumed by this process.
-        drop(self.trash_response(item_id, etag).await?);
-        Ok(())
-    }
-
-    pub(crate) async fn send_trash(&mut self, item_id: &str, etag: &str) -> Result<bool> {
-        let response = self.trash_response(item_id, etag).await?;
-        if response.status().is_success() {
-            let reply: TrashReply = read_json(response, "iCloud validation trash").await?;
-            Ok(exactly_one(reply.items, "trash")?.status == "OK")
-        } else {
-            Ok(false)
-        }
     }
 
     /// Exercise recoverable deletion on one newly created fixture. Every

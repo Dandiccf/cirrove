@@ -715,8 +715,12 @@ mod tests {
                 .is_err()
         );
         assert!(
-            ICloudOwnedFixtureUpload::select_candidate(&[entry.clone()], name, "expected-document")
-                .is_err()
+            ICloudOwnedFixtureUpload::select_candidate(
+                std::slice::from_ref(&entry),
+                name,
+                "expected-document"
+            )
+            .is_err()
         );
         let mut expected = entry.clone();
         expected.drivewsid = "FILE::com.apple.CloudDocs::expected-document".into();

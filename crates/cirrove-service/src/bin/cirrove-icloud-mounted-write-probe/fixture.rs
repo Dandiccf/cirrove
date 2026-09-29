@@ -13,10 +13,9 @@ use cirrove_core::{
     Node, NodeKind, ProviderError, ReadProvider, Scope,
 };
 use cirrove_icloud::{
-    ICloudDrive, ICloudOwnedFixtureFileRename, ICloudOwnedFixtureFolderCreate,
-    ICloudOwnedFixtureFolderRemove, ICloudOwnedFixtureFolderRename, ICloudOwnedFixtureRemove,
-    ICloudOwnedFixtureUpload, ICloudOwnedMountedFileMove, ICloudOwnedMountedReplace,
-    ICloudReadSession, ValidationFolder,
+    ICloudDrive, ICloudFileTrash, ICloudOwnedFixtureFileRename, ICloudOwnedFixtureFolderCreate,
+    ICloudOwnedFixtureFolderRemove, ICloudOwnedFixtureFolderRename, ICloudOwnedFixtureUpload,
+    ICloudOwnedMountedFileMove, ICloudOwnedMountedReplace, ICloudReadSession, ValidationFolder,
 };
 use cirrove_service::journal::{MutationState, UploadJournal, UploadRecord, UploadState};
 use secrecy::SecretString;
@@ -426,46 +425,14 @@ impl Fixture {
         &self,
         before: Node,
         digest: String,
-    ) -> cirrove_core::mutation::Result<ICloudOwnedFixtureRemove> {
-        let parent = before.parent_id.as_deref().ok_or(MutationError::Invalid)?;
-        let child = if parent == self.root.id {
-            None
-        } else {
-            let journal = self
-                .removal
-                .journal
-                .lock()
-                .map_err(|_| MutationError::Uncertain)?;
-            Some(confirmed_owned_child_folder(
-                &journal,
-                &self.scope,
-                &self.root.id,
-                parent,
-            )?)
-        };
-        let session = ICloudReadSession::from_session_snapshot(
-            &self.removal.snapshot,
+    ) -> cirrove_core::mutation::Result<ICloudFileTrash> {
+        ICloudFileTrash::from_session_snapshot(
+            self.scope.clone(),
             &self.removal.apple_id,
+            &self.removal.snapshot,
+            before,
         )
-        .map_err(|_| MutationError::Uncertain)?;
-        if let Some(child) = child {
-            ICloudOwnedFixtureRemove::from_confirmed_upload_in_child(
-                self.scope.clone(),
-                session,
-                self.removal.folder.clone(),
-                child,
-                before,
-                digest,
-            )
-        } else {
-            ICloudOwnedFixtureRemove::from_confirmed_upload(
-                self.scope.clone(),
-                session,
-                self.removal.folder.clone(),
-                before,
-                digest,
-            )
-        }
+        .and_then(|provider| provider.with_expected_sha256(digest))
     }
 
     fn guard_rename_file(
