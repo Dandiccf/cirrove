@@ -257,6 +257,7 @@ impl ICloudOwnedFixtureHandoff {
             || saved.size != self.staged_size
             || saved.recovery_mode != self.recovery_mode
             || saved.plan.version != self.plan.version
+            || saved.plan.folder_parent() != self.plan.folder_parent()
             || saved.plan.folder_id != self.plan.folder_id
             || saved.plan.folder_name != self.plan.folder_name
             || saved.plan.original_id != self.plan.original_id
@@ -269,6 +270,7 @@ impl ICloudOwnedFixtureHandoff {
             || saved.plan.staged_name != self.plan.staged_name
             || saved.plan.staged_sha256 != self.plan.staged_sha256
             || saved.plan.recovery_name != self.plan.recovery_name
+            || saved.plan.target_name != self.plan.target_name
         {
             return Err(UploadError::CheckpointInvalid);
         }
@@ -536,6 +538,7 @@ mod tests {
         };
         let plan = HandoffPlan {
             version: 2,
+            folder_parent_id: crate::ROOT_ID.into(),
             folder_id: "FOLDER::com.apple.CloudDocs::folder".into(),
             folder_name: format!("Cirrove Write Validation-{}", Uuid::new_v4()),
             original_id: "FILE::com.apple.CloudDocs::old".into(),
@@ -586,6 +589,10 @@ mod tests {
         assert!(provider.check_checkpoint(&different, &first).is_err());
         let mut altered: serde_json::Value = serde_json::from_str(first.expose_secret()).unwrap();
         altered["plan"]["staged_id"] = "FILE::com.apple.CloudDocs::foreign".into();
+        let altered = SecretString::from(serde_json::to_string(&altered).unwrap());
+        assert!(provider.check_checkpoint(&request, &altered).is_err());
+        let mut altered: serde_json::Value = serde_json::from_str(first.expose_secret()).unwrap();
+        altered["plan"]["target_name"] = "other-destination.txt".into();
         let altered = SecretString::from(serde_json::to_string(&altered).unwrap());
         assert!(provider.check_checkpoint(&request, &altered).is_err());
 

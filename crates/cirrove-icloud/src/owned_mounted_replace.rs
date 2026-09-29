@@ -195,7 +195,8 @@ impl ICloudOwnedMountedReplace {
         if let Phase::Handoff { plan, .. } = &saved.phase {
             plan.validate()
                 .map_err(|_| UploadError::CheckpointInvalid)?;
-            if plan.folder_id != self.folder.id()
+            if plan.folder_parent() != ROOT_ID
+                || plan.folder_id != self.folder.id()
                 || plan.folder_name != self.folder.name()
                 || plan.original_id != self.original.id
                 || plan.original_etag != saved.original_etag
@@ -237,6 +238,7 @@ impl ICloudOwnedMountedReplace {
         }
         let plan = HandoffPlan {
             version: 2,
+            folder_parent_id: ROOT_ID.into(),
             folder_id: self.folder.id().into(),
             folder_name: self.folder.name().into(),
             original_id: self.original.id.clone(),

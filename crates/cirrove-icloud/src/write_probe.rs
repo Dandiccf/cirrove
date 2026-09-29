@@ -147,6 +147,8 @@ pub enum HandoffOutcome {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct HandoffPlan {
     pub(crate) version: u8,
+    #[serde(default = "default_handoff_parent_id")]
+    pub(crate) folder_parent_id: String,
     pub(crate) folder_id: String,
     pub(crate) folder_name: String,
     pub(crate) original_id: String,
@@ -165,6 +167,10 @@ pub struct HandoffPlan {
 
 fn default_handoff_target_name() -> String {
     PROBE_FILE.into()
+}
+
+fn default_handoff_parent_id() -> String {
+    String::new()
 }
 
 /// A pre-request identity reservation for one unique staged upload. The
@@ -1078,6 +1084,7 @@ impl ICloudReadSession {
         }
         let plan = HandoffPlan {
             version: 2,
+            folder_parent_id: ROOT_ID.into(),
             folder_id: registration.folder_id.clone(),
             folder_name: registration.folder_name.clone(),
             original_id: registration.original_id.clone(),
@@ -2614,6 +2621,7 @@ impl ICloudReadSession {
         }
         let plan = HandoffPlan {
             version: 2,
+            folder_parent_id: ROOT_ID.into(),
             folder_id: folder.id.clone(),
             folder_name: folder.name.clone(),
             original_id: original.id.clone(),
@@ -2638,11 +2646,7 @@ impl ICloudReadSession {
     /// hashes. Names describe phase but never establish identity alone.
     pub async fn inspect_durable_handoff(&mut self, plan: &HandoffPlan) -> Result<HandoffObserved> {
         plan.validate()?;
-        if !self.list_root().await?.iter().any(|entry| {
-            entry.drivewsid == plan.folder_id
-                && entry.display_name() == plan.folder_name
-                && entry.is_folder()
-        }) {
+        if !plan.folder_present(&self.list_folder(plan.folder_parent()).await?) {
             return Ok(HandoffObserved::Diverged);
         }
         let items = self.list_folder(&plan.folder_id).await?;
@@ -2902,11 +2906,7 @@ impl ICloudReadSession {
     )> {
         use cirrove_core::{Node, NodeKind};
         plan.validate()?;
-        if !self.list_root().await?.iter().any(|entry| {
-            entry.drivewsid == plan.folder_id
-                && entry.display_name() == plan.folder_name
-                && entry.is_folder()
-        }) {
+        if !plan.folder_present(&self.list_folder(plan.folder_parent()).await?) {
             return Ok((HandoffObserved::Diverged, None));
         }
         let items = self.list_folder(&plan.folder_id).await?;
@@ -3013,6 +3013,33 @@ fn valid_etag(etag: &str) -> bool {
 }
 
 impl HandoffPlan {
+    pub(crate) fn folder_parent(&self) -> &str {
+        if self.folder_parent_id.is_empty() && self.version == 2 {
+            ROOT_ID
+        } else {
+            &self.folder_parent_id
+        }
+    }
+
+    fn folder_present(&self, entries: &[DriveEntry]) -> bool {
+        entries
+            .iter()
+            .filter(|entry| entry.drivewsid == self.folder_id)
+            .count()
+            == 1
+            && entries
+                .iter()
+                .filter(|entry| entry.display_name() == self.folder_name)
+                .count()
+                == 1
+            && entries.iter().any(|entry| {
+                entry.drivewsid == self.folder_id
+                    && entry.parent_id == self.folder_parent()
+                    && entry.display_name() == self.folder_name
+                    && entry.is_folder()
+            })
+    }
+
     /// Keep unrelated siblings visible while refusing duplicate identities or
     /// another item occupying any name used by this two-ID handoff.
     fn select_active<'a>(
@@ -3065,9 +3092,26 @@ impl HandoffPlan {
         };
         let old = split_file_id(&self.original_id)?;
         let new = split_file_id(&self.staged_id)?;
-        if self.version != 2
-            || !uuid_name(&self.folder_name, PROBE_PREFIX, "")
+        let valid_parent = self
+            .folder_parent_id
+            .starts_with("FOLDER::com.apple.CloudDocs::")
+            && self
+                .folder_parent_id
+                .rsplit("::")
+                .next()
+                .is_some_and(|id| !id.is_empty());
+        let valid_folder_name = !self.folder_name.is_empty()
+            && self.folder_name.len() <= 255
+            && !matches!(self.folder_name.as_str(), "." | "..")
+            && !self.folder_name.contains(['/', '\0', '\r', '\n']);
+        let valid_version = match self.version {
+            2 => self.folder_parent() == ROOT_ID && uuid_name(&self.folder_name, PROBE_PREFIX, ""),
+            3 => valid_parent && valid_folder_name && self.folder_parent_id != self.folder_id,
+            _ => false,
+        };
+        if !valid_version
             || !self.folder_id.starts_with("FOLDER::com.apple.CloudDocs::")
+            || self.folder_id.rsplit("::").next().is_none_or(str::is_empty)
             || !uuid_name(&self.staged_name, "staged-by-cirrove-", ".txt")
             || !uuid_name(&self.recovery_name, "recovery-by-cirrove-", ".txt")
             || self.target_name.is_empty()
@@ -3142,6 +3186,7 @@ mod handoff_tests {
     fn plan() -> HandoffPlan {
         HandoffPlan {
             version: 2,
+            folder_parent_id: ROOT_ID.into(),
             folder_id: "FOLDER::com.apple.CloudDocs::folder-1".into(),
             folder_name: format!("{PROBE_PREFIX}{}", Uuid::new_v4()),
             original_id: "FILE::com.apple.CloudDocs::old-1".into(),
@@ -3181,6 +3226,54 @@ mod handoff_tests {
         let mut invalid_revision = plan();
         invalid_revision.original_etag = "new\nline".into();
         assert!(invalid_revision.validate().is_err());
+    }
+
+    #[test]
+    fn nested_handoff_binds_its_actual_parent_and_rejects_legacy_retargeting() {
+        let mut stored = serde_json::to_value(plan()).unwrap();
+        stored["version"] = serde_json::json!(3);
+        stored["folder_name"] = serde_json::json!("Correspondence");
+        stored["folder_parent_id"] = serde_json::json!("FOLDER::com.apple.CloudDocs::parent-1");
+        let nested: HandoffPlan = serde_json::from_value(stored.clone()).unwrap();
+        nested.validate().unwrap();
+        let folder = |id: &str, parent: &str, name: &str| -> DriveEntry {
+            serde_json::from_value(serde_json::json!({
+                "drivewsid": id,
+                "parentId": parent,
+                "name": name,
+                "type": "FOLDER"
+            }))
+            .unwrap()
+        };
+        let matching = folder(
+            &nested.folder_id,
+            nested.folder_parent(),
+            &nested.folder_name,
+        );
+        assert!(nested.folder_present(std::slice::from_ref(&matching)));
+        assert!(
+            !nested.folder_present(&[folder(&nested.folder_id, ROOT_ID, &nested.folder_name,)])
+        );
+        assert!(!nested.folder_present(&[
+            matching,
+            folder(
+                "FOLDER::com.apple.CloudDocs::foreign",
+                nested.folder_parent(),
+                &nested.folder_name,
+            ),
+        ]));
+
+        let mut missing_parent = stored.clone();
+        missing_parent
+            .as_object_mut()
+            .unwrap()
+            .remove("folder_parent_id");
+        let missing_parent: HandoffPlan = serde_json::from_value(missing_parent).unwrap();
+        assert!(missing_parent.validate().is_err());
+
+        stored["version"] = serde_json::json!(2);
+        let retargeted_legacy: HandoffPlan = serde_json::from_value(stored).unwrap();
+        assert!(retargeted_legacy.validate().is_err());
     }
 
     #[test]
