@@ -13,9 +13,9 @@ use cirrove_core::{
     Node, NodeKind, ProviderError, ReadProvider, Scope,
 };
 use cirrove_icloud::{
-    ICloudDrive, ICloudFileRename, ICloudFileTrash, ICloudOwnedFixtureFolderCreate,
+    ICloudDrive, ICloudFileMove, ICloudFileRename, ICloudFileTrash, ICloudOwnedFixtureFolderCreate,
     ICloudOwnedFixtureFolderRemove, ICloudOwnedFixtureFolderRename, ICloudOwnedFixtureUpload,
-    ICloudOwnedMountedFileMove, ICloudOwnedMountedReplace, ICloudReadSession, ValidationFolder,
+    ICloudOwnedMountedReplace, ICloudReadSession, ValidationFolder,
 };
 use cirrove_service::journal::{MutationState, UploadJournal, UploadRecord, UploadState};
 use secrecy::SecretString;
@@ -538,31 +538,20 @@ impl Fixture {
         destination: Node,
         digest: String,
         reconciliation_only: bool,
-    ) -> cirrove_core::mutation::Result<ICloudOwnedMountedFileMove> {
-        let session = ICloudReadSession::from_session_snapshot(
-            &self.removal.snapshot,
+    ) -> cirrove_core::mutation::Result<ICloudFileMove> {
+        let adapter = ICloudFileMove::from_session_snapshot(
+            self.scope.clone(),
             &self.removal.apple_id,
-        )
-        .map_err(|_| MutationError::Uncertain)?;
-        if reconciliation_only {
-            ICloudOwnedMountedFileMove::for_reconciliation(
-                self.scope.clone(),
-                session,
-                self.removal.folder.clone(),
-                destination,
-                before,
-                digest,
-            )
+            &self.removal.snapshot,
+            before,
+            destination,
+            digest,
+        )?;
+        Ok(if reconciliation_only {
+            adapter.reconciliation_only()
         } else {
-            ICloudOwnedMountedFileMove::new(
-                self.scope.clone(),
-                session,
-                self.removal.folder.clone(),
-                destination,
-                before,
-                digest,
-            )
-        }
+            adapter
+        })
     }
 
     fn removed_receipt(

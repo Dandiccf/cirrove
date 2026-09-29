@@ -51,7 +51,66 @@ fn classify_rename(status: StatusCode, result: Option<&str>) -> Result<bool> {
     Err(anyhow!("iCloud conditional rename result is uncertain"))
 }
 
+fn classify_move(status: StatusCode, result: Option<&str>) -> Result<bool> {
+    if status.is_success() {
+        return match result {
+            Some("OK") => Ok(true),
+            Some(_) => Ok(false),
+            None => Err(anyhow!("iCloud conditional move receipt is incomplete")),
+        };
+    }
+    if matches!(status.as_u16(), 400 | 404 | 409 | 412) {
+        return Ok(false);
+    }
+    Err(anyhow!("iCloud conditional move result is uncertain"))
+}
+
 impl ICloudReadSession {
+    pub(crate) async fn send_move(
+        &mut self,
+        item_id: &str,
+        etag: &str,
+        destination: &str,
+    ) -> Result<bool> {
+        if !(item_id.starts_with("FILE::com.apple.CloudDocs::")
+            || item_id.starts_with("FOLDER::com.apple.CloudDocs::"))
+            || item_id.rsplit("::").next().is_none_or(str::is_empty)
+            || !destination.starts_with("FOLDER::com.apple.CloudDocs::")
+            || destination.rsplit("::").next().is_none_or(str::is_empty)
+            || etag.is_empty()
+            || etag.len() > 4096
+            || etag.contains(['\r', '\n', '*'])
+        {
+            bail!("invalid iCloud conditional move identity");
+        }
+        let endpoint = self
+            .drive_endpoint
+            .as_ref()
+            .context("iCloud sign-in is not complete")?
+            .join("moveItems")?;
+        let response = self
+            .http
+            .post(endpoint)
+            .header("origin", ICLOUD_ORIGIN)
+            .header("referer", format!("{ICLOUD_ORIGIN}/"))
+            .json(&json!({
+                "destinationDrivewsId": destination,
+                "items": [{"drivewsid": item_id, "etag": etag, "clientId": item_id}]
+            }))
+            .send()
+            .await
+            .map_err(|_| anyhow!("iCloud conditional move outcome is uncertain"))?;
+        let status = response.status();
+        if !status.is_success() {
+            return classify_move(status, None);
+        }
+        let reply: RenameReply = read_json(response, "iCloud conditional move").await?;
+        if reply.items.len() != 1 {
+            return Err(anyhow!("iCloud conditional move receipt is incomplete"));
+        }
+        classify_move(status, Some(&reply.items[0].status))
+    }
+
     pub(crate) async fn send_rename(
         &mut self,
         item_id: &str,
@@ -224,5 +283,14 @@ mod tests {
         assert!(classify_rename(StatusCode::TOO_MANY_REQUESTS, None).is_err());
         assert!(classify_rename(StatusCode::BAD_GATEWAY, None).is_err());
         assert!(classify_rename(StatusCode::OK, None).is_err());
+    }
+
+    #[test]
+    fn conditional_move_does_not_treat_server_errors_as_refusal() {
+        assert!(classify_move(StatusCode::OK, Some("OK")).unwrap());
+        assert!(!classify_move(StatusCode::PRECONDITION_FAILED, None).unwrap());
+        assert!(classify_move(StatusCode::TOO_MANY_REQUESTS, None).is_err());
+        assert!(classify_move(StatusCode::SERVICE_UNAVAILABLE, None).is_err());
+        assert!(classify_move(StatusCode::OK, None).is_err());
     }
 }

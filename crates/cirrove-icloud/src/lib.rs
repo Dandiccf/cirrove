@@ -5,6 +5,7 @@
 //! account path and connection UI, but their live behavior and provider reliability
 //! remain unvalidated.
 
+mod file_move;
 mod file_rename;
 mod file_trash;
 #[cfg(feature = "write-probe")]
@@ -34,6 +35,7 @@ mod sealed_session;
 #[cfg(feature = "write-probe")]
 mod write_probe;
 mod write_transport;
+pub use file_move::ICloudFileMove;
 pub use file_rename::ICloudFileRename;
 pub use file_trash::ICloudFileTrash;
 #[cfg(feature = "write-probe")]

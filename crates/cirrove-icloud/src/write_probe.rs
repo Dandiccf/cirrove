@@ -195,16 +195,6 @@ pub enum HandoffObserved {
 }
 
 #[derive(Deserialize)]
-struct RenameReply {
-    items: Vec<RenameResult>,
-}
-
-#[derive(Deserialize)]
-struct RenameResult {
-    status: String,
-}
-
-#[derive(Deserialize)]
 struct TrashReply {
     items: Vec<TrashResult>,
 }
@@ -2033,37 +2023,6 @@ impl ICloudReadSession {
             bail!("iCloud Trash item changed during the exact-ID read");
         }
         Ok(())
-    }
-
-    pub(crate) async fn send_move(
-        &mut self,
-        item_id: &str,
-        etag: &str,
-        destination: &str,
-    ) -> Result<bool> {
-        let endpoint = self
-            .drive_endpoint
-            .as_ref()
-            .context("iCloud sign-in is not complete")?
-            .join("moveItems")?;
-        let response = self
-            .http
-            .post(endpoint)
-            .header("origin", ICLOUD_ORIGIN)
-            .header("referer", format!("{ICLOUD_ORIGIN}/"))
-            .json(&json!({
-                "destinationDrivewsId": destination,
-                "items": [{"drivewsid": item_id, "etag": etag, "clientId": item_id}]
-            }))
-            .send()
-            .await
-            .map_err(|_| anyhow!("iCloud validation move request failed"))?;
-        if !response.status().is_success() {
-            return Ok(false);
-        }
-        let reply: RenameReply = read_json(response, "iCloud validation move").await?;
-        let item = exactly_one(reply.items, "move")?;
-        Ok(item.status == "OK")
     }
 
     /// Test a current-ETag move into a distinct owned file's occupied name.
