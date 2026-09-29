@@ -61,13 +61,15 @@ impl MutationWorker {
             return Ok(None);
         };
         let id = record.id;
+        let operation = id.to_string();
         let attempt = record.attempt.ok_or(JournalError::Stale)?;
         if record.state == MutationState::Applying && record.prepared_item.is_none() {
             match self
-                .remote(
-                    self.provider
-                        .prepare_mutation(&record.request, &self.cancel),
-                )
+                .remote(self.provider.prepare_mutation_for_operation(
+                    &operation,
+                    &record.request,
+                    &self.cancel,
+                ))
                 .await
             {
                 Ok(Some(item)) => {
@@ -117,7 +119,6 @@ impl MutationWorker {
                 }
             }
         }
-        let operation = id.to_string();
         let result = if record.state == MutationState::Verifying {
             self.remote(self.provider.reconcile_operation(
                 &operation,

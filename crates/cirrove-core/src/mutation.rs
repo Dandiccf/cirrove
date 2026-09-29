@@ -239,6 +239,18 @@ pub trait MutationProvider: Send + Sync {
         Ok(None)
     }
 
+    /// Prepare against the durable journal identity before any remote mutation.
+    /// Providers may persist read-only preflight evidence under this identity;
+    /// returned values still obey the opaque-item-only contract above.
+    async fn prepare_mutation_for_operation(
+        &self,
+        _operation: &str,
+        request: &MutationRequest,
+        cancel: &CancellationToken,
+    ) -> Result<Option<String>> {
+        self.prepare_mutation(request, cancel).await
+    }
+
     /// Return the actual conditional mutation receipt. A later independent GET
     /// can include another actor's edit and is not an equivalent upload base.
     async fn mutate(

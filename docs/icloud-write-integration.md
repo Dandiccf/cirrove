@@ -16,8 +16,9 @@ an ordinary account implementation; it is not a claim that writes are ready.
   iCloud selects sealed operation checkpoints and other providers keep
   `DesktopVault`. The production factory now selects the context-aware iCloud
   router, but settings still reject writable iCloud before this path is reached.
-  The router implements new-file uploads and simple folder operations;
-  replacement, file mutations, combined move/rename and live acceptance
+  The router implements new-file uploads, simple folder operations and
+  rename/move/Trash of regular files up to 32 MiB; replacement,
+  combined move/rename and live acceptance
   remain open.
   A synthetic FUSE regression covers ownership at construction, writer
   failure after ejection, and a later successful writable remount. A writer
@@ -39,15 +40,29 @@ an ordinary account implementation; it is not a claim that writes are ready.
   calls are refused. Folder creation, rename, same-name move and empty-folder
   Trash now route through the same account journal. They persist a sealed plan
   before sending the mutation, with the exact request, prepared identity and
-  destination snapshot. A retained plan authorizes reconciliation only, never
-  blind replay. Missing plans remain indeterminate. Parent ancestry excludes
+  destination snapshot. The shared worker now passes the durable operation ID
+  through preparation too. New plans distinguish read-only `Prepared` from
+  potentially `Sent`: interruption in preparation may retry preflight, but
+  the sent marker is persisted before dispatch and authorizes inspection only.
+  Legacy plans without a phase remain potentially sent. A prepared plan can
+  reconcile as uncommitted even if its item identity had not yet reached the
+  journal. Missing plans remain indeterminate. Parent ancestry excludes
   packages, shortcuts and moves into any descendant. The initial direct-child
   negative control passed without the new ancestry guard because the underlying
   adapter already refused that case; the corrected grandchild case fails with
   the guard removed. Synthetic tests also cover checkpoint rebinding and index
   changes. These tests do not establish live account-wide write reliability.
-  Recovery after interruption between saving a plan and sending the request,
-  file mutations, replacement and combined move/rename remain open.
+  A process loss after saving the sent marker but before dispatch remains
+  conservatively uncertain. Regular-file rename, same-name move and Trash now
+  use the existing normal-build adapters. Preparation hashes the full expected
+  revision through a bounded streaming read, then seals that digest alongside
+  the exact source node before any mutation. Recovery restores this captured
+  digest instead of hashing a potentially newer file as the original. The
+  source must match the scoped index and have plain-folder ancestry. Missing
+  or malformed digests are refused, and cancelled hashing publishes no plan.
+  The existing 32 MiB verification limit still applies; transient or changed
+  remote content during hashing currently surfaces as uncertain preparation.
+  Replacement, combined move/rename and live acceptance remain open.
   The mounted validator
   supplies those nodes from a bounded test tree and its owned journal.
   Folder-create receipts in that validator now use a separate sealed on-disk

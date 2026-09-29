@@ -271,6 +271,22 @@ impl Provider {
 }
 #[async_trait]
 impl MutationProvider for Provider {
+    async fn prepare_mutation_for_operation(
+        &self,
+        operation: &str,
+        r: &MutationRequest,
+        c: &CancellationToken,
+    ) -> Result<Option<String>> {
+        self.unlocked();
+        if self.mode == "operation_lost" {
+            self.observed_operations
+                .lock()
+                .unwrap()
+                .push(operation.into());
+        }
+        self.prepare_mutation(r, c).await
+    }
+
     async fn mutate_operation(
         &self,
         operation: &str,
@@ -407,7 +423,7 @@ fn provider(mode: &'static str, j: &Arc<Mutex<UploadJournal>>) -> Arc<Provider> 
 }
 
 #[tokio::test]
-async fn worker_passes_the_same_durable_operation_id_to_apply_and_reconcile() {
+async fn worker_passes_the_same_durable_operation_id_to_prepare_apply_and_reconcile() {
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path().join("journal");
     let j = Arc::new(Mutex::new(journal(&root)));
@@ -430,7 +446,11 @@ async fn worker_passes_the_same_durable_operation_id_to_apply_and_reconcile() {
     );
     assert_eq!(
         *p.observed_operations.lock().unwrap(),
-        vec![record.id.to_string(), record.id.to_string()]
+        vec![
+            record.id.to_string(),
+            record.id.to_string(),
+            record.id.to_string()
+        ]
     );
     assert_eq!(p.mutations.load(Ordering::SeqCst), 1);
     assert_eq!(p.checks.load(Ordering::SeqCst), 1);
