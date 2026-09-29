@@ -429,6 +429,16 @@ async fn verify_large_bytes(
 async fn main() -> Result<()> {
     let started = Instant::now();
     let args: Vec<_> = std::env::args().skip(1).collect();
+    if let [flag, run] = args.as_slice()
+        && flag == "--account-uploads"
+    {
+        return cirrove_service::validation::icloud_account_uploads(Uuid::parse_str(run)?).await;
+    }
+    if let [flag, run] = args.as_slice()
+        && flag == "--account-namespace"
+    {
+        return cirrove_service::validation::icloud_account_namespace(Uuid::parse_str(run)?).await;
+    }
     let large_file = args
         .first()
         .is_some_and(|flag| flag.starts_with("--large-"));

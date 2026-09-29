@@ -1,0 +1,61 @@
+{
+  "question": "Does the regular iCloud account writer pass create, replacement and namespace operations through its durable workers?",
+  "registration": [
+    "icloud-account-router-uploads-2026-09-30.md",
+    "icloud-account-router-namespace-2026-09-30.md"
+  ],
+  "status": "finished",
+  "runs": [
+    {
+      "run": "9263bc51-b980-404b-bf6a-a5cc78cec421",
+      "pid": 1324567,
+      "status": "finished",
+      "binary_sha256": "db5851772b8bf900a3ce5aaa0e394d731549b1a02e16b26a59e40e867cb28eb3",
+      "revision": "3df7b02de7ba2637b147d6af411f5b0e44682378",
+      "dirty": true,
+      "start_utc": "2026-09-29T22:17:59.061052+00:00",
+      "expected_duration_seconds": 1200,
+      "temporary_filesystem": "btrfs",
+      "exit_code": 0,
+      "elapsed_seconds": 508.248,
+      "finished_utc": "2026-09-29T22:26:27.308815+00:00",
+      "mode": "uploads",
+      "private_manifest": ".local-state/icloud-account-router-arm-9263bc51-b980-404b-bf6a-a5cc78cec421/manifest.json"
+    },
+    {
+      "run": "a84edb9c-3552-4d1a-9e71-27abbecc32b4",
+      "pid": 1336636,
+      "status": "finished",
+      "binary_sha256": "db5851772b8bf900a3ce5aaa0e394d731549b1a02e16b26a59e40e867cb28eb3",
+      "revision": "3df7b02de7ba2637b147d6af411f5b0e44682378",
+      "dirty": true,
+      "start_utc": "2026-09-29T22:27:50.860584+00:00",
+      "expected_duration_seconds": 1200,
+      "temporary_filesystem": "btrfs",
+      "exit_code": 0,
+      "elapsed_seconds": 503.121,
+      "finished_utc": "2026-09-29T22:36:13.981347+00:00",
+      "mode": "uploads",
+      "private_manifest": ".local-state/icloud-account-router-arm-a84edb9c-3552-4d1a-9e71-27abbecc32b4/manifest.json"
+    },
+    {
+      "run": "9dec4957-94db-41a6-bea8-2881562e7bdc",
+      "pid": 1351568,
+      "status": "finished",
+      "binary_sha256": "cb1493c87e921b6626cf655de73579302c62b74fc9027ff176ec972d4165fa17",
+      "revision": "3df7b02de7ba2637b147d6af411f5b0e44682378",
+      "dirty": true,
+      "start_utc": "2026-09-29T22:38:28.881098+00:00",
+      "expected_duration_seconds": 1200,
+      "temporary_filesystem": "btrfs",
+      "mode": "namespace",
+      "private_manifest": ".local-state/icloud-account-namespace-arm-9dec4957-94db-41a6-bea8-2881562e7bdc/manifest.json",
+      "exit_code": 0,
+      "elapsed_seconds": 515.146,
+      "finished_utc": "2026-09-29T22:47:04.027344+00:00"
+    }
+  ],
+  "installed_service_changed": false,
+  "mounted": false,
+  "full_write_support_proven": false
+}

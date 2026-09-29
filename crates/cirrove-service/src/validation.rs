@@ -1,5 +1,9 @@
 //! Explicit developer-only cloud checks. Never called by the daemon. Mutation
 //! checks create every target they change; read checks emit only aggregate data.
+#[cfg(feature = "icloud-write-probe")]
+mod icloud_account;
+#[cfg(feature = "icloud-write-probe")]
+pub use icloud_account::{icloud_account_namespace, icloud_account_uploads};
 mod catchup;
 mod freshness;
 mod google_read;

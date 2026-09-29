@@ -154,12 +154,36 @@ an ordinary account implementation; it is not a claim that writes are ready.
   active index. The router retains the tested 300-second inspection and commit
   deadlines for full integrity readback. Synthetic root and nested cases prove
   checkpoint restoration after the index changes and reject cross-operation,
-  cross-account and malformed checkpoints. Live acceptance of this account-wide
-  router remains open; prior owned-fixture runs do not close that gate.
+  cross-account and malformed checkpoints. Two [account-router live arms](benchmarks/icloud-account-router-uploads-2026-09-30.md)
+  have now passed create, replacement, independent digest/Trash checks and reopening
+  the durable journal through the real `WriteContext` and `TransferWorker`.
+  This developer-only arm uses fresh isolated state and owned fixtures, without
+  FUSE. They took 503.121–508.248 seconds (5.127-second spread); mounted acceptance and broader
+  write coverage remain open. Prior owned-fixture runs alone do not close these gates.
 - `ICloudFileCreate` refuses empty files and files over 32 MiB. The zero-byte
   live experiment did not establish a safe successful upload. Content uses
   one streamed HTTP POST per file, not resumable network chunks; a lost POST
   result must reconcile the reserved exact item rather than resend blindly.
+
+## Account-router live acceptance
+
+The developer-only `--account-uploads RUN_UUID` and `--account-namespace RUN_UUID`
+modes use disabled isolated accounts, fresh owned remote folders, the real
+Engine-owned `WriteContext`, sealed state and regular transfer/mutation workers.
+They do not mount or enable ordinary account writes. Reused run directories are
+refused; interrupted or uncertain state is retained rather than retried blindly.
+The queue guards have passing tests and failing negative controls in local checks
+and CI. A replacement is queued through the working-file/namespace path, so the
+real two-ID handoff contract is exercised.
+
+[Two upload arms](benchmarks/icloud-account-router-uploads-2026-09-30.md) passed
+create, replacement, independent digest/Trash checks and journal reopening.
+[One namespace arm](benchmarks/icloud-account-router-namespace-2026-09-30.md)
+passed nine folder/file operations plus a file create, independent moved content
+verification and reopening all Applied receipts. These narrow live results close
+the gap between fixture-specific adapters and the normal account router for the
+recorded cases. FUSE application behavior, root replacement, combined move/rename,
+empty/large files, concurrent changes and general release acceptance remain open.
 
 ## Required implementation sequence
 

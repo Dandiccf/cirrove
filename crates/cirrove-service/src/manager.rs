@@ -171,7 +171,7 @@ impl WriteContext {
         self.checkpoints.clone()
     }
 
-    async fn open(engine: &Engine, state: &Path) -> Result<Self> {
+    pub(crate) async fn open(engine: &Engine, state: &Path) -> Result<Self> {
         let owner = engine.account.id.clone();
         let directory = state.join("accounts").join(&owner).join("journal");
         let journal = tokio::task::spawn_blocking(move || {
