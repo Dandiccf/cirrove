@@ -36,7 +36,10 @@ an ordinary account implementation; it is not a claim that writes are ready.
   searching for a matching request, which can be ambiguous for identical
   pending saves. A synthetic worker test covers duplicate requests. An owned
   mounted replacement and fresh-process read passed the operation-ID path;
-  the replacement arm took roughly eight minutes and needs latency analysis.
+  a repeated phase-timed arm put about 466 seconds between local FUSE save
+  and upload confirmation, then about 30 seconds in the independent Trash
+  check. The journal retained two failed attempts but not their causes, so
+  the wait inside the upload worker still needs narrower diagnosis.
   General account-wide operation routing and acceptance are still missing.
 - `ICloudFileCreate` refuses empty files and files over 32 MiB. The zero-byte
   live experiment did not establish a safe successful upload. Content uses

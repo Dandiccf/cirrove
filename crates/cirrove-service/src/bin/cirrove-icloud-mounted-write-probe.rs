@@ -25,7 +25,7 @@ use sha2::{Digest, Sha256};
 use std::{
     path::Path,
     sync::{Arc, Mutex},
-    time::Duration,
+    time::{Duration, Instant},
 };
 use uuid::Uuid;
 
@@ -427,6 +427,7 @@ async fn verify_large_bytes(
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let started = Instant::now();
     let args: Vec<_> = std::env::args().skip(1).collect();
     let large_file = args
         .first()
@@ -803,6 +804,12 @@ async fn main() -> Result<()> {
         "Isolated iCloud test mount active: {}",
         engine.account.mount_path.display()
     );
+    if replace_file {
+        eprintln!(
+            "replacement timing: mount ready {:.1}s",
+            started.elapsed().as_secs_f64()
+        );
+    }
     if prepare_folder_move || move_folder || after_move_folder {
         let result: Result<()> = async {
             let script = if prepare_folder_move {
@@ -1137,6 +1144,12 @@ async fn main() -> Result<()> {
             "FUSE application process failed ({}); evidence retained",
             String::from_utf8_lossy(&output.stderr[..output.stderr.len().min(512)])
         );
+        if replace_file {
+            eprintln!(
+                "replacement timing: FUSE save returned {:.1}s",
+                started.elapsed().as_secs_f64()
+            );
+        }
         let uploads = loop {
             let rows = session.uploads(0, 16).await?;
             ensure!(
@@ -1161,6 +1174,12 @@ async fn main() -> Result<()> {
             }
             tokio::time::sleep(Duration::from_millis(200)).await;
         };
+        if replace_file {
+            eprintln!(
+                "replacement timing: uploads confirmed {:.1}s",
+                started.elapsed().as_secs_f64()
+            );
+        }
         let mutations = loop {
             let rows = session.mutations(0, 16).await?;
             ensure!(
@@ -1202,8 +1221,20 @@ async fn main() -> Result<()> {
             }
             tokio::time::sleep(Duration::from_millis(200)).await;
         };
+        if replace_file {
+            eprintln!(
+                "replacement timing: mutations confirmed {:.1}s",
+                started.elapsed().as_secs_f64()
+            );
+        }
         let mut independent = ICloudReadSession::from_session_snapshot(&snapshot, apple_id)?;
         let children = independent.list_folder(folder.id()).await?;
+        if replace_file {
+            eprintln!(
+                "replacement timing: independent listing {:.1}s",
+                started.elapsed().as_secs_f64()
+            );
+        }
         let nested_renamed = rename_nested_file
             || after_nested_rename
             || retry_failed_nested
@@ -1271,6 +1302,12 @@ async fn main() -> Result<()> {
                 independent.exact_item_in_trash(&uploaded.id).await?,
                 "old replacement ID is not uniquely recoverable in Trash"
             );
+            if replace_file {
+                eprintln!(
+                    "replacement timing: old ID in Trash {:.1}s",
+                    started.elapsed().as_secs_f64()
+                );
+            }
             ensure!(
                 !children.iter().any(|entry| {
                     entry.display_name() == format!("staged-by-cirrove-{}.txt", uploads[1].id)
@@ -1450,6 +1487,12 @@ async fn main() -> Result<()> {
                 receipt.size == size,
                 "journal size differs from independent read"
             );
+            if replace_file {
+                eprintln!(
+                    "replacement timing: independent bytes {:.1}s",
+                    started.elapsed().as_secs_f64()
+                );
+            }
         }
         if create_nested_file || after_nested_create {
             let parent = created_folder.context("nested upload parent is absent")?;
