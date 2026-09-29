@@ -9,7 +9,7 @@ use cirrove_core::mutation::MutationReceipt;
 use cirrove_core::upload::UploadIntent;
 use cirrove_core::{Node, NodeKind, Scope};
 use cirrove_icloud::{
-    ICloudDrive, ICloudOwnedFixtureFolderCreate, ICloudOwnedFixtureUpload, ICloudReadSession,
+    ICloudDrive, ICloudFileCreate, ICloudOwnedFixtureFolderCreate, ICloudReadSession, ROOT_ID,
     SealedSessionVault,
 };
 use cirrove_service::{
@@ -636,15 +636,15 @@ async fn main() -> Result<()> {
         );
     }
     let journal = Arc::new(Mutex::new(journal));
+    let upload_parent = Node {
+        parent_id: Some(ROOT_ID.into()),
+        ..root.clone()
+    };
     let provider = Arc::new(Fixture::new(
         scope.clone(),
         root,
         ICloudDrive::on_demand_from_session_snapshot(scope.clone(), apple_id, &snapshot)?,
-        ICloudOwnedFixtureUpload::new(
-            scope.clone(),
-            ICloudReadSession::from_session_snapshot(&snapshot, apple_id)?,
-            folder.clone(),
-        )?,
+        ICloudFileCreate::from_session_snapshot(scope.clone(), apple_id, &snapshot, upload_parent)?,
         ICloudOwnedFixtureFolderCreate::new(
             scope,
             ICloudReadSession::from_session_snapshot(&snapshot, apple_id)?,

@@ -13,8 +13,8 @@ use cirrove_core::{
     Node, NodeKind, ProviderError, ReadProvider, Scope,
 };
 use cirrove_icloud::{
-    ICloudDrive, ICloudFileMove, ICloudFileRename, ICloudFileTrash, ICloudOwnedFixtureFolderCreate,
-    ICloudOwnedFixtureFolderRemove, ICloudOwnedFixtureFolderRename, ICloudOwnedFixtureUpload,
+    ICloudDrive, ICloudFileCreate, ICloudFileMove, ICloudFileRename, ICloudFileTrash,
+    ICloudOwnedFixtureFolderCreate, ICloudOwnedFixtureFolderRemove, ICloudOwnedFixtureFolderRename,
     ICloudOwnedMountedReplace, ICloudReadSession, ValidationFolder,
 };
 use cirrove_service::journal::{MutationState, UploadJournal, UploadRecord, UploadState};
@@ -30,11 +30,11 @@ pub struct Fixture {
     pub scope: Scope,
     pub root: Node,
     pub read: ICloudDrive,
-    pub upload: Arc<ICloudOwnedFixtureUpload>,
+    pub upload: Arc<ICloudFileCreate>,
     pub folders: ICloudOwnedFixtureFolderCreate,
     removal: RemovalContext,
     owned: Mutex<HashSet<String>>,
-    child_uploads: Mutex<HashMap<String, Arc<ICloudOwnedFixtureUpload>>>,
+    child_uploads: Mutex<HashMap<String, Arc<ICloudFileCreate>>>,
 }
 
 pub struct RemovalContext {
@@ -49,7 +49,7 @@ impl Fixture {
         scope: Scope,
         root: Node,
         read: ICloudDrive,
-        upload: ICloudOwnedFixtureUpload,
+        upload: ICloudFileCreate,
         folders: ICloudOwnedFixtureFolderCreate,
         removal: RemovalContext,
         owned: HashSet<String>,
@@ -94,7 +94,7 @@ impl Fixture {
     fn uploader(
         &self,
         request: &UploadRequest,
-    ) -> cirrove_core::upload::Result<Arc<ICloudOwnedFixtureUpload>> {
+    ) -> cirrove_core::upload::Result<Arc<ICloudFileCreate>> {
         self.guard_upload(request)?;
         let UploadIntent::Create { parent, .. } = &request.intent else {
             return Err(UploadError::Invalid);
@@ -118,15 +118,10 @@ impl Fixture {
             confirmed_owned_child_folder(&journal, &self.scope, &self.root.id, parent)
                 .map_err(|_| UploadError::Invalid)?
         };
-        let session = ICloudReadSession::from_session_snapshot(
-            &self.removal.snapshot,
-            &self.removal.apple_id,
-        )
-        .map_err(|_| UploadError::Uncertain)?;
-        let upload = Arc::new(ICloudOwnedFixtureUpload::in_confirmed_child(
+        let upload = Arc::new(ICloudFileCreate::from_session_snapshot(
             self.scope.clone(),
-            session,
-            self.removal.folder.clone(),
+            &self.removal.apple_id,
+            &self.removal.snapshot,
             child,
         )?);
         uploads.insert(parent.clone(), upload.clone());

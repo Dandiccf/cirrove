@@ -1,8 +1,7 @@
 //! Deliberately narrow live-write experiment. Only a new, probe-named folder
 //! and a new file inside that folder can be created. This is not WriteProvider.
 use super::*;
-use std::fs::File;
-use tokio_util::io::ReaderStream;
+pub(crate) use crate::upload_transport::{UploadSlot, Uploaded, UploadedFile};
 
 const PROBE_PREFIX: &str = "Cirrove Write Validation-";
 pub(crate) const PROBE_FILE: &str = "created-by-cirrove.txt";
@@ -216,30 +215,6 @@ struct FolderCreated {
     status: String,
 }
 
-#[derive(Clone, Deserialize, Serialize)]
-pub(crate) struct UploadSlot {
-    pub(crate) url: String,
-    pub(crate) document_id: String,
-}
-
-#[derive(Deserialize)]
-struct Uploaded {
-    #[serde(rename = "singleFile")]
-    file: UploadedFile,
-}
-
-#[derive(Clone, Deserialize, Serialize)]
-pub(crate) struct UploadedFile {
-    receipt: String,
-    #[serde(rename = "fileChecksum")]
-    signature: String,
-    #[serde(rename = "referenceChecksum")]
-    reference_signature: String,
-    #[serde(rename = "wrappingKey")]
-    wrapping_key: String,
-    size: u64,
-}
-
 pub(crate) struct OwnedRegistration<'a> {
     pub(crate) folder: &'a ValidationFolder,
     pub(crate) name: &'a str,
@@ -248,12 +223,6 @@ pub(crate) struct OwnedRegistration<'a> {
     pub(crate) size: u64,
     pub(crate) expected_bytes: Option<&'a [u8]>,
     pub(crate) discard_receipt: bool,
-}
-
-impl UploadedFile {
-    pub(crate) fn valid_for(&self, size: u64) -> bool {
-        self.size == size && !self.receipt.is_empty() && !self.signature.is_empty()
-    }
 }
 
 #[derive(Deserialize)]
@@ -342,47 +311,6 @@ impl ICloudReadSession {
         Ok((slot, data))
     }
 
-    pub(crate) async fn allocate_upload_slot(
-        &mut self,
-        name: &str,
-        size: u64,
-    ) -> Result<UploadSlot> {
-        let endpoint = self
-            .docs_endpoint
-            .as_ref()
-            .context("iCloud sign-in is not complete")?;
-        let slot_url = endpoint.join("ws/com.apple.CloudDocs/upload/web")?;
-        let response = self
-            .http
-            .post(slot_url)
-            .header("origin", ICLOUD_ORIGIN)
-            .header("referer", format!("{ICLOUD_ORIGIN}/"))
-            .json(&json!({
-                "filename": name,
-                "type": "FILE",
-                "size": size.to_string(),
-                "content_type": content_type_for_name(name)
-            }))
-            .send()
-            .await
-            .map_err(|_| anyhow!("iCloud validation upload allocation failed"))?;
-        if !response.status().is_success() {
-            return Err(drive_request_failure(
-                response.status(),
-                "iCloud validation upload allocation",
-            ));
-        }
-        let slot: UploadSlot = exactly_one(
-            read_json::<Vec<UploadSlot>>(response, "iCloud upload allocation").await?,
-            "upload allocation",
-        )?;
-        if slot.document_id.is_empty() || slot.document_id.len() > 256 {
-            bail!("iCloud upload allocation lacks a document identity");
-        }
-        checked_content_url(&slot.url)?;
-        Ok(slot)
-    }
-
     async fn upload_to_slot(
         &mut self,
         slot: &UploadSlot,
@@ -408,42 +336,6 @@ impl ICloudReadSession {
         let data = uploaded.file;
         if data.size != bytes.len() as u64 || data.receipt.is_empty() || data.signature.is_empty() {
             bail!("iCloud upload receipt is incomplete");
-        }
-        Ok(data)
-    }
-
-    pub(crate) async fn upload_stream_to_slot(
-        &mut self,
-        slot: &UploadSlot,
-        name: &str,
-        file: File,
-        size: u64,
-    ) -> Result<UploadedFile> {
-        let upload_url = checked_content_url(&slot.url)?;
-        let body = reqwest::Body::wrap_stream(ReaderStream::with_capacity(
-            tokio::fs::File::from_std(file),
-            64 * 1024,
-        ));
-        let response = self
-            .http
-            .post(upload_url)
-            .header("content-type", content_type_for_name(name))
-            .header(reqwest::header::CONTENT_LENGTH, size)
-            .body(body)
-            .send()
-            .await
-            .map_err(|_| anyhow!("iCloud validation streamed content upload failed"))?;
-        if !response.status().is_success() {
-            return Err(drive_request_failure(
-                response.status(),
-                "iCloud validation streamed content upload",
-            ));
-        }
-        let uploaded: Uploaded =
-            read_json(response, "iCloud validation streamed content upload").await?;
-        let data = uploaded.file;
-        if data.size != size || data.receipt.is_empty() || data.signature.is_empty() {
-            bail!("iCloud streamed upload receipt is incomplete");
         }
         Ok(data)
     }
