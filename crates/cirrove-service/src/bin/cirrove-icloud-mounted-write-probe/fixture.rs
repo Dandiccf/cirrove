@@ -14,7 +14,7 @@ use cirrove_core::{
 };
 use cirrove_icloud::{
     ICloudDrive, ICloudFileCreate, ICloudFileMove, ICloudFileRename, ICloudFileTrash,
-    ICloudFolderCreate, ICloudOwnedFixtureFolderRemove, ICloudOwnedFixtureFolderRename,
+    ICloudFolderCreate, ICloudFolderRename, ICloudOwnedFixtureFolderRemove,
     ICloudOwnedMountedReplace, ICloudReadSession, ValidationFolder,
 };
 use cirrove_service::journal::{MutationState, UploadJournal, UploadRecord, UploadState};
@@ -347,29 +347,19 @@ impl Fixture {
         &self,
         before: Node,
         reconciliation_only: bool,
-    ) -> cirrove_core::mutation::Result<ICloudOwnedFixtureFolderRename> {
-        let session = ICloudReadSession::from_session_snapshot(
-            &self.removal.snapshot,
+    ) -> cirrove_core::mutation::Result<ICloudFolderRename> {
+        let adapter = ICloudFolderRename::from_session_snapshot(
+            self.scope.clone(),
             &self.removal.apple_id,
-        )
-        .map_err(|_| MutationError::Uncertain)?;
-        if reconciliation_only {
-            ICloudOwnedFixtureFolderRename::for_reconciliation(
-                self.scope.clone(),
-                session,
-                self.removal.folder.clone(),
-                before,
-                "Mounted Renamed".into(),
-            )
+            &self.removal.snapshot,
+            before,
+            "Mounted Renamed".into(),
+        )?;
+        Ok(if reconciliation_only {
+            adapter.reconciliation_only()
         } else {
-            ICloudOwnedFixtureFolderRename::new(
-                self.scope.clone(),
-                session,
-                self.removal.folder.clone(),
-                before,
-                "Mounted Renamed".into(),
-            )
-        }
+            adapter
+        })
     }
 
     fn remover(
