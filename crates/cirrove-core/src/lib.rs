@@ -278,6 +278,12 @@ pub trait ReadProvider: MetadataProvider {
     fn supports_same_parent_folder_rename(&self) -> bool {
         false
     }
+    /// Opt into cross-parent folder moves after the provider's conditional
+    /// mutation and recovery path has been validated. Existing providers keep
+    /// refusing this operation unless they explicitly enable it.
+    fn supports_cross_parent_folder_move(&self) -> bool {
+        false
+    }
     /// Read-path counters, for adapters that keep them. `None` means the adapter
     /// does not count, which is not the same as counting zero.
     fn read_path_counters(&self) -> Option<ReadPathCounters> {

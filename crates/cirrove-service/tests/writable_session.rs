@@ -89,6 +89,7 @@ struct Cloud {
     /// asserted. Nothing else in this fixture can make the provider unreachable.
     offline: AtomicBool,
     google_names: AtomicBool,
+    cross_parent_folder_move: AtomicBool,
 }
 fn root() -> Node {
     Node {
@@ -132,6 +133,10 @@ impl MetadataProvider for Cloud {
 }
 #[async_trait]
 impl ReadProvider for Cloud {
+    fn supports_cross_parent_folder_move(&self) -> bool {
+        self.cross_parent_folder_move.load(Ordering::SeqCst)
+    }
+
     /// OneDrive's rules, so the mount is tested against the real ones.
     fn name_problem(&self, name: &str) -> Option<cirrove_core::NameProblem> {
         cirrove_onedrive::naming::name_problem(name)
@@ -1549,6 +1554,97 @@ async fn mutations_applied(session: &WritableSession, count: usize) {
     })
     .await
     .unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; a moved folder must retain its nested route"]
+async fn real_cross_parent_folder_move_keeps_nested_files_and_refuses_cycles() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    cloud.cross_parent_folder_move.store(true, Ordering::SeqCst);
+    {
+        let mut remote = cloud.remote.lock().unwrap();
+        for (id, parent, name) in [
+            ("source", "root", "Source"),
+            ("destination", "root", "Destination"),
+            ("moved", "source", "Moved"),
+            ("nested", "moved", "Nested"),
+        ] {
+            let folder = Node {
+                id: id.into(),
+                parent_id: Some(parent.into()),
+                name: name.into(),
+                etag: Some(format!("etag-{id}")),
+                ..root()
+            };
+            remote.files.insert(id.into(), (folder, vec![]));
+        }
+        let file = Node {
+            id: "child-file".into(),
+            parent_id: Some("nested".into()),
+            name: "child.txt".into(),
+            kind: NodeKind::File,
+            size: 13,
+            etag: Some("etag-child".into()),
+            content_version: Some("content-child".into()),
+            ..root()
+        };
+        remote
+            .files
+            .insert(file.id.clone(), (file, b"nested bytes!".to_vec()));
+    }
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session = WritableSession::mount(
+        engine.clone(),
+        journal,
+        cloud.clone(),
+        Arc::new(Vault::default()),
+    )
+    .await
+    .unwrap();
+    refresh_fixture(&engine, &cloud).await;
+    let root = mount.clone();
+    tokio::task::spawn_blocking(move || {
+        assert_eq!(
+            std::fs::read(root.join("Source/Moved/Nested/child.txt")).unwrap(),
+            b"nested bytes!"
+        );
+        std::fs::rename(root.join("Source/Moved"), root.join("Destination/Moved")).unwrap();
+        assert_eq!(
+            std::fs::read(root.join("Destination/Moved/Nested/child.txt")).unwrap(),
+            b"nested bytes!"
+        );
+        assert!(!root.join("Source/Moved").exists());
+        let cycle = std::fs::rename(
+            root.join("Destination/Moved"),
+            root.join("Destination/Moved/Nested/Cycle"),
+        )
+        .unwrap_err();
+        assert_eq!(cycle.raw_os_error(), Some(libc::EINVAL));
+    })
+    .await
+    .unwrap();
+    mutations_applied(&session, 1).await;
+    {
+        let remote = cloud.remote.lock().unwrap();
+        assert_eq!(remote.moves.len(), 1);
+        let moved = &remote.files.get("moved").unwrap().0;
+        assert_eq!(moved.parent_id.as_deref(), Some("destination"));
+        assert_eq!(
+            remote.files.get("nested").unwrap().0.parent_id.as_deref(),
+            Some("moved")
+        );
+        assert_eq!(remote.files.get("child-file").unwrap().1, b"nested bytes!");
+    }
+    session.shutdown().await.unwrap();
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

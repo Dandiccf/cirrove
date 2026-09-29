@@ -14,8 +14,8 @@ use cirrove_core::{
 };
 use cirrove_icloud::{
     ICloudDrive, ICloudFileCreate, ICloudFileMove, ICloudFileRename, ICloudFileTrash,
-    ICloudFolderCreate, ICloudFolderRename, ICloudFolderTrash, ICloudOwnedMountedReplace,
-    ValidationFolder,
+    ICloudFolderCreate, ICloudFolderMove, ICloudFolderRename, ICloudFolderTrash,
+    ICloudOwnedMountedReplace, ValidationFolder,
 };
 use cirrove_service::journal::{MutationState, UploadJournal, UploadRecord, UploadState};
 use secrecy::SecretString;
@@ -354,6 +354,59 @@ impl Fixture {
             &self.removal.snapshot,
             before,
             "Mounted Renamed".into(),
+        )?;
+        Ok(if reconciliation_only {
+            adapter.reconciliation_only()
+        } else {
+            adapter
+        })
+    }
+
+    fn guard_move_folder(
+        &self,
+        request: &MutationRequest,
+    ) -> cirrove_core::mutation::Result<(Node, Node)> {
+        request.validate()?;
+        let MutationIntent::Relocate {
+            before,
+            parent,
+            name,
+        } = &request.intent
+        else {
+            return Err(MutationError::Invalid);
+        };
+        if request.scope != self.scope
+            || before.kind != NodeKind::Folder
+            || before.parent_id.as_deref() != Some(&self.root.id)
+            || parent == &self.root.id
+            || name != &before.name
+            || !self.owns(&request.scope, &before.id)
+            || !self.owns(&request.scope, parent)
+        {
+            return Err(MutationError::Invalid);
+        }
+        let journal = self
+            .removal
+            .journal
+            .lock()
+            .map_err(|_| MutationError::Uncertain)?;
+        let destination =
+            confirmed_owned_child_folder(&journal, &self.scope, &self.root.id, parent)?;
+        Ok((before.clone(), destination))
+    }
+
+    fn folder_mover(
+        &self,
+        before: Node,
+        destination: Node,
+        reconciliation_only: bool,
+    ) -> cirrove_core::mutation::Result<ICloudFolderMove> {
+        let adapter = ICloudFolderMove::from_session_snapshot(
+            self.scope.clone(),
+            &self.removal.apple_id,
+            &self.removal.snapshot,
+            before,
+            destination,
         )?;
         Ok(if reconciliation_only {
             adapter.reconciliation_only()
@@ -1335,6 +1388,10 @@ impl ReadProvider for Fixture {
         true
     }
 
+    fn supports_cross_parent_folder_move(&self) -> bool {
+        true
+    }
+
     async fn node(
         &self,
         scope: &Scope,
@@ -1575,10 +1632,17 @@ impl MutationProvider for Fixture {
                 name,
             } => match before.kind {
                 NodeKind::Folder => {
-                    let before = self.guard_rename_folder(r)?;
-                    self.folder_renamer(before, false)?
-                        .prepare_mutation(r, c)
-                        .await
+                    if before.parent_id.as_deref() == Some(parent) {
+                        let before = self.guard_rename_folder(r)?;
+                        self.folder_renamer(before, false)?
+                            .prepare_mutation(r, c)
+                            .await
+                    } else {
+                        let (before, destination) = self.guard_move_folder(r)?;
+                        self.folder_mover(before, destination, false)?
+                            .prepare_mutation(r, c)
+                            .await
+                    }
                 }
                 NodeKind::File => {
                     if before.parent_id.as_deref() == Some(parent) {
@@ -1655,10 +1719,17 @@ impl MutationProvider for Fixture {
             } => {
                 let receipt = match before.kind {
                     NodeKind::Folder => {
-                        let before = self.guard_rename_folder(r)?;
-                        self.folder_renamer(before, false)?
-                            .mutate_prepared(r, prepared, c)
-                            .await?
+                        if before.parent_id.as_deref() == Some(parent) {
+                            let before = self.guard_rename_folder(r)?;
+                            self.folder_renamer(before, false)?
+                                .mutate_prepared(r, prepared, c)
+                                .await?
+                        } else {
+                            let (before, destination) = self.guard_move_folder(r)?;
+                            self.folder_mover(before, destination, false)?
+                                .mutate_prepared(r, prepared, c)
+                                .await?
+                        }
                     }
                     NodeKind::File => {
                         if before.parent_id.as_deref() == Some(parent) {
@@ -1728,10 +1799,17 @@ impl MutationProvider for Fixture {
             } => {
                 let result = match before.kind {
                     NodeKind::Folder => {
-                        let before = self.guard_rename_folder(r)?;
-                        self.folder_renamer(before, true)?
-                            .reconcile_prepared_mutation(r, prepared, c)
-                            .await?
+                        if before.parent_id.as_deref() == Some(parent) {
+                            let before = self.guard_rename_folder(r)?;
+                            self.folder_renamer(before, true)?
+                                .reconcile_prepared_mutation(r, prepared, c)
+                                .await?
+                        } else {
+                            let (before, destination) = self.guard_move_folder(r)?;
+                            self.folder_mover(before, destination, true)?
+                                .reconcile_prepared_mutation(r, prepared, c)
+                                .await?
+                        }
                     }
                     NodeKind::File => {
                         if before.parent_id.as_deref() == Some(parent) {

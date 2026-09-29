@@ -595,6 +595,22 @@ impl Inner {
         }
         false
     }
+    /// Check the current view route before a folder move reaches the journal.
+    /// A corrupt or missing route is refused rather than letting the provider
+    /// move a folder into its own descendant.
+    fn folder_move_cycle(&self, source: &Node, destination: &View) -> Result<(), Errno> {
+        let mut current = destination.clone();
+        for _ in 0..128 {
+            if current.id.as_ref() == source.id {
+                return Err(Errno::EINVAL);
+            }
+            if current.inode == ROOT_INODE {
+                return Ok(());
+            }
+            current = self.view(current.parent).map_err(|_| Errno::EIO)?;
+        }
+        Err(Errno::ELOOP)
+    }
     /// Returns the node beside the view rather than inside it: the caller
     /// wants it for the inode key and for attributes, and a view that keeps it
     /// for its whole life is what costs 650 bytes each during a traversal.
@@ -1464,17 +1480,17 @@ impl Filesystem for CloudFs {
                 {
                     return Err(Errno::EOPNOTSUPP);
                 }
-                // Moving a directory between parents also moves its whole
-                // subtree. The shared namespace currently journals only the
-                // directory entry, so allow folder renames in place until
-                // ancestor relocation is represented durably.
-                if source.kind == NodeKind::Folder && parent.id != destination.id {
-                    return Err(Errno::EOPNOTSUPP);
-                }
-                if source.kind == NodeKind::Folder
-                    && !inner.engine.provider.supports_same_parent_folder_rename()
-                {
-                    return Err(Errno::EOPNOTSUPP);
+                if source.kind == NodeKind::Folder {
+                    if parent.id == destination.id {
+                        if !inner.engine.provider.supports_same_parent_folder_rename() {
+                            return Err(Errno::EOPNOTSUPP);
+                        }
+                    } else {
+                        if !inner.engine.provider.supports_cross_parent_folder_move() {
+                            return Err(Errno::EOPNOTSUPP);
+                        }
+                        inner.folder_move_cycle(&source, &destination)?;
+                    }
                 }
                 let _lease = writer
                     .lease(&parent.scope, &source.id, &inner.cancel)
