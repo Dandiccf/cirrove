@@ -15,7 +15,7 @@ use cirrove_core::{
 use cirrove_icloud::{
     ICloudDrive, ICloudFileCreate, ICloudFileMove, ICloudFileRename, ICloudFileTrash,
     ICloudFolderCreate, ICloudFolderMove, ICloudFolderRename, ICloudFolderTrash,
-    ICloudOwnedMountedReplace,
+    ICloudOwnedMountedReplace, ICloudSealedSignIn,
 };
 use cirrove_service::journal::{MutationState, UploadJournal, UploadRecord, UploadState};
 use secrecy::SecretString;
@@ -42,7 +42,6 @@ pub struct RemovalContext {
     pub apple_id: String,
     pub credential_id: String,
     pub state: PathBuf,
-    pub snapshot: SecretString,
     pub journal: Arc<Mutex<UploadJournal>>,
 }
 
@@ -240,7 +239,10 @@ impl Fixture {
                     let node = row.remote.as_ref().ok_or(UploadError::Invalid)?;
                     let parent_id = node.parent_id.as_deref().ok_or(UploadError::Invalid)?;
                     let folder = if parent_id == self.root.id {
-                        self.root.clone()
+                        Node {
+                            parent_id: Some(cirrove_icloud::ROOT_ID.into()),
+                            ..self.root.clone()
+                        }
                     } else {
                         confirmed_owned_child_folder(
                             &journal,
@@ -277,14 +279,17 @@ impl Fixture {
         let (original, original_sha, folder) = source.ok_or(UploadError::Invalid)?;
         let operation: Uuid = operation.ok_or(UploadError::Invalid)?;
         drop(journal);
-        ICloudOwnedMountedReplace::new_in_folder(
+        ICloudOwnedMountedReplace::from_sealed_session_in_folder(
             self.scope.clone(),
             folder,
             original,
             original_sha,
             operation,
-            self.removal.apple_id.clone(),
-            self.removal.snapshot.clone(),
+            ICloudSealedSignIn {
+                apple_id: self.removal.apple_id.clone(),
+                credential_id: self.removal.credential_id.clone(),
+            },
+            &self.removal.state,
         )
     }
 
@@ -675,6 +680,49 @@ impl Fixture {
             .await
             .map_err(|_| anyhow::anyhow!("nested rename read-only preflight refused"))?;
         println!("nested rename read-only preflight passed");
+        Ok(())
+    }
+
+    /// Inspect a failed replacement without mounting, enqueueing or sending a
+    /// provider write. The adapter's begin step only serializes a checkpoint.
+    pub async fn inspect_failed_replace(&self) -> anyhow::Result<()> {
+        let request = {
+            let journal = self
+                .removal
+                .journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock unavailable"))?;
+            let rows = journal.list(0, 16)?;
+            let row = rows.last().ok_or_else(|| anyhow::anyhow!("no upload"))?;
+            ensure!(
+                row.state == UploadState::Failed
+                    && matches!(row.intent, UploadIntent::Replace { .. })
+                    && row.session_key.is_none()
+                    && row.remote.is_none()
+                    && row.transferred_bytes == 0,
+                "only a pre-checkpoint failed replacement may be inspected"
+            );
+            UploadRequest {
+                scope: row.scope.clone(),
+                intent: row.intent.clone(),
+                size: row.size,
+                sha256: row.sha256.clone(),
+            }
+        };
+        let adapter = self
+            .replacement(&request)
+            .map_err(|_| anyhow::anyhow!("replacement journal guard or constructor refused"))?;
+        println!("replacement adapter construction passed");
+        ensure!(
+            matches!(
+                adapter
+                    .begin_upload(&request, &CancellationToken::new())
+                    .await,
+                Ok(UploadStep::Prepared(_))
+            ),
+            "mutation-free replacement checkpoint preparation refused"
+        );
+        println!("replacement mutation-free checkpoint preparation passed");
         Ok(())
     }
 

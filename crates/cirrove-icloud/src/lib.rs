@@ -64,7 +64,7 @@ pub use owned_handoff::ICloudOwnedFixtureHandoff;
 #[cfg(feature = "write-probe")]
 pub use owned_mounted_file_move::ICloudOwnedMountedFileMove;
 #[cfg(feature = "write-probe")]
-pub use owned_mounted_replace::ICloudOwnedMountedReplace;
+pub use owned_mounted_replace::{ICloudOwnedMountedReplace, ICloudSealedSignIn};
 #[cfg(feature = "write-probe")]
 pub use owned_move::{ICloudOwnedFixtureMove, ICloudOwnedMovePause};
 #[cfg(feature = "write-probe")]
@@ -72,7 +72,7 @@ pub use owned_mutation::ICloudOwnedFixtureRemove;
 #[cfg(feature = "write-probe")]
 pub use owned_upload::ICloudOwnedFixtureUpload;
 pub use provider::ICloudDrive;
-pub use sealed_session::SealedSessionVault;
+pub use sealed_session::{SealedSessionVault, SealedUploadCheckpointVault};
 #[cfg(feature = "write-probe")]
 pub use write_probe::{
     EmptyFolderMoveOutcome, HandoffObserved, HandoffOutcome, HandoffPlan, MoveCollisionOutcome,

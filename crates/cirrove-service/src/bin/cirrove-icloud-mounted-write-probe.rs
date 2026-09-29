@@ -10,7 +10,7 @@ use cirrove_core::upload::UploadIntent;
 use cirrove_core::{Node, NodeKind, Scope};
 use cirrove_icloud::{
     ICloudDrive, ICloudFileCreate, ICloudFolderCreate, ICloudReadSession, ROOT_ID,
-    SealedSessionVault,
+    SealedSessionVault, SealedUploadCheckpointVault,
 };
 use cirrove_service::{
     accounts::Settings,
@@ -20,6 +20,7 @@ use cirrove_service::{
     writable::WritableSession,
 };
 use fixture::{Fixture, RemovalContext, restored_owned};
+use secrecy::ExposeSecret;
 use sha2::{Digest, Sha256};
 use std::{
     path::Path,
@@ -464,6 +465,10 @@ async fn main() -> Result<()> {
     let inspect_nested_rename = args
         .first()
         .is_some_and(|flag| flag == "--inspect-nested-rename");
+    let inspect_replace = args.first().is_some_and(|flag| flag == "--inspect-replace");
+    let inspect_replace_phase = args
+        .first()
+        .is_some_and(|flag| flag == "--inspect-replace-phase");
     let retry_failed_nested = args
         .first()
         .is_some_and(|flag| flag == "--retry-failed-nested");
@@ -533,6 +538,8 @@ async fn main() -> Result<()> {
                 || flag == "--rename-nested-file"
                 || flag == "--resume-after-nested-rename"
                 || flag == "--inspect-nested-rename"
+                || flag == "--inspect-replace"
+                || flag == "--inspect-replace-phase"
                 || flag == "--retry-failed-nested"
                 || flag == "--create-nested-file"
                 || flag == "--resume-after-nested-create"
@@ -707,6 +714,17 @@ async fn main() -> Result<()> {
         package: false,
     };
     let journal = UploadJournal::open(&run_dir.join("journal"), &account.id, 64 * 1024 * 1024)?;
+    if inspect_replace_phase {
+        return inspect_saved_replace_phase(
+            &journal,
+            &run_dir,
+            &account.id,
+            apple_id,
+            &snapshot,
+            folder.id(),
+        )
+        .await;
+    }
     let owned = restored_owned(&journal, &scope, folder.id())?;
     if resume.is_some() {
         ensure!(
@@ -747,13 +765,15 @@ async fn main() -> Result<()> {
             apple_id: apple_id.clone(),
             credential_id: account.credential_id.clone(),
             state: state.clone(),
-            snapshot: snapshot.clone(),
             journal: journal.clone(),
         },
         owned,
     ));
     if inspect_nested_rename {
         return provider.inspect_failed_nested_rename().await;
+    }
+    if inspect_replace {
+        return provider.inspect_failed_replace().await;
     }
     if retry_failed_nested {
         provider.retry_failed_nested_rename().await?;
@@ -767,8 +787,13 @@ async fn main() -> Result<()> {
     config.cache_bytes = 64 * 1024 * 1024;
     private_dir(&config.mount_path)?;
     let engine = Engine::new(config, provider.clone(), run_dir.join("engine")).await?;
-    let session =
-        WritableSession::mount(engine.clone(), journal, provider, Arc::new(DesktopVault)).await?;
+    let session = WritableSession::mount(
+        engine.clone(),
+        journal,
+        provider,
+        Arc::new(SealedUploadCheckpointVault::new(&run_dir, &account.id)?),
+    )
+    .await?;
     println!(
         "Isolated iCloud test mount active: {}",
         engine.account.mount_path.display()
@@ -1539,6 +1564,77 @@ async fn main() -> Result<()> {
     println!(
         "Isolated fixture and journal retained at {}",
         run_dir.display()
+    );
+    Ok(())
+}
+
+/// Read only a checkpoint's phase and exact-item presence. Never display the
+/// checkpoint, provider IDs, URLs or response bodies.
+async fn inspect_saved_replace_phase(
+    journal: &UploadJournal,
+    run_dir: &Path,
+    account_id: &str,
+    apple_id: &str,
+    snapshot: &secrecy::SecretString,
+    folder_id: &str,
+) -> Result<()> {
+    let rows = journal.list(0, 16)?;
+    let row = rows.last().context("no replacement upload")?;
+    let UploadIntent::Replace { item, .. } = &row.intent else {
+        bail!("last upload is not a replacement");
+    };
+    ensure!(
+        row.state == UploadState::VerifyRequired && row.remote.is_none(),
+        "replacement is not awaiting verification"
+    );
+    let key = row
+        .session_key
+        .context("replacement has no saved checkpoint")?;
+    let saved = SealedUploadCheckpointVault::new(run_dir, account_id)?
+        .load(&format!("upload/{key}"))
+        .await?
+        .context("replacement checkpoint is unavailable")?;
+    println!("checkpoint_bytes={}", saved.expose_secret().len());
+    let checkpoint: serde_json::Value = serde_json::from_str(saved.expose_secret())
+        .context("replacement outer checkpoint is unreadable")?;
+    let phase = checkpoint
+        .get("phase")
+        .and_then(serde_json::Value::as_object)
+        .context("replacement checkpoint lacks a phase")?;
+    let (phase_name, inner) = if let Some(value) = phase.get("Stage") {
+        ("stage", value)
+    } else if let Some(value) = phase.get("Handoff") {
+        ("handoff", value)
+    } else {
+        bail!("replacement checkpoint has an unknown phase");
+    };
+    let inner_text = inner
+        .get("inner")
+        .and_then(serde_json::Value::as_str)
+        .context("replacement inner checkpoint missing")?;
+    println!("inner_checkpoint_bytes={}", inner_text.len());
+    let nested: serde_json::Value =
+        serde_json::from_str(inner_text).context("replacement inner checkpoint is unreadable")?;
+    let has_slot = nested.get("slot").is_some_and(|value| !value.is_null());
+    let has_receipt = nested.get("receipt").is_some_and(|value| !value.is_null());
+    let mut session = ICloudReadSession::from_session_snapshot(snapshot, apple_id)?;
+    let entries = session.list_folder(folder_id).await?;
+    let original_present = entries
+        .iter()
+        .filter(|entry| entry.drivewsid == *item)
+        .count()
+        == 1;
+    let stage_name = format!("staged-by-cirrove-{}.txt", row.id);
+    let recovery_name = format!("recovery-by-cirrove-{}.txt", row.id);
+    let stage_present = entries
+        .iter()
+        .any(|entry| entry.display_name() == stage_name);
+    let recovery_present = entries
+        .iter()
+        .any(|entry| entry.display_name() == recovery_name);
+    let original_in_trash = session.exact_item_in_trash(item).await?;
+    println!(
+        "phase={phase_name} slot={has_slot} receipt={has_receipt} original_present={original_present} stage_present={stage_present} recovery_present={recovery_present} original_in_trash={original_in_trash}"
     );
     Ok(())
 }

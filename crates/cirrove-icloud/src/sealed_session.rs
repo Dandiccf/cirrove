@@ -23,6 +23,9 @@ const MAX_SEALED_BYTES: u64 = 128 * 1024 + 64;
 pub struct SealedSessionVault {
     account_dir: PathBuf,
     account_id: String,
+    file_name: &'static str,
+    temp_prefix: &'static str,
+    aad_domain: &'static str,
 }
 
 impl SealedSessionVault {
@@ -34,17 +37,20 @@ impl SealedSessionVault {
         Ok(Self {
             account_dir: state.join("accounts").join(account_id),
             account_id: account_id.into(),
+            file_name: "icloud-session.sealed",
+            temp_prefix: ".icloud-session",
+            aad_domain: "icloud-session",
         })
     }
 
     fn path(&self) -> PathBuf {
-        self.account_dir.join("icloud-session.sealed")
+        self.account_dir.join(self.file_name)
     }
 
     fn aad(&self, credential_id: &str) -> Vec<u8> {
         format!(
-            "cirrove:icloud-session:v1:{}:{credential_id}",
-            self.account_id
+            "cirrove:{}:v1:{}:{credential_id}",
+            self.aad_domain, self.account_id
         )
         .into_bytes()
     }
@@ -139,7 +145,7 @@ impl SealedSessionVault {
         }
         let temp = self
             .account_dir
-            .join(format!(".icloud-session-{}.tmp", Uuid::new_v4()));
+            .join(format!("{}-{}.tmp", self.temp_prefix, Uuid::new_v4()));
         let result = (|| -> Result<()> {
             let mut file = OpenOptions::new()
                 .write(true)
@@ -206,6 +212,58 @@ impl SealedSessionVault {
             bail!("iCloud session did not survive local readback");
         }
         Ok(())
+    }
+}
+
+/// Each upload operation has its own authenticated checkpoint file. Secret
+/// Service holds only the short encryption key, since large iCloud checkpoint
+/// values have been observed returning empty after a keyring update.
+pub struct SealedUploadCheckpointVault {
+    account_dir: PathBuf,
+    account_id: String,
+}
+
+impl SealedUploadCheckpointVault {
+    pub fn new(state: &Path, account_id: &str) -> Result<Self> {
+        Uuid::parse_str(account_id).context("invalid iCloud account identifier")?;
+        if !state.is_absolute() {
+            bail!("iCloud state directory must be absolute");
+        }
+        Ok(Self {
+            account_dir: state.join("accounts").join(account_id),
+            account_id: account_id.into(),
+        })
+    }
+
+    fn operation(&self, key: &str) -> Result<SealedSessionVault> {
+        let operation = key
+            .strip_prefix("upload/")
+            .context("invalid iCloud upload checkpoint key")?;
+        Uuid::parse_str(operation).context("invalid iCloud upload operation")?;
+        Ok(SealedSessionVault {
+            account_dir: self.account_dir.join("upload-checkpoints").join(operation),
+            account_id: self.account_id.clone(),
+            file_name: "checkpoint.sealed",
+            temp_prefix: ".checkpoint",
+            aad_domain: "icloud-upload-checkpoint",
+        })
+    }
+}
+
+#[async_trait]
+impl CredentialVault for SealedUploadCheckpointVault {
+    async fn load(&self, key: &str) -> Result<Option<SecretString>> {
+        self.operation(key)?.load_with(key, &DesktopVault).await
+    }
+
+    async fn save(&self, key: &str, value: SecretString) -> Result<()> {
+        self.operation(key)?
+            .save_with(key, value, &DesktopVault)
+            .await
+    }
+
+    async fn remove(&self, key: &str) -> Result<()> {
+        self.operation(key)?.remove(key).await
     }
 }
 
@@ -361,5 +419,71 @@ mod tests {
                 .expose_secret(),
             "legacy"
         );
+    }
+
+    #[tokio::test]
+    async fn upload_checkpoint_survives_large_keyring_value_loss_and_reopen() {
+        let temp = tempfile::tempdir().expect("synthetic fixture");
+        let account = Uuid::new_v4().to_string();
+        let operation = format!("upload/{}", Uuid::new_v4());
+        let keyring = LargeValueLost::default();
+        let checkpoint = SecretString::from("synthetic-checkpoint".repeat(1000));
+        keyring
+            .save(
+                &operation,
+                SecretString::from(checkpoint.expose_secret().to_string()),
+            )
+            .await
+            .expect("synthetic fixture");
+        assert_eq!(
+            keyring
+                .load(&operation)
+                .await
+                .expect("synthetic fixture")
+                .expect("synthetic fixture")
+                .expose_secret(),
+            ""
+        );
+
+        let vault =
+            SealedUploadCheckpointVault::new(temp.path(), &account).expect("synthetic fixture");
+        let first = vault.operation(&operation).expect("synthetic fixture");
+        first
+            .save_with(
+                &operation,
+                SecretString::from(checkpoint.expose_secret().to_string()),
+                &keyring,
+            )
+            .await
+            .expect("synthetic fixture");
+        assert!(
+            keyring
+                .load(&operation)
+                .await
+                .expect("synthetic fixture")
+                .expect("synthetic fixture")
+                .expose_secret()
+                .starts_with(KEY_PREFIX)
+        );
+        let reopened = SealedUploadCheckpointVault::new(temp.path(), &account)
+            .expect("synthetic fixture")
+            .operation(&operation)
+            .expect("synthetic fixture");
+        assert_eq!(
+            reopened
+                .load_with(&operation, &keyring)
+                .await
+                .expect("synthetic fixture")
+                .expect("synthetic fixture")
+                .expose_secret(),
+            checkpoint.expose_secret()
+        );
+        let foreign = SealedUploadCheckpointVault::new(temp.path(), &Uuid::new_v4().to_string())
+            .expect("synthetic fixture")
+            .operation(&operation)
+            .expect("synthetic fixture");
+        foreign.private_account_dir().expect("synthetic fixture");
+        fs::copy(reopened.path(), foreign.path()).expect("synthetic fixture");
+        assert!(foreign.load_with(&operation, &keyring).await.is_err());
     }
 }

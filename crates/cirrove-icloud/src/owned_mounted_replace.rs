@@ -2,9 +2,10 @@
 //! Ordinary iCloud accounts never construct this feature-gated provider.
 use super::{
     HandoffPlan, ICloudFileCreate, ICloudOwnedFixtureHandoff, ICloudReadSession, ROOT_ID,
-    ValidationFolder, write_probe::TRASH_ROOT,
+    SealedSessionVault, ValidationFolder, write_probe::TRASH_ROOT,
 };
 use async_trait::async_trait;
+use cirrove_auth::CredentialVault;
 use cirrove_core::upload::{
     Reconciliation, RecoveryLocation, Result as UploadResult, UploadError, UploadIntent,
     UploadProgress, UploadProvider, UploadRequest, UploadStep,
@@ -12,7 +13,7 @@ use cirrove_core::upload::{
 use cirrove_core::{CancellationToken, Node, NodeKind, Scope};
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
-use std::fs::File;
+use std::{fs::File, path::Path, sync::Arc};
 use uuid::Uuid;
 
 const MAX_CHECKPOINT: usize = 32 * 1024;
@@ -49,9 +50,25 @@ pub struct ICloudOwnedMountedReplace {
     operation: Uuid,
     stage_name: String,
     recovery_name: String,
-    apple_id: String,
-    snapshot: SecretString,
+    session: SessionSource,
     stage: ICloudFileCreate,
+}
+
+enum SessionSource {
+    Snapshot {
+        apple_id: String,
+        snapshot: SecretString,
+    },
+    Vault {
+        apple_id: String,
+        credential_id: String,
+        vault: Arc<dyn CredentialVault>,
+    },
+}
+
+pub struct ICloudSealedSignIn {
+    pub apple_id: String,
+    pub credential_id: String,
 }
 
 impl ICloudOwnedMountedReplace {
@@ -109,6 +126,89 @@ impl ICloudOwnedMountedReplace {
         apple_id: String,
         snapshot: SecretString,
     ) -> UploadResult<Self> {
+        Self::check_identity(&scope, &folder, &original, &original_sha256)?;
+        let stage = ICloudFileCreate::from_session_snapshot(
+            scope.clone(),
+            &apple_id,
+            &snapshot,
+            folder.clone(),
+        )?;
+        Ok(Self::with_stage(
+            scope,
+            folder,
+            original,
+            original_sha256,
+            operation,
+            SessionSource::Snapshot { apple_id, snapshot },
+            stage,
+        ))
+    }
+
+    pub fn from_sealed_session_in_folder(
+        scope: Scope,
+        folder: Node,
+        original: Node,
+        original_sha256: String,
+        operation: Uuid,
+        sign_in: ICloudSealedSignIn,
+        state: &Path,
+    ) -> UploadResult<Self> {
+        Self::check_identity(&scope, &folder, &original, &original_sha256)?;
+        if sign_in.apple_id.trim().is_empty() || Uuid::parse_str(&sign_in.credential_id).is_err() {
+            return Err(UploadError::Invalid);
+        }
+        let stage = ICloudFileCreate::from_sealed_session(
+            scope.clone(),
+            sign_in.apple_id.clone(),
+            sign_in.credential_id.clone(),
+            state,
+            folder.clone(),
+        )?;
+        let vault =
+            SealedSessionVault::new(state, &scope.account).map_err(|_| UploadError::Invalid)?;
+        Ok(Self::with_stage(
+            scope,
+            folder,
+            original,
+            original_sha256,
+            operation,
+            SessionSource::Vault {
+                apple_id: sign_in.apple_id,
+                credential_id: sign_in.credential_id,
+                vault: Arc::new(vault),
+            },
+            stage,
+        ))
+    }
+
+    fn with_stage(
+        scope: Scope,
+        folder: Node,
+        original: Node,
+        original_sha256: String,
+        operation: Uuid,
+        session: SessionSource,
+        stage: ICloudFileCreate,
+    ) -> Self {
+        Self {
+            scope,
+            folder,
+            original,
+            original_sha256,
+            operation,
+            stage_name: format!("staged-by-cirrove-{operation}.txt"),
+            recovery_name: format!("recovery-by-cirrove-{operation}.txt"),
+            session,
+            stage,
+        }
+    }
+
+    fn check_identity(
+        scope: &Scope,
+        folder: &Node,
+        original: &Node,
+        original_sha256: &str,
+    ) -> UploadResult<()> {
         let valid_digest = |hash: &str| {
             hash.len() == 64
                 && hash
@@ -141,28 +241,11 @@ impl ICloudOwnedMountedReplace {
             || original.name.contains(['/', '\0', '\r', '\n'])
             || original.target.is_some()
             || original.package
-            || !valid_digest(&original_sha256)
+            || !valid_digest(original_sha256)
         {
             return Err(UploadError::Invalid);
         }
-        let stage = ICloudFileCreate::from_session_snapshot(
-            scope.clone(),
-            &apple_id,
-            &snapshot,
-            folder.clone(),
-        )?;
-        Ok(Self {
-            scope,
-            folder,
-            original,
-            original_sha256,
-            operation,
-            stage_name: format!("staged-by-cirrove-{operation}.txt"),
-            recovery_name: format!("recovery-by-cirrove-{operation}.txt"),
-            apple_id,
-            snapshot,
-            stage,
-        })
+        Ok(())
     }
 
     fn check_request(&self, request: &UploadRequest) -> UploadResult<()> {
@@ -250,9 +333,36 @@ impl ICloudOwnedMountedReplace {
         Ok(saved.phase)
     }
 
-    fn handoff(&self, plan: HandoffPlan, size: u64) -> UploadResult<ICloudOwnedFixtureHandoff> {
-        let session = ICloudReadSession::from_session_snapshot(&self.snapshot, &self.apple_id)
+    async fn load_session(&self) -> UploadResult<ICloudReadSession> {
+        let (apple_id, saved) = match &self.session {
+            SessionSource::Snapshot { apple_id, snapshot } => (apple_id, snapshot.clone()),
+            SessionSource::Vault {
+                apple_id,
+                credential_id,
+                vault,
+            } => (
+                apple_id,
+                vault
+                    .load(credential_id)
+                    .await
+                    .map_err(|_| UploadError::Uncertain)?
+                    .ok_or(UploadError::Uncertain)?,
+            ),
+        };
+        let session = ICloudReadSession::from_session_snapshot(&saved, apple_id)
             .map_err(|_| UploadError::Uncertain)?;
+        if session.account_hash.is_none() {
+            return Err(UploadError::Invalid);
+        }
+        Ok(session)
+    }
+
+    async fn handoff(
+        &self,
+        plan: HandoffPlan,
+        size: u64,
+    ) -> UploadResult<ICloudOwnedFixtureHandoff> {
+        let session = self.load_session().await?;
         ICloudOwnedFixtureHandoff::new_conditional_trash(
             self.scope.clone(),
             self.operation,
@@ -267,8 +377,7 @@ impl ICloudOwnedMountedReplace {
     /// that the exact old revision still occupies its confirmed folder and
     /// neither reserved name was created. A name alone is never a receipt.
     async fn inspect_without_checkpoint(&self) -> UploadResult<Reconciliation> {
-        let mut session = ICloudReadSession::from_session_snapshot(&self.snapshot, &self.apple_id)
-            .map_err(|_| UploadError::Uncertain)?;
+        let mut session = self.load_session().await?;
         let parent = self
             .folder
             .parent_id
@@ -427,7 +536,7 @@ impl ICloudOwnedMountedReplace {
             }),
             UploadStep::Complete(staged) => {
                 let plan = self.plan(request, &staged)?;
-                let handoff = self.handoff(plan.clone(), request.size)?;
+                let handoff = self.handoff(plan.clone(), request.size).await?;
                 let UploadStep::Commit(inner) = handoff.begin_upload(request, cancel).await? else {
                     return Err(UploadError::Uncertain);
                 };
@@ -510,7 +619,7 @@ impl UploadProvider for ICloudOwnedMountedReplace {
                 .await
             }
             Phase::Handoff { inner, plan } => {
-                let handoff = self.handoff(*plan.clone(), r.size)?;
+                let handoff = self.handoff(*plan.clone(), r.size).await?;
                 self.wrap_handoff(
                     r,
                     *plan,
@@ -587,7 +696,7 @@ impl UploadProvider for ICloudOwnedMountedReplace {
                 .await
             }
             Phase::Handoff { inner, plan } => {
-                let handoff = self.handoff(*plan.clone(), r.size)?;
+                let handoff = self.handoff(*plan.clone(), r.size).await?;
                 self.wrap_handoff(
                     r,
                     *plan,
@@ -626,7 +735,8 @@ impl UploadProvider for ICloudOwnedMountedReplace {
                 Reconciliation::HandoffCommitted { .. } => Err(UploadError::Invalid),
             },
             Phase::Handoff { inner, plan } => {
-                self.handoff(*plan, r.size)?
+                self.handoff(*plan, r.size)
+                    .await?
                     .reconcile_upload(r, Some(&SecretString::from(inner)), c)
                     .await
             }
