@@ -55,6 +55,8 @@ pub struct ICloudFileCreate {
     session: Mutex<SessionState>,
     #[cfg(feature = "write-probe")]
     reconciliation_only: bool,
+    #[cfg(feature = "write-probe")]
+    discard_registration_response: bool,
 }
 
 impl ICloudFileCreate {
@@ -76,6 +78,8 @@ impl ICloudFileCreate {
             session: Mutex::new(SessionState::Ready(Box::new(session))),
             #[cfg(feature = "write-probe")]
             reconciliation_only: false,
+            #[cfg(feature = "write-probe")]
+            discard_registration_response: false,
         })
     }
 
@@ -102,6 +106,8 @@ impl ICloudFileCreate {
             }),
             #[cfg(feature = "write-probe")]
             reconciliation_only: false,
+            #[cfg(feature = "write-probe")]
+            discard_registration_response: false,
         })
     }
 
@@ -109,6 +115,24 @@ impl ICloudFileCreate {
     pub fn reconciliation_only(mut self) -> Self {
         self.reconciliation_only = true;
         self
+    }
+
+    #[cfg(feature = "write-probe")]
+    pub fn with_discarded_registration_response(mut self) -> Self {
+        self.discard_registration_response = true;
+        self
+    }
+
+    #[cfg(feature = "write-probe")]
+    pub fn reserved_document_id(
+        &self,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+    ) -> UploadResult<Option<String>> {
+        Ok(self
+            .check_checkpoint(request, checkpoint)?
+            .slot
+            .map(|slot| slot.document_id))
     }
 
     fn check_identity(scope: &Scope, parent: &Node) -> UploadResult<()> {
@@ -528,6 +552,25 @@ impl UploadProvider for ICloudFileCreate {
             if entries.iter().any(|entry| entry.display_name() == *name) {
                 return Err(UploadError::Conflict);
             }
+            #[cfg(feature = "write-probe")]
+            if self.discard_registration_response {
+                session
+                    .register_uploaded_file_discard_response(
+                        &self.parent.id,
+                        name,
+                        &slot,
+                        &receipt,
+                        request.size,
+                    )
+                    .await
+                    .map_err(|_| UploadError::Uncertain)?;
+            } else {
+                session
+                    .register_uploaded_file(&self.parent.id, name, &slot, &receipt, request.size)
+                    .await
+                    .map_err(|_| UploadError::Uncertain)?;
+            }
+            #[cfg(not(feature = "write-probe"))]
             session
                 .register_uploaded_file(&self.parent.id, name, &slot, &receipt, request.size)
                 .await

@@ -83,6 +83,32 @@ impl ICloudReadSession {
         data: &UploadedFile,
         size: u64,
     ) -> Result<()> {
+        self.register_uploaded_file_response(parent, name, slot, data, size, false)
+            .await
+    }
+
+    #[cfg(feature = "write-probe")]
+    pub(crate) async fn register_uploaded_file_discard_response(
+        &mut self,
+        parent: &str,
+        name: &str,
+        slot: &UploadSlot,
+        data: &UploadedFile,
+        size: u64,
+    ) -> Result<()> {
+        self.register_uploaded_file_response(parent, name, slot, data, size, true)
+            .await
+    }
+
+    async fn register_uploaded_file_response(
+        &mut self,
+        parent: &str,
+        name: &str,
+        slot: &UploadSlot,
+        data: &UploadedFile,
+        size: u64,
+        discard_response: bool,
+    ) -> Result<()> {
         if !parent.starts_with("FOLDER::com.apple.CloudDocs::")
             || parent.rsplit("::").next().is_none_or(str::is_empty)
             || name.is_empty()
@@ -131,6 +157,9 @@ impl ICloudReadSession {
             .send()
             .await
             .map_err(|_| anyhow!("iCloud file registration outcome is uncertain"))?;
+        if discard_response {
+            bail!("iCloud file registration response deliberately discarded");
+        }
         if !response.status().is_success() {
             return Err(drive_request_failure(
                 response.status(),

@@ -11,12 +11,12 @@ use cirrove_core::mutation::{
 use cirrove_core::upload::UploadRequest;
 use cirrove_core::{CancellationToken, Node, NodeKind, Scope};
 use cirrove_icloud::{
-    EmptyFolderMoveOutcome, HandoffOutcome, ICloudFileTrash, ICloudOwnedFixtureFolderCreate,
-    ICloudOwnedFixtureFolderMove, ICloudOwnedFixtureFolderRemove, ICloudOwnedFixtureHandoff,
-    ICloudOwnedFixtureMove, ICloudOwnedFixtureRemove, ICloudOwnedFixtureUpload,
-    ICloudOwnedMovePause, ICloudReadSession, MoveCollisionOutcome, MoveProbeOutcome,
-    OccupiedNameOutcome, PopulatedFolderMoveOutcome, RenameProbeOutcome, SameIdUpdateOutcome,
-    SealedSessionVault, TrashProbeOutcome, TrashRestoreOutcome,
+    EmptyFolderMoveOutcome, HandoffOutcome, ICloudFileCreate, ICloudFileTrash,
+    ICloudOwnedFixtureFolderCreate, ICloudOwnedFixtureFolderMove, ICloudOwnedFixtureFolderRemove,
+    ICloudOwnedFixtureHandoff, ICloudOwnedFixtureMove, ICloudOwnedFixtureRemove,
+    ICloudOwnedFixtureUpload, ICloudOwnedMovePause, ICloudReadSession, MoveCollisionOutcome,
+    MoveProbeOutcome, OccupiedNameOutcome, PopulatedFolderMoveOutcome, ROOT_ID, RenameProbeOutcome,
+    SameIdUpdateOutcome, SealedSessionVault, TrashProbeOutcome, TrashRestoreOutcome,
 };
 use cirrove_service::accounts::Settings;
 use cirrove_service::journal::{MutationState, UploadIntent, UploadJournal, UploadState};
@@ -64,6 +64,12 @@ struct GeneralTrashFixture {
     account_id: String,
     before: Node,
     sha256: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct GeneralCreateFixture {
+    account_id: String,
+    parent: Node,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -273,8 +279,10 @@ async fn main() -> Result<()> {
         [flag, _run_id] if flag == "--worker-reconcile-two-level-folder-move" => 86,
         [flag] if flag == "--general-trash-lost-response" => 87,
         [flag, _run_id] if flag == "--general-trash-reconcile" => 88,
+        [flag] if flag == "--general-create-lost-response" => 89,
+        [flag, _run_id] if flag == "--general-create-reconcile" => 90,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --stale-etag-move | --fresh-etag-move | --metadata-stale-move | --occupied-move-name | --inspect-occupied-move | --inspect-owned-folder ID | --reconcile-occupied-move UUID | --worker-owned-move | --worker-discard-move-response | --worker-reconcile-move UUID | --worker-move-collision-race | --empty-folder-move | --inspect-empty-folder-move UUID | --worker-discard-folder-move-response | --worker-reconcile-folder-move UUID | --populated-folder-move | --inspect-populated-folder-move UUID | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create | --worker-streamed-binary-create | --worker-streamed-lost-registration | --worker-reconcile-streamed-registration | --worker-streamed-lost-content | --worker-retry-streamed-content | --worker-create-folder | --worker-discard-folder-receipt | --worker-reconcile-folder | --worker-discard-empty-folder-trash | --worker-reconcile-empty-folder-trash | --general-trash-lost-response | --general-trash-reconcile UUID]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --stale-etag-move | --fresh-etag-move | --metadata-stale-move | --occupied-move-name | --inspect-occupied-move | --inspect-owned-folder ID | --reconcile-occupied-move UUID | --worker-owned-move | --worker-discard-move-response | --worker-reconcile-move UUID | --worker-move-collision-race | --empty-folder-move | --inspect-empty-folder-move UUID | --worker-discard-folder-move-response | --worker-reconcile-folder-move UUID | --populated-folder-move | --inspect-populated-folder-move UUID | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create | --worker-streamed-binary-create | --worker-streamed-lost-registration | --worker-reconcile-streamed-registration | --worker-streamed-lost-content | --worker-retry-streamed-content | --worker-create-folder | --worker-discard-folder-receipt | --worker-reconcile-folder | --worker-discard-empty-folder-trash | --worker-reconcile-empty-folder-trash | --general-trash-lost-response | --general-trash-reconcile UUID | --general-create-lost-response | --general-create-reconcile UUID]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -305,6 +313,109 @@ async fn main() -> Result<()> {
         .list_root()
         .await
         .context("saved iCloud session is not usable")?;
+    if mode == 90 {
+        let run = Uuid::parse_str(&arguments[1]).context("invalid general create run ID")?;
+        let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+            "../../.local-state/icloud-general-create-recovery-{run}"
+        ));
+        let fixture: GeneralCreateFixture =
+            serde_json::from_slice(&fs::read(directory.join("fixture.json"))?)?;
+        if fixture.account_id != account.id {
+            bail!("general create fixture belongs to another account");
+        }
+        let scope = Scope {
+            account: account.id.clone(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        };
+        let journal = Arc::new(Mutex::new(UploadJournal::open(
+            &directory,
+            &account.id,
+            8192,
+        )?));
+        let record = {
+            let guard = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock"))?;
+            let rows = guard.list(0, 2)?;
+            if rows.len() != 1
+                || rows[0].state != UploadState::VerifyRequired
+                || rows[0].scope != scope
+                || !matches!(&rows[0].intent, UploadIntent::Create { parent, .. } if parent == &fixture.parent.id)
+            {
+                bail!("general create journal lacks its exact pending operation");
+            }
+            rows.into_iter()
+                .next()
+                .context("missing create operation")?
+        };
+        let request = UploadRequest {
+            scope: record.scope.clone(),
+            intent: record.intent.clone(),
+            size: record.size,
+            sha256: record.sha256.clone(),
+        };
+        let provider = Arc::new(
+            ICloudFileCreate::from_sealed_session(
+                scope,
+                account.identity.username.clone(),
+                account.credential_id.clone(),
+                &state,
+                fixture.parent.clone(),
+            )?
+            .reconciliation_only(),
+        );
+        let checkpoint = DesktopVault
+            .load(&format!("upload/{}", record.id))
+            .await?
+            .context("general create checkpoint missing")?;
+        let reserved = provider
+            .reserved_document_id(&request, &checkpoint)?
+            .context("general create checkpoint lacks its reserved document ID")?;
+        let worker = TransferWorker::new(
+            journal.clone(),
+            provider,
+            Arc::new(DesktopVault),
+            CancellationToken::new(),
+        );
+        let result = worker
+            .run_once()
+            .await?
+            .context("general create recovery was not claimed")?;
+        if result.id != record.id || result.state != UploadState::Uploaded || result.issue.is_some()
+        {
+            bail!("general create recovery did not reach Uploaded");
+        }
+        let remote = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock"))?
+            .get(record.id)?
+            .remote
+            .context("general create recovery lacks a remote item")?;
+        if remote.parent_id.as_deref() != Some(fixture.parent.id.as_str())
+            || remote.id.rsplit("::").next() != Some(reserved.as_str())
+            || remote.size != record.size
+        {
+            bail!("general create recovery returned another identity");
+        }
+        let entries = session.list_folder(&fixture.parent.id).await?;
+        if entries.len() != 1
+            || entries[0].drivewsid != remote.id
+            || entries[0].display_name() != remote.name
+            || hex::encode(sha2::Sha256::digest(
+                session
+                    .read_small_file_in_folder(&fixture.parent.id, &remote.id)
+                    .await?,
+            )) != record.sha256
+        {
+            bail!("general create recovery lacks a unique full-byte match");
+        }
+        println!(
+            "General create resumed in a new process with its reserved identity and full-byte SHA-256, without replaying registration. Operation: {}.",
+            record.id
+        );
+        return Ok(());
+    }
     if mode == 88 {
         let run = Uuid::parse_str(&arguments[1]).context("invalid general Trash run ID")?;
         let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
@@ -2067,6 +2178,99 @@ async fn main() -> Result<()> {
     let name = format!("Cirrove Write Validation-{}", Uuid::new_v4());
     let folder = session.create_validation_folder(&name).await?;
     println!("Created and listed the isolated iCloud validation folder.");
+    if mode == 89 {
+        let scope = Scope {
+            account: account.id.clone(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        };
+        let parent = Node {
+            id: folder.id().to_owned(),
+            parent_id: Some(ROOT_ID.into()),
+            name: folder.name().to_owned(),
+            kind: NodeKind::Folder,
+            size: 0,
+            modified_unix: 0,
+            etag: None,
+            content_version: None,
+            target: None,
+            package: false,
+        };
+        let run = Uuid::new_v4();
+        let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+            "../../.local-state/icloud-general-create-recovery-{run}"
+        ));
+        let journal = Arc::new(Mutex::new(UploadJournal::open(
+            &directory,
+            &account.id,
+            8192,
+        )?));
+        let fixture = GeneralCreateFixture {
+            account_id: account.id.clone(),
+            parent: parent.clone(),
+        };
+        let mut fixture_file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(directory.join("fixture.json"))?;
+        fixture_file.write_all(&serde_json::to_vec(&fixture)?)?;
+        fixture_file.sync_all()?;
+        fs::File::open(&directory)?.sync_all()?;
+        let contents = format!("Cirrove general create recovery {run}\n");
+        let queued = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock"))?
+            .enqueue(
+                scope.clone(),
+                UploadIntent::Create {
+                    parent: parent.id.clone(),
+                    name: format!("General Create-{run}.txt"),
+                },
+                contents.as_bytes(),
+            )?;
+        let provider = Arc::new(
+            ICloudFileCreate::from_sealed_session(
+                scope,
+                account.identity.username.clone(),
+                account.credential_id.clone(),
+                &state,
+                parent,
+            )?
+            .with_discarded_registration_response(),
+        );
+        let worker = TransferWorker::new(
+            journal.clone(),
+            provider.clone(),
+            Arc::new(DesktopVault),
+            CancellationToken::new(),
+        );
+        let result = worker
+            .run_once()
+            .await?
+            .context("general create worker did not claim its operation")?;
+        let request = UploadRequest {
+            scope: queued.scope.clone(),
+            intent: queued.intent.clone(),
+            size: queued.size,
+            sha256: queued.sha256.clone(),
+        };
+        let checkpoint = DesktopVault
+            .load(&format!("upload/{}", queued.id))
+            .await?
+            .context("general create checkpoint was not saved")?;
+        if result.id != queued.id
+            || result.state != UploadState::VerifyRequired
+            || provider
+                .reserved_document_id(&request, &checkpoint)?
+                .is_none()
+        {
+            bail!("lost general create response did not retain its reserved identity");
+        }
+        println!(
+            "General create registration response discarded; exact document ID remains VerifyRequired. Run: {run}."
+        );
+        return Ok(());
+    }
     if matches!(mode, 83 | 85) {
         let destination = session
             .create_validation_folder(&format!("Cirrove Write Validation-{}", Uuid::new_v4()))
