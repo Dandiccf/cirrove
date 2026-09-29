@@ -7,7 +7,7 @@ use crate::{
     manager::WriteContext,
 };
 use async_trait::async_trait;
-use cirrove_auth::{AccessMode, AppRegistration};
+use cirrove_auth::{AccessMode, AppRegistration, CredentialVault};
 use cirrove_core::{
     CancellationToken, Node, NodeKind, Scope,
     mutation::{
@@ -18,7 +18,7 @@ use cirrove_core::{
         UploadRequest, UploadStep,
     },
 };
-use cirrove_icloud::{ICloudFileCreate, ROOT_ID};
+use cirrove_icloud::{ICloudFileCreate, ROOT_ID, SealedFolderCheckpointVault};
 use cirrove_store::Store;
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
@@ -36,6 +36,7 @@ pub struct ICloudWriteProvider {
     state: PathBuf,
     metadata: PathBuf,
     journal: Arc<Mutex<UploadJournal>>,
+    folder_vault: Arc<dyn CredentialVault>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -75,6 +76,10 @@ impl ICloudWriteProvider {
             state: context.state().to_owned(),
             metadata: context.metadata_db().to_owned(),
             journal: context.journal(),
+            folder_vault: Arc::new(SealedFolderCheckpointVault::new(
+                context.state(),
+                &account.id,
+            )?),
         })
     }
 
@@ -105,6 +110,10 @@ impl ICloudWriteProvider {
     }
 
     async fn parent(&self, id: &str) -> Result<Node> {
+        self.parent_excluding(id, None).await
+    }
+
+    async fn parent_excluding(&self, id: &str, excluded: Option<String>) -> Result<Node> {
         if id == ROOT_ID {
             return Ok(Node {
                 id: ROOT_ID.into(),
@@ -126,10 +135,12 @@ impl ICloudWriteProvider {
                 .node_chain_to_root(&scope, &id, ROOT_ID)
                 .map_err(|_| UploadError::Uncertain)?
                 .ok_or(UploadError::Conflict)?;
-            if chain
-                .iter()
-                .any(|node| node.kind != NodeKind::Folder || node.package || node.target.is_some())
-            {
+            if chain.iter().any(|node| {
+                node.kind != NodeKind::Folder
+                    || node.package
+                    || node.target.is_some()
+                    || excluded.as_deref() == Some(node.id.as_str())
+            }) {
                 return Err(UploadError::Invalid);
             }
             chain.into_iter().next().ok_or(UploadError::Conflict)
@@ -333,32 +344,14 @@ impl UploadProvider for ICloudWriteProvider {
     }
 }
 
-#[async_trait]
-impl MutationProvider for ICloudWriteProvider {
-    async fn mutate(
-        &self,
-        _: &MutationRequest,
-        _: &CancellationToken,
-    ) -> std::result::Result<MutationReceipt, MutationError> {
-        Err(MutationError::Unsupported(
-            "account-wide iCloud namespace operations",
-        ))
-    }
-    async fn reconcile_mutation(
-        &self,
-        _: &MutationRequest,
-        _: &CancellationToken,
-    ) -> std::result::Result<MutationReconciliation, MutationError> {
-        Ok(MutationReconciliation::Indeterminate)
-    }
-}
+mod folders;
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
-    fn fixture() -> (tempfile::TempDir, ICloudWriteProvider) {
+    pub(super) fn fixture() -> (tempfile::TempDir, ICloudWriteProvider) {
         let temp = tempfile::tempdir().unwrap();
         let account = Uuid::new_v4().to_string();
         let journal =
@@ -376,11 +369,12 @@ mod tests {
             state: temp.path().to_owned(),
             metadata,
             journal: Arc::new(Mutex::new(journal)),
+            folder_vault: Arc::new(folders::tests::MemoryVault::default()),
         };
         (temp, provider)
     }
 
-    fn folder(parent: &str) -> Node {
+    pub(super) fn folder(parent: &str) -> Node {
         Node {
             id: "FOLDER::com.apple.CloudDocs::synthetic-parent".into(),
             parent_id: Some(parent.into()),

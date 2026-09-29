@@ -16,8 +16,9 @@ an ordinary account implementation; it is not a claim that writes are ready.
   iCloud selects sealed operation checkpoints and other providers keep
   `DesktopVault`. The production factory now selects the context-aware iCloud
   router, but settings still reject writable iCloud before this path is reached.
-  The router currently implements new-file uploads only; replacement and
-  namespace routing and their acceptance gates remain open.
+  The router implements new-file uploads and simple folder operations;
+  replacement, file mutations, combined move/rename and live acceptance
+  remain open.
   A synthetic FUSE regression covers ownership at construction, writer
   failure after ejection, and a later successful writable remount. A writer
   error no longer silently selects a read-only mount. Published old write
@@ -35,7 +36,18 @@ an ordinary account implementation; it is not a claim that writes are ready.
   That checkpoint captures the parent node and request alongside the inner
   provider checkpoint; recovery uses this captured identity even if the index
   has changed. Unknown operations, mismatched checkpoints and request-only
-  calls are refused. Namespace and replacement routing remain unimplemented.
+  calls are refused. Folder creation, rename, same-name move and empty-folder
+  Trash now route through the same account journal. They persist a sealed plan
+  before sending the mutation, with the exact request, prepared identity and
+  destination snapshot. A retained plan authorizes reconciliation only, never
+  blind replay. Missing plans remain indeterminate. Parent ancestry excludes
+  packages, shortcuts and moves into any descendant. The initial direct-child
+  negative control passed without the new ancestry guard because the underlying
+  adapter already refused that case; the corrected grandchild case fails with
+  the guard removed. Synthetic tests also cover checkpoint rebinding and index
+  changes. These tests do not establish live account-wide write reliability.
+  Recovery after interruption between saving a plan and sending the request,
+  file mutations, replacement and combined move/rename remain open.
   The mounted validator
   supplies those nodes from a bounded test tree and its owned journal.
   Folder-create receipts in that validator now use a separate sealed on-disk

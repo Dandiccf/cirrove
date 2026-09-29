@@ -289,16 +289,21 @@ impl SealedFolderCheckpointVault {
 
     fn operation(&self, key: &str) -> Result<SealedSessionVault> {
         let prefix = format!("icloud-folder-create/{}/", self.account_id);
-        let operation = key
-            .strip_prefix(&prefix)
-            .context("invalid iCloud folder checkpoint key")?;
+        let plan_prefix = format!("icloud-folder-plan/{}/", self.account_id);
+        let (operation, directory, domain) = if let Some(operation) = key.strip_prefix(&prefix) {
+            (operation, "folder-checkpoints", "icloud-folder-checkpoint")
+        } else if let Some(operation) = key.strip_prefix(&plan_prefix) {
+            (operation, "folder-plans", "icloud-folder-plan")
+        } else {
+            bail!("invalid iCloud folder checkpoint key");
+        };
         Uuid::parse_str(operation).context("invalid iCloud folder operation")?;
         Ok(SealedSessionVault {
-            account_dir: self.account_dir.join("folder-checkpoints").join(operation),
+            account_dir: self.account_dir.join(directory).join(operation),
             account_id: self.account_id.clone(),
             file_name: "checkpoint.sealed",
             temp_prefix: ".checkpoint",
-            aad_domain: "icloud-folder-checkpoint",
+            aad_domain: domain,
         })
     }
 }
@@ -555,6 +560,12 @@ mod tests {
         let other_account = Uuid::new_v4().to_string();
         let other_operation = Uuid::new_v4();
         let destinations = [
+            (
+                format!("icloud-folder-plan/{account}/{operation}"),
+                vault
+                    .operation(&format!("icloud-folder-plan/{account}/{operation}"))
+                    .expect("synthetic fixture"),
+            ),
             (
                 format!("icloud-folder-create/{other_account}/{operation}"),
                 SealedFolderCheckpointVault::new(temp.path(), &other_account)
