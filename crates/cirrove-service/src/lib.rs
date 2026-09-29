@@ -7,6 +7,7 @@ pub mod diagnostics;
 pub mod engine;
 pub mod events;
 pub mod filesystem;
+pub mod icloud_writes;
 pub mod jobs;
 pub mod journal;
 pub mod manager;

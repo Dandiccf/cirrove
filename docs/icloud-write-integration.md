@@ -14,8 +14,10 @@ an ordinary account implementation; it is not a claim that writes are ready.
   and checkpoint vault. Engine has acquired the account lock before this
   context is opened. The upload workers use the same journal and vault;
   iCloud selects sealed operation checkpoints and other providers keep
-  `DesktopVault`. The production factory still refuses iCloud until the
-  account-wide router and acceptance gates are implemented.
+  `DesktopVault`. The production factory now selects the context-aware iCloud
+  router, but settings still reject writable iCloud before this path is reached.
+  The router currently implements new-file uploads only; replacement and
+  namespace routing and their acceptance gates remain open.
   A synthetic FUSE regression covers ownership at construction, writer
   failure after ejection, and a later successful writable remount. A writer
   error no longer silently selects a read-only mount. Published old write
@@ -26,9 +28,24 @@ an ordinary account implementation; it is not a claim that writes are ready.
   ID because Apple's item endpoint failed in the live probe. A path string
   cannot supply the missing identity.
 - The normal-build iCloud Create, folder and file mutation adapters accept
-  exact `Node` inputs and sealed account sessions, but there is no account-wide
-  router selecting them by each journal request. The mounted validator
+  exact `Node` inputs and sealed account sessions. The account-wide router now
+  selects file creation using the durable journal operation ID and verifies its
+  scope, intent, payload size and digest. It resolves plain-folder ancestry in
+  a scoped metadata snapshot before returning a mutation-free checkpoint.
+  That checkpoint captures the parent node and request alongside the inner
+  provider checkpoint; recovery uses this captured identity even if the index
+  has changed. Unknown operations, mismatched checkpoints and request-only
+  calls are refused. Namespace and replacement routing remain unimplemented.
+  The mounted validator
   supplies those nodes from a bounded test tree and its owned journal.
+  Folder-create receipts in that validator now use a separate sealed on-disk
+  vault with only the encryption key in Secret Service. Keys bind the account
+  and journal operation, and ciphertext authentication separates folder receipts
+  from upload checkpoints. Legacy direct-keyring receipts remain readable until
+  a later save. Synthetic coverage checks reopen, foreign-account/operation and
+  upload-namespace substitution, invalid keys and legacy receipt preservation.
+  Removing the authentication binding makes the substitution test fail; this
+  storage check is not live acceptance of account-wide folder operations.
 - The two-ID replacement and conditional Trash handoff still have
   `write-probe`-gated, owned-fixture types. Their constructor requires an
   exact source node, folder and operation. An existing-file constructor now

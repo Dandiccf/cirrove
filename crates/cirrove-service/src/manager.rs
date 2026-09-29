@@ -668,8 +668,8 @@ impl Manager {
             state,
             cancel,
             Arc::new(move |account| crate::accounts::provider_with_state(account, &provider_state)),
-            Some(Arc::new(|account, _context| {
-                crate::accounts::write_provider(account)
+            Some(Arc::new(|account, context| {
+                crate::accounts::write_provider_with_context(account, context)
             })),
         )
     }

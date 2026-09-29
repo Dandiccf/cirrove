@@ -707,6 +707,19 @@ pub fn write_provider(account: &Account) -> Result<Arc<dyn crate::writable::Writ
         AppRegistration::ICloud => bail!("iCloud writes are not supported"),
     }
 }
+/// The iCloud router needs the journal and metadata owned by this mount.
+/// Settings continue to reject writable iCloud until all write gates close.
+pub fn write_provider_with_context(
+    account: &Account,
+    context: &crate::manager::WriteContext,
+) -> Result<Arc<dyn crate::writable::WriteProvider>> {
+    if matches!(account.registration, AppRegistration::ICloud) {
+        return Ok(Arc::new(crate::icloud_writes::ICloudWriteProvider::new(
+            account, context,
+        )?));
+    }
+    write_provider(account)
+}
 /// Microsoft-only validation and write workers must refuse other accounts before
 /// loading credentials or making a request.
 pub fn onedrive_provider(account: &Account) -> Result<Arc<OneDrive>> {

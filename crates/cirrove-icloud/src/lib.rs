@@ -72,7 +72,9 @@ pub use owned_mutation::ICloudOwnedFixtureRemove;
 #[cfg(feature = "write-probe")]
 pub use owned_upload::ICloudOwnedFixtureUpload;
 pub use provider::ICloudDrive;
-pub use sealed_session::{SealedSessionVault, SealedUploadCheckpointVault};
+pub use sealed_session::{
+    SealedFolderCheckpointVault, SealedSessionVault, SealedUploadCheckpointVault,
+};
 #[cfg(feature = "write-probe")]
 pub use write_probe::{
     EmptyFolderMoveOutcome, HandoffObserved, HandoffOutcome, HandoffPlan, MoveCollisionOutcome,

@@ -267,6 +267,59 @@ impl CredentialVault for SealedUploadCheckpointVault {
     }
 }
 
+/// Durable folder-create receipts, isolated from upload checkpoints. The key
+/// carries both the account and journal operation; neither may select a path
+/// outside this account's private state.
+pub struct SealedFolderCheckpointVault {
+    account_dir: PathBuf,
+    account_id: String,
+}
+
+impl SealedFolderCheckpointVault {
+    pub fn new(state: &Path, account_id: &str) -> Result<Self> {
+        Uuid::parse_str(account_id).context("invalid iCloud account identifier")?;
+        if !state.is_absolute() {
+            bail!("iCloud state directory must be absolute");
+        }
+        Ok(Self {
+            account_dir: state.join("accounts").join(account_id),
+            account_id: account_id.into(),
+        })
+    }
+
+    fn operation(&self, key: &str) -> Result<SealedSessionVault> {
+        let prefix = format!("icloud-folder-create/{}/", self.account_id);
+        let operation = key
+            .strip_prefix(&prefix)
+            .context("invalid iCloud folder checkpoint key")?;
+        Uuid::parse_str(operation).context("invalid iCloud folder operation")?;
+        Ok(SealedSessionVault {
+            account_dir: self.account_dir.join("folder-checkpoints").join(operation),
+            account_id: self.account_id.clone(),
+            file_name: "checkpoint.sealed",
+            temp_prefix: ".checkpoint",
+            aad_domain: "icloud-folder-checkpoint",
+        })
+    }
+}
+
+#[async_trait]
+impl CredentialVault for SealedFolderCheckpointVault {
+    async fn load(&self, key: &str) -> Result<Option<SecretString>> {
+        self.operation(key)?.load_with(key, &DesktopVault).await
+    }
+
+    async fn save(&self, key: &str, value: SecretString) -> Result<()> {
+        self.operation(key)?
+            .save_with(key, value, &DesktopVault)
+            .await
+    }
+
+    async fn remove(&self, key: &str) -> Result<()> {
+        self.operation(key)?.remove(key).await
+    }
+}
+
 #[async_trait]
 impl CredentialVault for SealedSessionVault {
     async fn load(&self, credential_id: &str) -> Result<Option<SecretString>> {
@@ -419,6 +472,131 @@ mod tests {
                 .expose_secret(),
             "legacy"
         );
+    }
+
+    #[tokio::test]
+    async fn folder_checkpoint_preserves_legacy_receipt_until_next_save() {
+        let temp = tempfile::tempdir().expect("synthetic fixture");
+        let account = Uuid::new_v4().to_string();
+        let id = format!("icloud-folder-create/{account}/{}", Uuid::new_v4());
+        let keyring = LargeValueLost::default();
+        let store = SealedFolderCheckpointVault::new(temp.path(), &account)
+            .expect("synthetic fixture")
+            .operation(&id)
+            .expect("synthetic fixture");
+        keyring
+            .save(&id, SecretString::from("legacy-receipt".to_string()))
+            .await
+            .expect("synthetic fixture");
+        let receipt = store
+            .load_with(&id, &keyring)
+            .await
+            .expect("synthetic fixture")
+            .expect("synthetic fixture");
+        assert_eq!(receipt.expose_secret(), "legacy-receipt");
+        assert!(!store.path().exists());
+        store
+            .save_with(&id, receipt, &keyring)
+            .await
+            .expect("synthetic fixture");
+        assert!(store.path().exists());
+        assert_eq!(
+            store
+                .load_with(&id, &keyring)
+                .await
+                .expect("synthetic fixture")
+                .expect("synthetic fixture")
+                .expose_secret(),
+            "legacy-receipt"
+        );
+    }
+
+    #[tokio::test]
+    async fn folder_checkpoint_is_sealed_and_bound_to_account_operation_and_namespace() {
+        let temp = tempfile::tempdir().expect("synthetic fixture");
+        let account = Uuid::new_v4().to_string();
+        let operation = Uuid::new_v4();
+        let id = format!("icloud-folder-create/{account}/{operation}");
+        let vault =
+            SealedFolderCheckpointVault::new(temp.path(), &account).expect("synthetic fixture");
+        let keyring = LargeValueLost::default();
+        let value = "synthetic-folder-receipt".repeat(1000);
+        let store = vault.operation(&id).expect("synthetic fixture");
+        store
+            .save_with(&id, SecretString::from(value.clone()), &keyring)
+            .await
+            .expect("synthetic fixture");
+        let reopened = SealedFolderCheckpointVault::new(temp.path(), &account)
+            .expect("synthetic fixture")
+            .operation(&id)
+            .expect("synthetic fixture");
+        assert_eq!(
+            reopened
+                .load_with(&id, &keyring)
+                .await
+                .expect("synthetic fixture")
+                .expect("synthetic fixture")
+                .expose_secret(),
+            &value
+        );
+        let key = keyring
+            .load(&id)
+            .await
+            .expect("synthetic fixture")
+            .expect("synthetic fixture");
+        assert!(key.expose_secret().starts_with(KEY_PREFIX));
+        assert!(
+            !fs::read(store.path())
+                .expect("synthetic fixture")
+                .windows(24)
+                .any(|bytes| bytes == &value.as_bytes()[..24])
+        );
+
+        let other_account = Uuid::new_v4().to_string();
+        let other_operation = Uuid::new_v4();
+        let destinations = [
+            (
+                format!("icloud-folder-create/{other_account}/{operation}"),
+                SealedFolderCheckpointVault::new(temp.path(), &other_account)
+                    .expect("synthetic fixture")
+                    .operation(&format!("icloud-folder-create/{other_account}/{operation}"))
+                    .expect("synthetic fixture"),
+            ),
+            (
+                format!("icloud-folder-create/{account}/{other_operation}"),
+                vault
+                    .operation(&format!("icloud-folder-create/{account}/{other_operation}"))
+                    .expect("synthetic fixture"),
+            ),
+            (
+                format!("upload/{operation}"),
+                SealedUploadCheckpointVault::new(temp.path(), &account)
+                    .expect("synthetic fixture")
+                    .operation(&format!("upload/{operation}"))
+                    .expect("synthetic fixture"),
+            ),
+        ];
+        for (foreign_id, foreign) in destinations {
+            foreign.private_account_dir().expect("synthetic fixture");
+            fs::copy(store.path(), foreign.path()).expect("synthetic fixture");
+            keyring
+                .save(
+                    &foreign_id,
+                    SecretString::from(key.expose_secret().to_string()),
+                )
+                .await
+                .expect("synthetic fixture");
+            assert!(foreign.load_with(&foreign_id, &keyring).await.is_err());
+        }
+        for invalid in [
+            format!("upload/{operation}"),
+            format!("icloud-folder-create/{other_account}/{operation}"),
+            format!("icloud-folder-create/{account}/../{operation}"),
+            format!("icloud-folder-create/{account}/{operation}/extra"),
+            format!("icloud-folder-create/{account}/"),
+        ] {
+            assert!(vault.operation(&invalid).is_err());
+        }
     }
 
     #[tokio::test]

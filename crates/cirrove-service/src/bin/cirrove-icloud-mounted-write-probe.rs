@@ -4,13 +4,13 @@
 mod fixture;
 
 use anyhow::{Context, Result, bail, ensure};
-use cirrove_auth::{AccessMode, AppRegistration, CredentialVault, DesktopVault};
+use cirrove_auth::{AccessMode, AppRegistration, CredentialVault};
 use cirrove_core::mutation::MutationReceipt;
 use cirrove_core::upload::UploadIntent;
 use cirrove_core::{Node, NodeKind, Scope};
 use cirrove_icloud::{
     ICloudDrive, ICloudFileCreate, ICloudFolderCreate, ICloudReadSession, ROOT_ID,
-    SealedSessionVault, SealedUploadCheckpointVault,
+    SealedFolderCheckpointVault, SealedSessionVault, SealedUploadCheckpointVault,
 };
 use cirrove_service::{
     accounts::Settings,
@@ -770,7 +770,7 @@ async fn main() -> Result<()> {
             account.credential_id.clone(),
             &state,
             upload_parent,
-            Arc::new(DesktopVault),
+            Arc::new(SealedFolderCheckpointVault::new(&run_dir, &account.id)?),
         )?,
         RemovalContext {
             apple_id: apple_id.clone(),
