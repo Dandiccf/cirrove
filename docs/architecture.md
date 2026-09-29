@@ -872,6 +872,9 @@ journal row with their source node, and the normal read adapter cannot
 fetch an unknown item ID without its parent listing. An isolated replacement
 now checkpoints an independently verified original digest; the production
 writer still must bind the indexed account/collection/item identity to it.
+The isolated mount has since passed one replacement sourced from the
+account-scoped visible metadata index; its owned-tree authorization and
+pending-operation selection still come from a private test journal.
 
 The normal-build iCloud file-create adapter's `begin_upload` only returns a
 prepared checkpoint; it sends no Apple request. The shared worker may return

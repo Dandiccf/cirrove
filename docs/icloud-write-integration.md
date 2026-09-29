@@ -24,9 +24,15 @@ an ordinary account implementation; it is not a claim that writes are ready.
   exact source node, folder and operation. An existing-file constructor now
   computes the original SHA-256 through a version-checked remote read and
   persists it in the sealed checkpoint; one owned mounted fixture passed this
-  path. The validator still obtains the source node from its owned journal.
-  A pre-existing file in a normal account has no such journal row. The upload
-  request carries item ID and ETag but neither parent nor original digest.
+  path. The validator previously obtained its source node from its owned
+  journal. A pre-existing file in a normal account has no such journal row.
+  The upload request carries item ID and ETag but neither parent nor original
+  digest.
+  The isolated validator now resolves its replacement source from the
+  account-scoped visible metadata index in one SQLite snapshot, then applies
+  its owned-tree guard and remote revision preflight. One mounted replacement
+  and fresh-process read passed this path. General account-wide operation
+  routing and acceptance are still missing.
 - `ICloudFileCreate` refuses empty files and files over 32 MiB. The zero-byte
   live experiment did not establish a safe successful upload. Content uses
   one streamed HTTP POST per file, not resumable network chunks; a lost POST

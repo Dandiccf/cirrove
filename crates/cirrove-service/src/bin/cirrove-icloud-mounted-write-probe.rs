@@ -766,6 +766,11 @@ async fn main() -> Result<()> {
             credential_id: account.credential_id.clone(),
             state: state.clone(),
             journal: journal.clone(),
+            metadata_db: run_dir
+                .join("engine")
+                .join("accounts")
+                .join(&account.id)
+                .join("metadata.db"),
         },
         owned,
     ));

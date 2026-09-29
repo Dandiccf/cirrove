@@ -18,6 +18,7 @@ use cirrove_icloud::{
     ICloudOwnedMountedReplace, ICloudSealedSignIn,
 };
 use cirrove_service::journal::{MutationState, UploadJournal, UploadRecord, UploadState};
+use cirrove_store::Store;
 use secrecy::SecretString;
 use std::{
     collections::{HashMap, HashSet},
@@ -43,6 +44,7 @@ pub struct RemovalContext {
     pub credential_id: String,
     pub state: PathBuf,
     pub journal: Arc<Mutex<UploadJournal>>,
+    pub metadata_db: PathBuf,
 }
 
 impl Fixture {
@@ -214,12 +216,14 @@ impl Fixture {
         if request.scope != self.scope {
             return Err(UploadError::Invalid);
         }
+        if !self.owns(&request.scope, item) {
+            return Err(UploadError::Invalid);
+        }
         let journal = self
             .removal
             .journal
             .lock()
             .map_err(|_| UploadError::Uncertain)?;
-        let mut source = None;
         let mut operation = None;
         let mut after = 0;
         loop {
@@ -232,34 +236,6 @@ impl Fixture {
             for row in &rows {
                 if row.scope != self.scope {
                     return Err(UploadError::Invalid);
-                }
-                if row.state == UploadState::Uploaded
-                    && row.remote.as_ref().is_some_and(|node| node.id == *item)
-                {
-                    let node = row.remote.as_ref().ok_or(UploadError::Invalid)?;
-                    let parent_id = node.parent_id.as_deref().ok_or(UploadError::Invalid)?;
-                    let folder = if parent_id == self.root.id {
-                        Node {
-                            parent_id: Some(cirrove_icloud::ROOT_ID.into()),
-                            ..self.root.clone()
-                        }
-                    } else {
-                        confirmed_owned_child_folder(
-                            &journal,
-                            &self.scope,
-                            &self.root.id,
-                            parent_id,
-                        )
-                        .map_err(|_| UploadError::Invalid)?
-                    };
-                    if !confirmed_current_file(&self.scope, parent_id, row, node)
-                        || node.etag.as_deref() != Some(expected_etag)
-                        || source
-                            .replace((node.clone(), row.sha256.clone(), folder))
-                            .is_some()
-                    {
-                        return Err(UploadError::Invalid);
-                    }
                 }
                 if row.intent == request.intent
                     && row.scope == request.scope
@@ -276,9 +252,32 @@ impl Fixture {
                 return Err(UploadError::Invalid);
             }
         }
-        let (original, _confirmed_original_sha, folder) = source.ok_or(UploadError::Invalid)?;
         let operation: Uuid = operation.ok_or(UploadError::Invalid)?;
         drop(journal);
+        let store = Store::open(&self.removal.metadata_db).map_err(|_| UploadError::Uncertain)?;
+        let chain = store
+            .node_chain_to_root(&self.scope, item, &self.root.id)
+            .map_err(|_| UploadError::Uncertain)?
+            .ok_or(UploadError::Invalid)?;
+        let original = chain.first().ok_or(UploadError::Invalid)?.clone();
+        if original.kind != NodeKind::File
+            || original.id != *item
+            || original.etag.as_deref() != Some(expected_etag)
+            || chain
+                .iter()
+                .skip(1)
+                .any(|ancestor| ancestor.kind != NodeKind::Folder)
+        {
+            return Err(UploadError::Invalid);
+        }
+        let folder = if chain.len() == 1 {
+            Node {
+                parent_id: Some(cirrove_icloud::ROOT_ID.into()),
+                ..self.root.clone()
+            }
+        } else {
+            chain[1].clone()
+        };
         ICloudOwnedMountedReplace::from_sealed_session_for_existing(
             self.scope.clone(),
             folder,

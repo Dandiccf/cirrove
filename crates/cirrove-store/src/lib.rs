@@ -14,7 +14,7 @@ pub use observations::{
 };
 use rusqlite::{Connection, OptionalExtension, params};
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::{
@@ -713,6 +713,45 @@ impl Store {
     pub fn node(&self, scope: &Scope, id: &str) -> Result<Option<Node>> {
         Self::node_on(&self.db, scope, id)
     }
+    /// Resolve an exact item and every indexed ancestor up to `root` in one
+    /// SQLite snapshot. The returned chain excludes the root and is ordered
+    /// from item toward root. Unknown, hidden, cyclic or disconnected chains
+    /// are never treated as an identity for a write.
+    pub fn node_chain_to_root(
+        &self,
+        scope: &Scope,
+        item: &str,
+        root: &str,
+    ) -> Result<Option<Vec<Node>>> {
+        if item.is_empty() || root.is_empty() || item == root {
+            return Ok(None);
+        }
+        let tx = self.db.unchecked_transaction()?;
+        let mut chain = Vec::new();
+        let mut seen = HashSet::new();
+        let mut id = item.to_string();
+        for _ in 0..128 {
+            if !seen.insert(id.clone()) {
+                return Ok(None);
+            }
+            let Some(node) = Self::node_on(&tx, scope, &id)? else {
+                return Ok(None);
+            };
+            if node.id != id {
+                return Ok(None);
+            }
+            let Some(parent) = node.parent_id.clone() else {
+                return Ok(None);
+            };
+            chain.push(node);
+            if parent == root {
+                tx.commit()?;
+                return Ok(Some(chain));
+            }
+            id = parent;
+        }
+        Ok(None)
+    }
     fn node_on(db: &Connection, scope: &Scope, id: &str) -> Result<Option<Node>> {
         let key = Self::key(scope)?;
         let body = db
@@ -1003,6 +1042,58 @@ mod tests {
                 Checkpoint::Continue(Cursor(cursor.into()))
             },
         }
+    }
+
+    #[test]
+    fn indexed_item_chain_is_scoped_and_rejects_missing_or_cyclic_ancestry() {
+        let mut db = Store::open(":memory:").unwrap();
+        let s = scope("owner");
+        let folder = Node {
+            id: "folder".into(),
+            parent_id: Some("root".into()),
+            name: "Folder".into(),
+            kind: NodeKind::Folder,
+            ..match node("folder") {
+                Change::Upsert(node) => node,
+                _ => unreachable!(),
+            }
+        };
+        let file = Node {
+            id: "file".into(),
+            parent_id: Some("folder".into()),
+            name: "File".into(),
+            ..match node("file") {
+                Change::Upsert(node) => node,
+                _ => unreachable!(),
+            }
+        };
+        db.observe_node(&s, &folder).unwrap();
+        db.observe_node(&s, &file).unwrap();
+        assert_eq!(
+            db.node_chain_to_root(&s, "file", "root")
+                .unwrap()
+                .unwrap()
+                .into_iter()
+                .map(|node| node.id)
+                .collect::<Vec<_>>(),
+            vec!["file", "folder"]
+        );
+        assert!(
+            db.node_chain_to_root(&scope("other"), "file", "root")
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            db.node_chain_to_root(&s, "file", "elsewhere")
+                .unwrap()
+                .is_none()
+        );
+        let cycle = Node {
+            parent_id: Some("file".into()),
+            ..folder
+        };
+        db.observe_node(&s, &cycle).unwrap();
+        assert!(db.node_chain_to_root(&s, "file", "root").unwrap().is_none());
     }
     #[test]
     fn interrupted_pages_resume_without_exposing_partial_tree() {
