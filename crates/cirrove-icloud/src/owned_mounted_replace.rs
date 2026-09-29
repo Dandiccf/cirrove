@@ -43,7 +43,7 @@ struct Checkpoint {
 
 pub struct ICloudOwnedMountedReplace {
     scope: Scope,
-    folder: ValidationFolder,
+    folder: Node,
     original: Node,
     original_sha256: String,
     operation: Uuid,
@@ -55,6 +55,10 @@ pub struct ICloudOwnedMountedReplace {
 }
 
 impl ICloudOwnedMountedReplace {
+    pub fn parent_id(&self) -> &str {
+        &self.folder.id
+    }
+
     pub fn recovery_location(operation: Uuid) -> RecoveryLocation {
         RecoveryLocation::Trash {
             local_name: format!("recovery-by-cirrove-{operation}.txt"),
@@ -71,7 +75,7 @@ impl ICloudOwnedMountedReplace {
         apple_id: String,
         snapshot: SecretString,
     ) -> UploadResult<Self> {
-        let stage_parent = Node {
+        let folder = Node {
             id: folder.id().into(),
             parent_id: Some(ROOT_ID.into()),
             name: folder.name().into(),
@@ -83,12 +87,28 @@ impl ICloudOwnedMountedReplace {
             target: None,
             package: false,
         };
-        let stage = ICloudFileCreate::from_session_snapshot(
-            scope.clone(),
-            &apple_id,
-            &snapshot,
-            stage_parent,
-        )?;
+        Self::new_in_folder(
+            scope,
+            folder,
+            original,
+            original_sha256,
+            operation,
+            apple_id,
+            snapshot,
+        )
+    }
+
+    /// A confirmed child of the isolated owned fixture can use the same
+    /// replacement journal without treating its name as its identity.
+    pub fn new_in_folder(
+        scope: Scope,
+        folder: Node,
+        original: Node,
+        original_sha256: String,
+        operation: Uuid,
+        apple_id: String,
+        snapshot: SecretString,
+    ) -> UploadResult<Self> {
         let valid_digest = |hash: &str| {
             hash.len() == 64
                 && hash
@@ -96,8 +116,20 @@ impl ICloudOwnedMountedReplace {
                     .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
         };
         if scope.account.is_empty()
+            || folder.kind != NodeKind::Folder
+            || !folder.id.starts_with("FOLDER::com.apple.CloudDocs::")
+            || folder.id.rsplit("::").next().is_none_or(str::is_empty)
+            || !folder.parent_id.as_deref().is_some_and(|parent| {
+                parent.starts_with("FOLDER::com.apple.CloudDocs::") && parent != folder.id
+            })
+            || folder.name.is_empty()
+            || folder.name.len() > 255
+            || matches!(folder.name.as_str(), "." | "..")
+            || folder.name.contains(['/', '\0', '\r', '\n'])
+            || folder.target.is_some()
+            || folder.package
             || original.kind != NodeKind::File
-            || original.parent_id.as_deref() != Some(folder.id())
+            || original.parent_id.as_deref() != Some(folder.id.as_str())
             || !original.id.starts_with("FILE::com.apple.CloudDocs::")
             || original.id.rsplit("::").next().is_none_or(str::is_empty)
             || original.etag.as_deref().is_none_or(str::is_empty)
@@ -113,6 +145,12 @@ impl ICloudOwnedMountedReplace {
         {
             return Err(UploadError::Invalid);
         }
+        let stage = ICloudFileCreate::from_session_snapshot(
+            scope.clone(),
+            &apple_id,
+            &snapshot,
+            folder.clone(),
+        )?;
         Ok(Self {
             scope,
             folder,
@@ -144,7 +182,7 @@ impl ICloudOwnedMountedReplace {
         UploadRequest {
             scope: request.scope.clone(),
             intent: UploadIntent::Create {
-                parent: self.folder.id().into(),
+                parent: self.folder.id.clone(),
                 name: self.stage_name.clone(),
             },
             size: request.size,
@@ -195,9 +233,9 @@ impl ICloudOwnedMountedReplace {
         if let Phase::Handoff { plan, .. } = &saved.phase {
             plan.validate()
                 .map_err(|_| UploadError::CheckpointInvalid)?;
-            if plan.folder_parent() != ROOT_ID
-                || plan.folder_id != self.folder.id()
-                || plan.folder_name != self.folder.name()
+            if Some(plan.folder_parent()) != self.folder.parent_id.as_deref()
+                || plan.folder_id != self.folder.id
+                || plan.folder_name != self.folder.name
                 || plan.original_id != self.original.id
                 || plan.original_etag != saved.original_etag
                 || plan.original_sha256 != self.original_sha256
@@ -224,9 +262,98 @@ impl ICloudOwnedMountedReplace {
         )
     }
 
+    /// A crashed or refused attempt without a durable upload checkpoint has
+    /// no allocated staged identity. Before permitting a new attempt, prove
+    /// that the exact old revision still occupies its confirmed folder and
+    /// neither reserved name was created. A name alone is never a receipt.
+    async fn inspect_without_checkpoint(&self) -> UploadResult<Reconciliation> {
+        let mut session = ICloudReadSession::from_session_snapshot(&self.snapshot, &self.apple_id)
+            .map_err(|_| UploadError::Uncertain)?;
+        let parent = self
+            .folder
+            .parent_id
+            .as_deref()
+            .ok_or(UploadError::Invalid)?;
+        let parent_items = session
+            .list_folder(parent)
+            .await
+            .map_err(|_| UploadError::Uncertain)?;
+        if parent_items
+            .iter()
+            .filter(|entry| entry.drivewsid == self.folder.id)
+            .count()
+            != 1
+            || parent_items
+                .iter()
+                .filter(|entry| entry.display_name() == self.folder.name)
+                .count()
+                != 1
+            || !parent_items.iter().any(|entry| {
+                entry.drivewsid == self.folder.id
+                    && entry.parent_id == parent
+                    && entry.display_name() == self.folder.name
+                    && entry.is_folder()
+            })
+        {
+            return Ok(Reconciliation::Conflict);
+        }
+        let observe = |items: &[crate::DriveEntry]| -> Option<String> {
+            let matching: Vec<_> = items
+                .iter()
+                .filter(|entry| entry.drivewsid == self.original.id)
+                .collect();
+            let original = matching.first()?;
+            if matching.len() != 1
+                || items.iter().any(|entry| {
+                    entry.display_name() == self.stage_name
+                        || entry.display_name() == self.recovery_name
+                        || (entry.drivewsid != self.original.id
+                            && entry.display_name() == self.original.name)
+                })
+                || original.is_folder()
+                || original.parent_id != self.folder.id
+                || original.docwsid != self.original.id.rsplit("::").next().unwrap_or_default()
+                || original.display_name() != self.original.name
+                || Some(original.etag.as_str()) != self.original.etag.as_deref()
+                || original.size != self.original.size
+            {
+                return None;
+            }
+            Some(original.etag.clone())
+        };
+        let first = session
+            .list_folder(&self.folder.id)
+            .await
+            .map_err(|_| UploadError::Uncertain)?;
+        let Some(etag) = observe(&first) else {
+            return Ok(Reconciliation::Conflict);
+        };
+        if session
+            .hash_file_in_folder_for_revision(
+                &self.folder.id,
+                &self.original.id,
+                &etag,
+                self.original.size,
+            )
+            .await
+            .map_err(|_| UploadError::Uncertain)?
+            != self.original_sha256
+        {
+            return Ok(Reconciliation::Conflict);
+        }
+        let second = session
+            .list_folder(&self.folder.id)
+            .await
+            .map_err(|_| UploadError::Uncertain)?;
+        if observe(&second).as_deref() != Some(etag.as_str()) {
+            return Ok(Reconciliation::Conflict);
+        }
+        Ok(Reconciliation::Uncommitted)
+    }
+
     fn plan(&self, request: &UploadRequest, staged: &Node) -> UploadResult<HandoffPlan> {
         if staged.kind != NodeKind::File
-            || staged.parent_id.as_deref() != Some(self.folder.id())
+            || staged.parent_id.as_deref() != Some(self.folder.id.as_str())
             || staged.name != self.stage_name
             || staged.id == self.original.id
             || staged.size != request.size
@@ -237,10 +364,10 @@ impl ICloudOwnedMountedReplace {
             return Err(UploadError::Conflict);
         }
         let plan = HandoffPlan {
-            version: 2,
-            folder_parent_id: ROOT_ID.into(),
-            folder_id: self.folder.id().into(),
-            folder_name: self.folder.name().into(),
+            version: 3,
+            folder_parent_id: self.folder.parent_id.clone().ok_or(UploadError::Invalid)?,
+            folder_id: self.folder.id.clone(),
+            folder_name: self.folder.name.clone(),
             original_id: self.original.id.clone(),
             original_doc_id: self
                 .original
@@ -478,6 +605,13 @@ impl UploadProvider for ICloudOwnedMountedReplace {
         checkpoint: Option<&SecretString>,
         c: &CancellationToken,
     ) -> UploadResult<Reconciliation> {
+        if checkpoint.is_none() {
+            self.check_request(r)?;
+            if c.is_cancelled() {
+                return Err(UploadError::Uncertain);
+            }
+            return self.inspect_without_checkpoint().await;
+        }
         match self.check_checkpoint(r, checkpoint.ok_or(UploadError::CheckpointInvalid)?)? {
             Phase::Stage { inner } => match self
                 .stage

@@ -15,7 +15,7 @@ use cirrove_core::{
 use cirrove_icloud::{
     ICloudDrive, ICloudFileCreate, ICloudFileMove, ICloudFileRename, ICloudFileTrash,
     ICloudFolderCreate, ICloudFolderMove, ICloudFolderRename, ICloudFolderTrash,
-    ICloudOwnedMountedReplace, ValidationFolder,
+    ICloudOwnedMountedReplace,
 };
 use cirrove_service::journal::{MutationState, UploadJournal, UploadRecord, UploadState};
 use secrecy::SecretString;
@@ -38,7 +38,6 @@ pub struct Fixture {
 }
 
 pub struct RemovalContext {
-    pub folder: ValidationFolder,
     pub apple_id: String,
     pub snapshot: SecretString,
     pub journal: Arc<Mutex<UploadJournal>>,
@@ -174,10 +173,11 @@ impl Fixture {
         let UploadIntent::Replace { item, .. } = &request.intent else {
             return Err(UploadError::Invalid);
         };
+        let replacement = self.replacement(request)?;
         if request.scope != self.scope
             || backup.id != *item
             || current.id == *item
-            || current.parent_id.as_deref() != Some(&self.root.id)
+            || current.parent_id.as_deref() != Some(replacement.parent_id())
             || current.kind != NodeKind::File
             || current.size != request.size
             || current.target.is_some()
@@ -234,9 +234,23 @@ impl Fixture {
                     && row.remote.as_ref().is_some_and(|node| node.id == *item)
                 {
                     let node = row.remote.as_ref().ok_or(UploadError::Invalid)?;
-                    if !confirmed_current_file(&self.scope, &self.root.id, row, node)
+                    let parent_id = node.parent_id.as_deref().ok_or(UploadError::Invalid)?;
+                    let folder = if parent_id == self.root.id {
+                        self.root.clone()
+                    } else {
+                        confirmed_owned_child_folder(
+                            &journal,
+                            &self.scope,
+                            &self.root.id,
+                            parent_id,
+                        )
+                        .map_err(|_| UploadError::Invalid)?
+                    };
+                    if !confirmed_current_file(&self.scope, parent_id, row, node)
                         || node.etag.as_deref() != Some(expected_etag)
-                        || source.replace((node.clone(), row.sha256.clone())).is_some()
+                        || source
+                            .replace((node.clone(), row.sha256.clone(), folder))
+                            .is_some()
                     {
                         return Err(UploadError::Invalid);
                     }
@@ -256,12 +270,12 @@ impl Fixture {
                 return Err(UploadError::Invalid);
             }
         }
-        let (original, original_sha) = source.ok_or(UploadError::Invalid)?;
+        let (original, original_sha, folder) = source.ok_or(UploadError::Invalid)?;
         let operation: Uuid = operation.ok_or(UploadError::Invalid)?;
         drop(journal);
-        ICloudOwnedMountedReplace::new(
+        ICloudOwnedMountedReplace::new_in_folder(
             self.scope.clone(),
-            self.removal.folder.clone(),
+            folder,
             original,
             original_sha,
             operation,
@@ -926,6 +940,16 @@ pub fn restored_owned(
                         confirmed_owned_child_folder(journal, scope, root, parent)
                             .map_err(|_| anyhow::anyhow!("unconfirmed nested upload parent"))?;
                         parent.as_str()
+                    }
+                    UploadIntent::Replace { .. } if node.parent_id.as_deref() != Some(root) => {
+                        let parent = node
+                            .parent_id
+                            .as_deref()
+                            .ok_or_else(|| anyhow::anyhow!("replacement has no parent"))?;
+                        confirmed_owned_child_folder(journal, scope, root, parent).map_err(
+                            |_| anyhow::anyhow!("unconfirmed nested replacement parent"),
+                        )?;
+                        parent
                     }
                     _ => root,
                 };

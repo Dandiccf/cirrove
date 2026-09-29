@@ -2,6 +2,7 @@
 //! A hidden recovery object owns the former item after a verified handoff;
 //! no provider request runs while either SQLite transaction is held.
 use super::*;
+use cirrove_core::mutation::MutationReceipt;
 use cirrove_core::upload::RecoveryLocation;
 use rusqlite::Transaction;
 
@@ -17,6 +18,65 @@ pub(crate) struct Reservation {
 }
 
 impl UploadJournal {
+    /// Local directory IDs are stable across provider confirmation. A nested
+    /// file's local parent therefore differs from the exact provider parent;
+    /// walk only confirmed folder bindings, never infer an owner from a path.
+    fn confirmed_parent_route(
+        &self,
+        scope: &Scope,
+        local_parent: Option<&str>,
+        remote_parent: Option<&str>,
+    ) -> Result<bool> {
+        let (Some(local), Some(remote)) = (local_parent, remote_parent) else {
+            return Ok(false);
+        };
+        let (mut local, mut remote) = (local.to_owned(), remote.to_owned());
+        let mut visited = std::collections::HashSet::new();
+        for _ in 0..128 {
+            if local == remote {
+                return Ok(true);
+            }
+            if !visited.insert(local.clone()) {
+                return Ok(false);
+            }
+            let Some(folder) = namespace::by_local(&self.db, scope, &local)? else {
+                return Ok(false);
+            };
+            let Some(bound) = folder.remote.as_ref() else {
+                return Ok(false);
+            };
+            if folder.scope != *scope
+                || folder.unlinked
+                || !folder.remote_owned
+                || folder.node.id != local
+                || folder.node.kind != NodeKind::Folder
+                || folder.node.target.is_some()
+                || bound.id != remote
+                || bound.kind != NodeKind::Folder
+                || bound.target.is_some()
+                || folder.node.name != bound.name
+            {
+                return Ok(false);
+            }
+            if let Some(latest) = folder.latest {
+                let mutation = self.mutation(latest)?;
+                if mutation.state != MutationState::Applied
+                    || !matches!(mutation.receipt, Some(MutationReceipt::Upsert(ref node)) if node == bound)
+                {
+                    return Ok(false);
+                }
+            }
+            let (Some(next_local), Some(next_remote)) =
+                (folder.node.parent_id.as_deref(), bound.parent_id.as_deref())
+            else {
+                return Ok(false);
+            };
+            local = next_local.to_owned();
+            remote = next_remote.to_owned();
+        }
+        Ok(false)
+    }
+
     /// Reserve the old item before the first remote handoff mutation. This
     /// deliberately requires a single current replacement with no successor;
     /// later generations cannot silently inherit an unproven two-ID transfer.
@@ -64,6 +124,11 @@ impl UploadJournal {
             .namespace_for_operation(id)?
             .ok_or(JournalError::Stale)?;
         let old = owner.remote.as_ref().ok_or(JournalError::Stale)?;
+        let parent_matches = self.confirmed_parent_route(
+            &record.scope,
+            owner.node.parent_id.as_deref(),
+            old.parent_id.as_deref(),
+        )?;
         if owner.scope != record.scope
             || owner.unlinked
             || owner.follows_remote
@@ -75,7 +140,7 @@ impl UploadJournal {
             || old.target.is_some()
             || old.parent_id.is_none()
             || owner.node.name != old.name
-            || owner.node.parent_id != old.parent_id
+            || !parent_matches
         {
             return Err(JournalError::Stale);
         }

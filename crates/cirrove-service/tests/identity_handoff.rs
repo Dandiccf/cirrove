@@ -1,6 +1,6 @@
 //! A staged provider replacement must publish both identities or neither.
 #![allow(clippy::unwrap_used)]
-use cirrove_core::{Node, NodeKind, Scope, upload::RecoveryLocation};
+use cirrove_core::{Node, NodeKind, Scope, mutation::MutationReceipt, upload::RecoveryLocation};
 use cirrove_service::journal::{UploadJournal, UploadState};
 use std::os::unix::fs::PermissionsExt;
 
@@ -34,6 +34,50 @@ fn open(root: &std::path::Path) -> UploadJournal {
 
 fn sibling(name: &str) -> RecoveryLocation {
     RecoveryLocation::Sibling { name: name.into() }
+}
+
+#[test]
+fn replacement_in_confirmed_child_folder_resolves_local_parent_before_reserving() {
+    let root = tempfile::tempdir().unwrap();
+    let mut journal = open(root.path());
+    let folder = Node {
+        id: "cloud-folder".into(),
+        parent_id: Some("root".into()),
+        name: "Reports".into(),
+        kind: NodeKind::Folder,
+        size: 0,
+        modified_unix: 1,
+        etag: Some("folder-version".into()),
+        content_version: None,
+        target: None,
+        package: false,
+    };
+    let local_folder = journal
+        .create_namespace_directory(scope(), "root".into(), "Reports".into())
+        .unwrap();
+    let folder_mutation = journal.claim_mutation().unwrap().unwrap();
+    journal
+        .acknowledge_mutation(
+            folder_mutation.id,
+            folder_mutation.attempt.unwrap(),
+            MutationReceipt::Upsert(folder),
+        )
+        .unwrap();
+    assert_ne!(local_folder.node.id, "cloud-folder");
+    let mut original = file("old-nested", "report.txt", "old-version", 3);
+    original.parent_id = Some("cloud-folder".into());
+    let working = journal
+        .create_working(scope(), original.clone(), false, b"old".as_slice())
+        .unwrap();
+    journal.write_working(working.id, 0, b"new!").unwrap();
+    let upload = journal.seal_working(working.id).unwrap().unwrap();
+    let owner = journal.namespace_for_operation(upload.id).unwrap().unwrap();
+    assert_ne!(owner.node.parent_id, original.parent_id);
+    assert_eq!(owner.remote.as_ref().unwrap().parent_id, original.parent_id);
+    let attempt = journal.claim_next().unwrap().unwrap().attempt.unwrap();
+    journal
+        .reserve_identity_handoff(upload.id, attempt, sibling("recovery-cirrove.txt"))
+        .unwrap();
 }
 
 #[test]

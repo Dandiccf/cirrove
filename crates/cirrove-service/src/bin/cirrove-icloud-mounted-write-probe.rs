@@ -288,6 +288,35 @@ with open(os.path.join(mount, 'Mounted Create.txt'), 'rb') as f:
 assert os.path.isdir(os.path.join(mount, 'Mounted Folder'))
 "#;
 
+const APP_CREATE_NESTED_REPLACE_SOURCE: &str = r#"
+import os, sys
+path = os.path.join(sys.argv[1], 'Mounted Folder', 'Nested Replacement.txt')
+fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+try:
+    assert os.write(fd, b'Cirrove nested replacement source\n') == 34
+    os.fsync(fd)
+finally:
+    os.close(fd)
+"#;
+
+const APP_REPLACE_NESTED_SOURCE: &str = r#"
+import os, sys
+path = os.path.join(sys.argv[1], 'Mounted Folder', 'Nested Replacement.txt')
+fd = os.open(path, os.O_WRONLY | os.O_TRUNC)
+try:
+    assert os.write(fd, b'Cirrove nested replacement result\n') == 34
+    os.fsync(fd)
+finally:
+    os.close(fd)
+"#;
+
+const APP_READ_NESTED_REPLACEMENT: &str = r#"
+import os, sys
+path = os.path.join(sys.argv[1], 'Mounted Folder', 'Nested Replacement.txt')
+with open(path, 'rb') as file:
+    assert file.read() == b'Cirrove nested replacement result\n'
+"#;
+
 const APP_LARGE_CREATE: &str = r#"
 import os, sys
 mount = sys.argv[1]
@@ -450,6 +479,18 @@ async fn main() -> Result<()> {
     let after_nested_remove = args
         .first()
         .is_some_and(|flag| flag == "--resume-after-nested-remove");
+    let create_nested_replace_source = args
+        .first()
+        .is_some_and(|flag| flag == "--create-nested-replace-source");
+    let replace_nested_source = args
+        .first()
+        .is_some_and(|flag| flag == "--replace-nested-source");
+    let after_nested_replace = args
+        .first()
+        .is_some_and(|flag| flag == "--resume-after-nested-replace");
+    let finish_nested_replace = args
+        .first()
+        .is_some_and(|flag| flag == "--finish-nested-replace");
     let (
         resume,
         remove_folder,
@@ -496,7 +537,11 @@ async fn main() -> Result<()> {
                 || flag == "--create-nested-file"
                 || flag == "--resume-after-nested-create"
                 || flag == "--remove-nested-file"
-                || flag == "--resume-after-nested-remove" =>
+                || flag == "--resume-after-nested-remove"
+                || flag == "--create-nested-replace-source"
+                || flag == "--replace-nested-source"
+                || flag == "--finish-nested-replace"
+                || flag == "--resume-after-nested-replace" =>
         {
             (
                 Some(Uuid::parse_str(id).context("invalid fixture run ID")?),
@@ -581,7 +626,7 @@ async fn main() -> Result<()> {
             true,
         ),
         _ => bail!(
-            "usage: cirrove-icloud-mounted-write-probe [--resume RUN_UUID | --prepare-folder-move RUN_UUID | --move-folder RUN_UUID | --resume-after-folder-move RUN_UUID | --rename-folder RUN_UUID | --resume-after-rename RUN_UUID | --rename-file RUN_UUID | --resume-after-file-rename RUN_UUID | --rename-file-again RUN_UUID | --resume-after-file-rename-again RUN_UUID | --move-file RUN_UUID | --resume-after-file-move RUN_UUID | --rename-nested-file RUN_UUID | --resume-after-nested-rename RUN_UUID | --inspect-nested-rename RUN_UUID | --retry-failed-nested RUN_UUID | --create-nested-file RUN_UUID | --resume-after-nested-create RUN_UUID | --remove-nested-file RUN_UUID | --resume-after-nested-remove RUN_UUID | --remove-folder RUN_UUID | --resume-after-remove RUN_UUID | --remove-file RUN_UUID | --resume-after-file-remove RUN_UUID | --replace RUN_UUID | --resume-after-replace RUN_UUID | --large-create | --large-replace RUN_UUID | --large-resume-after-replace RUN_UUID]"
+            "usage: cirrove-icloud-mounted-write-probe [--resume RUN_UUID | --prepare-folder-move RUN_UUID | --move-folder RUN_UUID | --resume-after-folder-move RUN_UUID | --rename-folder RUN_UUID | --resume-after-rename RUN_UUID | --rename-file RUN_UUID | --resume-after-file-rename RUN_UUID | --rename-file-again RUN_UUID | --resume-after-file-rename-again RUN_UUID | --move-file RUN_UUID | --resume-after-file-move RUN_UUID | --rename-nested-file RUN_UUID | --resume-after-nested-rename RUN_UUID | --inspect-nested-rename RUN_UUID | --retry-failed-nested RUN_UUID | --create-nested-file RUN_UUID | --resume-after-nested-create RUN_UUID | --remove-nested-file RUN_UUID | --resume-after-nested-remove RUN_UUID | --create-nested-replace-source RUN_UUID | --replace-nested-source RUN_UUID | --finish-nested-replace RUN_UUID | --resume-after-nested-replace RUN_UUID | --remove-folder RUN_UUID | --resume-after-remove RUN_UUID | --remove-file RUN_UUID | --resume-after-file-remove RUN_UUID | --replace RUN_UUID | --resume-after-replace RUN_UUID | --large-create | --large-replace RUN_UUID | --large-resume-after-replace RUN_UUID]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -697,7 +742,6 @@ async fn main() -> Result<()> {
             Arc::new(DesktopVault),
         )?,
         RemovalContext {
-            folder: folder.clone(),
             apple_id: apple_id.clone(),
             snapshot: snapshot.clone(),
             journal: journal.clone(),
@@ -839,6 +883,157 @@ async fn main() -> Result<()> {
         return Ok(());
     }
     let check = async {
+        if create_nested_replace_source
+            || replace_nested_source
+            || after_nested_replace
+            || finish_nested_replace
+        {
+            if !finish_nested_replace {
+                let script = if create_nested_replace_source {
+                    APP_CREATE_NESTED_REPLACE_SOURCE
+                } else if replace_nested_source {
+                    APP_REPLACE_NESTED_SOURCE
+                } else {
+                    APP_READ_NESTED_REPLACEMENT
+                };
+                let output = tokio::process::Command::new("python3")
+                    .args(["-c", script])
+                    .arg(&engine.account.mount_path)
+                    .kill_on_drop(true)
+                    .output()
+                    .await
+                    .context("running nested iCloud replacement application")?;
+                ensure!(
+                    output.status.success(),
+                    "nested replacement application failed ({}); evidence retained",
+                    String::from_utf8_lossy(&output.stderr[..output.stderr.len().min(512)])
+                );
+            }
+            let expected_uploads = if create_nested_replace_source { 2 } else { 3 };
+            let uploads = loop {
+                let rows = session.uploads(0, 16).await?;
+                ensure!(
+                    !rows.iter().any(|row| matches!(
+                        row.state,
+                        UploadState::Failed | UploadState::Conflict
+                    )),
+                    "nested replacement upload requires review"
+                );
+                if rows.len() == expected_uploads
+                    && rows.iter().all(|row| row.state == UploadState::Uploaded)
+                {
+                    break rows;
+                }
+                tokio::time::sleep(Duration::from_millis(200)).await;
+            };
+            let mutations = loop {
+                let rows = session.mutations(0, 16).await?;
+                ensure!(
+                    !rows.iter().any(|row| matches!(
+                        row.state,
+                        MutationState::Failed | MutationState::Conflict
+                    )),
+                    "nested replacement folder requires review"
+                );
+                if rows.len() == 1 && rows[0].state == MutationState::Applied {
+                    break rows;
+                }
+                tokio::time::sleep(Duration::from_millis(200)).await;
+            };
+            let Some(MutationReceipt::Upsert(parent)) = mutations[0].receipt.as_ref() else {
+                bail!("nested replacement parent lacks a folder receipt");
+            };
+            ensure!(
+                parent.kind == NodeKind::Folder
+                    && parent.name == "Mounted Folder"
+                    && parent.parent_id.as_deref() == Some(folder.id()),
+                "nested replacement parent is not the confirmed owned folder"
+            );
+            let mut independent = ICloudReadSession::from_session_snapshot(&snapshot, apple_id)?;
+            let root = independent.list_folder(folder.id()).await?;
+            ensure!(
+                root.iter()
+                    .filter(|entry| entry.drivewsid == parent.id
+                        && entry.display_name() == parent.name
+                        && entry.is_folder())
+                    .count()
+                    == 1,
+                "nested replacement parent differs from independent root listing"
+            );
+            let source = &uploads[1];
+            let old = source
+                .remote
+                .as_ref()
+                .context("nested source lacks exact receipt")?;
+            ensure!(
+                matches!(&source.intent, UploadIntent::Create { parent: id, name }
+                    if id == &parent.id && name == "Nested Replacement.txt")
+                    && old.parent_id.as_deref() == Some(parent.id.as_str())
+                    && old.name == "Nested Replacement.txt",
+                "nested source identity is not journal-confirmed"
+            );
+            let (current, receipt, expected_bytes) = if create_nested_replace_source {
+                (
+                    old,
+                    source,
+                    b"Cirrove nested replacement source\n".as_slice(),
+                )
+            } else {
+                let replacement = &uploads[2];
+                let new = replacement
+                    .remote
+                    .as_ref()
+                    .context("nested replacement lacks exact receipt")?;
+                ensure!(
+                    matches!(&replacement.intent, UploadIntent::Replace { item, expected_etag }
+                        if item == &old.id && old.etag.as_deref() == Some(expected_etag))
+                        && new.id != old.id
+                        && new.parent_id == old.parent_id
+                        && new.name == old.name
+                        && independent.exact_item_in_trash(&old.id).await?,
+                    "nested replacement did not preserve the old exact ID in Trash"
+                );
+                (
+                    new,
+                    replacement,
+                    b"Cirrove nested replacement result\n".as_slice(),
+                )
+            };
+            let children = independent.list_folder(&parent.id).await?;
+            ensure!(
+                children
+                    .iter()
+                    .filter(|entry| entry.drivewsid == current.id
+                        && entry.display_name() == "Nested Replacement.txt"
+                        && !entry.is_folder())
+                    .count()
+                    == 1
+                    && !children
+                        .iter()
+                        .any(|entry| entry.drivewsid == old.id && old.id != current.id),
+                "nested replacement independent listing differs from journal identity"
+            );
+            let bytes = independent
+                .read_small_file_in_folder(&parent.id, &current.id)
+                .await?;
+            ensure!(
+                bytes == expected_bytes
+                    && receipt.size == bytes.len() as u64
+                    && receipt.sha256 == hex::encode(Sha256::digest(&bytes)),
+                "nested replacement bytes differ from journal receipt"
+            );
+            println!(
+                "Nested mounted fixture verified after {} by independent iCloud listing and journal receipts.",
+                if create_nested_replace_source {
+                    "source create"
+                } else if replace_nested_source || finish_nested_replace {
+                    "two-ID replacement"
+                } else {
+                    "remount after replacement"
+                }
+            );
+            return Ok::<(), anyhow::Error>(());
+        }
         let filename = "Mounted Create.txt";
         let output = tokio::process::Command::new("python3")
             .args([
@@ -1324,7 +1519,11 @@ async fn main() -> Result<()> {
         );
         Ok::<(), anyhow::Error>(())
     };
-    let deadline = if replace_file { 900 } else { 360 };
+    let deadline = if replace_file || replace_nested_source || finish_nested_replace {
+        900
+    } else {
+        360
+    };
     let result = tokio::select! {
         result = tokio::time::timeout(Duration::from_secs(deadline), check) =>
             result.map_err(|_| anyhow::anyhow!("mounted iCloud validation timed out; fixture and journal retained"))?,
