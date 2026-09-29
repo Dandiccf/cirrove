@@ -11,7 +11,7 @@ use cirrove_core::mutation::{
 use cirrove_core::upload::UploadRequest;
 use cirrove_core::{CancellationToken, Node, NodeKind, Scope};
 use cirrove_icloud::{
-    EmptyFolderMoveOutcome, HandoffOutcome, ICloudFileCreate, ICloudFileTrash,
+    EmptyFolderMoveOutcome, HandoffOutcome, ICloudFileCreate, ICloudFileTrash, ICloudFolderMove,
     ICloudOwnedFixtureFolderCreate, ICloudOwnedFixtureFolderMove, ICloudOwnedFixtureFolderRemove,
     ICloudOwnedFixtureHandoff, ICloudOwnedFixtureMove, ICloudOwnedFixtureRemove,
     ICloudOwnedFixtureUpload, ICloudOwnedMovePause, ICloudReadSession, MoveCollisionOutcome,
@@ -281,8 +281,9 @@ async fn main() -> Result<()> {
         [flag, _run_id] if flag == "--general-trash-reconcile" => 88,
         [flag] if flag == "--general-create-lost-response" => 89,
         [flag, _run_id] if flag == "--general-create-reconcile" => 90,
+        [flag] if flag == "--general-populated-folder-move" => 91,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --stale-etag-move | --fresh-etag-move | --metadata-stale-move | --occupied-move-name | --inspect-occupied-move | --inspect-owned-folder ID | --reconcile-occupied-move UUID | --worker-owned-move | --worker-discard-move-response | --worker-reconcile-move UUID | --worker-move-collision-race | --empty-folder-move | --inspect-empty-folder-move UUID | --worker-discard-folder-move-response | --worker-reconcile-folder-move UUID | --populated-folder-move | --inspect-populated-folder-move UUID | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create | --worker-streamed-binary-create | --worker-streamed-lost-registration | --worker-reconcile-streamed-registration | --worker-streamed-lost-content | --worker-retry-streamed-content | --worker-create-folder | --worker-discard-folder-receipt | --worker-reconcile-folder | --worker-discard-empty-folder-trash | --worker-reconcile-empty-folder-trash | --general-trash-lost-response | --general-trash-reconcile UUID | --general-create-lost-response | --general-create-reconcile UUID]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --stale-etag-move | --fresh-etag-move | --metadata-stale-move | --occupied-move-name | --inspect-occupied-move | --inspect-owned-folder ID | --reconcile-occupied-move UUID | --worker-owned-move | --worker-discard-move-response | --worker-reconcile-move UUID | --worker-move-collision-race | --empty-folder-move | --inspect-empty-folder-move UUID | --worker-discard-folder-move-response | --worker-reconcile-folder-move UUID | --populated-folder-move | --inspect-populated-folder-move UUID | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create | --worker-streamed-binary-create | --worker-streamed-lost-registration | --worker-reconcile-streamed-registration | --worker-streamed-lost-content | --worker-retry-streamed-content | --worker-create-folder | --worker-discard-folder-receipt | --worker-reconcile-folder | --worker-discard-empty-folder-trash | --worker-reconcile-empty-folder-trash | --general-trash-lost-response | --general-trash-reconcile UUID | --general-create-lost-response | --general-create-reconcile UUID | --general-populated-folder-move]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -2427,7 +2428,7 @@ async fn main() -> Result<()> {
         }
         return Ok(());
     }
-    if matches!(mode, 79 | 81) {
+    if matches!(mode, 79 | 81 | 91) {
         let destination = session
             .create_validation_folder(&format!("Cirrove Write Validation-{}", Uuid::new_v4()))
             .await?;
@@ -2463,6 +2464,89 @@ async fn main() -> Result<()> {
             file_size: bytes.len() as u64,
             file_sha256: hex::encode(sha2::Sha256::digest(bytes.as_bytes())),
         };
+        if mode == 91 {
+            let scope = Scope {
+                account: account.id.clone(),
+                provider: "icloud".into(),
+                collection: "drive".into(),
+            };
+            let before = Node {
+                id: nested.id().to_owned(),
+                parent_id: Some(folder.id().to_owned()),
+                name: nested.name().to_owned(),
+                kind: NodeKind::Folder,
+                size: 0,
+                modified_unix: 0,
+                etag: Some(nested_etag),
+                content_version: None,
+                target: None,
+                package: false,
+            };
+            let target = Node {
+                id: destination.id().to_owned(),
+                parent_id: Some(ROOT_ID.into()),
+                name: destination.name().to_owned(),
+                kind: NodeKind::Folder,
+                size: 0,
+                modified_unix: 0,
+                etag: None,
+                content_version: None,
+                target: None,
+                package: false,
+            };
+            let request = MutationRequest {
+                scope: scope.clone(),
+                intent: MutationIntent::Relocate {
+                    before: before.clone(),
+                    parent: target.id.clone(),
+                    name: before.name.clone(),
+                },
+            };
+            let run = save_populated_folder_move_fixture(&fixture)?;
+            let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+                "../../.local-state/icloud-general-folder-move-{run}"
+            ));
+            let journal = Arc::new(Mutex::new(UploadJournal::open(
+                &directory,
+                &account.id,
+                8192,
+            )?));
+            let queued = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock"))?
+                .enqueue_mutation(request)?;
+            let provider = Arc::new(ICloudFolderMove::from_sealed_session(
+                scope,
+                account.identity.username.clone(),
+                account.credential_id.clone(),
+                &state,
+                before,
+                target,
+            )?);
+            let worker = MutationWorker::new(journal.clone(), provider, CancellationToken::new());
+            let result = worker
+                .run_once()
+                .await?
+                .context("general folder move was not claimed")?;
+            let saved = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock"))?
+                .mutation(queued.id)?;
+            if result.id != queued.id
+                || result.state != MutationState::Applied
+                || result.issue.is_some()
+                || !matches!(saved.receipt, Some(MutationReceipt::Upsert(ref node))
+                    if node.id == fixture.nested_id
+                        && node.parent_id.as_deref() == Some(fixture.destination_id.as_str())
+                        && node.name == fixture.nested_name)
+            {
+                bail!("general folder move did not save its exact-ID receipt");
+            }
+            println!(
+                "General folder move applied one exact ID. Run --inspect-populated-folder-move {run} in a new process to verify the child ID and bytes."
+            );
+            return Ok(());
+        }
         if mode == 81 {
             let scope = Scope {
                 account: account.id.clone(),
