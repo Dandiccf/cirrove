@@ -184,12 +184,32 @@ pub trait UploadProvider: Send + Sync {
         request: &UploadRequest,
         cancel: &CancellationToken,
     ) -> Result<UploadStep>;
+    /// The worker's durable operation ID, for providers whose remote
+    /// reservation and recovery names must be bound to one journal row.
+    /// Existing providers keep their request-only implementation.
+    async fn begin_upload_for_operation(
+        &self,
+        _operation: &str,
+        request: &UploadRequest,
+        cancel: &CancellationToken,
+    ) -> Result<UploadStep> {
+        self.begin_upload(request, cancel).await
+    }
     async fn inspect_upload(
         &self,
         request: &UploadRequest,
         checkpoint: &SecretString,
         cancel: &CancellationToken,
     ) -> Result<UploadStep>;
+    async fn inspect_upload_for_operation(
+        &self,
+        _operation: &str,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+        cancel: &CancellationToken,
+    ) -> Result<UploadStep> {
+        self.inspect_upload(request, checkpoint, cancel).await
+    }
     async fn upload_part(
         &self,
         request: &UploadRequest,
@@ -198,6 +218,18 @@ pub trait UploadProvider: Send + Sync {
         bytes: Vec<u8>,
         cancel: &CancellationToken,
     ) -> Result<UploadStep>;
+    async fn upload_part_for_operation(
+        &self,
+        _operation: &str,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+        offset: u64,
+        bytes: Vec<u8>,
+        cancel: &CancellationToken,
+    ) -> Result<UploadStep> {
+        self.upload_part(request, checkpoint, offset, bytes, cancel)
+            .await
+    }
     async fn upload_stream(
         &self,
         _request: &UploadRequest,
@@ -207,12 +239,32 @@ pub trait UploadProvider: Send + Sync {
     ) -> Result<UploadStep> {
         Err(UploadError::Unsupported("streaming upload"))
     }
+    async fn upload_stream_for_operation(
+        &self,
+        _operation: &str,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+        payload: File,
+        cancel: &CancellationToken,
+    ) -> Result<UploadStep> {
+        self.upload_stream(request, checkpoint, payload, cancel)
+            .await
+    }
     async fn commit_upload(
         &self,
         request: &UploadRequest,
         checkpoint: &SecretString,
         cancel: &CancellationToken,
     ) -> Result<UploadStep>;
+    async fn commit_upload_for_operation(
+        &self,
+        _operation: &str,
+        request: &UploadRequest,
+        checkpoint: &SecretString,
+        cancel: &CancellationToken,
+    ) -> Result<UploadStep> {
+        self.commit_upload(request, checkpoint, cancel).await
+    }
     /// Committed requires actual content/identity evidence, not just matching size.
     async fn reconcile_upload(
         &self,
@@ -220,4 +272,13 @@ pub trait UploadProvider: Send + Sync {
         checkpoint: Option<&SecretString>,
         cancel: &CancellationToken,
     ) -> Result<Reconciliation>;
+    async fn reconcile_upload_for_operation(
+        &self,
+        _operation: &str,
+        request: &UploadRequest,
+        checkpoint: Option<&SecretString>,
+        cancel: &CancellationToken,
+    ) -> Result<Reconciliation> {
+        self.reconcile_upload(request, checkpoint, cancel).await
+    }
 }

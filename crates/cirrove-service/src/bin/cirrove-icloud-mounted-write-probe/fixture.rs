@@ -137,10 +137,19 @@ impl Fixture {
         request: &UploadRequest,
         step: UploadStep,
     ) -> cirrove_core::upload::Result<UploadStep> {
+        self.upload_step_for_operation(request, step, None)
+    }
+
+    fn upload_step_for_operation(
+        &self,
+        request: &UploadRequest,
+        step: UploadStep,
+        operation: Option<&str>,
+    ) -> cirrove_core::upload::Result<UploadStep> {
         match &step {
             UploadStep::Complete(node) => self.upload_receipt(request, node)?,
             UploadStep::HandoffComplete { current, backup } => {
-                self.replace_receipt(request, current, backup)?;
+                self.replace_receipt(request, current, backup, operation)?;
             }
             _ => {}
         }
@@ -174,11 +183,15 @@ impl Fixture {
         request: &UploadRequest,
         current: &Node,
         backup: &Node,
+        operation: Option<&str>,
     ) -> cirrove_core::upload::Result<()> {
         let UploadIntent::Replace { item, .. } = &request.intent else {
             return Err(UploadError::Invalid);
         };
-        let replacement = self.replacement(request)?;
+        let replacement = match operation {
+            Some(operation) => self.replacement_for_operation(request, operation)?,
+            None => self.replacement(request)?,
+        };
         if request.scope != self.scope
             || backup.id != *item
             || current.id == *item
@@ -205,20 +218,6 @@ impl Fixture {
         &self,
         request: &UploadRequest,
     ) -> cirrove_core::upload::Result<ICloudOwnedMountedReplace> {
-        request.validate()?;
-        let UploadIntent::Replace {
-            item,
-            expected_etag,
-        } = &request.intent
-        else {
-            return Err(UploadError::Invalid);
-        };
-        if request.scope != self.scope {
-            return Err(UploadError::Invalid);
-        }
-        if !self.owns(&request.scope, item) {
-            return Err(UploadError::Invalid);
-        }
         let journal = self
             .removal
             .journal
@@ -252,8 +251,43 @@ impl Fixture {
                 return Err(UploadError::Invalid);
             }
         }
-        let operation: Uuid = operation.ok_or(UploadError::Invalid)?;
+        let operation = operation.ok_or(UploadError::Invalid)?.to_string();
         drop(journal);
+        self.replacement_for_operation(request, &operation)
+    }
+
+    fn replacement_for_operation(
+        &self,
+        request: &UploadRequest,
+        operation: &str,
+    ) -> cirrove_core::upload::Result<ICloudOwnedMountedReplace> {
+        request.validate()?;
+        let UploadIntent::Replace {
+            item,
+            expected_etag,
+        } = &request.intent
+        else {
+            return Err(UploadError::Invalid);
+        };
+        if request.scope != self.scope || !self.owns(&request.scope, item) {
+            return Err(UploadError::Invalid);
+        }
+        let operation = Uuid::parse_str(operation).map_err(|_| UploadError::Invalid)?;
+        let row = self
+            .removal
+            .journal
+            .lock()
+            .map_err(|_| UploadError::Uncertain)?
+            .get(operation)
+            .map_err(|_| UploadError::Uncertain)?;
+        if row.scope != request.scope
+            || row.intent != request.intent
+            || row.size != request.size
+            || row.sha256 != request.sha256
+            || row.state == UploadState::Uploaded
+        {
+            return Err(UploadError::Invalid);
+        }
         let store = Store::open(&self.removal.metadata_db).map_err(|_| UploadError::Uncertain)?;
         let chain = store
             .node_chain_to_root(&self.scope, item, &self.root.id)
@@ -1677,9 +1711,130 @@ impl UploadProvider for Fixture {
         let UploadIntent::Replace { .. } = &request.intent else {
             return None;
         };
-        self.replacement(request)
+        self.replacement_for_operation(request, operation)
             .ok()?
             .staged_recovery_location(operation, request)
+    }
+
+    async fn begin_upload_for_operation(
+        &self,
+        operation: &str,
+        r: &UploadRequest,
+        c: &CancellationToken,
+    ) -> cirrove_core::upload::Result<UploadStep> {
+        match &r.intent {
+            UploadIntent::Create { .. } => self.begin_upload(r, c).await,
+            UploadIntent::Replace { .. } => self.upload_step_for_operation(
+                r,
+                self.replacement_for_operation(r, operation)?
+                    .begin_upload(r, c)
+                    .await?,
+                Some(operation),
+            ),
+        }
+    }
+
+    async fn inspect_upload_for_operation(
+        &self,
+        operation: &str,
+        r: &UploadRequest,
+        s: &SecretString,
+        c: &CancellationToken,
+    ) -> cirrove_core::upload::Result<UploadStep> {
+        match &r.intent {
+            UploadIntent::Create { .. } => self.inspect_upload(r, s, c).await,
+            UploadIntent::Replace { .. } => self.upload_step_for_operation(
+                r,
+                self.replacement_for_operation(r, operation)?
+                    .inspect_upload(r, s, c)
+                    .await?,
+                Some(operation),
+            ),
+        }
+    }
+
+    async fn upload_part_for_operation(
+        &self,
+        operation: &str,
+        r: &UploadRequest,
+        s: &SecretString,
+        offset: u64,
+        bytes: Vec<u8>,
+        c: &CancellationToken,
+    ) -> cirrove_core::upload::Result<UploadStep> {
+        match &r.intent {
+            UploadIntent::Create { .. } => self.upload_part(r, s, offset, bytes, c).await,
+            UploadIntent::Replace { .. } => self.upload_step_for_operation(
+                r,
+                self.replacement_for_operation(r, operation)?
+                    .upload_part(r, s, offset, bytes, c)
+                    .await?,
+                Some(operation),
+            ),
+        }
+    }
+
+    async fn upload_stream_for_operation(
+        &self,
+        operation: &str,
+        r: &UploadRequest,
+        s: &SecretString,
+        file: File,
+        c: &CancellationToken,
+    ) -> cirrove_core::upload::Result<UploadStep> {
+        match &r.intent {
+            UploadIntent::Create { .. } => self.upload_stream(r, s, file, c).await,
+            UploadIntent::Replace { .. } => self.upload_step_for_operation(
+                r,
+                self.replacement_for_operation(r, operation)?
+                    .upload_stream(r, s, file, c)
+                    .await?,
+                Some(operation),
+            ),
+        }
+    }
+
+    async fn commit_upload_for_operation(
+        &self,
+        operation: &str,
+        r: &UploadRequest,
+        s: &SecretString,
+        c: &CancellationToken,
+    ) -> cirrove_core::upload::Result<UploadStep> {
+        match &r.intent {
+            UploadIntent::Create { .. } => self.commit_upload(r, s, c).await,
+            UploadIntent::Replace { .. } => self.upload_step_for_operation(
+                r,
+                self.replacement_for_operation(r, operation)?
+                    .commit_upload(r, s, c)
+                    .await?,
+                Some(operation),
+            ),
+        }
+    }
+
+    async fn reconcile_upload_for_operation(
+        &self,
+        operation: &str,
+        r: &UploadRequest,
+        s: Option<&SecretString>,
+        c: &CancellationToken,
+    ) -> cirrove_core::upload::Result<Reconciliation> {
+        let UploadIntent::Replace { .. } = &r.intent else {
+            return self.reconcile_upload(r, s, c).await;
+        };
+        let result = self
+            .replacement_for_operation(r, operation)?
+            .reconcile_upload(r, s, c)
+            .await?;
+        match &result {
+            Reconciliation::Committed(node) => self.upload_receipt(r, node)?,
+            Reconciliation::HandoffCommitted { current, backup } => {
+                self.replace_receipt(r, current, backup, Some(operation))?;
+            }
+            _ => {}
+        }
+        Ok(result)
     }
 
     async fn begin_upload(
@@ -1772,7 +1927,7 @@ impl UploadProvider for Fixture {
         match &result {
             Reconciliation::Committed(node) => self.upload_receipt(r, node)?,
             Reconciliation::HandoffCommitted { current, backup } => {
-                self.replace_receipt(r, current, backup)?;
+                self.replace_receipt(r, current, backup, None)?;
             }
             _ => {}
         }

@@ -177,6 +177,7 @@ impl TransferWorker {
     }
     async fn execute(&self, record: &UploadRecord) -> Result<UploadState> {
         let id = record.id;
+        let operation = id.to_string();
         let attempt = record.attempt.ok_or(TransferError::Worker)?;
         let request = UploadRequest {
             scope: record.scope.clone(),
@@ -184,10 +185,7 @@ impl TransferWorker {
             size: record.size,
             sha256: record.sha256.clone(),
         };
-        if let Some(location) = self
-            .provider
-            .staged_recovery_location(&id.to_string(), &request)
-        {
+        if let Some(location) = self.provider.staged_recovery_location(&operation, &request) {
             // The provider is still untouched. Reserve the old-ID owner before
             // begin, inspect or reconcile can make a remote request.
             self.local(move |j| j.reserve_identity_handoff(id, attempt, location))
@@ -204,8 +202,12 @@ impl TransferWorker {
                     match self
                         .remote(
                             Duration::from_secs(125),
-                            self.provider
-                                .inspect_upload(&request, &checkpoint, &self.cancel),
+                            self.provider.inspect_upload_for_operation(
+                                &operation,
+                                &request,
+                                &checkpoint,
+                                &self.cancel,
+                            ),
                         )
                         .await
                     {
@@ -247,7 +249,8 @@ impl TransferWorker {
             Some(
                 self.remote(
                     Duration::from_secs(125),
-                    self.provider.begin_upload(&request, &self.cancel),
+                    self.provider
+                        .begin_upload_for_operation(&operation, &request, &self.cancel),
                 )
                 .await?,
             )
@@ -256,7 +259,8 @@ impl TransferWorker {
             match self
                 .remote(
                     Duration::from_secs(15 * 60),
-                    self.provider.reconcile_upload(
+                    self.provider.reconcile_upload_for_operation(
+                        &operation,
                         &request,
                         saved_checkpoint.as_ref(),
                         &self.cancel,
@@ -304,8 +308,12 @@ impl TransferWorker {
                     self.checkpoint(record, checkpoint.clone(), 0).await?;
                     self.remote(
                         Duration::from_secs(125),
-                        self.provider
-                            .inspect_upload(&request, &checkpoint, &self.cancel),
+                        self.provider.inspect_upload_for_operation(
+                            &operation,
+                            &request,
+                            &checkpoint,
+                            &self.cancel,
+                        ),
                     )
                     .await?
                 }
@@ -337,8 +345,12 @@ impl TransferWorker {
                     let next = self
                         .remote(
                             Duration::from_secs(125),
-                            self.provider
-                                .commit_upload(&request, &checkpoint, &self.cancel),
+                            self.provider.commit_upload_for_operation(
+                                &operation,
+                                &request,
+                                &checkpoint,
+                                &self.cancel,
+                            ),
                         )
                         .await?;
                     if !matches!(
@@ -378,7 +390,8 @@ impl TransferWorker {
                     let next = self
                         .remote(
                             Duration::from_secs(125),
-                            self.provider.upload_part(
+                            self.provider.upload_part_for_operation(
+                                &operation,
                                 &request,
                                 &progress.checkpoint,
                                 progress.offset,
@@ -401,8 +414,13 @@ impl TransferWorker {
                     let next = self
                         .remote(
                             Duration::from_secs(900),
-                            self.provider
-                                .upload_stream(&request, &checkpoint, file, &self.cancel),
+                            self.provider.upload_stream_for_operation(
+                                &operation,
+                                &request,
+                                &checkpoint,
+                                file,
+                                &self.cancel,
+                            ),
                         )
                         .await?;
                     if !matches!(next, UploadStep::Commit(_) | UploadStep::Complete(_)) {

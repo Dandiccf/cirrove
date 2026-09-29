@@ -97,6 +97,7 @@ struct Remote {
 }
 struct Provider {
     state: Mutex<Remote>,
+    operation_begins: Mutex<Vec<String>>,
     probe: Arc<LockProbe>,
     fail_offset_once: AtomicU64,
     lose_success: AtomicBool,
@@ -126,6 +127,7 @@ impl Provider {
     fn new(probe: Arc<LockProbe>) -> Self {
         Self {
             state: Mutex::new(Remote::default()),
+            operation_begins: Mutex::new(Vec::new()),
             probe,
             fail_offset_once: AtomicU64::new(u64::MAX),
             lose_success: AtomicBool::new(false),
@@ -207,6 +209,16 @@ impl Provider {
 }
 #[async_trait]
 impl UploadProvider for Provider {
+    async fn begin_upload_for_operation(
+        &self,
+        operation: &str,
+        request: &UploadRequest,
+        cancel: &CancellationToken,
+    ) -> UploadResult<UploadStep> {
+        self.operation_begins.lock().unwrap().push(operation.into());
+        self.begin_upload(request, cancel).await
+    }
+
     fn begin_is_mutation_free_until_checkpoint(&self, _request: &UploadRequest) -> bool {
         self.mutation_free_begin.load(Ordering::SeqCst)
     }
@@ -488,6 +500,34 @@ impl UploadProvider for Provider {
             None => Reconciliation::Uncommitted,
         })
     }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn duplicate_upload_requests_keep_their_distinct_operation_ids() {
+    let temp = tempfile::tempdir().unwrap();
+    let (probe, provider, vault) = fixture();
+    let journal = journal(&temp.path().join("journal"), &probe);
+    let first = enqueue(&journal, "Saved.txt");
+    let second = enqueue(&journal, "Saved.txt");
+    assert_ne!(first, second);
+    let worker = TransferWorker::new(
+        journal.clone(),
+        provider.clone(),
+        vault,
+        CancellationToken::new(),
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+    assert_eq!(
+        worker.run_once().await.unwrap().unwrap().state,
+        UploadState::Uploaded
+    );
+    assert_eq!(
+        *provider.operation_begins.lock().unwrap(),
+        vec![first.to_string(), second.to_string()]
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

@@ -30,9 +30,14 @@ an ordinary account implementation; it is not a claim that writes are ready.
   digest.
   The isolated validator now resolves its replacement source from the
   account-scoped visible metadata index in one SQLite snapshot, then applies
-  its owned-tree guard and remote revision preflight. One mounted replacement
-  and fresh-process read passed this path. General account-wide operation
-  routing and acceptance are still missing.
+  its owned-tree guard and remote revision preflight. The shared transfer
+  worker now passes its durable journal operation ID through every upload
+  phase; the validator uses that ID to reopen the exact row instead of
+  searching for a matching request, which can be ambiguous for identical
+  pending saves. A synthetic worker test covers duplicate requests. An owned
+  mounted replacement and fresh-process read passed the operation-ID path;
+  the replacement arm took roughly eight minutes and needs latency analysis.
+  General account-wide operation routing and acceptance are still missing.
 - `ICloudFileCreate` refuses empty files and files over 32 MiB. The zero-byte
   live experiment did not establish a safe successful upload. Content uses
   one streamed HTTP POST per file, not resumable network chunks; a lost POST
