@@ -11,6 +11,8 @@ use cirrove_core::mutation::{
 use cirrove_core::{CancellationToken, Node, NodeKind, Scope};
 use secrecy::SecretString;
 use sha2::{Digest, Sha256};
+#[cfg(feature = "write-probe")]
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::{path::Path, sync::Arc};
 use tokio::sync::Mutex;
 use uuid::Uuid;
@@ -39,6 +41,8 @@ pub struct ICloudFileTrash {
     before: Node,
     expected_sha256: Option<String>,
     session: Mutex<SessionState>,
+    #[cfg(feature = "write-probe")]
+    discard_response: AtomicBool,
 }
 
 impl ICloudFileTrash {
@@ -59,6 +63,8 @@ impl ICloudFileTrash {
             before,
             expected_sha256: None,
             session: Mutex::new(SessionState::Ready(Box::new(session))),
+            #[cfg(feature = "write-probe")]
+            discard_response: AtomicBool::new(false),
         })
     }
 
@@ -84,6 +90,8 @@ impl ICloudFileTrash {
                 credential_id,
                 vault: Arc::new(vault),
             }),
+            #[cfg(feature = "write-probe")]
+            discard_response: AtomicBool::new(false),
         })
     }
 
@@ -100,6 +108,14 @@ impl ICloudFileTrash {
         }
         self.expected_sha256 = Some(digest);
         Ok(self)
+    }
+
+    /// Isolated validator fault: send once but drop Apple's response before
+    /// recording a receipt. The restarted worker must only reconcile.
+    #[cfg(feature = "write-probe")]
+    pub fn with_discarded_response(self) -> Self {
+        self.discard_response.store(true, Ordering::Release);
+        self
     }
 
     fn check_identity(scope: &Scope, before: &Node) -> MutationResult<()> {
@@ -383,6 +399,17 @@ impl MutationProvider for ICloudFileTrash {
         let accepted = {
             let mut state = self.session.lock().await;
             let session = Self::active_session(&mut state).await?;
+            #[cfg(feature = "write-probe")]
+            if self.discard_response.swap(false, Ordering::AcqRel) {
+                session
+                    .send_trash_without_receipt(
+                        &self.before.id,
+                        self.before.etag.as_deref().ok_or(MutationError::Invalid)?,
+                    )
+                    .await
+                    .map_err(|_| MutationError::Uncertain)?;
+                return Err(MutationError::Uncertain);
+            }
             session
                 .send_trash(
                     &self.before.id,
@@ -487,5 +514,44 @@ mod tests {
         let mut other_scope = scope;
         other_scope.collection = "another-drive".into();
         assert!(ICloudFileTrash::check_identity(&other_scope, &file).is_err());
+    }
+
+    #[tokio::test]
+    async fn a_missing_saved_digest_cannot_start_or_send_a_delete() {
+        let scope = Scope {
+            account: Uuid::new_v4().to_string(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        };
+        let before = before();
+        let request = MutationRequest {
+            scope: scope.clone(),
+            intent: MutationIntent::RemoveFile {
+                before: before.clone(),
+            },
+        };
+        let provider = ICloudFileTrash {
+            scope,
+            before: before.clone(),
+            expected_sha256: None,
+            session: Mutex::new(SessionState::Vault {
+                apple_id: "owned@example.test".into(),
+                credential_id: Uuid::new_v4().to_string(),
+                vault: Arc::new(cirrove_auth::DesktopVault),
+            }),
+            #[cfg(feature = "write-probe")]
+            discard_response: AtomicBool::new(false),
+        };
+        let cancel = CancellationToken::new();
+        assert!(matches!(
+            provider.prepare_mutation(&request, &cancel).await,
+            Err(MutationError::Invalid)
+        ));
+        assert!(matches!(
+            provider
+                .mutate_prepared(&request, Some(&before.id), &cancel)
+                .await,
+            Err(MutationError::Invalid)
+        ));
     }
 }

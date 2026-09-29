@@ -11,7 +11,7 @@ use cirrove_core::mutation::{
 use cirrove_core::upload::UploadRequest;
 use cirrove_core::{CancellationToken, Node, NodeKind, Scope};
 use cirrove_icloud::{
-    EmptyFolderMoveOutcome, HandoffOutcome, ICloudOwnedFixtureFolderCreate,
+    EmptyFolderMoveOutcome, HandoffOutcome, ICloudFileTrash, ICloudOwnedFixtureFolderCreate,
     ICloudOwnedFixtureFolderMove, ICloudOwnedFixtureFolderRemove, ICloudOwnedFixtureHandoff,
     ICloudOwnedFixtureMove, ICloudOwnedFixtureRemove, ICloudOwnedFixtureUpload,
     ICloudOwnedMovePause, ICloudReadSession, MoveCollisionOutcome, MoveProbeOutcome,
@@ -57,6 +57,13 @@ struct OwnedMoveFolders {
     source_name: String,
     destination_id: String,
     destination_name: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct GeneralTrashFixture {
+    account_id: String,
+    before: Node,
+    sha256: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -264,8 +271,10 @@ async fn main() -> Result<()> {
         [flag, _run_id] if flag == "--inspect-two-level-folder-move" => 84,
         [flag] if flag == "--worker-discard-two-level-folder-move-response" => 85,
         [flag, _run_id] if flag == "--worker-reconcile-two-level-folder-move" => 86,
+        [flag] if flag == "--general-trash-lost-response" => 87,
+        [flag, _run_id] if flag == "--general-trash-reconcile" => 88,
         _ => bail!(
-            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --stale-etag-move | --fresh-etag-move | --metadata-stale-move | --occupied-move-name | --inspect-occupied-move | --inspect-owned-folder ID | --reconcile-occupied-move UUID | --worker-owned-move | --worker-discard-move-response | --worker-reconcile-move UUID | --worker-move-collision-race | --empty-folder-move | --inspect-empty-folder-move UUID | --worker-discard-folder-move-response | --worker-reconcile-folder-move UUID | --populated-folder-move | --inspect-populated-folder-move UUID | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create | --worker-streamed-binary-create | --worker-streamed-lost-registration | --worker-reconcile-streamed-registration | --worker-streamed-lost-content | --worker-retry-streamed-content | --worker-create-folder | --worker-discard-folder-receipt | --worker-reconcile-folder | --worker-discard-empty-folder-trash | --worker-reconcile-empty-folder-trash]"
+            "usage: cirrove-icloud-write-probe [--same-id | --stale-etag | --rename-conflict | --metadata-rename | --stale-etag-move | --fresh-etag-move | --metadata-stale-move | --occupied-move-name | --inspect-occupied-move | --inspect-owned-folder ID | --reconcile-occupied-move UUID | --worker-owned-move | --worker-discard-move-response | --worker-reconcile-move UUID | --worker-move-collision-race | --empty-folder-move | --inspect-empty-folder-move UUID | --worker-discard-folder-move-response | --worker-reconcile-folder-move UUID | --populated-folder-move | --inspect-populated-folder-move UUID | --http-if-match | --occupied-name | --staged-handoff | --durable-stop-after-recovery | --durable-resume | --durable-drop-old-receipt | --durable-resume-lost-old | --durable-drop-new-receipt | --durable-resume-lost-new | --durable-drop-registration-receipt | --durable-resume-registration | --durable-handoff-registered | --stale-etag-trash | --stale-then-fresh-trash | --inspect-trash | --trash-restore-cycle | --worker-create | --worker-discard-registration-receipt | --worker-resume-registration | --owned-file-trash-adapter | --worker-owned-trash | --worker-discard-trash-receipt | --worker-resume-trash | --worker-owned-handoff | --worker-discard-old-handoff-receipt | --worker-resume-handoff | --worker-discard-new-handoff-receipt | --worker-reconcile-new-handoff | --owned-trash-download | --conditional-trash-handoff | --worker-conditional-trash-handoff | --worker-discard-conditional-trash-receipt | --worker-resume-conditional-trash | --inspect-conditional-trash-journal | --worker-resume-inspected-conditional-trash | --inspect-conditional-trash-receipt | --publish-conditional-trash-receipt | --worker-discard-conditional-rename-receipt | --worker-reconcile-conditional-rename | --worker-intervening-edit-before-trash | --worker-timeout-after-conditional-trash | --worker-resume-timed-out-conditional-trash | --worker-reserved-create-lost-receipt | --worker-reconcile-reserved-create | --worker-ordinary-name-create | --worker-ordinary-name-collision | --worker-bounded-binary-create | --worker-streamed-binary-create | --worker-streamed-lost-registration | --worker-reconcile-streamed-registration | --worker-streamed-lost-content | --worker-retry-streamed-content | --worker-create-folder | --worker-discard-folder-receipt | --worker-reconcile-folder | --worker-discard-empty-folder-trash | --worker-reconcile-empty-folder-trash | --general-trash-lost-response | --general-trash-reconcile UUID]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -296,6 +305,77 @@ async fn main() -> Result<()> {
         .list_root()
         .await
         .context("saved iCloud session is not usable")?;
+    if mode == 88 {
+        let run = Uuid::parse_str(&arguments[1]).context("invalid general Trash run ID")?;
+        let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+            "../../.local-state/icloud-general-trash-recovery-{run}"
+        ));
+        let fixture: GeneralTrashFixture =
+            serde_json::from_slice(&fs::read(directory.join("fixture.json"))?)?;
+        if fixture.account_id != account.id {
+            bail!("general Trash fixture belongs to another account");
+        }
+        let scope = Scope {
+            account: account.id.clone(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        };
+        let journal = Arc::new(Mutex::new(UploadJournal::open(
+            &directory,
+            &account.id,
+            8192,
+        )?));
+        let record = {
+            let guard = journal
+                .lock()
+                .map_err(|_| anyhow::anyhow!("journal lock"))?;
+            let rows = guard.list_mutations(0, 2)?;
+            if rows.len() != 1
+                || rows[0].state != MutationState::VerifyRequired
+                || rows[0].prepared_item.as_deref() != Some(fixture.before.id.as_str())
+                || rows[0].request.scope != scope
+                || !matches!(&rows[0].request.intent, MutationIntent::RemoveFile { before } if before == &fixture.before)
+            {
+                bail!("general Trash recovery journal lacks its exact pending identity");
+            }
+            rows.into_iter().next().context("missing Trash operation")?
+        };
+        let provider = Arc::new(
+            ICloudFileTrash::from_sealed_session(
+                scope,
+                account.identity.username.clone(),
+                account.credential_id.clone(),
+                &state,
+                fixture.before.clone(),
+            )?
+            .with_expected_sha256(fixture.sha256)?,
+        );
+        let worker = MutationWorker::new(journal.clone(), provider, CancellationToken::new());
+        let result = worker
+            .run_once()
+            .await?
+            .context("general Trash recovery was not claimed")?;
+        if result.id != record.id
+            || result.state != MutationState::Applied
+            || result.issue.is_some()
+        {
+            bail!("general Trash recovery did not reach Applied");
+        }
+        let saved = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock"))?
+            .mutation(record.id)?;
+        if !matches!(saved.receipt, Some(MutationReceipt::Removed { item }) if item == fixture.before.id)
+            || !session.exact_item_in_trash(&fixture.before.id).await?
+        {
+            bail!("general Trash recovery saved a different receipt");
+        }
+        println!(
+            "Fresh worker reconciled the full-byte verified Trash identity without resending the request. Operation: {}.",
+            record.id
+        );
+        return Ok(());
+    }
     if mode == 86 {
         let run_id = Uuid::parse_str(&arguments[1]).context("invalid two-level run ID")?;
         let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
@@ -2636,6 +2716,80 @@ async fn main() -> Result<()> {
     println!(
         "Created and read back the isolated validation file byte for byte. The fixture remains in iCloud Drive."
     );
+    if mode == 87 {
+        let scope = Scope {
+            account: account.id.clone(),
+            provider: "icloud".into(),
+            collection: "drive".into(),
+        };
+        let before = ICloudOwnedFixtureRemove::new(
+            scope.clone(),
+            session,
+            folder,
+            file,
+            content.as_bytes(),
+        )?
+        .before_node();
+        let run = Uuid::new_v4();
+        let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+            "../../.local-state/icloud-general-trash-recovery-{run}"
+        ));
+        let journal = Arc::new(Mutex::new(UploadJournal::open(
+            &directory,
+            &account.id,
+            8192,
+        )?));
+        let fixture = GeneralTrashFixture {
+            account_id: account.id.clone(),
+            before: before.clone(),
+            sha256: hex::encode(sha2::Sha256::digest(content.as_bytes())),
+        };
+        fs::write(
+            directory.join("fixture.json"),
+            serde_json::to_vec(&fixture)?,
+        )?;
+        let request = MutationRequest {
+            scope: scope.clone(),
+            intent: MutationIntent::RemoveFile {
+                before: before.clone(),
+            },
+        };
+        let queued = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock"))?
+            .enqueue_mutation(request)?;
+        let provider = Arc::new(
+            ICloudFileTrash::from_sealed_session(
+                scope,
+                account.identity.username.clone(),
+                account.credential_id.clone(),
+                &state,
+                before.clone(),
+            )?
+            .with_expected_sha256(fixture.sha256)?
+            .with_discarded_response(),
+        );
+        let worker = MutationWorker::new(journal.clone(), provider, CancellationToken::new());
+        let result = worker
+            .run_once()
+            .await?
+            .context("general Trash worker did not claim its operation")?;
+        let saved = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock"))?
+            .mutation(queued.id)?;
+        if result.id != queued.id
+            || result.state != MutationState::VerifyRequired
+            || saved.prepared_item.as_deref() != Some(before.id.as_str())
+            || saved.receipt.is_some()
+        {
+            bail!("lost general Trash response did not retain its exact pending identity");
+        }
+        println!(
+            "General Trash response deliberately discarded; exact prepared ID remains VerifyRequired. Run: {run}."
+        );
+        return Ok(());
+    }
     if matches!(mode, 70 | 71 | 73) {
         let destination = session
             .create_validation_folder(&format!("Cirrove Write Validation-{}", Uuid::new_v4()))
