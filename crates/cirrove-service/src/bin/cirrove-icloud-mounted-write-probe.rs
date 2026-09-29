@@ -1266,6 +1266,14 @@ async fn main() -> Result<()> {
                 independent.exact_item_in_trash(&uploaded.id).await?,
                 "old replacement ID is not uniquely recoverable in Trash"
             );
+            ensure!(
+                !children.iter().any(|entry| {
+                    entry.display_name() == format!("staged-by-cirrove-{}.txt", uploads[1].id)
+                        || entry.display_name()
+                            == format!("recovery-by-cirrove-{}.txt", uploads[1].id)
+                }),
+                "replacement left a visible staged or recovery item"
+            );
             replaced
         } else {
             uploaded

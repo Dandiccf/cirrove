@@ -149,7 +149,7 @@ has a 900-second validator bound; each private manifest must record that
 actual bound and a disk-backed temporary directory. Prediction: if the
 earlier 900-second delay was caused solely by the zero-byte checkpoint,
 Replace will reach a durable handoff and the remount will verify both IDs,
-original bytes in recoverable Trash and complete new bytes. If it becomes
+the old ID in recoverable Trash and complete new bytes. If it becomes
 uncertain again, stop and inspect without retrying. The two earlier fixtures
 remain untouched.
 
@@ -160,7 +160,7 @@ The three arms passed for fresh owned fixture
 confirmed file and folder receipts with full bytes under independent iCloud
 listing. Mounted Replace then completed its two-ID handoff: the journal and
 independent listing confirmed the new ID and complete replacement bytes,
-and the old exact ID with original bytes remained recoverable in Trash.
+and the old exact ID remained recoverable in Trash.
 The separately started remount verified the resulting file, both IDs and
 journal without issuing a second mutation. Each process shut down its test
 mount. Private manifests `arm-a.json`, `arm-b.json` and `arm-c.json` are in
@@ -176,3 +176,8 @@ large-file or concurrent-editor reliability. The previous uncertain
 `b35425ac-72a4-461c-b854-64431e9d1f9e` fixture remains `verify_required`
 and was not retried or cleaned up. Ordinary iCloud connections remain
 read-only.
+
+Correction: the original file bytes were independently verified before
+replacement, and its exact ID was found in Trash afterward. The validation
+did not download that ID from Trash, so it did not establish the bytes of the
+Trashed object. This is narrower than the registered prediction above.
