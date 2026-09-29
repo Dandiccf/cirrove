@@ -139,6 +139,35 @@ if data != expected:
     sys.exit(1)
 "#;
 
+const APP_PREPARE_FOLDER_MOVE: &str = r#"
+import os, sys
+mount = sys.argv[1]
+os.mkdir(os.path.join(mount, 'Mounted Move Destination'))
+path = os.path.join(mount, 'Mounted Folder', 'Move Child.txt')
+with open(path, 'xb', buffering=0) as file:
+    file.write(b'Cirrove mounted folder move child\n')
+    os.fsync(file.fileno())
+"#;
+
+const APP_MOVE_FOLDER: &str = r#"
+import os, sys
+mount = sys.argv[1]
+source = os.path.join(mount, 'Mounted Folder')
+destination = os.path.join(mount, 'Mounted Move Destination', 'Mounted Folder')
+assert open(os.path.join(source, 'Move Child.txt'), 'rb').read() == b'Cirrove mounted folder move child\n'
+os.rename(source, destination)
+assert not os.path.exists(source)
+assert open(os.path.join(destination, 'Move Child.txt'), 'rb').read() == b'Cirrove mounted folder move child\n'
+"#;
+
+const APP_READ_MOVED_FOLDER: &str = r#"
+import os, sys
+mount = sys.argv[1]
+assert not os.path.exists(os.path.join(mount, 'Mounted Folder'))
+path = os.path.join(mount, 'Mounted Move Destination', 'Mounted Folder', 'Move Child.txt')
+assert open(path, 'rb').read() == b'Cirrove mounted folder move child\n'
+"#;
+
 const APP_RENAME_NESTED_FILE: &str = r#"
 import os, sys
 mount = sys.argv[1]
@@ -390,6 +419,13 @@ async fn main() -> Result<()> {
     let after_move_file = args
         .first()
         .is_some_and(|flag| flag == "--resume-after-file-move");
+    let prepare_folder_move = args
+        .first()
+        .is_some_and(|flag| flag == "--prepare-folder-move");
+    let move_folder = args.first().is_some_and(|flag| flag == "--move-folder");
+    let after_move_folder = args
+        .first()
+        .is_some_and(|flag| flag == "--resume-after-folder-move");
     let rename_nested_file = args
         .first()
         .is_some_and(|flag| flag == "--rename-nested-file");
@@ -450,6 +486,9 @@ async fn main() -> Result<()> {
                 || flag == "--resume-after-file-rename-again"
                 || flag == "--move-file"
                 || flag == "--resume-after-file-move"
+                || flag == "--prepare-folder-move"
+                || flag == "--move-folder"
+                || flag == "--resume-after-folder-move"
                 || flag == "--rename-nested-file"
                 || flag == "--resume-after-nested-rename"
                 || flag == "--inspect-nested-rename"
@@ -542,7 +581,7 @@ async fn main() -> Result<()> {
             true,
         ),
         _ => bail!(
-            "usage: cirrove-icloud-mounted-write-probe [--resume RUN_UUID | --rename-folder RUN_UUID | --resume-after-rename RUN_UUID | --rename-file RUN_UUID | --resume-after-file-rename RUN_UUID | --rename-file-again RUN_UUID | --resume-after-file-rename-again RUN_UUID | --move-file RUN_UUID | --resume-after-file-move RUN_UUID | --rename-nested-file RUN_UUID | --resume-after-nested-rename RUN_UUID | --inspect-nested-rename RUN_UUID | --retry-failed-nested RUN_UUID | --create-nested-file RUN_UUID | --resume-after-nested-create RUN_UUID | --remove-nested-file RUN_UUID | --resume-after-nested-remove RUN_UUID | --remove-folder RUN_UUID | --resume-after-remove RUN_UUID | --remove-file RUN_UUID | --resume-after-file-remove RUN_UUID | --replace RUN_UUID | --resume-after-replace RUN_UUID | --large-create | --large-replace RUN_UUID | --large-resume-after-replace RUN_UUID]"
+            "usage: cirrove-icloud-mounted-write-probe [--resume RUN_UUID | --prepare-folder-move RUN_UUID | --move-folder RUN_UUID | --resume-after-folder-move RUN_UUID | --rename-folder RUN_UUID | --resume-after-rename RUN_UUID | --rename-file RUN_UUID | --resume-after-file-rename RUN_UUID | --rename-file-again RUN_UUID | --resume-after-file-rename-again RUN_UUID | --move-file RUN_UUID | --resume-after-file-move RUN_UUID | --rename-nested-file RUN_UUID | --resume-after-nested-rename RUN_UUID | --inspect-nested-rename RUN_UUID | --retry-failed-nested RUN_UUID | --create-nested-file RUN_UUID | --resume-after-nested-create RUN_UUID | --remove-nested-file RUN_UUID | --resume-after-nested-remove RUN_UUID | --remove-folder RUN_UUID | --resume-after-remove RUN_UUID | --remove-file RUN_UUID | --resume-after-file-remove RUN_UUID | --replace RUN_UUID | --resume-after-replace RUN_UUID | --large-create | --large-replace RUN_UUID | --large-resume-after-replace RUN_UUID]"
         ),
     };
     let state = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -686,6 +725,119 @@ async fn main() -> Result<()> {
         "Isolated iCloud test mount active: {}",
         engine.account.mount_path.display()
     );
+    if prepare_folder_move || move_folder || after_move_folder {
+        let result: Result<()> = async {
+            let script = if prepare_folder_move {
+                APP_PREPARE_FOLDER_MOVE
+            } else if move_folder {
+                APP_MOVE_FOLDER
+            } else {
+                APP_READ_MOVED_FOLDER
+            };
+            let output = tokio::process::Command::new("python3")
+                .args(["-c", script])
+                .arg(&engine.account.mount_path)
+                .kill_on_drop(true)
+                .output()
+                .await
+                .context("running folder move through isolated FUSE mount")?;
+            ensure!(
+                output.status.success(),
+                "mounted folder move application failed ({}); evidence retained",
+                String::from_utf8_lossy(&output.stderr[..output.stderr.len().min(512)])
+            );
+            let expected_mutations = if prepare_folder_move { 2 } else { 3 };
+            tokio::time::timeout(Duration::from_secs(120), async {
+                loop {
+                    let uploads = session.uploads(0, 16).await?;
+                    let mutations = session.mutations(0, 16).await?;
+                    ensure!(
+                        !uploads.iter().any(|r| matches!(r.state, UploadState::Failed | UploadState::Conflict))
+                            && !mutations.iter().any(|r| matches!(r.state, MutationState::Failed | MutationState::Conflict | MutationState::NeedsReview)),
+                        "isolated folder move worker requires review"
+                    );
+                    ensure!(uploads.len() <= 2 && mutations.len() <= expected_mutations,
+                        "unexpected operation in isolated folder move run");
+                    if uploads.len() == 2
+                        && uploads.iter().all(|r| r.state == UploadState::Uploaded)
+                        && mutations.len() == expected_mutations
+                        && mutations.iter().all(|r| r.state == MutationState::Applied)
+                    {
+                        break Ok::<_, anyhow::Error>(());
+                    }
+                    tokio::time::sleep(Duration::from_millis(250)).await;
+                }
+            })
+            .await
+            .context("isolated folder move worker timed out")??;
+
+            let mut independent = ICloudReadSession::from_session_snapshot(&snapshot, apple_id)?;
+            let root_items = independent.list_folder(folder.id()).await?;
+            let destinations: Vec<_> = root_items.iter().filter(|item| {
+                item.is_folder() && item.display_name() == "Mounted Move Destination"
+            }).collect();
+            ensure!(destinations.len() == 1, "exact destination folder is not visible");
+            let destination_id = destinations[0].drivewsid.clone();
+            let source_items: Vec<_> = if prepare_folder_move {
+                root_items.iter().filter(|item| {
+                    item.is_folder() && item.display_name() == "Mounted Folder"
+                }).collect()
+            } else {
+                ensure!(!root_items.iter().any(|item| {
+                    item.is_folder() && item.display_name() == "Mounted Folder"
+                }), "source folder remains in the old parent");
+                let inside = independent.list_folder(&destination_id).await?;
+                let moved: Vec<_> = inside.into_iter().filter(|item| {
+                    item.is_folder() && item.display_name() == "Mounted Folder"
+                }).collect();
+                ensure!(moved.len() == 1, "moved folder is not uniquely visible");
+                let moved_id = moved[0].drivewsid.clone();
+                // Keep a local item with the same identity shape for the checks below.
+                let child_items = independent.list_folder(&moved_id).await?;
+                let children: Vec<_> = child_items.iter().filter(|item| {
+                    !item.is_folder() && item.display_name() == "Move Child.txt"
+                }).collect();
+                ensure!(children.len() == 1, "moved child is not uniquely visible");
+                let child = children[0];
+                ensure!(child.size <= 4096, "moved child is unexpectedly large");
+                let bytes = independent.read_range_in_folder(&moved_id, &child.drivewsid, 0, child.size as u32).await?;
+                ensure!(bytes == b"Cirrove mounted folder move child\n", "moved child bytes differ");
+                let saved: serde_json::Value = serde_json::from_slice(&std::fs::read(run_dir.join("folder-move-ids.json"))?)?;
+                ensure!(saved["folder"] == moved_id && saved["child"] == child.drivewsid
+                    && saved["destination"] == destination_id
+                    && saved["sha256"] == hex::encode(Sha256::digest(&bytes)),
+                    "folder or child identity changed across move");
+                println!("Isolated folder move verified: same folder and child IDs, complete bytes, fresh process={after_move_folder}");
+                return Ok(());
+            };
+            ensure!(source_items.len() == 1, "prepared source folder is not uniquely visible");
+            let source_id = source_items[0].drivewsid.clone();
+            let child_items = independent.list_folder(&source_id).await?;
+            let children: Vec<_> = child_items.iter().filter(|item| {
+                !item.is_folder() && item.display_name() == "Move Child.txt"
+            }).collect();
+            ensure!(children.len() == 1, "prepared child is not uniquely visible");
+            let child = children[0];
+            ensure!(child.size <= 4096, "prepared child is unexpectedly large");
+            let bytes = independent.read_range_in_folder(&source_id, &child.drivewsid, 0, child.size as u32).await?;
+            ensure!(bytes == b"Cirrove mounted folder move child\n", "prepared child bytes differ");
+            std::fs::write(
+                run_dir.join("folder-move-ids.json"),
+                serde_json::to_vec(&serde_json::json!({
+                    "folder": source_id,
+                    "destination": destination_id,
+                    "child": child.drivewsid,
+                    "sha256": hex::encode(Sha256::digest(&bytes)),
+                }))?,
+            )?;
+            println!("Isolated populated folder prepared for move: {run}");
+            Ok(())
+        }.await;
+        let shutdown = session.shutdown().await;
+        result?;
+        shutdown?;
+        return Ok(());
+    }
     let check = async {
         let filename = "Mounted Create.txt";
         let output = tokio::process::Command::new("python3")

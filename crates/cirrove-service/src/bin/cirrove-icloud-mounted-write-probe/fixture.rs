@@ -378,6 +378,7 @@ impl Fixture {
         if request.scope != self.scope
             || before.kind != NodeKind::Folder
             || before.parent_id.as_deref() != Some(&self.root.id)
+            || before.name != "Mounted Folder"
             || parent == &self.root.id
             || name != &before.name
             || !self.owns(&request.scope, &before.id)
@@ -392,6 +393,9 @@ impl Fixture {
             .map_err(|_| MutationError::Uncertain)?;
         let destination =
             confirmed_owned_child_folder(&journal, &self.scope, &self.root.id, parent)?;
+        if destination.name != "Mounted Move Destination" {
+            return Err(MutationError::Invalid);
+        }
         Ok((before.clone(), destination))
     }
 
@@ -693,7 +697,10 @@ fn confirmed_owned_child_folder(
                     ) if node.id == id => {
                         let valid = row.request.scope == *scope
                             && parent == root
-                            && name == "Mounted Folder"
+                            && matches!(
+                                name.as_str(),
+                                "Mounted Folder" | "Mounted Move Destination"
+                            )
                             && node.name == *name
                             && node.parent_id.as_deref() == Some(root)
                             && node.kind == NodeKind::Folder
@@ -994,6 +1001,15 @@ pub fn restored_owned(
                         && parent == root
                         && before.name == "Mounted Folder"
                         && name == "Mounted Renamed")
+                        || (before.kind == NodeKind::Folder
+                            && before.parent_id.as_deref() == Some(root)
+                            && parent != root
+                            && owned_folders.contains(parent)
+                            && confirmed_owned_child_folder(journal, scope, root, parent)
+                                .is_ok_and(|folder| folder.name == "Mounted Move Destination")
+                            && before.name == "Mounted Folder"
+                            && name == &before.name
+                            && row.request.validate().is_ok())
                         || (before.kind == NodeKind::File
                             && ((before.parent_id.as_deref() == Some(root)
                                 && parent == root
@@ -1088,6 +1104,86 @@ mod tests {
             target: None,
             package: false,
         }
+    }
+
+    #[test]
+    fn restored_owned_accepts_only_confirmed_populated_folder_move() {
+        let private = tempfile::tempdir().unwrap();
+        let mut journal =
+            UploadJournal::open(&private.path().join("journal"), "account-a", 1024 * 1024).unwrap();
+        let scope = scope();
+        let mut source = node("folder-source", NodeKind::Folder, "Mounted Folder");
+        source.size = 0;
+        let mut destination = node(
+            "folder-destination",
+            NodeKind::Folder,
+            "Mounted Move Destination",
+        );
+        destination.size = 0;
+        for folder in [&source, &destination] {
+            let create = journal
+                .enqueue_mutation(MutationRequest {
+                    scope: scope.clone(),
+                    intent: MutationIntent::CreateFolder {
+                        parent: "fixture-root".into(),
+                        name: folder.name.clone(),
+                    },
+                })
+                .unwrap();
+            let claimed = journal.claim_mutation().unwrap().unwrap();
+            journal
+                .acknowledge_mutation(
+                    create.id,
+                    claimed.attempt.unwrap(),
+                    MutationReceipt::Upsert(folder.clone()),
+                )
+                .unwrap();
+        }
+        let file = Node {
+            parent_id: Some(source.id.clone()),
+            ..node("child-file", NodeKind::File, "Move Child.txt")
+        };
+        let upload = journal
+            .enqueue(
+                scope.clone(),
+                UploadIntent::Create {
+                    parent: source.id.clone(),
+                    name: file.name.clone(),
+                },
+                b"ab".as_slice(),
+            )
+            .unwrap();
+        let claimed = journal.claim_next().unwrap().unwrap();
+        journal
+            .acknowledge(upload.id, claimed.attempt.unwrap(), file.clone())
+            .unwrap();
+        let moved = journal
+            .enqueue_mutation(MutationRequest {
+                scope: scope.clone(),
+                intent: MutationIntent::Relocate {
+                    before: source.clone(),
+                    parent: destination.id.clone(),
+                    name: source.name.clone(),
+                },
+            })
+            .unwrap();
+        let claimed = journal.claim_mutation().unwrap().unwrap();
+        let receipt = Node {
+            parent_id: Some(destination.id.clone()),
+            etag: Some("moved-etag".into()),
+            ..source.clone()
+        };
+        journal
+            .acknowledge_mutation(
+                moved.id,
+                claimed.attempt.unwrap(),
+                MutationReceipt::Upsert(receipt),
+            )
+            .unwrap();
+        let owned = restored_owned(&journal, &scope, "fixture-root").unwrap();
+        assert!(owned.contains(&source.id));
+        assert!(owned.contains(&destination.id));
+        assert!(owned.contains(&file.id));
     }
 
     #[test]
