@@ -152,3 +152,27 @@ Replace will reach a durable handoff and the remount will verify both IDs,
 original bytes in recoverable Trash and complete new bytes. If it becomes
 uncertain again, stop and inspect without retrying. The two earlier fixtures
 remain untouched.
+
+## New owned live fixture
+
+The three arms passed for fresh owned fixture
+`216724cf-3466-47d3-9f13-ce09c9ae9f83`. Mounted Create produced
+confirmed file and folder receipts with full bytes under independent iCloud
+listing. Mounted Replace then completed its two-ID handoff: the journal and
+independent listing confirmed the new ID and complete replacement bytes,
+and the old exact ID with original bytes remained recoverable in Trash.
+The separately started remount verified the resulting file, both IDs and
+journal without issuing a second mutation. Each process shut down its test
+mount. Private manifests `arm-a.json`, `arm-b.json` and `arm-c.json` are in
+`.local-state/icloud-sealed-replace-final-955d5304-0d11-431b-a9b6-4b53071078ce/`;
+they record the binary SHA-256, PID, expected window and btrfs-backed
+temporary directories. Arm B's manifest records the actual 900-second
+bound. No compilation ran during the arms.
+
+This is one successful sequence after the storage correction. It establishes
+that the sealed-session mounted replacement can complete and survive a
+fresh process on an owned small fixture; it does not establish timeout,
+large-file or concurrent-editor reliability. The previous uncertain
+`b35425ac-72a4-461c-b854-64431e9d1f9e` fixture remains `verify_required`
+and was not retried or cleaned up. Ordinary iCloud connections remain
+read-only.
