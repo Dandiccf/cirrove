@@ -14,8 +14,8 @@ use cirrove_core::{
 };
 use cirrove_icloud::{
     ICloudDrive, ICloudFileCreate, ICloudFileMove, ICloudFileRename, ICloudFileTrash,
-    ICloudFolderCreate, ICloudFolderRename, ICloudOwnedFixtureFolderRemove,
-    ICloudOwnedMountedReplace, ICloudReadSession, ValidationFolder,
+    ICloudFolderCreate, ICloudFolderRename, ICloudFolderTrash, ICloudOwnedMountedReplace,
+    ValidationFolder,
 };
 use cirrove_service::journal::{MutationState, UploadJournal, UploadRecord, UploadState};
 use secrecy::SecretString;
@@ -362,19 +362,11 @@ impl Fixture {
         })
     }
 
-    fn remover(
-        &self,
-        before: Node,
-    ) -> cirrove_core::mutation::Result<ICloudOwnedFixtureFolderRemove> {
-        let session = ICloudReadSession::from_session_snapshot(
-            &self.removal.snapshot,
-            &self.removal.apple_id,
-        )
-        .map_err(|_| MutationError::Uncertain)?;
-        ICloudOwnedFixtureFolderRemove::new(
+    fn remover(&self, before: Node) -> cirrove_core::mutation::Result<ICloudFolderTrash> {
+        ICloudFolderTrash::from_session_snapshot(
             self.scope.clone(),
-            session,
-            self.removal.folder.clone(),
+            &self.removal.apple_id,
+            &self.removal.snapshot,
             before,
         )
     }
