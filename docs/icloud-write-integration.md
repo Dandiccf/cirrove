@@ -397,7 +397,7 @@ router**, with explicit acceptance gates:
 | --- | --- | --- |
 | Create/edit/replace and editor saves | Owned live arms, including consecutive atomic saves | Repeat representative application workflows; preserve all failures |
 | Rename/move and recoverable deletion | Owned file/folder adapter and router arms | Complete mounted combined-operation and interruption coverage |
-| Interrupted replacement | [Mounted process-recovery arm](benchmarks/icloud-mounted-process-recovery-2026-09-30.md) passed after confirmed Trash, with retained bytes, no Trash replay and remount | Remaining account-router interruption boundaries, in-flight uncertainty and repeatability; preserve both versions |
+| Interrupted replacement | Mounted process-recovery arms passed after [confirmed Trash](benchmarks/icloud-mounted-process-recovery-2026-09-30.md) and [final installation](benchmarks/icloud-mounted-final-recovery-2026-09-30.md), with both versions, journal ownership and remount verified | In-flight uncertainty, other operation boundaries and repeatability; preserve both versions |
 | Concurrent changes | Conditional checks and synthetic races | Controlled competing edits on owned fixtures, explicit conflict outcome and accessible local bytes |
 | Recovery UX | Durable retained journals/checkpoints | User-visible uncertain/conflict state, export of pending bytes, safe resolution; audit earlier retained fixtures |
 | Capacity and sessions | 65/66 MiB mounted arm; explicit deadlines | Quota/low-disk, slow-link, expired-session and larger-file acceptance with documented limits |
@@ -417,3 +417,10 @@ owners. This was an intentional process exit, not an orderly shutdown, but it
 occurred after the provider response and postflight were known. The next acceptance
 work is final-installation acknowledgement loss and controlled concurrent edits;
 ordinary write access stays disabled.
+
+The second mounted process-recovery gate also passed: after final installation but
+before journal acknowledgement, a fresh process recovered the same operation by
+inspection alone, with zero replacement commit calls. Both cloud digests and
+separate current/recovery journal owners were verified. Competing edits and the
+shared keep-both resolution path are the next acceptance work. These two controlled
+points do not establish all crash timings or complete the full-integration goal.

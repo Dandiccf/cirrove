@@ -1,0 +1,9 @@
+{
+  "run": "ae690a4f-13cd-4618-9bbb-2f7ef91364e1",
+  "read_only_sqlite_audit": true,
+  "integrity_check": "ok",
+  "confirmed_uploads": 2,
+  "same_replacement_operation": true,
+  "one_current_remote_owner": true,
+  "one_distinct_recoverable_old_owner": true
+}

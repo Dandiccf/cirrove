@@ -51,4 +51,40 @@ Full `scripts/check.sh` passed on 2026-09-30 at 18:16:02 UTC, including syntheti
 kernel mounts, feature-gated probes, scripts and ledger. The feature-gated probe
 build then passed. Private check manifest/log:
 `.local-state/icloud-final-recovery-check-2026-09-30/`. The existing rustdoc link
-warning remains unrelated to this change. No live outcome is claimed yet.
+warning remains unrelated to this change. No live outcome was claimed at that checkpoint.
+
+## Observed: final acknowledgement recovered without another commit
+
+Run `ae690a4f-13cd-4618-9bbb-2f7ef91364e1` used commit `b932a7b`, binary SHA-256
+`bb22ff0fd96732395e7e5d9d49f915be956856dd406370b1e3f6f4c1be3af27d`, for both arms.
+No compilation overlapped either live process.
+
+Arm A created and independently verified the owned original, completed the normal
+Trash and new-file installation sequence, verified the final receipt, and exited
+86 before that receipt reached the journal. It took 223.968 seconds. Its marker
+was present and its isolated mount was detached.
+[Interruption result](icloud-mounted-final-recovery-interrupt-live-2026-09-30.json).
+
+Arm B confirmed the retained local payload, reserved old identity and saved
+`install_inspected` checkpoint. Independent remote inspection found the new exact
+ID already installed and the old exact ID recoverable in Trash; both full digests
+matched. The fresh worker recovered the receipt through inspection alone. It
+completed the same operation with zero replacement commit attempts, and both the
+mounted and remounted final reads passed. Exit 0 after 20.607 seconds; isolated
+mount detached.
+[Recovery result](icloud-mounted-final-recovery-recover-live-2026-09-30.json).
+
+A separate read-only SQLite audit passed integrity checking and confirmed exactly
+two uploaded records, the same replacement operation, one current remote owner and
+one distinct hidden remote owner for the old ID in Trash, all in the isolated
+account scope.
+[Journal audit](icloud-mounted-final-recovery-journal-live-2026-09-30.json).
+The audit script is preserved privately as `.local-state/audit-icloud-recovery.py`.
+
+Private manifests/logs: `.local-state/icloud-final-recovery-<run>-interrupt/` and
+`-recover/`; retained fixture: `.local-state/icloud-account-mounted-final-recovery-<run>/`.
+No personal file, earlier fixture, installed service or default access mode changed.
+The single-arm durations support no performance or repeatability claim. This closes
+only the registered post-installation/pre-journal-acknowledgement gate. Competing
+edits, recovery resolution, in-flight network uncertainty, quota/session failures,
+native package writes and installed-release validation remain open.

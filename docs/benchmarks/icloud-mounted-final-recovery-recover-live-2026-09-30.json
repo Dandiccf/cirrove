@@ -1,0 +1,18 @@
+{
+  "run": "ae690a4f-13cd-4618-9bbb-2f7ef91364e1",
+  "arm": "recover",
+  "binary_sha256": "bb22ff0fd96732395e7e5d9d49f915be956856dd406370b1e3f6f4c1be3af27d",
+  "filesystem": "btrfs",
+  "exit_code": 0,
+  "elapsed_seconds": 20.607,
+  "isolated_mount_detached": true,
+  "passed": true,
+  "boundary": "after_install",
+  "mutation_commit_replays": 0,
+  "old_and_new_digests": true,
+  "pending_bytes_retained": true,
+  "process_interruption": true,
+  "read_after_remount": true,
+  "same_operation_completed": true,
+  "trash_or_stage_replays": 0
+}
