@@ -83,3 +83,93 @@ async fn read_lookup_retains_the_representation_and_checks_both_url_kinds() -> R
     }
     Ok(())
 }
+
+async fn empty_file_fixture(
+    location: serde_json::Value,
+) -> Result<(
+    ICloudReadSession,
+    std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    tokio::task::JoinHandle<()>,
+)> {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+    let listener = TcpListener::bind("127.0.0.1:0").await?;
+    let address = listener.local_addr()?;
+    let lookups = Arc::new(AtomicUsize::new(0));
+    let count = lookups.clone();
+    let server = tokio::spawn(async move {
+        loop {
+            let (mut peer, _) = listener.accept().await.expect("request");
+            let mut request = Vec::new();
+            loop {
+                let mut bytes = [0; 4096];
+                let n = peer.read(&mut bytes).await.expect("request bytes");
+                assert!(n > 0 && request.len() < 16384);
+                request.extend_from_slice(&bytes[..n]);
+                if request.windows(4).any(|v| v == b"\r\n\r\n") {
+                    break;
+                }
+            }
+            let header = std::str::from_utf8(&request).expect("header");
+            let body = if header
+                .starts_with("GET /ws/com.apple.CloudDocs/download/by_id?document_id=fixture ")
+            {
+                count.fetch_add(1, Ordering::SeqCst);
+                location.clone()
+            } else {
+                assert!(header.starts_with("POST /retrieveItemDetailsInFolders"));
+                json!([{"drivewsid":ROOT_ID,"type":"FOLDER","numberOfItems":1,"items":[{
+                    "drivewsid":"FILE::com.apple.CloudDocs::fixture","type":"FILE","name":"Empty","etag":"v1","size":0
+                }]}])
+            };
+            let body = serde_json::to_vec(&body).expect("response");
+            let header = format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                body.len()
+            );
+            peer.write_all(header.as_bytes()).await.expect("header");
+            peer.write_all(&body).await.expect("body");
+        }
+    });
+    let mut session = ICloudReadSession::new()?;
+    session.docs_endpoint = Some(format!("http://{address}/").parse()?);
+    session.drive_endpoint = session.docs_endpoint.clone();
+    Ok((session, lookups, server))
+}
+
+#[tokio::test]
+async fn zero_length_write_preflight_still_requires_an_ordinary_representation() -> Result<()> {
+    use std::sync::atomic::Ordering;
+    let token = json!({"url":"https://fixture.icloud-content.com/content?secret=PRIVATE"});
+    for location in [
+        json!({"package_token":token.clone()}),
+        json!({"data_token":token.clone(),"package_token":token.clone()}),
+        json!({}),
+    ] {
+        let (mut session, lookups, server) = empty_file_fixture(location).await?;
+        let result = session
+            .hash_file_in_folder_for_revision(
+                ROOT_ID,
+                "FILE::com.apple.CloudDocs::fixture",
+                "v1",
+                0,
+            )
+            .await;
+        server.abort();
+        assert!(
+            result.is_err(),
+            "a zero-length package or ambiguous representation must not qualify for ordinary replacement"
+        );
+        assert_eq!(lookups.load(Ordering::SeqCst), 1);
+    }
+    let (mut session, lookups, server) = empty_file_fixture(json!({"data_token":token})).await?;
+    let result = session
+        .hash_file_in_folder_for_revision(ROOT_ID, "FILE::com.apple.CloudDocs::fixture", "v1", 0)
+        .await;
+    server.abort();
+    assert_eq!(result?, hex::encode(Sha256::digest([])));
+    assert_eq!(lookups.load(Ordering::SeqCst), 1);
+    Ok(())
+}

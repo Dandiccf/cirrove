@@ -918,9 +918,12 @@ impl ICloudReadSession {
         if before.is_folder() || before.etag != etag || before.size != size {
             bail!("iCloud file changed before bounded verification");
         }
+        // A logical size of zero does not prove that this is an ordinary blob.
+        // Package/ambiguous representations must also be refused before an
+        // empty source can qualify for replacement.
+        let signed_url = self.ordinary_download_url(drive_id).await?;
         let mut hash = Sha256::new();
         if size > 0 {
-            let signed_url = self.ordinary_download_url(drive_id).await?;
             let mut response = self
                 .http
                 .get(signed_url)
