@@ -460,7 +460,8 @@ async fn main() -> Result<()> {
                 &state,
                 fixture.before.clone(),
             )?
-            .with_expected_sha256(fixture.sha256)?,
+            .with_expected_sha256(fixture.sha256)?
+            .with_reconciliation_only(),
         );
         let worker = MutationWorker::new(journal.clone(), provider, CancellationToken::new());
         let result = worker

@@ -43,6 +43,8 @@ pub struct ICloudFileTrash {
     session: Mutex<SessionState>,
     #[cfg(feature = "write-probe")]
     discard_response: AtomicBool,
+    #[cfg(feature = "write-probe")]
+    reconciliation_only: bool,
 }
 
 impl ICloudFileTrash {
@@ -65,6 +67,8 @@ impl ICloudFileTrash {
             session: Mutex::new(SessionState::Ready(Box::new(session))),
             #[cfg(feature = "write-probe")]
             discard_response: AtomicBool::new(false),
+            #[cfg(feature = "write-probe")]
+            reconciliation_only: false,
         })
     }
 
@@ -92,6 +96,8 @@ impl ICloudFileTrash {
             }),
             #[cfg(feature = "write-probe")]
             discard_response: AtomicBool::new(false),
+            #[cfg(feature = "write-probe")]
+            reconciliation_only: false,
         })
     }
 
@@ -115,6 +121,13 @@ impl ICloudFileTrash {
     #[cfg(feature = "write-probe")]
     pub fn with_discarded_response(self) -> Self {
         self.discard_response.store(true, Ordering::Release);
+        self
+    }
+
+    /// Recovery validator must fail if a worker attempts another delete.
+    #[cfg(feature = "write-probe")]
+    pub fn with_reconciliation_only(mut self) -> Self {
+        self.reconciliation_only = true;
         self
     }
 
@@ -228,40 +241,42 @@ impl ICloudFileTrash {
             }
             return Ok(Observation::Present);
         }
-        let (trash, complete) = session
-            .read_trash_items()
+        // Presence of this exact recoverable item is enough. A global Trash
+        // inventory can be incomplete or slow and is not evidence about this ID.
+        let item = session
+            .item_details(&self.before.id)
             .await
             .map_err(|_| MutationError::Uncertain)?;
-        if !complete {
-            return Ok(Observation::Unknown);
+        if !trash_binding(&item, &self.before) {
+            return Ok(
+                if children
+                    .iter()
+                    .any(|entry| entry.display_name() == self.before.name)
+                {
+                    Observation::Conflict
+                } else {
+                    Observation::Unknown
+                },
+            );
         }
-        let mut matches = trash.iter().filter(|item| {
-            item.get("drivewsid").and_then(|value| value.as_str()) == Some(self.before.id.as_str())
-        });
-        if let Some(item) = matches.next() {
-            if matches.next().is_some()
-                || item.get("restorePath").is_none_or(|path| path.is_null())
-                || item
-                    .get("docwsid")
-                    .and_then(|id| id.as_str())
-                    .is_some_and(|id| {
-                        !id.is_empty() && self.before.id.rsplit("::").next() != Some(id)
-                    })
+        if let Some(expected) = &self.expected_sha256 {
+            let etag = item
+                .get("etag")
+                .and_then(|v| v.as_str())
+                .filter(|v| !v.is_empty() && v.len() <= 4096 && !v.contains(['\r', '\n', '*']));
+            if item.get("size").and_then(|v| v.as_u64()) != Some(self.before.size) || etag.is_none()
             {
                 return Ok(Observation::Conflict);
             }
-            if let Some(expected) = &self.expected_sha256 {
-                let etag = item.get("etag").and_then(|value| value.as_str());
-                if item.get("size").and_then(|value| value.as_u64()) != Some(self.before.size)
-                    || etag.is_none_or(str::is_empty)
-                {
-                    return Ok(Observation::Conflict);
-                }
-                let etag = etag.ok_or(MutationError::Uncertain)?.to_owned();
-                let signed = session
-                    .ordinary_download_url(&self.before.id)
-                    .await
-                    .map_err(|_| MutationError::Uncertain)?;
+            let etag = etag.ok_or(MutationError::Uncertain)?;
+            // Even an empty file must have an ordinary (not package) representation.
+            let signed = session
+                .ordinary_download_url(&self.before.id)
+                .await
+                .map_err(|_| MutationError::Uncertain)?;
+            let mut received = 0u64;
+            let mut hash = Sha256::new();
+            if self.before.size > 0 {
                 let mut response = session
                     .http
                     .get(signed)
@@ -271,8 +286,6 @@ impl ICloudFileTrash {
                 if response.status() != reqwest::StatusCode::OK {
                     return Err(MutationError::Uncertain);
                 }
-                let mut received = 0u64;
-                let mut hash = Sha256::new();
                 while let Some(chunk) = response
                     .chunk()
                     .await
@@ -284,45 +297,37 @@ impl ICloudFileTrash {
                     }
                     hash.update(&chunk);
                 }
-                if received != self.before.size || hex::encode(hash.finalize()) != *expected {
-                    return Ok(Observation::Conflict);
-                }
-                let (again, complete) = session
-                    .read_trash_items()
-                    .await
-                    .map_err(|_| MutationError::Uncertain)?;
-                if !complete {
-                    return Ok(Observation::Unknown);
-                }
-                let matches: Vec<_> = again
-                    .iter()
-                    .filter(|candidate| {
-                        candidate.get("drivewsid").and_then(|value| value.as_str())
-                            == Some(self.before.id.as_str())
-                    })
-                    .collect();
-                if matches.len() != 1
-                    || matches[0].get("etag").and_then(|value| value.as_str())
-                        != Some(etag.as_str())
-                    || matches[0].get("size").and_then(|value| value.as_u64())
-                        != Some(self.before.size)
-                    || matches[0]
-                        .get("restorePath")
-                        .is_none_or(|path| path.is_null())
-                {
-                    return Ok(Observation::Unknown);
-                }
             }
-            return Ok(Observation::InTrash);
+            if received != self.before.size || hex::encode(hash.finalize()) != *expected {
+                return Ok(Observation::Conflict);
+            }
+            let again = session
+                .item_details(&self.before.id)
+                .await
+                .map_err(|_| MutationError::Uncertain)?;
+            if !trash_binding(&again, &self.before)
+                || again.get("etag").and_then(|v| v.as_str()) != Some(etag)
+                || again.get("size").and_then(|v| v.as_u64()) != Some(self.before.size)
+                || again.get("restorePath") != item.get("restorePath")
+                || again.get("name") != item.get("name")
+                || again.get("extension") != item.get("extension")
+            {
+                return Ok(Observation::Unknown);
+            }
         }
-        if children
-            .iter()
-            .any(|entry| entry.display_name() == self.before.name)
-        {
-            return Ok(Observation::Conflict);
-        }
-        Ok(Observation::Unknown)
+        Ok(Observation::InTrash)
     }
+}
+
+fn trash_binding(item: &serde_json::Value, before: &Node) -> bool {
+    item.get("drivewsid").and_then(|v| v.as_str()) == Some(before.id.as_str())
+        && item.get("docwsid").and_then(|v| v.as_str()) == before.id.rsplit("::").next()
+        && item.get("type").and_then(|v| v.as_str()) == Some("FILE")
+        && matches!(
+            item.get("parentId").and_then(|v| v.as_str()),
+            Some("TRASH_ROOT" | crate::write_transport::TRASH_ROOT)
+        )
+        && item.get("restorePath").is_some_and(|v| !v.is_null())
 }
 
 #[async_trait]
@@ -369,6 +374,10 @@ impl MutationProvider for ICloudFileTrash {
         prepared: Option<&str>,
         cancel: &CancellationToken,
     ) -> MutationResult<MutationReceipt> {
+        #[cfg(feature = "write-probe")]
+        if self.reconciliation_only {
+            return Err(MutationError::Unsupported("reconciliation-only validation"));
+        }
         self.check_request(request, prepared)?;
         if self.expected_sha256.is_none() {
             return Err(MutationError::Invalid);
@@ -482,6 +491,168 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn lost_empty_file_delete_recovers_by_exact_id_without_a_trash_inventory() {
+        use tokio::{
+            io::{AsyncReadExt, AsyncWriteExt},
+            net::TcpListener,
+        };
+        for change in [
+            "none",
+            "doc",
+            "type",
+            "parent",
+            "restore",
+            "size",
+            "etag_after",
+            "restore_after",
+            "name_after",
+            "foreign_id",
+            "package",
+            "digest",
+        ] {
+            let scope = Scope {
+                account: Uuid::new_v4().to_string(),
+                provider: "icloud".into(),
+                collection: "drive".into(),
+            };
+            let mut original = before();
+            original.size = 0;
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let endpoint = format!("http://{}/", listener.local_addr().unwrap());
+            let stop = CancellationToken::new();
+            let done = stop.clone();
+            let source = original.clone();
+            let server = tokio::spawn(async move {
+                let mut details = 0;
+                loop {
+                    let accepted = tokio::select! { _=done.cancelled()=>break, r=listener.accept()=>r.unwrap() };
+                    let (mut peer, _) = accepted;
+                    let mut request = Vec::new();
+                    let (header, payload) = loop {
+                        let mut buf = [0u8; 4096];
+                        let n = peer.read(&mut buf).await.unwrap();
+                        assert!(n > 0 && request.len() + n < 16384);
+                        request.extend_from_slice(&buf[..n]);
+                        let Some(end) = request.windows(4).position(|b| b == b"\r\n\r\n") else {
+                            continue;
+                        };
+                        let end = end + 4;
+                        let header = std::str::from_utf8(&request[..end]).unwrap().to_string();
+                        let len: usize = header
+                            .lines()
+                            .find_map(|s| {
+                                s.to_ascii_lowercase()
+                                    .strip_prefix("content-length: ")
+                                    .map(str::to_owned)
+                            })
+                            .map(|s| s.parse().unwrap())
+                            .unwrap_or(0);
+                        if request.len() < end + len {
+                            continue;
+                        }
+                        break (header, request[end..end + len].to_vec());
+                    };
+                    let body = if header.starts_with("POST /retrieveItemDetailsInFolders ") {
+                        let p: serde_json::Value = serde_json::from_slice(&payload).unwrap();
+                        if p[0]["drivewsid"].as_str() != source.parent_id.as_deref() {
+                            serde_json::json!([])
+                        } else {
+                            serde_json::json!([{"drivewsid":source.parent_id,"type":"FOLDER","numberOfItems":0,"items":[]}])
+                        }
+                    } else if header.starts_with("POST /retrieveItemDetails ") {
+                        let p: serde_json::Value = serde_json::from_slice(&payload).unwrap();
+                        assert_eq!(p["items"][0]["drivewsid"], source.id);
+                        details += 1;
+                        let mut item = serde_json::json!({"drivewsid":source.id,"docwsid":source.id.rsplit("::").next(),"type":"FILE","parentId":"TRASH_ROOT","name":"Owned","extension":"txt","etag":"trashed","size":0,"restorePath":"owned-path"});
+                        match change {
+                            "doc" => item["docwsid"] = "foreign".into(),
+                            "type" => item["type"] = "FOLDER".into(),
+                            "parent" => item["parentId"] = "active-folder".into(),
+                            "restore" => item["restorePath"] = serde_json::Value::Null,
+                            "size" => item["size"] = 1.into(),
+                            "foreign_id" => {
+                                item["drivewsid"] = "FILE::com.apple.CloudDocs::foreign".into()
+                            }
+                            "etag_after" if details == 2 => item["etag"] = "changed".into(),
+                            "restore_after" if details == 2 => {
+                                item["restorePath"] = "changed".into()
+                            }
+                            "name_after" if details == 2 => item["name"] = "changed".into(),
+                            _ => (),
+                        }
+                        serde_json::json!({"items":[item]})
+                    } else {
+                        assert!(header.starts_with("GET /ws/com.apple.CloudDocs/download/by_id?"));
+                        if change == "package" {
+                            serde_json::json!({"package_token":{"url":"https://fixture.icloud-content.com/empty"}})
+                        } else {
+                            serde_json::json!({"data_token":{"url":"https://fixture.icloud-content.com/empty"}})
+                        }
+                    };
+                    let body = body.to_string();
+                    let response = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                        body.len()
+                    );
+                    peer.write_all(response.as_bytes()).await.unwrap();
+                }
+                details
+            });
+            let mut session = ICloudReadSession::new().unwrap();
+            session.drive_endpoint = Some(endpoint.parse().unwrap());
+            session.docs_endpoint = Some(endpoint.parse().unwrap());
+            let provider = ICloudFileTrash {
+                scope: scope.clone(),
+                before: original.clone(),
+                expected_sha256: Some(if change == "digest" {
+                    "0".repeat(64)
+                } else {
+                    hex::encode(Sha256::digest([]))
+                }),
+                session: Mutex::new(SessionState::Ready(Box::new(session))),
+                #[cfg(feature = "write-probe")]
+                discard_response: AtomicBool::new(false),
+                #[cfg(feature = "write-probe")]
+                reconciliation_only: false,
+            };
+            let request = MutationRequest {
+                scope,
+                intent: MutationIntent::RemoveFile {
+                    before: original.clone(),
+                },
+            };
+            #[cfg(feature = "write-probe")]
+            let provider = {
+                let provider = provider.with_reconciliation_only();
+                assert!(matches!(
+                    provider
+                        .mutate_prepared(&request, Some(&original.id), &CancellationToken::new())
+                        .await,
+                    Err(MutationError::Unsupported("reconciliation-only validation"))
+                ));
+                provider
+            };
+            let result = provider
+                .reconcile_prepared_mutation(
+                    &request,
+                    Some(&original.id),
+                    &CancellationToken::new(),
+                )
+                .await;
+            stop.cancel();
+            let details = server.await.unwrap();
+            assert_eq!(
+                matches!(result,Ok(MutationReconciliation::Applied(MutationReceipt::Removed{item})) if item==original.id),
+                change == "none",
+                "{change}"
+            );
+            if change == "none" {
+                assert_eq!(details, 2);
+            }
+        }
+    }
+
     #[test]
     fn exact_scope_file_and_revision_are_required_before_vault_access() {
         let scope = Scope {
@@ -527,6 +698,8 @@ mod tests {
             }),
             #[cfg(feature = "write-probe")]
             discard_response: AtomicBool::new(false),
+            #[cfg(feature = "write-probe")]
+            reconciliation_only: false,
         };
         let cancel = CancellationToken::new();
         assert!(matches!(

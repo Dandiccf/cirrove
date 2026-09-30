@@ -593,3 +593,17 @@ HTTP regression demonstrated the old ancestor request before the implementation
 changed; foreign IDs, moved/renamed/non-folder parents, duplicate envelopes and
 incomplete replies remain refused. Bounded live results are recorded with the
 phase-latency experiment; a general write-speed or release claim does not follow.
+
+
+## Exact file deletion recovery
+
+File-Trash reconciliation now inspects the journal's exact prepared identity
+instead of requiring a complete global Trash inventory. It checks recoverable
+Trash binding, document identity, ordinary representation and the saved full-byte
+digest, then repeats the metadata check to reject concurrent changes. Unknown or
+changed observations retain uncertainty or conflict; they never authorize replay.
+The [registered recovery arm](benchmarks/icloud-file-trash-exact-recovery-2026-10-01.md)
+passed with a fresh owned file and a fresh recovery process whose adapter refused
+any mutation dispatch. An independent Trash lookup and journal audit confirmed
+the exact Removed receipt. Mounted deletion interruption and broader repeatability remain
+separate release gates.
