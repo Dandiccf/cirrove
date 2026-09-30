@@ -205,10 +205,13 @@ impl WriteControl {
         &self,
         plans: Vec<(uuid::Uuid, String, String)>,
     ) -> std::io::Result<u64> {
-        self.writer
+        let kept = self
+            .writer
             .keep_both(plans)
             .await
-            .map_err(|_| std::io::Error::other("local namespace is unavailable"))
+            .map_err(|_| std::io::Error::other("local namespace is unavailable"))?;
+        self.inner.engine.changed.notify_waiters();
+        Ok(kept)
     }
     pub async fn recent_local(
         &self,

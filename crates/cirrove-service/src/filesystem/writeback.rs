@@ -553,6 +553,7 @@ impl Writeback {
                 Ok(kept)
             })
             .await?;
+        self.refresh_projection().await?;
         self.wake.notify_waiters();
         Ok(kept)
     }

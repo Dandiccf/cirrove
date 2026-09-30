@@ -896,3 +896,101 @@ fn failed_and_conflicted_saves_are_counted_and_the_in_flight_ones_are_not() {
         c.state
     );
 }
+
+fn conflicted_save(j: &mut UploadJournal) -> (WorkingFile, uuid::Uuid) {
+    let working = j
+        .create_working(scope(), node(8), false, b"original".as_slice())
+        .unwrap();
+    j.write_working(working.id, 0, b"local-v1").unwrap();
+    let save = j.seal_working(working.id).unwrap().unwrap();
+    let attempt = j.claim_next().unwrap().unwrap().attempt.unwrap();
+    j.stop_attempt(save.id, attempt, UploadState::Conflict)
+        .unwrap();
+    (j.working_file(working.id).unwrap(), save.id)
+}
+
+#[test]
+fn keep_both_rolls_back_copy_namespace_and_resolution_together() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let mut j = open(&root, 4096);
+    let (working, refused) = conflicted_save(&mut j);
+    let fault = rusqlite::Connection::open(root.join("uploads.db")).unwrap();
+    fault.execute_batch("CREATE TRIGGER refuse_resolution BEFORE UPDATE OF state ON uploads WHEN NEW.state='resolved' BEGIN SELECT RAISE(ABORT,'synthetic resolution failure'); END;").unwrap();
+    assert!(
+        j.keep_both(refused, "root".into(), "copy.txt".into())
+            .is_err()
+    );
+    assert_eq!(
+        j.list(0, 10).unwrap().len(),
+        1,
+        "no half-published rescue upload"
+    );
+    assert_eq!(j.get(refused).unwrap().state, UploadState::Conflict);
+    assert_eq!(j.working_file(working.id).unwrap().node, working.node);
+    assert_eq!(payload(&j, refused), b"local-v1");
+    fault
+        .execute_batch("DROP TRIGGER refuse_resolution;")
+        .unwrap();
+    let copy = j
+        .keep_both(refused, "root".into(), "copy.txt".into())
+        .unwrap();
+    assert_eq!(copy.working_file, Some(working.id));
+    assert!(
+        j.keep_both(refused, "root".into(), "duplicate.txt".into())
+            .is_err()
+    );
+    drop(fault);
+    drop(j);
+    let j = open(&root, 4096);
+    assert_eq!(j.list(0, 10).unwrap().len(), 2);
+    assert_eq!(j.get(refused).unwrap().state, UploadState::Resolved);
+    assert_eq!(payload(&j, copy.id), b"local-v1");
+    let rescued = j.working_file(working.id).unwrap();
+    assert_eq!(rescued.node.name, "copy.txt");
+    assert_eq!(rescued.node.id, working.node.id);
+    assert!(rescued.initial_remote.is_none());
+    let cloud = j
+        .namespace_by_remote(&scope(), "remote-file")
+        .unwrap()
+        .unwrap();
+    assert!(cloud.follows_remote);
+    assert_ne!(cloud.node.id, rescued.node.id);
+    let listing = j
+        .namespace_overlay(&scope(), "root", vec![node(8)])
+        .unwrap();
+    assert_eq!(listing.nodes.len(), 2);
+    assert!(listing.conflicts.is_empty());
+}
+
+#[test]
+fn keep_both_refuses_newer_unsealed_bytes_without_discarding_them() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut j = open(&temp.path().join("journal"), 4096);
+    let (working, refused) = conflicted_save(&mut j);
+    j.write_working(working.id, 0, b"local-v2").unwrap();
+    assert!(
+        j.keep_both(refused, "root".into(), "copy.txt".into())
+            .is_err()
+    );
+    assert_eq!(payload(&j, refused), b"local-v1");
+    assert_eq!(j.read_working(working.id, 0, 8).unwrap(), b"local-v2");
+    assert_eq!(j.get(refused).unwrap().state, UploadState::Conflict);
+    assert_eq!(j.list(0, 10).unwrap().len(), 1);
+}
+
+#[test]
+fn keep_both_refuses_occupied_or_original_slots_without_resolving() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut j = open(&temp.path().join("journal"), 4096);
+    let (_, refused) = conflicted_save(&mut j);
+    let mut occupied = node(0);
+    occupied.name = "copy.txt".into();
+    j.create_working(scope(), occupied, true, b"".as_slice())
+        .unwrap();
+    for name in ["copy.txt", "COPY.TXT", &node(8).name] {
+        assert!(j.keep_both(refused, "root".into(), name.into()).is_err());
+        assert_eq!(j.get(refused).unwrap().state, UploadState::Conflict);
+        assert_eq!(j.list(0, 10).unwrap().len(), 1);
+    }
+}

@@ -90,7 +90,7 @@ pub(super) fn migrate(db: &mut Connection, version: u32) -> Result<()> {
     Ok(())
 }
 
-fn slot(db: &Connection, record: &WorkingFile) -> Result<Option<String>> {
+pub(super) fn slot(db: &Connection, record: &WorkingFile) -> Result<Option<String>> {
     if record.unlinked {
         return Ok(None);
     }

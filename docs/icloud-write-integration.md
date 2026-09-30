@@ -424,3 +424,42 @@ inspection alone, with zero replacement commit calls. Both cloud digests and
 separate current/recovery journal owners were verified. Competing edits and the
 shared keep-both resolution path are the next acceptance work. These two controlled
 points do not establish all crash timings or complete the full-integration goal.
+
+## Conflict rescue before live iCloud validation
+
+The shared journal's `keep_both` previously enqueued a Create separately from
+marking the refused save Resolved, without transferring its mounted namespace.
+The copy was absent until upload, and the original path retained the local edit.
+The journal now publishes the rescue queue row, working-file name, namespace
+ownership and resolution atomically. A distinct durable alias restores the
+provider entry without changing an existing local descriptor's identity. Kernel
+invalidation follows projection publication. No network operation runs inside
+this transaction.
+
+Synthetic regression evidence (2026-09-30): the mounted test
+`real_keep_both_restores_the_remote_path_and_exposes_the_copy_before_upload`
+failed without the change because the rescue path did not exist. An intermediate
+fix exposed a second failure: the original path still returned local bytes,
+including after five seconds. The final regression checks both versions while
+the rescue upload is blocked, an already-open descriptor and a fresh remount.
+Three working-file tests also fail with the old `keep_both`: injected failure
+when marking Resolved left a second upload queued; occupied names were accepted;
+and a newer unsealed edit was accepted as resolved. The corrected transaction
+rolls back the entire publication and retains all bytes on refusal.
+
+This covers an ordinary refused current save. Dependent saves, atomic editor
+replacement records, native packages and newer dirty generations remain refused
+and visible as unresolved, rather than guessed at. Remote staging cleanup and
+a real iCloud competing-edit/keep-both run are still required. This synthetic
+coverage does not enable writable iCloud connections or close that release gate.
+
+Full validation: `scripts/check.sh` passed at 2026-09-30T18:43:17Z,
+including workspace, feature-gated iCloud, kernel-mount, script and ledger checks.
+The retained local runner manifest is
+`.local-state/icloud-keep-both-check-2026-09-30-final/run.json` (exit 0,
+disk-backed btrfs temporary storage). Display-dependent window scenarios were
+not run; this change does not alter desktop widgets. An earlier check was stopped
+before completion to fix the regression fixture retaining its old Engine across
+remount; it is not counted as a pass. The existing rustdoc broken-link warning
+for `retry_stuck` remains unchanged. This worktree change is not installed into
+the regular daemon.

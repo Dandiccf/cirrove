@@ -14,6 +14,7 @@ mod namespace;
 mod preparation;
 mod publication;
 mod replacements;
+mod rescue;
 mod unlinked;
 mod working;
 pub(crate) use ancestry::RetainedAncestors;
@@ -246,12 +247,14 @@ impl std::fmt::Debug for UploadRecord {
 enum GenerationCommit {
     Working(working::WorkingCommit),
     Replacement(Box<replacements::ReplacementCommit>),
+    Rescue(Box<rescue::RescueCommit>),
 }
 impl GenerationCommit {
     fn working_id(&self) -> Option<Uuid> {
         match self {
             Self::Working(w) => Some(w.id),
             Self::Replacement(r) => r.working_id(),
+            Self::Rescue(r) => r.working_id(),
         }
     }
 }
@@ -527,6 +530,7 @@ impl UploadJournal {
                 GenerationCommit::Replacement(commit) => {
                     replacements::commit(&tx, commit, &record)?
                 }
+                GenerationCommit::Rescue(commit) => rescue::commit(&tx, commit, &record)?,
             }
         }
         tx.commit()?;
@@ -865,48 +869,24 @@ impl UploadJournal {
         record.attempt = None;
         self.save(&record)
     }
-    /// Remove only an explicitly acknowledged payload; keep the durable receipt.
-    /// Pending, failed, conflicted and uncertain edits have no deletion API here.
-    /// Keep both copies: put this save's bytes beside the remote version under
-    /// a new name, and finish the original.
-    ///
-    /// Until now a conflicted save could only be discarded, and discarding one
-    /// throws away what the person wrote -- the cloud keeps its version and the
-    /// local edit is gone. The bytes are still here, sealed and verified by
-    /// their digest, so the honest resolution is to keep both and let the
-    /// person compare them. The copy is an ordinary create and travels the
-    /// ordinary path; nothing about it is special once it is queued.
-    ///
-    /// The original is left in place as `Resolved` rather than deleted. Records
-    /// carry barriers, successors and replacement links, and unpicking those
-    /// for a record the person has already dealt with would risk stranding
-    /// something that depends on it.
-    ///
-    /// `Resolved` is deliberately as inert as `Conflict` was. Every query that
-    /// picks work up names the states it wants, so nothing claims it, retries
-    /// it or verifies it; and the one query phrased the other way round --
-    /// whether an object still has an operation outstanding -- already treated
-    /// a conflicted record as outstanding forever, so this changes nothing
-    /// there. What does change is the count: what a person has dealt with stops
-    /// being reported to them as a failure.
+    /// Rescue a refused save as an ordinary create. Publish the copy, move its
+    /// local namespace binding and resolve the original in one transaction.
+    /// The original cloud identity is released so it can be listed independently.
+    /// Payloads remain retained. Newer edits and dependent operations are refused
+    /// until their ownership can be resolved without losing acknowledged bytes.
     pub fn keep_both(&mut self, id: Uuid, parent: String, name: String) -> Result<UploadRecord> {
-        let record = self.get(id)?;
-        if !matches!(record.state, UploadState::Conflict | UploadState::Failed) {
-            return Err(JournalError::Stale);
-        }
-        // `payload` verifies the digest before handing the bytes over, so a
-        // copy is never made from a file that rotted on disk.
+        let commit = rescue::prepare(self, id, &parent, &name)?;
+        let scope = commit.scope();
         let bytes = self.payload(id)?;
-        let copy = self.enqueue(
-            record.scope.clone(),
+        self.enqueue_generation(
+            scope,
             UploadIntent::Create { parent, name },
+            WriteOrder::default(),
+            Some(GenerationCommit::Rescue(Box::new(commit))),
             bytes,
-        )?;
-        let mut record = self.get(id)?;
-        record.state = UploadState::Resolved;
-        self.save(&record)?;
-        Ok(copy)
+        )
     }
+
     pub fn prune_uploaded_payload(&mut self, id: Uuid) -> Result<()> {
         if self.get(id)?.state != UploadState::Uploaded {
             return Err(JournalError::Stale);

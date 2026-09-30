@@ -4625,3 +4625,138 @@ async fn real_a_package_is_readable_and_refuses_every_change_inside_it() {
     }
     session.shutdown().await.unwrap();
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; keep both exposes cloud and local copies independently"]
+async fn real_keep_both_restores_the_remote_path_and_exposes_the_copy_before_upload() {
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let account = account(&mount);
+    let cloud = Arc::new(Cloud::default());
+    replacement_fixture(&cloud);
+    cloud.pause_once.store(true, Ordering::SeqCst);
+    let journal = Arc::new(Mutex::new(
+        UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
+    ));
+    let engine = Engine::new(account.clone(), cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session = WritableSession::mount(
+        engine.clone(),
+        journal.clone(),
+        cloud.clone(),
+        Arc::new(Vault::default()),
+    )
+    .await
+    .unwrap();
+    application(
+        &mount,
+        "import pathlib,sys; pathlib.Path(sys.argv[1], 'document.txt').write_bytes(b'local')",
+    )
+    .await;
+    tokio::time::timeout(Duration::from_secs(5), cloud.entered.notified())
+        .await
+        .unwrap();
+    {
+        let mut remote = cloud.remote.lock().unwrap();
+        let (node, bytes) = remote.files.get_mut("target").unwrap();
+        *bytes = b"remote".to_vec();
+        node.size = bytes.len() as u64;
+        node.etag = Some("competing-edit".into());
+        node.content_version = node.etag.clone();
+    }
+    cloud.release.notify_one();
+    let refused = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let rows = session.uploads(0, 10).await.unwrap();
+            if let Some(row) = rows.into_iter().find(|r| r.state == UploadState::Conflict) {
+                break row;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let held = tokio::task::spawn_blocking({
+        let path = mount.join("document.txt");
+        move || std::fs::File::open(path).unwrap()
+    })
+    .await
+    .unwrap();
+    refresh_fixture(&engine, &cloud).await;
+    cloud.pause_once.store(true, Ordering::SeqCst);
+    assert_eq!(
+        session
+            .keep_both(vec![(
+                refused.id,
+                "root".into(),
+                "document-copy.txt".into()
+            )])
+            .await
+            .unwrap(),
+        1
+    );
+    tokio::time::timeout(Duration::from_secs(5), cloud.entered.notified())
+        .await
+        .unwrap();
+    // Both names must work even while the rescue upload cannot finish.
+    application(
+        &mount,
+        r#"import pathlib,sys,time
+p=pathlib.Path(sys.argv[1])
+assert (p/'document-copy.txt').read_bytes()==b'local'
+deadline=time.monotonic()+5
+while True:
+    data=(p/'document.txt').read_bytes()
+    if data==b'remote': break
+    assert time.monotonic()<deadline, repr(data)
+    time.sleep(.02)
+"#,
+    )
+    .await;
+    tokio::task::spawn_blocking(move || {
+        use std::io::Read;
+        let mut held = held;
+        let mut bytes = Vec::new();
+        held.read_to_end(&mut bytes).unwrap();
+        assert_eq!(bytes, b"local", "an open descriptor keeps the rescued edit");
+    })
+    .await
+    .unwrap();
+    cloud.release.notify_one();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            if session
+                .uploads(0, 10)
+                .await
+                .unwrap()
+                .iter()
+                .any(|r| r.id != refused.id && r.state == UploadState::Uploaded)
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(
+        journal.lock().unwrap().get(refused.id).unwrap().state,
+        UploadState::Resolved
+    );
+    assert_eq!(
+        cloud.remote.lock().unwrap().files.get("target").unwrap().1,
+        b"remote"
+    );
+    session.shutdown().await.unwrap();
+    drop(engine);
+    let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))
+        .await
+        .unwrap();
+    let session = WritableSession::mount(engine, journal, cloud, Arc::new(Vault::default()))
+        .await
+        .unwrap();
+    application(&mount, "import pathlib,sys; p=pathlib.Path(sys.argv[1]); assert (p/'document-copy.txt').read_bytes()==b'local'; assert (p/'document.txt').read_bytes()==b'remote'").await;
+    session.shutdown().await.unwrap();
+}
