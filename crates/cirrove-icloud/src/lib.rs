@@ -36,6 +36,8 @@ mod owned_mutation;
 mod owned_upload;
 mod provider;
 mod sealed_session;
+#[cfg(feature = "write-probe")]
+mod trash_lookup_probe;
 mod upload_transport;
 #[cfg(feature = "write-probe")]
 mod write_probe;
@@ -953,6 +955,13 @@ impl ICloudReadSession {
     }
 
     async fn item_by_id(&mut self, drive_id: &str) -> Result<DriveEntry> {
+        serde_json::from_value(self.item_details(drive_id).await?)
+            .map_err(|_| anyhow!("invalid iCloud item metadata"))
+    }
+
+    /// Exact-ID response, retaining recovery fields for guarded callers.
+    /// This endpoint wraps both the request and response in an `items` object.
+    async fn item_details(&mut self, drive_id: &str) -> Result<serde_json::Value> {
         let _ = split_file_id(drive_id)?;
         let endpoint = self
             .drive_endpoint
@@ -966,11 +975,11 @@ impl ICloudReadSession {
             .post(url)
             .header("origin", ICLOUD_ORIGIN)
             .header("referer", format!("{ICLOUD_ORIGIN}/"))
-            .json(&json!([{"items": [{
+            .json(&json!({"items": [{
                 "drivewsid": drive_id,
                 "partialData": false,
                 "includeHierarchy": false
-            }]}]))
+            }]}))
             .send()
             .await
             .map_err(|_| anyhow!("iCloud item lookup failed"))?;
@@ -980,9 +989,17 @@ impl ICloudReadSession {
                 "iCloud item lookup",
             ));
         }
-        let items: Vec<DriveEntry> = read_json(response, "iCloud item lookup").await?;
-        match items.as_slice() {
-            [item] if item.drivewsid == drive_id => Ok(item.clone()),
+        #[derive(Deserialize)]
+        struct Items {
+            items: Vec<serde_json::Value>,
+        }
+        let reply: Items = read_json(response, "iCloud item lookup").await?;
+        match reply.items.as_slice() {
+            [item]
+                if item.get("drivewsid").and_then(serde_json::Value::as_str) == Some(drive_id) =>
+            {
+                Ok(item.clone())
+            }
             _ => bail!("iCloud returned an unexpected item identity"),
         }
     }
@@ -1388,6 +1405,76 @@ mod tests {
             .get(format!("http://{address}/"))
             .send()
             .await?)
+    }
+
+    async fn item_lookup_fixture(reply: serde_json::Value) -> Result<ICloudReadSession> {
+        use tokio::io::AsyncReadExt;
+        let listener = TcpListener::bind("127.0.0.1:0").await?;
+        let address = listener.local_addr()?;
+        tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.expect("accept");
+            let mut bytes = Vec::new();
+            let end = loop {
+                let mut part = [0u8; 1024];
+                let count = stream.read(&mut part).await.expect("request");
+                assert!(count > 0 && bytes.len() < 8192);
+                bytes.extend_from_slice(&part[..count]);
+                if let Some(end) = bytes.windows(4).position(|w| w == b"\r\n\r\n") {
+                    break end + 4;
+                }
+            };
+            let headers = std::str::from_utf8(&bytes[..end])
+                .expect("headers")
+                .to_lowercase();
+            assert!(headers.starts_with("post /retrieveitemdetails "));
+            let length: usize = headers
+                .lines()
+                .find_map(|line| line.strip_prefix("content-length: "))
+                .expect("body length")
+                .parse()
+                .expect("length");
+            while bytes.len() - end < length {
+                let mut part = [0u8; 1024];
+                let count = stream.read(&mut part).await.expect("body");
+                assert!(count > 0);
+                bytes.extend_from_slice(&part[..count]);
+            }
+            let body: serde_json::Value =
+                serde_json::from_slice(&bytes[end..end + length]).expect("json");
+            let valid = body
+                == json!({"items":[{"drivewsid":"FILE::com.apple.CloudDocs::fixture",
+                "partialData":false,"includeHierarchy":false}]});
+            let status = if valid { "200 OK" } else { "400 Bad Request" };
+            let data = serde_json::to_vec(&reply).expect("reply");
+            let header = format!(
+                "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                data.len()
+            );
+            stream.write_all(header.as_bytes()).await.expect("header");
+            stream.write_all(&data).await.expect("data");
+        });
+        let mut session = ICloudReadSession::new()?;
+        session.drive_endpoint = Some(format!("http://{address}/").parse()?);
+        Ok(session)
+    }
+
+    #[tokio::test]
+    async fn item_lookup_uses_object_envelope_and_exact_response_identity() -> Result<()> {
+        let id = "FILE::com.apple.CloudDocs::fixture";
+        let entry =
+            json!({"drivewsid":id,"type":"FILE","name":"fixture","size":0,"etag":"revision"});
+        let mut session = item_lookup_fixture(json!({"items":[entry.clone()]})).await?;
+        assert_eq!(session.item_by_id(id).await?.drivewsid, id);
+        for reply in [
+            json!({"items":[]}),
+            json!({"items":[entry.clone(),entry.clone()]}),
+            json!({"items":[{"drivewsid":"FILE::com.apple.CloudDocs::other","type":"FILE"}]}),
+            json!([entry]),
+        ] {
+            let mut session = item_lookup_fixture(reply).await?;
+            assert!(session.item_by_id(id).await.is_err());
+        }
+        Ok(())
     }
 
     #[test]

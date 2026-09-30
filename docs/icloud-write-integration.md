@@ -18,17 +18,20 @@ an ordinary account implementation; it is not a claim that writes are ready.
   router, but settings still reject writable iCloud before this path is reached.
   The router implements new-file uploads, staged replacement, simple folder
   operations and rename/move/Trash of regular files up to 32 MiB;
-  combined move/rename now has a durable three-step implementation; its live
-  acceptance remains open.
+  combined move/rename now has a durable three-step implementation and a bounded
+  account-router live result; mounted and interrupted relocation acceptance remain open.
   A synthetic FUSE regression covers ownership at construction, writer
   failure after ejection, and a later successful writable remount. A writer
   error no longer silently selects a read-only mount. Published old write
   controls are released before rebuilding the journal and replaced after
   a successful remount.
 - Normal `ICloudDrive` resolves a cold directory by listing its parent. Its
-  single-item `ReadProvider::node` deliberately cannot fetch a cold non-root
-  ID because Apple's item endpoint failed in the live probe. A path string
-  cannot supply the missing identity.
+  single-item `ReadProvider::node` still refuses a cold non-root ID. A later
+  [exact-item investigation](benchmarks/icloud-trash-exact-lookup-2026-09-30.md)
+  identified the earlier endpoint failures as a request/response envelope bug.
+  The corrected direct transport matches active and recoverable Trash metadata;
+  enabling cold-node discovery through that transport needs its own scope and
+  projection validation. A path string cannot supply the missing identity.
 - The normal-build iCloud Create, folder and file mutation adapters accept
   exact `Node` inputs and sealed account sessions. The account-wide router now
   selects file creation using the durable journal operation ID and verifies its
@@ -63,7 +66,7 @@ an ordinary account implementation; it is not a claim that writes are ready.
   The existing 32 MiB verification limit still applies; transient or changed
   remote content during hashing currently surfaces as uncertain preparation.
   Combined move/rename is routed through a separate sealed three-step plan;
-  its live acceptance remains open.
+  its bounded live result and remaining gates are recorded below.
   The mounted validator
   supplies those nodes from a bounded test tree and its owned journal.
   Folder-create receipts in that validator now use a separate sealed on-disk
@@ -159,8 +162,8 @@ an ordinary account implementation; it is not a claim that writes are ready.
   have now passed create, replacement, independent digest/Trash checks and reopening
   the durable journal through the real `WriteContext` and `TransferWorker`.
   This developer-only arm uses fresh isolated state and owned fixtures, without
-  FUSE. They took 503.121–508.248 seconds (5.127-second spread); mounted acceptance and broader
-  write coverage remain open. Prior owned-fixture runs alone do not close these gates.
+  FUSE. They took 503.121–508.248 seconds (5.127-second spread); the first mounted
+  acceptance result is recorded below, while broader write coverage remains open. Prior owned-fixture runs alone do not close these gates.
 - `ICloudFileCreate` now accepts zero-byte creates and still refuses files over
   32 MiB. The [zero-byte protocol investigation](benchmarks/icloud-empty-file-create-2026-09-29.md)
   found that Apple's successful content response supplies checksum/reference/key
@@ -168,7 +171,11 @@ an ordinary account implementation; it is not a claim that writes are ready.
   uploads retain the receipt requirement. Registration omits an absent receipt,
   and both content metadata and the reserved ID remain in sealed checkpoints.
   A regular-router live create plus fresh-process journal/revision checks and
-  mounted EOF read passed. Empty replacement/truncate-to-zero remain open.
+  mounted EOF read passed. A subsequent [mounted truncate/refill arm](benchmarks/icloud-mounted-empty-replace-2026-09-30.md)
+  passed nonempty-to-empty and empty-to-nonempty replacements, independent
+  digests, both exact predecessors in recoverable Trash, and reading after remount.
+  This one arm took 924.709 seconds; it does not establish reliability or useful
+  small-file latency.
   Content uses one HTTP POST per file, not resumable network chunks; a lost POST
   result must reconcile the reserved exact item rather than resend blindly.
 
@@ -189,8 +196,9 @@ create, replacement, independent digest/Trash checks and journal reopening.
 passed nine folder/file operations plus a file create, independent moved content
 verification and reopening all Applied receipts. These narrow live results close
 the gap between fixture-specific adapters and the normal account router for the
-recorded cases. FUSE application behavior, root replacement, combined move/rename,
-empty/large files, concurrent changes and general release acceptance remain open.
+recorded cases. The later mounted, empty-file and combined-relocation results
+are described below. Broader FUSE application behavior, root replacement, large
+files, concurrent changes and general release acceptance remain open.
 
 A first [mounted account-router arm](benchmarks/icloud-account-router-mounted-2026-09-30.md)
 also passed FUSE create, truncate/replace, independent remote verification and
@@ -263,7 +271,29 @@ exercise part of step 4; they do not close all of it. Step 5 remains disabled.
    writer. Keep existing read-only connections read-only. Validate the exact
    installed daemon and file-manager behavior separately from a green PR.
 
-Remaining product questions include zero-byte replacement and over-32-MiB files,
+Remaining product questions include over-32-MiB files,
 prolonged session expiry, quota failures, concurrent editors, ordinary
 application atomic saves and recovery UI. No ordinary iCloud write path is
 enabled by this document.
+
+## Exact-item transport and replacement verification
+
+The [September 30 controlled comparison](benchmarks/icloud-trash-exact-lookup-2026-09-30.md)
+found and corrected the direct-item request/response envelope. Six production
+lookups matched full Trash metadata, including restore paths and explicit Trash
+parent/type, in 0.817–1.110 seconds (0.293-second range). Full inventory queries
+in that repeat took 29.237–29.992 seconds (0.755-second range).
+
+Replacement verification now uses two exact-item observations around the full
+content digest check instead of two complete Trash inventories. Both observations
+require matching Drive/document IDs, FILE type, explicit Trash parent, recovery
+metadata, size and ETag; names and actual restore metadata must remain unchanged.
+This is proof of one item's presence only. Absence and complete-folder checks in
+other mutation paths still use their existing inventories.
+
+A new owned mounted create/truncate/refill/remount arm passed with independent
+full-list Trash oracles and content checks. It took 508.030 seconds versus the
+preceding arm's 924.709 seconds; one whole-workflow arm per implementation does
+not establish performance spread or production reliability. Roughly 30-second
+post-mutation verification delays still need investigation. Ordinary iCloud write
+access remains disabled.

@@ -503,3 +503,6 @@ mod tests {
         assert_eq!(row.sha256, hex::encode(Sha256::digest(SECOND)));
     }
 }
+
+mod trash_lookup;
+pub use trash_lookup::{icloud_account_trash_lookup, icloud_account_trash_lookup_control};

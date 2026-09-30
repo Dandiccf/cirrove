@@ -9,12 +9,23 @@ const PROBE_FILE: &str = "created-by-cirrove.txt";
 fn valid_etag(etag: &str) -> bool {
     !etag.is_empty() && etag.len() <= 4096 && !etag.contains(['\0', '\r', '\n'])
 }
-fn exactly_one<T>(mut values: Vec<T>, stage: &'static str) -> Result<T> {
-    if values.len() != 1 {
-        bail!("iCloud {stage} returned an unexpected result count");
+fn check_trash_identity(item: &serde_json::Value, plan: &HandoffPlan) -> Result<()> {
+    if item.get("drivewsid").and_then(serde_json::Value::as_str) != Some(&plan.original_id)
+        || item.get("docwsid").and_then(serde_json::Value::as_str) != Some(&plan.original_doc_id)
+        || item.get("type").and_then(serde_json::Value::as_str) != Some("FILE")
+        || !matches!(
+            item.get("parentId").and_then(serde_json::Value::as_str),
+            Some("TRASH_ROOT" | TRASH_ROOT)
+        )
+        || item
+            .get("restorePath")
+            .is_none_or(serde_json::Value::is_null)
+    {
+        bail!("iCloud Trash backup lacks its exact recovery identity");
     }
-    Ok(values.remove(0))
+    Ok(())
 }
+
 /// Non-secret exact identities and content hashes needed to reconcile a
 /// staged handoff after process death. The owning account is bound separately
 /// by the private validation journal.
@@ -171,28 +182,17 @@ impl ICloudReadSession {
         ))
     }
 
-    /// Exact-ID, full-byte observation of the former owned fixture in Trash.
-    /// An incomplete listing, changed ETag or lost restore metadata yields no
-    /// receipt. The Trash parent is deliberately kept separate from its local
-    /// hidden recovery alias.
+    /// Exact-ID, full-byte observation of the former item in Trash. Both direct
+    /// observations must explicitly identify a recoverable FILE in the Trash
+    /// parent; changed ETag/size/name/restore metadata yields no receipt. This
+    /// proves presence only and is never evidence of a complete Trash inventory.
     async fn verified_trash_backup_node(
         &mut self,
         plan: &HandoffPlan,
     ) -> Result<cirrove_core::Node> {
         use cirrove_core::{Node, NodeKind};
-        let (items, complete) = self.read_trash_items().await?;
-        if !complete {
-            bail!("iCloud Trash listing is incomplete");
-        }
-        let item = exactly_one(
-            items
-                .iter()
-                .filter(|item| {
-                    item.get("drivewsid").and_then(|id| id.as_str()) == Some(&plan.original_id)
-                })
-                .collect(),
-            "handoff backup in Trash",
-        )?;
+        let item = self.item_details(&plan.original_id).await?;
+        check_trash_identity(&item, plan)?;
         let etag = item
             .get("etag")
             .and_then(|value| value.as_str())
@@ -220,14 +220,6 @@ impl ICloudReadSession {
         };
         if actual_name.len() > 255 || actual_name.contains(['/', '\\', '\0', '\r', '\n']) {
             bail!("iCloud Trash backup has an invalid name");
-        }
-        if item.get("restorePath").is_none_or(|path| path.is_null())
-            || item
-                .get("docwsid")
-                .and_then(|id| id.as_str())
-                .is_some_and(|id| !id.is_empty() && id != plan.original_doc_id)
-        {
-            bail!("iCloud Trash backup lacks its recovery identity");
         }
         let mut received = 0u64;
         let mut hash = Sha256::new();
@@ -262,19 +254,8 @@ impl ICloudReadSession {
         if received != size || hex::encode(hash.finalize()) != plan.original_sha256 {
             bail!("iCloud Trash backup differs from the saved fixture bytes");
         }
-        let (again, complete) = self.read_trash_items().await?;
-        if !complete {
-            bail!("iCloud Trash listing changed during backup verification");
-        }
-        let unchanged = exactly_one(
-            again
-                .iter()
-                .filter(|item| {
-                    item.get("drivewsid").and_then(|id| id.as_str()) == Some(&plan.original_id)
-                })
-                .collect(),
-            "handoff backup after read",
-        )?;
+        let unchanged = self.item_details(&plan.original_id).await?;
+        check_trash_identity(&unchanged, plan)?;
         if unchanged.get("etag").and_then(|value| value.as_str()) != Some(&etag)
             || unchanged.get("size").and_then(|value| value.as_u64()) != Some(size)
             || unchanged.get("name").and_then(|value| value.as_str()) != Some(base_name)
@@ -283,9 +264,7 @@ impl ICloudReadSession {
                 .and_then(|value| value.as_str())
                 .unwrap_or("")
                 != extension
-            || unchanged
-                .get("restorePath")
-                .is_none_or(|path| path.is_null())
+            || unchanged.get("restorePath") != item.get("restorePath")
         {
             bail!("iCloud Trash backup changed during exact-ID read");
         }
@@ -572,6 +551,114 @@ mod tests {
             original_sha256: "a".repeat(64),
             staged_sha256: "b".repeat(64),
         }
+    }
+
+    async fn exact_trash_server(
+        first: serde_json::Value,
+        second: serde_json::Value,
+    ) -> Result<(ICloudReadSession, tokio::task::JoinHandle<()>)> {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+        let address = listener.local_addr()?;
+        let server = tokio::spawn(async move {
+            for item in [first, second] {
+                let (mut socket, _) = listener.accept().await.expect("accept");
+                let mut bytes = Vec::new();
+                let end = loop {
+                    let mut block = [0; 1024];
+                    let count = socket.read(&mut block).await.expect("read");
+                    assert!(count > 0 && bytes.len() < 8192);
+                    bytes.extend_from_slice(&block[..count]);
+                    if let Some(end) = bytes.windows(4).position(|b| b == b"\r\n\r\n") {
+                        break end + 4;
+                    }
+                };
+                let header = std::str::from_utf8(&bytes[..end])
+                    .expect("headers")
+                    .to_lowercase();
+                let length: usize = header
+                    .lines()
+                    .find_map(|l| l.strip_prefix("content-length: "))
+                    .expect("length")
+                    .parse()
+                    .expect("number");
+                while bytes.len() - end < length {
+                    let mut block = [0; 1024];
+                    let n = socket.read(&mut block).await.expect("body");
+                    assert!(n > 0);
+                    bytes.extend_from_slice(&block[..n]);
+                }
+                let request: serde_json::Value =
+                    serde_json::from_slice(&bytes[end..end + length]).expect("json");
+                let valid = header.starts_with("post /retrieveitemdetails ")
+                    && request
+                        == json!({"items":[{
+                    "drivewsid":"FILE::com.apple.CloudDocs::old-1", "partialData":false,"includeHierarchy":false}]});
+                let status = if valid { "200 OK" } else { "400 Bad Request" };
+                let data = serde_json::to_vec(&json!({"items":[item]})).expect("body");
+                let header = format!(
+                    "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                    data.len()
+                );
+                socket.write_all(header.as_bytes()).await.expect("header");
+                socket.write_all(&data).await.expect("body");
+            }
+        });
+        let mut session = ICloudReadSession::new()?;
+        session.drive_endpoint = Some(format!("http://{address}/").parse()?);
+        Ok((session, server))
+    }
+
+    #[tokio::test]
+    async fn direct_trash_backup_checks_membership_and_revision_on_both_observations() -> Result<()>
+    {
+        let mut plan = plan();
+        plan.original_sha256 = hex::encode(Sha256::digest(b""));
+        let metadata = json!({"drivewsid":plan.original_id,"docwsid":plan.original_doc_id,
+            "parentId":"TRASH_ROOT","restorePath":["owned-parent"],"type":"FILE",
+            "etag":"trash-revision","name":"Original","extension":"txt","size":0});
+        let (mut session, server) = exact_trash_server(metadata.clone(), metadata.clone()).await?;
+        let result = session.verified_trash_backup_node(&plan).await;
+        server.abort();
+        let node = result?;
+        assert_eq!(node.id, plan.original_id);
+        assert_eq!(node.parent_id.as_deref(), Some(TRASH_ROOT));
+        assert_eq!(node.size, 0);
+        assert_eq!(node.name, "Original.txt");
+        for key in [
+            "drivewsid",
+            "docwsid",
+            "parentId",
+            "restorePath",
+            "type",
+            "etag",
+            "size",
+            "name",
+        ] {
+            let mut changed = metadata.clone();
+            changed[key] = serde_json::Value::Null;
+            for first_changed in [false, true] {
+                let (first, second) = if first_changed {
+                    (changed.clone(), metadata.clone())
+                } else {
+                    (metadata.clone(), changed.clone())
+                };
+                let (mut session, server) = exact_trash_server(first, second).await?;
+                let result = session.verified_trash_backup_node(&plan).await;
+                server.abort();
+                assert!(
+                    result.is_err(),
+                    "accepted absent {key} (first={first_changed})"
+                );
+            }
+        }
+        let mut changed = metadata.clone();
+        changed["etag"] = json!("other-revision");
+        let (mut session, server) = exact_trash_server(metadata, changed).await?;
+        let result = session.verified_trash_backup_node(&plan).await;
+        server.abort();
+        assert!(result.is_err());
+        Ok(())
     }
 
     #[test]
