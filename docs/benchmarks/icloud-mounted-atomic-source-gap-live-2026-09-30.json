@@ -1,0 +1,14 @@
+{
+  "run": "50dddff1-00f7-4a9d-ac0f-fdd21ec99d86",
+  "binary_sha256": "a22171790b5cb97fb50ef2d172ebaebbd2c364d076505946ebc58b328c758822",
+  "filesystem": "btrfs",
+  "exit_code": 1,
+  "elapsed_seconds": 264.893,
+  "local_editor_passed": true,
+  "first_handoff_confirmed": true,
+  "second_handoff_conflict": true,
+  "second_target_matches_first_receipt": true,
+  "second_target_absent_from_metadata_index": true,
+  "remote_completed": false,
+  "isolated_mount_detached": true
+}

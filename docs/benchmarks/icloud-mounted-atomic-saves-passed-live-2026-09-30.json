@@ -1,0 +1,16 @@
+{
+  "run": "b9592cbd-05a5-472a-b93e-861b2bb5a7e1",
+  "binary_sha256": "6137b0a0524c997e1b4a8c54a41d0d9bf44c681a5a6867619fae742f1504af63",
+  "filesystem": "btrfs",
+  "exit_code": 0,
+  "elapsed_seconds": 744.747,
+  "atomic_saves": 2,
+  "confirmed_cleanups": 2,
+  "confirmed_uploads": 5,
+  "final_digest_verified": true,
+  "remounted_read": true,
+  "retained_descriptors": true,
+  "trash_identities": 4,
+  "isolated_mount_detached": true,
+  "reliability_claim": false
+}

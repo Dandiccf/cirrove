@@ -745,3 +745,187 @@ fn actual_process_death_preserves_the_swapped_name_and_the_reader_gate() {
         assert_eq!(j.read_working(victim_id, 0, 100).unwrap(), b"old");
     }
 }
+
+#[test]
+fn consecutive_atomic_replacements_support_two_id_handoffs_and_cleanup_after_restart() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("journal");
+    let mut j = open(&path);
+    let old = victim(&mut j);
+    let first = source(&mut j, "first-temp");
+    let second = source(&mut j, "second-temp");
+    let old_object = object(&j, &old);
+    let first_object = object(&j, &first);
+    let second_object = object(&j, &second);
+    let one = j
+        .replace_namespace_file(
+            first_object.id,
+            first_object.revision,
+            old_object.id,
+            old_object.revision,
+            false,
+        )
+        .unwrap();
+    let first_now = j.namespace_object(first_object.id).unwrap();
+    let two = j
+        .replace_namespace_file(
+            second_object.id,
+            second_object.revision,
+            first_now.id,
+            first_now.revision,
+            false,
+        )
+        .unwrap();
+    j.write_working(first.id, 0, b"retained intermediate")
+        .unwrap();
+    assert!(j.seal_working(first.id).unwrap().is_none());
+    ack_source(&mut j, &first, "first-id");
+    ack_source(&mut j, &second, "second-id");
+    let upload = j.claim_next().unwrap().unwrap();
+    assert_eq!(upload.id, one.id);
+    let first_recovery = j
+        .reserve_identity_handoff(
+            upload.id,
+            upload.attempt.unwrap(),
+            cirrove_core::upload::RecoveryLocation::Trash {
+                local_name: "recovery-one".into(),
+                parent: "trash".into(),
+            },
+        )
+        .unwrap();
+    let stale_attempt = upload.attempt.unwrap();
+    drop(j);
+    j = open(&path);
+    let upload = j.claim_verification(one.id).unwrap();
+    assert_eq!(
+        j.reserve_identity_handoff(
+            upload.id,
+            upload.attempt.unwrap(),
+            cirrove_core::upload::RecoveryLocation::Trash {
+                local_name: "recovery-one".into(),
+                parent: "trash".into()
+            }
+        )
+        .unwrap(),
+        first_recovery
+    );
+    let mut backup = node("target-id", "document", "trash-old", 3);
+    backup.parent_id = Some("trash".into());
+    assert!(
+        j.acknowledge_identity_handoff(
+            upload.id,
+            stale_attempt,
+            node("new-one", "document", "one-etag", 3),
+            backup.clone()
+        )
+        .is_err()
+    );
+    // A replacement may not seize the still-owned temporary identity. Failure
+    // must roll back the victim, cleanup, recovery and upload receipt together.
+    assert!(
+        j.acknowledge_identity_handoff(
+            upload.id,
+            upload.attempt.unwrap(),
+            node("first-id", "document", "one-etag", 3),
+            backup.clone()
+        )
+        .is_err()
+    );
+    assert_eq!(
+        j.namespace_by_remote(&scope(), "target-id")
+            .unwrap()
+            .unwrap()
+            .id,
+        old_object.id
+    );
+    assert_eq!(
+        j.namespace_by_remote(&scope(), "first-id")
+            .unwrap()
+            .unwrap()
+            .id,
+        first_object.id
+    );
+    assert!(!j.namespace_object(first_recovery).unwrap().remote_owned);
+    assert_eq!(j.get(upload.id).unwrap().state, UploadState::Verifying);
+
+    j.acknowledge_identity_handoff(
+        upload.id,
+        upload.attempt.unwrap(),
+        node("new-one", "document", "one-etag", 3),
+        backup,
+    )
+    .unwrap();
+    assert_eq!(
+        j.namespace_by_remote(&scope(), "new-one")
+            .unwrap()
+            .unwrap()
+            .id,
+        first_object.id
+    );
+    let upload = j.claim_next().unwrap().unwrap();
+    assert_eq!(upload.id, two.id);
+    assert_eq!(
+        upload.intent,
+        UploadIntent::Replace {
+            item: "new-one".into(),
+            expected_etag: "one-etag".into()
+        }
+    );
+    let second_recovery = j
+        .reserve_identity_handoff(
+            upload.id,
+            upload.attempt.unwrap(),
+            cirrove_core::upload::RecoveryLocation::Trash {
+                local_name: "recovery-two".into(),
+                parent: "trash".into(),
+            },
+        )
+        .unwrap();
+    let mut backup = node("new-one", "document", "trash-one", 3);
+    backup.parent_id = Some("trash".into());
+    j.acknowledge_identity_handoff(
+        upload.id,
+        upload.attempt.unwrap(),
+        node("new-two", "document", "two-etag", 3),
+        backup,
+    )
+    .unwrap();
+    assert_eq!(
+        j.namespace_by_remote(&scope(), "new-two")
+            .unwrap()
+            .unwrap()
+            .id,
+        second_object.id
+    );
+    assert!(!j.namespace_object(first_object.id).unwrap().remote_owned);
+    assert!(!j.namespace_object(old_object.id).unwrap().remote_owned);
+    for (expected, id) in [(one.cleanup, "first-id"), (two.cleanup, "second-id")] {
+        let cleanup = j.claim_mutation().unwrap().unwrap();
+        assert_eq!(cleanup.id, expected);
+        assert_eq!(cleanup.request.intent.before().unwrap().id, id);
+        j.acknowledge_mutation(
+            cleanup.id,
+            cleanup.attempt.unwrap(),
+            MutationReceipt::Removed { item: id.into() },
+        )
+        .unwrap();
+    }
+    assert_eq!(
+        names(&j, vec![node("new-two", "document", "two-etag", 3)]),
+        vec!["document"]
+    );
+    drop(j);
+    let j = open(&path);
+    for (id, recovery) in [("target-id", first_recovery), ("new-one", second_recovery)] {
+        let saved = j.namespace_by_remote(&scope(), id).unwrap().unwrap();
+        assert_eq!(saved.id, recovery);
+        assert!(saved.unlinked && saved.remote_owned);
+        assert_eq!(saved.remote.unwrap().parent_id.as_deref(), Some("trash"));
+    }
+    assert_eq!(j.read_working(old.id, 0, 100).unwrap(), b"old");
+    assert_eq!(
+        j.read_working(first.id, 0, 100).unwrap(),
+        b"retained intermediate"
+    );
+    assert_eq!(j.read_working(second.id, 0, 100).unwrap(), b"new");
+}

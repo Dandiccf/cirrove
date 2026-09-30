@@ -1,0 +1,22 @@
+{
+  "run": "7a6fc63e-bf54-4feb-ab7d-7dcc69c5ff82",
+  "binary_sha256": "3619a177db662cd64076868f579679b793d7033e253b060b81c4297e42d53768",
+  "filesystem": "btrfs",
+  "exit_code": -15,
+  "elapsed_seconds": 383.219,
+  "local_editor_passed": true,
+  "remote_completed": false,
+  "uploads_confirmed": 3,
+  "uploads_awaiting_verification": 1,
+  "uploads_pending": 1,
+  "cleanup_mutations_pending": 2,
+  "stopped_by_recorded_pid": true,
+  "isolated_mount_detached": true,
+  "guard_observations": {
+    "replacing_existing_namespace_file": true,
+    "owner_unlinked": true,
+    "owner_latest_matches": true,
+    "checkpoint_absent": true,
+    "transferred_bytes": 0
+  }
+}

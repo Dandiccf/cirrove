@@ -256,6 +256,30 @@ impl UploadJournal {
             .query_row(&format!("SELECT EXISTS({ready})"), [], |r| r.get(0))?;
         Ok(destinations && !waiting)
     }
+    /// The exact completed source already used to resolve this upload intent.
+    /// A provider may need it before a metadata refresh indexes a new remote ID.
+    pub(crate) fn confirmed_upload_base(&self, id: Uuid) -> Result<Option<Node>> {
+        let record = self.get(id)?;
+        let Some(base) = record.base.as_ref() else {
+            return Ok(None);
+        };
+        if !base.resolved {
+            return Err(JournalError::Stale);
+        }
+        let node = self
+            .base_node(base, &record.scope, record.sequence)?
+            .ok_or(JournalError::Stale)?;
+        if node.kind != NodeKind::File
+            || node.package
+            || node.target.is_some()
+            || !matches!(&record.intent, UploadIntent::Replace { item, expected_etag }
+                if item == &node.id && Some(expected_etag) == node.etag.as_ref())
+        {
+            return Err(JournalError::Stale);
+        }
+        Ok(Some(node))
+    }
+
     fn base_node(&self, base: &WriteBase, scope: &Scope, sequence: u64) -> Result<Option<Node>> {
         let previous = self.operation(base.predecessor)?;
         if previous.scope() != scope || previous.sequence() >= sequence {

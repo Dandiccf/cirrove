@@ -373,3 +373,39 @@ allow 300 seconds. Existing outer phase deadlines still apply. Multi-gigabyte,
 slow-link and quota/recovery acceptance remain open. A separate local regression
 checks cancellation between 64 KiB blocks in the iCloud adapter's upload hash;
 it does not establish cancellation behavior for every shared disk operation.
+
+## Editor saves and the next release gate
+
+The [mounted atomic-save validation](benchmarks/icloud-mounted-atomic-saves-2026-09-30.md)
+now covers two successive temporary-file replacements through the regular account
+router, retained old descriptors, five confirmed uploads, two temporary-file
+cleanups, four recoverable predecessor identities and a final read after remount.
+Three earlier failed arms remain retained and documented. One complete live pass
+establishes this sequence, not repeated reliability or concurrent-editor safety.
+
+The journal now reserves the replaced victim's identity for recovery and commits
+all replacement bindings together. A queued successor resolves from its own
+confirmed predecessor receipt when the background metadata index has not yet
+seen the new ID. Ordinary-file mutation matching does not mistake optional
+content-lineage decoration for a changed provider observation; identity, ETag,
+name, size, kind and the independent content check remain enforced.
+
+The next milestone is **recoverable iCloud writes through the regular account
+router**, with explicit acceptance gates:
+
+| Gate | Current evidence | Required before enabling ordinary writes |
+| --- | --- | --- |
+| Create/edit/replace and editor saves | Owned live arms, including consecutive atomic saves | Repeat representative application workflows; preserve all failures |
+| Rename/move and recoverable deletion | Owned file/folder adapter and router arms | Complete mounted combined-operation and interruption coverage |
+| Interrupted replacement | Phase-specific adapter evidence and journal restart tests | Account-router process interruption at each destructive/publication boundary; verify exact IDs and both byte versions without blind replay |
+| Concurrent changes | Conditional checks and synthetic races | Controlled competing edits on owned fixtures, explicit conflict outcome and accessible local bytes |
+| Recovery UX | Durable retained journals/checkpoints | User-visible uncertain/conflict state, export of pending bytes, safe resolution; audit earlier retained fixtures |
+| Capacity and sessions | 65/66 MiB mounted arm; explicit deadlines | Quota/low-disk, slow-link, expired-session and larger-file acceptance with documented limits |
+| Native document packages | Verified read-only exports | Keep unsupported package writes refused and visible; do not advertise editable Pages/Numbers/Keynote without separate evidence |
+| Installed release | Experimental isolated mounts | Explicit opt-in, existing read-only accounts preserved, packaged installation and file-manager validation |
+
+The first new recovery test must use a fresh Cirrove-owned fixture, register its
+interruption point and predicted endpoint before running, record its binary and
+process IDs, and retain all partial state. Previously failed fixtures are evidence,
+not retry targets for turning a failed arm green. The normal installed daemon and
+its access mode are unchanged while these gates are open.

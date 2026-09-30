@@ -507,6 +507,12 @@ async fn main() -> Result<()> {
             .await;
     }
     if let [flag, run] = args.as_slice()
+        && flag == "--account-mounted-atomic"
+    {
+        return cirrove_service::validation::icloud_account_mounted_atomic(Uuid::parse_str(run)?)
+            .await;
+    }
+    if let [flag, run] = args.as_slice()
         && flag == "--account-cold-node"
     {
         return cirrove_service::validation::icloud_account_cold_node(Uuid::parse_str(run)?).await;

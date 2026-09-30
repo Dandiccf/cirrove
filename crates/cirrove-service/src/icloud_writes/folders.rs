@@ -136,8 +136,16 @@ impl ICloudWriteProvider {
             {
                 return Err(MutationError::Invalid);
             }
-            let current = self.mutation_source(before).await?;
-            if current != *before {
+            let mut current = self.mutation_source(before).await?;
+            let mut expected = before.clone();
+            if before.kind == NodeKind::File {
+                // Listings and upload receipts use different local content
+                // annotations. Apple's ETag is the mutation precondition;
+                // independent digest verification still precedes any request.
+                current.content_version = None;
+                expected.content_version = None;
+            }
+            if current != expected {
                 return Err(MutationError::Conflict);
             }
         }
@@ -776,6 +784,63 @@ pub(super) mod tests {
                 .await
                 .is_err()
         );
+    }
+
+    #[tokio::test]
+    #[allow(clippy::unwrap_used)]
+    async fn ordinary_mutation_uses_provider_etag_not_projection_content_version() {
+        let (_temp, p) = fixture();
+        let parent = folder(ROOT_ID);
+        let before = Node {
+            id: "FILE::com.apple.CloudDocs::temporary".into(),
+            parent_id: Some(parent.id.clone()),
+            name: "Temporary.txt".into(),
+            kind: NodeKind::File,
+            size: 4,
+            etag: Some("provider-etag".into()),
+            content_version: Some("receipt-content-version".into()),
+            ..folder(ROOT_ID)
+        };
+        let mut store = Store::open(&p.metadata).unwrap();
+        store.observe_node(&p.scope, &parent).unwrap();
+        let listed = Node {
+            content_version: None,
+            ..before.clone()
+        };
+        store.observe_node(&p.scope, &listed).unwrap();
+        let request = MutationRequest {
+            scope: p.scope.clone(),
+            intent: MutationIntent::RemoveFile {
+                before: before.clone(),
+            },
+        };
+        let plan = p.folder_plan(&request).await.unwrap();
+        assert!(
+            p.folder_adapter(&plan).is_err(),
+            "digest preflight must remain required"
+        );
+        assert!(plan.request == request);
+        for changed in [
+            Node {
+                etag: Some("different-etag".into()),
+                ..listed.clone()
+            },
+            Node {
+                size: 5,
+                ..listed.clone()
+            },
+            Node {
+                name: "Other.txt".into(),
+                ..listed.clone()
+            },
+            Node {
+                package: true,
+                ..listed.clone()
+            },
+        ] {
+            store.observe_node(&p.scope, &changed).unwrap();
+            assert!(p.folder_plan(&request).await.is_err());
+        }
     }
 
     #[tokio::test]

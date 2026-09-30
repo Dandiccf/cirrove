@@ -78,8 +78,8 @@ impl UploadJournal {
     }
 
     /// Reserve the old item before the first remote handoff mutation. This
-    /// deliberately requires a single current replacement with no successor;
-    /// later generations cannot silently inherit an unproven two-ID transfer.
+    /// requires a proven current owner or a durable editor replacement whose
+    /// victim still owns the old ID. Successors resolve only from its receipt.
     pub fn reserve_identity_handoff(
         &mut self,
         id: Uuid,
@@ -123,14 +123,16 @@ impl UploadJournal {
         let owner = self
             .namespace_for_operation(id)?
             .ok_or(JournalError::Stale)?;
-        let old = owner.remote.as_ref().ok_or(JournalError::Stale)?;
+        let victim = replacements::handoff_victim(&self.db, &record, &owner)?;
+        let old_owner = victim.as_ref().unwrap_or(&owner);
+        let old = old_owner.remote.as_ref().ok_or(JournalError::Stale)?;
         let parent_matches = self.confirmed_parent_route(
             &record.scope,
             owner.node.parent_id.as_deref(),
             old.parent_id.as_deref(),
         )?;
         if owner.scope != record.scope
-            || owner.unlinked
+            || (owner.unlinked && victim.is_none())
             || owner.follows_remote
             || !owner.remote_owned
             || owner.latest != Some(id)
@@ -159,17 +161,12 @@ impl UploadJournal {
         {
             return Err(JournalError::Intent);
         }
-        let replacement: bool = self.db.query_row(
-            "SELECT EXISTS(SELECT 1 FROM file_replacements WHERE id=?1)",
-            [id.to_string()],
-            |row| row.get(0),
-        )?;
         let count: i64 =
             self.db
                 .query_row("SELECT count(*) FROM namespace_objects", [], |row| {
                     row.get(0)
                 })?;
-        if replacement || count >= 10_000 {
+        if count >= 10_000 {
             return Err(JournalError::Quota);
         }
         let recovery_object = Uuid::new_v4();
@@ -183,7 +180,7 @@ impl UploadJournal {
             node: recovery_node,
             remote: Some(old.clone()),
             remote_owned: false,
-            remote_sequence: owner.remote_sequence,
+            remote_sequence: old_owner.remote_sequence,
             working_file: None,
             latest: None,
             revision: 0,
@@ -265,10 +262,12 @@ pub(super) fn confirm(tx: &Transaction<'_>, record: &UploadRecord, current: &Nod
         Uuid::parse_str(&owner_id).map_err(|_| JournalError::Corrupt)?,
     )?;
     let mut recovery = namespace::by_id(tx, reservation.recovery_object)?;
-    let old = owner.remote.as_ref().ok_or(JournalError::Corrupt)?;
+    let victim = replacements::handoff_victim(tx, record, &owner)?;
+    let old_owner = victim.as_ref().unwrap_or(&owner);
+    let old = old_owner.remote.as_ref().ok_or(JournalError::Corrupt)?;
     if owner.scope != record.scope
         || recovery.scope != record.scope
-        || owner.unlinked
+        || (owner.unlinked && victim.is_none())
         || !owner.remote_owned
         || !recovery.unlinked
         || recovery.remote_owned
@@ -288,16 +287,20 @@ pub(super) fn confirm(tx: &Transaction<'_>, record: &UploadRecord, current: &Nod
     {
         return Err(JournalError::Corrupt);
     }
-    owner.remote = Some(current.clone());
-    owner.remote_sequence = record.sequence;
-    if owner.working_file.is_none() {
-        owner.node.etag = current.etag.clone();
-        owner.node.content_version = current.content_version.clone();
-        owner.node.size = current.size;
-        owner.node.modified_unix = current.modified_unix;
+    if victim.is_some() {
+        replacements::confirm_handoff(tx, record, current, &old.id)?;
+    } else {
+        owner.remote = Some(current.clone());
+        owner.remote_sequence = record.sequence;
+        if owner.working_file.is_none() {
+            owner.node.etag = current.etag.clone();
+            owner.node.content_version = current.content_version.clone();
+            owner.node.size = current.size;
+            owner.node.modified_unix = current.modified_unix;
+        }
+        owner.revision = owner.revision.checked_add(1).ok_or(JournalError::Quota)?;
+        namespace::save(tx, &owner)?;
     }
-    owner.revision = owner.revision.checked_add(1).ok_or(JournalError::Quota)?;
-    namespace::save(tx, &owner)?;
     recovery.remote = Some(backup.clone());
     recovery.remote_owned = true;
     recovery.remote_sequence = record.sequence;
