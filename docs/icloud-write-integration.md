@@ -398,7 +398,7 @@ router**, with explicit acceptance gates:
 | Create/edit/replace and editor saves | Owned live arms, including consecutive atomic saves | Repeat representative application workflows; preserve all failures |
 | Rename/move and recoverable deletion | Owned file/folder adapter and router arms | Complete mounted combined-operation and interruption coverage |
 | Interrupted replacement | Mounted process-recovery arms passed after [confirmed Trash](benchmarks/icloud-mounted-process-recovery-2026-09-30.md) and [final installation](benchmarks/icloud-mounted-final-recovery-2026-09-30.md), with both versions, journal ownership and remount verified | In-flight uncertainty, other operation boundaries and repeatability; preserve both versions |
-| Concurrent changes | Conditional checks and synthetic races | Controlled competing edits on owned fixtures, explicit conflict outcome and accessible local bytes |
+| Concurrent changes | One controlled mounted same-ID content race: Conflict, retained local bytes, keep-both after restart, independent digests and remount passed | Newer local generations, atomic-editor conflict chains, repeated competing edits and abandoned staging cleanup |
 | Recovery UX | Durable retained journals/checkpoints | User-visible uncertain/conflict state, export of pending bytes, safe resolution; audit earlier retained fixtures |
 | Capacity and sessions | 65/66 MiB mounted arm; explicit deadlines | Quota/low-disk, slow-link, expired-session and larger-file acceptance with documented limits |
 | Native document packages | Verified read-only exports | Keep unsupported package writes refused and visible; do not advertise editable Pages/Numbers/Keynote without separate evidence |
@@ -421,11 +421,11 @@ ordinary write access stays disabled.
 The second mounted process-recovery gate also passed: after final installation but
 before journal acknowledgement, a fresh process recovered the same operation by
 inspection alone, with zero replacement commit calls. Both cloud digests and
-separate current/recovery journal owners were verified. Competing edits and the
-shared keep-both resolution path are the next acceptance work. These two controlled
+separate current/recovery journal owners were verified. The subsequent competing-edit result below covers the shared keep-both path for
+one ordinary current save. These two controlled
 points do not establish all crash timings or complete the full-integration goal.
 
-## Conflict rescue before live iCloud validation
+## Shared conflict rescue
 
 The shared journal's `keep_both` previously enqueued a Create separately from
 marking the refused save Resolved, without transferring its mounted namespace.
@@ -449,9 +449,8 @@ rolls back the entire publication and retains all bytes on refusal.
 
 This covers an ordinary refused current save. Dependent saves, atomic editor
 replacement records, native packages and newer dirty generations remain refused
-and visible as unresolved, rather than guessed at. Remote staging cleanup and
-a real iCloud competing-edit/keep-both run are still required. This synthetic
-coverage does not enable writable iCloud connections or close that release gate.
+and visible as unresolved, rather than guessed at. Remote staging cleanup remains required. The real iCloud result below complements
+this synthetic coverage; neither enables normal writable iCloud connections.
 
 Full validation: `scripts/check.sh` passed at 2026-09-30T18:43:17Z,
 including workspace, feature-gated iCloud, kernel-mount, script and ledger checks.
@@ -463,3 +462,20 @@ before completion to fix the regression fixture retaining its old Engine across
 remount; it is not counted as a pass. The existing rustdoc broken-link warning
 for `retry_stuck` remains unchanged. This worktree change is not installed into
 the regular daemon.
+
+
+## Mounted competing-edit acceptance
+
+The [registered live scenario](benchmarks/icloud-mounted-competing-edit-2026-09-30.md)
+now passed for an ordinary current save. A feature-gated one-shot hook changes one
+byte in the exact owned original after replacement preparation, then returns to
+the normal adapter; it does not synthesize the Conflict outcome. The adapter
+refused the changed revision, and both cloud/local contents remained intact.
+Keep-both after a mount restart uploaded an independently verified rescue copy;
+another remount retained both versions. A read-only journal audit confirmed
+distinct local and remote owners and no incomplete queue reservations.
+
+The first arm exposed a harness contract mistake in proving absence from Trash;
+it is retained as failed, not counted as successful. The corrected arm ran against
+a fresh UUID-owned fixture. Staged-file cleanup, newer generations and atomic
+editor conflict chains remain open and must not be inferred from this result.

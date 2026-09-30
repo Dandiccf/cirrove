@@ -10,7 +10,7 @@ use std::{
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Phase {
+pub(super) enum Phase {
     Stage,
     MoveOld,
     InspectInstall,
@@ -19,7 +19,7 @@ enum Phase {
 
 // Decode only the bounded, local checkpoint envelope, never a provider body.
 // Unknown/legacy phases fail closed rather than missing the chosen boundary.
-fn handoff(
+pub(super) fn handoff(
     checkpoint: &SecretString,
 ) -> cirrove_core::upload::Result<(Phase, Option<HandoffPlan>)> {
     if checkpoint.expose_secret().len() > 32 * 1024 {

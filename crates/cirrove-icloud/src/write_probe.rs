@@ -1245,6 +1245,20 @@ impl ICloudReadSession {
         old_bytes: &[u8],
         new_bytes: &[u8],
     ) -> Result<SameIdUpdateOutcome> {
+        if file.name != PROBE_FILE {
+            bail!("invalid iCloud validation filename");
+        }
+        self.probe_named_same_id_update(folder, file, old_bytes, new_bytes)
+            .await
+    }
+
+    async fn probe_named_same_id_update(
+        &mut self,
+        folder: &ValidationFolder,
+        file: &ValidationFile,
+        old_bytes: &[u8],
+        new_bytes: &[u8],
+    ) -> Result<SameIdUpdateOutcome> {
         if old_bytes.is_empty()
             || new_bytes.is_empty()
             || new_bytes.len() > 4096
@@ -1263,13 +1277,20 @@ impl ICloudReadSession {
         )?;
         if entry.docwsid != file.document_id
             || entry.etag != file.etag
-            || entry.display_name() != PROBE_FILE
+            || entry.display_name() != file.name
             || self.read_small_file_in_folder(&folder.id, &file.id).await? != old_bytes
         {
             bail!("iCloud validation base has changed");
         }
         let accepted = self
-            .send_same_id_update(&folder.id, &file.document_id, &file.etag, new_bytes, false)
+            .send_named_same_id_update(
+                &folder.id,
+                &file.document_id,
+                &file.etag,
+                new_bytes,
+                false,
+                &file.name,
+            )
             .await?;
         let after = self.list_folder(&folder.id).await?;
         let original: Vec<_> = after
@@ -1279,7 +1300,7 @@ impl ICloudReadSession {
         if original.len() != 1
             || after
                 .iter()
-                .filter(|entry| entry.display_name() == PROBE_FILE)
+                .filter(|entry| entry.display_name() == file.name)
                 .count()
                 != 1
         {
@@ -1396,7 +1417,27 @@ impl ICloudReadSession {
         bytes: &[u8],
         http_if_match: bool,
     ) -> Result<bool> {
-        let (_slot, data) = self.upload_probe_bytes(PROBE_FILE, bytes).await?;
+        self.send_named_same_id_update(
+            folder_id,
+            document_id,
+            etag,
+            bytes,
+            http_if_match,
+            PROBE_FILE,
+        )
+        .await
+    }
+
+    async fn send_named_same_id_update(
+        &mut self,
+        folder_id: &str,
+        document_id: &str,
+        etag: &str,
+        bytes: &[u8],
+        http_if_match: bool,
+        name: &str,
+    ) -> Result<bool> {
+        let (_slot, data) = self.upload_probe_bytes(name, bytes).await?;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)?
             .as_millis() as u64;
@@ -1430,7 +1471,7 @@ impl ICloudReadSession {
                 "etag": etag,
                 "file_flags": {"is_executable": false, "is_hidden": false, "is_writable": true},
                 "mtime": now,
-                "path": {"path": PROBE_FILE, "starting_document_id": starting_document_id}
+                "path": {"path": name, "starting_document_id": starting_document_id}
             }));
         if http_if_match {
             let tag = etag.trim_matches('"');
@@ -1450,7 +1491,7 @@ impl ICloudReadSession {
                 && reply.results[0].status.status_code == 0
                 && reply.results[0].document.as_ref().is_some_and(|document| {
                     document.document_id == document_id
-                        && document.name == PROBE_FILE
+                        && document.name == name
                         && !document.deleted
                 }))
         } else {
@@ -2682,3 +2723,5 @@ mod handoff_tests {
         assert!(plan.validate().is_err());
     }
 }
+
+mod competing;

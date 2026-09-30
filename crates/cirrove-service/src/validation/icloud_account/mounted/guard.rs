@@ -130,6 +130,7 @@ pub(super) struct Guarded {
     pub inner: ICloudWriteProvider,
     pub owned: Owned,
     pub boundary: Option<Arc<super::recovery::Boundary>>,
+    pub competing: Option<Arc<super::competing::Boundary>>,
 }
 
 #[async_trait::async_trait]
@@ -228,6 +229,9 @@ impl UploadProvider for Guarded {
         self.owned.upload(r)?;
         if let Some(boundary) = &self.boundary {
             boundary.before_commit(r, s)?;
+        }
+        if let Some(competing) = &self.competing {
+            competing.before_commit(o, r, s).await?;
         }
         let step = self.inner.commit_upload_for_operation(o, r, s, c).await?;
         if let Some(boundary) = &self.boundary {

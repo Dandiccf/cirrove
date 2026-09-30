@@ -132,6 +132,14 @@ async fn mount_with_boundary(
     f: &Fixture,
     boundary: Option<Arc<recovery::Boundary>>,
 ) -> Result<WritableSession> {
+    mount_with_hooks(f, boundary, None).await
+}
+
+async fn mount_with_hooks(
+    f: &Fixture,
+    boundary: Option<Arc<recovery::Boundary>>,
+    competing: Option<Arc<competing::Boundary>>,
+) -> Result<WritableSession> {
     let read = Arc::new(View {
         scope: f.scope.clone(),
         root: f.parent.clone(),
@@ -165,6 +173,7 @@ async fn mount_with_boundary(
         inner: ICloudWriteProvider::new(&f.account, &context)?,
         owned,
         boundary,
+        competing,
     });
     Ok(WritableSession::mount(engine, context.journal(), provider, context.checkpoints()).await?)
 }
@@ -404,3 +413,6 @@ pub use recovery::{
     icloud_account_mounted_final_interrupt, icloud_account_mounted_final_recover,
     icloud_account_mounted_interrupt, icloud_account_mounted_recover,
 };
+
+mod competing;
+pub use competing::icloud_account_mounted_competing;

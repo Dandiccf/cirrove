@@ -1,0 +1,17 @@
+{
+  "run": "29227b46-c13b-43e0-b535-df49d98e1db4",
+  "read_only_sqlite_audit": true,
+  "integrity_check": "ok",
+  "upload_states": [
+    "uploaded",
+    "resolved",
+    "uploaded"
+  ],
+  "cloud_identity_preserved": true,
+  "rescue_has_distinct_identity": true,
+  "one_remote_owner_per_version": true,
+  "distinct_local_identities": true,
+  "same_rescued_payload_digest": true,
+  "same_working_identity": true,
+  "no_unfinished_queue_reservations": true
+}
