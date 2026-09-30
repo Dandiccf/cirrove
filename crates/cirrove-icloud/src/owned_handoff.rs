@@ -133,7 +133,6 @@ impl ICloudHandoff {
             || scope.provider != "icloud"
             || scope.collection != "drive"
             || session.account_hash.is_none()
-            || staged_size == 0
             || staged_size > 32 * 1024 * 1024
             || plan.validate().is_err()
         {
@@ -701,6 +700,41 @@ mod tests {
             ICloudHandoff::new(scope, operation, plan, 3, session).unwrap(),
             request,
         )
+    }
+
+    #[test]
+    fn empty_handoff_keeps_zero_size_and_exact_payload_across_checkpoint_restore() {
+        let (provider, mut request) = fixture();
+        let mut plan = provider.plan.clone();
+        plan.staged_sha256 = hex::encode(Sha256::digest(b""));
+        request.size = 0;
+        request.sha256 = plan.staged_sha256.clone();
+        let session = || {
+            let mut session = ICloudReadSession::new().expect("fixture session");
+            session.account_hash = Some("synthetic-account".into());
+            session
+        };
+        let empty = ICloudHandoff::new(
+            request.scope.clone(),
+            provider.operation,
+            plan,
+            0,
+            session(),
+        )
+        .expect("empty handoff");
+        let checkpoint = empty.checkpoint(Phase::MoveOld).expect("checkpoint");
+        let restored =
+            ICloudHandoff::from_checkpoint(&request, provider.operation, &checkpoint, session())
+                .expect("restore");
+        assert_eq!(restored.staged_size, 0);
+        assert_eq!(
+            restored
+                .check_checkpoint(&request, &checkpoint)
+                .expect("binding"),
+            Phase::MoveOld
+        );
+        request.size = 1;
+        assert!(restored.check_checkpoint(&request, &checkpoint).is_err());
     }
 
     #[test]

@@ -165,8 +165,8 @@ const APP: &str = r#"
 import os,sys
 path=os.path.join(sys.argv[1], 'Account Router.txt')
 mode=sys.argv[2]
-expected=b'Cirrove account-router replacement\n' if mode in ('replace','read') else b'Cirrove account-router original\n'
-if mode != 'read':
+expected=b'' if mode in ('empty','read-empty') else b'Cirrove account-router replacement\n' if mode in ('replace','read') else b'Cirrove account-router original\n'
+if mode not in ('read','read-empty'):
     flags=os.O_WRONLY | (os.O_CREAT | os.O_EXCL if mode == 'create' else os.O_TRUNC)
     fd=os.open(path,flags,0o600)
     try:
@@ -326,5 +326,61 @@ pub async fn icloud_account_empty_read(run: Uuid) -> Result<()> {
         "reopened_journal":true,"independent_revision_digest":true,"mounted_zero_size_and_eof":true}),
     )?;
     println!("Empty file: fresh-process journal, revision checks and mounted EOF verified");
+    Ok(())
+}
+
+/// Real truncate-to-zero and refill, restricted to this run's confirmed IDs.
+pub async fn icloud_account_mounted_empty_replace(run: Uuid) -> Result<()> {
+    let f = prepare(run, "mounted-empty-replace").await?;
+    let session = mount(&f).await?;
+    let result: Result<()> = async {
+        app(&f, "create").await?;
+        let original = uploaded(&session, 1).await?;
+        verify(&f.snapshot, &f.account, &f.parent, &original, FIRST).await?;
+        record(&f.run_dir.join("original.json"), &original)?;
+        app(&f, "empty").await?;
+        let empty = uploaded(&session, 2).await?;
+        verify(&f.snapshot, &f.account, &f.parent, &empty, b"").await?;
+        let mut remote =
+            ICloudReadSession::from_session_snapshot(&f.snapshot, &f.account.identity.username)?;
+        ensure!(
+            empty.id != original.id
+                && empty.size == 0
+                && remote.exact_item_in_trash(&original.id).await?,
+            "truncate-to-zero recovery not verified"
+        );
+        app(&f, "read-empty").await?;
+        record(&f.run_dir.join("empty.json"), &empty)?;
+        println!(
+            "Mounted empty replacement: zero-byte receipt, EOF and original Trash identity verified"
+        );
+        app(&f, "replace").await?;
+        let refilled = uploaded(&session, 3).await?;
+        verify(&f.snapshot, &f.account, &f.parent, &refilled, SECOND).await?;
+        ensure!(
+            refilled.id != empty.id && remote.exact_item_in_trash(&empty.id).await?,
+            "refill recovery not verified"
+        );
+        record(&f.run_dir.join("refilled.json"), &refilled)?;
+        Ok(())
+    }
+    .await;
+    let shutdown = session.shutdown().await;
+    result?;
+    shutdown?;
+    let reopened = mount(&f).await?;
+    let result = app(&f, "read").await;
+    let shutdown = reopened.shutdown().await;
+    result?;
+    shutdown?;
+    record(
+        &f.run_dir.join("passed.json"),
+        &serde_json::json!({"run":run,
+        "mounted_truncate_to_zero":true,"mounted_refill_empty":true,"independent_digests":true,
+        "both_predecessors_in_trash":true,"remounted_read":true}),
+    )?;
+    println!(
+        "Mounted empty replacement: refill, zero-byte Trash identity and remounted read verified"
+    );
     Ok(())
 }

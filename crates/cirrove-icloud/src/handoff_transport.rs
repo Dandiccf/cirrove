@@ -71,8 +71,6 @@ impl ICloudReadSession {
             || new.is_folder()
             || old.docwsid != plan.original_doc_id
             || new.docwsid != plan.staged_doc_id
-            || old.size == 0
-            || new.size == 0
             || old.size > 32 * 1024 * 1024
             || new.size > 32 * 1024 * 1024
         {
@@ -204,7 +202,7 @@ impl ICloudReadSession {
         let size = item
             .get("size")
             .and_then(|value| value.as_u64())
-            .filter(|size| *size > 0 && *size <= 32 * 1024 * 1024)
+            .filter(|size| *size <= 32 * 1024 * 1024)
             .context("iCloud Trash backup exceeds the fixture limit")?;
         let base_name = item
             .get("name")
@@ -231,31 +229,35 @@ impl ICloudReadSession {
         {
             bail!("iCloud Trash backup lacks its recovery identity");
         }
-        let signed_url = self.signed_download_url(&plan.original_id).await?;
-        let mut response = self
-            .http
-            .get(signed_url)
-            .send()
-            .await
-            .map_err(|_| anyhow!("iCloud Trash backup download failed"))?;
-        if response.status() != StatusCode::OK {
-            bail!(
-                "iCloud Trash backup download failed ({})",
-                response.status().as_u16()
-            );
-        }
         let mut received = 0u64;
         let mut hash = Sha256::new();
-        while let Some(chunk) = response
-            .chunk()
-            .await
-            .map_err(|_| anyhow!("iCloud Trash backup download interrupted"))?
-        {
-            received = received.saturating_add(chunk.len() as u64);
-            if received > size {
-                bail!("iCloud Trash backup exceeds the fixture limit");
+        // A zero-byte item has no content to download. It still needs the
+        // exact-ID, ETag, size, recovery-path and digest checks on both sides.
+        if size > 0 {
+            let signed_url = self.signed_download_url(&plan.original_id).await?;
+            let mut response = self
+                .http
+                .get(signed_url)
+                .send()
+                .await
+                .map_err(|_| anyhow!("iCloud Trash backup download failed"))?;
+            if response.status() != StatusCode::OK {
+                bail!(
+                    "iCloud Trash backup download failed ({})",
+                    response.status().as_u16()
+                );
             }
-            hash.update(&chunk);
+            while let Some(chunk) = response
+                .chunk()
+                .await
+                .map_err(|_| anyhow!("iCloud Trash backup download interrupted"))?
+            {
+                received = received.saturating_add(chunk.len() as u64);
+                if received > size {
+                    bail!("iCloud Trash backup exceeds the fixture limit");
+                }
+                hash.update(&chunk);
+            }
         }
         if received != size || hex::encode(hash.finalize()) != plan.original_sha256 {
             bail!("iCloud Trash backup differs from the saved fixture bytes");
@@ -343,7 +345,6 @@ impl ICloudReadSession {
         if staged.is_folder()
             || staged.drivewsid != plan.staged_id
             || staged.docwsid != plan.staged_doc_id
-            || staged.size == 0
             || staged.size > 32 * 1024 * 1024
         {
             return Ok((HandoffObserved::Diverged, None));

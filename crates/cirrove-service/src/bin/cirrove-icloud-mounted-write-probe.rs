@@ -465,6 +465,14 @@ async fn main() -> Result<()> {
     {
         return cirrove_service::validation::icloud_account_empty_read(Uuid::parse_str(run)?).await;
     }
+    if let [flag, run] = args.as_slice()
+        && flag == "--account-mounted-empty-replace"
+    {
+        return cirrove_service::validation::icloud_account_mounted_empty_replace(Uuid::parse_str(
+            run,
+        )?)
+        .await;
+    }
     let large_file = args
         .first()
         .is_some_and(|flag| flag.starts_with("--large-"));

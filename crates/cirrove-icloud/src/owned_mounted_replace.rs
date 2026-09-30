@@ -319,7 +319,6 @@ impl ICloudFileReplace {
             || !original.id.starts_with("FILE::com.apple.CloudDocs::")
             || original.id.rsplit("::").next().is_none_or(str::is_empty)
             || original.etag.as_deref().is_none_or(str::is_empty)
-            || original.size == 0
             || original.size > MAX_FIXTURE_FILE
             || original.name.is_empty()
             || original.name.len() > 255
@@ -339,7 +338,6 @@ impl ICloudFileReplace {
         if request.scope != self.scope
             || !matches!(&request.intent, UploadIntent::Replace { item, expected_etag }
                 if item == &self.original.id && self.original.etag.as_deref() == Some(expected_etag))
-            || request.size == 0
             || request.size > MAX_FIXTURE_FILE
         {
             return Err(UploadError::Invalid);
@@ -916,6 +914,85 @@ mod tests {
             content_version: None,
             target: None,
             package: false,
+        }
+    }
+
+    #[test]
+    fn empty_replacements_restore_both_zero_sized_originals_and_targets() {
+        use sha2::{Digest, Sha256};
+        for (old_bytes, new_bytes) in [(b"a".as_slice(), b"".as_slice()), (b"", b"b"), (b"", b"")] {
+            let state = tempfile::tempdir().expect("fixture");
+            let scope = Scope {
+                account: Uuid::new_v4().to_string(),
+                provider: "icloud".into(),
+                collection: "drive".into(),
+            };
+            let folder = node(ROOT_ID.into(), None, "iCloud Drive", NodeKind::Folder);
+            let mut original = node(
+                "FILE::com.apple.CloudDocs::original".into(),
+                Some(ROOT_ID.into()),
+                "Original.txt",
+                NodeKind::File,
+            );
+            original.size = old_bytes.len() as u64;
+            let digest = hex::encode(Sha256::digest(old_bytes));
+            let operation = Uuid::new_v4();
+            let sign_in = || ICloudSealedSignIn {
+                apple_id: "fixture@example.invalid".into(),
+                credential_id: Uuid::new_v4().to_string(),
+            };
+            let provider = ICloudFileReplace::from_sealed_session_in_folder(
+                scope.clone(),
+                folder,
+                original.clone(),
+                digest.clone(),
+                operation,
+                sign_in(),
+                state.path(),
+            )
+            .expect("zero-sized source");
+            let request = UploadRequest {
+                scope,
+                intent: UploadIntent::Replace {
+                    item: original.id.clone(),
+                    expected_etag: original.etag.clone().expect("revision"),
+                },
+                size: new_bytes.len() as u64,
+                sha256: hex::encode(Sha256::digest(new_bytes)),
+            };
+            provider.check_request(&request).expect("zero-sized target");
+            let mut staged = node(
+                "FILE::com.apple.CloudDocs::staged".into(),
+                Some(ROOT_ID.into()),
+                &provider.stage_name,
+                NodeKind::File,
+            );
+            staged.size = request.size;
+            let plan = provider.plan(&request, &staged, &digest).expect("plan");
+            let checkpoint = provider
+                .checkpoint(
+                    &request,
+                    &digest,
+                    Phase::Handoff {
+                        inner: "fixture-inner".into(),
+                        plan: Box::new(plan),
+                    },
+                )
+                .expect("checkpoint");
+            let restored = ICloudFileReplace::from_sealed_checkpoint(
+                &request,
+                operation,
+                &checkpoint,
+                sign_in(),
+                state.path(),
+            )
+            .expect("restore")
+            .expect("captured source");
+            assert_eq!(restored.original, original);
+            assert_eq!(restored.stage_request(&request).size, request.size);
+            let mut changed = request.clone();
+            changed.size += 1;
+            assert!(restored.check_checkpoint(&changed, &checkpoint).is_err());
         }
     }
 

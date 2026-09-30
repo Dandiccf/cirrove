@@ -103,7 +103,9 @@ pub async fn icloud_account_uploads(run: Uuid) -> Result<()> {
 }
 
 mod mounted;
-pub use mounted::{icloud_account_empty_read, icloud_account_mounted};
+pub use mounted::{
+    icloud_account_empty_read, icloud_account_mounted, icloud_account_mounted_empty_replace,
+};
 mod namespace;
 pub use namespace::{icloud_account_combined, icloud_account_namespace};
 
