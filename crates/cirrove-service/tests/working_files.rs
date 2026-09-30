@@ -964,19 +964,19 @@ fn keep_both_rolls_back_copy_namespace_and_resolution_together() {
 }
 
 #[test]
-fn keep_both_refuses_newer_unsealed_bytes_without_discarding_them() {
+fn keep_both_rescues_newer_unsealed_bytes_without_losing_the_refused_save() {
     let temp = tempfile::tempdir().unwrap();
     let mut j = open(&temp.path().join("journal"), 4096);
     let (working, refused) = conflicted_save(&mut j);
     j.write_working(working.id, 0, b"local-v2").unwrap();
-    assert!(
-        j.keep_both(refused, "root".into(), "copy.txt".into())
-            .is_err()
-    );
+    let copy = j
+        .keep_both(refused, "root".into(), "copy.txt".into())
+        .unwrap();
     assert_eq!(payload(&j, refused), b"local-v1");
+    assert_eq!(payload(&j, copy.id), b"local-v2");
     assert_eq!(j.read_working(working.id, 0, 8).unwrap(), b"local-v2");
-    assert_eq!(j.get(refused).unwrap().state, UploadState::Conflict);
-    assert_eq!(j.list(0, 10).unwrap().len(), 1);
+    assert_eq!(j.get(refused).unwrap().state, UploadState::Resolved);
+    assert_eq!(j.claim_next().unwrap().unwrap().id, copy.id);
 }
 
 #[test]
@@ -993,4 +993,107 @@ fn keep_both_refuses_occupied_or_original_slots_without_resolving() {
         assert_eq!(j.get(refused).unwrap().state, UploadState::Conflict);
         assert_eq!(j.list(0, 10).unwrap().len(), 1);
     }
+}
+
+#[test]
+fn keep_both_rescues_the_last_sealed_generation_and_restarts_without_replaying_earlier_saves() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let mut j = open(&root, 4096);
+    let (working, refused) = conflicted_save(&mut j);
+    j.write_working(working.id, 0, b"local-v2").unwrap();
+    let second = j.seal_working(working.id).unwrap().unwrap();
+    j.write_working(working.id, 0, b"local-v3").unwrap();
+    let third = j.seal_working(working.id).unwrap().unwrap();
+    assert!(j.claim_next().unwrap().is_none());
+    let copy = j
+        .keep_both(refused, "root".into(), "copy.txt".into())
+        .unwrap();
+    assert_eq!(payload(&j, copy.id), b"local-v3");
+    assert_eq!(payload(&j, refused), b"local-v1");
+    assert_eq!(payload(&j, second.id), b"local-v2");
+    for id in [refused, second.id, third.id] {
+        assert_eq!(j.get(id).unwrap().state, UploadState::Resolved);
+    }
+    assert_eq!(j.working_file(working.id).unwrap().latest, Some(copy.id));
+    drop(j);
+    let mut j = open(&root, 4096);
+    let claimed = j.claim_next().unwrap().unwrap();
+    assert_eq!(claimed.id, copy.id);
+    assert_eq!(
+        claimed.intent,
+        UploadIntent::Create {
+            parent: "root".into(),
+            name: "copy.txt".into()
+        }
+    );
+    assert!(j.claim_next().unwrap().is_none());
+    assert!(
+        j.namespace_by_remote(&scope(), "remote-file")
+            .unwrap()
+            .unwrap()
+            .follows_remote
+    );
+}
+
+#[test]
+fn keep_both_rolls_back_every_generation_when_later_resolution_fails() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("journal");
+    let mut j = open(&root, 4096);
+    let (working, refused) = conflicted_save(&mut j);
+    j.write_working(working.id, 0, b"local-v2").unwrap();
+    let next = j.seal_working(working.id).unwrap().unwrap();
+    let fault = rusqlite::Connection::open(root.join("uploads.db")).unwrap();
+    fault.execute_batch(&format!("CREATE TRIGGER refuse_tail BEFORE UPDATE OF state ON uploads WHEN OLD.id='{}' AND NEW.state='resolved' BEGIN SELECT RAISE(ABORT,'synthetic tail failure'); END;", next.id)).unwrap();
+    assert!(matches!(
+        j.keep_both(refused, "root".into(), "copy.txt".into()),
+        Err(JournalError::Storage)
+    ));
+
+    assert_eq!(j.get(refused).unwrap().state, UploadState::Conflict);
+    assert_eq!(j.get(next.id).unwrap().state, UploadState::Pending);
+    assert_eq!(j.list(0, 10).unwrap().len(), 2);
+    assert_eq!(j.working_file(working.id).unwrap().latest, Some(next.id));
+    assert_eq!(j.working_file(working.id).unwrap().node.name, node(8).name);
+    assert!(j.claim_next().unwrap().is_none());
+    assert_eq!(payload(&j, next.id), b"local-v2");
+    fault.execute_batch("DROP TRIGGER refuse_tail;").unwrap();
+    let copy = j
+        .keep_both(refused, "root".into(), "copy.txt".into())
+        .unwrap();
+    assert_eq!(payload(&j, copy.id), b"local-v2");
+}
+
+#[test]
+fn keep_both_refuses_external_dependents_before_sealing_or_releasing_any_save() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut j = open(&temp.path().join("journal"), 4096);
+    let (working, refused) = conflicted_save(&mut j);
+    j.write_working(working.id, 0, b"local-v2").unwrap();
+    let next = j.seal_working(working.id).unwrap().unwrap();
+    j.write_working(working.id, 0, b"local-v3").unwrap();
+    let other = j
+        .enqueue(
+            scope(),
+            UploadIntent::Create {
+                parent: "root".into(),
+                name: "other.txt".into(),
+            },
+            b"else".as_slice(),
+        )
+        .unwrap();
+    let dependent = j
+        .enqueue_after_all(other.id, &[next.id], b"dependent".as_slice())
+        .unwrap();
+    assert!(
+        j.keep_both(refused, "root".into(), "copy.txt".into())
+            .is_err()
+    );
+    assert_eq!(j.list(0, 10).unwrap().len(), 4);
+    assert_eq!(j.get(refused).unwrap().state, UploadState::Conflict);
+    assert_eq!(j.get(next.id).unwrap().state, UploadState::Pending);
+    assert_eq!(j.get(dependent.id).unwrap().state, UploadState::Pending);
+    assert!(j.working_file(working.id).unwrap().dirty);
+    assert_eq!(j.read_working(working.id, 0, 8).unwrap(), b"local-v3");
 }

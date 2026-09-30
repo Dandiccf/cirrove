@@ -415,4 +415,4 @@ pub use recovery::{
 };
 
 mod competing;
-pub use competing::icloud_account_mounted_competing;
+pub use competing::{icloud_account_mounted_competing, icloud_account_mounted_competing_autosaves};

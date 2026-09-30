@@ -4629,6 +4629,16 @@ async fn real_a_package_is_readable_and_refuses_every_change_inside_it() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires synthetic kernel FUSE; keep both exposes cloud and local copies independently"]
 async fn real_keep_both_restores_the_remote_path_and_exposes_the_copy_before_upload() {
+    keep_both_mount(false).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; autosave conflict rescue retains newest content"]
+async fn real_keep_both_rescues_multiple_autosaves_without_replaying_them() {
+    keep_both_mount(true).await;
+}
+
+async fn keep_both_mount(autosave: bool) {
     let temp = tempfile::tempdir().unwrap();
     let mount = temp.path().join("mount");
     std::fs::create_dir(&mount).unwrap();
@@ -4678,6 +4688,10 @@ async fn real_keep_both_restores_the_remote_path_and_exposes_the_copy_before_upl
     })
     .await
     .unwrap();
+    let expected: &[u8] = if autosave { b"local-3" } else { b"local" };
+    if autosave {
+        application(&mount, "import pathlib,sys; p=pathlib.Path(sys.argv[1], 'document.txt'); p.write_bytes(b'local-2'); p.write_bytes(b'local-3')").await;
+    }
     let held = tokio::task::spawn_blocking({
         let path = mount.join("document.txt");
         move || std::fs::File::open(path).unwrap()
@@ -4703,9 +4717,10 @@ async fn real_keep_both_restores_the_remote_path_and_exposes_the_copy_before_upl
     // Both names must work even while the rescue upload cannot finish.
     application(
         &mount,
-        r#"import pathlib,sys,time
+        &format!(
+            r#"import pathlib,sys,time
 p=pathlib.Path(sys.argv[1])
-assert (p/'document-copy.txt').read_bytes()==b'local'
+assert (p/'document-copy.txt').read_bytes()==b'{expected}'
 deadline=time.monotonic()+5
 while True:
     data=(p/'document.txt').read_bytes()
@@ -4713,6 +4728,8 @@ while True:
     assert time.monotonic()<deadline, repr(data)
     time.sleep(.02)
 "#,
+            expected = std::str::from_utf8(expected).unwrap()
+        ),
     )
     .await;
     tokio::task::spawn_blocking(move || {
@@ -4720,7 +4737,7 @@ while True:
         let mut held = held;
         let mut bytes = Vec::new();
         held.read_to_end(&mut bytes).unwrap();
-        assert_eq!(bytes, b"local", "an open descriptor keeps the rescued edit");
+        assert_eq!(bytes, expected, "an open descriptor keeps the rescued edit");
     })
     .await
     .unwrap();
@@ -4757,6 +4774,6 @@ while True:
     let session = WritableSession::mount(engine, journal, cloud, Arc::new(Vault::default()))
         .await
         .unwrap();
-    application(&mount, "import pathlib,sys; p=pathlib.Path(sys.argv[1]); assert (p/'document-copy.txt').read_bytes()==b'local'; assert (p/'document.txt').read_bytes()==b'remote'").await;
+    application(&mount, &format!("import pathlib,sys; p=pathlib.Path(sys.argv[1]); assert (p/'document-copy.txt').read_bytes()==b'{expected}'; assert (p/'document.txt').read_bytes()==b'remote'",expected=std::str::from_utf8(expected).unwrap())).await;
     session.shutdown().await.unwrap();
 }

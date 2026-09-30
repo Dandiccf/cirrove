@@ -872,12 +872,13 @@ impl UploadJournal {
     /// Rescue a refused save as an ordinary create. Publish the copy, move its
     /// local namespace binding and resolve the original in one transaction.
     /// The original cloud identity is released so it can be listed independently.
-    /// Payloads remain retained. Newer edits and dependent operations are refused
-    /// until their ownership can be resolved without losing acknowledged bytes.
+    /// The newest acknowledged local bytes win; all superseded payloads remain
+    /// retained. Only an untouched linear save chain can be resolved together.
+    /// Cross-object dependencies and uncertain successors require separate review.
     pub fn keep_both(&mut self, id: Uuid, parent: String, name: String) -> Result<UploadRecord> {
         let commit = rescue::prepare(self, id, &parent, &name)?;
         let scope = commit.scope();
-        let bytes = self.payload(id)?;
+        let bytes = self.payload(commit.payload_id())?;
         self.enqueue_generation(
             scope,
             UploadIntent::Create { parent, name },

@@ -1,0 +1,22 @@
+{
+  "run": "e7b2662f-f41f-4402-ac94-525c9285bdfe",
+  "read_only_sqlite_audit": true,
+  "integrity_check": "ok",
+  "upload_states": [
+    "uploaded",
+    "resolved",
+    "resolved",
+    "resolved",
+    "uploaded"
+  ],
+  "cloud_identity_preserved": true,
+  "rescue_has_distinct_identity": true,
+  "one_remote_owner_per_version": true,
+  "distinct_local_identities": true,
+  "newest_rescued_payload_digest": true,
+  "original_conflicted_payload_differs": true,
+  "same_working_identity": true,
+  "all_superseded_local_payloads_hashed": true,
+  "successors_never_started": true,
+  "no_unfinished_queue_reservations": true
+}

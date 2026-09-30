@@ -398,7 +398,7 @@ router**, with explicit acceptance gates:
 | Create/edit/replace and editor saves | Owned live arms, including consecutive atomic saves | Repeat representative application workflows; preserve all failures |
 | Rename/move and recoverable deletion | Owned file/folder adapter and router arms | Complete mounted combined-operation and interruption coverage |
 | Interrupted replacement | Mounted process-recovery arms passed after [confirmed Trash](benchmarks/icloud-mounted-process-recovery-2026-09-30.md) and [final installation](benchmarks/icloud-mounted-final-recovery-2026-09-30.md), with both versions, journal ownership and remount verified | In-flight uncertainty, other operation boundaries and repeatability; preserve both versions |
-| Concurrent changes | One controlled mounted same-ID content race: Conflict, retained local bytes, keep-both after restart, independent digests and remount passed | Newer local generations, atomic-editor conflict chains, repeated competing edits and abandoned staging cleanup |
+| Concurrent changes | Controlled mounted same-ID race passed for a single save and for two newer pending autosaves; newest-byte rescue, independent hashes and remount verified | Atomic-editor conflict chains, intervening namespace operations, repeated competing edits and abandoned staging cleanup |
 | Recovery UX | Durable retained journals/checkpoints | User-visible uncertain/conflict state, export of pending bytes, safe resolution; audit earlier retained fixtures |
 | Capacity and sessions | 65/66 MiB mounted arm; explicit deadlines | Quota/low-disk, slow-link, expired-session and larger-file acceptance with documented limits |
 | Native document packages | Verified read-only exports | Keep unsupported package writes refused and visible; do not advertise editable Pages/Numbers/Keynote without separate evidence |
@@ -447,9 +447,10 @@ when marking Resolved left a second upload queued; occupied names were accepted;
 and a newer unsealed edit was accepted as resolved. The corrected transaction
 rolls back the entire publication and retains all bytes on refusal.
 
-This covers an ordinary refused current save. Dependent saves, atomic editor
-replacement records, native packages and newer dirty generations remain refused
-and visible as unresolved, rather than guessed at. Remote staging cleanup remains required. The real iCloud result below complements
+The first implementation covered an ordinary refused current save. The extension
+below now handles untouched linear successor saves and seals newer dirty bytes.
+Atomic editor replacement records, native packages, cross-object dependencies and
+uncertain successors remain refused and visible as unresolved. Remote staging cleanup remains required. The real iCloud result below complements
 this synthetic coverage; neither enables normal writable iCloud connections.
 
 Full validation: `scripts/check.sh` passed at 2026-09-30T18:43:17Z,
@@ -477,5 +478,23 @@ distinct local and remote owners and no incomplete queue reservations.
 
 The first arm exposed a harness contract mistake in proving absence from Trash;
 it is retained as failed, not counted as successful. The corrected arm ran against
-a fresh UUID-owned fixture. Staged-file cleanup, newer generations and atomic
-editor conflict chains remain open and must not be inferred from this result.
+a fresh UUID-owned fixture. Staged-file cleanup and atomic editor conflict chains remain open. The later
+autosave result below separately covers newer ordinary generations.
+
+
+## Pending autosaves in a conflict
+
+The [registered mounted autosave arm](benchmarks/icloud-mounted-conflict-autosaves-2026-09-30.md)
+passed with two newer saves queued during the prepared iCloud replacement. The
+shared journal now follows the untouched linear upload chain, selects its newest
+payload, atomically resolves the superseded saves and publishes one rescue Create.
+Newer dirty working bytes are first sealed durably; a later publication failure
+retains that sealed Pending generation behind the original conflict. Every older
+immutable payload remains retained.
+
+The live arm verified both remote contents and both mounted paths after remount.
+Its independent audit also reread and hashed all three superseded local payloads.
+Synthetic regressions cover unsealed bytes, transaction rollback when a later
+resolution fails, preserved open descriptors and refusal of external dependents.
+This does not cover atomic editor ownership transfers or uncertain successors,
+and no ordinary iCloud write opt-in is enabled by it.

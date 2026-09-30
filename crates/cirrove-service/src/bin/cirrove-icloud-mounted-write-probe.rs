@@ -507,6 +507,14 @@ async fn main() -> Result<()> {
             .await;
     }
     if let [flag, run] = args.as_slice()
+        && flag == "--account-mounted-competing-autosaves"
+    {
+        return cirrove_service::validation::icloud_account_mounted_competing_autosaves(
+            Uuid::parse_str(run)?,
+        )
+        .await;
+    }
+    if let [flag, run] = args.as_slice()
         && flag == "--account-mounted-competing"
     {
         return cirrove_service::validation::icloud_account_mounted_competing(Uuid::parse_str(

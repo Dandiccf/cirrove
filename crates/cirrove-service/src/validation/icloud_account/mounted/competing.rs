@@ -88,12 +88,15 @@ impl Boundary {
     }
 }
 
-async fn conflicted(session: &WritableSession) -> Result<crate::journal::UploadRecord> {
+async fn conflicted(
+    session: &WritableSession,
+    count: usize,
+) -> Result<crate::journal::UploadRecord> {
     tokio::time::timeout(Duration::from_secs(600), async {
         loop {
             let rows = session.uploads(0, 10).await?;
-            ensure!(rows.len() == 2, "unexpected competing-edit queue");
-            let latest = rows.last().context("missing competing save")?;
+            ensure!(rows.len() == count, "unexpected competing-edit queue");
+            let latest = rows.get(1).context("missing competing save")?;
             if latest.state == UploadState::Conflict {
                 return Ok(latest.clone());
             }
@@ -111,21 +114,29 @@ async fn conflicted(session: &WritableSession) -> Result<crate::journal::UploadR
     .context("competing-edit deadline; state retained")?
 }
 
-async fn both_paths(f: &Fixture) -> Result<()> {
+async fn both_paths(f: &Fixture, expected: &[u8]) -> Result<()> {
     let mount = f.run_dir.join("mount");
-    let output = tokio::process::Command::new("python3").arg("-c").arg(r#"
+    let output = tokio::process::Command::new("python3")
+        .arg("-c")
+        .arg(
+            r#"
 import pathlib,sys,time
 p=pathlib.Path(sys.argv[1]); deadline=time.monotonic()+30
 cloud=bytearray(b'Cirrove account-router original\n'); cloud[0]^=1
 while True:
     try:
         assert (p/'Account Router.txt').read_bytes()==cloud
-        assert (p/'Account Router rescued.txt').read_bytes()==b'Cirrove account-router replacement\n'
+        assert (p/'Account Router rescued.txt').read_bytes()==bytes.fromhex(sys.argv[2])
         break
     except (AssertionError,FileNotFoundError):
         if time.monotonic()>=deadline: raise
         time.sleep(.1)
-"#).arg(mount).kill_on_drop(true).output();
+"#,
+        )
+        .arg(mount)
+        .arg(hex::encode(expected))
+        .kill_on_drop(true)
+        .output();
     let result = tokio::time::timeout(Duration::from_secs(60), output)
         .await
         .context("mounted competing reads timed out")??;
@@ -136,8 +147,90 @@ while True:
     Ok(())
 }
 
+const AUTOSAVE_ONE: &[u8] = b"Cirrove first pending autosave\n";
+const AUTOSAVE_LAST: &[u8] = b"Cirrove latest pending autosave\n";
+
+async fn local_content(f: &Fixture, expected: &[u8], write: bool) -> Result<()> {
+    let output = tokio::process::Command::new("python3")
+        .arg("-c")
+        .arg(
+            r#"
+import os,pathlib,sys
+p=pathlib.Path(sys.argv[1], 'Account Router.txt'); expected=bytes.fromhex(sys.argv[2])
+if sys.argv[3]=='write':
+    with p.open('wb') as f:
+        f.write(expected); f.flush(); os.fsync(f.fileno())
+assert p.read_bytes()==expected
+"#,
+        )
+        .arg(f.run_dir.join("mount"))
+        .arg(hex::encode(expected))
+        .arg(if write { "write" } else { "read" })
+        .kill_on_drop(true)
+        .output();
+    let output = tokio::time::timeout(Duration::from_secs(60), output)
+        .await
+        .context("local autosave deadline")??;
+    ensure!(output.status.success(), "local autosave content differs");
+    Ok(())
+}
+
+async fn autosave_while_prepared(f: &Fixture, session: &WritableSession) -> Result<()> {
+    tokio::time::timeout(Duration::from_secs(600), async {
+        while !f.run_dir.join("competing-started.json").exists() {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+    })
+    .await
+    .context("prepared competing edit was not reached")?;
+    local_content(f, AUTOSAVE_ONE, true).await?;
+    local_content(f, AUTOSAVE_LAST, true).await?;
+    let rows = session.uploads(0, 10).await?;
+    ensure!(
+        rows.len() == 4
+            && matches!(
+                rows[1].state,
+                UploadState::Uploading | UploadState::Verifying
+            ),
+        "autosaves were not queued during the original attempt"
+    );
+    ensure!(
+        rows[2..]
+            .iter()
+            .all(|r| r.state == UploadState::Pending && r.session_key.is_none()),
+        "autosave unexpectedly reached the provider"
+    );
+    ensure!(
+        rows[3].sha256 == hex::encode(Sha256::digest(AUTOSAVE_LAST)),
+        "newest autosave was not sealed"
+    );
+    record(
+        &f.run_dir.join("autosaves-queued.json"),
+        &serde_json::json!({"pending_autosaves":2,"before_conflict":true}),
+    )?;
+    println!("Two newer local saves queued while the prepared replacement was in flight");
+    Ok(())
+}
+
+pub async fn icloud_account_mounted_competing_autosaves(run: Uuid) -> Result<()> {
+    run_competing(run, true).await
+}
 pub async fn icloud_account_mounted_competing(run: Uuid) -> Result<()> {
-    let f = prepare(run, "mounted-competing").await?;
+    run_competing(run, false).await
+}
+
+async fn run_competing(run: Uuid, autosaves: bool) -> Result<()> {
+    let f = prepare(
+        run,
+        if autosaves {
+            "mounted-competing-autosaves"
+        } else {
+            "mounted-competing"
+        },
+    )
+    .await?;
+    let count = if autosaves { 4 } else { 2 };
+    let local_bytes = if autosaves { AUTOSAVE_LAST } else { SECOND };
     let boundary = Boundary::new(&f);
     let session = mount_with_hooks(&f, None, Some(boundary)).await?;
     let result: Result<(Uuid, Node)> = async {
@@ -146,9 +239,10 @@ pub async fn icloud_account_mounted_competing(run: Uuid) -> Result<()> {
         verify(&f.snapshot, &f.account, &f.parent, &original, FIRST).await?;
         record(&f.run_dir.join("original.json"), &original)?;
         app(&f, "replace").await?;
-        let refused = conflicted(&session).await?;
+        if autosaves { autosave_while_prepared(&f,&session).await?; }
+        let refused = conflicted(&session,count).await?;
         ensure!(refused.sha256 == hex::encode(Sha256::digest(SECOND)) && refused.size == SECOND.len() as u64, "conflicted payload differs");
-        app(&f, "read").await?;
+        local_content(&f,local_bytes,false).await?;
         let bytes = std::fs::read(f.run_dir.join("competing-confirmed.json"))?;
         ensure!(bytes.len() <= 8192, "revised receipt too large");
         let revised: Node = serde_json::from_slice(&bytes)?;
@@ -177,12 +271,17 @@ pub async fn icloud_account_mounted_competing(run: Uuid) -> Result<()> {
                 == 1,
             "keep both did not resolve the owned conflict"
         );
-        both_paths(&f).await?;
+        both_paths(&f, local_bytes).await?;
         let copy = tokio::time::timeout(Duration::from_secs(600), async {
             loop {
                 let rows = session.uploads(0, 10).await?;
                 ensure!(
-                    rows.len() == 3
+                    rows.len() == count + 1
+                        && rows
+                            .iter()
+                            .skip(1)
+                            .take(count - 1)
+                            .all(|r| r.state == UploadState::Resolved)
                         && rows
                             .iter()
                             .any(|r| r.id == refused && r.state == UploadState::Resolved),
@@ -218,7 +317,7 @@ pub async fn icloud_account_mounted_competing(run: Uuid) -> Result<()> {
             )
             .await?;
         ensure!(
-            digest == hex::encode(Sha256::digest(SECOND)),
+            digest == hex::encode(Sha256::digest(local_bytes)),
             "remote rescue digest differs"
         );
         let mut expected = FIRST.to_vec();
@@ -232,13 +331,13 @@ pub async fn icloud_account_mounted_competing(run: Uuid) -> Result<()> {
     result?;
     shutdown?;
     let session = mount(&f).await?;
-    let result = both_paths(&f).await;
+    let result = both_paths(&f, local_bytes).await;
     let shutdown = session.shutdown().await;
     result?;
     shutdown?;
     record(
         &f.run_dir.join("passed.json"),
-        &serde_json::json!({"run":run,"real_competing_content_edit":true,"normal_adapter_conflict":true,"local_payload_preserved":true,"cloud_content_preserved":true,"keep_both_after_restart":true,"rescue_uploaded_and_hashed":true,"both_read_after_remount":true,"staging_cleanup":"retained_pending_separate_validation"}),
+        &serde_json::json!({"run":run,"pending_autosaves":if autosaves {2} else {0},"real_competing_content_edit":true,"normal_adapter_conflict":true,"local_payload_preserved":true,"cloud_content_preserved":true,"keep_both_after_restart":true,"rescue_uploaded_and_hashed":true,"both_read_after_remount":true,"staging_cleanup":"retained_pending_separate_validation"}),
     )?;
     println!(
         "Mounted competing-edit test passed; both versions independently verified after remount"
