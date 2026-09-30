@@ -69,3 +69,102 @@ these uncertain operations.
 The exclusive-run manifests and btrfs temporary directories are retained at
 `.local-state/icloud-empty-create-20260929/`; each UUID journal is retained at
 `.local-state/icloud-empty-create-<run>/`. Neither is checked into Git.
+
+## September 30 diagnostic arm A3
+
+Registered before invocation: `cea5902c-b02f-4e67-b18d-4469b87bc365`. Question: does a known-length zero-byte
+content POST receive an HTTP refusal, an unexpected JSON shape, or a structured
+receipt rejected by Cirrove's integrity requirements? Earlier attempts discarded
+that distinction. Prediction: bounded response-shape observations identify the
+failed stage; success is not assumed. The public rclone transport source uses
+the same allocation/content-POST/registration sequence and does not establish
+a separate successful empty-file protocol. No runtime dependency is introduced.
+
+Use `--account-empty` with a new copied account/session and newly created owned
+root. The normal create adapter permits size zero only through a developer-only
+method bound to the exact validated fixture folder. The standard adapter remains
+unchanged for user connections. The real TransferWorker persists its slot and
+receipt through the account's sealed checkpoint vault before advancing.
+One allocation and one content attempt; no retry of A, A2 or this arm. If Uploaded,
+independently list the exact receipt ID and zero size; fresh-process read validation
+is a separate step. On failure retain journal and checkpoints.
+
+Diagnostics contain HTTP status and fixed boolean fields for the response shape
+(singleFile object, zero size, nonempty receipt/checksum/reference/key), never
+actual values, raw bodies or signed URLs. The body is explicitly known-length
+empty. Allow 600 seconds; record binary hash, PID, disk-backed temporary directory
+and command. No concurrent compile or cloud measurement.
+
+A3 finished with exit 1 after 67.822 seconds. The content POST returned HTTP
+200, a singleFile object, zero size, nonempty checksum, reference checksum and
+wrapping key, but no nonempty receipt. Its durable journal remains VerifyRequired.
+No registration was attempted by that arm after rejecting the content response.
+This distinguishes the response-contract failure from an HTTP refusal; it does
+not yet prove a valid registered zero-byte file.
+
+### Fresh registration arm A4
+
+Registered before invocation: `5be54f7f-b005-4d2e-b181-54e33e3acb96`. Parse missing/null/empty receipt as
+absent, and permit absence only for size zero with nonempty checksum, reference
+checksum and wrapping key. Nonzero content still requires a nonempty receipt.
+When absent, omit receipt from registration data rather than inserting an empty
+value. Persist the content response in the sealed checkpoint before registration
+through the same worker. A3 is never replayed.
+
+The regression test failed on the old missing-receipt parser (one test executed,
+exit 101). The corrected test also rejects missing integrity fields and a missing
+receipt for nonzero bytes. Prediction: A4 reaches Uploaded and exact zero-byte
+metadata, or stops with retained state and a bounded registration HTTP status.
+Use a fresh account/folder, no concurrent compile/measurement, disk-backed TMPDIR
+and a 600-second manifest. Ordinary empty uploads remain disabled.
+
+A4 (`5be54f7f-b005-4d2e-b181-54e33e3acb96`) finished with exit 0 in
+74.134 seconds. Content and registration both returned HTTP 200. The same
+zero-byte integrity shape was observed, the real worker reached Uploaded after
+revision-bound verification, and an independent listing confirmed the exact
+receipt ID with size zero. The earlier uncertain arms remain untouched.
+
+### Fresh-process mounted read arm B
+
+Registered before invocation: `--account-empty-read` loads only A4's recorded
+account, owned root and confirmed receipt. It requires exactly one Uploaded row
+matching that receipt, checks the revision-bound empty digest using a fresh read
+session, then mounts only the owned subtree. A separate Python process checks
+size zero and reads EOF. The mount is shut down even after application failure.
+No application writes or retry of a failed upload. Prediction: all checks pass;
+this validates a fresh-process read, not yet regular-router empty creation, empty
+replacement or an installed-daemon release. Allow 300 seconds with the same
+exclusive, disk-backed temporary-directory discipline.
+
+Arm B finished with exit 0 in 2.008 seconds: fresh-process journal, independent
+revision/digest checks and kernel-mounted size-zero/EOF read passed. Exact
+findmnt lookup after shutdown returned no mount.
+
+### Regular-router arms C/D
+
+Registered before invocation: `09c98a4c-4506-42cd-90d6-1c23d118f456`. The normal create adapter now accepts
+zero bytes; the temporary fixture-only allowance is removed. Its preflight test
+was shown to fail before this change and passes afterwards. General iCloud
+read-write account settings remain disabled.
+
+The same `--account-empty` command now instantiates ICloudWriteProvider from the
+Engine-owned WriteContext, observes the exact owned parent, and uses its normal
+operation-bound envelope and sealed upload checkpoints. Arm C creates one new
+empty file. Only if it succeeds, arm D invokes `--account-empty-read` in another
+process on those recorded IDs. Prediction: regular routing retains the same
+receipt and mounted read behavior. Record both child PIDs/results and one binary
+hash, allow 600 seconds total, disk-backed TMPDIR, no concurrent compile/live run.
+Previous arms are not replayed.
+
+Arms C/D finished with exit 0 in 75.544 seconds combined. The regular account
+router produced the exact Uploaded zero-byte receipt; the second process checked
+the reopened journal, independent revision-bound empty digest and mounted EOF.
+This closes the normal-adapter empty-create protocol gap for the recorded case.
+It does not validate empty replacement, application truncate-to-zero, ordinary
+installed-daemon operation or general write reliability. The full repository
+gate must run on these changes before committing them.
+
+The complete `CARGO_TARGET_DIR=.target-icloud-feasibility scripts/check.sh`
+gate then passed (exit 0): format, clippy, workspace/feature tests, kernel mounts,
+scripts, ledger and documentation. The existing rustdoc link warning remains;
+display-dependent window scenarios are not part of this command.

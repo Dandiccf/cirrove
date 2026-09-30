@@ -1,0 +1,22 @@
+{
+  "run": "cea5902c-b02f-4e67-b18d-4469b87bc365",
+  "command": [
+    "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/cirrove-icloud-mounted-write-probe",
+    "--account-empty",
+    "cea5902c-b02f-4e67-b18d-4469b87bc365"
+  ],
+  "binary_sha256": "0f75c8ee6e2cb461e7eaa2d9f7ecc6b20d0cafc9eeb8ce9cbbd70fca2fb19a43",
+  "revision": "627b43cda7b151c28a2b9cf36dbb8a5b8581a50b",
+  "dirty": true,
+  "start_utc": "2026-09-29T23:56:52.910199+00:00",
+  "expected_duration_seconds": 600,
+  "temporary_filesystem": "btrfs",
+  "status": "finished",
+  "private_manifest": ".local-state/icloud-empty-diagnostic-arm-cea5902c-b02f-4e67-b18d-4469b87bc365/manifest.json",
+  "installed_service_changed": false,
+  "ordinary_empty_uploads_enabled": false,
+  "pid": 1497972,
+  "exit_code": 1,
+  "elapsed_seconds": 67.822,
+  "finished_utc": "2026-09-29T23:58:00.593312+00:00"
+}

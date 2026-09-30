@@ -103,7 +103,7 @@ pub async fn icloud_account_uploads(run: Uuid) -> Result<()> {
 }
 
 mod mounted;
-pub use mounted::icloud_account_mounted;
+pub use mounted::{icloud_account_empty_read, icloud_account_mounted};
 mod namespace;
 pub use namespace::{icloud_account_combined, icloud_account_namespace};
 
@@ -194,6 +194,70 @@ async fn prepare(run: Uuid, kind: &str) -> Result<Fixture> {
         parent,
         run_dir,
     })
+}
+
+/// One new zero-byte operation, never resuming a previous uncertain attempt.
+pub async fn icloud_account_empty(run: Uuid) -> Result<()> {
+    let f = prepare(run, "empty").await?;
+    let mut remote =
+        ICloudReadSession::from_session_snapshot(&f.snapshot, &f.account.identity.username)?;
+    let folder = remote.validation_folder_at_root(&f.parent.id).await?;
+    ensure!(folder.name() == f.parent.name, "owned root changed");
+    let engine = engine(&f.state, &f.account, &f.scope, &f.snapshot).await?;
+    let context = WriteContext::open(&engine, &f.state).await?;
+    let row = {
+        let journal = context.journal();
+        let mut journal = journal
+            .lock()
+            .map_err(|_| anyhow::anyhow!("journal lock failed"))?;
+        queue(&mut journal, &f.scope, &f.parent, None, b"")?
+    };
+    Store::open(context.metadata_db())?.observe_node(&f.scope, &f.parent)?;
+    let provider = Arc::new(ICloudWriteProvider::new(&f.account, &context)?);
+    let worker = TransferWorker::new(
+        context.journal(),
+        provider,
+        context.checkpoints(),
+        CancellationToken::new(),
+    );
+    let result = worker
+        .run_once()
+        .await?
+        .context("empty operation not selected")?;
+    record(
+        &f.run_dir.join("result.json"),
+        &serde_json::json!({"run":run,
+        "state":format!("{:?}",result.state),"issue":result.issue}),
+    )?;
+    ensure!(
+        result.id == row.id && result.state == UploadState::Uploaded,
+        "empty operation unconfirmed; retained for inspection without replay"
+    );
+    let node = context
+        .journal()
+        .lock()
+        .map_err(|_| anyhow::anyhow!("journal lock failed"))?
+        .get(row.id)?
+        .remote
+        .context("empty receipt absent")?;
+    ensure!(node.size == 0, "empty receipt has nonzero size");
+    let children = remote.list_folder(&f.parent.id).await?;
+    ensure!(
+        children
+            .iter()
+            .filter(|entry| entry.drivewsid == node.id
+                && entry.size == 0
+                && entry.display_name() == NAME
+                && !entry.is_folder())
+            .count()
+            == 1,
+        "empty remote metadata not confirmed"
+    );
+    record(&f.run_dir.join("created.json"), &node)?;
+    println!(
+        "Empty upload: independently confirmed exact zero-byte item; fresh-process read validation remains open"
+    );
+    Ok(())
 }
 
 /// Read-only diagnosis of the retained combined-relocation setup fixture.

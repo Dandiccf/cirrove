@@ -161,9 +161,15 @@ an ordinary account implementation; it is not a claim that writes are ready.
   This developer-only arm uses fresh isolated state and owned fixtures, without
   FUSE. They took 503.121–508.248 seconds (5.127-second spread); mounted acceptance and broader
   write coverage remain open. Prior owned-fixture runs alone do not close these gates.
-- `ICloudFileCreate` refuses empty files and files over 32 MiB. The zero-byte
-  live experiment did not establish a safe successful upload. Content uses
-  one streamed HTTP POST per file, not resumable network chunks; a lost POST
+- `ICloudFileCreate` now accepts zero-byte creates and still refuses files over
+  32 MiB. The [zero-byte protocol investigation](benchmarks/icloud-empty-file-create-2026-09-29.md)
+  found that Apple's successful content response supplies checksum/reference/key
+  fields without a nonempty receipt. Only size zero may omit that field; nonzero
+  uploads retain the receipt requirement. Registration omits an absent receipt,
+  and both content metadata and the reserved ID remain in sealed checkpoints.
+  A regular-router live create plus fresh-process journal/revision checks and
+  mounted EOF read passed. Empty replacement/truncate-to-zero remain open.
+  Content uses one HTTP POST per file, not resumable network chunks; a lost POST
   result must reconcile the reserved exact item rather than resend blindly.
 
 ## Account-router live acceptance
@@ -257,7 +263,7 @@ exercise part of step 4; they do not close all of it. Step 5 remains disabled.
    writer. Keep existing read-only connections read-only. Validate the exact
    installed daemon and file-manager behavior separately from a green PR.
 
-Remaining product questions include zero-byte and over-32-MiB files,
+Remaining product questions include zero-byte replacement and over-32-MiB files,
 prolonged session expiry, quota failures, concurrent editors, ordinary
 application atomic saves and recovery UI. No ordinary iCloud write path is
 enabled by this document.

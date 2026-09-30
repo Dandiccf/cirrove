@@ -23,6 +23,7 @@ pub(crate) struct Uploaded {
 
 #[derive(Clone, Deserialize, Serialize)]
 pub(crate) struct UploadedFile {
+    #[serde(default, deserialize_with = "crate::null_to_default")]
     pub(crate) receipt: String,
     #[serde(rename = "fileChecksum")]
     pub(crate) signature: String,
@@ -59,7 +60,12 @@ struct UpdatedDocument {
 
 impl UploadedFile {
     pub(crate) fn valid_for(&self, size: u64) -> bool {
-        self.size == size && !self.receipt.is_empty() && !self.signature.is_empty()
+        self.size == size
+            && !self.signature.is_empty()
+            && (!self.receipt.is_empty()
+                || (size == 0
+                    && !self.reference_signature.is_empty()
+                    && !self.wrapping_key.is_empty()))
     }
 }
 
@@ -132,6 +138,15 @@ impl ICloudReadSession {
             .as_ref()
             .context("iCloud sign-in is not complete")?
             .join("ws/com.apple.CloudDocs/update/documents")?;
+        let mut registration_data = json!({
+            "reference_signature": data.reference_signature,
+            "signature": data.signature,
+            "size": data.size,
+            "wrapping_key": data.wrapping_key
+        });
+        if !data.receipt.is_empty() {
+            registration_data["receipt"] = json!(data.receipt);
+        }
         let response = self
             .http
             .post(update_url)
@@ -142,13 +157,7 @@ impl ICloudReadSession {
                 "btime": now,
                 "command": "add_file",
                 "create_short_guid": true,
-                "data": {
-                    "receipt": data.receipt,
-                    "reference_signature": data.reference_signature,
-                    "signature": data.signature,
-                    "size": data.size,
-                    "wrapping_key": data.wrapping_key
-                },
+                "data": registration_data,
                 "document_id": slot.document_id,
                 "file_flags": {"is_executable": false, "is_hidden": false, "is_writable": true},
                 "mtime": now,
@@ -157,6 +166,13 @@ impl ICloudReadSession {
             .send()
             .await
             .map_err(|_| anyhow!("iCloud file registration outcome is uncertain"))?;
+        #[cfg(feature = "write-probe")]
+        if size == 0 {
+            eprintln!(
+                "Empty registration diagnostic: HTTP {}",
+                response.status().as_u16()
+            );
+        }
         if discard_response {
             bail!("iCloud file registration response deliberately discarded");
         }
@@ -235,10 +251,14 @@ impl ICloudReadSession {
         size: u64,
     ) -> Result<UploadedFile> {
         let upload_url = checked_content_url(&slot.url)?;
-        let body = reqwest::Body::wrap_stream(ReaderStream::with_capacity(
-            tokio::fs::File::from_std(file),
-            64 * 1024,
-        ));
+        let body = if size == 0 {
+            reqwest::Body::from(Vec::<u8>::new())
+        } else {
+            reqwest::Body::wrap_stream(ReaderStream::with_capacity(
+                tokio::fs::File::from_std(file),
+                64 * 1024,
+            ))
+        };
         let response = self
             .http
             .post(upload_url)
@@ -248,17 +268,79 @@ impl ICloudReadSession {
             .send()
             .await
             .map_err(|_| anyhow!("iCloud streamed content upload failed"))?;
+        #[cfg(feature = "write-probe")]
+        if size == 0 {
+            eprintln!(
+                "Empty upload diagnostic: HTTP {}",
+                response.status().as_u16()
+            );
+        }
         if !response.status().is_success() {
             return Err(drive_request_failure(
                 response.status(),
                 "iCloud streamed content upload",
             ));
         }
+        #[cfg(feature = "write-probe")]
+        let uploaded: Uploaded = if size == 0 {
+            let value: serde_json::Value = read_json(response, "iCloud empty upload").await?;
+            let single = &value["singleFile"];
+            let nonempty = |field: &str| single[field].as_str().is_some_and(|v| !v.is_empty());
+            // Only fixed labels and booleans: never dump provider fields or values.
+            eprintln!(
+                "Empty upload diagnostic: object={} single_file={} zero_size={} receipt={} signature={} reference={} wrapping_key={}",
+                value.is_object(),
+                single.is_object(),
+                single["size"].as_u64() == Some(0),
+                nonempty("receipt"),
+                nonempty("fileChecksum"),
+                nonempty("referenceChecksum"),
+                nonempty("wrappingKey")
+            );
+            serde_json::from_value(value)
+                .map_err(|_| anyhow!("iCloud empty upload receipt has unexpected shape"))?
+        } else {
+            read_json(response, "iCloud streamed content upload").await?
+        };
+        #[cfg(not(feature = "write-probe"))]
         let uploaded: Uploaded = read_json(response, "iCloud streamed content upload").await?;
         let data = uploaded.file;
         if !data.valid_for(size) {
             bail!("iCloud streamed upload receipt is incomplete");
         }
         Ok(data)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn empty_upload_accepts_integrity_fields_without_receipt_but_nonempty_does_not() {
+        for receipt in [None, Some(serde_json::Value::Null), Some(json!(""))] {
+            let mut value = json!({"fileChecksum":"checksum", "referenceChecksum":"reference",
+                "wrappingKey":"key", "size":0});
+            if let Some(receipt) = receipt {
+                value["receipt"] = receipt;
+            }
+            let data: UploadedFile =
+                serde_json::from_value(value).expect("zero-byte response shape");
+            assert!(data.valid_for(0));
+            assert!(!data.valid_for(1));
+            let mut missing_signature = data.clone();
+            missing_signature.signature.clear();
+            assert!(!missing_signature.valid_for(0));
+            let mut missing_reference = data.clone();
+            missing_reference.reference_signature.clear();
+            assert!(!missing_reference.valid_for(0));
+            let mut missing_key = data.clone();
+            missing_key.wrapping_key.clear();
+            assert!(!missing_key.valid_for(0));
+            let mut nonempty = data;
+            nonempty.size = 1;
+            assert!(!nonempty.valid_for(1));
+            nonempty.receipt = "receipt".into();
+            assert!(nonempty.valid_for(1));
+        }
     }
 }

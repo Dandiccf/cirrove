@@ -162,7 +162,6 @@ impl ICloudFileCreate {
         };
         if request.scope != self.scope
             || parent != &self.parent.id
-            || request.size == 0
             || request.size > MAX_FILE
             || name.len() > 255
             || name.contains(['\\', '\r', '\n'])
@@ -642,6 +641,15 @@ mod tests {
             Ok(UploadStep::Prepared(_))
         ));
         assert!(provider.begin_is_mutation_free_until_checkpoint(&request));
+        let mut empty = request.clone();
+        empty.size = 0;
+        empty.sha256 = hex::encode(Sha256::digest(b""));
+        assert!(matches!(
+            provider
+                .begin_upload(&empty, &CancellationToken::new())
+                .await,
+            Ok(UploadStep::Prepared(_))
+        ));
         assert!(matches!(
             provider
                 .reconcile_upload(&request, None, &CancellationToken::new())

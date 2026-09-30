@@ -254,3 +254,77 @@ pub async fn icloud_account_mounted(run: Uuid) -> Result<()> {
     println!("Account mount: FUSE replacement, recovery and remounted read verified");
     Ok(())
 }
+
+/// Fresh-process read of an already confirmed zero-byte fixture; no application writes.
+pub async fn icloud_account_empty_read(run: Uuid) -> Result<()> {
+    let run_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../.local-state")
+        .join(format!("icloud-account-empty-{run}"));
+    let account: Account = serde_json::from_slice(&std::fs::read(run_dir.join("account.json"))?)?;
+    let parent: Node = serde_json::from_slice(&std::fs::read(run_dir.join("owned-folder.json"))?)?;
+    let node: Node = serde_json::from_slice(&std::fs::read(run_dir.join("created.json"))?)?;
+    ensure!(
+        parent.name == format!("Cirrove Write Validation-{run}")
+            && parent.parent_id.as_deref() == Some(ROOT_ID)
+            && node.parent_id.as_ref() == Some(&parent.id)
+            && node.size == 0
+            && node.name == NAME
+            && node.kind == NodeKind::File
+            && !node.package
+            && node.target.is_none(),
+        "invalid empty fixture"
+    );
+    let state = run_dir.join("state");
+    let snapshot = SealedSessionVault::new(&state, &account.id)?
+        .load(&account.credential_id)
+        .await?
+        .context("isolated session unavailable")?;
+    let scope = Scope {
+        account: account.id.clone(),
+        provider: "icloud".into(),
+        collection: "drive".into(),
+    };
+    let f = Fixture {
+        state,
+        account,
+        scope,
+        snapshot,
+        parent,
+        run_dir,
+    };
+    let reopened = engine(&f.state, &f.account, &f.scope, &f.snapshot).await?;
+    let context = WriteContext::open(&reopened, &f.state).await?;
+    let rows = context
+        .journal()
+        .lock()
+        .map_err(|_| anyhow::anyhow!("journal lock failed"))?
+        .list(0, 2)?;
+    ensure!(
+        rows.len() == 1
+            && rows[0].state == UploadState::Uploaded
+            && rows[0].remote.as_ref() == Some(&node),
+        "empty fixture has unconfirmed operations"
+    );
+    drop(context);
+    drop(reopened);
+    verify(&f.snapshot, &f.account, &f.parent, &node, b"").await?;
+    let session = mount(&f).await?;
+    let result = async {
+        let output = tokio::time::timeout(Duration::from_secs(120),
+            tokio::process::Command::new("python3").arg("-c").arg(
+                "import os,sys; p=os.path.join(sys.argv[1], 'Account Router.txt'); assert os.stat(p).st_size == 0; f=open(p,'rb'); assert f.read(1) == b''; f.close()")
+                .arg(f.run_dir.join("mount")).kill_on_drop(true).output()).await??;
+        ensure!(output.status.success(), "empty mounted read failed");
+        Ok::<(), anyhow::Error>(())
+    }.await;
+    let shutdown = session.shutdown().await;
+    result?;
+    shutdown?;
+    record(
+        &f.run_dir.join("mount-read-verified.json"),
+        &serde_json::json!({"run":run,
+        "reopened_journal":true,"independent_revision_digest":true,"mounted_zero_size_and_eof":true}),
+    )?;
+    println!("Empty file: fresh-process journal, revision checks and mounted EOF verified");
+    Ok(())
+}
