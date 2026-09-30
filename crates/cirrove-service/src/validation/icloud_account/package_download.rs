@@ -1,5 +1,7 @@
 //! Read-only full artifact test; uses the existing isolated session, no writer.
 use super::*;
+mod cache;
+mod mounted;
 use async_trait::async_trait;
 use cirrove_core::{ProviderError, reads::ReadWindowSink};
 use tokio::io::AsyncWriteExt;
@@ -19,6 +21,12 @@ impl ReadWindowSink for DiskSink {
 }
 
 pub async fn icloud_account_package_download(session_run: Uuid, run: Uuid) -> Result<()> {
+    run_package(session_run, run, false).await
+}
+pub async fn icloud_account_package_mounted(session_run: Uuid, run: Uuid) -> Result<()> {
+    run_package(session_run, run, true).await
+}
+async fn run_package(session_run: Uuid, run: Uuid, mount: bool) -> Result<()> {
     let (mut session, _, _) = super::trash_lookup::fixture(session_run).await?;
     let parent = "FOLDER::com.apple.Pages::documents";
     let source = session
@@ -55,30 +63,15 @@ pub async fn icloud_account_package_download(session_run: Uuid, run: Uuid) -> Re
     sink.0.flush().await?;
     sink.0.sync_all().await?;
     drop(sink);
-    let (size, digest) = tokio::task::spawn_blocking(move || -> Result<(u64, String)> {
-        use std::io::Read;
-        let mut file = std::fs::File::open(path)?;
-        let mut hash = Sha256::new();
-        let mut size = 0u64;
-        let mut buffer = [0u8; 64 * 1024];
-        loop {
-            let read = file.read(&mut buffer)?;
-            if read == 0 {
-                break;
-            }
-            hash.update(&buffer[..read]);
-            size += read as u64;
-        }
-        Ok((size, hex::encode(hash.finalize())))
-    })
-    .await??;
-    ensure!(
-        size == artifact.size && digest == artifact.sha256,
-        "staged package digest differs"
-    );
+    let (scope, node, staged) =
+        cache::verify_and_cache(&run_dir, run, &source.drivewsid, &artifact).await?;
+    if mount {
+        mounted::verify_mount(&run_dir, session_run, run, scope, node, staged, &artifact).await?;
+    }
+    let size = artifact.size;
     let report = serde_json::json!({"run":run,"artifact_size":size,"source_listing_size":source.size,
-        "private_disk_digest_verified":true,"source_revision_checked_before_after":true,
-        "read_only":true,"mounted":false});
+        "private_disk_digest_verified":true,"shared_cache_reopened_full_digest_verified":true,"cache_provider_reads":0,"source_revision_checked_before_after":true,
+        "read_only":true,"mounted":mount,"offline_remount_full_read":mount});
     record(&run_dir.join("passed.json"), &report)?;
     println!("{report}");
     Ok(())

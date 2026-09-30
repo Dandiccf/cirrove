@@ -29,7 +29,7 @@ one Pages document supplied `package_token`, while one Numbers document supplied
 The transport now retains Data versus Package until its consumer selects a
 contract. Ordinary-file hashing and replacement/Trash readback refuse package or
 ambiguous download locations. Exact reads keep their existing length, range and
-revision checks; packages are not yet separately materialized. A
+revision checks; the normal adapter does not yet materialize packages separately. A
 [bounded range investigation](benchmarks/icloud-document-representation-boundary-2026-09-30.md)
 confirmed that the sampled Pages package ignores Range and returns HTTP 200,
 while Numbers and Keynote return exact 206 ranges with matching total size.
@@ -39,8 +39,12 @@ before and after streaming, enforces a caller byte budget and returns actual
 artifact length plus digest only on success. A [live disk-staging arm](benchmarks/icloud-package-artifact-2026-09-30.md)
 passed: the sampled Pages artifact was 198,458 bytes smaller than its listing
 size. An independent local reread matched the stream's digest and actual size.
-Publication through the normal mounted cache is still open; this transport
-primitive alone does not make Pages packages available in the file manager.
+A [captured-package FUSE arm](benchmarks/icloud-package-mounted-2026-09-30.md)
+now passes normal Engine publication through the new bounded streaming staging
+hook and full reads after offline Engine/FUSE remount. No fallback provider reads
+occurred. This uses a feature-only captured provider; automatic classification,
+private artifact lifecycle and eviction/refetch in the normal iCloud adapter
+remain open. It does not yet deliver Pages packages in ordinary saved mounts.
 Zero-byte package metadata, shared-item identity and native write semantics
 remain open; ordinary account write access is still disabled.
 

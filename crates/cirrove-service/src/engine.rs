@@ -1937,7 +1937,17 @@ impl Engine {
                         .await?
                 };
                 for node in &page.nodes {
-                    if let Some(bytes) = self.provider.staged_content(scope, node, &cancel).await? {
+                    if let Some(session) = self
+                        .provider
+                        .staged_content_session(scope, node, &cancel)
+                        .await?
+                    {
+                        self.cache
+                            .stage_session(scope, node, session.as_ref(), &cancel)
+                            .await?;
+                    } else if let Some(bytes) =
+                        self.provider.staged_content(scope, node, &cancel).await?
+                    {
                         self.cache.stage(scope, node, &bytes, &cancel).await?;
                     }
                 }

@@ -1,0 +1,33 @@
+{
+  "run": "66d698a7-1091-4192-b0dc-07c6e840719b",
+  "command": [
+    "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/cirrove-icloud-mounted-write-probe",
+    "--account-package-download",
+    "21d05f56-70c4-47a8-a5e3-577ab68994ac",
+    "66d698a7-1091-4192-b0dc-07c6e840719b"
+  ],
+  "binary_sha256": "4cf374428ab56741ef9d53cf043cf76884d08f4a1da0838818b837886e7fe8ac",
+  "revision": "2138827aa8c0d0ad6cee196813f530775d546371",
+  "dirty": true,
+  "expected_duration_seconds": 600,
+  "start_utc": "2026-09-30T02:48:51.544506+00:00",
+  "temporary_filesystem": "btrfs",
+  "status": "finished",
+  "read_only": true,
+  "installed_service_changed": false,
+  "pid": 1839485,
+  "exit_code": 0,
+  "elapsed_seconds": 8.689,
+  "finished_utc": "2026-09-30T02:49:00.233518+00:00",
+  "report": {
+    "artifact_size": 21759419,
+    "cache_provider_reads": 0,
+    "mounted": false,
+    "private_disk_digest_verified": true,
+    "read_only": true,
+    "run": "66d698a7-1091-4192-b0dc-07c6e840719b",
+    "shared_cache_reopened_full_digest_verified": true,
+    "source_listing_size": 21957877,
+    "source_revision_checked_before_after": true
+  }
+}

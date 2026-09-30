@@ -517,4 +517,4 @@ pub use trash_lookup::{
 };
 
 mod package_download;
-pub use package_download::icloud_account_package_download;
+pub use package_download::{icloud_account_package_download, icloud_account_package_mounted};

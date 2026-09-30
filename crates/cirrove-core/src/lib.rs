@@ -328,6 +328,22 @@ pub trait ReadProvider: MetadataProvider {
     ) -> Result<DirectoryPage, ProviderError> {
         self.children(scope, &parent.id, cursor, cancel).await
     }
+    /// A complete, already validated generated artifact backed by private storage.
+    /// Its identity must exactly match the derived node. Every returned range
+    /// must remain bound to that identity; partial/unvalidated downloads must
+    /// never be exposed here. The service copies bounded ranges to its ordinary
+    /// cache before publishing the node, without holding filesystem/DB locks
+    /// across the provider call. This avoids a whole-artifact memory copy.
+    /// None falls back to `staged_content` for existing in-memory exporters.
+    async fn staged_content_session(
+        &self,
+        _scope: &Scope,
+        _node: &Node,
+        _cancel: &CancellationToken,
+    ) -> Result<Option<Arc<dyn reads::ReadSession>>, ProviderError> {
+        Ok(None)
+    }
+
     /// Bytes already materialized while constructing a derived directory entry.
     ///
     /// Generated provider representations sometimes have no trustworthy size

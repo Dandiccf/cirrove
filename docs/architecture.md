@@ -81,6 +81,20 @@ item change. The foreground recheck has a 10-second cap; a transient unavailable
 or throttled response leaves the previous cached children readable. Other
 provider packages keep their existing policy.
 
+Generated artifacts may also provide an already validated, version-bound
+`ReadSession` through `staged_content_session`, avoiding a whole-artifact memory
+copy. Before directory publication, the service checks its exact scoped identity
+and stages bounded 4 MiB ranges into the same checksummed block cache. Two
+concurrent stagers limit transfer concurrency; provider reads happen outside
+cache locks and SQLite transactions. The existing in-memory hook remains the
+fallback. Partial or cancelled staging does not publish the new directory page;
+completed cache blocks retain ordinary eviction/recovery semantics. Providers
+must still support later reads after eviction. The iCloud package validator
+exercises this path with a source-checked private Pages archive, including an
+offline FUSE remount; automatic package discovery and refetch in the normal iCloud
+adapter remain unimplemented. See the
+[registered mounted package validation](benchmarks/icloud-package-mounted-2026-09-30.md).
+
 Discovery follows indexed ancestry and starts one delta worker per linked drive.
 Reachable roots are persisted; obsolete subscriptions are removed only when the
 remaining reachable scopes have complete indexes. Discovery stops at duplicate roots

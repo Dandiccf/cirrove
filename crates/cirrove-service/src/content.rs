@@ -58,6 +58,7 @@ pub struct ContentCache {
     memory: StdMutex<MemoryBlocks>,
     failures: StdMutex<HashMap<String, (ProviderError, Instant)>>,
     loaders: Semaphore,
+    artifact_stagers: Semaphore,
     publish: Mutex<()>,
     sessions: sessions::Sessions,
     staging: Arc<windows::Staging>,
@@ -98,6 +99,7 @@ impl ContentCache {
             memory: StdMutex::new(HashMap::new()),
             failures: StdMutex::new(HashMap::new()),
             loaders: Semaphore::new(4),
+            artifact_stagers: Semaphore::new(2),
             publish: Mutex::new(()),
             sessions: sessions::Sessions::with_staging(staging.clone()),
             staging,
@@ -190,45 +192,99 @@ impl ContentCache {
             ));
         }
         for (index, chunk) in bytes.chunks(BLOCK_SIZE as usize).enumerate() {
-            if cancel.is_cancelled() {
-                return Err(ProviderError::Cancelled);
-            }
-            let start = index as u64 * u64::from(BLOCK_SIZE);
-            let key = block_key(scope, node, start).ok_or(ProviderError::Unavailable)?;
-            let gate = self.gate(&key)?;
-            let _guard = gate.lock().await;
-            let path = self.path.join(&key);
-            if let Some(existing) = read_verified(&path, chunk.len()).await {
-                self.touch(key.clone(), existing.len() as u64 + BLOCK_DIGEST)
-                    .await?;
-                self.remember(key, Arc::new(existing))?;
-                continue;
-            }
-            let _publish = self.publish.lock().await;
-            let tmp = self
-                .path
-                .join(format!("{key}.{}.tmp", uuid::Uuid::new_v4()));
-            let cleanup = TemporaryBlock(tmp.clone());
-            let result = async {
-                let mut file = tokio::fs::OpenOptions::new()
-                    .write(true)
-                    .create_new(true)
-                    .mode(0o600)
-                    .open(&tmp)
-                    .await?;
-                file.write_all(&Sha256::digest(chunk)).await?;
-                file.write_all(chunk).await?;
-                tokio::fs::rename(&tmp, &path).await?;
-                Ok::<_, std::io::Error>(())
-            }
-            .await;
-            result.map_err(|_| ProviderError::Unavailable)?;
-            drop(cleanup);
-            self.touch(key.clone(), chunk.len() as u64 + BLOCK_DIGEST)
-                .await?;
-            self.evict(&key).await?;
-            self.remember(key, Arc::new(chunk.to_vec()))?;
+            self.stage_block(
+                scope,
+                node,
+                index as u64 * u64::from(BLOCK_SIZE),
+                chunk,
+                cancel,
+            )
+            .await?;
         }
+        Ok(())
+    }
+
+    /// Copy a complete provider-validated artifact from private storage before
+    /// its metadata is published. Provider reads occur outside cache locks.
+    /// Two concurrent transfers and one block per read bound scratch buffers.
+    pub async fn stage_session(
+        &self,
+        scope: &Scope,
+        node: &Node,
+        session: &dyn cirrove_core::reads::ReadSession,
+        cancel: &CancellationToken,
+    ) -> Result<(), ProviderError> {
+        if session.identity() != &cirrove_core::reads::ReadIdentity::new(scope, node)? {
+            return Err(ProviderError::VersionChanged);
+        }
+        let _slot = tokio::select! { biased;
+            _ = cancel.cancelled() => return Err(ProviderError::Cancelled),
+            slot = self.artifact_stagers.acquire() => slot.map_err(|_| ProviderError::Unavailable)?,
+        };
+        let mut start = 0;
+        while start < node.size {
+            let count = (node.size - start).min(BLOCK_SIZE as u64) as u32;
+            let chunk = tokio::select! { biased;
+                _ = cancel.cancelled() => return Err(ProviderError::Cancelled),
+                result = tokio::time::timeout(RANGE_TIMEOUT, session.read_range(start, count, cancel)) => result.unwrap_or(Err(ProviderError::Unavailable))?,
+            };
+            if chunk.len() != count as usize {
+                return Err(ProviderError::Protocol("incomplete staged artifact block"));
+            }
+            self.stage_block(scope, node, start, &chunk, cancel).await?;
+            start += u64::from(count);
+        }
+        if cancel.is_cancelled() {
+            return Err(ProviderError::Cancelled);
+        }
+        Ok(())
+    }
+
+    async fn stage_block(
+        &self,
+        scope: &Scope,
+        node: &Node,
+        start: u64,
+        chunk: &[u8],
+        cancel: &CancellationToken,
+    ) -> Result<(), ProviderError> {
+        if cancel.is_cancelled() {
+            return Err(ProviderError::Cancelled);
+        }
+        let key = block_key(scope, node, start).ok_or(ProviderError::Unavailable)?;
+        let gate = self.gate(&key)?;
+        let _guard = gate.lock().await;
+        let path = self.path.join(&key);
+        if let Some(existing) = read_verified(&path, chunk.len()).await {
+            self.touch(key.clone(), existing.len() as u64 + BLOCK_DIGEST)
+                .await?;
+            self.remember(key, Arc::new(existing))?;
+            return Ok(());
+        }
+        let _publish = self.publish.lock().await;
+        let tmp = self
+            .path
+            .join(format!("{key}.{}.tmp", uuid::Uuid::new_v4()));
+        let cleanup = TemporaryBlock(tmp.clone());
+        let result = async {
+            let mut file = tokio::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .mode(0o600)
+                .open(&tmp)
+                .await?;
+            file.write_all(&Sha256::digest(chunk)).await?;
+            file.write_all(chunk).await?;
+            tokio::fs::rename(&tmp, &path).await?;
+            Ok::<_, std::io::Error>(())
+        }
+        .await;
+        result.map_err(|_| ProviderError::Unavailable)?;
+        drop(cleanup);
+        self.touch(key.clone(), chunk.len() as u64 + BLOCK_DIGEST)
+            .await?;
+        self.evict(&key).await?;
+        self.remember(key, Arc::new(chunk.to_vec()))?;
         Ok(())
     }
     async fn block(
