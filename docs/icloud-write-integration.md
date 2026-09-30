@@ -26,9 +26,16 @@ A [read-only account investigation](benchmarks/icloud-document-metadata-shapes-2
 now confirms that FILE listings can supply different download representations:
 one Pages document supplied `package_token`, while one Numbers document supplied
 `data_token`. Listing kind alone cannot authorize ordinary-blob replacement.
-The current download helper falls back from data to package URLs without retaining
-that distinction. Explicit representation handling and shared-item metadata
-remain open; the diagnostic does not enable either write path.
+The transport now retains Data versus Package until its consumer selects a
+contract. Ordinary-file hashing and replacement/Trash readback refuse package or
+ambiguous download locations. Exact reads keep their existing length, range and
+revision checks; packages are not yet separately materialized. A
+[bounded range investigation](benchmarks/icloud-document-representation-boundary-2026-09-30.md)
+confirmed that the sampled Pages package ignores Range and returns HTTP 200,
+while Numbers and Keynote return exact 206 ranges with matching total size.
+A package artifact therefore needs its own verified cache and published size.
+Zero-byte package metadata, shared-item identity and native write semantics
+remain open; ordinary account write access is still disabled.
 
 ## Current code boundary
 

@@ -226,7 +226,7 @@ impl ICloudReadSession {
         // A zero-byte item has no content to download. It still needs the
         // exact-ID, ETag, size, recovery-path and digest checks on both sides.
         if size > 0 {
-            let signed_url = self.signed_download_url(&plan.original_id).await?;
+            let signed_url = self.ordinary_download_url(&plan.original_id).await?;
             let mut response = self
                 .http
                 .get(signed_url)

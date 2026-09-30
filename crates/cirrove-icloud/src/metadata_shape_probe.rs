@@ -50,7 +50,7 @@ fn native_extension(app: &str) -> &str {
 
 impl ICloudReadSession {
     /// Root and at most three Apple document containers, selected by opaque ID.
-    /// At most one download-location lookup per native app; never fetch its content.
+    /// One location lookup, HEAD and bounded one-byte range per native app.
     pub async fn document_metadata_shapes(&mut self) -> Result<Value> {
         let endpoint = self
             .drive_endpoint
@@ -138,8 +138,75 @@ impl ICloudReadSession {
                 }
                 let location: DownloadLocation =
                     read_json(response, "representation lookup").await?;
-                json!({"sample_available":true,"data_token":location.data_token.is_some(),
-                    "package_token":location.package_token.is_some(),"content_downloaded":false})
+                let data_token = location.data_token.is_some();
+                let package_token = location.package_token.is_some();
+                let representation = location.resolve()?;
+                let ordinary_content = matches!(representation, ContentRepresentation::Data(_));
+                let read_url = representation.for_exact_read();
+                let head = self
+                    .http
+                    .head(read_url.clone())
+                    .send()
+                    .await
+                    .map_err(|_| anyhow!("representation header request failed"))?;
+                let length = head
+                    .headers()
+                    .get(reqwest::header::CONTENT_LENGTH)
+                    .and_then(|v| v.to_str().ok())
+                    .and_then(|v| v.parse::<u64>().ok());
+                let byte_ranges = head
+                    .headers()
+                    .get(reqwest::header::ACCEPT_RANGES)
+                    .is_some_and(|v| v == "bytes");
+                let identity_encoding = head
+                    .headers()
+                    .get(reqwest::header::CONTENT_ENCODING)
+                    .is_none_or(|v| v == "identity");
+                let mut range = self
+                    .http
+                    .get(read_url)
+                    .header(reqwest::header::RANGE, "bytes=0-0")
+                    .header(reqwest::header::ACCEPT_ENCODING, "identity")
+                    .send()
+                    .await
+                    .map_err(|_| anyhow!("representation range request failed"))?;
+                let range_status = range.status().as_u16();
+                let total = range
+                    .headers()
+                    .get(reqwest::header::CONTENT_RANGE)
+                    .and_then(|v| v.to_str().ok())
+                    .and_then(|v| v.strip_prefix("bytes 0-0/"))
+                    .and_then(|v| v.parse::<u64>().ok())
+                    .filter(|v| *v > 0);
+                let range_identity = range
+                    .headers()
+                    .get(reqwest::header::CONTENT_ENCODING)
+                    .is_none_or(|v| v == "identity");
+                let mut received = 0usize;
+                let mut exact = range_status == 206 && total.is_some() && range_identity;
+                if exact {
+                    while let Some(chunk) = range
+                        .chunk()
+                        .await
+                        .map_err(|_| anyhow!("representation range interrupted"))?
+                    {
+                        received = received.saturating_add(chunk.len());
+                        if received > 1 {
+                            exact = false;
+                            break;
+                        }
+                    }
+                    exact &= received == 1;
+                }
+                // If the server ignores the range, drop it without consuming the body.
+                drop(range);
+                json!({"sample_available":true,"data_token":data_token,
+                    "package_token":package_token,"ordinary_content":ordinary_content,
+                    "head_status":head.status().as_u16(),"content_length":length,
+                    "listed_size":sample["size"].as_u64(),"byte_ranges":byte_ranges,
+                    "identity_encoding":identity_encoding,
+                    "range_status":range_status,"range_total":total,"range_identity_encoding":range_identity,
+                    "range_bytes_received":received,"exact_one_byte":exact})
             } else {
                 json!({"sample_available":false})
             };

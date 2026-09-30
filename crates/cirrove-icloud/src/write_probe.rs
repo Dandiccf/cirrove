@@ -1778,7 +1778,7 @@ impl ICloudReadSession {
         {
             bail!("iCloud Trash item lacks the expected recoverable identity");
         }
-        let signed_url = self.signed_download_url(&file.id).await?;
+        let signed_url = self.ordinary_download_url(&file.id).await?;
         let mut response = self
             .http
             .get(signed_url)

@@ -5,6 +5,8 @@
 //! account path and connection UI, but their live behavior and provider reliability
 //! remain unvalidated.
 
+#[cfg(test)]
+mod download_tests;
 mod file_create;
 mod file_move;
 mod file_rename;
@@ -267,6 +269,42 @@ struct SrpChallenge {
 struct DownloadLocation {
     data_token: Option<DownloadToken>,
     package_token: Option<DownloadToken>,
+}
+
+// Deliberately no Debug: these URLs contain provider credentials.
+enum ContentRepresentation {
+    Data(Url),
+    Package(Url),
+}
+
+impl DownloadLocation {
+    fn resolve(self) -> Result<ContentRepresentation> {
+        match (self.data_token, self.package_token) {
+            (Some(data), None) => Ok(ContentRepresentation::Data(checked_content_url(&data.url)?)),
+            (None, Some(package)) => Ok(ContentRepresentation::Package(checked_content_url(
+                &package.url,
+            )?)),
+            (None, None) => bail!("iCloud did not provide a download location"),
+            (Some(_), Some(_)) => bail!("iCloud returned ambiguous content representations"),
+        }
+    }
+}
+
+impl ContentRepresentation {
+    fn for_exact_read(self) -> Url {
+        // Read callers still validate the complete length/range and source revision.
+        // Package materialization with its own length is a separate open path.
+        match self {
+            Self::Data(url) | Self::Package(url) => url,
+        }
+    }
+
+    fn for_ordinary_file(self) -> Result<Url> {
+        match self {
+            Self::Data(url) => Ok(url),
+            Self::Package(_) => bail!("iCloud package representation is not ordinary file content"),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -748,7 +786,10 @@ impl ICloudReadSession {
         if before.is_folder() || before.size > MAX_FILE as u64 || before.etag.is_empty() {
             bail!("file is not eligible for the bounded read-only probe");
         }
-        let signed_url = self.signed_download_url(drive_id).await?;
+        let signed_url = self
+            .download_representation(drive_id)
+            .await?
+            .for_exact_read();
         let mut response = self
             .http
             .get(signed_url)
@@ -825,9 +866,10 @@ impl ICloudReadSession {
             .checked_add(expected - 1)
             .context("iCloud range overflow")?;
         let signed_url = self
-            .signed_download_url(drive_id)
+            .download_representation(drive_id)
             .await
-            .context("iCloud read: download lookup")?;
+            .context("iCloud read: download lookup")?
+            .for_exact_read();
         let response = self
             .http
             .get(signed_url)
@@ -873,7 +915,7 @@ impl ICloudReadSession {
         }
         let mut hash = Sha256::new();
         if size > 0 {
-            let signed_url = self.signed_download_url(drive_id).await?;
+            let signed_url = self.ordinary_download_url(drive_id).await?;
             let mut response = self
                 .http
                 .get(signed_url)
@@ -910,7 +952,13 @@ impl ICloudReadSession {
         Ok(hex::encode(hash.finalize()))
     }
 
-    async fn signed_download_url(&mut self, drive_id: &str) -> Result<Url> {
+    async fn ordinary_download_url(&mut self, drive_id: &str) -> Result<Url> {
+        self.download_representation(drive_id)
+            .await?
+            .for_ordinary_file()
+    }
+
+    async fn download_representation(&mut self, drive_id: &str) -> Result<ContentRepresentation> {
         let (zone, doc_id) = split_file_id(drive_id)?;
         let endpoint = self
             .docs_endpoint
@@ -935,11 +983,7 @@ impl ICloudReadSession {
             ));
         }
         let location: DownloadLocation = read_json(response, "iCloud download lookup").await?;
-        let signed = location
-            .data_token
-            .or(location.package_token)
-            .context("iCloud did not provide a download location")?;
-        checked_content_url(&signed.url)
+        location.resolve()
     }
 
     async fn item_for_read(

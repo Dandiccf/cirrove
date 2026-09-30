@@ -1,0 +1,370 @@
+{
+  "run": "9d2a25a8-276d-46b3-8f70-2ce42c9c4206",
+  "command": [
+    "/home/dandiccf/Work/cirrove/.local-state/worktrees/icloud-feasibility/.target-icloud-feasibility/debug/cirrove-icloud-mounted-write-probe",
+    "--account-metadata-shapes",
+    "21d05f56-70c4-47a8-a5e3-577ab68994ac"
+  ],
+  "binary_sha256": "b61bd7017eb033c8fe7d93f5b20c2f4f26f84aad428b06ec7fbf71aa0576f6d8",
+  "revision": "436b108416ccc9036d56230f873bc6fbc116f317",
+  "dirty": true,
+  "expected_duration_seconds": 900,
+  "start_utc": "2026-09-30T02:10:54.280684+00:00",
+  "temporary_filesystem": "btrfs",
+  "status": "finished",
+  "read_only": true,
+  "installed_service_changed": false,
+  "pid": 1758934,
+  "exit_code": 0,
+  "elapsed_seconds": 7.938,
+  "finished_utc": "2026-09-30T02:11:02.218670+00:00",
+  "report": {
+    "read_only": true,
+    "reports": [
+      {
+        "container": "root",
+        "representation": {
+          "sample_available": false
+        },
+        "shape": {
+          "count": 154,
+          "fields": {
+            "assetQuota": {
+              "number": 132
+            },
+            "dateChanged": {
+              "string": 4
+            },
+            "dateCreated": {
+              "string": 154
+            },
+            "dateModified": {
+              "string": 4
+            },
+            "directChildrenCount": {
+              "number": 132
+            },
+            "docwsid": {
+              "string": 154
+            },
+            "drivewsid": {
+              "string": 154
+            },
+            "etag": {
+              "string": 154
+            },
+            "extension": {
+              "string": 3
+            },
+            "fileCount": {
+              "number": 132
+            },
+            "icons": {
+              "array": 18
+            },
+            "isChainedToParent": {
+              "true": 125
+            },
+            "item_id": {
+              "string": 136
+            },
+            "lastOpenTime": {
+              "string": 3
+            },
+            "maxDepth": {
+              "string": 18
+            },
+            "name": {
+              "string": 154
+            },
+            "parentId": {
+              "string": 154
+            },
+            "shareAliasCount": {
+              "number": 132
+            },
+            "shareCount": {
+              "number": 132
+            },
+            "sharingToken": {
+              "string": 1
+            },
+            "size": {
+              "number": 4
+            },
+            "supportedExtensions": {
+              "array": 16
+            },
+            "supportedTypes": {
+              "array": 18
+            },
+            "type": {
+              "string": 154
+            },
+            "zone": {
+              "string": 154
+            }
+          },
+          "kinds": {
+            "APP_LIBRARY": 18,
+            "FILE": 4,
+            "FOLDER": 132
+          }
+        }
+      },
+      {
+        "container": "pages",
+        "representation": {
+          "byte_ranges": false,
+          "content_length": null,
+          "data_token": false,
+          "exact_one_byte": false,
+          "head_status": 400,
+          "identity_encoding": true,
+          "listed_size": 21957877,
+          "ordinary_content": false,
+          "package_token": true,
+          "range_bytes_received": 0,
+          "range_identity_encoding": true,
+          "range_status": 200,
+          "range_total": null,
+          "sample_available": true
+        },
+        "shape": {
+          "count": 36,
+          "fields": {
+            "dateChanged": {
+              "string": 36
+            },
+            "dateCreated": {
+              "string": 36
+            },
+            "dateModified": {
+              "string": 36
+            },
+            "docwsid": {
+              "string": 36
+            },
+            "drivewsid": {
+              "string": 36
+            },
+            "etag": {
+              "string": 36
+            },
+            "extension": {
+              "string": 36
+            },
+            "item_id": {
+              "string": 36
+            },
+            "lastOpenTime": {
+              "string": 9
+            },
+            "name": {
+              "string": 36
+            },
+            "parentId": {
+              "string": 36
+            },
+            "share": {
+              "string": 1
+            },
+            "shareID": {
+              "object": 1
+            },
+            "sharingToken": {
+              "string": 28
+            },
+            "size": {
+              "number": 36
+            },
+            "type": {
+              "string": 36
+            },
+            "zone": {
+              "string": 36
+            }
+          },
+          "kinds": {
+            "FILE": 36
+          }
+        }
+      },
+      {
+        "container": "numbers",
+        "representation": {
+          "byte_ranges": false,
+          "content_length": 17,
+          "data_token": true,
+          "exact_one_byte": true,
+          "head_status": 501,
+          "identity_encoding": true,
+          "listed_size": 724635,
+          "ordinary_content": true,
+          "package_token": false,
+          "range_bytes_received": 1,
+          "range_identity_encoding": true,
+          "range_status": 206,
+          "range_total": 724635,
+          "sample_available": true
+        },
+        "shape": {
+          "count": 24,
+          "fields": {
+            "assetQuota": {
+              "number": 1
+            },
+            "dateChanged": {
+              "string": 23
+            },
+            "dateCreated": {
+              "string": 24
+            },
+            "dateModified": {
+              "string": 23
+            },
+            "directChildrenCount": {
+              "number": 1
+            },
+            "docwsid": {
+              "string": 24
+            },
+            "drivewsid": {
+              "string": 24
+            },
+            "etag": {
+              "string": 24
+            },
+            "extension": {
+              "string": 23
+            },
+            "fileCount": {
+              "number": 1
+            },
+            "item_id": {
+              "string": 24
+            },
+            "lastOpenTime": {
+              "string": 15
+            },
+            "name": {
+              "string": 24
+            },
+            "parentId": {
+              "string": 24
+            },
+            "share": {
+              "string": 1
+            },
+            "shareAliasCount": {
+              "number": 1
+            },
+            "shareCount": {
+              "number": 1
+            },
+            "shareID": {
+              "object": 2
+            },
+            "sharingToken": {
+              "string": 22
+            },
+            "size": {
+              "number": 23
+            },
+            "type": {
+              "string": 24
+            },
+            "zone": {
+              "string": 24
+            }
+          },
+          "kinds": {
+            "FILE": 23,
+            "FOLDER": 1
+          }
+        }
+      },
+      {
+        "container": "keynote",
+        "representation": {
+          "byte_ranges": false,
+          "content_length": 17,
+          "data_token": true,
+          "exact_one_byte": true,
+          "head_status": 501,
+          "identity_encoding": true,
+          "listed_size": 7270743,
+          "ordinary_content": true,
+          "package_token": false,
+          "range_bytes_received": 1,
+          "range_identity_encoding": true,
+          "range_status": 206,
+          "range_total": 7270743,
+          "sample_available": true
+        },
+        "shape": {
+          "count": 11,
+          "fields": {
+            "dateChanged": {
+              "string": 11
+            },
+            "dateCreated": {
+              "string": 11
+            },
+            "dateModified": {
+              "string": 11
+            },
+            "docwsid": {
+              "string": 11
+            },
+            "drivewsid": {
+              "string": 11
+            },
+            "etag": {
+              "string": 11
+            },
+            "extension": {
+              "string": 11
+            },
+            "item_id": {
+              "string": 11
+            },
+            "lastOpenTime": {
+              "string": 10
+            },
+            "name": {
+              "string": 11
+            },
+            "parentId": {
+              "string": 11
+            },
+            "share": {
+              "string": 1
+            },
+            "shareID": {
+              "object": 1
+            },
+            "sharingToken": {
+              "string": 10
+            },
+            "shortGUID": {
+              "string": 4
+            },
+            "size": {
+              "number": 11
+            },
+            "type": {
+              "string": 11
+            },
+            "zone": {
+              "string": 11
+            }
+          },
+          "kinds": {
+            "FILE": 11
+          }
+        }
+      }
+    ]
+  }
+}

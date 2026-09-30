@@ -259,7 +259,7 @@ impl ICloudFileTrash {
                 }
                 let etag = etag.ok_or(MutationError::Uncertain)?.to_owned();
                 let signed = session
-                    .signed_download_url(&self.before.id)
+                    .ordinary_download_url(&self.before.id)
                     .await
                     .map_err(|_| MutationError::Uncertain)?;
                 let mut response = session
