@@ -507,6 +507,22 @@ async fn main() -> Result<()> {
             .await;
     }
     if let [flag, run] = args.as_slice()
+        && flag == "--account-mounted-final-interrupt"
+    {
+        return cirrove_service::validation::icloud_account_mounted_final_interrupt(
+            Uuid::parse_str(run)?,
+        )
+        .await;
+    }
+    if let [flag, run] = args.as_slice()
+        && flag == "--account-mounted-final-recover"
+    {
+        return cirrove_service::validation::icloud_account_mounted_final_recover(Uuid::parse_str(
+            run,
+        )?)
+        .await;
+    }
+    if let [flag, run] = args.as_slice()
         && flag == "--account-mounted-interrupt"
     {
         return cirrove_service::validation::icloud_account_mounted_interrupt(Uuid::parse_str(

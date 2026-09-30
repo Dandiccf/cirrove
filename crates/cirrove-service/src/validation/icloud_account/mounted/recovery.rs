@@ -64,15 +64,49 @@ fn handoff(
     Ok((phase, Some(plan)))
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Point {
+    AfterTrash,
+    AfterInstall,
+}
+impl Point {
+    fn label(self) -> &'static str {
+        match self {
+            Self::AfterTrash => "after_trash",
+            Self::AfterInstall => "after_install",
+        }
+    }
+    fn kind(self) -> &'static str {
+        match self {
+            Self::AfterTrash => "mounted-recovery",
+            Self::AfterInstall => "mounted-final-recovery",
+        }
+    }
+    fn phase(self) -> Phase {
+        match self {
+            Self::AfterTrash => Phase::MoveOld,
+            Self::AfterInstall => Phase::InstallInspected,
+        }
+    }
+    fn observed(self) -> HandoffObserved {
+        match self {
+            Self::AfterTrash => HandoffObserved::OldAtRecovery,
+            Self::AfterInstall => HandoffObserved::Complete,
+        }
+    }
+}
+
 pub(super) struct Boundary {
     stop: bool,
+    point: Point,
     run_dir: PathBuf,
     refused_replays: AtomicUsize,
 }
 impl Boundary {
-    fn new(run_dir: PathBuf, stop: bool) -> Arc<Self> {
+    fn new(run_dir: PathBuf, stop: bool, point: Point) -> Arc<Self> {
         Arc::new(Self {
             stop,
+            point,
             run_dir,
             refused_replays: AtomicUsize::new(0),
         })
@@ -86,7 +120,7 @@ impl Boundary {
             let (phase, _) = handoff(checkpoint)?;
             // Recovery must reconcile the old checkpoint to a later phase;
             // even a single attempted replay invalidates this validation arm.
-            if matches!(phase, Phase::MoveOld | Phase::Stage) {
+            if self.point == Point::AfterInstall || matches!(phase, Phase::MoveOld | Phase::Stage) {
                 self.refused_replays.fetch_add(1, Ordering::SeqCst);
                 return Err(UploadError::Invalid);
             }
@@ -104,21 +138,22 @@ impl Boundary {
             return Ok(());
         }
         let (old, _) = handoff(before)?;
-        if old != Phase::MoveOld {
+        if old != self.point.phase() {
             return Ok(());
         }
-        let UploadStep::Commit(next) = step else {
-            return Err(UploadError::Invalid);
-        };
-        if handoff(next)?.0 != Phase::InspectInstall {
-            return Err(UploadError::Invalid);
+        match (self.point, step) {
+            (Point::AfterTrash, UploadStep::Commit(next))
+                if handoff(next)?.0 == Phase::InspectInstall => {}
+            (Point::AfterInstall, UploadStep::HandoffComplete { .. }) => {}
+            _ => return Err(UploadError::Invalid),
         }
         let operation = Uuid::parse_str(operation).map_err(|_| UploadError::Invalid)?;
         record(
             &self.run_dir.join("interrupted.json"),
             &serde_json::json!({
                 "operation": operation, "pid": std::process::id(),
-                "old_trash_confirmed": true, "next_checkpoint_not_returned": true,
+                "old_trash_confirmed": true, "acknowledgement_not_returned": true,
+                "boundary": self.point.label(),
             }),
         )
         .map_err(|_| UploadError::Uncertain)?;
@@ -132,8 +167,14 @@ impl Boundary {
 }
 
 pub async fn icloud_account_mounted_interrupt(run: Uuid) -> Result<()> {
-    let f = prepare(run, "mounted-recovery").await?;
-    let boundary = Boundary::new(f.run_dir.clone(), true);
+    interrupt_at(run, Point::AfterTrash).await
+}
+pub async fn icloud_account_mounted_final_interrupt(run: Uuid) -> Result<()> {
+    interrupt_at(run, Point::AfterInstall).await
+}
+async fn interrupt_at(run: Uuid, point: Point) -> Result<()> {
+    let f = prepare(run, point.kind()).await?;
+    let boundary = Boundary::new(f.run_dir.clone(), true, point);
     let session = mount_with_boundary(&f, Some(boundary)).await?;
     let result: Result<()> = async {
         app(&f, "create").await?;
@@ -159,9 +200,15 @@ fn read<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T> {
 }
 
 pub async fn icloud_account_mounted_recover(run: Uuid) -> Result<()> {
+    recover_at(run, Point::AfterTrash).await
+}
+pub async fn icloud_account_mounted_final_recover(run: Uuid) -> Result<()> {
+    recover_at(run, Point::AfterInstall).await
+}
+async fn recover_at(run: Uuid, point: Point) -> Result<()> {
     let run_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../.local-state")
-        .join(format!("icloud-account-mounted-recovery-{run}"));
+        .join(format!("icloud-account-{}-{run}", point.kind()));
     let account: Account = read(&run_dir.join("account.json"))?;
     let parent: Node = read(&run_dir.join("owned-folder.json"))?;
     let original: Node = read(&run_dir.join("original.json"))?;
@@ -186,9 +233,10 @@ pub async fn icloud_account_mounted_recover(run: Uuid) -> Result<()> {
             && original.size == FIRST.len() as u64
             && marker.get("old_trash_confirmed").and_then(|v| v.as_bool()) == Some(true)
             && marker
-                .get("next_checkpoint_not_returned")
+                .get("acknowledgement_not_returned")
                 .and_then(|v| v.as_bool())
                 == Some(true)
+            && marker.get("boundary").and_then(|v| v.as_str()) == Some(point.label())
             && marker
                 .get("pid")
                 .and_then(|v| v.as_u64())
@@ -263,7 +311,7 @@ pub async fn icloud_account_mounted_recover(run: Uuid) -> Result<()> {
         .context("missing interrupted checkpoint")?;
     let (phase, plan) = handoff(&checkpoint)?;
     ensure!(
-        phase == Phase::MoveOld,
+        phase == point.phase(),
         "next checkpoint was unexpectedly saved"
     );
     let plan = plan.context("missing captured handoff")?;
@@ -272,20 +320,20 @@ pub async fn icloud_account_mounted_recover(run: Uuid) -> Result<()> {
     let mut remote =
         ICloudReadSession::from_session_snapshot(&f.snapshot, &f.account.identity.username)?;
     ensure!(
-        remote.probe_inspect_trash_handoff(&plan).await? == HandoffObserved::OldAtRecovery,
+        remote.probe_inspect_trash_handoff(&plan).await? == point.observed(),
         "interrupted remote identities or bytes differ"
     );
     record(
         &f.run_dir.join("recovery-preflight.json"),
-        &serde_json::json!({"pending_local_bytes":true,"old_and_staged_digests":true,"saved_phase":"move_old"}),
+        &serde_json::json!({"pending_local_bytes":true,"old_and_staged_digests":true,"boundary":point.label()}),
     )?;
-    let boundary = Boundary::new(f.run_dir.clone(), false);
+    let boundary = Boundary::new(f.run_dir.clone(), false, point);
     let session = mount_with_boundary(&f, Some(boundary.clone())).await?;
     let result: Result<()> = async {
         let current = uploaded(&session, 2).await?;
         ensure!(
             boundary.refused_replays.load(Ordering::SeqCst) == 0,
-            "recovery attempted to replay Trash or staging"
+            "recovery attempted to replay a forbidden commit"
         );
         verify(&f.snapshot, &f.account, &f.parent, &current, SECOND).await?;
         ensure!(
@@ -316,7 +364,7 @@ pub async fn icloud_account_mounted_recover(run: Uuid) -> Result<()> {
     shutdown?;
     record(
         &f.run_dir.join("passed.json"),
-        &serde_json::json!({"run":run,"process_interruption":true,"pending_bytes_retained":true,"old_and_new_digests":true,"trash_or_stage_replays":0,"same_operation_completed":true,"read_after_remount":true}),
+        &serde_json::json!({"run":run,"boundary":point.label(),"mutation_commit_replays":0,"process_interruption":true,"pending_bytes_retained":true,"old_and_new_digests":true,"trash_or_stage_replays":0,"same_operation_completed":true,"read_after_remount":true}),
     )?;
     println!(
         "Recovery arm: same operation completed, both versions verified, no Trash replay, remounted read passed"
@@ -357,7 +405,7 @@ mod tests {
     #[test]
     fn recovery_refuses_replaying_the_destructive_or_staging_phase() {
         let temp = tempfile::tempdir().unwrap();
-        let boundary = Boundary::new(temp.path().into(), false);
+        let boundary = Boundary::new(temp.path().into(), false, Point::AfterTrash);
         let request = request();
         assert!(
             boundary
@@ -391,6 +439,20 @@ mod tests {
         );
     }
     #[test]
+    fn completed_remote_install_allows_no_mutating_commit_on_recovery() {
+        let temp = tempfile::tempdir().unwrap();
+        let boundary = Boundary::new(temp.path().into(), false, Point::AfterInstall);
+        for phase in ["move_old", "inspect_install", "install_inspected"] {
+            assert!(
+                boundary
+                    .before_commit(&request(), &checkpoint(phase))
+                    .is_err()
+            );
+        }
+        assert_eq!(boundary.refused_replays.load(Ordering::SeqCst), 3);
+    }
+
+    #[test]
     fn unknown_legacy_ambiguous_and_oversized_checkpoints_fail_closed() {
         for value in [
             checkpoint("install_new"),
@@ -412,7 +474,7 @@ mod tests {
     #[test]
     fn unrelated_commit_steps_do_not_trigger_an_interruption() {
         let temp = tempfile::tempdir().unwrap();
-        let boundary = Boundary::new(temp.path().into(), true);
+        let boundary = Boundary::new(temp.path().into(), true, Point::AfterTrash);
         let after = UploadStep::Commit(checkpoint("install_inspected"));
         assert!(
             boundary
@@ -431,34 +493,76 @@ mod tests {
     fn interruption_child() {
         let path =
             std::env::var_os("CIRROVE_RECOVERY_BOUNDARY_FIXTURE").expect("private fixture path");
-        let boundary = Boundary::new(PathBuf::from(path), true);
+        let point = match std::env::var("CIRROVE_RECOVERY_BOUNDARY_POINT")
+            .unwrap()
+            .as_str()
+        {
+            "after_trash" => Point::AfterTrash,
+            "after_install" => Point::AfterInstall,
+            _ => panic!("unexpected boundary"),
+        };
+        let boundary = Boundary::new(PathBuf::from(path), true, point);
+        let (before, step) = match point {
+            Point::AfterTrash => (
+                checkpoint("move_old"),
+                UploadStep::Commit(checkpoint("inspect_install")),
+            ),
+            Point::AfterInstall => {
+                let node = Node {
+                    id: "new".into(),
+                    parent_id: Some("owned".into()),
+                    name: NAME.into(),
+                    kind: NodeKind::File,
+                    size: SECOND.len() as u64,
+                    modified_unix: 0,
+                    etag: Some("etag".into()),
+                    content_version: None,
+                    target: None,
+                    package: false,
+                };
+                (
+                    checkpoint("install_inspected"),
+                    UploadStep::HandoffComplete {
+                        current: node.clone(),
+                        backup: Node {
+                            id: "old".into(),
+                            ..node
+                        },
+                    },
+                )
+            }
+        };
         boundary
             .after_commit(
                 "00000000-0000-4000-8000-000000000001",
                 &request(),
-                &checkpoint("move_old"),
-                &UploadStep::Commit(checkpoint("inspect_install")),
+                &before,
+                &step,
             )
             .unwrap();
         panic!("interruption returned to the worker");
     }
     #[test]
     fn process_exit_records_the_boundary_without_returning_the_next_checkpoint() {
-        let temp = tempfile::tempdir().unwrap();
-        let output = std::process::Command::new(std::env::current_exe().unwrap())
-            .args([
-                "--exact",
-                "validation::icloud_account::mounted::recovery::tests::interruption_child",
-                "--ignored",
-            ])
-            .env("CIRROVE_RECOVERY_BOUNDARY_FIXTURE", temp.path())
-            .output()
-            .unwrap();
-        assert_eq!(output.status.code(), Some(86));
-        let value: serde_json::Value = read(&temp.path().join("interrupted.json")).unwrap();
-        assert_eq!(value["old_trash_confirmed"], true);
-        assert_eq!(value["next_checkpoint_not_returned"], true);
-        assert_ne!(value["pid"].as_u64(), Some(u64::from(std::process::id())));
-        assert_eq!(std::fs::read_dir(temp.path()).unwrap().count(), 1);
+        for point in [Point::AfterTrash, Point::AfterInstall] {
+            let temp = tempfile::tempdir().unwrap();
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "validation::icloud_account::mounted::recovery::tests::interruption_child",
+                    "--ignored",
+                ])
+                .env("CIRROVE_RECOVERY_BOUNDARY_FIXTURE", temp.path())
+                .env("CIRROVE_RECOVERY_BOUNDARY_POINT", point.label())
+                .output()
+                .unwrap();
+            assert_eq!(output.status.code(), Some(86));
+            let value: serde_json::Value = read(&temp.path().join("interrupted.json")).unwrap();
+            assert_eq!(value["boundary"], point.label());
+            assert_eq!(value["old_trash_confirmed"], true);
+            assert_eq!(value["acknowledgement_not_returned"], true);
+            assert_ne!(value["pid"].as_u64(), Some(u64::from(std::process::id())));
+            assert_eq!(std::fs::read_dir(temp.path()).unwrap().count(), 1);
+        }
     }
 }

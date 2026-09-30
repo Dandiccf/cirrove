@@ -400,4 +400,7 @@ mod atomic;
 pub use atomic::icloud_account_mounted_atomic;
 
 mod recovery;
-pub use recovery::{icloud_account_mounted_interrupt, icloud_account_mounted_recover};
+pub use recovery::{
+    icloud_account_mounted_final_interrupt, icloud_account_mounted_final_recover,
+    icloud_account_mounted_interrupt, icloud_account_mounted_recover,
+};
