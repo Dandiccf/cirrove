@@ -430,6 +430,14 @@ async fn main() -> Result<()> {
     let started = Instant::now();
     let args: Vec<_> = std::env::args().skip(1).collect();
     if let [flag, run] = args.as_slice()
+        && flag == "--account-parent-listing-timing"
+    {
+        return cirrove_service::validation::icloud_account_parent_listing_timing(Uuid::parse_str(
+            run,
+        )?)
+        .await;
+    }
+    if let [flag, run] = args.as_slice()
         && flag == "--account-uploads"
     {
         return cirrove_service::validation::icloud_account_uploads(Uuid::parse_str(run)?).await;

@@ -115,6 +115,7 @@ impl ICloudReadSession {
         size: u64,
         discard_response: bool,
     ) -> Result<()> {
+        let _timing = crate::probe_timing::Timing::start("file registration");
         if !parent.starts_with("FOLDER::com.apple.CloudDocs::")
             || parent.rsplit("::").next().is_none_or(str::is_empty)
             || name.is_empty()
@@ -206,6 +207,7 @@ impl ICloudReadSession {
         name: &str,
         size: u64,
     ) -> Result<UploadSlot> {
+        let _timing = crate::probe_timing::Timing::start("upload slot");
         let endpoint = self
             .docs_endpoint
             .as_ref()
@@ -250,6 +252,7 @@ impl ICloudReadSession {
         file: File,
         size: u64,
     ) -> Result<UploadedFile> {
+        let _timing = crate::probe_timing::Timing::start("content upload");
         let upload_url = checked_content_url(&slot.url)?;
         let body = if size == 0 {
             reqwest::Body::from(Vec::<u8>::new())

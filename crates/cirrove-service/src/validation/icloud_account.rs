@@ -525,3 +525,60 @@ mod package_download;
 pub use package_download::{
     icloud_account_package_download, icloud_account_package_mounted, icloud_account_package_native,
 };
+
+/// Read-only comparison of complete parent identity inventories. Never changes
+/// an account or substitutes partial metadata into a production write decision.
+pub async fn icloud_account_parent_listing_timing(run: Uuid) -> Result<()> {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../.local-state")
+        .join(format!("icloud-account-uploads-{run}"));
+    ensure!(
+        dir.join("passed.json").is_file(),
+        "requires a completed owned upload fixture"
+    );
+    let account: Account = serde_json::from_slice(&std::fs::read(dir.join("account.json"))?)?;
+    let parent: Node = serde_json::from_slice(&std::fs::read(dir.join("owned-folder.json"))?)?;
+    ensure!(
+        matches!(account.registration, AppRegistration::ICloud)
+            && !account.enabled
+            && account.label == "iCloudAccountRouterValidation"
+            && account.root_id == ROOT_ID
+            && parent.parent_id.as_deref() == Some(ROOT_ID)
+            && parent.name == format!("Cirrove Write Validation-{run}"),
+        "invalid owned read fixture"
+    );
+    let snapshot = SealedSessionVault::new(&dir.join("state"), &account.id)?
+        .load(&account.credential_id)
+        .await?
+        .context("isolated session missing")?;
+    let mut session =
+        ICloudReadSession::from_session_snapshot(&snapshot, &account.identity.username)?;
+    let identities = |nodes: Vec<cirrove_icloud::DriveEntry>| {
+        let mut values: Vec<_> = nodes
+            .into_iter()
+            .map(|n| {
+                (
+                    n.drivewsid.clone(),
+                    n.parent_id.clone(),
+                    n.display_name(),
+                    n.kind.clone(),
+                )
+            })
+            .collect();
+        values.sort();
+        values
+    };
+    for pair in 0..3 {
+        let start = std::time::Instant::now();
+        let full = identities(session.list_folder(ROOT_ID).await?);
+        let full_seconds = start.elapsed().as_secs_f64();
+        let start = std::time::Instant::now();
+        let partial = session.probe_list_folder_partial(ROOT_ID).await?;
+        let partial_seconds = start.elapsed().as_secs_f64();
+        let partial_complete = partial.is_some();
+        let same = partial.map(identities).is_some_and(|p| p == full);
+        let result = serde_json::json!({"pair":pair,"full_seconds":full_seconds,"partial_seconds":partial_seconds,"partial_complete":partial_complete,"same_identity_inventory":same});
+        println!("Parent listing timing: {result}");
+    }
+    Ok(())
+}

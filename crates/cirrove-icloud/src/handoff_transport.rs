@@ -227,6 +227,7 @@ impl ICloudReadSession {
         // exact-ID, ETag, size, recovery-path and digest checks on both sides.
         if size > 0 {
             let signed_url = self.ordinary_download_url(&plan.original_id).await?;
+            let headers = crate::probe_timing::Timing::start("trash download headers");
             let mut response = self
                 .http
                 .get(signed_url)
@@ -240,6 +241,8 @@ impl ICloudReadSession {
                     response.status().as_u16()
                 );
             }
+            headers.finish();
+            let _body = crate::probe_timing::Timing::start("trash download body");
             while let Some(chunk) = response
                 .chunk()
                 .await

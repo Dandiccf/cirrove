@@ -14,7 +14,8 @@ pub use icloud_account::{
     icloud_account_mounted_relocation_interrupt, icloud_account_mounted_relocation_recover,
     icloud_account_mounted_relocation_step_interrupt, icloud_account_namespace,
     icloud_account_package_download, icloud_account_package_mounted, icloud_account_package_native,
-    icloud_account_trash_lookup, icloud_account_trash_lookup_control, icloud_account_uploads,
+    icloud_account_parent_listing_timing, icloud_account_trash_lookup,
+    icloud_account_trash_lookup_control, icloud_account_uploads,
 };
 mod catchup;
 mod freshness;

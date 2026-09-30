@@ -566,3 +566,19 @@ relocation failure modes. In-flight response loss, concurrent edits at temporary
 paths, repeatability, deletion interruption and installed write acceptance remain
 open. Setup for two tiny files still takes minutes in these runs; stage-specific
 latency measurement remains necessary before claiming usable ordinary write speed.
+
+
+## Write-latency diagnosis
+
+The [phase-level diagnostic](benchmarks/icloud-write-phase-latency-2026-09-30.md)
+passed create/replacement, preserved the old version in Trash and verified both
+contents and reopened receipts. It attributes six roughly 30-second waits to
+folder metadata requests; upload, registration, signed download lookup and small
+content transfer were much faster. The instrumentation exists only in write-probe
+builds and logs static phase labels and durations, never IDs or provider bodies.
+It does not establish which folder role or server condition causes the slow calls.
+
+A read-only reduced-metadata experiment did not produce the expected schema and
+is not used by production writes. Warm full root listings were fast. No write
+performance improvement is claimed yet; controlled post-write attribution and a
+replacement that preserves all identity/collision checks remain required.

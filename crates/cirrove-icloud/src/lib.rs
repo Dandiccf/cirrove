@@ -39,6 +39,7 @@ mod owned_mutation;
 #[cfg(feature = "write-probe")]
 mod owned_upload;
 mod package_archive;
+mod probe_timing;
 #[cfg(feature = "write-probe")]
 pub use package_archive::canonical_export;
 mod package_download;
@@ -703,6 +704,34 @@ impl ICloudReadSession {
     }
 
     pub async fn list_folder(&mut self, folder_id: &str) -> Result<Vec<DriveEntry>> {
+        self.list_folder_projection(folder_id, false).await
+    }
+
+    /// Read-only experiment; an incomplete partial response is still refused.
+    #[cfg(feature = "write-probe")]
+    pub async fn probe_list_folder_partial(
+        &mut self,
+        folder_id: &str,
+    ) -> Result<Option<Vec<DriveEntry>>> {
+        match self.list_folder_projection(folder_id, true).await {
+            Ok(entries) => Ok(Some(entries)),
+            Err(error) if error.downcast_ref::<IncompleteFolder>().is_some() => Ok(None),
+            Err(error) => Err(error),
+        }
+    }
+
+    async fn list_folder_projection(
+        &mut self,
+        folder_id: &str,
+        partial: bool,
+    ) -> Result<Vec<DriveEntry>> {
+        let _timing = probe_timing::Timing::start(if partial {
+            "partial folder metadata"
+        } else if folder_id == ROOT_ID {
+            "root folder metadata"
+        } else {
+            "folder metadata"
+        });
         let endpoint = self
             .drive_endpoint
             .as_ref()
@@ -721,7 +750,7 @@ impl ICloudReadSession {
             .header("referer", format!("{ICLOUD_ORIGIN}/"))
             .json(&json!([{
                 "drivewsid": folder_id,
-                "partialData": false,
+                "partialData": partial,
                 "includeHierarchy": false
             }]))
             .send()
@@ -924,6 +953,7 @@ impl ICloudReadSession {
         let signed_url = self.ordinary_download_url(drive_id).await?;
         let mut hash = Sha256::new();
         if size > 0 {
+            let headers = probe_timing::Timing::start("verification download headers");
             let mut response = self
                 .http
                 .get(signed_url)
@@ -937,6 +967,8 @@ impl ICloudReadSession {
                     response.status().as_u16()
                 );
             }
+            headers.finish();
+            let _body = probe_timing::Timing::start("verification download body");
             let mut received = 0u64;
             while let Some(chunk) = response
                 .chunk()
@@ -967,6 +999,7 @@ impl ICloudReadSession {
     }
 
     async fn download_representation(&mut self, drive_id: &str) -> Result<ContentRepresentation> {
+        let _timing = probe_timing::Timing::start("download lookup");
         let (zone, doc_id) = split_file_id(drive_id)?;
         let endpoint = self
             .docs_endpoint
@@ -1023,6 +1056,7 @@ impl ICloudReadSession {
     /// Exact-ID response, retaining recovery fields for guarded callers.
     /// This endpoint wraps both the request and response in an `items` object.
     async fn item_details(&mut self, drive_id: &str) -> Result<serde_json::Value> {
+        let _timing = probe_timing::Timing::start("exact item metadata");
         let _ = split_file_id(drive_id)?;
         let endpoint = self
             .drive_endpoint
