@@ -5,9 +5,9 @@ mod icloud_account;
 #[cfg(feature = "icloud-write-probe")]
 pub use icloud_account::{
     icloud_account_combined, icloud_account_combined_inspect, icloud_account_empty,
-    icloud_account_empty_read, icloud_account_mounted, icloud_account_mounted_empty_replace,
-    icloud_account_mounted_large, icloud_account_namespace, icloud_account_trash_lookup,
-    icloud_account_trash_lookup_control, icloud_account_uploads,
+    icloud_account_empty_read, icloud_account_metadata_shapes, icloud_account_mounted,
+    icloud_account_mounted_empty_replace, icloud_account_mounted_large, icloud_account_namespace,
+    icloud_account_trash_lookup, icloud_account_trash_lookup_control, icloud_account_uploads,
 };
 mod catchup;
 mod freshness;

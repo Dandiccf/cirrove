@@ -22,6 +22,14 @@ on their internals are refused unless supported. A filename extension alone is
 not sufficient evidence. The Google folder presentation reported by the user
 is a separate desktop usability issue, not evidence of broken MIME detection.
 
+A [read-only account investigation](benchmarks/icloud-document-metadata-shapes-2026-09-30.md)
+now confirms that FILE listings can supply different download representations:
+one Pages document supplied `package_token`, while one Numbers document supplied
+`data_token`. Listing kind alone cannot authorize ordinary-blob replacement.
+The current download helper falls back from data to package URLs without retaining
+that distinction. Explicit representation handling and shared-item metadata
+remain open; the diagnostic does not enable either write path.
+
 ## Current code boundary
 
 - `Settings::validate` rejects writable iCloud accounts, and

@@ -81,3 +81,10 @@ pub async fn icloud_account_trash_lookup_control(run: Uuid) -> Result<()> {
     );
     Ok(())
 }
+
+/// Uses an existing isolated session; only metadata shapes leave the adapter.
+pub async fn icloud_account_metadata_shapes(run: Uuid) -> Result<()> {
+    let (mut session, _, _) = fixture(run).await?;
+    println!("{}", session.document_metadata_shapes().await?);
+    Ok(())
+}

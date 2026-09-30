@@ -474,6 +474,12 @@ async fn main() -> Result<()> {
         .await;
     }
     if let [flag, run] = args.as_slice()
+        && flag == "--account-metadata-shapes"
+    {
+        return cirrove_service::validation::icloud_account_metadata_shapes(Uuid::parse_str(run)?)
+            .await;
+    }
+    if let [flag, run] = args.as_slice()
         && flag == "--account-trash-lookup"
     {
         return cirrove_service::validation::icloud_account_trash_lookup(Uuid::parse_str(run)?)

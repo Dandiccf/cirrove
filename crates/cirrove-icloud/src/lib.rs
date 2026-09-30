@@ -15,6 +15,8 @@ mod folder_rename;
 mod folder_trash;
 mod handoff_transport;
 #[cfg(feature = "write-probe")]
+mod metadata_shape_probe;
+#[cfg(feature = "write-probe")]
 mod owned_file_rename;
 #[cfg(feature = "write-probe")]
 mod owned_folder;
