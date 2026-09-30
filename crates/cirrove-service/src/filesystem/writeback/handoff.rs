@@ -124,7 +124,12 @@ impl Writeback {
                 .await
                 .map_err(|_| Errno::EIO)?
                 .map_err(|_| Errno::EIO)?;
-            let remote = if cached.as_ref() == Some(&expected) {
+            // A folder creation receipt can already be in the metadata cache
+            // while its provider ETag has settled to a different value. Reusing
+            // that receipt would clear `latest` and permit rmdir with the stale
+            // precondition. Observe folders independently before handoff.
+            let remote = if expected.kind != NodeKind::Folder && cached.as_ref() == Some(&expected)
+            {
                 expected
             } else {
                 let response = tokio::select! {biased;
@@ -482,6 +487,82 @@ mod tests {
         );
         f.writer.maintain(&f.engine).await.unwrap();
         assert_eq!(f.journal.lock().unwrap().retained_bytes().unwrap(), 0);
+    }
+
+    #[tokio::test]
+    async fn folder_handoff_refreshes_a_cached_creation_receipt_before_removal() {
+        let f = Fixture::new(false).await;
+        f.writer.maintain(&f.engine).await.unwrap();
+        let scope = f.engine.scope("drive");
+        let receipt = Node {
+            id: "new-folder".into(),
+            name: "made-and-unmade".into(),
+            kind: NodeKind::Folder,
+            size: 0,
+            content_version: None,
+            etag: Some("create-receipt".into()),
+            ..f.provider.node.clone()
+        };
+        let settled = Node {
+            etag: Some("settled-folder".into()),
+            ..receipt.clone()
+        };
+        let provider = Arc::new(Provider {
+            node: settled.clone(),
+            hold: AtomicBool::new(false),
+            fail: AtomicBool::new(false),
+            calls: AtomicUsize::new(0),
+            entered: tokio::sync::Notify::new(),
+            release: tokio::sync::Notify::new(),
+        });
+        let engine = Engine::new(
+            f.engine.account.clone(),
+            provider.clone(),
+            f._temp.path().join("folder-state"),
+        )
+        .await
+        .unwrap();
+        let object = {
+            let mut journal = f.journal.lock().unwrap();
+            let object = journal
+                .create_namespace_directory(scope.clone(), "root".into(), receipt.name.clone())
+                .unwrap();
+            let operation = journal.claim_mutation().unwrap().unwrap();
+            journal
+                .acknowledge_mutation(
+                    operation.id,
+                    operation.attempt.unwrap(),
+                    cirrove_core::mutation::MutationReceipt::Upsert(receipt.clone()),
+                )
+                .unwrap();
+            object
+        };
+        // A receipt may reach the index before maintenance runs. Equality with
+        // that cache entry is not an independent observation of a settled ETag.
+        Store::open(engine.db.clone())
+            .unwrap()
+            .observe_node(&scope, &receipt)
+            .unwrap();
+        let writer = Writeback::new(&engine, f.journal.clone()).await.unwrap();
+        assert!(writer.maintain(&engine).await.unwrap());
+        assert_eq!(provider.calls.load(Ordering::SeqCst), 1);
+        let mut journal = f.journal.lock().unwrap();
+        let handed = journal.namespace_object(object.id).unwrap();
+        assert!(handed.follows_remote && handed.latest.is_none());
+        assert_eq!(handed.remote.as_ref(), Some(&settled));
+        let current = Store::open(engine.db.clone())
+            .unwrap()
+            .node(&scope, &receipt.id)
+            .unwrap()
+            .unwrap();
+        let materialized = journal.observe_namespace_file(scope, current).unwrap();
+        let removed = journal
+            .remove_namespace_directory(materialized.id, materialized.revision)
+            .unwrap();
+        assert_eq!(
+            removed.mutation.request.intent.before().unwrap().etag,
+            settled.etag
+        );
     }
 
     /// An explicit write grant is the opt-in, and it is the only one.
