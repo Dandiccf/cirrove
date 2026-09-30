@@ -14,6 +14,7 @@ struct PackageProvider {
     listing_calls: AtomicUsize,
     fail_listing: AtomicBool,
     streamed: AtomicBool,
+    hangs: AtomicBool,
     stream_fails: Arc<AtomicBool>,
     stream_reads: Arc<AtomicUsize>,
 }
@@ -63,6 +64,14 @@ impl MetadataProvider for PackageProvider {
 
 #[async_trait::async_trait]
 impl ReadProvider for PackageProvider {
+    fn content_read_timeout(&self, _: &Node) -> Duration {
+        if self.hangs.load(Ordering::SeqCst) {
+            Duration::from_millis(20)
+        } else {
+            Duration::from_secs(30)
+        }
+    }
+
     fn refresh_cached_packages_on_first_open(&self) -> bool {
         true
     }
@@ -149,6 +158,9 @@ impl ReadProvider for PackageProvider {
         _: u32,
         _: &CancellationToken,
     ) -> std::result::Result<Vec<u8>, ProviderError> {
+        if self.hangs.load(Ordering::SeqCst) {
+            std::future::pending::<()>().await;
+        }
         Err(ProviderError::Permission)
     }
 
@@ -541,4 +553,35 @@ async fn staged_session_refuses_foreign_identity_short_ranges_and_cancelled_resu
         let key = crate::content::block_key(&scope, &item, 0).unwrap();
         assert!(!temp.path().join("cache").join(key).exists());
     }
+}
+
+#[tokio::test]
+async fn generated_content_miss_obeys_provider_deadline_even_if_transport_ignores_cancel() {
+    let temp = tempfile::tempdir().unwrap();
+    let cache = crate::content::ContentCache::new(
+        temp.path().join("cache"),
+        temp.path().join("blocks"),
+        64 * 1024 * 1024,
+    )
+    .unwrap();
+    let provider = PackageProvider::default();
+    provider.hangs.store(true, Ordering::SeqCst);
+    let scope = Scope {
+        account: "account".into(),
+        provider: "fixture".into(),
+        collection: "drive".into(),
+    };
+    let item = Node {
+        size: 7,
+        ..node("derived", Some("package"), "Archive", NodeKind::File, false)
+    };
+    let outcome = tokio::time::timeout(
+        Duration::from_secs(1),
+        cache.read(&provider, &scope, &item, 0, 7, &CancellationToken::new()),
+    )
+    .await;
+    assert!(
+        matches!(outcome, Ok(Err(ProviderError::Unavailable))),
+        "cache miss must obey the provider deadline"
+    );
 }

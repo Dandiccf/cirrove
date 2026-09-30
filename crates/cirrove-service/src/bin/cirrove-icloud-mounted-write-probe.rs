@@ -474,6 +474,15 @@ async fn main() -> Result<()> {
         .await;
     }
     if let [flag, session_run, run] = args.as_slice()
+        && flag == "--account-package-native"
+    {
+        return cirrove_service::validation::icloud_account_package_native(
+            Uuid::parse_str(session_run)?,
+            Uuid::parse_str(run)?,
+        )
+        .await;
+    }
+    if let [flag, session_run, run] = args.as_slice()
         && flag == "--account-package-mounted"
     {
         return cirrove_service::validation::icloud_account_package_mounted(

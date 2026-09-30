@@ -672,12 +672,15 @@ pub fn provider_with_state(account: &Account, state: &Path) -> Result<Arc<dyn Re
                 provider: "icloud".into(),
                 collection: account.drive.id.clone(),
             };
-            Ok(Arc::new(ICloudDrive::on_demand_from_sealed_session(
-                scope,
-                account.identity.username.clone(),
-                account.credential_id.clone(),
-                state,
-            )?))
+            Ok(Arc::new(
+                ICloudDrive::on_demand_from_sealed_session(
+                    scope,
+                    account.identity.username.clone(),
+                    account.credential_id.clone(),
+                    state,
+                )?
+                .with_package_artifacts(state, account.cache_bytes)?,
+            ))
         }
     }
 }

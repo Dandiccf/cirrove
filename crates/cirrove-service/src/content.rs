@@ -334,7 +334,7 @@ impl ContentCache {
         // the subsequent local cache publication is awaited to completion.
         let received = tokio::select! { biased;
             _=cancel.cancelled()=>Err(ProviderError::Cancelled),
-            result=tokio::time::timeout(RANGE_TIMEOUT,self.sessions.read(provider,scope,node,start,BLOCK_SIZE,cancel))=>
+            result=tokio::time::timeout(provider.content_read_timeout(node).min(Duration::from_secs(360)),self.sessions.read(provider,scope,node,start,BLOCK_SIZE,cancel))=>
                 result.unwrap_or(Err(ProviderError::Unavailable)),
         };
         let bytes = match received {

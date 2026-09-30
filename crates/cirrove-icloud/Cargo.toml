@@ -33,6 +33,7 @@ rpassword = "7.4"
 srp = "0.7.0-rc.3"
 tempfile.workspace = true
 zeroize = "1.8"
+zip = { version = "8.6.0", default-features = false }
 
 [lints]
 workspace = true

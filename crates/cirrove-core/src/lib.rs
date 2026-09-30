@@ -289,6 +289,12 @@ pub trait ReadProvider: MetadataProvider {
     fn read_path_counters(&self) -> Option<ReadPathCounters> {
         None
     }
+    /// Deadline for a cache-miss content request, including session setup. A
+    /// generated package may need a complete bounded transfer to recover one
+    /// evicted range. Ordinary content retains the 30-second deadline.
+    fn content_read_timeout(&self, _node: &Node) -> Duration {
+        Duration::from_secs(30)
+    }
     /// Optional version-bound transport. The shared service coalesces creation
     /// and bounds residency; adapters keep credentials and validators private.
     /// None uses the existing exact-range contract without a transport session.

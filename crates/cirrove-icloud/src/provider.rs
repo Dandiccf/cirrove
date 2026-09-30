@@ -20,6 +20,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{Mutex, OnceCell, Semaphore};
 
+mod packages;
+
 const PROVIDER_ID: &str = "icloud";
 const COLLECTION: &str = "drive";
 const MAX_CURSOR: usize = 128 * 1024;
@@ -36,6 +38,7 @@ pub struct ICloudDrive {
     keyring_backed: bool,
     keyring_validated: OnceCell<()>,
     reads: Semaphore,
+    packages: Option<packages::Packages>,
 }
 
 enum SessionState {
@@ -94,6 +97,7 @@ impl ICloudDrive {
             keyring_backed: false,
             keyring_validated: OnceCell::new(),
             reads: Semaphore::new(4),
+            packages: None,
         })
     }
 
@@ -145,6 +149,7 @@ impl ICloudDrive {
             keyring_backed: true,
             keyring_validated: OnceCell::new(),
             reads: Semaphore::new(4),
+            packages: None,
         })
     }
 
@@ -169,6 +174,7 @@ impl ICloudDrive {
             keyring_backed: false,
             keyring_validated: OnceCell::new(),
             reads: Semaphore::new(4),
+            packages: None,
         })
     }
 
@@ -484,11 +490,21 @@ impl MetadataProvider for ICloudDrive {
 
 #[async_trait]
 impl ReadProvider for ICloudDrive {
+    fn content_read_timeout(&self, node: &Node) -> Duration {
+        if packages::artifact(node) {
+            Duration::from_secs(360)
+        } else {
+            Duration::from_secs(30)
+        }
+    }
     fn unknown_directories_require_fetch(&self) -> bool {
         self.index_mode == IndexMode::OnDemand
     }
 
-    fn directory_fetch_timeout(&self, _parent: Option<&Node>) -> Duration {
+    fn directory_fetch_timeout(&self, parent: Option<&Node>) -> Duration {
+        if parent.is_some_and(packages::package) {
+            return Duration::from_secs(360);
+        }
         // A live folder listing has already needed more than the shared 60 s
         // default. The transport itself caps each request at 90 s.
         Duration::from_secs(100)
@@ -522,8 +538,42 @@ impl ReadProvider for ICloudDrive {
         if cursor.is_some() || !parent.starts_with("FOLDER::") {
             return Err(ProviderError::Protocol("invalid iCloud directory request"));
         }
-        let nodes = directory_nodes(parent, self.list_folder(parent, cancel).await?)?;
+        let nodes = self
+            .document_nodes(parent, self.list_folder(parent, cancel).await?, cancel)
+            .await?;
         Ok(DirectoryPage { nodes, next: None })
+    }
+
+    async fn children_for_node(
+        &self,
+        scope: &Scope,
+        parent: &Node,
+        cursor: Option<&Cursor>,
+        cancel: &CancellationToken,
+    ) -> Result<DirectoryPage, ProviderError> {
+        self.check_scope(scope)?;
+        if packages::package(parent) {
+            if cursor.is_some() {
+                return Err(ProviderError::Permission);
+            }
+            self.package_children(parent, cancel).await
+        } else {
+            self.children(scope, &parent.id, cursor, cancel).await
+        }
+    }
+
+    async fn staged_content_session(
+        &self,
+        scope: &Scope,
+        node: &Node,
+        cancel: &CancellationToken,
+    ) -> Result<Option<Arc<dyn cirrove_core::reads::ReadSession>>, ProviderError> {
+        self.check_scope(scope)?;
+        if packages::artifact(node) {
+            self.artifact_session(node, cancel).await.map(Some)
+        } else {
+            Ok(None)
+        }
     }
 
     async fn read_range(
@@ -535,6 +585,13 @@ impl ReadProvider for ICloudDrive {
         cancel: &CancellationToken,
     ) -> Result<Vec<u8>, ProviderError> {
         self.check_scope(scope)?;
+        if packages::artifact(node) {
+            return self
+                .artifact_session(node, cancel)
+                .await?
+                .read_range(offset, length, cancel)
+                .await;
+        }
         if node.kind != NodeKind::File || !node.id.starts_with("FILE::") {
             return Err(ProviderError::Protocol("invalid iCloud file request"));
         }

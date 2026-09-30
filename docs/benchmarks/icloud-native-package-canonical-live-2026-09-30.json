@@ -1,0 +1,16 @@
+{
+  "run": "3002233f-ed97-4665-9f54-01ea8ed00d2d",
+  "binary_sha256": "40365be60b0c610743d45df5166f4711bfeb3ec7a752f031eb3d67f369571d56",
+  "revision": "c6e0c4abd0c4b9e6411490088bec3e30eb1b94f4",
+  "dirty": true,
+  "expected_duration_seconds": 900,
+  "start_utc": "2026-09-30T03:31:49.545210+00:00",
+  "temporary_filesystem": "btrfs",
+  "status": "finished",
+  "read_only": true,
+  "installed_service_changed": false,
+  "pid": 1920037,
+  "exit_code": 1,
+  "elapsed_seconds": 8.67,
+  "finished_utc": "2026-09-30T03:31:58.215670+00:00"
+}

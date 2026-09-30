@@ -89,11 +89,18 @@ concurrent stagers limit transfer concurrency; provider reads happen outside
 cache locks and SQLite transactions. The existing in-memory hook remains the
 fallback. Partial or cancelled staging does not publish the new directory page;
 completed cache blocks retain ordinary eviction/recovery semantics. Providers
-must still support later reads after eviction. The iCloud package validator
-exercises this path with a source-checked private Pages archive, including an
-offline FUSE remount; automatic package discovery and refetch in the normal iCloud
-adapter remain unimplemented. See the
-[registered mounted package validation](benchmarks/icloud-package-mounted-2026-09-30.md).
+must still support later reads after eviction. The iCloud on-demand adapter now
+looks up representations for Pages/Numbers/Keynote candidates and projects only
+Apple-confirmed packages as read-only containers. Opening one lazily stages an
+archive with actual length and a digest-bound revision. Empty ZIP directory DOS
+timestamps are normalized because Apple changes them between otherwise identical
+exports; regular-file data/timestamps stay unchanged. A fresh adapter can refetch
+that exact representation after cache eviction, with a 360-second content deadline
+(ordinary content retains 30 seconds). The normal adapter passed one complete
+Pages read, offline FUSE remount and fresh refetch. Unknown bundle types, ZIP64,
+aggregate private staging quota and native editing remain open. See the
+[normal package adapter validation](benchmarks/icloud-native-package-adapter-2026-09-30.md)
+for format/resource limits, failed hypotheses and live evidence.
 
 Discovery follows indexed ancestry and starts one delta worker per linked drive.
 Reachable roots are persisted; obsolete subscriptions are removed only when the

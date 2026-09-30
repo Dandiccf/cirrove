@@ -55,7 +55,7 @@ impl ReadSession for DiskArtifact {
 }
 
 #[derive(Default)]
-struct Offline(AtomicUsize);
+pub(super) struct Offline(AtomicUsize);
 #[async_trait]
 impl MetadataProvider for Offline {
     fn provider_id(&self) -> &'static str {

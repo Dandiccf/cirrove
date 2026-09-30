@@ -38,6 +38,9 @@ mod owned_move;
 mod owned_mutation;
 #[cfg(feature = "write-probe")]
 mod owned_upload;
+mod package_archive;
+#[cfg(feature = "write-probe")]
+pub use package_archive::canonical_export;
 mod package_download;
 pub use package_download::PackageDownload;
 mod provider;

@@ -108,29 +108,42 @@ impl ReadProvider for View {
     }
 }
 const APP: &str = r#"
-import os,sys,hashlib
-path=os.path.join(sys.argv[1], 'Package Preview.pages')
-assert os.statvfs(sys.argv[1]).f_flag & os.ST_RDONLY
-assert os.stat(path).st_size==int(sys.argv[2])
-h=hashlib.sha256()
-with open(path,'rb',buffering=0) as f:
-    while True:
-        b=f.read(65536)
-        if not b: break
-        h.update(b)
-assert h.hexdigest()==sys.argv[3]
+import os,sys,hashlib,json
+phase='input'
+try:
+    with open(sys.argv[4]) as f: relative=json.load(f)
+    path=os.path.join(sys.argv[1], *relative)
+    phase='mount'
+    assert os.statvfs(sys.argv[1]).f_flag & os.ST_RDONLY
+    phase='size'
+    assert os.stat(path).st_size==int(sys.argv[2])
+    phase='read'
+    h=hashlib.sha256()
+    with open(path,'rb',buffering=0) as f:
+        while True:
+            b=f.read(65536)
+            if not b: break
+            h.update(b)
+    phase='digest'
+    assert h.hexdigest()==sys.argv[3]
+except Exception:
+    print(json.dumps({'phase':phase}))
+    sys.exit(1)
 "#;
 
-async fn arm(
+pub(super) async fn arm(
     account: Account,
-    view: Arc<View>,
+    view: Arc<dyn ReadProvider>,
     state: &Path,
     artifact: &cirrove_icloud::PackageDownload,
+    relative: &[String],
 ) -> Result<()> {
     let mount = account.mount_path.clone();
     private_dir(&mount)?;
     let engine = Engine::new(account, view, state.to_owned()).await?;
     engine.start().await?;
+    let input = state.join(format!("package-read-input-{}.json", Uuid::new_v4()));
+    record(&input, &relative)?;
     let session = CloudFs::new(engine.clone())?.mount(&mount)?;
     let result: Result<()> = async {
         let fs = tokio::process::Command::new("findmnt")
@@ -150,14 +163,23 @@ async fn arm(
                 .arg(&mount)
                 .arg(artifact.size.to_string())
                 .arg(&artifact.sha256)
+                .arg(&input)
                 .kill_on_drop(true)
                 .output(),
         )
         .await??;
-        ensure!(
-            app.status.success(),
-            "mounted package application failed; state retained"
-        );
+        if !app.status.success() {
+            let report: serde_json::Value = serde_json::from_slice(&app.stdout).unwrap_or_default();
+            let stage = match report.get("phase").and_then(serde_json::Value::as_str) {
+                Some("input") => "input",
+                Some("mount") => "mount",
+                Some("size") => "size",
+                Some("read") => "read",
+                Some("digest") => "digest",
+                _ => "unknown",
+            };
+            anyhow::bail!("mounted package application failed at {stage}; state retained");
+        }
         Ok(())
     }
     .await;
@@ -218,13 +240,27 @@ pub(super) async fn verify_mount(
         unexpected_reads: AtomicUsize::new(0),
     });
     let state = run_dir.join("mounted-state");
-    arm(account.clone(), view.clone(), &state, artifact).await?;
+    arm(
+        account.clone(),
+        view.clone(),
+        &state,
+        artifact,
+        &["Package Preview.pages".into()],
+    )
+    .await?;
     ensure!(
         view.staged.load(Ordering::SeqCst) == 1,
         "mounted package was not staged exactly once"
     );
     view.offline.store(true, Ordering::SeqCst);
-    arm(account, view.clone(), &state, artifact).await?;
+    arm(
+        account,
+        view.clone(),
+        &state,
+        artifact,
+        &["Package Preview.pages".into()],
+    )
+    .await?;
     ensure!(
         view.staged.load(Ordering::SeqCst) == 1
             && view.unexpected_reads.load(Ordering::SeqCst) == 0,
