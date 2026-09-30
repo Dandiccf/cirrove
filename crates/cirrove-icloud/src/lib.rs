@@ -38,6 +38,8 @@ mod owned_move;
 mod owned_mutation;
 #[cfg(feature = "write-probe")]
 mod owned_upload;
+mod package_download;
+pub use package_download::PackageDownload;
 mod provider;
 mod sealed_session;
 #[cfg(feature = "write-probe")]

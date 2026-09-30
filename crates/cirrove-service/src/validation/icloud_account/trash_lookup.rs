@@ -2,7 +2,7 @@ use super::*;
 
 /// Read-only diagnostic confined to the two known predecessors of a successful
 /// mounted empty/refill arm. No writer, mount or mutation adapter is constructed.
-async fn fixture(run: Uuid) -> Result<(ICloudReadSession, Vec<String>, Node)> {
+pub(super) async fn fixture(run: Uuid) -> Result<(ICloudReadSession, Vec<String>, Node)> {
     let run_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../.local-state")
         .join(format!("icloud-account-mounted-empty-replace-{run}"));

@@ -515,3 +515,6 @@ pub use trash_lookup::{
     icloud_account_metadata_shapes, icloud_account_trash_lookup,
     icloud_account_trash_lookup_control,
 };
+
+mod package_download;
+pub use package_download::icloud_account_package_download;

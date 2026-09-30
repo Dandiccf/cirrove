@@ -473,6 +473,15 @@ async fn main() -> Result<()> {
         )?)
         .await;
     }
+    if let [flag, session_run, run] = args.as_slice()
+        && flag == "--account-package-download"
+    {
+        return cirrove_service::validation::icloud_account_package_download(
+            Uuid::parse_str(session_run)?,
+            Uuid::parse_str(run)?,
+        )
+        .await;
+    }
     if let [flag, run] = args.as_slice()
         && flag == "--account-metadata-shapes"
     {

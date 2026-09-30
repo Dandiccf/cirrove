@@ -34,6 +34,13 @@ revision checks; packages are not yet separately materialized. A
 confirmed that the sampled Pages package ignores Range and returns HTTP 200,
 while Numbers and Keynote return exact 206 ranges with matching total size.
 A package artifact therefore needs its own verified cache and published size.
+A new caller-staged complete package download checks source identity/revision
+before and after streaming, enforces a caller byte budget and returns actual
+artifact length plus digest only on success. A [live disk-staging arm](benchmarks/icloud-package-artifact-2026-09-30.md)
+passed: the sampled Pages artifact was 198,458 bytes smaller than its listing
+size. An independent local reread matched the stream's digest and actual size.
+Publication through the normal mounted cache is still open; this transport
+primitive alone does not make Pages packages available in the file manager.
 Zero-byte package metadata, shared-item identity and native write semantics
 remain open; ordinary account write access is still disabled.
 
