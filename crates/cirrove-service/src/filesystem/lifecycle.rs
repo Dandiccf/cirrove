@@ -162,6 +162,14 @@ impl WriteControl {
             .await
             .map_err(|_| std::io::Error::other("could not discard the stuck changes"))
     }
+    pub async fn local_export_source(
+        &self,
+        id: uuid::Uuid,
+    ) -> std::io::Result<crate::journal::LocalExportSource> {
+        self.writer.local_export_source(id).await.map_err(|_| {
+            std::io::Error::other("the saved generation is unavailable or cannot be exported")
+        })
+    }
     pub async fn stuck_changes(&self) -> std::io::Result<u64> {
         self.writer
             .stuck_changes()

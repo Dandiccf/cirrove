@@ -58,7 +58,7 @@ mod persistence;
 #[cfg(test)]
 mod pinning;
 use crate::{accounts::Account, content::ContentCache, private_dir, refresh};
-use anyhow::Result;
+use anyhow::{Context, Result};
 pub use changes::ChangeNotifications;
 use cirrove_core::notifications::{ChangeHint, ChangeHintSender, NotificationState, WatchEnd};
 use cirrove_core::{CancellationToken, Node, ProviderError, ReadProvider, Scope};
@@ -334,6 +334,36 @@ impl Engine {
             _keeper: StdMutex::new(keeper),
             _owner: owner,
         }))
+    }
+    pub(crate) fn start_local_export(
+        &self,
+        source: crate::journal::LocalExportSource,
+        destination: PathBuf,
+        permit: tokio::sync::OwnedSemaphorePermit,
+    ) -> Result<crate::jobs::Job> {
+        let handle = self.jobs.start(
+            crate::jobs::JobKind::ExportLocal,
+            destination.to_string_lossy().into_owned(),
+            1,
+            source.size,
+            &self.cancel,
+        );
+        let initial = self
+            .jobs
+            .find(handle.id())
+            .context("export job registration failed")?;
+        self.tasks.spawn(async move {
+            let _ = tokio::task::spawn_blocking(move || {
+                let _permit = permit;
+                let result = source.copy_to(&destination, &handle.cancel, |bytes| handle.advance(0, bytes));
+                match result {
+                    Ok(receipt) => handle.exported(receipt),
+                    Err(_) if handle.stopping() => handle.failed(crate::jobs::JobState::Stopped, Some("export stopped; the saved generation is retained".into())),
+                    Err(_) => handle.failed(crate::jobs::JobState::Failed, Some("export not confirmed; inspect the destination before retrying. The saved generation is retained".into())),
+                }
+            }).await;
+        });
+        Ok(initial)
     }
     /// What is kept offline, as a number that changes when it does.
     pub fn kept_generation(&self) -> u64 {

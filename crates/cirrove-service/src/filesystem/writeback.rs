@@ -515,6 +515,13 @@ impl Writeback {
             })
             .collect())
     }
+    /// Pin an immutable source under the journal lock; copy it after releasing the lock.
+    pub async fn local_export_source(
+        &self,
+        id: uuid::Uuid,
+    ) -> Result<crate::journal::LocalExportSource> {
+        self.local(move |j| j.local_export_source(id)).await
+    }
     /// The saves that could be kept beside the remote version, with what the
     /// caller needs to name the copy. A create already knows its parent and
     /// name; a replace knows only the item it was acting on, and the caller is
@@ -574,6 +581,7 @@ impl Writeback {
                     }
                 };
                 crate::recent::LocalChange {
+                    operation: Some(record.id),
                     sequence: record.sequence,
                     name,
                     item,

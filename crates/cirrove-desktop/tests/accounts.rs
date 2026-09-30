@@ -419,3 +419,12 @@ fn uncertain_upload_activity_describes_inspection_instead_of_transfer_progress()
         assert!(!rows[0].warning);
     }
 }
+
+#[test]
+fn recovery_exports_are_not_presented_as_offline_pinning_jobs() {
+    let mut sample = cirrove_desktop::demo::snapshot().unwrap();
+    sample.status.as_mut().unwrap().accounts[0].jobs[0].kind =
+        cirrove_service::jobs::JobKind::ExportLocal;
+    let view = cirrove_desktop::model::Overview::from_snapshot(sample);
+    assert!(view.accounts[0].running.is_empty());
+}

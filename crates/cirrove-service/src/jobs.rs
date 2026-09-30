@@ -45,6 +45,8 @@ pub enum JobKind {
     /// Fetching everything a pin covers, so it is really on this computer.
     #[default]
     KeepOffline,
+    /// Export one immutable saved generation without any cloud request.
+    ExportLocal,
     #[serde(other)]
     Unknown,
 }
@@ -62,6 +64,8 @@ pub enum JobState {
     Stopped,
     /// Gave up, for the reason in `issue`.
     Failed,
+    /// A recovery export published its verified destination.
+    Succeeded,
     #[serde(other)]
     Unknown,
 }
@@ -92,6 +96,8 @@ pub struct Job {
     pub state: JobState,
     #[serde(default)]
     pub issue: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub export: Option<crate::journal::LocalExportReceipt>,
 }
 
 impl Job {
@@ -178,6 +184,7 @@ impl Jobs {
                 .unwrap_or(0),
             state: JobState::Running,
             issue: None,
+            export: None,
         };
         self.inner().running.push(Running {
             job,
@@ -283,6 +290,7 @@ impl Jobs {
                 Some(ended) => {
                     job.state = ended.state;
                     job.issue = ended.issue;
+                    job.export = ended.export;
                     if inner.ended.len() == RETAINED {
                         inner.ended.pop_front();
                     }
@@ -297,6 +305,7 @@ impl Jobs {
 struct Ended {
     state: JobState,
     issue: Option<String>,
+    export: Option<crate::journal::LocalExportReceipt>,
 }
 
 /// The running job's half: where progress is written and cancellation is read.
@@ -339,9 +348,28 @@ impl JobHandle {
     pub fn finished(self) {
         self.jobs.end(&self.id, None);
     }
+    /// Keep a verified export receipt so an asynchronous caller can confirm publication.
+    pub fn exported(self, receipt: crate::journal::LocalExportReceipt) {
+        self.advance(1, receipt.size);
+        self.jobs.end(
+            &self.id,
+            Some(Ended {
+                state: JobState::Succeeded,
+                issue: None,
+                export: Some(receipt),
+            }),
+        );
+    }
     /// It ended without finishing. The record stays a while, carrying why.
     pub fn failed(self, state: JobState, issue: Option<String>) {
-        self.jobs.end(&self.id, Some(Ended { state, issue }));
+        self.jobs.end(
+            &self.id,
+            Some(Ended {
+                state,
+                issue,
+                export: None,
+            }),
+        );
     }
 }
 
@@ -363,6 +391,32 @@ mod tests {
         Arc::new(Jobs::default())
     }
 
+    #[tokio::test]
+    async fn export_completion_retains_an_exact_receipt_until_dismissed() {
+        let jobs = register();
+        let handle = jobs.start(
+            JobKind::ExportLocal,
+            "/local/copy".into(),
+            1,
+            3,
+            &CancellationToken::new(),
+        );
+        let id = handle.id().to_owned();
+        let receipt = crate::journal::LocalExportReceipt {
+            operation: uuid::Uuid::new_v4(),
+            size: 3,
+            sha256: "a".repeat(64),
+            destination: "/local/copy".into(),
+        };
+        handle.exported(receipt.clone());
+        let job = jobs.wait(&id).await.unwrap();
+        assert_eq!(job.state, JobState::Succeeded);
+        assert_eq!(job.export, Some(receipt));
+        assert_eq!((job.files_done, job.bytes_done), (1, 3));
+        assert!(!job.running());
+        assert_eq!(jobs.stop(&id), Stopped::Dismissed);
+        assert!(jobs.find(&id).is_none());
+    }
     #[tokio::test]
     async fn a_running_job_reports_where_it_has_got_to() {
         let jobs = register();

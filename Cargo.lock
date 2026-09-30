@@ -509,6 +509,7 @@ dependencies = [
  "libc",
  "rpassword",
  "rusqlite",
+ "rustix",
  "secrecy",
  "serde",
  "serde_json",

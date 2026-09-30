@@ -6,7 +6,9 @@
 mod ancestry;
 mod barriers;
 mod directories;
+mod export;
 mod generations;
+pub use export::{LocalExportReceipt, LocalExportSource};
 mod handoff;
 mod identity_handoff;
 mod mutations;

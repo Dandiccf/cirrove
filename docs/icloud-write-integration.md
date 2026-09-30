@@ -401,7 +401,7 @@ router**, with explicit acceptance gates:
 | Rename/move and recoverable deletion | Owned adapter/router arms; mounted combined file and populated-folder relocation, including file acknowledgement-loss and both intermediate checkpoint-loss recoveries without repeating completed steps; mounted unlink recovered after confirmed Trash before journal acknowledgement | In-flight uncertainty, concurrent intermediate changes, other deletion boundaries and repeatability |
 | Interrupted replacement | Mounted process-recovery arms passed after [confirmed Trash](benchmarks/icloud-mounted-process-recovery-2026-09-30.md) and [final installation](benchmarks/icloud-mounted-final-recovery-2026-09-30.md), with both versions, journal ownership and remount verified | In-flight uncertainty, other operation boundaries and repeatability; preserve both versions |
 | Concurrent changes | Controlled mounted same-ID races passed for ordinary saves, two pending autosaves and one atomic editor replacement; separate versions, receipt-gated editor cleanup and remount verified | Chained atomic-editor conflicts, intervening namespace operations, repeated competing edits and abandoned internal staging cleanup |
-| Recovery UX | Durable retained journals/checkpoints; separate account notice and upload activity for unconfirmed outcomes, covered by synthetic journal/event/window tests | Per-operation explanation, export of pending bytes, safe resolution; installed validation and audit of earlier retained fixtures |
+| Recovery UX | Durable retained journals/checkpoints; separate account notice and upload activity for unconfirmed outcomes, covered by synthetic journal/event/window tests | Desktop recovery picker, unsealed/offline-account export, per-operation explanation and safe resolution; installed validation and audit of earlier retained fixtures |
 | Capacity and sessions | 65/66 MiB mounted arm; explicit deadlines | Quota/low-disk, slow-link, expired-session and larger-file acceptance with documented limits |
 | Native document packages | Verified read-only exports | Keep unsupported package writes refused and visible; do not advertise editable Pages/Numbers/Keynote without separate evidence |
 | Installed release | Experimental isolated mounts | Explicit opt-in, existing read-only accounts preserved, packaged installation and file-manager validation |
@@ -622,3 +622,14 @@ confirmed the pathname remained absent. No permanent deletion occurred. This clo
 only the registered post-confirmation/pre-journal-receipt boundary. In-flight
 uncertainty, other boundaries, repeated workloads and installed write acceptance
 remain open. Ordinary iCloud write access remains disabled.
+
+
+## Local recovery export
+
+A [service/CLI export](local-recovery-export.md) now copies one retained sealed
+save by operation ID without retrying or resolving it. It uses bounded streaming,
+size/digest verification, no-overwrite publication and cancellable background jobs.
+[Synthetic real-mount/socket/CLI evidence](benchmarks/local-recovery-export-2026-10-01.md)
+confirms copied bytes and unchanged conflict, with cloud mount destinations refused.
+Desktop selection, unsealed working bytes, unmounted accounts and installed
+acceptance remain open; this does not enable ordinary iCloud writes.

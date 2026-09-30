@@ -559,7 +559,15 @@ impl Overview {
                         .map(|s| s.pins.iter().map(KeptOffline::from_status).collect())
                         .unwrap_or_default(),
                     running: status
-                        .map(|s| s.jobs.iter().map(RunningJob::from_job).collect())
+                        .map(|s| {
+                            s.jobs
+                                .iter()
+                                .filter(|job| {
+                                    job.kind != cirrove_service::jobs::JobKind::ExportLocal
+                                })
+                                .map(RunningJob::from_job)
+                                .collect()
+                        })
                         .unwrap_or_default(),
                     pin_budget: status.map(|s| s.pin_budget.explain()),
                 }

@@ -221,6 +221,7 @@ pub struct Manager {
     /// had no way to reach one. Absent for a read-only mount, which is what a
     /// caller asking to clear stuck changes on one should be told.
     writers: RwLock<HashMap<String, crate::filesystem::WriteControl>>,
+    export_slots: Arc<tokio::sync::Semaphore>,
 }
 impl Default for Manager {
     fn default() -> Self {
@@ -228,6 +229,7 @@ impl Default for Manager {
             status: RwLock::default(),
             engines: RwLock::default(),
             writers: RwLock::default(),
+            export_slots: Arc::new(tokio::sync::Semaphore::new(1)),
             events: tokio::sync::broadcast::channel(crate::events::EVENT_QUEUE_DEPTH).0,
         }
     }
@@ -325,6 +327,43 @@ impl Manager {
         let _ = self.events.send(event);
     }
 
+    /// Start a bounded local recovery copy; the journal and cloud intent remain unchanged.
+    pub async fn export_save(
+        &self,
+        request: &crate::ExportSaveRequest,
+    ) -> Result<crate::jobs::Job> {
+        let permit = self
+            .export_slots
+            .clone()
+            .try_acquire_owned()
+            .context("another recovery export is running")?;
+        let destination = &request.destination;
+        if !destination.is_absolute() || destination.as_os_str().len() > 4096 {
+            bail!("choose an absolute local destination");
+        }
+        let engine = self.engine(&request.label).await?;
+        let statuses = self.status.read().await;
+        if statuses
+            .iter()
+            .any(|a| destination.starts_with(&a.mount_path))
+            || engine
+                .db
+                .parent()
+                .is_some_and(|p| destination.starts_with(p))
+        {
+            bail!("choose a destination outside Cirrove mounts and local state");
+        }
+        drop(statuses);
+        let control = self
+            .writers
+            .read()
+            .await
+            .get(&engine.account.id)
+            .cloned()
+            .context("this account has no active saved-change journal")?;
+        let source = control.local_export_source(request.operation).await?;
+        engine.start_local_export(source, destination.clone(), permit)
+    }
     /// The running engine for an account label, or for the only account when the
     /// label is empty. `Err` carries a message a user can act on.
     /// Abandon every stuck removal on one account, and say what is left.

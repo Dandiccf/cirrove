@@ -4834,3 +4834,203 @@ while True:
     application(&mount, &format!("import pathlib,sys; p=pathlib.Path(sys.argv[1]); assert (p/'document-copy.txt').read_bytes()==b'{expected}'; assert (p/'document.txt').read_bytes()==b'remote'",expected=std::str::from_utf8(expected).unwrap())).await;
     session.shutdown().await.unwrap();
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires /dev/fuse; synthetic account only"]
+async fn real_recovery_export_uses_the_service_without_replaying_a_failed_save() {
+    use cirrove_service::{
+        accounts::Settings,
+        manager::{Manager, ProviderFactory, WriteFactory},
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let mount = temp.path().join("mount");
+    std::fs::create_dir(&mount).unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let mut config = account(&mount);
+    config.enabled = true;
+    config.label = "export-fixture".into();
+    config.access = cirrove_auth::AccessMode::ReadWrite;
+    config.cache_bytes = 64 * 1024 * 1024;
+    std::fs::write(
+        state.join("accounts.json"),
+        serde_json::to_vec(&Settings {
+            version: 2,
+            accounts: vec![config],
+        })
+        .unwrap(),
+    )
+    .unwrap();
+    let cloud = Arc::new(Cloud::default());
+    let reads = cloud.clone();
+    let writes = cloud.clone();
+    let read_factory: ProviderFactory = Arc::new(move |_| Ok(reads.clone()));
+    let captured = Arc::new(Mutex::new(None));
+    let captured_by_factory = captured.clone();
+    let write_factory: WriteFactory = Arc::new(move |account, context| {
+        let journal = context.journal();
+        let mut journal = journal.lock().unwrap();
+        let row = journal.enqueue(
+            Scope {
+                account: account.id.clone(),
+                provider: "fixture".into(),
+                collection: "home".into(),
+            },
+            UploadIntent::Create {
+                parent: "root".into(),
+                name: "Saved.txt".into(),
+            },
+            b"recover my saved bytes".as_slice(),
+        )?;
+        let attempt = journal.claim_next()?.unwrap();
+        journal.stop_attempt(row.id, attempt.attempt.unwrap(), UploadState::Conflict)?;
+        *captured_by_factory.lock().unwrap() = Some((row.id, context.journal()));
+        Ok(writes.clone())
+    });
+    let cancel = CancellationToken::new();
+    let (manager, worker) = Manager::start_with_providers(
+        state.clone(),
+        cancel.clone(),
+        read_factory,
+        Some(write_factory),
+    );
+    tokio::time::timeout(Duration::from_secs(20), async {
+        loop {
+            if manager.status.read().await.iter().any(|a| a.mounted) {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let id = captured.lock().unwrap().as_ref().unwrap().0;
+    let socket = temp.path().join("runtime/control.sock");
+    let server_socket = socket.clone();
+    let server_cancel = cancel.clone();
+    let server_manager = manager.clone();
+    let db = state.join("status.sqlite");
+    let server = tokio::spawn(async move {
+        cirrove_service::serve_managed(db, server_socket, server_cancel, Some(server_manager)).await
+    });
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while !socket.exists() {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let destination = temp.path().join("Recovered.txt");
+    let reply = cirrove_service::export_save(
+        &socket,
+        &cirrove_service::ExportSaveRequest {
+            label: "export-fixture".into(),
+            operation: id,
+            destination: destination.clone(),
+        },
+    )
+    .await
+    .unwrap();
+    assert!(reply.refusal.is_none(), "{:?}", reply.refusal);
+    let job = reply.job.unwrap();
+    let complete = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let status = cirrove_service::status(&socket).await.unwrap();
+            if let Some(job) = status
+                .accounts
+                .iter()
+                .flat_map(|a| &a.jobs)
+                .find(|j| j.id == job.id && !j.running())
+            {
+                break job.clone();
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(complete.state, cirrove_service::jobs::JobState::Succeeded);
+    assert_eq!(complete.export.unwrap().operation, id);
+    assert_eq!(
+        std::fs::read(&destination).unwrap(),
+        b"recover my saved bytes"
+    );
+    let recent = cirrove_service::recent(
+        &socket,
+        &cirrove_service::RecentRequest {
+            label: "export-fixture".into(),
+            limit: 5,
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(recent.local[0].operation, Some(id));
+    assert_eq!(recent.local[0].state, "conflict");
+    let cli_target = temp.path().join("CLI copy.txt");
+    let output = tokio::time::timeout(
+        Duration::from_secs(10),
+        tokio::process::Command::new(env!("CARGO_BIN_EXE_cirrove"))
+            .arg("export-save")
+            .arg("--label")
+            .arg("export-fixture")
+            .arg("--operation")
+            .arg(id.to_string())
+            .arg("--destination")
+            .arg(&cli_target)
+            .arg("--socket")
+            .arg(&socket)
+            .kill_on_drop(true)
+            .output(),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        std::fs::read(cli_target).unwrap(),
+        b"recover my saved bytes"
+    );
+    let refused = cirrove_service::export_save(
+        &socket,
+        &cirrove_service::ExportSaveRequest {
+            label: "export-fixture".into(),
+            operation: id,
+            destination: mount.join("not-an-export"),
+        },
+    )
+    .await
+    .unwrap();
+    assert!(refused.refusal.is_some());
+    assert!(!mount.join("not-an-export").exists());
+    let source = captured
+        .lock()
+        .unwrap()
+        .as_ref()
+        .unwrap()
+        .1
+        .lock()
+        .unwrap()
+        .local_export_source(id)
+        .unwrap();
+    assert!(
+        source
+            .copy_to(
+                &mount.join("direct-export"),
+                &CancellationToken::new(),
+                |_| {}
+            )
+            .is_err()
+    );
+    assert!(!mount.join("direct-export").exists());
+    assert!(
+        cloud.remote.lock().unwrap().files.is_empty(),
+        "export must never publish cloud content"
+    );
+    cancel.cancel();
+    worker.await.unwrap();
+    server.await.unwrap().unwrap();
+}

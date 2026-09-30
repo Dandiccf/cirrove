@@ -587,6 +587,32 @@ pub struct KeepBothReply {
     pub refusal: Option<String>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ExportSaveRequest {
+    pub label: String,
+    pub operation: uuid::Uuid,
+    pub destination: PathBuf,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct ExportSaveReply {
+    #[serde(default)]
+    pub job: Option<jobs::Job>,
+    #[serde(default)]
+    pub refusal: Option<String>,
+}
+pub async fn export_save(
+    socket: &Path,
+    request_body: &ExportSaveRequest,
+) -> Result<ExportSaveReply> {
+    request(
+        socket,
+        "export-save",
+        Some(request_body),
+        "Cirrove local export",
+    )
+    .await
+}
+
 /// Put the person's version of every refused save beside the cloud's, under a
 /// new name, instead of making them choose which one to lose.
 pub async fn keep_both(socket: &Path, label: &str) -> Result<KeepBothReply> {
@@ -867,6 +893,7 @@ impl Capabilities {
                 ("recent".to_string(), 1),
                 ("retry-stuck".to_string(), 1),
                 ("keep-both".to_string(), 1),
+                ("export-save".to_string(), 1),
                 ("delete-permanently".to_string(), 1),
                 ("stop-job".to_string(), 1),
             ]
@@ -1068,6 +1095,16 @@ pub async fn serve_managed(
                                 },
                                 (Ok(_),None)=>PermanentDeleteReply{refusal:Some("this service manages no accounts".into()),..Default::default()},
                                 (Err(_),_)=>PermanentDeleteReply{refusal:Some("malformed request body".into()),..Default::default()},
+                            };
+                            return write_reply(&mut stream,&reply).await;
+                        }
+                        if verb=="export-save" {
+                            let reply=match (serde_json::from_str::<ExportSaveRequest>(body),&manager) {
+                                (Ok(r),Some(m))=>match m.export_save(&r).await {
+                                    Ok(job)=>ExportSaveReply{job:Some(job),refusal:None},
+                                    Err(error)=>ExportSaveReply{refusal:Some(error.to_string()),..Default::default()},
+                                },
+                                _=>ExportSaveReply{refusal:Some("export request or account service is unavailable".into()),..Default::default()},
                             };
                             return write_reply(&mut stream,&reply).await;
                         }

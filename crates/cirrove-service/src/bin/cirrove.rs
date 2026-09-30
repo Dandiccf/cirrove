@@ -555,6 +555,17 @@ enum Command {
         #[arg(long)]
         socket: Option<PathBuf>,
     },
+    /// Export an immutable local save without changing its cloud operation.
+    ExportSave {
+        #[arg(long, default_value = "")]
+        label: String,
+        #[arg(long)]
+        operation: uuid::Uuid,
+        #[arg(long)]
+        destination: PathBuf,
+        #[arg(long)]
+        socket: Option<PathBuf>,
+    },
     /// Keep both copies of every save the cloud refused.
     ///
     /// A conflict means the cloud decided about the file while the person was
@@ -1029,7 +1040,15 @@ async fn main() -> Result<()> {
                 }
                 for job in &account.jobs {
                     let state = match job.state {
-                        cirrove_service::jobs::JobState::Running => "keeping offline".to_owned(),
+                        cirrove_service::jobs::JobState::Running => {
+                            if job.kind == cirrove_service::jobs::JobKind::ExportLocal {
+                                "exporting local save"
+                            } else {
+                                "keeping offline"
+                            }
+                            .to_owned()
+                        }
+                        cirrove_service::jobs::JobState::Succeeded => "completed".to_owned(),
                         cirrove_service::jobs::JobState::Stopping => "stopping".to_owned(),
                         cirrove_service::jobs::JobState::Stopped => "stopped".to_owned(),
                         cirrove_service::jobs::JobState::Failed => {
@@ -1316,7 +1335,16 @@ async fn main() -> Result<()> {
                 println!("  nothing in the journal");
             }
             for change in reply.local {
-                println!("  {}  {}  {} bytes", change.state, change.name, change.size);
+                println!(
+                    "  {}  {}  {} bytes{}",
+                    change.state,
+                    change.name,
+                    change.size,
+                    change
+                        .operation
+                        .map(|id| format!("  [save {id}]"))
+                        .unwrap_or_default()
+                );
             }
             // The count in `status` says how many were refused; this says
             // which, which is the difference between knowing and being able to
@@ -1457,6 +1485,73 @@ async fn main() -> Result<()> {
             }
             if refused > 0 {
                 bail!("{refused} of {} were not removed", reply.deletions.len());
+            }
+        }
+        Command::ExportSave {
+            label,
+            operation,
+            destination,
+            socket,
+        } => {
+            let socket = match socket {
+                Some(p) => p,
+                None => socket_path()?,
+            };
+            let destination = if destination.is_absolute() {
+                destination
+            } else {
+                std::env::current_dir()?.join(destination)
+            };
+            let reply = cirrove_service::export_save(
+                &socket,
+                &cirrove_service::ExportSaveRequest {
+                    label: label.clone(),
+                    operation,
+                    destination,
+                },
+            )
+            .await?;
+            if let Some(refusal) = reply.refusal {
+                bail!("{refusal}");
+            }
+            let job = reply.job.context("export was not accepted")?;
+            println!(
+                "Export started [{}]; use cirrove stop with this job ID to cancel",
+                job.id
+            );
+            loop {
+                let status = cirrove_service::status(&socket).await?;
+                let current = status
+                    .accounts
+                    .iter()
+                    .flat_map(|a| &a.jobs)
+                    .find(|j| j.id == job.id)
+                    .context(
+                        "export result is unavailable; inspect the destination before trying again",
+                    )?;
+                if current.state == cirrove_service::jobs::JobState::Succeeded {
+                    let receipt = current.export.as_ref().context("export receipt missing")?;
+                    if receipt.operation != operation {
+                        bail!("unexpected export receipt");
+                    }
+                    println!(
+                        "Saved {} verified bytes to {} (SHA-256 {}). The cloud operation is unchanged.",
+                        receipt.size,
+                        receipt.destination.display(),
+                        receipt.sha256
+                    );
+                    break;
+                }
+                if !current.running() {
+                    bail!(
+                        "{}",
+                        current
+                            .issue
+                            .as_deref()
+                            .unwrap_or("export did not complete")
+                    );
+                }
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
             }
         }
         Command::KeepBoth { label, socket } => {

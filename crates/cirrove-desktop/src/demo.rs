@@ -63,6 +63,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
                     started_at: 0,
                     state: cirrove_service::jobs::JobState::Running,
                     issue: None,
+                    export: None,
                 }]
             } else {
                 Vec::new()
@@ -99,6 +100,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
                         // arrived: the state word alone cannot tell a transfer
                         // that is moving from one that is stuck.
                         cirrove_service::recent::LocalChange {
+                            operation: None,
                             sequence: 4,
                             name: "Presentation.key".into(),
                             item: None,
@@ -108,6 +110,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
                             transferred: 61_000_000,
                         },
                         cirrove_service::recent::LocalChange {
+                            operation: None,
                             sequence: 3,
                             name: "Notes.txt".into(),
                             item: None,
@@ -117,6 +120,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
                             transferred: 0,
                         },
                         cirrove_service::recent::LocalChange {
+                            operation: None,
                             sequence: 2,
                             name: "Budget.xlsx".into(),
                             item: None,
@@ -126,6 +130,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
                             transferred: 0,
                         },
                         cirrove_service::recent::LocalChange {
+                            operation: None,
                             sequence: 1,
                             name: "Old draft.md".into(),
                             item: None,
