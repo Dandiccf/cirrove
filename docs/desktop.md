@@ -471,3 +471,10 @@ The [desktop milestone](product-milestones.md#5-polished-desktop-experience) rem
 
 The desktop entry at `packaging/desktop/io.github.Dandiccf.Cirrove.desktop` is a
 packaging source. A build does not install it or register file-type associations.
+
+## Strata preview
+
+An opt-in [Strata integration](strata.md) adds asynchronous conditional pin menus,
+availability details and Cirrove's branded badges through a companion generic
+file-provider API. Stock Strata 0.20.1 does not yet expose that API. The isolated
+preview does not replace a working file manager or install global custom actions.

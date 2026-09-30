@@ -1,5 +1,6 @@
 //! Per-account metadata service. Change feeds and foreground directory requests
 //! share a provider client but never hold SQLite locks across network awaits.
+mod cached_status;
 mod changes;
 
 /// An item's mount-relative path, by walking parents up to the drive root.
@@ -880,6 +881,14 @@ impl Engine {
         self: &Arc<Self>,
         resolved: Vec<PathResolution>,
     ) -> Result<Vec<crate::PathState>> {
+        self.path_states_resolved_mode(resolved, false).await
+    }
+
+    pub(crate) async fn path_states_resolved_mode(
+        self: &Arc<Self>,
+        resolved: Vec<PathResolution>,
+        cached: bool,
+    ) -> Result<Vec<crate::PathState>> {
         let db = self.db.clone();
         let pins = tokio::task::spawn_blocking(move || Store::open(db)?.pins()).await??;
         let cache = self.cache_path();
@@ -897,7 +906,7 @@ impl Engine {
                 }
             };
             let folder = node.kind == cirrove_core::NodeKind::Folder;
-            let pinned = self.pin_covering(&scope, &node, &pins).await;
+            let pinned = self.pin_covering(&scope, &node, &pins, cached).await;
             let resident = if folder {
                 0
             } else {
@@ -908,6 +917,9 @@ impl Engine {
                 item: node.id.clone(),
                 kind: if folder { "folder" } else { "file" }.into(),
                 pinned,
+                can_pin: !node.package
+                    && node.target.is_none()
+                    && (folder || node.content_revision().is_some()),
                 size: node.size,
                 resident,
                 refusal: None,
@@ -919,10 +931,11 @@ impl Engine {
     /// folder above it, nothing otherwise. Walks up through the index only when
     /// a recursive pin exists to be found.
     async fn pin_covering(
-        &self,
+        self: &Arc<Self>,
         scope: &Scope,
         node: &Node,
         pins: &[cirrove_store::pins::Pin],
+        cached: bool,
     ) -> Option<String> {
         let key = serde_json::to_string(scope).unwrap_or_default();
         if pins.iter().any(|p| p.scope == key && p.item == node.id) {
@@ -943,7 +956,7 @@ impl Engine {
             if recursive.contains(&id.as_str()) {
                 return Some("inherited".into());
             }
-            parent = self.node(scope, &id).await.ok()?.parent_id;
+            parent = self.status_node(scope, &id, cached).await.ok()?.parent_id;
         }
         None
     }

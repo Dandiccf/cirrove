@@ -432,6 +432,9 @@ pub const PATHS_PER_REQUEST: usize = 200;
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PathState {
     pub path: String,
+    /// Whether indexed metadata supports a pin; false when unknown.
+    #[serde(default)]
+    pub can_pin: bool,
     #[serde(default)]
     pub item: String,
     /// "file" or "folder".
@@ -853,6 +856,7 @@ impl Capabilities {
                 // the key and its refusal of the verb is the same answer.
                 ("discard-stuck".to_string(), 1),
                 ("paths".to_string(), 1),
+                ("paths-cached".to_string(), 1),
                 ("recent".to_string(), 1),
                 ("retry-stuck".to_string(), 1),
                 ("keep-both".to_string(), 1),
@@ -1082,10 +1086,10 @@ pub async fn serve_managed(
                             };
                             return write_reply(&mut stream,&reply).await;
                         }
-                        if verb=="paths" {
+                        if verb=="paths" || verb=="paths-cached" {
                             let reply=match (serde_json::from_str::<PathsRequest>(body),&manager) {
                                 (Ok(r),_) if r.paths.len()>PATHS_PER_REQUEST=>PathsReply{refusal:Some(format!("at most {PATHS_PER_REQUEST} paths per request")),..Default::default()},
-                                (Ok(r),Some(m))=>match m.path_states(&r.label,&r.paths).await {
+                                (Ok(r),Some(m))=>match m.path_states_mode(&r.label,&r.paths,verb=="paths-cached").await {
                                     Ok(states)=>PathsReply{states,refusal:None},
                                     Err(error)=>PathsReply{refusal:Some(error.to_string()),..Default::default()},
                                 },

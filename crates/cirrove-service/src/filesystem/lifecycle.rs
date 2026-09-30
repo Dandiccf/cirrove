@@ -63,20 +63,37 @@ impl WriteControl {
         engine: &Arc<Engine>,
         path: &str,
     ) -> std::io::Result<(Scope, Node)> {
+        self.resolve_visible_path_mode(engine, path, false).await
+    }
+
+    pub(crate) async fn resolve_visible_path_mode(
+        &self,
+        engine: &Arc<Engine>,
+        path: &str,
+        cached: bool,
+    ) -> std::io::Result<(Scope, Node)> {
+        if cached
+            && (path.len() > 16384
+                || path.starts_with('/')
+                || path.split('/').count() > 128
+                || path.split('/').any(|p| matches!(p, "." | "..")))
+        {
+            return Err(std::io::Error::other("invalid status path"));
+        }
         fn unavailable(error: impl std::fmt::Display) -> std::io::Error {
             std::io::Error::other(error.to_string())
         }
 
         let mut scope = engine.scope(&engine.account.drive.id);
         let mut node = engine
-            .node(&scope, &engine.account.root_id)
+            .status_node(&scope, &engine.account.root_id, cached)
             .await
             .map_err(unavailable)?;
         for name in path.split('/').filter(|part| !part.is_empty()) {
             if let Some(target) = node.target.clone() {
                 scope = engine.scope(&target.collection);
                 node = engine
-                    .node(&scope, &target.item)
+                    .status_node(&scope, &target.item, cached)
                     .await
                     .map_err(unavailable)?;
             }
@@ -87,7 +104,7 @@ impl WriteControl {
                 .map_err(|error| std::io::Error::from_raw_os_error(error.code()))?;
             let children = match provider_parent {
                 Some(provider_parent) => engine
-                    .children(&scope, &provider_parent)
+                    .status_children(&scope, &provider_parent, cached)
                     .await
                     .map_err(unavailable)?,
                 None => Vec::new(),
@@ -105,7 +122,7 @@ impl WriteControl {
         if let Some(target) = node.target.clone() {
             scope = engine.scope(&target.collection);
             node = engine
-                .node(&scope, &target.item)
+                .status_node(&scope, &target.item, cached)
                 .await
                 .map_err(unavailable)?;
         }
@@ -114,7 +131,10 @@ impl WriteControl {
             .remote_identity(&scope, &node.id)
             .map_err(|error| std::io::Error::from_raw_os_error(error.code()))?
         {
-            node = engine.node(&scope, &item).await.map_err(unavailable)?;
+            node = engine
+                .status_node(&scope, &item, cached)
+                .await
+                .map_err(unavailable)?;
         }
         Ok((scope, node))
     }
