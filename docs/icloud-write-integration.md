@@ -397,7 +397,7 @@ router**, with explicit acceptance gates:
 | --- | --- | --- |
 | Create/edit/replace and editor saves | Owned live arms, including consecutive atomic saves | Repeat representative application workflows; preserve all failures |
 | Rename/move and recoverable deletion | Owned file/folder adapter and router arms | Complete mounted combined-operation and interruption coverage |
-| Interrupted replacement | Phase-specific adapter evidence and journal restart tests | Account-router process interruption at each destructive/publication boundary; verify exact IDs and both byte versions without blind replay |
+| Interrupted replacement | [Mounted process-recovery arm](benchmarks/icloud-mounted-process-recovery-2026-09-30.md) passed after confirmed Trash, with retained bytes, no Trash replay and remount | Remaining account-router interruption boundaries, in-flight uncertainty and repeatability; preserve both versions |
 | Concurrent changes | Conditional checks and synthetic races | Controlled competing edits on owned fixtures, explicit conflict outcome and accessible local bytes |
 | Recovery UX | Durable retained journals/checkpoints | User-visible uncertain/conflict state, export of pending bytes, safe resolution; audit earlier retained fixtures |
 | Capacity and sessions | 65/66 MiB mounted arm; explicit deadlines | Quota/low-disk, slow-link, expired-session and larger-file acceptance with documented limits |
@@ -409,3 +409,11 @@ interruption point and predicted endpoint before running, record its binary and
 process IDs, and retain all partial state. Previously failed fixtures are evidence,
 not retry targets for turning a failed arm green. The normal installed daemon and
 its access mode are unchanged while these gates are open.
+
+The first mounted process-recovery gate is now closed for the registered
+post-Trash/pre-acknowledgement boundary. A fresh process recovered the same save,
+verified both full byte versions and retained separate current/recovery journal
+owners. This was an intentional process exit, not an orderly shutdown, but it
+occurred after the provider response and postflight were known. The next acceptance
+work is final-installation acknowledgement loss and controlled concurrent edits;
+ordinary write access stays disabled.

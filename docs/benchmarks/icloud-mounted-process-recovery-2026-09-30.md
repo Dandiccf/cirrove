@@ -67,4 +67,43 @@ spawned exit-86 child); the child-only test remains ignored in ordinary test
 selection. Full `scripts/check.sh` passed at 17:45:24 UTC on 2026-09-30, including
 kernel mounts and the feature-gated iCloud tests. Private check manifest/log:
 `.local-state/icloud-process-recovery-check-2026-09-30/`. The subsequent feature-gated
-probe build passed. No installed daemon was changed. Live results remain pending.
+probe build passed. No installed daemon was changed. Live results were pending at this checkpoint.
+
+## Observed: controlled recovery passed
+
+Run `31c96dbf-c74f-4e5b-80e8-64f01cf55109` used the same binary for both arms:
+SHA-256 `c260a8f58818fbd32805b53e1bf890b05444c3ea71cbf0471f8838e143fad239`,
+from commit `8e11501`. No compilation overlapped either arm.
+
+Arm A created and independently verified the original through the mount. It
+replaced that file, received acceptance of conditional Trash, verified that
+remote transition and exited at the registered boundary with code 86 after
+191.517 seconds. The marker was present, and the isolated FUSE mount was detached.
+[Interruption result](icloud-mounted-process-recovery-interrupt-live-2026-09-30.json).
+
+Arm B verified retained local bytes and the original `move_old` checkpoint before
+starting the mount. Independent preflight found the old exact ID recoverable in
+Trash and the new exact ID at staging, with both full digests matching. The normal
+router inspected that state, advanced to installation, and completed the same
+replacement operation. No Trash/staging commit was attempted. Both byte versions,
+the final mounted read and a second read after unmount/reopen passed. Arm B exited
+0 after 65.418 seconds, and its isolated mount was detached.
+[Recovery result](icloud-mounted-process-recovery-recover-live-2026-09-30.json).
+
+A separate read-only SQLite audit then passed integrity checking and found exactly
+two confirmed uploads, the original replacement operation identity, one current
+remote owner and one distinct hidden remote owner for the old ID in Trash. Both
+belonged to the isolated account/provider/collection.
+[Journal audit](icloud-mounted-process-recovery-journal-live-2026-09-30.json).
+
+Private logs/manifests are under `.local-state/icloud-process-recovery-<run>-interrupt/`
+and `-recover/`; the preserved fixture is `.local-state/icloud-account-mounted-recovery-<run>/`.
+The old version remains recoverable and all local evidence is retained. No existing
+fixture or installed service was changed. These durations describe one functional
+sequence, not throughput, latency spread or repeated reliability.
+
+This closes the registered **mounted account-router recovery after confirmed
+Trash but before acknowledgement persistence** gate. It does not close interruption
+while a request is still in flight, loss of the final installation acknowledgement,
+concurrent edits, power-loss durability, quota/session failures or recovery UX.
+Normal iCloud write access remains disabled pending those release gates.
