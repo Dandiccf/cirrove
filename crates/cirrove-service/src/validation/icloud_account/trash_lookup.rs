@@ -88,3 +88,38 @@ pub async fn icloud_account_metadata_shapes(run: Uuid) -> Result<()> {
     println!("{}", session.document_metadata_shapes().await?);
     Ok(())
 }
+
+/// Fresh-provider lookup: no index, writer, mount, or mutation request.
+pub async fn icloud_account_cold_node(run: Uuid) -> Result<()> {
+    use cirrove_core::{ProviderError, ReadProvider};
+    let (session, predecessors, active) = fixture(run).await?;
+    let scope = Scope {
+        account: run.to_string(),
+        provider: "icloud".into(),
+        collection: "drive".into(),
+    };
+    let provider = ICloudDrive::on_demand_from_live_session(scope.clone(), session)?;
+    let cancel = CancellationToken::new();
+    let node = provider.node(&scope, &active.id, &cancel).await?;
+    ensure!(
+        node.id == active.id
+            && node.parent_id == active.parent_id
+            && node.name == active.name
+            && node.size == active.size
+            && node.etag == active.etag
+            && node.kind == NodeKind::File
+            && !node.package,
+        "cold lookup disagrees with owned receipt"
+    );
+    for id in predecessors {
+        ensure!(
+            matches!(
+                provider.node(&scope, &id, &cancel).await,
+                Err(ProviderError::NotFound)
+            ),
+            "cold lookup did not exclude owned Trash predecessor"
+        );
+    }
+    println!("cold_active_receipt_match=true cold_trash_predecessors_excluded=2");
+    Ok(())
+}

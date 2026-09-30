@@ -1,0 +1,10 @@
+{
+  "binary_sha256": "3ee328c87ce7e0a97b52cdba15e389f69868f93490c282cb6c19a1b544f3ca7c",
+  "filesystem": "btrfs",
+  "exit_code": 0,
+  "elapsed_seconds": 3.662,
+  "active_receipt_match": true,
+  "trash_predecessors_excluded": 2,
+  "remote_mutations": false,
+  "fixture": "21d05f56-70c4-47a8-a5e3-577ab68994ac"
+}

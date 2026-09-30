@@ -512,7 +512,7 @@ mod tests {
 
 mod trash_lookup;
 pub use trash_lookup::{
-    icloud_account_metadata_shapes, icloud_account_trash_lookup,
+    icloud_account_cold_node, icloud_account_metadata_shapes, icloud_account_trash_lookup,
     icloud_account_trash_lookup_control,
 };
 

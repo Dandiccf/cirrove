@@ -20,6 +20,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{Mutex, OnceCell, Semaphore};
 
+#[cfg(test)]
+mod cold_tests;
 mod packages;
 
 const PROVIDER_ID: &str = "icloud";
@@ -514,17 +516,83 @@ impl ReadProvider for ICloudDrive {
         &self,
         scope: &Scope,
         id: &str,
-        _cancel: &CancellationToken,
+        cancel: &CancellationToken,
     ) -> Result<Node, ProviderError> {
         self.check_scope(scope)?;
-        // Apple rejected the individual-item endpoint in the live probe. The
-        // service already owns nodes it learned from a completed folder page;
-        // a cold unknown ID must not be guessed from a path.
-        if id == ROOT_ID {
-            Ok(root_node())
-        } else {
-            Err(ProviderError::Unavailable)
+        if cancel.is_cancelled() {
+            return Err(ProviderError::Cancelled);
         }
+        if id == ROOT_ID {
+            return Ok(root_node());
+        }
+        // Generated representations and folder IDs need their own projection
+        // context. Never send them through the ordinary FILE lookup.
+        if crate::split_file_id(id).is_err() {
+            return Err(ProviderError::Unavailable);
+        }
+        let direct = tokio::select! { biased;
+            _ = cancel.cancelled() => return Err(ProviderError::Cancelled),
+            result = async {
+                let _permit = self.reads.acquire().await.map_err(|_| ProviderError::Unavailable)?;
+                let mut session = {
+                    let mut state = self.session.lock().await;
+                    Self::active_session(&mut state).await?.read_only_fork()
+                };
+                session.item_details(id).await.map_err(|e| map_read_error(&e))
+            } => result?,
+        };
+        // A direct lookup can return recoverable Trash entries. They must not
+        // reappear in the active namespace through a cold metadata observation.
+        if direct
+            .get("restorePath")
+            .is_some_and(|value| !value.is_null())
+        {
+            return Err(ProviderError::NotFound);
+        }
+        if direct
+            .get("size")
+            .and_then(serde_json::Value::as_u64)
+            .is_none()
+        {
+            return Err(ProviderError::Protocol("iCloud file has no explicit size"));
+        }
+        let item: DriveEntry = serde_json::from_value(direct)
+            .map_err(|_| ProviderError::Protocol("invalid iCloud file metadata"))?;
+        let parent = &item.parent_id;
+        if item.kind != "FILE" || item.etag.is_empty() {
+            return Err(ProviderError::Protocol("invalid iCloud file revision"));
+        }
+        if parent == crate::write_transport::TRASH_ROOT || parent == "TRASH_ROOT" {
+            return Err(ProviderError::NotFound);
+        }
+        // Require an actual provider folder identity, not a path or a guessed
+        // namespace for an unqualified parent ID.
+        let parts: Vec<_> = parent.split("::").collect();
+        if !matches!(parts.as_slice(), ["FOLDER", zone, key] if !zone.is_empty() && !key.is_empty())
+        {
+            return Err(ProviderError::Unavailable);
+        }
+        let entries = self.list_folder(parent, cancel).await?;
+        let matches: Vec<_> = entries
+            .iter()
+            .filter(|entry| entry.drivewsid == id)
+            .collect();
+        let [listed] = matches.as_slice() else {
+            return Err(ProviderError::VersionChanged);
+        };
+        if listed.kind != item.kind
+            || listed.etag != item.etag
+            || listed.size != item.size
+            || listed.display_name() != item.display_name()
+            || (!listed.parent_id.is_empty() && listed.parent_id != *parent)
+        {
+            return Err(ProviderError::VersionChanged);
+        }
+        self.document_nodes(parent, entries, cancel)
+            .await?
+            .into_iter()
+            .find(|node| node.id == id)
+            .ok_or(ProviderError::VersionChanged)
     }
 
     async fn children(

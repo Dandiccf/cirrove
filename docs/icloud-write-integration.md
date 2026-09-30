@@ -80,12 +80,13 @@ remain open; ordinary account write access is still disabled.
   controls are released before rebuilding the journal and replaced after
   a successful remount.
 - Normal `ICloudDrive` resolves a cold directory by listing its parent. Its
-  single-item `ReadProvider::node` still refuses a cold non-root ID. A later
-  [exact-item investigation](benchmarks/icloud-trash-exact-lookup-2026-09-30.md)
-  identified the earlier endpoint failures as a request/response envelope bug.
-  The corrected direct transport matches active and recoverable Trash metadata;
-  enabling cold-node discovery through that transport needs its own scope and
-  projection validation. A path string cannot supply the missing identity.
+  single-item `ReadProvider::node` now resolves ordinary FILE IDs through exact
+  metadata and a complete, matching parent listing, using the normal package
+  projection. Recoverable Trash entries are excluded. The
+  [cold-file live arm](benchmarks/icloud-cold-node-2026-09-30.md) passed for one
+  active owned receipt and two Trash predecessors with a fresh provider. Folder
+  IDs and generated artifacts still require their parent/projection context;
+  missing or unqualified parent identity is refused, not inferred from a path.
 - The normal-build iCloud Create, folder and file mutation adapters accept
   exact `Node` inputs and sealed account sessions. The account-wide router now
   selects file creation using the durable journal operation ID and verifies its
