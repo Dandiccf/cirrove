@@ -431,6 +431,9 @@ impl Writeback {
     }
     /// Saves that did not reach the cloud, from the upload journal. See
     /// `UploadJournal::failed_uploads`.
+    pub async fn unconfirmed_changes(&self) -> Result<u64> {
+        self.local(|j| j.unconfirmed_changes()).await
+    }
     pub async fn failed_uploads(&self) -> Result<u64> {
         self.local(|j| j.failed_uploads()).await
     }

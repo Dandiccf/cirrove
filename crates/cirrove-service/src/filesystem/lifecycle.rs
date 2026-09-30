@@ -168,6 +168,12 @@ impl WriteControl {
             .await
             .map_err(|_| std::io::Error::other("local namespace is unavailable"))
     }
+    pub async fn unconfirmed_changes(&self) -> std::io::Result<u64> {
+        self.writer
+            .unconfirmed_changes()
+            .await
+            .map_err(|_| std::io::Error::other("local namespace is unavailable"))
+    }
     pub async fn failed_uploads(&self) -> std::io::Result<u64> {
         self.writer
             .failed_uploads()

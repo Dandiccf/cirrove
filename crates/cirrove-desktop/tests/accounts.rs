@@ -405,3 +405,17 @@ fn google_accounts_have_their_own_identity_and_offer_write_consent() {
         );
     }
 }
+
+#[test]
+fn uncertain_upload_activity_describes_inspection_instead_of_transfer_progress() {
+    for state in ["verifyrequired", "verify_required", "verifying"] {
+        let reply: cirrove_service::RecentReply = serde_json::from_value(serde_json::json!({
+            "local":[{"sequence":1,"name":"Owned.txt","state":state,"size":100,"transferred":100}]
+        }))
+        .unwrap();
+        let rows = cirrove_desktop::model::ActivityEntry::from_reply("Fixture", &reply);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].what, "saved here · checking cloud confirmation");
+        assert!(!rows[0].warning);
+    }
+}

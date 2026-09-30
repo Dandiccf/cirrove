@@ -1284,6 +1284,54 @@ fn icloud_connect_shows_local_sign_in_and_never_offers_writes() {
     runtime.shutdown_timeout(Duration::from_secs(1));
 }
 
+fn uncertain_writes_have_a_separate_non_destructive_status() {
+    let app = application("UnconfirmedWrites");
+    let ui = Window::new(&app, Backend::Demo);
+    let mut snapshot = demo::snapshot().unwrap();
+    let account = &mut snapshot.settings.as_mut().unwrap().accounts[0];
+    account.registration = cirrove_auth::AppRegistration::ICloud;
+    account.drive.name = "iCloud Drive".into();
+    let mut status = serde_json::to_value(snapshot.status.as_ref().unwrap()).unwrap();
+    status["accounts"][0]["unconfirmed_changes"] = 2.into();
+    status["accounts"][0]["provider"] = "icloud".into();
+    snapshot.status = Ok(serde_json::from_value(status).unwrap());
+    ui.render(cirrove_desktop::model::Overview::from_snapshot(snapshot));
+    let window = ui.window.upgrade().unwrap();
+    window.present();
+    expand_all(window.upcast_ref());
+    pump_until("confirmation notice visible", || {
+        displays_text(window.upcast_ref(), "Checking cloud confirmation")
+    });
+    let row = action_row(window.upcast_ref(), "Checking cloud confirmation").unwrap();
+    assert!(row.is_visible());
+    assert!(row.subtitle().unwrap().contains("2"));
+    assert!(buttons(row.upcast_ref(), "Try again").is_empty());
+    assert!(buttons(row.upcast_ref(), "Discard").is_empty());
+    if let Some(path) = std::env::var_os("CIRROVE_CONFIRMATION_SNAPSHOT") {
+        let until = Instant::now() + Duration::from_millis(500);
+        while Instant::now() < until {
+            while glib::MainContext::default().pending() {
+                glib::MainContext::default().iteration(false);
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let paintable = gtk::WidgetPaintable::new(Some(&window));
+        let snapshot = gtk::Snapshot::new();
+        paintable.snapshot(&snapshot, window.width() as f64, window.height() as f64);
+        let node = snapshot.to_node().unwrap();
+        window
+            .renderer()
+            .unwrap()
+            .render_texture(&node, None)
+            .save_to_png(Path::new(&path))
+            .unwrap();
+    }
+    let clean = demo::snapshot().unwrap();
+    ui.render(cirrove_desktop::model::Overview::from_snapshot(clean));
+    assert!(!row.is_visible(), "completed checks must clear the notice");
+    window.close();
+}
+
 fn connected_icloud_account_can_sign_in_again_before_expiry() {
     let app = application("ICloudReauthReady");
     let ui = Window::new(&app, Backend::Demo);
@@ -1588,6 +1636,10 @@ fn a_fetch_in_flight_shows_its_progress_and_can_be_stopped() {
 }
 
 const SCENARIOS: &[(&str, fn())] = &[
+    (
+        "uncertain_writes_have_a_separate_non_destructive_status",
+        uncertain_writes_have_a_separate_non_destructive_status,
+    ),
     (
         "the_x11_window_class_is_the_application_id_a_shell_looks_for",
         the_x11_window_class_is_the_application_id_a_shell_looks_for,

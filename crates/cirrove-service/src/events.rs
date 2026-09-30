@@ -66,6 +66,8 @@ pub enum Event {
         /// same forward-compatibility reason.
         #[serde(default)]
         failed_uploads: u64,
+        #[serde(default)]
+        unconfirmed_changes: u64,
         /// Changes when what the account keeps offline changes -- a pin made or
         /// released, or one of its files arriving.
         ///
@@ -184,6 +186,7 @@ pub fn diff(previous: &[AccountStatus], current: &[AccountStatus]) -> Vec<Event>
                     || before.mounted != status.mounted
                     || before.stuck_changes != status.stuck_changes
                     || before.failed_uploads != status.failed_uploads
+                    || before.unconfirmed_changes != status.unconfirmed_changes
                     || before.kept_generation != status.kept_generation
                 {
                     events.push(account_event(status));
@@ -214,6 +217,7 @@ fn account_event(status: &AccountStatus) -> Event {
         mounted: status.mounted,
         stuck_changes: status.stuck_changes,
         failed_uploads: status.failed_uploads,
+        unconfirmed_changes: status.unconfirmed_changes,
         kept_generation: status.kept_generation,
     }
 }
@@ -245,6 +249,34 @@ mod tests {
     }
 
     #[test]
+    fn uncertainty_changes_emit_an_account_event_without_claiming_failure() {
+        let before = AccountStatus {
+            account_id: "fixture".into(),
+            ..Default::default()
+        };
+        let mut after = before.clone();
+        after.unconfirmed_changes = 2;
+        let events = diff(&[before], &[after.clone()]);
+        assert!(matches!(
+            events.as_slice(),
+            [Event::Account {
+                unconfirmed_changes: 2,
+                failed_uploads: 0,
+                stuck_changes: 0,
+                ..
+            }]
+        ));
+        let mut resolved = after.clone();
+        resolved.unconfirmed_changes = 0;
+        assert!(matches!(
+            diff(&[after], &[resolved]).as_slice(),
+            [Event::Account {
+                unconfirmed_changes: 0,
+                ..
+            }]
+        ));
+    }
+    #[test]
     fn an_unchanged_status_produces_no_events() {
         let before = vec![status("work", "ready", true)];
         let after = before.clone();
@@ -266,6 +298,7 @@ mod tests {
                 mounted: true,
                 stuck_changes: 0,
                 failed_uploads: 0,
+                unconfirmed_changes: 0,
                 kept_generation: 0,
             }]
         );
@@ -291,6 +324,7 @@ mod tests {
                 mounted: true,
                 stuck_changes: 0,
                 failed_uploads: 0,
+                unconfirmed_changes: 0,
                 kept_generation: 1,
             }]
         );
@@ -319,6 +353,7 @@ mod tests {
                 mounted: true,
                 stuck_changes: 3,
                 failed_uploads: 0,
+                unconfirmed_changes: 0,
                 kept_generation: 0,
             }],
             "the account is unchanged in every other field and this still has to be news"
@@ -344,6 +379,7 @@ mod tests {
                 &events[0],
                 Event::Account {
                     failed_uploads: 2,
+                    unconfirmed_changes: 0,
                     kept_generation: 0,
                     stuck_changes: 0,
                     ..

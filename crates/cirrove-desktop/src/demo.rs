@@ -44,6 +44,7 @@ pub fn snapshot() -> anyhow::Result<Snapshot> {
             // not exist.
             stuck_changes: if a.enabled { 2 } else { 0 },
             failed_uploads: 0,
+            unconfirmed_changes: 0,
             pin_budget: Default::default(),
             pins: Vec::new(),
             kept_generation: 0,

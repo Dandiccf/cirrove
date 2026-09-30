@@ -78,6 +78,9 @@ impl WriteWorkers {
     pub(crate) async fn stuck_changes(&self) -> u64 {
         self.control.stuck_changes().await.unwrap_or(0)
     }
+    pub(crate) async fn unconfirmed_changes(&self) -> u64 {
+        self.control.unconfirmed_changes().await.unwrap_or(0)
+    }
     pub(crate) async fn failed_uploads(&self) -> u64 {
         self.control.failed_uploads().await.unwrap_or(0)
     }

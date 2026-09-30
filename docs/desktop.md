@@ -471,3 +471,20 @@ The [desktop milestone](product-milestones.md#5-polished-desktop-experience) rem
 
 The desktop entry at `packaging/desktop/io.github.Dandiccf.Cirrove.desktop` is a
 packaging source. A build does not install it or register file-type associations.
+
+
+### Unconfirmed cloud changes
+
+The account detail row **Checking cloud confirmation** reports uploads and
+namespace operations in `VerifyRequired` or `Verifying`. It is separate from
+failed/conflicting changes and has no Retry or Discard button. The daemon retains
+recovery state while checking the outcome; it does not infer that an ambiguous
+request failed. Recent upload activity describes verification separately from
+bytes being transferred. The additive `unconfirmed_changes` status/event field
+defaults to zero for older daemons. The existing account identity match prevents
+stale or foreign snapshots from supplying the count.
+
+Synthetic journal tests cover restart, both operation kinds, inspection and
+completion; the native window scenario checks visibility, absence of destructive
+actions and clearing. This does not yet provide per-operation recovery export or
+complete iCloud conflict-resolution UX.

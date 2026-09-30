@@ -123,6 +123,8 @@ pub struct AccountCard {
     /// Saves that did not reach the cloud -- uploads the provider refused or
     /// that failed. The file is here; the cloud has an older version or none.
     pub failed_uploads: u64,
+    /// Outcomes still under inspection, separate from failures and conflicts.
+    pub unconfirmed_changes: u64,
     /// Whether the grant allows changes; a read-only drive shows as such.
     pub writable: bool,
     pub supports_writes: bool,
@@ -340,8 +342,9 @@ impl ActivityEntry {
             let (what, warning) = match change.state.as_str() {
                 "uploaded" => (n("saved here · in the cloud"), false),
                 "pending" | "preparing" => (n("saved here · waiting to upload"), false),
-                "uploading" | "verifying" | "verifyrequired" => {
-                    (n("saved here · uploading"), false)
+                "uploading" => (n("saved here · uploading"), false),
+                "verifying" | "verifyrequired" | "verify_required" => {
+                    (n("saved here · checking cloud confirmation"), false)
                 }
                 // A word with no number cannot tell a save that is moving from
                 // one that is stuck; the journal has always known how much of it
@@ -350,10 +353,7 @@ impl ActivityEntry {
                 "failed" => (n("saved here · upload failed"), true),
                 other => (other, false),
             };
-            let moving = matches!(
-                change.state.as_str(),
-                "uploading" | "verifying" | "verifyrequired"
-            );
+            let moving = change.state == "uploading";
             let what = if moving && change.transferred > 0 && change.size > 0 {
                 fill(
                     &gettext("{} · {} of {}"),
@@ -549,6 +549,7 @@ impl Overview {
                         .unwrap_or_default(),
                     wastebasket: status.and_then(|s| s.wastebasket.clone()),
                     failed_uploads: status.map_or(0, |s| s.failed_uploads),
+                    unconfirmed_changes: status.map_or(0, |s| s.unconfirmed_changes),
                     writable: account.access == cirrove_auth::AccessMode::ReadWrite,
                     supports_writes: account.registration.provider_id() != "icloud",
                     provider_id: account.registration.provider_id(),

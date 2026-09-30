@@ -41,6 +41,7 @@ struct AccountRow {
     identity: adw::ActionRow,
     access: adw::ActionRow,
     consent: gtk::Button,
+    unconfirmed: adw::ActionRow,
     refused: adw::ActionRow,
     discard: gtk::Button,
     /// Offered beside Discard, and insensitive when every refusal is a conflict:
@@ -622,6 +623,12 @@ impl Window {
             .build();
         // Shown only while there is something to discard. The daemon has
         // stopped retrying these; the user decides what happens to the copies.
+        let unconfirmed = adw::ActionRow::builder()
+            .title(gettext("Checking cloud confirmation"))
+            .use_markup(false)
+            .subtitle_lines(0)
+            .visible(false)
+            .build();
         let refused = adw::ActionRow::builder()
             .title(gettext("Changes the cloud refused"))
             .use_markup(false)
@@ -747,6 +754,7 @@ impl Window {
             .valign(gtk::Align::Center)
             .build();
         unsent.add_suffix(&keep_both);
+        row.add_row(&unconfirmed);
         row.add_row(&refused);
         row.add_row(&unsent);
         row.add_row(&wastebasket);
@@ -838,6 +846,7 @@ impl Window {
             access,
             consent,
             storage,
+            unconfirmed,
             refused,
             discard,
             retry,
@@ -940,6 +949,11 @@ impl Window {
                 "{:.1}",
                 card.cache_bytes as f64 / 1024_f64.powi(3)
             )],
+        ));
+        row.unconfirmed.set_visible(card.unconfirmed_changes > 0);
+        row.unconfirmed.set_subtitle(&fill(
+            &gettext("{} changes have no confirmed cloud result yet. Cirrove is checking their outcome before continuing. Local recovery data is retained."),
+            &[&card.unconfirmed_changes.to_string()],
         ));
         row.refused.set_visible(card.stuck > 0);
         // The count, then which ones. A person told that two changes were

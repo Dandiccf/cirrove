@@ -91,6 +91,9 @@ pub struct AccountStatus {
     /// that failed. Zero for a read-only mount. Older daemon responses omit it.
     #[serde(default)]
     pub failed_uploads: u64,
+    /// Operations whose cloud outcome is being verified; never retry blindly.
+    #[serde(default)]
+    pub unconfirmed_changes: u64,
     /// Changes whenever what this account keeps offline changes: a pin made or
     /// released, or one of its files arriving. The file manager watches it to
     /// know when to ask again; see [`crate::engine::Engine::kept_generation`].
@@ -821,6 +824,7 @@ impl Manager {
                             save_refusal: None,
                             stuck_changes: 0,
                             failed_uploads: 0,
+                            unconfirmed_changes: 0,
                             pin_budget: Default::default(),
                             pins: Vec::new(),
                             kept_generation: 0,
@@ -919,6 +923,10 @@ impl Manager {
                             status.save_refusal = active.engine.save_refusals.latest();
                             status.stuck_changes = match &active.writers {
                                 Some(writers) => writers.stuck_changes().await,
+                                None => 0,
+                            };
+                            status.unconfirmed_changes = match &active.writers {
+                                Some(writers) => writers.unconfirmed_changes().await,
                                 None => 0,
                             };
                             status.failed_uploads = match &active.writers {

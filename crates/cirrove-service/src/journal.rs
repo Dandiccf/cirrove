@@ -550,6 +550,15 @@ impl UploadJournal {
             .ok_or(JournalError::Missing)?;
         Ok(serde_json::from_str(&body)?)
     }
+    /// Upload and namespace outcomes waiting for or undergoing inspection.
+    pub fn unconfirmed_changes(&self) -> Result<u64> {
+        let count: i64 = self.db.query_row(
+            "SELECT (SELECT count(*) FROM uploads WHERE state IN ('verify_required','verifying'))
+                  + (SELECT count(*) FROM mutations WHERE state IN ('verify_required','verifying'))",
+            [], |row| row.get(0),
+        )?;
+        Ok(count.max(0) as u64)
+    }
     /// Saves that will not reach the cloud without help: uploads the provider
     /// refused (conflict) or that ended in failure. Distinct from
     /// `stuck_mutations`, which counts namespace operations; a file's content
