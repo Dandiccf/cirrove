@@ -140,14 +140,14 @@ async fn mount_with_hooks(
     boundary: Option<Arc<recovery::Boundary>>,
     competing: Option<Arc<competing::Boundary>>,
 ) -> Result<WritableSession> {
-    mount_with_all_hooks(f, boundary, competing, None).await
+    mount_with_all_hooks(f, boundary, competing, None, None).await
 }
 
 async fn mount_with_relocation(
     f: &Fixture,
     relocation: Arc<relocation::Boundary>,
 ) -> Result<WritableSession> {
-    mount_with_all_hooks(f, None, None, Some(relocation)).await
+    mount_with_all_hooks(f, None, None, Some(relocation), None).await
 }
 
 async fn mount_with_all_hooks(
@@ -155,6 +155,7 @@ async fn mount_with_all_hooks(
     boundary: Option<Arc<recovery::Boundary>>,
     competing: Option<Arc<competing::Boundary>>,
     relocation: Option<Arc<relocation::Boundary>>,
+    deletion: Option<Arc<deletion::Boundary>>,
 ) -> Result<WritableSession> {
     let read = Arc::new(View {
         scope: f.scope.clone(),
@@ -195,6 +196,7 @@ async fn mount_with_all_hooks(
         boundary,
         competing,
         relocation,
+        deletion,
     });
     Ok(WritableSession::mount(engine, context.journal(), provider, context.checkpoints()).await?)
 }
@@ -445,4 +447,9 @@ mod relocation;
 pub use relocation::{
     icloud_account_mounted_relocation_interrupt, icloud_account_mounted_relocation_recover,
     icloud_account_mounted_relocation_step_interrupt,
+};
+
+mod deletion;
+pub use deletion::{
+    icloud_account_mounted_delete_interrupt, icloud_account_mounted_delete_recover,
 };

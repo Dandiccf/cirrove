@@ -132,6 +132,7 @@ pub(super) struct Guarded {
     pub boundary: Option<Arc<super::recovery::Boundary>>,
     pub competing: Option<Arc<super::competing::Boundary>>,
     pub relocation: Option<Arc<super::relocation::Boundary>>,
+    pub deletion: Option<Arc<super::deletion::Boundary>>,
 }
 
 #[async_trait::async_trait]
@@ -290,7 +291,13 @@ impl MutationProvider for Guarded {
         if let Some(boundary) = &self.relocation {
             boundary.before(o, r)?;
         }
+        if let Some(boundary) = &self.deletion {
+            boundary.before(o, r)?;
+        }
         let receipt = self.inner.mutate_operation(o, r, p, c).await?;
+        if let Some(boundary) = &self.deletion {
+            boundary.after(o, r, &receipt)?;
+        }
         if let Some(boundary) = &self.relocation {
             boundary.after(o, r, &receipt)?;
         }

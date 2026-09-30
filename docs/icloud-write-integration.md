@@ -398,7 +398,7 @@ router**, with explicit acceptance gates:
 | Gate | Current evidence | Required before enabling ordinary writes |
 | --- | --- | --- |
 | Create/edit/replace and editor saves | Owned live arms, including consecutive atomic saves | Repeat representative application workflows; preserve all failures |
-| Rename/move and recoverable deletion | Owned adapter/router arms; mounted combined file and populated-folder relocation, including file acknowledgement-loss and both intermediate checkpoint-loss recoveries without repeating completed steps | In-flight uncertainty, concurrent intermediate changes, deletion interruption and repeatability |
+| Rename/move and recoverable deletion | Owned adapter/router arms; mounted combined file and populated-folder relocation, including file acknowledgement-loss and both intermediate checkpoint-loss recoveries without repeating completed steps; mounted unlink recovered after confirmed Trash before journal acknowledgement | In-flight uncertainty, concurrent intermediate changes, other deletion boundaries and repeatability |
 | Interrupted replacement | Mounted process-recovery arms passed after [confirmed Trash](benchmarks/icloud-mounted-process-recovery-2026-09-30.md) and [final installation](benchmarks/icloud-mounted-final-recovery-2026-09-30.md), with both versions, journal ownership and remount verified | In-flight uncertainty, other operation boundaries and repeatability; preserve both versions |
 | Concurrent changes | Controlled mounted same-ID races passed for ordinary saves, two pending autosaves and one atomic editor replacement; separate versions, receipt-gated editor cleanup and remount verified | Chained atomic-editor conflicts, intervening namespace operations, repeated competing edits and abandoned internal staging cleanup |
 | Recovery UX | Durable retained journals/checkpoints | User-visible uncertain/conflict state, export of pending bytes, safe resolution; audit earlier retained fixtures |
@@ -607,3 +607,18 @@ passed with a fresh owned file and a fresh recovery process whose adapter refuse
 any mutation dispatch. An independent Trash lookup and journal audit confirmed
 the exact Removed receipt. Mounted deletion interruption and broader repeatability remain
 separate release gates.
+
+
+## Mounted deletion after process interruption
+
+The [registered mounted deletion arm](benchmarks/icloud-mounted-delete-recovery-2026-10-01.md)
+passed using the ordinary account router: FUSE unlink retained an open handle's
+original bytes, then the process exited after confirmed recoverable Trash but
+before returning the receipt to the mutation worker. The fresh process observed
+VerifyRequired with the exact prepared ID, completed by inspection with all
+mutation dispatch forbidden, and retained the exact Removed receipt. Independent
+cloud checks confirmed Trash presence and active-parent absence; a second mount
+confirmed the pathname remained absent. No permanent deletion occurred. This closes
+only the registered post-confirmation/pre-journal-receipt boundary. In-flight
+uncertainty, other boundaries, repeated workloads and installed write acceptance
+remain open. Ordinary iCloud write access remains disabled.

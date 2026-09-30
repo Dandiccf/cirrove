@@ -514,6 +514,20 @@ async fn main() -> Result<()> {
         return cirrove_service::validation::icloud_account_metadata_shapes(Uuid::parse_str(run)?)
             .await;
     }
+    if let [flag, run] = args.as_slice() {
+        if flag == "--account-mounted-delete-interrupt" {
+            return cirrove_service::validation::icloud_account_mounted_delete_interrupt(
+                Uuid::parse_str(run)?,
+            )
+            .await;
+        }
+        if flag == "--account-mounted-delete-recover" {
+            return cirrove_service::validation::icloud_account_mounted_delete_recover(
+                Uuid::parse_str(run)?,
+            )
+            .await;
+        }
+    }
     if let [flag, run, step] = args.as_slice()
         && flag == "--account-mounted-relocation-step-interrupt"
     {
