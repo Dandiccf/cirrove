@@ -704,6 +704,12 @@ impl ICloudReadSession {
     }
 
     pub async fn list_folder(&mut self, folder_id: &str) -> Result<Vec<DriveEntry>> {
+        Ok(self.folder_metadata(folder_id).await?.items)
+    }
+
+    /// Exact folder envelope plus its complete child inventory. Callers can
+    /// validate the known folder itself without enumerating its ancestors.
+    pub(crate) async fn folder_metadata(&mut self, folder_id: &str) -> Result<DriveEntry> {
         self.list_folder_projection(folder_id, false).await
     }
 
@@ -714,7 +720,7 @@ impl ICloudReadSession {
         folder_id: &str,
     ) -> Result<Option<Vec<DriveEntry>>> {
         match self.list_folder_projection(folder_id, true).await {
-            Ok(entries) => Ok(Some(entries)),
+            Ok(folder) => Ok(Some(folder.items)),
             Err(error) if error.downcast_ref::<IncompleteFolder>().is_some() => Ok(None),
             Err(error) => Err(error),
         }
@@ -724,7 +730,7 @@ impl ICloudReadSession {
         &mut self,
         folder_id: &str,
         partial: bool,
-    ) -> Result<Vec<DriveEntry>> {
+    ) -> Result<DriveEntry> {
         let _timing = probe_timing::Timing::start(if partial {
             "partial folder metadata"
         } else if folder_id == ROOT_ID {
@@ -774,6 +780,32 @@ impl ICloudReadSession {
                 "iCloud Drive listing",
             ));
         }
+        #[cfg(feature = "write-probe")]
+        let mut folders: Vec<DriveEntry> = if partial {
+            let value: serde_json::Value =
+                read_json(response, "iCloud partial folder listing").await?;
+            let first = &value[0];
+            eprintln!(
+                "Partial listing shape: {}",
+                serde_json::json!({
+                    "array":value.is_array(), "one_folder":value.as_array().is_some_and(|a|a.len()==1),
+                    "matching_id":first["drivewsid"].as_str()==Some(folder_id),
+                    "type_present":first["type"].is_string(),
+                    "items_present":first["items"].is_array(),
+                    "count_present":first["numberOfItems"].is_u64(),
+                    "count_matches":first["items"].as_array().zip(first["numberOfItems"].as_u64()).is_some_and(|(a,n)|a.len() as u64==n),
+                    "status_ok":first["status"].as_str()==Some("OK"),
+                "child_ids_present":first["items"].as_array().is_some_and(|a|a.iter().all(|n|n["drivewsid"].is_string())),
+                "child_types_present":first["items"].as_array().is_some_and(|a|a.iter().all(|n|n["type"].is_string())),
+                "child_items_null":first["items"].as_array().is_some_and(|a|a.iter().any(|n|n.get("items").is_some_and(serde_json::Value::is_null))),
+                "children_decode":first["items"].as_array().is_some_and(|a|a.iter().all(|n|serde_json::from_value::<DriveEntry>(n.clone()).is_ok()))
+                })
+            );
+            serde_json::from_value(value).map_err(|_| anyhow!("partial folder schema mismatch"))?
+        } else {
+            read_json(response, "iCloud folder listing").await?
+        };
+        #[cfg(not(feature = "write-probe"))]
         let mut folders: Vec<DriveEntry> = read_json(response, "iCloud folder listing").await?;
         if folders.len() != 1 || folders[0].drivewsid != folder_id {
             bail!("iCloud Drive returned an unexpected folder identity");
@@ -787,7 +819,7 @@ impl ICloudReadSession {
                 bail!("iCloud Drive returned an item without identity or name");
             }
         }
-        Ok(folder.items)
+        Ok(folder)
     }
 
     pub async fn list_root(&mut self) -> Result<Vec<DriveEntry>> {

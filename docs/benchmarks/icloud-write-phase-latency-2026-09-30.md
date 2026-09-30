@@ -98,3 +98,99 @@ All live measurements had ended first. The existing rustdoc `retry_stuck` link
 warning remains; display-dependent GUI scenarios were not run because no GUI
 behavior changed. This is measurement infrastructure and evidence, not an
 installed speed improvement or a new iCloud write permission.
+
+
+## Registered schema-only follow-up
+
+Read the reduced root listing once more through the same read-only comparison.
+Emit only fixed booleans for array shape, exact requested ID match, root type,
+items array, declared count, matching count and OK status. Never emit arbitrary
+keys or provider bodies. Prediction: the reduced envelope omits metadata required
+by DriveEntry; if its child inventory is complete, a dedicated envelope parser
+could preserve all child validation without inventing root metadata. Otherwise
+reject it. Fresh runner output, same 900-second bound, no concurrent compilation.
+
+
+The schema-only arm exited 1 in 1.367 seconds but established a one-folder array,
+matching requested ID, OK status, a present type, items array and declared count
+matching its length. It contradicts the missing-root-type prediction. This still
+does not establish valid child metadata. Extend fixed booleans to child ID/type
+presence, null nested items and whether every child individually decodes; retain
+all values privately and print none. The next hypothesis is a null/default
+representation difference in child fields, not an incomplete inventory.
+
+[Envelope shape](icloud-parent-listing-shape-b6cc58c4-19de-487e-ba72-0069d74ccfdf.json)
+
+
+The child-shape follow-up exited 1 in 1.218 seconds: IDs are present but child
+types are not all present, and child decoding fails. Nested items are not null.
+The reduced projection cannot substitute for full DriveEntry metadata. Retain
+that refusal; do not fill in missing kinds from ID prefixes or stale cache.
+
+[Child shape](icloud-parent-listing-child-shape-b6cc58c4-19de-487e-ba72-0069d74ccfdf.json)
+
+## Registered exact-parent optimization
+
+Change only file-create parent verification (also used for staged uploads) to
+request the known folder's full envelope instead of enumerating its grandparent.
+Preserve exact requested folder ID, parent ID, name, folder kind and complete
+child-count checks. The old file-create guard does not require sibling-name
+uniqueness; handoff's stricter sibling-collision checks remain unchanged.
+A synthetic HTTP regression failed against the old code with the root ID instead
+of the requested owned folder. It also checks mismatched ID, parent, name, kind
+and incomplete replies; all must still fail after the change.
+
+Run a fresh account create/replacement fixture with the optimized binary and
+independent full-content/Trash/reopened-journal acceptance. Prediction: fewer
+expensive ancestor checks during create/staging, with identical identity guards.
+The earlier 331.430-second run is an exploratory baseline, not a randomized
+matched control. Repeat a successful optimized arm with another fresh fixture;
+report within-arm spread and do not attribute a whole-run latency ratio causally
+because provider caches and handoff phases can vary. Each arm uses the existing
+1,800-second manifest, disk-backed temp storage and no overlapping compilation.
+
+
+The optimized live arms both passed:
+
+- `04638ccd-021f-4b03-a90d-b9a46cdba699`: 291.657 seconds, exit 0.
+- `a083ceaf-9a98-4c20-aa11-ee6cca529a3a`: 295.075 seconds, exit 0.
+
+Both used SHA-256
+`7fa21182bb39a46bd133b3425ff091f610b9cf467bd75775419cf1c040a38da0`.
+The range is 291.657–295.075 seconds, spread 3.418 seconds (1.17% of their
+293.366-second mean). Both verified create and replacement contents independently,
+the exact original in recoverable Trash, and successful persisted journal receipts
+after reopening. The same ordinary router and original full-response projection
+were used; no normal service or account access mode changed.
+
+The exploratory old arm took 331.430 seconds; this non-randomized, differently
+instrumented comparison supports a direction only, not a causal percentage speedup.
+The structural result is precise: file-create parent verification no longer
+requests the grandparent inventory. Remaining root calls still include roughly
+28–30 second waits in both optimized runs. The full sequence includes fixture
+setup, router/engine creation and independent validation, not just one user save.
+The large overall latency remains an open product issue.
+
+- [Optimized arm 1](icloud-write-phase-latency-04638ccd-021f-4b03-a90d-b9a46cdba699.json)
+- [Optimized arm 2](icloud-write-phase-latency-a083ceaf-9a98-4c20-aa11-ee6cca529a3a.json)
+
+
+The first full check after the exact-parent change failed in the independent
+synthetic FUSE test `real_combined_namespace_churn_preserves_mapped_content`:
+cached navigation during committed changes took 2112.491568 ms against a 500 ms
+bound, at round 3. This fixture does not use iCloud or the modified create adapter.
+Its other 11 capacity tests passed; no check is waived and no threshold changed.
+The failure is retained. A later host snapshot showed load 1.86/5.04/3.45 and no
+active compiler among the leading CPU processes; it does not prove the load at
+the failing instant. Repeat the complete check with a fresh private temporary
+directory to distinguish a persistent failure from a transient scheduling delay.
+
+
+The complete repeat passed, exit 0, 2026-09-30 22:03:25–22:08:59 UTC,
+including the previously failing capacity fixture. It ran the unmodified full
+`scripts/check.sh`: formatting, workspace/feature clippy and tests, real kernel
+mount scenarios, script checks, ledger and docs. It used the separate worktree
+target and fresh private btrfs TMPDIR/SQLITE_TMPDIR. No threshold, test selection
+or product code changed between the failed and successful complete checks.
+The existing rustdoc `retry_stuck` link warning remains. GUI window scenarios
+were not run; there is no GUI change or installed write-mode enablement here.

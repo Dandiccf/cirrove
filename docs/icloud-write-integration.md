@@ -582,3 +582,14 @@ A read-only reduced-metadata experiment did not produce the expected schema and
 is not used by production writes. Warm full root listings were fast. No write
 performance improvement is claimed yet; controlled post-write attribution and a
 replacement that preserves all identity/collision checks remain required.
+
+
+File-create parent verification now reads the exact known folder's full envelope,
+checking its ID, current name, kind and parent identity, rather than scanning all
+of its grandparent's children. This also applies to staged uploads. Complete
+listing checks are unchanged; no partial metadata projection is enabled. Handoff
+sibling-name collision checks remain separate and unchanged. A negative-control
+HTTP regression demonstrated the old ancestor request before the implementation
+changed; foreign IDs, moved/renamed/non-folder parents, duplicate envelopes and
+incomplete replies remain refused. Bounded live results are recorded with the
+phase-latency experiment; a general write-speed or release claim does not follow.

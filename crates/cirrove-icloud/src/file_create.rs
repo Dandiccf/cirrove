@@ -297,20 +297,14 @@ impl ICloudFileCreate {
             .parent_id
             .as_deref()
             .ok_or(UploadError::Invalid)?;
-        let entries = session
-            .list_folder(grandparent)
+        let folder = session
+            .folder_metadata(&self.parent.id)
             .await
             .map_err(|_| UploadError::Uncertain)?;
-        if entries
-            .iter()
-            .filter(|entry| {
-                entry.drivewsid == self.parent.id
-                    && entry.display_name() == self.parent.name
-                    && entry.is_folder()
-                    && entry.parent_id == grandparent
-            })
-            .count()
-            != 1
+        if folder.drivewsid != self.parent.id
+            || folder.display_name() != self.parent.name
+            || !folder.is_folder()
+            || folder.parent_id != grandparent
         {
             return Err(UploadError::Conflict);
         }
@@ -616,6 +610,114 @@ impl UploadProvider for ICloudFileCreate {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn parent_validation_queries_the_exact_folder_and_rejects_changed_identity() {
+        use tokio::{
+            io::{AsyncReadExt, AsyncWriteExt},
+            net::TcpListener,
+        };
+        for change in [
+            "none",
+            "id",
+            "parent",
+            "name",
+            "kind",
+            "incomplete",
+            "duplicate",
+        ] {
+            let parent = Node {
+                id: "FOLDER::com.apple.CloudDocs::owned".into(),
+                parent_id: Some(ROOT_ID.into()),
+                name: "Owned".into(),
+                kind: NodeKind::Folder,
+                size: 0,
+                etag: Some("etag".into()),
+                content_version: None,
+                modified_unix: 0,
+                target: None,
+                package: false,
+            };
+            let mut item = serde_json::json!({"drivewsid":parent.id,"parentId":ROOT_ID,"name":"Owned","type":"FOLDER","numberOfItems":0,"items":[]});
+            match change {
+                "id" => item["drivewsid"] = "foreign".into(),
+                "parent" => item["parentId"] = "foreign".into(),
+                "name" => item["name"] = "Changed".into(),
+                "kind" => item["type"] = "FILE".into(),
+                "incomplete" => item["numberOfItems"] = 1.into(),
+                _ => (),
+            }
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let endpoint = format!("http://{}/", listener.local_addr().unwrap());
+            let server = tokio::spawn(async move {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                let mut bytes = Vec::new();
+                let payload = loop {
+                    let mut buf = [0u8; 4096];
+                    let n = stream.read(&mut buf).await.unwrap();
+                    assert!(n > 0 && bytes.len() + n < 16384);
+                    bytes.extend_from_slice(&buf[..n]);
+                    let Some(end) = bytes.windows(4).position(|b| b == b"\r\n\r\n") else {
+                        continue;
+                    };
+                    let end = end + 4;
+                    let headers = std::str::from_utf8(&bytes[..end]).unwrap();
+                    let size: usize = headers
+                        .lines()
+                        .find_map(|s| {
+                            s.to_ascii_lowercase()
+                                .strip_prefix("content-length: ")
+                                .map(str::to_owned)
+                        })
+                        .unwrap()
+                        .parse()
+                        .unwrap();
+                    if bytes.len() < end + size {
+                        continue;
+                    }
+                    break serde_json::from_slice::<serde_json::Value>(&bytes[end..end + size])
+                        .unwrap();
+                };
+                let body = if change == "duplicate" {
+                    serde_json::json!([item.clone(), item])
+                } else {
+                    serde_json::json!([item])
+                }
+                .to_string();
+                let reply = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                stream.write_all(reply.as_bytes()).await.unwrap();
+                payload
+            });
+            let provider = ICloudFileCreate {
+                scope: Scope {
+                    account: Uuid::new_v4().to_string(),
+                    provider: "icloud".into(),
+                    collection: "drive".into(),
+                },
+                parent: parent.clone(),
+                session: Mutex::new(SessionState::Ready(Box::new(
+                    ICloudReadSession::new().unwrap(),
+                ))),
+                #[cfg(feature = "write-probe")]
+                reconciliation_only: false,
+                #[cfg(feature = "write-probe")]
+                discard_registration_response: false,
+            };
+            let mut session = ICloudReadSession::new().unwrap();
+            session.drive_endpoint = Some(url::Url::parse(&endpoint).unwrap());
+            let result = provider.verify_parent(&mut session).await;
+            let payload = server.await.unwrap();
+            assert_eq!(
+                payload[0]["drivewsid"], parent.id,
+                "must not enumerate ancestors"
+            );
+            assert_eq!(payload[0]["partialData"], false);
+            assert_eq!(result.is_ok(), change == "none", "{change}");
+        }
+    }
 
     #[test]
     fn cancelled_payload_hash_stops_before_reading_another_block() {
