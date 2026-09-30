@@ -73,7 +73,8 @@ remain open; ordinary account write access is still disabled.
   The router implements new-file uploads, staged replacement, simple folder
   operations and rename/move/Trash of regular files with bounded streaming checks;
   combined move/rename now has a durable three-step implementation and a bounded
-  account-router live result; mounted and interrupted relocation acceptance remain open.
+  account-router live result. Mounted combined file/folder relocation and final
+  file-acknowledgement loss now have live evidence; intermediate uncertainty remains open.
   A synthetic FUSE regression covers ownership at construction, writer
   failure after ejection, and a later successful writable remount. A writer
   error no longer silently selects a read-only mount. Published old write
@@ -396,7 +397,7 @@ router**, with explicit acceptance gates:
 | Gate | Current evidence | Required before enabling ordinary writes |
 | --- | --- | --- |
 | Create/edit/replace and editor saves | Owned live arms, including consecutive atomic saves | Repeat representative application workflows; preserve all failures |
-| Rename/move and recoverable deletion | Owned file/folder adapter and router arms | Complete mounted combined-operation and interruption coverage |
+| Rename/move and recoverable deletion | Owned adapter/router arms; mounted combined file and populated-folder relocation, including file acknowledgement-loss recovery without replay | Intermediate relocation steps, in-flight uncertainty, deletion interruption and repeatability |
 | Interrupted replacement | Mounted process-recovery arms passed after [confirmed Trash](benchmarks/icloud-mounted-process-recovery-2026-09-30.md) and [final installation](benchmarks/icloud-mounted-final-recovery-2026-09-30.md), with both versions, journal ownership and remount verified | In-flight uncertainty, other operation boundaries and repeatability; preserve both versions |
 | Concurrent changes | Controlled mounted same-ID races passed for ordinary saves, two pending autosaves and one atomic editor replacement; separate versions, receipt-gated editor cleanup and remount verified | Chained atomic-editor conflicts, intervening namespace operations, repeated competing edits and abandoned internal staging cleanup |
 | Recovery UX | Durable retained journals/checkpoints | User-visible uncertain/conflict state, export of pending bytes, safe resolution; audit earlier retained fixtures |
@@ -521,3 +522,28 @@ after a previously completed atomic replacement.
 This closes one atomic replacement conflict case, not arbitrary replacement
 chains or namespace recovery. Provider-internal staging is still retained.
 Normal iCloud write settings, installed daemon and existing accounts are unchanged.
+
+## Mounted relocation recovery and explicit content evidence
+
+The [registered mounted relocation arm](benchmarks/icloud-mounted-relocation-recovery-2026-09-30.md)
+now covers combined move/rename with collisions preventing either naive ordering,
+process loss after the complete file receipt but before journal acknowledgement,
+and a subsequent populated-folder move through FUSE. A fresh process recovered the
+file operation without a second mutation call. Independent digests, identity checks,
+blocker preservation and another remount passed. Intermediate-step and in-flight
+uncertainty remain separate gates.
+
+The initial run exposed a real provider-neutral acknowledgement gap: iCloud's
+full-byte-verified result lacked a content-version token, so the journal correctly
+refused an apparently namespace-only observation as NeedsReview. The corrected
+router carries explicit verified-content evidence. The journal binds and persists
+account/provider/collection/item, both ETags, size and SHA-256 before allowing later
+writes to use the recovered receipt. Normal unproven observations retain their
+existing conflict/NeedsReview guard. Source digests come from pre-dispatch capture;
+a newly hashed current file alone cannot authorize recovery. Completed relocation
+plans and verified ordinary file rename/move inspections use this contract without
+inventing cache content-version tokens.
+
+The failed fixture remains retained. The corrected live run proves one final
+acknowledgement-loss boundary and the registered mounted operations, not the full
+release matrix; ordinary iCloud writes are still disabled.

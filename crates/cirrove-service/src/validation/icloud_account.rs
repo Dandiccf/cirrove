@@ -109,6 +109,7 @@ pub use mounted::{
     icloud_account_mounted_competing_autosaves, icloud_account_mounted_empty_replace,
     icloud_account_mounted_final_interrupt, icloud_account_mounted_final_recover,
     icloud_account_mounted_interrupt, icloud_account_mounted_large, icloud_account_mounted_recover,
+    icloud_account_mounted_relocation_interrupt, icloud_account_mounted_relocation_recover,
 };
 mod namespace;
 pub use namespace::{icloud_account_combined, icloud_account_namespace};

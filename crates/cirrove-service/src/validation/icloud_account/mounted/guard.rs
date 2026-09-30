@@ -131,6 +131,7 @@ pub(super) struct Guarded {
     pub owned: Owned,
     pub boundary: Option<Arc<super::recovery::Boundary>>,
     pub competing: Option<Arc<super::competing::Boundary>>,
+    pub relocation: Option<Arc<super::relocation::Boundary>>,
 }
 
 #[async_trait::async_trait]
@@ -286,7 +287,14 @@ impl MutationProvider for Guarded {
         c: &CancellationToken,
     ) -> cirrove_core::mutation::Result<MutationReceipt> {
         self.owned.mutation(r)?;
-        self.inner.mutate_operation(o, r, p, c).await
+        if let Some(boundary) = &self.relocation {
+            boundary.before(o, r)?;
+        }
+        let receipt = self.inner.mutate_operation(o, r, p, c).await?;
+        if let Some(boundary) = &self.relocation {
+            boundary.after(o, r, &receipt)?;
+        }
+        Ok(receipt)
     }
     async fn reconcile_operation(
         &self,

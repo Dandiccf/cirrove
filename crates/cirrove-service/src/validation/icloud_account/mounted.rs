@@ -140,6 +140,22 @@ async fn mount_with_hooks(
     boundary: Option<Arc<recovery::Boundary>>,
     competing: Option<Arc<competing::Boundary>>,
 ) -> Result<WritableSession> {
+    mount_with_all_hooks(f, boundary, competing, None).await
+}
+
+async fn mount_with_relocation(
+    f: &Fixture,
+    relocation: Arc<relocation::Boundary>,
+) -> Result<WritableSession> {
+    mount_with_all_hooks(f, None, None, Some(relocation)).await
+}
+
+async fn mount_with_all_hooks(
+    f: &Fixture,
+    boundary: Option<Arc<recovery::Boundary>>,
+    competing: Option<Arc<competing::Boundary>>,
+    relocation: Option<Arc<relocation::Boundary>>,
+) -> Result<WritableSession> {
     let read = Arc::new(View {
         scope: f.scope.clone(),
         root: f.parent.clone(),
@@ -174,6 +190,7 @@ async fn mount_with_hooks(
         owned,
         boundary,
         competing,
+        relocation,
     });
     Ok(WritableSession::mount(engine, context.journal(), provider, context.checkpoints()).await?)
 }
@@ -418,4 +435,9 @@ mod competing;
 pub use competing::{
     icloud_account_mounted_competing, icloud_account_mounted_competing_atomic,
     icloud_account_mounted_competing_autosaves,
+};
+
+mod relocation;
+pub use relocation::{
+    icloud_account_mounted_relocation_interrupt, icloud_account_mounted_relocation_recover,
 };

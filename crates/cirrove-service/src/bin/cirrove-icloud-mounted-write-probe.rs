@@ -507,6 +507,22 @@ async fn main() -> Result<()> {
             .await;
     }
     if let [flag, run] = args.as_slice()
+        && flag == "--account-mounted-relocation-interrupt"
+    {
+        return cirrove_service::validation::icloud_account_mounted_relocation_interrupt(
+            Uuid::parse_str(run)?,
+        )
+        .await;
+    }
+    if let [flag, run] = args.as_slice()
+        && flag == "--account-mounted-relocation-recover"
+    {
+        return cirrove_service::validation::icloud_account_mounted_relocation_recover(
+            Uuid::parse_str(run)?,
+        )
+        .await;
+    }
+    if let [flag, run] = args.as_slice()
         && flag == "--account-mounted-competing-atomic"
     {
         return cirrove_service::validation::icloud_account_mounted_competing_atomic(

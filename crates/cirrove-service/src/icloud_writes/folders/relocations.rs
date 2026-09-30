@@ -335,9 +335,11 @@ impl ICloudWriteProvider {
                 saved.advance(receipt)?;
                 self.store_relocation(saved).await?;
                 if saved.phase == Phase::Complete {
-                    Ok(MutationReconciliation::Applied(MutationReceipt::Upsert(
-                        saved.current.clone(),
-                    )))
+                    verified_relocation_receipt(
+                        &saved.request,
+                        MutationReceipt::Upsert(saved.current.clone()),
+                        saved.original_sha256.as_deref(),
+                    )
                 } else {
                     Ok(MutationReconciliation::Uncommitted)
                 }
@@ -360,9 +362,11 @@ impl ICloudWriteProvider {
         };
         match saved.phase {
             Phase::Ready => Ok(MutationReconciliation::Uncommitted),
-            Phase::Complete => Ok(MutationReconciliation::Applied(MutationReceipt::Upsert(
-                saved.current,
-            ))),
+            Phase::Complete => verified_relocation_receipt(
+                &saved.request,
+                MutationReceipt::Upsert(saved.current),
+                saved.original_sha256.as_deref(),
+            ),
             Phase::Sent => {
                 let adapter = self.folder_adapter(&saved.child()?)?;
                 self.inspect_relocation_step(&mut saved, adapter, cancel)
@@ -481,6 +485,13 @@ mod tests {
         }
     }
     fn plan(p: &ICloudWriteProvider, kind: NodeKind) -> Relocation {
+        plan_with_lineage(p, kind, Some("original-content".into()))
+    }
+    fn plan_with_lineage(
+        p: &ICloudWriteProvider,
+        kind: NodeKind,
+        lineage: Option<String>,
+    ) -> Relocation {
         let before = Node {
             id: format!(
                 "{}::com.apple.CloudDocs::source",
@@ -494,7 +505,7 @@ mod tests {
             kind: kind.clone(),
             size: if kind == NodeKind::File { 3 } else { 0 },
             content_version: if kind == NodeKind::File {
-                Some("original-content".into())
+                lineage
             } else {
                 None
             },
@@ -529,6 +540,50 @@ mod tests {
             step: 0,
             phase: Phase::Ready,
         }
+    }
+
+    #[tokio::test]
+    async fn completed_file_relocation_without_content_version_recovers_through_the_shared_worker()
+    {
+        let (_temp, p) = fixture();
+        let mut saved = plan_with_lineage(&p, NodeKind::File, None);
+        let journal = p.journal.clone();
+        let active = journal.lock().unwrap().claim_mutation().unwrap().unwrap();
+        journal
+            .lock()
+            .unwrap()
+            .record_prepared_mutation(active.id, active.attempt.unwrap(), saved.current.id.clone())
+            .unwrap();
+        p.store_relocation(&saved).await.unwrap();
+        for _ in 0..3 {
+            let child = Arc::new(Child::new(&p, &saved, false));
+            p.apply_relocation_step(&mut saved, child, &CancellationToken::new())
+                .await
+                .unwrap();
+        }
+        journal
+            .lock()
+            .unwrap()
+            .defer_mutation(
+                active.id,
+                active.attempt.unwrap(),
+                crate::journal::MutationState::VerifyRequired,
+                std::time::Duration::ZERO,
+            )
+            .unwrap();
+        let worker = crate::mutations::MutationWorker::new(
+            journal.clone(),
+            Arc::new(p),
+            CancellationToken::new(),
+        );
+        assert_eq!(
+            worker.run_once().await.unwrap().unwrap().state,
+            crate::journal::MutationState::Applied
+        );
+        let recovered = journal.lock().unwrap().mutation(active.id).unwrap();
+        assert!(
+            matches!(recovered.receipt,Some(MutationReceipt::Upsert(ref n)) if n==&saved.current)
+        );
     }
 
     #[tokio::test]
@@ -605,8 +660,16 @@ mod tests {
                 )
                 .await
                 .unwrap();
-            let MutationReconciliation::Applied(receipt) = result else {
-                panic!("complete receipt");
+            let receipt = match result {
+                MutationReconciliation::Applied(receipt) => {
+                    assert_eq!(original.kind, NodeKind::Folder);
+                    receipt
+                }
+                MutationReconciliation::AppliedWithVerifiedContent { receipt, proof } => {
+                    assert!(proof.valid_for(&saved.request, &receipt));
+                    receipt
+                }
+                _ => panic!("complete receipt"),
             };
             assert!(saved.request.accepts(&receipt));
             assert_eq!(saved.current.content_version, original.content_version);

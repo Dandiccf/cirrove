@@ -138,6 +138,12 @@ impl MutationWorker {
             .map(MutationReconciliation::Applied)
         };
         let (state, issue) = match result {
+            Ok(MutationReconciliation::AppliedWithVerifiedContent { receipt, proof }) => {
+                let state = self
+                    .local(move |j| j.acknowledge_verified_mutation(id, attempt, receipt, proof))
+                    .await?;
+                (state, None)
+            }
             Ok(MutationReconciliation::Applied(receipt)) => {
                 let state = self
                     .local(move |j| j.acknowledge_mutation(id, attempt, receipt))

@@ -869,3 +869,142 @@ fn a_failed_change_can_be_tried_again_and_a_conflicted_one_cannot() {
     assert_eq!(left.len(), 1);
     assert_eq!(left[0].id, conflicted.id);
 }
+
+#[test]
+fn verified_content_is_bound_to_both_revisions_and_survives_recovery() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("journal");
+    let mut j = journal(&root);
+    let mut r = request();
+    if let MutationIntent::Relocate { before, .. } = &mut r.intent {
+        before.content_version = None;
+    }
+    let queued = j.enqueue_mutation(r.clone()).unwrap();
+    let active = j.claim_mutation().unwrap().unwrap();
+    let result = receipt(&r);
+    let proof = VerifiedMutationContent::for_relocation(&r, &result, "a".repeat(64)).unwrap();
+    assert!(
+        j.acknowledge_verified_mutation(
+            queued.id,
+            active.attempt.unwrap(),
+            result.clone(),
+            proof.clone()
+        )
+        .is_err(),
+        "proof acknowledgement is a recovery-only path"
+    );
+    drop(j);
+    let mut j = journal(&root);
+    let active = j.claim_mutation().unwrap().unwrap();
+    assert_eq!(active.state, MutationState::Verifying);
+    for field in [
+        "account",
+        "provider",
+        "collection",
+        "item",
+        "source_etag",
+        "result_etag",
+        "size",
+        "digest",
+    ] {
+        let mut wrong = proof.clone();
+        match field {
+            "account" => wrong.scope.account = "foreign".into(),
+            "provider" => wrong.scope.provider = "foreign".into(),
+            "collection" => wrong.scope.collection = "foreign".into(),
+            "item" => wrong.item = "foreign".into(),
+            "source_etag" => wrong.source_etag = "changed".into(),
+            "result_etag" => wrong.result_etag = "changed".into(),
+            "size" => wrong.size += 1,
+            _ => wrong.sha256 = "invalid".into(),
+        }
+        assert!(
+            matches!(
+                j.acknowledge_verified_mutation(
+                    queued.id,
+                    active.attempt.unwrap(),
+                    result.clone(),
+                    wrong
+                ),
+                Err(JournalError::Corrupt)
+            ),
+            "{field}"
+        );
+        let still = j.mutation(queued.id).unwrap();
+        assert_eq!(still.state, MutationState::Verifying);
+        assert!(still.receipt.is_none() && still.verified_content.is_none());
+    }
+    assert!(
+        j.acknowledge_verified_mutation(
+            queued.id,
+            uuid::Uuid::new_v4(),
+            result.clone(),
+            proof.clone()
+        )
+        .is_err()
+    );
+    assert_eq!(
+        j.acknowledge_verified_mutation(
+            queued.id,
+            active.attempt.unwrap(),
+            result.clone(),
+            proof.clone()
+        )
+        .unwrap(),
+        MutationState::Applied
+    );
+    drop(j);
+    let mut j = journal(&root);
+    let saved = j.mutation(queued.id).unwrap();
+    assert!(saved.verified_content.as_ref() == Some(&proof));
+    assert!(saved.receipt.as_ref() == Some(&result));
+    let next = j.enqueue_after(queued.id, b"later".as_slice()).unwrap();
+    let claimed = j.claim_next().unwrap().unwrap();
+    assert_eq!(claimed.id, next.id);
+    assert_eq!(
+        claimed.intent,
+        UploadIntent::Replace {
+            item: "file".into(),
+            expected_etag: "new".into()
+        }
+    );
+}
+
+#[test]
+fn namespace_observation_without_lineage_or_verified_content_still_requires_review() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("journal");
+    let mut j = journal(&root);
+    let mut r = request();
+    if let MutationIntent::Relocate { before, .. } = &mut r.intent {
+        before.content_version = None;
+    }
+    let queued = j.enqueue_mutation(r.clone()).unwrap();
+    j.claim_mutation().unwrap().unwrap();
+    drop(j);
+    let mut j = journal(&root);
+    let active = j.claim_mutation().unwrap().unwrap();
+    assert_eq!(
+        j.acknowledge_mutation(queued.id, active.attempt.unwrap(), receipt(&r))
+            .unwrap(),
+        MutationState::NeedsReview
+    );
+    assert!(j.mutation(queued.id).unwrap().verified_content.is_none());
+}
+
+#[test]
+fn verified_content_never_authorizes_packages_folders_or_different_size() {
+    let r = request();
+    let result = receipt(&r);
+    for change in ["size", "package", "folder"] {
+        let mut modified = result.clone();
+        if let MutationReceipt::Upsert(n) = &mut modified {
+            match change {
+                "size" => n.size += 1,
+                "package" => n.package = true,
+                _ => n.kind = NodeKind::Folder,
+            }
+        }
+        assert!(VerifiedMutationContent::for_relocation(&r, &modified, "a".repeat(64)).is_err());
+    }
+}

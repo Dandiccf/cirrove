@@ -1,6 +1,8 @@
 //! Metadata intents share ordering and ownership with upload snapshots.
 use super::*;
-use cirrove_core::mutation::{MutationIntent, MutationReceipt, MutationRequest};
+use cirrove_core::mutation::{
+    MutationIntent, MutationReceipt, MutationRequest, VerifiedMutationContent,
+};
 use rusqlite::Transaction;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -25,6 +27,8 @@ pub struct MutationRecord {
     pub state: MutationState,
     pub attempt: Option<Uuid>,
     pub receipt: Option<MutationReceipt>,
+    #[serde(default)]
+    pub verified_content: Option<VerifiedMutationContent>,
     pub retry_at: u64,
     pub failed_attempts: u32,
     /// Source fields are bound to this preceding operation's confirmed receipt
@@ -214,6 +218,7 @@ impl UploadJournal {
             state: MutationState::Pending,
             attempt: None,
             receipt: None,
+            verified_content: None,
             retry_at: 0,
             failed_attempts: 0,
             base: order.base,
@@ -420,7 +425,32 @@ impl UploadJournal {
         attempt: Uuid,
         receipt: MutationReceipt,
     ) -> Result<MutationState> {
+        self.acknowledge_mutation_evidence(id, attempt, receipt, None)
+    }
+    /// Only an adapter's revision-bound full-content evidence may bypass the
+    /// missing content-version guard during recovery. Never use for a lookup alone.
+    pub fn acknowledge_verified_mutation(
+        &mut self,
+        id: Uuid,
+        attempt: Uuid,
+        receipt: MutationReceipt,
+        proof: VerifiedMutationContent,
+    ) -> Result<MutationState> {
+        self.acknowledge_mutation_evidence(id, attempt, receipt, Some(proof))
+    }
+    fn acknowledge_mutation_evidence(
+        &mut self,
+        id: Uuid,
+        attempt: Uuid,
+        receipt: MutationReceipt,
+        proof: Option<VerifiedMutationContent>,
+    ) -> Result<MutationState> {
         let mut record = self.mutation_attempt(id, attempt)?;
+        if proof.as_ref().is_some_and(|p| {
+            record.state != MutationState::Verifying || !p.valid_for(&record.request, &receipt)
+        }) {
+            return Err(JournalError::Corrupt);
+        }
         if !record.request.accepts(&receipt) {
             return Err(JournalError::Corrupt);
         }
@@ -432,7 +462,12 @@ impl UploadJournal {
         {
             return Err(JournalError::Corrupt);
         }
-        record.state = reconciled_state(&record, &receipt);
+        record.state = if proof.is_some() {
+            MutationState::Applied
+        } else {
+            reconciled_state(&record, &receipt)
+        };
+        record.verified_content = proof;
         record.receipt = Some(receipt);
         record.attempt = None;
         self.save_mutation(&record)?;

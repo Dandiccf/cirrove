@@ -227,6 +227,7 @@ impl UploadJournal {
             state: MutationState::Pending,
             attempt: None,
             receipt: None,
+            verified_content: None,
             retry_at: 0,
             failed_attempts: 0,
             base,

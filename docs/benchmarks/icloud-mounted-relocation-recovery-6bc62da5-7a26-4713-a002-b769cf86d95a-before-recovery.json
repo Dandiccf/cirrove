@@ -1,0 +1,13 @@
+{
+  "run": "6bc62da5-7a26-4713-a002-b769cf86d95a",
+  "read_only_sqlite_audit": true,
+  "mutation_states": [
+    "applied",
+    "applied",
+    "applying"
+  ],
+  "interrupted_receipt_not_acknowledged": true,
+  "prepared_identity_retained": true,
+  "verified_content_not_yet_recorded": true,
+  "confirmed_uploads": 2
+}

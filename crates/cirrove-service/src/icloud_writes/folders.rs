@@ -1,7 +1,7 @@
 use super::*;
 mod relocations;
 use crate::journal::MutationState;
-use cirrove_core::mutation::{MutationIntent, Result as MutationResult};
+use cirrove_core::mutation::{MutationIntent, Result as MutationResult, VerifiedMutationContent};
 use cirrove_icloud::{
     ICloudFileMove, ICloudFileRename, ICloudFileTrash, ICloudFolderCreate, ICloudFolderMove,
     ICloudFolderRename, ICloudFolderTrash, ICloudReadSession, SealedSessionVault,
@@ -367,6 +367,27 @@ impl ICloudWriteProvider {
     }
 }
 
+// These adapters verify full file bytes against the digest captured under the
+// original ETag. Carry that stronger evidence across the provider-neutral journal
+// boundary instead of manufacturing an iCloud content-version token.
+fn verified_relocation_receipt(
+    request: &MutationRequest,
+    receipt: MutationReceipt,
+    digest: Option<&str>,
+) -> MutationResult<MutationReconciliation> {
+    if matches!(&request.intent, MutationIntent::Relocate { before, .. } if before.kind == NodeKind::File)
+    {
+        let proof = VerifiedMutationContent::for_relocation(
+            request,
+            &receipt,
+            digest.ok_or(MutationError::Invalid)?.into(),
+        )?;
+        Ok(MutationReconciliation::AppliedWithVerifiedContent { receipt, proof })
+    } else {
+        Ok(MutationReconciliation::Applied(receipt))
+    }
+}
+
 #[async_trait]
 impl MutationProvider for ICloudWriteProvider {
     fn deletion(&self) -> cirrove_core::mutation::DeletionSupport {
@@ -503,9 +524,16 @@ impl MutationProvider for ICloudWriteProvider {
         if saved.phase == PlanPhase::Prepared {
             return Ok(MutationReconciliation::Uncommitted);
         }
-        self.folder_adapter(&saved.plan)?
+        match self
+            .folder_adapter(&saved.plan)?
             .reconcile_operation(&operation.to_string(), request, prepared, cancel)
-            .await
+            .await?
+        {
+            MutationReconciliation::Applied(receipt) => {
+                verified_relocation_receipt(request, receipt, saved.plan.original_sha256.as_deref())
+            }
+            other => Ok(other),
+        }
     }
 }
 

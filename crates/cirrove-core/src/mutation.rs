@@ -161,10 +161,87 @@ pub enum MutationReceipt {
         item: String,
     },
 }
+/// Provider attestation that the exact source and result revisions have the
+/// same full SHA-256 content. The source digest must have been captured before
+/// dispatch under the source ETag; a hash of only the current file is not proof.
+/// This is separate from a provider content-version token and never becomes a
+/// cache identity. Scope, item, both ETags and size bind its use to one receipt.
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VerifiedMutationContent {
+    pub scope: Scope,
+    pub item: String,
+    pub source_etag: String,
+    pub result_etag: String,
+    pub size: u64,
+    pub sha256: String,
+}
+impl VerifiedMutationContent {
+    /// Call only after verifying both full revisions, or recovering a durable
+    /// conditional receipt whose original and result content were so verified.
+    pub fn for_relocation(
+        request: &MutationRequest,
+        receipt: &MutationReceipt,
+        sha256: String,
+    ) -> Result<Self> {
+        let (MutationIntent::Relocate { before, .. }, MutationReceipt::Upsert(after)) =
+            (&request.intent, receipt)
+        else {
+            return Err(MutationError::Invalid);
+        };
+        let proof = Self {
+            scope: request.scope.clone(),
+            item: before.id.clone(),
+            source_etag: before.etag.clone().ok_or(MutationError::Invalid)?,
+            result_etag: after.etag.clone().ok_or(MutationError::Invalid)?,
+            size: before.size,
+            sha256,
+        };
+        if !proof.valid_for(request, receipt) {
+            return Err(MutationError::Invalid);
+        }
+        Ok(proof)
+    }
+    pub fn valid_for(&self, request: &MutationRequest, receipt: &MutationReceipt) -> bool {
+        let (MutationIntent::Relocate { before, .. }, MutationReceipt::Upsert(after)) =
+            (&request.intent, receipt)
+        else {
+            return false;
+        };
+        request.accepts(receipt)
+            && self.scope == request.scope
+            && self.item == before.id
+            && before.kind == NodeKind::File
+            && !before.package
+            && !after.package
+            && before.target.is_none()
+            && before.etag.as_deref() == Some(self.source_etag.as_str())
+            && after.etag.as_deref() == Some(self.result_etag.as_str())
+            && [&self.source_etag, &self.result_etag]
+                .into_iter()
+                .all(|etag| {
+                    !etag.is_empty() && etag.len() <= 4096 && !etag.contains(['\r', '\n', '*'])
+                })
+            && self.size == before.size
+            && self.size == after.size
+            && self.sha256.len() == 64
+            && self
+                .sha256
+                .bytes()
+                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+    }
+}
+
 pub enum MutationReconciliation {
     /// The namespace result is observed. A later content edit may be included;
     /// consumers must verify content lineage before rebasing a subsequent save.
     Applied(MutationReceipt),
+    /// Unlike a namespace-only observation, the adapter verified unchanged
+    /// content under the original and result ETags. Journal code validates the
+    /// attestation's binding; the provider is responsible for its byte evidence.
+    AppliedWithVerifiedContent {
+        receipt: MutationReceipt,
+        proof: VerifiedMutationContent,
+    },
     Uncommitted,
     Conflict,
     /// Cannot distinguish a lost success from another actor/access change.

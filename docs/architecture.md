@@ -750,6 +750,17 @@ content revision/size or an unchanged metadata version allows the chain to conti
 Observed receipts remain available for review without being treated as confirmed
 save bases. Providers must distinguish conditional responses from later observations.
 
+Providers without a stable content-version token can return an explicit
+`AppliedWithVerifiedContent` result. It attests equality of both full revisions,
+with the source digest captured before dispatch under its original ETag. The
+journal binds this evidence to account/provider/collection/item, source and result
+ETags, byte size and SHA-256, and persists it with the confirmed receipt. A current
+hash alone, a matching filename or an unbound Boolean is insufficient. Ordinary
+namespace-only observations keep the existing lineage guard. iCloud's router uses
+its captured digest after verified file rename/move inspection or a durably
+completed, content-checked three-step relocation; it does not synthesize a provider
+content-version token or change cache identities.
+
 These APIs establish journal ordering and working-file transactions. The sparse
 namespace model below connects relocation, replacement and folder changes to FUSE.
 Complete detached-stream retention and recovery remain required.
