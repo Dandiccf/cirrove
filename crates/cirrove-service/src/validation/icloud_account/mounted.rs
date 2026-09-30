@@ -125,6 +125,13 @@ impl ReadProvider for View {
 }
 
 async fn mount(f: &Fixture) -> Result<WritableSession> {
+    mount_with_boundary(f, None).await
+}
+
+async fn mount_with_boundary(
+    f: &Fixture,
+    boundary: Option<Arc<recovery::Boundary>>,
+) -> Result<WritableSession> {
     let read = Arc::new(View {
         scope: f.scope.clone(),
         root: f.parent.clone(),
@@ -157,6 +164,7 @@ async fn mount(f: &Fixture) -> Result<WritableSession> {
     let provider = Arc::new(Guarded {
         inner: ICloudWriteProvider::new(&f.account, &context)?,
         owned,
+        boundary,
     });
     Ok(WritableSession::mount(engine, context.journal(), provider, context.checkpoints()).await?)
 }
@@ -390,3 +398,6 @@ pub use large::icloud_account_mounted_large;
 
 mod atomic;
 pub use atomic::icloud_account_mounted_atomic;
+
+mod recovery;
+pub use recovery::{icloud_account_mounted_interrupt, icloud_account_mounted_recover};

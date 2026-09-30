@@ -129,6 +129,7 @@ impl Owned {
 pub(super) struct Guarded {
     pub inner: ICloudWriteProvider,
     pub owned: Owned,
+    pub boundary: Option<Arc<super::recovery::Boundary>>,
 }
 
 #[async_trait::async_trait]
@@ -225,7 +226,14 @@ impl UploadProvider for Guarded {
         c: &CancellationToken,
     ) -> cirrove_core::upload::Result<UploadStep> {
         self.owned.upload(r)?;
-        self.inner.commit_upload_for_operation(o, r, s, c).await
+        if let Some(boundary) = &self.boundary {
+            boundary.before_commit(r, s)?;
+        }
+        let step = self.inner.commit_upload_for_operation(o, r, s, c).await?;
+        if let Some(boundary) = &self.boundary {
+            boundary.after_commit(o, r, s, &step)?;
+        }
+        Ok(step)
     }
     async fn reconcile_upload_for_operation(
         &self,

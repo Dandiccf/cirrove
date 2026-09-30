@@ -283,6 +283,15 @@ impl ICloudReadSession {
         })
     }
 
+    /// Read-only oracle for a registered interrupted-write validation arm.
+    #[cfg(feature = "write-probe")]
+    pub async fn probe_inspect_trash_handoff(
+        &mut self,
+        plan: &HandoffPlan,
+    ) -> Result<HandoffObserved> {
+        self.inspect_durable_trash_handoff(plan).await
+    }
+
     pub(crate) async fn inspect_durable_trash_handoff(
         &mut self,
         plan: &HandoffPlan,
