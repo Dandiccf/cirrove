@@ -638,6 +638,24 @@ fn namespace_crash_child() {
         std::thread::sleep(Duration::from_secs(1));
     }
 }
+fn ready_marker_uuid(path: &std::path::Path) -> Option<uuid::Uuid> {
+    std::fs::read_to_string(path).ok()?.parse().ok()
+}
+
+#[test]
+fn crash_readiness_requires_a_complete_uuid_not_an_existing_file() {
+    let temp = tempfile::tempdir().unwrap();
+    let ready = temp.path().join("ready");
+    assert!(ready_marker_uuid(&ready).is_none());
+    std::fs::write(&ready, "").unwrap();
+    assert!(ready_marker_uuid(&ready).is_none());
+    std::fs::write(&ready, "00000000-").unwrap();
+    assert!(ready_marker_uuid(&ready).is_none());
+    let expected = uuid::Uuid::new_v4();
+    std::fs::write(&ready, expected.to_string()).unwrap();
+    assert_eq!(ready_marker_uuid(&ready), Some(expected));
+}
+
 #[test]
 fn actual_sigkill_preserves_pending_outcome_and_acknowledged_receipt() {
     for phase in ["applying", "applied", "resolved"] {
@@ -650,20 +668,21 @@ fn actual_sigkill_preserves_pending_outcome_and_acknowledged_receipt() {
             .spawn()
             .unwrap();
         let deadline = Instant::now() + Duration::from_secs(5);
-        while !tmp.path().join("ready").exists() {
+        let id = loop {
+            // Creation is visible before fs::write has published the UUID.
+            // Do not kill the child in that interval or parse an empty marker.
+            if let Some(id) = ready_marker_uuid(&tmp.path().join("ready")) {
+                break id;
+            }
             if Instant::now() >= deadline {
                 child.kill().unwrap();
                 child.wait().unwrap();
                 panic!("fixture did not become ready");
             }
             std::thread::sleep(Duration::from_millis(5));
-        }
+        };
         child.kill().unwrap();
         child.wait().unwrap();
-        let id = std::fs::read_to_string(tmp.path().join("ready"))
-            .unwrap()
-            .parse()
-            .unwrap();
         let j = journal(&tmp.path().join("journal"));
         let record = j.mutation(id).unwrap();
         assert_eq!(
