@@ -185,8 +185,12 @@ async fn mount_with_all_hooks(
         .set(owned.clone())
         .map_err(|_| anyhow::anyhow!("ownership already initialized"))?;
     // Writer sees the real account root; Engine's mount view is a subtree.
+    let mut inner = ICloudWriteProvider::new(&f.account, &context)?;
+    if let Some(hook) = &relocation {
+        inner = hook.configure(inner, f)?;
+    }
     let provider = Arc::new(Guarded {
-        inner: ICloudWriteProvider::new(&f.account, &context)?,
+        inner,
         owned,
         boundary,
         competing,
@@ -440,4 +444,5 @@ pub use competing::{
 mod relocation;
 pub use relocation::{
     icloud_account_mounted_relocation_interrupt, icloud_account_mounted_relocation_recover,
+    icloud_account_mounted_relocation_step_interrupt,
 };

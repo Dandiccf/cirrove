@@ -83,6 +83,12 @@ impl ICloudWriteProvider {
         })
     }
 
+    #[cfg(feature = "icloud-write-probe")]
+    pub(crate) fn validation_folder_vault(mut self, vault: Arc<dyn CredentialVault>) -> Self {
+        self.folder_vault = vault;
+        self
+    }
+
     fn validate_operation(&self, operation: &str, request: &UploadRequest) -> Result<Uuid> {
         request.validate()?;
         if request.scope != self.scope {

@@ -1,0 +1,19 @@
+{
+  "run": "666cdd69-c0c0-4414-9823-882edb589d23",
+  "arm": "recover",
+  "binary_sha256": "4c8305d480eda27995307f9ab6f6e2ef046048c3e98b419c404ebdc6d72aa366",
+  "filesystem": "btrfs",
+  "exit_code": 0,
+  "elapsed_seconds": 135.966,
+  "isolated_mount_detached": true,
+  "passed": true,
+  "completed_step_at_interruption": 2,
+  "file_final_acknowledgement_loss": false,
+  "independent_remote_digests": true,
+  "mounted_combined_file": true,
+  "mounted_combined_populated_folder": true,
+  "naive_order_collisions_preserved": true,
+  "permanent_deletions": 0,
+  "recovery_mutation_replays": 0,
+  "remounted_paths": true
+}

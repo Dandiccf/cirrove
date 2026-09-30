@@ -506,6 +506,15 @@ async fn main() -> Result<()> {
         return cirrove_service::validation::icloud_account_metadata_shapes(Uuid::parse_str(run)?)
             .await;
     }
+    if let [flag, run, step] = args.as_slice()
+        && flag == "--account-mounted-relocation-step-interrupt"
+    {
+        return cirrove_service::validation::icloud_account_mounted_relocation_step_interrupt(
+            Uuid::parse_str(run)?,
+            step.parse()?,
+        )
+        .await;
+    }
     if let [flag, run] = args.as_slice()
         && flag == "--account-mounted-relocation-interrupt"
     {

@@ -74,7 +74,8 @@ remain open; ordinary account write access is still disabled.
   operations and rename/move/Trash of regular files with bounded streaming checks;
   combined move/rename now has a durable three-step implementation and a bounded
   account-router live result. Mounted combined file/folder relocation and final
-  file-acknowledgement loss now have live evidence; intermediate uncertainty remains open.
+  file-acknowledgement loss now have live evidence; lost confirmed intermediate
+  checkpoints also recover in two mounted arms. In-flight uncertainty remains open.
   A synthetic FUSE regression covers ownership at construction, writer
   failure after ejection, and a later successful writable remount. A writer
   error no longer silently selects a read-only mount. Published old write
@@ -397,7 +398,7 @@ router**, with explicit acceptance gates:
 | Gate | Current evidence | Required before enabling ordinary writes |
 | --- | --- | --- |
 | Create/edit/replace and editor saves | Owned live arms, including consecutive atomic saves | Repeat representative application workflows; preserve all failures |
-| Rename/move and recoverable deletion | Owned adapter/router arms; mounted combined file and populated-folder relocation, including file acknowledgement-loss recovery without replay | Intermediate relocation steps, in-flight uncertainty, deletion interruption and repeatability |
+| Rename/move and recoverable deletion | Owned adapter/router arms; mounted combined file and populated-folder relocation, including file acknowledgement-loss and both intermediate checkpoint-loss recoveries without repeating completed steps | In-flight uncertainty, concurrent intermediate changes, deletion interruption and repeatability |
 | Interrupted replacement | Mounted process-recovery arms passed after [confirmed Trash](benchmarks/icloud-mounted-process-recovery-2026-09-30.md) and [final installation](benchmarks/icloud-mounted-final-recovery-2026-09-30.md), with both versions, journal ownership and remount verified | In-flight uncertainty, other operation boundaries and repeatability; preserve both versions |
 | Concurrent changes | Controlled mounted same-ID races passed for ordinary saves, two pending autosaves and one atomic editor replacement; separate versions, receipt-gated editor cleanup and remount verified | Chained atomic-editor conflicts, intervening namespace operations, repeated competing edits and abandoned internal staging cleanup |
 | Recovery UX | Durable retained journals/checkpoints | User-visible uncertain/conflict state, export of pending bytes, safe resolution; audit earlier retained fixtures |
@@ -547,3 +548,21 @@ inventing cache content-version tokens.
 The failed fixture remains retained. The corrected live run proves one final
 acknowledgement-loss boundary and the registered mounted operations, not the full
 release matrix; ordinary iCloud writes are still disabled.
+
+
+## Mounted intermediate relocation checkpoints
+
+The [two registered intermediate-boundary arms](benchmarks/icloud-mounted-relocation-intermediate-2026-09-30.md)
+passed with fresh owned fixtures. Each exits after a real child response but before
+persisting the next Ready plan. Fresh-process recovery inspects the old Sent step,
+then performs only remaining child operations: move/final rename after the first
+boundary, final rename after the second. Exact dispatch sequence guards and a
+separate SQLite audit supplement independent full-content hashes and remount
+checks. No production transport or state-machine behavior changed for these tests.
+The failpoint vault is compiled only into the experimental write-probe feature.
+
+These results close those two confirmed-response checkpoint-loss cases, not all
+relocation failure modes. In-flight response loss, concurrent edits at temporary
+paths, repeatability, deletion interruption and installed write acceptance remain
+open. Setup for two tiny files still takes minutes in these runs; stage-specific
+latency measurement remains necessary before claiming usable ordinary write speed.

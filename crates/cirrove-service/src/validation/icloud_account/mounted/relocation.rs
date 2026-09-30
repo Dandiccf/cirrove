@@ -9,6 +9,7 @@ use std::{
     path::PathBuf,
     sync::atomic::{AtomicUsize, Ordering},
 };
+mod checkpoint;
 mod folders;
 
 const KIND: &str = "mounted-relocation-recovery";
@@ -43,6 +44,7 @@ pub(super) struct Boundary {
     stop: bool,
     forbidden: Option<Uuid>,
     replays: AtomicUsize,
+    checkpoint: Option<Arc<checkpoint::Watch>>,
 }
 impl Boundary {
     fn new(f: &Fixture, stop: bool, forbidden: Option<Uuid>) -> Arc<Self> {
@@ -52,7 +54,21 @@ impl Boundary {
             stop,
             forbidden,
             replays: AtomicUsize::new(0),
+            checkpoint: None,
         })
+    }
+    pub(super) fn configure(
+        &self,
+        router: ICloudWriteProvider,
+        f: &Fixture,
+    ) -> Result<ICloudWriteProvider> {
+        match &self.checkpoint {
+            None => Ok(router),
+            Some(watch) => Ok(router.validation_folder_vault(Arc::new(checkpoint::Vault {
+                inner: SealedFolderCheckpointVault::new(&f.state, &f.account.id)?,
+                watch: watch.clone(),
+            }))),
+        }
     }
     pub fn before(
         &self,
@@ -198,7 +214,22 @@ assert not any(n.name.startswith('.cirrove-move-') for d in (p,p/'Destination') 
 
 pub async fn icloud_account_mounted_relocation_interrupt(run: Uuid) -> Result<()> {
     let f = prepare(run, KIND).await?;
-    let session = mount_with_relocation(&f, Boundary::new(&f, true, None)).await?;
+    interrupt(f, None).await
+}
+
+pub async fn icloud_account_mounted_relocation_step_interrupt(run: Uuid, step: u8) -> Result<()> {
+    ensure!((1..=2).contains(&step), "intermediate step must be 1 or 2");
+    let f = prepare(run, KIND).await?;
+    interrupt(f, Some(step)).await
+}
+async fn interrupt(f: Fixture, step: Option<u8>) -> Result<()> {
+    let mut boundary = Boundary::new(&f, step.is_none(), None);
+    if let Some(step) = step {
+        Arc::get_mut(&mut boundary)
+            .context("shared boundary")?
+            .checkpoint = Some(checkpoint::Watch::new(&f, step, None));
+    }
+    let session = mount_with_relocation(&f, boundary).await?;
     let result: Result<()> = async {
         application(&f, r#"
 import pathlib,sys
@@ -246,6 +277,15 @@ pub async fn icloud_account_mounted_relocation_recover(run: Uuid) -> Result<()> 
     let parent: Node = read(&run_dir.join("owned-folder.json"))?;
     let setup: Setup = read(&run_dir.join("setup.json"))?;
     let marker: serde_json::Value = read(&run_dir.join("interrupted.json"))?;
+    let completed = match marker["boundary"].as_str() {
+        Some("combined_complete_before_ack") => 3,
+        Some("combined_step_before_checkpoint") => marker["completed_step"]
+            .as_u64()
+            .filter(|n| (1..=2).contains(n))
+            .context("invalid intermediate boundary")?
+            as u8,
+        _ => anyhow::bail!("unknown relocation boundary"),
+    };
     ensure!(
         matches!(account.registration, AppRegistration::ICloud)
             && !account.enabled
@@ -271,7 +311,6 @@ pub async fn icloud_account_mounted_relocation_recover(run: Uuid) -> Result<()> 
             && setup.blocker.parent_id.as_ref() == Some(&setup.destination.id)
             && setup.blocker.name == NAME
             && setup.blocker.kind == NodeKind::File
-            && marker["boundary"].as_str() == Some("combined_complete_before_ack")
             && marker["acknowledgement_not_returned"].as_bool() == Some(true)
             && marker["pid"]
                 .as_u64()
@@ -286,8 +325,18 @@ pub async fn icloud_account_mounted_relocation_recover(run: Uuid) -> Result<()> 
     let receipt: Node = serde_json::from_value(marker["receipt"].clone())?;
     ensure!(
         receipt.id == setup.original.id
-            && receipt.parent_id.as_ref() == Some(&setup.destination.id)
-            && receipt.name == "Combined.txt"
+            && receipt.parent_id.as_ref()
+                == Some(if completed == 1 {
+                    &parent.id
+                } else {
+                    &setup.destination.id
+                })
+            && receipt.name
+                == if completed == 3 {
+                    "Combined.txt".into()
+                } else {
+                    format!(".cirrove-move-{operation}")
+                }
             && receipt.kind == NodeKind::File
             && receipt.size == FIRST.len() as u64
             && !receipt.package
@@ -357,12 +406,17 @@ pub async fn icloud_account_mounted_relocation_recover(run: Uuid) -> Result<()> 
     let plan: serde_json::Value =
         serde_json::from_str(sealed.expose_secret()).context("invalid sealed relocation plan")?;
     ensure!(
-        plan["phase"].as_str() == Some("complete")
-            && plan["step"].as_u64() == Some(3)
+        plan["phase"].as_str() == Some(if completed == 3 { "complete" } else { "sent" })
+            && plan["step"].as_u64()
+                == Some(if completed == 3 {
+                    3
+                } else {
+                    u64::from(completed - 1)
+                })
             && plan["operation"].as_str() == Some(&operation.to_string())
             && plan["request"] == serde_json::to_value(&pending.request)?
-            && plan["current"] == serde_json::to_value(&receipt)?,
-        "relocation plan did not durably complete before acknowledgement loss"
+            && (completed != 3 || plan["current"] == serde_json::to_value(&receipt)?),
+        "relocation plan differs from registered interruption"
     );
     drop(context);
     drop(engine);
@@ -370,9 +424,14 @@ pub async fn icloud_account_mounted_relocation_recover(run: Uuid) -> Result<()> 
     hash(&f, &setup.blocker, SECOND).await?;
     record(
         &f.run_dir.join("recovery-preflight.json"),
-        &serde_json::json!({"journal_requires_verification":true,"sealed_three_step_plan_complete":true,"remote_digest_verified":true,"blocker_preserved":true}),
+        &serde_json::json!({"journal_requires_verification":true,"completed_step":completed,"sealed_plan_matches_boundary":true,"remote_digest_verified":true,"blocker_preserved":true}),
     )?;
-    let boundary = Boundary::new(&f, false, Some(operation));
+    let mut boundary = Boundary::new(&f, false, (completed == 3).then_some(operation));
+    if completed != 3 {
+        Arc::get_mut(&mut boundary)
+            .context("shared boundary")?
+            .checkpoint = Some(checkpoint::Watch::new(&f, completed, Some(operation)));
+    }
     let session = mount_with_relocation(&f, boundary.clone()).await?;
     let result: Result<()> = async {
         let rows = mutations(&session, 3).await?;
@@ -381,12 +440,24 @@ pub async fn icloud_account_mounted_relocation_recover(run: Uuid) -> Result<()> 
             .find(|r| r.id == operation)
             .context("recovered operation missing")?;
         ensure!(
-            matches!(&recovered.receipt,Some(MutationReceipt::Upsert(n)) if n==&receipt)
+            recovered
+                .receipt
+                .as_ref()
+                .is_some_and(|r| pending.request.accepts(r))
+                && (completed != 3
+                    || recovered.receipt == Some(MutationReceipt::Upsert(receipt.clone())))
                 && boundary.replays.load(Ordering::SeqCst) == 0,
             "recovery changed receipt or replayed relocation"
         );
+        let Some(MutationReceipt::Upsert(final_node)) = &recovered.receipt else {
+            anyhow::bail!("missing final receipt")
+        };
+        hash(&f, final_node, FIRST).await?;
+        if let Some(watch) = &boundary.checkpoint {
+            watch.verify()?;
+        }
         file_paths(&f).await?;
-        record(&f.run_dir.join("recovered-file.json"), &receipt)?;
+        record(&f.run_dir.join("recovered-file.json"), final_node)?;
         println!("Combined mounted file move recovered by inspection without mutation replay");
         folders::run(&f, &session, &setup.destination).await?;
         ensure!(
@@ -413,7 +484,7 @@ pub async fn icloud_account_mounted_relocation_recover(run: Uuid) -> Result<()> 
     record(
         &f.run_dir.join("passed.json"),
         &serde_json::json!({"run":run,"mounted_combined_file":true,
-        "file_final_acknowledgement_loss":true,"recovery_mutation_replays":boundary.replays.load(Ordering::SeqCst),
+        "file_final_acknowledgement_loss":completed==3,"completed_step_at_interruption":completed,"recovery_mutation_replays":boundary.replays.load(Ordering::SeqCst),
         "mounted_combined_populated_folder":true,"naive_order_collisions_preserved":true,
         "independent_remote_digests":true,"remounted_paths":true,"permanent_deletions":0}),
     )?;
@@ -439,7 +510,7 @@ mod tests {
             package: false,
         }
     }
-    fn fixture(path: &Path) -> (Boundary, MutationRequest) {
+    pub(super) fn fixture(path: &Path) -> (Boundary, MutationRequest) {
         let scope = Scope {
             account: "synthetic".into(),
             provider: "icloud".into(),
@@ -467,6 +538,7 @@ mod tests {
                 stop: true,
                 forbidden: None,
                 replays: AtomicUsize::new(0),
+                checkpoint: None,
             },
             request,
         )
