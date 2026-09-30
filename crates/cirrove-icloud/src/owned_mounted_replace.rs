@@ -19,7 +19,6 @@ use std::{fs::File, path::Path, sync::Arc};
 use uuid::Uuid;
 
 const MAX_CHECKPOINT: usize = 32 * 1024;
-const MAX_FIXTURE_FILE: u64 = 32 * 1024 * 1024;
 
 #[derive(Serialize, Deserialize)]
 enum Phase {
@@ -319,7 +318,7 @@ impl ICloudFileReplace {
             || !original.id.starts_with("FILE::com.apple.CloudDocs::")
             || original.id.rsplit("::").next().is_none_or(str::is_empty)
             || original.etag.as_deref().is_none_or(str::is_empty)
-            || original.size > MAX_FIXTURE_FILE
+            || original.size > crate::MAX_WRITE_FILE_SIZE
             || original.name.is_empty()
             || original.name.len() > 255
             || matches!(original.name.as_str(), "." | "..")
@@ -338,7 +337,7 @@ impl ICloudFileReplace {
         if request.scope != self.scope
             || !matches!(&request.intent, UploadIntent::Replace { item, expected_etag }
                 if item == &self.original.id && self.original.etag.as_deref() == Some(expected_etag))
-            || request.size > MAX_FIXTURE_FILE
+            || request.size > crate::MAX_WRITE_FILE_SIZE
         {
             return Err(UploadError::Invalid);
         }
@@ -1005,12 +1004,13 @@ mod tests {
             collection: "drive".into(),
         };
         let folder = node(ROOT_ID.into(), None, "iCloud Drive", NodeKind::Folder);
-        let original = node(
+        let mut original = node(
             "FILE::com.apple.CloudDocs::original".into(),
             Some(ROOT_ID.into()),
             "Original.txt",
             NodeKind::File,
         );
+        original.size = 65 * 1024 * 1024;
         let operation = Uuid::new_v4();
         let sign_in = || ICloudSealedSignIn {
             apple_id: "fixture@example.invalid".into(),
@@ -1032,15 +1032,20 @@ mod tests {
                 item: original.id.clone(),
                 expected_etag: original.etag.clone().expect("fixture"),
             },
-            size: 1,
+            size: 66 * 1024 * 1024,
             sha256: "b".repeat(64),
         };
-        let staged = node(
+        let mut staged = node(
             "FILE::com.apple.CloudDocs::staged".into(),
             Some(ROOT_ID.into()),
             &provider.stage_name,
             NodeKind::File,
         );
+        staged.size = request.size;
+        provider.check_request(&request).expect("large request");
+        let mut unrepresentable = request.clone();
+        unrepresentable.size = i64::MAX as u64 + 1;
+        assert!(provider.check_request(&unrepresentable).is_err());
         let plan = provider
             .plan(&request, &staged, &"a".repeat(64))
             .expect("root plan");

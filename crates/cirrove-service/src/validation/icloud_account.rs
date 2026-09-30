@@ -105,6 +105,7 @@ pub async fn icloud_account_uploads(run: Uuid) -> Result<()> {
 mod mounted;
 pub use mounted::{
     icloud_account_empty_read, icloud_account_mounted, icloud_account_mounted_empty_replace,
+    icloud_account_mounted_large,
 };
 mod namespace;
 pub use namespace::{icloud_account_combined, icloud_account_namespace};
@@ -119,6 +120,11 @@ struct Fixture {
 }
 
 async fn prepare(run: Uuid, kind: &str) -> Result<Fixture> {
+    prepare_with_budget(run, kind, 64 * 1024 * 1024).await
+}
+
+async fn prepare_with_budget(run: Uuid, kind: &str, budget: u64) -> Result<Fixture> {
+    ensure!(budget >= 8 * 1024 * 1024, "invalid fixture budget");
     let base = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.local-state");
     let source = base
         .join("icloud-gui-connect-validation/state")
@@ -156,7 +162,7 @@ async fn prepare(run: Uuid, kind: &str) -> Result<Fixture> {
     account.access = AccessMode::ReadWrite;
     account.root_id = ROOT_ID.into();
     account.mount_path = run_dir.join("unused-mount");
-    account.cache_bytes = 64 * 1024 * 1024;
+    account.cache_bytes = budget;
     record(&run_dir.join("account.json"), &account)?;
     SealedSessionVault::new(&state, &account.id)?
         .save(&account.credential_id, snapshot.clone())

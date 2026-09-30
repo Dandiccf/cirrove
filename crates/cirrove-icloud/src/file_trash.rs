@@ -102,7 +102,7 @@ impl ICloudFileTrash {
             || !digest
                 .bytes()
                 .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
-            || self.before.size > 32 * 1024 * 1024
+            || self.before.size > crate::MAX_WRITE_FILE_SIZE
         {
             return Err(MutationError::Invalid);
         }

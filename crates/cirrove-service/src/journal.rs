@@ -53,7 +53,7 @@ pub enum JournalError {
     Intent,
     #[error(
         "the local pending-upload budget is full; unsent changes are kept, and space \
-         is released as they upload. Raising cache_bytes for this account makes room now."
+         is released as they upload. Raise cache_bytes for this account and remount to apply the larger budget."
     )]
     Quota,
     /// The filesystem holding the journal is out of space, which is not the same

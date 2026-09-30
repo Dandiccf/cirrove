@@ -130,7 +130,7 @@ impl ICloudFileRename {
             || !Self::valid_name(&before.name)
             || !Self::valid_name(target_name)
             || before.name == target_name
-            || before.size > 32 * 1024 * 1024
+            || before.size > crate::MAX_WRITE_FILE_SIZE
             || etag.is_empty()
             || etag.len() > 4096
             || etag.contains(['\r', '\n', '*'])

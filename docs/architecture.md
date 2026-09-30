@@ -663,6 +663,16 @@ disk; other providers retain the existing desktop keyring backend. Selecting
 storage does not enable iCloud writes: settings and its production factory still
 refuse them pending account-wide routing and acceptance.
 
+The journal's pending-byte budget is the account's configured `cache_bytes`,
+read when this context is opened. It is separate from the evictable read cache's
+budget: dirty data, sealed generations and recovery payloads cannot be evicted to
+make room for downloads. Combined disk use can therefore exceed `cache_bytes`.
+A smaller budget on reopen blocks additional growth but preserves already
+accepted payloads and lets the journal reopen for upload/recovery. Increasing the
+configuration takes effect when the connection remounts. The manager regression
+covers reservations above its former fixed 64 MiB limit and payload retention
+across budget reduction and later increase.
+
 An ejected writable mount drains its workers and drops the published write
 control before rebuilding this context, so old references do not keep its journal
 lock alive. A provider-construction failure leaves the mount unavailable and

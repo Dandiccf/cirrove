@@ -212,6 +212,13 @@ shows **Saves that did not reach the cloud** with a count, and the tray marks
 it. To try again, open the file and save it once more. `cirrove recent` lists
 these as "saved here · upload failed".
 
+Pending saves have their own disk budget, separate from downloaded cache files.
+When that budget fills, Cirrove refuses further growth and keeps the unsent data.
+Uploads normally free room as they finish. Both budgets use the connection's
+configured size, so their combined disk use can be larger than the cache size
+shown in the window. A changed budget takes effect after unmounting and remounting
+the connection; reducing it does not discard pending saves.
+
 ## When the cloud refuses a change
 
 Sometimes a change made locally cannot be applied. There are two reasons, and

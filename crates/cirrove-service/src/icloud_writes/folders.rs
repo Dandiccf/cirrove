@@ -50,7 +50,7 @@ impl ICloudWriteProvider {
             return self.parent(&before.id).await.map_err(local_error);
         }
         if before.kind != NodeKind::File
-            || before.size > 32 * 1024 * 1024
+            || before.size > cirrove_icloud::MAX_WRITE_FILE_SIZE
             || before.package
             || before.target.is_some()
         {

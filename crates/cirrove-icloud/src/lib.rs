@@ -119,6 +119,13 @@ const WEB_WIDGET_ID: &str = "d39ba9916b7251055b22c7f910e2ea796ee65e98b2ddecea8f5
 const USER_AGENT: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3.1 Safari/605.1.15";
 pub const ROOT_ID: &str = "FOLDER::com.apple.CloudDocs::root";
 const MAX_JSON: usize = 8 * 1024 * 1024;
+/// Numeric file-length bound shared with Cirrove's journal and filesystem.
+/// This is not an Apple service-limit or live-validation claim. Local quota,
+/// remote quota and bounded transfer deadlines are enforced independently.
+pub const MAX_WRITE_FILE_SIZE: u64 = i64::MAX as u64;
+pub(crate) const UPLOAD_TRANSFER_TIMEOUT: Duration = Duration::from_secs(900);
+pub(crate) const VERIFICATION_TRANSFER_TIMEOUT: Duration = Duration::from_secs(300);
+
 const MAX_FILE: usize = 16 * 1024 * 1024;
 const MAX_RANGE: u32 = 4 * 1024 * 1024;
 const MAX_SESSION_SNAPSHOT: usize = 128 * 1024;
@@ -855,8 +862,7 @@ impl ICloudReadSession {
         etag: &str,
         size: u64,
     ) -> Result<String> {
-        const MAX_HASH_FILE: u64 = 32 * 1024 * 1024;
-        if etag.is_empty() || size > MAX_HASH_FILE {
+        if etag.is_empty() || size > MAX_WRITE_FILE_SIZE {
             bail!("iCloud file is outside the bounded verification limit");
         }
         let before = self.item_for_read(drive_id, Some(folder_id)).await?;
@@ -869,6 +875,7 @@ impl ICloudReadSession {
             let mut response = self
                 .http
                 .get(signed_url)
+                .timeout(VERIFICATION_TRANSFER_TIMEOUT)
                 .send()
                 .await
                 .map_err(|_| anyhow!("iCloud verification download failed"))?;

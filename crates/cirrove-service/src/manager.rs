@@ -174,8 +174,12 @@ impl WriteContext {
     pub(crate) async fn open(engine: &Engine, state: &Path) -> Result<Self> {
         let owner = engine.account.id.clone();
         let directory = state.join("accounts").join(&owner).join("journal");
+        // Pending edits are durable and separate from the evictable read cache.
+        // Honor the configured account budget, including on reopen; a reduction
+        // refuses further growth without deleting already accepted local data.
+        let quota = engine.account.cache_bytes;
         let journal = tokio::task::spawn_blocking(move || {
-            crate::journal::UploadJournal::open(&directory, &owner, 64 * 1024 * 1024)
+            crate::journal::UploadJournal::open(&directory, &owner, quota)
         })
         .await??;
         let checkpoints: Arc<dyn cirrove_auth::CredentialVault> = match engine.account.registration
@@ -1309,3 +1313,6 @@ mod copy_names {
         assert!((1..=31).contains(&day), "{stamp}");
     }
 }
+
+#[cfg(test)]
+mod write_budget;

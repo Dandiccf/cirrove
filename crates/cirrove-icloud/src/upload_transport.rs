@@ -262,6 +262,7 @@ impl ICloudReadSession {
         let response = self
             .http
             .post(upload_url)
+            .timeout(crate::UPLOAD_TRANSFER_TIMEOUT)
             .header("content-type", content_type_for_name(name))
             .header(reqwest::header::CONTENT_LENGTH, size)
             .body(body)

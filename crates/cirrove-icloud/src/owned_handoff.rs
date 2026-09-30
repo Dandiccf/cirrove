@@ -133,7 +133,7 @@ impl ICloudHandoff {
             || scope.provider != "icloud"
             || scope.collection != "drive"
             || session.account_hash.is_none()
-            || staged_size > 32 * 1024 * 1024
+            || staged_size > crate::MAX_WRITE_FILE_SIZE
             || plan.validate().is_err()
         {
             return Err(UploadError::Invalid);

@@ -24,8 +24,38 @@ use std::{
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-const MAX_FILE: u64 = 32 * 1024 * 1024;
 const MAX_CHECKPOINT: usize = 8192;
+
+fn verify_upload_payload(
+    bytes: &mut impl Read,
+    expected_size: u64,
+    expected_hash: &str,
+    cancel: &CancellationToken,
+) -> UploadResult<()> {
+    let mut hash = Sha256::new();
+    let mut buffer = [0u8; 64 * 1024];
+    let mut received = 0u64;
+    loop {
+        if cancel.is_cancelled() {
+            return Err(UploadError::Uncertain);
+        }
+        let read = bytes.read(&mut buffer).map_err(|_| UploadError::Invalid)?;
+        if read == 0 {
+            break;
+        }
+        received = received
+            .checked_add(read as u64)
+            .ok_or(UploadError::Invalid)?;
+        if received > expected_size {
+            return Err(UploadError::Invalid);
+        }
+        hash.update(&buffer[..read]);
+    }
+    if received != expected_size || hex::encode(hash.finalize()) != expected_hash {
+        return Err(UploadError::Invalid);
+    }
+    Ok(())
+}
 
 enum SessionState {
     Ready(Box<ICloudReadSession>),
@@ -162,7 +192,7 @@ impl ICloudFileCreate {
         };
         if request.scope != self.scope
             || parent != &self.parent.id
-            || request.size > MAX_FILE
+            || request.size > crate::MAX_WRITE_FILE_SIZE
             || name.len() > 255
             || name.contains(['\\', '\r', '\n'])
         {
@@ -453,23 +483,13 @@ impl UploadProvider for ICloudFileCreate {
         }
         let expected_size = request.size;
         let expected_hash = request.sha256.clone();
+        let hash_cancel = cancel.clone();
         let file = tokio::task::spawn_blocking(move || {
             let mut file = file;
             if file.metadata().map_err(|_| UploadError::Invalid)?.len() != expected_size {
                 return Err(UploadError::Invalid);
             }
-            let mut hash = Sha256::new();
-            let mut buffer = [0u8; 64 * 1024];
-            loop {
-                let read = file.read(&mut buffer).map_err(|_| UploadError::Invalid)?;
-                if read == 0 {
-                    break;
-                }
-                hash.update(&buffer[..read]);
-            }
-            if hex::encode(hash.finalize()) != expected_hash {
-                return Err(UploadError::Invalid);
-            }
+            verify_upload_payload(&mut file, expected_size, &expected_hash, &hash_cancel)?;
             file.seek(SeekFrom::Start(0))
                 .map_err(|_| UploadError::Invalid)?;
             Ok(file)
@@ -597,6 +617,52 @@ impl UploadProvider for ICloudFileCreate {
 mod tests {
     use super::*;
 
+    #[test]
+    fn cancelled_payload_hash_stops_before_reading_another_block() {
+        struct CancellingReader {
+            cancel: CancellationToken,
+            reads: usize,
+        }
+        impl Read for CancellingReader {
+            fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+                self.reads += 1;
+                if self.reads == 1 {
+                    buf[0] = b'x';
+                    self.cancel.cancel();
+                    Ok(1)
+                } else {
+                    Ok(0)
+                }
+            }
+        }
+        let cancel = CancellationToken::new();
+        let mut reader = CancellingReader {
+            cancel: cancel.clone(),
+            reads: 0,
+        };
+        let result =
+            verify_upload_payload(&mut reader, 1, &hex::encode(Sha256::digest(b"x")), &cancel);
+        assert!(matches!(result, Err(UploadError::Uncertain)));
+        assert_eq!(reader.reads, 1);
+    }
+
+    #[test]
+    fn streamed_payload_hash_requires_exact_size_and_digest() {
+        let cancel = CancellationToken::new();
+        let digest = hex::encode(Sha256::digest(b"xyz"));
+        assert!(verify_upload_payload(&mut b"xyz".as_slice(), 3, &digest, &cancel).is_ok());
+        for (mut bytes, size, hash) in [
+            (b"xyz".as_slice(), 2, digest.clone()),
+            (b"xyz", 4, digest),
+            (b"xyz", 3, "0".repeat(64)),
+        ] {
+            assert!(matches!(
+                verify_upload_payload(&mut bytes, size, &hash, &cancel),
+                Err(UploadError::Invalid)
+            ));
+        }
+    }
+
     #[tokio::test]
     async fn create_preflight_is_mutation_free_but_lost_checkpoint_remains_uncertain() {
         let state = tempfile::tempdir().unwrap();
@@ -641,6 +707,28 @@ mod tests {
             Ok(UploadStep::Prepared(_))
         ));
         assert!(provider.begin_is_mutation_free_until_checkpoint(&request));
+        for size in [65 * 1024 * 1024, i64::MAX as u64] {
+            let mut large = request.clone();
+            large.size = size;
+            assert!(
+                matches!(
+                    provider
+                        .begin_upload(&large, &CancellationToken::new())
+                        .await,
+                    Ok(UploadStep::Prepared(_))
+                ),
+                "large preflight rejected before streaming"
+            );
+        }
+        let mut unrepresentable = request.clone();
+        unrepresentable.size = i64::MAX as u64 + 1;
+        assert!(
+            provider
+                .begin_upload(&unrepresentable, &CancellationToken::new())
+                .await
+                .is_err()
+        );
+
         let mut empty = request.clone();
         empty.size = 0;
         empty.sha256 = hex::encode(Sha256::digest(b""));

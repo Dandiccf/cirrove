@@ -122,7 +122,7 @@ impl ICloudFileMove {
             || before.name.len() > 255
             || matches!(before.name.as_str(), "." | "..")
             || before.name.contains(['/', '\0', '\r', '\n'])
-            || before.size > 32 * 1024 * 1024
+            || before.size > crate::MAX_WRITE_FILE_SIZE
             || etag.is_empty()
             || etag.len() > 4096
             || etag.contains(['\r', '\n', '*'])

@@ -82,8 +82,8 @@ impl ICloudReadSession {
             || new.is_folder()
             || old.docwsid != plan.original_doc_id
             || new.docwsid != plan.staged_doc_id
-            || old.size > 32 * 1024 * 1024
-            || new.size > 32 * 1024 * 1024
+            || old.size > crate::MAX_WRITE_FILE_SIZE
+            || new.size > crate::MAX_WRITE_FILE_SIZE
         {
             return Ok(HandoffObserved::Diverged);
         }
@@ -202,7 +202,7 @@ impl ICloudReadSession {
         let size = item
             .get("size")
             .and_then(|value| value.as_u64())
-            .filter(|size| *size <= 32 * 1024 * 1024)
+            .filter(|size| *size <= crate::MAX_WRITE_FILE_SIZE)
             .context("iCloud Trash backup exceeds the fixture limit")?;
         let base_name = item
             .get("name")
@@ -230,6 +230,7 @@ impl ICloudReadSession {
             let mut response = self
                 .http
                 .get(signed_url)
+                .timeout(VERIFICATION_TRANSFER_TIMEOUT)
                 .send()
                 .await
                 .map_err(|_| anyhow!("iCloud Trash backup download failed"))?;
@@ -324,7 +325,7 @@ impl ICloudReadSession {
         if staged.is_folder()
             || staged.drivewsid != plan.staged_id
             || staged.docwsid != plan.staged_doc_id
-            || staged.size > 32 * 1024 * 1024
+            || staged.size > crate::MAX_WRITE_FILE_SIZE
         {
             return Ok((HandoffObserved::Diverged, None));
         }
