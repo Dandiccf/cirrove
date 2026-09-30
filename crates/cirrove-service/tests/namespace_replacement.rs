@@ -929,3 +929,289 @@ fn consecutive_atomic_replacements_support_two_id_handoffs_and_cleanup_after_res
     );
     assert_eq!(j.read_working(second.id, 0, 100).unwrap(), b"new");
 }
+
+#[test]
+fn keep_both_of_atomic_conflict_restores_victim_and_defers_source_cleanup() {
+    for pending_source in [false, true] {
+        rescue_atomic_conflict(pending_source);
+    }
+}
+
+fn rescue_atomic_conflict(pending_source: bool) {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("journal");
+    let mut j = open(&path);
+    let old = victim(&mut j);
+    let new = source(&mut j, "temporary");
+    if !pending_source {
+        ack_source(&mut j, &new, "source-id");
+    }
+    let src = object(&j, &new);
+    let dst = object(&j, &old);
+    let replacement = j
+        .replace_namespace_file(src.id, src.revision, dst.id, dst.revision, false)
+        .unwrap();
+    if pending_source {
+        ack_source(&mut j, &new, "source-id");
+    }
+    let active = j.claim_next().unwrap().unwrap();
+    assert_eq!(active.id, replacement.id);
+    j.stop_attempt(active.id, active.attempt.unwrap(), UploadState::Conflict)
+        .unwrap();
+    let copy = j
+        .keep_both(active.id, "root".into(), "rescued".into())
+        .unwrap();
+    assert_eq!(j.read_working(old.id, 0, 100).unwrap(), b"old");
+    assert_eq!(j.read_working(new.id, 0, 100).unwrap(), b"new");
+    let cloud = node("target-id", "document", "competing", 6);
+    let mut visible = names(
+        &j,
+        vec![
+            cloud.clone(),
+            node("source-id", "temporary", "source-etag", 3),
+        ],
+    );
+    visible.sort();
+    assert_eq!(visible, vec!["document", "rescued"]);
+    let original = j
+        .namespace_by_remote(&scope(), "target-id")
+        .unwrap()
+        .unwrap();
+    assert_ne!(original.id, src.id);
+    assert_ne!(original.id, dst.id);
+    assert!(original.follows_remote);
+    assert!(!j.namespace_object(dst.id).unwrap().remote_owned);
+    let updated = j.replacement(replacement.id).unwrap();
+    assert_ne!(updated.cleanup, replacement.cleanup);
+    assert!(!updated.remote_applied);
+    assert_eq!(
+        serde_json::to_value(j.mutation(replacement.cleanup).unwrap().state).unwrap(),
+        "resolved"
+    );
+    assert!(j.mutation(replacement.cleanup).unwrap().receipt.is_none());
+    assert_eq!(
+        j.operation_prerequisites(updated.cleanup).unwrap(),
+        vec![copy.id]
+    );
+    assert!(j.claim_mutation().unwrap().is_none());
+    drop(j);
+    let mut j = open(&path);
+    assert!(j.claim_mutation().unwrap().is_none());
+    let upload = j.claim_next().unwrap().unwrap();
+    assert_eq!(upload.id, copy.id);
+    j.acknowledge(
+        upload.id,
+        upload.attempt.unwrap(),
+        node("rescue-id", "rescued", "rescued-etag", 3),
+    )
+    .unwrap();
+    let cleanup = j.claim_mutation().unwrap().unwrap();
+    assert_eq!(cleanup.id, updated.cleanup);
+    assert_eq!(cleanup.request.intent.before().unwrap().id, "source-id");
+    assert_eq!(
+        cleanup.request.intent.before().unwrap().etag.as_deref(),
+        Some("source-etag")
+    );
+    j.acknowledge_mutation(
+        cleanup.id,
+        cleanup.attempt.unwrap(),
+        MutationReceipt::Removed {
+            item: "source-id".into(),
+        },
+    )
+    .unwrap();
+    assert!(j.claim_next().unwrap().is_none());
+    assert!(j.claim_mutation().unwrap().is_none());
+    assert_eq!(j.get(replacement.id).unwrap().state, UploadState::Resolved);
+    drop(j);
+    let mut j = open(&path);
+    assert!(j.claim_mutation().unwrap().is_none());
+    assert_eq!(j.read_working(old.id, 0, 100).unwrap(), b"old");
+    assert_eq!(j.read_working(new.id, 0, 100).unwrap(), b"new");
+    assert_eq!(
+        j.namespace_by_remote(&scope(), "target-id")
+            .unwrap()
+            .unwrap()
+            .id,
+        original.id
+    );
+}
+
+#[test]
+fn atomic_rescue_rolls_back_binding_and_cleanup_changes_on_transaction_failure() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("journal");
+    let mut j = open(&path);
+    let old = victim(&mut j);
+    let new = source(&mut j, "temporary");
+    ack_source(&mut j, &new, "source-id");
+    let src = object(&j, &new);
+    let dst = object(&j, &old);
+    let replacement = j
+        .replace_namespace_file(src.id, src.revision, dst.id, dst.revision, false)
+        .unwrap();
+    let active = j.claim_next().unwrap().unwrap();
+    j.stop_attempt(active.id, active.attempt.unwrap(), UploadState::Conflict)
+        .unwrap();
+    let db = rusqlite::Connection::open(path.join("uploads.db")).unwrap();
+    // Fail after the cleanup was superseded and a replacement queued, so all
+    // preceding ownership changes must roll back with the rescue itself.
+    db.execute_batch("CREATE TRIGGER refuse_rescue BEFORE UPDATE ON file_replacements WHEN json_extract(NEW.body,'$.rescued_as') IS NOT NULL BEGIN SELECT RAISE(ABORT,'synthetic rescue failure'); END;").unwrap();
+    assert!(matches!(
+        j.keep_both(active.id, "root".into(), "rescued".into()),
+        Err(JournalError::Storage)
+    ));
+    assert_eq!(j.list(0, 100).unwrap().len(), 2);
+    assert_eq!(j.get(active.id).unwrap().state, UploadState::Conflict);
+    assert_eq!(
+        j.mutation(replacement.cleanup).unwrap().state,
+        cirrove_service::journal::MutationState::Pending
+    );
+    assert_eq!(
+        j.replacement(active.id).unwrap().cleanup,
+        replacement.cleanup
+    );
+    assert_eq!(
+        j.namespace_by_remote(&scope(), "target-id")
+            .unwrap()
+            .unwrap()
+            .id,
+        dst.id
+    );
+    assert_eq!(
+        j.namespace_by_remote(&scope(), "source-id")
+            .unwrap()
+            .unwrap()
+            .id,
+        src.id
+    );
+    assert_eq!(j.working_file(new.id).unwrap().node.name, "document");
+    assert_eq!(j.read_working(old.id, 0, 100).unwrap(), b"old");
+    assert!(j.claim_mutation().unwrap().is_none());
+    db.execute_batch("DROP TRIGGER refuse_rescue").unwrap();
+    j.keep_both(active.id, "root".into(), "rescued".into())
+        .unwrap();
+}
+
+#[test]
+fn completed_atomic_replacement_does_not_prevent_rescue_of_a_later_ordinary_save() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut j = open(&tmp.path().join("journal"));
+    let old = victim(&mut j);
+    let new = source(&mut j, "temporary");
+    ack_source(&mut j, &new, "source-id");
+    let src = object(&j, &new);
+    let dst = object(&j, &old);
+    j.replace_namespace_file(src.id, src.revision, dst.id, dst.revision, false)
+        .unwrap();
+    let active = j.claim_next().unwrap().unwrap();
+    j.acknowledge(
+        active.id,
+        active.attempt.unwrap(),
+        node("target-id", "document", "replaced", 3),
+    )
+    .unwrap();
+    let cleanup = j.claim_mutation().unwrap().unwrap();
+    j.acknowledge_mutation(
+        cleanup.id,
+        cleanup.attempt.unwrap(),
+        MutationReceipt::Removed {
+            item: "source-id".into(),
+        },
+    )
+    .unwrap();
+    j.write_working(new.id, 0, b"latest").unwrap();
+    j.seal_working(new.id).unwrap();
+    let active = j.claim_next().unwrap().unwrap();
+    j.stop_attempt(active.id, active.attempt.unwrap(), UploadState::Conflict)
+        .unwrap();
+    let rescue = j
+        .keep_both(active.id, "root".into(), "rescued".into())
+        .unwrap();
+    assert_eq!(rescue.size, 6);
+    assert_eq!(j.read_working(new.id, 0, 100).unwrap(), b"latest");
+    assert_eq!(j.read_working(old.id, 0, 100).unwrap(), b"old");
+}
+
+#[test]
+fn atomic_rescue_refuses_uncertain_cleanup_before_sealing_newer_bytes() {
+    for state in ["verify_required", "pending"] {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("journal");
+        let mut j = open(&path);
+        let old = victim(&mut j);
+        let new = source(&mut j, "temporary");
+        ack_source(&mut j, &new, "source-id");
+        let src = object(&j, &new);
+        let dst = object(&j, &old);
+        let r = j
+            .replace_namespace_file(src.id, src.revision, dst.id, dst.revision, false)
+            .unwrap();
+        let active = j.claim_next().unwrap().unwrap();
+        j.stop_attempt(active.id, active.attempt.unwrap(), UploadState::Conflict)
+            .unwrap();
+        j.write_working(new.id, 0, b"newest").unwrap();
+        // A formerly attempted cleanup must never be relabelled as unsent,
+        // including a retry that has returned to Pending.
+        let db = rusqlite::Connection::open(path.join("uploads.db")).unwrap();
+        db.execute("UPDATE mutations SET state=?2,body=json_set(body,'$.state',?2,'$.failed_attempts',1) WHERE id=?1", rusqlite::params![r.cleanup.to_string(), state]).unwrap();
+        assert!(matches!(
+            j.keep_both(active.id, "root".into(), "rescued".into()),
+            Err(JournalError::Stale)
+        ));
+        assert_eq!(j.list(0, 100).unwrap().len(), 2);
+        assert!(j.working_file(new.id).unwrap().dirty);
+        assert_eq!(j.read_working(new.id, 0, 100).unwrap(), b"newest");
+        assert_eq!(j.get(active.id).unwrap().state, UploadState::Conflict);
+        assert_eq!(
+            j.namespace_by_remote(&scope(), "target-id")
+                .unwrap()
+                .unwrap()
+                .id,
+            dst.id
+        );
+    }
+}
+
+#[test]
+fn atomic_rescue_does_not_release_an_external_dependent_of_its_cleanup() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut j = open(&tmp.path().join("journal"));
+    let old = victim(&mut j);
+    let new = source(&mut j, "temporary");
+    ack_source(&mut j, &new, "source-id");
+    let src = object(&j, &new);
+    let dst = object(&j, &old);
+    let r = j
+        .replace_namespace_file(src.id, src.revision, dst.id, dst.revision, false)
+        .unwrap();
+    let active = j.claim_next().unwrap().unwrap();
+    j.stop_attempt(active.id, active.attempt.unwrap(), UploadState::Conflict)
+        .unwrap();
+    let other = j
+        .enqueue(
+            scope(),
+            UploadIntent::Create {
+                parent: "root".into(),
+                name: "other".into(),
+            },
+            b"other".as_slice(),
+        )
+        .unwrap();
+    let dependent = j
+        .enqueue_after_all(other.id, &[r.cleanup], b"dependent".as_slice())
+        .unwrap();
+    j.write_working(new.id, 0, b"newest").unwrap();
+    assert!(matches!(
+        j.keep_both(active.id, "root".into(), "rescued".into()),
+        Err(JournalError::Stale)
+    ));
+    assert_eq!(j.list(0, 100).unwrap().len(), 4);
+    assert_eq!(j.get(dependent.id).unwrap().state, UploadState::Pending);
+    assert_eq!(
+        j.mutation(r.cleanup).unwrap().state,
+        cirrove_service::journal::MutationState::Pending
+    );
+    assert!(j.working_file(new.id).unwrap().dirty);
+    assert_eq!(j.get(active.id).unwrap().state, UploadState::Conflict);
+}

@@ -1,5 +1,6 @@
 //! Real competing content edit, limited to a newly owned tiny fixture.
 use super::*;
+mod atomic_save;
 use cirrove_core::upload::{UploadError, UploadRequest};
 use std::{
     path::PathBuf,
@@ -13,9 +14,10 @@ pub(super) struct Boundary {
     snapshot: SecretString,
     username: String,
     attempted: AtomicBool,
+    atomic: bool,
 }
 impl Boundary {
-    fn new(f: &Fixture) -> Arc<Self> {
+    fn new(f: &Fixture, atomic: bool) -> Arc<Self> {
         Arc::new(Self {
             run_dir: f.run_dir.clone(),
             scope: f.scope.clone(),
@@ -23,6 +25,7 @@ impl Boundary {
             snapshot: f.snapshot.clone(),
             username: f.account.identity.username.clone(),
             attempted: AtomicBool::new(false),
+            atomic,
         })
     }
     pub async fn before_commit(
@@ -75,8 +78,18 @@ impl Boundary {
             .map_err(|_| UploadError::Uncertain)?;
         let mut remote = ICloudReadSession::from_session_snapshot(&self.snapshot, &self.username)
             .map_err(|_| UploadError::Uncertain)?;
+        let editor = if self.atomic {
+            let bytes = std::fs::read(self.run_dir.join("atomic-source.json"))
+                .map_err(|_| UploadError::Invalid)?;
+            if bytes.len() > 8192 {
+                return Err(UploadError::Invalid);
+            }
+            Some(serde_json::from_slice::<Node>(&bytes).map_err(|_| UploadError::Invalid)?)
+        } else {
+            None
+        };
         let revised = remote
-            .probe_owned_competing_edit(&plan, FIRST, SECOND)
+            .probe_owned_competing_editor_edit(&plan, FIRST, SECOND, editor.as_ref())
             .await
             .map_err(|_| UploadError::Uncertain)?;
         record(&self.run_dir.join("competing-confirmed.json"), &revised)
@@ -91,12 +104,13 @@ impl Boundary {
 async fn conflicted(
     session: &WritableSession,
     count: usize,
+    conflict_index: usize,
 ) -> Result<crate::journal::UploadRecord> {
     tokio::time::timeout(Duration::from_secs(600), async {
         loop {
             let rows = session.uploads(0, 10).await?;
             ensure!(rows.len() == count, "unexpected competing-edit queue");
-            let latest = rows.get(1).context("missing competing save")?;
+            let latest = rows.get(conflict_index).context("missing competing save")?;
             if latest.state == UploadState::Conflict {
                 return Ok(latest.clone());
             }
@@ -213,37 +227,49 @@ async fn autosave_while_prepared(f: &Fixture, session: &WritableSession) -> Resu
 }
 
 pub async fn icloud_account_mounted_competing_autosaves(run: Uuid) -> Result<()> {
-    run_competing(run, true).await
+    run_competing(run, true, false).await
 }
 pub async fn icloud_account_mounted_competing(run: Uuid) -> Result<()> {
-    run_competing(run, false).await
+    run_competing(run, false, false).await
 }
 
-async fn run_competing(run: Uuid, autosaves: bool) -> Result<()> {
+pub async fn icloud_account_mounted_competing_atomic(run: Uuid) -> Result<()> {
+    run_competing(run, false, true).await
+}
+async fn run_competing(run: Uuid, autosaves: bool, atomic: bool) -> Result<()> {
     let f = prepare(
         run,
-        if autosaves {
+        if atomic {
+            "mounted-competing-atomic"
+        } else if autosaves {
             "mounted-competing-autosaves"
         } else {
             "mounted-competing"
         },
     )
     .await?;
-    let count = if autosaves { 4 } else { 2 };
+    let count = if atomic {
+        3
+    } else if autosaves {
+        4
+    } else {
+        2
+    };
+    let conflict_index = if atomic { 2 } else { 1 };
     let local_bytes = if autosaves { AUTOSAVE_LAST } else { SECOND };
-    let boundary = Boundary::new(&f);
+    let boundary = Boundary::new(&f, atomic);
     let session = mount_with_hooks(&f, None, Some(boundary)).await?;
     let result: Result<(Uuid, Node)> = async {
         app(&f, "create").await?;
         let original = uploaded(&session, 1).await?;
         verify(&f.snapshot, &f.account, &f.parent, &original, FIRST).await?;
         record(&f.run_dir.join("original.json"), &original)?;
-        app(&f, "replace").await?;
+        if atomic { atomic_save::replace(&f, &session).await?; } else { app(&f, "replace").await?; }
         if autosaves { autosave_while_prepared(&f,&session).await?; }
-        let refused = conflicted(&session,count).await?;
+        let refused = conflicted(&session,count,conflict_index).await?;
         ensure!(refused.sha256 == hex::encode(Sha256::digest(SECOND)) && refused.size == SECOND.len() as u64, "conflicted payload differs");
         local_content(&f,local_bytes,false).await?;
-        let bytes = std::fs::read(f.run_dir.join("competing-confirmed.json"))?;
+        let bytes = std::fs::read(f.run_dir.join("competing-confirmed.json")).context("competing edit was not independently confirmed; fixture retained")?;
         ensure!(bytes.len() <= 8192, "revised receipt too large");
         let revised: Node = serde_json::from_slice(&bytes)?;
         ensure!(revised.id == original.id && revised.etag != original.etag, "competing edit changed identity or not revision");
@@ -279,8 +305,8 @@ async fn run_competing(run: Uuid, autosaves: bool) -> Result<()> {
                     rows.len() == count + 1
                         && rows
                             .iter()
-                            .skip(1)
-                            .take(count - 1)
+                            .skip(conflict_index)
+                            .take(count - conflict_index)
                             .all(|r| r.state == UploadState::Resolved)
                         && rows
                             .iter()
@@ -324,6 +350,9 @@ async fn run_competing(run: Uuid, autosaves: bool) -> Result<()> {
         expected[0] ^= 1;
         verify(&f.snapshot, &f.account, &f.parent, &revised, &expected).await?;
         record(&f.run_dir.join("rescue-verified.json"), &copy)?;
+        if atomic {
+            atomic_save::cleanup(&f, &session, refused).await?;
+        }
         Ok(())
     }
     .await;
@@ -337,7 +366,7 @@ async fn run_competing(run: Uuid, autosaves: bool) -> Result<()> {
     shutdown?;
     record(
         &f.run_dir.join("passed.json"),
-        &serde_json::json!({"run":run,"pending_autosaves":if autosaves {2} else {0},"real_competing_content_edit":true,"normal_adapter_conflict":true,"local_payload_preserved":true,"cloud_content_preserved":true,"keep_both_after_restart":true,"rescue_uploaded_and_hashed":true,"both_read_after_remount":true,"staging_cleanup":"retained_pending_separate_validation"}),
+        &serde_json::json!({"run":run,"pending_autosaves":if autosaves {2} else {0},"atomic_save":atomic,"real_competing_content_edit":true,"normal_adapter_conflict":true,"local_payload_preserved":true,"cloud_content_preserved":true,"keep_both_after_restart":true,"rescue_uploaded_and_hashed":true,"both_read_after_remount":true,"staging_cleanup":"retained_pending_separate_validation"}),
     )?;
     println!(
         "Mounted competing-edit test passed; both versions independently verified after remount"
@@ -372,6 +401,7 @@ mod tests {
             snapshot: SecretString::from("invalid synthetic snapshot"),
             username: "synthetic".into(),
             attempted: AtomicBool::new(false),
+            atomic: false,
         }
     }
     fn request(b: &Boundary) -> UploadRequest {

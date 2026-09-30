@@ -11,6 +11,8 @@ pub enum MutationState {
     VerifyRequired,
     Verifying,
     Applied,
+    /// Locally superseded before any provider attempt; not a remote receipt.
+    Resolved,
     Conflict,
     Failed,
     NeedsReview,

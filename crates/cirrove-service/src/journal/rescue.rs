@@ -1,8 +1,10 @@
 //! Keep a refused current save as a new local file. Its queue entry, namespace
 //! move and resolution of the refused operation publish in one transaction.
 use super::*;
+mod atomic;
 
 pub(super) struct RescueCommit {
+    atomic: Option<atomic::AtomicRescue>,
     original: UploadRecord,
     successors: Vec<UploadRecord>,
     object: Option<NamespaceObject>,
@@ -46,15 +48,19 @@ pub(super) fn prepare(
     Ok(saved)
 }
 
-fn successors(journal: &UploadJournal, original: &UploadRecord) -> Result<Vec<UploadRecord>> {
+fn successors(
+    journal: &UploadJournal,
+    original: &UploadRecord,
+    cleanup: Option<Uuid>,
+) -> Result<Vec<UploadRecord>> {
     let mut saves = Vec::new();
     let mut previous = original;
     loop {
         // Other-object prerequisites require their own recovery decision. A
         // resolved save must never masquerade as their provider receipt.
         let dependent: bool = journal.db.query_row(
-            "SELECT EXISTS(SELECT 1 FROM write_prerequisites WHERE predecessor=?1)",
-            [previous.id.to_string()],
+            "SELECT EXISTS(SELECT 1 FROM write_prerequisites WHERE predecessor=?1 AND (?2 IS NULL OR operation!=?2))",
+            params![previous.id.to_string(), cleanup.map(|id| id.to_string())],
             |r| r.get(0),
         )?;
         if dependent {
@@ -114,78 +120,73 @@ fn prepare_saved(
     }
     .validate()
     .map_err(|_| JournalError::Intent)?;
-    let successors = successors(journal, &original)?;
-    let latest = successors.last().unwrap_or(&original);
     let object = journal.namespace_for_operation(id)?;
-    let working =
-        if let Some(object) = &object {
-            if object.unlinked
-                || object.follows_remote
-                || !object.remote_owned
-                || object.latest != Some(latest.id)
-                || object.node.kind != NodeKind::File
-                || object.node.package
-                || object.node.target.is_some()
+    let atomic = atomic::prepare(journal, &original, object.as_ref())?;
+    let successors = successors(journal, &original, atomic.as_ref().map(|a| a.cleanup_id()))?;
+    let latest = successors.last().unwrap_or(&original);
+    let working = if let Some(object) = &object {
+        if object.unlinked
+            || object.follows_remote
+            || !object.remote_owned
+            || object.latest != Some(latest.id)
+            || object.node.kind != NodeKind::File
+            || object.node.package
+            || object.node.target.is_some()
+        {
+            return Err(JournalError::Stale);
+        }
+        let working = journal.working_file(object.working_file.ok_or(JournalError::Stale)?)?;
+        if working.unlinked
+            || working.latest != Some(latest.id)
+            || working.node != object.node
+            || working.scope != original.scope
+            || original.working_file != Some(working.id)
+        {
+            return Err(JournalError::Stale);
+        }
+        for save in &successors {
+            if journal
+                .namespace_for_operation(save.id)?
+                .as_ref()
+                .map(|o| o.id)
+                != Some(object.id)
             {
                 return Err(JournalError::Stale);
             }
-            let replacement: bool = journal.db.query_row(
-            "SELECT EXISTS(SELECT 1 FROM file_replacements WHERE id=?1 OR source=?2 OR victim=?2)",
-            params![id.to_string(), object.id.to_string()], |r| r.get(0))?;
-            if replacement {
-                return Err(JournalError::Stale);
-            }
-            let working = journal.working_file(object.working_file.ok_or(JournalError::Stale)?)?;
-            if working.unlinked
-                || working.latest != Some(latest.id)
-                || working.node != object.node
-                || working.scope != original.scope
-                || original.working_file != Some(working.id)
-            {
-                return Err(JournalError::Stale);
-            }
-            for save in &successors {
-                if journal
-                    .namespace_for_operation(save.id)?
-                    .as_ref()
-                    .map(|o| o.id)
-                    != Some(object.id)
-                {
-                    return Err(JournalError::Stale);
-                }
-            }
-            let local_parent = directories::local_parent(&journal.db, &original.scope, parent)?;
-            if namespace::entry_slot(&journal.db, &original.scope, &local_parent, name)?
-                == namespace::entry_slot(
-                    &journal.db,
-                    &original.scope,
-                    object
-                        .node
-                        .parent_id
-                        .as_deref()
-                        .ok_or(JournalError::Intent)?,
-                    &object.node.name,
-                )?
-            {
-                return Err(JournalError::Intent);
-            }
-            let slot = namespace::entry_slot(&journal.db, &original.scope, &local_parent, name)?;
-            let occupied: bool = journal.db.query_row(
-                "SELECT EXISTS(SELECT 1 FROM namespace_entries WHERE slot=?1 AND object!=?2)",
-                params![slot, object.id.to_string()],
-                |r| r.get(0),
-            )?;
-            if occupied {
-                return Err(JournalError::Stale);
-            }
-            Some(working)
-        } else {
-            if original.working_file.is_some() {
-                return Err(JournalError::Corrupt);
-            }
-            None
-        };
+        }
+        let local_parent = directories::local_parent(&journal.db, &original.scope, parent)?;
+        if namespace::entry_slot(&journal.db, &original.scope, &local_parent, name)?
+            == namespace::entry_slot(
+                &journal.db,
+                &original.scope,
+                object
+                    .node
+                    .parent_id
+                    .as_deref()
+                    .ok_or(JournalError::Intent)?,
+                &object.node.name,
+            )?
+        {
+            return Err(JournalError::Intent);
+        }
+        let slot = namespace::entry_slot(&journal.db, &original.scope, &local_parent, name)?;
+        let occupied: bool = journal.db.query_row(
+            "SELECT EXISTS(SELECT 1 FROM namespace_entries WHERE slot=?1 AND object!=?2)",
+            params![slot, object.id.to_string()],
+            |r| r.get(0),
+        )?;
+        if occupied {
+            return Err(JournalError::Stale);
+        }
+        Some(working)
+    } else {
+        if original.working_file.is_some() {
+            return Err(JournalError::Corrupt);
+        }
+        None
+    };
     Ok(RescueCommit {
+        atomic,
         original,
         successors,
         object,
@@ -241,7 +242,12 @@ pub(super) fn commit(
             )?;
         }
         namespace::save(tx, &object)?;
-        if let Some(remote) = &previous.remote {
+        let restored = if let Some(atomic) = &saved.atomic {
+            Some(atomic::commit(tx, atomic, previous, copy)?)
+        } else {
+            previous.remote.clone()
+        };
+        if let Some(remote) = &restored {
             // Older working files may use the provider ID as their local ID.
             // Keep that identity for existing descriptors, and give the cloud
             // entry a distinct durable alias. Fresh listings own its metadata.

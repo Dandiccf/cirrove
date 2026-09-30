@@ -12,6 +12,9 @@ pub struct ReplacementRecord {
     pub cleanup_object: Uuid,
     pub local_ready: bool,
     pub remote_applied: bool,
+    /// A refused replacement was rescued as this independent create.
+    #[serde(default)]
+    pub rescued_as: Option<Uuid>,
 }
 pub(super) struct ReplacementCommit {
     pub(super) source: NamespaceObject,
@@ -57,10 +60,14 @@ fn load(db: &Connection, id: Uuid) -> Result<ReplacementRecord> {
         .optional()?;
     Ok(serde_json::from_str(&body.ok_or(JournalError::Missing)?)?)
 }
-fn save(db: &Connection, record: &ReplacementRecord) -> Result<()> {
+pub(super) fn save(db: &Connection, record: &ReplacementRecord) -> Result<()> {
     if db.execute(
-        "UPDATE file_replacements SET body=?2 WHERE id=?1",
-        params![record.id.to_string(), serde_json::to_string(record)?],
+        "UPDATE file_replacements SET body=?2,cleanup=?3 WHERE id=?1",
+        params![
+            record.id.to_string(),
+            serde_json::to_string(record)?,
+            record.cleanup.to_string()
+        ],
     )? != 1
     {
         return Err(JournalError::Missing);
@@ -359,6 +366,7 @@ pub(super) fn commit(
         cleanup_object: Uuid::new_v4(),
         local_ready: !plan.preserve_readers,
         remote_applied: false,
+        rescued_as: None,
     };
     let mut source_working = plan.source_working.clone();
     let mut victim_working = plan.victim_working.clone();

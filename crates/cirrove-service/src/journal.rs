@@ -874,7 +874,8 @@ impl UploadJournal {
     /// The original cloud identity is released so it can be listed independently.
     /// The newest acknowledged local bytes win; all superseded payloads remain
     /// retained. Only an untouched linear save chain can be resolved together.
-    /// Cross-object dependencies and uncertain successors require separate review.
+    /// A never-attempted editor cleanup is moved behind the rescue receipt.
+    /// Other cross-object dependencies and uncertain successors require review.
     pub fn keep_both(&mut self, id: Uuid, parent: String, name: String) -> Result<UploadRecord> {
         let commit = rescue::prepare(self, id, &parent, &name)?;
         let scope = commit.scope();

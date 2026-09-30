@@ -1537,7 +1537,13 @@ async fn mutations_applied(session: &WritableSession, count: usize) {
     use cirrove_service::journal::MutationState;
     tokio::time::timeout(Duration::from_secs(12), async {
         loop {
-            let records = session.mutations(0, 100).await.unwrap();
+            let records: Vec<_> = session
+                .mutations(0, 100)
+                .await
+                .unwrap()
+                .into_iter()
+                .filter(|r| r.state != MutationState::Resolved)
+                .collect();
             assert!(
                 !records.iter().any(|r| matches!(
                     r.state,
@@ -4629,23 +4635,29 @@ async fn real_a_package_is_readable_and_refuses_every_change_inside_it() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires synthetic kernel FUSE; keep both exposes cloud and local copies independently"]
 async fn real_keep_both_restores_the_remote_path_and_exposes_the_copy_before_upload() {
-    keep_both_mount(false).await;
+    keep_both_mount(false, false).await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "requires synthetic kernel FUSE; autosave conflict rescue retains newest content"]
 async fn real_keep_both_rescues_multiple_autosaves_without_replaying_them() {
-    keep_both_mount(true).await;
+    keep_both_mount(true, false).await;
 }
 
-async fn keep_both_mount(autosave: bool) {
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "requires synthetic kernel FUSE; atomic-save conflict rescue preserves both identities"]
+async fn real_keep_both_rescues_atomic_save_and_delays_temporary_cleanup() {
+    keep_both_mount(false, true).await;
+}
+
+async fn keep_both_mount(autosave: bool, atomic: bool) {
     let temp = tempfile::tempdir().unwrap();
     let mount = temp.path().join("mount");
     std::fs::create_dir(&mount).unwrap();
     let account = account(&mount);
     let cloud = Arc::new(Cloud::default());
     replacement_fixture(&cloud);
-    cloud.pause_once.store(true, Ordering::SeqCst);
+    cloud.pause_once.store(!atomic, Ordering::SeqCst);
     let journal = Arc::new(Mutex::new(
         UploadJournal::open(&temp.path().join("journal"), &account.id, 1024 * 1024).unwrap(),
     ));
@@ -4660,11 +4672,34 @@ async fn keep_both_mount(autosave: bool) {
     )
     .await
     .unwrap();
-    application(
-        &mount,
-        "import pathlib,sys; pathlib.Path(sys.argv[1], 'document.txt').write_bytes(b'local')",
-    )
-    .await;
+    let old_descriptor = if atomic {
+        application(
+            &mount,
+            "import pathlib,sys; pathlib.Path(sys.argv[1], 'source.txt').write_bytes(b'local')",
+        )
+        .await;
+        acknowledged(&session, 1).await;
+        let old = tokio::task::spawn_blocking({
+            let path = mount.join("document.txt");
+            move || std::fs::File::open(path).unwrap()
+        })
+        .await
+        .unwrap();
+        cloud.pause_once.store(true, Ordering::SeqCst);
+        application(
+            &mount,
+            "import os,sys; os.chdir(sys.argv[1]); os.replace('source.txt','document.txt')",
+        )
+        .await;
+        Some(old)
+    } else {
+        application(
+            &mount,
+            "import pathlib,sys; pathlib.Path(sys.argv[1], 'document.txt').write_bytes(b'local')",
+        )
+        .await;
+        None
+    };
     tokio::time::timeout(Duration::from_secs(5), cloud.entered.notified())
         .await
         .unwrap();
@@ -4741,6 +4776,21 @@ while True:
     })
     .await
     .unwrap();
+    if let Some(mut old) = old_descriptor {
+        tokio::task::spawn_blocking(move || {
+            use std::io::Read;
+            let mut bytes = Vec::new();
+            old.read_to_end(&mut bytes).unwrap();
+            assert_eq!(
+                bytes, b"old",
+                "the replaced descriptor retains its original stream"
+            );
+        })
+        .await
+        .unwrap();
+        assert!(cloud.remote.lock().unwrap().files.contains_key("source"));
+        assert!(cloud.remote.lock().unwrap().deletes.is_empty());
+    }
     cloud.release.notify_one();
     tokio::time::timeout(Duration::from_secs(5), async {
         loop {
@@ -4749,7 +4799,7 @@ while True:
                 .await
                 .unwrap()
                 .iter()
-                .any(|r| r.id != refused.id && r.state == UploadState::Uploaded)
+                .any(|r| matches!(&r.intent, UploadIntent::Create { name, .. } if name == "document-copy.txt") && r.state == UploadState::Uploaded)
             {
                 break;
             }
@@ -4766,6 +4816,13 @@ while True:
         cloud.remote.lock().unwrap().files.get("target").unwrap().1,
         b"remote"
     );
+    if atomic {
+        mutations_applied(&session, 1).await;
+        let remote = cloud.remote.lock().unwrap();
+        assert!(!remote.files.contains_key("source"));
+        assert_eq!(remote.deletes.len(), 1);
+        assert_eq!(remote.deletes[0].intent.before().unwrap().id, "source");
+    }
     session.shutdown().await.unwrap();
     drop(engine);
     let engine = Engine::new(account, cloud.clone(), temp.path().join("state"))

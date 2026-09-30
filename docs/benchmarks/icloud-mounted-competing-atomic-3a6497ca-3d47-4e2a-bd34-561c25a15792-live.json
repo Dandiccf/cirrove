@@ -1,0 +1,15 @@
+{
+  "run": "3a6497ca-3d47-4e2a-bd34-561c25a15792",
+  "binary_sha256": "316decf54122fd626236a2aabb547df6b4b88903edbec1430f5c813876bd8370",
+  "filesystem": "btrfs",
+  "exit_code": 1,
+  "elapsed_seconds": 227.228,
+  "isolated_mount_detached": true,
+  "atomic_source": true,
+  "atomic_cleanup_verified": false,
+  "competing_started": true,
+  "competing_confirmed": false,
+  "conflict_verified": false,
+  "rescue_verified": false,
+  "passed": false
+}

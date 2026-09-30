@@ -398,7 +398,7 @@ router**, with explicit acceptance gates:
 | Create/edit/replace and editor saves | Owned live arms, including consecutive atomic saves | Repeat representative application workflows; preserve all failures |
 | Rename/move and recoverable deletion | Owned file/folder adapter and router arms | Complete mounted combined-operation and interruption coverage |
 | Interrupted replacement | Mounted process-recovery arms passed after [confirmed Trash](benchmarks/icloud-mounted-process-recovery-2026-09-30.md) and [final installation](benchmarks/icloud-mounted-final-recovery-2026-09-30.md), with both versions, journal ownership and remount verified | In-flight uncertainty, other operation boundaries and repeatability; preserve both versions |
-| Concurrent changes | Controlled mounted same-ID race passed for a single save and for two newer pending autosaves; newest-byte rescue, independent hashes and remount verified | Atomic-editor conflict chains, intervening namespace operations, repeated competing edits and abandoned staging cleanup |
+| Concurrent changes | Controlled mounted same-ID races passed for ordinary saves, two pending autosaves and one atomic editor replacement; separate versions, receipt-gated editor cleanup and remount verified | Chained atomic-editor conflicts, intervening namespace operations, repeated competing edits and abandoned internal staging cleanup |
 | Recovery UX | Durable retained journals/checkpoints | User-visible uncertain/conflict state, export of pending bytes, safe resolution; audit earlier retained fixtures |
 | Capacity and sessions | 65/66 MiB mounted arm; explicit deadlines | Quota/low-disk, slow-link, expired-session and larger-file acceptance with documented limits |
 | Native document packages | Verified read-only exports | Keep unsupported package writes refused and visible; do not advertise editable Pages/Numbers/Keynote without separate evidence |
@@ -498,3 +498,26 @@ Synthetic regressions cover unsealed bytes, transaction rollback when a later
 resolution fails, preserved open descriptors and refusal of external dependents.
 This does not cover atomic editor ownership transfers or uncertain successors,
 and no ordinary iCloud write opt-in is enabled by it.
+
+## Atomic editor conflict rescue
+
+The [registered atomic conflict arm](benchmarks/icloud-mounted-atomic-conflict-2026-09-30.md)
+passed against a fresh owned iCloud fixture after correcting the test helper's
+extra-entry policy. The mounted editor temporary file and refused victim retain
+separate identities. Keep-both now restores the changed cloud victim through a
+fresh alias and preserves the editor stream under the rescue name. It supersedes
+only a never-attempted cleanup, with no fabricated deletion receipt, and appends
+a new conditional cleanup behind the rescue Create. The old cloud original is
+never that cleanup's target.
+
+The live arm confirmed the competing edit, both full contents, rescue after
+remount, independent rescue digest, editor temporary ID in Trash and both named
+versions after another remount. A read-only journal audit verified distinct owners,
+retained conflicted payload, backward prerequisite ordering and an empty pending
+queue. Synthetic tests additionally cover old descriptors, pending source upload,
+transaction rollback, uncertain cleanup, external dependents and ordinary rescue
+after a previously completed atomic replacement.
+
+This closes one atomic replacement conflict case, not arbitrary replacement
+chains or namespace recovery. Provider-internal staging is still retained.
+Normal iCloud write settings, installed daemon and existing accounts are unchanged.

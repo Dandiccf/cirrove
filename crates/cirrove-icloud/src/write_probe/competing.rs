@@ -36,6 +36,34 @@ fn require_absent(items: &[serde_json::Value], complete: bool, id: &str) -> Resu
     Ok(())
 }
 
+fn validate_editor(plan: &HandoffPlan, editor: Option<&Node>, size: usize) -> Result<()> {
+    if let Some(n) = editor
+        && (n.id == plan.original_id
+            || n.id == plan.staged_id
+            || n.parent_id.as_ref() != Some(&plan.folder_id)
+            || n.name != ".cirrove-conflicting-editor"
+            || n.kind != NodeKind::File
+            || n.package
+            || n.target.is_some()
+            || n.etag.as_ref().is_none_or(|s| s.is_empty())
+            || n.size != size as u64)
+    {
+        bail!("invalid owned editor source");
+    }
+    Ok(())
+}
+fn require_editor_ids(plan: &HandoffPlan, editor: &Node, ids: &[&str]) -> Result<()> {
+    let expected = [&plan.original_id, &plan.staged_id, &editor.id];
+    if ids.len() != 3
+        || expected
+            .iter()
+            .any(|id| ids.iter().filter(|actual| *actual == id).count() != 1)
+    {
+        bail!("owned fixture acquired unrelated entries");
+    }
+    Ok(())
+}
+
 impl ICloudReadSession {
     /// Absence requires a complete Trash listing. The positive membership
     /// probe deliberately errors on zero matches and cannot establish this.
@@ -57,9 +85,26 @@ impl ICloudReadSession {
         original: &[u8],
         staged: &[u8],
     ) -> Result<Node> {
+        self.probe_owned_competing_editor_edit(plan, original, staged, None)
+            .await
+    }
+
+    /// The optional editor source must be an independently confirmed receipt
+    /// from the same owned fixture, not permission for arbitrary extra entries.
+    pub async fn probe_owned_competing_editor_edit(
+        &mut self,
+        plan: &HandoffPlan,
+        original: &[u8],
+        staged: &[u8],
+        editor: Option<&Node>,
+    ) -> Result<Node> {
         validate_fixture(plan, original, staged)?;
+        validate_editor(plan, editor, staged.len())?;
         if self.inspect_durable_trash_handoff(plan).await? != HandoffObserved::Prepared {
             bail!("owned competing-edit preflight changed");
+        }
+        if let Some(editor) = editor {
+            self.verify_editor_entries(plan, editor, staged).await?;
         }
         let mut revised = original.to_vec();
         revised[0] ^= 1;
@@ -81,7 +126,9 @@ impl ICloudReadSession {
             bail!("owned competing edit was not confirmed; do not retry");
         }
         let items = self.list_folder(&plan.folder_id).await?;
-        if items.len() != 2 {
+        if let Some(editor) = editor {
+            self.verify_editor_entries(plan, editor, staged).await?;
+        } else if items.len() != 2 {
             bail!("owned fixture acquired unrelated entries");
         }
         let old = exactly_one(
@@ -131,6 +178,32 @@ impl ICloudReadSession {
             package: false,
         })
     }
+    async fn verify_editor_entries(
+        &mut self,
+        plan: &HandoffPlan,
+        editor: &Node,
+        staged: &[u8],
+    ) -> Result<()> {
+        let items = self.list_folder(&plan.folder_id).await?;
+        let ids: Vec<_> = items.iter().map(|n| n.drivewsid.as_str()).collect();
+        require_editor_ids(plan, editor, &ids)?;
+        let source = exactly_one(
+            items.iter().filter(|n| n.drivewsid == editor.id).collect(),
+            "owned editor source",
+        )?;
+        if source.is_folder()
+            || source.display_name() != editor.name
+            || Some(&source.etag) != editor.etag.as_ref()
+            || source.size != editor.size
+            || self
+                .read_small_file_in_folder(&plan.folder_id, &source.drivewsid)
+                .await?
+                != staged
+        {
+            bail!("owned editor source changed");
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -160,6 +233,50 @@ mod tests {
             target_name: "Account Router.txt".into(),
             original_sha256: hex::encode(Sha256::digest(b"old")),
             staged_sha256: hex::encode(Sha256::digest(b"new")),
+        }
+    }
+    #[test]
+    fn atomic_competing_fixture_allows_only_the_exact_confirmed_editor_source() {
+        let p = plan();
+        let n = Node {
+            id: "FILE::com.apple.CloudDocs::editor".into(),
+            parent_id: Some(p.folder_id.clone()),
+            name: ".cirrove-conflicting-editor".into(),
+            kind: NodeKind::File,
+            size: 3,
+            etag: Some("editor-tag".into()),
+            content_version: None,
+            modified_unix: 0,
+            target: None,
+            package: false,
+        };
+        assert!(validate_editor(&p, Some(&n), 3).is_ok());
+        assert!(require_editor_ids(&p, &n, &[&p.original_id, &p.staged_id, &n.id]).is_ok());
+        for ids in [
+            vec![p.original_id.as_str(), p.staged_id.as_str()],
+            vec![p.original_id.as_str(), p.staged_id.as_str(), "foreign"],
+            vec![p.original_id.as_str(), n.id.as_str(), n.id.as_str()],
+            vec![
+                p.original_id.as_str(),
+                p.staged_id.as_str(),
+                n.id.as_str(),
+                "foreign",
+            ],
+        ] {
+            assert!(require_editor_ids(&p, &n, &ids).is_err());
+        }
+        for field in ["id", "parent_id", "name", "size", "package", "kind", "etag"] {
+            let mut encoded = serde_json::to_value(&n).unwrap();
+            encoded[field] = match field {
+                "id" => serde_json::json!(p.original_id),
+                "size" => serde_json::json!(4),
+                "package" => serde_json::json!(true),
+                "kind" => serde_json::json!(NodeKind::Folder),
+                "etag" => serde_json::Value::Null,
+                _ => serde_json::json!("foreign"),
+            };
+            let foreign: Node = serde_json::from_value(encoded).unwrap();
+            assert!(validate_editor(&p, Some(&foreign), 3).is_err(), "{field}");
         }
     }
     #[test]

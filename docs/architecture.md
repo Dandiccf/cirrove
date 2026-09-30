@@ -989,6 +989,24 @@ this replacement path. Retained history, restored IDs, recovery UI, ordinary edi
 and office save patterns, and broader real-provider replacement/cleanup acceptance
 remain open. Write-enabled accounts use this path in ordinary mounts.
 
+## Rescue of refused editor replacements
+
+Keep-both moves the current local stream to an independent Create without
+rebinding open descriptors. An atomic editor replacement has two provider
+identities: the source temporary file and the refused victim. Rescue releases
+the detached victim's ownership and restores its cloud path through a fresh
+remote-following alias, while the source stream keeps the rescued local bytes.
+
+The existing source cleanup is accepted for rescue only when it is Pending,
+never attempted, fully bound to the confirmed source identity and revision, and
+has no dependents. It becomes Resolved without a provider receipt. A new cleanup
+is appended after the rescue Create and depends on its completion; immutable
+queue sequences are not rewritten. Ownership transfer, cleanup supersession,
+replacement linkage and upload resolution commit together. The old victim's
+working bytes and superseded immutable payloads remain retained. Uncertain
+cleanup, unrelated dependents and additional unsettled takeovers are refused.
+Completed replacement history does not block rescue of a later ordinary save.
+
 ## Deferred source capture for replacement
 
 Journal schema 13 gives an online-only replacement a `Preparing` upload and a
