@@ -37,6 +37,17 @@ abrupt process exit can leave a hidden `.cirrove-export-*` temporary file, or a
 complete destination if publication already happened; the original journal is
 unchanged. No automatic cleanup walks the destination directory.
 
+## Desktop
+
+Expand an active writable account and choose **Save a local copy…** under
+**Recover a saved version**. The picker lists eligible versions among the latest
+200 saves, identified by filename, generation number and byte length. Choose a
+new local destination; existing destinations are still refused even if the
+platform chooser offers replacement. The progress dialog can request **Stop**.
+Only a matching completed service receipt produces a success message. Missing
+jobs, disconnected services and incomplete receipts report an unconfirmed result
+and ask you to inspect the destination. These outcomes do not discard the save.
+
 ## Current limits
 
 - The account must have an active writable journal. Export from an unmounted or
@@ -44,9 +55,10 @@ unchanged. No automatic cleanup walks the destination directory.
 - It selects an unresolved **sealed generation**, not unsaved editor buffers or
   unsealed working bytes. `Preparing`, acknowledged, discarded and resolved
   generations are refused. Selecting an older ID exports that older generation.
-- The CLI and status protocol expose this flow; a dedicated desktop export picker
-  and progress view are still pending. Export jobs are excluded from the offline
-  pinning section rather than mislabeled as downloads.
+- Desktop selection is bounded to the latest 200 saves. The CLI can select an
+  older known operation ID. The export dialog monitors the current operation;
+  after closing/restarting the app, use CLI jobs/status to inspect retained jobs.
+  Export jobs are not shown as offline pinning downloads.
 - A directory renamed during copying is detected before publication. As with any
   file operation, another process can rename the completed file afterward.
 - These controls do not establish ordinary iCloud write readiness; see

@@ -270,7 +270,7 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                                         removed: false,
                                     }],
                                     local: vec![cirrove_service::recent::LocalChange {
-                            operation: None,
+                            operation: Some("00000000-0000-4000-8000-000000000001".parse().unwrap()),
                                         sequence: 1,
                                         name: "Notes.txt".into(),
                                         item: None,
@@ -300,6 +300,16 @@ fn fake_service(runtime: &tokio::runtime::Runtime, dir: &Path, status: Status) -
                                 cirrove_service::RecentReply::default()
                             };
                             serde_json::to_vec(&reply).unwrap()
+                        } else if line.starts_with("export-save ") {
+                            seen.lock().unwrap().push(line.trim_end().to_owned());
+                            let request: cirrove_service::ExportSaveRequest = serde_json::from_str(line.split_once(' ').unwrap().1).unwrap();
+                            let job = cirrove_service::jobs::Job {
+                                id: "recovery-job".into(), kind: cirrove_service::jobs::JobKind::ExportLocal,
+                                name: request.destination.to_string_lossy().into_owned(), bytes_total: 3,
+                                ..Default::default()
+                            };
+                            replies.lock().unwrap().accounts[0].jobs.push(job.clone());
+                            serde_json::to_vec(&cirrove_service::ExportSaveReply { job: Some(job), refusal: None }).unwrap()
                         } else if line.starts_with("unpin ") || line.starts_with("pin ") {
                             seen.lock().unwrap().push(line.trim_end().to_owned());
                             let body: cirrove_service::PinRequest =
@@ -1286,6 +1296,170 @@ fn icloud_connect_shows_local_sign_in_and_never_offers_writes() {
     runtime.shutdown_timeout(Duration::from_secs(1));
 }
 
+fn recovery_progress_requires_the_matching_service_receipt() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let sample = demo::snapshot().unwrap();
+    let mut settings = sample.settings.unwrap();
+    settings.accounts[0].access = cirrove_auth::AccessMode::ReadWrite;
+    let id = settings.accounts[0].id.clone();
+    write_settings(&state, &settings);
+    let service = fake_service(&runtime, temp.path(), sample.status.unwrap());
+    let app = application("RecoveryProgress");
+    let ui = Window::new(
+        &app,
+        Backend::Live {
+            runtime: runtime.handle().clone(),
+            state,
+            socket: service.socket.clone(),
+        },
+    );
+    pump_until("recovery account", || {
+        ui.current().is_some_and(|v| v.accounts[0].mounted)
+    });
+    let window = ui.window.upgrade().unwrap();
+    window.present();
+    let save: cirrove_service::recent::LocalChange = serde_json::from_value(serde_json::json!({
+        "operation":"00000000-0000-4000-8000-000000000001", "sequence":1, "name":"Notes.txt", "state":"conflict", "size":3
+    })).unwrap();
+    let destination = temp.path().join("recovered.txt");
+    for outcome in ["confirmed", "missing_receipt", "missing_job", "stopped"] {
+        let with_receipt = outcome == "confirmed";
+        service.response.lock().unwrap().accounts[0].jobs.clear();
+        ui.export_saved_version(&id, save.clone(), destination.clone());
+        pump_until("export progress", || {
+            displays_text(window.upcast_ref(), "0 of 3 bytes copied")
+        });
+        {
+            let mut status = service.response.lock().unwrap();
+            let job = status.accounts[0]
+                .jobs
+                .iter_mut()
+                .find(|j| j.id == "recovery-job")
+                .unwrap();
+            job.state = cirrove_service::jobs::JobState::Succeeded;
+            job.bytes_done = 3;
+            if outcome == "stopped" {
+                job.state = cirrove_service::jobs::JobState::Stopped;
+            }
+            if with_receipt {
+                job.export = Some(cirrove_service::journal::LocalExportReceipt {
+                    operation: save.operation.unwrap(),
+                    size: 3,
+                    sha256: "a".repeat(64),
+                    destination: destination.clone(),
+                });
+            }
+            if outcome == "missing_job" {
+                status.accounts[0].jobs.clear();
+            }
+        }
+        pump_until("export result", || {
+            displays_text_containing(
+                window.upcast_ref(),
+                if with_receipt {
+                    "Verified copy saved to"
+                } else {
+                    "Export was not confirmed."
+                },
+            )
+        });
+        button(window.upcast_ref(), "Close").unwrap().emit_clicked();
+        pump_until("export dialog dismissed", || {
+            button(window.upcast_ref(), "Close").is_none()
+        });
+    }
+    window.close();
+    service.task.abort();
+    runtime.shutdown_timeout(Duration::from_secs(1));
+}
+
+fn recovery_picker_uses_bounded_local_history_without_cloud_mutation() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let state = temp.path().join("state");
+    cirrove_service::private_dir(&state).unwrap();
+    let sample = demo::snapshot().unwrap();
+    let mut settings = sample.settings.unwrap();
+    settings.accounts[0].access = cirrove_auth::AccessMode::ReadWrite;
+    let id = settings.accounts[0].id.clone();
+    write_settings(&state, &settings);
+    let service = fake_service(&runtime, temp.path(), sample.status.unwrap());
+    let app = application("RecoveryPicker");
+    let ui = Window::new(
+        &app,
+        Backend::Live {
+            runtime: runtime.handle().clone(),
+            state,
+            socket: service.socket.clone(),
+        },
+    );
+    pump_until("recovery account", || {
+        ui.current().is_some_and(|view| {
+            view.accounts
+                .iter()
+                .any(|c| c.id == id && c.mounted && c.writable)
+        })
+    });
+    let window = ui.window.upgrade().unwrap();
+    window.present();
+    expand_all(window.upcast_ref());
+    pump_until("recovery button", || {
+        button(window.upcast_ref(), "Save a local copy…").is_some()
+    });
+    button(window.upcast_ref(), "Save a local copy…")
+        .unwrap()
+        .emit_clicked();
+    pump_until("saved generation picker", || {
+        displays_text_containing(window.upcast_ref(), "Notes.txt — version 1, 3 bytes")
+    });
+    assert!(
+        service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.starts_with("recent ") && line.contains("200"))
+    );
+    assert!(
+        !service
+            .requests
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|line| line.starts_with("keep-both ")
+                || line.starts_with("retry ")
+                || line.starts_with("export-save "))
+    );
+    if let Ok(path) = std::env::var("CIRROVE_RECOVERY_SNAPSHOT") {
+        let until = Instant::now() + Duration::from_millis(500);
+        while Instant::now() < until {
+            while glib::MainContext::default().pending() {
+                glib::MainContext::default().iteration(false);
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let paintable = gtk::WidgetPaintable::new(Some(&window));
+        let snapshot = gtk::Snapshot::new();
+        paintable.snapshot(&snapshot, window.width() as f64, window.height() as f64);
+        let node = snapshot.to_node().unwrap();
+        window
+            .renderer()
+            .unwrap()
+            .render_texture(&node, None)
+            .save_to_png(Path::new(&path))
+            .unwrap();
+    }
+    button(window.upcast_ref(), "Cancel")
+        .unwrap()
+        .emit_clicked();
+    window.close();
+    service.task.abort();
+    runtime.shutdown_timeout(Duration::from_secs(1));
+}
+
 fn uncertain_writes_have_a_separate_non_destructive_status() {
     let app = application("UnconfirmedWrites");
     let ui = Window::new(&app, Backend::Demo);
@@ -1640,6 +1814,14 @@ fn a_fetch_in_flight_shows_its_progress_and_can_be_stopped() {
 }
 
 const SCENARIOS: &[(&str, fn())] = &[
+    (
+        "recovery_progress_requires_the_matching_service_receipt",
+        recovery_progress_requires_the_matching_service_receipt,
+    ),
+    (
+        "recovery_picker_uses_bounded_local_history_without_cloud_mutation",
+        recovery_picker_uses_bounded_local_history_without_cloud_mutation,
+    ),
     (
         "uncertain_writes_have_a_separate_non_destructive_status",
         uncertain_writes_have_a_separate_non_destructive_status,

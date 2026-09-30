@@ -13,6 +13,7 @@ use std::{
 };
 
 mod connect;
+mod recovery;
 
 #[derive(Clone)]
 pub enum Backend {
@@ -49,6 +50,8 @@ struct AccountRow {
     /// would act on whatever is there now.
     retry: gtk::Button,
     keep_both: gtk::Button,
+    export: gtk::Button,
+    recovery: adw::ActionRow,
     destruction: adw::ActionRow,
     destroy: gtk::Button,
     wastebasket: adw::ActionRow,
@@ -754,6 +757,26 @@ impl Window {
             .valign(gtk::Align::Center)
             .build();
         unsent.add_suffix(&keep_both);
+        let export = gtk::Button::builder()
+            .label(gettext("Save a local copy…"))
+            .valign(gtk::Align::Center)
+            .build();
+        let recovery = adw::ActionRow::builder()
+            .title(gettext("Recover a saved version"))
+            .subtitle(gettext(
+                "Save a copy outside the cloud without retrying the upload.",
+            ))
+            .use_markup(false)
+            .build();
+        recovery.add_suffix(&export);
+        row.add_row(&recovery);
+        let weak = Rc::downgrade(self);
+        let key = id.to_owned();
+        export.connect_clicked(move |_| {
+            if let Some(ui) = weak.upgrade() {
+                ui.choose_recovery_save(&key);
+            }
+        });
         row.add_row(&unconfirmed);
         row.add_row(&refused);
         row.add_row(&unsent);
@@ -852,6 +875,8 @@ impl Window {
             retry,
             unsent,
             keep_both,
+            export,
+            recovery,
             destruction,
             destroy,
             wastebasket,
@@ -1060,6 +1085,9 @@ impl Window {
         row.destruction
             .set_visible(card.supports_writes && card.writable);
         row.destroy
+            .set_sensitive(idle && card.mounted && card.writable);
+        row.recovery.set_visible(card.writable);
+        row.export
             .set_sensitive(idle && card.mounted && card.writable);
         row.keep_both.set_sensitive(idle && card.failed_uploads > 0);
         row.keep_both.set_tooltip_text(Some(&gettext(
