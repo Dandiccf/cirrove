@@ -107,6 +107,7 @@ struct Provider {
     prepare_once: AtomicBool,
     fail_inspect_once: AtomicBool,
     reject_inspection_session: AtomicBool,
+    storage_inspection_error: AtomicU64,
     uncertain_inspect_when_committed: AtomicBool,
     restart_prepare_once: AtomicBool,
     complete_on_inspect_once: AtomicBool,
@@ -144,6 +145,7 @@ impl Provider {
             prepare_once: AtomicBool::new(false),
             fail_inspect_once: AtomicBool::new(false),
             reject_inspection_session: AtomicBool::new(false),
+            storage_inspection_error: AtomicU64::new(0),
             uncertain_inspect_when_committed: AtomicBool::new(false),
             restart_prepare_once: AtomicBool::new(false),
             complete_on_inspect_once: AtomicBool::new(false),
@@ -315,6 +317,11 @@ impl UploadProvider for Provider {
         _: &CancellationToken,
     ) -> UploadResult<UploadStep> {
         self.probe.check();
+        match self.storage_inspection_error.load(Ordering::SeqCst) {
+            1 => return Err(UploadError::Quota),
+            2 => return Err(UploadError::InsufficientStorage),
+            _ => {}
+        }
         if self.reject_inspection_session.load(Ordering::SeqCst) {
             return Err(ProviderError::Authentication.into());
         }
@@ -1550,4 +1557,78 @@ async fn rejected_session_keeps_uncertain_commit_and_local_bytes_until_verified_
     assert_eq!(state.begins, 1);
     assert_eq!(state.offsets, [0, 4, 8]);
     assert_eq!(state.reconciliations, 1);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn storage_refusal_keeps_checkpoint_and_exports_bytes_until_explicit_verified_retry() {
+    for (mode, error) in [
+        (1, UploadError::Quota),
+        (2, UploadError::InsufficientStorage),
+    ] {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("journal");
+        let (probe, provider, vault) = fixture();
+        let j = journal(&root, &probe);
+        let id = enqueue(&j, "Saved.txt");
+        provider.lose_success.store(true, Ordering::SeqCst);
+        let worker = TransferWorker::new(
+            j.clone(),
+            provider.clone(),
+            vault.clone(),
+            CancellationToken::new(),
+        );
+        assert_eq!(
+            worker.run_once().await.unwrap().unwrap().state,
+            UploadState::VerifyRequired
+        );
+        let checkpoint = j.lock().unwrap().get(id).unwrap().session_key;
+        assert!(checkpoint.is_some());
+        j.lock().unwrap().request_retry(id).unwrap();
+        provider
+            .storage_inspection_error
+            .store(mode, Ordering::SeqCst);
+        let result = worker.run_once().await.unwrap().unwrap();
+        assert_eq!(result.state, UploadState::Failed);
+        assert_eq!(result.issue.as_deref(), Some(error.to_string().as_str()));
+        assert_eq!(j.lock().unwrap().get(id).unwrap().session_key, checkpoint);
+        assert!(vault.load(&format!("upload/{id}")).await.unwrap().is_some());
+        assert!(worker.run_once().await.unwrap().is_none());
+        let source = j.lock().unwrap().local_export_source(id).unwrap();
+        let export = temp.path().join("recovered.txt");
+        let receipt = source
+            .copy_to(&export, &CancellationToken::new(), |_| {})
+            .unwrap();
+        assert_eq!(receipt.operation, id);
+        assert_eq!(std::fs::read(&export).unwrap(), DATA);
+        assert_eq!(
+            j.lock().unwrap().get(id).unwrap().state,
+            UploadState::Failed
+        );
+        drop(worker);
+        drop(j);
+        let j = journal(&root, &probe);
+        assert_local(&j, id);
+        let worker = TransferWorker::new(
+            j.clone(),
+            provider.clone(),
+            vault.clone(),
+            CancellationToken::new(),
+        );
+        provider.storage_inspection_error.store(0, Ordering::SeqCst);
+        assert!(
+            worker.run_once().await.unwrap().is_none(),
+            "storage becoming available is not user consent to retry"
+        );
+        j.lock().unwrap().request_retry(id).unwrap();
+        assert_eq!(
+            worker.run_once().await.unwrap().unwrap().state,
+            UploadState::Uploaded
+        );
+        assert!(vault.load(&format!("upload/{id}")).await.unwrap().is_none());
+        assert_local(&j, id);
+        let state = provider.state.lock().unwrap();
+        assert_eq!(state.begins, 1);
+        assert_eq!(state.offsets, [0, 4, 8]);
+        assert_eq!(state.reconciliations, 1);
+    }
 }

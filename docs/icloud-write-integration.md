@@ -785,3 +785,20 @@ verified through a held writable FUSE descriptor. The
 [desktop picker and exact receipt handling](benchmarks/icloud-active-working-export-desktop-2026-10-01.md)
 also pass synthetic native-window acceptance. Installed recovery acceptance remains
 open.
+
+
+## Storage refusal before a folder-create receipt
+
+A typed HTTP 507 refusal keeps local work and requires explicit retry. This is a
+server storage refusal, not proof of the account's quota or proof that an earlier
+mutation did not commit. Signed verification downloads distinguish this response
+from expired signed URLs: their 401/403 responses remain uncertain rather than
+forcing account reauthentication.
+
+Folder creation has a conservative limitation: if no created-item identity was
+saved, reconciliation returns `Indeterminate`, even when the refusal happened in
+preflight. Explicit retry does not guess an identity, infer absence from a name,
+or blindly replay creation. Storage becoming available alone cannot settle this
+case; the retained operation needs further reconciliation support or review.
+Synthetic tests cover this boundary and response classification; they do not
+establish Apple's live quota response format or general quota recovery.

@@ -253,6 +253,7 @@ fn requests_reject_wildcards_recursive_delete_shortcuts_and_foreign_accounts() {
 struct Provider {
     mode: &'static str,
     reject_session: AtomicBool,
+    reject_storage: AtomicBool,
     preparations: AtomicUsize,
     mutations: AtomicUsize,
     checks: AtomicUsize,
@@ -315,6 +316,9 @@ impl MutationProvider for Provider {
         prepared_item: Option<&str>,
         c: &CancellationToken,
     ) -> Result<MutationReconciliation> {
+        if self.reject_storage.load(Ordering::SeqCst) {
+            return Err(MutationError::InsufficientStorage);
+        }
         if self.reject_session.load(Ordering::SeqCst) {
             return Err(cirrove_core::ProviderError::Authentication.into());
         }
@@ -418,6 +422,7 @@ fn provider(mode: &'static str, j: &Arc<Mutex<UploadJournal>>) -> Arc<Provider> 
     Arc::new(Provider {
         mode,
         reject_session: AtomicBool::new(false),
+        reject_storage: AtomicBool::new(false),
         preparations: AtomicUsize::new(0),
         mutations: AtomicUsize::new(0),
         checks: AtomicUsize::new(0),
@@ -1016,6 +1021,15 @@ fn verified_content_never_authorizes_packages_folders_or_different_size() {
 
 #[tokio::test]
 async fn session_rejection_preserves_namespace_intent_and_prepared_identity_across_restart() {
+    namespace_refusal_preserves_intent(false).await;
+}
+
+#[tokio::test]
+async fn storage_refusal_preserves_namespace_intent_until_explicit_verified_retry() {
+    namespace_refusal_preserves_intent(true).await;
+}
+
+async fn namespace_refusal_preserves_intent(storage: bool) {
     let mut folder = before();
     folder.kind = NodeKind::Folder;
     folder.size = 0;
@@ -1051,17 +1065,19 @@ async fn session_rejection_preserves_namespace_intent_and_prepared_identity_acro
             assert_eq!(prepared.as_deref(), Some("reserved-folder-id"));
         }
         j.lock().unwrap().request_mutation_retry(record.id).unwrap();
-        p.reject_session.store(true, Ordering::SeqCst);
+        if storage {
+            p.reject_storage.store(true, Ordering::SeqCst);
+        } else {
+            p.reject_session.store(true, Ordering::SeqCst);
+        }
         let result = worker.run_once().await.unwrap().unwrap();
         assert_eq!(result.state, MutationState::Failed);
-        assert_eq!(
-            result.issue.as_deref(),
-            Some(
-                cirrove_core::ProviderError::Authentication
-                    .to_string()
-                    .as_str()
-            )
-        );
+        let expected = if storage {
+            MutationError::InsufficientStorage.to_string()
+        } else {
+            cirrove_core::ProviderError::Authentication.to_string()
+        };
+        assert_eq!(result.issue.as_deref(), Some(expected.as_str()));
         assert!(worker.run_once().await.unwrap().is_none());
         drop(worker);
         drop(j);
@@ -1069,9 +1085,11 @@ async fn session_rejection_preserves_namespace_intent_and_prepared_identity_acro
         let retained = j.lock().unwrap().mutation(record.id).unwrap();
         assert!(retained.request.intent == intent);
         assert_eq!(retained.prepared_item, prepared);
-        j.lock().unwrap().request_mutation_retry(record.id).unwrap();
         p.reject_session.store(false, Ordering::SeqCst);
+        p.reject_storage.store(false, Ordering::SeqCst);
         let worker = MutationWorker::new(j.clone(), p.clone(), CancellationToken::new());
+        assert!(worker.run_once().await.unwrap().is_none());
+        j.lock().unwrap().request_mutation_retry(record.id).unwrap();
         assert_eq!(
             worker.run_once().await.unwrap().unwrap().state,
             MutationState::Applied

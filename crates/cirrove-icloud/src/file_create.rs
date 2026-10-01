@@ -24,11 +24,23 @@ use std::{
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-// Preserve typed session rejection without exposing any provider response or URL.
-// Other failures stay uncertain: authentication is not proof of non-commitment.
+// Preserve typed session/storage refusal without exposing provider text or URLs.
+// Other failures stay uncertain; a refusal is not proof of earlier non-commitment.
 pub(crate) fn map_session_error(error: anyhow::Error) -> UploadError {
-    if error.downcast_ref::<crate::SessionRejected>().is_some() {
+    if error.downcast_ref::<crate::StorageRefused>().is_some() {
+        UploadError::InsufficientStorage
+    } else if error.downcast_ref::<crate::SessionRejected>().is_some() {
         cirrove_core::ProviderError::Authentication.into()
+    } else {
+        UploadError::Uncertain
+    }
+}
+
+// Signed upload locations have their own lifetime: 401/403 there is not proof
+// that the Apple account session expired. A typed 507 remains actionable.
+pub(crate) fn map_content_error(error: anyhow::Error) -> UploadError {
+    if error.downcast_ref::<crate::StorageRefused>().is_some() {
+        UploadError::InsufficientStorage
     } else {
         UploadError::Uncertain
     }
@@ -523,9 +535,7 @@ impl UploadProvider for ICloudFileCreate {
             session
                 .upload_stream_to_slot(&slot, name, file, request.size)
                 .await
-                // A signed content URL can expire independently of the account
-                // session. Retain uncertainty rather than requesting sign-in.
-                .map_err(|_| UploadError::Uncertain)?
+                .map_err(map_content_error)?
         };
         Ok(UploadStep::Commit(self.checkpoint(
             request,

@@ -153,6 +153,16 @@ pub(crate) struct StaleRead;
 pub(crate) struct SessionRejected;
 
 #[derive(Debug)]
+pub(crate) struct StorageRefused;
+
+impl std::fmt::Display for StorageRefused {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("iCloud returned HTTP 507 Insufficient Storage")
+    }
+}
+impl std::error::Error for StorageRefused {}
+
+#[derive(Debug)]
 pub(crate) struct IncompleteFolder;
 
 impl std::fmt::Display for IncompleteFolder {
@@ -171,19 +181,36 @@ impl std::fmt::Display for SessionRejected {
 
 impl std::error::Error for SessionRejected {}
 
-/// Preserve a typed Apple session rejection at a namespace-write boundary.
-/// All other failures remain uncertain; no remote response text is exposed.
-/// Authentication does not establish whether an earlier mutation committed.
+/// Preserve typed session/storage refusals at a namespace-write boundary.
+/// Other failures remain uncertain; no remote response text is exposed.
+/// A refusal does not establish whether an earlier mutation committed.
 pub fn mutation_error(error: anyhow::Error) -> cirrove_core::mutation::MutationError {
-    if error.downcast_ref::<SessionRejected>().is_some() {
+    if error.downcast_ref::<StorageRefused>().is_some() {
+        cirrove_core::mutation::MutationError::InsufficientStorage
+    } else if error.downcast_ref::<SessionRejected>().is_some() {
         cirrove_core::ProviderError::Authentication.into()
     } else {
         cirrove_core::mutation::MutationError::Uncertain
     }
 }
 
+/// Signed content URLs can expire independently of the account session.
+/// Only a typed storage refusal survives this boundary; 401/403 stay uncertain.
+fn content_request_failure(status: StatusCode, stage: &'static str) -> anyhow::Error {
+    if status == StatusCode::INSUFFICIENT_STORAGE {
+        StorageRefused.into()
+    } else {
+        anyhow!("{stage} failed ({})", status.as_u16())
+    }
+}
+
 fn drive_request_failure(status: StatusCode, stage: &'static str) -> anyhow::Error {
-    if matches!(status, StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN) {
+    // RFC 4918 section 11.5: server storage refusal requires a separate user
+    // action before retry. It does not prove the user's account quota is full
+    // or establish the outcome of an earlier mutation.
+    if status == StatusCode::INSUFFICIENT_STORAGE {
+        StorageRefused.into()
+    } else if matches!(status, StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN) {
         SessionRejected.into()
     } else {
         anyhow!("{stage} failed ({})", status.as_u16())
@@ -1866,3 +1893,6 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod storage_refusal_tests;

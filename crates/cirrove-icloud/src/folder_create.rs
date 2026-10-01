@@ -487,6 +487,85 @@ mod session_tests {
             }
         }
     }
+    /// With no durable created ID, retry cannot establish absence or replay creation.
+    #[tokio::test]
+    async fn storage_refusal_without_folder_identity_keeps_retry_indeterminate() {
+        use tokio::{
+            io::{AsyncReadExt, AsyncWriteExt},
+            net::TcpListener,
+        };
+        tokio::time::timeout(std::time::Duration::from_secs(3), async {
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let endpoint = format!("http://{}/", listener.local_addr().unwrap());
+            let server = tokio::spawn(async move {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                let mut bytes = [0u8; 8192];
+                assert!(stream.read(&mut bytes).await.unwrap() > 0);
+                stream
+                    .write_all(
+                        b"HTTP/1.1 507 Fixture\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                    )
+                    .await
+                    .unwrap();
+                // Reconciliation without an identity must not send another request.
+                assert!(
+                    tokio::time::timeout(std::time::Duration::from_millis(100), listener.accept())
+                        .await
+                        .is_err()
+                );
+            });
+            let mut session = ICloudReadSession::new().unwrap();
+            session.drive_endpoint = Some(url::Url::parse(&endpoint).unwrap());
+            let provider = ICloudFolderCreate {
+                scope: Scope {
+                    account: Uuid::new_v4().to_string(),
+                    provider: "icloud".into(),
+                    collection: "drive".into(),
+                },
+                parent: Node {
+                    id: "FOLDER::com.apple.CloudDocs::owned".into(),
+                    parent_id: Some(ROOT_ID.into()),
+                    name: "Owned".into(),
+                    kind: NodeKind::Folder,
+                    size: 0,
+                    modified_unix: 0,
+                    etag: None,
+                    content_version: None,
+                    target: None,
+                    package: false,
+                },
+                checkpoint_vault: Arc::new(EmptyVault),
+                session: Mutex::new(SessionState::Ready(Box::new(session))),
+                #[cfg(feature = "write-probe")]
+                reconciliation_only: false,
+            };
+
+            let request = MutationRequest {
+                scope: provider.scope.clone(),
+                intent: MutationIntent::CreateFolder {
+                    parent: provider.parent.id.clone(),
+                    name: "new".into(),
+                },
+            };
+            let operation = Uuid::new_v4().to_string();
+            let cancel = CancellationToken::new();
+            assert!(matches!(
+                provider
+                    .mutate_operation(&operation, &request, None, &cancel)
+                    .await,
+                Err(MutationError::InsufficientStorage)
+            ));
+            assert!(matches!(
+                provider
+                    .reconcile_operation(&operation, &request, None, &cancel)
+                    .await,
+                Ok(MutationReconciliation::Indeterminate)
+            ));
+            server.await.unwrap();
+        })
+        .await
+        .expect("bounded storage-refusal/reconciliation fixture");
+    }
 }
 
 #[cfg(test)]

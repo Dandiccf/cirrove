@@ -85,6 +85,7 @@ impl MutationWorker {
                         MutationError::Invalid
                             | MutationError::Unsupported(_)
                             | MutationError::Quota
+                            | MutationError::InsufficientStorage
                             | MutationError::Provider(
                                 ProviderError::Permission
                                     | ProviderError::Authentication
@@ -178,6 +179,7 @@ impl MutationWorker {
                             MutationError::Invalid
                             | MutationError::Unsupported(_)
                             | MutationError::Quota
+                            | MutationError::InsufficientStorage
                             | MutationError::Provider(
                                 ProviderError::Permission
                                 | ProviderError::Authentication

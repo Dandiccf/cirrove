@@ -149,6 +149,7 @@ impl TransferWorker {
                         UploadError::Invalid
                         | UploadError::Unsupported(_)
                         | UploadError::Quota
+                        | UploadError::InsufficientStorage
                         | UploadError::Provider(
                             ProviderError::Permission
                             | ProviderError::NotFound

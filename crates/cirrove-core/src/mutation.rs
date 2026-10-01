@@ -15,6 +15,12 @@ pub enum MutationError {
     Locked,
     #[error("cloud storage quota exceeded")]
     Quota,
+    /// The provider reported insufficient server storage, not necessarily a
+    /// user quota. Retain the operation and wait for an explicit retry.
+    #[error(
+        "the cloud service reported insufficient storage; local changes are kept; retry explicitly when storage is available"
+    )]
+    InsufficientStorage,
     #[error("namespace change has an uncertain outcome; verify before retrying")]
     Uncertain,
     #[error("namespace operation is not supported: {0}")]

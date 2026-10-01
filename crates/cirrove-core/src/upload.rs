@@ -14,6 +14,12 @@ pub enum UploadError {
     Conflict,
     #[error("cloud storage quota exceeded")]
     Quota,
+    /// The provider reported insufficient server storage, not necessarily a
+    /// user quota. Retain the operation and wait for an explicit retry.
+    #[error(
+        "the cloud service reported insufficient storage; local changes are kept; retry explicitly when storage is available"
+    )]
+    InsufficientStorage,
     #[error("remote file is locked")]
     Locked,
     #[error("upload session is no longer available; verify remote content")]

@@ -283,9 +283,7 @@ impl ICloudFileTrash {
                     .send()
                     .await
                     .map_err(|_| MutationError::Uncertain)?;
-                if response.status() != reqwest::StatusCode::OK {
-                    return Err(MutationError::Uncertain);
-                }
+                verification_download_status(response.status())?;
                 while let Some(chunk) = response
                     .chunk()
                     .await
@@ -471,10 +469,33 @@ impl MutationProvider for ICloudFileTrash {
     }
 }
 
+fn verification_download_status(status: reqwest::StatusCode) -> MutationResult<()> {
+    if status == reqwest::StatusCode::OK {
+        Ok(())
+    } else {
+        Err(crate::mutation_error(crate::content_request_failure(
+            status,
+            "iCloud Trash verification download",
+        )))
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    #[test]
+    fn signed_verification_download_distinguishes_storage_from_url_expiry() {
+        for status in [200, 507, 401, 403, 503, 509] {
+            let result =
+                verification_download_status(reqwest::StatusCode::from_u16(status).unwrap());
+            match status {
+                200 => assert!(result.is_ok()),
+                507 => assert!(matches!(result, Err(MutationError::InsufficientStorage))),
+                _ => assert!(matches!(result, Err(MutationError::Uncertain))),
+            }
+        }
+    }
 
     fn before() -> Node {
         Node {

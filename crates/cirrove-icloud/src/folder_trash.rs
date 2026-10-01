@@ -171,7 +171,7 @@ impl ICloudFolderTrash {
         let siblings = session
             .list_folder(parent)
             .await
-            .map_err(|_| MutationError::Uncertain)?;
+            .map_err(crate::mutation_error)?;
         let mut matches = siblings
             .iter()
             .filter(|entry| entry.drivewsid == self.before.id);
@@ -191,7 +191,7 @@ impl ICloudFolderTrash {
             let children = session
                 .list_folder(&self.before.id)
                 .await
-                .map_err(|_| MutationError::Uncertain)?;
+                .map_err(crate::mutation_error)?;
             return Ok(if children.is_empty() {
                 Observation::AtParentEmpty
             } else {
@@ -207,7 +207,7 @@ impl ICloudFolderTrash {
         let (trash, complete) = session
             .read_trash_items()
             .await
-            .map_err(|_| MutationError::Uncertain)?;
+            .map_err(crate::mutation_error)?;
         if !complete {
             return Ok(Observation::Unknown);
         }
@@ -290,13 +290,13 @@ impl MutationProvider for ICloudFolderTrash {
                 session
                     .send_trash_without_receipt(&self.before.id, etag)
                     .await
-                    .map_err(|_| MutationError::Uncertain)?;
+                    .map_err(crate::mutation_error)?;
                 return Err(MutationError::Uncertain);
             }
             session
                 .send_trash(&self.before.id, etag)
                 .await
-                .map_err(|_| MutationError::Uncertain)?
+                .map_err(crate::mutation_error)?
         };
         if !accepted {
             return Err(MutationError::Uncertain);
@@ -343,3 +343,6 @@ impl MutationProvider for ICloudFolderTrash {
         }
     }
 }
+
+#[cfg(test)]
+mod storage_tests;

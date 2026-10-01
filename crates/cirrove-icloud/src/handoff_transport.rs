@@ -256,12 +256,7 @@ impl ICloudReadSession {
                 .send()
                 .await
                 .map_err(|_| anyhow!("iCloud Trash backup download failed"))?;
-            if response.status() != StatusCode::OK {
-                bail!(
-                    "iCloud Trash backup download failed ({})",
-                    response.status().as_u16()
-                );
-            }
+            backup_download_status(response.status())?;
             headers.finish();
             let _body = crate::probe_timing::Timing::start("trash download body");
             while let Some(chunk) = response
@@ -559,10 +554,40 @@ impl HandoffPlan {
     }
 }
 
+fn backup_download_status(status: StatusCode) -> Result<()> {
+    if status == StatusCode::OK {
+        Ok(())
+    } else {
+        Err(crate::content_request_failure(
+            status,
+            "iCloud Trash backup download",
+        ))
+    }
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+    #[test]
+    fn signed_verification_download_distinguishes_storage_from_url_expiry() {
+        for status in [200, 507, 401, 403, 503, 509] {
+            let result = backup_download_status(StatusCode::from_u16(status).unwrap())
+                .map_err(crate::file_create::map_session_error);
+            match status {
+                200 => assert!(result.is_ok()),
+                507 => assert!(matches!(
+                    result,
+                    Err(cirrove_core::upload::UploadError::InsufficientStorage)
+                )),
+                _ => assert!(matches!(
+                    result,
+                    Err(cirrove_core::upload::UploadError::Uncertain)
+                )),
+            }
+        }
+    }
+
     fn plan() -> HandoffPlan {
         HandoffPlan {
             version: 2,

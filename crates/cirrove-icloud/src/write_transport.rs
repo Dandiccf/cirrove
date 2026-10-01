@@ -57,6 +57,12 @@ impl FolderCreated {
 }
 
 fn classify_trash(status: StatusCode, result: Option<&str>) -> Result<bool> {
+    if status == StatusCode::INSUFFICIENT_STORAGE {
+        return Err(crate::StorageRefused.into());
+    }
+    if matches!(status, StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN) {
+        return Err(crate::SessionRejected.into());
+    }
     if status.is_success() {
         return match result {
             Some("OK") => Ok(true),
@@ -71,6 +77,12 @@ fn classify_trash(status: StatusCode, result: Option<&str>) -> Result<bool> {
 }
 
 fn classify_rename(status: StatusCode, result: Option<&str>) -> Result<bool> {
+    if status == StatusCode::INSUFFICIENT_STORAGE {
+        return Err(crate::StorageRefused.into());
+    }
+    if matches!(status, StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN) {
+        return Err(crate::SessionRejected.into());
+    }
     if status.is_success() {
         return match result {
             Some("OK") => Ok(true),
@@ -85,6 +97,12 @@ fn classify_rename(status: StatusCode, result: Option<&str>) -> Result<bool> {
 }
 
 fn classify_move(status: StatusCode, result: Option<&str>) -> Result<bool> {
+    if status == StatusCode::INSUFFICIENT_STORAGE {
+        return Err(crate::StorageRefused.into());
+    }
+    if matches!(status, StatusCode::UNAUTHORIZED | StatusCode::FORBIDDEN) {
+        return Err(crate::SessionRejected.into());
+    }
     if status.is_success() {
         return match result {
             Some("OK") => Ok(true),
