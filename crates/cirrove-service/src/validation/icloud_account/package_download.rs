@@ -5,6 +5,7 @@ mod mounted;
 mod native;
 use async_trait::async_trait;
 use cirrove_core::{ProviderError, reads::ReadWindowSink};
+pub(super) use native::{BoundNativeVerification, verify_bound};
 use tokio::io::AsyncWriteExt;
 
 struct DiskSink(tokio::fs::File);

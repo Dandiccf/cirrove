@@ -1,4 +1,4 @@
-# Actual application acceptance — prepared, not executed
+# Actual application acceptance — isolated live evidence
 
 Question: can ordinary writes in two independent newly owned iCloud subtrees survive
 actual Neovim saves and Gio namespace operations, independent cloud digest checks,
@@ -6,7 +6,8 @@ recoverable deletion and remount?
 
 This is a supporting account-router/FUSE fixture. It does **not** exercise installed
 Settings opt-in, the ordinary desktop daemon, or GUI editor/file-manager clicks.
-No live result is recorded here. Keep those release gates open.
+The historical A/B results and the newer combined admission arm are recorded
+below. Keep installed-workflow release gates open.
 
 ## Registered arms and prediction
 
@@ -162,3 +163,25 @@ The supporting two-arm application gate is satisfied. GUI click-through, ordinar
 Settings workflow, installed acceptance and native-package editing remain open.
 The validator uses Gio backend operations; it does not claim Freedesktop `gio trash`
 or atomic cloud publication.
+
+## Combined admission arm C — preregistration
+
+Run `599c285d-68cb-4913-992f-f924fe373dfc` with binary SHA-256 `922147fb11583f416d3d331a21393c5d9974024a697d90c74b64746f3fe91419`,
+built from the reviewed successor to commit3301fb3 (current package-validator
+additions included). Command: `cirrove-icloud-mounted-write-probe
+--account-mounted-applications 599c285d-68cb-4913-992f-f924fe373dfc`.
+Prediction: all seven actual application operations, independent digests,
+Trash identities, relocation and remount pass with the forwarded revision-bound
+write-target admission active. Same owned synthetic subtree restrictions apply.
+No installed Settings, graphical clicks, Freedesktop Trash, native-package
+write refusal or installed recovery claim follows from this arm. Runner records
+private disk TMPDIR/SQLITE_TMPDIR, binary, PIDs and timings before execution.
+No build or second measurement may overlap. Stage deadlines remain those above.
+
+Arm C passed, exit0, 08:37:07.480–08:43:57.577 UTC (410.1 seconds
+wall time). All seven actual Neovim/Gio child operations succeeded. Exact
+independent content checks, recoverable provider Trash, retained-descriptor
+replacement and remounted read passed with the forwarded admission hook.
+`passed.json` retains false installed-settings, GUI-clickthrough, gio-trash and
+cloud-atomicity claims. One combined run supports this bounded path, not
+repeatability or full installed release acceptance. No compile overlapped.

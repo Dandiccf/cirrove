@@ -651,3 +651,9 @@ pub use stream_recovery::{
     icloud_account_replace_stream_interrupt, icloud_account_replace_stream_recover,
     icloud_account_stream_interrupt, icloud_account_stream_recover,
 };
+
+mod owned_package;
+pub use owned_package::{
+    icloud_owned_package_import, icloud_owned_package_mounted, icloud_owned_package_source,
+    icloud_owned_package_verify,
+};

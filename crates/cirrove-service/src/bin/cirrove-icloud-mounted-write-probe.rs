@@ -489,6 +489,28 @@ async fn main() -> Result<()> {
         )?)
         .await;
     }
+    if let [flag, run] = args.as_slice() {
+        let action = match flag.as_str() {
+            "--owned-package-source" => Some(0),
+            "--owned-package-import" => Some(1),
+            "--owned-package-verify" => Some(2),
+            "--owned-package-mounted" => Some(3),
+            _ => None,
+        };
+        if let Some(action) = action {
+            let run = Uuid::parse_str(run)?;
+            return tokio::time::timeout(std::time::Duration::from_secs(900), async {
+                match action {
+                    0 => cirrove_service::validation::icloud_owned_package_source(run).await,
+                    1 => cirrove_service::validation::icloud_owned_package_import(run).await,
+                    2 => cirrove_service::validation::icloud_owned_package_verify(run).await,
+                    _ => cirrove_service::validation::icloud_owned_package_mounted(run).await,
+                }
+            })
+            .await
+            .context("owned package command timed out; artifacts retained")?;
+        }
+    }
     if let [flag, session_run, run] = args.as_slice()
         && flag == "--account-package-native"
     {

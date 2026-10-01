@@ -3,9 +3,10 @@
 The development branch now exposes explicit, experimental ordinary-file write
 access for iCloud accounts; new connections still default to read-only. This has
 not been installed into the user's regular daemon or accepted for release.
-Two owned-folder application runs passed create, save, replacement, relocation
-and recoverable Trash checks. Selected-file admission and native document-package
-writing remain under active validation; full iCloud support is not yet achieved.
+Three owned-folder application runs passed create, save, replacement, relocation
+and recoverable Trash checks; the third includes selected-file admission. Installed
+acceptance and native document-package writing remain under active validation;
+full iCloud support is not yet achieved.
 See [application evidence](benchmarks/icloud-real-applications-acceptance-2026-10-01.md)
 and [selected-file admission](benchmarks/icloud-selected-write-admission-2026-10-01.md).
 
@@ -29,7 +30,7 @@ Data-versus-Package representation before accepting an ordinary-file mutation,
 regardless of extension. Metadata and local identity are rechecked around that
 lookup. This avoids content downloads or a lookup for every listed file; it does
 not yet provide full native-document editing. Its synthetic race tests and the
-combined live/installed acceptance remain separate evidence requirements. A
+combined live application arm passed; installed acceptance remains open. A
 filename extension alone is not sufficient evidence. The Google folder presentation reported by the user
 is a separate desktop usability issue, not evidence of broken MIME detection.
 
@@ -829,3 +830,15 @@ is still separate from the synthetic journal, service and window tests.
 A [controlled full-device arm](benchmarks/icloud-full-device-export-2026-10-01.md)
 also recovered a saved and newer working version from a full ext4 fixture to a
 separate filesystem. This is local ENOSPC evidence, not a live Apple quota test.
+
+## Native package creation — isolated validation
+
+The [owned-package experiment](benchmarks/icloud-owned-package-create-2026-10-01.md)
+now has a successful one-shot Pages PACKAGE upload, registration and exact
+identity readback. Apple Pages opens the imported synthetic document with the
+expected text. Independent root-bound archive comparison passed, followed by full reads through
+the normal provider/FUSE mount, an offline remount and a fresh provider refetch.
+This feature-gated validator does not yet route native saves through the normal
+journal or enable package editing in mounted accounts. Ordinary native-package
+write refusal remains in place pending durable create/replacement integration
+and its separate recovery, conflict and mounted acceptance.

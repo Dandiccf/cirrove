@@ -37,7 +37,19 @@ mod owned_move;
 #[cfg(feature = "write-probe")]
 mod owned_mutation;
 #[cfg(feature = "write-probe")]
+mod owned_package_create;
+#[cfg(feature = "write-probe")]
 mod owned_upload;
+#[cfg(feature = "write-probe")]
+pub use owned_package_create::{
+    OwnedPackageCreate, OwnedPackagePlan, PackageAllocationRefusal, PackageCreateInspection,
+};
+#[cfg(feature = "write-probe")]
+mod package_semantic;
+#[cfg(feature = "write-probe")]
+pub use package_semantic::{
+    PackageSemanticComparison, compare_package_archives, compare_package_archives_with_roots,
+};
 mod package_archive;
 mod probe_timing;
 #[cfg(feature = "write-probe")]
