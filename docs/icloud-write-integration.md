@@ -972,7 +972,21 @@ tests passed; removing this guard made the new test fail, and restored code
 passed again (`usable-revision-negative.log` in the scratch directory).
 
 The subsequent public-source request plan corrects fetch URL construction:
-the concrete editor uses the manifest's `iwres.url` directly. Editor-address
-binding and the actual build-number value remain prerequisites for a grounded
-owned manifest request. No editor account requests or SCMP sessions have been
-started by this research.
+the concrete editor uses the manifest's `iwres.url` directly. The exact owned editor address and build constants are now grounded. Bounded
+manifest and setup-readiness requests have run against the existing owned test
+fixture; no SCMP session or native edit was started. The manifest rejected the
+existing session, and setup readiness stopped because the returned Apple-ID did
+not match the saved login address. Neither result proves why editor authorization
+failed. See [manifest observation](benchmarks/icloud-owned-pages-manifest-plan-2026-10-01.md)
+and [readiness observation](benchmarks/icloud-owned-pages-readiness-plan-2026-10-01.md).
+A trusted stable account anchor at successful account login is being prepared;
+validation must not silently adopt an unmatched account or infer an alias.
+
+
+A fresh native Pages Trash arm now passed protocol-bound stale-revision refusal
+(`ETAG_CONFLICT`, HTTP 200), independent unchanged E1/content verification,
+current-revision Trash and semantic readback from the exact recoverable item.
+A separate read-only process reproduced the durable completion report. See the
+[bound-refusal Trash record](benchmarks/icloud-native-package-bound-refusal-trash-2026-10-01.md).
+This proves one owned native metadata/Trash path, not native editing, replacement,
+restoration or installed package deletion support.

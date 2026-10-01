@@ -18,6 +18,7 @@ const ORIGIN: &str = "https://fixture.icloud-content.com";
 #[derive(Clone, Copy)]
 enum Fault {
     None,
+    FailEvidence,
     Fail(PackageTrashPhase),
     Pause(PackageTrashPhase),
 }
@@ -34,6 +35,12 @@ impl CredentialVault for ScriptVault {
     }
     async fn save(&self, _: &str, value: SecretString) -> Result<()> {
         let saved: Checkpoint = serde_json::from_str(value.expose_secret())?;
+        if matches!(self.fault, Fault::FailEvidence)
+            && saved.phase == PackageTrashPhase::StaleTrashArmed
+            && saved.revision_refusal.is_some()
+        {
+            anyhow::bail!("injected evidence save failure");
+        }
         if matches!(self.fault,Fault::Fail(phase) if phase==saved.phase) {
             anyhow::bail!("injected save failure");
         }
@@ -70,16 +77,24 @@ impl ScriptVault {
     }
 }
 fn archive(root: &str) -> Vec<u8> {
+    archive_with_content(root, b"owned synthetic native document")
+}
+fn archive_with_content(root: &str, content: &[u8]) -> Vec<u8> {
     let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
     zip.start_file(
         format!("{root}/Index/Document.iwa"),
         zip::write::SimpleFileOptions::default(),
     )
     .unwrap();
-    zip.write_all(b"owned synthetic native document").unwrap();
+    zip.write_all(content).unwrap();
     zip.finish().unwrap().into_inner()
 }
 struct Remote {
+    restore_path: Option<serde_json::Value>,
+    change_after_stale: bool,
+    corrupt_after_stale: bool,
+    content_changed: bool,
+    stale_reply: Option<serde_json::Value>,
     current: DriveEntry,
     trashed: bool,
     mutations: Vec<PackageTrashPhase>,
@@ -131,6 +146,11 @@ impl Server {
             .build()
             .unwrap();
         let state = Arc::new(Mutex::new(Remote {
+            restore_path: None,
+            change_after_stale: false,
+            corrupt_after_stale: false,
+            content_changed: false,
+            stale_reply: None,
             current: saved.imported.clone(),
             trashed: false,
             mutations: Vec::new(),
@@ -166,13 +186,13 @@ impl Server {
                             },
                             ("POST","/retrieveItemDetails")=>{
                                 let body:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(body["items"][0]["drivewsid"],original.drivewsid);
-                                let mut item=serde_json::to_value(&state.current).unwrap();if state.trashed{item["parentId"]=json!("TRASH_ROOT");item["restorePath"]=json!([plan.parent]);}
+                                let mut item=serde_json::to_value(&state.current).unwrap();if state.trashed{item["parentId"]=json!("TRASH_ROOT");item["restorePath"]=state.restore_path.clone().unwrap_or_else(||json!([plan.parent]));}
                                 Some((200,serde_json::to_vec(&json!({"items":[item]})).unwrap()))
                             },
                             ("GET","/ws/com.apple.CloudDocs/download/by_id")=>{
                                 assert!(path.ends_with("document_id=allocated"));Some((200,serde_json::to_vec(&json!({"package_token":{"url":format!("{ORIGIN}/content")}})).unwrap()))
                             },
-                            ("GET","/content")=>Some((200,archive(&state.current.display_name()))),
+                            ("GET","/content")=>Some((200,if state.content_changed {archive_with_content(&state.current.display_name(), b"different synthetic native content")}else{archive(&state.current.display_name())})),
                             ("POST","/renameItems")=>{
                                 assert_eq!(vault.phase(),PackageTrashPhase::RenameArmed,"rename before durable arm");
                                 let body:serde_json::Value=serde_json::from_slice(&body).unwrap();assert_eq!(body,json!({"items":[{"drivewsid":original.drivewsid,"name":renamed,"etag":"E0"}]}));
@@ -184,7 +204,9 @@ impl Server {
                                 let phase=if stale{PackageTrashPhase::StaleTrashArmed}else{PackageTrashPhase::CurrentTrashArmed};assert_eq!(vault.phase(),phase,"Trash before durable arm");
                                 assert_eq!(body,json!({"items":[{"drivewsid":original.drivewsid,"etag":if stale{"E0"}else{"E1"},"clientId":original.drivewsid}]}));
                                 state.mutations.push(phase);
-                                if stale{Some((stale_status,br#"{"items":[{"status":"OTHER_REFUSAL"}]}"#.to_vec()))}
+                                if stale && state.change_after_stale { state.current.etag = "E2".into(); }
+                                if stale && state.corrupt_after_stale { state.content_changed = true; }
+                                if stale{Some((stale_status,state.stale_reply.as_ref().map(|reply|serde_json::to_vec(reply).unwrap()).unwrap_or_else(||br#"{"items":[{"status":"OTHER_REFUSAL"}]}"#.to_vec())))}
                                 else{state.trashed=true;state.current.etag="trash-E1".into();Some((200,br#"{"items":[{"status":"OK"}]}"#.to_vec()))}
                             },
                             _=>panic!("unexpected scripted route"),
@@ -222,6 +244,7 @@ async fn fixture(
 ) {
     let dir = tempfile::tempdir().unwrap();
     let mut saved = saved();
+    saved.version = 2;
     let bytes = archive(&saved.imported.display_name());
     let mut file = anonymous_staging(dir.path()).unwrap();
     file.write_all(&bytes).unwrap();
@@ -401,6 +424,131 @@ async fn package_trash_execute_lost_rename_response_and_recovered_parent_stop_wi
         let (_dir, owner, _vault, server) = fixture(Fault::None, 412, false, true).await;
         assert!(owner.execute(&CancellationToken::new()).await.is_err());
         assert!(server.finish().await.is_empty());
+    })
+    .await
+    .unwrap();
+}
+
+#[tokio::test]
+async fn package_trash_execute_bound_etag_conflict_proves_recovery_and_rejects_unbound_receipts() {
+    tokio::time::timeout(Duration::from_secs(30), async {
+        for mismatch in ["none", "id", "parent", "etag", "missing-id", "missing-parent", "missing-etag", "old-etag", "duplicate", "generic-conflict"] {
+            let (dir, owner, vault, server) = fixture(Fault::None, 200, false, false).await;
+            let mut item = json!({
+                "status": "ETAG_CONFLICT",
+                "drivewsid": owner.saved.imported.drivewsid,
+                "parentId": owner.saved.plan.parent,
+                "etag": "E1"
+            });
+            match mismatch {
+                "none" | "duplicate" => (),
+                "generic-conflict" => item["status"] = json!("CONFLICT"),
+                "id" => item["drivewsid"] = json!("FILE::com.apple.CloudDocs::foreign"),
+                "parent" => item["parentId"] = json!("FOLDER::com.apple.CloudDocs::foreign"),
+                "etag" => item["etag"] = json!("foreign-E1"),
+                "old-etag" => item["etag"] = json!("E0"),
+                "missing-id" => { item.as_object_mut().unwrap().remove("drivewsid"); },
+                "missing-parent" => { item.as_object_mut().unwrap().remove("parentId"); },
+                "missing-etag" => { item.as_object_mut().unwrap().remove("etag"); },
+                _ => unreachable!(),
+            }
+            let reply = if mismatch == "duplicate" {
+                json!({"items": [item.clone(), item]})
+            } else {
+                json!({"items": [item]})
+            };
+            server.state.lock().unwrap().stale_reply = Some(reply);
+            let outcome = owner.execute(&CancellationToken::new()).await;
+            if mismatch == "none" {
+                let result = outcome.unwrap();
+                let evidence = Some(PackageTrashRefusal::ItemEtagConflict { http_status: 200 });
+                assert_eq!(result.revision_refusal, evidence);
+                assert!(result.metadata_stale_refusal_recorded && result.current_trash_semantic_recovery_verified);
+                let restored: Checkpoint = serde_json::from_str(vault.latest.lock().unwrap().as_deref().unwrap()).unwrap();
+                assert_eq!(restored.revision_refusal, evidence);
+                let mut fresh = ICloudReadSession::new().unwrap();
+                fresh.http = server.client.clone();
+                fresh.drive_endpoint = Some(format!("{ORIGIN}/").parse().unwrap());
+                fresh.docs_endpoint = fresh.drive_endpoint.clone();
+                fresh.account_hash = Some(restored.account_hash.clone());
+                restored.validate(&fresh, &restored.plan, "fixture@example.com").unwrap();
+                let observed = inspect_saved(&mut fresh, &restored, "fixture@example.com", dir.path(), &CancellationToken::new()).await.unwrap();
+                {
+                    let mut remote = server.state.lock().unwrap();
+                    remote.restore_path = Some(json!(format!("{}/{}", restored.plan.parent_name, restored.renamed_name())));
+                }
+                let shape = restore_shape::observe(&mut fresh, &restored, "fixture@example.com", dir.path(), &CancellationToken::new()).await.unwrap();
+                assert!(shape.restore_path.matches_owned_relative_form);
+                assert!(shape.exact_trash_metadata_stable && shape.semantic_recovery_verified && shape.owned_parent_stable_and_vacant);
+                assert!(!shape.restore_authorized);
+                server.state.lock().unwrap().restore_path = Some(json!(["unclassified", "array"]));
+                let unknown = restore_shape::observe(&mut fresh, &restored, "fixture@example.com", dir.path(), &CancellationToken::new()).await.unwrap();
+                assert_eq!(unknown.restore_path.json_type, "array");
+                assert!(!unknown.restore_path.matches_owned_relative_form && !unknown.restore_authorized);
+                server.state.lock().unwrap().current.drivewsid = "FILE::com.apple.CloudDocs::foreign".into();
+                assert!(restore_shape::observe(&mut fresh, &restored, "fixture@example.com", dir.path(), &CancellationToken::new()).await.is_err());
+                assert_eq!(observed.revision_refusal, evidence);
+                assert!(observed.metadata_stale_refusal_recorded && observed.current_trash_semantic_recovery_verified);
+                assert_eq!(server.finish().await, vec![PackageTrashPhase::RenameArmed, PackageTrashPhase::StaleTrashArmed, PackageTrashPhase::CurrentTrashArmed]);
+                continue;
+            }
+            let error = outcome.err().unwrap().to_string();
+            let expected = match mismatch {
+                "duplicate" => "iCloud conditional Trash receipt is incomplete",
+                "generic-conflict" => "package stale Trash lacks explicit revision refusal: Conflict { http_status: 200 }",
+                _ => "package stale Trash lacks explicit revision refusal: Rejected { http_status: 200 }",
+            };
+            assert_eq!(error, expected, "{mismatch}");
+            assert_eq!(vault.phase(), PackageTrashPhase::StaleTrashArmed);
+            assert!(!server.state.lock().unwrap().trashed);
+            assert_eq!(server.finish().await, vec![PackageTrashPhase::RenameArmed, PackageTrashPhase::StaleTrashArmed]);
+        }
+    }).await.unwrap();
+}
+
+#[tokio::test]
+async fn package_trash_bound_refusal_requires_durable_evidence_and_unchanged_active_revision() {
+    tokio::time::timeout(Duration::from_secs(15), async {
+        for (fault, changed, corrupted) in [
+            (Fault::FailEvidence, false, false),
+            (Fault::None, true, false),
+            (Fault::None, false, true),
+        ] {
+            let (_dir, owner, vault, server) = fixture(fault, 200, false, false).await;
+            {
+                let mut remote = server.state.lock().unwrap();
+                remote.change_after_stale = changed;
+                remote.corrupt_after_stale = corrupted;
+                remote.stale_reply = Some(json!({"items": [{
+                    "status": "ETAG_CONFLICT", "drivewsid": owner.saved.imported.drivewsid,
+                    "parentId": owner.saved.plan.parent, "etag": "E1"
+                }]}));
+            }
+            let error = owner
+                .execute(&CancellationToken::new())
+                .await
+                .err()
+                .expect("must stop");
+            if !changed && !corrupted {
+                assert_eq!(error.to_string(), "injected evidence save failure");
+            }
+            let restored: Checkpoint =
+                serde_json::from_str(vault.latest.lock().unwrap().as_deref().unwrap()).unwrap();
+            assert_eq!(restored.phase, PackageTrashPhase::StaleTrashArmed);
+            assert_eq!(restored.revision_refusal.is_some(), changed || corrupted);
+            assert!(
+                !inspection(&restored, PackageTrashLocation::RenamedActive)
+                    .metadata_stale_refusal_recorded
+            );
+            assert!(!server.state.lock().unwrap().trashed);
+            assert_eq!(
+                server.finish().await,
+                vec![
+                    PackageTrashPhase::RenameArmed,
+                    PackageTrashPhase::StaleTrashArmed
+                ]
+            );
+        }
     })
     .await
     .unwrap();

@@ -39,6 +39,7 @@ fn saved() -> Checkpoint {
         },
         phase: PackageTrashPhase::Prepared,
         renamed_etag: None,
+        revision_refusal: None,
     }
 }
 struct Vault {
@@ -290,4 +291,60 @@ fn package_trash_state_paths_refuse_aliases_symlinks_and_nonprivate_directories(
     assert!(separate_directories(&first, &link).is_err());
     std::fs::set_permissions(&second, std::fs::Permissions::from_mode(0o755)).unwrap();
     assert!(separate_directories(&first, &second).is_err());
+}
+
+#[test]
+fn package_trash_v2_checkpoint_requires_valid_evidence_and_preserves_legacy_inspection() {
+    let mut saved = saved();
+    let mut session = ICloudReadSession::new().unwrap();
+    session.account_hash = Some(saved.account_hash.clone());
+    saved.renamed_etag = Some("E1".into());
+    saved.phase = PackageTrashPhase::StaleRefused;
+    // Existing strict-412 checkpoints remain readable without invented evidence.
+    saved
+        .validate(&session, &saved.plan, "fixture@example.com")
+        .unwrap();
+    assert!(
+        inspection(&saved, PackageTrashLocation::RenamedActive)
+            .revision_refusal
+            .is_none()
+    );
+    saved.version = 2;
+    assert!(
+        saved
+            .validate(&session, &saved.plan, "fixture@example.com")
+            .is_err()
+    );
+    for evidence in [
+        PackageTrashRefusal::HttpPrecondition { http_status: 409 },
+        PackageTrashRefusal::ItemEtagConflict { http_status: 412 },
+    ] {
+        saved.revision_refusal = Some(evidence);
+        assert!(
+            saved
+                .validate(&session, &saved.plan, "fixture@example.com")
+                .is_err()
+        );
+    }
+    for evidence in [
+        PackageTrashRefusal::HttpPrecondition { http_status: 412 },
+        PackageTrashRefusal::ItemEtagConflict { http_status: 200 },
+    ] {
+        saved.revision_refusal = Some(evidence);
+        saved
+            .validate(&session, &saved.plan, "fixture@example.com")
+            .unwrap();
+    }
+    saved.phase = PackageTrashPhase::Prepared;
+    assert!(
+        saved
+            .validate(&session, &saved.plan, "fixture@example.com")
+            .is_err()
+    );
+    saved.version = 1;
+    assert!(
+        saved
+            .validate(&session, &saved.plan, "fixture@example.com")
+            .is_err()
+    );
 }

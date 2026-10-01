@@ -21,7 +21,14 @@ mod metadata_shape_probe;
 #[cfg(feature = "write-probe")]
 mod owned_manifest_probe;
 #[cfg(feature = "write-probe")]
+mod owned_readiness_probe;
+#[cfg(feature = "write-probe")]
+mod owned_renewal_probe;
+mod session_identity;
+#[cfg(feature = "write-probe")]
 pub use owned_manifest_probe::OwnedManifestObservation;
+#[cfg(feature = "write-probe")]
+pub use owned_readiness_probe::OwnedReadinessObservation;
 #[cfg(feature = "write-probe")]
 mod owned_file_rename;
 #[cfg(feature = "write-probe")]
@@ -62,7 +69,8 @@ pub use package_archive::canonical_export;
 mod package_trash_probe;
 #[cfg(feature = "write-probe")]
 pub use package_trash_probe::{
-    OwnedPackageTrashProbe, PackageTrashInspection, PackageTrashLocation, PackageTrashPhase,
+    OwnedPackageRestoreShape, OwnedPackageTrashProbe, PackageTrashInspection, PackageTrashLocation,
+    PackageTrashPhase, PackageTrashRefusal, RestorePathShape,
 };
 #[cfg(feature = "write-probe")]
 mod package_trash;
@@ -335,8 +343,10 @@ fn check_expected_revision(entry: &DriveEntry, expected: Option<(&str, u64)>) ->
     Ok(())
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Default, Deserialize)]
 struct AccountInfo {
+    #[serde(default, rename = "dsInfo")]
+    ds_info: Option<serde_json::Value>,
     webservices: std::collections::HashMap<String, Option<WebService>>,
 }
 
@@ -429,6 +439,8 @@ struct CookieRecord {
 struct SessionSnapshot {
     version: u8,
     account_hash: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    trusted_dsid_hash: Option<String>,
     headers: SessionHeaders,
     drive_endpoint: String,
     docs_endpoint: String,
@@ -565,6 +577,7 @@ pub struct ICloudReadSession {
     http: Client,
     cookies: Arc<RecordingCookies>,
     account_hash: Option<String>,
+    trusted_dsid_hash: Option<String>,
     frame: String,
     headers: SessionHeaders,
     drive_endpoint: Option<Url>,
@@ -580,6 +593,7 @@ impl ICloudReadSession {
             http: self.http.clone(),
             cookies: self.cookies.clone(),
             account_hash: None,
+            trusted_dsid_hash: None,
             frame: String::new(),
             headers: SessionHeaders::default(),
             drive_endpoint: self.drive_endpoint.clone(),
@@ -600,6 +614,7 @@ impl ICloudReadSession {
             http,
             cookies,
             account_hash: None,
+            trusted_dsid_hash: None,
             frame: format!("auth-{}", Uuid::new_v4()),
             headers: SessionHeaders::default(),
             drive_endpoint: None,
@@ -624,6 +639,7 @@ impl ICloudReadSession {
                 .account_hash
                 .clone()
                 .context("iCloud account identity is not bound")?,
+            trusted_dsid_hash: self.trusted_dsid_hash.clone(),
             headers: SessionHeaders {
                 scnt: self.headers.scnt.clone(),
                 session_id: self.headers.session_id.clone(),
@@ -657,11 +673,19 @@ impl ICloudReadSession {
         {
             bail!("unsupported or incomplete saved iCloud session");
         }
+        if snapshot
+            .trusted_dsid_hash
+            .as_deref()
+            .is_some_and(|hash| !session_identity::valid_hash(hash))
+        {
+            bail!("saved iCloud account anchor is invalid");
+        }
         let drive = checked_drive_endpoint(&snapshot.drive_endpoint)?;
         let docs = checked_drive_endpoint(&snapshot.docs_endpoint)?;
         let mut session = Self::new()?;
         session.cookies.restore(snapshot.cookies)?;
         session.account_hash = Some(snapshot.account_hash);
+        session.trusted_dsid_hash = snapshot.trusted_dsid_hash;
         session.headers = snapshot.headers;
         session.drive_endpoint = Some(drive);
         session.docs_endpoint = Some(docs);
@@ -675,6 +699,14 @@ impl ICloudReadSession {
         if apple_id.is_empty() || apple_id.len() > 320 {
             bail!("invalid Apple account identifier");
         }
+        // Invalidate the completed session before changing its local identity.
+        // A failed new attempt must neither export the old authenticated token
+        // under another account nor reuse it through account_login. Keep the
+        // configured HTTP client (including endpoint policy) unchanged.
+        self.headers = SessionHeaders::default();
+        self.drive_endpoint = None;
+        self.docs_endpoint = None;
+        self.trusted_dsid_hash = None;
         self.account_hash = Some(account_hash(&apple_id)?);
         self.start_auth().await?;
         self.federate(&apple_id).await?;
@@ -1309,6 +1341,10 @@ impl ICloudReadSession {
             );
         }
         let account: AccountInfo = read_json(response, "iCloud account login").await?;
+        self.accept_account_login(account)
+    }
+
+    fn accept_account_login(&mut self, account: AccountInfo) -> Result<()> {
         let drive = account
             .webservices
             .get("drivews")
@@ -1321,8 +1357,18 @@ impl ICloudReadSession {
             .and_then(Option::as_ref)
             .and_then(|service| service.url.as_deref())
             .context("this Apple account did not expose iCloud documents")?;
-        self.drive_endpoint = Some(checked_drive_endpoint(drive)?);
-        self.docs_endpoint = Some(checked_drive_endpoint(docs)?);
+        let drive = checked_drive_endpoint(drive)?;
+        let docs = checked_drive_endpoint(docs)?;
+        let anchor = account
+            .ds_info
+            .as_ref()
+            .and_then(|info| session_identity::dsid_hash(&info["dsid"]));
+        self.drive_endpoint = Some(drive);
+        self.docs_endpoint = Some(docs);
+        // Only a successful accountLogin captures this anchor. Missing or
+        // malformed optional identity metadata clears any previous anchor;
+        // neither validate nor a restored legacy snapshot may create one.
+        self.trusted_dsid_hash = anchor;
         Ok(())
     }
 

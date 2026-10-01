@@ -376,3 +376,115 @@ pub async fn icloud_public_native_manifest(run: Uuid) -> Result<()> {
     println!("Owned Pages manifest identity verified; no model or document content fetched.");
     Ok(())
 }
+
+/// Session validation only: no login replay, manifest fetch or editor action.
+pub async fn icloud_public_native_readiness(run: Uuid) -> Result<()> {
+    let PublicImportBinding {
+        account,
+        plan,
+        node,
+        journal,
+        ..
+    } = retained_public_import(run)?;
+    ensure!(
+        node.id == "FILE::com.apple.CloudDocs::8A909C8D-32D7-4E39-9202-DF1862E46C5A",
+        "manifest exact document binding mismatch"
+    );
+    let rows = journal.list(0, 2)?;
+    ensure!(
+        rows.len() == 1 && rows[0].id.to_string() == "b534c269-8b9e-47e0-97a0-a512d0127765",
+        "manifest operation binding mismatch"
+    );
+    let directory = Path::new(PUBLIC);
+    let attempt = verification_directory(directory)?;
+    manifest(&attempt, run, "public-readiness-read-only")?;
+    let mut remote = session(directory, &account).await?;
+    let before = remote
+        .list_folder(&plan.parent)
+        .await
+        .map_err(|_| anyhow::anyhow!("manifest preflight metadata unavailable"))?;
+    let (_, current) = manifest_current_entry(&before, &node)?;
+    let original_revision_unchanged = current.etag == node.etag;
+    let result = remote
+        .probe_owned_pages_readiness(&account.identity.username, &CancellationToken::new())
+        .await?;
+    let after = remote
+        .list_folder(&plan.parent)
+        .await
+        .map_err(|_| anyhow::anyhow!("manifest postflight metadata unavailable"))?;
+    exact_entry(&after, &current)?;
+    record(
+        &attempt.join("readiness-observation.json"),
+        &serde_json::json!({"run":run,"metadata_unchanged":true,"original_import_revision_unchanged":original_revision_unchanged,"observation":result,"model_fetched":false,"session_initialized":false,"cloud_mutated":false}),
+    )?;
+    println!("Owned account readiness observed; no automatic login or editor request performed.");
+    Ok(())
+}
+
+#[cfg(test)]
+#[tokio::test]
+async fn public_readiness_wrong_run_refused_before_retained_state_or_network() {
+    let error = icloud_public_native_readiness(Uuid::nil())
+        .await
+        .expect_err("unregistered run must not access retained fixture");
+    assert_eq!(
+        error.to_string(),
+        "run is not the preregistered public native import"
+    );
+}
+
+/// Explicit one-shot auth refresh experiment, not a normal read-only probe.
+pub async fn icloud_public_native_renewal_readiness(run: Uuid) -> Result<()> {
+    let PublicImportBinding {
+        account,
+        plan,
+        node,
+        journal,
+        ..
+    } = retained_public_import(run)?;
+    ensure!(
+        node.id == "FILE::com.apple.CloudDocs::8A909C8D-32D7-4E39-9202-DF1862E46C5A",
+        "manifest exact document binding mismatch"
+    );
+    let rows = journal.list(0, 2)?;
+    ensure!(
+        rows.len() == 1 && rows[0].id.to_string() == "b534c269-8b9e-47e0-97a0-a512d0127765",
+        "manifest operation binding mismatch"
+    );
+    let directory = Path::new(PUBLIC);
+    let attempt = verification_directory(directory)?;
+    manifest(&attempt, run, "public-renewal-readiness")?;
+    let mut remote = session(directory, &account).await?;
+    let before = remote
+        .list_folder(&plan.parent)
+        .await
+        .map_err(|_| anyhow::anyhow!("manifest preflight metadata unavailable"))?;
+    let (_, current) = manifest_current_entry(&before, &node)?;
+    let original_revision_unchanged = current.etag == node.etag;
+    let result = remote
+        .probe_owned_pages_renewal_readiness(&account.identity.username, &CancellationToken::new())
+        .await?;
+    let after = remote
+        .list_folder(&plan.parent)
+        .await
+        .map_err(|_| anyhow::anyhow!("manifest postflight metadata unavailable"))?;
+    exact_entry(&after, &current)?;
+    record(
+        &attempt.join("renewal-readiness-observation.json"),
+        &serde_json::json!({"run":run,"metadata_unchanged":true,"original_import_revision_unchanged":original_revision_unchanged,"observation":result,"model_fetched":false,"editor_session_initialized":false,"cloud_files_mutated":false,"authentication_refresh_attempted":true,"refreshed_session_persisted":false}),
+    )?;
+    println!("One-shot authentication refresh and readiness observed; saved session unchanged.");
+    Ok(())
+}
+
+#[cfg(test)]
+#[tokio::test]
+async fn public_renewal_readiness_wrong_run_refused_before_retained_state_or_network() {
+    let error = icloud_public_native_renewal_readiness(Uuid::nil())
+        .await
+        .expect_err("unregistered run must not access retained fixture");
+    assert_eq!(
+        error.to_string(),
+        "run is not the preregistered public native import"
+    );
+}

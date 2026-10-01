@@ -490,6 +490,28 @@ async fn main() -> Result<()> {
         .await;
     }
     if let [flag, run] = args.as_slice()
+        && flag == "--public-native-renewal-readiness"
+    {
+        return tokio::time::timeout(
+            std::time::Duration::from_secs(120),
+            cirrove_service::validation::icloud_public_native_renewal_readiness(Uuid::parse_str(
+                run,
+            )?),
+        )
+        .await
+        .context("public renewal readiness observation timed out")?;
+    }
+    if let [flag, run] = args.as_slice()
+        && flag == "--public-native-readiness"
+    {
+        return tokio::time::timeout(
+            std::time::Duration::from_secs(120),
+            cirrove_service::validation::icloud_public_native_readiness(Uuid::parse_str(run)?),
+        )
+        .await
+        .context("public readiness observation timed out")?;
+    }
+    if let [flag, run] = args.as_slice()
         && flag == "--public-native-manifest"
     {
         return tokio::time::timeout(
@@ -523,6 +545,7 @@ async fn main() -> Result<()> {
             "--owned-package-mounted" => Some(3),
             "--owned-package-trash" => Some(4),
             "--owned-package-trash-inspect" => Some(5),
+            "--owned-package-restore-shape" => Some(6),
             _ => None,
         };
         if let Some(action) = action {
@@ -534,7 +557,8 @@ async fn main() -> Result<()> {
                     2 => cirrove_service::validation::icloud_owned_package_verify(run).await,
                     3 => cirrove_service::validation::icloud_owned_package_mounted(run).await,
                     4 => cirrove_service::validation::icloud_owned_package_trash(run).await,
-                    _ => cirrove_service::validation::icloud_owned_package_trash_inspect(run).await,
+                    5 => cirrove_service::validation::icloud_owned_package_trash_inspect(run).await,
+                    _ => cirrove_service::validation::icloud_owned_package_restore_shape(run).await,
                 }
             })
             .await

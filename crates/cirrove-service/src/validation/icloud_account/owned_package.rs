@@ -11,7 +11,10 @@ use cirrove_icloud::{
 pub use mounted::icloud_owned_package_mounted;
 use std::{fs::File, io::Read, os::unix::fs::PermissionsExt, path::PathBuf};
 use tokio::io::AsyncWriteExt;
-pub use trash::{icloud_owned_package_trash, icloud_owned_package_trash_inspect};
+pub use trash::{
+    icloud_owned_package_restore_shape, icloud_owned_package_trash,
+    icloud_owned_package_trash_inspect,
+};
 const LIMIT: u64 = 64 * 1024 * 1024;
 fn base() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.local-state")
@@ -429,4 +432,7 @@ mod tests {
 }
 
 mod public_verify;
-pub use public_verify::{icloud_public_native_manifest, icloud_public_native_verify};
+pub use public_verify::{
+    icloud_public_native_manifest, icloud_public_native_readiness,
+    icloud_public_native_renewal_readiness, icloud_public_native_verify,
+};

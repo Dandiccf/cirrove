@@ -265,3 +265,30 @@ All 248 adapter tests passed in `manifest-and-trash-tests`. Substituting a fixed
 `trash-status-negative`; production source was restored. The next full check
 must validate the restored source before committing. No new cloud mutation was
 performed for this diagnostic change.
+
+## Public protocol conflict-status discovery
+
+Fresh anonymous public source confirms Apple's Drive application handles an
+explicit per-item `ETAG_CONFLICT` response to `moveItemsToTrash`. Current public
+asset: https://www.icloud.com/applications/iclouddrive/2636Build19/en-us/main.js,
+589227 bytes, SHA-256
+`28a365b0629aba447bf3d6048bbe45e8c69fc6f1803283dc51f9f0b5484a813d`.
+Byte 216730 connects Trash to module 2262; byte 577560 branches on this status,
+matching the response ID through the request map and checking the parent before
+retrying. Cirrove must not copy that retry or adopt the returned ETag.
+
+A probe-only diagnostic now recognizes the code only for exactly one receipt
+matching the requested ID, expected parent and independently observed E1,
+with E1 different from submitted E0. It reports only the typed category and
+numeric HTTP code; strict HTTP412 acceptance is unchanged at this stage. The e6
+response was discarded and cannot be reclassified retrospectively. Further
+acceptance requires an explicitly separate preregistered arm and independent
+active revision/semantic checks. Source analysis is retained at
+`/var/tmp/cirrove-trash-public-status-research-20261001.md`.
+
+The diagnostic patch passed all 20 matching coordinator/vault tests in
+`trash-etag-diagnostic-tests`. Removing the exact response-ID comparison caused
+the foreign-ID case to receive the trusted diagnostic category and fail the
+assertion (`trash-etag-id-negative`). Production source was restored. These tests
+do not establish a live ETAG_CONFLICT response or authorize current-revision Trash
+in an old failed run.

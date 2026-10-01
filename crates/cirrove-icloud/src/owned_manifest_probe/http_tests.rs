@@ -119,6 +119,8 @@ async fn owned_manifest_http_affinity_then_exact_owned_identity() {
 async fn owned_manifest_http_rejects_status_redirect_and_unbounded_body() {
     for (status, body, extra) in [
         (401, "synthetic-secret".to_owned(), String::new()),
+        (403, "synthetic-secret".to_owned(), String::new()),
+        (421, "synthetic-secret".to_owned(), String::new()),
         (302, String::new(), "Location: https://iwmb.icloud.com/unrelated\r\n".into()),
         (330, serde_json::json!({"X-Apple-MMe-Host":"example.com","StickySessionId":"synthetic-secret"}).to_string(), String::new()),
         (200, "x".repeat(LIMIT + 1), String::new()),
@@ -127,7 +129,9 @@ async fn owned_manifest_http_rejects_status_redirect_and_unbounded_body() {
         let error = fixture.observe().await.expect_err("unsafe reply refused").to_string();
         assert!(!error.contains("synthetic-secret") && !error.contains("example.com"));
         let expected = match status {
-            401 => "manifest session rejected",
+            401 => "manifest session rejected (HTTP 401)",
+            403 => "manifest session rejected (HTTP 403)",
+            421 => "manifest session rejected (HTTP 421)",
             302 => "manifest response status refused",
             330 => "manifest affinity refused",
             200 => "manifest response too large",

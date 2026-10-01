@@ -25,7 +25,7 @@ pub struct VerifiedPackageTrash {
     pub trash_etag: String,
 }
 
-fn observation(
+pub(super) fn observation(
     item: &serde_json::Value,
     request: &OwnedPackageTrashRequest,
 ) -> Result<serde_json::Value> {

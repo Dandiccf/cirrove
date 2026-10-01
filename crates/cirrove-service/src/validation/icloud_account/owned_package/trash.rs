@@ -17,9 +17,9 @@ use cirrove_icloud::{
 };
 use serde::{Deserialize, Serialize};
 use std::{os::unix::fs::MetadataExt, sync::Mutex};
-const RUN: &str = "e6ec6113-dcce-42da-9836-4afce35e0d28";
+const RUN: &str = "97be33d2-b216-49bf-9e49-465b1ca85d1d";
 const SOURCE: &str = "ac9e5456-bd10-4b7d-9215-21bbb85dde69";
-const PURPOSE: &str = "owned-native-package-metadata-trash-v1";
+const PURPOSE: &str = "owned-native-package-bound-refusal-trash-v2";
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 struct Preregistration {
@@ -579,6 +579,45 @@ pub async fn icloud_owned_package_trash_inspect(run: Uuid) -> Result<()> {
     let output = verification_directory(&dir)?;
     record(&output.join("trash-inspection.json"), &report)?;
     println!("Owned package Trash checkpoint inspected read-only; no mutation resumed.");
+    Ok(())
+}
+/// Exact retained successful arm only; never starts an upload or mutation.
+pub async fn icloud_owned_package_restore_shape(run: Uuid) -> Result<()> {
+    ensure!(
+        run == Uuid::parse_str("97be33d2-b216-49bf-9e49-465b1ca85d1d")?,
+        "restore shape requires its owned successful run"
+    );
+    check_run(run)?;
+    let dir = directory(run);
+    private_owned_dir(&dir)?;
+    let prereg: Preregistration = read_json(&dir.join("trash-preregistered.json"), 16 * 1024)?;
+    let account: Account = read_json(&dir.join("account.json"), 64 * 1024)?;
+    let (_, source_account, source_plan) = retained(Uuid::parse_str(SOURCE)?)?;
+    prereg.validate(&account, &source_account, &source_plan)?;
+    let complete: PhaseReceipt =
+        read_json(&dir.join(format!("{}.json", Phase::Complete.name())), 4096)?;
+    ensure!(
+        complete.run == run && complete.account == account.id && complete.phase == Phase::Complete,
+        "restore shape requires completed owned Trash arm"
+    );
+    let (_, retained_account, plan) = retained(run)?;
+    ensure!(
+        retained_account.id == account.id && plan.scope == scope(&account),
+        "restore shape account mismatch"
+    );
+    let output = verification_directory(&dir)?;
+    manifest(&output, run, "restore-shape")?;
+    let report = OwnedPackageTrashProbe::restore_shape(
+        session(&dir, &account).await?,
+        &account.identity.username,
+        &plan,
+        &dir.join("trash-state"),
+        &output,
+        &CancellationToken::new(),
+    )
+    .await?;
+    record(&output.join("restore-shape.json"), &report)?;
+    println!("Owned package restore-path shape checked read-only; no restore authorized or sent.");
     Ok(())
 }
 #[cfg(test)]

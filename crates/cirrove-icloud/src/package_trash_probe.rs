@@ -31,6 +31,22 @@ pub enum PackageTrashPhase {
     CurrentTrashArmed,
     Recovered,
 }
+/// Sanitized evidence from the one stale-revision request. No returned revision
+/// is adopted. Item evidence was bound to the owned ID, parent and observed E1.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", deny_unknown_fields)]
+pub enum PackageTrashRefusal {
+    HttpPrecondition { http_status: u16 },
+    ItemEtagConflict { http_status: u16 },
+}
+impl PackageTrashRefusal {
+    fn valid(self) -> bool {
+        match self {
+            Self::HttpPrecondition { http_status } => http_status == 412,
+            Self::ItemEtagConflict { http_status } => (200..300).contains(&http_status),
+        }
+    }
+}
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Checkpoint {
@@ -41,6 +57,8 @@ struct Checkpoint {
     semantic: PackageSemanticIdentity,
     phase: PackageTrashPhase,
     renamed_etag: Option<String>,
+    #[serde(default)]
+    revision_refusal: Option<PackageTrashRefusal>,
 }
 impl Checkpoint {
     fn key(&self) -> String {
@@ -56,7 +74,7 @@ impl Checkpoint {
         apple_account: &str,
     ) -> Result<()> {
         ensure!(
-            self.version == 1
+            matches!(self.version, 1 | 2)
                 && self.plan == *plan
                 && session.account_hash.as_ref() == Some(&self.account_hash)
                 && self.account_hash == crate::account_hash(apple_account)?,
@@ -90,6 +108,24 @@ impl Checkpoint {
                     .is_some_and(|e| !e.is_empty() && e != &self.imported.etag && e.len() <= 4096),
             "package Trash checkpoint has no changed revision"
         );
+        let proved = matches!(
+            self.phase,
+            PackageTrashPhase::StaleRefused
+                | PackageTrashPhase::CurrentTrashArmed
+                | PackageTrashPhase::Recovered
+        );
+        ensure!(
+            if self.version == 1 {
+                self.revision_refusal.is_none()
+            } else {
+                self.revision_refusal.is_none_or(PackageTrashRefusal::valid)
+                    && (!proved || self.revision_refusal.is_some())
+                    && (self.revision_refusal.is_none()
+                        || proved
+                        || self.phase == PackageTrashPhase::StaleTrashArmed)
+            },
+            "package Trash checkpoint refusal evidence mismatch"
+        );
         Ok(())
     }
 }
@@ -103,6 +139,7 @@ pub enum PackageTrashLocation {
 #[derive(Debug, Serialize)]
 pub struct PackageTrashInspection {
     pub phase: PackageTrashPhase,
+    pub revision_refusal: Option<PackageTrashRefusal>,
     pub location: PackageTrashLocation,
     pub metadata_stale_refusal_recorded: bool,
     pub current_trash_semantic_recovery_verified: bool,
@@ -198,7 +235,7 @@ impl OwnedPackageTrashProbe {
             "package import allocated identity mismatch"
         );
         let saved = Checkpoint {
-            version: 1,
+            version: 2,
             account_hash: session
                 .account_hash
                 .clone()
@@ -208,6 +245,7 @@ impl OwnedPackageTrashProbe {
             semantic,
             phase: PackageTrashPhase::Prepared,
             renamed_etag: None,
+            revision_refusal: None,
         };
         saved.validate(&session, &saved.plan, &apple_account)?;
         // A permanent create-new marker prevents re-execution even if a saved
@@ -285,12 +323,28 @@ impl OwnedPackageTrashProbe {
         self.arm(PackageTrashPhase::StaleTrashArmed, cancel).await?;
         let refusal = self
             .session
-            .send_probe_trash(&self.saved.imported.drivewsid, &self.saved.imported.etag)
+            .send_probe_trash(
+                &self.saved.imported.drivewsid,
+                &self.saved.imported.etag,
+                &self.saved.plan.parent,
+                self.saved
+                    .renamed_etag
+                    .as_deref()
+                    .context("package renamed revision absent")?,
+            )
             .await?;
-        ensure!(
-            refusal == crate::write_transport::ProbeTrashResult::PreconditionFailed,
-            "package stale Trash lacks explicit revision refusal: {refusal:?}"
-        );
+        self.saved.revision_refusal = Some(match refusal {
+            crate::write_transport::ProbeTrashResult::PreconditionFailed => {
+                PackageTrashRefusal::HttpPrecondition { http_status: 412 }
+            }
+            crate::write_transport::ProbeTrashResult::EtagConflict { http_status } => {
+                PackageTrashRefusal::ItemEtagConflict { http_status }
+            }
+            _ => anyhow::bail!("package stale Trash lacks explicit revision refusal: {refusal:?}"),
+        });
+        // Persist the response evidence before proof reads; StaleTrashArmed still
+        // means no verified active-content proof and grants no replay authority.
+        self.persist(PackageTrashPhase::StaleTrashArmed).await?;
         self.active(true, cancel).await?;
         self.persist(PackageTrashPhase::StaleRefused).await?;
         self.arm(PackageTrashPhase::CurrentTrashArmed, cancel)
@@ -431,6 +485,7 @@ fn inspection(saved: &Checkpoint, location: PackageTrashLocation) -> PackageTras
             );
     PackageTrashInspection {
         phase: saved.phase,
+        revision_refusal: saved.revision_refusal,
         location,
         metadata_stale_refusal_recorded,
         current_trash_semantic_recovery_verified,
@@ -538,5 +593,7 @@ async fn recover(
         .await?;
     Ok(())
 }
+mod restore_shape;
+pub use restore_shape::{OwnedPackageRestoreShape, RestorePathShape};
 #[cfg(test)]
 mod tests;

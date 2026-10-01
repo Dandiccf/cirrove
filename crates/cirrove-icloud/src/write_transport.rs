@@ -17,8 +17,26 @@ pub(crate) const TRASH_ROOT: &str = "FOLDER::com.apple.CloudDocs::TRASH_ROOT";
 pub(crate) enum ProbeTrashResult {
     Accepted,
     PreconditionFailed,
+    // Diagnostic only: the strict probe acceptance remains HTTP 412.
+    EtagConflict { http_status: u16 },
     Conflict { http_status: u16 },
     Rejected { http_status: u16 },
+}
+
+#[cfg(feature = "write-probe")]
+#[derive(Deserialize)]
+struct ProbeTrashReply {
+    items: Vec<ProbeTrashItem>,
+}
+
+#[cfg(feature = "write-probe")]
+#[derive(Deserialize)]
+struct ProbeTrashItem {
+    status: String,
+    drivewsid: Option<String>,
+    #[serde(rename = "parentId")]
+    parent_id: Option<String>,
+    etag: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -365,6 +383,8 @@ impl ICloudReadSession {
         &mut self,
         item_id: &str,
         etag: &str,
+        expected_parent: &str,
+        expected_current_etag: &str,
     ) -> Result<ProbeTrashResult> {
         let response = self.trash_response(item_id, etag).await?;
         let status = response.status();
@@ -381,12 +401,28 @@ impl ICloudReadSession {
                 },
             });
         }
-        let reply: TrashReply = read_json(response, "iCloud conditional Trash").await?;
+        let reply: ProbeTrashReply = read_json(response, "iCloud conditional Trash").await?;
         if reply.items.len() != 1 {
             bail!("iCloud conditional Trash receipt is incomplete");
         }
         Ok(if classify_trash(status, Some(&reply.items[0].status))? {
             ProbeTrashResult::Accepted
+        } else if reply.items[0].status == "ETAG_CONFLICT"
+            && reply.items[0].drivewsid.as_deref() == Some(item_id)
+            && reply.items[0].parent_id.as_deref() == Some(expected_parent)
+            && !expected_parent.is_empty()
+            && reply.items[0].etag.as_deref() == Some(expected_current_etag)
+            && !expected_current_etag.is_empty()
+            && expected_current_etag.len() <= 4096
+            && !expected_current_etag.contains(['\r', '\n', '*'])
+            && expected_current_etag != etag
+        {
+            // Public Drive module 2262 names this status and binds its target
+            // and parent before retrying. We additionally bind the independently
+            // observed current revision, and never adopt or replay its receipt.
+            ProbeTrashResult::EtagConflict {
+                http_status: status.as_u16(),
+            }
         } else if reply.items[0].status == "CONFLICT" {
             ProbeTrashResult::Conflict {
                 http_status: status.as_u16(),

@@ -131,7 +131,7 @@ fn observation(body: &Value) -> Result<OwnedManifestObservation> {
         document_path_present: path_present,
     })
 }
-async fn bounded_body(mut response: reqwest::Response) -> Result<Value> {
+pub(super) async fn bounded_body(mut response: reqwest::Response) -> Result<Value> {
     ensure!(
         response.content_length().is_none_or(|n| n <= LIMIT as u64),
         "manifest response too large"
@@ -189,7 +189,9 @@ impl ICloudReadSession {
                         host = next.0;
                         sticky = Some(next.1);
                     }
-                    401 | 403 | 421 => return Err(anyhow!("manifest session rejected")),
+                    status @ (401 | 403 | 421) => {
+                        return Err(anyhow!("manifest session rejected (HTTP {status})"));
+                    }
                     _ => return Err(anyhow!("manifest response status refused")),
                 }
             }
