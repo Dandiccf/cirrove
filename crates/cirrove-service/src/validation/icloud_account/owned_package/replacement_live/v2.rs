@@ -408,6 +408,60 @@ pub async fn icloud_native_v2_preflight(run: Uuid) -> Result<()> {
     println!("Fresh v2 exact original revision selected read-only; no replacement submitted.");
     Ok(())
 }
+// Read-only bridge for a retained v2 preflight whose successful operation
+// captured its original with semantic v1. Recompute BOTH from the exact retained
+// preflight archive; never reinterpret or rewrite a persisted proof.
+fn original_archive_proofs(
+    p: &Preflight,
+) -> Result<(PackageSemanticIdentity, PackageSemanticIdentity)> {
+    let path = p
+        .archive
+        .parent()
+        .context("preflight archive parent missing")?
+        .join("original.zip");
+    let (size, sha256) = file_hash(&path, LIMIT)?;
+    let receipt = PackageDownload { size, sha256 };
+    let v1 = semantic_file_versioned(&path, &receipt, &p.original.name, 1)?;
+    let v2 = semantic_file_versioned(&path, &receipt, &p.original.name, 2)?;
+    Ok((v1, v2))
+}
+fn v2_replacement_binding<'a>(
+    row: &'a UploadRecord,
+    p: &Preflight,
+    operation: Uuid,
+    v1: &PackageSemanticIdentity,
+    v2: &PackageSemanticIdentity,
+) -> Result<(&'a Node, &'a Node)> {
+    v1.validate()?;
+    v2.validate()?;
+    ensure!(
+        v1.version == 1 && v2.version == 2 && p.old_semantic == *v2 && p.new_semantic.version == 2,
+        "retained original archive semantic binding changed"
+    );
+    let UploadRepresentation::PackageReplacementArchive {
+        original_semantic, ..
+    } = &row.representation
+    else {
+        bail!("replacement representation refused");
+    };
+    let mut expected = p.clone();
+    match original_semantic.version {
+        1 => {
+            ensure!(
+                original_semantic == v1,
+                "retained original v1 proof differs"
+            );
+            expected.old_semantic = v1.clone();
+        }
+        2 => ensure!(
+            original_semantic == v2,
+            "retained original v2 proof differs"
+        ),
+        _ => bail!("retained original semantic version refused"),
+    }
+    replacement_binding(row, &expected, operation)
+}
+
 pub async fn icloud_native_v2_verify(run: Uuid, operation: Uuid) -> Result<()> {
     let dir = bound(run)?;
     let binding = retained_public_import_after_abandonment(Some(operation))?;
@@ -428,7 +482,8 @@ pub async fn icloud_native_v2_verify(run: Uuid, operation: Uuid) -> Result<()> {
         "fresh edited archive changed"
     );
     let row = binding.journal.native_validation_upload(operation)?;
-    let (current, backup) = replacement_binding(&row, &p, operation)?;
+    let (v1, v2) = original_archive_proofs(&p)?;
+    let (current, backup) = v2_replacement_binding(&row, &p, operation, &v1, &v2)?;
     publication_binding(
         &binding
             .journal
@@ -587,5 +642,132 @@ mod tests {
             old_preflight_sha256: "b".repeat(64),
         };
         assert!(baseline_binding(&baseline, Uuid::parse_str(NEW_RUN).unwrap()).is_err());
+    }
+    fn original_zip(name: &str, bytes: &[u8]) -> Vec<u8> {
+        let mut crc = !0u32;
+        for byte in bytes {
+            crc ^= u32::from(*byte);
+            for _ in 0..8 {
+                crc = (crc >> 1) ^ (0xedb88320 & 0u32.wrapping_sub(crc & 1));
+            }
+        }
+        crc = !crc;
+        let size = u32::try_from(bytes.len()).unwrap();
+        let len = u16::try_from(name.len()).unwrap();
+        let mut out = Vec::new();
+        out.extend(0x04034b50u32.to_le_bytes());
+        for value in [20u16, 0, 0, 0, 33] {
+            out.extend(value.to_le_bytes());
+        }
+        for value in [crc, size, size] {
+            out.extend(value.to_le_bytes());
+        }
+        for value in [len, 0] {
+            out.extend(value.to_le_bytes());
+        }
+        out.extend(name.as_bytes());
+        out.extend(bytes);
+        let offset = u32::try_from(out.len()).unwrap();
+        out.extend(0x02014b50u32.to_le_bytes());
+        for value in [20u16, 20, 0, 0, 0, 33] {
+            out.extend(value.to_le_bytes());
+        }
+        for value in [crc, size, size] {
+            out.extend(value.to_le_bytes());
+        }
+        for value in [len, 0, 0, 0, 0] {
+            out.extend(value.to_le_bytes());
+        }
+        for value in [0u32, 0] {
+            out.extend(value.to_le_bytes());
+        }
+        out.extend(name.as_bytes());
+        let central = u32::try_from(out.len()).unwrap() - offset;
+        out.extend(0x06054b50u32.to_le_bytes());
+        for value in [0u16, 0, 1, 1] {
+            out.extend(value.to_le_bytes());
+        }
+        for value in [central, offset] {
+            out.extend(value.to_le_bytes());
+        }
+        out.extend(0u16.to_le_bytes());
+        out
+    }
+
+    #[test]
+    fn v2_readback_bridge_binds_both_archive_proofs_and_exact_receipt() {
+        let temp = tempfile::tempdir().unwrap();
+        let (mut p, mut row) = super::super::tests::fixture();
+        p.archive = temp.path().join("replacement.zip");
+        let original = temp.path().join("original.zip");
+        let member = format!("{}/Index/Document.iwa", p.original.name);
+        std::fs::write(&original, original_zip(&member, b"synthetic original")).unwrap();
+        std::fs::set_permissions(&original, std::fs::Permissions::from_mode(0o600)).unwrap();
+        let (v1, v2) = original_archive_proofs(&p).unwrap();
+        p.old_semantic = v2.clone();
+        p.new_semantic.version = 2;
+        p.new_semantic.entries = 2;
+        let UploadRepresentation::PackageReplacementArchive {
+            original_semantic,
+            semantic,
+            ..
+        } = &mut row.representation
+        else {
+            unreachable!()
+        };
+        *original_semantic = v1.clone();
+        *semantic = p.new_semantic.clone();
+        row.package_completion = Some(p.new_semantic.clone());
+        assert!(replacement_binding(&row, &p, row.id).is_err());
+        v2_replacement_binding(&row, &p, row.id, &v1, &v2).unwrap();
+        assert!(v2_replacement_binding(&row, &p, Uuid::new_v4(), &v1, &v2).is_err());
+        let mut canonical = row.clone();
+        let UploadRepresentation::PackageReplacementArchive {
+            original_semantic, ..
+        } = &mut canonical.representation
+        else {
+            unreachable!()
+        };
+        *original_semantic = v2.clone();
+        v2_replacement_binding(&canonical, &p, canonical.id, &v1, &v2).unwrap();
+        for fault in 0..9 {
+            let mut bad = row.clone();
+            match fault {
+                0 => bad.scope.account.push('x'),
+                1 => bad.size += 1,
+                2 => bad.sha256 = "f".repeat(64),
+                3 => bad.state = UploadState::Conflict,
+                4 => bad.remote.as_mut().unwrap().id = p.original.id.clone(),
+                5 => bad.identity_handoff = None,
+                6 => bad.package_completion = None,
+                7 => {
+                    let UploadRepresentation::PackageReplacementArchive {
+                        original_semantic, ..
+                    } = &mut bad.representation
+                    else {
+                        unreachable!()
+                    };
+                    original_semantic.version = 3;
+                }
+                _ => {
+                    let UploadRepresentation::PackageReplacementArchive { original, .. } =
+                        &mut bad.representation
+                    else {
+                        unreachable!()
+                    };
+                    original.etag = Some("changed".into());
+                }
+            }
+            assert!(
+                v2_replacement_binding(&bad, &p, row.id, &v1, &v2).is_err(),
+                "fault {fault}"
+            );
+        }
+        let mut wrong = v1.clone();
+        wrong.sha256 = "f".repeat(64);
+        assert!(v2_replacement_binding(&row, &p, row.id, &wrong, &v2).is_err());
+        std::fs::write(&original, original_zip(&member, b"changed original")).unwrap();
+        let (changed1, changed2) = original_archive_proofs(&p).unwrap();
+        assert!(v2_replacement_binding(&row, &p, row.id, &changed1, &changed2).is_err());
     }
 }

@@ -587,3 +587,26 @@ async fn native_trash_staging_requires_owned_private_directory_without_symlink()
     assert!(matches!(provider.staging(), Err(MutationError::Invalid)));
     assert_eq!(server.state.lock().unwrap().reads, 0);
 }
+
+#[tokio::test]
+async fn native_fresh_original_capture_uses_v2_without_reinterpreting_legacy_proof() {
+    let dir = private_directory();
+    let server = Server::start(false, false).await;
+    let vault = Arc::new(Vault::default());
+    let request = request();
+    let capture = adapter(&request, &server, dir.path(), vault);
+    let cancel = CancellationToken::new();
+    let fresh = capture.capture_active_semantic(&cancel).await.unwrap();
+    assert_eq!(
+        fresh.version, 2,
+        "fresh original capture must use explicit v2 policy"
+    );
+    let mut state = capture.session.lock().await;
+    let session = ICloudNativeTrash::active(&mut state).await.unwrap();
+    let legacy = capture.capture(session, 1, &cancel).await.unwrap();
+    assert_eq!(legacy.version, 1);
+    assert_ne!(legacy, fresh);
+    assert_eq!(legacy.files, fresh.files);
+    assert_eq!(legacy.expanded_bytes, fresh.expanded_bytes);
+    assert_eq!(server.state.lock().unwrap().trash_calls, 0);
+}

@@ -268,7 +268,7 @@ impl ICloudNativeTrash {
             result = tokio::time::timeout(crate::VERIFICATION_TRANSFER_TIMEOUT, async {
                 let mut state = self.session.lock().await;
                 let session = Self::active(&mut state).await?;
-                self.capture(session, crate::PACKAGE_SEMANTIC_IDENTITY_VERSION, cancel).await
+                self.capture(session, 2, cancel).await
             }) => result.map_err(|_| MutationError::Uncertain)?,
         }
     }
@@ -409,7 +409,7 @@ impl MutationProvider for ICloudNativeTrash {
             }
             let mut state=self.session.lock().await; let session=Self::active(&mut state).await?;
             check(cancel)?;
-            let semantic=self.capture(session,crate::PACKAGE_SEMANTIC_IDENTITY_VERSION,cancel).await?;
+            let semantic=self.capture(session,2,cancel).await?;
             self.save(&Checkpoint {version:1,operation,request:request.clone(),account_hash:crate::account_hash(&self.apple_id).map_err(crate::mutation_error)?,semantic,phase:Phase::Prepared}).await?;
             check(cancel)?;
             Ok(Some(self.before.id.clone()))

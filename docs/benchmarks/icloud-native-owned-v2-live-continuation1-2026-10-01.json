@@ -1,0 +1,58 @@
+{
+  "run": "99aa5d99-abf8-45bf-85fd-366e6ec89365",
+  "account": "ca43ba36-9f5c-4784-9ae9-20e5c3cbe319",
+  "old_operation": "82767008-4553-4f8b-99cc-8a521ad9c5ac",
+  "status": "replacement-completed-independent-verification-incomplete",
+  "registered_at": "2026-10-01T21:14:29.275817+00:00",
+  "source_commit": "122478a857ffed2657e0c59e2f9b7e785007a2f1",
+  "fullcheck_passed": true,
+  "fullcheck_arm": "native-atomic-retirement-fullcheck-corrected",
+  "exclusive_window_confirmed": true,
+  "maximum_seconds": 2700,
+  "binaries": {
+    "cirroved": "2376250eef11bea8b25a45700bce607759deb3478f521e930e8f4ad6b34ba017",
+    "cirrove": "2d956cc75bf12d5c0f80e3c4ab9804f2deabdc302a9c12a2dda02e607edcdf9c",
+    "cirrove-icloud-mounted-write-probe": "4db521882cdf291e1b698262edababa5f86e48c9fcfaf9ddccbb8ba01212c7f6"
+  },
+  "runner_sha256": "c57dea53f831aae7f5da4a545c14bf669e4bd9afa0aec76f81c6cc9186a1f22c",
+  "predictions": [
+    "Exact old v1 Conflict locally resolves with typed Stage retention; payload and ciphertext hashes unchanged, no cloud mutation in abandonment.",
+    "One fresh v2 replacement accepts normalized directory entries while preserving exact file content and semantic edit.",
+    "Original remains independently readable in recoverable Trash; new visible identity and retained old stage verified without mutation replay."
+  ],
+  "limits": [
+    "Owned synthetic Pages document only; no general editor/Numbers/Keynote reliability claim.",
+    "No installation, no regular daemon restart, no cloud cleanup or automatic retry.",
+    "Any missing or changed identity, expired session or uncertain outcome stops mutation work."
+  ],
+  "preconditions_observed": {
+    "isolated_socket_absent": true,
+    "isolated_mount_absent": true,
+    "previous_isolated_daemon_exited": true,
+    "journal_schema": 17,
+    "exact_old_inventory": true,
+    "regular_daemon_pid": 3206061
+  },
+  "observed": {
+    "abandonment": "completed; exports before/after identical",
+    "new_operation": "bcab1c38-1a48-4747-8234-37568f6b742d",
+    "replacement_state": "uploaded",
+    "failed_attempts": 0,
+    "typed_handoff_and_semantic_receipt": true,
+    "mounted_visibility": {
+      "same_name_count": 1,
+      "directory": true,
+      "child_count": 1
+    },
+    "isolated_daemon_exit_codes": [
+      0,
+      0
+    ],
+    "independent_verifier": "refused exact preflight binding before provider verification",
+    "sole_preflight_row_difference": "original_semantic version1 versus independently captured preflight version2",
+    "root_cause": "native_trash::capture_active_semantic still selects legacy default1",
+    "no_mutation_replay": true
+  },
+  "continuation": 1,
+  "correction": "Public export via isolated daemon before any abandonment; preserved prior baseline and DB backup checked unchanged. No old command replay."
+}
